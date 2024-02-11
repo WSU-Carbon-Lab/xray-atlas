@@ -22,7 +22,7 @@ export const moleculeRouter = createTRPCRouter({
 
     const users = (
       await clerkClient.users.getUserList({
-        authorId: molecules.map((molecule) => molecule.authorId),
+        userId: molecules.map((molecule) => molecule.authorId),
         limit: 100,
       })
     ).map(fileterUserForClient);
@@ -30,7 +30,7 @@ export const moleculeRouter = createTRPCRouter({
     return molecules.map((molecule) => {
       const author = users.find((user) => user.id === molecule.authorId);
 
-      if (!author)
+      if (!author || !author.username)
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Author not found",
