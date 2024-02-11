@@ -1,6 +1,6 @@
 import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import Head from "next/head";
-import Image from "next/image"; \
+import Image from "next/image";
 
 
 import { RouterOutputs, api } from "~/utils/api";
@@ -34,29 +34,8 @@ const UserInfo = () => {
     </div>)
 }
 
-type MolecleWithAuthor = RouterOutputs["molecule"]["getAll"][number]
+// type MolecleWithAuthor = RouterOutputs["molecule"]["getAll"][number]
 
-const MoleculeCard = (props: MolecleWithAuthor) => {
-  const { molecule, author } = props;
-  return (
-    <div key={molecule.id} className="flex gap-3 p-4">
-      <Image
-        src={author.imageUrl}
-        className="h-14 w-14 rounded-full"
-        alt={`@${author.username}'s profile picture`}
-        width={56}
-        height={56}
-      />
-      <div className="flex flex-col">
-        <div className="flex text-slate-400 gap-1 text-xs italic">
-          <span>{`@${author.username}`}</span>
-          <span>{`·  ${molecule.createdAt.toDateString()}`}</span>
-        </div>
-        <h2>{molecule.materialName}</h2>
-      </div>
-    </div>
-  )
-}
 const SearchBar = () => {
   return (
     <div className="absolute justify-center items-center">
