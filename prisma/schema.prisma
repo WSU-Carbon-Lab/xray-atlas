@@ -14,11 +14,32 @@ datasource db {
     relationMode = "prisma"
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
+model MolecularRecord {
+    // numeric id indexing the record
+    id Int @id @default(autoincrement())
+
+    // Molecular information for the record
+    chemicalFormula String @db.VarChar(255)
+    chemicalName    String @db.VarChar(255)
+    materialName    String @db.VarChar(255)
+
+    // Deposition Conditions
+    solvent        String @db.VarChar(255)
+    concentration  String @db.VarChar(255)
+    temperature    String @db.VarChar(255)
+    depositionTime String @db.VarChar(255)
+    spinSpeed      String @db.VarChar(255)
+    vendorName     String @db.VarChar(255)
+
+    // Experimental Conditions
+    absorbtionEdge String @db.VarChar(255)
+    lab            String @db.VarChar(255)
+    scanMode       String @db.VarChar(255)
+    authorId       String @db.VarChar(255)
+
+    // Time stamps
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    @@index([name])
+    @@index([materialName])
 }
