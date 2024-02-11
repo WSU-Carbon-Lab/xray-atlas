@@ -7,6 +7,9 @@ await import("./src/env.js");
 /** @type {import("next").NextConfig} */
 const config = {
   reactStrictMode: true,
+  images: {
+    domains: ["images.clerk.dev", "img.clerk.com"],
+  },
 
   /**
    * If you are using `appDir` then you must comment the below `i18n` config out.
