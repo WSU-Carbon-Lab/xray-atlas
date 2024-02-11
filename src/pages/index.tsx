@@ -1,9 +1,6 @@
 import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import Head from "next/head";
-import Image from "next/image";
-import { useState } from "react";
-import { MoleculeForm } from "~/components/form";
-import { LoadingPage } from "~/components/loading";
+import Image from "next/image"; \
 
 
 import { RouterOutputs, api } from "~/utils/api";
