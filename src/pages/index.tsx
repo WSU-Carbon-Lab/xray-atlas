@@ -1,6 +1,7 @@
 import { SignIn, SignInButton, useUser } from "@clerk/nextjs";
 import Head from "next/head";
 import Image from "next/image";
+import { LoadingPage } from "~/components/loading";
 
 
 import { RouterOutputs, api } from "~/utils/api";
@@ -10,8 +11,6 @@ const UploadMoleculeWizard = () => {
   if (!user) {
     return null;
   }
-
-  console.log(user);
 
   return (
     <div className="flex gap-3 w-full">
@@ -44,21 +43,37 @@ const MoleculeCard = (props: MolecleWithAuthor) => {
           <span>{`@${author.username}`}</span>
           <span>{`·  ${molecule.createdAt.toDateString()}`}</span>
         </div>
-        <span>{molecule.materialName}</span>
+        <h2>{molecule.materialName}</h2>
       </div>
     </div>
   )
 }
 
-export default function Home() {
-  const user = useUser();
-  const { data, isLoading } = api.molecule.getAll.useQuery();
-  if (isLoading) {
-    return <div>Loading...</div>;
+const Feed = () => {
+  const { data, isLoading: postsLoading } = api.molecule.getAll.useQuery();
+
+  if (postsLoading) {
+    return <LoadingPage />;
   }
+
   if (!data) {
     return <div>No data</div>;
   }
+
+  return (
+    <div className="flex flex-col">
+      {[...data, ...data, ...data]?.map((fullMol) => (
+        <MoleculeCard {...fullMol} key={fullMol.molecule.id} />
+      ))}
+    </div>
+  );
+};
+
+export default function Home() {
+  const { isLoaded: userLoaded, isSignedIn } = useUser();
+
+  // Start fetching asap
+  api.molecule.getAll.useQuery();
 
   return (
     <>
@@ -70,19 +85,15 @@ export default function Home() {
       <main className="flex h-screen justify-center">
         <div className="w-full h-full border-x border-slate-400 md:max-w-2xl">
           <div className="flex border-b border-slate-400 p-4">
-            {!user.isSignedIn && (
+            {!isSignedIn && (
               <div className="flex justify-center">
                 <SignInButton />
               </div>
             )}
-            {user.isSignedIn && <UploadMoleculeWizard />}
+            {isSignedIn && <UploadMoleculeWizard />}
           </div>
           < SignIn path="/sign-in" routing="path" signUpUrl="sign-up" />
-          <div className="flex flex-col">
-            {[...data, ...data, ...data]?.map((fullMol) => (
-              <MoleculeCard {...fullMol} key={fullMol.molecule.id} />
-            ))}
-          </div>
+          <Feed />
         </div>
       </main>
     </>
