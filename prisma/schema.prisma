@@ -43,3 +43,29 @@ model MolecularRecord {
 
     @@index([materialName])
 }
+
+model BeamlineRecord {
+    // numeric id indexing the record
+    id              Int    @id @default(autoincrement())
+    synchrotronName String @db.VarChar(255)
+
+    // Beamline Information
+    beamlineNumber String @db.VarChar(255)
+    beamlineName   String @db.VarChar(255)
+    source         String @db.VarChar(255)
+    minEnergy      String @db.VarChar(255)
+    maxEnergy      String @db.VarChar(255)
+
+    //Experimental Capabilities
+    techniqueList  String
+    flux           String  @db.VarChar(255)
+    resolvingPower String  @db.VarChar(255)
+    polarization   Boolean
+
+    // Beamline Contact
+    contactName  String @db.VarChar(255)
+    contactEmail String @db.VarChar(255)
+    contactPhone String @db.VarChar(255)
+
+    @@index([beamlineName])
+}

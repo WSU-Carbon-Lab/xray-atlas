@@ -35,6 +35,10 @@ const UserInfo = () => {
     </div>)
 }
 
+const SynchrotronMap = () => {
+
+}
+
 type MolecleWithAuthor = RouterOutputs["molecule"]["getAll"][number]
 
 export default function Home() {
