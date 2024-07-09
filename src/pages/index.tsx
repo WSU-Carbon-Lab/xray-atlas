@@ -72,7 +72,21 @@ export default function Home() {
         </div>
       </div>
       <main >
-
+        {/* Add a placeholder list of molecules */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
+          {api.molecule.getAll.data?.map((molecule: MolecleWithAuthor) => (
+            <div key={molecule.id} className="bg-white rounded-lg shadow-md p-4">
+              <Image
+                src={molecule.image}
+                alt="Molecule image"
+                className="rounded-lg"
+                width={200}
+                height={200}
+              />
+              <div className="text-lg font-semibold">{molecule.name}</div>
+              <div className="text-sm text-gray-500">{molecule.author}</div>
+            </div>
+          ))}
       </main>
 
       <footer className="absolute bottom-0 left-5 h-16 w-16 flex">
