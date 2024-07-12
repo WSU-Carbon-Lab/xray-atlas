@@ -6,9 +6,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Roboto", ...fontFamily.sans],
+        sans: ["var(--font-geist-sans)", ...fontFamily.sans],
       },
     },
   },
   plugins: [],
-} as Config;
+} satisfies Config;
