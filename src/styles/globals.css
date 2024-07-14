@@ -1,3 +1,15 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  @apply bg-gray-700
+}
+
+h1 {
+  @apply text-4xl text-orange-100
+}
+
+p {
+  @apply font-sans font-light text-orange-100
+}
