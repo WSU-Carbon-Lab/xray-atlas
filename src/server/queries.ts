@@ -1,88 +1,120 @@
+import { Molecule } from "@prisma/client";
 import { db } from "~/server/db";
 
-// Get all wrapper functions
+// --- CID Queries ---
+export const getImageFromCID = (molecule: Molecule) => {
+  if (!molecule.cid) {
+    return molecule.image;
+  }
+  let url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${molecule.cid}/PNG?image_size=160x160`;
+  molecule.image = url;
+};
+
+// --- Molecule Queries ---
+export const getMolecule = async (name: string) => {
+  let mol = await db.molecule.findMany({
+    where: {
+      name: name,
+    },
+  });
+  if (mol.length === 0) {
+    return null;
+  }
+  mol.map((molecule) => getImageFromCID(molecule));
+  return mol;
+};
+
 export const getMolecules = async () => {
-  return db.molecules.findMany();
+  let mol = await db.molecule.findMany();
+  mol = mol.filter((molecule) => molecule.class === "public");
+  // Apply getImageFromCID to each molecule
+  mol.map((molecule) => getImageFromCID(molecule));
+  return mol;
+};
+
+// --- Preparation Queries ---
+export const getSpinParams = async (id: string) => {
+  return db.spinCoat.findMany({
+    where: {
+      id: id,
+    },
+  });
+};
+
+export const getPrep = async (id: string) => {
+  return db.preparation.findMany({
+    where: {
+      id: id,
+    },
+  });
+};
+
+export const getPrepsFromMolecule = async (mol_id: string) => {
+  return db.preparation.findMany({
+    where: {
+      id: mol_id,
+    },
+  });
+};
+
+// --- Experiment Queries ---
+export const getExperimentByMolecule = async (molecule: string) => {
+  let mol = await db.molecule.findFirst({
+    where: {
+      name: molecule,
+    },
+  });
+  if (!mol) {
+    return [];
+  }
+  return db.experiment.findMany({
+    where: {
+      molecule: mol.id,
+    },
+  });
+};
+
+export const getExperimentById = async (id: string) => {
+  return db.experiment.findMany({
+    where: {
+      id: id,
+    },
+  });
 };
 
 export const getExperiments = async () => {
   return db.experiment.findMany();
 };
 
-export const getPreps = async () => {
-  return db.preparation.findMany();
-};
-
-export const getAllNEXAFS = async () => {
-  return db.nEXAFS.findMany();
-};
-
-export const getMolById = async (id: any) => {
-  return db.molecules.findUnique({ where: { MoleculeID: id } });
-};
-
-export const getExpById = async (id: any) => {
-  return db.experiment.findUnique({ where: { ExperimentID: id } });
-};
-
-export const getNEXAFSByExpId = async (id: any) => {
-  return db.nEXAFS.findMany({ where: { ExperimentID: id } });
-};
-
-export const getPreparationById = async (id: any) => {
-  return await db.preparation.findUnique({
-    where: { PrepID: id },
-    include: {
-      Molecules_Preparation_PrimaryMolIDToMolecules: true,
-      Molecules_Preparation_SecondaryMolIDToMolecules: true,
-      Experiment: true,
-    },
-  });
-};
-
-export const searchMoleculesByName = async (name: any) => {
-  return await db.molecules.findMany({
+// --- Nexafs Queries ---
+export const getNexafsByExperiment = async (experiment: string) => {
+  let exp = await db.experiment.findFirst({
     where: {
-      Name: {
-        contains: name, // This makes the search case-insensitive and allows partial matches
-      },
-    },
-    include: {
-      Preparation_Preparation_PrimaryMolIDToMolecules: true,
-      Preparation_Preparation_SecondaryMolIDToMolecules: true,
+      id: experiment,
     },
   });
-};
-
-export const getExperimentsByMoleculeName = async (name: any) => {
-  const molecules = await db.molecules.findMany({
+  if (!exp) {
+    return [];
+  }
+  let nexafs = await db.nexafs.findMany({
     where: {
-      Name: {
-        contains: name,
-      },
-    },
-    include: {
-      Preparation_Preparation_PrimaryMolIDToMolecules: {
-        include: {
-          Experiment: true,
-        },
-      },
-      Preparation_Preparation_SecondaryMolIDToMolecules: {
-        include: {
-          Experiment: true,
-        },
-      },
+      exp_id: exp.id,
     },
   });
-
-  const experiments = molecules.flatMap((molecule) => [
-    ...molecule.Preparation_Preparation_PrimaryMolIDToMolecules.flatMap(
-      (prep) => prep.Experiment,
-    ),
-    ...molecule.Preparation_Preparation_SecondaryMolIDToMolecules.flatMap(
-      (prep) => prep.Experiment,
-    ),
-  ]);
-
-  return experiments;
+  // Create an empty dataframe
+  let dataframe: { [key: string]: any }[] = [];
+  for (let i = 0; i < nexafs.length; i++) {
+    let record = nexafs[i];
+    for (let column in record) {
+      if (column !== "id" && column !== "exp_id") {
+        if (!dataframe.some((row) => row[column] !== undefined)) {
+          dataframe.forEach((row) => (row[column] = undefined));
+        }
+        (dataframe[i] as { [key: string]: any })[
+          column as keyof typeof record
+        ] = record[column as keyof typeof record];
+      }
+    }
+  }
+  return dataframe;
 };

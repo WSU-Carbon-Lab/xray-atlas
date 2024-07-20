@@ -11,25 +11,13 @@ export const metadata: Metadata = {
 
 function TopNav() {
   return (
-    <header className="flex w-full justify-between border-b-2 border-gray-600">
+    <header className="flex w-full justify-between border-b-2 border-gray-800">
       <div className="flex w-full items-center">
-        <a href="/" className="p-5 font-mono text-3xl font-thin text-gray-200">
+        <a href="/" className="p-5 pl-10 font-mono text-3xl font-thin">
           「 Xray Atlas 」
         </a>
       </div>
     </header>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="flex w-full justify-between border-t-2 border-gray-600">
-      <div className="flex w-full items-center">
-        <a href="/" className="p-5 font-mono text-3xl font-thin text-gray-200">
-          「 Xray Atlas 」
-        </a>
-      </div>
-    </footer>
   );
 }
 
@@ -44,10 +32,7 @@ export default function RootLayout({
         <section className="...">
           <TopNav />
         </section>
-        <main>{children}</main>
-        <section className="...">
-          <Footer />
-        </section>
+        {children}
       </body>
     </html>
   );
