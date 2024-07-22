@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Zed";
+  src: "~/public/zed-sans-regular.ttf" format("truetype");
+}
+
+@font-face {
+  font-family: "Zed Thin";
+  src: "~/public/zed-sans-thin.ttf" format("truetype");
+}
+
+@font-face {
+  font-family: "Zed Mono";
+  src: "~/public/zed-mono-thin.ttf" format("truetype");
+}
+
 body {
-  @apply bg-white text-gray-600;
+  @apply bg-white text-gray-600 font-sans;
 }

@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import { getImageFromCID, getMolecules } from "~/server/queries";
+import { getMolecules } from "~/server/queries";
 import Link from "next/link";
 import { Molecule } from "@prisma/client";
 
@@ -11,26 +11,58 @@ async function MoleculePost(molecule: Molecule) {
     return null;
   }
   return (
-    <div className="... flex h-40 w-full gap-10">
-      <div className="... h-40 w-40 content-center rounded-lg bg-white">
+    <div className="... h-50 flex w-full gap-2 bg-white p-1 shadow-md">
+      <div className="... flex h-40 w-40 flex-col content-center bg-white shadow-md">
         <Image
-          className="... h-40 w-40 rounded-lg"
+          className="... h-40 w-40 rounded-sm"
           src={molecule.image}
           alt={molecule.name}
           width={160}
           height={160}
         />
       </div>
-      <div className="... flex w-full flex-col gap-1 rounded-xl bg-gray-700 pl-7 pt-5">
-        <div className="flex gap-2">
+      <div className="... flex w-full flex-col gap-1 rounded-sm bg-white pl-7 pt-5">
+        <div className="flex w-1/2 border-spacing-2 gap-2 border-b-2 border-gray-600 pt-2">
           <Link href={`/molecule/${molecule.name}`}>
-            <span className="...">{`${molecule.name} ` + " "}</span>
-            <span className="... font-mono font-thin text-gray-200">{`·`}</span>
-            <span className="... font-mono font-thin text-gray-200">{`${molecule.formula}`}</span>
+            <span className="... pl-5 text-lg text-blue-600">{`${molecule.name}  `}</span>
+            <span className="... text-lg text-blue-600">{"·"}</span>
+            <span className="... font-mono text-lg text-blue-600">{`  ${molecule.formula}`}</span>
           </Link>
         </div>
-        <div className="... font-mono font-thin text-gray-200">
-          {molecule.vendor}
+        <div className="flex gap-2">
+          <span className="... pl-5 text-sm">{"Synthesized by: "}</span>
+          <Link href={molecule.vendor} className="... text-sm">
+            <span className="...text-sm text-blue-600">
+              {`  ${
+                molecule.vendor
+                  .replace("https://", "")
+                  .replace("www.", "")
+                  .split(".")[0]
+              }`}
+            </span>
+          </Link>
+        </div>
+        <div className="flex gap-2">
+          <span className="... pl-5 text-sm">{"CAS Regestry: "}</span>
+          <Link
+            className="... text-sm"
+            href={`https://commonchemistry.cas.org/detail?cas_rn=${molecule.cas}&search=${molecule.cas}`}
+          >
+            <span className="... text-sm text-blue-600">
+              {molecule.cas || "N/A"}
+            </span>
+          </Link>
+        </div>
+        <div className="flex gap-2">
+          <span className="... pl-5 text-sm">{"CID Regestry: "}</span>
+          <Link
+            className="... text-sm"
+            href={`https://pubchem.ncbi.nlm.nih.gov/compound/${molecule.cid}`}
+          >
+            <span className="... text-sm text-blue-600">
+              {molecule.cid || "N/A"}
+            </span>
+          </Link>
         </div>
       </div>
     </div>
@@ -49,78 +81,6 @@ async function MoleculeFeed() {
       ))}
     </div>
   );
-}
-
-export function StructureCard(molecule: Molecule, size: number = 400) {
-  if (!molecule.cid) {
-    return (
-      <Image
-        className="... rounded-lg border border-slate-700 bg-gray-700 text-center"
-        src={molecule.image}
-        alt={molecule.name}
-        width={size}
-        height={size}
-      />
-    );
-  }
-  return (
-    <Image
-      className="... rounded-lg border border-slate-700 bg-gray-700 text-center"
-      src={
-        "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/" +
-        molecule.cid +
-        `/PNG?image_size=${size}x${size}`
-      }
-      alt={molecule.name}
-      width={size}
-      height={size}
-    />
-  );
-}
-
-async function MoleculeList() {
-  const molecules = await getMaterials();
-
-  const moleculeTable = (
-    <table className="... mx-auto w-full border-separate border-spacing-2 justify-items-center border border-slate-500">
-      <thead>
-        <tr>
-          <th className="...">Common Material Name</th>
-          <th className="...">Source</th>
-          <th className="...">Chemical Formula</th>
-          <th className="...">CID</th>
-          <th className="...">CAS</th>
-          <th className="...">Structure</th>
-        </tr>
-      </thead>
-      <tbody>
-        {molecules.map((molecule) => (
-          <tr key={molecule.id}>
-            <td className="...">
-              <Link href={`/molecule/${molecule.name}`}>{molecule.name}</Link>
-            </td>
-            <td className="...">
-              <Link href={`${molecule.vendor}`}>
-                {
-                  molecule.vendor
-                    .replace("https://", "")
-                    .replace("www.", "")
-                    .split("/")[0]
-                }
-              </Link>
-            </td>
-            <td className="...">{molecule.formula}</td>
-            <td className="...">{molecule.cid || "N/A"}</td>
-            <td className="...">{molecule.cas || "N/A"}</td>
-            <td className="..." width={400}>
-              <StructureCard {...molecule} />
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-  return moleculeTable;
 }
 
 export default function HomePage() {

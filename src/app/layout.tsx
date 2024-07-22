@@ -1,6 +1,7 @@
 import "~/styles/globals.css";
 
 import { type Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Xray Atlas",
@@ -11,13 +12,13 @@ export const metadata: Metadata = {
 
 function TopNav() {
   return (
-    <header className="flex w-full justify-between border-b-2 border-gray-800">
+    <nav className="flex w-full justify-between">
       <div className="flex w-full items-center">
-        <a href="/" className="p-5 pl-10 font-mono text-3xl font-thin">
-          「 Xray Atlas 」
-        </a>
+        <Link href="/" className="p-5 pl-10 font-sans text-3xl">
+          Xray Atlas
+        </Link>
       </div>
-    </header>
+    </nav>
   );
 }
 

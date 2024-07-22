@@ -23,6 +23,7 @@
     "next": "^14.2.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "tailwindcss-bg-patterns": "^0.3.0",
     "zod": "^3.23.3"
   },
   "devDependencies": {

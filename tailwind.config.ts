@@ -1,12 +1,14 @@
 import { type Config } from "tailwindcss";
-import { fontFamily } from "tailwindcss/defaultTheme";
 
 export default {
   content: ["./src/**/*.tsx"],
   theme: {
     extend: {
       fontFamily: {
-        sans: [""],
+        sans: ["zed"],
+        thin: ["zed-thin"],
+        light: ["zed-thin"],
+        mono: ["zed-mono"],
       },
     },
   },
