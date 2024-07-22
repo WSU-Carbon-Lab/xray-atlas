@@ -23,7 +23,7 @@ async function MoleculePost(molecule: Molecule) {
       </div>
       <div className="... flex w-full flex-col gap-1 rounded-sm bg-white pl-7 pt-5">
         <div className="flex w-1/2 border-spacing-2 gap-2 border-b-2 border-gray-600 pt-2">
-          <Link href={`/molecule/${molecule.name}`}>
+          <Link href={`/molecule/${molecule.name}/`}>
             <span className="... pl-5 text-lg text-blue-600">{`${molecule.name}  `}</span>
             <span className="... text-lg text-blue-600">{"·"}</span>
             <span className="... font-mono text-lg text-blue-600">{`  ${molecule.formula}`}</span>
