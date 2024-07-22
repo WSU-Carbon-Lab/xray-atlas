@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 
 function TopNav() {
   return (
-    <nav className="flex w-full justify-between">
-      <div className="flex w-full items-center">
+    <nav className="flex w-full justify-between font-sans">
+      <div className="flex w-full items-center font-sans">
         <Link href="/" className="p-5 pl-10 font-sans text-3xl">
           Xray Atlas
         </Link>
