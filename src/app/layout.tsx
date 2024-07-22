@@ -2,6 +2,7 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import Link from "next/link";
+import React from "react";
 
 export const metadata: Metadata = {
   title: "Xray Atlas",
@@ -24,8 +25,10 @@ function TopNav() {
 
 export default function RootLayout({
   children,
+  modal,
 }: {
   children: React.ReactNode;
+  modal: React.ReactNode;
 }) {
   return (
     <html lang="en">
@@ -34,6 +37,8 @@ export default function RootLayout({
           <TopNav />
         </section>
         {children}
+        {modal}
+        <div id="modal-root"></div>
       </body>
     </html>
   );
