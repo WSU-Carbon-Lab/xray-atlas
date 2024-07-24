@@ -11,8 +11,12 @@ export default async function Page({ params }: { params: { name: string } }) {
   return (
     <div className="... overflow-none flex h-screen justify-center">
       <div className="... flex w-full justify-center md:max-w-2xl">
-        <div className="... h-50 mb-4 w-full">
-          <MoleculePost {...molecule} />
+        <div className="... h-50 mb-4 w-full gap-2 bg-green-50">
+          <MoleculePost
+            molecule={molecule}
+            className="... h-50 mb-4 w-full bg-red-50"
+          />
+          <div className="h-50 mb-4 w-full bg-red-400"></div>
         </div>
       </div>
     </div>

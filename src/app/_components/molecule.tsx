@@ -4,64 +4,102 @@ import { getMolecules } from "~/server/queries";
 import { Molecule } from "@prisma/client";
 import React from "react";
 
-export const MoleculePost = (molecule: Molecule) => {
+export const TextLine = (props: {
+  label: string;
+  value: string;
+  link: string;
+  textColor?: string;
+  linkColor?: string;
+}) => {
+  const linkClass = "text-sm " + (props.linkColor || "text-blue-600");
+  const textClass = "text-sm " + (props.textColor || "text-black");
+  if (props.value === "Unknown") {
+    return (
+      <div className="...">
+        <span className={textClass}>{props.label}</span>
+        <span className={textClass}>{props.value}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="...">
+      <span className={textClass}>{props.label}</span>
+      <Link href={props.link} className={linkClass} passHref>
+        {props.value}
+      </Link>
+    </div>
+  );
+};
+
+export const Structure = (props: {
+  molecule: Molecule;
+  className?: string;
+}) => {
+  const updatedProps = {
+    ...props,
+    className: props.className
+      ? props.className +
+        " flex h-40 w-40 flex-col content-center bg-white shadow-md"
+      : "flex h-40 w-40 flex-col content-center bg-white shadow-md",
+  };
+
+  return (
+    <div className={updatedProps.className}>
+      <Image
+        className="... h-40 w-40 rounded-sm"
+        src={props.molecule.image}
+        alt={props.molecule.name}
+        width={160}
+        height={160}
+      />
+    </div>
+  );
+};
+
+export const MoleculePost = (props: {
+  molecule: Molecule;
+  className?: string;
+}) => {
+  const molecule = props.molecule;
   if (!molecule) {
     return null;
   }
+
+  const className = props.className + " flex w-full gap-2  p-1 shadow-md";
   return (
-    <div className="... h-50 flex w-full gap-2 bg-white p-1 shadow-md">
-      <div className="... flex h-40 w-40 flex-col content-center bg-white shadow-md">
-        <Image
-          className="... h-40 w-40 rounded-sm"
-          src={molecule.image}
-          alt={molecule.name}
-          width={160}
-          height={160}
-        />
-      </div>
+    <div className={className}>
+      <Structure molecule={molecule} className="... h-40 w-40" />
       <div className="... flex w-full flex-col gap-1 rounded-sm bg-white pl-7 pt-5">
-        <div className="flex w-1/2 border-spacing-2 gap-2 border-b-2 border-gray-600 pt-2">
-          <Link href={`/molecule/${molecule.name}/`} passHref>
-            <span className="... pl-5 text-lg text-blue-600">{`${molecule.name}  `}</span>
-            <span className="... text-lg text-blue-600">{"·"}</span>
-            <span className="... font-mono text-lg text-blue-600">{`  ${molecule.formula}`}</span>
-          </Link>
-        </div>
-        <div className="flex gap-2">
-          <span className="... pl-5 text-sm">{"Synthesized by: "}</span>
-          <Link href={molecule.vendor} className="... text-sm">
-            <span className="...text-sm text-blue-600">
-              {`  ${
-                molecule.vendor
-                  .replace("https://", "")
-                  .replace("www.", "")
-                  .split(".")[0]
-              }`}
-            </span>
-          </Link>
-        </div>
-        <div className="flex gap-2">
-          <span className="... pl-5 text-sm">{"CAS Regestry: "}</span>
-          <Link
-            className="... text-sm"
-            href={`https://commonchemistry.cas.org/detail?cas_rn=${molecule.cas}&search=${molecule.cas}`}
-          >
-            <span className="... text-sm text-blue-600">
-              {molecule.cas || "N/A"}
-            </span>
-          </Link>
-        </div>
-        <div className="flex gap-2">
-          <span className="... pl-5 text-sm">{"CID Regestry: "}</span>
-          <Link
-            className="... text-sm"
-            href={`https://pubchem.ncbi.nlm.nih.gov/compound/${molecule.cid}`}
-          >
-            <span className="... text-sm text-blue-600">
-              {molecule.cid || "N/A"}
-            </span>
-          </Link>
-        </div>
+        <Link
+          href={`/molecule/${molecule.name}/`}
+          className="flex w-1/2 border-spacing-2 gap-2 border-b-2 border-gray-600 pt-1"
+          passHref
+        >
+          <h1 className="... pl-5 text-lg text-blue-600">
+            {`${molecule.name}  ` + "·" + `  ${molecule.formula}`}
+          </h1>
+        </Link>
+        <TextLine
+          label="Sourced from: "
+          value={
+            molecule.vendor
+              .replace("https://", "")
+              .replace("www.", "")
+              .split(".")[0] || "Unknown Vendor"
+          }
+          link={molecule.vendor}
+        />
+        <TextLine
+          label="CAS Regestry: "
+          value={molecule.cas || "Unknown"}
+          link={`https://commonchemistry.cas.org/detail?cas_rn=${molecule.cas}&search=${molecule.cas}`}
+        />
+        <TextLine
+          label="CID Regestry: "
+          value={molecule.cid || "Unknown"}
+          link={`https://pubchem.ncbi.nlm.nih.gov/compound/${molecule.cid}`}
+        />
       </div>
     </div>
   );
@@ -70,11 +108,9 @@ export const MoleculePost = (molecule: Molecule) => {
 export const MoleculeFeed = async () => {
   const molecules = await getMolecules();
   return (
-    <div className="... flex h-full w-full flex-col justify-center">
+    <div className="... flex h-full w-full flex-col justify-center gap-2">
       {molecules.map((molecule) => (
-        <div className="... mb-4">
-          <MoleculePost {...molecule} key={molecule.id} />
-        </div>
+        <MoleculePost molecule={molecule} key={molecule.id} />
       ))}
     </div>
   );
