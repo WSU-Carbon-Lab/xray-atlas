@@ -12,15 +12,15 @@ export const getImageFromCID = (molecule: Molecule) => {
 
 // --- Molecule Queries ---
 export const getMolecule = async (name: string) => {
-  let mol = await db.molecule.findMany({
+  let mol = await db.molecule.findFirst({
     where: {
       name: name,
     },
   });
-  if (mol.length === 0) {
+  if (!mol) {
     return null;
   }
-  mol.map((molecule) => getImageFromCID(molecule));
+  getImageFromCID(mol);
   return mol;
 };
 
