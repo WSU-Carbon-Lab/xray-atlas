@@ -17,6 +17,13 @@
   src: "~/public/zed-mono-thin.ttf" format("truetype");
 }
 
+@layer base {
+  @font-face {
+    font-family: "Zed";
+    src: "~/public/zed-sans-regular.ttf" format("truetype");
+  }
+}
+
 body {
-  @apply bg-white text-gray-600 font-sans;
+  @apply bg-white text-gray-600 font-sans ;
 }

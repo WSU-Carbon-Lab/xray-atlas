@@ -4,7 +4,7 @@ import { getMolecules } from "~/server/queries";
 import { Molecule } from "@prisma/client";
 import React from "react";
 
-export const TextLine = (props: {
+export const TextLink = (props: {
   label: string;
   value: string;
   link: string;
@@ -32,7 +32,7 @@ export const TextLine = (props: {
   );
 };
 
-export const Structure = (props: {
+export const MoleculeDisplay = (props: {
   molecule: Molecule;
   className?: string;
 }) => {
@@ -57,7 +57,7 @@ export const Structure = (props: {
   );
 };
 
-export const MoleculePost = (props: {
+export const MoleculeInfoCard = (props: {
   molecule: Molecule;
   className?: string;
 }) => {
@@ -69,18 +69,18 @@ export const MoleculePost = (props: {
   const className = props.className + " flex w-full gap-2  p-1 shadow-md";
   return (
     <div className={className}>
-      <Structure molecule={molecule} className="... h-40 w-40" />
+      <MoleculeDisplay molecule={molecule} className="... h-40 w-40" />
       <div className="... flex w-full flex-col gap-1 rounded-sm bg-white pl-7 pt-5">
         <Link
           href={`/molecule/${molecule.name}/`}
           className="flex w-1/2 border-spacing-2 gap-2 border-b-2 border-gray-600 pt-1"
           passHref
         >
-          <h1 className="... pl-5 text-lg text-blue-600">
+          <h1 className="... text-lg text-blue-600">
             {`${molecule.name}  ` + "·" + `  ${molecule.formula}`}
           </h1>
         </Link>
-        <TextLine
+        <TextLink
           label="Sourced from: "
           value={
             molecule.vendor
@@ -90,13 +90,13 @@ export const MoleculePost = (props: {
           }
           link={molecule.vendor}
         />
-        <TextLine
-          label="CAS Regestry: "
+        <TextLink
+          label="CAS Registry : "
           value={molecule.cas || "Unknown"}
           link={`https://commonchemistry.cas.org/detail?cas_rn=${molecule.cas}&search=${molecule.cas}`}
         />
-        <TextLine
-          label="CID Regestry: "
+        <TextLink
+          label="CID Registry : "
           value={molecule.cid || "Unknown"}
           link={`https://pubchem.ncbi.nlm.nih.gov/compound/${molecule.cid}`}
         />
@@ -105,12 +105,12 @@ export const MoleculePost = (props: {
   );
 };
 
-export const MoleculeFeed = async () => {
+export const MoleculeRegistry = async () => {
   const molecules = await getMolecules();
   return (
     <div className="... flex h-full w-full flex-col justify-center gap-2">
       {molecules.map((molecule) => (
-        <MoleculePost molecule={molecule} key={molecule.id} />
+        <MoleculeInfoCard molecule={molecule} key={molecule.id} />
       ))}
     </div>
   );
