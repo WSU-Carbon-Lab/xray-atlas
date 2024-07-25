@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@catppuccin/palette": "^1.2.0",
+    "@nextui-org/button": "^2.0.37",
+    "@nextui-org/dropdown": "^2.1.29",
     "@prisma/client": "^5.17.0",
     "@rdkit/rdkit": "^2023.9.2-1.0.0",
     "@t3-oss/env-nextjs": "^0.10.1",

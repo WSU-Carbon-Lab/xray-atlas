@@ -8,17 +8,18 @@ datasource db {
 }
 
 model Experiment {
-  id          String      @id(map: "PK_Experiment") @db.UniqueIdentifier
-  molecule    String      @db.UniqueIdentifier
-  prep        String      @db.UniqueIdentifier
-  source      String      @db.NVarChar(255)
-  endstation  String      @db.NVarChar(255)
-  atom        String      @db.NVarChar(255)
-  edge        String      @db.NVarChar(255)
-  method      String      @db.VarChar(10)
-  Molecule    Molecule    @relation(fields: [molecule], references: [id], onUpdate: NoAction, map: "fk_molecul")
-  Preparation Preparation @relation(fields: [prep], references: [id], onUpdate: NoAction, map: "fk_prep")
-  Nexafs      Nexafs[]
+  id              String      @id(map: "PK_Experiment") @db.UniqueIdentifier
+  molecule        String      @db.UniqueIdentifier
+  prep            String      @db.UniqueIdentifier
+  source          String      @db.NVarChar(255)
+  endstation      String      @db.NVarChar(255)
+  atom            String      @db.NVarChar(255)
+  edge            String      @db.NVarChar(255)
+  method          String      @db.VarChar(10)
+  experimentalist String?     @db.VarChar(255)
+  Molecule        Molecule    @relation(fields: [molecule], references: [id], onUpdate: NoAction, map: "fk_molecul")
+  Preparation     Preparation @relation(fields: [prep], references: [id], onUpdate: NoAction, map: "fk_prep")
+  Nexafs          Nexafs[]
 
   @@index([endstation], map: "idx_experiment_endstation")
   @@index([molecule], map: "idx_experiment_molecule")

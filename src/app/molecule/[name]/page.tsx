@@ -1,6 +1,7 @@
+import { Molecule } from "@prisma/client";
 import React from "react";
 import { MoleculeInfoCard } from "~/app/_components/molecule";
-import { SamplePicker, ExperimentPicker } from "~/app/_components/nexafs";
+import { NexafsTable } from "~/app/_components/nexafs";
 import { getMolecule } from "~/server/queries";
 
 export default async function Page({ params }: { params: { name: string } }) {
@@ -9,14 +10,14 @@ export default async function Page({ params }: { params: { name: string } }) {
     return <div>404</div>;
   }
   return (
-    <div className="... overflow-none flex h-screen justify-center">
-      <div className="... flex w-full justify-center md:max-w-2xl">
-        <div className="... h-50 mb-4 w-full gap-2 bg-green-50">
+    <div className="... overflow-none flex h-screen justify-center bg-blue-50">
+      <div className="... flex w-full justify-center bg-red-50 md:max-w-2xl">
+        <div className="... h-50 mb-4 w-full gap-2">
           <MoleculeInfoCard
             molecule={molecule}
-            className="... h-50 mb-4 w-full bg-red-50"
+            className="... h-50 mb-4 w-full"
           />
-          <div className="h-50 mb-4 w-full bg-red-400"></div>
+          <NexafsTable molecule={molecule} />
         </div>
       </div>
     </div>

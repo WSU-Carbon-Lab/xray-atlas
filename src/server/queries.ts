@@ -1,4 +1,11 @@
-import { Molecule } from "@prisma/client";
+import {
+  Experiment,
+  Molecule,
+  Preparation,
+  PVD,
+  SpinCoat,
+} from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 import { db } from "~/server/db";
 
 // --- CID Queries ---
@@ -32,89 +39,110 @@ export const getMolecules = async () => {
   return mol;
 };
 
-// --- Preparation Queries ---
-export const getSpinParams = async (id: string) => {
-  return db.spinCoat.findMany({
+// --- Sample Prep Queries ---
+export type SamplePrep = {
+  preparation: Preparation;
+  spinCoat?: SpinCoat;
+  PVD?: PVD;
+};
+
+export const getSamplePrepById = async (id: string) => {
+  let prep = await db.preparation.findFirst({
     where: {
       id: id,
     },
   });
+  if (!prep) {
+    return null;
+  }
+  let samplePrep = await getMethod(prep);
+  return samplePrep;
 };
 
-export const getPrep = async (id: string) => {
-  return db.preparation.findMany({
+export const getSamplePrep = async (molecule: Molecule) => {
+  let prep = await db.preparation.findMany({
     where: {
-      id: id,
+      molecule: molecule.id,
     },
   });
+  let samplePreps = await Promise.all(prep.map((p) => getMethod(p)));
+  return samplePreps;
 };
 
-export const getPrepsFromMolecule = async (mol_id: string) => {
-  return db.preparation.findMany({
-    where: {
-      id: mol_id,
-    },
-  });
+export const getMethod = async (prep: Preparation) => {
+  if (prep.spin_id) {
+    let spinProcess = await db.spinCoat.findFirst({
+      where: {
+        id: prep.spin_id,
+      },
+    });
+    return { preparation: prep, spinCoat: spinProcess };
+  } else if (prep.pvd_id) {
+    let pvdProcess = await db.pVD.findFirst({
+      where: {
+        id: prep.pvd_id,
+      },
+    });
+    return { preparation: prep, PVD: pvdProcess };
+  } else {
+    return { preparation: prep };
+  }
 };
 
 // --- Experiment Queries ---
-export const getExperimentByMolecule = async (molecule: string) => {
-  let mol = await db.molecule.findFirst({
+export const getExperiments = async (molecule: Molecule) => {
+  let exp = await db.experiment.findMany({
     where: {
-      name: molecule,
+      molecule: molecule.id,
     },
   });
-  if (!mol) {
-    return [];
-  }
-  return db.experiment.findMany({
-    where: {
-      molecule: mol.id,
-    },
-  });
+  return exp;
 };
 
-export const getExperimentById = async (id: string) => {
-  return db.experiment.findMany({
+export const getExpById = async (id: string) => {
+  let exp = await db.experiment.findFirst({
     where: {
       id: id,
     },
   });
-};
-
-export const getExperiments = async () => {
-  return db.experiment.findMany();
+  return exp;
 };
 
 // --- Nexafs Queries ---
-export const getNexafsByExperiment = async (experiment: string) => {
-  let exp = await db.experiment.findFirst({
+export type NexafsSimplified = {
+  id: number[] | null[];
+  e: Decimal[] | null[];
+  mu: Decimal[] | null[];
+  deg: (Decimal | null)[];
+};
+
+export type CompleateData = {
+  molecule: Molecule;
+  experiment: Experiment;
+  samplePrep: SamplePrep;
+  nexafs: NexafsSimplified;
+};
+
+export const getNexafs = async (exp_id: string) => {
+  const nexafs = await db.nexafs.findMany({
     where: {
-      id: experiment,
+      exp_id,
     },
   });
-  if (!exp) {
-    return [];
-  }
-  let nexafs = await db.nexafs.findMany({
-    where: {
-      exp_id: exp.id,
-    },
+  const id = nexafs.map((n) => n.id);
+  const e = nexafs.map((n) => n.e);
+  const mu = nexafs.map((n) => n.mu);
+  const deg = nexafs.map((n) => n.deg);
+  const simplified: NexafsSimplified = { id, e, mu, deg };
+  return simplified;
+};
+
+export const getNexafsData = async (experiment: Experiment) => {
+  let molecule = await db.molecule.findFirst({
+    where: { id: experiment.molecule },
   });
-  // Create an empty dataframe
-  let dataframe: { [key: string]: any }[] = [];
-  for (let i = 0; i < nexafs.length; i++) {
-    let record = nexafs[i];
-    for (let column in record) {
-      if (column !== "id" && column !== "exp_id") {
-        if (!dataframe.some((row) => row[column] !== undefined)) {
-          dataframe.forEach((row) => (row[column] = undefined));
-        }
-        (dataframe[i] as { [key: string]: any })[
-          column as keyof typeof record
-        ] = record[column as keyof typeof record];
-      }
-    }
-  }
-  return dataframe;
+  let samplePrep = await getSamplePrepById(experiment.prep);
+  let simpleNexafs = await getNexafs(experiment.id);
+
+  return { molecule, experiment, samplePrep, simpleNexafs };
 };

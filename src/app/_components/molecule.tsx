@@ -110,7 +110,11 @@ export const MoleculeRegistry = async () => {
   return (
     <div className="... flex h-full w-full flex-col justify-center gap-2">
       {molecules.map((molecule) => (
-        <MoleculeInfoCard molecule={molecule} key={molecule.id} />
+        <MoleculeInfoCard
+          molecule={molecule}
+          key={molecule.id}
+          className="hover:shadow-blue-100"
+        />
       ))}
     </div>
   );
