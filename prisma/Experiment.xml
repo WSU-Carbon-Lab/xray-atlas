@@ -1,0 +1,24 @@
+<Experiment>
+    <row>
+        <id>52AF031F-5EC9-423F-AA85-F31D7638CE5F</id>
+        <molecule>8E42AE7D-7F1F-435B-A773-235B5471647A</molecule>
+        <prep>44DFCADF-121B-4A7B-A62E-D5B4A16A856D</prep>
+        <source>ANSTO</source>
+        <endstation>SXR</endstation>
+        <atom>C</atom>
+        <edge>K</edge>
+        <method>TEY</method>
+        <experimentalist>Chris McNeill</experimentalist>
+    </row>
+    <row>
+        <id>E1F21B8B-13C5-4B4B-A08F-F4C70F0C5F3F</id>
+        <molecule>8E42AE7D-7F1F-435B-A773-235B5471647A</molecule>
+        <prep>BCEA21CE-70EF-43CC-8139-32B6D7139441</prep>
+        <source>NSLSII</source>
+        <endstation>SMI</endstation>
+        <atom>S</atom>
+        <edge>K</edge>
+        <method>FY</method>
+        <experimentalist>Collins Lab</experimentalist>
+    </row>
+</Experiment>
