@@ -1,29 +1,22 @@
-# Create T3 App
+# Nexafs Database
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+This repository is used to version controll a database for NEXAFS data collected at the
+various synchrotron facilities. Currently, the database is stored in flat json files,
+but the plan is to move to a more robust serverless database in the future.
 
-## What's next? How do I make an app with this?
+## Loading new Data
+Trying and failing to implement the single responsibility principle, the `local_nexafs_parse.ipynb`
+notebook has been used to load new data into the database. The notebook is a bit of a mess, and
+feel free to clean it up. Escentially, the notebook reads an excel file, and loads the
+data into a json file. There are two important json files in the database:
+- `regestry.json`: This file contains the metadata for each sample. The metadata includes
+    the molecule name, molecular formula, image path, vendor, cid, and sid.
+- `{name}.json`: This file contains a copy of the data from the meta data with information
+    about the experiment such as edge, synchrotron, endstation, experimentalist, and
+    the actual data. The experimental data is stored in a list of dictionaries, where the
+    dictionaries contain a data key describing a dictionary of the data. The data dictionary
+    has keys for the incident angle, and contains lists for energy and intensity.
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
-
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
-
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
-
-## Learn More
-
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
-
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
-
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
-
-## How do I deploy this?
-
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+The data was setup this way to make it easier to load into the website. Because of this,
+the `{name}.json` files repeat the metadata from the `regestry.json` file. So any updates
+need to be made in both files.

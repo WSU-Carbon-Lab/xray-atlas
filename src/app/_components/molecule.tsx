@@ -1,8 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getMolecules } from "~/server/queries";
-import { Molecule } from "@prisma/client";
+import { Molecule, registry } from "~/server/db";
 import React from "react";
+
+const img = (molecule: Molecule) => {
+  if (!molecule.cid) {
+    return molecule.image;
+  }
+  try {
+    return `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${molecule.cid}/PNG?image_size=160x160`;
+  } catch (e) {
+    return molecule.image;
+  }
+};
 
 export const TextLink = (props: {
   label: string;
@@ -48,7 +58,7 @@ export const MoleculeDisplay = (props: {
     <div className={updatedProps.className}>
       <Image
         className="... h-40 w-40 rounded-sm"
-        src={props.molecule.image}
+        src={img(props.molecule)}
         alt={props.molecule.name}
         width={160}
         height={160}
@@ -106,13 +116,13 @@ export const MoleculeInfoCard = (props: {
 };
 
 export const MoleculeRegistry = async () => {
-  const molecules = await getMolecules();
+  const molecules = registry.molecule;
   return (
     <div className="... flex h-full w-full flex-col justify-center gap-2">
       {molecules.map((molecule) => (
         <MoleculeInfoCard
           molecule={molecule}
-          key={molecule.id}
+          key={molecule.name}
           className="hover:shadow-blue-100"
         />
       ))}
