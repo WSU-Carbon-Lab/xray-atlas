@@ -1,23 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Molecule, registry } from "~/server/db";
+import { Molecule } from "~/server/db";
 import React from "react";
+import { getMolecules } from "~/server/queries";
 
-const img = (molecule: Molecule) => {
-  if (!molecule.cid) {
-    return molecule.image;
-  }
-  try {
-    return `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${molecule.cid}/PNG?image_size=160x160`;
-  } catch (e) {
-    return molecule.image;
-  }
-};
-
-export const TextLink = (props: {
+export const Text = (props: {
   label: string;
   value: string;
-  link: string;
   textColor?: string;
   linkColor?: string;
 }) => {
@@ -35,9 +24,7 @@ export const TextLink = (props: {
   return (
     <div className="...">
       <span className={textClass}>{props.label}</span>
-      <Link href={props.link} className={linkClass} passHref>
-        {props.value}
-      </Link>
+      <span className={linkClass}>{props.value}</span>
     </div>
   );
 };
@@ -58,7 +45,7 @@ export const MoleculeDisplay = (props: {
     <div className={updatedProps.className}>
       <Image
         className="... h-40 w-40 rounded-sm"
-        src={img(props.molecule)}
+        src={props.molecule.img}
         alt={props.molecule.name}
         width={160}
         height={160}
@@ -87,36 +74,20 @@ export const MoleculeInfoCard = (props: {
           passHref
         >
           <h1 className="... text-lg text-blue-600">
-            {`${molecule.name}  ` + "·" + `  ${molecule.formula}`}
+            {`${molecule.name}  ` + "·" + `  ${molecule.chemicalFormula}`}
           </h1>
         </Link>
-        <TextLink
-          label="Sourced from: "
-          value={
-            molecule.vendor
-              .replace("https://", "")
-              .replace("www.", "")
-              .split(".")[0] || "Unknown Vendor"
-          }
-          link={molecule.vendor}
-        />
-        <TextLink
-          label="CAS Registry : "
-          value={molecule.cas || "Unknown"}
-          link={`https://commonchemistry.cas.org/detail?cas_rn=${molecule.cas}&search=${molecule.cas}`}
-        />
-        <TextLink
-          label="CID Registry : "
-          value={molecule.cid || "Unknown"}
-          link={`https://pubchem.ncbi.nlm.nih.gov/compound/${molecule.cid}`}
-        />
+        <Text label="Chemical Name : " value={molecule.description} />
+        <Text label="Synonyms : " value={molecule.synonims.join(", ")} />
+        <Text label="InChI : " value={molecule.inchi} />
+        <Text label="SMILES : " value={molecule.smiles} />
       </div>
     </div>
   );
 };
 
 export const MoleculeRegistry = async () => {
-  const molecules = registry.molecule;
+  const molecules = await getMolecules();
   return (
     <div className="... flex h-full w-full flex-col justify-center gap-2">
       {molecules.map((molecule) => (

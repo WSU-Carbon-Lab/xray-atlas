@@ -1,87 +1,70 @@
-import { fromSSO } from "@aws-sdk/credential-providers";
-import {
-  S3Client,
-  GetObjectCommand,
-  ListObjectsV2Command,
-} from "@aws-sdk/client-s3";
+import { string } from "zod";
 
-const createS3Client = async () =>
-  new S3Client({
-    region: process.env.AWS_REGION,
-    credentials: await fromSSO({ profile: process.env.AWS_PROFILE }),
-  });
+export type Signal = { signal: number[]; units: string };
 
-export const get = (key: string) =>
-  new GetObjectCommand({
-    Bucket: process.env.AWS_BUCKET,
-    Key: key,
-  });
-
-export const list = () =>
-  new ListObjectsV2Command({ Bucket: process.env.AWS_BUCKET });
-
-const getJson = async <S3Object>(
-  s3: S3Client,
-  key: string,
-): Promise<S3Object> => {
-  const { Body } = await s3.send(get(key));
-  if (!Body || !Body.transformToString) {
-    throw new Error("Invalid query response");
-  }
-
-  const bodyString = await Body.transformToString();
-  return JSON.parse(bodyString) as S3Object;
-};
-
-const listS3 = async (s3: S3Client) => {
-  const response = await s3.send(list());
-  return response.Contents;
-};
-
-// Initialize S3 client
-export const s3 = await createS3Client();
-export const s3List = await listS3(s3);
-export const registry = (await getJson(s3, "registry.json")) as MoleculeList;
-export const data = (mol: string) =>
-  getJson(s3, `${mol}.json`) as unknown as MoleculeFile;
-
-// db types
-export enum NexafsType {
-  TEY = "TEY",
-  PsTEY = "Ps-TEY",
-  FY = "FY",
-  ABS = "Abs",
+export type MoleculeList = Molecule[];
+export interface Molecule {
+  name: string;
+  synonims: string[];
+  chemicalFormula: string;
+  description: string;
+  smiles: string;
+  inchi: string;
+  img: string;
+  data?: Experiment[];
+}
+export interface Experiment {
+  edge: string;
+  method: string;
+  facility: string;
+  instrument: string;
+  group: string;
+  source: string;
 }
 
-export type Molecule = {
+export interface User {
   name: string;
-  formula: string;
-  image: string;
-  vendor: string;
-  cid?: string;
-  cas?: string;
-};
+  affiliation: string;
+  group: string;
+  email: string;
+  doi?: string;
+}
 
-export type Experiment = {
+export interface Instrument {
+  facility: string;
+  instrument: string;
   edge: string;
-  type: NexafsType;
-  synchrotron: string;
-  endstation: string;
-  data: { theta: Data };
-};
+  normalizationMethod: string;
+  technique: string;
+  techniqueDescription: string;
+}
 
-export type Data = {
-  en: number[];
-  mu: number[];
-};
+export interface Sample {
+  vendor: string;
+  preparationMethod: {
+    method: string;
+    details: string;
+  };
+  molOirientationMethod: string;
+}
+export interface Data {
+  geometry: {
+    eFieldAzimuth: number;
+    eFieldPolar: number;
+  };
+  energy: Signal;
+  intensity: Signal;
+  error?: Signal;
+  io?: Signal;
+}
 
-export type MoleculeList = { molecule: Molecule[] };
-export type MoleculeFile = {
-  header: Molecule;
-  experiments: Experiment[];
-};
+export interface DataSet {
+  user: User;
+  instrument: Instrument;
+  sample: Sample;
+  data: Data[];
+}
 
-export enum S3Object {
-  registry,
-  molecule,
+export function Uid(experiment: Experiment): string {
+  return `${experiment.edge}_${experiment.method}_${experiment.facility}_${experiment.instrument}`;
 }
