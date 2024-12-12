@@ -1,22 +1,24 @@
 import React from "react";
 import { MoleculeInfoCard } from "~/app/_components/molecule";
 import { NexafsTable } from "~/app/_components/nexafs";
-import { data } from "~/server/db";
+import { getMolecule } from "~/server/queries";
 
-export default async function Page({ params }: { params: { name: string } }) {
-  const molecule = await data(params.name);
-  if (!molecule) {
-    return <div>404</div>;
-  }
+type Params = Promise<{ slug: string }>;
+
+export default async function Page(props: { params: Params }) {
+  const params = await props.params;
+  const name = params.slug;
+  const molecule = await getMolecule(name);
+  console.log(molecule);
   return (
-    <div className="... overflow-none flex h-screen justify-center bg-blue-50">
-      <div className="... flex w-full justify-center bg-red-50 md:max-w-2xl">
+    <div className="... overflow-none flex h-screen justify-center">
+      <div className="... flex w-full justify-center md:max-w-2xl">
         <div className="... h-50 mb-4 w-full gap-2">
           <MoleculeInfoCard
-            molecule={molecule.header}
+            molecule={molecule}
             className="... h-50 mb-4 w-full"
           />
-          <NexafsTable molecule={molecule} />
+          <NexafsTable molecule={molecule} className="... h-50 mb-4" />
         </div>
       </div>
     </div>

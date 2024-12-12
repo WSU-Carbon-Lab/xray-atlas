@@ -7,6 +7,7 @@ export default function HomePage() {
   return (
     <div className="... overflow-none flex h-full justify-center">
       <div className="... flex h-full w-full justify-center md:max-w-2xl">
+        {/* TXS Error */}
         {<MoleculeRegistry />}
         {/* {test()} */}
       </div>

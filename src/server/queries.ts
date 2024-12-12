@@ -1,12 +1,5 @@
-import {
-  Signal,
-  MoleculeList,
-  Molecule,
-  Experiment,
-  DataSet,
-  Data,
-  Uid,
-} from "./db";
+import type { Molecule, Experiment, DataSet } from "./db";
+import { Uid } from "./db";
 
 //  This uses the API from .env to fetch data from the s3 bucket
 
@@ -22,35 +15,37 @@ enum Verb {
 interface ApiRequest {
   verb: Verb;
   path: string;
-  queryParams?: { [key: string]: string };
-  body?: any;
 }
 
+const headers: Headers = new Headers();
+headers.set("Content-Type", "application/json");
+headers.set("Accept", "application/json");
+
 const fetchApi = async (request: ApiRequest) => {
-  const response = await fetch(`${invokeUrl}/${request.path}`, {
+  const path = `${invokeUrl}/${request.path}`;
+  const response = await fetch(path, {
     method: request.verb,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(request.body),
-  });
-  return await response.json();
+    headers: headers,
+  }).then((res) => res.json());
+  return response;
 };
 
-export const getMolecules = async (): Promise<MoleculeList> => {
+export const getMolecules = async (): Promise<Molecule[]> => {
   const request: ApiRequest = {
     verb: Verb.GET,
     path: "bucket/molecules",
   };
-  return (await fetchApi(request)) as MoleculeList;
+  const response = await fetchApi(request);
+  return response?.molecules as Molecule[];
 };
 
 export const getMolecule = async (name: string): Promise<Molecule> => {
   const request: ApiRequest = {
     verb: Verb.GET,
-    path: `bucket/molecule/${name.toUpperCase().replace(" ", "")}`,
+    path: `bucket/molecules/${name.toUpperCase().replace(" ", "")}/metadata`,
   };
-  return (await fetchApi(request)) as Molecule;
+  const response = await fetchApi(request);
+  return response?.molecule as Molecule;
 };
 
 export const getDataSet = async (
@@ -58,16 +53,16 @@ export const getDataSet = async (
   exp: Experiment,
 ): Promise<DataSet> => {
   const uid = Uid(exp);
+  console.log(uid);
   const request: ApiRequest = {
     verb: Verb.GET,
-    path: `bucket/data/${name.toUpperCase().replace(" ", "")}/${uid}`,
+    path: `bucket/molecules/${name.toUpperCase().replace(" ", "")}/${uid}`,
   };
+  const response = await fetchApi(request);
+  console.log(response);
   return (await fetchApi(request)) as DataSet;
 };
 
-export const downloadData = async (name: string, exp: Experiment) => {
-  const dataSet = await getDataSet(name, exp);
-  return `data:text/json;charset=utf-8,${encodeURIComponent(
-    JSON.stringify(dataSet, null, 4),
-  )}`;
+export const downloadData = (name: string, exp: Experiment) => {
+  return `https://bfsd0tdg6f.execute-api.us-west-2.amazonaws.com/prod/bucket/molecules/${name.toUpperCase().replace(" ", "")}/${Uid(exp)}`;
 };

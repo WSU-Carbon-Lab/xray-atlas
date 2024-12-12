@@ -1,15 +1,11 @@
-import { string } from "zod";
-
 export type Signal = { signal: number[]; units: string };
-
-export type MoleculeList = Molecule[];
 export interface Molecule {
   name: string;
-  synonims: string[];
-  chemicalFormula: string;
+  synonyms: string[];
+  chemical_formula: string;
   description: string;
-  smiles: string;
-  inchi: string;
+  SMILES: string;
+  InChI: string;
   img: string;
   data?: Experiment[];
 }
@@ -29,23 +25,22 @@ export interface User {
   email: string;
   doi?: string;
 }
-
 export interface Instrument {
   facility: string;
   instrument: string;
   edge: string;
-  normalizationMethod: string;
+  normalization_method: string;
   technique: string;
-  techniqueDescription: string;
+  technical_details: string;
 }
 
 export interface Sample {
   vendor: string;
-  preparationMethod: {
+  preparation_method: {
     method: string;
     details: string;
   };
-  molOirientationMethod: string;
+  mol_orientation_details: string;
 }
 export interface Data {
   geometry: {
@@ -66,5 +61,5 @@ export interface DataSet {
 }
 
 export function Uid(experiment: Experiment): string {
-  return `${experiment.edge}_${experiment.method}_${experiment.facility}_${experiment.instrument}`;
+  return `${experiment.edge}_${experiment.method}_${experiment.facility}_${experiment.instrument}_${experiment.group}_${experiment.source}`;
 }

@@ -1,22 +1,14 @@
 import React from "react";
 import Image from "next/image";
-import { Data, Experiment, Molecule, MoleculeFile, data } from "~/server/db";
+import type { Molecule } from "~/server/db";
 import download from "public/Icons-Temp_icon-download.svg";
+import { downloadData } from "~/server/queries";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export const downloadData = (molecule: MoleculeFile, i: number) => {
-  // Slice the Molecule File to include everything in the header, and the idx experiment
-  let data = {
-    header: molecule.header,
-    experiments: [molecule.experiments[i]],
-  } as MoleculeFile;
-  return `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 4))}`;
-};
-
 export const NexafsTable = async (props: {
-  molecule: MoleculeFile;
+  molecule: Molecule;
   className?: string;
   headClass?: string;
   bodyClass?: string;
@@ -25,44 +17,45 @@ export const NexafsTable = async (props: {
   if (!mol) {
     return <div>404</div>;
   }
-  const classNeame = props.className + " p1 shadow-sm";
+  const className = props.className + " p1 h-flex";
   const headClass = props.headClass + " h-10";
   const bodyClass = props.bodyClass + " rounded-sm shadow-sm";
-  const experiments = mol.experiments;
+
+  if (!mol.data) {
+    return <div>404</div>;
+  }
+  const experiments = mol.data;
+
   return (
-    <div className={classNeame}>
-      <table className="... w-full table-auto border-separate border-spacing-2 rounded-sm bg-white shadow-sm">
+    <div className={className}>
+      <table className="... w-full table-auto border-separate border-spacing-2 rounded-sm bg-white">
         <thead className={headClass}>
           <tr className="... p-2">
             <th className="... shadow-sm">Edge</th>
-            <th className="... shadow-sm">Type</th>
-            <th className="... shadow-sm">Synchrotron</th>
-            <th className="... shadow-sm">Endstation</th>
-            <th className="... shadow-sm">Group</th>
-            <th className="..."></th>
+            <th className="... shadow-sm">Method</th>
+            <th className="... shadow-sm">Facility</th>
+            <th className="... shadow-sm">Instrument</th>
+            <th className="... shadow-sm">Source</th>
+            <th className="... shadow-sm">Collected By</th>
+            <th className="... shadow-sm"></th>
           </tr>
         </thead>
         <tbody className={bodyClass}>
-          {experiments.map((experiment, index) => (
-            <tr className="..." key={experiment.edge}>
+          {experiments.map((experiment) => (
+            <tr
+              className="... h-10 p-2 shadow-md hover:shadow-blue-200"
+              key={experiment.edge}
+            >
               <td className="... text-center">{`${experiment.edge}`}</td>
-              <td className="... text-center">{experiment.type}</td>
-              <td className="... text-center">{experiment.synchrotron}</td>
-              <td className="... text-center">{experiment.endstation}</td>
-              <td className="... text-center">{"Not yet recorded"}</td>
-              <td className="...">
-                <Link
-                  className="...text-center mx-auto"
-                  href={`${downloadData(mol, index)}`}
-                  download={`${mol.header.name}_${experiment.edge}_${experiment.synchrotron}.json`}
-                >
-                  <Image
-                    src={download}
-                    alt="download"
-                    width={24}
-                    height={24}
-                    className="mx-auto justify-center"
-                  />
+              <td className="... text-center">{experiment.method}</td>
+              <td className="... text-center">{experiment.facility}</td>
+              <td className="... text-center">{experiment.instrument}</td>
+              <td className="... text-center">{experiment.source}</td>
+              <td className="... text-center">{experiment.group}</td>
+              <td className="... text-center"></td>
+              <td className="... text-center">
+                <Link href={downloadData(mol.name, experiment)}>
+                  <Image src={download} alt="download" width={30} height={30} />
                 </Link>
               </td>
             </tr>
