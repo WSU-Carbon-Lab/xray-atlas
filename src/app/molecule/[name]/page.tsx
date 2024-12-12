@@ -1,15 +1,18 @@
 import React from "react";
+import { usePathname } from "next/navigation";
 import { MoleculeInfoCard } from "~/app/_components/molecule";
 import { NexafsTable } from "~/app/_components/nexafs";
 import { getMolecule } from "~/server/queries";
 
 type Params = Promise<{ slug: string }>;
 
-export default async function Page(props: { params: Params }) {
-  const params = await props.params;
-  const name = params.slug;
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ name: string }>;
+}) {
+  const name = (await params).name;
   const molecule = await getMolecule(name);
-  console.log(molecule);
   return (
     <div className="... overflow-none flex h-screen justify-center">
       <div className="... flex w-full justify-center md:max-w-2xl">

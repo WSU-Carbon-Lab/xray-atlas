@@ -23,6 +23,7 @@ export const MoleculeDisplay = (props: {
           src={props.molecule.img}
           alt={props.molecule.name}
           width={300}
+          height={300}
         />
       </Link>
       <span className="... mx-1 text-sm font-bold">{`Common Name:`}</span>

@@ -40,6 +40,7 @@ export const getMolecules = async (): Promise<Molecule[]> => {
 };
 
 export const getMolecule = async (name: string): Promise<Molecule> => {
+  console.log(name);
   const request: ApiRequest = {
     verb: Verb.GET,
     path: `bucket/molecules/${name.toUpperCase().replace(" ", "")}/metadata`,
@@ -53,13 +54,11 @@ export const getDataSet = async (
   exp: Experiment,
 ): Promise<DataSet> => {
   const uid = Uid(exp);
-  console.log(uid);
   const request: ApiRequest = {
     verb: Verb.GET,
-    path: `bucket/molecules/${name.toUpperCase().replace(" ", "")}/${uid}`,
+    path: `bucket/molecules/${name}/${uid}`,
   };
   const response = await fetchApi(request);
-  console.log(response);
   return (await fetchApi(request)) as DataSet;
 };
 
