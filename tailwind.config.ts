@@ -22,6 +22,19 @@ export default {
       "5xl": "3rem",
       "6xl": "4rem",
     },
+    extend: {
+      spacing: {
+        4.5: "1.125rem",
+        18: "4.5rem",
+      },
+      borderRadius: {
+        "2xl": "1rem",
+        "3xl": "1.5rem",
+      },
+      scale: {
+        105: "1.05",
+      },
+    },
   },
   plugins: [],
 } satisfies Config;

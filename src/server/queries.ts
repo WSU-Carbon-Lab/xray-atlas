@@ -40,7 +40,6 @@ export const getMolecules = async (): Promise<Molecule[]> => {
 };
 
 export const getMolecule = async (name: string): Promise<Molecule> => {
-  console.log(name);
   const request: ApiRequest = {
     verb: Verb.GET,
     path: `bucket/molecules/${name.toUpperCase().replace(" ", "")}/metadata`,
