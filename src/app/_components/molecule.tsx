@@ -124,16 +124,16 @@ const Section = ({
     try {
       // Ensure we're in a browser environment
       if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(content || "");
+        await navigator.clipboard.writeText(content ?? "");
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } else {
         // Fallback for non-secure contexts
         const textArea = document.createElement("textarea");
-        textArea.value = content || "";
+        textArea.value = content ?? "";
         document.body.appendChild(textArea);
         textArea.select();
-        document.execCommand("copy");
+        await navigator.clipboard.writeText(content ?? "");
         document.body.removeChild(textArea);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -170,12 +170,6 @@ const Section = ({
   );
 };
 
-// Add this type for the clipboard icon props
-declare module "@heroicons/react/24/outline" {
-  export interface ClipboardDocumentIconProps
-    extends React.SVGProps<SVGSVGElement> {}
-}
-
 const InfoItem = ({ title, content, mono = false }: InfoItemProps) => (
   <div className="flex flex-col space-y-1.5">
     <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">
@@ -202,7 +196,7 @@ export const MoleculeInfoCard = (props: {
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-2xl transition-all hover:shadow-lg ${props.className || ""}`}
+      className={`group relative overflow-hidden rounded-2xl transition-all hover:shadow-lg ${props.className ?? ""}`}
     >
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-blue-50/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
       <MoleculeDisplay molecule={molecule} />
