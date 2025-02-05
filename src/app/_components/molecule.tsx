@@ -66,7 +66,6 @@ const TruncatedPreview = ({
 // Updated MoleculeDisplay component
 export const MoleculeDisplay = (props: { molecule: Molecule }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-
   const [showSynonymsModal, setShowSynonymsModal] = useState(false);
 
   const getFullNameList = () => {
@@ -82,8 +81,8 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
         className="relative z-50"
       >
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <DialogPanel className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 flex items-start justify-center overflow-y-auto p-4">
+          <DialogPanel className="my-8 w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
             <DialogTitle className="text-lg font-semibold text-gray-900">
               Detailed Information
             </DialogTitle>
@@ -100,17 +99,22 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
         </div>
       </Dialog>
 
+      {/* Synonyms Modal */}
       <Dialog
         open={showSynonymsModal}
         onClose={() => setShowSynonymsModal(false)}
         className="relative z-50"
       >
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <DialogPanel className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 flex items-start justify-center overflow-y-auto p-4">
+          <DialogPanel className="my-8 w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
+            <DialogTitle className="text-lg font-semibold text-gray-900">
+              Names and Synonyms
+            </DialogTitle>
+
             <div className="mt-4 space-y-4">
               <Section
-                title="Names and Synonyms"
+                title="All Names"
                 content={getFullNameList().join(", ")}
               />
             </div>

@@ -22,6 +22,7 @@ export const NexafsTable = (props: {
     useState<Experiment | null>(null);
   const [dataSet, setDataSet] = useState<DataSet | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (selectedExperiment) {
@@ -48,8 +49,30 @@ export const NexafsTable = (props: {
       <div className="p-4 text-gray-600">No experimental data available</div>
     );
 
+  const filteredExperiments = props.molecule.data.filter((experiment) => {
+    const searchString = searchQuery.toLowerCase();
+    return (
+      experiment.edge.toLowerCase().includes(searchString) ||
+      experiment.method.toLowerCase().includes(searchString) ||
+      experiment.facility.toLowerCase().includes(searchString) ||
+      experiment.instrument.toLowerCase().includes(searchString) ||
+      experiment.source.toLowerCase().includes(searchString) ||
+      experiment.group.toLowerCase().includes(searchString)
+    );
+  });
+
   return (
     <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      {/* Search Bar */}
+      <div className="border-b border-gray-200 p-4">
+        <input
+          type="text"
+          placeholder="Search experiments..."
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
       <table className="w-full">
         <thead className="bg-gray-50">
           <tr>
@@ -71,10 +94,10 @@ export const NexafsTable = (props: {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {props.molecule.data.map((experiment) => (
+          {filteredExperiments.map((experiment) => (
             <tr
               key={Uid(experiment)}
-              className="cursor-pointer transition-colors hover:bg-purple-50"
+              className="cursor-pointer transition-colors hover:bg-purple-50 hover:shadow-purple-900"
               onClick={() => setSelectedExperiment(experiment)}
             >
               <td className="px-4 py-3 text-sm text-gray-900">
@@ -163,10 +186,14 @@ const ExperimentModal = ({
   if (!experiment) return null;
 
   return (
-    <Dialog open={!!experiment} onClose={onClose} className="relative z-50">
+    <Dialog
+      open={!!experiment}
+      onClose={onClose}
+      className="relative z-50 flex flex-col"
+    >
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-      <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-5xl rounded-xl bg-white p-6 shadow-xl">
+      <div className="fixed inset-0 flex flex-col items-center justify-center p-4">
+        <DialogPanel className="max-h-screen w-full max-w-5xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
           <DialogTitle className="text-lg font-semibold text-gray-900">
             {experiment.edge} Experiment Details {isLoading && "Loading ... "}
           </DialogTitle>
@@ -219,13 +246,12 @@ const ExperimentModal = ({
 
                 <DetailSection title="Experiment Details">
                   <DetailItem label="Edge" value={experiment.edge} />
-                  <DetailItem label="Method" value={experiment.method} />
                   <DetailItem
-                    label="E Field Polar Angles"
+                    label="Polar Angles"
                     value={getPolarValues(dataSet).join(", ")}
                   />
                   <DetailItem
-                    label="E Field Azimuth Angles"
+                    label="Azimuth Angles"
                     value={getAzimuthValues(dataSet).join(", ")}
                   />
                 </DetailSection>
@@ -266,14 +292,14 @@ const DetailSection = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <div className="rounded-lg border border-gray-200 p-4">
+  <div className="flex-col rounded-lg border border-gray-200 p-4">
     <h3 className="mb-3 text-sm font-semibold text-gray-900">{title}</h3>
     <div className="space-y-2">{children}</div>
   </div>
 );
 
 const DetailItem = ({ label, value }: { label: string; value?: string }) => (
-  <div className="text-sm">
+  <div className="flex-col text-sm">
     <span className="font-medium text-gray-600">{label}:</span>
     <span className="ml-2 text-gray-500">{value ?? "N/A"}</span>
   </div>

@@ -35,7 +35,7 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
 
   return (
     <LineChart
-      width={900}
+      width={1200}
       height={600}
       data={data.dataset[0].energy.signal.map((e, i) => ({
         energy: e,

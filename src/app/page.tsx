@@ -1,16 +1,13 @@
-import React from "react";
-import { MoleculeRegistry } from "~/app/_components/molecul-registry";
+// app/molecules/page.tsx (Server Component)
+import { getMolecules } from "~/server/queries";
+import { MoleculeRegistry } from "./_components/molecul-registry";
 
-export const dynamic = "force-dynamic";
+export default async function MoleculesPage() {
+  const molecules = await getMolecules();
 
-export default function HomePage() {
   return (
-    <div className="overflow-none flex h-full justify-center ...">
-      <div className="flex h-full w-full justify-center ...">
-        {/* TXS Error */}
-        {<MoleculeRegistry />}
-        {/* {test()} */}
-      </div>
+    <div className="container mx-auto px-4 py-8">
+      <MoleculeRegistry molecules={molecules} />
     </div>
   );
 }
