@@ -7,11 +7,74 @@ import Image from "next/image";
 import { DialogPanel, DialogTitle, Dialog } from "@headlessui/react";
 import { ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 
+// Updated type definitions
+type SectionProps = {
+  title: string;
+  content: string;
+  mono?: boolean;
+  className?: string;
+};
+
+type InfoItemProps = {
+  title: string;
+  items: string[];
+  mono?: boolean;
+  maxItems?: number;
+  truncateLength?: number;
+};
+
+type TruncatedPreviewProps = {
+  content: string;
+  len?: number;
+  mono?: boolean;
+  bold?: boolean;
+};
+
+// New NameList component
+const NameList = ({
+  title,
+  items,
+  maxItems = 2,
+  truncateLength = 10,
+}: InfoItemProps) => {
+  const uniqueItems = Array.from(new Set(items));
+  const displayedItems = uniqueItems.slice(0, maxItems);
+  const hasMore = uniqueItems.length > maxItems;
+  const names = displayedItems.join(", ") + (hasMore ? "..." : "");
+
+  return (
+    <div className="flex flex-col space-y-1.5">
+      <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+        {title}
+      </span>
+      <TruncatedPreview content={names} len={truncateLength} bold={true} />
+    </div>
+  );
+};
+
+// Updated TruncatedPreview component
+const TruncatedPreview = ({
+  content,
+  len = 10,
+  mono = false,
+}: TruncatedPreviewProps) => (
+  <div className={`text-gray-900 ${mono ? "font-mono" : ""}`}>
+    {content.length > len ? `${content.slice(0, len)}...` : content}
+  </div>
+);
+
+// Updated MoleculeDisplay component
 export const MoleculeDisplay = (props: { molecule: Molecule }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
+  const [showSynonymsModal, setShowSynonymsModal] = useState(false);
+
+  const getFullNameList = () => {
+    return [props.molecule.name, ...props.molecule.synonyms];
+  };
+
   return (
-    <div className="flex w-full max-w-3xl flex-col space-y-4 rounded-2xl bg-gradient-to-r from-gray-50 to-zinc-100 p-6 shadow-lg transition-all hover:shadow-xl">
+    <div className="flex w-full max-w-3xl flex-col space-y-4 rounded-2xl bg-gradient-to-r from-gray-50 to-zinc-100 p-6 shadow-lg transition-all hover:shadow-xl hover:shadow-purple-100">
       {/* Consolidated Details Modal */}
       <Dialog
         open={showDetailsModal}
@@ -32,10 +95,23 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
               />
               <Section title="SMILES" content={props.molecule.SMILES} mono />
               <Section title="InChI" content={props.molecule.InChI} mono />
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={showSynonymsModal}
+        onClose={() => setShowSynonymsModal(false)}
+        className="relative z-50"
+      >
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mt-4 space-y-4">
               <Section
-                title="Synonyms"
-                content={props.molecule.synonyms.join(", ")}
-                className="rounded-lg bg-gray-50 p-3"
+                title="Names and Synonyms"
+                content={getFullNameList().join(", ")}
               />
             </div>
           </DialogPanel>
@@ -65,26 +141,40 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2.5">
-            <InfoItem title="Common Name" content={props.molecule.name} />
-            <InfoItem
-              title="Chemical Formula"
-              content={props.molecule.chemical_formula}
-              mono
-            />
+            <button
+              onClick={() => setShowSynonymsModal(true)}
+              className="group w-full rounded-lg bg-gray-50 p-2 text-left transition-all hover:bg-gray-100 focus:outline-none"
+            >
+              <NameList
+                title="Common Names"
+                items={getFullNameList()}
+                maxItems={2}
+                truncateLength={13}
+              />
+              <InfoItem
+                title="Chemical Formula"
+                content={props.molecule.chemical_formula}
+                mono
+              />
+            </button>
           </div>
 
           <div className="space-y-2.5">
             <button
               onClick={() => setShowDetailsModal(true)}
-              className="group w-full rounded-lg bg-gray-50 p-4 text-left transition-all hover:bg-gray-100 focus:outline-none"
+              className="group w-full rounded-lg bg-gray-50 p-2 text-left transition-all hover:bg-gray-100 focus:outline-none"
             >
               <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                Details
+                {"Description"}
               </span>
-              <div className="mt-2 space-y-1">
-                <TruncatedPreview content={props.molecule.description} />
-                <TruncatedPreview content={props.molecule.SMILES} mono />
-              </div>
+              <br />
+              <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                {"SMILES"}
+              </span>
+              <br />
+              <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                {"InChI"}
+              </span>
             </button>
           </div>
         </div>
@@ -93,23 +183,25 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
   );
 };
 
-type SectionProps = {
+// Updated InfoItem component for single-line content
+const InfoItem = ({
+  title,
+  content,
+  mono = false,
+}: {
   title: string;
   content: string;
   mono?: boolean;
-  className?: string;
-};
-
-type InfoItemProps = {
-  title: string;
-  content: string;
-  mono?: boolean;
-};
-
-type TruncatedPreviewProps = {
-  content: string;
-  mono?: boolean;
-};
+}) => (
+  <div className="flex flex-col space-y-1.5">
+    <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+      {title}
+    </span>
+    <span className={`text-base ${mono ? "font-mono" : ""} text-gray-900`}>
+      {content}
+    </span>
+  </div>
+);
 
 // Helper Components
 const Section = ({
@@ -166,40 +258,6 @@ const Section = ({
           </button>
         </div>
       </div>
-    </div>
-  );
-};
-
-const InfoItem = ({ title, content, mono = false }: InfoItemProps) => (
-  <div className="flex flex-col space-y-1.5">
-    <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-      {title}
-    </span>
-    <span className={`text-base ${mono ? "font-mono" : ""} text-gray-900`}>
-      {content}
-    </span>
-  </div>
-);
-
-const TruncatedPreview = ({ content, mono = false }: TruncatedPreviewProps) => (
-  <div className={`text-sm text-gray-600 ${mono ? "font-mono" : ""}`}>
-    {content.length > 6 ? `${content.slice(0, 6)}...` : content}
-  </div>
-);
-
-export const MoleculeInfoCard = (props: {
-  molecule: Molecule;
-  className?: string;
-}) => {
-  const molecule = props.molecule;
-  if (!molecule) return null;
-
-  return (
-    <div
-      className={`group relative overflow-hidden rounded-2xl transition-all hover:shadow-lg ${props.className ?? ""}`}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-blue-50/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-      <MoleculeDisplay molecule={molecule} />
     </div>
   );
 };

@@ -28,6 +28,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-plotly.js": "^2.6.0",
+    "recharts": "^2.15.1",
     "tailwindcss-bg-patterns": "^0.3.0",
     "zod": "^3.24.1"
   },

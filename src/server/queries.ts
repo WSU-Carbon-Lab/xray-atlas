@@ -57,10 +57,29 @@ export const getDataSet = async (
     verb: Verb.GET,
     path: `bucket/molecules/${name}/${uid}`,
   };
-  const response = await fetchApi(request);
   return (await fetchApi(request)) as DataSet;
 };
 
-export const downloadData = (name: string, exp: Experiment) => {
-  return `https://bfsd0tdg6f.execute-api.us-west-2.amazonaws.com/prod/bucket/molecules/${name.toUpperCase().replace(" ", "")}/${Uid(exp)}`;
+export const getAzimuthValues = (dataSet: DataSet): string[] => {
+  return Array.from(
+    new Set(dataSet.dataset.map((d) => d.geometry.e_field_azimuth.toString())),
+  );
+};
+
+export const getPolarValues = (dataSet: DataSet): string[] => {
+  return Array.from(
+    new Set(dataSet.dataset.map((d) => d.geometry.e_field_polar.toString())),
+  );
+};
+
+export const downloadData = (
+  name: string,
+  exp: Experiment,
+  kind: "csv" | "json" = "csv",
+) => {
+  const root = `https://bfsd0tdg6f.execute-api.us-west-2.amazonaws.com/prod/bucket/molecules/${name.toUpperCase().replace(" ", "")}/${Uid(exp)}`;
+  if (kind === "csv") {
+    return `${root}/csv`;
+  }
+  return `${root}`;
 };

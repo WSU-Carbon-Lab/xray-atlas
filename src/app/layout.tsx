@@ -62,7 +62,7 @@ function Footer() {
       <div className="container px-4 py-12 sm:px-6">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">XRay Atlas</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Xray Atlas</h3>
             <p className="flex-wrap text-sm text-gray-600">
               Advancing material research tough colaborative data.
             </p>
@@ -127,7 +127,7 @@ function Footer() {
           </div>
         </div>
         <div className="mt-8 border-t pt-8 text-center text-sm text-gray-600">
-          © {new Date().getFullYear()} XRay Atlas. All rights reserved.
+          © {new Date().getFullYear()} Xray Atlas. All rights reserved.
         </div>
       </div>
     </footer>

@@ -44,8 +44,8 @@ export interface Sample {
 }
 export interface Data {
   geometry: {
-    eFieldAzimuth: number;
-    eFieldPolar: number;
+    e_field_azimuth: number;
+    e_field_polar: number;
   };
   energy: Signal;
   intensity: Signal;
@@ -57,7 +57,7 @@ export interface DataSet {
   user: User;
   instrument: Instrument;
   sample: Sample;
-  data: Data[];
+  dataset: Data[];
 }
 
 export function Uid(experiment: Experiment): string {
