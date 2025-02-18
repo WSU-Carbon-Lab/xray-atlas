@@ -24,7 +24,7 @@ function TopNav() {
           className="flex items-center space-x-2 text-2xl font-bold transition-transform hover:scale-105"
         >
           <span className="text bg-gradient-to-r from-blue-200 to-purple-500 bg-clip-text text-transparent">
-            XRay Atlas
+            X-ray Atlas
           </span>
         </Link>
 
@@ -64,7 +64,7 @@ function Footer() {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">Xray Atlas</h3>
             <p className="flex-wrap text-sm text-gray-600">
-              Advancing material research tough colaborative data.
+              Advancing material research through collaborative data.
             </p>
             <h4 className="text-sm font-semibold text-gray-900">Hosted By</h4>
             <p className="text-sm text-gray-600">
@@ -127,7 +127,7 @@ function Footer() {
           </div>
         </div>
         <div className="mt-8 border-t pt-8 text-center text-sm text-gray-600">
-          © {new Date().getFullYear()} Xray Atlas. All rights reserved.
+          © {new Date().getFullYear()} X-ray Atlas. All rights reserved.
         </div>
       </div>
     </footer>
