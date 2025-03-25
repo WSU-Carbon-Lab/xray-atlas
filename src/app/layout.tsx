@@ -69,9 +69,12 @@ function Footer() {
             <h4 className="text-sm font-semibold text-gray-900">Hosted By</h4>
             <p className="text-sm text-gray-600">
               <Link href="https://labs.wsu.edu/carbon/">
-                Washington State University
-                <br />
-                Collins Research Group
+                Washington State University Collins · Research Group
+              </Link>
+            </p>
+            <p className="text-sm text-gray-600">
+              <Link href="https://faculty.psau.edu.sa/en/psau/facultymember/om.alqahtani">
+                Prince Sattam bin Abdulaziz University · Obaid Alqahtnai
               </Link>
             </p>
           </div>
