@@ -1,6 +1,6 @@
 // app/molecules/page.tsx (Server Component)
 import { getMolecules } from "~/server/queries";
-import { MoleculeRegistry } from "./_components/molecul-registry";
+import { MoleculeRegistry } from "./_components/molecule-registry";
 
 export default async function MoleculesPage() {
   const molecules = await getMolecules();

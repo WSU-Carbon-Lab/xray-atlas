@@ -27,6 +27,7 @@ const fetchApi = async (request: ApiRequest) => {
     method: request.verb,
     headers: headers,
   }).then((res) => res.json());
+  console.log("API Response:", response);
   return response;
 };
 

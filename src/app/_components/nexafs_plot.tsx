@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import {
   LineChart,
   Line,
@@ -6,6 +7,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceArea,
 } from "recharts";
 import type { DataSet } from "~/server/db";
 
@@ -34,15 +36,50 @@ const seabornDivergingPalette = (n: number) => {
   return Array.from({ length: n }, (_, i) => baseColors[i % baseColors.length]);
 };
 
+// Helper function to get Y axis domain
+const getYAxisDomain = (
+  data: any[],
+  from: number,
+  to: number,
+  offset: number = 0.1,
+): [number, number] => {
+  const filteredData = data.filter((d) => d.energy >= from && d.energy <= to);
+
+  if (filteredData.length === 0) return [0, 1];
+
+  let min = Infinity;
+  let max = -Infinity;
+
+  filteredData.forEach((d) => {
+    // Check all series values
+    Object.keys(d).forEach((key) => {
+      if (key.startsWith("series_") && !isNaN(d[key])) {
+        if (d[key] < min) min = d[key];
+        if (d[key] > max) max = d[key];
+      }
+    });
+  });
+
+  // Apply offset as percentage
+  const range = max - min;
+  return [Math.max(0, min - range * offset), max + range * offset];
+};
+
 export const NexafsPlot = ({ data }: { data: DataSet }) => {
   if (!data.dataset[0]?.energy?.signal?.length) {
     return <div className="p-4 text-gray-500">No data available</div>;
   }
 
+  // State for zoom functionality
+  const [left, setLeft] = useState<number | string>("dataMin");
+  const [right, setRight] = useState<number | string>("dataMax");
+  const [refAreaLeft, setRefAreaLeft] = useState<number | string>("");
+  const [refAreaRight, setRefAreaRight] = useState<number | string>("");
+  const [bottom, setBottom] = useState<number | string>("dataMin");
+  const [top, setTop] = useState<number | string>("dataMax");
+
   // Generate consistent color palette based on number of series
   const colorPalette = seabornDivergingPalette(data.dataset.length);
-
-  console.log(colorPalette);
 
   // Calculate smart ticks for XAxis
   const minEnergy = Math.floor(data.dataset[0].energy.signal[0] ?? 0);
@@ -67,19 +104,69 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
     ),
   }));
 
+  // Zoom functionality
+  const zoom = () => {
+    if (refAreaLeft === refAreaRight || refAreaRight === "") {
+      setRefAreaLeft("");
+      setRefAreaRight("");
+      return;
+    }
+
+    // Ensure left < right
+    let leftValue = Number(refAreaLeft);
+    let rightValue = Number(refAreaRight);
+    if (leftValue > rightValue) {
+      [leftValue, rightValue] = [rightValue, leftValue];
+    }
+
+    // Get Y domain based on visible data
+    const [yMin, yMax] = getYAxisDomain(chartData, leftValue, rightValue);
+
+    // Update the state to zoom
+    setLeft(leftValue);
+    setRight(rightValue);
+    setBottom(yMin);
+    setTop(yMax);
+    setRefAreaLeft("");
+    setRefAreaRight("");
+  };
+
+  // Reset zoom
+  const zoomOut = () => {
+    setLeft("dataMin");
+    setRight("dataMax");
+    setBottom("dataMin");
+    setTop("dataMax");
+    setRefAreaLeft("");
+    setRefAreaRight("");
+  };
+
   return (
     <div className="h-[500px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+      <button
+        className="mb-2 rounded-md bg-gray-200 px-4 py-2 transition-colors hover:bg-gray-300"
+        onClick={zoomOut}
+      >
+        Zoom Out
+      </button>
+
+      <ResponsiveContainer width="100%" height="90%">
         <LineChart
           data={chartData}
           margin={{ top: 25, right: 35, left: 45, bottom: 35 }}
+          onMouseDown={(e) => e?.activeLabel && setRefAreaLeft(e.activeLabel)}
+          onMouseMove={(e) =>
+            refAreaLeft && e?.activeLabel && setRefAreaRight(e.activeLabel)
+          }
+          onMouseUp={zoom}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#eee" vertical={false} />
 
           <XAxis
             dataKey="energy"
             type="number"
-            domain={[minEnergy, maxEnergy]}
+            domain={[left, right]}
+            allowDataOverflow
             ticks={xTicks}
             tickFormatter={(value: number) => value.toFixed(1)}
             tick={{
@@ -97,6 +184,8 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
           />
 
           <YAxis
+            allowDataOverflow
+            domain={[bottom, top]}
             tick={{
               fontSize: 11,
               fill: "#555",
@@ -109,7 +198,6 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
               fontSize: 12,
               fill: "#333",
             }}
-            domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
             width={80}
             tickFormatter={(value: number) => value.toFixed(2)}
           />
@@ -144,8 +232,19 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
                 strokeWidth: 0,
               }}
               name={`series_${index}`}
+              isAnimationActive={false}
             />
           ))}
+
+          {refAreaLeft && refAreaRight ? (
+            <ReferenceArea
+              x1={refAreaLeft}
+              x2={refAreaRight}
+              strokeOpacity={0.3}
+              fill="#8884d8"
+              fillOpacity={0.3}
+            />
+          ) : null}
         </LineChart>
       </ResponsiveContainer>
     </div>
