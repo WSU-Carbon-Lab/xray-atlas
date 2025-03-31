@@ -37,11 +37,16 @@ const seabornDivergingPalette = (n: number) => {
 };
 
 // Helper function to get Y axis domain
+type ChartDataPoint = {
+  energy: number;
+  [key: `series_${number}`]: number;
+};
+
 const getYAxisDomain = (
-  data: any[],
+  data: ChartDataPoint[],
   from: number,
   to: number,
-  offset: number = 0.1,
+  offset = 0.1,
 ): [number, number] => {
   const filteredData = data.filter((d) => d.energy >= from && d.energy <= to);
 
@@ -53,9 +58,14 @@ const getYAxisDomain = (
   filteredData.forEach((d) => {
     // Check all series values
     Object.keys(d).forEach((key) => {
-      if (key.startsWith("series_") && !isNaN(d[key])) {
-        if (d[key] < min) min = d[key];
-        if (d[key] > max) max = d[key];
+      if (
+        key.startsWith("series_") &&
+        d[key as keyof ChartDataPoint] !== undefined &&
+        !isNaN(d[key as keyof ChartDataPoint]!)
+      ) {
+        const value = d[key as keyof ChartDataPoint];
+        if (typeof value === "number" && value < min) min = value;
+        if (typeof value === "number" && value > max) max = value;
       }
     });
   });
@@ -66,10 +76,6 @@ const getYAxisDomain = (
 };
 
 export const NexafsPlot = ({ data }: { data: DataSet }) => {
-  if (!data.dataset[0]?.energy?.signal?.length) {
-    return <div className="p-4 text-gray-500">No data available</div>;
-  }
-
   // State for zoom functionality
   const [left, setLeft] = useState<number | string>("dataMin");
   const [right, setRight] = useState<number | string>("dataMax");
@@ -77,6 +83,10 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
   const [refAreaRight, setRefAreaRight] = useState<number | string>("");
   const [bottom, setBottom] = useState<number | string>("dataMin");
   const [top, setTop] = useState<number | string>("dataMax");
+
+  if (!data.dataset[0]?.energy?.signal?.length) {
+    return <div className="p-4 text-gray-500">No data available</div>;
+  }
 
   // Generate consistent color palette based on number of series
   const colorPalette = seabornDivergingPalette(data.dataset.length);
