@@ -1,0 +1,25 @@
+version: 1
+backend:
+  phases:
+    build:
+      commands:
+        - echo "No backend build"
+frontend:
+  phases:
+    preBuild:
+      commands:
+        # Clear previous build cache
+        - rm -rf .next
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    # Use the standard Next.js output directory instead of 'out'
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      # Cache node_modules for faster installs
+      - node_modules/**/*
