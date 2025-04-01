@@ -68,7 +68,7 @@ export const NexafsTable = (props: {
         <input
           type="text"
           placeholder="Search experiments..."
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+          className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -97,25 +97,25 @@ export const NexafsTable = (props: {
           {filteredExperiments.map((experiment) => (
             <tr
               key={Uid(experiment)}
-              className="cursor-pointer transition-colors hover:bg-purple-50 hover:shadow-purple-900"
+              className="hover:text-wsu-crimson cursor-pointer transition-colors hover:bg-gray-50"
               onClick={() => setSelectedExperiment(experiment)}
             >
-              <td className="px-4 py-3 text-sm text-gray-900">
+              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-900">
                 {experiment.edge}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600">
+              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-600">
                 {experiment.method}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600">
+              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-600">
                 {experiment.facility}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600">
+              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-600">
                 {experiment.instrument}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600">
+              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-600">
                 {experiment.source}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600">
+              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-600">
                 {experiment.group}
               </td>
             </tr>
@@ -200,7 +200,7 @@ const ExperimentModal = ({
           <div className="flex gap-2">
             <button
               onClick={() => handleDownload("csv")}
-              className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+              className="hover:text-wsu-crimson hover:ring-wsu-crimson flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 hover:ring-1"
             >
               <ArrowDownTrayIcon className="h-4 w-4" />
               CSV
@@ -215,7 +215,7 @@ const ExperimentModal = ({
           </div>
           {isLoading ? (
             <div className="mt-4 flex justify-center py-8">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
+              <div className="border-t-wsu-crimson border-wsu-gray h-8 w-8 animate-spin rounded-full border-4" />
             </div>
           ) : dataSet ? (
             <div className="mt-4 space-y-6">
@@ -292,7 +292,7 @@ const DetailSection = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <div className="flex-col rounded-lg border border-gray-200 p-4">
+  <div className="hover:border-wsu-crimson/30 flex-col rounded-lg border border-gray-200 p-4 transition-all hover:shadow-sm">
     <h3 className="mb-3 text-sm font-semibold text-gray-900">{title}</h3>
     <div className="space-y-2">{children}</div>
   </div>

@@ -27,10 +27,10 @@ export const MoleculeRegistry = ({ molecules }: { molecules: Molecule[] }) => {
           placeholder="Search for a molecule"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="mb-8 mt-4 w-1/2 rounded-lg border-2 border-gray-300 p-2 text-lg focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+          className="focus:ring-wsu-gray/50 mb-8 mt-4 w-full rounded-lg border-2 border-gray-300 p-2 text-lg focus:outline-none focus:ring-2 focus:ring-offset-2"
         />
       </div>
-      <div className="grid h-full w-full grid-cols-1 gap-8 lg:grid-cols-2 xl:grid-cols-3 2xl:gap-10">
+      <div className="grid h-full w-full grid-cols-1 gap-8 lg:grid-cols-2 xl:grid-cols-4 2xl:gap-10">
         {filteredMolecules.map((molecule) => (
           <MoleculeDisplay molecule={molecule} key={molecule.name} />
         ))}

@@ -154,7 +154,7 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
   return (
     <div className="h-[500px] w-full">
       <button
-        className="mb-2 rounded-md bg-gray-200 px-4 py-2 transition-colors hover:bg-gray-300"
+        className="hover:text-wsu-crimson mb-2 rounded-md bg-gray-200 px-4 py-2 transition-colors hover:bg-gray-300"
         onClick={zoomOut}
       >
         Zoom Out

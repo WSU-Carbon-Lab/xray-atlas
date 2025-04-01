@@ -73,7 +73,7 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
   };
 
   return (
-    <div className="flex w-full max-w-3xl flex-col space-y-4 rounded-2xl bg-gradient-to-r from-gray-50 to-zinc-100 p-6 shadow-lg transition-all hover:shadow-xl hover:shadow-purple-100">
+    <div className="hover:shadow-wsu-gray/50 rounded-1xl flex w-full max-w-3xl flex-col space-y-4 bg-gradient-to-r from-gray-50 to-zinc-100 p-6 shadow-lg transition-all hover:shadow-xl">
       {/* Consolidated Details Modal */}
       <Dialog
         open={showDetailsModal}
@@ -125,7 +125,7 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
       {/* Card Content */}
       <div className="space-y-3">
         <div className="flex flex-col space-y-2">
-          <div className="overflow-hidden rounded-xl border-2 border-gray-200 bg-white p-4 shadow-inner">
+          <div className="rounded-1xl overflow-hidden border-2 border-gray-200 bg-white p-4 shadow-inner">
             <Link
               href={`/molecule/${props.molecule.name}`}
               className="block h-full w-full"
@@ -147,7 +147,7 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
           <div className="space-y-2.5">
             <button
               onClick={() => setShowSynonymsModal(true)}
-              className="group w-full rounded-lg bg-gray-50 p-2 text-left transition-all hover:bg-gray-100 focus:outline-none"
+              className="hover:ring-wsu-crimson group w-full rounded-lg bg-gray-50 p-2 text-left transition-all hover:bg-gray-100 hover:ring-1 focus:outline-none"
             >
               <NameList
                 title="Common Names"
@@ -166,7 +166,7 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
           <div className="space-y-2.5">
             <button
               onClick={() => setShowDetailsModal(true)}
-              className="group w-full rounded-lg bg-gray-50 p-2 text-left transition-all hover:bg-gray-100 focus:outline-none"
+              className="hover:ring-wsu-crimson group w-full rounded-lg bg-gray-50 p-2 text-left transition-all hover:bg-gray-100 hover:ring-1 focus:outline-none"
             >
               <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">
                 {"Description"}

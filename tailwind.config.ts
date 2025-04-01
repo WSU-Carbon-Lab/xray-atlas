@@ -23,6 +23,20 @@ export default {
       "6xl": "4rem",
     },
     extend: {
+      colors: {
+        // WSU Primary Colors
+        "wsu-crimson": "#C8102E",
+        "wsu-gray": "#5E6A71",
+
+        // WSU Secondary Colors
+        "wsu-orange": "#F1662A",
+        "wsu-green": "#8ABE4F",
+        "wsu-blue": "#00A5BD",
+        "wsu-yellow": "#FFCD00",
+
+        // Alias for existing crimson usage
+        crimson: "#C8102E",
+      },
       spacing: {
         4.5: "1.125rem",
         18: "4.5rem",
