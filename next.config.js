@@ -11,8 +11,15 @@ const config = {
             {
                 protocol: undefined,
                 hostname: '**',
+            },
+            {
+                protocol: 'https',
+                hostname: 'raw.githubusercontent.com',
+                pathname: '/WSU-Carbon-Lab/molecules/main/**'
             }
-        ]
+        ],
+        dangerouslyAllowSVG: true,
+        contentDispositionType: 'attachment',
     }
 }
 
