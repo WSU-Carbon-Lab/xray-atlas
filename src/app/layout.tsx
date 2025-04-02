@@ -1,9 +1,15 @@
 import "~/styles/globals.css";
-import { type Metadata } from "next";
+import { type Metadata, type Viewport } from "next";
 import Link from "next/link";
 import React from "react";
 import Image from "next/image";
 import github from "public/github-mark.svg";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#C8102E", // WSU crimson
+};
 
 export const metadata: Metadata = {
   title: {
@@ -13,6 +19,49 @@ export const metadata: Metadata = {
   description:
     "Comprehensive database for X-ray spectroscopy data collected by the WSU Collins Lab",
   icons: [{ rel: "icon", url: "https://repo.wsu.edu/favicon/icon.svg" }],
+
+  // Open Graph metadata (for Facebook, LinkedIn, etc.)
+  openGraph: {
+    type: "website",
+    title: "Xray Atlas | WSU Collins Research Group",
+    description:
+      "Comprehensive database for X-ray spectroscopy data collected by the WSU Collins Lab",
+    siteName: "Xray Atlas",
+    images: [
+      {
+        url: "https://wpcdn.web.wsu.edu/wp-labs/uploads/sites/945/2017/11/Scattxrayering-Rendering.jpg", // Replace with your actual image URL
+        width: 1200,
+        height: 630,
+        alt: "Xray Atlas Preview Image",
+      },
+    ],
+  },
+
+  // Twitter metadata
+  twitter: {
+    card: "summary_large_image",
+    title: "Xray Atlas | WSU Collins Research Group",
+    description:
+      "Comprehensive database for X-ray spectroscopy data collected by the WSU Collins Lab",
+    images: [
+      "https://wpcdn.web.wsu.edu/wp-labs/uploads/sites/945/2017/11/Scattering-Rendering.jpg",
+    ], // Replace with your actual image URL=
+  },
+
+  // Additional metadata
+  applicationName: "Xray Atlas",
+  keywords: [
+    "X-ray spectroscopy",
+    "NEXAFS",
+    "material research",
+    "WSU",
+    "Collins Lab",
+  ],
+  authors: [
+    { name: "WSU Collins Research Group", url: "https://labs.wsu.edu/carbon/" },
+  ],
+  robots: "index, follow",
+  // viewport and themeColor properties have been moved to viewport export
 };
 
 function TopNav() {

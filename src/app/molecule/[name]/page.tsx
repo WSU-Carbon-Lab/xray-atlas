@@ -1,15 +1,45 @@
 import React from "react";
+import type { Metadata } from "next";
 import { MoleculeDisplay } from "~/app/_components/molecule";
 import { NexafsTable } from "~/app/_components/nexafs_table";
 import { getMolecule } from "~/server/queries";
+
+export const generateMetadata = async ({
+  params,
+}: {
+  params: Promise<{ name: string }>;
+}): Promise<Metadata> => {
+  // Fetch molecule data
+  const paramsResolved = await params;
+  const molecule = await getMolecule(paramsResolved.name);
+
+  return {
+    title: `${molecule.name} | Xray Atlas`,
+    description:
+      molecule.description || "X-ray spectroscopy data for this molecule",
+    openGraph: {
+      title: `${molecule.name} | Xray Atlas`,
+      description:
+        molecule.description || "X-ray spectroscopy data for this molecule",
+      images: [
+        {
+          url: molecule.img,
+          width: 1200,
+          height: 630,
+          alt: `${molecule.name} structure`,
+        },
+      ],
+    },
+  };
+};
 
 export default async function Page({
   params,
 }: {
   params: Promise<{ name: string }>;
 }) {
-  const name = (await params).name;
-  const molecule = await getMolecule(name);
+  const paramsResolved = await params;
+  const molecule = await getMolecule(paramsResolved.name);
   return (
     <div className="mx-auto max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8 lg:flex-row">
