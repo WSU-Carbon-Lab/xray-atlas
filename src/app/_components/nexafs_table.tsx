@@ -5,7 +5,11 @@ import React, { useState, useEffect } from "react";
 import type { Molecule, Experiment, DataSet } from "~/server/db";
 import { Uid } from "~/server/db";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
-import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowDownTrayIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+} from "@heroicons/react/24/outline";
 import {
   getDataSet,
   getPolarValues,
@@ -23,6 +27,9 @@ export const NexafsTable = (props: {
   const [dataSet, setDataSet] = useState<DataSet | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // Add sort state - default to sorting by edge in ascending order
+  const [sortField, setSortField] = useState<keyof Experiment>("edge");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     if (selectedExperiment) {
@@ -44,6 +51,18 @@ export const NexafsTable = (props: {
     }
   }, [selectedExperiment, props.molecule.name]);
 
+  // Add a function to handle sorting when column headers are clicked
+  const handleSort = (field: keyof Experiment) => {
+    if (sortField === field) {
+      // Toggle direction if clicking the same field
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
   if (!props.molecule.data)
     return (
       <div className="p-4 text-gray-600">No experimental data available</div>
@@ -61,6 +80,30 @@ export const NexafsTable = (props: {
     );
   });
 
+  // Sort the filtered experiments
+  const sortedExperiments = [...filteredExperiments].sort((a, b) => {
+    const valueA = a[sortField]?.toLowerCase() ?? "";
+    const valueB = b[sortField]?.toLowerCase() ?? "";
+
+    if (valueA < valueB) {
+      return sortDirection === "asc" ? -1 : 1;
+    }
+    if (valueA > valueB) {
+      return sortDirection === "asc" ? 1 : -1;
+    }
+    return 0;
+  });
+
+  // Column headers with their keys for sorting
+  const columns: { key: keyof Experiment; label: string }[] = [
+    { key: "edge", label: "Edge" },
+    { key: "method", label: "Method" },
+    { key: "facility", label: "Facility" },
+    { key: "instrument", label: "Instrument" },
+    { key: "source", label: "Source" },
+    { key: "group", label: "Group" },
+  ];
+
   return (
     <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       {/* Search Bar */}
@@ -68,7 +111,7 @@ export const NexafsTable = (props: {
         <input
           type="text"
           placeholder="Search experiments..."
-          className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2"
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-wsu-crimson focus:outline-none focus:ring-2 focus:ring-wsu-crimson/20"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -76,46 +119,48 @@ export const NexafsTable = (props: {
       <table className="w-full">
         <thead className="bg-gray-50">
           <tr>
-            {[
-              "Edge",
-              "Method",
-              "Facility",
-              "Instrument",
-              "Source",
-              "Group",
-            ].map((header) => (
+            {columns.map((column) => (
               <th
-                key={header}
-                className="px-4 py-3 text-left text-sm font-semibold text-gray-900"
+                key={column.key}
+                className="cursor-pointer px-4 py-3 text-left text-sm font-semibold text-gray-900 hover:bg-gray-100"
+                onClick={() => handleSort(column.key)}
               >
-                {header}
+                <div className="flex items-center space-x-1">
+                  <span>{column.label}</span>
+                  {sortField === column.key &&
+                    (sortDirection === "asc" ? (
+                      <ChevronUpIcon className="h-4 w-4" />
+                    ) : (
+                      <ChevronDownIcon className="h-4 w-4" />
+                    ))}
+                </div>
               </th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {filteredExperiments.map((experiment) => (
+          {sortedExperiments.map((experiment) => (
             <tr
               key={Uid(experiment)}
-              className="hover:text-wsu-crimson cursor-pointer transition-colors hover:bg-gray-50"
+              className="cursor-pointer transition-colors hover:bg-gray-50 hover:text-wsu-crimson"
               onClick={() => setSelectedExperiment(experiment)}
             >
-              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-900">
+              <td className="px-4 py-3 text-sm text-gray-900 group-hover:text-wsu-crimson">
                 {experiment.edge}
               </td>
-              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-600">
+              <td className="px-4 py-3 text-sm text-gray-600 group-hover:text-wsu-crimson">
                 {experiment.method}
               </td>
-              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-600">
+              <td className="px-4 py-3 text-sm text-gray-600 group-hover:text-wsu-crimson">
                 {experiment.facility}
               </td>
-              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-600">
+              <td className="px-4 py-3 text-sm text-gray-600 group-hover:text-wsu-crimson">
                 {experiment.instrument}
               </td>
-              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-600">
+              <td className="px-4 py-3 text-sm text-gray-600 group-hover:text-wsu-crimson">
                 {experiment.source}
               </td>
-              <td className="group-hover:text-wsu-crimson px-4 py-3 text-sm text-gray-600">
+              <td className="px-4 py-3 text-sm text-gray-600 group-hover:text-wsu-crimson">
                 {experiment.group}
               </td>
             </tr>
@@ -200,7 +245,7 @@ const ExperimentModal = ({
           <div className="flex gap-2">
             <button
               onClick={() => handleDownload("csv")}
-              className="hover:text-wsu-crimson hover:ring-wsu-crimson flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 hover:ring-1"
+              className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 hover:text-wsu-crimson hover:ring-1 hover:ring-wsu-crimson"
             >
               <ArrowDownTrayIcon className="h-4 w-4" />
               CSV
@@ -215,7 +260,7 @@ const ExperimentModal = ({
           </div>
           {isLoading ? (
             <div className="mt-4 flex justify-center py-8">
-              <div className="border-t-wsu-crimson border-wsu-gray h-8 w-8 animate-spin rounded-full border-4" />
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-wsu-gray border-t-wsu-crimson" />
             </div>
           ) : dataSet ? (
             <div className="mt-4 space-y-6">
@@ -292,7 +337,7 @@ const DetailSection = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <div className="hover:border-wsu-crimson/30 flex-col rounded-lg border border-gray-200 p-4 transition-all hover:shadow-sm">
+  <div className="flex-col rounded-lg border border-gray-200 p-4 transition-all hover:border-wsu-crimson/30 hover:shadow-sm">
     <h3 className="mb-3 text-sm font-semibold text-gray-900">{title}</h3>
     <div className="space-y-2">{children}</div>
   </div>

@@ -154,7 +154,7 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
   return (
     <div className="h-[500px] w-full">
       <button
-        className="hover:text-wsu-crimson mb-2 rounded-md bg-gray-200 px-4 py-2 transition-colors hover:bg-gray-300"
+        className="mb-2 rounded-md bg-gray-200 px-4 py-2 transition-colors hover:bg-gray-300 hover:text-wsu-crimson"
         onClick={zoomOut}
       >
         Zoom Out
@@ -219,6 +219,7 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
               borderRadius: "4px",
               boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
             }}
+            position={{ y: 0, x: 130 }}
             formatter={(value: number, name: string) => {
               if (isNaN(value)) return ["-"];
               const index = parseInt(name.split("_")[1] ?? "0");

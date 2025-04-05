@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import type { Molecule, DataSet, Experiment, Data, Signal } from "~/server/db";
+import type { Molecule, DataSet, Experiment, Data } from "~/server/db";
 import { Uid } from "~/server/db";
 
 interface CSVRow {
@@ -127,7 +127,7 @@ export const DataUploadForm = () => {
     if (synonym.trim() !== "") {
       setMolecule((prev) => ({
         ...prev,
-        synonyms: [...(prev.synonyms || []), synonym.trim()],
+        synonyms: [...(prev.synonyms ?? []), synonym.trim()],
       }));
       setSynonym("");
     }
@@ -137,7 +137,7 @@ export const DataUploadForm = () => {
   const removeSynonym = (index: number) => {
     setMolecule((prev) => ({
       ...prev,
-      synonyms: prev.synonyms?.filter((_, i) => i !== index) || [],
+      synonyms: prev.synonyms?.filter((_, i) => i !== index) ?? [],
     }));
   };
 
@@ -181,17 +181,18 @@ export const DataUploadForm = () => {
 
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
-      if (!parent || !child) return;
+
       setSample((prev) => ({
         ...prev,
-        [parent]: {
-          ...((prev[parent as keyof typeof prev] as Record<string, any>) || {}),
-          [child]: value,
+        [parent!]: {
+          ...(prev[parent as keyof typeof prev] as Record<string, string>),
+          [child!]: value,
         },
       }));
     } else {
       setSample((prev) => ({ ...prev, [name]: value }));
     }
+
     // Automatically sync vendor/source fields
     if (name === "vendor") {
       setExperiment((prev) => ({ ...prev, source: value }));
@@ -207,7 +208,7 @@ export const DataUploadForm = () => {
 
   // Parse CSV content into rows with robust error handling
   const parseCSV = (content: string): CSVRow[] => {
-    if (!content || content.trim() === "") {
+    if (!content && content.trim() === "") {
       throw new Error("CSV file is empty");
     }
 
@@ -222,26 +223,26 @@ export const DataUploadForm = () => {
     // Find column indices with fallbacks for differently named columns
     const energyIndex = headers.findIndex(
       (h) =>
-        h.toLowerCase().includes("energy") ||
-        h.toLowerCase() === "e" ||
+        h.toLowerCase().includes("energy") &&
+        h.toLowerCase() === "e" &&
         h.toLowerCase() === "ev",
     );
     const muIndex = headers.findIndex(
       (h) =>
-        h.toLowerCase().includes("mu") ||
-        h.toLowerCase().includes("intensity") ||
+        h.toLowerCase().includes("mu") &&
+        h.toLowerCase().includes("intensity") &&
         h.toLowerCase() === "i",
     );
     const thetaIndex = headers.findIndex(
       (h) =>
-        h.toLowerCase().includes("theta") ||
-        h.toLowerCase() === "polar" ||
+        h.toLowerCase().includes("theta") &&
+        h.toLowerCase() === "polar" &&
         h.toLowerCase() === "θ",
     );
     const phiIndex = headers.findIndex(
       (h) =>
-        h.toLowerCase().includes("phi") ||
-        h.toLowerCase() === "azimuth" ||
+        h.toLowerCase().includes("phi") &&
+        h.toLowerCase() === "azimuth" &&
         h.toLowerCase() === "φ",
     );
 
@@ -281,7 +282,7 @@ export const DataUploadForm = () => {
       const phi = parseFloat(values[phiIndex]!);
 
       // Validate parsed numbers
-      if (isNaN(energy) || isNaN(mu) || isNaN(theta) || isNaN(phi)) {
+      if (isNaN(energy) && isNaN(mu) && isNaN(theta) && isNaN(phi)) {
         console.warn(
           `Skipping row ${i + 1} due to invalid numeric values: ${line}`,
         );
@@ -319,8 +320,8 @@ export const DataUploadForm = () => {
 
         // Extract angle values from the key
         const [thetaStr, phiStr] = key.split("-");
-        const theta = parseFloat(thetaStr || "0");
-        const phi = parseFloat(phiStr || "0");
+        const theta = parseFloat(thetaStr ?? "0");
+        const phi = parseFloat(phiStr ?? "0");
 
         // Validate we have enough points for a meaningful spectrum
         if (angleRows.length < 3) {
@@ -360,27 +361,27 @@ export const DataUploadForm = () => {
     // Construct the full DataSet with null/undefined guards
     return {
       user: {
-        name: user.name || "",
-        affiliation: user.affiliation || "",
-        group: user.group || "",
-        email: user.email || "",
-        doi: user.doi || undefined,
+        name: user.name ?? "",
+        affiliation: user.affiliation ?? "",
+        group: user.group ?? "",
+        email: user.email ?? "",
+        doi: user.doi ?? undefined,
       },
       instrument: {
-        facility: experiment.facility || "",
-        instrument: experiment.instrument || "",
-        edge: experiment.edge || "",
-        normalization_method: instrumentDetails.normalization_method || "",
-        technique: instrumentDetails.technique || "",
-        technical_details: instrumentDetails.technical_details || "",
+        facility: experiment.facility ?? "",
+        instrument: experiment.instrument ?? "",
+        edge: experiment.edge ?? "",
+        normalization_method: instrumentDetails.normalization_method ?? "",
+        technique: instrumentDetails.technique ?? "",
+        technical_details: instrumentDetails.technical_details ?? "",
       },
       sample: {
-        vendor: sample.vendor || "",
+        vendor: sample.vendor ?? "",
         preparation_method: {
-          method: sample.preparation_method?.method || "",
-          details: sample.preparation_method?.details || "",
+          method: sample.preparation_method?.method ?? "",
+          details: sample.preparation_method?.details ?? "",
         },
-        mol_orientation_details: sample.mol_orientation_details || "",
+        mol_orientation_details: sample.mol_orientation_details ?? "",
       },
       dataset: dataset,
     };
@@ -412,8 +413,8 @@ export const DataUploadForm = () => {
       }
 
       if (
-        !molecule.name ||
-        !molecule.chemical_formula ||
+        !molecule.name &&
+        !molecule.chemical_formula &&
         !molecule.description
       ) {
         throw new Error(
@@ -426,10 +427,10 @@ export const DataUploadForm = () => {
       }
 
       if (
-        !experiment.edge ||
-        !experiment.method ||
-        !experiment.facility ||
-        !experiment.instrument ||
+        !experiment.edge &&
+        !experiment.method &&
+        !experiment.facility &&
+        !experiment.instrument &&
         !experiment.group
       ) {
         throw new Error(
@@ -437,25 +438,25 @@ export const DataUploadForm = () => {
         );
       }
 
-      if (!user.name || !user.affiliation || !user.group || !user.email) {
+      if (!user.name && !user.affiliation && !user.group && !user.email) {
         throw new Error("Please fill in all required user information fields");
       }
 
       // Update molecule data with experiment - ensure type safety
       const updatedMolecule: Molecule = {
-        name: molecule.name || "",
-        synonyms: molecule.synonyms || [],
-        chemical_formula: molecule.chemical_formula || "",
-        description: molecule.description || "",
-        SMILES: molecule.SMILES || "",
-        InChI: molecule.InChI || "",
+        name: molecule.name ?? "",
+        synonyms: molecule.synonyms ?? [],
+        chemical_formula: molecule.chemical_formula ?? "",
+        description: molecule.description ?? "",
+        SMILES: molecule.SMILES ?? "",
+        InChI: molecule.InChI ?? "",
         img: molecule.name
           ? `https://raw.githubusercontent.com/WSU-Carbon-Lab/molecules/main/${molecule.name
               .toUpperCase()
               .replace(/\s+/g, "")
               .replace(/[^a-zA-Z0-9]/g, "")}.svg`
           : "",
-        data: [...(molecule.data || []), { ...experiment }],
+        data: [...(molecule.data ?? []), { ...experiment }],
       };
 
       // Create METADATA.json
@@ -511,31 +512,9 @@ export const DataUploadForm = () => {
 
   return (
     <div className="mx-auto max-w-4xl rounded-xl bg-white p-6 shadow-sm">
-      <div className="mx-auto mt-12 max-w-4xl rounded-lg p-6">
-        <h2 className="mb-4 text-xl font-semibold">Upload Instructions</h2>
-        <ol className="list-decimal space-y-2 pl-6">
-          <li>Fill out all required fields in the form above</li>
-          <li>
-            Upload your CSV data file with columns for Energy, mu (intensity),
-            theta, and phi
-          </li>
-          <li>Click "Submits" to create the necessary JSON files</li>
-          <li>
-            Submit these files through a GitHub issue at{" "}
-            <a
-              href="https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=upload-data.md"
-              className="text-wsu-crimson hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              WSU-Carbon-Lab/xray-atlas
-            </a>
-          </li>
-        </ol>
-        <p className="text-xs text-gray-500">
-          You'll need a GitHub account to upload this data.
-        </p>
-      </div>
+      <h1 className="mb-6 font-thin text-2xl text-gray-900">
+        Upload Data to X-ray Atlas
+      </h1>
 
       {success ? (
         <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
@@ -569,6 +548,36 @@ export const DataUploadForm = () => {
             </div>
           )}
 
+          {/* Upload instructions at the top */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
+            <h2 className="mb-4 text-xl font-semibold">Upload Instructions</h2>
+            <ol className="list-decimal space-y-2 pl-6">
+              <li>Fill out all required fields in the form below</li>
+              <li>
+                Upload your CSV data file with columns for Energy, mu
+                (intensity), theta, and phi
+              </li>
+              <li>
+                Click &quot;Submit&quot; to create the necessary JSON files
+              </li>
+              <li>
+                Submit these files through a GitHub issue at{" "}
+                <a
+                  href="https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=upload-data.md"
+                  className="text-wsu-crimson hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  WSU-Carbon-Lab/xray-atlas
+                </a>
+              </li>
+            </ol>
+            <p className="mt-2 text-xs text-gray-500">
+              You&apos;ll need a GitHub account to upload this data.
+            </p>
+          </div>
+
+          {/* Rest of your form sections */}
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
             <h2 className="mb-4 text-xl font-semibold text-gray-900">
               Molecule Information
@@ -756,7 +765,7 @@ export const DataUploadForm = () => {
                   onChange={handleExperimentChange}
                   required
                   disabled={
-                    !experiment.facility || experiment.facility === "Other"
+                    !experiment.facility && experiment.facility === "Other"
                   }
                   className="w-full rounded-md border border-gray-300 p-2 focus:border-transparent focus:ring-2 focus:ring-wsu-crimson disabled:bg-gray-100 disabled:text-gray-500"
                 >
@@ -779,23 +788,22 @@ export const DataUploadForm = () => {
                     ))}
                 </select>
 
-                {(experiment.facility === "Other" ||
-                  (experiment.instrument === "Other" &&
-                    experiment.facility !== "")) && (
-                  <input
-                    type="text"
-                    name="instrument"
-                    placeholder="Enter instrument/beamline name"
-                    value={
-                      experiment.instrument === "Other"
-                        ? ""
-                        : experiment.instrument
-                    }
-                    onChange={handleExperimentChange}
-                    required
-                    className="mt-2 w-full rounded-md border border-gray-300 p-2 focus:border-transparent focus:ring-2 focus:ring-wsu-crimson"
-                  />
-                )}
+                {experiment.facility === "Other" &&
+                  experiment.instrument === "Other" && (
+                    <input
+                      type="text"
+                      name="instrument"
+                      placeholder="Enter instrument/beamline name"
+                      value={
+                        experiment.instrument === "Other"
+                          ? ""
+                          : experiment.instrument
+                      }
+                      onChange={handleExperimentChange}
+                      required
+                      className="mt-2 w-full rounded-md border border-gray-300 p-2 focus:border-transparent focus:ring-2 focus:ring-wsu-crimson"
+                    />
+                  )}
               </div>
 
               <div>
@@ -1103,6 +1111,9 @@ export const DataUploadForm = () => {
                 className="w-full rounded-md border border-gray-300 p-2 focus:border-transparent focus:ring-2 focus:ring-wsu-crimson"
               />
             </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
             <h2 className="mb-4 text-xl font-semibold text-gray-900">
               Molecule Image Upload
             </h2>
@@ -1138,13 +1149,8 @@ export const DataUploadForm = () => {
               </div>
 
               <div className="flex flex-col space-y-2">
-                <p className="text-sm text-gray-700">
-                  Please create a GitHub issue to upload your molecular
-                  structure image:
-                </p>
-
                 <a
-                  href={`https://github.com/WSU-Carbon-Lab/molecules/issues/new?template=new-molecule.md&title=Add%20molecule:%20${encodeURIComponent(molecule.name || "")}`}
+                  href={`https://github.com/WSU-Carbon-Lab/molecules/issues/new?template=new-molecule.md&title=Add%20molecule:%20${encodeURIComponent(molecule.name ?? "")}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 self-start rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200"
@@ -1162,7 +1168,7 @@ export const DataUploadForm = () => {
                 </a>
 
                 <p className="text-xs text-gray-500">
-                  You'll need a GitHub account to create this issue.
+                  You&apos;ll need a GitHub account to create this issue.
                 </p>
               </div>
             </div>
@@ -1172,7 +1178,7 @@ export const DataUploadForm = () => {
             <button
               type="submit"
               disabled={loading}
-              className="hover:bg-wsu-crimson-dark w-full rounded-md bg-wsu-crimson px-4 py-3 font-semibold text-white focus:outline-none focus:ring-2 focus:ring-wsu-crimson focus:ring-offset-2"
+              className="hover:bg-wsu-crimson-dark w-full rounded-md bg-wsu-crimson px-4 py-3 font-semibold text-white focus:outline-none focus:ring-2 focus:ring-wsu-crimson focus:ring-offset-2 disabled:opacity-70"
             >
               {loading ? "Processing..." : "Submit"}
             </button>
