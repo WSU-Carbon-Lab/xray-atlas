@@ -1,7 +1,7 @@
 ---
 name: Upload Data
 about: Molecule Name
-title: '[NEW] DATASET'
+title: '[NEW] MOLECULENAME'
 labels: new data
 assignees: HarlanHeilman
 
