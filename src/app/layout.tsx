@@ -70,14 +70,14 @@ function TopNav() {
       <div className="container flex h-16 items-center justify-between px-4">
         <Link
           href="/"
-          className="hover:text-wsu-crimson flex items-center space-x-3 font-sans font-thin text-3xl text-black transition-colors hover:underline"
+          className="flex items-center space-x-3 font-sans font-thin text-3xl text-black transition-colors hover:text-wsu-crimson hover:underline"
         >
           <Image
             src="/wsu-logo.png"
             alt="WSU Logo"
             width={40}
             height={40}
-            className="hover-image-link bg-wsu-crimson h-10 w-auto rounded-lg"
+            className="hover-image-link h-10 w-auto rounded-lg bg-wsu-crimson"
           />
           <span>X-ray Atlas</span>
         </Link>
@@ -85,9 +85,15 @@ function TopNav() {
         <div className="text-large flex items-center gap-6 font-medium">
           <Link
             href="/"
-            className="hover:text-wsu-crimson text-black transition-colors hover:underline"
+            className="text-black transition-colors hover:text-wsu-crimson hover:underline"
           >
             Home
+          </Link>
+          <Link
+            href="/upload"
+            className="text-black transition-colors hover:text-wsu-crimson hover:underline"
+          >
+            Upload
           </Link>
           <Link
             href="https://github.com/WSU-Carbon-Lab/xray-atlas"
@@ -121,7 +127,7 @@ function Footer() {
             <p className="text-sm text-gray-600">
               <Link
                 href="https://labs.wsu.edu/carbon/"
-                className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+                className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
               >
                 Washington State University · Collins Research Group
               </Link>
@@ -129,7 +135,7 @@ function Footer() {
             <p className="text-sm text-gray-600">
               <Link
                 href="https://faculty.psau.edu.sa/en/psau/facultymember/om.alqahtani"
-                className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+                className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
               >
                 Prince Sattam bin Abdulaziz University · Obaid Alqahtani
               </Link>
@@ -140,19 +146,19 @@ function Footer() {
             <div className="flex flex-col space-y-2">
               <Link
                 href="https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=upload-data.md"
-                className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+                className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
               >
                 Submit Data
               </Link>
               <Link
                 href="https://github.com/WSU-Carbon-Lab/xray-atlas/releases/tag/0.1.0"
-                className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+                className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
               >
                 Documentation
               </Link>
               <Link
                 href="https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new/choose"
-                className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+                className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
               >
                 Contact
               </Link>
@@ -166,7 +172,7 @@ function Footer() {
               <li>
                 <Link
                   href="https://www.nist.gov/mml/materials-science-and-engineering-division/polymers-processing-group"
-                  className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+                  className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
                 >
                   NIST RSoXR Group
                 </Link>
@@ -174,7 +180,7 @@ function Footer() {
               <li>
                 <Link
                   href="https://www.bnl.gov/nsls2/beamlines/beamline.php?r=12-ID"
-                  className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+                  className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
                 >
                   NSLS II SMI & SST1 Beamlines
                 </Link>
@@ -182,7 +188,7 @@ function Footer() {
               <li>
                 <Link
                   href="https://www.ansto.gov.au/facilities/australian-synchrotron/synchrotron-beamlines/soft-x-ray-spectroscopy#content-scientists"
-                  className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+                  className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
                 >
                   The Australian Synchrotron Soft X-ray Spectroscopy Beamline
                 </Link>
@@ -190,7 +196,7 @@ function Footer() {
               <li>
                 <Link
                   href="https://www.monash.edu/engineering/chrismcneill"
-                  className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+                  className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
                 >
                   Monash University Chris McNeill Group
                 </Link>
@@ -198,7 +204,7 @@ function Footer() {
               <li>
                 <Link
                   href="https://weiyougroup.org/"
-                  className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+                  className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
                 >
                   The University of North Carolina at Chapel Hill You Group
                 </Link>
@@ -213,19 +219,19 @@ function Footer() {
           <div className="mt-4 flex justify-center gap-4 text-sm md:mt-0 md:justify-end">
             <Link
               href="/privacy"
-              className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+              className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
             >
               Privacy
             </Link>
             <Link
               href="https://github.com/WSU-Carbon-Lab/xray-atlas"
-              className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+              className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
             >
               GitHub
             </Link>
             <Link
               href="https://wsu.edu/"
-              className="hover:text-wsu-crimson text-sm text-gray-600 transition-colors hover:underline"
+              className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
             >
               WSU
             </Link>
