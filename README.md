@@ -62,6 +62,14 @@ The database uses a structured JSON format that includes:
 
 Data is stored in individual molecule files and referenced in a central registry for efficient querying.
 
+# REST API
+There is an underying REST api that serves database content to the outside world uppon request. This is handeled by AWS and does 
+accumulate a small charge based on the number of calls you make. If you are going to frequently use the same dataset for a calculation
+we recommend downloading it through the website and working with the local copy. 
+
+## Outline of the API
+
+
 ## License
 
 This project is licensed under the [MIT License](https://github.com/WSU-Carbon-Lab/xray-atlas/blob/main/LICENSE).
