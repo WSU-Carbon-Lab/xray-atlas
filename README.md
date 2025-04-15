@@ -9,7 +9,7 @@
 </p>
 
 <div align="center">
-  <a href="https://xray-atlas.wsu.edu">Home</a> | <a href="https://github.com/WSU-Carbon-Lab/xray-atlas/wiki">Docs</a> | <a href="https://github.com/WSU-Carbon-Lab/xray-atlas/issues">Issues</a>
+  <a href="https://xrayatlas.wsu.edu">Home</a> | <a href="https://github.com/WSU-Carbon-Lab/xray-atlas/wiki">Docs</a> | <a href="https://github.com/WSU-Carbon-Lab/xray-atlas/issues">Issues</a>
 </div>
 
 ## About X-Ray Atlas
