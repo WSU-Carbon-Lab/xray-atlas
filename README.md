@@ -67,9 +67,61 @@ There is an underying REST api that serves database content to the outside world
 accumulate a small charge based on the number of calls you make. If you are going to frequently use the same dataset for a calculation
 we recommend downloading it through the website and working with the local copy. 
 
-## Outline of the API
+## Intended Programatic Interface
+Identify the dataset from the website you want to work with on the website using the labeling information for a dataset
+![image](https://github.com/user-attachments/assets/6fab8491-eaa8-4834-85aa-311908d99e97)
+Use this information to create the unique id for the dataset formatted as `{edge}_{method}_{facility}_{instrument}_{group}_{source}`. 
+Using this data then load the dataset with pandas with the following code snippet. 
 
+  ```python
+  import pandas as pd
+  df = pd.read_csv("https://bfsd0tdg6f.execute-api.us-west-2.amazonaws.com/prod/bucket/molecules/{molecule}/{uid}/csv")
+  df.to_csv("local_csv.csv")
+  # the rest of the stuff you want to do with the data
+  ```
+Alternately, download the file directly from the web page. 
+<details>
+<summary><h2> Advanced Useage </h2></summary>
+<br>
+Programatic access of the database is funneled though an AWS API gateway application and invoked with this URL
+```
+https://bfsd0tdg6f.execute-api.us-west-2.amazonaws.com/prod
+```
+The only HTTP method allowed is GET methods with no parameters. Here are the relevent methods
 
+* Get all molecules `GET https://bfsd0tdg6f.execute-api.us-west-2.amazonaws.com/prod/bucket/molecules`
+    * This returns a JSON object with all the header information for every molecule in the database
+      ```JSON
+      {
+        "molecules": [ 
+          "MOL1": {"name": "","synonyms": [""],"chemical_formula": "","description": "","SMILES": "","InChI": "","img": ""},
+          "..."
+        ]
+      }
+      ```
+* Get metadata for a single molecule `GET https://bfsd0tdg6f.execute-api.us-west-2.amazonaws.com/prod/bucket/molecules/{molecule}/metadata`
+    * This returns a JSON object with all the metadata for a single molecule. Including information about experiments
+      ```JSON
+      {
+        "molecule": {
+          "name": "","synonyms": [""],"chemical_formula": "","description": "","SMILES": "","InChI": "","img": "",
+          "data": [
+            {"edge": "","method": "","facility": "", "instrument": "", "group": "", "source": ""},
+            "...",
+          ]
+        },
+      }
+      ```
+* Get NEXAFS for a single experiment `GET https://bfsd0tdg6f.execute-api.us-west-2.amazonaws.com/prod/bucket/molecules/{molecule}/{uid}`
+    * This returns a JSON object with the experiment details for a single experiment. The JSON data has a complex structure, and it is recommended to use the csv version instead
+    * The UID is structured as `{edge}_{method}_{facility}_{instrument}_{group}_{source}`
+* Get NEXAFS csv for a single experiment `GET https://bfsd0tdg6f.execute-api.us-west-2.amazonaws.com/prod/bucket/molecules/{molecule}/{uid}/csv`
+    * This uses the same UID as before but returns a CSV instead
+      ```csv
+      Energy [{units}], mu, theta, phi
+      270, .09, 30, 0,
+      ```
+</details>
 ## License
 
 This project is licensed under the [MIT License](https://github.com/WSU-Carbon-Lab/xray-atlas/blob/main/LICENSE).
