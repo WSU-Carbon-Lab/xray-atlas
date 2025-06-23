@@ -148,10 +148,10 @@ function Footer() {
                 href="https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=upload-data.md"
                 className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
               >
-                Submit Data
+                Upload
               </Link>
               <Link
-                href="https://github.com/WSU-Carbon-Lab/xray-atlas/releases/tag/0.1.0"
+                href="/upload"
                 className="text-sm text-gray-600 transition-colors hover:text-wsu-crimson hover:underline"
               >
                 Documentation
