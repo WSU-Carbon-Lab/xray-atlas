@@ -73,7 +73,7 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
   };
 
   return (
-    <div className="hover:shadow-wsu-gray/50 rounded-1xl flex w-full max-w-3xl flex-col space-y-4 bg-gradient-to-r from-gray-50 to-zinc-100 p-6 shadow-lg transition-all hover:shadow-xl">
+    <div className="rounded-1xl flex w-full max-w-3xl flex-col space-y-4 bg-gradient-to-r from-gray-50 to-zinc-100 p-6 shadow-lg transition-all hover:shadow-xl hover:shadow-wsu-gray/50">
       {/* Consolidated Details Modal */}
       <Dialog
         open={showDetailsModal}
@@ -147,7 +147,7 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
           <div className="space-y-2.5">
             <button
               onClick={() => setShowSynonymsModal(true)}
-              className="hover:ring-wsu-crimson group w-full rounded-lg bg-gray-50 p-2 text-left transition-all hover:bg-gray-100 hover:ring-1 focus:outline-none"
+              className="group w-full rounded-lg bg-gray-50 p-2 text-left transition-all hover:bg-gray-100 hover:ring-1 hover:ring-wsu-crimson focus:outline-none"
             >
               <NameList
                 title="Common Names"
@@ -166,7 +166,7 @@ export const MoleculeDisplay = (props: { molecule: Molecule }) => {
           <div className="space-y-2.5">
             <button
               onClick={() => setShowDetailsModal(true)}
-              className="hover:ring-wsu-crimson group w-full rounded-lg bg-gray-50 p-2 text-left transition-all hover:bg-gray-100 hover:ring-1 focus:outline-none"
+              className="group w-full rounded-lg bg-gray-50 p-2 text-left transition-all hover:bg-gray-100 hover:ring-1 hover:ring-wsu-crimson focus:outline-none"
             >
               <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">
                 {"Description"}

@@ -16,7 +16,7 @@ import {
   getAzimuthValues,
   downloadData,
 } from "~/server/queries";
-import { NexafsPlot } from "./nexafs_plot";
+import { NexafsPlot } from "./nexafs-plot";
 
 export const NexafsTable = (props: {
   molecule: Molecule;

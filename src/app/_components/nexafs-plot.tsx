@@ -233,7 +233,7 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
             <Line
               key={index}
               dataKey={`series_${index}`}
-              type="monotone"
+              type="linear"
               stroke={colorPalette[index % colorPalette.length]}
               strokeWidth={1.5}
               dot={false}

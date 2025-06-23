@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { MoleculeDisplay } from "~/app/_components/molecule";
-import { NexafsTable } from "~/app/_components/nexafs_table";
+import { NexafsTable } from "~/app/_components/nexafs-table";
 import { getMolecule } from "~/server/queries";
 
 export const generateMetadata = async ({
