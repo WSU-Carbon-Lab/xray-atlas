@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import {
   LineChart,
@@ -182,7 +184,7 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
             tick={{
               fontSize: 11,
               fill: "#555",
-              strokeWidth: 0.5,
+              strokeWidth: 2,
             }}
             label={{
               value: "Energy [eV]",
@@ -199,7 +201,7 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
             tick={{
               fontSize: 11,
               fill: "#555",
-              strokeWidth: 0.5,
+              strokeWidth: 2,
             }}
             label={{
               value: "Absorption [arb. units]",
@@ -235,7 +237,7 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
               dataKey={`series_${index}`}
               type="linear"
               stroke={colorPalette[index % colorPalette.length]}
-              strokeWidth={1.5}
+              strokeWidth={1}
               dot={false}
               activeDot={{
                 r: 4,
@@ -243,7 +245,7 @@ export const NexafsPlot = ({ data }: { data: DataSet }) => {
                 strokeWidth: 0,
               }}
               name={`series_${index}`}
-              isAnimationActive={false}
+              isAnimationActive={true}
             />
           ))}
 

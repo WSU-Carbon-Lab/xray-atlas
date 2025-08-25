@@ -1,12 +1,16 @@
+ARG NODE_VERSION=22
+
 # Use an official Node.js runtime as a parent image
-FROM node:22-alpine AS base
+FROM node:${NODE_VERSION}-alpine AS base
 
 # Set the working directory
 WORKDIR /app
 
-# Install dependencies
-COPY package.json ./
-RUN npm install
+# Install dependencies no cache
+COPY package*.json ./
+RUN npm cache clean --force
+RUN npm install next@latest
+RUN npm install --no-cache
 
 # Copy the rest of the application code
 COPY . .

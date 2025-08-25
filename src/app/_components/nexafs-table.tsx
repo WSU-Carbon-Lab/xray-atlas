@@ -18,6 +18,63 @@ import {
 } from "~/server/queries";
 import { NexafsPlot } from "./nexafs-plot";
 
+export const RenderExperimentDetails = ({
+  dataSet,
+  experiment,
+}: {
+  dataSet: DataSet;
+  experiment: Experiment;
+}) => {
+  return (
+    <div className="mt-4 space-y-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <DetailSection title="User Information">
+          <DetailItem label="Name" value={dataSet.user.name} />
+          <DetailItem label="Affiliation" value={dataSet.user.affiliation} />
+          <DetailItem label="Email" value={dataSet.user.email} />
+        </DetailSection>
+
+        <DetailSection title="Instrument Details">
+          <DetailItem label="Facility" value={dataSet.instrument.facility} />
+          <DetailItem
+            label="Instrument"
+            value={dataSet.instrument.instrument}
+          />
+          <DetailItem label="Technique" value={dataSet.instrument.technique} />
+        </DetailSection>
+
+        <DetailSection title="Experiment Details">
+          <DetailItem label="Edge" value={experiment.edge} />
+          <DetailItem
+            label="Polar Angles"
+            value={getPolarValues(dataSet).join(", ")}
+          />
+          <DetailItem
+            label="Azimuth Angles"
+            value={getAzimuthValues(dataSet).join(", ")}
+          />
+        </DetailSection>
+
+        <DetailSection title="Sample Information">
+          <DetailItem label="Vendor" value={dataSet.sample.vendor} />
+          <DetailItem
+            label="Preparation Method"
+            value={dataSet.sample.preparation_method.method}
+          />
+        </DetailSection>
+      </div>
+
+      <DetailSection title="Data Visualization">
+        <div className="h-full rounded-lg bg-gray-50 p-4">
+          <div className="flex h-full items-center justify-center text-gray-400">
+            <NexafsPlot data={dataSet} />
+          </div>
+        </div>
+      </DetailSection>
+    </div>
+  );
+};
+
 export const NexafsTable = (props: {
   molecule: Molecule;
   className?: string;
@@ -263,62 +320,10 @@ const ExperimentModal = ({
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-wsu-gray border-t-wsu-crimson" />
             </div>
           ) : dataSet ? (
-            <div className="mt-4 space-y-6">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                <DetailSection title="User Information">
-                  <DetailItem label="Name" value={dataSet.user.name} />
-                  <DetailItem
-                    label="Affiliation"
-                    value={dataSet.user.affiliation}
-                  />
-                  <DetailItem label="Email" value={dataSet.user.email} />
-                </DetailSection>
-
-                <DetailSection title="Instrument Details">
-                  <DetailItem
-                    label="Facility"
-                    value={dataSet.instrument.facility}
-                  />
-                  <DetailItem
-                    label="Instrument"
-                    value={dataSet.instrument.instrument}
-                  />
-                  <DetailItem
-                    label="Technique"
-                    value={dataSet.instrument.technique}
-                  />
-                </DetailSection>
-
-                <DetailSection title="Experiment Details">
-                  <DetailItem label="Edge" value={experiment.edge} />
-                  <DetailItem
-                    label="Polar Angles"
-                    value={getPolarValues(dataSet).join(", ")}
-                  />
-                  <DetailItem
-                    label="Azimuth Angles"
-                    value={getAzimuthValues(dataSet).join(", ")}
-                  />
-                </DetailSection>
-
-                <DetailSection title="Sample Information">
-                  <DetailItem label="Vendor" value={dataSet.sample.vendor} />
-                  <DetailItem
-                    label="Preparation Method"
-                    value={dataSet.sample.preparation_method.method}
-                  />
-                </DetailSection>
-              </div>
-
-              <DetailSection title="Data Visualization">
-                <div className="h-full rounded-lg bg-gray-50 p-4">
-                  {/* Placeholder for data visualization */}
-                  <div className="flex h-full items-center justify-center text-gray-400">
-                    <NexafsPlot data={dataSet} />
-                  </div>
-                </div>
-              </DetailSection>
-            </div>
+            <RenderExperimentDetails
+              dataSet={dataSet}
+              experiment={experiment}
+            />
           ) : (
             <div className="mt-4 text-center text-gray-600">
               Failed to load experiment details

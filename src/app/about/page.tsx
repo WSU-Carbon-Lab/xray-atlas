@@ -13,8 +13,9 @@ const AboutPage = () => {
       <p className="mb-6 text-lg">
         The Xray Atlas is a comprehensive database for X-ray spectroscopy data,
         primarily focusing on Near Edge X-ray Absorption Fine Structure (NEXAFS)
-        data. This project is a collaborative effort to make research data more
-        accessible and useful for the scientific community.
+        data on organic compounds. This project is a collaborative effort to
+        make research data more accessible and useful for the scientific
+        community.
       </p>
 
       <div className="space-y-8">
@@ -66,9 +67,9 @@ const AboutPage = () => {
               rapid UI development.
             </li>
             <li>
-              <strong>Drizzle ORM &amp; Turso:</strong> For our database,
-              providing a reliable and scalable solution for our data storage
-              needs.
+              <strong>AWS &amp; Huggingface:</strong> Data storage is handled
+              though a light weight AWS stack storing raw data in a S3 bucket.
+              Huggingface provides a CDN for fast global delivery of raw data.
             </li>
           </ul>
         </section>

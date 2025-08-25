@@ -18,12 +18,6 @@ const config = {
         "2xl": "1400px",
       },
     },
-    fontFamily: {
-      sans: ["zed", ...defaultTheme.fontFamily.sans],
-      thin: ["zed-thin"],
-      light: ["zed-thin"],
-      mono: ["zed-mono", ...defaultTheme.fontFamily.mono],
-    },
     fontSize: {
       xs: "0.6rem",
       sm: "0.75rem",

@@ -80,26 +80,7 @@
   }
 }
 
-@font-face {
-  font-family: "zed";
-  src: url("/zed-sans-regular.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "zed-thin";
-  src: url("/zed-sans-thin.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "zed-mono";
-  src: url("/zed-mono-thin.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
-}
+/* Removed custom font-face declarations to use default system fonts */
 
 /* Base styles */
 @layer base {
