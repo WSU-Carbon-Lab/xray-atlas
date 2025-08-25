@@ -1,0 +1,10 @@
+.env
+.env*.local
+.git
+.gitignore
+.next
+.vscode
+*.tsbuildinfo
+node_modules
+npm-debug.log*
+README.md
