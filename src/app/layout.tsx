@@ -90,6 +90,12 @@ function TopNav() {
             Home
           </Link>
           <Link
+            href="/about"
+            className="text-black transition-colors hover:text-wsu-crimson hover:underline"
+          >
+            About
+          </Link>
+          <Link
             href="/upload"
             className="text-black transition-colors hover:text-wsu-crimson hover:underline"
           >

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CopyButton } from "./button";
+// import { CopyButton } from "./button";
 import { cn } from "./utils";
 
 export interface InfoSectionProps {
@@ -23,6 +23,7 @@ export const InfoSection = React.forwardRef<HTMLDivElement, InfoSectionProps>(
           setTimeout(() => setCopied(false), 2000);
         }
       } catch (err) {
+        console.error("Failed to copy text: ", err);
         // fallback or error
       }
     };
@@ -119,6 +120,7 @@ export const InfoItemWithCopy = React.forwardRef<
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch (err) {
+        console.error("Failed to copy text: ", err);
         // fallback or error
       }
     };
