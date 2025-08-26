@@ -4,6 +4,7 @@ import Link from "next/link";
 import React from "react";
 import Image from "next/image";
 import github from "public/github-mark.svg";
+import { Home, Info, Upload } from "lucide-react";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -76,39 +77,15 @@ export const metadata: Metadata = {
   // viewport and themeColor properties have been moved to viewport export
 };
 
-const aboutComponents: { title: string; href: string; description: string }[] =
-  [
-    {
-      title: "Overview",
-      href: "/about",
-      description:
-        "Learn about the mission and vision of the Xray Atlas project.",
-    },
-    {
-      title: "How-to Guide",
-      href: "/about/how-to-guide",
-      description:
-        "A guide on how to use the features of the Xray Atlas effectively.",
-    },
-    {
-      title: "Schema",
-      href: "/about/schema",
-      description: "The data schema used in the Xray Atlas.",
-    },
-    {
-      title: "Technology",
-      href: "/about/technology",
-      description: "The technology stack behind the Xray Atlas.",
-    },
-  ];
+import { aboutNavItems } from "~/lib/navigation";
 
 function TopNav() {
   return (
-    <nav className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full border-b backdrop-blur">
+    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link
           href="/"
-          className="flex items-center space-x-3 font-sans font-thin text-3xl"
+          className="flex items-center space-x-3 font-sans text-3xl font-thin"
         >
           <Image
             src="/wsu-logo.png"
@@ -126,15 +103,23 @@ function TopNav() {
               <NavigationMenuItem>
                 <Link href="/" passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    <Home className="mr-2 h-4 w-4" />
                     Home
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <NavigationMenuTrigger>About</NavigationMenuTrigger>
+                <NavigationMenuTrigger>
+                  <Link href="/about" passHref>
+                    <span className="flex items-center">
+                      <Info className="mr-2 h-4 w-4" />
+                      About
+                    </span>
+                  </Link>
+                </NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-                    {aboutComponents.map((component) => (
+                    {aboutNavItems.map((component) => (
                       <ListItem
                         key={component.title}
                         title={component.title}
@@ -149,6 +134,7 @@ function TopNav() {
               <NavigationMenuItem>
                 <Link href="/upload" passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    <Upload className="mr-2 h-4 w-4" />
                     Upload
                   </NavigationMenuLink>
                 </Link>
@@ -184,13 +170,13 @@ const ListItem = React.forwardRef<
         <a
           ref={ref}
           className={cn(
-            "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors",
+            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
             className,
           )}
           {...props}
         >
           <div className="text-sm font-medium leading-none">{title}</div>
-          <p className="text-muted-foreground line-clamp-2 text-sm leading-snug">
+          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
             {children}
           </p>
         </a>

@@ -1,8 +1,9 @@
 import React, { Suspense } from "react";
 import { getDataSet, getMolecule } from "~/server/queries";
 import { Skeleton } from "~/app/_components/ui/skeleton";
-import { NexafsPlot } from "~/app/_components/nexafs-plot";
 import { RenderExperimentDetails } from "~/app/_components/nexafs-table";
+import angles from "../../../../../public/angle-defs-for-website.svg";
+import Image from "next/image";
 
 async function InterpretingDataContent() {
   const molecule = await getMolecule("Y6");
@@ -13,6 +14,23 @@ async function InterpretingDataContent() {
 
   return (
     <div className="mt-6">
+      <h2 className="mb-4 text-xl font-semibold">Angle Definitions</h2>
+      <Image
+        src={angles}
+        alt="Polar and azimuthal angle definitions"
+        width={500}
+        height={300}
+        className="mx-auto my-4 h-auto w-full max-w-[600px]"
+      />
+      <p>
+        The data stored in this database all originate from NEXAFS experiments,
+        and certain instruments allow for the collection of angle-dependent
+        NEXAFS. In these experiments, the angle between the electric field
+        vector of the incident X-rays and the surface normal is varied. This
+        angle is known as the polar angle. An azimuthal angle of zero assumes
+        NEXAFS was collected in only p-polarization. The polar and azimuthal
+        angles are defined as follows:
+      </p>
       <h2 className="mb-4 text-xl font-semibold">Interpreting the Data</h2>{" "}
       <div className="grid flex-grow grid-cols-1 gap-4 md:grid-cols-2">
         <div className="rounded border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/40">

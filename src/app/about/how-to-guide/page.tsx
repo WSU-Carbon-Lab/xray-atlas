@@ -12,17 +12,15 @@ export const metadata: Metadata = {
 const HowToGuidePage = () => {
   return (
     <div>
-      <h1 className="mb-4 text-3xl font-bold">How-to Guide</h1>
-      <p className="mb-6 text-lg">
+      <h1>How-to Guide</h1>
+      <p>
         This guide will walk you through the features of the Xray Atlas and how
         to use them effectively.
       </p>
 
       <div className="space-y-8">
-        <section>
-          <h2 className="mb-2 text-2xl font-semibold">
-            Searching for Molecules
-          </h2>
+        <section id="search">
+          <h2>Searching for Molecules</h2>
           <p>
             The home page features a powerful search bar that allows you to find
             molecules by name, chemical formula, or synonyms. Simply start
@@ -30,8 +28,8 @@ const HowToGuidePage = () => {
           </p>
         </section>
 
-        <section>
-          <h3 className="mb-2 text-2xl font-semibold">Molecular Card</h3>
+        <section id="molecular-card">
+          <h3>Molecular Card</h3>
           <p>
             Each molecule in the search results is displayed as a card with key
             information. Here we use the molecule Y11 as an example to explain
@@ -41,8 +39,8 @@ const HowToGuidePage = () => {
           <InterpretingCard />
         </section>
 
-        <section>
-          <h2 className="mb-2 text-2xl font-semibold">NEXAFS Metadata Table</h2>
+        <section id="nexafs-metadata">
+          <h2>NEXAFS Metadata Table</h2>
           <p>
             Clicking on a molecule card will take you to its dedicated page.
             Here, you can view detailed information about the molecule,
@@ -50,10 +48,8 @@ const HowToGuidePage = () => {
           </p>
           <NexafsMetadata />
         </section>
-        <section>
-          <h3 className="mb-2 text-2xl font-semibold">
-            Experimental Data Displays
-          </h3>
+        <section id="experimental-data">
+          <h3>Experimental Data Displays</h3>
           <p>
             Understanding the various elements displayed in the experimental
             data views is crucial for interpreting the results accurately. Pay
