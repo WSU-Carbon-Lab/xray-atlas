@@ -15,6 +15,7 @@ export const CopyButton: React.FC<{
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
+      console.error("Failed to copy text: ", err);
       // fallback or error
     }
   };
@@ -22,7 +23,7 @@ export const CopyButton: React.FC<{
   return (
     <button
       onClick={handleCopy}
-      className={`rounded-lg p-1.5 transition-colors hover:bg-gray-200 ${className || ""}`}
+      className={`rounded-lg p-1.5 transition-colors hover:bg-gray-200 ${className && ""}`}
       title="Copy to clipboard"
     >
       {copied ? (

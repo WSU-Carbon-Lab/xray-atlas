@@ -4,6 +4,17 @@ import Link from "next/link";
 import React from "react";
 import Image from "next/image";
 import github from "public/github-mark.svg";
+import { Home, Info, Upload } from "lucide-react";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "~/app/_components/ui/navigation-menu";
+import { cn } from "~/lib/utils";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -55,7 +66,9 @@ export const metadata: Metadata = {
     "NEXAFS",
     "material research",
     "WSU",
-    "Collins Lab",
+    "Brian Collins",
+    "Database",
+    "Advanced Light Source",
   ],
   authors: [
     { name: "WSU Collins Research Group", url: "https://labs.wsu.edu/carbon/" },
@@ -64,37 +77,71 @@ export const metadata: Metadata = {
   // viewport and themeColor properties have been moved to viewport export
 };
 
+import { aboutNavItems } from "~/lib/navigation";
+
 function TopNav() {
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-gray-50 text-black">
+    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link
           href="/"
-          className="flex items-center space-x-3 font-sans font-thin text-3xl text-black transition-colors hover:text-wsu-crimson hover:underline"
+          className="flex items-center space-x-3 font-sans text-3xl font-thin"
         >
           <Image
             src="/wsu-logo.png"
             alt="WSU Logo"
             width={40}
             height={40}
-            className="hover-image-link h-10 w-auto rounded-lg bg-wsu-crimson"
+            className="h-10 w-auto rounded-lg bg-wsu-crimson"
           />
           <span>X-ray Atlas</span>
         </Link>
 
-        <div className="text-large flex items-center gap-6 font-medium">
-          <Link
-            href="/"
-            className="text-black transition-colors hover:text-wsu-crimson hover:underline"
-          >
-            Home
-          </Link>
-          <Link
-            href="/upload"
-            className="text-black transition-colors hover:text-wsu-crimson hover:underline"
-          >
-            Upload
-          </Link>
+        <div className="flex items-center gap-4">
+          <NavigationMenu>
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <Link href="/" passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    <Home className="mr-2 h-4 w-4" />
+                    Home
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>
+                  <Link href="/about" passHref>
+                    <span className="flex items-center">
+                      <Info className="mr-2 h-4 w-4" />
+                      About
+                    </span>
+                  </Link>
+                </NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                    {aboutNavItems.map((component) => (
+                      <ListItem
+                        key={component.title}
+                        title={component.title}
+                        href={component.href}
+                      >
+                        {component.description}
+                      </ListItem>
+                    ))}
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link href="/upload" passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
+
           <Link
             href="https://github.com/WSU-Carbon-Lab/xray-atlas"
             className="transition-all hover:scale-105"
@@ -104,7 +151,7 @@ function TopNav() {
               alt="GitHub"
               width={40}
               height={40}
-              className="hover-image-link brightness-100"
+              className="brightness-100"
             />
           </Link>
         </div>
@@ -112,6 +159,32 @@ function TopNav() {
     </nav>
   );
 }
+
+const ListItem = React.forwardRef<
+  React.ComponentRef<"a">,
+  React.ComponentPropsWithoutRef<"a">
+>(({ className, title, children, ...props }, ref) => {
+  return (
+    <li>
+      <NavigationMenuLink asChild>
+        <a
+          ref={ref}
+          className={cn(
+            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+            className,
+          )}
+          {...props}
+        >
+          <div className="text-sm font-medium leading-none">{title}</div>
+          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+            {children}
+          </p>
+        </a>
+      </NavigationMenuLink>
+    </li>
+  );
+});
+ListItem.displayName = "ListItem";
 
 function Footer() {
   return (

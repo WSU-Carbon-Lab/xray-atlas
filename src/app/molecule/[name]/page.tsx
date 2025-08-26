@@ -41,8 +41,8 @@ export default async function Page({
   const paramsResolved = await params;
   const molecule = await getMolecule(paramsResolved.name);
   return (
-    <div className="mx-auto max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-8 lg:flex-row">
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex w-full flex-col gap-8 lg:flex-row">
         {/* Sidebar - Molecule Card */}
         <div className="w-full lg:w-[400px] xl:w-[450px]">
           <div className="sticky top-8">
