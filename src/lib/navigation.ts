@@ -24,13 +24,13 @@ export const aboutNavItems: NavItem[] = [
       "A guide on how to use the features of the Xray Atlas effectively.",
     subItems: [
       {
-        title: "Interpreting NEXAFS",
-        href: "/about/how-to-guide#interpreting-nexafs",
+        title: "Search",
+        href: "/about/how-to-guide#search",
         icon: "Search",
       },
       {
-        title: "Data Schema",
-        href: "/about/how-to-guide#data-schema",
+        title: "Molecule Registry",
+        href: "/about/how-to-guide#molecular-card",
         icon: "LayoutGrid",
       },
       {
@@ -40,7 +40,7 @@ export const aboutNavItems: NavItem[] = [
       },
       {
         title: "NEXAFS Plot",
-        href: "/about/how-to-guide#nexafs-plot",
+        href: "/about/how-to-guide#experimental-data",
         icon: "ChartLine",
       },
     ],
