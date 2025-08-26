@@ -85,7 +85,7 @@ async function InterpretingDataContent() {
         The plot above shows the NEXAFS spectra for the selected molecule. You
         can interact with the plot by zooming in on specific regions to get a
         more detailed view. Click and drag to select an area to zoom into, and
-        use the "Zoom Out" button to return to the full view.
+        use the `&quot;Zoom Out&quot;` button to return to the full view.
       </p>
     </div>
   );

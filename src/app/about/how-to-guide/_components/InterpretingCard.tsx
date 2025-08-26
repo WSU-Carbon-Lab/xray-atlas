@@ -3,7 +3,7 @@ import { MoleculeDisplay } from "~/app/_components/molecule";
 import { getMolecule } from "~/server/queries";
 import { Skeleton } from "~/app/_components/ui/skeleton";
 import Link from "next/link";
-import { Molecule } from "~/server/db";
+import type { Molecule } from "~/server/db";
 
 const cutoffLongString = (str: string, maxLength: number) => {
   if (str.length <= maxLength) return str;
@@ -37,14 +37,14 @@ async function InterpretingCardContent() {
           </li>
           <li>
             <strong>Name: ({y11Molecule.name})</strong> The first name listed
-            under "Common Names" is the primary name chosen by the data
-            submitter and is the primary search key for the database.
+            under `&quot;Common Names&quot;` is the primary name chosen by the
+            data submitter and is the primary search key for the database.
           </li>
           <li>
             <strong>Common Names: ({y11Molecule.synonyms.join(", ")})</strong>{" "}
             After the primary name, all the known synonyms for the molecule are
-            listed as 'Common Names'. Clicking on the left side will display a
-            modal with these common name synonyms information.
+            listed as `&quot;Common Names&quot;`. Clicking on the left side will
+            display a modal with these common name synonyms information.
           </li>
           <li>
             <strong>Chemical Formula: ({y11Molecule.chemical_formula}):</strong>{" "}
@@ -81,7 +81,7 @@ async function InterpretingCardContent() {
             >
               international chemical identifier (InChI)
             </Link>{" "}
-            is a textual representation of the molecule's structure. For
+            is a textual representation of the molecule&apos;s structure. For
             polymers this is the InChI for a singular repeating unit.
           </li>
           <li>

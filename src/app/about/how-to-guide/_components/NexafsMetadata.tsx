@@ -2,7 +2,7 @@ import React, { Suspense } from "react";
 import { NexafsTable } from "~/app/_components/nexafs-table";
 import { getMolecule } from "~/server/queries";
 import { Skeleton } from "~/app/_components/ui/skeleton";
-import { Molecule } from "~/server/db";
+import type { Molecule } from "~/server/db";
 
 async function NexafsMetadataContent() {
   const y6Molecule: Molecule = await getMolecule("Y6");

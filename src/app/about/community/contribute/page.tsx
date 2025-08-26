@@ -8,8 +8,9 @@ export default function ContributePage() {
       <h1>How to Contribute to Xray Atlas</h1>
       <p>
         We welcome and appreciate all contributions from the community. Whether
-        you're fixing a bug, adding a new feature, or improving documentation,
-        your help is valuable. Here’s a guide on how to get started.
+        you&apos;re fixing a bug, adding a new feature, or improving
+        documentation, your help is valuable. Here&apos;s a guide on how to get
+        started.
       </p>
 
       <h2>Getting Started</h2>
@@ -43,8 +44,8 @@ export default function ContributePage() {
         <li>
           <h3>Create a New Issue</h3>
           <p>
-            If you've found a new bug or have an idea for a new feature, please
-            create a new issue. This allows the community to discuss the
+            If you&apos;ve found a new bug or have an idea for a new feature,
+            please create a new issue. This allows the community to discuss the
             proposed changes.
           </p>
           <Link
@@ -59,8 +60,8 @@ export default function ContributePage() {
         <li>
           <h3>Fork the Repository</h3>
           <p>
-            Once you're ready to start coding, create your own fork of the Xray
-            Atlas repository. This gives you a personal copy to work with.
+            Once you&apos;re ready to start coding, create your own fork of the
+            Xray Atlas repository. This gives you a personal copy to work with.
           </p>
         </li>
         <li>
@@ -75,7 +76,7 @@ export default function ContributePage() {
           <p>
             When your changes are complete, submit a pull request from your
             branch to the main Xray Atlas repository. The maintainers will
-            review your PR, provide feedback, and merge it once it's ready.
+            review your PR, provide feedback, and merge it once it&apos;s ready.
           </p>
         </li>
       </ol>
