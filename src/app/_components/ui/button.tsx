@@ -1,49 +1,56 @@
-import React from "react";
-import { ClipboardDocumentIcon } from "@heroicons/react/24/outline";
-import { cn } from "./utils";
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
 
-export const CopyButton: React.FC<{
-  textToCopy: string;
-  className?: string;
-}> = ({ textToCopy, className }) => {
-  const [copied, setCopied] = React.useState(false);
+import { cn } from "~/lib/utils"
 
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
-      // fallback or error
-    }
-  };
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline:
+          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
 
-  return (
-    <button
-      onClick={handleCopy}
-      className={`rounded-lg p-1.5 transition-colors hover:bg-gray-200 ${className && ""}`}
-      title="Copy to clipboard"
-    >
-      {copied ? (
-        <span className="text-xs text-green-600">Copied!</span>
-      ) : (
-        <ClipboardDocumentIcon className="h-4 w-4 text-gray-500" />
-      )}
-    </button>
-  );
-};
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+}
 
-export const InfoButton: React.FC<
-  React.ButtonHTMLAttributes<HTMLButtonElement> & { fullWidth?: boolean }
-> = ({ className, fullWidth, ...props }) => (
-  <button
-    className={cn(
-      "group rounded-lg border bg-gray-50 p-4 text-left text-base font-medium transition-all duration-200 hover:bg-gray-100 hover:ring-1 hover:ring-wsu-crimson focus:outline-none focus:ring-2 focus:ring-wsu-crimson focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-      fullWidth && "w-full",
-      className,
-    )}
-    {...props}
-  />
-);
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Button.displayName = "Button"
+
+export { Button, buttonVariants }
