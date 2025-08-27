@@ -7,6 +7,13 @@ import {
   CardHeader,
   CardTitle,
 } from "~/app/_components/ui/card";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "~/app/_components/ui/carousel";
 
 interface Issue {
   id: number;
@@ -27,7 +34,7 @@ interface Issue {
 async function getRecentIssues(): Promise<Issue[]> {
   try {
     const res = await fetch(
-      "https://api.github.com/repos/WSU-Carbon-Lab/xray-atlas/issues?sort=created&direction=desc&per_page=3&state=open",
+      "https://api.github.com/repos/WSU-Carbon-Lab/xray-atlas/issues?sort=created&direction=desc&per_page=6&state=open",
       {
         next: { revalidate: 3600 }, // Revalidate every hour
       },
@@ -67,53 +74,71 @@ export default async function RecentIssues() {
         <CardHeader>
           <CardTitle>Latest Open Issues</CardTitle>
           <CardDescription className="text-lg">
-            Here are the three most recent issues. Feel free to pick one up!
+            Here are the most recent issues. Feel free to pick one up! Use the arrows to navigate through them.
           </CardDescription>
         </CardHeader>
         <CardContent className="pb-4">
-          <ul className="grid grid-cols-3 gap-4">
-            {issues.map((issue) => (
-              <li
-                key={issue.id}
-                className="rounded-lg border p-4 transition-colors hover:bg-muted/50"
-              >
-                <Link
-                  href={issue.html_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group"
-                >
-                  <div className="flex items-start justify-between">
-                    <h4 className="font-semibold group-hover:underline">
-                      {issue.title}
-                    </h4>
-                    <ExternalLink className="ml-2 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          <Carousel
+            opts={{
+              align: "start",
+              loop: true,
+            }}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-2 md:-ml-4">
+              {issues.map((issue) => (
+                <CarouselItem key={issue.id} className="pl-2 md:pl-4 md:basis-1/3">
+                  <div className="h-full">
+                    <Card className="h-full">
+                      <CardContent className="p-4">
+                        <Link
+                          href={issue.html_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group block h-full"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-semibold group-hover:underline text-sm leading-tight">
+                              {issue.title}
+                            </h4>
+                            <ExternalLink className="ml-2 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            #{issue.number} opened on{" "}
+                            {new Date(issue.created_at).toLocaleDateString()} by{" "}
+                            <span className="font-medium text-foreground">
+                              {issue.user.login}
+                            </span>
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {issue.labels.slice(0, 3).map((label) => (
+                              <span
+                                key={label.name}
+                                className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                                style={{
+                                  backgroundColor: `#${label.color}`,
+                                  color: "white",
+                                }}
+                              >
+                                {label.name}
+                              </span>
+                            ))}
+                            {issue.labels.length > 3 && (
+                              <span className="text-xs text-muted-foreground">
+                                +{issue.labels.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      </CardContent>
+                    </Card>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    #{issue.number} opened on{" "}
-                    {new Date(issue.created_at).toLocaleDateString()} by{" "}
-                    <span className="font-medium text-foreground">
-                      {issue.user.login}
-                    </span>
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {issue.labels.map((label) => (
-                      <span
-                        key={label.name}
-                        className="rounded-full px-2 py-0.5 text-xs font-semibold"
-                        style={{
-                          backgroundColor: `#${label.color}`,
-                          color: "white", // A simple approach for text color
-                        }}
-                      >
-                        {label.name}
-                      </span>
-                    ))}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious />
+            <CarouselNext />
+          </Carousel>
         </CardContent>
       </Card>
     </div>
