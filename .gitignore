@@ -47,3 +47,8 @@ yarn-error.log*
 
 # idea files
 .idea
+
+# amplify
+.amplify
+amplify_outputs*
+amplifyconfiguration*
