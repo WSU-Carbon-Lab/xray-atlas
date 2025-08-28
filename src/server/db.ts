@@ -1,3 +1,9 @@
+import { Amplify } from "aws-amplify";
+import type { ResourcesConfig } from "aws-amplify";
+import config from "./aws-exports.js";
+
+Amplify.configure(config as ResourcesConfig);
+
 export type Signal = { signal: number[]; units: string };
 export interface Molecule {
   name: string;
