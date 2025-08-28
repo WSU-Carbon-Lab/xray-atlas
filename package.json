@@ -25,6 +25,7 @@
     "@rdkit/rdkit": "^2024.3.5-1.0.0",
     "@t3-oss/env-nextjs": "^0.11.1",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "aws-amplify": "^6.15.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
