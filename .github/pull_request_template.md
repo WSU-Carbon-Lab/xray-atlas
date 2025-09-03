@@ -24,27 +24,27 @@ Please describe the new behavior you've implemented.
 Please check the relevant option(s) by putting an x in the box.
 -->
 
-    [ ] 🐛 Bug fix (a non-breaking change which fixes an issue)
+- [ ] 🐛 Bug fix (a non-breaking change which fixes an issue)
 
-    [ ] ✨ New feature (a non-breaking change which adds functionality)
+- [ ] ✨ New feature (a non-breaking change which adds functionality)
 
-    [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
 
-    [ ] 📚 Documentation update
+- [ ] 📚 Documentation update
 
-    [ ] 💅 Style change (formatting, spelling, grammar, etc.)
+- [ ] 💅 Style change (formatting, spelling, grammar, etc.)
 
-    [ ] ♻️ Code refactor
+- [ ] ♻️ Code refactor
 
-    [ ] 📦 Build-related change
+- [ ] 📦 Build-related change
 
-    [ ] ✅ Test addition or update
+- [ ] ✅ Test addition or update
 
-    [ ] ⚙️ CI/CD change
+- [ ] ⚙️ CI/CD change
 
-    [ ] ⚡ Performance improvement
+- [ ] ⚡ Performance improvement
 
-    [ ]  miscellaneous
+- [ ] miscellaneous
 
 ✅ Checklist
 
@@ -53,37 +53,20 @@ Please go through the following checklist and mark the items that are completed.
 If an item is not applicable, you can mark it as [n/a].
 -->
 
-    [ ] My code follows the style guidelines of this project.
+- [ ] My code follows the style guidelines of this project.
 
-    [ ] I have performed a self-review of my own code.
+- [ ] I have performed a self-review of my own code.
 
-    [ ] I have commented my code, particularly in hard-to-understand areas.
+- [ ] I have commented my code, particularly in hard-to-understand areas.
 
-    [ ] I have made corresponding changes to the documentation.
+- [ ] I have made corresponding changes to the documentation.
 
-    [ ] My changes generate no new warnings.
+- [ ] My changes generate no new warnings.
 
-    [ ] I have added tests that prove my fix is effective or that my feature works.
+- [ ] I have added tests that prove my fix is effective or that my feature works.
 
-    [ ] New and existing unit tests pass locally with my changes.
+- [ ] New and existing unit tests pass locally with my changes.
 
-    [ ] Any dependent changes have been merged and published in downstream modules.
+- [ ] Any dependent changes have been merged and published in downstream modules.
 
 📸 Screenshots (if applicable)
-
-<!--
-If your changes affect the UI, please add screenshots or a GIF to showcase the before and after.
--->
-
-Before:
-
-[Drag and drop or paste your 'before' screenshot here]
-
-After:
-
-[Drag and drop or paste your 'after' screenshot here]
-дополнительная информация (Additional Notes)
-
-<!--
-Add any other context, details, or information about the pull request here.
--->
