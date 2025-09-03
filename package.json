@@ -6,7 +6,8 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev --turbopack",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "start": "next start"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "@rdkit/rdkit": "^2024.3.5-1.0.0",
     "@t3-oss/env-nextjs": "^0.11.1",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "aws-amplify": "^6.15.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
@@ -46,13 +48,20 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@aws-amplify/backend": "^1.16.1",
+    "@aws-amplify/backend-cli": "^1.8.0",
     "@catppuccin/tailwindcss": "^0.1.6",
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.34.0",
     "@types/eslint": "^9.6.1",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
+    "aws-cdk-lib": "^2.204.0",
+    "constructs": "^10.4.2",
+    "esbuild": "^0.25.9",
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.1.0",
     "next-sitemap": "^4.2.3",
@@ -61,7 +70,9 @@
     "prettier-plugin-tailwindcss": "^0.6.9",
     "tailwindcss": "^3.4.16",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.7.2"
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.41.0"
   },
   "ct3aMetadata": {
     "initVersion": "7.36.1"
