@@ -1,9 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  PutCommand,
-  GetCommand,
-} from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
 /* S3 Database types*/
 export type Signal = { signal: number[]; units: string };
@@ -75,7 +71,7 @@ export function Uid(experiment: Experiment): string {
 
 /* DynamoDB Client Setup */
 const USERS_TABLE = process.env.USERS_TABLE_NAME ?? "users";
-const MOLECULES_TABLE = process.env.MOLECULES_TABLE_NAME ?? "molecules";
+// const MOLECULES_TABLE = process.env.MOLECULES_TABLE_NAME ?? "molecules";
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -85,7 +81,16 @@ export async function POST(request: Request) {
     throw new Error("DYNAMODB_TABLE_NAME environment variable is not set.");
   }
 
-  const userOrcidId = "some-user-id"; // Get this from the request body or session
+  // Attempt to read userId from the request body; fallback to a placeholder.
+  let userOrcidId = "some-user-id";
+  try {
+    const body = await request.json();
+    if (body?.userId && typeof body.userId === "string") {
+      userOrcidId = body.userId;
+    }
+  } catch {
+    console.warn("No valid JSON body found in the request.");
+  }
 
   const command = new PutCommand({
     TableName: USERS_TABLE, // Uses the environment variable

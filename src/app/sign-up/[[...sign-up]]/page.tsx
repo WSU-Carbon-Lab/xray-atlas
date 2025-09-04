@@ -1,7 +1,6 @@
 import { SignUp } from "@clerk/nextjs";
 import { MolecularBackground } from "~/app/_components/molecular-background";
 import {
-  Card,
   CardDescription,
   CardHeader,
   CardTitle,

@@ -1,6 +1,5 @@
 import type { Molecule, Experiment, DataSet } from "./db";
 import { Uid } from "./db";
-import { z } from "zod";
 
 //  This uses the API from .env to fetch data from the s3 bucket
 
