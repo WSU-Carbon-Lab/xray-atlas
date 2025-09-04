@@ -3,11 +3,17 @@ backend:
   phases:
     build:
       commands:
-        - echo "No backend build"
 frontend:
   phases:
     preBuild:
       commands:
+      #  Set up endvironment using some dumb workarounds for Amplify
+        - echo "CLERK_SECRET_KEY=$CLERK_SECRET_KEY" >> .env.local
+        - echo "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" >> .env.local
+        - echo "MOLECULES_TABLE_NAME=$MOLECULES_TABLE_NAME" >> .env.local
+        - echo "USER_TABLE_NAME=$USER_TABLE_NAME" >> .env.local
+        - echo "NEXT_PUBLIC_CLERK_SIGN_IN_URL=$NEXT_PUBLIC_CLERK_SIGN_IN_URL" >> .env.local
+        - echo "NEXT_PUBLIC_CLERK_SIGN_UP_URL=$NEXT_PUBLIC_CLERK_SIGN_UP_URL" >> .env.local
         - nvm install 22
         - nvm use 22
         - npm install
