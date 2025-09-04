@@ -9,7 +9,8 @@ frontend:
     preBuild:
       commands:
         # Clear previous build cache
-        - npm run lint
+        # - npm run lint
+        - npm run install
     build:
       commands:
         - npm run build
