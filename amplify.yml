@@ -8,6 +8,7 @@ frontend:
   phases:
     preBuild:
       commands:
+        - nvm use 24
         - npm install
     build:
       commands:
@@ -19,5 +20,5 @@ frontend:
       - '**/*'
   cache:
     paths:
-      # Cache node_modules for faster installs
+      - .next/cache/**/*
       - node_modules/**/*
