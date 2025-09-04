@@ -6,12 +6,15 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev --turbopack",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "start": "next start"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.879.0",
     "@aws-sdk/client-s3": "^3.709.0",
     "@aws-sdk/credential-providers": "^3.709.0",
+    "@aws-sdk/lib-dynamodb": "^3.879.0",
     "@aws-sdk/s3-request-presigner": "^3.709.0",
     "@catppuccin/palette": "^1.7.1",
     "@clerk/nextjs": "^6.31.8",
@@ -50,6 +53,8 @@
     "@aws-amplify/backend": "^1.16.1",
     "@aws-amplify/backend-cli": "^1.8.0",
     "@catppuccin/tailwindcss": "^0.1.6",
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.34.0",
     "@types/eslint": "^9.6.1",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.1",
@@ -59,7 +64,7 @@
     "aws-cdk-lib": "^2.204.0",
     "constructs": "^10.4.2",
     "esbuild": "^0.25.9",
-    "eslint": "^9.16.0",
+    "eslint": "^9.34.0",
     "eslint-config-next": "^15.1.0",
     "next-sitemap": "^4.2.3",
     "postcss": "^8.4.49",
@@ -68,7 +73,11 @@
     "tailwindcss": "^3.4.16",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.20.5",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.42.0"
+  },
+  "overrides": {
+    "prismjs": "^1.30.0"
   },
   "ct3aMetadata": {
     "initVersion": "7.36.1"
