@@ -8,6 +8,8 @@ frontend:
   phases:
     preBuild:
       commands:
+        - echo "Using Node.js version 24"
+        - nvm install 24
         - nvm use 24
         - npm install
     build:
