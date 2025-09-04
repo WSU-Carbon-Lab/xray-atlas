@@ -6,6 +6,14 @@ import Image from "next/image";
 import github from "public/github-mark.svg";
 import { Home, Info, Upload } from "lucide-react";
 import {
+  ClerkProvider,
+  SignInButton,
+  SignUpButton,
+  SignedIn,
+  SignedOut,
+  UserButton,
+} from "@clerk/nextjs";
+import {
   NavigationMenu,
   NavigationMenuContent,
   NavigationMenuItem,
@@ -78,6 +86,7 @@ export const metadata: Metadata = {
 };
 
 import { aboutNavItems } from "~/lib/navigation";
+import { Button } from "./_components/ui";
 
 function TopNav() {
   return (
@@ -154,6 +163,26 @@ function TopNav() {
               className="brightness-100"
             />
           </Link>
+
+          {/* Authentication */}
+          <SignedOut>
+            <div className="flex items-center gap-2">
+              <SignInButton>
+                <Button variant="outline" size="sm">
+                  Sign In
+                </Button>
+              </SignInButton>
+              <SignUpButton>
+                <Button size="sm">
+                  Sign Up
+                </Button>
+              </SignUpButton>
+            </div>
+          </SignedOut>
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
+
         </div>
       </div>
     </nav>
@@ -321,12 +350,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="flex min-h-screen flex-col">
-        <TopNav />
-        <main className="flex-1 bg-white">{children}</main>
-        <Footer />
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body className="flex min-h-screen flex-col">
+          <TopNav />
+          <main className="flex-1 bg-white">{children}</main>
+          <Footer />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
