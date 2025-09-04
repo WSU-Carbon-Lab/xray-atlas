@@ -70,14 +70,14 @@ export function Uid(experiment: Experiment): string {
 }
 
 /* DynamoDB Client Setup */
-const USERS_TABLE = process.env.USERS_TABLE_NAME ?? "users";
+const USER_TABLE = process.env.USER_TABLE_NAME ?? "users";
 // const MOLECULES_TABLE = process.env.MOLECULES_TABLE_NAME ?? "molecules";
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 
 export async function POST(request: Request) {
-  if (!USERS_TABLE) {
+  if (!USER_TABLE) {
     throw new Error("DYNAMODB_TABLE_NAME environment variable is not set.");
   }
 

@@ -12,7 +12,7 @@ export const env = createEnv({
       .default("development"),
     CLERK_SECRET_KEY: z.string().min(1),
     MOLECULES_TABLE_NAME: z.string().min(1).default("molecules"),
-    USERS_TABLE_NAME: z.string().min(1).default("users"),
+    USER_TABLE_NAME: z.string().min(1).default("users"),
   },
   client: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
@@ -22,7 +22,7 @@ export const env = createEnv({
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     MOLECULES_TABLE_NAME: process.env.MOLECULES_TABLE_NAME,
-    USERS_TABLE_NAME: process.env.USERS_TABLE_NAME,
+    USER_TABLE_NAME: process.env.USER_TABLE_NAME,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,
