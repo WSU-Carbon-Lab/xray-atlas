@@ -1,10 +1,13 @@
-import { Amplify } from "aws-amplify";
-import type { ResourcesConfig } from "aws-amplify";
-import config from "./aws-exports.js";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  GetCommand,
+} from "@aws-sdk/lib-dynamodb";
 
-Amplify.configure(config as ResourcesConfig);
-
+/* S3 Database types*/
 export type Signal = { signal: number[]; units: string };
+
 export interface Molecule {
   name: string;
   synonyms: string[];
@@ -68,4 +71,31 @@ export interface DataSet {
 
 export function Uid(experiment: Experiment): string {
   return `${experiment.edge}_${experiment.method}_${experiment.facility}_${experiment.instrument}_${experiment.group}_${experiment.source}`;
+}
+
+/* DynamoDB Client Setup */
+const USERS_TABLE = process.env.USERS_TABLE_NAME ?? "users";
+const MOLECULES_TABLE = process.env.MOLECULES_TABLE_NAME ?? "molecules";
+
+const client = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(client);
+
+export async function POST(request: Request) {
+  if (!USERS_TABLE) {
+    throw new Error("DYNAMODB_TABLE_NAME environment variable is not set.");
+  }
+
+  const userOrcidId = "some-user-id"; // Get this from the request body or session
+
+  const command = new PutCommand({
+    TableName: USERS_TABLE, // Uses the environment variable
+    Item: {
+      userId: userOrcidId,
+      createdAt: new Date().toISOString(),
+    },
+  });
+
+  await docClient.send(command);
+
+  return Response.json({ message: "Success" });
 }
