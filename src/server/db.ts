@@ -93,7 +93,7 @@ export async function POST(request: Request) {
   }
 
   const command = new PutCommand({
-    TableName: USERS_TABLE, // Uses the environment variable
+    TableName: USER_TABLE, // Uses the environment variable
     Item: {
       userId: userOrcidId,
       createdAt: new Date().toISOString(),
