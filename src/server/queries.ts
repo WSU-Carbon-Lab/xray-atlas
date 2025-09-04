@@ -1,5 +1,6 @@
 import type { Molecule, Experiment, DataSet } from "./db";
 import { Uid } from "./db";
+import { z } from "zod";
 
 //  This uses the API from .env to fetch data from the s3 bucket
 
@@ -37,6 +38,12 @@ export const getMolecules = async (): Promise<Molecule[]> => {
   };
   const response = await fetchApi(request);
   return response?.molecules as Molecule[];
+};
+
+export const getImages = async (): Promise<string[]> => {
+  const molecules = await getMolecules();
+  const images = molecules.map((m) => m.img);
+  return images;
 };
 
 export const getMolecule = async (name: string): Promise<Molecule> => {
