@@ -306,9 +306,7 @@ export const DataUploadForm = () => {
 
     rows.forEach((row) => {
       const key = `${row.theta}-${row.phi}`;
-      if (!groupedByAngles[key]) {
-        groupedByAngles[key] = [];
-      }
+      groupedByAngles[key] ??= [];
       groupedByAngles[key].push(row);
     });
 
@@ -512,7 +510,7 @@ export const DataUploadForm = () => {
 
   return (
     <div className="mx-auto max-w-4xl rounded-xl bg-white p-6 shadow-sm">
-      <h1 className="mb-6 font-thin text-2xl text-gray-900">
+      <h1 className="mb-6 text-2xl font-thin text-gray-900">
         Upload Data to X-ray Atlas
       </h1>
 

@@ -12,9 +12,11 @@ export const env = createEnv({
       .default("development"),
   },
   client: {
+    NEXT_PUBLIC_ORCID_CLIENT_ID: z.string().optional(),
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_ORCID_CLIENT_ID: process.env.NEXT_PUBLIC_ORCID_CLIENT_ID,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,

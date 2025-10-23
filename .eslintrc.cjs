@@ -39,7 +39,12 @@ const config = {
           "attributes": false
         }
       }
-    ]
+    ],
+    "@typescript-eslint/prefer-nullish-coalescing": "warn",
+    "@typescript-eslint/non-nullable-type-assertion-style": "warn",
+    "@typescript-eslint/no-unsafe-call": "warn",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "react/no-unescaped-entities": "warn"
   }
 }
 module.exports = config;
