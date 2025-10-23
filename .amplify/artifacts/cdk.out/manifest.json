@@ -22,7 +22,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-deploy-role-${AWS::AccountId}-${AWS::Region}",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-cfn-exec-role-${AWS::AccountId}-${AWS::Region}",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/7c4986abd50fb8219b3723aa687b5dec0a400aef39bc0818cc1ac80676bd16bf.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/b0e4b420a477d5fa8090b35c820e162a9328d7dfe83cc0dd608c1705e8c82d53.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -65,10 +65,70 @@
             "data": "region"
           }
         ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/AmplifySecretFetcherResourceProviderLambda/ServiceRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AmplifySecretFetcherResourceProviderLambdaServiceRole3F02FB0D"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/AmplifySecretFetcherResourceProviderLambda/ServiceRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AmplifySecretFetcherResourceProviderLambdaServiceRoleDefaultPolicy080657DD"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/AmplifySecretFetcherResourceProviderLambda/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AmplifySecretFetcherResourceProviderLambda27823B35"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/AmplifySecretFetcherResourceProvider/framework-onEvent/ServiceRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AmplifySecretFetcherResourceProviderframeworkonEventServiceRole0941C6B4"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/AmplifySecretFetcherResourceProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AmplifySecretFetcherResourceProviderframeworkonEventServiceRoleDefaultPolicy749EBE05"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/AmplifySecretFetcherResourceProvider/framework-onEvent/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AmplifySecretFetcherResourceProviderframeworkonEventA62AE3A8"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/LatestNodeRuntimeMap": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "LatestNodeRuntimeMap"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/AmplifySecretFetcherResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AmplifySecretFetcherResource"
+          }
+        ],
         "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/amplifyAuth/UserPool/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "amplifyAuthUserPool4BA7F805"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/amplifyAuth/UserPool/UserPoolDomain/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyAuthUserPoolUserPoolDomain1F688B5B"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/amplifyAuth/ORCIDOidcIDP/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyAuthORCIDOidcIDP9B8AA0BD"
           }
         ],
         "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/amplifyAuth/UserPoolAppClient/Resource": [
@@ -129,6 +189,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthUserPoolUserPoolDomain906550B4Ref": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthUserPoolUserPoolDomain906550B4Ref"
           }
         ],
         "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/auth/amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef": [
@@ -375,524 +441,2356 @@
             "data": "amplifyDataAmplifyTableManagerNestedStackAmplifyTableManagerNestedStackResource86290833"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/DynamoDBModelTableReadIOPS": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/DynamoDBModelTableReadIOPS": [
           {
             "type": "aws:cdk:logicalId",
             "data": "DynamoDBModelTableReadIOPS"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/DynamoDBModelTableWriteIOPS": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/DynamoDBModelTableWriteIOPS": [
           {
             "type": "aws:cdk:logicalId",
             "data": "DynamoDBModelTableWriteIOPS"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/DynamoDBBillingMode": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/DynamoDBBillingMode": [
           {
             "type": "aws:cdk:logicalId",
             "data": "DynamoDBBillingMode"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/DynamoDBEnablePointInTimeRecovery": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/DynamoDBEnablePointInTimeRecovery": [
           {
             "type": "aws:cdk:logicalId",
             "data": "DynamoDBEnablePointInTimeRecovery"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/DynamoDBEnableServerSideEncryption": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/DynamoDBEnableServerSideEncryption": [
           {
             "type": "aws:cdk:logicalId",
             "data": "DynamoDBEnableServerSideEncryption"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/HasEnvironmentParameter": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/HasEnvironmentParameter": [
           {
             "type": "aws:cdk:logicalId",
             "data": "HasEnvironmentParameter"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/ShouldUsePayPerRequestBilling": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/ShouldUsePayPerRequestBilling": [
           {
             "type": "aws:cdk:logicalId",
             "data": "ShouldUsePayPerRequestBilling"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/ShouldUsePointInTimeRecovery": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/ShouldUsePointInTimeRecovery": [
           {
             "type": "aws:cdk:logicalId",
             "data": "ShouldUsePointInTimeRecovery"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/TodoTable": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/UserTable": [
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Todo"
+            "data": "User"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/TodoTable/Default/Default": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/UserTable/Default/Default": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "TodoTable"
+            "data": "UserTable"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Todo"
+            "data": "User"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/CustomTableTodoTable": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/CustomTableUserTable": [
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Todo"
+            "data": "User"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/GetAttTodoTableStreamArn": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/GetAttUserTableStreamArn": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "GetAttTodoTableStreamArn"
+            "data": "GetAttUserTableStreamArn"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/GetAttTodoTableName": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/GetAttUserTableName": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "GetAttTodoTableName"
+            "data": "GetAttUserTableName"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/TodoIAMRole": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/UserIAMRole": [
           {
             "type": "graphqltransformer:resourceName",
-            "data": "TodoIAMRole"
+            "data": "UserIAMRole"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/TodoIAMRole/Resource": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/UserIAMRole/Resource": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "TodoIAMRole2DA8E66E"
+            "data": "UserIAMRole93CEE926"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "TodoIAMRole"
+            "data": "UserIAMRole"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/TodoDataSource": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/UserDataSource": [
           {
             "type": "graphqltransformer:resourceName",
-            "data": "TodoTable"
+            "data": "UserTable"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/TodoDataSource/Resource": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/UserDataSource/Resource": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "TodoDataSource"
+            "data": "UserDataSource"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "TodoTable"
+            "data": "UserTable"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/QuerygetTodoauth0Function/QuerygetTodoauth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/QuerygetUserauth0Function/QuerygetUserauth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "QuerygetTodoauth0FunctionQuerygetTodoauth0FunctionAppSyncFunction846D8436"
+            "data": "QuerygetUserauth0FunctionQuerygetUserauth0FunctionAppSyncFunction9E6250B0"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "QuerygetTodoauth0Function"
+            "data": "QuerygetUserauth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/QuerygetTodopostAuth0Function/QuerygetTodopostAuth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/QuerygetUserpostAuth0Function/QuerygetUserpostAuth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "QuerygetTodopostAuth0FunctionQuerygetTodopostAuth0FunctionAppSyncFunction6BE14593"
+            "data": "QuerygetUserpostAuth0FunctionQuerygetUserpostAuth0FunctionAppSyncFunction2792AC60"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "QuerygetTodopostAuth0Function"
+            "data": "QuerygetUserpostAuth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/QueryGetTodoDataResolverFn/QueryGetTodoDataResolverFn.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/QueryGetUserDataResolverFn/QueryGetUserDataResolverFn.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "QueryGetTodoDataResolverFnQueryGetTodoDataResolverFnAppSyncFunctionE2B57DAD"
+            "data": "QueryGetUserDataResolverFnQueryGetUserDataResolverFnAppSyncFunction36A3E4CF"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "QueryGetTodoDataResolverFn"
+            "data": "QueryGetUserDataResolverFn"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/queryGetTodoResolver": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/queryGetUserResolver": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "GetTodoResolver"
+            "data": "GetUserResolver"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Query.getTodo"
+            "data": "Query.getUser"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/QuerylistTodosauth0Function/QuerylistTodosauth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/QuerylistUsersauth0Function/QuerylistUsersauth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "QuerylistTodosauth0FunctionQuerylistTodosauth0FunctionAppSyncFunction7D761961"
+            "data": "QuerylistUsersauth0FunctionQuerylistUsersauth0FunctionAppSyncFunctionA1FF61AB"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "QuerylistTodosauth0Function"
+            "data": "QuerylistUsersauth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/QuerylistTodospostAuth0Function/QuerylistTodospostAuth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/QuerylistUserspostAuth0Function/QuerylistUserspostAuth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "QuerylistTodospostAuth0FunctionQuerylistTodospostAuth0FunctionAppSyncFunction154D8577"
+            "data": "QuerylistUserspostAuth0FunctionQuerylistUserspostAuth0FunctionAppSyncFunction37C5583D"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "QuerylistTodospostAuth0Function"
+            "data": "QuerylistUserspostAuth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/QueryListTodosDataResolverFn/QueryListTodosDataResolverFn.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/QueryListUsersDataResolverFn/QueryListUsersDataResolverFn.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "QueryListTodosDataResolverFnQueryListTodosDataResolverFnAppSyncFunctionF825FE47"
+            "data": "QueryListUsersDataResolverFnQueryListUsersDataResolverFnAppSyncFunction83574EBA"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "QueryListTodosDataResolverFn"
+            "data": "QueryListUsersDataResolverFn"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/queryListTodosResolver": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/queryListUsersResolver": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "ListTodoResolver"
+            "data": "ListUserResolver"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Query.listTodos"
+            "data": "Query.listUsers"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationcreateTodoinit0Function/MutationcreateTodoinit0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationcreateUserinit0Function/MutationcreateUserinit0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationcreateTodoinit0FunctionMutationcreateTodoinit0FunctionAppSyncFunction54DE5B8B"
+            "data": "MutationcreateUserinit0FunctionMutationcreateUserinit0FunctionAppSyncFunctionEDF87EC6"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationcreateTodoinit0Function"
+            "data": "MutationcreateUserinit0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationcreateTodoauth0Function/MutationcreateTodoauth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationcreateUserauth0Function/MutationcreateUserauth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationcreateTodoauth0FunctionMutationcreateTodoauth0FunctionAppSyncFunction21817E36"
+            "data": "MutationcreateUserauth0FunctionMutationcreateUserauth0FunctionAppSyncFunction30556A6C"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationcreateTodoauth0Function"
+            "data": "MutationcreateUserauth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationcreateTodopostAuth0Function/MutationcreateTodopostAuth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationcreateUserpostAuth0Function/MutationcreateUserpostAuth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationcreateTodopostAuth0FunctionMutationcreateTodopostAuth0FunctionAppSyncFunctionED59EB9F"
+            "data": "MutationcreateUserpostAuth0FunctionMutationcreateUserpostAuth0FunctionAppSyncFunction176E20CB"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationcreateTodopostAuth0Function"
+            "data": "MutationcreateUserpostAuth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationCreateTodoDataResolverFn/MutationCreateTodoDataResolverFn.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationCreateUserDataResolverFn/MutationCreateUserDataResolverFn.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationCreateTodoDataResolverFnMutationCreateTodoDataResolverFnAppSyncFunction900EC5CF"
+            "data": "MutationCreateUserDataResolverFnMutationCreateUserDataResolverFnAppSyncFunction22E7974E"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationCreateTodoDataResolverFn"
+            "data": "MutationCreateUserDataResolverFn"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/mutationCreateTodoResolver": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/mutationCreateUserResolver": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "CreateTodoResolver"
+            "data": "CreateUserResolver"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Mutation.createTodo"
+            "data": "Mutation.createUser"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationupdateTodoinit0Function/MutationupdateTodoinit0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationupdateUserinit0Function/MutationupdateUserinit0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationupdateTodoinit0FunctionMutationupdateTodoinit0FunctionAppSyncFunction1B95BB19"
+            "data": "MutationupdateUserinit0FunctionMutationupdateUserinit0FunctionAppSyncFunctionC2E8A924"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationupdateTodoinit0Function"
+            "data": "MutationupdateUserinit0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationupdateTodoauth0Function/MutationupdateTodoauth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationupdateUserauth0Function/MutationupdateUserauth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationupdateTodoauth0FunctionMutationupdateTodoauth0FunctionAppSyncFunction1E4A3112"
+            "data": "MutationupdateUserauth0FunctionMutationupdateUserauth0FunctionAppSyncFunctionDF95DA65"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationupdateTodoauth0Function"
+            "data": "MutationupdateUserauth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationupdateTodopostAuth0Function/MutationupdateTodopostAuth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationupdateUserpostAuth0Function/MutationupdateUserpostAuth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationupdateTodopostAuth0FunctionMutationupdateTodopostAuth0FunctionAppSyncFunction50C507D7"
+            "data": "MutationupdateUserpostAuth0FunctionMutationupdateUserpostAuth0FunctionAppSyncFunctionD4B80000"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationupdateTodopostAuth0Function"
+            "data": "MutationupdateUserpostAuth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationUpdateTodoDataResolverFn/MutationUpdateTodoDataResolverFn.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationUpdateUserDataResolverFn/MutationUpdateUserDataResolverFn.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationUpdateTodoDataResolverFnMutationUpdateTodoDataResolverFnAppSyncFunctionBC238C49"
+            "data": "MutationUpdateUserDataResolverFnMutationUpdateUserDataResolverFnAppSyncFunction6ADF3910"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationUpdateTodoDataResolverFn"
+            "data": "MutationUpdateUserDataResolverFn"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/mutationUpdateTodoResolver": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/mutationUpdateUserResolver": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "UpdateTodoResolver"
+            "data": "UpdateUserResolver"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Mutation.updateTodo"
+            "data": "Mutation.updateUser"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationdeleteTodoauth0Function/MutationdeleteTodoauth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationdeleteUserauth0Function/MutationdeleteUserauth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationdeleteTodoauth0FunctionMutationdeleteTodoauth0FunctionAppSyncFunctionC82C218C"
+            "data": "MutationdeleteUserauth0FunctionMutationdeleteUserauth0FunctionAppSyncFunction9B900ACD"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationdeleteTodoauth0Function"
+            "data": "MutationdeleteUserauth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationdeleteTodopostAuth0Function/MutationdeleteTodopostAuth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationdeleteUserpostAuth0Function/MutationdeleteUserpostAuth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationdeleteTodopostAuth0FunctionMutationdeleteTodopostAuth0FunctionAppSyncFunction483271A2"
+            "data": "MutationdeleteUserpostAuth0FunctionMutationdeleteUserpostAuth0FunctionAppSyncFunction9B804910"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationdeleteTodopostAuth0Function"
+            "data": "MutationdeleteUserpostAuth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/MutationDeleteTodoDataResolverFn/MutationDeleteTodoDataResolverFn.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/MutationDeleteUserDataResolverFn/MutationDeleteUserDataResolverFn.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "MutationDeleteTodoDataResolverFnMutationDeleteTodoDataResolverFnAppSyncFunction3879153F"
+            "data": "MutationDeleteUserDataResolverFnMutationDeleteUserDataResolverFnAppSyncFunction0B4F366A"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "MutationDeleteTodoDataResolverFn"
+            "data": "MutationDeleteUserDataResolverFn"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/mutationDeleteTodoResolver": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/mutationDeleteUserResolver": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "DeleteTodoResolver"
+            "data": "DeleteUserResolver"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Mutation.deleteTodo"
+            "data": "Mutation.deleteUser"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/SubscriptiononCreateTodoauth0Function/SubscriptiononCreateTodoauth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/SubscriptiononCreateUserauth0Function/SubscriptiononCreateUserauth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptiononCreateTodoauth0FunctionSubscriptiononCreateTodoauth0FunctionAppSyncFunction042EF9E1"
+            "data": "SubscriptiononCreateUserauth0FunctionSubscriptiononCreateUserauth0FunctionAppSyncFunctionE9B4721A"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "SubscriptiononCreateTodoauth0Function"
+            "data": "SubscriptiononCreateUserauth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/SubscriptiononCreateTodopostAuth0Function/SubscriptiononCreateTodopostAuth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/SubscriptiononCreateUserpostAuth0Function/SubscriptiononCreateUserpostAuth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptiononCreateTodopostAuth0FunctionSubscriptiononCreateTodopostAuth0FunctionAppSyncFunction18E34C4E"
+            "data": "SubscriptiononCreateUserpostAuth0FunctionSubscriptiononCreateUserpostAuth0FunctionAppSyncFunction62AE12DA"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "SubscriptiononCreateTodopostAuth0Function"
+            "data": "SubscriptiononCreateUserpostAuth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/SubscriptionOnCreateTodoDataResolverFn/SubscriptionOnCreateTodoDataResolverFn.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/SubscriptionOnCreateUserDataResolverFn/SubscriptionOnCreateUserDataResolverFn.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptionOnCreateTodoDataResolverFnSubscriptionOnCreateTodoDataResolverFnAppSyncFunction462A70C9"
+            "data": "SubscriptionOnCreateUserDataResolverFnSubscriptionOnCreateUserDataResolverFnAppSyncFunction23B2F1B9"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "SubscriptionOnCreateTodoDataResolverFn"
+            "data": "SubscriptionOnCreateUserDataResolverFn"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/subscriptionOnCreateTodoResolver": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/subscriptionOnCreateUserResolver": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptiononCreateTodoResolver"
+            "data": "SubscriptiononCreateUserResolver"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Subscription.onCreateTodo"
+            "data": "Subscription.onCreateUser"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/SubscriptiononUpdateTodoauth0Function/SubscriptiononUpdateTodoauth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/SubscriptiononUpdateUserauth0Function/SubscriptiononUpdateUserauth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptiononUpdateTodoauth0FunctionSubscriptiononUpdateTodoauth0FunctionAppSyncFunction80D0DFA3"
+            "data": "SubscriptiononUpdateUserauth0FunctionSubscriptiononUpdateUserauth0FunctionAppSyncFunction78530C9F"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "SubscriptiononUpdateTodoauth0Function"
+            "data": "SubscriptiononUpdateUserauth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/SubscriptiononUpdateTodopostAuth0Function/SubscriptiononUpdateTodopostAuth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/SubscriptiononUpdateUserpostAuth0Function/SubscriptiononUpdateUserpostAuth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptiononUpdateTodopostAuth0FunctionSubscriptiononUpdateTodopostAuth0FunctionAppSyncFunction04445BC7"
+            "data": "SubscriptiononUpdateUserpostAuth0FunctionSubscriptiononUpdateUserpostAuth0FunctionAppSyncFunctionF3EF85D1"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "SubscriptiononUpdateTodopostAuth0Function"
+            "data": "SubscriptiononUpdateUserpostAuth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/SubscriptionOnUpdateTodoDataResolverFn/SubscriptionOnUpdateTodoDataResolverFn.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/SubscriptionOnUpdateUserDataResolverFn/SubscriptionOnUpdateUserDataResolverFn.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptionOnUpdateTodoDataResolverFnSubscriptionOnUpdateTodoDataResolverFnAppSyncFunction523DF0E4"
+            "data": "SubscriptionOnUpdateUserDataResolverFnSubscriptionOnUpdateUserDataResolverFnAppSyncFunction93FA5DF6"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "SubscriptionOnUpdateTodoDataResolverFn"
+            "data": "SubscriptionOnUpdateUserDataResolverFn"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/subscriptionOnUpdateTodoResolver": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/subscriptionOnUpdateUserResolver": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptiononUpdateTodoResolver"
+            "data": "SubscriptiononUpdateUserResolver"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Subscription.onUpdateTodo"
+            "data": "Subscription.onUpdateUser"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/SubscriptiononDeleteTodoauth0Function/SubscriptiononDeleteTodoauth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/SubscriptiononDeleteUserauth0Function/SubscriptiononDeleteUserauth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptiononDeleteTodoauth0FunctionSubscriptiononDeleteTodoauth0FunctionAppSyncFunctionF69F2220"
+            "data": "SubscriptiononDeleteUserauth0FunctionSubscriptiononDeleteUserauth0FunctionAppSyncFunction0C5B7186"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "SubscriptiononDeleteTodoauth0Function"
+            "data": "SubscriptiononDeleteUserauth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/SubscriptiononDeleteTodopostAuth0Function/SubscriptiononDeleteTodopostAuth0Function.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/SubscriptiononDeleteUserpostAuth0Function/SubscriptiononDeleteUserpostAuth0Function.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptiononDeleteTodopostAuth0FunctionSubscriptiononDeleteTodopostAuth0FunctionAppSyncFunctionE131CBE7"
+            "data": "SubscriptiononDeleteUserpostAuth0FunctionSubscriptiononDeleteUserpostAuth0FunctionAppSyncFunction24A5E815"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "SubscriptiononDeleteTodopostAuth0Function"
+            "data": "SubscriptiononDeleteUserpostAuth0Function"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/SubscriptionOnDeleteTodoDataResolverFn/SubscriptionOnDeleteTodoDataResolverFn.AppSyncFunction": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/SubscriptionOnDeleteUserDataResolverFn/SubscriptionOnDeleteUserDataResolverFn.AppSyncFunction": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptionOnDeleteTodoDataResolverFnSubscriptionOnDeleteTodoDataResolverFnAppSyncFunction3E641E8C"
+            "data": "SubscriptionOnDeleteUserDataResolverFnSubscriptionOnDeleteUserDataResolverFnAppSyncFunction2BEB0972"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "SubscriptionOnDeleteTodoDataResolverFn"
+            "data": "SubscriptionOnDeleteUserDataResolverFn"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/subscriptionOnDeleteTodoResolver": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/subscriptionOnDeleteUserResolver": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubscriptiononDeleteTodoResolver"
+            "data": "SubscriptiononDeleteUserResolver"
           },
           {
             "type": "graphqltransformer:resourceName",
-            "data": "Subscription.onDeleteTodo"
+            "data": "Subscription.onDeleteUser"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/CDKMetadata/Default": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/UserOwnerDataResolverFn/UserOwnerDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOwnerDataResolverFnUserOwnerDataResolverFnAppSyncFunction78EE3B72"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOwnerDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/userOwnerResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserownerResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "User.owner"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/CDKMetadata/Default": [
           {
             "type": "aws:cdk:logicalId",
             "data": "CDKMetadata"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/CDKMetadata/Condition": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/CDKMetadata/Condition": [
           {
             "type": "aws:cdk:logicalId",
             "data": "CDKMetadataAvailable"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerNestedStackAmplifyTableManagerNestedStackResourceD7592B12Outputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerTableManagerCustomProviderframeworkonEventA35167EAArn": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerNestedStackAmplifyTableManagerNestedStackResourceD7592B12Outputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerTableManagerCustomProviderframeworkonEventA35167EAArn": [
           {
             "type": "aws:cdk:logicalId",
             "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerNestedStackAmplifyTableManagerNestedStackResourceD7592B12Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerTableManagerCustomProFC24981E"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId": [
           {
             "type": "aws:cdk:logicalId",
             "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name": [
           {
             "type": "aws:cdk:logicalId",
             "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef": [
           {
             "type": "aws:cdk:logicalId",
             "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef": [
           {
             "type": "aws:cdk:logicalId",
             "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef": [
           {
             "type": "aws:cdk:logicalId",
             "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo.NestedStack/Todo.NestedStackResource": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserDataSource2F849B0AName": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "amplifyDataTodoNestedStackTodoNestedStackResource551CEA56"
+            "data": "amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserDataSource2F849B0AName"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/AuthRolePolicy01/Resource": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User/amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserTableA2E6341FTableArn": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "amplifyDataAuthRolePolicy01567A5654"
+            "data": "amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserTableA2E6341FTableArn"
           }
         ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UnauthRolePolicy01/Resource": [
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/User.NestedStack/User.NestedStackResource": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "amplifyDataUnauthRolePolicy01355B9DCF"
+            "data": "amplifyDataUserNestedStackUserNestedStackResource9488907F"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/DynamoDBModelTableReadIOPS": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBModelTableReadIOPS"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/DynamoDBModelTableWriteIOPS": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBModelTableWriteIOPS"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/DynamoDBBillingMode": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBBillingMode"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/DynamoDBEnablePointInTimeRecovery": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBEnablePointInTimeRecovery"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/DynamoDBEnableServerSideEncryption": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBEnableServerSideEncryption"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/HasEnvironmentParameter": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasEnvironmentParameter"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/ShouldUsePayPerRequestBilling": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ShouldUsePayPerRequestBilling"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/ShouldUsePointInTimeRecovery": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ShouldUsePointInTimeRecovery"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/OrganizationTable": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Organization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/OrganizationTable/Default/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationTable"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Organization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/CustomTableOrganizationTable": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Organization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/GetAttOrganizationTableStreamArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GetAttOrganizationTableStreamArn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/GetAttOrganizationTableName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GetAttOrganizationTableName"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/OrganizationIAMRole": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationIAMRole"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/OrganizationIAMRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationIAMRole74017C43"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationIAMRole"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/OrganizationDataSource": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationTable"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/OrganizationDataSource/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationDataSource"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationTable"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/QuerygetOrganizationauth0Function/QuerygetOrganizationauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerygetOrganizationauth0FunctionQuerygetOrganizationauth0FunctionAppSyncFunction1F1F20DC"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerygetOrganizationauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/QuerygetOrganizationpostAuth0Function/QuerygetOrganizationpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerygetOrganizationpostAuth0FunctionQuerygetOrganizationpostAuth0FunctionAppSyncFunction14A6AB24"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerygetOrganizationpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/QueryGetOrganizationDataResolverFn/QueryGetOrganizationDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QueryGetOrganizationDataResolverFnQueryGetOrganizationDataResolverFnAppSyncFunction1B0DA1D0"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QueryGetOrganizationDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/queryGetOrganizationResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GetOrganizationResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Query.getOrganization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/QuerylistOrganizationsauth0Function/QuerylistOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerylistOrganizationsauth0FunctionQuerylistOrganizationsauth0FunctionAppSyncFunction6938CC0C"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerylistOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/QuerylistOrganizationspostAuth0Function/QuerylistOrganizationspostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerylistOrganizationspostAuth0FunctionQuerylistOrganizationspostAuth0FunctionAppSyncFunction817BE475"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerylistOrganizationspostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/QueryListOrganizationsDataResolverFn/QueryListOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QueryListOrganizationsDataResolverFnQueryListOrganizationsDataResolverFnAppSyncFunction6ADC6EE3"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QueryListOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/queryListOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ListOrganizationResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Query.listOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationcreateOrganizationinit0Function/MutationcreateOrganizationinit0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationcreateOrganizationinit0FunctionMutationcreateOrganizationinit0FunctionAppSyncFunctionFD48DB9E"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationcreateOrganizationinit0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationcreateOrganizationauth0Function/MutationcreateOrganizationauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationcreateOrganizationauth0FunctionMutationcreateOrganizationauth0FunctionAppSyncFunction442F4639"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationcreateOrganizationauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationcreateOrganizationpostAuth0Function/MutationcreateOrganizationpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationcreateOrganizationpostAuth0FunctionMutationcreateOrganizationpostAuth0FunctionAppSyncFunctionD60F594A"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationcreateOrganizationpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationCreateOrganizationDataResolverFn/MutationCreateOrganizationDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationCreateOrganizationDataResolverFnMutationCreateOrganizationDataResolverFnAppSyncFunctionB32DE635"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationCreateOrganizationDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/mutationCreateOrganizationResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CreateOrganizationResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Mutation.createOrganization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationupdateOrganizationinit0Function/MutationupdateOrganizationinit0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationupdateOrganizationinit0FunctionMutationupdateOrganizationinit0FunctionAppSyncFunction2071E5BB"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationupdateOrganizationinit0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationupdateOrganizationauth0Function/MutationupdateOrganizationauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationupdateOrganizationauth0FunctionMutationupdateOrganizationauth0FunctionAppSyncFunction9F5A4C2C"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationupdateOrganizationauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationupdateOrganizationpostAuth0Function/MutationupdateOrganizationpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationupdateOrganizationpostAuth0FunctionMutationupdateOrganizationpostAuth0FunctionAppSyncFunctionB8ED359F"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationupdateOrganizationpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationUpdateOrganizationDataResolverFn/MutationUpdateOrganizationDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationUpdateOrganizationDataResolverFnMutationUpdateOrganizationDataResolverFnAppSyncFunctionA80A8955"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationUpdateOrganizationDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/mutationUpdateOrganizationResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UpdateOrganizationResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Mutation.updateOrganization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationdeleteOrganizationauth0Function/MutationdeleteOrganizationauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationdeleteOrganizationauth0FunctionMutationdeleteOrganizationauth0FunctionAppSyncFunction1B7D5412"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationdeleteOrganizationauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationdeleteOrganizationpostAuth0Function/MutationdeleteOrganizationpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationdeleteOrganizationpostAuth0FunctionMutationdeleteOrganizationpostAuth0FunctionAppSyncFunctionF7A70F91"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationdeleteOrganizationpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/MutationDeleteOrganizationDataResolverFn/MutationDeleteOrganizationDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationDeleteOrganizationDataResolverFnMutationDeleteOrganizationDataResolverFnAppSyncFunction067EC40F"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationDeleteOrganizationDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/mutationDeleteOrganizationResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DeleteOrganizationResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Mutation.deleteOrganization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/SubscriptiononCreateOrganizationauth0Function/SubscriptiononCreateOrganizationauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononCreateOrganizationauth0FunctionSubscriptiononCreateOrganizationauth0FunctionAppSyncFunction0D59A34A"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononCreateOrganizationauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/SubscriptiononCreateOrganizationpostAuth0Function/SubscriptiononCreateOrganizationpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononCreateOrganizationpostAuth0FunctionSubscriptiononCreateOrganizationpostAuth0FunctionAppSyncFunctionD56D5EF3"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononCreateOrganizationpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/SubscriptionOnCreateOrganizationDataResolverFn/SubscriptionOnCreateOrganizationDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptionOnCreateOrganizationDataResolverFnSubscriptionOnCreateOrganizationDataResolverFnAppSyncFunction4B0B6D45"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptionOnCreateOrganizationDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/subscriptionOnCreateOrganizationResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononCreateOrganizationResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Subscription.onCreateOrganization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/SubscriptiononUpdateOrganizationauth0Function/SubscriptiononUpdateOrganizationauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononUpdateOrganizationauth0FunctionSubscriptiononUpdateOrganizationauth0FunctionAppSyncFunctionC12FA7AB"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononUpdateOrganizationauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/SubscriptiononUpdateOrganizationpostAuth0Function/SubscriptiononUpdateOrganizationpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononUpdateOrganizationpostAuth0FunctionSubscriptiononUpdateOrganizationpostAuth0FunctionAppSyncFunctionBD64A144"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononUpdateOrganizationpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/SubscriptionOnUpdateOrganizationDataResolverFn/SubscriptionOnUpdateOrganizationDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptionOnUpdateOrganizationDataResolverFnSubscriptionOnUpdateOrganizationDataResolverFnAppSyncFunction5B16F9A8"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptionOnUpdateOrganizationDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/subscriptionOnUpdateOrganizationResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononUpdateOrganizationResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Subscription.onUpdateOrganization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/SubscriptiononDeleteOrganizationauth0Function/SubscriptiononDeleteOrganizationauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononDeleteOrganizationauth0FunctionSubscriptiononDeleteOrganizationauth0FunctionAppSyncFunction026FA317"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononDeleteOrganizationauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/SubscriptiononDeleteOrganizationpostAuth0Function/SubscriptiononDeleteOrganizationpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononDeleteOrganizationpostAuth0FunctionSubscriptiononDeleteOrganizationpostAuth0FunctionAppSyncFunction06DB5742"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononDeleteOrganizationpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/SubscriptionOnDeleteOrganizationDataResolverFn/SubscriptionOnDeleteOrganizationDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptionOnDeleteOrganizationDataResolverFnSubscriptionOnDeleteOrganizationDataResolverFnAppSyncFunction2EBA4BFE"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptionOnDeleteOrganizationDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/subscriptionOnDeleteOrganizationResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononDeleteOrganizationResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Subscription.onDeleteOrganization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/OrganizationOwnerDataResolverFn/OrganizationOwnerDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationOwnerDataResolverFnOrganizationOwnerDataResolverFnAppSyncFunction7DF8C38C"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationOwnerDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/organizationOwnerResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationownerResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Organization.owner"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/CDKMetadata/Condition": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadataAvailable"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerNestedStackAmplifyTableManagerNestedStackResourceD7592B12Outputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerTableManagerCustomProviderframeworkonEventA35167EAArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerNestedStackAmplifyTableManagerNestedStackResourceD7592B12Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerTableManagerCustomProFC24981E"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationOrganizationDataSource8F886C88Name": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationOrganizationDataSource8F886C88Name"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization/amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationOrganizationTable5BB07B30TableArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationOrganizationTable5BB07B30TableArn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Organization.NestedStack/Organization.NestedStackResource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyDataOrganizationNestedStackOrganizationNestedStackResource458A453D"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/DynamoDBModelTableReadIOPS": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBModelTableReadIOPS"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/DynamoDBModelTableWriteIOPS": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBModelTableWriteIOPS"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/DynamoDBBillingMode": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBBillingMode"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/DynamoDBEnablePointInTimeRecovery": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBEnablePointInTimeRecovery"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/DynamoDBEnableServerSideEncryption": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBEnableServerSideEncryption"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/HasEnvironmentParameter": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasEnvironmentParameter"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/ShouldUsePayPerRequestBilling": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ShouldUsePayPerRequestBilling"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/ShouldUsePointInTimeRecovery": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ShouldUsePointInTimeRecovery"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/OrganizationMemberTable": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationMember"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/OrganizationMemberTable/Default/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationMemberTable"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationMember"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/CustomTableOrganizationMemberTable": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationMember"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/GetAttOrganizationMemberTableStreamArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GetAttOrganizationMemberTableStreamArn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/GetAttOrganizationMemberTableName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GetAttOrganizationMemberTableName"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/OrganizationMemberIAMRole": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationMemberIAMRole"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/OrganizationMemberIAMRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationMemberIAMRole6BB38BD7"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationMemberIAMRole"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/OrganizationMemberDataSource": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationMemberTable"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/OrganizationMemberDataSource/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationMemberDataSource"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationMemberTable"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/QuerygetOrganizationMemberauth0Function/QuerygetOrganizationMemberauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerygetOrganizationMemberauth0FunctionQuerygetOrganizationMemberauth0FunctionAppSyncFunctionAF050E8B"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerygetOrganizationMemberauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/QuerygetOrganizationMemberpostAuth0Function/QuerygetOrganizationMemberpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerygetOrganizationMemberpostAuth0FunctionQuerygetOrganizationMemberpostAuth0FunctionAppSyncFunctionE3F0CBC0"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerygetOrganizationMemberpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/QueryGetOrganizationMemberDataResolverFn/QueryGetOrganizationMemberDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QueryGetOrganizationMemberDataResolverFnQueryGetOrganizationMemberDataResolverFnAppSyncFunctionDF99C2CF"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QueryGetOrganizationMemberDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/queryGetOrganizationMemberResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GetOrganizationMemberResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Query.getOrganizationMember"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/QuerylistOrganizationMembersauth0Function/QuerylistOrganizationMembersauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerylistOrganizationMembersauth0FunctionQuerylistOrganizationMembersauth0FunctionAppSyncFunction9E4E2E13"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerylistOrganizationMembersauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/QuerylistOrganizationMemberspostAuth0Function/QuerylistOrganizationMemberspostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerylistOrganizationMemberspostAuth0FunctionQuerylistOrganizationMemberspostAuth0FunctionAppSyncFunction8B9BABA8"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerylistOrganizationMemberspostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/QueryListOrganizationMembersDataResolverFn/QueryListOrganizationMembersDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QueryListOrganizationMembersDataResolverFnQueryListOrganizationMembersDataResolverFnAppSyncFunction200815E6"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QueryListOrganizationMembersDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/queryListOrganizationMembersResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ListOrganizationMemberResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Query.listOrganizationMembers"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationcreateOrganizationMemberinit0Function/MutationcreateOrganizationMemberinit0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationcreateOrganizationMemberinit0FunctionMutationcreateOrganizationMemberinit0FunctionAppSyncFunctionB12AB245"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationcreateOrganizationMemberinit0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationcreateOrganizationMemberauth0Function/MutationcreateOrganizationMemberauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationcreateOrganizationMemberauth0FunctionMutationcreateOrganizationMemberauth0FunctionAppSyncFunction93E3075F"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationcreateOrganizationMemberauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationcreateOrganizationMemberpostAuth0Function/MutationcreateOrganizationMemberpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationcreateOrganizationMemberpostAuth0FunctionMutationcreateOrganizationMemberpostAuth0FunctionAppSyncFunction9213E388"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationcreateOrganizationMemberpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationCreateOrganizationMemberDataResolverFn/MutationCreateOrganizationMemberDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationCreateOrganizationMemberDataResolverFnMutationCreateOrganizationMemberDataResolverFnAppSyncFunctionB53A6783"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationCreateOrganizationMemberDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/mutationCreateOrganizationMemberResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CreateOrganizationMemberResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Mutation.createOrganizationMember"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationupdateOrganizationMemberinit0Function/MutationupdateOrganizationMemberinit0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationupdateOrganizationMemberinit0FunctionMutationupdateOrganizationMemberinit0FunctionAppSyncFunctionBFE87E7A"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationupdateOrganizationMemberinit0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationupdateOrganizationMemberauth0Function/MutationupdateOrganizationMemberauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationupdateOrganizationMemberauth0FunctionMutationupdateOrganizationMemberauth0FunctionAppSyncFunction147A239F"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationupdateOrganizationMemberauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationupdateOrganizationMemberpostAuth0Function/MutationupdateOrganizationMemberpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationupdateOrganizationMemberpostAuth0FunctionMutationupdateOrganizationMemberpostAuth0FunctionAppSyncFunction22302749"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationupdateOrganizationMemberpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationUpdateOrganizationMemberDataResolverFn/MutationUpdateOrganizationMemberDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationUpdateOrganizationMemberDataResolverFnMutationUpdateOrganizationMemberDataResolverFnAppSyncFunctionD4A524BF"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationUpdateOrganizationMemberDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/mutationUpdateOrganizationMemberResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UpdateOrganizationMemberResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Mutation.updateOrganizationMember"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationdeleteOrganizationMemberauth0Function/MutationdeleteOrganizationMemberauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationdeleteOrganizationMemberauth0FunctionMutationdeleteOrganizationMemberauth0FunctionAppSyncFunctionCEC92754"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationdeleteOrganizationMemberauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationdeleteOrganizationMemberpostAuth0Function/MutationdeleteOrganizationMemberpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationdeleteOrganizationMemberpostAuth0FunctionMutationdeleteOrganizationMemberpostAuth0FunctionAppSyncFunction46BCC0A5"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationdeleteOrganizationMemberpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/MutationDeleteOrganizationMemberDataResolverFn/MutationDeleteOrganizationMemberDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationDeleteOrganizationMemberDataResolverFnMutationDeleteOrganizationMemberDataResolverFnAppSyncFunctionD16EDF3F"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationDeleteOrganizationMemberDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/mutationDeleteOrganizationMemberResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DeleteOrganizationMemberResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Mutation.deleteOrganizationMember"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/SubscriptiononCreateOrganizationMemberauth0Function/SubscriptiononCreateOrganizationMemberauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononCreateOrganizationMemberauth0FunctionSubscriptiononCreateOrganizationMemberauth0FunctionAppSyncFunctionE5A1FACA"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononCreateOrganizationMemberauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/SubscriptiononCreateOrganizationMemberpostAuth0Function/SubscriptiononCreateOrganizationMemberpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononCreateOrganizationMemberpostAuth0FunctionSubscriptiononCreateOrganizationMemberpostAuth0FunctionAppSyncFunctionBD6A6354"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononCreateOrganizationMemberpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/SubscriptionOnCreateOrganizationMemberDataResolverFn/SubscriptionOnCreateOrganizationMemberDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptionOnCreateOrganizationMemberDataResolverFnSubscriptionOnCreateOrganizationMemberDataResolverFnAppSyncFunction21D4A19C"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptionOnCreateOrganizationMemberDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/subscriptionOnCreateOrganizationMemberResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononCreateOrganizationMemberResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Subscription.onCreateOrganizationMember"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/SubscriptiononUpdateOrganizationMemberauth0Function/SubscriptiononUpdateOrganizationMemberauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononUpdateOrganizationMemberauth0FunctionSubscriptiononUpdateOrganizationMemberauth0FunctionAppSyncFunction129DAF05"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononUpdateOrganizationMemberauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/SubscriptiononUpdateOrganizationMemberpostAuth0Function/SubscriptiononUpdateOrganizationMemberpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononUpdateOrganizationMemberpostAuth0FunctionSubscriptiononUpdateOrganizationMemberpostAuth0FunctionAppSyncFunction978E70C5"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononUpdateOrganizationMemberpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/SubscriptionOnUpdateOrganizationMemberDataResolverFn/SubscriptionOnUpdateOrganizationMemberDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptionOnUpdateOrganizationMemberDataResolverFnSubscriptionOnUpdateOrganizationMemberDataResolverFnAppSyncFunctionFC54583D"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptionOnUpdateOrganizationMemberDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/subscriptionOnUpdateOrganizationMemberResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononUpdateOrganizationMemberResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Subscription.onUpdateOrganizationMember"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/SubscriptiononDeleteOrganizationMemberauth0Function/SubscriptiononDeleteOrganizationMemberauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononDeleteOrganizationMemberauth0FunctionSubscriptiononDeleteOrganizationMemberauth0FunctionAppSyncFunction57F0E250"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononDeleteOrganizationMemberauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/SubscriptiononDeleteOrganizationMemberpostAuth0Function/SubscriptiononDeleteOrganizationMemberpostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononDeleteOrganizationMemberpostAuth0FunctionSubscriptiononDeleteOrganizationMemberpostAuth0FunctionAppSyncFunction4506D4DB"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononDeleteOrganizationMemberpostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/SubscriptionOnDeleteOrganizationMemberDataResolverFn/SubscriptionOnDeleteOrganizationMemberDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptionOnDeleteOrganizationMemberDataResolverFnSubscriptionOnDeleteOrganizationMemberDataResolverFnAppSyncFunctionC9FCA162"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptionOnDeleteOrganizationMemberDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/subscriptionOnDeleteOrganizationMemberResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononDeleteOrganizationMemberResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Subscription.onDeleteOrganizationMember"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/OrganizationMemberOwnerDataResolverFn/OrganizationMemberOwnerDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationMemberOwnerDataResolverFnOrganizationMemberOwnerDataResolverFnAppSyncFunctionFA16E631"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationMemberOwnerDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/organizationMemberOwnerResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationMemberownerResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationMember.owner"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/CDKMetadata/Condition": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadataAvailable"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerNestedStackAmplifyTableManagerNestedStackResourceD7592B12Outputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerTableManagerCustomProviderframeworkonEventA35167EAArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerNestedStackAmplifyTableManagerNestedStackResourceD7592B12Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerTableManagerCustomProFC24981E"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/OrganizationMember.NestedStack/OrganizationMember.NestedStackResource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyDataOrganizationMemberNestedStackOrganizationMemberNestedStackResourceFB89AFE1"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/DynamoDBModelTableReadIOPS": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBModelTableReadIOPS"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/DynamoDBModelTableWriteIOPS": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBModelTableWriteIOPS"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/DynamoDBBillingMode": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBBillingMode"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/DynamoDBEnablePointInTimeRecovery": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBEnablePointInTimeRecovery"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/DynamoDBEnableServerSideEncryption": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDBEnableServerSideEncryption"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/HasEnvironmentParameter": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasEnvironmentParameter"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/ShouldUsePayPerRequestBilling": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ShouldUsePayPerRequestBilling"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/ShouldUsePointInTimeRecovery": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ShouldUsePointInTimeRecovery"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/UserOrganizationsTable": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/UserOrganizationsTable/Default/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsTable"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/CustomTableUserOrganizationsTable": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/GetAttUserOrganizationsTableStreamArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GetAttUserOrganizationsTableStreamArn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/GetAttUserOrganizationsTableName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GetAttUserOrganizationsTableName"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/UserOrganizationsIAMRole": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizationsIAMRole"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/UserOrganizationsIAMRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsIAMRoleD3B29CDC"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizationsIAMRole"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/UserOrganizationsDataSource": [
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizationsTable"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/UserOrganizationsDataSource/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsDataSource"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizationsTable"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/QuerygetUserOrganizationsauth0Function/QuerygetUserOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerygetUserOrganizationsauth0FunctionQuerygetUserOrganizationsauth0FunctionAppSyncFunction3169E69F"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerygetUserOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/QuerygetUserOrganizationspostAuth0Function/QuerygetUserOrganizationspostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerygetUserOrganizationspostAuth0FunctionQuerygetUserOrganizationspostAuth0FunctionAppSyncFunction258B543B"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerygetUserOrganizationspostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/QueryGetUserOrganizationsDataResolverFn/QueryGetUserOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QueryGetUserOrganizationsDataResolverFnQueryGetUserOrganizationsDataResolverFnAppSyncFunctionE3D69CCC"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QueryGetUserOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/queryGetUserOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GetUserOrganizationsResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Query.getUserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/QuerylistUserOrganizationsauth0Function/QuerylistUserOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerylistUserOrganizationsauth0FunctionQuerylistUserOrganizationsauth0FunctionAppSyncFunction6B61D010"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerylistUserOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/QuerylistUserOrganizationspostAuth0Function/QuerylistUserOrganizationspostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QuerylistUserOrganizationspostAuth0FunctionQuerylistUserOrganizationspostAuth0FunctionAppSyncFunctionABF81B0E"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QuerylistUserOrganizationspostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/QueryListUserOrganizationsDataResolverFn/QueryListUserOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "QueryListUserOrganizationsDataResolverFnQueryListUserOrganizationsDataResolverFnAppSyncFunctionDF26DFF8"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "QueryListUserOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/queryListUserOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ListUserOrganizationsResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Query.listUserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationcreateUserOrganizationsinit0Function/MutationcreateUserOrganizationsinit0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationcreateUserOrganizationsinit0FunctionMutationcreateUserOrganizationsinit0FunctionAppSyncFunctionC3DFA470"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationcreateUserOrganizationsinit0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationcreateUserOrganizationsauth0Function/MutationcreateUserOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationcreateUserOrganizationsauth0FunctionMutationcreateUserOrganizationsauth0FunctionAppSyncFunction47488E0D"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationcreateUserOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationcreateUserOrganizationspostAuth0Function/MutationcreateUserOrganizationspostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationcreateUserOrganizationspostAuth0FunctionMutationcreateUserOrganizationspostAuth0FunctionAppSyncFunction47747766"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationcreateUserOrganizationspostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationCreateUserOrganizationsDataResolverFn/MutationCreateUserOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationCreateUserOrganizationsDataResolverFnMutationCreateUserOrganizationsDataResolverFnAppSyncFunctionBBA9AAF1"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationCreateUserOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/mutationCreateUserOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CreateUserOrganizationsResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Mutation.createUserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationupdateUserOrganizationsinit0Function/MutationupdateUserOrganizationsinit0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationupdateUserOrganizationsinit0FunctionMutationupdateUserOrganizationsinit0FunctionAppSyncFunction7678728C"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationupdateUserOrganizationsinit0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationupdateUserOrganizationsauth0Function/MutationupdateUserOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationupdateUserOrganizationsauth0FunctionMutationupdateUserOrganizationsauth0FunctionAppSyncFunctionAB67B157"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationupdateUserOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationupdateUserOrganizationspostAuth0Function/MutationupdateUserOrganizationspostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationupdateUserOrganizationspostAuth0FunctionMutationupdateUserOrganizationspostAuth0FunctionAppSyncFunction45333BB6"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationupdateUserOrganizationspostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationUpdateUserOrganizationsDataResolverFn/MutationUpdateUserOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationUpdateUserOrganizationsDataResolverFnMutationUpdateUserOrganizationsDataResolverFnAppSyncFunctionD7FBB7C8"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationUpdateUserOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/mutationUpdateUserOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UpdateUserOrganizationsResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Mutation.updateUserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationdeleteUserOrganizationsauth0Function/MutationdeleteUserOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationdeleteUserOrganizationsauth0FunctionMutationdeleteUserOrganizationsauth0FunctionAppSyncFunctionEB92AF29"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationdeleteUserOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationdeleteUserOrganizationspostAuth0Function/MutationdeleteUserOrganizationspostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationdeleteUserOrganizationspostAuth0FunctionMutationdeleteUserOrganizationspostAuth0FunctionAppSyncFunction2540B5D7"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationdeleteUserOrganizationspostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/MutationDeleteUserOrganizationsDataResolverFn/MutationDeleteUserOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MutationDeleteUserOrganizationsDataResolverFnMutationDeleteUserOrganizationsDataResolverFnAppSyncFunction1A20298A"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "MutationDeleteUserOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/mutationDeleteUserOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DeleteUserOrganizationsResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Mutation.deleteUserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/SubscriptiononCreateUserOrganizationsauth0Function/SubscriptiononCreateUserOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononCreateUserOrganizationsauth0FunctionSubscriptiononCreateUserOrganizationsauth0FunctionAppSyncFunctionB53A2611"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononCreateUserOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/SubscriptiononCreateUserOrganizationspostAuth0Function/SubscriptiononCreateUserOrganizationspostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononCreateUserOrganizationspostAuth0FunctionSubscriptiononCreateUserOrganizationspostAuth0FunctionAppSyncFunction7EFC812E"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononCreateUserOrganizationspostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/SubscriptionOnCreateUserOrganizationsDataResolverFn/SubscriptionOnCreateUserOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptionOnCreateUserOrganizationsDataResolverFnSubscriptionOnCreateUserOrganizationsDataResolverFnAppSyncFunction99454126"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptionOnCreateUserOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/subscriptionOnCreateUserOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononCreateUserOrganizationsResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Subscription.onCreateUserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/SubscriptiononUpdateUserOrganizationsauth0Function/SubscriptiononUpdateUserOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononUpdateUserOrganizationsauth0FunctionSubscriptiononUpdateUserOrganizationsauth0FunctionAppSyncFunction207A4BE8"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononUpdateUserOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/SubscriptiononUpdateUserOrganizationspostAuth0Function/SubscriptiononUpdateUserOrganizationspostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononUpdateUserOrganizationspostAuth0FunctionSubscriptiononUpdateUserOrganizationspostAuth0FunctionAppSyncFunction6C8E2955"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononUpdateUserOrganizationspostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/SubscriptionOnUpdateUserOrganizationsDataResolverFn/SubscriptionOnUpdateUserOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptionOnUpdateUserOrganizationsDataResolverFnSubscriptionOnUpdateUserOrganizationsDataResolverFnAppSyncFunction38B3FDBB"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptionOnUpdateUserOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/subscriptionOnUpdateUserOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononUpdateUserOrganizationsResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Subscription.onUpdateUserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/SubscriptiononDeleteUserOrganizationsauth0Function/SubscriptiononDeleteUserOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononDeleteUserOrganizationsauth0FunctionSubscriptiononDeleteUserOrganizationsauth0FunctionAppSyncFunctionB33B2B46"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononDeleteUserOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/SubscriptiononDeleteUserOrganizationspostAuth0Function/SubscriptiononDeleteUserOrganizationspostAuth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononDeleteUserOrganizationspostAuth0FunctionSubscriptiononDeleteUserOrganizationspostAuth0FunctionAppSyncFunctionACE14661"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptiononDeleteUserOrganizationspostAuth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/SubscriptionOnDeleteUserOrganizationsDataResolverFn/SubscriptionOnDeleteUserOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptionOnDeleteUserOrganizationsDataResolverFnSubscriptionOnDeleteUserOrganizationsDataResolverFnAppSyncFunction1C15CA55"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "SubscriptionOnDeleteUserOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/subscriptionOnDeleteUserOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SubscriptiononDeleteUserOrganizationsResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Subscription.onDeleteUserOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/UserOrganizationsOwnerDataResolverFn/UserOrganizationsOwnerDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsOwnerDataResolverFnUserOrganizationsOwnerDataResolverFnAppSyncFunction251443F8"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizationsOwnerDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/userOrganizationsOwnerResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsownerResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizations.owner"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/CDKMetadata/Condition": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadataAvailable"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerNestedStackAmplifyTableManagerNestedStackResourceD7592B12Outputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerTableManagerCustomProviderframeworkonEventA35167EAArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerNestedStackAmplifyTableManagerNestedStackResourceD7592B12Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataAmplifyTableManagerTableManagerCustomProFC24981E"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsUserOrganizationsDataSource969CD881Name": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsUserOrganizationsDataSource969CD881Name"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations/amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsUserOrganizationsTable97041904TableArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsUserOrganizationsTable97041904TableArn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/UserOrganizations.NestedStack/UserOrganizations.NestedStackResource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyDataUserOrganizationsNestedStackUserOrganizationsNestedStackResourceE0C34934"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/UseruserOrganizationsauth0Function/UseruserOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UseruserOrganizationsauth0FunctionUseruserOrganizationsauth0FunctionAppSyncFunction794841DF"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UseruserOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/UserUserOrganizationsDataResolverFn/UserUserOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserUserOrganizationsDataResolverFnUserUserOrganizationsDataResolverFnAppSyncFunction91B0CA9C"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserUserOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/userUserOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UseruserOrganizationsResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "User.userOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/OrganizationuserOrganizationsauth0Function/OrganizationuserOrganizationsauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationuserOrganizationsauth0FunctionOrganizationuserOrganizationsauth0FunctionAppSyncFunctionF79B71EB"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationuserOrganizationsauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/OrganizationUserOrganizationsDataResolverFn/OrganizationUserOrganizationsDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationUserOrganizationsDataResolverFnOrganizationUserOrganizationsDataResolverFnAppSyncFunction4BAC00F5"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "OrganizationUserOrganizationsDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/organizationUserOrganizationsResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OrganizationuserOrganizationsResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "Organization.userOrganizations"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/UserOrganizationsuserauth0Function/UserOrganizationsuserauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsuserauth0FunctionUserOrganizationsuserauth0FunctionAppSyncFunction77A75A60"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizationsuserauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/UserOrganizationsUserDataResolverFn/UserOrganizationsUserDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsUserDataResolverFnUserOrganizationsUserDataResolverFnAppSyncFunction94FD981C"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizationsUserDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/userOrganizationsUserResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsuserResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizations.user"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/UserOrganizationsorganizationauth0Function/UserOrganizationsorganizationauth0Function.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsorganizationauth0FunctionUserOrganizationsorganizationauth0FunctionAppSyncFunction44534C64"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizationsorganizationauth0Function"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/UserOrganizationsOrganizationDataResolverFn/UserOrganizationsOrganizationDataResolverFn.AppSyncFunction": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsOrganizationDataResolverFnUserOrganizationsOrganizationDataResolverFnAppSyncFunction675ED55A"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizationsOrganizationDataResolverFn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/userOrganizationsOrganizationResolver": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserOrganizationsorganizationResolver"
+          },
+          {
+            "type": "graphqltransformer:resourceName",
+            "data": "UserOrganizations.organization"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/CDKMetadata/Condition": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadataAvailable"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsNestedStackUserOrganizationsNestedStackResource37F793F4Outputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsUserOrganizationsDataSource969CD881Name": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsNestedStackUserOrganizationsNestedStackResource37F793F4Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsUserOrganizationsDataSource969CD881Name"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsNestedStackUserOrganizationsNestedStackResource37F793F4Outputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsUserOrganizationsTable97041904TableArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsNestedStackUserOrganizationsNestedStackResource37F793F4Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserOrganizationsUserOrganizationsTable97041904TableArn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserNestedStackUserNestedStackResource6F7C7220Outputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserDataSource2F849B0AName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserNestedStackUserNestedStackResource6F7C7220Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserDataSource2F849B0AName"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserNestedStackUserNestedStackResource6F7C7220Outputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserTableA2E6341FTableArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserNestedStackUserNestedStackResource6F7C7220Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserTableA2E6341FTableArn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationNestedStackOrganizationNestedStackResource7796065AOutputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationOrganizationDataSource8F886C88Name": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationNestedStackOrganizationNestedStackResource7796065AOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationOrganizationDataSource8F886C88Name"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/reference-to-amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationNestedStackOrganizationNestedStackResource7796065AOutputs.amplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationOrganizationTable5BB07B30TableArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationNestedStackOrganizationNestedStackResource7796065AOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataOrganizationOrganizationTable5BB07B30TableArn"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack.NestedStack/ConnectionStack.NestedStackResource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "amplifyDataConnectionStackNestedStackConnectionStackNestedStackResourceAB0F312B"
           }
         ],
         "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/AmplifyCodegenAssets/AmplifyCodegenAssetsBucket/Resource": [
@@ -953,6 +2851,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "DynamoDBEnableServerSideEncryption"
+          }
+        ],
+        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/LatestNodeRuntimeMap": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "LatestNodeRuntimeMap"
           }
         ],
         "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/Custom::S3AutoDeleteObjectsCustomResourceProvider": [
@@ -1157,24 +3061,6 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "awsAppsyncAdditionalAuthenticationTypes"
-          }
-        ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/externalDataSources/CDKMetadata/Default": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "CDKMetadata"
-          }
-        ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/externalDataSources/CDKMetadata/Condition": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "CDKMetadataAvailable"
-          }
-        ],
-        "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/externalDataSources.NestedStack/externalDataSources.NestedStackResource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "externalDataSourcesE572E960"
           }
         ],
         "/amplify-xrayatlas-hduva-sandbox-beb300f0e1/CDKMetadata/Default": [
@@ -1615,5 +3501,5 @@
       }
     }
   },
-  "minimumCliVersion": "2.1028.0"
+  "minimumCliVersion": "2.1031.0"
 }

@@ -11,6 +11,7 @@ const schema = a.schema({
       name: a.string(),
       created_at: a.datetime(),
       updated_at: a.datetime(),
+      userOrganizations: a.hasMany("UserOrganizations", "user_id"),
     })
     .authorization((allow) => [allow.owner()]),
 
@@ -20,6 +21,7 @@ const schema = a.schema({
       description: a.string(),
       created_at: a.datetime(),
       updated_at: a.datetime(),
+      userOrganizations: a.hasMany("UserOrganizations", "organization_id"),
     })
     .authorization((allow) => [allow.owner()]),
 
@@ -35,6 +37,8 @@ const schema = a.schema({
   // Relationship between User and Organization through OrganizationMember
   UserOrganizations: a
     .model({
+      user_id: a.string().required(),
+      organization_id: a.string().required(),
       user: a.belongsTo("User", "user_id"),
       organization: a.belongsTo("Organization", "organization_id"),
     })

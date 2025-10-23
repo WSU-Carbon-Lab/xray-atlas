@@ -1,0 +1,43 @@
+type User @model @auth(rules: [{allow: owner, ownerField: "owner"}])
+{
+  orcid_id: String!
+  email: String!
+  auxiliary_emails: [String]
+  contact_info: String
+  profile_picture_url: String
+  name: String
+  created_at: AWSDateTime
+  updated_at: AWSDateTime
+  userOrganizations: [UserOrganizations] @hasMany(references: ["user_id"])
+}
+
+type Organization @model @auth(rules: [{allow: owner, ownerField: "owner"}])
+{
+  name: String!
+  description: String
+  created_at: AWSDateTime
+  updated_at: AWSDateTime
+  userOrganizations: [UserOrganizations] @hasMany(references: ["organization_id"])
+}
+
+type OrganizationMember @model @auth(rules: [{allow: owner, ownerField: "owner"}])
+{
+  user_id: String!
+  organization_id: String!
+  role: OrganizationMemberRole
+  joined_at: AWSDateTime
+}
+
+type UserOrganizations @model @auth(rules: [{allow: owner, ownerField: "owner"}])
+{
+  user_id: String!
+  organization_id: String!
+  user: User @belongsTo(references: ["user_id"])
+  organization: Organization @belongsTo(references: ["organization_id"])
+}
+
+enum OrganizationMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}

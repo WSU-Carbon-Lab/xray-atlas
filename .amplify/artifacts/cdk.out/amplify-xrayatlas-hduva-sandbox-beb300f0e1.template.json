@@ -108,19 +108,36 @@
    "Value": "[]"
   },
   "socialProviders": {
-   "Value": ""
+   "Value": "[\"ORCID\"]"
   },
   "oauthCognitoDomain": {
-   "Value": ""
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      {
+       "Fn::GetAtt": [
+        "auth179371D7",
+        "Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthUserPoolUserPoolDomain906550B4Ref"
+       ]
+      },
+      ".auth.",
+      {
+       "Ref": "AWS::Region"
+      },
+      ".amazoncognito.com"
+     ]
+    ]
+   }
   },
   "oauthScope": {
-   "Value": "[\"profile\",\"phone\",\"email\",\"openid\",\"aws.cognito.signin.user.admin\"]"
+   "Value": "[\"phone\",\"email\",\"openid\",\"profile\",\"aws.cognito.signin.user.admin\"]"
   },
   "oauthRedirectSignIn": {
-   "Value": "https://example.com"
+   "Value": "http://localhost:3000/sign-in,https://xrayatlas.wsu.edu/sign-in"
   },
   "oauthRedirectSignOut": {
-   "Value": ""
+   "Value": "http://localhost:3000/,https://xrayatlas.wsu.edu/"
   },
   "oauthResponseType": {
    "Value": "code"
@@ -153,7 +170,7 @@
    }
   },
   "awsAppsyncAuthenticationType": {
-   "Value": "AWS_IAM"
+   "Value": "AMAZON_COGNITO_USER_POOLS"
   },
   "awsAppsyncRegion": {
    "Value": {
@@ -198,7 +215,7 @@
    }
   },
   "awsAppsyncAdditionalAuthenticationTypes": {
-   "Value": "AMAZON_COGNITO_USER_POOLS"
+   "Value": "AWS_IAM"
   }
  },
  "Resources": {
@@ -231,7 +248,7 @@
        {
         "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}"
        },
-       "/ccd27b447f09c1cba26941a9c2d70d89082e33a7f259bca9087f3f2fda12b1b0.json"
+       "/2a9aa049bdf224c43ac09a06fe2a71eb5f9fe2fcdd8fb130ba299c862560858b.json"
       ]
      ]
     }
@@ -299,7 +316,7 @@
        {
         "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}"
        },
-       "/a6591d26087e84cd2cba406a9d6ea5d1ee7600c2c4ed63468cb6e0603dafc9cf.json"
+       "/9455da717593220f0e5fa44921ee10aa57d916ecd5739939dd3531b646d922af.json"
       ]
      ]
     }
@@ -312,52 +329,10 @@
     "aws:asset:property": "TemplateURL"
    }
   },
-  "externalDataSourcesE572E960": {
-   "Type": "AWS::CloudFormation::Stack",
-   "Properties": {
-    "Tags": [
-     {
-      "Key": "amplify:deployment-type",
-      "Value": "sandbox"
-     },
-     {
-      "Key": "created-by",
-      "Value": "amplify"
-     }
-    ],
-    "TemplateURL": {
-     "Fn::Join": [
-      "",
-      [
-       "https://s3.",
-       {
-        "Ref": "AWS::Region"
-       },
-       ".",
-       {
-        "Ref": "AWS::URLSuffix"
-       },
-       "/",
-       {
-        "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}"
-       },
-       "/b69b842f471f716e20694874d29f4ce42289972ebb1703d010ae2f5b482688e6.json"
-      ]
-     ]
-    }
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/externalDataSources.NestedStack/externalDataSources.NestedStackResource",
-    "aws:asset:path": "amplifyxrayatlashduvasandboxbeb300f0e1externalDataSourcesA3A80A3C.nested.template.json",
-    "aws:asset:property": "TemplateURL"
-   }
-  },
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zPSMzI00TNQTCwv1k1OydbNyUzSqw4uSUzO1nFOy/MvLSkoLQGxwEK1Onn5Kal6WcX6ZUYGeoYWegaKWcWZmbpFpXklmbmpekEQGgCzSYhtVAAAAA=="
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zPSMzIy0DNQTCwv1k1OydbNyUzSqw4uSUzO1nFOy/MvLSkoLQGxwEK1Onn5Kal6WcX6ZUYGeoYWegaKWcWZmbpFpXklmbmpekEQGgBybFSrVAAAAA=="
    },
    "Metadata": {
     "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/CDKMetadata/Default"

@@ -443,7 +443,7 @@
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zWNyw6CMBBFv4V9GXm4cCsmLo2BDyBDO5LyaBOmlZim/24AXZ1zcxa3gCI/Q5bgyqlUYzrpDsKD2JFqHMpR4Mpt0DhDqO1E4vYyO5920vKzzcOimHDuFEK4eyOdtmZrf4+CyxaZyTFcNwguofJyJFchUxQ1sfWLJLHXxmGvTb+f/UIUxiqCgU/vIoP8AlkysNbp4o3TM0F98AvJ0on8zwAAAA=="
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zWNyw6CMBBFv4V9GbFs3IqJS2PgA8jQjqQ82oRpJabpvxtAV+fcnMWVIGUBRYYr50qP+WQ6iA9iT7rxqEaBK7fR4AyxdhOJ28vufLrJqM82D0tiwrnTCPEerPLG2a39PQkuW2Qmz3DdILiEKqiRfIVMSdTELiyKxF4bj72x/X72C0lYpwkGPr1lAecLFNnAxuRLsN7MBPXBLwjHFIfPAAAA"
    },
    "Metadata": {
     "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/AmplifyTableManager/CDKMetadata/Default"
