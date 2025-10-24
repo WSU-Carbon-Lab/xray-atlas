@@ -108,36 +108,19 @@
    "Value": "[]"
   },
   "socialProviders": {
-   "Value": "[\"ORCID\"]"
+   "Value": ""
   },
   "oauthCognitoDomain": {
-   "Value": {
-    "Fn::Join": [
-     "",
-     [
-      {
-       "Fn::GetAtt": [
-        "auth179371D7",
-        "Outputs.amplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthUserPoolUserPoolDomain906550B4Ref"
-       ]
-      },
-      ".auth.",
-      {
-       "Ref": "AWS::Region"
-      },
-      ".amazoncognito.com"
-     ]
-    ]
-   }
+   "Value": ""
   },
   "oauthScope": {
-   "Value": "[\"phone\",\"email\",\"openid\",\"profile\",\"aws.cognito.signin.user.admin\"]"
+   "Value": "[\"profile\",\"phone\",\"email\",\"openid\",\"aws.cognito.signin.user.admin\"]"
   },
   "oauthRedirectSignIn": {
-   "Value": "http://localhost:3000/sign-in,https://xrayatlas.wsu.edu/sign-in"
+   "Value": "https://example.com"
   },
   "oauthRedirectSignOut": {
-   "Value": "http://localhost:3000/,https://xrayatlas.wsu.edu/"
+   "Value": ""
   },
   "oauthResponseType": {
    "Value": "code"
@@ -170,7 +153,7 @@
    }
   },
   "awsAppsyncAuthenticationType": {
-   "Value": "AMAZON_COGNITO_USER_POOLS"
+   "Value": "AWS_IAM"
   },
   "awsAppsyncRegion": {
    "Value": {
@@ -215,7 +198,7 @@
    }
   },
   "awsAppsyncAdditionalAuthenticationTypes": {
-   "Value": "AWS_IAM"
+   "Value": "AMAZON_COGNITO_USER_POOLS"
   }
  },
  "Resources": {
@@ -248,7 +231,7 @@
        {
         "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}"
        },
-       "/2a9aa049bdf224c43ac09a06fe2a71eb5f9fe2fcdd8fb130ba299c862560858b.json"
+       "/cef898d4ab4d95f0cc6605432db18aa077271e61c8ce54b699cbd0b6a515ce55.json"
       ]
      ]
     }
@@ -316,7 +299,7 @@
        {
         "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}"
        },
-       "/9455da717593220f0e5fa44921ee10aa57d916ecd5739939dd3531b646d922af.json"
+       "/4e8b9beee5bf6843778f5d210a2954032c9099f8668d196b0325b9196e11aa5f.json"
       ]
      ]
     }
@@ -332,7 +315,7 @@
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zPSMzIy0DNQTCwv1k1OydbNyUzSqw4uSUzO1nFOy/MvLSkoLQGxwEK1Onn5Kal6WcX6ZUYGeoYWegaKWcWZmbpFpXklmbmpekEQGgBybFSrVAAAAA=="
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zPSMzIw0TNQTCwv1k1OydbNyUzSqw4uSUzO1nFOy/MvLSkoLQGxwEK1Onn5Kal6WcX6ZUYGeoYWegaKWcWZmbpFpXklmbmpekEQGgDAikkAVAAAAA=="
    },
    "Metadata": {
     "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/CDKMetadata/Default"

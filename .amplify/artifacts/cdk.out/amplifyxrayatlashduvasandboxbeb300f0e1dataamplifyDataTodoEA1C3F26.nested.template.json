@@ -2017,7 +2017,7 @@
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/1WOwW6DMAyGn6X34FG6w64rqMdtgt0rkxiUEhIUO60qxLtP0KnTTr8/+ZP9F1DsXyHf4Y0zbYbM2RbmD2Ih0wjqQZWd/8KIIwnFFcrgjRUbvKqJQ4qaVJlYwviHnX/OeOPzbO4ex2Ba+MbW0RGZlMUR5jq4hx0cLQqnie9ew1xtetVWKNg8T/6nU/J6LVEG39k+Rdwa/X52V4qL4sMZmUkY3tdQfIBj0gPJWmBZ3c8kUxK1rRvB3vp+UT4Yggu/XIsc9m+Q7y5sbRaTFzsS1I/8AdUYv1o2AQAA"
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/1WOwW6DMAyGn6X31GN0h11X0I7bBLtXJjEoBRwUO60qxLtP0KnTTr8/+ZP955BnL5Dt8Cp76/r94BuYP0iUXK1oe1O0/IURR1KKKxSBnVcf2FQkIUVLpkiiYfzDlh8zXuU0uxvjGFwD39gMdEQh43GEuQrD3Q4DLQanSW5sYS43vWxKVKwfJ//Te2K7ligCt75LEbdGv5+HC8XFyOGEIqQCb2sYOcAx2Z50LbCs7mfSKanZ1rVi57lbDAdHcJanS57B8ytku7N4v4+J1Y8E1T1/AKqdvbg2AQAA"
    },
    "Metadata": {
     "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/Todo/CDKMetadata/Default"

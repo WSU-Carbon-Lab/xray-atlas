@@ -12,9 +12,6 @@
 /prisma/db.sqlite
 /prisma/db.sqlite-journal
 db.sqlite
-.ipynb_checkpoints
-.ipynb
-/.vscode/
 
 # next.js
 /.next/
@@ -47,3 +44,9 @@ yarn-error.log*
 
 # idea files
 .idea
+
+# amplify
+node_modules
+.amplify
+amplify_outputs*
+amplifyconfiguration*
