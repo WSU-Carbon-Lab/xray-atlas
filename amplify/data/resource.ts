@@ -1,15 +1,112 @@
-import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
+import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 
-/*== STEP 1 ===============================================================
-The section below creates a Todo database table with a "content" field. Try
-adding a new "isDone" field as a boolean. The authorization rule below
-specifies that any unauthenticated user can "create", "read", "update", 
-and "delete" any "Todo" records.
-=========================================================================*/
+/*
+==============================================================
+Define schemas for each molecule and one made for each experiment record input
+==============================================================
+Molecule schema:
+==============================================================
+- name: string
+- image: url
+- synonyms: string[]
+- chemicalFormula: string
+- description: string
+- smiles: string
+- inchi: string
+
+Instrument schema:
+==============================================================
+- facility: string
+- instrument: string
+- link: url
+
+Experiment schema:
+==============================================================
+- molecule: Molecule
+- instrument: Instrument
+- experimentData: string
+- user: User
+- createdAt: date
+- updatedAt: date
+- data: Data
+
+Data schema:
+==============================================================
+- data: string
+- energy: number[]
+- intensity: number[]
+- polarization_azimuth: number[]
+- polarization_polar: number[]
+- izero: number[]
+- izero_2: number[]
+
+User schema:
+==============================================================
+- ORCID: string
+- name: (use ORCID api to get name)
+- email: (use ORCID api to get email)
+- affiliation: (use ORCID api to get affiliation)
+==============================================================
+*/
+
 const schema = a.schema({
-  Todo: a
+  Molecule: a
     .model({
-      content: a.string(),
+      name: a.string().required(),
+      image: a.url(),
+      synonyms: a.string().array(),
+      chemicalFormula: a.string(),
+      description: a.string(),
+      smiles: a.string(),
+      inchi: a.string(),
+      experiments: a.hasMany("Experiment", "moleculeId"),
+    })
+    .authorization((allow) => [allow.guest()]),
+
+  Instrument: a
+    .model({
+      facility: a.string().required(),
+      instrument: a.string().required(),
+      link: a.url(),
+      experiments: a.hasMany("Experiment", "instrumentId"),
+    })
+    .authorization((allow) => [allow.guest()]),
+
+  User: a
+    .model({
+      orcid: a.string().required(),
+      name: a.string(),
+      email: a.string(),
+      affiliation: a.string(),
+      experiments: a.hasMany("Experiment", "userId"),
+    })
+    .authorization((allow) => [allow.guest()]),
+
+  Experiment: a
+    .model({
+      description: a.string(),
+      experimentData: a.string(),
+      moleculeId: a.id(),
+      molecule: a.belongsTo("Molecule", "moleculeId"),
+      instrumentId: a.id(),
+      instrument: a.belongsTo("Instrument", "instrumentId"),
+      userId: a.id(),
+      user: a.belongsTo("User", "userId"),
+      dataId: a.id(),
+      data: a.belongsTo("Data", "dataId"),
+    })
+    .authorization((allow) => [allow.guest()]),
+
+  Data: a
+    .model({
+      data: a.string(),
+      energy: a.float().array(),
+      intensity: a.float().array(),
+      polarization_azimuth: a.float().array(),
+      polarization_polar: a.float().array(),
+      izero: a.float().array(),
+      izero_2: a.float().array(),
+      experiment: a.hasOne("Experiment", "dataId"),
     })
     .authorization((allow) => [allow.guest()]),
 });
@@ -19,35 +116,6 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: 'identityPool',
+    defaultAuthorizationMode: "identityPool",
   },
 });
-
-/*== STEP 2 ===============================================================
-Go to your frontend source code. From your client-side code, generate a
-Data client to make CRUDL requests to your table. (THIS SNIPPET WILL ONLY
-WORK IN THE FRONTEND CODE FILE.)
-
-Using JavaScript or Next.js React Server Components, Middleware, Server 
-Actions or Pages Router? Review how to generate Data clients for those use
-cases: https://docs.amplify.aws/gen2/build-a-backend/data/connect-to-API/
-=========================================================================*/
-
-/*
-"use client"
-import { generateClient } from "aws-amplify/data";
-import type { Schema } from "@/amplify/data/resource";
-
-const client = generateClient<Schema>() // use this Data client for CRUDL requests
-*/
-
-/*== STEP 3 ===============================================================
-Fetch records from the database and use them in your frontend component.
-(THIS SNIPPET WILL ONLY WORK IN THE FRONTEND CODE FILE.)
-=========================================================================*/
-
-/* For example, in a React component, you can use this snippet in your
-  function's RETURN statement */
-// const { data: todos } = await client.models.Todo.list()
-
-// return <ul>{todos.map(todo => <li key={todo.id}>{todo.content}</li>)}</ul>
