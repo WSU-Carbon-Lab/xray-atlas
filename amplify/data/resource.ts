@@ -61,7 +61,7 @@ const schema = a.schema({
       inchi: a.string(),
       experiments: a.hasMany("Experiment", "moleculeId"),
     })
-    .authorization((allow) => [allow.guest()]),
+    .authorization((allow) => [allow.publicApiKey()]),
 
   Instrument: a
     .model({
@@ -70,7 +70,7 @@ const schema = a.schema({
       link: a.url(),
       experiments: a.hasMany("Experiment", "instrumentId"),
     })
-    .authorization((allow) => [allow.guest()]),
+    .authorization((allow) => [allow.publicApiKey()]),
 
   User: a
     .model({
@@ -80,7 +80,7 @@ const schema = a.schema({
       affiliation: a.string(),
       experiments: a.hasMany("Experiment", "userId"),
     })
-    .authorization((allow) => [allow.guest()]),
+    .authorization((allow) => [allow.publicApiKey()]),
 
   Experiment: a
     .model({
@@ -95,7 +95,7 @@ const schema = a.schema({
       dataId: a.id(),
       data: a.belongsTo("Data", "dataId"),
     })
-    .authorization((allow) => [allow.guest()]),
+    .authorization((allow) => [allow.publicApiKey()]),
 
   Data: a
     .model({
@@ -108,7 +108,7 @@ const schema = a.schema({
       izero_2: a.float().array(),
       experiment: a.hasOne("Experiment", "dataId"),
     })
-    .authorization((allow) => [allow.guest()]),
+    .authorization((allow) => [allow.publicApiKey()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -116,6 +116,9 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: "userPool",
+    defaultAuthorizationMode: "apiKey",
+    apiKeyAuthorizationMode: {
+      expiresInDays: 30,
+    },
   },
 });

@@ -7,6 +7,8 @@
 
 # testing
 /coverage
+BUILD.txt
+DEPLOY.txt
 
 # database
 /prisma/db.sqlite
