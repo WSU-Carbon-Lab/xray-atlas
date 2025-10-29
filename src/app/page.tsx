@@ -1,13 +1,9 @@
-// app/molecules/page.tsx (Server Component)
-import { getMolecules } from "~/server/queries";
-import { MoleculeRegistry } from "./_components/molecule-registry";
+import Link from "next/link";
 
-export default async function MoleculesPage() {
-  const molecules = await getMolecules();
-
+export default function HomePage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <MoleculeRegistry molecules={molecules} />
-    </div>
+    <main className="flex min-h-screen flex-col items-center justify-center from-[#2e026d] to-[#15162c] text-white">
+      <h1 className="text-4xl font-bold">Hello World</h1>
+    </main>
   );
 }
