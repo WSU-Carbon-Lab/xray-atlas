@@ -7,8 +7,6 @@
 
 # testing
 /coverage
-BUILD.txt
-DEPLOY.txt
 
 # database
 /prisma/db.sqlite
@@ -46,9 +44,3 @@ yarn-error.log*
 
 # idea files
 .idea
-
-# amplify
-node_modules
-.amplify
-amplify_outputs*
-amplifyconfiguration*

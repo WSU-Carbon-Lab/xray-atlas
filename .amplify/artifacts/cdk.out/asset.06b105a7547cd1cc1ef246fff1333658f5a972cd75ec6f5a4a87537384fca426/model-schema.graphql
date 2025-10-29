@@ -1,0 +1,54 @@
+type Molecule @model @auth(rules: [{allow: public, provider: apiKey}])
+{
+  name: String!
+  image: AWSURL
+  synonyms: [String]
+  chemicalFormula: String
+  description: String
+  smiles: String
+  inchi: String
+  experiments: [Experiment] @hasMany(references: ["moleculeId"])
+}
+
+type Instrument @model @auth(rules: [{allow: public, provider: apiKey}])
+{
+  facility: String!
+  instrument: String!
+  link: AWSURL
+  experiments: [Experiment] @hasMany(references: ["instrumentId"])
+}
+
+type User @model @auth(rules: [{allow: public, provider: apiKey}])
+{
+  orcid: String!
+  name: String
+  email: String
+  affiliation: String
+  experiments: [Experiment] @hasMany(references: ["userId"])
+}
+
+type Experiment @model @auth(rules: [{allow: public, provider: apiKey}])
+{
+  description: String
+  experimentData: String
+  moleculeId: ID
+  molecule: Molecule @belongsTo(references: ["moleculeId"])
+  instrumentId: ID
+  instrument: Instrument @belongsTo(references: ["instrumentId"])
+  userId: ID
+  user: User @belongsTo(references: ["userId"])
+  dataId: ID
+  data: Data @belongsTo(references: ["dataId"])
+}
+
+type Data @model @auth(rules: [{allow: public, provider: apiKey}])
+{
+  data: String
+  energy: [Float]
+  intensity: [Float]
+  polarization_azimuth: [Float]
+  polarization_polar: [Float]
+  izero: [Float]
+  izero_2: [Float]
+  experiment: Experiment @hasOne(references: ["dataId"])
+}

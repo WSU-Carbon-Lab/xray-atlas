@@ -1,0 +1,613 @@
+type Molecule @aws_iam @aws_api_key {
+  name: String!
+  image: AWSURL
+  synonyms: [String]
+  chemicalFormula: String
+  description: String
+  smiles: String
+  inchi: String
+  experiments(filter: ModelExperimentFilterInput, sortDirection: ModelSortDirection, limit: Int, nextToken: String): ModelExperimentConnection
+  id: ID!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+type Instrument @aws_iam @aws_api_key {
+  facility: String!
+  instrument: String!
+  link: AWSURL
+  experiments(filter: ModelExperimentFilterInput, sortDirection: ModelSortDirection, limit: Int, nextToken: String): ModelExperimentConnection
+  id: ID!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+type User @aws_iam @aws_api_key {
+  orcid: String!
+  name: String
+  email: String
+  affiliation: String
+  experiments(filter: ModelExperimentFilterInput, sortDirection: ModelSortDirection, limit: Int, nextToken: String): ModelExperimentConnection
+  id: ID!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+type Experiment @aws_iam @aws_api_key {
+  description: String
+  experimentData: String
+  moleculeId: ID
+  molecule: Molecule
+  instrumentId: ID
+  instrument: Instrument
+  userId: ID
+  user: User
+  dataId: ID
+  data: Data
+  id: ID!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+type Data @aws_iam @aws_api_key {
+  data: String
+  energy: [Float]
+  intensity: [Float]
+  polarization_azimuth: [Float]
+  polarization_polar: [Float]
+  izero: [Float]
+  izero_2: [Float]
+  experiment: Experiment
+  id: ID!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+input AmplifyAIConversationTurnErrorInput {
+  errorType: String!
+  message: String!
+}
+
+input ModelStringInput {
+  ne: String
+  eq: String
+  le: String
+  lt: String
+  ge: String
+  gt: String
+  contains: String
+  notContains: String
+  between: [String]
+  beginsWith: String
+  attributeExists: Boolean
+  attributeType: ModelAttributeTypes
+  size: ModelSizeInput
+}
+
+input ModelIntInput {
+  ne: Int
+  eq: Int
+  le: Int
+  lt: Int
+  ge: Int
+  gt: Int
+  between: [Int]
+  attributeExists: Boolean
+  attributeType: ModelAttributeTypes
+}
+
+input ModelFloatInput {
+  ne: Float
+  eq: Float
+  le: Float
+  lt: Float
+  ge: Float
+  gt: Float
+  between: [Float]
+  attributeExists: Boolean
+  attributeType: ModelAttributeTypes
+}
+
+input ModelBooleanInput {
+  ne: Boolean
+  eq: Boolean
+  attributeExists: Boolean
+  attributeType: ModelAttributeTypes
+}
+
+input ModelIDInput {
+  ne: ID
+  eq: ID
+  le: ID
+  lt: ID
+  ge: ID
+  gt: ID
+  contains: ID
+  notContains: ID
+  between: [ID]
+  beginsWith: ID
+  attributeExists: Boolean
+  attributeType: ModelAttributeTypes
+  size: ModelSizeInput
+}
+
+input ModelSubscriptionStringInput {
+  ne: String
+  eq: String
+  le: String
+  lt: String
+  ge: String
+  gt: String
+  contains: String
+  notContains: String
+  between: [String]
+  beginsWith: String
+  in: [String]
+  notIn: [String]
+}
+
+input ModelSubscriptionIntInput {
+  ne: Int
+  eq: Int
+  le: Int
+  lt: Int
+  ge: Int
+  gt: Int
+  between: [Int]
+  in: [Int]
+  notIn: [Int]
+}
+
+input ModelSubscriptionFloatInput {
+  ne: Float
+  eq: Float
+  le: Float
+  lt: Float
+  ge: Float
+  gt: Float
+  between: [Float]
+  in: [Float]
+  notIn: [Float]
+}
+
+input ModelSubscriptionBooleanInput {
+  ne: Boolean
+  eq: Boolean
+}
+
+input ModelSubscriptionIDInput {
+  ne: ID
+  eq: ID
+  le: ID
+  lt: ID
+  ge: ID
+  gt: ID
+  contains: ID
+  notContains: ID
+  between: [ID]
+  beginsWith: ID
+  in: [ID]
+  notIn: [ID]
+}
+
+enum ModelAttributeTypes {
+  binary
+  binarySet
+  bool
+  list
+  map
+  number
+  numberSet
+  string
+  stringSet
+  _null
+}
+
+input ModelSizeInput {
+  ne: Int
+  eq: Int
+  le: Int
+  lt: Int
+  ge: Int
+  gt: Int
+  between: [Int]
+}
+
+enum ModelSortDirection {
+  ASC
+  DESC
+}
+
+type ModelMoleculeConnection @aws_api_key @aws_iam {
+  items: [Molecule]!
+  nextToken: String
+}
+
+input ModelMoleculeFilterInput {
+  name: ModelStringInput
+  image: ModelStringInput
+  synonyms: ModelStringInput
+  chemicalFormula: ModelStringInput
+  description: ModelStringInput
+  smiles: ModelStringInput
+  inchi: ModelStringInput
+  id: ModelIDInput
+  createdAt: ModelStringInput
+  updatedAt: ModelStringInput
+  and: [ModelMoleculeFilterInput]
+  or: [ModelMoleculeFilterInput]
+  not: ModelMoleculeFilterInput
+}
+
+type Query {
+  getMolecule(id: ID!): Molecule @aws_api_key @aws_iam
+  listMolecules(filter: ModelMoleculeFilterInput, limit: Int, nextToken: String): ModelMoleculeConnection @aws_api_key @aws_iam
+  getInstrument(id: ID!): Instrument @aws_api_key @aws_iam
+  listInstruments(filter: ModelInstrumentFilterInput, limit: Int, nextToken: String): ModelInstrumentConnection @aws_api_key @aws_iam
+  getUser(id: ID!): User @aws_api_key @aws_iam
+  listUsers(filter: ModelUserFilterInput, limit: Int, nextToken: String): ModelUserConnection @aws_api_key @aws_iam
+  getExperiment(id: ID!): Experiment @aws_api_key @aws_iam
+  listExperiments(filter: ModelExperimentFilterInput, limit: Int, nextToken: String): ModelExperimentConnection @aws_api_key @aws_iam
+  getData(id: ID!): Data @aws_api_key @aws_iam
+  listData(filter: ModelDataFilterInput, limit: Int, nextToken: String): ModelDataConnection @aws_api_key @aws_iam
+}
+
+input ModelMoleculeConditionInput {
+  name: ModelStringInput
+  image: ModelStringInput
+  synonyms: ModelStringInput
+  chemicalFormula: ModelStringInput
+  description: ModelStringInput
+  smiles: ModelStringInput
+  inchi: ModelStringInput
+  and: [ModelMoleculeConditionInput]
+  or: [ModelMoleculeConditionInput]
+  not: ModelMoleculeConditionInput
+  createdAt: ModelStringInput
+  updatedAt: ModelStringInput
+}
+
+input CreateMoleculeInput {
+  name: String!
+  image: AWSURL
+  synonyms: [String]
+  chemicalFormula: String
+  description: String
+  smiles: String
+  inchi: String
+  id: ID
+}
+
+input UpdateMoleculeInput {
+  name: String
+  image: AWSURL
+  synonyms: [String]
+  chemicalFormula: String
+  description: String
+  smiles: String
+  inchi: String
+  id: ID!
+}
+
+input DeleteMoleculeInput {
+  id: ID!
+}
+
+type Mutation {
+  createMolecule(input: CreateMoleculeInput!, condition: ModelMoleculeConditionInput): Molecule @aws_api_key @aws_iam
+  updateMolecule(input: UpdateMoleculeInput!, condition: ModelMoleculeConditionInput): Molecule @aws_api_key @aws_iam
+  deleteMolecule(input: DeleteMoleculeInput!, condition: ModelMoleculeConditionInput): Molecule @aws_api_key @aws_iam
+  createInstrument(input: CreateInstrumentInput!, condition: ModelInstrumentConditionInput): Instrument @aws_api_key @aws_iam
+  updateInstrument(input: UpdateInstrumentInput!, condition: ModelInstrumentConditionInput): Instrument @aws_api_key @aws_iam
+  deleteInstrument(input: DeleteInstrumentInput!, condition: ModelInstrumentConditionInput): Instrument @aws_api_key @aws_iam
+  createUser(input: CreateUserInput!, condition: ModelUserConditionInput): User @aws_api_key @aws_iam
+  updateUser(input: UpdateUserInput!, condition: ModelUserConditionInput): User @aws_api_key @aws_iam
+  deleteUser(input: DeleteUserInput!, condition: ModelUserConditionInput): User @aws_api_key @aws_iam
+  createExperiment(input: CreateExperimentInput!, condition: ModelExperimentConditionInput): Experiment @aws_api_key @aws_iam
+  updateExperiment(input: UpdateExperimentInput!, condition: ModelExperimentConditionInput): Experiment @aws_api_key @aws_iam
+  deleteExperiment(input: DeleteExperimentInput!, condition: ModelExperimentConditionInput): Experiment @aws_api_key @aws_iam
+  createData(input: CreateDataInput!, condition: ModelDataConditionInput): Data @aws_api_key @aws_iam
+  updateData(input: UpdateDataInput!, condition: ModelDataConditionInput): Data @aws_api_key @aws_iam
+  deleteData(input: DeleteDataInput!, condition: ModelDataConditionInput): Data @aws_api_key @aws_iam
+}
+
+input ModelSubscriptionMoleculeFilterInput {
+  name: ModelSubscriptionStringInput
+  image: ModelSubscriptionStringInput
+  synonyms: ModelSubscriptionStringInput
+  chemicalFormula: ModelSubscriptionStringInput
+  description: ModelSubscriptionStringInput
+  smiles: ModelSubscriptionStringInput
+  inchi: ModelSubscriptionStringInput
+  id: ModelSubscriptionIDInput
+  createdAt: ModelSubscriptionStringInput
+  updatedAt: ModelSubscriptionStringInput
+  and: [ModelSubscriptionMoleculeFilterInput]
+  or: [ModelSubscriptionMoleculeFilterInput]
+}
+
+type Subscription {
+  onCreateMolecule(filter: ModelSubscriptionMoleculeFilterInput): Molecule @aws_subscribe(mutations: ["createMolecule"]) @aws_api_key @aws_iam
+  onUpdateMolecule(filter: ModelSubscriptionMoleculeFilterInput): Molecule @aws_subscribe(mutations: ["updateMolecule"]) @aws_api_key @aws_iam
+  onDeleteMolecule(filter: ModelSubscriptionMoleculeFilterInput): Molecule @aws_subscribe(mutations: ["deleteMolecule"]) @aws_api_key @aws_iam
+  onCreateInstrument(filter: ModelSubscriptionInstrumentFilterInput): Instrument @aws_subscribe(mutations: ["createInstrument"]) @aws_api_key @aws_iam
+  onUpdateInstrument(filter: ModelSubscriptionInstrumentFilterInput): Instrument @aws_subscribe(mutations: ["updateInstrument"]) @aws_api_key @aws_iam
+  onDeleteInstrument(filter: ModelSubscriptionInstrumentFilterInput): Instrument @aws_subscribe(mutations: ["deleteInstrument"]) @aws_api_key @aws_iam
+  onCreateUser(filter: ModelSubscriptionUserFilterInput): User @aws_subscribe(mutations: ["createUser"]) @aws_api_key @aws_iam
+  onUpdateUser(filter: ModelSubscriptionUserFilterInput): User @aws_subscribe(mutations: ["updateUser"]) @aws_api_key @aws_iam
+  onDeleteUser(filter: ModelSubscriptionUserFilterInput): User @aws_subscribe(mutations: ["deleteUser"]) @aws_api_key @aws_iam
+  onCreateExperiment(filter: ModelSubscriptionExperimentFilterInput): Experiment @aws_subscribe(mutations: ["createExperiment"]) @aws_api_key @aws_iam
+  onUpdateExperiment(filter: ModelSubscriptionExperimentFilterInput): Experiment @aws_subscribe(mutations: ["updateExperiment"]) @aws_api_key @aws_iam
+  onDeleteExperiment(filter: ModelSubscriptionExperimentFilterInput): Experiment @aws_subscribe(mutations: ["deleteExperiment"]) @aws_api_key @aws_iam
+  onCreateData(filter: ModelSubscriptionDataFilterInput): Data @aws_subscribe(mutations: ["createData"]) @aws_api_key @aws_iam
+  onUpdateData(filter: ModelSubscriptionDataFilterInput): Data @aws_subscribe(mutations: ["updateData"]) @aws_api_key @aws_iam
+  onDeleteData(filter: ModelSubscriptionDataFilterInput): Data @aws_subscribe(mutations: ["deleteData"]) @aws_api_key @aws_iam
+}
+
+type ModelInstrumentConnection @aws_api_key @aws_iam {
+  items: [Instrument]!
+  nextToken: String
+}
+
+input ModelInstrumentFilterInput {
+  facility: ModelStringInput
+  instrument: ModelStringInput
+  link: ModelStringInput
+  id: ModelIDInput
+  createdAt: ModelStringInput
+  updatedAt: ModelStringInput
+  and: [ModelInstrumentFilterInput]
+  or: [ModelInstrumentFilterInput]
+  not: ModelInstrumentFilterInput
+}
+
+input ModelInstrumentConditionInput {
+  facility: ModelStringInput
+  instrument: ModelStringInput
+  link: ModelStringInput
+  and: [ModelInstrumentConditionInput]
+  or: [ModelInstrumentConditionInput]
+  not: ModelInstrumentConditionInput
+  createdAt: ModelStringInput
+  updatedAt: ModelStringInput
+}
+
+input CreateInstrumentInput {
+  facility: String!
+  instrument: String!
+  link: AWSURL
+  id: ID
+}
+
+input UpdateInstrumentInput {
+  facility: String
+  instrument: String
+  link: AWSURL
+  id: ID!
+}
+
+input DeleteInstrumentInput {
+  id: ID!
+}
+
+input ModelSubscriptionInstrumentFilterInput {
+  facility: ModelSubscriptionStringInput
+  instrument: ModelSubscriptionStringInput
+  link: ModelSubscriptionStringInput
+  id: ModelSubscriptionIDInput
+  createdAt: ModelSubscriptionStringInput
+  updatedAt: ModelSubscriptionStringInput
+  and: [ModelSubscriptionInstrumentFilterInput]
+  or: [ModelSubscriptionInstrumentFilterInput]
+}
+
+type ModelUserConnection @aws_api_key @aws_iam {
+  items: [User]!
+  nextToken: String
+}
+
+input ModelUserFilterInput {
+  orcid: ModelStringInput
+  name: ModelStringInput
+  email: ModelStringInput
+  affiliation: ModelStringInput
+  id: ModelIDInput
+  createdAt: ModelStringInput
+  updatedAt: ModelStringInput
+  and: [ModelUserFilterInput]
+  or: [ModelUserFilterInput]
+  not: ModelUserFilterInput
+}
+
+input ModelUserConditionInput {
+  orcid: ModelStringInput
+  name: ModelStringInput
+  email: ModelStringInput
+  affiliation: ModelStringInput
+  and: [ModelUserConditionInput]
+  or: [ModelUserConditionInput]
+  not: ModelUserConditionInput
+  createdAt: ModelStringInput
+  updatedAt: ModelStringInput
+}
+
+input CreateUserInput {
+  orcid: String!
+  name: String
+  email: String
+  affiliation: String
+  id: ID
+}
+
+input UpdateUserInput {
+  orcid: String
+  name: String
+  email: String
+  affiliation: String
+  id: ID!
+}
+
+input DeleteUserInput {
+  id: ID!
+}
+
+input ModelSubscriptionUserFilterInput {
+  orcid: ModelSubscriptionStringInput
+  name: ModelSubscriptionStringInput
+  email: ModelSubscriptionStringInput
+  affiliation: ModelSubscriptionStringInput
+  id: ModelSubscriptionIDInput
+  createdAt: ModelSubscriptionStringInput
+  updatedAt: ModelSubscriptionStringInput
+  and: [ModelSubscriptionUserFilterInput]
+  or: [ModelSubscriptionUserFilterInput]
+}
+
+type ModelExperimentConnection @aws_iam @aws_api_key {
+  items: [Experiment]!
+  nextToken: String
+}
+
+input ModelExperimentFilterInput {
+  description: ModelStringInput
+  experimentData: ModelStringInput
+  moleculeId: ModelIDInput
+  instrumentId: ModelIDInput
+  userId: ModelIDInput
+  dataId: ModelIDInput
+  id: ModelIDInput
+  createdAt: ModelStringInput
+  updatedAt: ModelStringInput
+  and: [ModelExperimentFilterInput]
+  or: [ModelExperimentFilterInput]
+  not: ModelExperimentFilterInput
+}
+
+input ModelExperimentConditionInput {
+  description: ModelStringInput
+  experimentData: ModelStringInput
+  moleculeId: ModelIDInput
+  instrumentId: ModelIDInput
+  userId: ModelIDInput
+  dataId: ModelIDInput
+  and: [ModelExperimentConditionInput]
+  or: [ModelExperimentConditionInput]
+  not: ModelExperimentConditionInput
+  createdAt: ModelStringInput
+  updatedAt: ModelStringInput
+}
+
+input CreateExperimentInput {
+  description: String
+  experimentData: String
+  moleculeId: ID
+  instrumentId: ID
+  userId: ID
+  dataId: ID
+  id: ID
+}
+
+input UpdateExperimentInput {
+  description: String
+  experimentData: String
+  moleculeId: ID
+  instrumentId: ID
+  userId: ID
+  dataId: ID
+  id: ID!
+}
+
+input DeleteExperimentInput {
+  id: ID!
+}
+
+input ModelSubscriptionExperimentFilterInput {
+  description: ModelSubscriptionStringInput
+  experimentData: ModelSubscriptionStringInput
+  moleculeId: ModelSubscriptionIDInput
+  instrumentId: ModelSubscriptionIDInput
+  userId: ModelSubscriptionIDInput
+  dataId: ModelSubscriptionIDInput
+  id: ModelSubscriptionIDInput
+  createdAt: ModelSubscriptionStringInput
+  updatedAt: ModelSubscriptionStringInput
+  and: [ModelSubscriptionExperimentFilterInput]
+  or: [ModelSubscriptionExperimentFilterInput]
+}
+
+type ModelDataConnection @aws_api_key @aws_iam {
+  items: [Data]!
+  nextToken: String
+}
+
+input ModelDataFilterInput {
+  data: ModelStringInput
+  energy: ModelFloatInput
+  intensity: ModelFloatInput
+  polarization_azimuth: ModelFloatInput
+  polarization_polar: ModelFloatInput
+  izero: ModelFloatInput
+  izero_2: ModelFloatInput
+  id: ModelIDInput
+  createdAt: ModelStringInput
+  updatedAt: ModelStringInput
+  and: [ModelDataFilterInput]
+  or: [ModelDataFilterInput]
+  not: ModelDataFilterInput
+}
+
+input ModelDataConditionInput {
+  data: ModelStringInput
+  energy: ModelFloatInput
+  intensity: ModelFloatInput
+  polarization_azimuth: ModelFloatInput
+  polarization_polar: ModelFloatInput
+  izero: ModelFloatInput
+  izero_2: ModelFloatInput
+  and: [ModelDataConditionInput]
+  or: [ModelDataConditionInput]
+  not: ModelDataConditionInput
+  createdAt: ModelStringInput
+  updatedAt: ModelStringInput
+}
+
+input CreateDataInput {
+  data: String
+  energy: [Float]
+  intensity: [Float]
+  polarization_azimuth: [Float]
+  polarization_polar: [Float]
+  izero: [Float]
+  izero_2: [Float]
+  id: ID
+}
+
+input UpdateDataInput {
+  data: String
+  energy: [Float]
+  intensity: [Float]
+  polarization_azimuth: [Float]
+  polarization_polar: [Float]
+  izero: [Float]
+  izero_2: [Float]
+  id: ID!
+}
+
+input DeleteDataInput {
+  id: ID!
+}
+
+input ModelSubscriptionDataFilterInput {
+  data: ModelSubscriptionStringInput
+  energy: ModelSubscriptionFloatInput
+  intensity: ModelSubscriptionFloatInput
+  polarization_azimuth: ModelSubscriptionFloatInput
+  polarization_polar: ModelSubscriptionFloatInput
+  izero: ModelSubscriptionFloatInput
+  izero_2: ModelSubscriptionFloatInput
+  id: ModelSubscriptionIDInput
+  createdAt: ModelSubscriptionStringInput
+  updatedAt: ModelSubscriptionStringInput
+  and: [ModelSubscriptionDataFilterInput]
+  or: [ModelSubscriptionDataFilterInput]
+}

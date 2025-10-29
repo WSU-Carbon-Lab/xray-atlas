@@ -1,0 +1,1471 @@
+{
+ "Resources": {
+  "Moleculeexperimentsauth0FunctionMoleculeexperimentsauth0FunctionAppSyncFunctionB94708F4": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "Moleculeexperimentsauth0Function",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/98d57dc1efb9e47547e4d43b376202499240f34e43676c88c84fab62008b2bf5.vtl"
+    },
+    "ResponseMappingTemplate": "$util.toJson({})"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/Moleculeexperimentsauth0Function/Moleculeexperimentsauth0Function.AppSyncFunction"
+   }
+  },
+  "MoleculeExperimentsDataResolverFnMoleculeExperimentsDataResolverFnAppSyncFunction0B510CB4": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentNestedStackExperimentNestedStackResource16A3717BOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentExperimentDataSource64A01AE9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "MoleculeExperimentsDataResolverFn",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/8ba2a87188e4246e2fbde732f7f989b3656b9bc9c85c989d4b7e5f64fc021e63.vtl"
+    },
+    "ResponseMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/49e7a1f2fb4c809b82bed6b0242a2a3bcfa2c5276ebd2539ff330fee36f8fe18.vtl"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/MoleculeExperimentsDataResolverFn/MoleculeExperimentsDataResolverFn.AppSyncFunction"
+   }
+  },
+  "MoleculeexperimentsResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "FieldName": "experiments",
+    "Kind": "PIPELINE",
+    "PipelineConfig": {
+     "Functions": [
+      {
+       "Fn::GetAtt": [
+        "Moleculeexperimentsauth0FunctionMoleculeexperimentsauth0FunctionAppSyncFunctionB94708F4",
+        "FunctionId"
+       ]
+      },
+      {
+       "Fn::GetAtt": [
+        "MoleculeExperimentsDataResolverFnMoleculeExperimentsDataResolverFnAppSyncFunction0B510CB4",
+        "FunctionId"
+       ]
+      }
+     ]
+    },
+    "RequestMappingTemplate": {
+     "Fn::Join": [
+      "",
+      [
+       "$util.qr($ctx.stash.put(\"typeName\", \"Molecule\"))\n$util.qr($ctx.stash.put(\"fieldName\", \"experiments\"))\n$util.qr($ctx.stash.put(\"conditions\", []))\n$util.qr($ctx.stash.put(\"metadata\", {}))\n$util.qr($ctx.stash.metadata.put(\"dataSourceType\", \"AMAZON_DYNAMODB\"))\n$util.qr($ctx.stash.metadata.put(\"apiId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"connectionAttributes\", {}))\n$util.qr($ctx.stash.put(\"tableName\", \"",
+       {
+        "Fn::Select": [
+         1,
+         {
+          "Fn::Split": [
+           "/",
+           {
+            "Fn::Select": [
+             5,
+             {
+              "Fn::Split": [
+               ":",
+               {
+                "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentNestedStackExperimentNestedStackResource16A3717BOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentExperimentTable4EDC42E5TableArn"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"authRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"unauthRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"identityPoolId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"adminRoles\", []))\n$util.toJson({})"
+      ]
+     ]
+    },
+    "ResponseMappingTemplate": "$util.toJson($ctx.prev.result)",
+    "TypeName": "Molecule"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/moleculeExperimentsResolver"
+   }
+  },
+  "Instrumentexperimentsauth0FunctionInstrumentexperimentsauth0FunctionAppSyncFunction51B6493B": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "Instrumentexperimentsauth0Function",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/98d57dc1efb9e47547e4d43b376202499240f34e43676c88c84fab62008b2bf5.vtl"
+    },
+    "ResponseMappingTemplate": "$util.toJson({})"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/Instrumentexperimentsauth0Function/Instrumentexperimentsauth0Function.AppSyncFunction"
+   }
+  },
+  "InstrumentExperimentsDataResolverFnInstrumentExperimentsDataResolverFnAppSyncFunctionDF28DB72": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentNestedStackExperimentNestedStackResource16A3717BOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentExperimentDataSource64A01AE9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "InstrumentExperimentsDataResolverFn",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/5bbbbace158d7a4cb8ba4f2b524504ba4b08afabfc4ac3ea24d1aea9293a7748.vtl"
+    },
+    "ResponseMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/49e7a1f2fb4c809b82bed6b0242a2a3bcfa2c5276ebd2539ff330fee36f8fe18.vtl"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/InstrumentExperimentsDataResolverFn/InstrumentExperimentsDataResolverFn.AppSyncFunction"
+   }
+  },
+  "InstrumentexperimentsResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "FieldName": "experiments",
+    "Kind": "PIPELINE",
+    "PipelineConfig": {
+     "Functions": [
+      {
+       "Fn::GetAtt": [
+        "Instrumentexperimentsauth0FunctionInstrumentexperimentsauth0FunctionAppSyncFunction51B6493B",
+        "FunctionId"
+       ]
+      },
+      {
+       "Fn::GetAtt": [
+        "InstrumentExperimentsDataResolverFnInstrumentExperimentsDataResolverFnAppSyncFunctionDF28DB72",
+        "FunctionId"
+       ]
+      }
+     ]
+    },
+    "RequestMappingTemplate": {
+     "Fn::Join": [
+      "",
+      [
+       "$util.qr($ctx.stash.put(\"typeName\", \"Instrument\"))\n$util.qr($ctx.stash.put(\"fieldName\", \"experiments\"))\n$util.qr($ctx.stash.put(\"conditions\", []))\n$util.qr($ctx.stash.put(\"metadata\", {}))\n$util.qr($ctx.stash.metadata.put(\"dataSourceType\", \"AMAZON_DYNAMODB\"))\n$util.qr($ctx.stash.metadata.put(\"apiId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"connectionAttributes\", {}))\n$util.qr($ctx.stash.put(\"tableName\", \"",
+       {
+        "Fn::Select": [
+         1,
+         {
+          "Fn::Split": [
+           "/",
+           {
+            "Fn::Select": [
+             5,
+             {
+              "Fn::Split": [
+               ":",
+               {
+                "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentNestedStackExperimentNestedStackResource16A3717BOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentExperimentTable4EDC42E5TableArn"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"authRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"unauthRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"identityPoolId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"adminRoles\", []))\n$util.toJson({})"
+      ]
+     ]
+    },
+    "ResponseMappingTemplate": "$util.toJson($ctx.prev.result)",
+    "TypeName": "Instrument"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/instrumentExperimentsResolver"
+   }
+  },
+  "Userexperimentsauth0FunctionUserexperimentsauth0FunctionAppSyncFunction0393049B": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "Userexperimentsauth0Function",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/98d57dc1efb9e47547e4d43b376202499240f34e43676c88c84fab62008b2bf5.vtl"
+    },
+    "ResponseMappingTemplate": "$util.toJson({})"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/Userexperimentsauth0Function/Userexperimentsauth0Function.AppSyncFunction"
+   }
+  },
+  "UserExperimentsDataResolverFnUserExperimentsDataResolverFnAppSyncFunctionD6B2A973": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentNestedStackExperimentNestedStackResource16A3717BOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentExperimentDataSource64A01AE9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "UserExperimentsDataResolverFn",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/72348fa7d797c2b2c032350b156f65f70d3586188d2cc8b4cddf0ce2be1e0fa4.vtl"
+    },
+    "ResponseMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/49e7a1f2fb4c809b82bed6b0242a2a3bcfa2c5276ebd2539ff330fee36f8fe18.vtl"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/UserExperimentsDataResolverFn/UserExperimentsDataResolverFn.AppSyncFunction"
+   }
+  },
+  "UserexperimentsResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "FieldName": "experiments",
+    "Kind": "PIPELINE",
+    "PipelineConfig": {
+     "Functions": [
+      {
+       "Fn::GetAtt": [
+        "Userexperimentsauth0FunctionUserexperimentsauth0FunctionAppSyncFunction0393049B",
+        "FunctionId"
+       ]
+      },
+      {
+       "Fn::GetAtt": [
+        "UserExperimentsDataResolverFnUserExperimentsDataResolverFnAppSyncFunctionD6B2A973",
+        "FunctionId"
+       ]
+      }
+     ]
+    },
+    "RequestMappingTemplate": {
+     "Fn::Join": [
+      "",
+      [
+       "$util.qr($ctx.stash.put(\"typeName\", \"User\"))\n$util.qr($ctx.stash.put(\"fieldName\", \"experiments\"))\n$util.qr($ctx.stash.put(\"conditions\", []))\n$util.qr($ctx.stash.put(\"metadata\", {}))\n$util.qr($ctx.stash.metadata.put(\"dataSourceType\", \"AMAZON_DYNAMODB\"))\n$util.qr($ctx.stash.metadata.put(\"apiId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"connectionAttributes\", {}))\n$util.qr($ctx.stash.put(\"tableName\", \"",
+       {
+        "Fn::Select": [
+         1,
+         {
+          "Fn::Split": [
+           "/",
+           {
+            "Fn::Select": [
+             5,
+             {
+              "Fn::Split": [
+               ":",
+               {
+                "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentNestedStackExperimentNestedStackResource16A3717BOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentExperimentTable4EDC42E5TableArn"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"authRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"unauthRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"identityPoolId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"adminRoles\", []))\n$util.toJson({})"
+      ]
+     ]
+    },
+    "ResponseMappingTemplate": "$util.toJson($ctx.prev.result)",
+    "TypeName": "User"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/userExperimentsResolver"
+   }
+  },
+  "Dataexperimentauth0FunctionDataexperimentauth0FunctionAppSyncFunction2A36955B": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "Dataexperimentauth0Function",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/98d57dc1efb9e47547e4d43b376202499240f34e43676c88c84fab62008b2bf5.vtl"
+    },
+    "ResponseMappingTemplate": "$util.toJson({})"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/Dataexperimentauth0Function/Dataexperimentauth0Function.AppSyncFunction"
+   }
+  },
+  "DataExperimentDataResolverFnDataExperimentDataResolverFnAppSyncFunction404C8F45": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentNestedStackExperimentNestedStackResource16A3717BOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentExperimentDataSource64A01AE9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "DataExperimentDataResolverFn",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/0f0210075f3a8f5f5867e798ebb5f76c6120d3b7924e1236f542a551f5e0be79.vtl"
+    },
+    "ResponseMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/7dc179d9540f96e98d4c4b53e9ddc9871363bde6af7f28257df53c46519ec5c4.vtl"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/DataExperimentDataResolverFn/DataExperimentDataResolverFn.AppSyncFunction"
+   }
+  },
+  "DataexperimentResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "FieldName": "experiment",
+    "Kind": "PIPELINE",
+    "PipelineConfig": {
+     "Functions": [
+      {
+       "Fn::GetAtt": [
+        "Dataexperimentauth0FunctionDataexperimentauth0FunctionAppSyncFunction2A36955B",
+        "FunctionId"
+       ]
+      },
+      {
+       "Fn::GetAtt": [
+        "DataExperimentDataResolverFnDataExperimentDataResolverFnAppSyncFunction404C8F45",
+        "FunctionId"
+       ]
+      }
+     ]
+    },
+    "RequestMappingTemplate": {
+     "Fn::Join": [
+      "",
+      [
+       "$util.qr($ctx.stash.put(\"typeName\", \"Data\"))\n$util.qr($ctx.stash.put(\"fieldName\", \"experiment\"))\n$util.qr($ctx.stash.put(\"conditions\", []))\n$util.qr($ctx.stash.put(\"metadata\", {}))\n$util.qr($ctx.stash.metadata.put(\"dataSourceType\", \"AMAZON_DYNAMODB\"))\n$util.qr($ctx.stash.metadata.put(\"apiId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"connectionAttributes\", {}))\n$util.qr($ctx.stash.put(\"tableName\", \"",
+       {
+        "Fn::Select": [
+         1,
+         {
+          "Fn::Split": [
+           "/",
+           {
+            "Fn::Select": [
+             5,
+             {
+              "Fn::Split": [
+               ":",
+               {
+                "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentNestedStackExperimentNestedStackResource16A3717BOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentExperimentTable4EDC42E5TableArn"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"authRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"unauthRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"identityPoolId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"adminRoles\", []))\n$util.toJson({})"
+      ]
+     ]
+    },
+    "ResponseMappingTemplate": "$util.toJson($ctx.prev.result)",
+    "TypeName": "Data"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/dataExperimentResolver"
+   }
+  },
+  "Experimentmoleculeauth0FunctionExperimentmoleculeauth0FunctionAppSyncFunction8A1DEC8D": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "Experimentmoleculeauth0Function",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/98d57dc1efb9e47547e4d43b376202499240f34e43676c88c84fab62008b2bf5.vtl"
+    },
+    "ResponseMappingTemplate": "$util.toJson({})"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/Experimentmoleculeauth0Function/Experimentmoleculeauth0Function.AppSyncFunction"
+   }
+  },
+  "ExperimentMoleculeDataResolverFnExperimentMoleculeDataResolverFnAppSyncFunction255C5A70": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataMoleculeNestedStackMoleculeNestedStackResource53EDC7ACOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataMoleculeMoleculeDataSourceF5C5EBA2Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "ExperimentMoleculeDataResolverFn",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/7dde72a8c05b58bb542f3923d53b1803ff4e7c6430505895e08e2fe2bcaf31ab.vtl"
+    },
+    "ResponseMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/dcb70e4856bc9a423e02b8b9e9c2ab3f71479784572d4c04a02d1f5b61a9f9ac.vtl"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/ExperimentMoleculeDataResolverFn/ExperimentMoleculeDataResolverFn.AppSyncFunction"
+   }
+  },
+  "ExperimentmoleculeResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "FieldName": "molecule",
+    "Kind": "PIPELINE",
+    "PipelineConfig": {
+     "Functions": [
+      {
+       "Fn::GetAtt": [
+        "Experimentmoleculeauth0FunctionExperimentmoleculeauth0FunctionAppSyncFunction8A1DEC8D",
+        "FunctionId"
+       ]
+      },
+      {
+       "Fn::GetAtt": [
+        "ExperimentMoleculeDataResolverFnExperimentMoleculeDataResolverFnAppSyncFunction255C5A70",
+        "FunctionId"
+       ]
+      }
+     ]
+    },
+    "RequestMappingTemplate": {
+     "Fn::Join": [
+      "",
+      [
+       "$util.qr($ctx.stash.put(\"typeName\", \"Experiment\"))\n$util.qr($ctx.stash.put(\"fieldName\", \"molecule\"))\n$util.qr($ctx.stash.put(\"conditions\", []))\n$util.qr($ctx.stash.put(\"metadata\", {}))\n$util.qr($ctx.stash.metadata.put(\"dataSourceType\", \"AMAZON_DYNAMODB\"))\n$util.qr($ctx.stash.metadata.put(\"apiId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"connectionAttributes\", {}))\n$util.qr($ctx.stash.put(\"tableName\", \"",
+       {
+        "Fn::Select": [
+         1,
+         {
+          "Fn::Split": [
+           "/",
+           {
+            "Fn::Select": [
+             5,
+             {
+              "Fn::Split": [
+               ":",
+               {
+                "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataMoleculeNestedStackMoleculeNestedStackResource53EDC7ACOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataMoleculeMoleculeTable3406B298TableArn"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"authRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"unauthRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"identityPoolId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"adminRoles\", []))\n$util.toJson({})"
+      ]
+     ]
+    },
+    "ResponseMappingTemplate": "$util.toJson($ctx.prev.result)",
+    "TypeName": "Experiment"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/experimentMoleculeResolver"
+   }
+  },
+  "Experimentinstrumentauth0FunctionExperimentinstrumentauth0FunctionAppSyncFunctionCBDFED01": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "Experimentinstrumentauth0Function",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/98d57dc1efb9e47547e4d43b376202499240f34e43676c88c84fab62008b2bf5.vtl"
+    },
+    "ResponseMappingTemplate": "$util.toJson({})"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/Experimentinstrumentauth0Function/Experimentinstrumentauth0Function.AppSyncFunction"
+   }
+  },
+  "ExperimentInstrumentDataResolverFnExperimentInstrumentDataResolverFnAppSyncFunction30EA4FE4": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataInstrumentNestedStackInstrumentNestedStackResourceF79A96D3Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataInstrumentInstrumentDataSource8E9DCCE7Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "ExperimentInstrumentDataResolverFn",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/08fab32bef1f6e2c600060714c7c6d7b27af311fd52c4edca2814d7dfbb8a04e.vtl"
+    },
+    "ResponseMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/dcb70e4856bc9a423e02b8b9e9c2ab3f71479784572d4c04a02d1f5b61a9f9ac.vtl"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/ExperimentInstrumentDataResolverFn/ExperimentInstrumentDataResolverFn.AppSyncFunction"
+   }
+  },
+  "ExperimentinstrumentResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "FieldName": "instrument",
+    "Kind": "PIPELINE",
+    "PipelineConfig": {
+     "Functions": [
+      {
+       "Fn::GetAtt": [
+        "Experimentinstrumentauth0FunctionExperimentinstrumentauth0FunctionAppSyncFunctionCBDFED01",
+        "FunctionId"
+       ]
+      },
+      {
+       "Fn::GetAtt": [
+        "ExperimentInstrumentDataResolverFnExperimentInstrumentDataResolverFnAppSyncFunction30EA4FE4",
+        "FunctionId"
+       ]
+      }
+     ]
+    },
+    "RequestMappingTemplate": {
+     "Fn::Join": [
+      "",
+      [
+       "$util.qr($ctx.stash.put(\"typeName\", \"Experiment\"))\n$util.qr($ctx.stash.put(\"fieldName\", \"instrument\"))\n$util.qr($ctx.stash.put(\"conditions\", []))\n$util.qr($ctx.stash.put(\"metadata\", {}))\n$util.qr($ctx.stash.metadata.put(\"dataSourceType\", \"AMAZON_DYNAMODB\"))\n$util.qr($ctx.stash.metadata.put(\"apiId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"connectionAttributes\", {}))\n$util.qr($ctx.stash.put(\"tableName\", \"",
+       {
+        "Fn::Select": [
+         1,
+         {
+          "Fn::Split": [
+           "/",
+           {
+            "Fn::Select": [
+             5,
+             {
+              "Fn::Split": [
+               ":",
+               {
+                "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataInstrumentNestedStackInstrumentNestedStackResourceF79A96D3Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataInstrumentInstrumentTableB205235BTableArn"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"authRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"unauthRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"identityPoolId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"adminRoles\", []))\n$util.toJson({})"
+      ]
+     ]
+    },
+    "ResponseMappingTemplate": "$util.toJson($ctx.prev.result)",
+    "TypeName": "Experiment"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/experimentInstrumentResolver"
+   }
+  },
+  "Experimentuserauth0FunctionExperimentuserauth0FunctionAppSyncFunction91399E00": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "Experimentuserauth0Function",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/98d57dc1efb9e47547e4d43b376202499240f34e43676c88c84fab62008b2bf5.vtl"
+    },
+    "ResponseMappingTemplate": "$util.toJson({})"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/Experimentuserauth0Function/Experimentuserauth0Function.AppSyncFunction"
+   }
+  },
+  "ExperimentUserDataResolverFnExperimentUserDataResolverFnAppSyncFunction225E3AC4": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserNestedStackUserNestedStackResource6F7C7220Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserDataSource2F849B0AName"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "ExperimentUserDataResolverFn",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/27d6b1a9eafe9ce678863e81b64c97e3f24843422430a0e083458a27ce45747b.vtl"
+    },
+    "ResponseMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/dcb70e4856bc9a423e02b8b9e9c2ab3f71479784572d4c04a02d1f5b61a9f9ac.vtl"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/ExperimentUserDataResolverFn/ExperimentUserDataResolverFn.AppSyncFunction"
+   }
+  },
+  "ExperimentuserResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "FieldName": "user",
+    "Kind": "PIPELINE",
+    "PipelineConfig": {
+     "Functions": [
+      {
+       "Fn::GetAtt": [
+        "Experimentuserauth0FunctionExperimentuserauth0FunctionAppSyncFunction91399E00",
+        "FunctionId"
+       ]
+      },
+      {
+       "Fn::GetAtt": [
+        "ExperimentUserDataResolverFnExperimentUserDataResolverFnAppSyncFunction225E3AC4",
+        "FunctionId"
+       ]
+      }
+     ]
+    },
+    "RequestMappingTemplate": {
+     "Fn::Join": [
+      "",
+      [
+       "$util.qr($ctx.stash.put(\"typeName\", \"Experiment\"))\n$util.qr($ctx.stash.put(\"fieldName\", \"user\"))\n$util.qr($ctx.stash.put(\"conditions\", []))\n$util.qr($ctx.stash.put(\"metadata\", {}))\n$util.qr($ctx.stash.metadata.put(\"dataSourceType\", \"AMAZON_DYNAMODB\"))\n$util.qr($ctx.stash.metadata.put(\"apiId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"connectionAttributes\", {}))\n$util.qr($ctx.stash.put(\"tableName\", \"",
+       {
+        "Fn::Select": [
+         1,
+         {
+          "Fn::Split": [
+           "/",
+           {
+            "Fn::Select": [
+             5,
+             {
+              "Fn::Split": [
+               ":",
+               {
+                "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserNestedStackUserNestedStackResource6F7C7220Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserTableA2E6341FTableArn"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"authRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"unauthRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"identityPoolId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"adminRoles\", []))\n$util.toJson({})"
+      ]
+     ]
+    },
+    "ResponseMappingTemplate": "$util.toJson($ctx.prev.result)",
+    "TypeName": "Experiment"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/experimentUserResolver"
+   }
+  },
+  "Experimentdataauth0FunctionExperimentdataauth0FunctionAppSyncFunction03F1DCF5": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "Experimentdataauth0Function",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/98d57dc1efb9e47547e4d43b376202499240f34e43676c88c84fab62008b2bf5.vtl"
+    },
+    "ResponseMappingTemplate": "$util.toJson({})"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/Experimentdataauth0Function/Experimentdataauth0Function.AppSyncFunction"
+   }
+  },
+  "ExperimentDataDataResolverFnExperimentDataDataResolverFnAppSyncFunction79E8CFAE": {
+   "Type": "AWS::AppSync::FunctionConfiguration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "DataSourceName": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataDataNestedStackDataNestedStackResource7D6F4F14Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataDataDataSource8F9C1030Name"
+    },
+    "FunctionVersion": "2018-05-29",
+    "Name": "ExperimentDataDataResolverFn",
+    "RequestMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/3a03924a70c1e4f3e973e8b7c1db391438daae2e3d09ea6982aaef33fb9952b6.vtl"
+    },
+    "ResponseMappingTemplateS3Location": {
+     "Fn::Sub": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/dcb70e4856bc9a423e02b8b9e9c2ab3f71479784572d4c04a02d1f5b61a9f9ac.vtl"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/ExperimentDataDataResolverFn/ExperimentDataDataResolverFn.AppSyncFunction"
+   }
+  },
+  "ExperimentdataResolver": {
+   "Type": "AWS::AppSync::Resolver",
+   "Properties": {
+    "ApiId": {
+     "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+    },
+    "FieldName": "data",
+    "Kind": "PIPELINE",
+    "PipelineConfig": {
+     "Functions": [
+      {
+       "Fn::GetAtt": [
+        "Experimentdataauth0FunctionExperimentdataauth0FunctionAppSyncFunction03F1DCF5",
+        "FunctionId"
+       ]
+      },
+      {
+       "Fn::GetAtt": [
+        "ExperimentDataDataResolverFnExperimentDataDataResolverFnAppSyncFunction79E8CFAE",
+        "FunctionId"
+       ]
+      }
+     ]
+    },
+    "RequestMappingTemplate": {
+     "Fn::Join": [
+      "",
+      [
+       "$util.qr($ctx.stash.put(\"typeName\", \"Experiment\"))\n$util.qr($ctx.stash.put(\"fieldName\", \"data\"))\n$util.qr($ctx.stash.put(\"conditions\", []))\n$util.qr($ctx.stash.put(\"metadata\", {}))\n$util.qr($ctx.stash.metadata.put(\"dataSourceType\", \"AMAZON_DYNAMODB\"))\n$util.qr($ctx.stash.metadata.put(\"apiId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"connectionAttributes\", {}))\n$util.qr($ctx.stash.put(\"tableName\", \"",
+       {
+        "Fn::Select": [
+         1,
+         {
+          "Fn::Split": [
+           "/",
+           {
+            "Fn::Select": [
+             5,
+             {
+              "Fn::Split": [
+               ":",
+               {
+                "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataDataNestedStackDataNestedStackResource7D6F4F14Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataDataTable88A9FB9BTableArn"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"authRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"unauthRole\", \"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":sts::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":assumed-role/",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef"
+       },
+       "/CognitoIdentityCredentials\"))\n$util.qr($ctx.stash.put(\"identityPoolId\", \"",
+       {
+        "Ref": "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef"
+       },
+       "\"))\n$util.qr($ctx.stash.put(\"adminRoles\", []))\n$util.toJson({})"
+      ]
+     ]
+    },
+    "ResponseMappingTemplate": "$util.toJson($ctx.prev.result)",
+    "TypeName": "Experiment"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/experimentDataResolver"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/yXMQQ6CQAxA0bO4H6oMJq6FxKULOACpQyED2CG0AzGEuxt09fI334K1KaQnXCVxzZCM/gXbk0SpqRTdYHCVepOsRhFSgfuBkQzy6AbSHIUMTpN82MFWtPyI7NQHLgK3voszHmGKlkuSMC4077v5PSrFznO3Gw4NQS/nxV7hBpdTL94nc2T1b4Ly7xcNh3gzpgAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "amplify-xrayatlas-hduva-sandbox-beb300f0e1/data/amplifyData/ConnectionStack/CDKMetadata/Default"
+   },
+   "Condition": "CDKMetadataAvailable"
+  }
+ },
+ "Conditions": {
+  "CDKMetadataAvailable": {
+   "Fn::Or": [
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "af-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-east-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-northeast-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-northeast-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-northeast-3"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-south-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-3"
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-4"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ca-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ca-west-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "cn-north-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "cn-northwest-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-central-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-north-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-south-2"
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-3"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "il-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "me-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "me-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "sa-east-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-east-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-east-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-west-1"
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Equals": [
+      {
+       "Ref": "AWS::Region"
+      },
+      "us-west-2"
+     ]
+    }
+   ]
+  }
+ },
+ "Parameters": {
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPI820A5606ApiId": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataGraphQLAPINONEDS547E04C9Name": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentNestedStackExperimentNestedStackResource16A3717BOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentExperimentDataSource64A01AE9Name": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentNestedStackExperimentNestedStackResource16A3717BOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataExperimentExperimentTable4EDC42E5TableArn": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthauthenticatedUserRole86C9688DRef": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthunauthenticatedUserRole9F856B5ERef": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1authNestedStackauthNestedStackResourceAB2BA057Outputsamplifyxrayatlashduvasandboxbeb300f0e1authamplifyAuthIdentityPoolC693576ERef": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataMoleculeNestedStackMoleculeNestedStackResource53EDC7ACOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataMoleculeMoleculeDataSourceF5C5EBA2Name": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataMoleculeNestedStackMoleculeNestedStackResource53EDC7ACOutputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataMoleculeMoleculeTable3406B298TableArn": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataInstrumentNestedStackInstrumentNestedStackResourceF79A96D3Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataInstrumentInstrumentDataSource8E9DCCE7Name": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataInstrumentNestedStackInstrumentNestedStackResourceF79A96D3Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataInstrumentInstrumentTableB205235BTableArn": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserNestedStackUserNestedStackResource6F7C7220Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserDataSource2F849B0AName": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserNestedStackUserNestedStackResource6F7C7220Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataUserUserTableA2E6341FTableArn": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataDataNestedStackDataNestedStackResource7D6F4F14Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataDataDataSource8F9C1030Name": {
+   "Type": "String"
+  },
+  "referencetoamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataDataNestedStackDataNestedStackResource7D6F4F14Outputsamplifyxrayatlashduvasandboxbeb300f0e1dataamplifyDataDataTable88A9FB9BTableArn": {
+   "Type": "String"
+  }
+ }
+}
