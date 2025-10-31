@@ -1,6 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
+  --font-sans:
+    var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  --color-wsu-crimson-light: #a60f2d;
+  --color-wsu-crimson-dark: #ca1237;
 }
+
+/* Added WSU Custom Colors */

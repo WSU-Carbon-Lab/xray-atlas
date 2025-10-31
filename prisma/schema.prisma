@@ -12,59 +12,34 @@ datasource db {
 }
 
 // Necessary for Next auth
-model Account {
-    id                       String  @id @default(cuid())
-    userId                   String
-    type                     String
-    provider                 String
-    providerAccountId        String
-    refresh_token            String? // @db.Text
-    access_token             String? // @db.Text
-    expires_at               Int?
-    token_type               String?
-    scope                    String?
-    id_token                 String? // @db.Text
-    session_state            String?
-    user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    refresh_token_expires_in Int?
-
-    @@unique([provider, providerAccountId])
-}
-
-model Session {
-    id           String   @id @default(cuid())
-    sessionToken String   @unique
-    userId       String
-    expires      DateTime
-    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+// Account and Session are not needed for Clerk
 
 model User {
     id            String       @id @default(cuid())
+    clerkId       String       @unique
+    orcid         String?
     name          String?
-    email         String?      @unique
+    email         String?
     emailVerified DateTime?
     image         String?
-    accounts      Account[]
-    sessions      Session[]
-    Sample        Sample[]
-    Experiment    Experiment[]
-}
-
-model VerificationToken {
-    identifier String
-    token      String   @unique
-    expires    DateTime
-
-    @@unique([identifier, token])
+    samples       Sample[]
+    experiments   Experiment[]
 }
 
 // Data Models
 
 model Molecule {
-    id    String  @id @default(cuid())
-    name  String
-    image String?
+    id               String   @id @default(cuid())
+    name             String   @unique
+    iupacName        String
+    synonyms         String[]
+    molecularFormula String
+    image            String?
+    smiles           String
+    inchi            String
+    inchiKey         String?
+    casNumber        String?
+    pubChemCid       String?
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -101,15 +76,27 @@ model Sample {
     experiments Experiment[] @relation()
 }
 
+enum CoreLevel {
+    K
+    L1
+    L2
+    L3
+    M1
+    M2
+    M3
+}
+
 model Experiment {
     // Identifiers
-    id           String     @id @default(cuid())
-    userId       String
-    user         User       @relation(fields: [userId], references: [id])
-    sampleId     String
-    sample       Sample     @relation(fields: [sampleId], references: [id])
-    instrumentId String
-    instrument   Instrument @relation(fields: [instrumentId], references: [id])
+    id            String     @id @default(cuid())
+    userId        String
+    user          User       @relation(fields: [userId], references: [id])
+    sampleId      String
+    sample        Sample     @relation(fields: [sampleId], references: [id])
+    instrumentId  String
+    instrument    Instrument @relation(fields: [instrumentId], references: [id])
+    absorbingAtom String
+    coreLevel     CoreLevel
 
     normalization                       String?
     incidentElectricFieldPolarAngle     Float?
