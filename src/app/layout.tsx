@@ -6,7 +6,6 @@ import { Footer } from "./components/Footer";
 import { siteMetadata } from "./components/Metadata";
 import { ClerkProvider } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
-import { syncUserWithPrisma } from "~/server/auth/syncUser";
 export const metadata = {
   ...siteMetadata,
 };
@@ -19,10 +18,6 @@ const geist = Geist({
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const { userId } = await auth();
-  if (userId) {
-    await syncUserWithPrisma(userId);
-  }
   return (
     <ClerkProvider>
       <html

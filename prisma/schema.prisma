@@ -1,111 +1,81 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider  = "postgresql"
-    url       = env("DATABASE_URL")
-    directUrl = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
-
-// Necessary for Next auth
-// Account and Session are not needed for Clerk
 
 model User {
-    id            String       @id @default(cuid())
-    clerkId       String       @unique
-    orcid         String?
-    name          String?
-    email         String?
-    emailVerified DateTime?
-    image         String?
-    samples       Sample[]
-    experiments   Experiment[]
+  id      String  @id @default(cuid())
+  name    String
+  image   String
+  clerkId String  @unique
 }
 
-// Data Models
-
 model Molecule {
-    id               String   @id @default(cuid())
-    name             String   @unique
-    iupacName        String
-    synonyms         String[]
-    molecularFormula String
-    image            String?
-    smiles           String
-    inchi            String
-    inchiKey         String?
-    casNumber        String?
-    pubChemCid       String?
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    samples Sample[] @relation()
+  id              String   @id @default(cuid()) @db.Uuid
+  iupacName       String   @unique
+  commonName      String[]
+  inchi           String
+  chemicalFormula String[]
+  smiles          String
+  casNumber       String?  @unique
+  pubChemCid      String?  @unique
+  createdAt       DateTime @default(now()) @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @updatedAt @db.Timestamp(6)
+  Sample          Sample[]
 }
 
 model Vendor {
-    id   String  @id @default(cuid())
-    name String
-    url  String?
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    samples Sample[] @relation()
+  id   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name String
+  url  String?
 }
 
 model Instrument {
-    id         String  @id @default(cuid())
-    facility   String
-    instrument String
-    link       String?
-
-    experiments Experiment[] @relation()
+  id         String       @id @default(cuid())
+  instrument String
+  link       String?
+  facility   String
+  Experiment Experiment[]
 }
 
 model Sample {
-    id          String       @id @default(cuid())
-    userId      String
-    user        User         @relation(fields: [userId], references: [id])
-    molecules   Molecule[]   @relation()
-    vendors     Vendor[]     @relation()
-    experiments Experiment[] @relation()
-}
-
-enum CoreLevel {
-    K
-    L1
-    L2
-    L3
-    M1
-    M2
-    M3
+  id          String       @id @default(cuid())
+  description Json?        @db.Json
+  molecule    String       @db.Uuid
+  Experiment  Experiment[]
+  Molecule    Molecule     @relation(fields: [molecule], references: [id], onDelete: NoAction)
 }
 
 model Experiment {
-    // Identifiers
-    id            String     @id @default(cuid())
-    userId        String
-    user          User       @relation(fields: [userId], references: [id])
-    sampleId      String
-    sample        Sample     @relation(fields: [sampleId], references: [id])
-    instrumentId  String
-    instrument    Instrument @relation(fields: [instrumentId], references: [id])
-    absorbingAtom String
-    coreLevel     CoreLevel
+  id                  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sample              String
+  instrument          String?
+  polarizationPolar   Decimal     @default(90) @db.Decimal
+  polarizationAzimuth Decimal?    @default(0) @db.Decimal
+  targetAtom          String
+  coreState           CoreLevel
+  energy              Decimal[]   @db.Decimal
+  processedAbsorption Decimal[]   @db.Decimal
+  rawAbsorption       Decimal[]   @unique @db.Decimal
+  upstreamIzero       Decimal[]   @db.Decimal
+  independentIzero    Decimal[]   @db.Decimal
+  isStandard          Boolean
+  referenceStandard   String?
+  Instrument          Instrument? @relation(fields: [referenceStandard], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Sample              Sample      @relation(fields: [sample], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
 
-    normalization                       String?
-    incidentElectricFieldPolarAngle     Float?
-    incidentElectricFieldAzimuthalAngle Float?
-    energy                              Float[]
-    intensity                           Float[]
-    izero                               Float[]
-    izero2                              Float[]
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+enum CoreLevel {
+  K
+  L1
+  L2
+  L3
+  M1
+  M2
+  M3
 }
