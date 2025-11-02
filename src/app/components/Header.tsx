@@ -7,9 +7,10 @@ import { DefaultButton as Button } from "./Button";
 import { WSULogoIcon } from "./icons";
 import { GitHubStarsLink } from "./GitHubStarsLink";
 import { ThemeToggle } from "./ThemeToggle";
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import CustomUserButton from "./CustomUserButton";
 
-export function Header() {
+export default function Header() {
   return (
     <Navbar
       isBordered
@@ -82,7 +83,7 @@ export function Header() {
             </SignInButton>
           </SignedOut>
           <SignedIn>
-            <UserButton
+            <CustomUserButton
               appearance={{
                 elements: {
                   userButtonAvatarBox: "h-10 w-10",
