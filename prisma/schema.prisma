@@ -9,18 +9,18 @@ datasource db {
 }
 
 model User {
-  id      String  @id @default(cuid())
+  id      String @id @default(cuid())
   name    String
   image   String
-  clerkId String  @unique
+  clerkId String @unique
 }
 
 model Molecule {
-  id              String   @id @default(cuid()) @db.Uuid
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   iupacName       String   @unique
   commonName      String[]
   inchi           String
-  chemicalFormula String[]
+  chemicalFormula String
   smiles          String
   casNumber       String?  @unique
   pubChemCid      String?  @unique

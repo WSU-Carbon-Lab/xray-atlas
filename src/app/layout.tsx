@@ -6,6 +6,7 @@ import { Footer } from "./components/Footer";
 import { siteMetadata } from "./components/Metadata";
 import { ClerkProvider } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
+import { ThemeProviderWrapper } from "./components/ThemeProviderWrapper";
 export const metadata = {
   ...siteMetadata,
 };
@@ -22,12 +23,15 @@ export default async function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
+        suppressHydrationWarning
         className={`${geist.variable} mx-auto flex min-h-screen w-6xl flex-col`}
       >
-        <body>
-          <Header />
-          {children}
-          <Footer />
+        <body className="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+          <ThemeProviderWrapper>
+            <Header />
+            {children}
+            <Footer />
+          </ThemeProviderWrapper>
         </body>
       </html>
     </ClerkProvider>

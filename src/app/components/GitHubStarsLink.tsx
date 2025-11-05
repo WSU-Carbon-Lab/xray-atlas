@@ -52,7 +52,7 @@ export function GitHubStarsLink({
 
   return (
     <Button as={Link} href={`https://github.com/${repo}`}>
-      <GitHubIcon className="h-4 w-4" />
+      <GitHubIcon className="h-4 w-4 text-gray-700 dark:text-gray-200" />
       {stars === null ? (
         <Skeleton className="h-4 w-4 rounded" />
       ) : (
@@ -63,7 +63,7 @@ export function GitHubStarsLink({
           {formatCompactStars(stars)}
         </span>
       )}
-      <StarIcon className="h-4 w-4" />
+      <StarIcon className="h-4 w-4 text-gray-700 dark:text-gray-200" />
     </Button>
   );
 }

@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { MoonIcon, SunIcon } from "@heroicons/react/24/outline";
 import { useTheme } from "next-themes";
@@ -12,10 +14,19 @@ export function ThemeToggle() {
     setMounted(true);
   }, []);
 
+  if (!mounted) {
+    return (
+      <Button aria-label="Toggle theme">
+        <SunIcon className="h-4 w-4 fill-zinc-900" />
+      </Button>
+    );
+  }
+
   return (
     <Button
-      aria-label={mounted ? `Switch to ${otherTheme} theme` : "Toggle theme"}
+      aria-label={`Switch to ${otherTheme} theme`}
       onPress={() => setTheme(otherTheme)}
+      className="cursor-pointer"
     >
       <SunIcon className="h-4 w-4 fill-zinc-900 dark:hidden" />
       <MoonIcon className="hidden h-4 w-4 fill-white dark:block" />

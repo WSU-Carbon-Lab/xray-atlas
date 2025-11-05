@@ -14,7 +14,7 @@ export default function Header() {
   return (
     <Navbar
       isBordered
-      className="bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-50 backdrop-blur"
+      className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/60 dark:border-gray-700 dark:bg-gray-900/95 dark:supports-backdrop-filter:bg-gray-900/60"
       classNames={{
         base: "h-20",
         wrapper: "w-full px-4",
@@ -23,7 +23,7 @@ export default function Header() {
       <NavbarBrand className="items-center justify-start">
         <Link
           href="/"
-          className="flex items-center justify-start space-x-2 text-gray-700 no-underline hover:text-gray-900"
+          className="flex items-center justify-start space-x-2 text-gray-700 no-underline hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
         >
           <WSULogoIcon className="block h-10 w-10 justify-start align-middle" />
           <span className="align-middle font-sans text-3xl leading-none font-bold">
@@ -40,7 +40,7 @@ export default function Header() {
         <NavbarItem className="hidden sm:flex">
           <Link
             href="/"
-            className="flex items-center text-sm text-gray-700 hover:text-gray-900"
+            className="flex items-center text-sm text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
           >
             <Home className="mr-2 h-4 w-4" />
             Home
@@ -49,7 +49,7 @@ export default function Header() {
         <NavbarItem className="hidden sm:flex">
           <Link
             href="/about"
-            className="flex items-center text-sm text-gray-700 hover:text-gray-900"
+            className="flex items-center text-sm text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
           >
             <Info className="mr-2 h-4 w-4" />
             About
@@ -58,14 +58,14 @@ export default function Header() {
         <NavbarItem className="hidden sm:flex">
           <Link
             href="/upload"
-            className="flex items-center text-sm text-gray-700 hover:text-gray-900"
+            className="flex items-center text-sm text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
           >
             <Upload className="mr-2 h-4 w-4" />
             Upload
           </Link>
         </NavbarItem>
         <NavbarItem className="flex">
-          <div className="h-8 w-px bg-gray-300 py-2" />
+          <div className="h-8 w-px bg-gray-300 py-2 dark:bg-gray-600" />
         </NavbarItem>
         <NavbarItem className="flex">
           <GitHubStarsLink />
