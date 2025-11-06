@@ -7,6 +7,7 @@ import { siteMetadata } from "./components/Metadata";
 import { ClerkProvider } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { ThemeProviderWrapper } from "./components/ThemeProviderWrapper";
+import { TRPCReactProvider } from "~/trpc/client";
 export const metadata = {
   ...siteMetadata,
 };
@@ -27,11 +28,13 @@ export default async function RootLayout({
         className={`${geist.variable} mx-auto flex min-h-screen w-6xl flex-col`}
       >
         <body className="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
-          <ThemeProviderWrapper>
-            <Header />
-            {children}
-            <Footer />
-          </ThemeProviderWrapper>
+          <TRPCReactProvider>
+            <ThemeProviderWrapper>
+              <Header />
+              {children}
+              <Footer />
+            </ThemeProviderWrapper>
+          </TRPCReactProvider>
         </body>
       </html>
     </ClerkProvider>

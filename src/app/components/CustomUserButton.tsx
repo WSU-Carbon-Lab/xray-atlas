@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { UserButton as ClerkUserButton } from "@clerk/nextjs";
+import { trpc } from "~/trpc/client";
 
 interface CustomUserButtonProps {
   appearance?: {
@@ -17,19 +18,12 @@ interface CustomUserButtonProps {
 export default function CustomUserButton({
   appearance,
 }: CustomUserButtonProps) {
-  // Sync user to database when component mounts via API call
-  useEffect(() => {
-    const syncUser = async () => {
-      try {
-        await fetch("/api/users/sync", {
-          method: "POST",
-        });
-      } catch (error) {
-        console.error("Failed to sync user:", error);
-      }
-    };
+  const syncUser = trpc.users.sync.useMutation();
 
-    syncUser();
+  // Sync user to database when component mounts
+  useEffect(() => {
+    syncUser.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

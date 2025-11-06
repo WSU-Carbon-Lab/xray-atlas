@@ -1,0 +1,318 @@
+# Design System Rules for X-ray Atlas
+
+This document defines the design system rules for the X-ray Atlas project, enabling seamless integration of Figma designs using the Model Context Protocol.
+
+## Token Definitions
+
+### Colors
+
+Colors are defined in `tailwind.config.js` and `globals.css`:
+
+#### Brand Colors
+- **WSU Crimson Light**: `#a60f2d` - Use class: `text-wsu-crimson`, `bg-wsu-crimson`, `border-wsu-crimson`
+- **WSU Crimson Dark**: `#ca1237` - Defined in CSS variables: `--color-wsu-crimson-dark`
+- **WSU Gray**: `#5e6a71` - Use class: `text-wsu-gray`, `bg-wsu-gray`, `border-wsu-gray`
+
+#### Neutral Palette
+- **Gray Scale**: Use Tailwind defaults `gray-50` through `gray-900`
+- **Background Colors**:
+  - Light mode: `bg-white` (white)
+  - Dark mode: `dark:bg-gray-900` (dark gray)
+- **Card Backgrounds**:
+  - Light mode: `bg-white`
+  - Dark mode: `dark:bg-gray-800`
+- **Border Colors**:
+  - Light mode: `border-gray-200`
+  - Dark mode: `dark:border-gray-700`
+- **Text Colors**:
+  - Light mode: `text-gray-900` (primary), `text-gray-700` (secondary), `text-gray-500` (tertiary)
+  - Dark mode: `dark:text-gray-100` (primary), `dark:text-gray-300` (secondary), `dark:text-gray-400` (tertiary)
+
+#### Dark Mode
+- All color variants must include dark mode using `dark:` prefix
+- Pattern: `"base-classes dark:dark-classes hover:state-classes"`
+- Dark mode is class-based via `next-themes` library
+
+### Typography
+
+#### Font Family
+- **Primary**: Geist Sans (via `--font-geist-sans` variable)
+- **Code**: Monospace for formulas (use `font-mono`)
+- Defined in `layout.tsx` and applied globally
+
+#### Font Sizes
+Use Tailwind text size classes:
+- `text-xs` - 12px
+- `text-sm` - 14px
+- `text-base` - 16px (default)
+- `text-lg` - 18px
+- `text-xl` - 20px
+- `text-2xl` - 24px
+- `text-3xl` - 30px
+- `text-4xl` - 36px
+
+#### Font Weights
+- `font-normal` - 400
+- `font-medium` - 500
+- `font-semibold` - 600
+- `font-bold` - 700
+
+### Spacing
+
+Use Tailwind spacing scale (4px base unit):
+- `p-1` = 4px, `p-2` = 8px, `p-3` = 12px, `p-4` = 16px
+- `gap-1` through `gap-8` for grid/flex gaps
+- `space-y-2` through `space-y-8` for vertical spacing
+
+### Border Radius
+
+- `rounded` - 4px
+- `rounded-lg` - 8px
+- `rounded-xl` - 12px
+- `rounded-full` - 9999px (for pills/badges)
+
+### Shadows
+
+- `shadow-sm` - Small shadow
+- `shadow` - Default shadow
+- `shadow-lg` - Large shadow
+- `shadow-xl` - Extra large shadow
+- Hover states: `hover:shadow-xl` for elevation
+
+## Component Library
+
+### Location
+All components are in `src/app/components/`
+
+### Base Components
+- **HeroUI** (`@heroui/react`) serves as the foundation
+- Custom components wrap HeroUI with consistent styling
+- Pattern: Custom wrapper components that extend HeroUI components
+
+### Component Pattern
+
+```typescript
+// Example: Button component pattern
+import { Button as HeroButton } from "@heroui/react";
+
+export function DefaultButton({ className, ...props }) {
+  return (
+    <HeroButton
+      {...props}
+      className={`base-classes dark:dark-classes ${className ?? ""}`}
+    />
+  );
+}
+```
+
+### Key Components
+
+1. **Button** (`Button.tsx`)
+   - Wraps HeroUI Button
+   - Default variant: `light`
+   - Default size: `md`
+   - Includes hover and dark mode styles
+
+2. **MoleculeDisplay** (`MoleculeDisplay.tsx`)
+   - Displays molecule information card
+   - Horizontal compact layout
+   - Includes copy buttons, external links, synonyms
+
+3. **Header** (`Header.tsx`)
+   - Uses HeroUI Navbar
+   - Includes logo, navigation, theme toggle, auth buttons
+
+4. **Footer** (`Footer.tsx`)
+   - Grid layout with links and collaborators
+
+## Frameworks & Libraries
+
+### UI Framework
+- **React**: Version 19
+- **Next.js**: Version 16 with App Router
+- **TypeScript**: Full type safety throughout
+
+### Styling
+- **Tailwind CSS**: Version 4
+- **HeroUI Theme Plugin**: `@heroui/theme` for component styling
+- **PostCSS**: For CSS processing
+
+### State Management
+- **React Query**: Via tRPC for server state
+- **tRPC**: Type-safe API layer
+- **React Hooks**: `useState`, `useEffect` for local state
+
+### Icons
+- **Heroicons**: `@heroicons/react/24/outline` (outline variant)
+- **Lucide React**: `lucide-react` for additional icons
+- **Custom Icons**: Defined in `src/app/components/icons.tsx`
+
+### Authentication
+- **Clerk**: `@clerk/nextjs` for authentication
+
+## Styling Approach
+
+### Methodology
+Utility-first CSS with Tailwind CSS. No CSS Modules or Styled Components.
+
+### Component Styling Pattern
+
+```typescript
+// Standard pattern for component classes
+className={`base-classes dark:dark-classes hover:state-classes focus:focus-classes ${className ?? ""}`}
+```
+
+### Responsive Design
+Mobile-first approach with breakpoints:
+- `sm:` - 640px and up
+- `md:` - 768px and up
+- `lg:` - 1024px and up
+- `xl:` - 1280px and up
+
+### Grid Layouts
+- Use CSS Grid: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4`
+- Use Flexbox: `flex flex-col md:flex-row`
+
+### Dark Mode Implementation
+- Toggle via `next-themes` ThemeProvider
+- Apply `dark:` prefix to all color/background classes
+- Always provide both light and dark variants
+
+## Icon System
+
+### Location
+- Custom icons: `src/app/components/icons.tsx`
+- External icons: Imported from `@heroicons/react` or `lucide-react`
+
+### Naming Convention
+- PascalCase for component names (e.g., `WSULogoIcon`, `SearchIcon`)
+- Descriptive names that indicate purpose
+
+### Usage Pattern
+
+```typescript
+import { SearchIcon } from "@heroicons/react/24/outline";
+import { WSULogoIcon } from "~/app/components/icons";
+
+// Use as React components
+<SearchIcon className="h-4 w-4" />
+<WSULogoIcon className="h-10 w-10" />
+```
+
+### Icon Sizes
+Common sizes:
+- `h-4 w-4` - Small (16px)
+- `h-5 w-5` - Medium (20px)
+- `h-6 w-6` - Large (24px)
+- `h-10 w-10` - Extra large (40px)
+
+## Asset Management
+
+### Images
+- Use Next.js `Image` component for optimization
+- Pattern: `<Image src={src} alt={alt} width={w} height={h} />`
+- Place static images in `public/` directory
+- External images: Use full URL with Next.js Image component
+
+### SVG
+- Custom SVGs: React components in `icons.tsx`
+- Inline SVG: Use as JSX elements
+- Optimization: Use viewBox for responsive SVGs
+
+### Structure
+```
+public/
+  - Static assets (favicons, images)
+src/app/components/icons.tsx
+  - Custom SVG icon components
+```
+
+## Component Styling Guidelines
+
+### Buttons
+- Use `DefaultButton` wrapper component
+- Hover states: `hover:bg-gray-200 dark:hover:bg-gray-700`
+- Focus states: `focus:ring-2 focus:ring-wsu-crimson`
+
+### Cards
+- Background: `bg-white dark:bg-gray-800`
+- Border: `border border-gray-200 dark:border-gray-700`
+- Padding: `p-4` or `p-6`
+- Shadow: `shadow-lg hover:shadow-xl`
+- Border radius: `rounded-xl`
+
+### Forms
+- Input borders: `border-gray-300 dark:border-gray-600`
+- Focus: `focus:ring-2 focus:ring-wsu-crimson focus:border-wsu-crimson`
+- Error states: Use red colors (`text-red-600`)
+
+### Navigation
+- Active state: `text-wsu-crimson` or underline
+- Hover: `hover:text-gray-900 dark:hover:text-white`
+
+## Animation & Transitions
+
+### Transitions
+- Use `transition-all` for smooth state changes
+- Duration: Default Tailwind transitions (150ms)
+- Hover effects: `hover:scale-105` for subtle scale
+
+### Loading States
+- Use skeleton components with `animate-pulse`
+- Skeleton colors: `bg-gray-200 dark:bg-gray-700`
+
+## Figma Integration Guidelines
+
+### Converting Figma Designs
+
+1. **Colors**: Match Figma colors to Tailwind classes or custom colors
+2. **Spacing**: Convert Figma spacing to Tailwind spacing scale (divide by 4)
+3. **Typography**: Match font sizes to Tailwind text classes
+4. **Components**: Use existing component patterns where possible
+5. **Icons**: Extract SVG or use closest matching icon from icon libraries
+
+### Design Token Mapping
+
+When importing from Figma:
+- Colors → Tailwind color classes or custom colors
+- Spacing → Tailwind spacing utilities
+- Typography → Tailwind text utilities
+- Shadows → Tailwind shadow utilities
+- Border Radius → Tailwind rounded utilities
+
+### Component Structure
+
+Figma components should map to:
+- Buttons → `DefaultButton` or HeroUI Button
+- Cards → Custom card components with standard styling
+- Navigation → HeroUI Navbar or custom navigation
+- Forms → HeroUI Input/Select with custom styling
+
+## Accessibility
+
+### Requirements
+- All interactive elements must be keyboard accessible
+- Use semantic HTML elements
+- Include ARIA labels where needed
+- Ensure sufficient color contrast (WCAG AA)
+
+### Patterns
+- Buttons: Include `aria-label` for icon-only buttons
+- Forms: Associate labels with inputs
+- Navigation: Use proper heading hierarchy
+
+## Performance Considerations
+
+### Image Optimization
+- Always use Next.js `Image` component
+- Specify width and height for layout stability
+- Use appropriate image formats (WebP preferred)
+
+### Code Splitting
+- Use Next.js dynamic imports for heavy components
+- Lazy load components below the fold
+
+### Bundle Size
+- Import only needed icons
+- Use tree-shaking friendly imports
+- Avoid unnecessary dependencies

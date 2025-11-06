@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { CheckIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
+import { trpc } from "~/trpc/client";
 
 // Updated type to match Prisma schema and include external links
 export type DisplayMolecule = {
@@ -12,10 +13,11 @@ export type DisplayMolecule = {
   chemical_formula: string | string[]; // Chemical formula (can be string or array from Prisma)
   SMILES: string;
   InChI: string;
-  img?: string;
+  imageUrl?: string;
   pubChemCid?: string | null;
   casNumber?: string | null;
   description?: string;
+  experimentCount?: number; // Optional experiment count badge
 };
 
 // Compact copy button component - only shows label and copy icon
@@ -240,18 +242,14 @@ export const MoleculeDisplay = ({
     ? `https://commonchemistry.cas.org/detail?cas_rn=${casRegistryNumber}&search=${casRegistryNumber}`
     : null;
 
+  const utils = trpc.useUtils();
+
   // Fetch CAS registry number from InChI if not already present
   useEffect(() => {
     if (!casRegistryNumber && molecule.InChI && molecule.InChI.trim()) {
       setIsFetchingCAS(true);
-      fetch("/api/cas/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inchi: molecule.InChI }),
-      })
-        .then((res) => res.json())
+      utils.external.searchCas
+        .fetch({ inchi: molecule.InChI })
         .then((data) => {
           if (data.ok && data.data?.casRegistryNumber) {
             setCasRegistryNumber(data.data.casRegistryNumber);
@@ -264,24 +262,25 @@ export const MoleculeDisplay = ({
           setIsFetchingCAS(false);
         });
     }
-  }, [molecule.InChI, casRegistryNumber]);
+  }, [molecule.InChI, casRegistryNumber, utils]);
 
   // Synonyms are display-only (reordering happens in upload form)
 
   return (
-    <div className="flex w-full flex-col gap-3 overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-lg transition-shadow hover:shadow-xl dark:border-gray-700 dark:bg-gray-800">
+    <div className="group hover:border-wsu-crimson dark:hover:border-wsu-crimson flex w-full flex-col gap-3 overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl dark:border-gray-700 dark:bg-gray-800">
       {/* Image Section - Top */}
-      {molecule.img && (
+      {molecule.imageUrl && (
         <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-          {molecule.img.startsWith("data:") ? (
+          {molecule.imageUrl.startsWith("data:") ||
+          molecule.imageUrl.toLowerCase().endsWith(".svg") ? (
             <img
               className="h-full w-full object-contain"
-              src={molecule.img}
+              src={molecule.imageUrl}
               alt={primaryName || "Molecule structure"}
             />
           ) : (
             <Image
-              src={molecule.img}
+              src={molecule.imageUrl}
               alt={primaryName || "Molecule structure"}
               fill
               className="object-contain"
@@ -295,9 +294,17 @@ export const MoleculeDisplay = ({
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
         {/* Name and Formula Header */}
         <div className="space-y-1.5">
-          <h3 className="truncate text-lg font-bold text-gray-900 dark:text-gray-100">
-            {primaryName}
-          </h3>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="truncate text-lg font-bold text-gray-900 dark:text-gray-100">
+              {primaryName}
+            </h3>
+            {molecule.experimentCount !== undefined &&
+              molecule.experimentCount > 0 && (
+                <span className="bg-wsu-crimson shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold text-white">
+                  {molecule.experimentCount}
+                </span>
+              )}
+          </div>
           {orderedSynonyms.length > 0 && (
             <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
               {/* Show all synonyms - display first 3, rest in popover */}

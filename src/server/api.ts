@@ -5,6 +5,7 @@ export interface UserData {
   clerkId: string;
   name: string;
   image: string;
+  orcid?: string;
 }
 
 /**
@@ -13,18 +14,22 @@ export interface UserData {
  */
 export async function syncUserFromClerk(userData: UserData) {
   try {
-    const user = await db.user.upsert({
+    const user = await db.users.upsert({
       where: {
-        clerkId: userData.clerkId,
+        clerkid: userData.clerkId,
       },
       update: {
         name: userData.name,
-        image: userData.image,
+        imageurl: userData.image,
+        orcid: userData.orcid ?? undefined,
       },
       create: {
-        clerkId: userData.clerkId,
+        id: userData.clerkId,
+        clerkid: userData.clerkId,
         name: userData.name,
-        image: userData.image,
+        email: "", // Will be set by sync function
+        imageurl: userData.image,
+        orcid: userData.orcid ?? undefined,
       },
     });
     return user;
@@ -50,6 +55,7 @@ export async function syncCurrentUser() {
         `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()) ||
       "User",
     image: user.imageUrl,
+    orcid: user.username ?? undefined,
   };
 
   return await syncUserFromClerk(userData);

@@ -8,68 +8,183 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model User {
-  id      String @id @default(cuid())
-  name    String
-  image   String
-  clerkId String @unique
+model calibrationmethods {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String        @unique
+  description String?
+  experiments experiments[]
 }
 
-model Molecule {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  iupacName       String   @unique
-  commonName      String[]
-  inchi           String
-  chemicalFormula String
-  smiles          String
-  casNumber       String?  @unique
-  pubChemCid      String?  @unique
-  createdAt       DateTime @default(now()) @db.Timestamp(6)
-  updatedAt       DateTime @default(now()) @updatedAt @db.Timestamp(6)
-  Sample          Sample[]
+model edges {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  targetatom  String
+  corestate   String
+  experiments experiments[]
+
+  @@unique([targetatom, corestate])
 }
 
-model Vendor {
-  id   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name String
-  url  String?
+model experimentpublications {
+  experimentid  String       @db.Uuid
+  publicationid String       @db.Uuid
+  role          String       @default("cited")
+  experiments   experiments  @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  publications  publications @relation(fields: [publicationid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([experimentid, publicationid])
 }
 
-model Instrument {
-  id         String       @id @default(cuid())
-  instrument String
-  link       String?
-  facility   String
-  Experiment Experiment[]
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model experimentquality {
+  experimentid  String      @id @db.Uuid
+  signaltonoise Decimal?    @db.Decimal
+  userrating    Int?
+  upvotes       Int         @default(0)
+  downvotes     Int         @default(0)
+  comments      Json?
+  lastchecked   DateTime?   @db.Timestamptz(6)
+  experiments   experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-model Sample {
-  id          String       @id @default(cuid())
-  description Json?        @db.Json
-  molecule    String       @db.Uuid
-  Experiment  Experiment[]
-  Molecule    Molecule     @relation(fields: [molecule], references: [id], onDelete: NoAction)
+model experiments {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sampleid               String                   @db.Uuid
+  instrumentid           String
+  edgeid                 String                   @db.Uuid
+  polarizationid         String                   @db.Uuid
+  calibrationid          String?                  @db.Uuid
+  isstandard             Boolean                  @default(false)
+  referencestandard      String?
+  measurementdate        DateTime                 @db.Date
+  createdby              String?
+  createdat              DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedat              DateTime                 @default(now()) @db.Timestamptz(6)
+  experimentpublications experimentpublications[]
+  experimentquality      experimentquality?
+  calibrationmethods     calibrationmethods?      @relation(fields: [calibrationid], references: [id], onUpdate: NoAction)
+  users                  users?                   @relation(fields: [createdby], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  edges                  edges                    @relation(fields: [edgeid], references: [id], onUpdate: NoAction)
+  instruments            instruments              @relation(fields: [instrumentid], references: [id], onUpdate: NoAction)
+  polarizations          polarizations            @relation(fields: [polarizationid], references: [id], onUpdate: NoAction)
+  samples                samples                  @relation(fields: [sampleid], references: [id], onUpdate: NoAction)
+  spectrumpoints         spectrumpoints[]
+
+  @@unique([sampleid, edgeid, instrumentid, measurementdate])
+  @@index([sampleid, edgeid, instrumentid, measurementdate], map: "idx_experiment_lookup")
 }
 
-model Experiment {
-  id                  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sample              String
-  instrument          String?
-  polarizationPolar   Decimal     @default(90) @db.Decimal
-  polarizationAzimuth Decimal?    @default(0) @db.Decimal
-  targetAtom          String
-  coreState           CoreLevel
-  energy              Decimal[]   @db.Decimal
-  processedAbsorption Decimal[]   @db.Decimal
-  rawAbsorption       Decimal[]   @unique @db.Decimal
-  upstreamIzero       Decimal[]   @db.Decimal
-  independentIzero    Decimal[]   @db.Decimal
-  isStandard          Boolean
-  referenceStandard   String?
-  Instrument          Instrument? @relation(fields: [referenceStandard], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Sample              Sample      @relation(fields: [sample], references: [id], onDelete: NoAction, onUpdate: NoAction)
+model facilities {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String        @unique
+  city        String?
+  country     String?
+  instruments instruments[]
 }
 
+model instruments {
+  id          String        @id
+  name        String
+  vendorid    String?       @db.Uuid
+  facilityid  String        @db.Uuid
+  link        String?
+  status      String        @default("active")
+  experiments experiments[]
+  facilities  facilities    @relation(fields: [facilityid], references: [id], onUpdate: NoAction)
+  vendors     vendors?      @relation(fields: [vendorid], references: [id], onUpdate: NoAction)
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model molecules {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  iupacname        String
+  inchi            String
+  smiles           String
+  chemicalformula  String
+  casnumber        String?            @unique
+  pubchemcid       String?            @unique
+  imageurl         String?
+  createdat        DateTime           @default(now()) @db.Timestamptz(6)
+  updatedat        DateTime           @default(now()) @db.Timestamptz(6)
+  moleculesynonyms moleculesynonyms[]
+  samples          samples[]
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model moleculesynonyms {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moleculeid String    @db.Uuid
+  synonym    String
+  molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  primary    Boolean   @default(false)
+
+  @@unique([moleculeid, synonym])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model polarizations {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  azimuthdeg  Decimal       @db.Decimal
+  polardeg    Decimal       @db.Decimal
+  experiments experiments[]
+
+  @@index([azimuthdeg, polardeg], map: "idx_polarization_geom")
+}
+
+model publications {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  doi                    String                   @unique
+  title                  String
+  journal                String?
+  year                   Int?
+  authors                Json?
+  metadata               Json?
+  experimentpublications experimentpublications[]
+}
+
+model samples {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moleculeid      String        @db.Uuid
+  identifier      String        @unique
+  description     Json?
+  preparationdate DateTime?     @db.Date
+  createdat       DateTime      @default(now()) @db.Timestamptz(6)
+  updatedat       DateTime      @default(now()) @db.Timestamptz(6)
+  experiments     experiments[]
+  molecules       molecules     @relation(fields: [moleculeid], references: [id], onUpdate: NoAction)
+}
+
+model spectrumpoints {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  experimentid String      @db.Uuid
+  energyev     Float
+  rawabs       Float
+  processedabs Float?
+  i0           Float?
+  experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([experimentid, energyev])
+  @@index([experimentid, energyev], map: "idx_spectrum_energy")
+}
+
+model users {
+  id          String        @id
+  clerkid     String        @unique
+  name        String
+  email       String        @unique
+  imageurl    String?
+  orcid       String?       @unique(map: "idx_user_orcid")
+  role        String        @default("contributor")
+  experiments experiments[]
+}
+
+model vendors {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String        @unique
+  url         String?
+  instruments instruments[]
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 enum CoreLevel {
   K
   L1

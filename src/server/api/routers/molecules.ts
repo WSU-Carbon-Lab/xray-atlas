@@ -1,0 +1,561 @@
+import { z } from "zod";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+} from "~/server/api/trpc";
+import { TRPCError } from "@trpc/server";
+import { moleculeUploadSchema } from "~/app/upload/types";
+import { moleculeUploadDataToPrismaInput } from "~/app/upload/types";
+import {
+  uploadMoleculeImage,
+  deleteMoleculeImage,
+} from "~/server/storage";
+
+export const moleculesRouter = createTRPCRouter({
+  search: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1, "Query is required"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const searchTerm = input.query.trim();
+
+      // Use PostgreSQL full-text search with GIN indexes for optimal performance
+      // Searches across: iupacname + chemicalformula (idx_molecule_ft), synonyms (idx_moleculeSynonym_ft), and CAS number (exact)
+      const allMolecules = await ctx.db.$queryRaw<
+        Array<{
+          id: string;
+          iupacname: string;
+          inchi: string;
+          smiles: string;
+          chemicalformula: string;
+          casnumber: string | null;
+          pubchemcid: string | null;
+          imageurl: string | null;
+          createdat: Date;
+          updatedat: Date;
+          relevance: number;
+        }>
+      >`
+        WITH search_results AS (
+          -- Full-text search on molecules (uses idx_molecule_ft)
+          SELECT
+            m.*,
+            ts_rank(
+              to_tsvector('english', m.iupacname || ' ' || COALESCE(m.chemicalformula, '')),
+              plainto_tsquery('english', ${searchTerm})
+            ) as relevance
+          FROM "molecules" m
+          WHERE
+            to_tsvector('english', m.iupacname || ' ' || COALESCE(m.chemicalformula, ''))
+            @@ plainto_tsquery('english', ${searchTerm})
+          OR
+            -- Exact CAS number match (fast with unique index)
+            LOWER(COALESCE(m.casnumber, '')) = LOWER(${searchTerm})
+          OR
+            -- Full-text search on synonyms (uses idx_moleculeSynonym_ft)
+            EXISTS (
+              SELECT 1 FROM "moleculesynonyms" ms
+              WHERE ms."moleculeid" = m."id"
+              AND to_tsvector('english', ms.synonym)
+              @@ plainto_tsquery('english', ${searchTerm})
+            )
+        )
+        SELECT * FROM search_results
+        ORDER BY relevance DESC, iupacname ASC
+        LIMIT 10
+      `;
+
+      if (allMolecules.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No molecules found in database",
+        });
+      }
+
+      // Get the best match (highest relevance)
+      const molecule = allMolecules[0];
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No molecules found in database",
+        });
+      }
+
+      // Get synonyms for this molecule, prioritizing primary name
+      const synonyms = await ctx.db.moleculesynonyms.findMany({
+        where: { moleculeid: molecule.id },
+        select: { synonym: true, primary: true },
+        orderBy: [{ primary: "desc" }, { synonym: "asc" }], // Primary first, then alphabetical
+      });
+
+      // Find primary synonym or use first one, fallback to IUPAC name
+      const primarySynonym = synonyms.find((s) => s.primary);
+      const commonName = primarySynonym?.synonym ?? synonyms[0]?.synonym ?? molecule.iupacname;
+
+      return {
+        ok: true,
+        data: {
+          id: molecule.id,
+          iupacName: molecule.iupacname,
+          commonName,
+          synonyms: synonyms.map((s) => s.synonym),
+          inchi: molecule.inchi,
+          smiles: molecule.smiles,
+          chemicalFormula: molecule.chemicalformula,
+          casNumber: molecule.casnumber,
+          pubChemCid: molecule.pubchemcid,
+          imageUrl: molecule.imageurl ?? undefined,
+          source: "database",
+        },
+      };
+    }),
+
+  create: protectedProcedure
+    .input(moleculeUploadSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Check if molecule already exists by searching for one with matching IUPAC name
+      const existingMolecule = await ctx.db.molecules.findFirst({
+        where: { iupacname: input.iupacName },
+      });
+
+      if (existingMolecule) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "A molecule with this IUPAC name already exists",
+        });
+      }
+
+      // Convert to Prisma input format
+      const prismaInput = moleculeUploadDataToPrismaInput(input);
+
+      // Validate required fields
+      if (!prismaInput.iupacname?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "IUPAC name cannot be empty",
+        });
+      }
+      if (!prismaInput.inchi?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "InChI cannot be empty",
+        });
+      }
+      if (!prismaInput.smiles?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "SMILES cannot be empty",
+        });
+      }
+      if (!prismaInput.chemicalformula?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Chemical formula cannot be empty",
+        });
+      }
+      if (
+        !prismaInput.moleculesynonyms ||
+        !Array.isArray(prismaInput.moleculesynonyms.create) ||
+        prismaInput.moleculesynonyms.create.length === 0
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "At least one synonym (common name) is required",
+        });
+      }
+
+      // Create molecule
+      const molecule = await ctx.db.molecules.create({
+        data: prismaInput,
+      });
+
+      return {
+        success: true,
+        molecule: {
+          id: molecule.id,
+          iupacName: molecule.iupacname,
+        },
+        updated: false,
+      };
+    }),
+
+  uploadImage: protectedProcedure
+    .input(
+      z.object({
+        moleculeId: z.string().uuid(),
+        imageData: z.string(), // Base64-encoded image data (data:image/jpeg;base64,...)
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if molecule exists
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      // Parse base64 data URL
+      const base64Match = input.imageData.match(/^data:([^;]+);base64,(.+)$/);
+      if (!base64Match) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid image data format. Expected data URL with base64 encoding.",
+        });
+      }
+
+      const [, mimeType, base64Data] = base64Match;
+      const imageBuffer = Buffer.from(base64Data, "base64");
+
+      // Delete old image if it exists
+      if (molecule.imageurl) {
+        try {
+          await deleteMoleculeImage(molecule.imageurl);
+        } catch (error) {
+          // Log error but continue - deletion failure shouldn't block upload
+          console.error("Failed to delete old image:", error);
+        }
+      }
+
+      // Upload new image
+      const imageUrl = await uploadMoleculeImage(
+        input.moleculeId,
+        imageBuffer,
+        mimeType,
+      );
+
+      // Update molecule with image URL
+      const updatedMolecule = await ctx.db.molecules.update({
+        where: { id: input.moleculeId },
+        data: { imageurl: imageUrl },
+      });
+
+      return {
+        success: true,
+        imageUrl: updatedMolecule.imageurl,
+      };
+    }),
+
+  update: protectedProcedure
+    .input(
+      moleculeUploadSchema.extend({
+        moleculeId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { moleculeId, ...moleculeData } = input;
+
+      // Check if molecule exists
+      const existingMolecule = await ctx.db.molecules.findUnique({
+        where: { id: moleculeId },
+      });
+
+      if (!existingMolecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      // Convert to Prisma input format
+      const prismaInput = moleculeUploadDataToPrismaInput(moleculeData);
+
+      // Validate required fields
+      if (!prismaInput.iupacname?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "IUPAC name cannot be empty",
+        });
+      }
+      if (!prismaInput.inchi?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "InChI cannot be empty",
+        });
+      }
+      if (!prismaInput.smiles?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "SMILES cannot be empty",
+        });
+      }
+      if (!prismaInput.chemicalformula?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Chemical formula cannot be empty",
+        });
+      }
+      if (
+        !prismaInput.moleculesynonyms ||
+        !Array.isArray(prismaInput.moleculesynonyms.create) ||
+        prismaInput.moleculesynonyms.create.length === 0
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "At least one synonym (common name) is required",
+        });
+      }
+
+      // Delete old synonyms and update molecule
+      await ctx.db.moleculesynonyms.deleteMany({
+        where: { moleculeid: moleculeId },
+      });
+
+      const { moleculesynonyms, ...updateData } = prismaInput;
+      const molecule = await ctx.db.molecules.update({
+        where: { id: moleculeId },
+        data: {
+          ...updateData,
+          moleculesynonyms: moleculesynonyms,
+        },
+      });
+
+      return {
+        success: true,
+        molecule: {
+          id: molecule.id,
+          iupacName: molecule.iupacname,
+        },
+        updated: true,
+      };
+    }),
+
+  deleteImage: protectedProcedure
+    .input(z.object({ moleculeId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      // Check if molecule exists
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      if (!molecule.imageurl) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Molecule has no image to delete",
+        });
+      }
+
+      // Delete image from storage
+      await deleteMoleculeImage(molecule.imageurl);
+
+      // Update molecule to remove image URL
+      await ctx.db.molecules.update({
+        where: { id: input.moleculeId },
+        data: { imageurl: null },
+      });
+
+      return {
+        success: true,
+      };
+    }),
+
+  getById: publicProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.id },
+        include: {
+          moleculesynonyms: {
+            orderBy: [{ primary: "desc" }, { synonym: "asc" }], // Primary first
+          },
+          samples: true,
+        },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      return molecule;
+    }),
+
+  list: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(10),
+        cursor: z.string().uuid().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const molecules = await ctx.db.molecules.findMany({
+        take: input.limit + 1,
+        cursor: input.cursor ? { id: input.cursor } : undefined,
+        include: {
+          moleculesynonyms: {
+            orderBy: [{ primary: "desc" }, { synonym: "asc" }], // Primary first
+            take: 1,
+          },
+        },
+        orderBy: {
+          createdat: "desc",
+        },
+      });
+
+      let nextCursor: string | undefined = undefined;
+      if (molecules.length > input.limit) {
+        const nextItem = molecules.pop();
+        nextCursor = nextItem?.id;
+      }
+
+      return {
+        molecules,
+        nextCursor,
+      };
+    }),
+
+  searchAdvanced: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1, "Query is required"),
+        limit: z.number().min(1).max(50).default(10),
+        offset: z.number().min(0).default(0),
+        searchCasNumber: z.boolean().default(true),
+        searchPubChemCid: z.boolean().default(true),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const searchTerm = input.query.trim();
+
+      // Advanced full-text search with ranking, using all available indexes
+      const results = await ctx.db.$queryRaw<
+        Array<{
+          id: string;
+          iupacname: string;
+          inchi: string;
+          smiles: string;
+          chemicalformula: string;
+          casnumber: string | null;
+          pubchemcid: string | null;
+          imageurl: string | null;
+          createdat: Date;
+          updatedat: Date;
+          relevance: number;
+          matchtype: string;
+        }>
+      >`
+        WITH search_results AS (
+          SELECT
+            m.*,
+            GREATEST(
+              -- Full-text search on molecules (uses idx_molecule_ft)
+              ts_rank(
+                to_tsvector('english', m.iupacname || ' ' || COALESCE(m.chemicalformula, '')),
+                plainto_tsquery('english', ${searchTerm})
+              ),
+              -- Full-text search on synonyms (uses idx_moleculeSynonym_ft)
+              COALESCE((
+                SELECT MAX(ts_rank(
+                  to_tsvector('english', ms.synonym),
+                  plainto_tsquery('english', ${searchTerm})
+                ))
+                FROM "moleculesynonyms" ms
+                WHERE ms."moleculeid" = m."id"
+                AND to_tsvector('english', ms.synonym) @@ plainto_tsquery('english', ${searchTerm})
+              ), 0)
+            ) as relevance,
+            CASE
+              WHEN LOWER(COALESCE(m.casnumber, '')) = LOWER(${searchTerm}) THEN 'cas_exact'
+              WHEN ${input.searchPubChemCid} AND LOWER(COALESCE(m.pubchemcid, '')) = LOWER(${searchTerm}) THEN 'pubchem_exact'
+              WHEN to_tsvector('english', m.iupacname || ' ' || COALESCE(m.chemicalformula, ''))
+                   @@ plainto_tsquery('english', ${searchTerm}) THEN 'molecule_fts'
+              ELSE 'synonym_fts'
+            END as matchtype
+          FROM "molecules" m
+          WHERE
+            -- Full-text search on molecules
+            to_tsvector('english', m.iupacname || ' ' || COALESCE(m.chemicalformula, ''))
+            @@ plainto_tsquery('english', ${searchTerm})
+            OR
+            -- Full-text search on synonyms
+            EXISTS (
+              SELECT 1 FROM "moleculesynonyms" ms
+              WHERE ms."moleculeid" = m."id"
+              AND to_tsvector('english', ms.synonym)
+              @@ plainto_tsquery('english', ${searchTerm})
+            )
+            OR
+            -- CAS number exact match (if enabled)
+            (${input.searchCasNumber} AND LOWER(COALESCE(m.casnumber, '')) = LOWER(${searchTerm}))
+            OR
+            -- PubChem CID exact match (if enabled)
+            (${input.searchPubChemCid} AND LOWER(COALESCE(m.pubchemcid, '')) = LOWER(${searchTerm}))
+        )
+        SELECT * FROM search_results
+        ORDER BY
+          CASE matchtype
+            WHEN 'cas_exact' THEN 1
+            WHEN 'pubchem_exact' THEN 2
+            WHEN 'molecule_fts' THEN 3
+            ELSE 4
+          END,
+          relevance DESC,
+          iupacname ASC
+        LIMIT ${input.limit}
+        OFFSET ${input.offset}
+      `;
+
+      // Get synonyms for all results in batch, prioritizing primary names
+      const moleculeIds = results.map((r) => r.id);
+      const allSynonyms = await ctx.db.moleculesynonyms.findMany({
+        where: { moleculeid: { in: moleculeIds } },
+        select: { moleculeid: true, synonym: true, primary: true },
+        orderBy: [{ primary: "desc" }, { synonym: "asc" }], // Primary first, then alphabetical
+      });
+
+      // Group synonyms by molecule ID, keeping primary separate
+      const synonymsByMolecule = allSynonyms.reduce(
+        (acc, syn) => {
+          if (!acc[syn.moleculeid]) {
+            acc[syn.moleculeid] = { primary: null as string | null, all: [] };
+          }
+          if (syn.primary && !acc[syn.moleculeid]!.primary) {
+            acc[syn.moleculeid]!.primary = syn.synonym;
+          }
+          acc[syn.moleculeid]!.all.push(syn.synonym);
+          return acc;
+        },
+        {} as Record<string, { primary: string | null; all: string[] }>,
+      );
+
+      return {
+        results: results.map((molecule) => {
+          const synData = synonymsByMolecule[molecule.id] ?? { primary: null, all: [] };
+          const commonName = synData.primary ?? synData.all[0] ?? molecule.iupacname;
+
+          return {
+            id: molecule.id,
+            iupacName: molecule.iupacname,
+            commonName,
+            synonyms: synData.all,
+            inchi: molecule.inchi,
+            smiles: molecule.smiles,
+            chemicalFormula: molecule.chemicalformula,
+            casNumber: molecule.casnumber,
+            pubChemCid: molecule.pubchemcid,
+            imageUrl: molecule.imageurl ?? undefined,
+            relevance: molecule.relevance,
+            matchType: molecule.matchtype,
+          };
+        }),
+        total: results.length,
+        hasMore: results.length === input.limit,
+      };
+    }),
+});

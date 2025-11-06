@@ -1,4 +1,4 @@
-import type { Molecule, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 /**
@@ -36,27 +36,36 @@ export const moleculeUploadSchema = z.object({
  */
 export function moleculeUploadDataToPrismaInput(
   data: MoleculeUploadData,
-): Omit<Prisma.MoleculeCreateInput, "id" | "createdAt" | "updatedAt"> {
-  // Process synonyms: remove duplicates and exclude common name
-  const uniqueSynonyms = Array.from(
-    new Set(data.synonyms.filter((s) => s.trim().length > 0)),
-  ).filter((synonym) => synonym !== data.commonName);
+): Omit<Prisma.moleculesCreateInput, "id" | "createdat" | "updatedat"> {
+  // Process synonyms: remove duplicates and include common name
+  // The commonName is the primary name to display
+  const allSynonyms = [
+    data.commonName.trim(),
+    ...data.synonyms.filter((s) => s.trim().length > 0),
+  ];
+  const uniqueSynonyms = Array.from(new Set(allSynonyms));
+  const commonNameTrimmed = data.commonName.trim();
 
-  // Process chemical formula: trim whitespace (now a single string, not an array)
+  // Process chemical formula: trim whitespace
   const chemicalFormula = data.chemicalFormula.trim();
 
-  // Return input - note: Prisma types may still show array until client is regenerated
-  // The actual database schema expects a string
+  // Return input matching the schema
+  // The commonName is marked as primary (true), others as false
   return {
-    iupacName: data.iupacName.trim(),
-    commonName: [data.commonName.trim(), ...uniqueSynonyms],
+    iupacname: data.iupacName.trim(),
     inchi: data.inchi.trim(),
     smiles: data.smiles.trim(),
-    chemicalFormula: chemicalFormula as any, // Type assertion needed until Prisma client is regenerated
-    casNumber: data.casNumber?.trim() ?? null,
-    pubChemCid: data.pubchemCid?.trim() ?? null,
+    chemicalformula: chemicalFormula,
+    casnumber: data.casNumber?.trim() ?? null,
+    pubchemcid: data.pubchemCid?.trim() ?? null,
+    moleculesynonyms: {
+      create: uniqueSynonyms.map((synonym) => ({
+        synonym: synonym.trim(),
+        primary: synonym.trim() === commonNameTrimmed, // Mark commonName as primary
+      })),
+    },
   } satisfies Omit<
-    Prisma.MoleculeCreateInput,
-    "id" | "createdAt" | "updatedAt"
+    Prisma.moleculesCreateInput,
+    "id" | "createdat" | "updatedat"
   >;
 }

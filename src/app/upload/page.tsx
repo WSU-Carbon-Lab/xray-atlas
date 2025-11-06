@@ -10,6 +10,7 @@ import {
   MoleculeDisplay,
   type DisplayMolecule,
 } from "~/app/components/MoleculeDisplay";
+import { trpc } from "~/trpc/client";
 import {
   DocumentArrowUpIcon,
   PhotoIcon,
@@ -50,6 +51,12 @@ export default function UploadPage() {
   const [editingMoleculeId, setEditingMoleculeId] = useState<string | null>(
     null,
   );
+
+  // tRPC hooks
+  const utils = trpc.useUtils();
+  const createMolecule = trpc.molecules.create.useMutation();
+  const updateMolecule = trpc.molecules.update.useMutation();
+  const uploadImage = trpc.molecules.uploadImage.useMutation();
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -154,34 +161,26 @@ export default function UploadPage() {
       // Only search database if we have a common name (not CID-only searches)
       if (hasCommonName) {
         try {
-          const dbSearchResponse = await fetch("/api/molecules/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              query: formData.commonName.trim(),
-            }),
+          const dbSearchData = await utils.molecules.search.fetch({
+            query: formData.commonName.trim(),
           });
 
-          const dbSearchData = await dbSearchResponse.json();
-
-          if (dbSearchResponse.ok && dbSearchData.ok && dbSearchData.data) {
+          if (dbSearchData.ok && dbSearchData.data) {
             // Found in database - populate form
             const result = dbSearchData.data;
 
-            // Handle commonName array - use first one for form field, rest go to synonyms
-            const commonNameArray = Array.isArray(result.commonName)
+            // Handle commonName - tRPC returns it as a string (first synonym or iupacname)
+            const commonNameValue = typeof result.commonName === "string"
               ? result.commonName
-              : [];
-            const commonNameValue =
-              commonNameArray.length > 0 ? commonNameArray[0] : "";
+              : (result.commonName ?? "");
 
             // Handle chemicalFormula - may be string or array
             const chemicalFormulaValue = Array.isArray(result.chemicalFormula)
               ? result.chemicalFormula.join(", ")
               : (result.chemicalFormula ?? "");
 
-            // Synonyms are all commonName entries except the first one
-            const allSynonyms = result.synonyms ?? commonNameArray.slice(1);
+            // Synonyms array is already provided by tRPC
+            const allSynonyms = Array.isArray(result.synonyms) ? result.synonyms : [];
 
             setFormData({
               iupacName: result.iupacName ?? "",
@@ -197,15 +196,26 @@ export default function UploadPage() {
             // Store the molecule ID for update operation
             setEditingMoleculeId(result.id ?? null);
 
+            // Set image preview if available from database
+            if (result.imageUrl) {
+              setImagePreview(result.imageUrl);
+              // Note: We set the preview URL, but don't set imageFile since it's already uploaded
+              // The user can still upload a new image if they want to replace it
+            }
+
             setSearchSuccess(
               `Found molecule in database: ${result.iupacName}. You can now edit and update it.`,
             );
             setIsSearching(false);
             return; // Stop here - don't search PubChem
           }
-        } catch (dbError) {
-          console.error("Database search error:", dbError);
+        } catch (dbError: any) {
           // Continue to PubChem search if database search fails
+          // tRPC throws errors, so we check if it's a NOT_FOUND error
+          if (dbError?.data?.code !== "NOT_FOUND") {
+            // Only log if it's not a "not found" error
+            console.error("Database search error:", dbError);
+          }
         }
       }
 
@@ -216,18 +226,12 @@ export default function UploadPage() {
         ? (formData.pubchemCid ?? "").trim()
         : formData.commonName.trim();
 
-      const response = await fetch("/api/pubchem/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: query,
-          type: searchType,
-        }),
+      const data = await utils.external.searchPubchem.fetch({
+        query: query,
+        type: searchType as "name" | "cid" | "smiles",
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.ok) {
+      if (!data.ok) {
         throw new Error("Molecule not found in PubChem");
       }
 
@@ -290,19 +294,11 @@ export default function UploadPage() {
           // Try InChI first if available
           if (inchiFromResult) {
             try {
-              const casResponse = await fetch("/api/cas/search", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ inchi: inchiFromResult }),
+              const casData = await utils.external.searchCas.fetch({
+                inchi: inchiFromResult,
               });
 
-              const casData = await casResponse.json();
-
-              if (
-                casResponse.ok &&
-                casData.ok &&
-                casData.data?.casRegistryNumber
-              ) {
+              if (casData.ok && casData.data?.casRegistryNumber) {
                 setFormData((prev) => ({
                   ...prev,
                   casNumber: casData.data.casRegistryNumber,
@@ -336,19 +332,11 @@ export default function UploadPage() {
 
             for (const synonym of uniqueNames) {
               try {
-                const casResponse = await fetch("/api/cas/search", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ synonym: synonym }),
+                const casData = await utils.external.searchCas.fetch({
+                  synonym: synonym,
                 });
 
-                const casData = await casResponse.json();
-
-                if (
-                  casResponse.ok &&
-                  casData.ok &&
-                  casData.data?.casRegistryNumber
-                ) {
+                if (casData.ok && casData.data?.casRegistryNumber) {
                   setFormData((prev) => ({
                     ...prev,
                     casNumber: casData.data.casRegistryNumber,
@@ -401,19 +389,11 @@ export default function UploadPage() {
         // Try InChI first if available
         if (hasInChI) {
           try {
-            const casResponse = await fetch("/api/cas/search", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ inchi: formData.inchi }),
+            const casData = await utils.external.searchCas.fetch({
+              inchi: formData.inchi,
             });
 
-            const casData = await casResponse.json();
-
-            if (
-              casResponse.ok &&
-              casData.ok &&
-              casData.data?.casRegistryNumber
-            ) {
+            if (casData.ok && casData.data?.casRegistryNumber) {
               setFormData((prev) => ({
                 ...prev,
                 casNumber: casData.data.casRegistryNumber,
@@ -444,19 +424,11 @@ export default function UploadPage() {
 
           for (const synonym of uniqueNames) {
             try {
-              const casResponse = await fetch("/api/cas/search", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ synonym: synonym }),
+              const casData = await utils.external.searchCas.fetch({
+                synonym: synonym,
               });
 
-              const casData = await casResponse.json();
-
-              if (
-                casResponse.ok &&
-                casData.ok &&
-                casData.data?.casRegistryNumber
-              ) {
+              if (casData.ok && casData.data?.casRegistryNumber) {
                 setFormData((prev) => ({
                   ...prev,
                   casNumber: casData.data.casRegistryNumber,
@@ -503,107 +475,52 @@ export default function UploadPage() {
     setSubmitStatus({ type: null, message: "" });
 
     try {
-      // Prepare FormData to send both molecule data and image file
-      const formDataToSend = new FormData();
+      let result;
 
-      // Add molecule data as form fields
-      formDataToSend.append("iupacName", formData.iupacName);
-      formDataToSend.append("commonName", formData.commonName);
-      formDataToSend.append(
-        "synonyms",
-        JSON.stringify(formData.synonyms.filter(Boolean)),
-      );
-      formDataToSend.append("inchi", formData.inchi);
-      formDataToSend.append("smiles", formData.smiles);
-      formDataToSend.append("chemicalFormula", formData.chemicalFormula);
-      if (formData.casNumber) {
-        formDataToSend.append("casNumber", formData.casNumber);
-      }
-      if (formData.pubchemCid) {
-        formDataToSend.append("pubchemCid", formData.pubchemCid);
-      }
-
-      // Include molecule ID if editing existing molecule
       if (editingMoleculeId) {
-        formDataToSend.append("moleculeId", editingMoleculeId);
-      }
-
-      // Add image file if provided
-      if (imageFile) {
-        formDataToSend.append("image", imageFile);
-      }
-
-      // Send FormData (multipart/form-data will be set automatically)
-      const response = await fetch("/api/molecules/upload", {
-        method: "POST",
-        body: formDataToSend,
-        credentials: "include",
-      });
-
-      // Get response text first to see what we're dealing with
-      const responseText = await response.text();
-      console.log("Raw response:", {
-        status: response.status,
-        statusText: response.statusText,
-        contentType: response.headers.get("content-type"),
-        textLength: responseText.length,
-        textPreview: responseText.slice(0, 200),
-      });
-
-      let result: any = {};
-      try {
-        if (responseText.trim()) {
-          result = JSON.parse(responseText);
-        } else {
-          console.warn("Response body is empty");
-          result = {};
-        }
-      } catch (jsonError) {
-        console.error("Failed to parse response as JSON:", jsonError);
-        console.error("Response text:", responseText);
-        throw new Error(
-          `Server returned invalid response (${response.status}): ${responseText.slice(0, 200)}`,
-        );
-      }
-
-      if (!response.ok) {
-        // Extract error message from various possible response formats
-        let errorMessage =
-          result?.error ??
-          `Server error: ${response.status} ${response.statusText}`;
-
-        // Add details if available
-        if (result?.details) {
-          if (typeof result.details === "string") {
-            errorMessage += ` - ${result.details}`;
-          } else if (Array.isArray(result.details)) {
-            const detailMessages = result.details
-              .map((d: { message?: string }) => d.message ?? String(d))
-              .filter(Boolean)
-              .join(", ");
-            if (detailMessages) {
-              errorMessage += ` - ${detailMessages}`;
-            }
-          }
-        }
-
-        // If we still don't have a good error message, use the response text
-        if (
-          errorMessage ===
-            `Server error: ${response.status} ${response.statusText}` &&
-          responseText.trim()
-        ) {
-          errorMessage = `Server error (${response.status}): ${responseText.slice(0, 200)}`;
-        }
-
-        console.error("Upload failed:", {
-          status: response.status,
-          statusText: response.statusText,
-          result,
-          responseText,
-          errorMessage,
+        // Update existing molecule
+        result = await updateMolecule.mutateAsync({
+          moleculeId: editingMoleculeId,
+          ...formData,
         });
-        throw new Error(errorMessage);
+      } else {
+        // Create new molecule
+        result = await createMolecule.mutateAsync(formData);
+      }
+
+      // Handle image upload if provided
+      const moleculeId = editingMoleculeId ?? result.molecule?.id;
+      if (imageFile && moleculeId) {
+        try {
+          // Convert File to base64 data URL
+          const reader = new FileReader();
+          const base64Data = await new Promise<string>((resolve, reject) => {
+            reader.onloadend = () => {
+              if (typeof reader.result === "string") {
+                resolve(reader.result);
+              } else {
+                reject(new Error("Failed to read image file"));
+              }
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(imageFile);
+          });
+
+          // Upload image to Supabase Storage
+          await uploadImage.mutateAsync({
+            moleculeId,
+            imageData: base64Data,
+          });
+        } catch (imageError: any) {
+          console.error("Error uploading image:", imageError);
+          // Image upload failure shouldn't prevent form submission success
+          // but we should inform the user
+          setSubmitStatus({
+            type: "success",
+            message: `Molecule "${result.molecule?.iupacName ?? formData.iupacName}" ${result.updated ? "updated" : "uploaded"} successfully, but image upload failed: ${imageError?.message ?? "Unknown error"}`,
+          });
+          return; // Return early to prevent clearing the form
+        }
       }
 
       const isUpdate = result.updated === true;
@@ -627,14 +544,13 @@ export default function UploadPage() {
       setImageFile(null);
       setImagePreview("");
       setEditingMoleculeId(null); // Clear editing state after successful submit
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error during molecule upload:", error);
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : typeof error === "string"
-            ? error
-            : "Failed to upload molecule. Please check the console for details.";
+        error?.message ?? error?.data?.message ??
+        (typeof error === "string"
+          ? error
+          : "Failed to upload molecule. Please check the console for details.");
 
       setSubmitStatus({
         type: "error",

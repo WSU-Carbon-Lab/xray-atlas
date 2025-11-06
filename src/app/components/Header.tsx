@@ -57,6 +57,15 @@ export default function Header() {
         </NavbarItem>
         <NavbarItem className="hidden sm:flex">
           <Link
+            href="/browse"
+            className="flex items-center text-sm text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
+          >
+            <Search className="mr-2 h-4 w-4" />
+            Browse
+          </Link>
+        </NavbarItem>
+        <NavbarItem className="hidden sm:flex">
+          <Link
             href="/upload"
             className="flex items-center text-sm text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
           >

@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   const eventType = evt.type;
 
   if (eventType === "user.created" || eventType === "user.updated") {
-    const { id, first_name, last_name, image_url } = evt.data;
+    const { id, first_name, last_name, image_url, username } = evt.data;
 
     // Construct name from first and last name
     const fullName = `${first_name ?? ""} ${last_name ?? ""}`.trim();
@@ -65,6 +65,7 @@ export async function POST(req: Request) {
       clerkId: id,
       name: fullName || "User",
       image: image_url,
+      orcid: username ?? undefined,
     };
 
     try {
