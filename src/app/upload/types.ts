@@ -44,7 +44,6 @@ export function moleculeUploadDataToPrismaInput(
     ...data.synonyms.filter((s) => s.trim().length > 0),
   ];
   const uniqueSynonyms = Array.from(new Set(allSynonyms));
-  const commonNameTrimmed = data.commonName.trim();
 
   // Process chemical formula: trim whitespace
   const chemicalFormula = data.chemicalFormula.trim();
@@ -59,9 +58,9 @@ export function moleculeUploadDataToPrismaInput(
     casnumber: data.casNumber?.trim() ?? null,
     pubchemcid: data.pubchemCid?.trim() ?? null,
     moleculesynonyms: {
-      create: uniqueSynonyms.map((synonym) => ({
+      create: uniqueSynonyms.map((synonym, index) => ({
         synonym: synonym.trim(),
-        primary: synonym.trim() === commonNameTrimmed, // Mark commonName as primary
+        order: index,
       })),
     },
   } satisfies Omit<

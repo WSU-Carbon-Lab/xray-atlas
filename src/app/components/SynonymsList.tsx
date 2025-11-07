@@ -21,6 +21,7 @@ interface SynonymsListProps {
 /**
  * Reusable component for displaying synonyms with badges and a popover modal
  * Shows up to maxDisplay synonyms as badges, then a "+X" button that opens a popover with all synonyms
+ * Constrains all synonyms and the "+X" button to a single line, truncating the last synonym if needed
  */
 export const SynonymsList = ({
   synonyms,
@@ -52,28 +53,32 @@ export const SynonymsList = ({
   };
 
   const badgeClass = badgeClassName || getBadgeStyles();
-  const shouldTruncate = badgeClassName.includes("max-w-");
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+    <div className={`flex flex-nowrap items-center gap-2 overflow-hidden ${className}`}>
       {displayedSynonyms.map((name, idx) => {
-        if (shouldTruncate) {
-          return (
-            <span key={`${name}-${idx}`} className={badgeClass}>
-              <span className="truncate whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                {name}
-              </span>
-            </span>
-          );
-        }
+        // Allow the last synonym to truncate if needed to keep everything on one line
+        const isLast = idx === displayedSynonyms.length - 1;
+        const shouldTruncate = isLast;
+
         return (
-          <span key={`${name}-${idx}`} className={badgeClass}>
-            {name}
+          <span
+            key={`${name}-${idx}`}
+            className={`${badgeClass} ${shouldTruncate ? "min-w-0 flex-1 overflow-hidden" : "shrink-0"}`}
+            title={shouldTruncate && name.length > 20 ? name : undefined}
+          >
+            {shouldTruncate ? (
+              <span className="block truncate">{name}</span>
+            ) : (
+              name
+            )}
           </span>
         );
       })}
       {remainingCount > 0 && (
-        <SynonymsPopover synonyms={popoverSynonyms} displayedCount={displayedSynonyms.length} />
+        <div className="shrink-0">
+          <SynonymsPopover synonyms={popoverSynonyms} displayedCount={displayedSynonyms.length} />
+        </div>
       )}
     </div>
   );

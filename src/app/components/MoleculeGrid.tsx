@@ -72,12 +72,12 @@ export function MoleculeGrid({
     if (!molecule) return null;
 
     const allSynonyms = molecule.moleculesynonyms.map(
-      (s: { synonym: string; primary?: boolean }) => s.synonym,
+      (s: { synonym: string }) => s.synonym,
     );
 
     // Find primary synonym for display, fallback to first synonym
     const primarySynonym = molecule.moleculesynonyms.find(
-      (s: { primary?: boolean }) => s.primary,
+      (s: { order?: number }) => s.order === 0,
     );
     const displayName = primarySynonym?.synonym ?? allSynonyms[0] ?? molecule.iupacname;
 

@@ -206,7 +206,9 @@ function UserMoleculesList({ userId }: { userId: string }) {
   // Transform molecules to DisplayMolecule format
   const displayMolecules = molecules.map((molecule) => {
     const synonyms = molecule.moleculesynonyms.map((s) => s.synonym);
-    const primarySynonym = molecule.moleculesynonyms.find((s) => s.primary);
+    const primarySynonym = molecule.moleculesynonyms.find(
+      (s) => s.order === 0,
+    );
     const displayName = primarySynonym?.synonym ?? synonyms[0] ?? molecule.iupacname;
 
     return {

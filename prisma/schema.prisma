@@ -53,6 +53,7 @@ model experiments {
   edgeid                 String                   @db.Uuid
   polarizationid         String                   @db.Uuid
   calibrationid          String?                  @db.Uuid
+  experimenttype         ExperimentType?
   isstandard             Boolean                  @default(false)
   referencestandard      String?
   measurementdate        DateTime                 @db.Date
@@ -74,23 +75,22 @@ model experiments {
 }
 
 model facilities {
-  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String        @unique
-  city        String?
-  country     String?
-  instruments instruments[]
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String        @unique
+  city         String?
+  country      String?
+  facilitytype FacilityType
+  instruments  instruments[]
 }
 
 model instruments {
   id          String        @id
   name        String
-  vendorid    String?       @db.Uuid
   facilityid  String        @db.Uuid
   link        String?
   status      String        @default("active")
   experiments experiments[]
   facilities  facilities    @relation(fields: [facilityid], references: [id], onUpdate: NoAction)
-  vendors     vendors?      @relation(fields: [vendorid], references: [id], onUpdate: NoAction)
 }
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
@@ -118,10 +118,11 @@ model moleculesynonyms {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   moleculeid String    @db.Uuid
   synonym    String
-  primary    Boolean   @default(false)
+  order      Int       @default(0)
   molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([moleculeid, synonym])
+  @@index([moleculeid, order])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -146,15 +147,21 @@ model publications {
 }
 
 model samples {
-  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  moleculeid      String        @db.Uuid
-  identifier      String        @unique
-  description     Json?
-  preparationdate DateTime?     @db.Date
-  createdat       DateTime      @default(now()) @db.Timestamptz(6)
-  updatedat       DateTime      @default(now()) @db.Timestamptz(6)
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moleculeid      String         @db.Uuid
+  identifier      String         @unique
+  processmethod   ProcessMethod?
+  substrate       String?
+  solvent         String?
+  thickness       Float?
+  molecularweight Float?
+  preparationdate DateTime?      @db.Date
+  vendorid        String?        @db.Uuid
+  createdat       DateTime       @default(now()) @db.Timestamptz(6)
+  updatedat       DateTime       @default(now()) @db.Timestamptz(6)
   experiments     experiments[]
-  molecules       molecules     @relation(fields: [moleculeid], references: [id], onUpdate: NoAction)
+  molecules       molecules      @relation(fields: [moleculeid], references: [id], onUpdate: NoAction)
+  vendors         vendors?       @relation(fields: [vendorid], references: [id], onUpdate: NoAction)
 }
 
 model spectrumpoints {
@@ -171,16 +178,18 @@ model spectrumpoints {
 }
 
 model users {
-  id              String            @id
-  name            String
-  email           String            @unique
-  imageurl        String?
-  orcid           String?           @unique(map: "idx_user_orcid")
-  role            String            @default("contributor")
-  clerkid         String            @unique
-  experiments     experiments[]
-  molecules       molecules[]
-  moleculeupvotes moleculeupvotes[]
+  id                            String            @id
+  name                          String
+  email                         String            @unique
+  imageurl                      String?
+  orcid                         String?           @unique(map: "idx_user_orcid")
+  role                          String            @default("contributor")
+  clerkid                       String            @unique
+  contributionAgreementAccepted Boolean           @default(false)
+  contributionAgreementDate     DateTime?         @db.Timestamptz(6)
+  experiments                   experiments[]
+  molecules                     molecules[]
+  moleculeupvotes               moleculeupvotes[]
 }
 
 model moleculeupvotes {
@@ -197,10 +206,10 @@ model moleculeupvotes {
 }
 
 model vendors {
-  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String        @unique
-  url         String?
-  instruments instruments[]
+  id      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name    String    @unique
+  url     String?
+  samples samples[]
 }
 
 /// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -212,4 +221,22 @@ enum CoreLevel {
   M1
   M2
   M3
+}
+
+enum FacilityType {
+  SYNCHROTRON
+  FREE_ELECTRON_LASER
+  LAB_SOURCE
+}
+
+enum ExperimentType {
+  TOTAL_ELECTRON_YIELD
+  PARTIAL_ELECTRON_YIELD
+  FLUORESCENT_YIELD
+  TRANSMISSION
+}
+
+enum ProcessMethod {
+  DRY
+  SOLVENT
 }

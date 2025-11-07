@@ -73,10 +73,10 @@ export default function MoleculeDetailPage() {
   // Transform to DisplayMolecule format
   // Find primary synonym for display, fallback to first synonym or IUPAC name
   const synonyms = molecule.moleculesynonyms.map(
-    (s: { synonym: string; primary?: boolean }) => s.synonym,
+    (s: { synonym: string }) => s.synonym,
   );
   const primarySynonym = molecule.moleculesynonyms.find(
-    (s: { primary?: boolean }) => s.primary,
+    (s: { order?: number }) => s.order === 0,
   );
   const displayName = primarySynonym?.synonym ?? synonyms[0] ?? molecule.iupacname;
 

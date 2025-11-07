@@ -21,8 +21,9 @@ export const externalRouter = createTRPCRouter({
       z.object({
         inchi: z.string().optional(),
         synonym: z.string().optional(),
-      }).refine((data) => data.inchi || data.synonym, {
-        message: "Either InChI or synonym is required",
+        casNumber: z.string().optional(),
+      }).refine((data) => data.inchi || data.synonym || data.casNumber, {
+        message: "Either InChI, synonym, or CAS number is required",
       }),
     )
     .query(async ({ input }) => {
@@ -33,10 +34,17 @@ export const externalRouter = createTRPCRouter({
         });
       }
 
-      const { inchi, synonym } = input;
-      const searchQuery = inchi
-        ? encodeInChIForCas(inchi)
-        : encodeURIComponent(synonym!.trim());
+      const { inchi, synonym, casNumber } = input;
+      let searchQuery: string;
+
+      if (casNumber) {
+        // If CAS number is provided, search by it directly
+        searchQuery = encodeURIComponent(casNumber.trim());
+      } else if (inchi) {
+        searchQuery = encodeInChIForCas(inchi);
+      } else {
+        searchQuery = encodeURIComponent(synonym!.trim());
+      }
 
       try {
         const searchUrl = `https://commonchemistry.cas.org/api/search?q=${searchQuery}`;
@@ -84,10 +92,45 @@ export const externalRouter = createTRPCRouter({
           casRegistryNumber = String(searchData.rn);
         }
 
+        // Also get the molecule name from CAS if available
+        let moleculeName: string | null = null;
+        if (casRegistryNumber) {
+          try {
+            const detailUrl = `https://commonchemistry.cas.org/api/detail?cas_rn=${encodeURIComponent(casRegistryNumber)}`;
+            const detailResponse = await fetch(detailUrl, {
+              method: "GET",
+              headers: {
+                accept: "application/json",
+                "X-API-KEY": env.CAS_API_KEY,
+              },
+            });
+
+            if (detailResponse.ok) {
+              const detailData = await detailResponse.json();
+              // CAS API returns name in different possible fields
+              moleculeName =
+                detailData?.name ||
+                detailData?.name?.name ||
+                detailData?.molecule?.name ||
+                null;
+            }
+          } catch (error) {
+            console.warn("Could not fetch molecule name from CAS:", error);
+          }
+        }
+
+        // Also try to get name from search results if not found in detail
+        if (!moleculeName && searchData?.results?.[0]?.name) {
+          moleculeName = searchData.results[0].name;
+        } else if (!moleculeName && Array.isArray(searchData) && searchData[0]?.name) {
+          moleculeName = searchData[0].name;
+        }
+
         return {
           ok: true,
           data: {
             casRegistryNumber,
+            moleculeName,
           },
         };
       } catch (error) {

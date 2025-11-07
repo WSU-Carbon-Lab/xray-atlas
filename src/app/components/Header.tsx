@@ -66,11 +66,11 @@ export default function Header() {
         </NavbarItem>
         <NavbarItem className="hidden sm:flex">
           <Link
-            href="/upload"
+            href="/contribute"
             className="flex items-center text-sm text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
           >
             <Upload className="mr-2 h-4 w-4" />
-            Upload
+            Contribute
           </Link>
         </NavbarItem>
         <NavbarItem className="flex">

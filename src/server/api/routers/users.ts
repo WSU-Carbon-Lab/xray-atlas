@@ -79,4 +79,39 @@ export const usersRouter = createTRPCRouter({
 
       return user;
     }),
+
+  acceptContributionAgreement: protectedProcedure.mutation(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new Error("User not authenticated");
+    }
+
+    const user = await ctx.db.users.update({
+      where: { clerkid: ctx.userId },
+      data: {
+        contributionAgreementAccepted: true,
+        contributionAgreementDate: new Date(),
+      },
+    });
+
+    return { success: true, user };
+  }),
+
+  getContributionAgreementStatus: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new Error("User not authenticated");
+    }
+
+    const user = await ctx.db.users.findUnique({
+      where: { clerkid: ctx.userId },
+      select: {
+        contributionAgreementAccepted: true,
+        contributionAgreementDate: true,
+      },
+    });
+
+    return {
+      accepted: user?.contributionAgreementAccepted ?? false,
+      date: user?.contributionAgreementDate ?? null,
+    };
+  }),
 });

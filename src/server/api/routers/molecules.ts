@@ -81,15 +81,15 @@ export const moleculesRouter = createTRPCRouter({
         });
       }
 
-      // Get synonyms for this molecule, prioritizing primary name
+      // Get synonyms for this molecule, prioritizing order=0 (primary name)
       const synonyms = await ctx.db.moleculesynonyms.findMany({
         where: { moleculeid: molecule.id },
-        select: { synonym: true, primary: true },
-        orderBy: [{ primary: "desc" }, { synonym: "asc" }], // Primary first, then alphabetical
+        select: { synonym: true, order: true },
+        orderBy: [{ order: "asc" }, { synonym: "asc" }], // Order=0 first, then alphabetical
       });
 
-      // Find primary synonym or use first one, fallback to IUPAC name
-      const primarySynonym = synonyms.find((s) => s.primary);
+      // Find primary synonym (order=0) or use first one, fallback to IUPAC name
+      const primarySynonym = synonyms.find((s) => s.order === 0);
       const commonName =
         primarySynonym?.synonym ?? synonyms[0]?.synonym ?? molecule.iupacname;
 
@@ -290,7 +290,7 @@ export const moleculesRouter = createTRPCRouter({
         where: { id: input.id },
         include: {
           moleculesynonyms: {
-            orderBy: [{ primary: "desc" }, { synonym: "asc" }], // Primary first
+            orderBy: [{ order: "asc" }, { synonym: "asc" }], // Order=0 first
           },
           samples: true,
           users: {
@@ -356,23 +356,23 @@ export const moleculesRouter = createTRPCRouter({
         cursor: input.cursor ? { id: input.cursor } : undefined,
         include: {
           moleculesynonyms: {
-            orderBy: [{ primary: "desc" }], // Primary first - we'll sort by length after
+            orderBy: [{ order: "asc" }], // Order=0 first - we'll sort by length after
           },
         },
         orderBy,
       });
 
-      // Sort synonyms by length (shortest first) within each molecule, keeping primary first
+      // Sort synonyms by length (shortest first) within each molecule, keeping order=0 first
       const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
         ...molecule,
         moleculesynonyms: [
-          // Primary synonyms first
+          // Order=0 synonyms first
           ...molecule.moleculesynonyms
-            .filter((syn) => syn.primary)
+            .filter((syn) => syn.order === 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
-          // Then non-primary synonyms, sorted by length
+          // Then other synonyms, sorted by length
           ...molecule.moleculesynonyms
-            .filter((syn) => !syn.primary)
+            .filter((syn) => syn.order !== 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
         ],
       }));
@@ -480,21 +480,21 @@ export const moleculesRouter = createTRPCRouter({
         OFFSET ${input.offset}
       `;
 
-      // Get synonyms for all results in batch, prioritizing primary names
+      // Get synonyms for all results in batch, prioritizing order=0 names
       const moleculeIds = results.map((r) => r.id);
       const allSynonyms = await ctx.db.moleculesynonyms.findMany({
         where: { moleculeid: { in: moleculeIds } },
-        select: { moleculeid: true, synonym: true, primary: true },
-        orderBy: [{ primary: "desc" }, { synonym: "asc" }], // Primary first, then alphabetical
+        select: { moleculeid: true, synonym: true, order: true },
+        orderBy: [{ order: "asc" }, { synonym: "asc" }], // Order=0 first, then alphabetical
       });
 
-      // Group synonyms by molecule ID, keeping primary separate
+      // Group synonyms by molecule ID, keeping order=0 separate
       const synonymsByMolecule = allSynonyms.reduce(
         (acc, syn) => {
           if (!acc[syn.moleculeid]) {
             acc[syn.moleculeid] = { primary: null as string | null, all: [] };
           }
-          if (syn.primary && !acc[syn.moleculeid]!.primary) {
+          if (syn.order === 0 && !acc[syn.moleculeid]!.primary) {
             acc[syn.moleculeid]!.primary = syn.synonym;
           }
           acc[syn.moleculeid]!.all.push(syn.synonym);
@@ -543,7 +543,7 @@ export const moleculesRouter = createTRPCRouter({
         take: input.limit,
         include: {
           moleculesynonyms: {
-            orderBy: [{ primary: "desc" }],
+            orderBy: [{ order: "asc" }],
           },
           users: {
             select: {
@@ -567,10 +567,10 @@ export const moleculesRouter = createTRPCRouter({
         ...molecule,
         moleculesynonyms: [
           ...molecule.moleculesynonyms
-            .filter((syn) => syn.primary)
+            .filter((syn) => syn.order === 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
           ...molecule.moleculesynonyms
-            .filter((syn) => !syn.primary)
+            .filter((syn) => syn.order !== 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
         ],
         upvoteCount: molecule._count.moleculeupvotes,
@@ -604,7 +604,7 @@ export const moleculesRouter = createTRPCRouter({
           skip: input.offset,
           include: {
             moleculesynonyms: {
-              orderBy: [{ primary: "desc" }],
+              orderBy: [{ order: "asc" }],
             },
             users: {
               select: {
@@ -630,10 +630,10 @@ export const moleculesRouter = createTRPCRouter({
         ...molecule,
         moleculesynonyms: [
           ...molecule.moleculesynonyms
-            .filter((syn) => syn.primary)
+            .filter((syn) => syn.order === 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
           ...molecule.moleculesynonyms
-            .filter((syn) => !syn.primary)
+            .filter((syn) => syn.order !== 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
         ],
         upvoteCount: molecule._count.moleculeupvotes,
@@ -664,7 +664,7 @@ export const moleculesRouter = createTRPCRouter({
         cursor: input.cursor ? { id: input.cursor } : undefined,
         include: {
           moleculesynonyms: {
-            orderBy: [{ primary: "desc" }],
+            orderBy: [{ order: "asc" }],
           },
         },
         orderBy: {
@@ -677,10 +677,10 @@ export const moleculesRouter = createTRPCRouter({
         ...molecule,
         moleculesynonyms: [
           ...molecule.moleculesynonyms
-            .filter((syn) => syn.primary)
+            .filter((syn) => syn.order === 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
           ...molecule.moleculesynonyms
-            .filter((syn) => !syn.primary)
+            .filter((syn) => syn.order !== 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
         ],
       }));
@@ -812,7 +812,7 @@ export const moleculesRouter = createTRPCRouter({
         pubchemcid?: string | null;
         moleculesynonyms?: {
           deleteMany: Record<string, never>;
-          create: Array<{ synonym: string; primary: boolean }>;
+          create: Array<{ synonym: string; order: number }>;
         };
       } = {};
 
@@ -834,7 +834,7 @@ export const moleculesRouter = createTRPCRouter({
           deleteMany: {},
           create: updateData.commonNames.map((synonym, idx) => ({
             synonym: synonym.trim(),
-            primary: idx === 0 || synonym.trim() === commonNameTrimmed,
+            order: idx === 0 || synonym.trim() === commonNameTrimmed ? 0 : idx,
           })),
         };
       }
@@ -847,7 +847,7 @@ export const moleculesRouter = createTRPCRouter({
         data: prismaUpdateData,
         include: {
           moleculesynonyms: {
-            orderBy: [{ primary: "desc" }, { synonym: "asc" }],
+            orderBy: [{ order: "asc" }, { synonym: "asc" }],
           },
         },
       });

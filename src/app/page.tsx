@@ -43,7 +43,7 @@ function TopUpvotedMolecules() {
   // Transform to DisplayMolecule format
   const displayMolecules = data.molecules.map((molecule) => {
     const synonyms = molecule.moleculesynonyms.map((s) => s.synonym);
-    const primarySynonym = molecule.moleculesynonyms.find((s) => s.primary);
+    const primarySynonym = molecule.moleculesynonyms.find((s) => s.order === 0);
     const displayName = primarySynonym?.synonym ?? synonyms[0] ?? molecule.iupacname;
 
     return {
@@ -106,10 +106,10 @@ export default function HomePage() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link href="/upload">
+              <Link href="/contribute">
                 <Button variant="solid" className="w-full sm:w-auto">
                   <Upload className="mr-2 h-4 w-4" />
-                  Upload Data
+                  Contribute
                 </Button>
               </Link>
               <Link href="/browse">
