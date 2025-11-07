@@ -121,7 +121,7 @@ export function MoleculeGrid({
 
   return (
     <div className={className}>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {molecules.map((molecule) => {
           const displayMolecule = transformMolecule(molecule);
           if (!displayMolecule) return null;
@@ -130,7 +130,7 @@ export function MoleculeGrid({
             <div
               key={molecule.id}
               onClick={() => router.push(`/molecules/${molecule.id}`)}
-              className="cursor-pointer transition-transform hover:scale-105"
+              className="cursor-pointer transition-transform hover:scale-[1.02]"
             >
               <MoleculeDisplay molecule={displayMolecule} />
             </div>

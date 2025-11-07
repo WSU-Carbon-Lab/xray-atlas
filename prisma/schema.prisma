@@ -62,7 +62,7 @@ model experiments {
   experimentpublications experimentpublications[]
   experimentquality      experimentquality?
   calibrationmethods     calibrationmethods?      @relation(fields: [calibrationid], references: [id], onUpdate: NoAction)
-  users                  users?                   @relation(fields: [createdby], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  users                  users?                   @relation(fields: [createdby], references: [id], onUpdate: NoAction)
   edges                  edges                    @relation(fields: [edgeid], references: [id], onUpdate: NoAction)
   instruments            instruments              @relation(fields: [instrumentid], references: [id], onUpdate: NoAction)
   polarizations          polarizations            @relation(fields: [polarizationid], references: [id], onUpdate: NoAction)
@@ -102,11 +102,15 @@ model molecules {
   chemicalformula  String
   casnumber        String?            @unique
   pubchemcid       String?            @unique
-  imageurl         String?
   createdat        DateTime           @default(now()) @db.Timestamptz(6)
   updatedat        DateTime           @default(now()) @db.Timestamptz(6)
+  imageurl         String?
+  createdby        String?
+  upvotes          Int                @default(0)
   moleculesynonyms moleculesynonyms[]
   samples          samples[]
+  moleculeupvotes  moleculeupvotes[]
+  users            users?             @relation(fields: [createdby], references: [clerkid], onUpdate: NoAction)
 }
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
@@ -114,8 +118,8 @@ model moleculesynonyms {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   moleculeid String    @db.Uuid
   synonym    String
-  molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
   primary    Boolean   @default(false)
+  molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([moleculeid, synonym])
 }
@@ -167,14 +171,29 @@ model spectrumpoints {
 }
 
 model users {
-  id          String        @id
-  clerkid     String        @unique
-  name        String
-  email       String        @unique
-  imageurl    String?
-  orcid       String?       @unique(map: "idx_user_orcid")
-  role        String        @default("contributor")
-  experiments experiments[]
+  id              String            @id
+  name            String
+  email           String            @unique
+  imageurl        String?
+  orcid           String?           @unique(map: "idx_user_orcid")
+  role            String            @default("contributor")
+  clerkid         String            @unique
+  experiments     experiments[]
+  molecules       molecules[]
+  moleculeupvotes moleculeupvotes[]
+}
+
+model moleculeupvotes {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moleculeid String    @db.Uuid
+  userid     String
+  createdat  DateTime  @default(now()) @db.Timestamptz(6)
+  molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users      users     @relation(fields: [userid], references: [clerkid], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([moleculeid, userid])
+  @@index([moleculeid])
+  @@index([userid])
 }
 
 model vendors {

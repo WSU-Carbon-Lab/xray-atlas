@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 import { currentUser } from "@clerk/nextjs/server";
 
 export const usersRouter = createTRPCRouter({
@@ -53,7 +53,7 @@ export const usersRouter = createTRPCRouter({
     return user;
   }),
 
-  getById: protectedProcedure
+  getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const user = await ctx.db.users.findUnique({
@@ -63,6 +63,11 @@ export const usersRouter = createTRPCRouter({
             take: 10,
             orderBy: {
               createdat: "desc",
+            },
+          },
+          _count: {
+            select: {
+              molecules: true,
             },
           },
         },

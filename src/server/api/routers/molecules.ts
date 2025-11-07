@@ -7,10 +7,7 @@ import {
 import { TRPCError } from "@trpc/server";
 import { moleculeUploadSchema } from "~/app/upload/types";
 import { moleculeUploadDataToPrismaInput } from "~/app/upload/types";
-import {
-  uploadMoleculeImage,
-  deleteMoleculeImage,
-} from "~/server/storage";
+import { uploadMoleculeImage, deleteMoleculeImage } from "~/server/storage";
 
 export const moleculesRouter = createTRPCRouter({
   search: publicProcedure
@@ -93,7 +90,8 @@ export const moleculesRouter = createTRPCRouter({
 
       // Find primary synonym or use first one, fallback to IUPAC name
       const primarySynonym = synonyms.find((s) => s.primary);
-      const commonName = primarySynonym?.synonym ?? synonyms[0]?.synonym ?? molecule.iupacname;
+      const commonName =
+        primarySynonym?.synonym ?? synonyms[0]?.synonym ?? molecule.iupacname;
 
       return {
         ok: true,
@@ -167,9 +165,14 @@ export const moleculesRouter = createTRPCRouter({
         });
       }
 
-      // Create molecule
+      // Create molecule with createdby set to current user
+      // Cast to any to work around Prisma type issues until client is regenerated
       const molecule = await ctx.db.molecules.create({
-        data: prismaInput,
+        data: {
+          ...prismaInput,
+          createdby: ctx.userId,
+          upvotes: 0,
+        } as any,
       });
 
       return {
@@ -207,12 +210,13 @@ export const moleculesRouter = createTRPCRouter({
       if (!base64Match) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Invalid image data format. Expected data URL with base64 encoding.",
+          message:
+            "Invalid image data format. Expected data URL with base64 encoding.",
         });
       }
 
       const [, mimeType, base64Data] = base64Match;
-      const imageBuffer = Buffer.from(base64Data, "base64");
+      const imageBuffer = Buffer.from(base64Data ?? "", "base64");
 
       // Delete old image if it exists
       if (molecule.imageurl) {
@@ -228,7 +232,7 @@ export const moleculesRouter = createTRPCRouter({
       const imageUrl = await uploadMoleculeImage(
         input.moleculeId,
         imageBuffer,
-        mimeType,
+        mimeType ?? "",
       );
 
       // Update molecule with image URL
@@ -240,90 +244,6 @@ export const moleculesRouter = createTRPCRouter({
       return {
         success: true,
         imageUrl: updatedMolecule.imageurl,
-      };
-    }),
-
-  update: protectedProcedure
-    .input(
-      moleculeUploadSchema.extend({
-        moleculeId: z.string().uuid(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const { moleculeId, ...moleculeData } = input;
-
-      // Check if molecule exists
-      const existingMolecule = await ctx.db.molecules.findUnique({
-        where: { id: moleculeId },
-      });
-
-      if (!existingMolecule) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Molecule not found",
-        });
-      }
-
-      // Convert to Prisma input format
-      const prismaInput = moleculeUploadDataToPrismaInput(moleculeData);
-
-      // Validate required fields
-      if (!prismaInput.iupacname?.trim()) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "IUPAC name cannot be empty",
-        });
-      }
-      if (!prismaInput.inchi?.trim()) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "InChI cannot be empty",
-        });
-      }
-      if (!prismaInput.smiles?.trim()) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "SMILES cannot be empty",
-        });
-      }
-      if (!prismaInput.chemicalformula?.trim()) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Chemical formula cannot be empty",
-        });
-      }
-      if (
-        !prismaInput.moleculesynonyms ||
-        !Array.isArray(prismaInput.moleculesynonyms.create) ||
-        prismaInput.moleculesynonyms.create.length === 0
-      ) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "At least one synonym (common name) is required",
-        });
-      }
-
-      // Delete old synonyms and update molecule
-      await ctx.db.moleculesynonyms.deleteMany({
-        where: { moleculeid: moleculeId },
-      });
-
-      const { moleculesynonyms, ...updateData } = prismaInput;
-      const molecule = await ctx.db.molecules.update({
-        where: { id: moleculeId },
-        data: {
-          ...updateData,
-          moleculesynonyms: moleculesynonyms,
-        },
-      });
-
-      return {
-        success: true,
-        molecule: {
-          id: molecule.id,
-          iupacName: molecule.iupacname,
-        },
-        updated: true,
       };
     }),
 
@@ -373,6 +293,19 @@ export const moleculesRouter = createTRPCRouter({
             orderBy: [{ primary: "desc" }, { synonym: "asc" }], // Primary first
           },
           samples: true,
+          users: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              imageurl: true,
+            },
+          },
+          _count: {
+            select: {
+              moleculeupvotes: true,
+            },
+          },
         },
       });
 
@@ -383,7 +316,25 @@ export const moleculesRouter = createTRPCRouter({
         });
       }
 
-      return molecule;
+      // Check if current user has upvoted this molecule
+      let userHasUpvoted = false;
+      if (ctx.userId) {
+        const upvote = await ctx.db.moleculeupvotes.findUnique({
+          where: {
+            moleculeid_userid: {
+              moleculeid: molecule.id,
+              userid: ctx.userId,
+            },
+          },
+        });
+        userHasUpvoted = !!upvote;
+      }
+
+      return {
+        ...molecule,
+        upvoteCount: molecule._count.moleculeupvotes,
+        userHasUpvoted,
+      };
     }),
 
   list: publicProcedure
@@ -391,31 +342,49 @@ export const moleculesRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(10),
         cursor: z.string().uuid().optional(),
+        sortBy: z.enum(["created", "upvotes"]).default("created"),
       }),
     )
     .query(async ({ ctx, input }) => {
+      const orderBy =
+        input.sortBy === "upvotes"
+          ? [{ upvotes: "desc" as const }, { createdat: "desc" as const }]
+          : [{ createdat: "desc" as const }];
+
       const molecules = await ctx.db.molecules.findMany({
         take: input.limit + 1,
         cursor: input.cursor ? { id: input.cursor } : undefined,
         include: {
           moleculesynonyms: {
-            orderBy: [{ primary: "desc" }, { synonym: "asc" }], // Primary first
-            take: 1,
+            orderBy: [{ primary: "desc" }], // Primary first - we'll sort by length after
           },
         },
-        orderBy: {
-          createdat: "desc",
-        },
+        orderBy,
       });
 
+      // Sort synonyms by length (shortest first) within each molecule, keeping primary first
+      const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
+        ...molecule,
+        moleculesynonyms: [
+          // Primary synonyms first
+          ...molecule.moleculesynonyms
+            .filter((syn) => syn.primary)
+            .sort((a, b) => a.synonym.length - b.synonym.length),
+          // Then non-primary synonyms, sorted by length
+          ...molecule.moleculesynonyms
+            .filter((syn) => !syn.primary)
+            .sort((a, b) => a.synonym.length - b.synonym.length),
+        ],
+      }));
+
       let nextCursor: string | undefined = undefined;
-      if (molecules.length > input.limit) {
-        const nextItem = molecules.pop();
+      if (moleculesWithSortedSynonyms.length > input.limit) {
+        const nextItem = moleculesWithSortedSynonyms.pop();
         nextCursor = nextItem?.id;
       }
 
       return {
-        molecules,
+        molecules: moleculesWithSortedSynonyms,
         nextCursor,
       };
     }),
@@ -536,8 +505,12 @@ export const moleculesRouter = createTRPCRouter({
 
       return {
         results: results.map((molecule) => {
-          const synData = synonymsByMolecule[molecule.id] ?? { primary: null, all: [] };
-          const commonName = synData.primary ?? synData.all[0] ?? molecule.iupacname;
+          const synData = synonymsByMolecule[molecule.id] ?? {
+            primary: null,
+            all: [],
+          };
+          const commonName =
+            synData.primary ?? synData.all[0] ?? molecule.iupacname;
 
           return {
             id: molecule.id,
@@ -556,6 +529,332 @@ export const moleculesRouter = createTRPCRouter({
         }),
         total: results.length,
         hasMore: results.length === input.limit,
+      };
+    }),
+
+  getTopUpvoted: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const molecules = await ctx.db.molecules.findMany({
+        take: input.limit,
+        include: {
+          moleculesynonyms: {
+            orderBy: [{ primary: "desc" }],
+          },
+          users: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              imageurl: true,
+            },
+          },
+          _count: {
+            select: {
+              moleculeupvotes: true,
+            },
+          },
+        },
+        orderBy: [{ upvotes: "desc" }, { createdat: "desc" }],
+      });
+
+      // Sort synonyms by length (shortest first) within each molecule, keeping primary first
+      const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
+        ...molecule,
+        moleculesynonyms: [
+          ...molecule.moleculesynonyms
+            .filter((syn) => syn.primary)
+            .sort((a, b) => a.synonym.length - b.synonym.length),
+          ...molecule.moleculesynonyms
+            .filter((syn) => !syn.primary)
+            .sort((a, b) => a.synonym.length - b.synonym.length),
+        ],
+        upvoteCount: molecule._count.moleculeupvotes,
+        userHasUpvoted: false, // Not needed for homepage
+      }));
+
+      return {
+        molecules: moleculesWithSortedSynonyms,
+      };
+    }),
+
+  getAllPaginated: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(12),
+        offset: z.number().min(0).default(0),
+        sortBy: z.enum(["upvotes", "created", "name"]).default("upvotes"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const orderBy =
+        input.sortBy === "upvotes"
+          ? [{ upvotes: "desc" as const }, { createdat: "desc" as const }]
+          : input.sortBy === "name"
+            ? [{ iupacname: "asc" as const }]
+            : [{ createdat: "desc" as const }];
+
+      const [molecules, totalCount] = await Promise.all([
+        ctx.db.molecules.findMany({
+          take: input.limit,
+          skip: input.offset,
+          include: {
+            moleculesynonyms: {
+              orderBy: [{ primary: "desc" }],
+            },
+            users: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                imageurl: true,
+              },
+            },
+            _count: {
+              select: {
+                moleculeupvotes: true,
+              },
+            },
+          },
+          orderBy,
+        }),
+        ctx.db.molecules.count(),
+      ]);
+
+      // Sort synonyms by length (shortest first)
+      const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
+        ...molecule,
+        moleculesynonyms: [
+          ...molecule.moleculesynonyms
+            .filter((syn) => syn.primary)
+            .sort((a, b) => a.synonym.length - b.synonym.length),
+          ...molecule.moleculesynonyms
+            .filter((syn) => !syn.primary)
+            .sort((a, b) => a.synonym.length - b.synonym.length),
+        ],
+        upvoteCount: molecule._count.moleculeupvotes,
+        userHasUpvoted: false, // Not needed for list view
+      }));
+
+      return {
+        molecules: moleculesWithSortedSynonyms,
+        total: totalCount,
+        hasMore: input.offset + molecules.length < totalCount,
+      };
+    }),
+
+  getByCreator: publicProcedure
+    .input(
+      z.object({
+        creatorId: z.string(), // Clerk ID
+        limit: z.number().min(1).max(100).default(10),
+        cursor: z.string().uuid().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const molecules = await ctx.db.molecules.findMany({
+        where: {
+          createdby: input.creatorId,
+        },
+        take: input.limit + 1,
+        cursor: input.cursor ? { id: input.cursor } : undefined,
+        include: {
+          moleculesynonyms: {
+            orderBy: [{ primary: "desc" }],
+          },
+        },
+        orderBy: {
+          createdat: "desc",
+        },
+      });
+
+      // Sort synonyms by length (shortest first)
+      const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
+        ...molecule,
+        moleculesynonyms: [
+          ...molecule.moleculesynonyms
+            .filter((syn) => syn.primary)
+            .sort((a, b) => a.synonym.length - b.synonym.length),
+          ...molecule.moleculesynonyms
+            .filter((syn) => !syn.primary)
+            .sort((a, b) => a.synonym.length - b.synonym.length),
+        ],
+      }));
+
+      let nextCursor: string | undefined = undefined;
+      if (moleculesWithSortedSynonyms.length > input.limit) {
+        const nextItem = moleculesWithSortedSynonyms.pop();
+        nextCursor = nextItem?.id;
+      }
+
+      return {
+        molecules: moleculesWithSortedSynonyms,
+        nextCursor,
+      };
+    }),
+
+  upvote: protectedProcedure
+    .input(z.object({ moleculeId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      // Check if molecule exists
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      // Check if user already upvoted
+      const existingUpvote = await ctx.db.moleculeupvotes.findUnique({
+        where: {
+          moleculeid_userid: {
+            moleculeid: input.moleculeId,
+            userid: ctx.userId,
+          },
+        },
+      });
+
+      if (existingUpvote) {
+        // Remove upvote (toggle off)
+        await ctx.db.moleculeupvotes.delete({
+          where: {
+            moleculeid_userid: {
+              moleculeid: input.moleculeId,
+              userid: ctx.userId,
+            },
+          },
+        });
+
+        // Decrement upvote count
+        await ctx.db.molecules.update({
+          where: { id: input.moleculeId },
+          data: {
+            upvotes: {
+              decrement: 1,
+            },
+          },
+        });
+
+        return { upvoted: false, upvoteCount: molecule.upvotes - 1 };
+      } else {
+        // Add upvote
+        await ctx.db.moleculeupvotes.create({
+          data: {
+            moleculeid: input.moleculeId,
+            userid: ctx.userId,
+          },
+        });
+
+        // Increment upvote count
+        await ctx.db.molecules.update({
+          where: { id: input.moleculeId },
+          data: {
+            upvotes: {
+              increment: 1,
+            },
+          },
+        });
+
+        return { upvoted: true, upvoteCount: molecule.upvotes + 1 };
+      }
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        moleculeId: z.string().uuid(),
+        iupacName: z.string().optional(),
+        commonNames: z.array(z.string()).optional(),
+        chemicalFormula: z.string().optional(),
+        SMILES: z.string().optional(),
+        InChI: z.string().optional(),
+        casNumber: z.string().nullable().optional(),
+        pubChemCid: z.string().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { moleculeId, ...updateData } = input;
+
+      // Check if molecule exists and user is the creator
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: moleculeId },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      if (molecule.createdby !== ctx.userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only edit molecules you created",
+        });
+      }
+
+      // Prepare update data
+      const prismaUpdateData: {
+        iupacname?: string;
+        chemicalformula?: string;
+        smiles?: string;
+        inchi?: string;
+        casnumber?: string | null;
+        pubchemcid?: string | null;
+        moleculesynonyms?: {
+          deleteMany: Record<string, never>;
+          create: Array<{ synonym: string; primary: boolean }>;
+        };
+      } = {};
+
+      if (updateData.iupacName)
+        prismaUpdateData.iupacname = updateData.iupacName;
+      if (updateData.chemicalFormula)
+        prismaUpdateData.chemicalformula = updateData.chemicalFormula;
+      if (updateData.SMILES) prismaUpdateData.smiles = updateData.SMILES;
+      if (updateData.InChI) prismaUpdateData.inchi = updateData.InChI;
+      if (updateData.casNumber !== undefined)
+        prismaUpdateData.casnumber = updateData.casNumber;
+      if (updateData.pubChemCid !== undefined)
+        prismaUpdateData.pubchemcid = updateData.pubChemCid;
+
+      // Update synonyms if provided
+      if (updateData.commonNames && updateData.commonNames.length > 0) {
+        const commonNameTrimmed = updateData.commonNames[0]?.trim() ?? "";
+        prismaUpdateData.moleculesynonyms = {
+          deleteMany: {},
+          create: updateData.commonNames.map((synonym, idx) => ({
+            synonym: synonym.trim(),
+            primary: idx === 0 || synonym.trim() === commonNameTrimmed,
+          })),
+        };
+      }
+
+      // Note: updatedat is automatically handled by Prisma @updatedAt directive
+
+      // Update molecule
+      const updatedMolecule = await ctx.db.molecules.update({
+        where: { id: moleculeId },
+        data: prismaUpdateData,
+        include: {
+          moleculesynonyms: {
+            orderBy: [{ primary: "desc" }, { synonym: "asc" }],
+          },
+        },
+      });
+
+      return {
+        success: true,
+        molecule: updatedMolecule,
       };
     }),
 });

@@ -3,8 +3,84 @@
 import Link from "next/link";
 import { Upload, Search } from "lucide-react";
 import { MoleculeSearch } from "./components/MoleculeSearch";
-import { MoleculeGrid } from "./components/MoleculeGrid";
+import { MoleculeDisplay, type DisplayMolecule } from "./components/MoleculeDisplay";
+import { MoleculeGridSkeleton } from "./components/LoadingState";
+import { ErrorState } from "./components/ErrorState";
 import { DefaultButton as Button } from "./components/Button";
+import { trpc } from "~/trpc/client";
+import { useRouter } from "next/navigation";
+
+function TopUpvotedMolecules() {
+  const router = useRouter();
+  const { data, isLoading, isError, error } = trpc.molecules.getTopUpvoted.useQuery({
+    limit: 4,
+  });
+
+  if (isLoading) {
+    return <MoleculeGridSkeleton count={4} />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="Failed to load molecules"
+        message={error?.message || "An error occurred while loading molecules."}
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
+
+  if (!data || data.molecules.length === 0) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800">
+        <p className="text-gray-600 dark:text-gray-400">
+          No molecules found in the database.
+        </p>
+      </div>
+    );
+  }
+
+  // Transform to DisplayMolecule format
+  const displayMolecules = data.molecules.map((molecule) => {
+    const synonyms = molecule.moleculesynonyms.map((s) => s.synonym);
+    const primarySynonym = molecule.moleculesynonyms.find((s) => s.primary);
+    const displayName = primarySynonym?.synonym ?? synonyms[0] ?? molecule.iupacname;
+
+    return {
+      name: displayName,
+      commonName: synonyms.length > 0 ? synonyms : undefined,
+      chemical_formula: molecule.chemicalformula,
+      SMILES: molecule.smiles,
+      InChI: molecule.inchi,
+      pubChemCid: molecule.pubchemcid,
+      casNumber: molecule.casnumber,
+      imageUrl: molecule.imageurl ?? undefined,
+      id: molecule.id,
+      upvoteCount: molecule.upvoteCount,
+      userHasUpvoted: false,
+      createdBy: molecule.users ? {
+        id: molecule.users.id,
+        name: molecule.users.name,
+        email: molecule.users.email,
+        imageurl: molecule.users.imageurl,
+      } : null,
+    } satisfies DisplayMolecule;
+  });
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {displayMolecules.map((molecule) => (
+        <div
+          key={molecule.id}
+          onClick={() => router.push(`/molecules/${molecule.id}`)}
+          className="cursor-pointer transition-transform hover:scale-[1.02]"
+        >
+          <MoleculeDisplay molecule={molecule} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -47,18 +123,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured Molecules Grid */}
+      {/* Top Upvoted Molecules */}
       <section className="container mx-auto px-4 py-12">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-gray-100">
-            Featured Molecules
+            Most Upvoted Molecules
           </h2>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Explore our collection of molecules with X-ray absorption
+            Explore our most popular molecules with X-ray absorption
             spectroscopy data.
           </p>
         </div>
-        <MoleculeGrid limit={12} enableInfiniteScroll={true} />
+        <TopUpvotedMolecules />
       </section>
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import {
@@ -8,10 +9,12 @@ import {
 } from "~/app/components/MoleculeDisplay";
 import { PageSkeleton } from "~/app/components/LoadingState";
 import { NotFoundState, ErrorState } from "~/app/components/ErrorState";
+import { EditMoleculeModal } from "~/app/components/EditMoleculeModal";
 import Link from "next/link";
 import { CalendarIcon } from "@heroicons/react/24/outline";
 
 export default function MoleculeDetailPage() {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const params = useParams();
   const moleculeId = params.id as string;
 
@@ -86,6 +89,14 @@ export default function MoleculeDetailPage() {
     pubChemCid: molecule.pubchemcid,
     casNumber: molecule.casnumber,
     imageUrl: molecule.imageurl ?? undefined,
+    id: molecule.id,
+    upvoteCount: (molecule as { upvoteCount?: number }).upvoteCount,
+    userHasUpvoted: (molecule as { userHasUpvoted?: boolean }).userHasUpvoted,
+    createdBy: (molecule as { users?: { id: string; name: string; email: string; imageurl: string | null } | null }).users ?? null,
+  };
+
+  const handleEdit = () => {
+    setIsEditModalOpen(true);
   };
 
   const samples = molecule.samples || [];
@@ -104,8 +115,28 @@ export default function MoleculeDetailPage() {
       </div>
 
       <div className="mb-8">
-        <MoleculeDisplay molecule={displayMolecule} />
+        <MoleculeDisplay molecule={displayMolecule} onEdit={handleEdit} />
       </div>
+
+      {/* Edit Modal */}
+      <EditMoleculeModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        moleculeId={molecule.id}
+        initialData={{
+          iupacName: molecule.iupacname,
+          commonNames: synonyms,
+          chemicalFormula: molecule.chemicalformula,
+          SMILES: molecule.smiles,
+          InChI: molecule.inchi,
+          casNumber: molecule.casnumber,
+          pubChemCid: molecule.pubchemcid,
+        }}
+        onSuccess={() => {
+          // Refetch molecule data after successful update
+          // This is handled automatically by the mutation's onSuccess
+        }}
+      />
 
       {/* Additional Information */}
       <div className="grid gap-6 md:grid-cols-2">
@@ -185,6 +216,31 @@ export default function MoleculeDetailPage() {
                 {samples.length}
               </dd>
             </div>
+            {(molecule as { upvoteCount?: number }).upvoteCount !== undefined && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Upvotes
+                </dt>
+                <dd className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {(molecule as { upvoteCount?: number }).upvoteCount ?? 0}
+                </dd>
+              </div>
+            )}
+            {(molecule as { users?: { id: string; name: string } | null }).users && (
+              <div>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Uploaded By
+                </dt>
+                <dd className="mt-1">
+                  <Link
+                    href={`/users/${(molecule as { users?: { id: string; name: string } | null }).users?.id}`}
+                    className="text-sm font-medium text-wsu-crimson hover:underline dark:text-wsu-crimson"
+                  >
+                    {(molecule as { users?: { id: string; name: string } | null }).users?.name}
+                  </Link>
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
                 Created
