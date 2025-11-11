@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
 interface DataPreviewTableProps {
   data: Record<string, unknown>[];
@@ -14,7 +11,7 @@ interface DataPreviewTableProps {
 
 export function DataPreviewTable({
   data,
-  maxRows = 20,
+  maxRows = 5,
   title,
 }: DataPreviewTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -68,7 +65,7 @@ export function DataPreviewTable({
                 <th
                   key={header}
                   scope="col"
-                  className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                  className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase dark:text-gray-300"
                 >
                   {header}
                 </th>
@@ -84,7 +81,7 @@ export function DataPreviewTable({
                 {headers.map((header) => (
                   <td
                     key={header}
-                    className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-100"
+                    className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
                   >
                     {formatValue(row[header])}
                   </td>
@@ -115,9 +112,7 @@ export function DataPreviewTable({
             </span>
             <button
               type="button"
-              onClick={() =>
-                setCurrentPage((p) => Math.min(totalPages, p + 1))
-              }
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
               className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
             >

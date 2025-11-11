@@ -7,6 +7,7 @@ import { FacilityCardCompact } from "~/app/components/FacilityCardCompact";
 import { ErrorState } from "~/app/components/ErrorState";
 import { BrowseTabs } from "~/app/components/BrowseTabs";
 import Link from "next/link";
+import { AddFacilityButton } from "~/app/components/AddEntityButtons";
 
 export default function FacilitiesBrowsePage() {
   const searchParams = useSearchParams();
@@ -84,6 +85,11 @@ export default function FacilitiesBrowsePage() {
   const totalPages = data
     ? Math.ceil((data.total ?? 0) / itemsPerPage)
     : 1;
+
+  const handleFacilityCreated = () => {
+    searchData.refetch();
+    allData.refetch();
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -253,9 +259,19 @@ export default function FacilitiesBrowsePage() {
                     .
                   </p>
                 )}
+                <div className="mt-6">
+                  <AddFacilityButton
+                    className="min-h-[140px]"
+                    onCreated={handleFacilityCreated}
+                  />
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
+                <AddFacilityButton
+                  className="min-h-[140px]"
+                  onCreated={handleFacilityCreated}
+                />
                 {data.facilities.map((facility) => (
                   <FacilityCardCompact
                     key={facility.id}

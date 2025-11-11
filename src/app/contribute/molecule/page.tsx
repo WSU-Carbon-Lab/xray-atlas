@@ -22,10 +22,21 @@ import {
 import { FieldTooltip } from "~/app/components/FieldTooltip";
 import { SearchIcon } from "../../components/icons";
 
-export default function MoleculeContributePage() {
+type MoleculeContributePageProps = {
+  variant?: "page" | "modal";
+  onCompleted?: (payload: { moleculeId?: string }) => void;
+  onClose?: () => void;
+};
+
+export default function MoleculeContributePage({
+  variant = "page",
+  onCompleted,
+  onClose,
+}: MoleculeContributePageProps = {}) {
   const router = useRouter();
   const { isSignedIn, user } = useUser();
   const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const isModal = variant === "modal";
 
   // Check if user has agreed to the contribution agreement
   const { data: agreementStatus, isLoading: isLoadingAgreement } =
@@ -550,6 +561,13 @@ export default function MoleculeContributePage() {
         message: `Molecule "${result.molecule?.iupacName ?? formData.iupacName}" ${isUpdate ? "updated" : "uploaded"} successfully!`,
       });
 
+      if (onCompleted) {
+        onCompleted({ moleculeId });
+      }
+      if (isModal) {
+        onClose?.();
+      }
+
       // Reset form
       setFormData({
         iupacName: "",
@@ -625,19 +643,27 @@ export default function MoleculeContributePage() {
     <>
       <ContributionAgreementModal
         isOpen={showAgreementModal}
-        onClose={() => router.push("/contribute")}
+        onClose={() => {
+          if (isModal) {
+            onClose?.();
+          } else {
+            router.push("/contribute");
+          }
+        }}
         onAgree={handleAgreementAccepted}
       />
-    <div className="container mx-auto px-4 py-8">
+    <div className={`${isModal ? "" : "container mx-auto"} px-4 py-8`}>
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6">
-          <Link
-            href="/contribute"
-            className="text-sm text-gray-600 hover:text-wsu-crimson dark:text-gray-400 dark:hover:text-wsu-crimson"
-          >
-            ← Back to contribution type selection
-          </Link>
-        </div>
+        {!isModal && (
+          <div className="mb-6">
+            <Link
+              href="/contribute"
+              className="text-sm text-gray-600 hover:text-wsu-crimson dark:text-gray-400 dark:hover:text-wsu-crimson"
+            >
+              ← Back to contribution type selection
+            </Link>
+          </div>
+        )}
         <h1 className="mb-8 text-4xl font-bold text-gray-900 dark:text-gray-100">
           Contribute Molecule
         </h1>

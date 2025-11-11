@@ -13,6 +13,7 @@ import { BrowseTabs } from "~/app/components/BrowseTabs";
 import { Squares2X2Icon, ListBulletIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import type { molecules } from "@prisma/client";
+import { AddMoleculeButton } from "~/app/components/AddEntityButtons";
 
 export default function MoleculesBrowsePage() {
   const searchParams = useSearchParams();
@@ -221,6 +222,11 @@ export default function MoleculesBrowsePage() {
       )?.results ?? [])
     : ((data as { molecules?: Array<unknown> })?.molecules ?? []);
 
+  const handleMoleculeCreated = () => {
+    searchData.refetch();
+    allData.refetch();
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -394,56 +400,99 @@ export default function MoleculesBrowsePage() {
                       .
                     </p>
                   )}
+                  <div className="mt-6">
+                    <AddMoleculeButton
+                      className="min-h-[140px]"
+                      onCreated={handleMoleculeCreated}
+                    />
+                  </div>
                 </div>
               ) : (
-                <div
-                  className={
-                    viewMode === "compact"
-                      ? "space-y-3"
-                      : "grid grid-cols-1 gap-6 md:grid-cols-2"
-                  }
-                >
-                  {molecules.map(
-                    (
-                      molecule: NonNullable<
-                        NonNullable<typeof data>["molecules"]
-                      >[number],
-                    ) => {
-                      const displayMolecule = transformMolecule(molecule);
-                      if (!displayMolecule) return null;
+                <>
+                  {viewMode === "compact" ? (
+                    <div className="space-y-3">
+                      <AddMoleculeButton
+                        className="min-h-[140px]"
+                        onCreated={handleMoleculeCreated}
+                      />
+                      {molecules.map(
+                        (
+                          molecule: NonNullable<
+                            NonNullable<typeof data>["molecules"]
+                          >[number],
+                        ) => {
+                          const displayMolecule = transformMolecule(molecule);
+                          if (!displayMolecule) return null;
 
-                      const handleCardClick = (e: React.MouseEvent) => {
-                        // Don't navigate if clicking on a link or button
-                        const target = e.target as HTMLElement;
-                        if (
-                          target.closest("a") ||
-                          target.closest("button") ||
-                          target.tagName === "A" ||
-                          target.tagName === "BUTTON"
-                        ) {
-                          return;
-                        }
-                        router.push(`/molecules/${molecule.id}`);
-                      };
+                          const handleCardClick = (e: React.MouseEvent) => {
+                            const target = e.target as HTMLElement;
+                            if (
+                              target.closest("a") ||
+                              target.closest("button") ||
+                              target.tagName === "A" ||
+                              target.tagName === "BUTTON"
+                            ) {
+                              return;
+                            }
+                            router.push(`/molecules/${molecule.id}`);
+                          };
 
-                      return (
-                        <div
-                          key={molecule.id}
-                          onClick={handleCardClick}
-                          className="cursor-pointer"
-                        >
-                          {viewMode === "compact" ? (
-                            <MoleculeDisplayCompact
-                              molecule={displayMolecule}
-                            />
-                          ) : (
-                            <MoleculeDisplay molecule={displayMolecule} />
-                          )}
-                        </div>
-                      );
-                    },
+                          return (
+                            <div
+                              key={molecule.id}
+                              onClick={handleCardClick}
+                              className="cursor-pointer"
+                            >
+                              <MoleculeDisplayCompact
+                                molecule={displayMolecule}
+                              />
+                            </div>
+                          );
+                        },
+                      )}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      <AddMoleculeButton
+                        className="min-h-[220px]"
+                        onCreated={handleMoleculeCreated}
+                      />
+                      {molecules.map(
+                        (
+                          molecule: NonNullable<
+                            NonNullable<typeof data>["molecules"]
+                          >[number],
+                        ) => {
+                          const displayMolecule = transformMolecule(molecule);
+                          if (!displayMolecule) return null;
+
+                          const handleCardClick = (e: React.MouseEvent) => {
+                            const target = e.target as HTMLElement;
+                            if (
+                              target.closest("a") ||
+                              target.closest("button") ||
+                              target.tagName === "A" ||
+                              target.tagName === "BUTTON"
+                            ) {
+                              return;
+                            }
+                            router.push(`/molecules/${molecule.id}`);
+                          };
+
+                          return (
+                            <div
+                              key={molecule.id}
+                              onClick={handleCardClick}
+                              className="cursor-pointer"
+                            >
+                              <MoleculeDisplay molecule={displayMolecule} />
+                            </div>
+                          );
+                        },
+                      )}
+                    </div>
                   )}
-                </div>
+                </>
               )}
 
               {/* Pagination */}

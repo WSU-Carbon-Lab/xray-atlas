@@ -44,8 +44,10 @@
     "lucide-react": "^0.552.0",
     "next": "^16.0.1",
     "next-themes": "^0.4.6",
+    "plotly.js-dist-min": "^3.2.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-plotly.js": "^2.6.0",
     "svix": "^1.81.0",
     "zod": "^3.24.2"
   },
@@ -53,6 +55,7 @@
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.0.15",
     "@types/node": "^20.14.10",
+    "@types/plotly.js": "^3.0.8",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.23.0",

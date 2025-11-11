@@ -10,7 +10,7 @@ import {
 
 interface CSVUploadProps {
   onFileSelect: (file: File) => void;
-  acceptedFileTypes?: string;
+  acceptedFileTypes?: string | string[];
   maxSizeMB?: number;
   label?: string;
   description?: string;
@@ -32,6 +32,10 @@ export function CSVUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragError, setDragError] = useState<string | null>(null);
+
+  const acceptedTypesValue = Array.isArray(acceptedFileTypes)
+    ? acceptedFileTypes.join(",")
+    : acceptedFileTypes;
 
   const validateFile = (file: File): string | null => {
     // Check file type
@@ -148,7 +152,7 @@ export function CSVUpload({
           <input
             ref={fileInputRef}
             type="file"
-            accept={acceptedFileTypes}
+            accept={acceptedTypesValue}
             onChange={handleInputChange}
             className="hidden"
           />
@@ -157,7 +161,7 @@ export function CSVUpload({
             {isDragging ? "Drop file here" : "Click to upload or drag and drop"}
           </p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {acceptedFileTypes} up to {maxSizeMB}MB
+            {acceptedTypesValue} up to {maxSizeMB}MB
           </p>
         </div>
       )}

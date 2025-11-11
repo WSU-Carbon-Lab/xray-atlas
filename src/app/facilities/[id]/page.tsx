@@ -14,6 +14,7 @@ import {
   XCircleIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
+import { AddInstrumentButton } from "~/app/components/AddEntityButtons";
 
 export default function FacilityDetailPage({
   params,
@@ -21,7 +22,8 @@ export default function FacilityDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { data: facility, isLoading, isError, error } = trpc.facilities.getById.useQuery({ id });
+  const facilityQuery = trpc.facilities.getById.useQuery({ id });
+  const { data: facility, isLoading, isError, error, refetch } = facilityQuery;
 
   if (isLoading) {
     return <PageSkeleton />;
@@ -111,11 +113,18 @@ export default function FacilityDetailPage({
         {/* Instruments Section */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-            <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
                 <BeakerIcon className="h-5 w-5" />
                 Instruments ({facility.instruments.length})
               </h2>
+            <AddInstrumentButton
+              facilityId={facility.id}
+              facilityName={facility.name}
+              onCreated={() => {
+                void refetch();
+              }}
+            />
             </div>
           </div>
 

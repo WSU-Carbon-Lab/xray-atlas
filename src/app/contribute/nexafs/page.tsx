@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
@@ -8,8 +8,12 @@ import Papa from "papaparse";
 import { DefaultButton as Button } from "~/app/components/Button";
 import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
 import { CSVUpload } from "~/app/components/CSVUpload";
-import { DataPreviewTable } from "~/app/components/DataPreviewTable";
 import { FormField } from "~/app/components/FormField";
+import {
+  SpectrumPlot,
+  type SpectrumSelection,
+  type SpectrumPoint,
+} from "~/app/components/plots/SpectrumPlot";
 import { SimpleDialog } from "~/app/components/SimpleDialog";
 import { trpc } from "~/trpc/client";
 import { ProcessMethod } from "@prisma/client";
@@ -50,17 +54,56 @@ interface MoleculeSearchResult {
   imageUrl?: string;
 }
 
-interface GeometryDataItem {
+type GeometryPair = {
   theta: number;
   phi: number;
-}
+};
 
-interface SpectrumPoint {
-  energy: number;
-  absorption: number;
-  theta?: number;
-  phi?: number;
-}
+type GeometryMode = "csv" | "fixed";
+
+type GeometryPayload =
+  | { mode: "csv"; csvGeometries: GeometryPair[] }
+  | { mode: "fixed"; fixedTheta: number; fixedPhi: number };
+
+type ColumnStats = {
+  min: number | null;
+  max: number | null;
+  nanCount: number;
+  validCount: number;
+};
+
+type SpectrumStats = {
+  totalRows: number;
+  validPoints: number;
+  energy: ColumnStats;
+  absorption: ColumnStats;
+  theta?: ColumnStats;
+  phi?: ColumnStats;
+};
+
+const extractGeometryPairs = (points: SpectrumPoint[]): GeometryPair[] =>
+  Array.from(
+    new Map(
+      points
+        .filter(
+          (
+            point,
+          ): point is Required<Pick<SpectrumPoint, "theta" | "phi">> &
+            SpectrumPoint =>
+            typeof point.theta === "number" &&
+            Number.isFinite(point.theta) &&
+            typeof point.phi === "number" &&
+            Number.isFinite(point.phi),
+        )
+        .map((point) => {
+          const key = `${point.theta}:${point.phi}`;
+          return [
+            key,
+            { theta: point.theta!, phi: point.phi! } as GeometryPair,
+          ];
+        }),
+    ).values(),
+  );
 
 interface CSVColumnMappings {
   energy: string;
@@ -78,18 +121,23 @@ interface ExperimentConfig {
   calibrationId: string;
   referenceStandard: string;
   isStandard: boolean;
-  geometryMode: "fixed" | "csv";
   fixedTheta: string;
   fixedPhi: string;
-  geometryData: GeometryDataItem[];
-  geometryFile: File | null;
-  geometryError: string | null;
   spectrumPoints: SpectrumPoint[];
+  normalizedPoints: SpectrumPoint[] | null;
+  normalization: {
+    scale: number;
+    offset: number;
+    preRange: [number, number] | null;
+    postRange: [number, number] | null;
+  } | null;
   spectrumFile: File | null;
   spectrumError: string | null;
   csvColumns: string[];
   csvRawData: Record<string, unknown>[];
   csvColumnMappings: CSVColumnMappings;
+  spectrumStats: SpectrumStats | null;
+  selectionSummary: SpectrumSelection | null;
 }
 
 const toNumber = (value: unknown): number => {
@@ -118,6 +166,130 @@ const isCASNumber = (str: string): boolean => {
   return /^\d{2,7}-\d{2}-\d$/.test(str.trim());
 };
 
+const normalizeMoleculeResult = (
+  result: Partial<MoleculeSearchResult>,
+): MoleculeSearchResult => ({
+  id: result.id ?? "",
+  iupacName: result.iupacName ?? "",
+  commonName: result.commonName ?? result.iupacName ?? "",
+  synonyms: Array.isArray(result.synonyms) ? result.synonyms : [],
+  inchi: result.inchi ?? "",
+  smiles: result.smiles ?? "",
+  chemicalFormula: result.chemicalFormula ?? "",
+  casNumber: result.casNumber ?? null,
+  pubChemCid: result.pubChemCid ?? null,
+  imageUrl: result.imageUrl,
+});
+
+const formatStatNumber = (value: number | null): string => {
+  if (value === null || !Number.isFinite(value)) {
+    return "—";
+  }
+  const abs = Math.abs(value);
+  if (abs === 0) return "0";
+  if (abs >= 10000) return value.toFixed(0);
+  if (abs >= 1000) return value.toFixed(1);
+  if (abs >= 100) return value.toFixed(2);
+  if (abs >= 1) return value.toFixed(3);
+  return value.toExponential(2);
+};
+
+function SpectrumSummary({ stats }: { stats: SpectrumStats }) {
+  const columns: Array<{
+    label: string;
+    unit?: string;
+    stats: ColumnStats | undefined;
+  }> = [
+    { label: "Energy", unit: "eV", stats: stats.energy },
+    { label: "Absorption", stats: stats.absorption },
+    { label: "Theta", unit: "°", stats: stats.theta },
+    { label: "Phi", unit: "°", stats: stats.phi },
+  ];
+
+  const visibleColumns = columns.filter((column) => column.stats !== undefined);
+
+  if (visibleColumns.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-700">
+        <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          Dataset Summary
+        </h4>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {stats.validPoints} of {stats.totalRows} rows produced valid spectrum
+          points.
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-700">
+          <thead className="bg-gray-50 text-xs tracking-wide text-gray-500 uppercase dark:bg-gray-900/40 dark:text-gray-400">
+            <tr>
+              <th className="px-5 py-3 text-left">Column</th>
+              <th className="px-5 py-3 text-right">Min</th>
+              <th className="px-5 py-3 text-right">Max</th>
+              <th className="px-5 py-3 text-right">Valid</th>
+              <th className="px-5 py-3 text-right">NaNs</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            {visibleColumns.map((column) => (
+              <tr key={column.label}>
+                <td className="px-5 py-3 font-medium text-gray-900 dark:text-gray-100">
+                  {column.label}
+                  {column.unit ? (
+                    <span className="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">
+                      ({column.unit})
+                    </span>
+                  ) : null}
+                </td>
+                <td className="px-5 py-3 text-right text-gray-800 dark:text-gray-200">
+                  {formatStatNumber(column.stats?.min ?? null)}
+                </td>
+                <td className="px-5 py-3 text-right text-gray-800 dark:text-gray-200">
+                  {formatStatNumber(column.stats?.max ?? null)}
+                </td>
+                <td className="px-5 py-3 text-right text-gray-800 dark:text-gray-200">
+                  {column.stats?.validCount ?? 0}
+                </td>
+                <td className="px-5 py-3 text-right text-gray-800 dark:text-gray-200">
+                  {column.stats?.nanCount ?? 0}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function SelectionSummary({ selection }: { selection: SpectrumSelection }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/10 dark:text-blue-200">
+      <span className="font-semibold">Selection</span>
+      <span>
+        {selection.pointCount} point{selection.pointCount === 1 ? "" : "s"}
+      </span>
+      <span className="text-blue-600/70 dark:text-blue-200/80">•</span>
+      <span>
+        Energy {formatStatNumber(selection.energyMin)} –{" "}
+        {formatStatNumber(selection.energyMax)} eV
+      </span>
+      <span className="text-blue-600/70 dark:text-blue-200/80">•</span>
+      <span>
+        Intensity {formatStatNumber(selection.absorptionMin)} –{" "}
+        {formatStatNumber(selection.absorptionMax)}
+      </span>
+      {selection.geometryKeys.length > 0 && (
+        <span>Geometries: {selection.geometryKeys.length}</span>
+      )}
+    </div>
+  );
+}
+
 const createEmptyExperiment = (): ExperimentConfig => ({
   id: crypto.randomUUID(),
   instrumentId: "",
@@ -127,18 +299,18 @@ const createEmptyExperiment = (): ExperimentConfig => ({
   calibrationId: "",
   referenceStandard: "",
   isStandard: false,
-  geometryMode: "fixed",
   fixedTheta: "",
   fixedPhi: "",
-  geometryData: [],
-  geometryFile: null,
-  geometryError: null,
   spectrumPoints: [],
+  normalizedPoints: null,
+  normalization: null,
   spectrumFile: null,
   spectrumError: null,
   csvColumns: [],
   csvRawData: [],
   csvColumnMappings: { energy: "", absorption: "" },
+  spectrumStats: null,
+  selectionSummary: null,
 });
 
 export default function NEXAFSContributePage() {
@@ -175,142 +347,223 @@ export default function NEXAFSContributePage() {
   const [selectedPreferredName, setSelectedPreferredName] =
     useState<string>("");
   const [searchService, setSearchService] = useState<string>("");
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRequestIdRef = useRef(0);
 
-  const moleculeSearchQuery = trpc.molecules.search.useQuery(
-    { query: moleculeSearchTerm },
-    { enabled: false, retry: false },
+  const bareAtomAbsorptionQuery = trpc.physics.getBareAtomAbsorption.useQuery(
+    {
+      formula: selectedMolecule?.chemicalFormula ?? "C",
+    },
+    {
+      enabled: Boolean(selectedMolecule?.chemicalFormula),
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
   );
 
-  const handleSearchMolecule = async () => {
-    if (!moleculeSearchTerm.trim()) {
-      setMoleculeSearchError("Enter a molecule name, synonym, or CAS number.");
+  const performMoleculeSearch = async (term: string, requestId: number) => {
+    const assignResult = (
+      result: MoleculeSearchResult,
+      serviceLabel: string,
+    ) => {
+      if (searchRequestIdRef.current !== requestId) {
+        return true;
+      }
+      setSearchService(serviceLabel);
+      setMoleculeSearchResult(result);
+      setSelectedMolecule(result);
+      setSelectedPreferredName(result.commonName);
+      setMoleculeSearchError(null);
+      setSubmitStatus(undefined);
+      return true;
+    };
+
+    try {
+      // Check if search term looks like CAS number
+      if (isCASNumber(term)) {
+        try {
+          const casResult = await utils.external.searchCas.fetch({
+            casNumber: term,
+          });
+
+          if (casResult.ok && casResult.data?.casRegistryNumber) {
+            const moleculeName = casResult.data.moleculeName || term;
+            const casRN = casResult.data.casRegistryNumber;
+
+            try {
+              const pubchemResult = await utils.external.searchPubchem.fetch({
+                query: moleculeName,
+                type: "name",
+              });
+
+              if (pubchemResult.ok && pubchemResult.data) {
+                const result = pubchemResult.data;
+                const allSynonyms = Array.isArray(result.synonyms)
+                  ? result.synonyms
+                  : [];
+
+                const moleculeResult = normalizeMoleculeResult({
+                  id: "",
+                  iupacName: result.iupacName || moleculeName,
+                  commonName: result.commonName || moleculeName,
+                  synonyms: allSynonyms,
+                  inchi: result.inchi || "",
+                  smiles: result.smiles || "",
+                  chemicalFormula: result.chemicalFormula || "",
+                  casNumber: casRN,
+                  pubChemCid: result.pubChemCid || null,
+                });
+
+                try {
+                  const dbResult = await utils.molecules.search.fetch({
+                    query: casRN,
+                  });
+                  if (dbResult.ok && dbResult.data) {
+                    const dbMolecule = normalizeMoleculeResult(
+                      dbResult.data as MoleculeSearchResult,
+                    );
+                    if (assignResult(dbMolecule, "Database")) {
+                      return;
+                    }
+                  }
+                } catch {
+                  // Database search failed, fall back to PubChem result
+                }
+
+                if (assignResult(moleculeResult, "PubChem (via CAS)")) {
+                  return;
+                }
+              }
+            } catch {
+              // PubChem lookup failed, continue to other methods
+            }
+          }
+        } catch {
+          // CAS lookup failed, continue to other methods
+        }
+      }
+
+      // Try database search
+      try {
+        const dbResult = await utils.molecules.search.fetch({ query: term });
+        if (dbResult.ok && dbResult.data) {
+          const result = normalizeMoleculeResult(
+            dbResult.data as MoleculeSearchResult,
+          );
+          if (assignResult(result, "Database")) {
+            return;
+          }
+        }
+      } catch {
+        // Database search failed, continue to PubChem
+      }
+
+      // Try PubChem search
+      try {
+        const pubchemResult = await utils.external.searchPubchem.fetch({
+          query: term,
+          type: /^\d+$/.test(term) ? "cid" : "name",
+        });
+
+        if (pubchemResult.ok && pubchemResult.data) {
+          const result = pubchemResult.data;
+          const allSynonyms = Array.isArray(result.synonyms)
+            ? result.synonyms
+            : [];
+
+          const moleculeResult = normalizeMoleculeResult({
+            id: "",
+            iupacName: result.iupacName || term,
+            commonName: result.commonName || term,
+            synonyms: allSynonyms,
+            inchi: result.inchi || "",
+            smiles: result.smiles || "",
+            chemicalFormula: result.chemicalFormula || "",
+            casNumber: result.casNumber || null,
+            pubChemCid: result.pubChemCid || null,
+          });
+
+          if (assignResult(moleculeResult, "PubChem")) {
+            return;
+          }
+        }
+      } catch {
+        // PubChem search failed, fall through to error
+      }
+
+      if (searchRequestIdRef.current === requestId) {
+        setSearchService("");
+        setMoleculeSearchResult(null);
+        setSelectedMolecule(null);
+        setSelectedPreferredName("");
+        setMoleculeSearchError(
+          "Molecule not found in database, PubChem, or CAS. Please try a different search term.",
+        );
+      }
+    } catch (error) {
+      if (searchRequestIdRef.current === requestId) {
+        console.error("Molecule search failed:", error);
+        setMoleculeSearchResult(null);
+        setSelectedMolecule(null);
+        setSelectedPreferredName("");
+        setSearchService("");
+        setMoleculeSearchError(
+          error instanceof Error ? error.message : "Unexpected search error.",
+        );
+      }
+    } finally {
+      if (searchRequestIdRef.current === requestId) {
+        setIsSearching(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const term = moleculeSearchTerm.trim();
+
+    if (!term) {
+      setIsSearching(false);
+      setMoleculeSearchResult(null);
+      setSelectedMolecule(null);
+      setSelectedPreferredName("");
+      setMoleculeSearchError(null);
+      setSearchService("");
+      return;
+    }
+
+    if (term.length < 2) {
+      setIsSearching(false);
       return;
     }
 
     setMoleculeSearchError(null);
-    setSearchService("");
-    const searchTerm = moleculeSearchTerm.trim();
 
-    // Check if search term looks like CAS number
-    if (isCASNumber(searchTerm)) {
-      try {
-        setSearchService("CAS");
-        const casResult = await utils.external.searchCas.fetch({
-          casNumber: searchTerm,
-        });
-
-        if (casResult.ok && casResult.data?.casRegistryNumber) {
-          // Use CAS data to improve PubChem search
-          const moleculeName = casResult.data.moleculeName || searchTerm;
-          const casRN = casResult.data.casRegistryNumber;
-
-          try {
-            setSearchService("PubChem (via CAS)");
-            const pubchemResult = await utils.external.searchPubchem.fetch({
-              query: moleculeName,
-              type: "name",
-            });
-
-            if (pubchemResult.ok && pubchemResult.data) {
-              const result = pubchemResult.data;
-              const allSynonyms = Array.isArray(result.synonyms)
-                ? result.synonyms
-                : [];
-
-              const moleculeResult: MoleculeSearchResult = {
-                id: "", // Will be set if found in database
-                iupacName: result.iupacName || moleculeName,
-                commonName: result.commonName || moleculeName,
-                synonyms: allSynonyms,
-                inchi: result.inchi || "",
-                smiles: result.smiles || "",
-                chemicalFormula: result.chemicalFormula || "",
-                casNumber: casRN,
-                pubChemCid: result.pubChemCid || null,
-              };
-
-              // Try database search with CAS number
-              try {
-                const dbResult = await utils.molecules.search.fetch({
-                  query: casRN,
-                });
-                if (dbResult.ok && dbResult.data) {
-                  moleculeResult.id = dbResult.data.id;
-                  moleculeResult.iupacName = dbResult.data.iupacName;
-                  moleculeResult.commonName = dbResult.data.commonName;
-                  moleculeResult.synonyms = dbResult.data.synonyms;
-                  setSearchService("Database");
-                }
-              } catch {
-                // Database search failed, use PubChem data
-              }
-
-              setMoleculeSearchResult(moleculeResult);
-              setSelectedPreferredName(moleculeResult.commonName);
-              return;
-            }
-          } catch (pubchemError) {
-            // PubChem search failed, try database
-          }
+    const timer = setTimeout(() => {
+      const requestId = searchRequestIdRef.current + 1;
+      searchRequestIdRef.current = requestId;
+      setIsSearching(true);
+      performMoleculeSearch(term, requestId).catch((error) => {
+        if (searchRequestIdRef.current === requestId) {
+          console.error("Molecule search failed:", error);
+          setIsSearching(false);
+          setMoleculeSearchResult(null);
+          setSelectedMolecule(null);
+          setSelectedPreferredName("");
+          setSearchService("");
+          setMoleculeSearchError(
+            error instanceof Error
+              ? error.message
+              : "Unable to search for molecule. Please try again.",
+          );
         }
-      } catch (casError) {
-        // CAS search failed, continue to other methods
-      }
-    }
-
-    // Try database search first
-    try {
-      setSearchService("Database");
-      const dbResult = await utils.molecules.search.fetch({
-        query: searchTerm,
       });
+    }, 400);
 
-      if (dbResult.ok && dbResult.data) {
-        const result = dbResult.data;
-        setMoleculeSearchResult(result as MoleculeSearchResult);
-        setSelectedPreferredName(result.commonName);
-        return;
-      }
-    } catch (dbError) {
-      // Database search failed, try PubChem
-    }
-
-    // Try PubChem search
-    try {
-      setSearchService("PubChem");
-      const pubchemResult = await utils.external.searchPubchem.fetch({
-        query: searchTerm,
-        type: /^\d+$/.test(searchTerm) ? "cid" : "name",
-      });
-
-      if (pubchemResult.ok && pubchemResult.data) {
-        const result = pubchemResult.data;
-        const allSynonyms = Array.isArray(result.synonyms)
-          ? result.synonyms
-          : [];
-
-        const moleculeResult: MoleculeSearchResult = {
-          id: "",
-          iupacName: result.iupacName || searchTerm,
-          commonName: result.commonName || searchTerm,
-          synonyms: allSynonyms,
-          inchi: result.inchi || "",
-          smiles: result.smiles || "",
-          chemicalFormula: result.chemicalFormula || "",
-          casNumber: result.casNumber || null,
-          pubChemCid: result.pubChemCid || null,
-        };
-
-        setMoleculeSearchResult(moleculeResult);
-        setSelectedPreferredName(moleculeResult.commonName);
-        return;
-      }
-    } catch (pubchemError) {
-      setMoleculeSearchError(
-        "Molecule not found in database, PubChem, or CAS. Please try a different search term.",
-      );
-    }
-  };
+    return () => {
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moleculeSearchTerm]);
 
   // Vendors, instruments, edges, calibration methods
   const { data: vendorsData, isLoading: isLoadingVendors } =
@@ -392,6 +645,13 @@ export default function NEXAFSContributePage() {
   const [newVendorName, setNewVendorName] = useState("");
   const [newVendorUrl, setNewVendorUrl] = useState("");
 
+  const [normalizationEnabled, setNormalizationEnabled] = useState(true);
+  const [preEdgePointCount, setPreEdgePointCount] = useState(10);
+  const [postEdgePointCount, setPostEdgePointCount] = useState(10);
+  const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
+    useState<"pre" | "post" | null>(null);
+  const [showBareAtom, setShowBareAtom] = useState(true);
+
   // Experiments array - each experiment has its own configuration
   const [experiments, setExperiments] = useState<ExperimentConfig[]>([
     createEmptyExperiment(),
@@ -428,72 +688,21 @@ export default function NEXAFSContributePage() {
     });
   };
 
-  const handleGeometryFile = async (file: File, experimentId: string) => {
-    const experiment = experiments.find((exp) => exp.id === experimentId);
-    if (!experiment) return;
-
-    updateExperiment(experimentId, {
-      geometryError: null,
-      geometryFile: file,
-    });
-
-    try {
-      const parsed = await parseCSVFile(file);
-      const columns = parsed.meta.fields || [];
-
-      // Try to auto-detect theta and phi columns
-      const thetaCol = columns.find((col) =>
-        col.toLowerCase().includes("theta"),
-      );
-      const phiCol = columns.find((col) => col.toLowerCase().includes("phi"));
-
-      const cleanedRows = parsed.data
-        .map((row) => {
-          const thetaValue = thetaCol
-            ? toNumber(row[thetaCol])
-            : toNumber(row.theta);
-          const phiValue = phiCol ? toNumber(row[phiCol]) : toNumber(row.phi);
-          return {
-            theta: thetaValue,
-            phi: phiValue,
-          };
-        })
-        .filter(
-          (row) => Number.isFinite(row.theta) && Number.isFinite(row.phi),
-        );
-
-      if (cleanedRows.length === 0) {
-        updateExperiment(experimentId, {
-          geometryData: [],
-          geometryError: "No valid theta/phi values found in geometry CSV.",
-        });
-        return;
-      }
-
-      updateExperiment(experimentId, {
-        geometryData: cleanedRows as GeometryDataItem[],
-      });
-    } catch (error) {
-      console.error("Failed to parse geometry CSV", error);
-      updateExperiment(experimentId, {
-        geometryError:
-          error instanceof Error
-            ? error.message
-            : "Failed to parse geometry CSV file.",
-        geometryData: [],
-      });
-    }
-  };
-
   const handleSpectrumFile = async (file: File, experimentId: string) => {
     const experiment = experiments.find((exp) => exp.id === experimentId);
     if (!experiment) return;
+
+    clearExperimentSpectrum(experimentId);
 
     updateExperiment(experimentId, {
       spectrumError: null,
       spectrumFile: file,
       spectrumPoints: [],
       csvColumnMappings: { energy: "", absorption: "" },
+      spectrumStats: null,
+      selectionSummary: null,
+      normalizedPoints: null,
+      normalization: null,
     });
 
     try {
@@ -554,68 +763,389 @@ export default function NEXAFSContributePage() {
   // Apply CSV column mappings to convert data for each experiment
   useEffect(() => {
     experiments.forEach((experiment) => {
-      if (
-        experiment.csvRawData.length > 0 &&
-        experiment.csvColumnMappings.energy &&
-        experiment.csvColumnMappings.absorption
-      ) {
-        const mappedPoints: SpectrumPoint[] = experiment.csvRawData
-          .map((row) => {
-            const energy = toNumber(row[experiment.csvColumnMappings.energy]);
-            const absorption = toNumber(
-              row[experiment.csvColumnMappings.absorption],
-            );
-            const theta = experiment.csvColumnMappings.theta
-              ? toNumber(row[experiment.csvColumnMappings.theta])
-              : undefined;
-            const phi = experiment.csvColumnMappings.phi
-              ? toNumber(row[experiment.csvColumnMappings.phi])
-              : undefined;
-
-            return {
-              energy,
-              absorption,
-              theta: Number.isFinite(theta) ? theta : undefined,
-              phi: Number.isFinite(phi) ? phi : undefined,
-            };
-          })
-          .filter(
-            (point) =>
-              Number.isFinite(point.energy) &&
-              Number.isFinite(point.absorption),
-          );
-
-        // Only update if the mapped points actually changed
-        const currentPointsStr = JSON.stringify(experiment.spectrumPoints);
-        const newPointsStr = JSON.stringify(mappedPoints);
-        if (currentPointsStr !== newPointsStr) {
-          updateExperiment(experiment.id, {
-            spectrumPoints: mappedPoints,
-            spectrumError:
-              mappedPoints.length === 0
-                ? "No valid data points found with the selected column mappings."
-                : null,
-          });
-        }
-      } else if (experiment.csvRawData.length === 0) {
-        // Clear spectrum points if CSV data is cleared
-        if (experiment.spectrumPoints.length > 0) {
+      if (experiment.csvRawData.length === 0) {
+        if (experiment.spectrumPoints.length > 0 || experiment.spectrumError) {
           updateExperiment(experiment.id, {
             spectrumPoints: [],
             spectrumError: null,
+            selectionSummary: null,
+            spectrumStats: null,
+            csvColumnMappings: {
+              ...experiment.csvColumnMappings,
+              theta: undefined,
+              phi: undefined,
+            },
           });
         }
+        return;
+      }
+
+      const energyColumn = experiment.csvColumnMappings.energy;
+      const absorptionColumn = experiment.csvColumnMappings.absorption;
+
+      if (!energyColumn || !absorptionColumn) {
+        if (
+          experiment.spectrumPoints.length > 0 ||
+          experiment.spectrumError !== null
+        ) {
+          updateExperiment(experiment.id, {
+            spectrumPoints: [],
+            spectrumError: "Select both energy and absorption columns.",
+            selectionSummary: null,
+            spectrumStats: null,
+          });
+        }
+        return;
+      }
+
+      const thetaColumn = experiment.csvColumnMappings.theta;
+      const phiColumn = experiment.csvColumnMappings.phi;
+
+      const numericColumns = new Set<string>([energyColumn, absorptionColumn]);
+      if (thetaColumn) numericColumns.add(thetaColumn);
+      if (phiColumn) numericColumns.add(phiColumn);
+
+      const numericColumnValues = analyzeNumericColumns(
+        experiment.csvRawData,
+        numericColumns,
+      );
+
+      const invalidColumns = Array.from(numericColumns).filter(
+        (column) => numericColumnValues[column]?.sanitizedInvalidRows.length,
+      );
+
+      if (invalidColumns.length > 0) {
+        updateExperiment(experiment.id, {
+          spectrumPoints: [],
+          spectrumError: `Invalid numeric values detected in columns: ${invalidColumns.join(", ")}`,
+          selectionSummary: null,
+          spectrumStats: null,
+        });
+        return;
+      }
+
+      const makeStat = (): {
+        min: number;
+        max: number;
+        nanCount: number;
+        validCount: number;
+      } => ({
+        min: Number.POSITIVE_INFINITY,
+        max: Number.NEGATIVE_INFINITY,
+        nanCount: 0,
+        validCount: 0,
+      });
+
+      const energyStats = makeStat();
+      const absorptionStats = makeStat();
+      const thetaStats = thetaColumn ? makeStat() : null;
+      const phiStats = phiColumn ? makeStat() : null;
+
+      const totalRows = experiment.csvRawData.length;
+      const spectrumPoints: SpectrumPoint[] = [];
+
+      experiment.csvRawData.forEach((row) => {
+        const energyValue = Number(row[energyColumn] ?? NaN);
+        if (!Number.isFinite(energyValue)) {
+          energyStats.nanCount += 1;
+          energyStats.min = Math.min(energyStats.min, energyValue);
+          energyStats.max = Math.max(energyStats.max, energyValue);
+        } else {
+          energyStats.validCount += 1;
+          energyStats.min = Math.min(energyStats.min, energyValue);
+          energyStats.max = Math.max(energyStats.max, energyValue);
+        }
+
+        const absorptionValue = Number(row[absorptionColumn] ?? NaN);
+        if (!Number.isFinite(absorptionValue)) {
+          absorptionStats.nanCount += 1;
+        } else {
+          absorptionStats.validCount += 1;
+          absorptionStats.min = Math.min(absorptionStats.min, absorptionValue);
+          absorptionStats.max = Math.max(absorptionStats.max, absorptionValue);
+        }
+
+        if (
+          !Number.isFinite(energyValue) ||
+          !Number.isFinite(absorptionValue)
+        ) {
+          return;
+        }
+
+        const thetaValue =
+          thetaColumn && row[thetaColumn] !== undefined
+            ? Number(row[thetaColumn])
+            : undefined;
+        const phiValue =
+          phiColumn && row[phiColumn] !== undefined
+            ? Number(row[phiColumn])
+            : undefined;
+
+        if (thetaStats) {
+          if (!Number.isFinite(thetaValue ?? NaN)) {
+            thetaStats.nanCount += 1;
+          } else if (thetaValue !== undefined) {
+            thetaStats.validCount += 1;
+            thetaStats.min = Math.min(thetaStats.min, thetaValue);
+            thetaStats.max = Math.max(thetaStats.max, thetaValue);
+          }
+        }
+
+        if (phiStats) {
+          if (!Number.isFinite(phiValue ?? NaN)) {
+            phiStats.nanCount += 1;
+          } else if (phiValue !== undefined) {
+            phiStats.validCount += 1;
+            phiStats.min = Math.min(phiStats.min, phiValue);
+            phiStats.max = Math.max(phiStats.max, phiValue);
+          }
+        }
+
+        const point: SpectrumPoint = {
+          energy: energyValue,
+          absorption: absorptionValue,
+        };
+
+        if (Number.isFinite(thetaValue ?? NaN) && thetaValue !== undefined) {
+          point.theta = thetaValue;
+        }
+        if (Number.isFinite(phiValue ?? NaN) && phiValue !== undefined) {
+          point.phi = phiValue;
+        }
+
+        spectrumPoints.push(point);
+      });
+
+      const spectrumError =
+        spectrumPoints.length === 0
+          ? "No valid data points found with the selected column mappings."
+          : null;
+
+      const geometryPairs = extractGeometryPairs(spectrumPoints);
+
+      const finalizeStats = (
+        stat: ReturnType<typeof makeStat> | null,
+      ): ColumnStats | undefined => {
+        if (!stat) return undefined;
+        const hasValid = stat.validCount > 0;
+        return {
+          min: hasValid ? stat.min : null,
+          max: hasValid ? stat.max : null,
+          nanCount: stat.nanCount,
+          validCount: stat.validCount,
+        } satisfies ColumnStats;
+      };
+
+      const spectrumStats: SpectrumStats = {
+        totalRows,
+        validPoints: spectrumPoints.length,
+        energy: finalizeStats(energyStats)!,
+        absorption: finalizeStats(absorptionStats)!,
+        ...(thetaStats ? { theta: finalizeStats(thetaStats) } : {}),
+        ...(phiStats ? { phi: finalizeStats(phiStats) } : {}),
+      };
+
+      const geometryMode: GeometryMode =
+        geometryPairs.length > 0 ? "csv" : "fixed";
+
+      const currentPointsSignature = JSON.stringify(
+        experiment.spectrumPoints.map((point) => [
+          point.energy,
+          point.absorption,
+          point.theta,
+          point.phi,
+        ]),
+      );
+      const nextPointsSignature = JSON.stringify(
+        spectrumPoints.map((point) => [
+          point.energy,
+          point.absorption,
+          point.theta,
+          point.phi,
+        ]),
+      );
+      const currentStatsSignature = JSON.stringify(
+        experiment.spectrumStats ?? null,
+      );
+      const nextStatsSignature = JSON.stringify(spectrumStats);
+
+      if (
+        currentPointsSignature !== nextPointsSignature ||
+        experiment.spectrumError !== spectrumError ||
+        currentStatsSignature !== nextStatsSignature
+      ) {
+        updateExperiment(experiment.id, {
+          spectrumPoints,
+          spectrumError,
+          spectrumStats,
+          selectionSummary: null,
+          csvColumnMappings: {
+            ...experiment.csvColumnMappings,
+            theta: geometryMode === "csv" ? thetaColumn : undefined,
+            phi: geometryMode === "csv" ? phiColumn : undefined,
+          },
+        });
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    experiments,
     experiments
-      .map(
-        (e) =>
-          `${e.id}:${e.csvRawData.length}:${e.csvColumnMappings.energy}:${e.csvColumnMappings.absorption}:${e.csvColumnMappings.theta}:${e.csvColumnMappings.phi}`,
+      .map((experiment) =>
+        [
+          experiment.id,
+          experiment.csvRawData.length,
+          experiment.csvColumnMappings.energy,
+          experiment.csvColumnMappings.absorption,
+          experiment.csvColumnMappings.theta,
+          experiment.csvColumnMappings.phi,
+          JSON.stringify(experiment.spectrumStats ?? null),
+        ].join("|"),
       )
-      .join("|"),
+      .join("#"),
   ]);
+
+  useEffect(() => {
+    const barePoints = bareAtomAbsorptionQuery.data?.points ?? null;
+
+    setExperiments((prev) => {
+      let changed = false;
+
+      const next = prev.map((experiment) => {
+        if (
+          !normalizationEnabled ||
+          !barePoints ||
+          experiment.spectrumPoints.length === 0
+        ) {
+          if (experiment.normalizedPoints || experiment.normalization) {
+            changed = true;
+            return {
+              ...experiment,
+              normalizedPoints: null,
+              normalization: null,
+            };
+          }
+          return experiment;
+        }
+
+        const result = computeNormalizationForExperiment(
+          experiment.spectrumPoints,
+          barePoints,
+          preEdgePointCount,
+          postEdgePointCount,
+        );
+
+        if (!result) {
+          if (experiment.normalizedPoints || experiment.normalization) {
+            changed = true;
+            return {
+              ...experiment,
+              normalizedPoints: null,
+              normalization: null,
+            };
+          }
+          return experiment;
+        }
+
+        const { normalizedPoints, scale, offset, preRange, postRange } = result;
+
+        let needsUpdate = false;
+
+        if (!experiment.normalizedPoints) {
+          needsUpdate = true;
+        } else if (
+          experiment.normalizedPoints.length !== normalizedPoints.length
+        ) {
+          needsUpdate = true;
+        } else {
+          for (let idx = 0; idx < normalizedPoints.length; idx += 1) {
+            const priorPoint = experiment.normalizedPoints[idx];
+            const nextPoint = normalizedPoints[idx];
+            if (!priorPoint || !nextPoint) {
+              needsUpdate = true;
+              break;
+            }
+            if (
+              Math.abs(priorPoint.absorption - nextPoint.absorption) > 1e-6 ||
+              Math.abs(priorPoint.energy - nextPoint.energy) > 1e-9
+            ) {
+              needsUpdate = true;
+              break;
+            }
+          }
+        }
+
+        if (!experiment.normalization) {
+          needsUpdate = true;
+        } else {
+          const norm = experiment.normalization;
+          if (
+            Math.abs(norm.scale - scale) > 1e-6 ||
+            Math.abs(norm.offset - offset) > 1e-6 ||
+            !rangesApproximatelyEqual(norm.preRange, preRange) ||
+            !rangesApproximatelyEqual(norm.postRange, postRange)
+          ) {
+            needsUpdate = true;
+          }
+        }
+
+        if (!needsUpdate) {
+          return experiment;
+        }
+
+        changed = true;
+        return {
+          ...experiment,
+          normalizedPoints,
+          normalization: {
+            scale,
+            offset,
+            preRange,
+            postRange,
+          },
+        };
+      });
+
+      return changed ? next : prev;
+    });
+  }, [
+    normalizationEnabled,
+    preEdgePointCount,
+    postEdgePointCount,
+    bareAtomAbsorptionQuery.data?.points,
+    experiments,
+  ]);
+
+  const applyNormalizationSelection = (
+    experimentId: string,
+    selection: SpectrumSelection,
+  ) => {
+    const experiment = experiments.find((exp) => exp.id === experimentId);
+    if (!experiment) {
+      return;
+    }
+
+    const range = {
+      min: Math.min(selection.energyMin, selection.energyMax),
+      max: Math.max(selection.energyMin, selection.energyMax),
+    };
+
+    const selectedCount = countPointsWithinRange(
+      experiment.spectrumPoints,
+      range,
+    );
+
+    if (selectedCount < 2) {
+      return;
+    }
+
+    if (normalizationSelectionTarget === "pre") {
+      setPreEdgePointCount(selectedCount);
+    } else if (normalizationSelectionTarget === "post") {
+      setPostEdgePointCount(selectedCount);
+    }
+
+    setNormalizationSelectionTarget(null);
+  };
 
   const clearForm = () => {
     setMoleculeSearchTerm("");
@@ -636,36 +1166,31 @@ export default function NEXAFSContributePage() {
     setNewVendorUrl("");
     setExperiments([createEmptyExperiment()]);
     setSubmitStatus(undefined);
+    setNormalizationEnabled(true);
+    setPreEdgePointCount(10);
+    setPostEdgePointCount(10);
+    setNormalizationSelectionTarget(null);
+    setShowBareAtom(true);
   };
 
-  if (!isSignedIn) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="mx-auto max-w-2xl text-center">
-          <h1 className="mb-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Sign In Required
-          </h1>
-          <p className="mb-8 text-gray-600 dark:text-gray-400">
-            You must be signed in to contribute NEXAFS experiments.
-          </p>
-          <Link href="/sign-in">
-            <Button variant="solid">Sign In</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const clearExperimentSpectrum = (experimentId: string) => {
+    updateExperiment(experimentId, {
+      spectrumFile: null,
+      spectrumError: null,
+      csvColumns: [],
+      csvRawData: [],
+      csvColumnMappings: { energy: "", absorption: "" },
+      selectionSummary: null,
+      spectrumStats: null,
+      spectrumPoints: [],
+      normalizedPoints: null,
+      normalization: null,
+    });
+  };
 
-  if (isLoadingAgreement) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="mx-auto max-w-2xl text-center">
-          <div className="border-t-wsu-crimson mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const resetExperiment = (experimentId: string) => {
+    clearExperimentSpectrum(experimentId);
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -688,7 +1213,8 @@ export default function NEXAFSContributePage() {
       return;
     }
 
-    // Validate all experiments
+    const geometryPayloadByExperiment: Record<string, GeometryPayload> = {};
+
     for (const experiment of experiments) {
       if (!experiment.instrumentId) {
         setSubmitStatus({
@@ -706,32 +1232,83 @@ export default function NEXAFSContributePage() {
         return;
       }
 
-      if (experiment.geometryMode === "fixed") {
+      const hasThetaMapping = Boolean(experiment.csvColumnMappings.theta);
+      const hasPhiMapping = Boolean(experiment.csvColumnMappings.phi);
+
+      if (hasThetaMapping !== hasPhiMapping) {
+        setSubmitStatus({
+          type: "error",
+          message: `Experiment ${experiments.indexOf(experiment) + 1}: Provide both theta and phi column mappings, or leave both unset.`,
+        });
+        return;
+      }
+
+      const hasCsvGeometry =
+        hasThetaMapping &&
+        hasPhiMapping &&
+        experiment.spectrumPoints.length > 0;
+
+      if (hasCsvGeometry) {
+        const invalidPoint = experiment.spectrumPoints.find(
+          (point) =>
+            point.theta === undefined ||
+            Number.isNaN(point.theta) ||
+            point.phi === undefined ||
+            Number.isNaN(point.phi),
+        );
+
+        if (invalidPoint) {
+          setSubmitStatus({
+            type: "error",
+            message: `Experiment ${experiments.indexOf(experiment) + 1}: Spectrum CSV rows mapped to theta/phi must contain numeric values.`,
+          });
+          return;
+        }
+
+        const uniqueGeometries = extractGeometryPairs(
+          experiment.spectrumPoints,
+        );
+
+        if (uniqueGeometries.length === 0) {
+          setSubmitStatus({
+            type: "error",
+            message: `Experiment ${experiments.indexOf(experiment) + 1}: No valid theta/phi pairs detected in the spectrum CSV.`,
+          });
+          return;
+        }
+
+        geometryPayloadByExperiment[experiment.id] = {
+          mode: "csv",
+          csvGeometries: uniqueGeometries,
+        };
+      } else {
         if (!experiment.fixedTheta || !experiment.fixedPhi) {
           setSubmitStatus({
             type: "error",
-            message: `Experiment ${experiments.indexOf(experiment) + 1}: Provide theta and phi values for fixed geometry mode.`,
+            message: `Experiment ${experiments.indexOf(experiment) + 1}: Provide theta and phi values for fixed geometry.`,
           });
           return;
         }
-      } else {
-        if (experiment.geometryData.length === 0) {
+
+        const fixedThetaValue = parseFloat(experiment.fixedTheta);
+        const fixedPhiValue = parseFloat(experiment.fixedPhi);
+
+        if (
+          !Number.isFinite(fixedThetaValue) ||
+          !Number.isFinite(fixedPhiValue)
+        ) {
           setSubmitStatus({
             type: "error",
-            message: `Experiment ${experiments.indexOf(experiment) + 1}: Upload a geometry CSV containing theta and phi columns.`,
+            message: `Experiment ${experiments.indexOf(experiment) + 1}: Fixed theta and phi must be numeric values.`,
           });
           return;
         }
-        const pointsMissingGeometry = experiment.spectrumPoints.some(
-          (point) => point.theta === undefined || point.phi === undefined,
-        );
-        if (pointsMissingGeometry) {
-          setSubmitStatus({
-            type: "error",
-            message: `Experiment ${experiments.indexOf(experiment) + 1}: Spectrum CSV must include theta and phi columns for each row when using geometry CSV mode.`,
-          });
-          return;
-        }
+
+        geometryPayloadByExperiment[experiment.id] = {
+          mode: "fixed",
+          fixedTheta: fixedThetaValue,
+          fixedPhi: fixedPhiValue,
+        };
       }
 
       if (experiment.spectrumPoints.length === 0) {
@@ -743,47 +1320,65 @@ export default function NEXAFSContributePage() {
       }
     }
 
-    const vendorPayload = {
-      existingVendorId: selectedVendorId || undefined,
-      name: newVendorName.trim() ? newVendorName.trim() : undefined,
-      url: newVendorUrl.trim() ? newVendorUrl.trim() : undefined,
-    } as const;
+    let vendorPayload:
+      | { existingVendorId: string }
+      | { name: string; url?: string }
+      | undefined;
+
+    if (selectedVendorId) {
+      vendorPayload = { existingVendorId: selectedVendorId };
+    } else if (newVendorName.trim()) {
+      vendorPayload = {
+        name: newVendorName.trim(),
+        url: newVendorUrl.trim() ? newVendorUrl.trim() : undefined,
+      };
+    }
 
     try {
-      // Generate a single identifier for all experiments if not provided
-      // This ensures all experiments are linked to the same sample
-      let sharedIdentifier = sampleIdentifier.trim();
-      if (!sharedIdentifier) {
-        // Generate a unique identifier that will be used for all experiments
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-        sharedIdentifier = `SAMPLE-${timestamp}-${random}`;
-      }
-
-      // Submit each experiment separately - they will all use the same sample
       for (const experiment of experiments) {
+        const geometryMeta = geometryPayloadByExperiment[experiment.id];
+        if (!geometryMeta) {
+          setSubmitStatus({
+            type: "error",
+            message: `Experiment ${experiments.indexOf(experiment) + 1}: Unable to resolve geometry definition. Please reconfigure geometry settings.`,
+          });
+          return;
+        }
+
+        const geometryInput =
+          geometryMeta.mode === "csv"
+            ? {
+                mode: "csv" as const,
+                csvGeometries: geometryMeta.csvGeometries,
+              }
+            : {
+                mode: "fixed" as const,
+                fixed: {
+                  theta: geometryMeta.fixedTheta,
+                  phi: geometryMeta.fixedPhi,
+                },
+              };
+
         await createNexafsMutation.mutateAsync({
           sample: {
             moleculeId: selectedMolecule.id,
-            identifier: sharedIdentifier,
-            processMethod: processMethod
-              ? (processMethod as ProcessMethod)
-              : undefined,
+            identifier: sampleIdentifier.trim(),
+            processMethod: processMethod || undefined,
             substrate: substrate.trim() || undefined,
             solvent: solvent.trim() || undefined,
             thickness:
-              typeof thickness === "number" && !Number.isNaN(thickness)
+              typeof thickness === "number" && Number.isFinite(thickness)
                 ? thickness
                 : undefined,
             molecularWeight:
               typeof molecularWeight === "number" &&
-              !Number.isNaN(molecularWeight)
+              Number.isFinite(molecularWeight)
                 ? molecularWeight
                 : undefined,
             preparationDate: preparationDate
               ? new Date(preparationDate).toISOString()
               : undefined,
-            vendor: vendorPayload,
+            vendor: vendorPayload ?? {},
           },
           experiment: {
             instrumentId: experiment.instrumentId,
@@ -796,19 +1391,7 @@ export default function NEXAFSContributePage() {
             referenceStandard: experiment.referenceStandard.trim() || undefined,
             isStandard: experiment.isStandard,
           },
-          geometry:
-            experiment.geometryMode === "fixed"
-              ? {
-                  mode: "fixed" as const,
-                  fixed: {
-                    theta: parseFloat(experiment.fixedTheta),
-                    phi: parseFloat(experiment.fixedPhi),
-                  },
-                }
-              : {
-                  mode: "csv" as const,
-                  csvGeometries: experiment.geometryData,
-                },
+          geometry: geometryInput,
           spectrum: {
             points: experiment.spectrumPoints,
           },
@@ -833,119 +1416,37 @@ export default function NEXAFSContributePage() {
     }
   };
 
-  const allMoleculeNames = useMemo(() => {
-    if (!moleculeSearchResult) return [];
-    const names = [
-      moleculeSearchResult.commonName,
-      moleculeSearchResult.iupacName,
-      ...moleculeSearchResult.synonyms,
-    ].filter((name, index, arr) => name && arr.indexOf(name) === index);
-    return names;
-  }, [moleculeSearchResult]);
-
-  return (
-    <>
-      <ContributionAgreementModal
-        isOpen={showAgreementModal}
-        onClose={() => {
-          /* non-dismissible */
-        }}
-        onAgree={handleAgreementAccepted}
-      />
-
-      <SimpleDialog
-        isOpen={showEdgeDialog}
-        onClose={() => setShowEdgeDialog(false)}
-        title="Create New Edge"
-      >
-        <div className="space-y-4">
-          <FormField
-            label="Target Atom"
-            type="text"
-            name="targetAtom"
-            value={newEdgeTargetAtom}
-            onChange={(e) => setNewEdgeTargetAtom(e.target.value)}
-            required
-            placeholder="e.g., C, N, O"
-            tooltip="The target atom for the absorption edge (e.g., C for carbon K-edge)"
-          />
-          <FormField
-            label="Core State"
-            type="text"
-            name="coreState"
-            value={newEdgeCoreState}
-            onChange={(e) => setNewEdgeCoreState(e.target.value)}
-            required
-            placeholder="e.g., K, L1, L2, L3"
-            tooltip="The core state of the electron (e.g., K for K-edge)"
-          />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="bordered"
-              onClick={() => setShowEdgeDialog(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="solid"
-              onClick={handleCreateEdge}
-              disabled={createEdgeMutation.isPending}
-            >
-              {createEdgeMutation.isPending ? "Creating..." : "Create Edge"}
-            </Button>
+  const renderContent = () => {
+    if (!isSignedIn) {
+      return (
+        <div className="container mx-auto px-4 py-16">
+          <div className="mx-auto max-w-2xl text-center">
+            <h1 className="mb-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Sign In Required
+            </h1>
+            <p className="mb-8 text-gray-600 dark:text-gray-400">
+              You must be signed in to contribute NEXAFS experiments.
+            </p>
+            <Link href="/sign-in">
+              <Button variant="solid">Sign In</Button>
+            </Link>
           </div>
         </div>
-      </SimpleDialog>
+      );
+    }
 
-      <SimpleDialog
-        isOpen={showCalibrationDialog}
-        onClose={() => setShowCalibrationDialog(false)}
-        title="Create New Calibration Method"
-      >
-        <div className="space-y-4">
-          <FormField
-            label="Name"
-            type="text"
-            name="calibrationName"
-            value={newCalibrationName}
-            onChange={(e) => setNewCalibrationName(e.target.value)}
-            required
-            placeholder="e.g., Carbon K-edge calibration"
-            tooltip="The name of the calibration method"
-          />
-          <FormField
-            label="Description"
-            type="textarea"
-            name="calibrationDescription"
-            value={newCalibrationDescription}
-            onChange={(e) => setNewCalibrationDescription(e.target.value)}
-            placeholder="Optional description of the calibration method"
-            tooltip="Additional details about the calibration method"
-          />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="bordered"
-              onClick={() => setShowCalibrationDialog(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="solid"
-              onClick={handleCreateCalibration}
-              disabled={createCalibrationMutation.isPending}
-            >
-              {createCalibrationMutation.isPending
-                ? "Creating..."
-                : "Create Method"}
-            </Button>
+    if (isLoadingAgreement) {
+      return (
+        <div className="container mx-auto px-4 py-16">
+          <div className="mx-auto max-w-2xl text-center">
+            <div className="border-t-wsu-crimson mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
           </div>
         </div>
-      </SimpleDialog>
+      );
+    }
 
+    return (
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <Link
@@ -984,7 +1485,7 @@ export default function NEXAFSContributePage() {
                   >
                     Search Molecule
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="space-y-2">
                     <div className="relative flex-1">
                       <input
                         id="molecule-search"
@@ -992,72 +1493,111 @@ export default function NEXAFSContributePage() {
                         onChange={(event) =>
                           setMoleculeSearchTerm(event.target.value)
                         }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleSearchMolecule();
-                          }
-                        }}
                         placeholder="Search by name, synonym, CAS, or PubChem CID"
-                        className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 pl-10 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                        className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 pr-20 pl-10 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                       />
                       <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      {isSearching && (
+                        <span className="absolute top-1/2 right-3 -translate-y-1/2 text-xs font-medium text-gray-400 dark:text-gray-500">
+                          Searching…
+                        </span>
+                      )}
                     </div>
-                    <Button
-                      type="button"
-                      variant="bordered"
-                      onClick={handleSearchMolecule}
-                      disabled={moleculeSearchQuery.isFetching}
-                    >
-                      {moleculeSearchQuery.isFetching
-                        ? "Searching..."
-                        : "Search"}
-                    </Button>
+                    {searchService && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Source: {searchService}
+                      </p>
+                    )}
+                    {moleculeSearchError && (
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        {moleculeSearchError}
+                      </p>
+                    )}
                   </div>
-                  {searchService && (
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      Searching via: {searchService}
-                    </p>
-                  )}
-                  {moleculeSearchError && (
-                    <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-                      {moleculeSearchError}
-                    </p>
-                  )}
                 </div>
               </div>
 
               {moleculeSearchResult && (
                 <div className="mt-6 space-y-4">
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                          {moleculeSearchResult.commonName}
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          IUPAC: {moleculeSearchResult.iupacName}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Formula:{" "}
-                          {moleculeSearchResult.chemicalFormula || "N/A"}
-                        </p>
-                        {moleculeSearchResult.casNumber && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            CAS: {moleculeSearchResult.casNumber}
-                          </p>
-                        )}
+                  {(() => {
+                    const isCurrentSelection =
+                      !!selectedMolecule &&
+                      (selectedMolecule.id && moleculeSearchResult.id
+                        ? selectedMolecule.id === moleculeSearchResult.id
+                        : selectedMolecule.iupacName ===
+                            moleculeSearchResult.iupacName &&
+                          selectedMolecule.casNumber ===
+                            moleculeSearchResult.casNumber);
+                    return (
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                              {moleculeSearchResult.commonName}
+                            </h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              IUPAC: {moleculeSearchResult.iupacName}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Formula:{" "}
+                              {moleculeSearchResult.chemicalFormula || "N/A"}
+                            </p>
+                            {moleculeSearchResult.casNumber && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                CAS: {moleculeSearchResult.casNumber}
+                              </p>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant={isCurrentSelection ? "solid" : "bordered"}
+                            className="w-full md:w-auto md:min-w-[180px]"
+                            disabled={isCurrentSelection}
+                            onClick={() => {
+                              setSelectedMolecule(moleculeSearchResult);
+                              setSelectedPreferredName(
+                                moleculeSearchResult.commonName,
+                              );
+                              setSubmitStatus(undefined);
+                            }}
+                          >
+                            {isCurrentSelection
+                              ? "Selected"
+                              : "Use this molecule"}
+                          </Button>
+                        </div>
                       </div>
-                      <Button
-                        type="button"
-                        variant="bordered"
-                        onClick={() => {
-                          setSelectedMolecule(moleculeSearchResult);
-                          setSubmitStatus(undefined);
-                        }}
-                      >
-                        Use this molecule
-                      </Button>
+                    );
+                  })()}
+
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-200">
+                        Synonyms
+                      </h4>
+                      {moleculeSearchResult.synonyms.length > 0 ? (
+                        <ul className="mt-2 flex flex-wrap gap-2 text-sm text-gray-600 dark:text-gray-400">
+                          {moleculeSearchResult.synonyms
+                            .slice(0, 6)
+                            .map((synonym) => (
+                              <li
+                                key={synonym}
+                                className="rounded-full bg-white px-3 py-1 shadow-sm dark:bg-gray-800"
+                              >
+                                {synonym}
+                              </li>
+                            ))}
+                          {moleculeSearchResult.synonyms.length > 6 && (
+                            <li className="text-xs text-gray-500 dark:text-gray-400">
+                              +{moleculeSearchResult.synonyms.length - 6} more
+                            </li>
+                          )}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                          No synonyms available for this molecule.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1067,7 +1607,9 @@ export default function NEXAFSContributePage() {
                       type="select"
                       name="preferredName"
                       value={selectedPreferredName}
-                      onChange={(e) => setSelectedPreferredName(e.target.value)}
+                      onChange={(value) =>
+                        setSelectedPreferredName(value as string)
+                      }
                       tooltip="Select which name/synonym should appear on the molecule banner"
                       options={allMoleculeNames.map((name) => ({
                         value: name,
@@ -1104,7 +1646,7 @@ export default function NEXAFSContributePage() {
                   type="date"
                   name="preparationDate"
                   value={preparationDate}
-                  onChange={(e) => setPreparationDate(e.target.value)}
+                  onChange={(value) => setPreparationDate(value as string)}
                   tooltip="The date when the sample was prepared"
                 />
                 <FormField
@@ -1112,8 +1654,8 @@ export default function NEXAFSContributePage() {
                   type="select"
                   name="processMethod"
                   value={processMethod}
-                  onChange={(e) =>
-                    setProcessMethod(e.target.value as ProcessMethod | "")
+                  onChange={(value) =>
+                    setProcessMethod(value as ProcessMethod | "")
                   }
                   tooltip="The method used to process the sample: DRY (dry processing) or SOLVENT (solvent-based processing)"
                   options={[
@@ -1132,7 +1674,7 @@ export default function NEXAFSContributePage() {
                   type="text"
                   name="substrate"
                   value={substrate}
-                  onChange={(e) => setSubstrate(e.target.value)}
+                  onChange={(value) => setSubstrate(value as string)}
                   placeholder="e.g., Si wafer, glass"
                   tooltip="The substrate material on which the sample was deposited or prepared"
                 />
@@ -1141,7 +1683,7 @@ export default function NEXAFSContributePage() {
                   type="text"
                   name="solvent"
                   value={solvent}
-                  onChange={(e) => setSolvent(e.target.value)}
+                  onChange={(value) => setSolvent(value as string)}
                   placeholder="e.g., chloroform, toluene"
                   tooltip="The solvent used during sample preparation (if applicable)"
                 />
@@ -1153,13 +1695,7 @@ export default function NEXAFSContributePage() {
                   type="number"
                   name="thickness"
                   value={thickness}
-                  onChange={(e) =>
-                    setThickness(
-                      e.target.value === ""
-                        ? ""
-                        : parseFloat(e.target.value) || "",
-                    )
-                  }
+                  onChange={(value) => setThickness(value as number | "")}
                   placeholder="e.g., 50"
                   tooltip="The thickness of the sample in nanometers"
                   min={0}
@@ -1170,13 +1706,7 @@ export default function NEXAFSContributePage() {
                   type="number"
                   name="molecularWeight"
                   value={molecularWeight}
-                  onChange={(e) =>
-                    setMolecularWeight(
-                      e.target.value === ""
-                        ? ""
-                        : parseFloat(e.target.value) || "",
-                    )
-                  }
+                  onChange={(value) => setMolecularWeight(value as number | "")}
                   placeholder="e.g., 1000.5"
                   tooltip="The molecular weight of the molecule in grams per mole"
                   min={0}
@@ -1190,7 +1720,7 @@ export default function NEXAFSContributePage() {
                   type="select"
                   name="vendor"
                   value={selectedVendorId}
-                  onChange={(e) => setSelectedVendorId(e.target.value)}
+                  onChange={(value) => setSelectedVendorId(value as string)}
                   tooltip="Select a vendor from the existing list"
                   options={[
                     {
@@ -1244,419 +1774,393 @@ export default function NEXAFSContributePage() {
                 </Button>
               </div>
 
-              {experiments.map((experiment, index) => (
-                <div
-                  key={experiment.id}
-                  className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-                >
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                      Experiment {index + 1}
-                    </h3>
-                    {experiments.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="bordered"
-                        onClick={() => removeExperiment(experiment.id)}
-                        className="flex items-center gap-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                        Remove
-                      </Button>
-                    )}
-                  </div>
+              {experiments.map((experiment, index) => {
+                const displayPoints =
+                  normalizationEnabled && experiment.normalizedPoints
+                    ? experiment.normalizedPoints
+                    : experiment.spectrumPoints;
 
-                  <div className="space-y-6">
-                    {/* Experiment Metadata */}
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <FormField
-                        label="Instrument"
-                        type="select"
-                        name={`instrument-${experiment.id}`}
-                        value={experiment.instrumentId}
-                        onChange={(e) =>
-                          updateExperiment(experiment.id, {
-                            instrumentId: e.target.value,
-                          })
-                        }
-                        required
-                        tooltip="Select the instrument used for this experiment"
-                        options={[
-                          {
-                            value: "",
-                            label: isLoadingInstruments
-                              ? "Loading instruments..."
-                              : "Select instrument",
-                          },
-                          ...(instrumentsData?.instruments.map(
-                            (instrument: {
-                              id: string;
-                              name: string;
-                              facilities?: { name: string } | null;
-                            }) => ({
-                              value: instrument.id,
-                              label: `${instrument.name}${
-                                instrument.facilities
-                                  ? ` — ${instrument.facilities.name}`
-                                  : ""
-                              }`,
-                            }),
-                          ) || []),
-                        ]}
-                      />
+                const displayAbsorptionStats = (() => {
+                  if (
+                    normalizationEnabled &&
+                    experiment.normalization &&
+                    experiment.spectrumStats?.absorption
+                  ) {
+                    const rawStats = experiment.spectrumStats.absorption;
+                    const transformed = [rawStats.min, rawStats.max]
+                      .filter((value): value is number => value !== null)
+                      .map(
+                        (value) =>
+                          experiment.normalization!.scale * value +
+                          experiment.normalization!.offset,
+                      );
 
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <label
-                            htmlFor={`edge-${experiment.id}`}
-                            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                          >
-                            Absorption Edge
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setShowEdgeDialog(true)}
-                            className="text-wsu-crimson flex items-center gap-1 text-xs hover:underline"
-                          >
-                            <PlusIcon className="h-3 w-3" />
-                            Add new
-                          </button>
-                        </div>
-                        <select
-                          id={`edge-${experiment.id}`}
-                          value={experiment.edgeId}
-                          onChange={(event) =>
+                    if (transformed.length === 2) {
+                      const [first, second] = transformed as [number, number];
+                      const minValue = Math.min(first, second);
+                      const maxValue = Math.max(first, second);
+                      return {
+                        min: minValue,
+                        max: maxValue,
+                      };
+                    }
+                  }
+
+                  if (experiment.spectrumStats?.absorption) {
+                    return {
+                      min: experiment.spectrumStats.absorption.min,
+                      max: experiment.spectrumStats.absorption.max,
+                    };
+                  }
+
+                  return undefined;
+                })();
+
+                const normalizationRegions =
+                  normalizationEnabled && experiment.normalization
+                    ? {
+                        pre: experiment.normalization.preRange,
+                        post: experiment.normalization.postRange,
+                      }
+                    : undefined;
+
+                return (
+                  <div
+                    key={experiment.id}
+                    className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                  >
+                    <div className="mb-4 flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        Experiment {index + 1}
+                      </h3>
+                      {experiments.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="bordered"
+                          onClick={() => removeExperiment(experiment.id)}
+                          className="flex items-center gap-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-6">
+                      {/* Experiment Metadata */}
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <FormField
+                          label="Instrument"
+                          type="select"
+                          name={`instrument-${experiment.id}`}
+                          value={experiment.instrumentId}
+                          onChange={(value) =>
                             updateExperiment(experiment.id, {
-                              edgeId: event.target.value,
+                              instrumentId: value as string,
                             })
                           }
                           required
-                          className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                        >
-                          <option value="" disabled>
-                            {isLoadingEdges
-                              ? "Loading edges..."
-                              : "Select edge"}
-                          </option>
-                          {edgesData?.edges.map((edge) => (
-                            <option key={edge.id} value={edge.id}>
-                              {edge.targetatom} — {edge.corestate}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <FormField
-                        label="Experiment Type"
-                        type="select"
-                        name={`experimentType-${experiment.id}`}
-                        value={experiment.experimentType}
-                        onChange={(e) =>
-                          updateExperiment(experiment.id, {
-                            experimentType: e.target
-                              .value as ExperimentTypeOption,
-                          })
-                        }
-                        tooltip="The type of NEXAFS experiment performed"
-                        options={EXPERIMENT_TYPE_OPTIONS.map((opt) => ({
-                          value: opt.value,
-                          label: opt.label,
-                        }))}
-                      />
-                      <FormField
-                        label="Measurement Date"
-                        type="date"
-                        name={`measurementDate-${experiment.id}`}
-                        value={experiment.measurementDate}
-                        onChange={(e) =>
-                          updateExperiment(experiment.id, {
-                            measurementDate: e.target.value,
-                          })
-                        }
-                        tooltip="The date when the experiment was performed"
-                      />
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <label
-                            htmlFor={`calibration-method-${experiment.id}`}
-                            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                          >
-                            Calibration Method (optional)
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setShowCalibrationDialog(true)}
-                            className="text-wsu-crimson flex items-center gap-1 text-xs hover:underline"
-                          >
-                            <PlusIcon className="h-3 w-3" />
-                            Add new
-                          </button>
-                        </div>
-                        <select
-                          id={`calibration-method-${experiment.id}`}
-                          value={experiment.calibrationId}
-                          onChange={(event) =>
-                            updateExperiment(experiment.id, {
-                              calibrationId: event.target.value,
-                            })
-                          }
-                          className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                        >
-                          <option value="">
-                            {isLoadingCalibrations
-                              ? "Loading calibration methods..."
-                              : "Select calibration method"}
-                          </option>
-                          {calibrationMethodsData?.calibrationMethods.map(
-                            (method) => (
-                              <option key={method.id} value={method.id}>
-                                {method.name}
-                              </option>
-                            ),
-                          )}
-                        </select>
-                      </div>
-
-                      <div>
-                        <FormField
-                          label="Reference Standard (optional)"
-                          type="text"
-                          name={`referenceStandard-${experiment.id}`}
-                          value={experiment.referenceStandard}
-                          onChange={(e) =>
-                            updateExperiment(experiment.id, {
-                              referenceStandard: e.target.value,
-                            })
-                          }
-                          placeholder="Reference standard used"
-                          tooltip="The reference standard used for calibration"
+                          tooltip="Select the instrument used for this experiment"
+                          options={[
+                            {
+                              value: "",
+                              label: isLoadingInstruments
+                                ? "Loading instruments..."
+                                : "Select instrument",
+                            },
+                            ...(instrumentsData?.instruments.map(
+                              (instrument: {
+                                id: string;
+                                name: string;
+                                facilities?: { name: string } | null;
+                              }) => ({
+                                value: instrument.id,
+                                label: `${instrument.name}${
+                                  instrument.facilities
+                                    ? ` — ${instrument.facilities.name}`
+                                    : ""
+                                }`,
+                              }),
+                            ) || []),
+                          ]}
                         />
-                        <label className="mt-3 inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={experiment.isStandard}
+
+                        <div>
+                          <div className="mb-2 flex items-center justify-between">
+                            <label
+                              htmlFor={`edge-${experiment.id}`}
+                              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                            >
+                              Absorption Edge
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setShowEdgeDialog(true)}
+                              className="text-wsu-crimson flex items-center gap-1 text-xs hover:underline"
+                            >
+                              <PlusIcon className="h-3 w-3" />
+                              Add new
+                            </button>
+                          </div>
+                          <select
+                            id={`edge-${experiment.id}`}
+                            value={experiment.edgeId}
                             onChange={(event) =>
                               updateExperiment(experiment.id, {
-                                isStandard: event.target.checked,
+                                edgeId: event.target.value,
                               })
                             }
-                            className="text-wsu-crimson focus:ring-wsu-crimson"
-                          />
-                          Mark as standard experiment
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Geometry Configuration */}
-                    <div>
-                      <h4 className="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                        Geometry Configuration
-                      </h4>
-                      <div className="mb-4 flex gap-4">
-                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          <input
-                            type="radio"
-                            value="fixed"
-                            checked={experiment.geometryMode === "fixed"}
-                            onChange={() =>
-                              updateExperiment(experiment.id, {
-                                geometryMode: "fixed",
-                              })
-                            }
-                            className="text-wsu-crimson focus:ring-wsu-crimson"
-                          />
-                          Fixed geometry (single theta / phi)
-                        </label>
-                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          <input
-                            type="radio"
-                            value="csv"
-                            checked={experiment.geometryMode === "csv"}
-                            onChange={() =>
-                              updateExperiment(experiment.id, {
-                                geometryMode: "csv",
-                              })
-                            }
-                            className="text-wsu-crimson focus:ring-wsu-crimson"
-                          />
-                          Geometry from CSV
-                        </label>
+                            required
+                            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                          >
+                            <option value="" disabled>
+                              {isLoadingEdges
+                                ? "Loading edges..."
+                                : "Select edge"}
+                            </option>
+                            {edgesData?.edges.map((edge) => (
+                              <option key={edge.id} value={edge.id}>
+                                {edge.targetatom} — {edge.corestate}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
 
-                      {experiment.geometryMode === "fixed" ? (
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <FormField
-                            label="Theta (°)"
-                            type="number"
-                            name={`fixedTheta-${experiment.id}`}
-                            value={experiment.fixedTheta}
-                            onChange={(e) =>
-                              updateExperiment(experiment.id, {
-                                fixedTheta: e.target.value,
-                              })
-                            }
-                            tooltip="The polar angle theta in degrees"
-                            step={0.01}
-                          />
-                          <FormField
-                            label="Phi (°)"
-                            type="number"
-                            name={`fixedPhi-${experiment.id}`}
-                            value={experiment.fixedPhi}
-                            onChange={(e) =>
-                              updateExperiment(experiment.id, {
-                                fixedPhi: e.target.value,
-                              })
-                            }
-                            tooltip="The azimuthal angle phi in degrees"
-                            step={0.01}
-                          />
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <CSVUpload
-                            label="Geometry CSV"
-                            description="Upload a CSV containing theta and phi columns."
-                            file={experiment.geometryFile}
-                            onFileSelect={(file) =>
-                              handleGeometryFile(file, experiment.id)
-                            }
-                            onRemove={() => {
-                              updateExperiment(experiment.id, {
-                                geometryFile: null,
-                                geometryData: [],
-                                geometryError: null,
-                              });
-                            }}
-                            error={experiment.geometryError ?? undefined}
-                          />
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <FormField
+                          label="Experiment Type"
+                          type="select"
+                          name={`experimentType-${experiment.id}`}
+                          value={experiment.experimentType}
+                          onChange={(value) =>
+                            updateExperiment(experiment.id, {
+                              experimentType: value as ExperimentTypeOption,
+                            })
+                          }
+                          tooltip="The type of NEXAFS experiment performed"
+                          options={EXPERIMENT_TYPE_OPTIONS.map((opt) => ({
+                            value: opt.value,
+                            label: opt.label,
+                          }))}
+                        />
+                        <FormField
+                          label="Measurement Date"
+                          type="date"
+                          name={`measurementDate-${experiment.id}`}
+                          value={experiment.measurementDate}
+                          onChange={(value) =>
+                            updateExperiment(experiment.id, {
+                              measurementDate: value as string,
+                            })
+                          }
+                          tooltip="The date when the experiment was performed"
+                        />
+                      </div>
 
-                          {experiment.geometryData.length > 0 && (
-                            <div>
-                              <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Geometry Preview (
-                                {experiment.geometryData.length} entries)
-                              </h3>
-                              <DataPreviewTable
-                                data={experiment.geometryData.map(
-                                  (item, idx) => ({
-                                    "#": idx + 1,
-                                    theta: item.theta,
-                                    phi: item.phi,
-                                  }),
-                                )}
-                                maxRows={10}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Spectrum Data */}
-                    <div>
-                      <h4 className="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                        Spectrum Data
-                      </h4>
-                      <CSVUpload
-                        label="Spectrum CSV"
-                        description="Upload a CSV file with spectral data. You will map the columns to energy, absorption, and optionally theta/phi."
-                        file={experiment.spectrumFile}
-                        onFileSelect={(file) =>
-                          handleSpectrumFile(file, experiment.id)
-                        }
-                        onRemove={() => {
-                          updateExperiment(experiment.id, {
-                            spectrumFile: null,
-                            spectrumPoints: [],
-                            csvColumns: [],
-                            csvRawData: [],
-                            csvColumnMappings: { energy: "", absorption: "" },
-                            spectrumError: null,
-                          });
-                        }}
-                        error={experiment.spectrumError ?? undefined}
-                      />
-
-                      {experiment.csvColumns.length > 0 && (
-                        <div className="mt-4 space-y-4">
-                          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Map CSV Columns
-                          </h3>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <FormField
-                              label="Energy Column"
-                              type="select"
-                              name={`energyColumn-${experiment.id}`}
-                              value={experiment.csvColumnMappings.energy}
-                              onChange={(e) =>
-                                updateExperiment(experiment.id, {
-                                  csvColumnMappings: {
-                                    ...experiment.csvColumnMappings,
-                                    energy: e.target.value,
-                                  },
-                                })
-                              }
-                              required
-                              tooltip="Select the column containing energy values (in eV)"
-                              options={[
-                                { value: "", label: "Select energy column" },
-                                ...experiment.csvColumns.map((col) => ({
-                                  value: col,
-                                  label: col,
-                                })),
-                              ]}
-                            />
-                            <FormField
-                              label="Absorption/Intensity Column"
-                              type="select"
-                              name={`absorptionColumn-${experiment.id}`}
-                              value={experiment.csvColumnMappings.absorption}
-                              onChange={(e) =>
-                                updateExperiment(experiment.id, {
-                                  csvColumnMappings: {
-                                    ...experiment.csvColumnMappings,
-                                    absorption: e.target.value,
-                                  },
-                                })
-                              }
-                              required
-                              tooltip="Select the column containing absorption or intensity values"
-                              options={[
-                                {
-                                  value: "",
-                                  label: "Select absorption column",
-                                },
-                                ...experiment.csvColumns.map((col) => ({
-                                  value: col,
-                                  label: col,
-                                })),
-                              ]}
-                            />
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <div className="mb-2 flex items-center justify-between">
+                            <label
+                              htmlFor={`calibration-method-${experiment.id}`}
+                              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                            >
+                              Calibration Method (optional)
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setShowCalibrationDialog(true)}
+                              className="text-wsu-crimson flex items-center gap-1 text-xs hover:underline"
+                            >
+                              <PlusIcon className="h-3 w-3" />
+                              Add new
+                            </button>
                           </div>
-                          {experiment.geometryMode === "csv" && (
+                          <select
+                            id={`calibration-method-${experiment.id}`}
+                            value={experiment.calibrationId}
+                            onChange={(event) =>
+                              updateExperiment(experiment.id, {
+                                calibrationId: event.target.value,
+                              })
+                            }
+                            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                          >
+                            <option value="">
+                              {isLoadingCalibrations
+                                ? "Loading calibration methods..."
+                                : "Select calibration method"}
+                            </option>
+                            {calibrationMethodsData?.calibrationMethods.map(
+                              (method) => (
+                                <option key={method.id} value={method.id}>
+                                  {method.name}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </div>
+
+                        <div>
+                          <FormField
+                            label="Reference Standard (optional)"
+                            type="text"
+                            name={`referenceStandard-${experiment.id}`}
+                            value={experiment.referenceStandard}
+                            onChange={(value) =>
+                              updateExperiment(experiment.id, {
+                                referenceStandard: value as string,
+                              })
+                            }
+                            placeholder="Reference standard used"
+                            tooltip="The reference standard used for calibration"
+                          />
+                          <label className="mt-3 inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <input
+                              type="checkbox"
+                              checked={experiment.isStandard}
+                              onChange={(event) =>
+                                updateExperiment(experiment.id, {
+                                  isStandard: event.target.checked,
+                                })
+                              }
+                              className="text-wsu-crimson focus:ring-wsu-crimson"
+                            />
+                            Mark as standard experiment
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Geometry Configuration */}
+                      <div>
+                        <h4 className="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Geometry Configuration
+                        </h4>
+                        {(() => {
+                          const thetaColumn =
+                            experiment.csvColumnMappings.theta;
+                          const phiColumn = experiment.csvColumnMappings.phi;
+                          const hasMappedColumns = Boolean(
+                            thetaColumn && phiColumn,
+                          );
+                          const geometryPairs = hasMappedColumns
+                            ? extractGeometryPairs(experiment.spectrumPoints)
+                            : [];
+                          const usingCsvGeometry = geometryPairs.length > 0;
+                          const attemptedCsvGeometry =
+                            hasMappedColumns &&
+                            experiment.spectrumPoints.length > 0;
+
+                          return (
+                            <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+                              {usingCsvGeometry ? (
+                                <>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                                    Using theta/phi data from spectrum columns
+                                    {thetaColumn && phiColumn
+                                      ? ` " ${thetaColumn} " and " ${phiColumn} ".`
+                                      : "."}
+                                  </p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    {geometryPairs.length} unique orientation
+                                    {geometryPairs.length === 1 ? "" : "s"}{" "}
+                                    detected from the spectrum CSV.
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  {attemptedCsvGeometry && (
+                                    <p className="text-sm text-red-600 dark:text-red-400">
+                                      Theta/phi columns were selected but no
+                                      usable numeric values were detected. Fixed
+                                      geometry inputs will be used instead.
+                                    </p>
+                                  )}
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    Provide fixed theta and phi angles
+                                    (degrees). These are required when the
+                                    spectrum CSV does not include theta/phi
+                                    columns.
+                                  </p>
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    <FormField
+                                      label="Theta (°)"
+                                      type="number"
+                                      name={`fixedTheta-${experiment.id}`}
+                                      value={experiment.fixedTheta}
+                                      onChange={(value) =>
+                                        updateExperiment(experiment.id, {
+                                          fixedTheta:
+                                            value === "" ? "" : String(value),
+                                        })
+                                      }
+                                      tooltip="The polar angle theta in degrees"
+                                      step={0.01}
+                                    />
+                                    <FormField
+                                      label="Phi (°)"
+                                      type="number"
+                                      name={`fixedPhi-${experiment.id}`}
+                                      value={experiment.fixedPhi}
+                                      onChange={(value) =>
+                                        updateExperiment(experiment.id, {
+                                          fixedPhi:
+                                            value === "" ? "" : String(value),
+                                        })
+                                      }
+                                      tooltip="The azimuthal angle phi in degrees"
+                                      step={0.01}
+                                    />
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Spectrum Data */}
+                      <div>
+                        <h4 className="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Spectrum Data
+                        </h4>
+                        <CSVUpload
+                          label="Spectrum CSV"
+                          description="Upload a CSV file with spectral data. You will map the columns to energy, absorption, and optionally theta/phi."
+                          acceptedFileTypes=".csv"
+                          file={experiment.spectrumFile}
+                          onFileSelect={(file) =>
+                            handleSpectrumFile(file, experiment.id)
+                          }
+                          onRemove={() =>
+                            clearExperimentSpectrum(experiment.id)
+                          }
+                          error={experiment.spectrumError ?? undefined}
+                        />
+
+                        {experiment.csvColumns.length > 0 && (
+                          <div className="mt-4 space-y-4">
+                            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Map CSV Columns
+                            </h3>
                             <div className="grid gap-4 md:grid-cols-2">
                               <FormField
-                                label="Theta Column (optional)"
+                                label="Energy Column"
                                 type="select"
-                                name={`thetaColumn-${experiment.id}`}
-                                value={experiment.csvColumnMappings.theta || ""}
-                                onChange={(e) =>
+                                name={`energyColumn-${experiment.id}`}
+                                value={experiment.csvColumnMappings.energy}
+                                onChange={(value) =>
                                   updateExperiment(experiment.id, {
                                     csvColumnMappings: {
                                       ...experiment.csvColumnMappings,
-                                      theta: e.target.value || undefined,
+                                      energy: value as string,
                                     },
                                   })
                                 }
-                                tooltip="Select the column containing theta values (required for CSV geometry mode)"
+                                required
+                                tooltip="Select the column containing energy values (in eV)"
                                 options={[
-                                  { value: "", label: "No theta column" },
+                                  { value: "", label: "Select energy column" },
                                   ...experiment.csvColumns.map((col) => ({
                                     value: col,
                                     label: col,
@@ -1664,21 +2168,25 @@ export default function NEXAFSContributePage() {
                                 ]}
                               />
                               <FormField
-                                label="Phi Column (optional)"
+                                label="Absorption/Intensity Column"
                                 type="select"
-                                name={`phiColumn-${experiment.id}`}
-                                value={experiment.csvColumnMappings.phi || ""}
-                                onChange={(e) =>
+                                name={`absorptionColumn-${experiment.id}`}
+                                value={experiment.csvColumnMappings.absorption}
+                                onChange={(value) =>
                                   updateExperiment(experiment.id, {
                                     csvColumnMappings: {
                                       ...experiment.csvColumnMappings,
-                                      phi: e.target.value || undefined,
+                                      absorption: value as string,
                                     },
                                   })
                                 }
-                                tooltip="Select the column containing phi values (required for CSV geometry mode)"
+                                required
+                                tooltip="Select the column containing absorption or intensity values"
                                 options={[
-                                  { value: "", label: "No phi column" },
+                                  {
+                                    value: "",
+                                    label: "Select absorption column",
+                                  },
                                   ...experiment.csvColumns.map((col) => ({
                                     value: col,
                                     label: col,
@@ -1686,33 +2194,175 @@ export default function NEXAFSContributePage() {
                                 ]}
                               />
                             </div>
+                            {experiment.csvColumns.length > 0 && (
+                              <div className="grid gap-4 md:grid-cols-2">
+                                <FormField
+                                  label="Theta Column (optional)"
+                                  type="select"
+                                  name={`thetaColumn-${experiment.id}`}
+                                  value={
+                                    experiment.csvColumnMappings.theta || ""
+                                  }
+                                  onChange={(value) =>
+                                    updateExperiment(experiment.id, {
+                                      csvColumnMappings: {
+                                        ...experiment.csvColumnMappings,
+                                        theta:
+                                          (value as string) === ""
+                                            ? undefined
+                                            : (value as string),
+                                      },
+                                    })
+                                  }
+                                  tooltip="Select the column containing theta values. Selecting both theta and phi enables automatic geometry detection."
+                                  options={[
+                                    { value: "", label: "No theta column" },
+                                    ...experiment.csvColumns.map((col) => ({
+                                      value: col,
+                                      label: col,
+                                    })),
+                                  ]}
+                                />
+                                <FormField
+                                  label="Phi Column (optional)"
+                                  type="select"
+                                  name={`phiColumn-${experiment.id}`}
+                                  value={experiment.csvColumnMappings.phi || ""}
+                                  onChange={(value) =>
+                                    updateExperiment(experiment.id, {
+                                      csvColumnMappings: {
+                                        ...experiment.csvColumnMappings,
+                                        phi:
+                                          (value as string) === ""
+                                            ? undefined
+                                            : (value as string),
+                                      },
+                                    })
+                                  }
+                                  tooltip="Select the column containing phi values. Selecting both theta and phi enables automatic geometry detection."
+                                  options={[
+                                    { value: "", label: "No phi column" },
+                                    ...experiment.csvColumns.map((col) => ({
+                                      value: col,
+                                      label: col,
+                                    })),
+                                  ]}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {experiment.spectrumStats && (
+                        <SpectrumSummary stats={experiment.spectrumStats} />
+                      )}
+
+                      {experiment.spectrumPoints.length > 0 && (
+                        <div className="space-y-3">
+                          <SpectrumPlot
+                            points={displayPoints}
+                            energyStats={experiment.spectrumStats?.energy}
+                            absorptionStats={displayAbsorptionStats}
+                            referenceCurves={
+                              showBareAtom &&
+                              bareAtomAbsorptionQuery.data?.points
+                                ? [
+                                    {
+                                      label:
+                                        "Bare Atom Absorption (ρ = 1 g/cm³)",
+                                      color: "#111827",
+                                      points:
+                                        bareAtomAbsorptionQuery.data.points.map(
+                                          (point) => ({
+                                            energy: point.energyEv,
+                                            absorption: point.mu,
+                                          }),
+                                        ),
+                                    },
+                                  ]
+                                : []
+                            }
+                            normalizationRegions={normalizationRegions}
+                            onSelectionChange={(selection) => {
+                              updateExperiment(experiment.id, {
+                                selectionSummary: selection,
+                              });
+                              if (selection && normalizationSelectionTarget) {
+                                applyNormalizationSelection(
+                                  experiment.id,
+                                  selection,
+                                );
+                              }
+                            }}
+                          />
+                          {experiment.selectionSummary && (
+                            <SelectionSummary
+                              selection={experiment.selectionSummary}
+                            />
                           )}
-                          {experiment.spectrumPoints.length > 0 && (
-                            <div className="mt-4">
-                              <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Mapped Data Preview (
-                                {experiment.spectrumPoints.length} rows)
-                              </h3>
-                              <DataPreviewTable
-                                data={experiment.spectrumPoints
-                                  .slice(0, 20)
-                                  .map((point, idx) => ({
-                                    "#": idx + 1,
-                                    energy: point.energy.toFixed(2),
-                                    absorption: point.absorption.toFixed(4),
-                                    theta: point.theta?.toFixed(2) ?? "—",
-                                    phi: point.phi?.toFixed(2) ?? "—",
-                                  }))}
-                                maxRows={20}
-                              />
+                          {bareAtomAbsorptionQuery.isLoading && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              Loading bare atom absorption curve…
+                            </p>
+                          )}
+                          {bareAtomAbsorptionQuery.error && (
+                            <p className="text-xs text-red-600 dark:text-red-400">
+                              Unable to load bare atom absorption data:{" "}
+                              {bareAtomAbsorptionQuery.error.message}
+                            </p>
+                          )}
+                          {normalizationEnabled && experiment.normalization && (
+                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/10 dark:text-emerald-200">
+                              <p className="font-semibold tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
+                                Normalization Applied
+                              </p>
+                              <p>
+                                Scale:{" "}
+                                {experiment.normalization.scale.toPrecision(4)}{" "}
+                                · Offset:
+                                {experiment.normalization.offset.toPrecision(4)}
+                              </p>
+                              {experiment.normalization.preRange && (
+                                <p>
+                                  Pre-edge:{" "}
+                                  {experiment.normalization.preRange[0].toFixed(
+                                    3,
+                                  )}{" "}
+                                  –
+                                  {experiment.normalization.preRange[1].toFixed(
+                                    3,
+                                  )}
+                                </p>
+                              )}
+                              {experiment.normalization.postRange && (
+                                <p>
+                                  Post-edge:{" "}
+                                  {experiment.normalization.postRange[0].toFixed(
+                                    3,
+                                  )}{" "}
+                                  –
+                                  {experiment.normalization.postRange[1].toFixed(
+                                    3,
+                                  )}
+                                </p>
+                              )}
                             </div>
                           )}
+                          {normalizationEnabled &&
+                            !experiment.normalization && (
+                              <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-200">
+                                Normalization requires at least two distinct
+                                data points across the chosen pre- and post-edge
+                                ranges.
+                              </p>
+                            )}
                         </div>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </section>
 
             <div className="flex items-center justify-between rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700 dark:border-yellow-900/40 dark:bg-yellow-900/10 dark:text-yellow-200">
@@ -1755,6 +2405,323 @@ export default function NEXAFSContributePage() {
           </form>
         </div>
       </div>
+    );
+  };
+
+  const allMoleculeNames = useMemo(() => {
+    if (!moleculeSearchResult) return [];
+    const names = [
+      moleculeSearchResult.commonName,
+      moleculeSearchResult.iupacName,
+      ...moleculeSearchResult.synonyms,
+    ].filter((name, index, arr) => name && arr.indexOf(name) === index);
+    return names;
+  }, [moleculeSearchResult]);
+
+  return (
+    <>
+      <ContributionAgreementModal
+        isOpen={showAgreementModal}
+        onClose={() => {
+          /* modal requires explicit agreement */
+        }}
+        onAgree={handleAgreementAccepted}
+      />
+
+      <SimpleDialog
+        isOpen={showEdgeDialog}
+        onClose={() => setShowEdgeDialog(false)}
+        title="Create New Edge"
+      >
+        <div className="space-y-4">
+          <FormField
+            label="Target Atom"
+            type="text"
+            name="targetAtom"
+            value={newEdgeTargetAtom}
+            onChange={(value) => setNewEdgeTargetAtom(value as string)}
+            required
+            placeholder="e.g., C, N, O"
+            tooltip="The target atom for the absorption edge (e.g., C for carbon K-edge)"
+          />
+          <FormField
+            label="Core State"
+            type="text"
+            name="coreState"
+            value={newEdgeCoreState}
+            onChange={(value) => setNewEdgeCoreState(value as string)}
+            required
+            placeholder="e.g., K, L1, L2, L3"
+            tooltip="The core state of the electron (e.g., K for K-edge)"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="bordered"
+              onClick={() => setShowEdgeDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="solid"
+              onClick={handleCreateEdge}
+              disabled={createEdgeMutation.isPending}
+            >
+              {createEdgeMutation.isPending ? "Creating..." : "Create Edge"}
+            </Button>
+          </div>
+        </div>
+      </SimpleDialog>
+
+      <SimpleDialog
+        isOpen={showCalibrationDialog}
+        onClose={() => setShowCalibrationDialog(false)}
+        title="Create New Calibration Method"
+      >
+        <div className="space-y-4">
+          <FormField
+            label="Name"
+            type="text"
+            name="calibrationName"
+            value={newCalibrationName}
+            onChange={(value) => setNewCalibrationName(value as string)}
+            required
+            placeholder="e.g., Carbon K-edge calibration"
+            tooltip="The name of the calibration method"
+          />
+          <FormField
+            label="Description"
+            type="textarea"
+            name="calibrationDescription"
+            value={newCalibrationDescription}
+            onChange={(value) => setNewCalibrationDescription(value as string)}
+            placeholder="Optional description of the calibration method"
+            tooltip="Additional details about the calibration method"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="bordered"
+              onClick={() => setShowCalibrationDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="solid"
+              onClick={handleCreateCalibration}
+              disabled={createCalibrationMutation.isPending}
+            >
+              {createCalibrationMutation.isPending
+                ? "Creating..."
+                : "Create Method"}
+            </Button>
+          </div>
+        </div>
+      </SimpleDialog>
+
+      {renderContent()}
     </>
   );
 }
+
+type NumericColumnReport = {
+  sanitizedInvalidRows: number[];
+};
+
+const analyzeNumericColumns = (
+  rows: Record<string, unknown>[],
+  columns: Set<string>,
+): Record<string, NumericColumnReport> => {
+  const reports: Record<string, NumericColumnReport> = {};
+
+  columns.forEach((column) => {
+    const invalidRows: number[] = [];
+
+    rows.forEach((row, rowIndex) => {
+      const rawValue = row[column];
+      if (rawValue === undefined || rawValue === null || rawValue === "") {
+        invalidRows.push(rowIndex);
+        return;
+      }
+
+      const numericValue = toNumber(rawValue);
+      if (!Number.isFinite(numericValue)) {
+        invalidRows.push(rowIndex);
+      }
+    });
+
+    reports[column] = { sanitizedInvalidRows: invalidRows };
+  });
+
+  return reports;
+};
+
+type BareAtomPoint = {
+  energyEv: number;
+  mu: number;
+};
+
+type NormalizationComputation = {
+  normalizedPoints: SpectrumPoint[];
+  scale: number;
+  offset: number;
+  preRange: [number, number] | null;
+  postRange: [number, number] | null;
+};
+
+const interpolateBareMu = (
+  barePoints: BareAtomPoint[],
+  energy: number,
+): number => {
+  if (barePoints.length === 0) {
+    return 0;
+  }
+
+  if (energy <= barePoints[0]!.energyEv) {
+    return barePoints[0]!.mu;
+  }
+
+  const last = barePoints[barePoints.length - 1]!;
+  if (energy >= last.energyEv) {
+    return last.mu;
+  }
+
+  let left = 0;
+  let right = barePoints.length - 1;
+
+  while (right - left > 1) {
+    const mid = Math.floor((left + right) / 2);
+    if (barePoints[mid]!.energyEv > energy) {
+      right = mid;
+    } else {
+      left = mid;
+    }
+  }
+
+  const leftPoint = barePoints[left]!;
+  const rightPoint = barePoints[right]!;
+  const span = rightPoint.energyEv - leftPoint.energyEv;
+  if (span === 0) {
+    return leftPoint.mu;
+  }
+  const t = (energy - leftPoint.energyEv) / span;
+  return leftPoint.mu + t * (rightPoint.mu - leftPoint.mu);
+};
+
+const computeNormalizationForExperiment = (
+  points: SpectrumPoint[],
+  barePoints: BareAtomPoint[],
+  preEdgeCount: number,
+  postEdgeCount: number,
+): NormalizationComputation | null => {
+  if (points.length === 0) {
+    return null;
+  }
+
+  const clampedPre = Math.max(0, Math.min(preEdgeCount, points.length));
+  const clampedPost = Math.max(0, Math.min(postEdgeCount, points.length));
+
+  const selectedIndices = new Set<number>();
+  for (let idx = 0; idx < clampedPre; idx += 1) {
+    selectedIndices.add(idx);
+  }
+  for (
+    let idx = Math.max(points.length - clampedPost, 0);
+    idx < points.length;
+    idx += 1
+  ) {
+    selectedIndices.add(idx);
+  }
+
+  if (selectedIndices.size < 2) {
+    for (let idx = 0; idx < Math.min(points.length, 2); idx += 1) {
+      selectedIndices.add(idx);
+    }
+    if (selectedIndices.size < 2) {
+      return null;
+    }
+  }
+
+  const muValues = points.map((point) =>
+    interpolateBareMu(barePoints, point.energy),
+  );
+
+  let n = 0;
+  let sumX = 0;
+  let sumY = 0;
+  let sumXX = 0;
+  let sumXY = 0;
+
+  selectedIndices.forEach((index) => {
+    const intensity = points[index]?.absorption ?? 0;
+    const mu = muValues[index] ?? 0;
+    n += 1;
+    sumX += intensity;
+    sumY += mu;
+    sumXX += intensity * intensity;
+    sumXY += intensity * mu;
+  });
+
+  if (n < 2) {
+    return null;
+  }
+
+  const denominator = n * sumXX - sumX * sumX;
+  const scale =
+    Math.abs(denominator) > 1e-12 ? (n * sumXY - sumX * sumY) / denominator : 1;
+  const offset = (sumY - scale * sumX) / n;
+
+  if (!Number.isFinite(scale) || !Number.isFinite(offset)) {
+    return null;
+  }
+
+  const normalizedPoints: SpectrumPoint[] = points.map((point) => ({
+    ...point,
+    absorption: scale * point.absorption + offset,
+  }));
+
+  const preRange: [number, number] | null =
+    clampedPre > 0
+      ? [
+          points[0]!.energy,
+          points[Math.min(clampedPre - 1, points.length - 1)]!.energy,
+        ]
+      : null;
+  const postRange: [number, number] | null =
+    clampedPost > 0
+      ? [
+          points[Math.max(points.length - clampedPost, 0)]!.energy,
+          points[points.length - 1]!.energy,
+        ]
+      : null;
+
+  return {
+    normalizedPoints,
+    scale,
+    offset,
+    preRange,
+    postRange,
+  };
+};
+
+const rangesApproximatelyEqual = (
+  a: [number, number] | null,
+  b: [number, number] | null,
+  tolerance = 1e-6,
+) => {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return (
+    Math.abs(a[0] - b[0]) <= tolerance && Math.abs(a[1] - b[1]) <= tolerance
+  );
+};
+
+const countPointsWithinRange = (
+  points: SpectrumPoint[],
+  range: { min: number; max: number },
+) =>
+  points.filter(
+    (point) => point.energy >= range.min && point.energy <= range.max,
+  ).length;

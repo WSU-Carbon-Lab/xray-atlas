@@ -20,11 +20,22 @@ interface InstrumentFormData {
   status: "active" | "inactive" | "under_maintenance";
 }
 
+type FacilityContributePageProps = {
+  variant?: "page" | "modal";
+  onCompleted?: (payload: { facilityId: string }) => void;
+  onClose?: () => void;
+};
 
-export default function FacilityContributePage() {
+
+export default function FacilityContributePage({
+  variant = "page",
+  onCompleted,
+  onClose,
+}: FacilityContributePageProps = {}) {
   const router = useRouter();
   const { isSignedIn } = useUser();
   const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const isModal = variant === "modal";
 
   // Check if user has agreed to the contribution agreement
   const { data: agreementStatus, isLoading: isLoadingAgreement } =
@@ -162,10 +173,16 @@ export default function FacilityContributePage() {
         message: `Facility "${result.name}" created successfully!`,
       });
 
-      // Redirect to facility detail page after a delay
-      setTimeout(() => {
-        router.push(`/facilities/${result.id}`);
-      }, 2000);
+      onCompleted?.({ facilityId: result.id });
+
+      if (isModal) {
+        onClose?.();
+      } else {
+        // Redirect to facility detail page after a delay
+        setTimeout(() => {
+          router.push(`/facilities/${result.id}`);
+        }, 2000);
+      }
     } catch (error: any) {
       console.error("Error creating facility:", error);
       setSubmitStatus({
@@ -206,19 +223,27 @@ export default function FacilityContributePage() {
     <>
       <ContributionAgreementModal
         isOpen={showAgreementModal}
-        onClose={() => router.push("/contribute")}
+        onClose={() => {
+          if (isModal) {
+            onClose?.();
+          } else {
+            router.push("/contribute");
+          }
+        }}
         onAgree={handleAgreementAccepted}
       />
-    <div className="container mx-auto px-4 py-8">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-6">
-          <Link
-            href="/contribute"
-            className="text-sm text-gray-600 hover:text-wsu-crimson dark:text-gray-400 dark:hover:text-wsu-crimson"
-          >
-            ← Back to contribution type selection
-          </Link>
-        </div>
+      <div className={`${isModal ? "" : "container mx-auto"} px-4 py-8`}>
+        <div className="mx-auto max-w-4xl">
+          {!isModal && (
+            <div className="mb-6">
+              <Link
+                href="/contribute"
+                className="text-sm text-gray-600 hover:text-wsu-crimson dark:text-gray-400 dark:hover:text-wsu-crimson"
+              >
+                ← Back to contribution type selection
+              </Link>
+            </div>
+          )}
         <h1 className="mb-8 text-4xl font-bold text-gray-900 dark:text-gray-100">
           Contribute Facility & Instruments
         </h1>

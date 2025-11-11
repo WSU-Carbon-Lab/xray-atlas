@@ -14,6 +14,49 @@ import { useUser } from "@clerk/nextjs";
 import { trpc } from "~/trpc/client";
 import { SynonymsList } from "./SynonymsList";
 
+const useCasRegistryLookup = (params: {
+  inchi: string | undefined | null;
+  initialCas: string | null | undefined;
+}) => {
+  const normalizedInchi = params.inchi?.trim() ?? "";
+  const [casRegistryNumber, setCasRegistryNumber] = useState<string | null>(
+    params.initialCas ?? null,
+  );
+
+  useEffect(() => {
+    setCasRegistryNumber(params.initialCas ?? null);
+  }, [params.initialCas]);
+
+  const shouldFetch = Boolean(!casRegistryNumber && normalizedInchi.length > 0);
+
+  const casQuery = trpc.external.searchCas.useQuery(
+    { inchi: normalizedInchi },
+    {
+      enabled: shouldFetch,
+      retry: false,
+      staleTime: Infinity,
+      refetchOnWindowFocus: false,
+    },
+  );
+
+  useEffect(() => {
+    if (casQuery.data?.ok && casQuery.data.data?.casRegistryNumber) {
+      setCasRegistryNumber(casQuery.data.data.casRegistryNumber);
+    }
+  }, [casQuery.data]);
+
+  useEffect(() => {
+    if (casQuery.error) {
+      console.error("Failed to fetch CAS registry number:", casQuery.error);
+    }
+  }, [casQuery.error]);
+
+  return {
+    casRegistryNumber,
+    isFetching: shouldFetch && casQuery.isLoading,
+  };
+};
+
 // Updated type to match Prisma schema and include external links
 export type DisplayMolecule = {
   name: string; // IUPAC name or common name
@@ -201,10 +244,10 @@ export const MoleculeDisplay = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [molecule]);
 
-  const [casRegistryNumber, setCasRegistryNumber] = useState<string | null>(
-    molecule.casNumber || null,
-  );
-  const [isFetchingCAS, setIsFetchingCAS] = useState(false);
+  const { casRegistryNumber, isFetching } = useCasRegistryLookup({
+    inchi: molecule.InChI,
+    initialCas: molecule.casNumber,
+  });
 
   const primaryName =
     orderedSynonyms.length > 0 ? orderedSynonyms[0]! : molecule.name;
@@ -245,31 +288,6 @@ export const MoleculeDisplay = ({
   const casUrl = casRegistryNumber
     ? `https://commonchemistry.cas.org/detail?cas_rn=${casRegistryNumber}&search=${casRegistryNumber}`
     : null;
-
-  useEffect(() => {
-    if (!casRegistryNumber && molecule.InChI && molecule.InChI.trim()) {
-      setIsFetchingCAS(true);
-      fetch("/api/cas/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inchi: molecule.InChI }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.ok && data.data?.casRegistryNumber) {
-            setCasRegistryNumber(data.data.casRegistryNumber);
-          }
-        })
-        .catch((error) => {
-          console.error("Failed to fetch CAS registry number:", error);
-        })
-        .finally(() => {
-          setIsFetchingCAS(false);
-        });
-    }
-  }, [molecule.InChI, casRegistryNumber]);
 
   return (
     <div className="group relative flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200/40 bg-white shadow-lg transition-all duration-300 ease-out hover:-translate-y-1 hover:border-gray-300/60 hover:shadow-xl sm:flex-row dark:border-gray-700/40 dark:bg-gray-800 dark:hover:border-gray-600/60">
@@ -460,7 +478,7 @@ export const MoleculeDisplay = ({
                   PubChem
                 </a>
               )}
-              {isFetchingCAS ? (
+              {isFetching ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200/60 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-400 backdrop-blur-sm dark:border-gray-600/60 dark:bg-gray-700/60 dark:text-gray-500">
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600 dark:border-gray-600 dark:border-t-gray-300" />
                   Loading...
@@ -521,10 +539,10 @@ export const MoleculeDisplayCompact = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [molecule]);
 
-  const [casRegistryNumber, setCasRegistryNumber] = useState<string | null>(
-    molecule.casNumber || null,
-  );
-  const [isFetchingCAS, setIsFetchingCAS] = useState(false);
+  const { casRegistryNumber, isFetching } = useCasRegistryLookup({
+    inchi: molecule.InChI,
+    initialCas: molecule.casNumber,
+  });
 
   const primaryName =
     orderedSynonyms.length > 0 ? orderedSynonyms[0]! : molecule.name;
@@ -537,31 +555,6 @@ export const MoleculeDisplayCompact = ({
   const casUrl = casRegistryNumber
     ? `https://commonchemistry.cas.org/detail?cas_rn=${casRegistryNumber}&search=${casRegistryNumber}`
     : null;
-
-  useEffect(() => {
-    if (!casRegistryNumber && molecule.InChI && molecule.InChI.trim()) {
-      setIsFetchingCAS(true);
-      fetch("/api/cas/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inchi: molecule.InChI }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.ok && data.data?.casRegistryNumber) {
-            setCasRegistryNumber(data.data.casRegistryNumber);
-          }
-        })
-        .catch((error) => {
-          console.error("Failed to fetch CAS registry number:", error);
-        })
-        .finally(() => {
-          setIsFetchingCAS(false);
-        });
-    }
-  }, [molecule.InChI, casRegistryNumber]);
 
   return (
     <div className="group flex w-full flex-col gap-3 overflow-hidden rounded-xl border border-gray-200/50 bg-white/80 p-4 shadow-lg backdrop-blur-xl transition-all hover:shadow-xl dark:border-gray-700/50 dark:bg-gray-800/80">
@@ -617,7 +610,7 @@ export const MoleculeDisplayCompact = ({
           isPubChem={true}
           disabled={!pubChemUrl}
         />
-        {isFetchingCAS ? (
+        {isFetching ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/80 px-2.5 py-1 text-xs font-medium text-gray-400 backdrop-blur-sm dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-500">
             <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600 dark:border-gray-600 dark:border-t-gray-300" />
             Loading...

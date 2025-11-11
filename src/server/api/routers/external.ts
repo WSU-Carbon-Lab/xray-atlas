@@ -58,6 +58,7 @@ export const externalRouter = createTRPCRouter({
         });
 
         const responseText = await searchResponse.text();
+        const contentType = searchResponse.headers.get("content-type") ?? "";
 
         if (!searchResponse.ok) {
           console.error(
@@ -73,7 +74,41 @@ export const externalRouter = createTRPCRouter({
           });
         }
 
-        const searchData = JSON.parse(responseText);
+        if (!contentType.toLowerCase().includes("application/json")) {
+          console.error("CAS API returned unexpected content type:", contentType, responseText.slice(0, 200));
+          throw new TRPCError({
+            code: "BAD_GATEWAY",
+            message: "CAS API returned an unexpected response format",
+          });
+        }
+
+        if (!responseText.trim()) {
+          console.error("CAS API returned an empty response body");
+          throw new TRPCError({
+            code: "BAD_GATEWAY",
+            message: "CAS API returned an empty response",
+          });
+        }
+
+        type CasSearchData =
+          | {
+              results?: Array<{ rn?: unknown; name?: string | null }>;
+              rn?: unknown;
+              name?: string | null;
+            }
+          | Array<{ rn?: unknown; name?: string | null }>
+          | null;
+
+        let searchData: CasSearchData;
+        try {
+          searchData = JSON.parse(responseText) as CasSearchData;
+        } catch (parseError) {
+          console.error("CAS API returned invalid JSON:", (parseError as Error).message, responseText.slice(0, 200));
+          throw new TRPCError({
+            code: "BAD_GATEWAY",
+            message: "CAS API returned malformed JSON",
+          });
+        }
 
         // Extract CAS Registry Number from various possible response structures
         let casRegistryNumber: string | null = null;

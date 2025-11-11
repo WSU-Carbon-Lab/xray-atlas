@@ -2,13 +2,15 @@
 
 import { FieldTooltip } from "./FieldTooltip";
 
+type FormFieldValue = string | number | "";
+
 type FormFieldProps = {
   label: string;
   tooltip?: string;
   type: "text" | "textarea" | "number" | "select" | "date";
   name: string;
   value: any;
-  onChange: (value: any) => void;
+  onChange: (value: FormFieldValue) => void;
   error?: string;
   helperText?: string;
   required?: boolean;
