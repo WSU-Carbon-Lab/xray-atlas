@@ -18,6 +18,10 @@ import { SimpleDialog } from "~/app/components/SimpleDialog";
 import { trpc } from "~/trpc/client";
 import { ProcessMethod } from "@prisma/client";
 import {
+  MoleculeDisplayCompact,
+  type DisplayMolecule,
+} from "~/app/components/MoleculeDisplay";
+import {
   ArrowLeftIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -1570,36 +1574,20 @@ export default function NEXAFSContributePage() {
                     );
                   })()}
 
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-200">
-                        Synonyms
-                      </h4>
-                      {moleculeSearchResult.synonyms.length > 0 ? (
-                        <ul className="mt-2 flex flex-wrap gap-2 text-sm text-gray-600 dark:text-gray-400">
-                          {moleculeSearchResult.synonyms
-                            .slice(0, 6)
-                            .map((synonym) => (
-                              <li
-                                key={synonym}
-                                className="rounded-full bg-white px-3 py-1 shadow-sm dark:bg-gray-800"
-                              >
-                                {synonym}
-                              </li>
-                            ))}
-                          {moleculeSearchResult.synonyms.length > 6 && (
-                            <li className="text-xs text-gray-500 dark:text-gray-400">
-                              +{moleculeSearchResult.synonyms.length - 6} more
-                            </li>
-                          )}
-                        </ul>
-                      ) : (
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                          No synonyms available for this molecule.
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <MoleculeDisplayCompact
+                    molecule={{
+                      name: moleculeSearchResult.iupacName,
+                      commonName: [
+                        moleculeSearchResult.commonName,
+                        ...moleculeSearchResult.synonyms,
+                      ].filter(Boolean),
+                      chemical_formula: moleculeSearchResult.chemicalFormula,
+                      SMILES: moleculeSearchResult.smiles,
+                      InChI: moleculeSearchResult.inchi,
+                      pubChemCid: moleculeSearchResult.pubChemCid,
+                      casNumber: moleculeSearchResult.casNumber,
+                    }}
+                  />
 
                   {allMoleculeNames.length > 1 && (
                     <FormField
