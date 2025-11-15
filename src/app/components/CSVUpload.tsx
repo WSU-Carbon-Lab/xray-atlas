@@ -9,7 +9,8 @@ import {
 } from "@heroicons/react/24/outline";
 
 interface CSVUploadProps {
-  onFileSelect: (file: File) => void;
+  onFileSelect?: (file: File) => void;
+  onFilesSelect?: (files: File[]) => void;
   acceptedFileTypes?: string | string[];
   maxSizeMB?: number;
   label?: string;
@@ -17,10 +18,13 @@ interface CSVUploadProps {
   error?: string;
   file?: File | null;
   onRemove?: () => void;
+  files?: File[];
+  multiple?: boolean;
 }
 
 export function CSVUpload({
   onFileSelect,
+  onFilesSelect,
   acceptedFileTypes = ".csv",
   maxSizeMB = 10,
   label = "Upload CSV File",
@@ -28,6 +32,8 @@ export function CSVUpload({
   error,
   file,
   onRemove,
+  files = [],
+  multiple = false,
 }: CSVUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -60,12 +66,35 @@ export function CSVUpload({
     }
 
     setDragError(null);
-    onFileSelect(selectedFile);
+    onFileSelect?.(selectedFile);
+  };
+
+  const handleFilesSelect = (selectedFiles: FileList | File[]) => {
+    const fileArray = Array.from(selectedFiles ?? []);
+    if (fileArray.length === 0) {
+      return;
+    }
+
+    const invalid = fileArray.find((selectedFile) =>
+      validateFile(selectedFile),
+    );
+    if (invalid) {
+      setDragError(validateFile(invalid));
+      return;
+    }
+
+    setDragError(null);
+    onFilesSelect?.(fileArray);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
+
+    if (multiple && onFilesSelect) {
+      handleFilesSelect(e.dataTransfer.files);
+      return;
+    }
 
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
@@ -84,7 +113,17 @@ export function CSVUpload({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
+    const selectedFileList = e.target.files;
+    if (!selectedFileList || selectedFileList.length === 0) {
+      return;
+    }
+
+    if (multiple && onFilesSelect) {
+      handleFilesSelect(selectedFileList);
+      return;
+    }
+
+    const selectedFile = selectedFileList[0];
     if (selectedFile) {
       handleFileSelect(selectedFile);
     }
@@ -113,7 +152,21 @@ export function CSVUpload({
         </p>
       )}
 
-      {file ? (
+      {multiple && files.length > 0 ? (
+        <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+            <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+            {files.length} file{files.length === 1 ? "" : "s"} selected
+          </div>
+          <ul className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+            {files.map((selectedFile) => (
+              <li key={`${selectedFile.name}-${selectedFile.size}`}>
+                {selectedFile.name} • {formatFileSize(selectedFile.size)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : file ? (
         <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
           <div className="flex items-center gap-3">
             <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
@@ -153,6 +206,7 @@ export function CSVUpload({
             ref={fileInputRef}
             type="file"
             accept={acceptedTypesValue}
+            multiple={multiple}
             onChange={handleInputChange}
             className="hidden"
           />

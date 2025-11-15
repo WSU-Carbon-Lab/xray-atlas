@@ -5,7 +5,6 @@ import Header from "./components/Header";
 import { Footer } from "./components/Footer";
 import { siteMetadata } from "./components/Metadata";
 import { ClerkProvider } from "@clerk/nextjs";
-import { auth } from "@clerk/nextjs/server";
 import { ThemeProviderWrapper } from "./components/ThemeProviderWrapper";
 import { TRPCReactProvider } from "~/trpc/client";
 export const metadata = {
