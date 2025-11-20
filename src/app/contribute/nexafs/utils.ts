@@ -1,5 +1,5 @@
 import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
-import type { ColumnStats, GeometryPair, SpectrumStats } from "./types";
+import type { ColumnStats, GeometryPair, SpectrumStats, BareAtomPoint } from "./types";
 
 export const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -79,7 +79,9 @@ export const analyzeNumericColumns = (
   return reports;
 };
 
-export type BareAtomPoint = {
+// BareAtomPoint is now defined in types.ts
+// This type is kept for backward compatibility with existing code
+export type BareAtomPointLegacy = {
   energyEv: number;
   mu: number;
 };
@@ -100,13 +102,13 @@ const interpolateBareMu = (
     return 0;
   }
 
-  if (energy <= barePoints[0]!.energyEv) {
-    return barePoints[0]!.mu;
+  if (energy <= barePoints[0]!.energy) {
+    return barePoints[0]!.absorption;
   }
 
   const last = barePoints[barePoints.length - 1]!;
-  if (energy >= last.energyEv) {
-    return last.mu;
+  if (energy >= last.energy) {
+    return last.absorption;
   }
 
   let left = 0;
@@ -114,7 +116,7 @@ const interpolateBareMu = (
 
   while (right - left > 1) {
     const mid = Math.floor((left + right) / 2);
-    if (barePoints[mid]!.energyEv > energy) {
+    if (barePoints[mid]!.energy > energy) {
       right = mid;
     } else {
       left = mid;
@@ -123,12 +125,12 @@ const interpolateBareMu = (
 
   const leftPoint = barePoints[left]!;
   const rightPoint = barePoints[right]!;
-  const span = rightPoint.energyEv - leftPoint.energyEv;
+  const span = rightPoint.energy - leftPoint.energy;
   if (span === 0) {
-    return leftPoint.mu;
+    return leftPoint.absorption;
   }
-  const t = (energy - leftPoint.energyEv) / span;
-  return leftPoint.mu + t * (rightPoint.mu - leftPoint.mu);
+  const t = (energy - leftPoint.energy) / span;
+  return leftPoint.absorption + t * (rightPoint.absorption - leftPoint.absorption);
 };
 
 export const computeNormalizationForExperiment = (
@@ -262,4 +264,3 @@ export const buildSpectrumStats = (params: {
   ...(params.thetaStats ? { theta: params.thetaStats } : {}),
   ...(params.phiStats ? { phi: params.phiStats } : {}),
 });
-

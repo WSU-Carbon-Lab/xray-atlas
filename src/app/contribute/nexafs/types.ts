@@ -2,6 +2,7 @@ import type {
   SpectrumPoint,
   SpectrumSelection,
 } from "~/app/components/plots/SpectrumPlot";
+import type { ProcessMethod } from "@prisma/client";
 
 export const EXPERIMENT_TYPE_OPTIONS = [
   { value: "TOTAL_ELECTRON_YIELD", label: "Total Electron Yield" },
@@ -105,4 +106,98 @@ export interface ExperimentDatasetMeta {
   label: string;
   doi: string;
   processedAt: number | null;
+}
+
+export type PeakData = {
+  energy: number;
+  intensity?: number;
+  bond?: string;
+  transition?: string;
+};
+
+export type BareAtomPoint = {
+  energy: number;
+  absorption: number;
+};
+
+export type SampleInfo = {
+  processMethod: ProcessMethod | "";
+  substrate: string;
+  solvent: string;
+  thickness: number | "";
+  molecularWeight: number | "";
+  preparationDate: string;
+  vendorId: string | "";
+  newVendorName: string;
+  newVendorUrl: string;
+};
+
+export type DatasetState = {
+  id: string;
+  file: File;
+  fileName: string;
+  csvColumns: string[];
+  csvRawData: Record<string, unknown>[];
+  columnMappings: CSVColumnMappings;
+  spectrumPoints: SpectrumPoint[];
+  normalizedPoints: SpectrumPoint[] | null;
+  normalization: ExperimentNormalization | null;
+  normalizationRegions: { pre: [number, number] | null; post: [number, number] | null };
+  normalizationLocked: boolean;
+  peaks: PeakData[];
+  moleculeId: string | null;
+  bareAtomPoints: BareAtomPoint[] | null;
+  sampleInfo: SampleInfo;
+  instrumentId: string | "";
+  edgeId: string | "";
+  experimentType: ExperimentTypeOption;
+  measurementDate: string;
+  calibrationId: string | "";
+  referenceStandard: string;
+  isStandard: boolean;
+  fixedTheta: string;
+  fixedPhi: string;
+  spectrumError: string | null;
+  spectrumStats: SpectrumStats | null;
+};
+
+export function createEmptyDatasetState(file: File): DatasetState {
+  return {
+    id: crypto.randomUUID(),
+    file,
+    fileName: file.name,
+    csvColumns: [],
+    csvRawData: [],
+    columnMappings: { energy: "", absorption: "" },
+    spectrumPoints: [],
+    normalizedPoints: null,
+    normalization: null,
+    normalizationRegions: { pre: null, post: null },
+    normalizationLocked: false,
+    peaks: [],
+    moleculeId: null,
+    bareAtomPoints: null,
+    sampleInfo: {
+      processMethod: "",
+      substrate: "",
+      solvent: "",
+      thickness: "",
+      molecularWeight: "",
+      preparationDate: "",
+      vendorId: "",
+      newVendorName: "",
+      newVendorUrl: "",
+    },
+    instrumentId: "",
+    edgeId: "",
+    experimentType: "TOTAL_ELECTRON_YIELD",
+    measurementDate: "",
+    calibrationId: "",
+    referenceStandard: "",
+    isStandard: false,
+    fixedTheta: "",
+    fixedPhi: "",
+    spectrumError: null,
+    spectrumStats: null,
+  };
 }

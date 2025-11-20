@@ -1,3 +1,7 @@
+---
+alwaysApply: true
+---
+
 # Design System Rules for X-ray Atlas
 
 This document defines the design system rules for the X-ray Atlas project, enabling seamless integration of Figma designs using the Model Context Protocol.

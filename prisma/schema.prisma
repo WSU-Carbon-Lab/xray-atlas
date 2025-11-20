@@ -69,6 +69,7 @@ model experiments {
   polarizations          polarizations            @relation(fields: [polarizationid], references: [id], onUpdate: NoAction)
   samples                samples                  @relation(fields: [sampleid], references: [id], onUpdate: NoAction)
   spectrumpoints         spectrumpoints[]
+  peaksets               peaksets[]
 
   @@unique([sampleid, edgeid, instrumentid, measurementdate])
   @@index([sampleid, edgeid, instrumentid, measurementdate], map: "idx_experiment_lookup")
@@ -210,6 +211,19 @@ model vendors {
   name    String    @unique
   url     String?
   samples samples[]
+}
+
+model peaksets {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  experimentid String      @db.Uuid
+  energyev     Float
+  intensity    Float?
+  bond         String?
+  transition   String?
+  createdat    DateTime    @default(now()) @db.Timestamptz(6)
+  experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([experimentid])
 }
 
 /// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments

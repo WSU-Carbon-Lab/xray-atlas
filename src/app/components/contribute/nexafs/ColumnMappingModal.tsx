@@ -1,0 +1,316 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+import { DefaultButton as Button } from "~/app/components/Button";
+import { SimpleDialog } from "~/app/components/SimpleDialog";
+import type { CSVColumnMappings, ColumnStats } from "~/app/contribute/nexafs/types";
+import { analyzeNumericColumns, formatStatNumber } from "~/app/contribute/nexafs/utils";
+
+interface ColumnMappingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (mappings: CSVColumnMappings) => void;
+  columns: string[];
+  rawData: Record<string, unknown>[];
+  fileName: string;
+}
+
+export function ColumnMappingModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  columns,
+  rawData,
+  fileName,
+}: ColumnMappingModalProps) {
+  const [mappings, setMappings] = useState<CSVColumnMappings>({
+    energy: "",
+    absorption: "",
+    theta: undefined,
+    phi: undefined,
+  });
+
+  // Auto-detect columns on open
+  useMemo(() => {
+    if (columns.length === 0) return;
+
+    const energyCol = columns.find(
+      (col) =>
+        col.toLowerCase().includes("energy") ||
+        col.toLowerCase().includes("ev") ||
+        col.toLowerCase().includes("photon"),
+    );
+    const absorptionCol = columns.find(
+      (col) =>
+        col.toLowerCase().includes("absorption") ||
+        col.toLowerCase().includes("abs") ||
+        col.toLowerCase().includes("intensity") ||
+        col.toLowerCase().includes("signal"),
+    );
+    const thetaCol = columns.find((col) => col.toLowerCase().includes("theta"));
+    const phiCol = columns.find((col) => col.toLowerCase().includes("phi"));
+
+    setMappings({
+      energy: energyCol || columns[0] || "",
+      absorption: absorptionCol || columns[1] || "",
+      theta: thetaCol || undefined,
+      phi: phiCol || undefined,
+    });
+  }, [columns]);
+
+  // Analyze numeric columns for statistics
+  const columnStats = useMemo(() => {
+    const numericColumns = new Set<string>();
+    if (mappings.energy) numericColumns.add(mappings.energy);
+    if (mappings.absorption) numericColumns.add(mappings.absorption);
+    if (mappings.theta) numericColumns.add(mappings.theta);
+    if (mappings.phi) numericColumns.add(mappings.phi);
+
+    const reports = analyzeNumericColumns(rawData, numericColumns);
+    const stats: Record<string, ColumnStats> = {};
+
+    numericColumns.forEach((col) => {
+      const report = reports[col];
+      if (!report) return;
+
+      const values = rawData
+        .map((row) => {
+          const val = row[col];
+          if (val === undefined || val === null || val === "") return null;
+          const num = typeof val === "number" ? val : parseFloat(String(val));
+          return Number.isFinite(num) ? num : null;
+        })
+        .filter((v): v is number => v !== null);
+
+      if (values.length === 0) {
+        stats[col] = {
+          min: null,
+          max: null,
+          nanCount: report.sanitizedInvalidRows.length,
+          validCount: 0,
+        };
+      } else {
+        stats[col] = {
+          min: Math.min(...values),
+          max: Math.max(...values),
+          nanCount: report.sanitizedInvalidRows.length,
+          validCount: values.length,
+        };
+      }
+    });
+
+    return stats;
+  }, [rawData, mappings]);
+
+  const handleConfirm = () => {
+    if (!mappings.energy || !mappings.absorption) {
+      return;
+    }
+    onConfirm(mappings);
+  };
+
+  const previewRows = rawData.slice(0, 10);
+
+  return (
+    <SimpleDialog isOpen={isOpen} onClose={onClose} title={`Map Columns: ${fileName}`}>
+      <div className="space-y-6">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          Select which columns contain energy, absorption, and optional geometry data (theta, phi).
+        </div>
+
+        {/* Column Mappings */}
+        <div className="space-y-4">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Energy Column <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={mappings.energy}
+              onChange={(e) =>
+                setMappings({ ...mappings, energy: e.target.value })
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            >
+              <option value="">Select column...</option>
+              {columns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
+            {mappings.energy && columnStats[mappings.energy] && (
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Range: {formatStatNumber(columnStats[mappings.energy]!.min)} - {formatStatNumber(columnStats[mappings.energy]!.max)} •{" "}
+                {columnStats[mappings.energy]!.validCount} valid, {columnStats[mappings.energy]!.nanCount} invalid
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Absorption Column <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={mappings.absorption}
+              onChange={(e) =>
+                setMappings({ ...mappings, absorption: e.target.value })
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            >
+              <option value="">Select column...</option>
+              {columns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
+            {mappings.absorption && columnStats[mappings.absorption] && (
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Range: {formatStatNumber(columnStats[mappings.absorption]!.min)} - {formatStatNumber(columnStats[mappings.absorption]!.max)} •{" "}
+                {columnStats[mappings.absorption]!.validCount} valid, {columnStats[mappings.absorption]!.nanCount} invalid
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Theta Column (Optional)
+            </label>
+            <select
+              value={mappings.theta || ""}
+              onChange={(e) =>
+                setMappings({
+                  ...mappings,
+                  theta: e.target.value || undefined,
+                })
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            >
+              <option value="">None</option>
+              {columns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
+            {mappings.theta && columnStats[mappings.theta] && (
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Range: {formatStatNumber(columnStats[mappings.theta]!.min)} - {formatStatNumber(columnStats[mappings.theta]!.max)} •{" "}
+                {columnStats[mappings.theta]!.validCount} valid, {columnStats[mappings.theta]!.nanCount} invalid
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Phi Column (Optional)
+            </label>
+            <select
+              value={mappings.phi || ""}
+              onChange={(e) =>
+                setMappings({
+                  ...mappings,
+                  phi: e.target.value || undefined,
+                })
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            >
+              <option value="">None</option>
+              {columns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
+            {mappings.phi && columnStats[mappings.phi] && (
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Range: {formatStatNumber(columnStats[mappings.phi]!.min)} - {formatStatNumber(columnStats[mappings.phi]!.max)} •{" "}
+                {columnStats[mappings.phi]!.validCount} valid, {columnStats[mappings.phi]!.nanCount} invalid
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Preview Table */}
+        {previewRows.length > 0 && (
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Preview (first {previewRows.length} rows)
+            </label>
+            <div className="max-h-64 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
+              <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
+                <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    {columns.map((col) => {
+                      const isMapped =
+                        col === mappings.energy ||
+                        col === mappings.absorption ||
+                        col === mappings.theta ||
+                        col === mappings.phi;
+                      const isRequired = col === mappings.energy || col === mappings.absorption;
+                      return (
+                        <th
+                          key={col}
+                          className={`px-3 py-2 text-left text-xs font-medium ${
+                            isMapped
+                              ? isRequired
+                                ? "bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200"
+                                : "bg-green-100 text-green-900 dark:bg-green-900/30 dark:text-green-200"
+                              : "text-gray-700 dark:text-gray-300"
+                          }`}
+                        >
+                          {col}
+                          {isMapped && (
+                            <span className="ml-1 text-[10px]">
+                              {col === mappings.energy
+                                ? "(Energy)"
+                                : col === mappings.absorption
+                                  ? "(Absorption)"
+                                  : col === mappings.theta
+                                    ? "(Theta)"
+                                    : "(Phi)"}
+                            </span>
+                          )}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                  {previewRows.map((row, idx) => (
+                    <tr key={idx}>
+                      {columns.map((col) => (
+                        <td
+                          key={col}
+                          className="whitespace-nowrap px-3 py-2 text-gray-900 dark:text-gray-100"
+                        >
+                          {String(row[col] ?? "")}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex justify-end gap-2 pt-4">
+          <Button type="button" variant="bordered" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="solid"
+            onClick={handleConfirm}
+            disabled={!mappings.energy || !mappings.absorption}
+          >
+            Confirm
+          </Button>
+        </div>
+      </div>
+    </SimpleDialog>
+  );
+}

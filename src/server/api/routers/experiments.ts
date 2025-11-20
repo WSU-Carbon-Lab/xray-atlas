@@ -369,6 +369,16 @@ export const experimentsRouter = createTRPCRouter({
             )
             .min(1, "Spectrum CSV must contain at least one row"),
         }),
+        peaksets: z
+          .array(
+            z.object({
+              energy: z.number(),
+              intensity: z.number().optional(),
+              bond: z.string().optional(),
+              transition: z.string().optional(),
+            }),
+          )
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -594,6 +604,19 @@ export const experimentsRouter = createTRPCRouter({
 
           if (spectrumData.length > 0) {
             await tx.spectrumpoints.createMany({ data: spectrumData });
+          }
+
+          // Create peaksets if provided
+          if (input.peaksets && input.peaksets.length > 0) {
+            const peaksetsData = input.peaksets.map((peak) => ({
+              experimentid: experiment.id,
+              energyev: peak.energy,
+              intensity: peak.intensity ?? null,
+              bond: peak.bond ?? null,
+              transition: peak.transition ?? null,
+            }));
+
+            await tx.peaksets.createMany({ data: peaksetsData });
           }
 
           experimentsCreated.push({
