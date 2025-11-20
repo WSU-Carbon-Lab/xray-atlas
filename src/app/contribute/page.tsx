@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import Link from "next/link";
-import { DefaultButton as Button } from "~/app/components/Button";
+import { SignInButton } from "~/app/components/SignInButton";
 import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
 import {
   CheckCircleIcon,
@@ -54,7 +53,7 @@ export default function ContributePage() {
 
   if (!isSignedIn) {
     return (
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto flex min-h-[calc(100vh-20rem)] items-center justify-center px-4 py-16">
         <div className="mx-auto max-w-2xl text-center">
           <h1 className="mb-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
             Sign In Required
@@ -62,9 +61,9 @@ export default function ContributePage() {
           <p className="mb-8 text-gray-600 dark:text-gray-400">
             You must be signed in to contribute data to the X-ray Atlas.
           </p>
-          <Link href="/sign-in">
-            <Button variant="solid">Sign In</Button>
-          </Link>
+          <div className="flex justify-center">
+            <SignInButton variant="solid">Sign In</SignInButton>
+          </div>
         </div>
       </div>
     );

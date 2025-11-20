@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { DefaultButton as Button } from "./Button";
 import {
   CheckIcon,
   ClipboardDocumentIcon,
@@ -13,6 +14,7 @@ import { HandThumbUpIcon as HandThumbUpIconSolid } from "@heroicons/react/24/sol
 import { useUser } from "@clerk/nextjs";
 import { trpc } from "~/trpc/client";
 import { SynonymsList } from "./SynonymsList";
+import { Badge } from "@heroui/react";
 
 const useCasRegistryLookup = (params: {
   inchi: string | undefined | null;
@@ -99,20 +101,21 @@ const CopyButton = ({ text, label }: { text: string; label: string }) => {
   if (!text) return null;
 
   return (
-    <button
+    <Button
       onClick={handleCopy}
-      className="group hover:border-wsu-crimson focus:ring-wsu-crimson dark:hover:border-wsu-crimson inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/80 px-2.5 py-1.5 text-xs font-medium text-gray-700 backdrop-blur-sm transition-all hover:bg-white hover:shadow-sm focus:ring-2 focus:ring-offset-1 focus:outline-none dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-200 dark:hover:bg-gray-800"
-      title={`Click to copy ${label}`}
+      color="primary"
+      variant="flat"
+      size="sm"
+      isDisabled={!text}
     >
-      <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-        {label}
-      </span>
+      <ClipboardDocumentIcon className="h-3.5 w-3.5 text-gray-400 transition-colors dark:text-gray-500" />
+      {label}
       {copied ? (
         <CheckIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
       ) : (
-        <ClipboardDocumentIcon className="group-hover:text-wsu-crimson h-3.5 w-3.5 text-gray-400 transition-colors dark:text-gray-500" />
+        <ClipboardDocumentIcon className="h-3.5 w-3.5 text-gray-400 transition-colors dark:text-gray-500" />
       )}
-    </button>
+    </Button>
   );
 };
 
@@ -163,15 +166,18 @@ const ExternalLinkBadge = ({
   }
 
   return (
-    <a
+    <Button
+      as={Link}
       href={href}
-      target="_blank"
-      rel="noopener noreferrer"
       className={baseClasses}
+      color="primary"
+      variant="flat"
+      size="sm"
+      isDisabled={disabled}
     >
       {iconContent}
       <span>{label}</span>
-    </a>
+    </Button>
   );
 };
 
@@ -202,6 +208,53 @@ const formatFormula = (molecule: DisplayMolecule): string => {
       .join(", ");
   }
   return "";
+};
+
+const MoleculeImage = ({
+  imageUrl,
+  name,
+}: {
+  imageUrl: string;
+  name: string;
+}) => {
+  return (
+    <div className="relative aspect-square w-full overflow-hidden sm:w-[45%]">
+      <Image
+        src={imageUrl}
+        alt={name}
+        fill
+        className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+        sizes="(max-width: 640px) 100vw, 300px"
+      />
+    </div>
+  );
+};
+
+const BadgedMolecule = ({ molecule }: { molecule: DisplayMolecule }) => {
+  const experimentCount =
+    typeof molecule.experimentCount === "number" ? molecule.experimentCount : 0;
+
+  if (!experimentCount || experimentCount <= 0) {
+    return (
+      <MoleculeImage
+        imageUrl={molecule.imageUrl ?? ""}
+        name={molecule.name ?? ""}
+      />
+    );
+  }
+
+  const displayCount =
+    experimentCount > 99 ? "+99" : experimentCount.toString();
+  const content = `${displayCount} exp`;
+
+  return (
+    <Badge color="primary" variant="flat" size="sm" content={content}>
+      <MoleculeImage
+        imageUrl={molecule.imageUrl ?? ""}
+        name={molecule.name ?? ""}
+      />
+    </Badge>
+  );
 };
 
 export const MoleculeDisplay = ({
@@ -292,43 +345,12 @@ export const MoleculeDisplay = ({
   return (
     <div className="group relative flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200/40 bg-white shadow-lg transition-all duration-300 ease-out hover:-translate-y-1 hover:border-gray-300/60 hover:shadow-xl sm:flex-row dark:border-gray-700/40 dark:bg-gray-800 dark:hover:border-gray-600/60">
       {/* Image Section - Left side with concentric shape */}
-      {molecule.imageUrl && (
-        <div className="relative aspect-square w-full overflow-hidden sm:w-[45%]">
-          {/* Image container with concentric rounded corners - nested shape */}
-          <div className="absolute inset-4 overflow-hidden rounded-xl bg-linear-to-br from-gray-50/80 to-gray-100/50 dark:from-gray-900/50 dark:to-gray-800/50">
-            {molecule.imageUrl.startsWith("data:") ||
-            molecule.imageUrl.toLowerCase().endsWith(".svg") ? (
-              <img
-                className="h-full w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-                src={molecule.imageUrl}
-                alt={primaryName || "Molecule structure"}
-              />
-            ) : (
-              <Image
-                src={molecule.imageUrl}
-                alt={primaryName || "Molecule structure"}
-                fill
-                className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-                sizes="(max-width: 640px) 100vw, 300px"
-              />
-            )}
-          </div>
-
-          {/* Experiment count badge - top right overlay */}
-          {molecule.experimentCount !== undefined &&
-            molecule.experimentCount > 0 && (
-              <div className="absolute top-4 right-4 z-10 rounded-full border border-white/30 bg-black/40 px-3 py-1.5 text-xs font-semibold text-white shadow-lg backdrop-blur-md dark:bg-white/15 dark:text-gray-100">
-                {molecule.experimentCount} exp
-              </div>
-            )}
-        </div>
-      )}
+      <BadgedMolecule molecule={molecule} />
 
       {/* Content Section - Right side with Liquid Glass material */}
       <div className="relative flex flex-1 flex-col bg-white/60 backdrop-blur-2xl sm:w-[55%] dark:bg-gray-800/60">
         {/* Liquid Glass background effect - layered transparency */}
         <div className="absolute inset-0 rounded-r-2xl bg-linear-to-br from-white/40 to-white/20 dark:from-gray-900/20 dark:to-gray-800/40" />
-
         {/* Content */}
         <div className="relative flex flex-1 flex-col p-6">
           <div className="space-y-3">
@@ -337,7 +359,11 @@ export const MoleculeDisplay = ({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-left text-2xl leading-tight font-bold text-gray-900 dark:text-gray-100">
-                    {primaryName}
+                    <Link href={`/molecules/${molecule.id}`}>
+                      <span className="hover:text-wsu-crimson dark:hover:text-wsu-crimson">
+                        {primaryName}
+                      </span>
+                    </Link>
                   </h3>
                   {/* Created by link */}
                   {molecule.createdBy && (
@@ -462,21 +488,12 @@ export const MoleculeDisplay = ({
             {/* External links - Capsule shapes with icons */}
             <div className="flex flex-wrap items-center gap-2">
               {pubChemUrl && (
-                <a
+                <ExternalLinkBadge
                   href={pubChemUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:border-wsu-crimson/40 inline-flex items-center gap-1.5 rounded-full border border-gray-200/60 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-700 backdrop-blur-sm transition-all hover:bg-white/80 dark:border-gray-600/60 dark:bg-gray-700/60 dark:text-gray-200 dark:hover:bg-gray-700/80"
-                >
-                  <Image
-                    src="https://pubchem.ncbi.nlm.nih.gov/pcfe/favicon/apple-touch-icon.png"
-                    alt="PubChem"
-                    width={14}
-                    height={14}
-                    className="h-3.5 w-3.5 object-contain"
-                  />
-                  PubChem
-                </a>
+                  label="PubChem"
+                  isPubChem={true}
+                  disabled={!pubChemUrl}
+                />
               )}
               {isFetching ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200/60 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-400 backdrop-blur-sm dark:border-gray-600/60 dark:bg-gray-700/60 dark:text-gray-500">
@@ -485,21 +502,12 @@ export const MoleculeDisplay = ({
                 </span>
               ) : (
                 casUrl && (
-                  <a
+                  <ExternalLinkBadge
                     href={casUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:border-wsu-crimson/40 inline-flex items-center gap-1.5 rounded-full border border-gray-200/60 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-700 backdrop-blur-sm transition-all hover:bg-white/80 dark:border-gray-600/60 dark:bg-gray-700/60 dark:text-gray-200 dark:hover:bg-gray-700/80"
-                  >
-                    <Image
-                      src="https://cdn.prod.website-files.com/650861f00f97fe8153979335/6585a20f2b9c762a8e082a87_cas-favicon.png"
-                      alt="CAS"
-                      width={14}
-                      height={14}
-                      className="h-3.5 w-3.5 object-contain"
-                    />
-                    CAS
-                  </a>
+                    label="CAS"
+                    isCAS={true}
+                    disabled={!casUrl}
+                  />
                 )
               )}
             </div>

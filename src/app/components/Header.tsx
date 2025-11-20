@@ -6,9 +6,9 @@ import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/react";
 import { DefaultButton as Button } from "./Button";
 import { WSULogoIcon } from "./icons";
 import { GitHubStarsLink } from "./GitHubStarsLink";
-import { ThemeToggle } from "./ThemeToggle";
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import CustomUserButton from "./CustomUserButton";
+import { SignInButton } from "./SignInButton";
 
 export default function Header() {
   return (
@@ -80,15 +80,10 @@ export default function Header() {
           <GitHubStarsLink />
         </NavbarItem>
         {/* Vertical divider */}
-        <NavbarItem>
-          <ThemeToggle />
-        </NavbarItem>
         <NavbarItem className="flex items-center">
           <SignedOut>
-            <SignInButton>
-              <Button variant="bordered" size="sm">
-                Sign In
-              </Button>
+            <SignInButton variant="bordered" size="sm">
+              Sign In
             </SignInButton>
           </SignedOut>
           <SignedIn>

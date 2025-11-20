@@ -79,7 +79,8 @@ export function MoleculeGrid({
     const primarySynonym = molecule.moleculesynonyms.find(
       (s: { order?: number }) => s.order === 0,
     );
-    const displayName = primarySynonym?.synonym ?? allSynonyms[0] ?? molecule.iupacname;
+    const displayName =
+      primarySynonym?.synonym ?? allSynonyms[0] ?? molecule.iupacname;
 
     return {
       name: displayName, // Use primary name for display
@@ -129,8 +130,7 @@ export function MoleculeGrid({
           return (
             <div
               key={molecule.id}
-              onClick={() => router.push(`/molecules/${molecule.id}`)}
-              className="cursor-pointer transition-transform hover:scale-[1.02]"
+              className="transition-transform hover:scale-[1.02]"
             >
               <MoleculeDisplay molecule={displayMolecule} />
             </div>

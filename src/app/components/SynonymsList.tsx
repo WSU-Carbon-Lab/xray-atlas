@@ -55,7 +55,9 @@ export const SynonymsList = ({
   const badgeClass = badgeClassName || getBadgeStyles();
 
   return (
-    <div className={`flex flex-nowrap items-center gap-2 overflow-hidden ${className}`}>
+    <div
+      className={`flex flex-nowrap items-center gap-2 overflow-hidden ${className}`}
+    >
       {displayedSynonyms.map((name, idx) => {
         // Allow the last synonym to truncate if needed to keep everything on one line
         const isLast = idx === displayedSynonyms.length - 1;
@@ -64,7 +66,7 @@ export const SynonymsList = ({
         return (
           <span
             key={`${name}-${idx}`}
-            className={`${badgeClass} ${shouldTruncate ? "min-w-0 flex-1 overflow-hidden" : "shrink-0"}`}
+            className={`${badgeClass} ${shouldTruncate ? "max-w-[200px] min-w-0 shrink overflow-hidden" : "shrink-0"}`}
             title={shouldTruncate && name.length > 20 ? name : undefined}
           >
             {shouldTruncate ? (
@@ -77,7 +79,10 @@ export const SynonymsList = ({
       })}
       {remainingCount > 0 && (
         <div className="shrink-0">
-          <SynonymsPopover synonyms={popoverSynonyms} displayedCount={displayedSynonyms.length} />
+          <SynonymsPopover
+            synonyms={popoverSynonyms}
+            displayedCount={displayedSynonyms.length}
+          />
         </div>
       )}
     </div>
