@@ -97,13 +97,16 @@ export function InstrumentContributionForm({
 
       onCompleted?.({ instrumentId: created.id, facilityId: selectedFacilityId });
       onClose?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const derivedMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null
+            ? (error as { data?: { message?: string } }).data?.message
+            : null;
       setMessage({
         type: "error",
-        text:
-          error?.message ??
-          error?.data?.message ??
-          "Unable to create instrument. Please try again.",
+        text: derivedMessage ?? "Unable to create instrument. Please try again.",
       });
     }
   };

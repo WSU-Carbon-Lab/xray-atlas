@@ -12,13 +12,12 @@ import { ErrorState } from "~/app/components/ErrorState";
 import { BrowseTabs } from "~/app/components/BrowseTabs";
 import { Squares2X2Icon, ListBulletIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import type { molecules } from "@prisma/client";
 import { AddMoleculeButton } from "~/app/components/AddEntityButtons";
 
 export default function MoleculesBrowsePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [query, setQuery] = useState(searchParams.get("q") || "");
+  const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [debouncedQuery, setDebouncedQuery] = useState(query);
   const [sortBy, setSortBy] = useState<"upvotes" | "created" | "name">(
     "upvotes",
@@ -97,15 +96,38 @@ export default function MoleculesBrowsePage() {
   const isLoading = hasSearchQuery ? searchData.isLoading : allData.isLoading;
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;
+  type SearchResult = NonNullable<typeof searchData.data>;
+  type PaginatedResult = NonNullable<typeof allData.data>;
+  type SearchResultMolecule = NonNullable<SearchResult["results"]>[number];
+  type PaginatedResultMolecule = NonNullable<PaginatedResult["molecules"]>[number];
+  type NormalizedMolecule = SearchResultMolecule | PaginatedResultMolecule;
+
+  const normalizedData = hasSearchQuery
+    ? {
+        molecules: (searchData.data?.results ?? []) as NormalizedMolecule[],
+        total:
+          searchData.data?.total ??
+          searchData.data?.results?.length ??
+          0,
+        hasMore: searchData.data?.hasMore ?? false,
+      }
+    : {
+        molecules: (allData.data?.molecules ?? []) as NormalizedMolecule[],
+        total: allData.data?.total ?? 0,
+        hasMore: allData.data?.hasMore ?? false,
+      };
+
+  const isSearchResultMolecule = (
+    molecule: NormalizedMolecule,
+  ): molecule is SearchResultMolecule =>
+    "iupacName" in molecule && "synonyms" in molecule;
 
   const transformMolecule = (
-    molecule:
-      | NonNullable<NonNullable<typeof data>["molecules"]>[number]
-      | NonNullable<NonNullable<typeof data>["results"]>[number],
+    molecule: NormalizedMolecule,
   ): DisplayMolecule | null => {
     if (!molecule) return null;
 
-    if ("iupacName" in molecule && "synonyms" in molecule) {
+    if (isSearchResultMolecule(molecule)) {
       return {
         name: molecule.iupacName,
         commonName:
@@ -139,92 +161,28 @@ export default function MoleculesBrowsePage() {
       casNumber: molecule.casnumber,
       imageUrl: molecule.imageurl ?? undefined,
       id: molecule.id,
-      upvoteCount: (molecule as { upvoteCount?: number }).upvoteCount,
+      upvoteCount: molecule.upvoteCount,
       userHasUpvoted: false,
-      createdBy: (
-        molecule as {
-          users?: {
-            id: string;
-            name: string;
-            email: string;
-            imageurl: string | null;
-          } | null;
-        }
-      ).users
+      createdBy: molecule.users
         ? {
-            id: (
-              molecule as {
-                users: {
-                  id: string;
-                  name: string;
-                  email: string;
-                  imageurl: string | null;
-                };
-              }
-            ).users!.id,
-            name: (
-              molecule as {
-                users: {
-                  id: string;
-                  name: string;
-                  email: string;
-                  imageurl: string | null;
-                };
-              }
-            ).users!.name,
-            email: (
-              molecule as {
-                users: {
-                  id: string;
-                  name: string;
-                  email: string;
-                  imageurl: string | null;
-                };
-              }
-            ).users!.email,
-            imageurl: (
-              molecule as {
-                users: {
-                  id: string;
-                  name: string;
-                  email: string;
-                  imageurl: string | null;
-                };
-              }
-            ).users!.imageurl,
+            id: molecule.users.id,
+            name: molecule.users.name,
+            email: molecule.users.email,
+            imageurl: molecule.users.imageurl,
           }
         : null,
     };
   };
 
-  const totalPages = data
-    ? Math.ceil(
-        (hasSearchQuery
-          ? (data as { total?: number }).total || 0
-          : (data as { total: number }).total) / itemsPerPage,
-      )
-    : 1;
-  const molecules = hasSearchQuery
-    ? ((
-        data as {
-          results?: Array<{
-            id: string;
-            iupacName: string;
-            synonyms: string[];
-            chemicalFormula: string;
-            smiles: string;
-            inchi: string;
-            pubChemCid: string | null;
-            casNumber: string | null;
-            imageUrl?: string;
-          }>;
-        }
-      )?.results ?? [])
-    : ((data as { molecules?: Array<unknown> })?.molecules ?? []);
+  const totalPages = Math.max(
+    1,
+    Math.ceil((normalizedData.total ?? 0) / itemsPerPage),
+  );
+  const molecules = normalizedData.molecules;
 
   const handleMoleculeCreated = () => {
-    searchData.refetch();
-    allData.refetch();
+    void searchData.refetch();
+    void allData.refetch();
   };
 
   return (
@@ -262,8 +220,8 @@ export default function MoleculesBrowsePage() {
             {data && (
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 Showing {(currentPage - 1) * itemsPerPage + 1}-
-                {Math.min(currentPage * itemsPerPage, data.total)} of{" "}
-                {data.total} molecules
+                {Math.min(currentPage * itemsPerPage, normalizedData.total)} of{" "}
+                {normalizedData.total} molecules
               </div>
             )}
             <div className="flex items-center gap-2">
@@ -367,7 +325,7 @@ export default function MoleculesBrowsePage() {
             <ErrorState
               title="Failed to load results"
               message={
-                error?.message ||
+                error?.message ??
                 "An error occurred while loading search results."
               }
               onRetry={() => window.location.reload()}
@@ -415,12 +373,7 @@ export default function MoleculesBrowsePage() {
                         className="min-h-[140px]"
                         onCreated={handleMoleculeCreated}
                       />
-                      {molecules.map(
-                        (
-                          molecule: NonNullable<
-                            NonNullable<typeof data>["molecules"]
-                          >[number],
-                        ) => {
+                      {molecules.map((molecule) => {
                           const displayMolecule = transformMolecule(molecule);
                           if (!displayMolecule) return null;
 
@@ -457,12 +410,7 @@ export default function MoleculesBrowsePage() {
                         className="min-h-[220px]"
                         onCreated={handleMoleculeCreated}
                       />
-                      {molecules.map(
-                        (
-                          molecule: NonNullable<
-                            NonNullable<typeof data>["molecules"]
-                          >[number],
-                        ) => {
+                      {molecules.map((molecule) => {
                           const displayMolecule = transformMolecule(molecule);
                           if (!displayMolecule) return null;
 

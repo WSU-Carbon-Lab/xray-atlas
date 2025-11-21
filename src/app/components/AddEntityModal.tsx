@@ -1,13 +1,8 @@
 "use client";
 
 import { Dialog, Transition } from "@headlessui/react";
-import {
-  ReactNode,
-  Fragment,
-  useState,
-  ComponentType,
-  HTMLAttributes,
-} from "react";
+import { Fragment, useState } from "react";
+import type { ReactNode, ComponentType, HTMLAttributes } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 
 type TriggerIcon = ComponentType<

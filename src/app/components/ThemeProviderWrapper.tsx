@@ -5,11 +5,11 @@ import { ThemeProvider, useTheme } from "next-themes";
 import { THEME_STORAGE_KEY } from "./theme/constants";
 
 function ThemeSync() {
-  let { resolvedTheme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     if (!resolvedTheme) return;
-    let root = document.documentElement;
+    const root = document.documentElement;
     root.dataset.theme = resolvedTheme;
     root.style.colorScheme = resolvedTheme;
   }, [resolvedTheme]);

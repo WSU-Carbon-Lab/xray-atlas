@@ -35,7 +35,7 @@ export function EditMoleculeModal({
   const utils = trpc.useUtils();
   const updateMutation = trpc.molecules.update.useMutation({
     onSuccess: () => {
-      utils.molecules.getById.invalidate({ id: moleculeId });
+      void utils.molecules.getById.invalidate({ id: moleculeId });
       onSuccess?.();
       onClose();
     },
@@ -57,23 +57,27 @@ export function EditMoleculeModal({
       chemicalFormula: formData.chemicalFormula,
       SMILES: formData.SMILES,
       InChI: formData.InChI,
-      casNumber: formData.casNumber || null,
-      pubChemCid: formData.pubChemCid || null,
+      casNumber:
+        formData.casNumber?.trim().length ? formData.casNumber.trim() : null,
+      pubChemCid:
+        formData.pubChemCid?.trim().length ? formData.pubChemCid.trim() : null,
     });
   };
 
   const addSynonym = () => {
-    setSynonyms([...synonyms, ""]);
+    setSynonyms((prev) => [...prev, ""]);
   };
 
   const removeSynonym = (index: number) => {
-    setSynonyms(synonyms.filter((_, i) => i !== index));
+    setSynonyms((prev) => prev.filter((_, i) => i !== index));
   };
 
   const updateSynonym = (index: number, value: string) => {
-    const newSynonyms = [...synonyms];
-    newSynonyms[index] = value;
-    setSynonyms(newSynonyms);
+    setSynonyms((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
   };
 
   return (
@@ -197,11 +201,11 @@ export function EditMoleculeModal({
                 </label>
                 <input
                   type="text"
-                  value={formData.casNumber || ""}
+                  value={formData.casNumber ?? ""}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      casNumber: e.target.value || null,
+                      casNumber: e.target.value,
                     })
                   }
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-wsu-crimson focus:outline-none focus:ring-1 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
@@ -214,11 +218,11 @@ export function EditMoleculeModal({
                 </label>
                 <input
                   type="text"
-                  value={formData.pubChemCid || ""}
+                  value={formData.pubChemCid ?? ""}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      pubChemCid: e.target.value || null,
+                      pubChemCid: e.target.value,
                     })
                   }
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-wsu-crimson focus:outline-none focus:ring-1 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
@@ -228,7 +232,7 @@ export function EditMoleculeModal({
 
             {updateMutation.isError && (
               <div className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
-                {updateMutation.error?.message || "Failed to update molecule"}
+                {updateMutation.error?.message ?? "Failed to update molecule"}
               </div>
             )}
 

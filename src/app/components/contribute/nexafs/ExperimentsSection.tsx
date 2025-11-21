@@ -16,10 +16,8 @@ import {
   type ExperimentConfig,
   type ExperimentTypeOption,
 } from "~/app/contribute/nexafs/types";
-import {
-  extractGeometryPairs,
-  type BareAtomPoint,
-} from "~/app/contribute/nexafs/utils";
+import { extractGeometryPairs } from "~/app/contribute/nexafs/utils";
+import type { BareAtomPoint } from "~/app/contribute/nexafs/types";
 
 type InstrumentOption = {
   id: string;

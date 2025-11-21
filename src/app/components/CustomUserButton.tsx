@@ -1,18 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ComponentProps } from "react";
 import { UserButton as ClerkUserButton } from "@clerk/nextjs";
 import { trpc } from "~/trpc/client";
 
+type ClerkUserButtonProps = ComponentProps<typeof ClerkUserButton>;
+
 interface CustomUserButtonProps {
-  appearance?: {
-    elements?: {
-      userButtonAvatarBox?: string;
-      userButtonRoot?: string;
-      [key: string]: any;
-    };
-    [key: string]: any;
-  };
+  appearance?: ClerkUserButtonProps["appearance"];
 }
 
 export default function CustomUserButton({
@@ -22,7 +17,7 @@ export default function CustomUserButton({
 
   // Sync user to database when component mounts
   useEffect(() => {
-    syncUser.mutate();
+    void syncUser.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

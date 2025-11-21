@@ -121,13 +121,13 @@ export type BareAtomPoint = {
 };
 
 export type SampleInfo = {
-  processMethod: ProcessMethod | "";
+  processMethod: ProcessMethod | null;
   substrate: string;
   solvent: string;
-  thickness: number | "";
-  molecularWeight: number | "";
+  thickness: number | null;
+  molecularWeight: number | null;
   preparationDate: string;
-  vendorId: string | "";
+  vendorId: string;
   newVendorName: string;
   newVendorUrl: string;
 };
@@ -148,11 +148,11 @@ export type DatasetState = {
   moleculeId: string | null;
   bareAtomPoints: BareAtomPoint[] | null;
   sampleInfo: SampleInfo;
-  instrumentId: string | "";
-  edgeId: string | "";
+  instrumentId: string;
+  edgeId: string;
   experimentType: ExperimentTypeOption;
   measurementDate: string;
-  calibrationId: string | "";
+  calibrationId: string;
   referenceStandard: string;
   isStandard: boolean;
   fixedTheta: string;
@@ -178,11 +178,11 @@ export function createEmptyDatasetState(file: File): DatasetState {
     moleculeId: null,
     bareAtomPoints: null,
     sampleInfo: {
-      processMethod: "",
+      processMethod: null,
       substrate: "",
       solvent: "",
-      thickness: "",
-      molecularWeight: "",
+      thickness: null,
+      molecularWeight: null,
       preparationDate: "",
       vendorId: "",
       newVendorName: "",

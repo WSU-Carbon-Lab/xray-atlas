@@ -12,7 +12,7 @@ import { AddFacilityButton } from "~/app/components/AddEntityButtons";
 export default function FacilitiesBrowsePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [query, setQuery] = useState(searchParams.get("q") || "");
+  const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [debouncedQuery, setDebouncedQuery] = useState(query);
   const [sortBy, setSortBy] = useState<"name" | "city" | "country">("name");
   const [facilityType, setFacilityType] = useState<
@@ -87,8 +87,8 @@ export default function FacilitiesBrowsePage() {
     : 1;
 
   const handleFacilityCreated = () => {
-    searchData.refetch();
-    allData.refetch();
+    void searchData.refetch();
+    void allData.refetch();
   };
 
   return (
@@ -225,10 +225,10 @@ export default function FacilitiesBrowsePage() {
         {isError && (
           <ErrorState
             title="Failed to load results"
-            message={
-              error?.message ||
-              "An error occurred while loading search results."
-            }
+              message={
+                error?.message ??
+                "An error occurred while loading search results."
+              }
             onRetry={() => window.location.reload()}
           />
         )}
@@ -280,7 +280,7 @@ export default function FacilitiesBrowsePage() {
                     city={facility.city}
                     country={facility.country}
                     facilityType={facility.facilitytype}
-                    instrumentCount={facility._count?.instruments ?? facility.instruments?.length ?? 0}
+                    instrumentCount={facility.instruments?.length ?? 0}
                   />
                 ))}
               </div>

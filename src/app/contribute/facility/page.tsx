@@ -13,6 +13,11 @@ import {
   XMarkIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "~/server/api/root";
+
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type FacilityCreateResult = RouterOutputs["facilities"]["create"];
 
 interface InstrumentFormData {
   name: string;
@@ -22,7 +27,7 @@ interface InstrumentFormData {
 
 type FacilityContributePageProps = {
   variant?: "page" | "modal";
-  onCompleted?: (payload: { facilityId: string }) => void;
+  onCompleted?: (payload: { facilityId: string; instrumentId?: string }) => void;
   onClose?: () => void;
 };
 
@@ -77,8 +82,8 @@ export default function FacilityContributePage({
   const checkFacility = trpc.facilities.checkExists.useQuery(
     {
       name: facilityData.name,
-      city: facilityData.city || null,
-      country: facilityData.country || null,
+      city: facilityData.city.trim() ? facilityData.city.trim() : null,
+      country: facilityData.country.trim() ? facilityData.country.trim() : null,
     },
     {
       enabled: facilityData.name.length > 0,
@@ -86,15 +91,16 @@ export default function FacilityContributePage({
   );
 
   useEffect(() => {
-    if (checkFacility.data?.exists && checkFacility.data.facility) {
-      setExistingFacility(checkFacility.data.facility);
+    const facility = checkFacility.data?.facility;
+    if (checkFacility.data?.exists && facility) {
+      setExistingFacility(facility);
       // Auto-fill form with existing facility data
       setFacilityData((prev) => ({
         ...prev,
-        name: checkFacility.data.facility!.name,
-        city: checkFacility.data.facility!.city || "",
-        country: checkFacility.data.facility!.country || "",
-        facilityType: checkFacility.data.facility!.facilitytype,
+        name: facility.name,
+        city: facility.city ?? "",
+        country: facility.country ?? "",
+        facilityType: facility.facilitytype,
       }));
     } else {
       setExistingFacility(null);
@@ -128,7 +134,7 @@ export default function FacilityContributePage({
   const updateInstrument = (
     index: number,
     field: keyof InstrumentFormData,
-    value: string | "active" | "inactive" | "under_maintenance",
+    value: InstrumentFormData[keyof InstrumentFormData],
   ) => {
     setInstruments((prev) =>
       prev.map((inst, i) =>
@@ -160,10 +166,10 @@ export default function FacilityContributePage({
     setSubmitStatus({ type: null, message: "" });
 
     try {
-      const result = await createFacility.mutateAsync({
+      const result: FacilityCreateResult = await createFacility.mutateAsync({
         name: facilityData.name,
-        city: facilityData.city || null,
-        country: facilityData.country || null,
+        city: facilityData.city.trim() ? facilityData.city.trim() : null,
+        country: facilityData.country.trim() ? facilityData.country.trim() : null,
         facilityType: facilityData.facilityType,
         instruments: instruments.filter((inst) => inst.name.trim().length > 0),
       });
@@ -172,8 +178,11 @@ export default function FacilityContributePage({
         type: "success",
         message: `Facility "${result.name}" created successfully!`,
       });
-
-      onCompleted?.({ facilityId: result.id });
+      const firstInstrumentId =
+        "instruments" in result && Array.isArray(result.instruments)
+          ? result.instruments[0]?.id
+          : undefined;
+      onCompleted?.({ facilityId: result.id, instrumentId: firstInstrumentId });
 
       if (isModal) {
         onClose?.();
@@ -183,14 +192,17 @@ export default function FacilityContributePage({
           router.push(`/facilities/${result.id}`);
         }, 2000);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating facility:", error);
+      const derivedMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null
+            ? (error as { data?: { message?: string } }).data?.message
+            : null;
       setSubmitStatus({
         type: "error",
-        message:
-          error?.message ??
-          error?.data?.message ??
-          "Failed to create facility. Please try again.",
+        message: derivedMessage ?? "Failed to create facility. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -388,7 +400,7 @@ export default function FacilityContributePage({
 
             {instruments.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                No instruments added yet. Click "Add Instrument" to add one.
+                No instruments added yet. Click &quot;Add Instrument&quot; to add one.
               </p>
             ) : (
               <div className="space-y-4">
@@ -445,7 +457,7 @@ function InstrumentForm({
   facilityId?: string;
   onChange: (
     field: keyof InstrumentFormData,
-    value: string | "active" | "inactive" | "under_maintenance",
+    value: InstrumentFormData[keyof InstrumentFormData],
   ) => void;
   onRemove: () => void;
 }) {
@@ -465,7 +477,7 @@ function InstrumentForm({
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="font-medium text-gray-900 dark:text-gray-100">
-          Instrument {instrument.name || "New"}
+          Instrument {instrument.name.trim() ? instrument.name : "New"}
         </h3>
         <button
           type="button"
@@ -523,10 +535,7 @@ function InstrumentForm({
           <select
             value={instrument.status}
             onChange={(e) =>
-              onChange(
-                "status",
-                e.target.value as "active" | "inactive" | "under_maintenance",
-              )
+              onChange("status", e.target.value as InstrumentFormData["status"])
             }
             className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
           >

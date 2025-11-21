@@ -270,7 +270,7 @@ export const MoleculeDisplay = ({
     onSuccess: () => {
       // Invalidate queries to refresh upvote count
       if (molecule.id) {
-        utils.molecules.getById.invalidate({ id: molecule.id });
+        void utils.molecules.getById.invalidate({ id: molecule.id });
       }
     },
   });

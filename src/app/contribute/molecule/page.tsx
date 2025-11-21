@@ -21,6 +21,16 @@ import {
 } from "@heroicons/react/24/outline";
 import { FieldTooltip } from "~/app/components/FieldTooltip";
 import { SearchIcon } from "../../components/icons";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "~/server/api/root";
+
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type MoleculeSearchResponse = RouterOutputs["molecules"]["search"];
+type MoleculeSearchData = NonNullable<MoleculeSearchResponse["data"]>;
+type PubChemSearchResponse = RouterOutputs["external"]["searchPubchem"];
+type PubChemSearchData = NonNullable<PubChemSearchResponse["data"]>;
+type CasSearchResponse = RouterOutputs["external"]["searchCas"];
+type CreateMoleculeResponse = RouterOutputs["molecules"]["create"];
 
 type MoleculeContributePageProps = {
   variant?: "page" | "modal";
@@ -34,7 +44,7 @@ export default function MoleculeContributePage({
   onClose,
 }: MoleculeContributePageProps = {}) {
   const router = useRouter();
-  const { isSignedIn, user } = useUser();
+  const { isSignedIn } = useUser();
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const isModal = variant === "modal";
 
@@ -193,13 +203,14 @@ export default function MoleculeContributePage({
       // Only search database if we have a common name (not CID-only searches)
       if (hasCommonName) {
         try {
-          const dbSearchData = await utils.molecules.search.fetch({
+          const dbSearchData: MoleculeSearchResponse =
+            await utils.molecules.search.fetch({
             query: formData.commonName.trim(),
-          });
+            });
 
           if (dbSearchData.ok && dbSearchData.data) {
             // Found in database - populate form
-            const result = dbSearchData.data;
+            const result: MoleculeSearchData = dbSearchData.data;
 
             // Handle commonName - tRPC returns it as a string (first synonym or iupacname)
             const commonNameValue = typeof result.commonName === "string"
@@ -241,10 +252,14 @@ export default function MoleculeContributePage({
             setIsSearching(false);
             return; // Stop here - don't search PubChem
           }
-        } catch (dbError: any) {
+        } catch (dbError: unknown) {
           // Continue to PubChem search if database search fails
           // tRPC throws errors, so we check if it's a NOT_FOUND error
-          if (dbError?.data?.code !== "NOT_FOUND") {
+          const trpcError =
+            dbError && typeof dbError === "object"
+              ? (dbError as { data?: { code?: string } })
+              : null;
+          if (trpcError?.data?.code !== "NOT_FOUND") {
             // Only log if it's not a "not found" error
             console.error("Database search error:", dbError);
           }
@@ -258,51 +273,42 @@ export default function MoleculeContributePage({
         ? (formData.pubchemCid ?? "").trim()
         : formData.commonName.trim();
 
-      const data = await utils.external.searchPubchem.fetch({
-        query: query,
-        type: searchType as "name" | "cid" | "smiles",
-      });
+      const pubChemResponse: PubChemSearchResponse =
+        await utils.external.searchPubchem.fetch({
+          query,
+          type: searchType as "name" | "cid" | "smiles",
+        });
 
-      if (!data.ok) {
+      if (!pubChemResponse.ok) {
         throw new Error("Molecule not found in PubChem");
       }
 
-      if (data.data) {
+      if (pubChemResponse.data) {
         // Auto-populate form with search results
-        const result = data.data;
+        const result: PubChemSearchData = pubChemResponse.data;
 
-        // Handle commonName array - use first one for form field, rest go to synonyms
-        const commonNameArray = Array.isArray(result.commonName)
-          ? result.commonName
-          : result.name
-            ? [result.name]
-            : [];
-        const commonNameValue =
-          commonNameArray.length > 0 ? commonNameArray[0] : "";
-
-        // Handle chemicalFormula array - join for form display (will be split on submit)
-        const chemicalFormulaArray = Array.isArray(result.chemicalFormula)
-          ? result.chemicalFormula
-          : result.molecularFormula
-            ? [result.molecularFormula]
-            : [];
-        const chemicalFormulaValue = chemicalFormulaArray.join(", ");
-
-        // Combine all synonyms (skip first if it's already used as commonName)
-        const allSynonyms = Array.isArray(result.synonyms)
-          ? result.synonyms
-          : commonNameArray.slice(1); // Use rest of commonName array if synonyms not available
+        const commonNameValue = result.commonName ?? "";
+        const chemicalFormulaValue =
+          result.chemicalFormula ?? formData.chemicalFormula ?? "";
+        const sanitizedSynonyms =
+          result.synonyms?.filter(
+            (synonym): synonym is string =>
+              typeof synonym === "string" && synonym.trim().length > 0,
+          ) ?? [];
 
         const inchiFromResult = result.inchi ?? formData.inchi ?? "";
+        const preferredCommonName =
+          formData.commonName.trim().length > 0
+            ? formData.commonName
+            : commonNameValue;
 
         setFormData({
           iupacName: result.iupacName ?? formData.iupacName ?? "",
-          commonName: formData.commonName ?? "", // Preserve user-entered common name
-          synonyms: allSynonyms.filter(Boolean),
+          commonName: preferredCommonName,
+          synonyms: sanitizedSynonyms,
           inchi: inchiFromResult,
           smiles: result.smiles ?? formData.smiles ?? "",
-          chemicalFormula:
-            chemicalFormulaValue ?? formData.chemicalFormula ?? "",
+          chemicalFormula: chemicalFormulaValue,
           casNumber: result.casNumber ?? formData.casNumber ?? null,
           pubchemCid: result.pubChemCid ?? formData.pubchemCid ?? null,
         });
@@ -315,7 +321,10 @@ export default function MoleculeContributePage({
         }
 
         setSearchSuccess("PubChem search successful");
-        setPubChemUrl(data.data.pubChemUrl ?? null);
+        const generatedPubChemUrl = result.pubChemCid
+          ? `https://pubchem.ncbi.nlm.nih.gov/compound/${result.pubChemCid}`
+          : null;
+        setPubChemUrl(generatedPubChemUrl);
 
         // If we have InChI but no CAS number, try to fetch CAS
         // First try InChI, then try all synonyms as fallback
@@ -326,9 +335,10 @@ export default function MoleculeContributePage({
           // Try InChI first if available
           if (inchiFromResult) {
             try {
-              const casData = await utils.external.searchCas.fetch({
-                inchi: inchiFromResult,
-              });
+              const casData: CasSearchResponse =
+                await utils.external.searchCas.fetch({
+                  inchi: inchiFromResult,
+                });
 
               if (casData.ok && casData.data?.casRegistryNumber) {
                 setFormData((prev) => ({
@@ -341,7 +351,7 @@ export default function MoleculeContributePage({
                 ]);
                 casFound = true;
               }
-            } catch (casError) {
+            } catch (casError: unknown) {
               console.error("CAS InChI search error:", casError);
             }
           }
@@ -349,9 +359,9 @@ export default function MoleculeContributePage({
           // If InChI search didn't work, try searching with all synonyms
           if (!casFound) {
             const allNamesToSearch = [
-              formData.commonName,
-              ...commonNameArray,
-              ...allSynonyms,
+              preferredCommonName,
+              ...sanitizedSynonyms,
+              ...formData.synonyms,
             ].filter(
               (name): name is string =>
                 typeof name === "string" &&
@@ -364,9 +374,10 @@ export default function MoleculeContributePage({
 
             for (const synonym of uniqueNames) {
               try {
-                const casData = await utils.external.searchCas.fetch({
-                  synonym: synonym,
-                });
+                const casData: CasSearchResponse =
+                  await utils.external.searchCas.fetch({
+                    synonym,
+                  });
 
                 if (casData.ok && casData.data?.casRegistryNumber) {
                   setFormData((prev) => ({
@@ -380,7 +391,7 @@ export default function MoleculeContributePage({
                   casFound = true;
                   break; // Stop searching once we find a match
                 }
-              } catch (casError) {
+              } catch (casError: unknown) {
                 console.error(
                   `CAS synonym search error for "${synonym}":`,
                   casError,
@@ -404,12 +415,12 @@ export default function MoleculeContributePage({
       } else {
         throw new Error("Invalid response from PubChem search");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to search PubChem";
 
       // If PubChem search failed, try CAS search with InChI and synonyms
-      const hasInChI = formData.inchi && formData.inchi.trim();
+      const hasInChI = formData.inchi.trim().length > 0;
       const hasSynonyms =
         (formData.commonName?.trim().length ?? 0) > 0 ||
         formData.synonyms.length > 0;
@@ -421,9 +432,10 @@ export default function MoleculeContributePage({
         // Try InChI first if available
         if (hasInChI) {
           try {
-            const casData = await utils.external.searchCas.fetch({
-              inchi: formData.inchi,
-            });
+            const casData: CasSearchResponse =
+              await utils.external.searchCas.fetch({
+                inchi: formData.inchi,
+              });
 
             if (casData.ok && casData.data?.casRegistryNumber) {
               setFormData((prev) => ({
@@ -435,7 +447,7 @@ export default function MoleculeContributePage({
               );
               casFound = true;
             }
-          } catch (casError) {
+          } catch (casError: unknown) {
             console.error("CAS InChI search error:", casError);
           }
         }
@@ -456,9 +468,10 @@ export default function MoleculeContributePage({
 
           for (const synonym of uniqueNames) {
             try {
-              const casData = await utils.external.searchCas.fetch({
-                synonym: synonym,
-              });
+              const casData: CasSearchResponse =
+                await utils.external.searchCas.fetch({
+                  synonym,
+                });
 
               if (casData.ok && casData.data?.casRegistryNumber) {
                 setFormData((prev) => ({
@@ -471,7 +484,7 @@ export default function MoleculeContributePage({
                 casFound = true;
                 break;
               }
-            } catch (casError) {
+            } catch (casError: unknown) {
               console.error(
                 `CAS synonym search error for "${synonym}":`,
                 casError,
@@ -507,24 +520,27 @@ export default function MoleculeContributePage({
     setSubmitStatus({ type: null, message: "" });
 
     try {
-      let result;
+      let moleculeId: string | null = null;
+      let actionVerb: "updated" | "uploaded" = "uploaded";
+      let moleculeName = formData.iupacName;
 
       if (editingMoleculeId) {
-        // Update existing molecule
-        result = await updateMolecule.mutateAsync({
+        await updateMolecule.mutateAsync({
           moleculeId: editingMoleculeId,
           ...formData,
         });
+        moleculeId = editingMoleculeId;
+        actionVerb = "updated";
       } else {
-        // Create new molecule
-        result = await createMolecule.mutateAsync(formData);
+        const createResult: CreateMoleculeResponse =
+          await createMolecule.mutateAsync(formData);
+        moleculeId = createResult.molecule?.id ?? null;
+        moleculeName = createResult.molecule?.iupacName ?? moleculeName;
+        actionVerb = createResult.updated ? "updated" : "uploaded";
       }
 
-      // Handle image upload if provided
-      const moleculeId = editingMoleculeId ?? result.molecule?.id;
       if (imageFile && moleculeId) {
         try {
-          // Convert File to base64 data URL
           const reader = new FileReader();
           const base64Data = await new Promise<string>((resolve, reject) => {
             reader.onloadend = () => {
@@ -538,31 +554,31 @@ export default function MoleculeContributePage({
             reader.readAsDataURL(imageFile);
           });
 
-          // Upload image to Supabase Storage
           await uploadImage.mutateAsync({
             moleculeId,
             imageData: base64Data,
           });
-        } catch (imageError: any) {
+        } catch (imageError: unknown) {
+          const imageMessage =
+            imageError instanceof Error
+              ? imageError.message
+              : "Unknown error";
           console.error("Error uploading image:", imageError);
-          // Image upload failure shouldn't prevent form submission success
-          // but we should inform the user
           setSubmitStatus({
             type: "success",
-            message: `Molecule "${result.molecule?.iupacName ?? formData.iupacName}" ${result.updated ? "updated" : "uploaded"} successfully, but image upload failed: ${imageError?.message ?? "Unknown error"}`,
+            message: `Molecule "${moleculeName}" ${actionVerb} successfully, but image upload failed: ${imageMessage}`,
           });
-          return; // Return early to prevent clearing the form
+          return;
         }
       }
 
-      const isUpdate = result.updated === true;
       setSubmitStatus({
         type: "success",
-        message: `Molecule "${result.molecule?.iupacName ?? formData.iupacName}" ${isUpdate ? "updated" : "uploaded"} successfully!`,
+        message: `Molecule "${moleculeName}" ${actionVerb} successfully!`,
       });
 
       if (onCompleted) {
-        onCompleted({ moleculeId });
+        onCompleted({ moleculeId: moleculeId ?? undefined });
       }
       if (isModal) {
         onClose?.();
@@ -583,10 +599,16 @@ export default function MoleculeContributePage({
       setImageFile(null);
       setImagePreview("");
       setEditingMoleculeId(null); // Clear editing state after successful submit
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error during molecule upload:", error);
+      const extractedMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null
+            ? (error as { data?: { message?: string } }).data?.message
+            : null;
       const errorMessage =
-        error?.message ?? error?.data?.message ??
+        extractedMessage ??
         (typeof error === "string"
           ? error
           : "Failed to upload molecule. Please check the console for details.");
@@ -988,23 +1010,14 @@ export default function MoleculeContributePage({
                   {imagePreview ? (
                     <div className="relative">
                       <div className="relative aspect-square w-full overflow-hidden rounded-lg border-2 border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-                        {/* Use img for base64 data URLs as Next.js Image doesn't support them */}
-                        {imagePreview.startsWith("data:") ||
-                        imagePreview.toLowerCase().endsWith(".svg") ? (
-                          <img
-                            src={imagePreview}
-                            alt="Molecule preview"
-                            className="h-full w-full object-contain"
-                          />
-                        ) : (
-                          <Image
-                            src={imagePreview}
-                            alt="Molecule preview"
-                            fill
-                            className="object-contain"
-                            sizes="(max-width: 768px) 100vw, 50vw"
-                          />
-                        )}
+                        <Image
+                          src={imagePreview}
+                          alt="Molecule preview"
+                          fill
+                          unoptimized
+                          className="object-contain"
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                        />
                       </div>
                       <button
                         type="button"

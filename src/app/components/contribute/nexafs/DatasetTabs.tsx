@@ -55,6 +55,7 @@ export function DatasetTabs({
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
         {datasets.map((dataset) => {
           const status = getDatasetStatus(dataset);
+          const { checks, allComplete } = status;
           const isActive = dataset.id === activeDatasetId;
           const isEditing = editingId === dataset.id;
 
@@ -101,7 +102,7 @@ export function DatasetTabs({
                     >
                       {dataset.fileName}
                     </span>
-                    {status.allComplete && (
+                    {allComplete && (
                       <CheckCircleIcon className="h-4 w-4 text-green-500" />
                     )}
                   </>
@@ -123,15 +124,15 @@ export function DatasetTabs({
               )}
 
               {/* Status indicators */}
-              {!status.allComplete && (
+              {!allComplete && (
                 <div className="flex gap-1">
-                  {!status.molecule && (
+                  {!checks.molecule && (
                     <span className="h-2 w-2 rounded-full bg-yellow-400" title="Molecule not selected" />
                   )}
-                  {!status.instrument && (
+                  {!checks.instrument && (
                     <span className="h-2 w-2 rounded-full bg-orange-400" title="Instrument not selected" />
                   )}
-                  {!status.data && (
+                  {!checks.data && (
                     <span className="h-2 w-2 rounded-full bg-red-400" title="No spectrum data" />
                   )}
                 </div>

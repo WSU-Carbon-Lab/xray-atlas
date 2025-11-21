@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { skipToken } from "@tanstack/react-query";
 import { SpectrumPlot, type SpectrumPoint, type SpectrumSelection } from "~/app/components/plots/SpectrumPlot";
 import { MoleculeSelector } from "./MoleculeSelector";
 import { AnalysisToolbar } from "./AnalysisToolbar";
@@ -86,9 +87,11 @@ export function DatasetContent({
 
   // Sync molecule selection with dataset - fetch molecule if ID is set but molecule not loaded
   const moleculeQuery = trpc.molecules.getById.useQuery(
-    { id: dataset.moleculeId },
+    dataset.moleculeId ? { id: dataset.moleculeId } : skipToken,
     {
-      enabled: !!dataset.moleculeId && (!selectedMolecule || selectedMolecule.id !== dataset.moleculeId),
+      enabled:
+        !!dataset.moleculeId &&
+        (!selectedMolecule || selectedMolecule.id !== dataset.moleculeId),
     },
   );
 
@@ -431,15 +434,23 @@ export function DatasetContent({
                 onDatasetUpdate(dataset.id, { referenceStandard: value as string })
               }
             />
-            <FormField
-              label="Is Standard"
-              type="checkbox"
-              name="isStandard"
-              value={dataset.isStandard}
-              onChange={(value) =>
-                onDatasetUpdate(dataset.id, { isStandard: value as boolean })
-              }
-            />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+              <input
+                id={`is-standard-${dataset.id}`}
+                type="checkbox"
+                checked={dataset.isStandard}
+                onChange={(event) =>
+                  onDatasetUpdate(dataset.id, { isStandard: event.target.checked })
+                }
+                className="h-4 w-4 rounded border-gray-300 text-wsu-crimson focus:ring-wsu-crimson"
+              />
+              <label
+                htmlFor={`is-standard-${dataset.id}`}
+                className="text-sm text-gray-700 dark:text-gray-300"
+              >
+                Is Standard
+              </label>
+            </div>
           </div>
           <div className="mt-4">
             <Button

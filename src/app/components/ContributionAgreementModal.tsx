@@ -61,7 +61,7 @@ export function ContributionAgreementModal({
   const acceptAgreement = trpc.users.acceptContributionAgreement.useMutation({
     onSuccess: () => {
       // Invalidate the agreement status query to refetch
-      utils.users.getContributionAgreementStatus.invalidate();
+      void utils.users.getContributionAgreementStatus.invalidate();
       onAgree();
     },
   });
@@ -92,7 +92,7 @@ export function ContributionAgreementModal({
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={() => {}}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -129,7 +129,7 @@ export function ContributionAgreementModal({
                 <div className="mb-6">
                   <p className="text-gray-600 dark:text-gray-400">
                     Please answer the following questions before proceeding with your
-                    contribution. Your agreement will be saved so you won't need to
+                    contribution. Your agreement will be saved so you won&rsquo;t need to
                     answer these again.
                   </p>
                 </div>
@@ -178,7 +178,7 @@ export function ContributionAgreementModal({
                         answers[question.id] === false &&
                         answers[question.id] !== undefined && (
                           <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-                            This question must be answered "Yes" to proceed.
+                            This question must be answered &quot;Yes&quot; to proceed.
                           </p>
                         )}
                     </div>

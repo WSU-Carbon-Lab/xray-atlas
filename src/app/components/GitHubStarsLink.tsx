@@ -42,8 +42,10 @@ export function GitHubStarsLink({
         if (!cancelled) setStars(2); // Default to 2 on error
       }
     }
-    load();
-    const id = setInterval(load, 1000 * 60 * 10);
+    void load();
+    const id = setInterval(() => {
+      void load();
+    }, 1000 * 60 * 10);
     return () => {
       cancelled = true;
       clearInterval(id);

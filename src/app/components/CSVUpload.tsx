@@ -38,6 +38,8 @@ export function CSVUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragError, setDragError] = useState<string | null>(null);
+  const effectiveError = error ?? dragError;
+  const hasError = Boolean(effectiveError);
 
   const acceptedTypesValue = Array.isArray(acceptedFileTypes)
     ? acceptedFileTypes.join(",")
@@ -200,7 +202,7 @@ export function CSVUpload({
             isDragging
               ? "border-wsu-crimson bg-wsu-crimson/5"
               : "border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
-          } ${error || dragError ? "border-red-300 dark:border-red-700" : ""}`}
+          } ${hasError ? "border-red-300 dark:border-red-700" : ""}`}
         >
           <input
             ref={fileInputRef}
@@ -220,10 +222,10 @@ export function CSVUpload({
         </div>
       )}
 
-      {(error || dragError) && (
+      {hasError && (
         <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
           <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
-          <span>{error || dragError}</span>
+          <span>{effectiveError}</span>
         </div>
       )}
     </div>

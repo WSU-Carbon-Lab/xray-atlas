@@ -12,17 +12,17 @@ type VendorOption = {
 type SampleInformationSectionProps = {
   preparationDate: string;
   setPreparationDate: (value: string) => void;
-  processMethod: ProcessMethod | "";
-  setProcessMethod: (value: ProcessMethod | "") => void;
+  processMethod: ProcessMethod | null;
+  setProcessMethod: (value: ProcessMethod | null) => void;
   substrate: string;
   setSubstrate: (value: string) => void;
   solvent: string;
   setSolvent: (value: string) => void;
-  thickness: number | "";
-  setThickness: (value: number | "") => void;
-  molecularWeight: number | "";
-  setMolecularWeight: (value: number | "") => void;
-  selectedVendorId: string | "";
+  thickness: number | null;
+  setThickness: (value: number | null) => void;
+  molecularWeight: number | null;
+  setMolecularWeight: (value: number | null) => void;
+  selectedVendorId: string;
   setSelectedVendorId: (value: string) => void;
   newVendorName: string;
   setNewVendorName: (value: string) => void;
@@ -79,8 +79,14 @@ export function SampleInformationSection({
           label="Process Method"
           type="select"
           name="processMethod"
-          value={processMethod}
-          onChange={(value) => setProcessMethod(value as ProcessMethod | "")}
+        value={processMethod ?? ""}
+        onChange={(value) =>
+          setProcessMethod(
+            typeof value === "string" && value.length > 0
+              ? (value as ProcessMethod)
+              : null,
+          )
+        }
           tooltip="Method used to process the sample"
           options={[
             { value: "", label: "Select process method (optional)" },
@@ -115,8 +121,10 @@ export function SampleInformationSection({
           label="Thickness (nm)"
           type="number"
           name="thickness"
-          value={thickness}
-          onChange={(value) => setThickness(value as number | "")}
+        value={typeof thickness === "number" ? thickness : ""}
+        onChange={(value) =>
+          setThickness(typeof value === "number" ? value : null)
+        }
           placeholder="e.g., 50"
           tooltip="Sample thickness in nanometers"
           min={0}
@@ -129,8 +137,10 @@ export function SampleInformationSection({
           label="Molecular Weight (g/mol)"
           type="number"
           name="molecularWeight"
-          value={molecularWeight}
-          onChange={(value) => setMolecularWeight(value as number | "")}
+        value={typeof molecularWeight === "number" ? molecularWeight : ""}
+        onChange={(value) =>
+          setMolecularWeight(typeof value === "number" ? value : null)
+        }
           placeholder="e.g., 1000.5"
           tooltip="Molecular weight in grams per mole"
           min={0}

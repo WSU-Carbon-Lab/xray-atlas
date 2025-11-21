@@ -2,14 +2,14 @@
 
 import { FieldTooltip } from "./FieldTooltip";
 
-type FormFieldValue = string | number | "";
+type FormFieldValue = string | number;
 
 type FormFieldProps = {
   label: string;
   tooltip?: string;
   type: "text" | "textarea" | "number" | "select" | "date";
   name: string;
-  value: any;
+  value?: FormFieldValue | null;
   onChange: (value: FormFieldValue) => void;
   error?: string;
   helperText?: string;
@@ -94,7 +94,7 @@ export function FormField({
           className={`${baseInputClasses} ${errorInputClasses}`}
         >
           <option value="" disabled>
-            {placeholder || "Select an option"}
+            {placeholder ?? "Select an option"}
           </option>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
