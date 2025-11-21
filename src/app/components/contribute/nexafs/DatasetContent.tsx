@@ -116,28 +116,38 @@ export function DatasetContent({
   // Calculate bare atom absorption when molecule is selected
   useEffect(() => {
     if (selectedMolecule?.chemicalFormula && dataset.spectrumPoints.length > 0) {
-      setIsCalculatingBareAtom(true);
-      setBareAtomError(null);
+      // Only recalculate if bare atom points don't exist or formula changed
+      const needsRecalculation =
+        !dataset.bareAtomPoints ||
+        dataset.bareAtomPoints.length === 0 ||
+        (selectedMolecule.chemicalFormula !== dataset.bareAtomPoints[0] && dataset.spectrumPoints.length > 0);
 
-      calculateBareAtomAbsorption(selectedMolecule.chemicalFormula, dataset.spectrumPoints)
-        .then((points) => {
-          onDatasetUpdate(dataset.id, { bareAtomPoints: points });
-          setIsCalculatingBareAtom(false);
-        })
-        .catch((error) => {
-          console.error("Failed to calculate bare atom absorption:", error);
-          setBareAtomError(error instanceof Error ? error.message : "Calculation failed");
-          setIsCalculatingBareAtom(false);
-        });
-    } else if (!selectedMolecule) {
+      if (needsRecalculation) {
+        setIsCalculatingBareAtom(true);
+        setBareAtomError(null);
+
+        calculateBareAtomAbsorption(selectedMolecule.chemicalFormula, dataset.spectrumPoints)
+          .then((points) => {
+            onDatasetUpdate(dataset.id, { bareAtomPoints: points });
+            setIsCalculatingBareAtom(false);
+          })
+          .catch((error) => {
+            console.error("Failed to calculate bare atom absorption:", error);
+            setBareAtomError(error instanceof Error ? error.message : "Calculation failed");
+            setIsCalculatingBareAtom(false);
+          });
+      }
+    } else if (!selectedMolecule && dataset.bareAtomPoints) {
       onDatasetUpdate(dataset.id, { bareAtomPoints: null });
     }
-  }, [selectedMolecule?.chemicalFormula, dataset.spectrumPoints, dataset.id, onDatasetUpdate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMolecule?.chemicalFormula, dataset.spectrumPoints.length, dataset.id]);
 
   // Compute normalization when regions are selected
   useEffect(() => {
     if (
       dataset.bareAtomPoints &&
+      dataset.bareAtomPoints.length > 0 &&
       dataset.spectrumPoints.length > 0 &&
       dataset.normalizationRegions.pre &&
       dataset.normalizationRegions.post
@@ -162,24 +172,40 @@ export function DatasetContent({
         );
 
         if (result) {
-          onDatasetUpdate(dataset.id, {
-            normalizedPoints: result.normalizedPoints,
-            normalization: {
-              scale: result.scale,
-              offset: result.offset,
-              preRange: result.preRange,
-              postRange: result.postRange,
-            },
-          });
+          // Only update if normalization actually changed
+          const currentNormalization = dataset.normalization;
+          const needsUpdate =
+            !currentNormalization ||
+            currentNormalization.scale !== result.scale ||
+            currentNormalization.offset !== result.offset ||
+            currentNormalization.preRange?.[0] !== result.preRange?.[0] ||
+            currentNormalization.preRange?.[1] !== result.preRange?.[1] ||
+            currentNormalization.postRange?.[0] !== result.postRange?.[0] ||
+            currentNormalization.postRange?.[1] !== result.postRange?.[1];
+
+          if (needsUpdate) {
+            onDatasetUpdate(dataset.id, {
+              normalizedPoints: result.normalizedPoints,
+              normalization: {
+                scale: result.scale,
+                offset: result.offset,
+                preRange: result.preRange,
+                postRange: result.postRange,
+              },
+            });
+          }
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    dataset.bareAtomPoints,
-    dataset.spectrumPoints,
-    dataset.normalizationRegions,
+    dataset.bareAtomPoints?.length,
+    dataset.spectrumPoints.length,
+    dataset.normalizationRegions.pre?.[0],
+    dataset.normalizationRegions.pre?.[1],
+    dataset.normalizationRegions.post?.[0],
+    dataset.normalizationRegions.post?.[1],
     dataset.id,
-    onDatasetUpdate,
   ]);
 
   const handleMoleculeCreated = (moleculeId: string) => {
@@ -248,32 +274,23 @@ export function DatasetContent({
   return (
     <div className="space-y-6">
       {/* Molecule Selector */}
-      <div className="flex items-start gap-4">
-        <div className="flex-1">
-          <MoleculeSelector
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            suggestions={suggestions}
-            manualResults={manualResults}
-            suggestionError={suggestionError}
-            manualError={manualError}
-            isSuggesting={isSuggesting}
-            isManualSearching={isManualSearching}
-            selectedMolecule={selectedMolecule}
-            selectedPreferredName={selectedPreferredName}
-            setSelectedPreferredName={setSelectedPreferredName}
-            allMoleculeNames={allMoleculeNames}
-            onUseMolecule={(result) => selectMolecule(result)}
-            onManualSearch={runManualSearch}
-          />
-        </div>
-        <Button
-          type="button"
-          variant="bordered"
-          onClick={() => setShowAddMoleculeModal(true)}
-        >
-          Add Molecule
-        </Button>
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <MoleculeSelector
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          suggestions={suggestions}
+          manualResults={manualResults}
+          suggestionError={suggestionError}
+          manualError={manualError}
+          isSuggesting={isSuggesting}
+          isManualSearching={isManualSearching}
+          selectedMolecule={selectedMolecule}
+          selectedPreferredName={selectedPreferredName}
+          setSelectedPreferredName={setSelectedPreferredName}
+          allMoleculeNames={allMoleculeNames}
+          onUseMolecule={(result) => selectMolecule(result)}
+          onManualSearch={runManualSearch}
+        />
       </div>
 
       {/* Main Content Area */}
@@ -298,14 +315,30 @@ export function DatasetContent({
         <div className="flex-1 space-y-6">
           {/* Spectrum Plot */}
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <SpectrumPlot
-              points={plotPoints}
-              height={400}
-              referenceCurves={referenceCurves}
-              normalizationRegions={normalizationRegions}
-              selectionTarget={normalizationSelectionTarget}
-              onSelectionChange={handleNormalizationSelection}
-            />
+            {plotPoints.length > 0 ? (
+              <SpectrumPlot
+                points={plotPoints}
+                height={400}
+                referenceCurves={referenceCurves}
+                normalizationRegions={normalizationRegions}
+                selectionTarget={normalizationSelectionTarget}
+                onSelectionChange={handleNormalizationSelection}
+              />
+            ) : dataset.spectrumError ? (
+              <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">
+                <div className="text-center">
+                  <p className="font-medium">Error processing data</p>
+                  <p className="mt-1 text-sm">{dataset.spectrumError}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
+                <div className="text-center">
+                  <p className="font-medium">No spectrum data</p>
+                  <p className="mt-1 text-sm">Upload a CSV file to see the plot</p>
+                </div>
+              </div>
+            )}
             {isCalculatingBareAtom && (
               <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 Calculating bare atom absorption...

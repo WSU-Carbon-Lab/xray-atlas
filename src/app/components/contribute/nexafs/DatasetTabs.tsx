@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Tabs, Tab } from "@heroui/react";
 import { XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import type { DatasetState } from "~/app/contribute/nexafs/types";
 
@@ -19,22 +19,6 @@ export function DatasetTabs({
   onDatasetRemove,
   onDatasetRename,
 }: DatasetTabsProps) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
-
-  const handleStartEdit = (datasetId: string, currentName: string) => {
-    setEditingId(datasetId);
-    setEditValue(currentName);
-  };
-
-  const handleFinishEdit = (datasetId: string) => {
-    if (editValue.trim()) {
-      onDatasetRename(datasetId, editValue.trim());
-    }
-    setEditingId(null);
-    setEditValue("");
-  };
-
   const getDatasetStatus = (dataset: DatasetState) => {
     const checks = {
       molecule: !!dataset.moleculeId,
@@ -50,97 +34,86 @@ export function DatasetTabs({
     return null;
   }
 
+  const activeKey = activeDatasetId || datasets[0]?.id || "";
+
   return (
     <div className="mb-6">
-      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+      <Tabs
+        selectedKey={activeKey}
+        onSelectionChange={(key) => {
+          if (typeof key === "string") {
+            onDatasetSelect(key);
+          }
+        }}
+        classNames={{
+          base: "w-full",
+          tabList:
+            "gap-2 w-full relative rounded-none p-0 border-b border-gray-200 dark:border-gray-700",
+          cursor: "w-full bg-wsu-crimson",
+          tab: "max-w-fit px-4 h-12",
+          tabContent: "group-data-[selected=true]:text-wsu-crimson",
+        }}
+      >
         {datasets.map((dataset) => {
           const status = getDatasetStatus(dataset);
           const { checks, allComplete } = status;
-          const isActive = dataset.id === activeDatasetId;
-          const isEditing = editingId === dataset.id;
 
           return (
-            <div
+            <Tab
               key={dataset.id}
-              className={`group relative flex shrink-0 items-center gap-2 rounded-t-lg border-b-2 px-4 py-2 transition-colors ${
-                isActive
-                  ? "border-wsu-crimson bg-white dark:bg-gray-800"
-                  : "border-transparent bg-gray-50 hover:border-gray-300 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800"
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => onDatasetSelect(dataset.id)}
-                className="flex items-center gap-2"
-              >
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={() => handleFinishEdit(dataset.id)}
+              title={
+                <div className="flex items-center gap-2">
+                  {allComplete ? (
+                    <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <div className="flex gap-1">
+                      {!checks.molecule && (
+                        <span
+                          className="h-2 w-2 rounded-full bg-yellow-400"
+                          title="Molecule not selected"
+                        />
+                      )}
+                      {!checks.instrument && (
+                        <span
+                          className="h-2 w-2 rounded-full bg-orange-400"
+                          title="Instrument not selected"
+                        />
+                      )}
+                      {!checks.data && (
+                        <span
+                          className="h-2 w-2 rounded-full bg-red-400"
+                          title="No spectrum data"
+                        />
+                      )}
+                    </div>
+                  )}
+                  <span>{dataset.fileName}</span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onDatasetRemove(dataset.id);
+                    }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleFinishEdit(dataset.id);
-                      } else if (e.key === "Escape") {
-                        setEditingId(null);
-                        setEditValue("");
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        onDatasetRemove(dataset.id);
                       }
                     }}
-                    className="min-w-[100px] rounded border border-gray-300 bg-white px-2 py-1 text-sm focus:border-wsu-crimson focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <>
-                    <span
-                      className="cursor-pointer text-sm font-medium text-gray-700 hover:text-wsu-crimson dark:text-gray-300"
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEdit(dataset.id, dataset.fileName);
-                      }}
-                    >
-                      {dataset.fileName}
-                    </span>
-                    {allComplete && (
-                      <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                    )}
-                  </>
-                )}
-              </button>
-
-              {!isEditing && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDatasetRemove(dataset.id);
-                  }}
-                  className="rounded p-1 text-gray-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
-                  title="Remove dataset"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              )}
-
-              {/* Status indicators */}
-              {!allComplete && (
-                <div className="flex gap-1">
-                  {!checks.molecule && (
-                    <span className="h-2 w-2 rounded-full bg-yellow-400" title="Molecule not selected" />
-                  )}
-                  {!checks.instrument && (
-                    <span className="h-2 w-2 rounded-full bg-orange-400" title="Instrument not selected" />
-                  )}
-                  {!checks.data && (
-                    <span className="h-2 w-2 rounded-full bg-red-400" title="No spectrum data" />
-                  )}
+                    className="focus:ring-wsu-crimson ml-2 cursor-pointer rounded p-1 text-gray-400 opacity-0 transition-opacity group-data-[selected=true]:opacity-100 hover:text-red-600 focus:ring-2 focus:outline-none"
+                    title="Remove dataset"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </span>
                 </div>
-              )}
-            </div>
+              }
+            />
           );
         })}
-      </div>
+      </Tabs>
     </div>
   );
 }

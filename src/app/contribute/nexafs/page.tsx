@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
@@ -192,10 +192,11 @@ export default function NEXAFSContributePage() {
           if (!energyCol || !absorptionCol) {
             setColumnMappingFile({ file, datasetId: dataset.id });
           } else {
-            // Auto-process if columns were detected
+            // Auto-process immediately if columns were detected
+            // Use setTimeout to ensure state update has completed
             setTimeout(() => {
               processDatasetData(dataset.id);
-            }, 100);
+            }, 50);
           }
         }
       } catch (error) {
@@ -210,33 +211,15 @@ export default function NEXAFSContributePage() {
     }
   };
 
-  const handleColumnMappingConfirm = (mappings: CSVColumnMappings) => {
-    if (!columnMappingFile) return;
+  // Update dataset helper - memoized to prevent infinite loops
+  const updateDataset = useCallback((datasetId: string, updates: Partial<DatasetState>) => {
+    setDatasets((prev) =>
+      prev.map((d) => (d.id === datasetId ? { ...d, ...updates } : d)),
+    );
+  }, []);
 
-    updateDataset(columnMappingFile.datasetId, {
-      columnMappings: mappings,
-    });
-    setColumnMappingFile(null);
-    // Process will be triggered by useEffect
-  };
-
-  // Process dataset when column mappings change
-  useEffect(() => {
-    datasets.forEach((dataset) => {
-      if (
-        dataset.csvRawData.length > 0 &&
-        dataset.columnMappings.energy &&
-        dataset.columnMappings.absorption &&
-        dataset.spectrumPoints.length === 0
-      ) {
-        processDatasetData(dataset.id);
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [datasets.length]);
-
-  // Process dataset data from CSV
-  const processDatasetData = (datasetId: string) => {
+  // Process dataset data from CSV - memoized to prevent recreation
+  const processDatasetData = useCallback((datasetId: string) => {
     const dataset = datasets.find((d) => d.id === datasetId);
     if (!dataset || dataset.csvRawData.length === 0) return;
 
@@ -325,9 +308,12 @@ export default function NEXAFSContributePage() {
       }
     });
 
+    // Sort points by energy for proper plotting
+    const sortedPoints = spectrumPoints.sort((a, b) => a.energy - b.energy);
+
     const spectrumStats: SpectrumStats = {
       totalRows: dataset.csvRawData.length,
-      validPoints: spectrumPoints.length,
+      validPoints: sortedPoints.length,
       energy: {
         min: energyStats.validCount > 0 ? energyStats.min : null,
         max: energyStats.validCount > 0 ? energyStats.max : null,
@@ -343,18 +329,43 @@ export default function NEXAFSContributePage() {
     };
 
     updateDataset(datasetId, {
-      spectrumPoints,
+      spectrumPoints: sortedPoints,
       spectrumStats,
-      spectrumError: spectrumPoints.length === 0 ? "No valid data points found." : null,
+      spectrumError: sortedPoints.length === 0 ? "No valid data points found." : null,
     });
+  }, [updateDataset, datasets]);
+
+  const handleColumnMappingConfirm = (mappings: CSVColumnMappings) => {
+    if (!columnMappingFile) return;
+
+    updateDataset(columnMappingFile.datasetId, {
+      columnMappings: mappings,
+    });
+    setColumnMappingFile(null);
+    // Process immediately after column mappings are confirmed
+    setTimeout(() => {
+      processDatasetData(columnMappingFile.datasetId);
+    }, 100);
   };
 
-  // Update dataset helper
-  const updateDataset = (datasetId: string, updates: Partial<DatasetState>) => {
-    setDatasets((prev) =>
-      prev.map((d) => (d.id === datasetId ? { ...d, ...updates } : d)),
-    );
-  };
+  // Process dataset when column mappings change
+  useEffect(() => {
+    datasets.forEach((dataset) => {
+      if (
+        dataset.csvRawData.length > 0 &&
+        dataset.columnMappings.energy &&
+        dataset.columnMappings.absorption &&
+        dataset.spectrumPoints.length === 0 &&
+        !dataset.spectrumError
+      ) {
+        // Only process if we have mappings but no points yet
+        processDatasetData(dataset.id);
+      }
+    });
+  }, [
+    datasets.map((d) => `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.spectrumPoints.length}:${d.csvRawData.length}`).join(","),
+    processDatasetData,
+  ]);
 
   // Dataset management
   const handleDatasetSelect = (datasetId: string) => {
@@ -627,6 +638,7 @@ export default function NEXAFSContributePage() {
                 {/* Active Dataset Content */}
                 {activeDataset && (
                   <DatasetContent
+                    key={activeDataset.id}
                     dataset={activeDataset}
                     onDatasetUpdate={updateDataset}
                     instrumentOptions={instrumentOptions}
@@ -806,4 +818,3 @@ export default function NEXAFSContributePage() {
     </>
   );
 }
-

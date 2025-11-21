@@ -110,7 +110,7 @@ export function FileUploadZone({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`relative rounded-xl border-2 border-dashed p-8 transition-colors ${
+        className={`relative rounded-lg border-2 border-dashed p-4 transition-colors ${
           isDragging
             ? "border-wsu-crimson bg-wsu-crimson/5 dark:border-wsu-crimson dark:bg-wsu-crimson/10"
             : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/40"
@@ -125,25 +125,22 @@ export function FileUploadZone({
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         />
 
-        <div className="flex flex-col items-center justify-center space-y-4 text-center">
+        <div className="flex items-center justify-center gap-3 text-center">
           <CloudArrowUpIcon
-            className={`h-12 w-12 transition-colors ${
+            className={`h-6 w-6 shrink-0 transition-colors ${
               isDragging
                 ? "text-wsu-crimson"
                 : "text-gray-400 dark:text-gray-500"
             }`}
           />
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
               {isDragging ? "Drop files here" : "Drag and drop CSV files here"}
             </p>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              or click to browse
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              or click to browse • CSV files only • Max {(maxFileSize / (1024 * 1024)).toFixed(0)}MB per file
+              {multiple && " • Multiple files supported"}
             </p>
-          </div>
-          <div className="text-xs text-gray-400 dark:text-gray-500">
-            <p>CSV files only • Max {(maxFileSize / (1024 * 1024)).toFixed(0)}MB per file</p>
-            {multiple && <p className="mt-1">Multiple files supported</p>}
           </div>
         </div>
       </div>

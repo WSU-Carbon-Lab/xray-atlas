@@ -10,8 +10,8 @@ const ATOMIC_WEIGHTS: Record<string, number> = {
   B: 10.81,
   C: 12.01,
   N: 14.01,
-  O: 16.00,
-  F: 19.00,
+  O: 16.0,
+  F: 19.0,
   Ne: 20.18,
   Na: 22.99,
   Mg: 24.31,
@@ -21,7 +21,7 @@ const ATOMIC_WEIGHTS: Record<string, number> = {
   S: 32.07,
   Cl: 35.45,
   Ar: 39.95,
-  K: 39.10,
+  K: 39.1,
   Ca: 40.08,
   // Add more as needed
 };
@@ -59,42 +59,94 @@ function calculateMolecularWeight(formula: string): number {
   return mw;
 }
 
-// Fetch atomic form factor data from CXRO
-async function fetchAtomicFormFactor(atom: string): Promise<Array<{ energy: number; f1: number; f2: number }>> {
-  const url = `https://henke.lbl.gov/optical_constants/sf/${atom}.nff`;
-
+// Fetch atomic form factor data from CXRO via API route
+async function fetchAtomicFormFactor(
+  atom: string,
+): Promise<Array<{ energy: number; f1: number; f2: number }>> {
   try {
+    const url = `/api/physics/atomic-form-factor?atom=${encodeURIComponent(atom)}`;
+    console.log(`[BareAtom] Fetching from: ${url}`);
+
     const response = await fetch(url);
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch form factor for ${atom}: ${response.statusText}`);
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        // If JSON parsing fails, use the status text
+      }
+      throw new Error(
+        `Failed to fetch form factor for ${atom}: ${errorMessage}`,
+      );
     }
 
-    const text = await response.text();
+    const responseData = await response.json();
+
+    if (!responseData.data) {
+      throw new Error(
+        `Invalid response format for ${atom}: missing data field`,
+      );
+    }
+
+    const text = responseData.data;
     const lines = text.trim().split("\n");
 
     // Skip header lines (usually first 1-2 lines)
     const dataLines = lines.filter((line) => {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("E(eV)") || trimmed.startsWith("#")) {
+      if (
+        !trimmed ||
+        trimmed.startsWith("E(eV)") ||
+        trimmed.startsWith("#") ||
+        trimmed.startsWith("!")
+      ) {
         return false;
       }
-      const parts = trimmed.split(/\s+/);
-      return parts.length >= 3 && !isNaN(parseFloat(parts[0] ?? ""));
+      // Check if line contains numeric data (at least 3 space-separated numbers)
+      const parts = trimmed.split(/\s+/).filter((p) => p.length > 0);
+      if (parts.length < 3) return false;
+      const firstNum = parseFloat(parts[0] ?? "");
+      return Number.isFinite(firstNum) && firstNum > 0;
     });
+
+    if (dataLines.length === 0) {
+      throw new Error(
+        `No valid data lines found in response for ${atom}. Response length: ${lines.length} lines.`,
+      );
+    }
 
     const points: Array<{ energy: number; f1: number; f2: number }> = [];
 
     for (const line of dataLines) {
-      const parts = line.trim().split(/\s+/);
+      // Handle both space and tab delimiters
+      const parts = line
+        .trim()
+        .split(/\s+/)
+        .filter((p) => p.length > 0);
       if (parts.length < 3) continue;
 
       const energy = parseFloat(parts[0] ?? "");
       const f1 = parseFloat(parts[1] ?? "");
       const f2 = parseFloat(parts[2] ?? "");
 
-      if (Number.isFinite(energy) && Number.isFinite(f1) && Number.isFinite(f2) && f2 >= 0) {
+      // Validate data - energy must be positive, f2 must be non-negative
+      if (
+        Number.isFinite(energy) &&
+        energy > 0 &&
+        Number.isFinite(f1) &&
+        Number.isFinite(f2) &&
+        f2 >= 0
+      ) {
         points.push({ energy, f1, f2 });
       }
+    }
+
+    if (points.length === 0) {
+      throw new Error(
+        `No valid data points parsed for ${atom}. Checked ${dataLines.length} data lines. First few lines: ${dataLines.slice(0, 3).join(" | ")}`,
+      );
     }
 
     return points.sort((a, b) => a.energy - b.energy);
@@ -122,7 +174,7 @@ function calculateMassAbsorption(
   // More accurate: μ (cm²/g) = (4π * E / (hc)) * (f2 / A) * (N_A / N_A)
   // Simplified: μ = (4π * E * f2) / (hc * A)
   const wavelengthCm = hc / energyEv; // cm
-  const mu = (4 * Math.PI / wavelengthCm) * (f2 / atomicWeight);
+  const mu = ((4 * Math.PI) / wavelengthCm) * (f2 / atomicWeight);
   return mu;
 }
 
@@ -191,7 +243,10 @@ function interpolateBareAtom(
     let rightIdx = sortedBare.length - 1;
 
     for (let i = 0; i < sortedBare.length - 1; i++) {
-      if (sortedBare[i]!.energy <= energy && sortedBare[i + 1]!.energy >= energy) {
+      if (
+        sortedBare[i]!.energy <= energy &&
+        sortedBare[i + 1]!.energy >= energy
+      ) {
         leftIdx = i;
         rightIdx = i + 1;
         break;
@@ -200,7 +255,13 @@ function interpolateBareAtom(
 
     const left = sortedBare[leftIdx]!;
     const right = sortedBare[rightIdx]!;
-    const absorption = interpolate(energy, left.energy, left.absorption, right.energy, right.absorption);
+    const absorption = interpolate(
+      energy,
+      left.energy,
+      left.absorption,
+      right.energy,
+      right.absorption,
+    );
 
     interpolated.push({ energy, absorption });
   }
@@ -217,33 +278,91 @@ export async function calculateBareAtomAbsorption(
     return [];
   }
 
-  // Parse formula to get atom counts
-  const atoms = parseFormula(formula);
-  const molecularWeight = calculateMolecularWeight(formula);
-
-  if (molecularWeight === 0) {
-    throw new Error(`Invalid or empty formula: ${formula}`);
+  // Clean and validate formula
+  const cleanedFormula = formula.trim().replace(/\s+/g, "");
+  if (!cleanedFormula) {
+    throw new Error("Empty or invalid chemical formula");
   }
 
+  // Parse formula to get atom counts
+  const atoms = parseFormula(cleanedFormula);
+
+  if (Object.keys(atoms).length === 0) {
+    throw new Error(
+      `Failed to parse any atoms from formula: ${formula} (cleaned: ${cleanedFormula})`,
+    );
+  }
+
+  console.log(`[BareAtom] Parsed formula ${cleanedFormula} into atoms:`, atoms);
+
+  const molecularWeight = calculateMolecularWeight(cleanedFormula);
+
+  if (molecularWeight === 0) {
+    throw new Error(
+      `Invalid or empty formula: ${formula} (cleaned: ${cleanedFormula})`,
+    );
+  }
+
+  console.log(`[BareAtom] Molecular weight: ${molecularWeight}`);
+
   // Extract unique energies from spectrum
-  const spectrumEnergies = spectrumPoints.map((p) => p.energy).sort((a, b) => a - b);
+  const spectrumEnergies = spectrumPoints
+    .map((p) => p.energy)
+    .sort((a, b) => a - b);
 
   // Calculate absorption for each atom type
   const atomAbsorptions = new Map<string, BareAtomPoint[]>();
+  const failedAtoms: string[] = [];
 
   for (const [atom, count] of Object.entries(atoms)) {
     try {
+      console.log(
+        `[BareAtom] Fetching data for atom ${atom} (count: ${count})...`,
+      );
       const atomAbsorption = await calculateAtomAbsorption(atom);
-      const interpolated = interpolateBareAtom(atomAbsorption, spectrumEnergies);
+      if (atomAbsorption.length === 0) {
+        console.warn(`[BareAtom] No data returned for atom ${atom}`);
+        failedAtoms.push(atom);
+        continue;
+      }
+      console.log(
+        `[BareAtom] Got ${atomAbsorption.length} points for ${atom}, interpolating...`,
+      );
+      const interpolated = interpolateBareAtom(
+        atomAbsorption,
+        spectrumEnergies,
+      );
+      if (interpolated.length === 0) {
+        console.warn(`[BareAtom] Failed to interpolate data for atom ${atom}`);
+        failedAtoms.push(atom);
+        continue;
+      }
+      console.log(
+        `[BareAtom] Successfully processed ${atom} with ${interpolated.length} interpolated points`,
+      );
       atomAbsorptions.set(atom, interpolated);
     } catch (error) {
-      console.warn(`Failed to calculate absorption for ${atom}:`, error);
+      console.error(
+        `[BareAtom] Failed to calculate absorption for ${atom}:`,
+        error,
+      );
+      failedAtoms.push(atom);
       // Continue with other atoms
     }
   }
 
   if (atomAbsorptions.size === 0) {
-    throw new Error("Failed to calculate absorption for any atoms in the formula");
+    const errorMsg =
+      failedAtoms.length > 0
+        ? `Failed to calculate absorption for any atoms in the formula. Failed atoms: ${failedAtoms.join(", ")}. Formula: ${formula}`
+        : `Failed to calculate absorption for any atoms in the formula: ${formula}`;
+    throw new Error(errorMsg);
+  }
+
+  if (failedAtoms.length > 0) {
+    console.warn(
+      `Some atoms failed to load, but continuing with available data. Failed: ${failedAtoms.join(", ")}`,
+    );
   }
 
   // Sum contributions: μ_total = Σ(x_i * μ_i) / MW
@@ -262,7 +381,8 @@ export async function calculateBareAtomAbsorption(
         // μ_total = Σ(count_i * A_i * μ_i) / MW
         const atomicWeight = ATOMIC_WEIGHTS[atom] ?? 0;
         if (atomicWeight > 0) {
-          totalAbsorption += (count * atomicWeight * atomAbs[i]!.absorption) / molecularWeight;
+          totalAbsorption +=
+            (count * atomicWeight * atomAbs[i]!.absorption) / molecularWeight;
         }
       }
     }

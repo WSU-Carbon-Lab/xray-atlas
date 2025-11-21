@@ -1,15 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import {
   CheckCircleIcon,
   MagnifyingGlassIcon,
+  ChevronDownIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { FormField } from "~/app/components/FormField";
+import { Button } from "@heroui/react";
+import { SimpleDialog } from "~/app/components/SimpleDialog";
 import {
   MoleculeDisplayCompact,
   type DisplayMolecule,
 } from "~/app/components/MoleculeDisplay";
-import { AddMoleculeButton } from "~/app/components/AddEntityButtons";
+import { FormField } from "~/app/components/FormField";
 import type { MoleculeSearchResult } from "~/app/contribute/nexafs/types";
 
 type MoleculeSelectorProps = {
@@ -55,17 +59,83 @@ export function MoleculeSelector({
   onUseMolecule,
   onManualSearch,
 }: MoleculeSelectorProps) {
-  return (
-    <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-      <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
-        1. Select Molecule
-      </h2>
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showSearch, setShowSearch] = useState(!selectedMolecule);
 
+  // If molecule is selected and not searching, show compact view
+  if (selectedMolecule && !showSearch && (searchTerm.length === 0 || searchTerm === selectedPreferredName || searchTerm === selectedMolecule.commonName)) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setShowDetailsModal(true)}
+            className="flex flex-1 flex-col text-left hover:opacity-80"
+          >
+            <span className="font-medium text-gray-900 dark:text-gray-100">
+              {selectedPreferredName || selectedMolecule.commonName}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {selectedMolecule.chemicalFormula || "No formula"} •{" "}
+              {selectedMolecule.casNumber
+                ? `CAS ${selectedMolecule.casNumber}`
+                : "CAS unavailable"}
+            </span>
+          </button>
+          <div className="flex items-center gap-2">
+            <CheckCircleIcon className="h-5 w-5 text-green-500" />
+            <Button
+              isIconOnly
+              size="sm"
+              variant="light"
+              onPress={() => {
+                setShowSearch(true);
+                setSearchTerm("");
+              }}
+              aria-label="Change molecule"
+            >
+              <XMarkIcon className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <SimpleDialog
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          title={selectedPreferredName || selectedMolecule.commonName}
+        >
+          <div className="space-y-4">
+            <MoleculeDisplayCompact
+              molecule={toDisplayMolecule(selectedMolecule)}
+            />
+            {allMoleculeNames.length > 1 && (
+              <FormField
+                label="Preferred Molecule Name"
+                type="select"
+                name="preferredName"
+                value={selectedPreferredName}
+                onChange={(value) => setSelectedPreferredName(value as string)}
+                tooltip="Select which name/synonym should appear on the molecule banner"
+                options={allMoleculeNames.map((name) => ({
+                  value: name,
+                  label: name,
+                }))}
+              />
+            )}
+          </div>
+        </SimpleDialog>
+      </div>
+    );
+  }
+
+  // Show search interface
+  return (
+    <div className="space-y-3">
       <label
         htmlFor="molecule-search"
-        className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
       >
-        Search Molecule
+        Select Molecule
       </label>
       <div className="space-y-2">
         <div className="relative flex-1">
@@ -92,7 +162,7 @@ export function MoleculeSelector({
         )}
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="space-y-3">
         {isSuggesting && (
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Updating suggestions…
@@ -109,7 +179,10 @@ export function MoleculeSelector({
                 <button
                   key={suggestion.id}
                   type="button"
-                  onClick={() => onUseMolecule(suggestion)}
+                  onClick={() => {
+                    onUseMolecule(suggestion);
+                    setShowSearch(false);
+                  }}
                   className="hover:border-wsu-crimson flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition hover:bg-white dark:hover:bg-gray-800"
                 >
                   <span className="font-medium text-gray-900 dark:text-gray-100">
@@ -144,7 +217,10 @@ export function MoleculeSelector({
                 <button
                   key={result.id}
                   type="button"
-                  onClick={() => onUseMolecule(result)}
+                  onClick={() => {
+                    onUseMolecule(result);
+                    setShowSearch(false);
+                  }}
                   className="flex w-full flex-col rounded-lg border border-transparent bg-white/80 px-3 py-2 text-left transition hover:border-blue-400 dark:bg-blue-900/20"
                 >
                   <span className="font-medium text-gray-900 dark:text-gray-100">
@@ -167,52 +243,16 @@ export function MoleculeSelector({
 
         {suggestions.length === 0 &&
           manualResults.length === 0 &&
-          !isSuggesting && (
-            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600 dark:border-gray-600 dark:text-gray-300">
-              <p>
-                No suggestions yet. Try another keyword or run a full search.
+          !isSuggesting &&
+          searchTerm.length >= 2 && (
+            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-600 dark:border-gray-600 dark:text-gray-300">
+              <p className="mb-2">No molecules found matching "{searchTerm}"</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Try a different search term or add a new molecule
               </p>
-              <div className="mt-3">
-                <AddMoleculeButton />
-              </div>
             </div>
           )}
       </div>
-
-      {selectedMolecule && (
-        <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-          <div className="flex items-center gap-3 text-green-800 dark:text-green-300">
-            <CheckCircleIcon className="h-5 w-5" />
-            <span className="font-medium">
-              Selected molecule:{" "}
-              {selectedPreferredName || selectedMolecule.commonName}
-            </span>
-          </div>
-          <p className="mt-2 text-sm text-green-700 dark:text-green-200">
-            IUPAC: {selectedMolecule.iupacName}
-          </p>
-          <div className="mt-4 space-y-4">
-            <MoleculeDisplayCompact
-              molecule={toDisplayMolecule(selectedMolecule)}
-            />
-
-            {allMoleculeNames.length > 1 && (
-              <FormField
-                label="Preferred Molecule Name"
-                type="select"
-                name="preferredName"
-                value={selectedPreferredName}
-                onChange={(value) => setSelectedPreferredName(value as string)}
-                tooltip="Select which name/synonym should appear on the molecule banner"
-                options={allMoleculeNames.map((name) => ({
-                  value: name,
-                  label: name,
-                }))}
-              />
-            )}
-          </div>
-        </div>
-      )}
-    </section>
+    </div>
   );
 }
