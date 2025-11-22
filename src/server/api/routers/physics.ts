@@ -15,9 +15,9 @@ export const physicsRouter = createTRPCRouter({
     .query(async ({ input }) => {
       const { formula, energyMinEv, energyMaxEv, density } = input;
       const points = await computeBareAtomAbsorption(formula, {
+        density,
         energyMinEv,
         energyMaxEv,
-        density,
       });
       return {
         formula,

@@ -19,7 +19,7 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
 };
 
 export const createTRPCContext = async (
-  opts: FetchCreateContextOptions = {},
+  _opts: FetchCreateContextOptions = {}, // Parameter kept for API consistency but not used
 ) => {
   const authResult = await auth();
   const user = await currentUser();
@@ -42,7 +42,7 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
           error.cause.name === "ZodError" &&
           "flatten" in error.cause &&
           typeof error.cause.flatten === "function"
-            ? error.cause.flatten()
+            ? (error.cause as { flatten: () => unknown }).flatten()
             : null,
       },
     };

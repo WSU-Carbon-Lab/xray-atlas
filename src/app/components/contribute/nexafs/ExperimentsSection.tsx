@@ -6,7 +6,6 @@ import { CSVUpload } from "~/app/components/CSVUpload";
 import { FormField } from "~/app/components/FormField";
 import {
   SpectrumPlot,
-  type SpectrumPoint,
   type SpectrumSelection,
 } from "~/app/components/plots/SpectrumPlot";
 import { AddDatasetButton } from "./AddDatasetButton";
@@ -253,8 +252,8 @@ function ExperimentCard({
             label: "Bare Atom Absorption (ρ = 1 g/cm³)",
             color: "#111827",
             points: bareAtomPoints.map((point) => ({
-              energy: point.energyEv,
-              absorption: point.mu,
+              energy: point.energy,
+              absorption: point.absorption,
             })),
           },
         ]
@@ -710,7 +709,7 @@ function ExperimentCard({
                   label="Theta Column (optional)"
                   type="select"
                   name={`thetaColumn-${experiment.id}`}
-                  value={experiment.csvColumnMappings.theta || ""}
+                  value={experiment.csvColumnMappings.theta ?? ""}
                   onChange={(value) =>
                     onUpdate(experiment.id, {
                       csvColumnMappings: {
@@ -735,7 +734,7 @@ function ExperimentCard({
                   label="Phi Column (optional)"
                   type="select"
                   name={`phiColumn-${experiment.id}`}
-                  value={experiment.csvColumnMappings.phi || ""}
+                  value={experiment.csvColumnMappings.phi ?? ""}
                   onChange={(value) =>
                     onUpdate(experiment.id, {
                       csvColumnMappings: {

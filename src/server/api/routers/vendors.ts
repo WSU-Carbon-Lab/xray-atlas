@@ -112,7 +112,7 @@ export const vendorsRouter = createTRPCRouter({
       const vendor = await ctx.db.vendors.create({
         data: {
           name: input.name.trim(),
-          url: input.url?.trim() || null,
+          url: input.url?.trim() ?? null,
         },
       });
 
@@ -140,7 +140,7 @@ export const vendorsRouter = createTRPCRouter({
       const vendor = await ctx.db.vendors.create({
         data: {
           name: input.name.trim(),
-          url: input.url?.trim() || null,
+          url: input.url?.trim() ?? null,
         },
       });
 

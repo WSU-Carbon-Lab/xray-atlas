@@ -18,13 +18,19 @@ function encodeInChIForCas(inchi: string): string {
 export const externalRouter = createTRPCRouter({
   searchCas: publicProcedure
     .input(
-      z.object({
-        inchi: z.string().optional(),
-        synonym: z.string().optional(),
-        casNumber: z.string().optional(),
-      }).refine((data) => data.inchi || data.synonym || data.casNumber, {
-        message: "Either InChI, synonym, or CAS number is required",
-      }),
+      z
+        .object({
+          inchi: z.string().optional(),
+          synonym: z.string().optional(),
+          casNumber: z.string().optional(),
+        })
+        .refine(
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- We want to reject empty strings, not just null/undefined
+          (data) => data.inchi || data.synonym || data.casNumber,
+          {
+            message: "Either InChI, synonym, or CAS number is required",
+          },
+        ),
     )
     .query(async ({ input }) => {
       if (!env.CAS_API_KEY) {
@@ -75,7 +81,11 @@ export const externalRouter = createTRPCRouter({
         }
 
         if (!contentType.toLowerCase().includes("application/json")) {
-          console.error("CAS API returned unexpected content type:", contentType, responseText.slice(0, 200));
+          console.error(
+            "CAS API returned unexpected content type:",
+            contentType,
+            responseText.slice(0, 200),
+          );
           throw new TRPCError({
             code: "BAD_GATEWAY",
             message: "CAS API returned an unexpected response format",
@@ -103,7 +113,11 @@ export const externalRouter = createTRPCRouter({
         try {
           searchData = JSON.parse(responseText) as CasSearchData;
         } catch (parseError) {
-          console.error("CAS API returned invalid JSON:", (parseError as Error).message, responseText.slice(0, 200));
+          console.error(
+            "CAS API returned invalid JSON:",
+            (parseError as Error).message,
+            responseText.slice(0, 200),
+          );
           throw new TRPCError({
             code: "BAD_GATEWAY",
             message: "CAS API returned malformed JSON",
@@ -113,18 +127,50 @@ export const externalRouter = createTRPCRouter({
         // Extract CAS Registry Number from various possible response structures
         let casRegistryNumber: string | null = null;
 
-        if (searchData?.results && Array.isArray(searchData.results) && searchData.results.length > 0) {
+        if (
+          searchData &&
+          !Array.isArray(searchData) &&
+          searchData.results &&
+          Array.isArray(searchData.results) &&
+          searchData.results.length > 0
+        ) {
           const firstResult = searchData.results[0];
-          if (firstResult?.rn) {
-            casRegistryNumber = String(firstResult.rn);
+          if (firstResult?.rn !== null && firstResult?.rn !== undefined) {
+            const rnValue = firstResult.rn;
+            if (typeof rnValue === "string") {
+              casRegistryNumber = rnValue;
+            } else if (typeof rnValue === "number") {
+              casRegistryNumber = String(rnValue);
+            } else {
+              casRegistryNumber = JSON.stringify(rnValue);
+            }
           }
-        } else if (Array.isArray(searchData)) {
+        } else if (Array.isArray(searchData) && searchData.length > 0) {
           const firstResult = searchData[0];
-          if (firstResult?.rn) {
-            casRegistryNumber = String(firstResult.rn);
+          if (firstResult?.rn !== null && firstResult?.rn !== undefined) {
+            const rnValue = firstResult.rn;
+            if (typeof rnValue === "string") {
+              casRegistryNumber = rnValue;
+            } else if (typeof rnValue === "number") {
+              casRegistryNumber = String(rnValue);
+            } else {
+              casRegistryNumber = JSON.stringify(rnValue);
+            }
           }
-        } else if (searchData?.rn) {
-          casRegistryNumber = String(searchData.rn);
+        } else if (
+          searchData &&
+          !Array.isArray(searchData) &&
+          searchData.rn !== null &&
+          searchData.rn !== undefined
+        ) {
+          const rnValue = searchData.rn;
+          if (typeof rnValue === "string") {
+            casRegistryNumber = rnValue;
+          } else if (typeof rnValue === "number") {
+            casRegistryNumber = String(rnValue);
+          } else {
+            casRegistryNumber = JSON.stringify(rnValue);
+          }
         }
 
         // Also get the molecule name from CAS if available
@@ -141,13 +187,30 @@ export const externalRouter = createTRPCRouter({
             });
 
             if (detailResponse.ok) {
-              const detailData = await detailResponse.json();
+              const detailData = (await detailResponse.json()) as {
+                name?: string | { name?: string } | null;
+                molecule?: { name?: string | null } | null;
+              } | null;
               // CAS API returns name in different possible fields
-              moleculeName =
-                detailData?.name ||
-                detailData?.name?.name ||
-                detailData?.molecule?.name ||
-                null;
+              if (detailData) {
+                if (typeof detailData.name === "string") {
+                  moleculeName = detailData.name;
+                } else if (
+                  detailData.name &&
+                  typeof detailData.name === "object" &&
+                  "name" in detailData.name &&
+                  typeof detailData.name.name === "string"
+                ) {
+                  moleculeName = detailData.name.name;
+                } else if (
+                  detailData.molecule &&
+                  typeof detailData.molecule === "object" &&
+                  "name" in detailData.molecule &&
+                  typeof detailData.molecule.name === "string"
+                ) {
+                  moleculeName = detailData.molecule.name;
+                }
+              }
             }
           } catch (error) {
             console.warn("Could not fetch molecule name from CAS:", error);
@@ -155,10 +218,24 @@ export const externalRouter = createTRPCRouter({
         }
 
         // Also try to get name from search results if not found in detail
-        if (!moleculeName && searchData?.results?.[0]?.name) {
-          moleculeName = searchData.results[0].name;
-        } else if (!moleculeName && Array.isArray(searchData) && searchData[0]?.name) {
-          moleculeName = searchData[0].name;
+        if (!moleculeName) {
+          if (
+            searchData &&
+            !Array.isArray(searchData) &&
+            searchData.results &&
+            Array.isArray(searchData.results) &&
+            searchData.results.length > 0
+          ) {
+            const firstResultName = searchData.results[0]?.name;
+            if (typeof firstResultName === "string") {
+              moleculeName = firstResultName;
+            }
+          } else if (Array.isArray(searchData) && searchData.length > 0) {
+            const firstResultName = searchData[0]?.name;
+            if (typeof firstResultName === "string") {
+              moleculeName = firstResultName;
+            }
+          }
         }
 
         return {
@@ -213,17 +290,28 @@ export const externalRouter = createTRPCRouter({
             });
           }
 
-          const searchData = await searchResponse.json();
+          const searchData = (await searchResponse.json()) as {
+            IdentifierList?: { CID?: unknown[] | null } | null;
+          } | null;
           const cids = searchData?.IdentifierList?.CID;
 
-          if (!cids || !Array.isArray(cids) || cids.length === 0) {
+          if (!Array.isArray(cids) || cids.length === 0) {
             throw new TRPCError({
               code: "NOT_FOUND",
               message: "Compound not found in PubChem",
             });
           }
 
-          cid = String(cids[0]);
+          const firstCid = cids[0];
+          if (firstCid === null || firstCid === undefined) {
+            cid = null;
+          } else if (typeof firstCid === "string") {
+            cid = firstCid;
+          } else if (typeof firstCid === "number") {
+            cid = String(firstCid);
+          } else {
+            cid = JSON.stringify(firstCid);
+          }
         } catch (error) {
           if (error instanceof TRPCError) {
             throw error;
@@ -265,24 +353,54 @@ export const externalRouter = createTRPCRouter({
       let inchiKey = "";
       let chemicalFormula = "";
 
-      if (propertiesResponse.status === "fulfilled" && propertiesResponse.value.ok) {
-        const propertiesData = await propertiesResponse.value.json();
+      if (
+        propertiesResponse.status === "fulfilled" &&
+        propertiesResponse.value.ok
+      ) {
+        const propertiesData = (await propertiesResponse.value.json()) as {
+          PropertyTable?: {
+            Properties?: Array<{
+              IUPACName?: string | null;
+              CanonicalSMILES?: string | null;
+              InChI?: string | null;
+              InChIKey?: string | null;
+              MolecularFormula?: string | null;
+            } | null> | null;
+          } | null;
+        } | null;
         const props = propertiesData?.PropertyTable?.Properties?.[0];
 
         if (props) {
-          iupacName = props.IUPACName ?? "";
-          smiles = props.CanonicalSMILES ?? "";
-          inchi = props.InChI ?? "";
-          inchiKey = props.InChIKey ?? "";
-          chemicalFormula = props.MolecularFormula ?? "";
+          iupacName =
+            typeof props.IUPACName === "string" ? props.IUPACName : "";
+          smiles =
+            typeof props.CanonicalSMILES === "string"
+              ? props.CanonicalSMILES
+              : "";
+          inchi = typeof props.InChI === "string" ? props.InChI : "";
+          inchiKey = typeof props.InChIKey === "string" ? props.InChIKey : "";
+          chemicalFormula =
+            typeof props.MolecularFormula === "string"
+              ? props.MolecularFormula
+              : "";
         }
       }
 
       // Parse synonyms
       let synonyms: string[] = [];
-      if (synonymsResponse.status === "fulfilled" && synonymsResponse.value.ok) {
-        const synonymsData = await synonymsResponse.value.json();
-        const synList = synonymsData?.InformationList?.Information?.[0]?.Synonym;
+      if (
+        synonymsResponse.status === "fulfilled" &&
+        synonymsResponse.value.ok
+      ) {
+        const synonymsData = (await synonymsResponse.value.json()) as {
+          InformationList?: {
+            Information?: Array<{
+              Synonym?: unknown[] | null;
+            } | null> | null;
+          } | null;
+        } | null;
+        const synList =
+          synonymsData?.InformationList?.Information?.[0]?.Synonym;
 
         if (Array.isArray(synList)) {
           synonyms = synList
@@ -314,13 +432,22 @@ export const externalRouter = createTRPCRouter({
         );
 
         if (xrefResponse.ok) {
-          const xrefData = await xrefResponse.json();
+          const xrefData = (await xrefResponse.json()) as {
+            InformationList?: {
+              Information?: Array<{
+                RegistryNumber?: unknown[] | null;
+              } | null> | null;
+            } | null;
+          } | null;
           const registryNumbers =
             xrefData?.InformationList?.Information?.[0]?.RegistryNumber;
 
           if (Array.isArray(registryNumbers) && registryNumbers.length > 0) {
-            const casCandidate = registryNumbers.find((rn: string) =>
-              /^\d{2,7}-\d{2}-\d$/.test(rn),
+            const casCandidate = registryNumbers.find(
+              (rn: unknown): rn is string => {
+                if (typeof rn !== "string") return false;
+                return /^\d{2,7}-\d{2}-\d$/.test(rn);
+              },
             );
             if (casCandidate) {
               casNumber = casCandidate;
@@ -333,8 +460,9 @@ export const externalRouter = createTRPCRouter({
 
       // Extract InChI Key from InChI if not found
       if (!inchiKey && inchi) {
-        const keyMatch = inchi.match(/Key=([A-Z]{14}-[A-Z]{10}(-[A-Z])?)/);
-        if (keyMatch && keyMatch[1]) {
+        const keyRegex = /Key=([A-Z]{14}-[A-Z]{10}(-[A-Z])?)/;
+        const keyMatch = keyRegex.exec(inchi);
+        if (keyMatch?.[1]) {
           inchiKey = keyMatch[1];
         }
       }
@@ -356,11 +484,15 @@ export const externalRouter = createTRPCRouter({
           finalSynonyms = synonyms.filter((s) => s !== betterIUPAC);
           finalCommonName = iupacName;
         } else {
-          finalCommonName = synonyms.length > 0 && synonyms[0] ? synonyms[0] : (iupacName ?? "");
+          finalCommonName =
+            synonyms.length > 0 && synonyms[0]
+              ? synonyms[0]
+              : (iupacName ?? "");
           finalSynonyms = synonyms.slice(1);
         }
       } else {
-        finalCommonName = synonyms.length > 0 && synonyms[0] ? synonyms[0] : query;
+        finalCommonName =
+          synonyms.length > 0 && synonyms[0] ? synonyms[0] : query;
         finalSynonyms = synonyms.slice(1);
       }
 
@@ -370,10 +502,11 @@ export const externalRouter = createTRPCRouter({
         if (longSynonym) {
           finalIUPACName = longSynonym;
           finalSynonyms = synonyms.filter((s) => s !== longSynonym);
-          finalCommonName = synonyms.find((s) => s !== longSynonym) || query;
+          finalCommonName = synonyms.find((s) => s !== longSynonym) ?? query;
         } else {
-          finalIUPACName = synonyms[0] || query;
-          finalCommonName = synonyms.length > 1 && synonyms[1] ? synonyms[1] : query;
+          finalIUPACName = synonyms[0] ?? query;
+          finalCommonName =
+            synonyms.length > 1 && synonyms[1] ? synonyms[1] : query;
           finalSynonyms = synonyms.slice(2);
         }
       }
@@ -383,7 +516,10 @@ export const externalRouter = createTRPCRouter({
         finalIUPACName = query;
       }
       if (!finalCommonName) {
-        finalCommonName = finalSynonyms.length > 0 && finalSynonyms[0] ? finalSynonyms[0] : query;
+        finalCommonName =
+          finalSynonyms.length > 0 && finalSynonyms[0]
+            ? finalSynonyms[0]
+            : query;
         finalSynonyms = finalSynonyms.slice(1);
       }
 

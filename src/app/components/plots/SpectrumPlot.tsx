@@ -150,7 +150,7 @@ export function SpectrumPlot({
           `<b>${group.label || key}</b><br>` +
           "Energy: %{x:.3f} eV<br>Intensity: %{y:.4f}" +
           "<extra></extra>",
-      });
+      } as PlotData);
       index += 1;
     });
 
@@ -191,18 +191,13 @@ export function SpectrumPlot({
   }, [points]);
 
   const combinedLayout = useMemo<Layout>(() => {
-    const referenceAbsorptionExtents = referenceCurves.flatMap((curve) =>
-      curve.points.length > 0
-        ? [
-            Math.min(...curve.points.map((point) => point.absorption)),
-            Math.max(...curve.points.map((point) => point.absorption)),
-          ]
-        : [],
-    );
-
     const energyRange = measurementEnergyExtent
       ? [measurementEnergyExtent.min, measurementEnergyExtent.max]
-      : energyStats && energyStats.min !== null && energyStats.max !== null
+      : energyStats &&
+        energyStats.min !== null &&
+        energyStats.max !== null &&
+        typeof energyStats.min === "number" &&
+        typeof energyStats.max === "number"
       ? [energyStats.min, energyStats.max]
       : undefined;
 
@@ -263,7 +258,11 @@ export function SpectrumPlot({
     const newSelectionStyle = (() => {
       if (!selectionTarget) return undefined;
       const isPre = selectionTarget === "pre";
-      return {
+      const style: {
+        mode: string;
+        line: { color: string; width: number };
+        fillcolor: string;
+      } = {
         mode: "immediate",
         line: {
           color: isPre ? "rgba(59, 130, 246, 0.8)" : "rgba(16, 185, 129, 0.8)",
@@ -272,7 +271,8 @@ export function SpectrumPlot({
         fillcolor: isPre
           ? "rgba(59, 130, 246, 0.2)"
           : "rgba(16, 185, 129, 0.2)",
-      } as Layout["newselection"];
+      };
+      return style;
     })();
 
     return {
@@ -321,7 +321,7 @@ export function SpectrumPlot({
       },
       shapes: normalizationShapes,
       newselection: newSelectionStyle,
-    } as Layout;
+    } as unknown as Layout;
   }, [
     absorptionStats,
     energyStats,
@@ -330,13 +330,13 @@ export function SpectrumPlot({
     measurementEnergyExtent,
     normalizationRegions,
     selectionTarget,
-    referenceCurves,
+    points,
   ]);
 
   const handleSelected = useCallback(
     (event: PlotSelectionEvent) => {
       if (!onSelectionChange) return;
-      if (!event || !event.points || event.points.length === 0) {
+      if (!event?.points || event.points.length === 0) {
         onSelectionChange(null);
         return;
       }
@@ -411,8 +411,8 @@ export function SpectrumPlot({
         toImageButtonOptions: {
           filename: "nexafs-spectrum",
         },
-      }}
-      onSelected={handleSelected}
+      } as Record<string, unknown>}
+      onSelected={handleSelected as (event: unknown) => void}
       onDeselect={handleDeselect}
       style={{ width: "100%", height }}
       useResizeHandler

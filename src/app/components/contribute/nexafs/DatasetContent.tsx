@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { skipToken } from "@tanstack/react-query";
-import { SpectrumPlot, type SpectrumPoint, type SpectrumSelection } from "~/app/components/plots/SpectrumPlot";
+import {
+  SpectrumPlot,
+  type SpectrumPoint,
+  type SpectrumSelection,
+} from "~/app/components/plots/SpectrumPlot";
 import { MoleculeSelector } from "./MoleculeSelector";
 import { AnalysisToolbar } from "./AnalysisToolbar";
 import { PeakAnalysis } from "./PeakAnalysis";
@@ -56,7 +60,8 @@ export function DatasetContent({
   const [showAddFacilityModal, setShowAddFacilityModal] = useState(false);
   const [isCalculatingBareAtom, setIsCalculatingBareAtom] = useState(false);
   const [bareAtomError, setBareAtomError] = useState<string | null>(null);
-  const [normalizationSelectionTarget, setNormalizationSelectionTarget] = useState<"pre" | "post" | null>(null);
+  const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
+    useState<"pre" | "post" | null>(null);
 
   // Molecule search hook - per dataset
   const {
@@ -96,12 +101,19 @@ export function DatasetContent({
   );
 
   useEffect(() => {
-    if (moleculeQuery.data && (!selectedMolecule || selectedMolecule.id !== moleculeQuery.data.id)) {
+    if (
+      moleculeQuery.data &&
+      (!selectedMolecule || selectedMolecule.id !== moleculeQuery.data.id)
+    ) {
       const molecule: MoleculeSearchResult = {
         id: moleculeQuery.data.id,
         iupacName: moleculeQuery.data.iupacname,
-        commonName: moleculeQuery.data.moleculesynonyms[0]?.synonym ?? moleculeQuery.data.iupacname,
-        synonyms: moleculeQuery.data.moleculesynonyms.map((s) => s.synonym),
+        commonName:
+          moleculeQuery.data.moleculesynonyms[0]?.synonym ??
+          moleculeQuery.data.iupacname,
+        synonyms: moleculeQuery.data.moleculesynonyms.map(
+          (s: { synonym: string }) => s.synonym,
+        ),
         inchi: moleculeQuery.data.inchi,
         smiles: moleculeQuery.data.smiles,
         chemicalFormula: moleculeQuery.data.chemicalformula,
@@ -115,25 +127,32 @@ export function DatasetContent({
 
   // Calculate bare atom absorption when molecule is selected
   useEffect(() => {
-    if (selectedMolecule?.chemicalFormula && dataset.spectrumPoints.length > 0) {
-      // Only recalculate if bare atom points don't exist or formula changed
+    if (
+      selectedMolecule?.chemicalFormula &&
+      dataset.spectrumPoints.length > 0
+    ) {
+      // Only recalculate if bare atom points don't exist
+      // Note: We always recalculate when molecule changes since BareAtomPoint doesn't store the formula
       const needsRecalculation =
-        !dataset.bareAtomPoints ||
-        dataset.bareAtomPoints.length === 0 ||
-        (selectedMolecule.chemicalFormula !== dataset.bareAtomPoints[0] && dataset.spectrumPoints.length > 0);
+        !dataset.bareAtomPoints || dataset.bareAtomPoints.length === 0;
 
       if (needsRecalculation) {
         setIsCalculatingBareAtom(true);
         setBareAtomError(null);
 
-        calculateBareAtomAbsorption(selectedMolecule.chemicalFormula, dataset.spectrumPoints)
+        calculateBareAtomAbsorption(
+          selectedMolecule.chemicalFormula,
+          dataset.spectrumPoints,
+        )
           .then((points) => {
             onDatasetUpdate(dataset.id, { bareAtomPoints: points });
             setIsCalculatingBareAtom(false);
           })
           .catch((error) => {
             console.error("Failed to calculate bare atom absorption:", error);
-            setBareAtomError(error instanceof Error ? error.message : "Calculation failed");
+            setBareAtomError(
+              error instanceof Error ? error.message : "Calculation failed",
+            );
             setIsCalculatingBareAtom(false);
           });
       }
@@ -141,7 +160,11 @@ export function DatasetContent({
       onDatasetUpdate(dataset.id, { bareAtomPoints: null });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMolecule?.chemicalFormula, dataset.spectrumPoints.length, dataset.id]);
+  }, [
+    selectedMolecule?.chemicalFormula,
+    dataset.spectrumPoints.length,
+    dataset.id,
+  ]);
 
   // Compute normalization when regions are selected
   useEffect(() => {
@@ -219,7 +242,9 @@ export function DatasetContent({
     onDatasetUpdate(dataset.id, { instrumentId });
   };
 
-  const handleNormalizationSelection = (selection: SpectrumSelection | null) => {
+  const handleNormalizationSelection = (
+    selection: SpectrumSelection | null,
+  ) => {
     if (!selection || !normalizationSelectionTarget) return;
 
     const range: [number, number] = [
@@ -335,7 +360,9 @@ export function DatasetContent({
               <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
                 <div className="text-center">
                   <p className="font-medium">No spectrum data</p>
-                  <p className="mt-1 text-sm">Upload a CSV file to see the plot</p>
+                  <p className="mt-1 text-sm">
+                    Upload a CSV file to see the plot
+                  </p>
                 </div>
               </div>
             )}
@@ -439,7 +466,9 @@ export function DatasetContent({
               name="measurementDate"
               value={dataset.measurementDate}
               onChange={(value) =>
-                onDatasetUpdate(dataset.id, { measurementDate: value as string })
+                onDatasetUpdate(dataset.id, {
+                  measurementDate: value as string,
+                })
               }
             />
             <FormField
@@ -464,7 +493,9 @@ export function DatasetContent({
               name="referenceStandard"
               value={dataset.referenceStandard}
               onChange={(value) =>
-                onDatasetUpdate(dataset.id, { referenceStandard: value as string })
+                onDatasetUpdate(dataset.id, {
+                  referenceStandard: value as string,
+                })
               }
             />
             <div className="flex items-center gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
@@ -473,9 +504,11 @@ export function DatasetContent({
                 type="checkbox"
                 checked={dataset.isStandard}
                 onChange={(event) =>
-                  onDatasetUpdate(dataset.id, { isStandard: event.target.checked })
+                  onDatasetUpdate(dataset.id, {
+                    isStandard: event.target.checked,
+                  })
                 }
-                className="h-4 w-4 rounded border-gray-300 text-wsu-crimson focus:ring-wsu-crimson"
+                className="text-wsu-crimson focus:ring-wsu-crimson h-4 w-4 rounded border-gray-300"
               />
               <label
                 htmlFor={`is-standard-${dataset.id}`}

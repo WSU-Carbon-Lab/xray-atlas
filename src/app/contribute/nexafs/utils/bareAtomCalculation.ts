@@ -35,8 +35,9 @@ function parseFormula(formula: string): Record<string, number> {
 
   while ((match = regex.exec(formula)) !== null) {
     const element = match[1];
+    if (!element) continue; // Skip if element is undefined
     const count = match[2] ? parseInt(match[2], 10) : 1;
-    atoms[element] = (atoms[element] || 0) + count;
+    atoms[element] = (atoms[element] ?? 0) + count;
   }
 
   return atoms;
@@ -72,8 +73,8 @@ async function fetchAtomicFormFactor(
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorMessage;
+        const errorData = (await response.json()) as { error?: string };
+        errorMessage = errorData.error ?? errorMessage;
       } catch {
         // If JSON parsing fails, use the status text
       }
@@ -82,19 +83,19 @@ async function fetchAtomicFormFactor(
       );
     }
 
-    const responseData = await response.json();
+    const responseData = (await response.json()) as { data?: string };
 
-    if (!responseData.data) {
+    if (!responseData.data || typeof responseData.data !== "string") {
       throw new Error(
         `Invalid response format for ${atom}: missing data field`,
       );
     }
 
-    const text = responseData.data;
-    const lines = text.trim().split("\n");
+    const text: string = responseData.data;
+    const lines: string[] = text.trim().split("\n");
 
     // Skip header lines (usually first 1-2 lines)
-    const dataLines = lines.filter((line) => {
+    const dataLines = lines.filter((line: string) => {
       const trimmed = line.trim();
       if (
         !trimmed ||
@@ -105,7 +106,7 @@ async function fetchAtomicFormFactor(
         return false;
       }
       // Check if line contains numeric data (at least 3 space-separated numbers)
-      const parts = trimmed.split(/\s+/).filter((p) => p.length > 0);
+      const parts = trimmed.split(/\s+/).filter((p: string) => p.length > 0);
       if (parts.length < 3) return false;
       const firstNum = parseFloat(parts[0] ?? "");
       return Number.isFinite(firstNum) && firstNum > 0;
@@ -124,7 +125,7 @@ async function fetchAtomicFormFactor(
       const parts = line
         .trim()
         .split(/\s+/)
-        .filter((p) => p.length > 0);
+        .filter((p: string) => p.length > 0);
       if (parts.length < 3) continue;
 
       const energy = parseFloat(parts[0] ?? "");
@@ -371,11 +372,12 @@ export async function calculateBareAtomAbsorption(
 
   for (let i = 0; i < spectrumEnergies.length; i++) {
     const energy = spectrumEnergies[i];
+    if (energy === undefined) continue;
     let totalAbsorption = 0;
 
     for (const [atom, count] of Object.entries(atoms)) {
       const atomAbs = atomAbsorptions.get(atom);
-      if (atomAbs && atomAbs[i]) {
+      if (atomAbs?.[i]) {
         // Contribution = (count * atomic_weight * μ_atom) / molecular_weight
         // But since μ_atom is already mass absorption (cm²/g), we need:
         // μ_total = Σ(count_i * A_i * μ_i) / MW

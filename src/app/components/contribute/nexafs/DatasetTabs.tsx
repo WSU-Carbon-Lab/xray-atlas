@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Tabs, Tab } from "@heroui/react";
 import { XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import type { DatasetState } from "~/app/contribute/nexafs/types";
@@ -19,6 +20,30 @@ export function DatasetTabs({
   onDatasetRemove,
   onDatasetRename,
 }: DatasetTabsProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+
+  const handleStartEdit = (datasetId: string, currentName: string) => {
+    setEditingId(datasetId);
+    setEditValue(currentName);
+  };
+
+  const handleFinishEdit = (datasetId: string) => {
+    if (
+      editValue.trim() &&
+      editValue.trim() !== datasets.find((d) => d.id === datasetId)?.fileName
+    ) {
+      onDatasetRename(datasetId, editValue.trim());
+    }
+    setEditingId(null);
+    setEditValue("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditValue("");
+  };
+
   const getDatasetStatus = (dataset: DatasetState) => {
     const checks = {
       molecule: !!dataset.moleculeId,
@@ -34,7 +59,7 @@ export function DatasetTabs({
     return null;
   }
 
-  const activeKey = activeDatasetId || datasets[0]?.id || "";
+  const activeKey = activeDatasetId ?? datasets[0]?.id ?? "";
 
   return (
     <div className="mb-6">
@@ -87,7 +112,35 @@ export function DatasetTabs({
                       )}
                     </div>
                   )}
-                  <span>{dataset.fileName}</span>
+                  {editingId === dataset.id ? (
+                    <input
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => handleFinishEdit(dataset.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleFinishEdit(dataset.id);
+                        } else if (e.key === "Escape") {
+                          handleCancelEdit();
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="border-wsu-crimson focus:ring-wsu-crimson min-w-[100px] rounded border bg-white px-1 text-sm focus:ring-2 focus:outline-none dark:bg-gray-800"
+                      autoFocus
+                    />
+                  ) : (
+                    <span
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        handleStartEdit(dataset.id, dataset.fileName);
+                      }}
+                      className="cursor-pointer select-none"
+                      title="Double-click to rename"
+                    >
+                      {dataset.fileName}
+                    </span>
+                  )}
                   <span
                     role="button"
                     tabIndex={0}

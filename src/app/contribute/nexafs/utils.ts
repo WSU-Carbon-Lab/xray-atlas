@@ -28,7 +28,7 @@ export const extractGeometryPairs = (points: SpectrumPoint[]): GeometryPair[] =>
           const key = `${point.theta}:${point.phi}`;
           return [
             key,
-            { theta: point.theta!, phi: point.phi! } as GeometryPair,
+            { theta: point.theta, phi: point.phi },
           ];
         }),
     ).values(),

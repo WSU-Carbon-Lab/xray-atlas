@@ -18,7 +18,7 @@ export const publicationsRouter = createTRPCRouter({
                       molecules: {
                         include: {
                           moleculesynonyms: {
-                            orderBy: [{ primary: "desc" }, { synonym: "asc" }], // Primary first
+                            orderBy: [{ synonym: "asc" }], // Sort by synonym
                             take: 1,
                           },
                         },

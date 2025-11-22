@@ -113,7 +113,7 @@ export function PeakAnalysis({
 
       {peaks.length === 0 && !isAddingPeak && (
         <div className="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-          No peaks identified. Click "Auto-detect" or add manually.
+          No peaks identified. Click &quot;Auto-detect&quot; or add manually.
         </div>
       )}
 
@@ -148,7 +148,7 @@ export function PeakAnalysis({
                       Bond
                     </label>
                     <select
-                      value={peak.bond || ""}
+                      value={peak.bond ?? ""}
                       onChange={(e) =>
                         handleUpdatePeak(index, { bond: e.target.value || undefined })
                       }
@@ -166,7 +166,7 @@ export function PeakAnalysis({
                       Transition
                     </label>
                     <select
-                      value={peak.transition || ""}
+                      value={peak.transition ?? ""}
                       onChange={(e) =>
                         handleUpdatePeak(index, {
                           transition: e.target.value || undefined,

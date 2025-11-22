@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { CloudArrowUpIcon, DocumentIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { DefaultButton as Button } from "~/app/components/Button";
+import { CloudArrowUpIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 interface FileUploadZoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -69,6 +68,9 @@ export function FileUploadZone({
       if (validFiles.length > 0) {
         onFilesSelected(validFiles);
       }
+      // validateFile is defined in the component scope and uses maxFileSize and acceptedFileTypes
+      // which are already in the dependency array, so it's safe to omit
+       
     },
     [onFilesSelected, maxFileSize, acceptedFileTypes],
   );

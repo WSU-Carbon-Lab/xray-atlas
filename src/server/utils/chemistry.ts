@@ -145,7 +145,7 @@ export function parseChemicalFormula(formula: string): ElementCountMap {
         multiplyAndMerge(counts, innerCounts, multiplier);
       } else if (char === ")") {
         break;
-      } else if (/[A-Z]/.test(char)) {
+      } else if (char && /[A-Z]/.test(char)) {
         const element = parseElement();
         const count = parseNumber();
         const prev = counts.get(element) ?? 0;
@@ -163,7 +163,9 @@ export function parseChemicalFormula(formula: string): ElementCountMap {
   const parseElement = (): string => {
     const start = index;
     index += 1; // consume uppercase letter
-    while (index < formula.length && /[a-z]/.test(formula[index])) {
+    while (index < formula.length) {
+      const char = formula[index];
+      if (!char || !/[a-z]/.test(char)) break;
       index += 1;
     }
     const symbol = formula.slice(start, index);
@@ -175,7 +177,9 @@ export function parseChemicalFormula(formula: string): ElementCountMap {
 
   const parseNumber = (): number => {
     const start = index;
-    while (index < formula.length && /[0-9]/.test(formula[index])) {
+    while (index < formula.length) {
+      const char = formula[index];
+      if (!char || !/[0-9]/.test(char)) break;
       index += 1;
     }
     if (start === index) {

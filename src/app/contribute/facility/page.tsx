@@ -178,10 +178,18 @@ export default function FacilityContributePage({
         type: "success",
         message: `Facility "${result.name}" created successfully!`,
       });
+
+      // Type guard to safely access instruments
+      const resultWithInstruments = result as FacilityCreateResult & {
+        instruments?: Array<{ id: string; name: string }>;
+      };
       const firstInstrumentId =
-        "instruments" in result && Array.isArray(result.instruments)
-          ? result.instruments[0]?.id
+        resultWithInstruments.instruments &&
+        Array.isArray(resultWithInstruments.instruments) &&
+        resultWithInstruments.instruments.length > 0
+          ? resultWithInstruments.instruments[0]?.id
           : undefined;
+
       onCompleted?.({ facilityId: result.id, instrumentId: firstInstrumentId });
 
       if (isModal) {

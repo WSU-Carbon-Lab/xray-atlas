@@ -269,12 +269,7 @@ export default function MoleculeDetailPage() {
           </h2>
           <div className="space-y-4">
             {samples.map(
-              (sample: {
-                id: string;
-                identifier: string;
-                description: string | Record<string, unknown>;
-                preparationdate: string;
-              }) => (
+              (sample) => (
                 <div
                   key={sample.id}
                   className="rounded-lg border border-gray-200 p-4 dark:border-gray-700"
@@ -284,13 +279,6 @@ export default function MoleculeDetailPage() {
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                         {sample.identifier}
                       </h3>
-                      {sample.description && (
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          {typeof sample.description === "string"
-                            ? sample.description
-                            : JSON.stringify(sample.description)}
-                        </p>
-                      )}
                       {sample.preparationdate && (
                         <p className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400">
                           <CalendarIcon className="mr-1 h-4 w-4" />

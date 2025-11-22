@@ -119,7 +119,7 @@ export const samplesRouter = createTRPCRouter({
           const newVendor = await ctx.db.vendors.create({
             data: {
               name: input.vendorName.trim(),
-              url: input.vendorUrl?.trim() || null,
+              url: input.vendorUrl?.trim() ?? null,
             },
           });
           vendorId = newVendor.id;
@@ -165,8 +165,8 @@ export const samplesRouter = createTRPCRouter({
           moleculeid: input.moleculeid,
           identifier: sampleIdentifier,
           processmethod: input.processMethod ?? null,
-          substrate: input.substrate?.trim() || null,
-          solvent: input.solvent?.trim() || null,
+          substrate: input.substrate?.trim() ?? null,
+          solvent: input.solvent?.trim() ?? null,
           thickness: input.thickness ?? null,
           molecularweight: input.molecularWeight ?? null,
           preparationdate: input.preparationdate,

@@ -58,7 +58,7 @@ export function NoResultsIcon(props: IconProps) {
 }
 
 export function LoadingIcon(props: IconProps) {
-  let id = useId();
+  const id = useId();
 
   return (
     <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}>

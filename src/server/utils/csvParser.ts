@@ -77,7 +77,7 @@ export async function parseGeometryCSV(
     const result = await parseCSVFile<Record<string, string>>(file);
 
     // Validate required columns
-    const headers = result.meta.fields || [];
+    const headers = result.meta.fields ?? [];
     const validation = validateCSVColumns(headers, ["theta", "phi"]);
 
     if (!validation.valid) {
@@ -128,7 +128,7 @@ export async function parseSpectrumCSV(
     const result = await parseCSVFile<Record<string, string>>(file);
 
     // Validate required columns
-    const headers = result.meta.fields || [];
+    const headers = result.meta.fields ?? [];
     const hasAbsorption = headers.includes("absorption");
     const hasIntensity = headers.includes("intensity");
 

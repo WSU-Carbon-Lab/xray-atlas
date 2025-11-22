@@ -72,7 +72,7 @@ export async function uploadMoleculeImage(
   const fileName = `${moleculeId}.${extension}`;
 
   // Upload to Supabase Storage
-  const { data, error } = await supabase.storage
+  const { error } = await supabase.storage
     .from(BUCKET_NAME)
     .upload(fileName, imageBuffer, {
       contentType: mimeType,
@@ -133,7 +133,7 @@ export async function deleteMoleculeImage(imageUrl: string): Promise<void> {
  */
 export function getMoleculeImageUrl(
   moleculeId: string,
-  extension: string = "svg",
+  extension = "svg",
 ): string {
   const fileName = `${moleculeId}.${extension}`;
   const {

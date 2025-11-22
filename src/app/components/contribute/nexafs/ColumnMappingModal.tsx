@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { XMarkIcon } from "@heroicons/react/24/outline";
 import { DefaultButton as Button } from "~/app/components/Button";
 import { SimpleDialog } from "~/app/components/SimpleDialog";
 import type { CSVColumnMappings, ColumnStats } from "~/app/contribute/nexafs/types";
@@ -52,10 +51,10 @@ export function ColumnMappingModal({
     const phiCol = columns.find((col) => col.toLowerCase().includes("phi"));
 
     setMappings({
-      energy: energyCol || columns[0] || "",
-      absorption: absorptionCol || columns[1] || "",
-      theta: thetaCol || undefined,
-      phi: phiCol || undefined,
+      energy: energyCol ?? columns[0] ?? "",
+      absorption: absorptionCol ?? columns[1] ?? "",
+      theta: thetaCol ?? undefined,
+      phi: phiCol ?? undefined,
     });
   }, [columns]);
 
@@ -78,7 +77,9 @@ export function ColumnMappingModal({
         .map((row) => {
           const val = row[col];
           if (val === undefined || val === null || val === "") return null;
-          const num = typeof val === "number" ? val : parseFloat(String(val));
+          if (typeof val === "number") return Number.isFinite(val) ? val : null;
+          const str = typeof val === "string" ? val : JSON.stringify(val);
+          const num = parseFloat(str);
           return Number.isFinite(num) ? num : null;
         })
         .filter((v): v is number => v !== null);
@@ -178,11 +179,11 @@ export function ColumnMappingModal({
               Theta Column (Optional)
             </label>
             <select
-              value={mappings.theta || ""}
+              value={mappings.theta ?? ""}
               onChange={(e) =>
                 setMappings({
                   ...mappings,
-                  theta: e.target.value || undefined,
+                  theta: e.target.value === "" ? undefined : e.target.value,
                 })
               }
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
@@ -207,11 +208,11 @@ export function ColumnMappingModal({
               Phi Column (Optional)
             </label>
             <select
-              value={mappings.phi || ""}
+              value={mappings.phi ?? ""}
               onChange={(e) =>
                 setMappings({
                   ...mappings,
-                  phi: e.target.value || undefined,
+                  phi: e.target.value === "" ? undefined : e.target.value,
                 })
               }
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
@@ -285,7 +286,12 @@ export function ColumnMappingModal({
                           key={col}
                           className="whitespace-nowrap px-3 py-2 text-gray-900 dark:text-gray-100"
                         >
-                          {String(row[col] ?? "")}
+                          {(() => {
+                            const cellVal = row[col];
+                            if (cellVal === null || cellVal === undefined) return "";
+                            if (typeof cellVal === "string" || typeof cellVal === "number") return String(cellVal);
+                            return JSON.stringify(cellVal);
+                          })()}
                         </td>
                       ))}
                     </tr>

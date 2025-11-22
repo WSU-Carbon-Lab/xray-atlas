@@ -91,10 +91,13 @@ function computeMuOverRhoForElement(
   return muOverRho;
 }
 
-function createEnergyGrid(): number[] {
+function createEnergyGrid(
+  minEv: number = ENERGY_MIN_EV,
+  maxEv: number = ENERGY_MAX_EV,
+): number[] {
   const energies: number[] = [];
-  const logMin = Math.log10(ENERGY_MIN_EV);
-  const logMax = Math.log10(ENERGY_MAX_EV);
+  const logMin = Math.log10(minEv);
+  const logMax = Math.log10(maxEv);
   const step = (logMax - logMin) / (ENERGY_POINT_COUNT - 1);
   for (let index = 0; index < ENERGY_POINT_COUNT; index += 1) {
     energies.push(10 ** (logMin + step * index));
@@ -154,14 +157,18 @@ function interpolateF2(
 
 export async function computeBareAtomAbsorption(
   chemicalFormula: string,
-  options: { density?: number } = {},
+  options: {
+    density?: number;
+    energyMinEv?: number;
+    energyMaxEv?: number;
+  } = {},
 ): Promise<AbsorptionPoint[]> {
-  const { density = 1 } = options;
+  const { density = 1, energyMinEv, energyMaxEv } = options;
 
   const elementCounts = parseChemicalFormula(chemicalFormula);
   const molecularWeight = computeMolecularWeight(elementCounts);
 
-  const energyGrid = createEnergyGrid();
+  const energyGrid = createEnergyGrid(energyMinEv, energyMaxEv);
 
   const elementEntries = await Promise.all(
     Object.entries(elementCounts).map(async ([element, count]) => {

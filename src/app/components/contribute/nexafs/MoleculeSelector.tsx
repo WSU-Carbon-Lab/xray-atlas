@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   CheckCircleIcon,
   MagnifyingGlassIcon,
-  ChevronDownIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { Button } from "@heroui/react";
@@ -246,7 +245,7 @@ export function MoleculeSelector({
           !isSuggesting &&
           searchTerm.length >= 2 && (
             <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-600 dark:border-gray-600 dark:text-gray-300">
-              <p className="mb-2">No molecules found matching "{searchTerm}"</p>
+              <p className="mb-2">No molecules found matching &quot;{searchTerm}&quot;</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Try a different search term or add a new molecule
               </p>

@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import Papa from "papaparse";
@@ -34,7 +33,6 @@ const parseCSVFile = (
   });
 
 export default function NEXAFSContributePage() {
-  const router = useRouter();
   const { isSignedIn } = useUser();
   const utils = trpc.useUtils();
 
@@ -151,7 +149,7 @@ export default function NEXAFSContributePage() {
       // Parse CSV to show column mapping modal
       try {
         const parsed = await parseCSVFile(file);
-        const columns = parsed.meta.fields || [];
+        const columns = parsed.meta.fields ?? [];
 
         if (columns.length > 0) {
           // Auto-detect columns
@@ -176,10 +174,10 @@ export default function NEXAFSContributePage() {
           );
 
           const columnMappings: CSVColumnMappings = {
-            energy: energyCol || columns[0] || "",
-            absorption: absorptionCol || columns[1] || "",
-            theta: thetaCol || undefined,
-            phi: phiCol || undefined,
+            energy: energyCol ?? columns[0] ?? "",
+            absorption: absorptionCol ?? columns[1] ?? "",
+            theta: thetaCol ?? undefined,
+            phi: phiCol ?? undefined,
           };
 
           updateDataset(dataset.id, {
@@ -348,6 +346,18 @@ export default function NEXAFSContributePage() {
     }, 100);
   };
 
+  // Create a stable dependency string for datasets
+  const datasetsDependency = useMemo(
+    () =>
+      datasets
+        .map(
+          (d) =>
+            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.spectrumPoints.length}:${d.csvRawData.length}`,
+        )
+        .join(","),
+    [datasets],
+  );
+
   // Process dataset when column mappings change
   useEffect(() => {
     datasets.forEach((dataset) => {
@@ -362,10 +372,7 @@ export default function NEXAFSContributePage() {
         processDatasetData(dataset.id);
       }
     });
-  }, [
-    datasets.map((d) => `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.spectrumPoints.length}:${d.csvRawData.length}`).join(","),
-    processDatasetData,
-  ]);
+  }, [datasetsDependency, processDatasetData, datasets]);
 
   // Dataset management
   const handleDatasetSelect = (datasetId: string) => {
@@ -458,6 +465,14 @@ export default function NEXAFSContributePage() {
     // Submit each dataset
     try {
       for (const dataset of datasets) {
+        if (!dataset.moleculeId) {
+          setSubmitStatus({
+            type: "error",
+            message: `Dataset "${dataset.fileName}": Please select a molecule.`,
+          });
+          return;
+        }
+
         const geometryInput =
           dataset.columnMappings.theta && dataset.columnMappings.phi
             ? {
@@ -490,12 +505,12 @@ export default function NEXAFSContributePage() {
 
         await createNexafsMutation.mutateAsync({
           sample: {
-            moleculeId: dataset.moleculeId,
+            moleculeId: dataset.moleculeId!, // Assert non-null after validation check above
             identifier: sampleIdentifier,
             processMethod:
-              dataset.sampleInfo.processMethod || undefined,
-            substrate: dataset.sampleInfo.substrate.trim() || undefined,
-            solvent: dataset.sampleInfo.solvent.trim() || undefined,
+              dataset.sampleInfo.processMethod ?? undefined,
+            substrate: dataset.sampleInfo.substrate.trim() === "" ? undefined : dataset.sampleInfo.substrate.trim(),
+            solvent: dataset.sampleInfo.solvent.trim() === "" ? undefined : dataset.sampleInfo.solvent.trim(),
             thickness:
               typeof dataset.sampleInfo.thickness === "number" &&
               Number.isFinite(dataset.sampleInfo.thickness)

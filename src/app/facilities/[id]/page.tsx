@@ -33,7 +33,7 @@ export default function FacilityDetailPage({
     return (
       <ErrorState
         title="Facility Not Found"
-        message={error?.message || "The facility you're looking for doesn't exist."}
+        message={error?.message ?? "The facility you're looking for doesn't exist."}
         onRetry={() => window.location.reload()}
       />
     );

@@ -25,7 +25,6 @@ export const experimentsRouter = createTRPCRouter({
           instruments: {
             include: {
               facilities: true,
-              vendors: true,
             },
           },
           polarizations: true,
@@ -260,7 +259,7 @@ export const experimentsRouter = createTRPCRouter({
       const method = await ctx.db.calibrationmethods.create({
         data: {
           name: input.name.trim(),
-          description: input.description?.trim() || null,
+          description: input.description?.trim() ?? null,
         },
       });
 
@@ -469,8 +468,8 @@ export const experimentsRouter = createTRPCRouter({
               moleculeid: sampleInput.moleculeId,
               identifier: sampleIdentifier,
               processmethod: sampleInput.processMethod ?? null,
-              substrate: sampleInput.substrate?.trim() || null,
-              solvent: sampleInput.solvent?.trim() || null,
+              substrate: sampleInput.substrate?.trim() ?? null,
+              solvent: sampleInput.solvent?.trim() ?? null,
               thickness: sampleInput.thickness ?? null,
               molecularweight: sampleInput.molecularWeight ?? null,
               preparationdate: parseOptionalDate(sampleInput.preparationDate),

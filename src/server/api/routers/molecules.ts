@@ -167,6 +167,7 @@ export const moleculesRouter = createTRPCRouter({
 
       // Create molecule with createdby set to current user
       // Cast to any to work around Prisma type issues until client is regenerated
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any */
       const molecule = await ctx.db.molecules.create({
         data: {
           ...prismaInput,
@@ -174,6 +175,7 @@ export const moleculesRouter = createTRPCRouter({
           upvotes: 0,
         } as any,
       });
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any */
 
       return {
         success: true,
@@ -206,7 +208,8 @@ export const moleculesRouter = createTRPCRouter({
       }
 
       // Parse base64 data URL
-      const base64Match = input.imageData.match(/^data:([^;]+);base64,(.+)$/);
+      const base64Regex = /^data:([^;]+);base64,(.+)$/;
+      const base64Match = base64Regex.exec(input.imageData);
       if (!base64Match) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -491,9 +494,7 @@ export const moleculesRouter = createTRPCRouter({
       // Group synonyms by molecule ID, keeping order=0 separate
       const synonymsByMolecule = allSynonyms.reduce(
         (acc, syn) => {
-          if (!acc[syn.moleculeid]) {
-            acc[syn.moleculeid] = { primary: null as string | null, all: [] };
-          }
+          acc[syn.moleculeid] ??= { primary: null as string | null, all: [] };
           if (syn.order === 0 && !acc[syn.moleculeid]!.primary) {
             acc[syn.moleculeid]!.primary = syn.synonym;
           }

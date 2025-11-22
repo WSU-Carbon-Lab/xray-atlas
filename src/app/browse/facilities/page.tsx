@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { FacilityCardCompact } from "~/app/components/FacilityCardCompact";
@@ -9,7 +9,7 @@ import { BrowseTabs } from "~/app/components/BrowseTabs";
 import Link from "next/link";
 import { AddFacilityButton } from "~/app/components/AddEntityButtons";
 
-export default function FacilitiesBrowsePage() {
+function FacilitiesBrowseContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
@@ -384,5 +384,27 @@ export default function FacilitiesBrowsePage() {
       </div>
       </div>
     </div>
+  );
+}
+
+export default function FacilitiesBrowsePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-8">
+            <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-gray-100">
+              Browse Facilities
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Loading...
+            </p>
+          </div>
+          <BrowseTabs />
+        </div>
+      }
+    >
+      <FacilitiesBrowseContent />
+    </Suspense>
   );
 }

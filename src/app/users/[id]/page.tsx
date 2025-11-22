@@ -197,7 +197,7 @@ function UserMoleculesList({ userId }: { userId: string }) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          This user hasn't created any molecules yet.
+          This user hasn&apos;t created any molecules yet.
         </p>
       </div>
     );

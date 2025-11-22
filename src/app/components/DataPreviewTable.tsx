@@ -36,12 +36,30 @@ export function DataPreviewTable({
 
   const formatValue = (value: unknown): string => {
     if (value === null || value === undefined) return "";
+    if (typeof value === "string") return value;
     if (typeof value === "number") {
       // Format numbers with appropriate precision
       if (Number.isInteger(value)) return value.toString();
       return value.toFixed(6).replace(/\.?0+$/, "");
     }
-    return String(value);
+    if (typeof value === "boolean") {
+      return value.toString();
+    }
+    if (typeof value === "bigint") {
+      return value.toString();
+    }
+    if (typeof value === "symbol") {
+      return value.toString();
+    }
+    if (typeof value === "function") {
+      return "[Function]";
+    }
+    if (typeof value === "object") {
+      // Handle objects with JSON.stringify to avoid [object Object]
+      return JSON.stringify(value);
+    }
+    // Should never reach here, but handle as fallback
+    return "[Unknown type]";
   };
 
   return (
