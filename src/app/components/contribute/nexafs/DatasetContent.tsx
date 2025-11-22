@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { skipToken } from "@tanstack/react-query";
+import { PencilIcon } from "@heroicons/react/24/outline";
 import {
   SpectrumPlot,
-  type SpectrumPoint,
   type SpectrumSelection,
 } from "~/app/components/plots/SpectrumPlot";
 import { MoleculeSelector } from "./MoleculeSelector";
 import { AnalysisToolbar } from "./AnalysisToolbar";
-import { PeakAnalysis } from "./PeakAnalysis";
 import { AddMoleculeModal } from "./AddMoleculeModal";
 import { AddFacilityModal } from "./AddFacilityModal";
 import { SampleInformationSection } from "./SampleInformationSection";
@@ -22,9 +21,6 @@ import { calculateBareAtomAbsorption } from "~/app/contribute/nexafs/utils/bareA
 import { computeNormalizationForExperiment } from "~/app/contribute/nexafs/utils";
 import type {
   DatasetState,
-  BareAtomPoint,
-  PeakData,
-  SampleInfo,
 } from "~/app/contribute/nexafs/types";
 import {
   EXPERIMENT_TYPE_OPTIONS,
@@ -51,9 +47,9 @@ export function DatasetContent({
   edgeOptions,
   calibrationOptions,
   vendors,
-  isLoadingInstruments,
-  isLoadingEdges,
-  isLoadingCalibrations,
+  isLoadingInstruments: _isLoadingInstruments,
+  isLoadingEdges: _isLoadingEdges,
+  isLoadingCalibrations: _isLoadingCalibrations,
   isLoadingVendors,
 }: DatasetContentProps) {
   const [showAddMoleculeModal, setShowAddMoleculeModal] = useState(false);
@@ -319,7 +315,7 @@ export function DatasetContent({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex gap-6">
+      <div className="flex gap-6 items-start">
         {/* Analysis Toolbar */}
         <AnalysisToolbar
           hasMolecule={!!dataset.moleculeId}
@@ -329,25 +325,84 @@ export function DatasetContent({
           onPreEdgeSelect={() => setNormalizationSelectionTarget("pre")}
           onPostEdgeSelect={() => setNormalizationSelectionTarget("post")}
           onToggleLock={handleToggleLock}
-          onIdentifyPeaks={() => {
-            // Peak identification is handled in PeakAnalysis component
-          }}
           isSelectingPreEdge={normalizationSelectionTarget === "pre"}
           isSelectingPostEdge={normalizationSelectionTarget === "post"}
+          normalizationRegions={dataset.normalizationRegions}
+          onNormalizationRegionChange={(type, range) => {
+            onDatasetUpdate(dataset.id, {
+              normalizationRegions: {
+                ...dataset.normalizationRegions,
+                [type]: range,
+              },
+            });
+          }}
+          peaks={dataset.peaks.map((peak, index) => ({
+            ...peak,
+            id: peak.id ?? `peak-${index}-${peak.energy}`,
+          }))}
+          spectrumPoints={dataset.spectrumPoints}
+          normalizedPoints={dataset.normalizedPoints}
+          selectedPeakId={dataset.selectedPeakId}
+          onPeaksChange={(peaks) => onDatasetUpdate(dataset.id, { peaks })}
+          onPeakSelect={(peakId) =>
+            onDatasetUpdate(dataset.id, { selectedPeakId: peakId })
+          }
+          onPeakUpdate={(peakId, energy) => {
+            const updatedPeaks = dataset.peaks.map((peak) => {
+              const currentId = peak.id ?? `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
+              if (currentId === peakId) {
+                return { ...peak, energy };
+              }
+              return peak;
+            });
+            onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
+          }}
         />
 
         {/* Plot and Analysis */}
-        <div className="flex-1 space-y-6">
+        <div className="flex-1">
           {/* Spectrum Plot */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            {plotPoints.length > 0 ? (
-              <SpectrumPlot
+          <div className="space-y-2">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+              {plotPoints.length > 0 ? (
+                <SpectrumPlot
                 points={plotPoints}
-                height={400}
+                height={500}
                 referenceCurves={referenceCurves}
                 normalizationRegions={normalizationRegions}
                 selectionTarget={normalizationSelectionTarget}
                 onSelectionChange={handleNormalizationSelection}
+                peaks={dataset.peaks.map((peak, index) => ({
+                  energy: peak.energy,
+                  id: peak.id ?? `peak-${index}-${peak.energy}`,
+                }))}
+                selectedPeakId={dataset.selectedPeakId}
+                onPeakSelect={(peakId) =>
+                  onDatasetUpdate(dataset.id, { selectedPeakId: peakId })
+                }
+                onPeakUpdate={(peakId, energy) => {
+                  const roundedEnergy = Math.round(energy * 100) / 100;
+                  const updatedPeaks = dataset.peaks.map((peak) => {
+                    const currentId =
+                      peak.id ?? `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
+                    if (currentId === peakId) {
+                      return { ...peak, energy: roundedEnergy };
+                    }
+                    return peak;
+                  });
+                  onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
+                }}
+                onPeakDelete={(peakId) => {
+                  const updatedPeaks = dataset.peaks.filter((peak) => {
+                    const currentId =
+                      peak.id ?? `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
+                    return currentId !== peakId;
+                  });
+                  onDatasetUpdate(dataset.id, {
+                    peaks: updatedPeaks,
+                    selectedPeakId: dataset.selectedPeakId === peakId ? null : dataset.selectedPeakId,
+                  });
+                }}
               />
             ) : dataset.spectrumError ? (
               <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">
@@ -376,17 +431,27 @@ export function DatasetContent({
                 {bareAtomError}
               </div>
             )}
+            </div>
+
+            {/* Selection Mode Toast */}
+            {normalizationSelectionTarget && (
+              <div className={`rounded-lg border p-3 text-sm ${
+                normalizationSelectionTarget === "pre"
+                  ? "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200"
+                  : "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200"
+              }`}>
+                <div className="flex items-center gap-2">
+                  <PencilIcon className="h-4 w-4" />
+                  <span>
+                    {normalizationSelectionTarget === "pre"
+                      ? "Draw on the plot to select the pre edge region"
+                      : "Draw on the plot to select the post edge region"}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Peak Analysis */}
-          {dataset.spectrumPoints.length > 0 && (
-            <PeakAnalysis
-              peaks={dataset.peaks}
-              spectrumPoints={dataset.spectrumPoints}
-              normalizedPoints={dataset.normalizedPoints}
-              onPeaksChange={(peaks) => onDatasetUpdate(dataset.id, { peaks })}
-            />
-          )}
         </div>
       </div>
 

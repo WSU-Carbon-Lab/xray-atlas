@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef, useEffect } from "react";
 import type { Layout, PlotData, PlotSelectionEvent } from "plotly.js";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
@@ -38,6 +38,11 @@ type NormalizationRegions = {
   post: [number, number] | null;
 };
 
+type Peak = {
+  energy: number;
+  id?: string;
+};
+
 type SpectrumPlotProps = {
   points: SpectrumPoint[];
   height?: number;
@@ -47,6 +52,11 @@ type SpectrumPlotProps = {
   normalizationRegions?: NormalizationRegions;
   selectionTarget?: "pre" | "post" | null;
   onSelectionChange?: (selection: SpectrumSelection | null) => void;
+  peaks?: Peak[];
+  selectedPeakId?: string | null;
+  onPeakUpdate?: (peakId: string, energy: number) => void;
+  onPeakSelect?: (peakId: string | null) => void;
+  onPeakDelete?: (peakId: string) => void;
 };
 
 const COLORS = [
@@ -86,6 +96,11 @@ export function SpectrumPlot({
   normalizationRegions,
   selectionTarget,
   onSelectionChange,
+  peaks = [],
+  selectedPeakId,
+  onPeakUpdate,
+  onPeakSelect,
+  onPeakDelete,
 }: SpectrumPlotProps) {
   const groupedTraces = useMemo(() => {
     const groups = new Map<
@@ -177,6 +192,9 @@ export function SpectrumPlot({
   }, [referenceCurves]);
 
   const measurementTraceCount = groupedTraces.traces.length;
+  const uniqueGeometryCount = groupedTraces.traces.length;
+  const totalLegendItems =
+    uniqueGeometryCount + (referenceCurves.length > 0 ? 1 : 0);
 
   const measurementEnergyExtent = useMemo(() => {
     if (points.length === 0) return null;
@@ -193,26 +211,32 @@ export function SpectrumPlot({
   const combinedLayout = useMemo<Layout>(() => {
     const energyRange = measurementEnergyExtent
       ? [measurementEnergyExtent.min, measurementEnergyExtent.max]
-      : energyStats &&
-        energyStats.min !== null &&
-        energyStats.max !== null &&
-        typeof energyStats.min === "number" &&
-        typeof energyStats.max === "number"
-      ? [energyStats.min, energyStats.max]
-      : undefined;
+      : energyStats?.min !== null &&
+          energyStats?.max !== null &&
+          typeof energyStats?.min === "number" &&
+          typeof energyStats?.max === "number"
+        ? [energyStats.min, energyStats.max]
+        : undefined;
 
     const absorptionCandidates: number[] = [];
-    if (typeof absorptionStats?.min === "number") absorptionCandidates.push(absorptionStats.min);
-    if (typeof absorptionStats?.max === "number") absorptionCandidates.push(absorptionStats.max);
+    if (typeof absorptionStats?.min === "number")
+      absorptionCandidates.push(absorptionStats.min);
+    if (typeof absorptionStats?.max === "number")
+      absorptionCandidates.push(absorptionStats.max);
     if (measurementAbsorptionExtent) {
-      absorptionCandidates.push(measurementAbsorptionExtent.min, measurementAbsorptionExtent.max);
+      absorptionCandidates.push(
+        measurementAbsorptionExtent.min,
+        measurementAbsorptionExtent.max,
+      );
     }
     points.forEach((point) => {
       absorptionCandidates.push(point.absorption);
     });
 
     const measurementRange = (() => {
-      const finiteValues = absorptionCandidates.filter((value) => Number.isFinite(value));
+      const finiteValues = absorptionCandidates.filter((value) =>
+        Number.isFinite(value),
+      );
       if (finiteValues.length >= 1) {
         const maxAbs = Math.max(...finiteValues, 0);
         const padding = maxAbs > 0 ? maxAbs * 0.1 : 0.1;
@@ -255,6 +279,28 @@ export function SpectrumPlot({
         })()
       : [];
 
+    const peakShapes = peaks.map((peak) => {
+      const peakId = peak.id ?? `peak-${peak.energy}`;
+      const isSelected = selectedPeakId === peakId;
+      return {
+        type: "line" as const,
+        xref: "x" as const,
+        yref: "paper" as const,
+        x0: peak.energy,
+        x1: peak.energy,
+        y0: 0,
+        y1: 1,
+        line: {
+          color: isSelected ? "#a60f2d" : "#6b7280",
+          width: isSelected ? 1.5 : 1,
+          dash: isSelected ? "solid" : "dash",
+        },
+        layer: "above" as const,
+        editable: true,
+        name: peakId,
+      };
+    });
+
     const newSelectionStyle = (() => {
       if (!selectionTarget) return undefined;
       const isPre = selectionTarget === "pre";
@@ -285,7 +331,7 @@ export function SpectrumPlot({
       paper_bgcolor: "#f8fafc",
       plot_bgcolor: "#ffffff",
       height,
-      margin: { t: 40, r: 200, b: 64, l: 78, pad: 0 },
+      margin: { t: 10, r: 20, b: 120, l: 78, pad: 0 },
       font: {
         family: "Inter, system-ui, sans-serif",
         color: "#4b5563",
@@ -305,21 +351,25 @@ export function SpectrumPlot({
         range: measurementRange,
       },
       legend: {
-        orientation: "v",
-        yanchor: "top",
-        xanchor: "left",
-        x: 1.02,
-        y: 1,
-        bgcolor: "rgba(255,255,255,0.85)",
-        borderwidth: 0,
+        orientation: "h",
+        yanchor: "bottom",
+        xanchor: "center",
+        x: 0.5,
+        y: -0.35,
+        bgcolor: "rgba(255,255,255,0.9)",
+        borderwidth: 1,
+        bordercolor: "rgba(148, 163, 184, 0.3)",
         font: {
-          size: 12,
+          size: 13,
         },
-        borderradius: 12,
+        borderradius: 8,
         itemclick: "toggle",
         itemdoubleclick: "toggleothers",
+        ...(totalLegendItems > 0 && {
+          tracegroupgap: 10,
+        }),
       },
-      shapes: normalizationShapes,
+      shapes: [...normalizationShapes, ...peakShapes],
       newselection: newSelectionStyle,
     } as unknown as Layout;
   }, [
@@ -331,6 +381,10 @@ export function SpectrumPlot({
     normalizationRegions,
     selectionTarget,
     points,
+    peaks,
+    selectedPeakId,
+    referenceCurves,
+    totalLegendItems,
   ]);
 
   const handleSelected = useCallback(
@@ -363,7 +417,10 @@ export function SpectrumPlot({
         }
       });
 
-      if (measurementEnergies.length === 0 || measurementAbsorptions.length === 0) {
+      if (
+        measurementEnergies.length === 0 ||
+        measurementAbsorptions.length === 0
+      ) {
         onSelectionChange(null);
         return;
       }
@@ -386,6 +443,228 @@ export function SpectrumPlot({
     onSelectionChange?.(null);
   }, [onSelectionChange]);
 
+  const plotRef = useRef<HTMLDivElement>(null);
+
+  // Handle peak clicks, keyboard deletion, and drag-to-edit
+  useEffect(() => {
+    if (!plotRef.current) return;
+
+    const plotElement = plotRef.current.querySelector(".js-plotly-plot");
+    if (!plotElement) return;
+
+    // Handle keyboard Delete key
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedPeakId && onPeakDelete) {
+        event.preventDefault();
+        event.stopPropagation();
+        onPeakDelete(selectedPeakId);
+      }
+    };
+
+    // Make plot container focusable for keyboard events
+    if (plotRef.current instanceof HTMLElement) {
+      plotRef.current.setAttribute("tabindex", "0");
+      plotRef.current.addEventListener("keydown", handleKeyDown);
+    }
+
+    // Handle peak clicks - detect clicks on or near peak lines
+    const handlePlotClick = (event: MouseEvent) => {
+      if (!onPeakSelect) return;
+
+      const target = event.target as HTMLElement | null;
+      if (!target || !plotElement) return;
+
+      // Check if click was directly on a shape (peak line)
+      const isShapeElement =
+        target.tagName === "path" ||
+        target.closest('g[class*="shape"]') !== null ||
+        target.closest('path[fill="none"]') !== null;
+
+      // Get click position and convert to data coordinates
+      const rect = (plotElement as HTMLElement).getBoundingClientRect();
+      const clickXPixel = event.clientX - rect.left;
+
+      // Convert pixel coordinates to data coordinates
+      const xAxis = combinedLayout.xaxis;
+      const xAxisRange = xAxis?.range;
+      if (xAxisRange && typeof xAxisRange === "object" && Array.isArray(xAxisRange) && xAxisRange.length === 2) {
+        const xMinRaw: unknown = xAxisRange[0];
+        const xMaxRaw: unknown = xAxisRange[1];
+        if (typeof xMinRaw !== "number" || typeof xMaxRaw !== "number") return;
+        const xMin = xMinRaw;
+        const xMax = xMaxRaw;
+        const leftMargin = 78;
+        const rightMargin = 20;
+        const plotWidth = rect.width - leftMargin - rightMargin;
+        const xScale = plotWidth / (xMax - xMin);
+        const dataX: number = xMin + (clickXPixel - leftMargin) / xScale;
+
+        // Find closest peak (within reasonable threshold)
+        let closestPeak: Peak | null = null;
+        let minDistance = Infinity;
+        // Use 1% of the x-axis range as threshold, or 2 eV, whichever is smaller
+        const range = xMax - xMin;
+        const threshold = Math.min(range * 0.01, 2.0);
+
+        for (const peak of peaks) {
+          const distance = Math.abs(peak.energy - dataX);
+          if (distance < minDistance && distance < threshold) {
+            minDistance = distance;
+            closestPeak = peak;
+          }
+        }
+
+        // If clicked on a shape element or near a peak, select it
+        if (closestPeak || isShapeElement) {
+          if (closestPeak) {
+            const peakId: string = closestPeak.id ?? `peak-${closestPeak.energy}`;
+            const currentSelectedId = selectedPeakId;
+            // Toggle selection: if already selected, deselect; otherwise select
+            onPeakSelect(currentSelectedId === peakId ? null : peakId);
+            // Focus the plot container for keyboard events
+            if (plotRef.current instanceof HTMLElement) {
+              plotRef.current.focus();
+            }
+          } else if (isShapeElement) {
+            // If we clicked on a shape but couldn't identify which peak,
+            // try to find it by checking all peaks (fallback)
+            peaks.forEach((peak) => {
+              const distance = Math.abs(peak.energy - dataX);
+              if (distance < 2.0) {
+                const peakId: string = peak.id ?? `peak-${peak.energy}`;
+                const currentSelectedId = selectedPeakId;
+                onPeakSelect(currentSelectedId === peakId ? null : peakId);
+                if (plotRef.current instanceof HTMLElement) {
+                  plotRef.current.focus();
+                }
+              }
+            });
+          }
+        }
+      }
+    };
+
+    // Also listen for Plotly's click event as a fallback
+    const handlePlotlyClick = (event: Event) => {
+      if (!onPeakSelect) return;
+
+      const plotlyClickEvent = event as unknown as {
+        points?: Array<{
+          x?: number;
+          y?: number;
+        }>;
+        event?: {
+          target?: HTMLElement;
+        };
+      };
+
+      const clickX = plotlyClickEvent.points?.[0]?.x;
+      if (clickX === undefined) return;
+
+      const target = plotlyClickEvent.event?.target as HTMLElement | null;
+      if (target) {
+        // Check if click was on a shape
+        const isShapeClick =
+          target.tagName === "path" ||
+          target.closest("g[class*='shape']") !== null;
+
+        if (isShapeClick) {
+          // Find the peak closest to the click X coordinate
+          let closestPeak: Peak | null = null;
+          let minDistance = Infinity;
+
+          for (const peak of peaks) {
+            const distance = Math.abs(peak.energy - clickX);
+            if (distance < minDistance && distance < 2.0) {
+              minDistance = distance;
+              closestPeak = peak;
+            }
+          }
+
+          if (closestPeak) {
+            const peakId: string = closestPeak.id ?? `peak-${closestPeak.energy}`;
+            const currentSelectedId = selectedPeakId;
+            onPeakSelect(currentSelectedId === peakId ? null : peakId);
+            // Focus the plot container for keyboard events
+            if (plotRef.current instanceof HTMLElement) {
+              plotRef.current.focus();
+            }
+          }
+        }
+      }
+    };
+
+    // Handle peak drag-to-edit via Plotly's relayout event
+    const handleRelayout = (event: Event) => {
+      if (!onPeakUpdate) return;
+
+      const plotlyEvent = event as unknown as {
+        data?: Record<string, unknown>;
+        update?: Record<string, unknown>;
+      };
+
+      const updateData = plotlyEvent.data ?? plotlyEvent.update;
+      if (!updateData || typeof updateData !== "object") return;
+
+      // Check for shape updates (when peaks are dragged)
+      Object.keys(updateData).forEach((key) => {
+        if (
+          key.startsWith("shapes[") &&
+          (key.includes(".x0") || key.includes(".x1"))
+        ) {
+          const regex = /shapes\[(\d+)\]\.x[01]/;
+          const match = regex.exec(key);
+          if (match) {
+            const shapeIndex = parseInt(match[1] ?? "0", 10);
+            const newEnergy = updateData[key];
+            if (typeof newEnergy === "number") {
+              const shape = combinedLayout.shapes?.[shapeIndex];
+              if (shape?.type === "line" && shape.name) {
+                const peakId: string = shape.name;
+                const originalPeak = peaks.find((p) => {
+                  const pId = p.id ?? `peak-${p.energy}`;
+                  return pId === peakId;
+                });
+                if (
+                  originalPeak &&
+                  Math.abs(originalPeak.energy - newEnergy) > 0.01
+                ) {
+                  const roundedEnergy = Math.round(newEnergy * 100) / 100;
+                  onPeakUpdate(peakId, roundedEnergy);
+                }
+              }
+            }
+          }
+        }
+      });
+    };
+
+    const safeRelayoutHandler = (e: Event) => {
+      try {
+        handleRelayout(e);
+      } catch (error) {
+        console.warn("Error handling plotly relayout:", error);
+      }
+    };
+
+    plotElement.addEventListener("plotly_click", handlePlotlyClick as EventListener);
+    plotElement.addEventListener("click", handlePlotClick as EventListener, true); // Use capture phase
+    if (onPeakUpdate) {
+      plotElement.addEventListener("plotly_relayout", safeRelayoutHandler);
+    }
+
+    return () => {
+      plotElement.removeEventListener("plotly_click", handlePlotlyClick as EventListener);
+      plotElement.removeEventListener("click", handlePlotClick as EventListener, true);
+      if (onPeakUpdate) {
+        plotElement.removeEventListener("plotly_relayout", safeRelayoutHandler);
+      }
+      if (plotRef.current instanceof HTMLElement) {
+        plotRef.current.removeEventListener("keydown", handleKeyDown);
+      }
+    };
+  }, [onPeakUpdate, peaks, combinedLayout.shapes, selectedPeakId, onPeakSelect, onPeakDelete]);
+
   if (points.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-300">
@@ -395,27 +674,41 @@ export function SpectrumPlot({
   }
 
   return (
-    <Plot
-      data={[...groupedTraces.traces, ...referenceTraces]}
-      layout={combinedLayout}
-      config={{
-        responsive: true,
-        displaylogo: false,
-        modeBarButtonsToRemove: [
-          "zoomIn2d",
-          "zoomOut2d",
-          "select2d",
-          "lasso2d",
-        ],
-        selectdirection: selectionTarget ? "h" : "any",
-        toImageButtonOptions: {
-          filename: "nexafs-spectrum",
-        },
-      } as Record<string, unknown>}
-      onSelected={handleSelected as (event: unknown) => void}
-      onDeselect={handleDeselect}
-      style={{ width: "100%", height }}
-      useResizeHandler
-    />
+    <div
+      ref={plotRef}
+      className="focus:outline-none focus:ring-2 focus:ring-wsu-crimson/20 focus:ring-offset-2 rounded-lg"
+      onClick={() => {
+        // Focus the container when clicked to enable keyboard events
+        if (plotRef.current instanceof HTMLElement) {
+          plotRef.current.focus();
+        }
+      }}
+    >
+      <Plot
+        data={[...groupedTraces.traces, ...referenceTraces]}
+        layout={combinedLayout}
+        config={
+          {
+            responsive: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: [
+              "zoomIn2d",
+              "zoomOut2d",
+              "select2d",
+              "lasso2d",
+            ],
+            selectdirection: selectionTarget ? "h" : "any",
+            toImageButtonOptions: {
+              filename: "nexafs-spectrum",
+            },
+            editable: true,
+          } as Record<string, unknown>
+        }
+        onSelected={handleSelected as (event: unknown) => void}
+        onDeselect={handleDeselect}
+        style={{ width: "100%", height }}
+        useResizeHandler
+      />
+    </div>
   );
 }

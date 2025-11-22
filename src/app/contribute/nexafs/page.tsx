@@ -505,7 +505,7 @@ export default function NEXAFSContributePage() {
 
         await createNexafsMutation.mutateAsync({
           sample: {
-            moleculeId: dataset.moleculeId!, // Assert non-null after validation check above
+            moleculeId: dataset.moleculeId, // Assert non-null after validation check above
             identifier: sampleIdentifier,
             processMethod:
               dataset.sampleInfo.processMethod ?? undefined,

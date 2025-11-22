@@ -113,6 +113,7 @@ export type PeakData = {
   intensity?: number;
   bond?: string;
   transition?: string;
+  id?: string;
 };
 
 export type BareAtomPoint = {
@@ -145,6 +146,7 @@ export type DatasetState = {
   normalizationRegions: { pre: [number, number] | null; post: [number, number] | null };
   normalizationLocked: boolean;
   peaks: PeakData[];
+  selectedPeakId: string | null;
   moleculeId: string | null;
   bareAtomPoints: BareAtomPoint[] | null;
   sampleInfo: SampleInfo;
@@ -175,6 +177,7 @@ export function createEmptyDatasetState(file: File): DatasetState {
     normalizationRegions: { pre: null, post: null },
     normalizationLocked: false,
     peaks: [],
+    selectedPeakId: null,
     moleculeId: null,
     bareAtomPoints: null,
     sampleInfo: {

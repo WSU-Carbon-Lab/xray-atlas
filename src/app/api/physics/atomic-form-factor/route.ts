@@ -20,7 +20,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    const url = `https://henke.lbl.gov/optical_constants/sf/${atom}.nff`;
+    // CXRO/LBL database requires lowercase element names
+    const atomLower = atom.toLowerCase();
+    const url = `https://henke.lbl.gov/optical_constants/sf/${atomLower}.nff`;
     const response = await fetch(url, {
       headers: {
         "User-Agent": "X-ray Atlas/1.0",

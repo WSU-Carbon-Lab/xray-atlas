@@ -1,64 +1,17 @@
 import type { BareAtomPoint } from "../types";
 import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
+import {
+  parseChemicalFormula,
+  getAtomicWeight,
+  computeMolecularWeight,
+  type ElementCountMap,
+} from "~/server/utils/chemistry";
 
-// Atomic weights (g/mol) for common elements
-const ATOMIC_WEIGHTS: Record<string, number> = {
-  H: 1.008,
-  He: 4.003,
-  Li: 6.941,
-  Be: 9.012,
-  B: 10.81,
-  C: 12.01,
-  N: 14.01,
-  O: 16.0,
-  F: 19.0,
-  Ne: 20.18,
-  Na: 22.99,
-  Mg: 24.31,
-  Al: 27.98,
-  Si: 28.09,
-  P: 30.97,
-  S: 32.07,
-  Cl: 35.45,
-  Ar: 39.95,
-  K: 39.1,
-  Ca: 40.08,
-  // Add more as needed
-};
-
-// Parse chemical formula to get atom counts
-// Example: "C6H6" -> {C: 6, H: 6}
-function parseFormula(formula: string): Record<string, number> {
-  const atoms: Record<string, number> = {};
-  const regex = /([A-Z][a-z]*)(\d*)/g;
-  let match;
-
-  while ((match = regex.exec(formula)) !== null) {
-    const element = match[1];
-    if (!element) continue; // Skip if element is undefined
-    const count = match[2] ? parseInt(match[2], 10) : 1;
-    atoms[element] = (atoms[element] ?? 0) + count;
-  }
-
-  return atoms;
-}
-
-// Calculate molecular weight from formula
-function calculateMolecularWeight(formula: string): number {
-  const atoms = parseFormula(formula);
-  let mw = 0;
-
-  for (const [element, count] of Object.entries(atoms)) {
-    const atomicWeight = ATOMIC_WEIGHTS[element];
-    if (!atomicWeight) {
-      console.warn(`Unknown atomic weight for element: ${element}`);
-      continue;
-    }
-    mw += atomicWeight * count;
-  }
-
-  return mw;
-}
+// Physical constants for mass absorption coefficient calculation
+// X-ray Data Booklet formula: μ/ρ = (2 * rₑ * λ * Nₐ * f₂) / A
+const ELECTRON_RADIUS_CM = 2.8179403227e-13; // cm (classical electron radius)
+const AVOGADRO = 6.02214076e23; // mol⁻¹ (Avogadro's number)
+const PLANCK_CONSTANT_TIMES_C_EV_CM = 1.23984193e-4; // eV·cm (hc constant)
 
 // Fetch atomic form factor data from CXRO via API route
 async function fetchAtomicFormFactor(
@@ -157,36 +110,34 @@ async function fetchAtomicFormFactor(
   }
 }
 
-// Calculate mass absorption coefficient from f2
-// μ = (4π/λ) * (f2 / A) where λ = hc/E, so μ = (4πE/hc) * (f2/A)
-// Using: hc = 1239.84 eV·nm, converting to cm: hc = 1.23984e-4 eV·cm
-// μ (cm²/g) = (4π * E / hc) * (f2 / A) where E in eV, A in g/mol
+// Calculate mass absorption coefficient from f2 using X-ray Data Booklet formula
+// μ/ρ = (2 * rₑ * λ * Nₐ * f₂) / A
+// where:
+//   rₑ = classical electron radius (cm)
+//   λ = wavelength (cm)
+//   Nₐ = Avogadro's number (mol⁻¹)
+//   f₂ = imaginary part of atomic scattering factor
+//   A = atomic mass (g/mol)
+// Result: μ/ρ in cm²/g (mass absorption coefficient)
 function calculateMassAbsorption(
   energyEv: number,
   f2: number,
   atomicWeight: number,
 ): number {
-  // hc in eV·cm: 1239.84 eV·nm = 1.23984e-4 eV·cm
-  const hc = 1.23984e-4; // eV·cm
-  // Convert atomic weight from g/mol to g/atom (divide by Avogadro's number)
-  // But we want mass absorption in cm²/g, so we use atomic weight directly
-  // μ = (4π * E / hc) * (f2 / A) where A is in g/mol
-  // Actually, for mass absorption: μ = (4π/λ) * (f2 / A) with proper units
-  // More accurate: μ (cm²/g) = (4π * E / (hc)) * (f2 / A) * (N_A / N_A)
-  // Simplified: μ = (4π * E * f2) / (hc * A)
-  const wavelengthCm = hc / energyEv; // cm
-  const mu = ((4 * Math.PI) / wavelengthCm) * (f2 / atomicWeight);
-  return mu;
+  // Calculate wavelength from energy: λ = hc / E
+  const wavelengthCm = PLANCK_CONSTANT_TIMES_C_EV_CM / energyEv; // cm
+
+  // X-ray Data Booklet formula: μ/ρ = (2 * rₑ * λ * Nₐ * f₂) / A
+  const muOverRho =
+    (2 * ELECTRON_RADIUS_CM * wavelengthCm * AVOGADRO * f2) / atomicWeight;
+
+  return muOverRho;
 }
 
 // Calculate bare atom absorption for a single atom
 async function calculateAtomAbsorption(atom: string): Promise<BareAtomPoint[]> {
   const formFactorData = await fetchAtomicFormFactor(atom);
-  const atomicWeight = ATOMIC_WEIGHTS[atom];
-
-  if (!atomicWeight) {
-    throw new Error(`Unknown atomic weight for element: ${atom}`);
-  }
+  const atomicWeight = getAtomicWeight(atom);
 
   return formFactorData.map((point) => ({
     energy: point.energy,
@@ -285,8 +236,15 @@ export async function calculateBareAtomAbsorption(
     throw new Error("Empty or invalid chemical formula");
   }
 
-  // Parse formula to get atom counts
-  const atoms = parseFormula(cleanedFormula);
+  // Parse formula to get atom counts using shared chemistry utilities
+  let atoms: ElementCountMap;
+  try {
+    atoms = parseChemicalFormula(cleanedFormula);
+  } catch (error) {
+    throw new Error(
+      `Failed to parse chemical formula: ${formula} (cleaned: ${cleanedFormula}). ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 
   if (Object.keys(atoms).length === 0) {
     throw new Error(
@@ -296,7 +254,8 @@ export async function calculateBareAtomAbsorption(
 
   console.log(`[BareAtom] Parsed formula ${cleanedFormula} into atoms:`, atoms);
 
-  const molecularWeight = calculateMolecularWeight(cleanedFormula);
+  // Calculate molecular weight using shared chemistry utilities
+  const molecularWeight = computeMolecularWeight(atoms);
 
   if (molecularWeight === 0) {
     throw new Error(
@@ -366,8 +325,10 @@ export async function calculateBareAtomAbsorption(
     );
   }
 
-  // Sum contributions: μ_total = Σ(x_i * μ_i) / MW
-  // where x_i is the number of atoms of type i, μ_i is mass absorption for atom i
+  // Calculate combined mass absorption coefficient using weight fraction approach
+  // (μ/ρ)_total = Σ(w_i * (μ/ρ)_i)
+  // where w_i = (count_i * A_i) / MW is the weight fraction of element i
+  // This follows the X-ray Data Booklet methodology for density = 1 g/cm³
   const result: BareAtomPoint[] = [];
 
   for (let i = 0; i < spectrumEnergies.length; i++) {
@@ -378,14 +339,12 @@ export async function calculateBareAtomAbsorption(
     for (const [atom, count] of Object.entries(atoms)) {
       const atomAbs = atomAbsorptions.get(atom);
       if (atomAbs?.[i]) {
-        // Contribution = (count * atomic_weight * μ_atom) / molecular_weight
-        // But since μ_atom is already mass absorption (cm²/g), we need:
-        // μ_total = Σ(count_i * A_i * μ_i) / MW
-        const atomicWeight = ATOMIC_WEIGHTS[atom] ?? 0;
-        if (atomicWeight > 0) {
-          totalAbsorption +=
-            (count * atomicWeight * atomAbs[i]!.absorption) / molecularWeight;
-        }
+        // Weight fraction: w_i = (count_i * A_i) / MW
+        const atomicWeight = getAtomicWeight(atom);
+        const weightFraction = (count * atomicWeight) / molecularWeight;
+
+        // Total mass absorption: (μ/ρ)_total = Σ(w_i * (μ/ρ)_i)
+        totalAbsorption += weightFraction * atomAbs[i]!.absorption;
       }
     }
 
