@@ -12,9 +12,6 @@
 /prisma/db.sqlite
 /prisma/db.sqlite-journal
 db.sqlite
-.ipynb_checkpoints
-.ipynb
-/.vscode/
 
 # next.js
 /.next/
