@@ -84,22 +84,6 @@ interface AnalysisToolbarProps {
   onPeakAdd?: (energy: number) => void;
   isManualPeakMode?: boolean;
   onManualPeakModeChange?: (enabled: boolean) => void;
-  // Molecule selector props
-  moleculeSearchTerm: string;
-  setMoleculeSearchTerm: (value: string) => void;
-  moleculeSuggestions: MoleculeSearchResult[];
-  moleculeManualResults: MoleculeSearchResult[];
-  moleculeSuggestionError: string | null;
-  moleculeManualError: string | null;
-  isSuggestingMolecule: boolean;
-  isManualSearchingMolecule: boolean;
-  selectedMolecule: MoleculeSearchResult | null;
-  selectedPreferredName: string;
-  setSelectedPreferredName: (value: string) => void;
-  allMoleculeNames: string[];
-  onUseMolecule: (result: MoleculeSearchResult) => void;
-  onManualMoleculeSearch: () => void;
-  onMoleculeCreated?: (moleculeId: string) => void;
 }
 
 export function AnalysisToolbar({

@@ -24,6 +24,7 @@ import {
 } from "~/app/contribute/nexafs/utils";
 import type {
   DatasetState,
+  PeakData,
 } from "~/app/contribute/nexafs/types";
 import {
   EXPERIMENT_TYPE_OPTIONS,
