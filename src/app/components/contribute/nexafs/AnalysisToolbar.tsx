@@ -20,10 +20,10 @@ import {
   Tooltip,
   Slider,
   ScrollShadow,
-  Badge,
 } from "@heroui/react";
 import { DefaultButton as Button } from "~/app/components/Button";
 import { SubToolButton } from "./SubToolButton";
+import { ToggleIconButton } from "~/app/components/ToggleIconButton";
 import type {
   PeakData,
   NormalizationType,
@@ -309,61 +309,50 @@ export function AnalysisToolbar({
       <div className="flex flex-col p-4">
         {/* Horizontal Icon Toolbar */}
         <div className="mb-4 flex items-center gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
-          <Tooltip
-            content="Normalize spectrum using bare atom absorption or 0-1 mapping"
-            placement="top"
-            offset={8}
-            classNames={{
-              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg mb-2",
+          <ToggleIconButton
+            icon={<Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />}
+            isActive={selectedTool === "normalize"}
+            onClick={() => setSelectedTool("normalize")}
+            ariaLabel="Normalize spectrum"
+            className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+              selectedTool === "normalize"
+                ? "border-wsu-crimson bg-gray-100 dark:bg-gray-700"
+                : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+            }`}
+            tooltip={{
+              content: "Normalize spectrum using bare atom absorption or 0-1 mapping",
+              placement: "top",
+              offset: 8,
             }}
-          >
-            <button
-              type="button"
-              onClick={() => setSelectedTool("normalize")}
-              className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                selectedTool === "normalize"
-                  ? "border-wsu-crimson bg-gray-100 dark:bg-gray-700"
-                  : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-              }`}
-              aria-label="Normalize spectrum"
-            >
-              <Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-            </button>
-          </Tooltip>
-          <Tooltip
-            content="Identify peaks in spectrum using automatic detection or manual entry"
-            placement="top"
-            offset={8}
-            classNames={{
-              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg mb-2",
+          />
+          <ToggleIconButton
+            icon={<Mountain className="h-5 w-5 text-gray-700 dark:text-gray-300" />}
+            isActive={selectedTool === "peaks"}
+            onClick={() => setSelectedTool("peaks")}
+            ariaLabel="Identify peaks"
+            className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+              selectedTool === "peaks"
+                ? "border-wsu-crimson bg-gray-100 dark:bg-gray-700"
+                : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+            }`}
+            tooltip={{
+              content: "Identify peaks in spectrum using automatic detection or manual entry",
+              placement: "top",
+              offset: 8,
             }}
-          >
-            <Badge
-              content={peaks.length}
-              color="primary"
-              size="sm"
-              isInvisible={peaks.length === 0}
-              shape="rectangle"
-              showOutline={true}
-              classNames={{
+            badge={{
+              content: peaks.length,
+              color: "primary",
+              size: "sm",
+              isInvisible: peaks.length === 0,
+              shape: "rectangle",
+              showOutline: true,
+              classNames: {
                 base: "relative",
                 badge: "bg-white text-gray-900 text-[10px] font-semibold h-4 min-w-4 px-1 rounded-full border border-gray-900 dark:border-gray-100",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setSelectedTool("peaks")}
-                className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                  selectedTool === "peaks"
-                    ? "border-wsu-crimson bg-gray-100 dark:bg-gray-700"
-                    : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-                }`}
-                aria-label="Identify peaks"
-              >
-                <Mountain className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-              </button>
-            </Badge>
-          </Tooltip>
+              },
+            }}
+          />
         </div>
 
         {!hasMolecule && selectedTool === "normalize" && (
