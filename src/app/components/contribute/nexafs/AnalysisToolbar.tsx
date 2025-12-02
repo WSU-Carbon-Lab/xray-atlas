@@ -311,9 +311,10 @@ export function AnalysisToolbar({
         <div className="mb-4 flex items-center gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
           <Tooltip
             content="Normalize spectrum using bare atom absorption or 0-1 mapping"
-            placement="right"
+            placement="top"
+            offset={8}
             classNames={{
-              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg mb-2",
             }}
           >
             <button
@@ -332,8 +333,9 @@ export function AnalysisToolbar({
           <Tooltip
             content="Identify peaks in spectrum using automatic detection or manual entry"
             placement="top"
+            offset={8}
             classNames={{
-              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg mb-2",
             }}
           >
             <Badge
