@@ -133,6 +133,59 @@ const interpolateBareMu = (
   return leftPoint.absorption + t * (rightPoint.absorption - leftPoint.absorption);
 };
 
+export const computeZeroOneNormalization = (
+  points: SpectrumPoint[],
+  preRange: [number, number] | null,
+  postRange: [number, number] | null,
+): NormalizationComputation | null => {
+  if (points.length === 0 || !preRange || !postRange) {
+    return null;
+  }
+
+  // Find points in pre-edge and post-edge regions
+  const preEdgePoints = points.filter(
+    (p) => p.energy >= preRange[0] && p.energy <= preRange[1],
+  );
+  const postEdgePoints = points.filter(
+    (p) => p.energy >= postRange[0] && p.energy <= postRange[1],
+  );
+
+  if (preEdgePoints.length === 0 || postEdgePoints.length === 0) {
+    return null;
+  }
+
+  // Calculate average absorption in each region
+  const preAvg =
+    preEdgePoints.reduce((sum, p) => sum + p.absorption, 0) /
+    preEdgePoints.length;
+  const postAvg =
+    postEdgePoints.reduce((sum, p) => sum + p.absorption, 0) /
+    postEdgePoints.length;
+
+  // Avoid division by zero
+  if (Math.abs(postAvg - preAvg) < 1e-10) {
+    return null;
+  }
+
+  // Apply linear transformation: normalized = (value - preAvg) / (postAvg - preAvg)
+  // This maps preAvg -> 0 and postAvg -> 1
+  const scale = 1 / (postAvg - preAvg);
+  const offset = -preAvg / (postAvg - preAvg);
+
+  const normalizedPoints: SpectrumPoint[] = points.map((point) => ({
+    ...point,
+    absorption: scale * point.absorption + offset,
+  }));
+
+  return {
+    normalizedPoints,
+    scale,
+    offset,
+    preRange,
+    postRange,
+  };
+};
+
 export const computeNormalizationForExperiment = (
   points: SpectrumPoint[],
   barePoints: BareAtomPoint[],

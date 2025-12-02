@@ -1,17 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   LockClosedIcon,
   LockOpenIcon,
-  PlusIcon,
-  TrashIcon,
   InformationCircleIcon,
   PencilIcon,
+  Square3Stack3DIcon,
+  SparklesIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { Accordion, AccordionItem, NumberInput } from "@heroui/react";
+import {
+  Mountain,
+  ArrowLeftToLine,
+  ArrowRightToLine,
+} from "lucide-react";
+import {
+  NumberInput,
+  Tooltip,
+  Slider,
+  ScrollShadow,
+  Badge,
+} from "@heroui/react";
 import { DefaultButton as Button } from "~/app/components/Button";
-import type { PeakData } from "~/app/contribute/nexafs/types";
+import { SubToolButton } from "./SubToolButton";
+import type {
+  PeakData,
+  NormalizationType,
+} from "~/app/contribute/nexafs/types";
 import {
   detectPeaks,
   convertToPeakData,
@@ -40,6 +56,8 @@ interface AnalysisToolbarProps {
   hasData: boolean;
   hasNormalization: boolean;
   normalizationLocked: boolean;
+  normalizationType: NormalizationType;
+  onNormalizationTypeChange: (type: NormalizationType) => void;
   onPreEdgeSelect: () => void;
   onPostEdgeSelect: () => void;
   onToggleLock: () => void;
@@ -60,6 +78,9 @@ interface AnalysisToolbarProps {
   onPeaksChange: (peaks: PeakData[]) => void;
   onPeakSelect: (peakId: string | null) => void;
   onPeakUpdate: (peakId: string, energy: number) => void;
+  onPeakAdd?: (energy: number) => void;
+  isManualPeakMode?: boolean;
+  onManualPeakModeChange?: (enabled: boolean) => void;
 }
 
 export function AnalysisToolbar({
@@ -67,6 +88,8 @@ export function AnalysisToolbar({
   hasData,
   hasNormalization,
   normalizationLocked,
+  normalizationType,
+  onNormalizationTypeChange,
   onPreEdgeSelect,
   onPostEdgeSelect,
   onToggleLock,
@@ -81,29 +104,137 @@ export function AnalysisToolbar({
   onPeaksChange,
   onPeakSelect,
   onPeakUpdate,
+  onPeakAdd: _onPeakAdd,
+  isManualPeakMode: externalManualPeakMode,
+  onManualPeakModeChange,
 }: AnalysisToolbarProps) {
+  const [internalManualPeakMode, setInternalManualPeakMode] = useState(false);
+  const isManualPeakMode = externalManualPeakMode ?? internalManualPeakMode;
+  const [selectedTool, setSelectedTool] = useState<"normalize" | "peaks">("normalize");
+  const [peakDetectionMode, setPeakDetectionMode] = useState<"auto" | "manual" | null>(null);
+  const peakDetectionModeRef = useRef(peakDetectionMode);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    peakDetectionModeRef.current = peakDetectionMode;
+  }, [peakDetectionMode]);
+
+  // Sync peakDetectionMode with external isManualPeakMode
+  useEffect(() => {
+    if (externalManualPeakMode !== undefined) {
+      if (externalManualPeakMode) {
+        setPeakDetectionMode("manual");
+      } else if (peakDetectionModeRef.current === "manual") {
+        // Only clear if it was manual, don't override auto
+        setPeakDetectionMode(null);
+      }
+    }
+  }, [externalManualPeakMode]);
   const [isAddingPeak, setIsAddingPeak] = useState(false);
   const [newPeakEnergy, setNewPeakEnergy] = useState("");
   const [newPeakBond, setNewPeakBond] = useState("");
   const [newPeakTransition, setNewPeakTransition] = useState("");
+  const [peakParams, setPeakParams] = useState<{
+    minProminence?: number;
+    minDistance?: number;
+    width?: number;
+    height?: number;
+    threshold?: number;
+  }>({
+    minProminence: 0.05, // Reasonable default, not scipy default but commonly used
+    // minDistance, width, height, threshold default to undefined (scipy None)
+  });
 
-  const handleAutoDetectPeaks = () => {
+  // Track which peaks are auto-detected vs manually added
+  const [_autoDetectedPeakIds, setAutoDetectedPeakIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  // Build peak detection options from params
+  const buildPeakOptions = useMemo(() => {
+    const options: {
+      minProminence?: number;
+      minDistance?: number;
+      width?: number;
+      height?: number;
+      threshold?: number;
+    } = {};
+
+    if (peakParams.minProminence !== undefined && peakParams.minProminence > 0) {
+      options.minProminence = peakParams.minProminence;
+    }
+    if (peakParams.minDistance !== undefined && peakParams.minDistance > 0) {
+      options.minDistance = peakParams.minDistance;
+    }
+    if (peakParams.width !== undefined && peakParams.width > 0) {
+      options.width = peakParams.width;
+    }
+    if (peakParams.height !== undefined && peakParams.height > 0) {
+      options.height = peakParams.height;
+    }
+    if (peakParams.threshold !== undefined && peakParams.threshold > 0) {
+      options.threshold = peakParams.threshold;
+    }
+
+    return options;
+  }, [peakParams]);
+
+  // Auto-update peaks when peakParams change and auto-detect mode is active
+  useEffect(() => {
+    if (peakDetectionMode !== "auto") {
+      return;
+    }
+
     const pointsToAnalyze = normalizedPoints ?? spectrumPoints;
-
     if (pointsToAnalyze.length === 0) {
       return;
     }
 
-    const detected = detectPeaks(pointsToAnalyze, {
-      minProminence: 0.05,
-    });
-
+    const detected = detectPeaks(pointsToAnalyze, buildPeakOptions);
     const newPeaks = convertToPeakData(detected).map((peak, index) => ({
       ...peak,
-      id: `peak-${Date.now()}-${index}`,
+      id: `peak-auto-${Date.now()}-${index}`,
     }));
 
-    onPeaksChange([...peaks, ...newPeaks]);
+    const newAutoDetectedIds = new Set(
+      newPeaks
+        .map((p) => ("id" in p && typeof p.id === "string" ? p.id : ""))
+        .filter(Boolean),
+    );
+    setAutoDetectedPeakIds(newAutoDetectedIds);
+
+    // Get current manual peaks (not in newAutoDetectedIds)
+    // Use newAutoDetectedIds instead of autoDetectedPeakIds to avoid stale closure
+    const currentManualPeaks = peaks.filter(
+      (peak) =>
+        "id" in peak &&
+        typeof (peak as { id?: string }).id === "string" &&
+        !newAutoDetectedIds.has((peak as { id: string }).id),
+    );
+
+    // Replace only auto-detected peaks, keep manual ones
+    onPeaksChange([...currentManualPeaks, ...newPeaks]);
+  }, [peakParams.minProminence, peakParams.minDistance, peakParams.width, peakParams.height, peakParams.threshold, peakDetectionMode, normalizedPoints, spectrumPoints, buildPeakOptions, peaks, onPeaksChange]);
+
+  const handleAutoDetectPeaks = () => {
+    // Set auto-detect as the active mode
+    setPeakDetectionMode("auto");
+    // Peak detection will be triggered by the useEffect above
+  };
+
+  const handleManualPeakMode = () => {
+    const newMode = !isManualPeakMode;
+    // Set manual as the active mode when enabling, clear when disabling
+    if (newMode) {
+      setPeakDetectionMode("manual");
+    } else {
+      setPeakDetectionMode(null);
+    }
+    if (onManualPeakModeChange) {
+      onManualPeakModeChange(newMode);
+    } else {
+      setInternalManualPeakMode(newMode);
+    }
   };
 
   const handleAddPeak = () => {
@@ -116,9 +247,10 @@ export function AnalysisToolbar({
       energy,
       bond: newPeakBond || undefined,
       transition: newPeakTransition || undefined,
-      id: `peak-${Date.now()}`,
+      id: `peak-manual-${Date.now()}`,
     } as PeakData & { id: string };
 
+    // Manual peaks are not in autoDetectedPeakIds, so they'll be preserved
     onPeaksChange([...peaks, newPeak]);
     setIsAddingPeak(false);
     setNewPeakEnergy("");
@@ -172,14 +304,67 @@ export function AnalysisToolbar({
   return (
     <div
       className="w-64 shrink-0 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
-      style={{ minHeight: "532px" }}
+      style={{ height: "532px" }}
     >
       <div className="flex flex-col p-4">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Analysis Tools
-        </h3>
+        {/* Horizontal Icon Toolbar */}
+        <div className="mb-4 flex items-center gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
+          <Tooltip
+            content="Normalize spectrum using bare atom absorption or 0-1 mapping"
+            placement="right"
+            classNames={{
+              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedTool("normalize")}
+              className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+                selectedTool === "normalize"
+                  ? "border-wsu-crimson bg-gray-100 dark:bg-gray-700"
+                  : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+              }`}
+              aria-label="Normalize spectrum"
+            >
+              <Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+            </button>
+          </Tooltip>
+          <Tooltip
+            content="Identify peaks in spectrum using automatic detection or manual entry"
+            placement="top"
+            classNames={{
+              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+            }}
+          >
+            <Badge
+              content={peaks.length}
+              color="primary"
+              size="sm"
+              isInvisible={peaks.length === 0}
+              shape="rectangle"
+              showOutline={true}
+              classNames={{
+                base: "relative",
+                badge: "bg-white text-gray-900 text-[10px] font-semibold h-4 min-w-4 px-1 rounded-full border border-gray-900 dark:border-gray-100",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setSelectedTool("peaks")}
+                className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+                  selectedTool === "peaks"
+                    ? "border-wsu-crimson bg-gray-100 dark:bg-gray-700"
+                    : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                }`}
+                aria-label="Identify peaks"
+              >
+                <Mountain className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+              </button>
+            </Badge>
+          </Tooltip>
+        </div>
 
-        {!hasMolecule && (
+        {!hasMolecule && selectedTool === "normalize" && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
             <div className="flex items-start gap-2">
               <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
@@ -192,266 +377,271 @@ export function AnalysisToolbar({
         )}
 
         <div className="flex-1 overflow-y-auto">
-          <Accordion
-            defaultExpandedKeys={["normalize", "peaks"]}
-            variant="bordered"
-            className="w-full"
-          >
-            {/* Normalization Section */}
-            <AccordionItem
-              key="normalize"
-              title="Normalize"
-              aria-label="Normalize spectrum"
-            >
-              <div className="space-y-4 pt-2">
-                {/* Nested Pre Edge Section */}
-                <Accordion
-                  defaultExpandedKeys={[]}
-                  variant="light"
-                  className="w-full"
-                >
-                  <AccordionItem
-                    key="pre-edge"
-                    title="Pre Edge"
-                    aria-label="Pre edge normalization"
+          {selectedTool === "normalize" && (
+            <div className="space-y-4 pt-2">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                Normalization
+              </h3>
+                {/* Normalization Type Selector */}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Normalization Method
+                  </label>
+                  <select
+                    value={normalizationType}
+                    onChange={(e) =>
+                      onNormalizationTypeChange(
+                        e.target.value as NormalizationType,
+                      )
+                    }
+                    disabled={normalizationLocked}
+                    className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                   >
-                    <div className="space-y-3 pt-2">
-                      <Button
-                        type="button"
-                        variant={isSelectingPreEdge ? "solid" : "bordered"}
-                        size="sm"
-                        onClick={onPreEdgeSelect}
-                        disabled={!hasMolecule || !hasData}
-                        color={isSelectingPreEdge ? "primary" : "default"}
-                        className={`w-full justify-start ${
-                          isSelectingPreEdge ? "bg-blue-500 text-white" : ""
-                        } ${!hasMolecule || !hasData ? "cursor-not-allowed opacity-50" : ""}`}
-                      >
-                        <PencilIcon className="mr-2 h-4 w-4" />
-                        {isSelectingPreEdge
-                          ? "Drawing on plot..."
-                          : "Draw on plot"}
-                      </Button>
+                    <option value="bare-atom">Bare Atom</option>
+                    <option value="zero-one">Absolute</option>
+                  </select>
+                  {normalizationType === "bare-atom" && (
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Normalizes using bare atom absorption reference
+                    </p>
+                  )}
+                  {normalizationType === "zero-one" && (
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Maps pre-edge to 0 and post-edge to 1 (absolute normalization)
+                    </p>
+                  )}
+                </div>
 
-                      {/* Energy Range Inputs */}
-                      {normalizationRegions.pre && (
-                        <div className="space-y-2 border-t border-gray-200 pt-2 dark:border-gray-700">
-                          <div className="space-y-2">
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                Min (eV)
-                              </label>
-                              <NumberInput
-                                size="sm"
-                                variant="bordered"
-                                value={
-                                  Math.round(
-                                    normalizationRegions.pre[0] * 100,
-                                  ) / 100
-                                }
-                                onValueChange={(value) =>
-                                  handlePreEdgeRangeChange(0, value)
-                                }
-                                step={0.01}
-                                minValue={0}
-                                classNames={{
-                                  base: "w-full",
-                                  input: "text-xs",
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                Max (eV)
-                              </label>
-                              <NumberInput
-                                size="sm"
-                                variant="bordered"
-                                value={
-                                  Math.round(
-                                    normalizationRegions.pre[1] * 100,
-                                  ) / 100
-                                }
-                                onValueChange={(value) =>
-                                  handlePreEdgeRangeChange(1, value)
-                                }
-                                step={0.01}
-                                minValue={0}
-                                classNames={{
-                                  base: "w-full",
-                                  input: "text-xs",
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </AccordionItem>
-                </Accordion>
+                {/* Three Toggle Buttons: Pre Edge, Post Edge, Lock */}
+                <div className="flex items-center gap-2">
+                  {/* Pre Edge Button */}
+                  <SubToolButton
+                    icon={<ArrowLeftToLine className="h-4 w-4" />}
+                    label="Pre"
+                    tooltip="Select pre-edge region"
+                    isActive={isSelectingPreEdge}
+                    onClick={onPreEdgeSelect}
+                    disabled={!hasMolecule || !hasData}
+                  />
 
-                {/* Nested Post Edge Section */}
-                <Accordion
-                  defaultExpandedKeys={[]}
-                  variant="light"
-                  className="w-full"
-                >
-                  <AccordionItem
-                    key="post-edge"
-                    title="Post Edge"
-                    aria-label="Post edge normalization"
-                  >
-                    <div className="space-y-3 pt-2">
-                      <Button
-                        type="button"
-                        variant={isSelectingPostEdge ? "solid" : "bordered"}
-                        size="sm"
-                        onClick={onPostEdgeSelect}
-                        disabled={!hasMolecule || !hasData}
-                        color={isSelectingPostEdge ? "success" : "default"}
-                        className={`w-full justify-start ${
-                          isSelectingPostEdge ? "bg-green-500 text-white" : ""
-                        } ${!hasMolecule || !hasData ? "cursor-not-allowed opacity-50" : ""}`}
-                      >
-                        <PencilIcon className="mr-2 h-4 w-4" />
-                        {isSelectingPostEdge
-                          ? "Drawing on plot..."
-                          : "Draw on plot"}
-                      </Button>
+                  {/* Post Edge Button */}
+                  <SubToolButton
+                    icon={<ArrowRightToLine className="h-4 w-4" />}
+                    label="Post"
+                    tooltip="Select post-edge region"
+                    isActive={isSelectingPostEdge}
+                    onClick={onPostEdgeSelect}
+                    disabled={!hasMolecule || !hasData}
+                  />
 
-                      {/* Energy Range Inputs */}
-                      {normalizationRegions.post && (
-                        <div className="space-y-2 border-t border-gray-200 pt-2 dark:border-gray-700">
-                          <div className="space-y-2">
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                Min (eV)
-                              </label>
-                              <NumberInput
-                                size="sm"
-                                variant="bordered"
-                                value={
-                                  Math.round(
-                                    normalizationRegions.post[0] * 100,
-                                  ) / 100
-                                }
-                                onValueChange={(value) =>
-                                  handlePostEdgeRangeChange(0, value)
-                                }
-                                step={0.01}
-                                minValue={0}
-                                classNames={{
-                                  base: "w-full",
-                                  input: "text-xs",
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                Max (eV)
-                              </label>
-                              <NumberInput
-                                size="sm"
-                                variant="bordered"
-                                value={
-                                  Math.round(
-                                    normalizationRegions.post[1] * 100,
-                                  ) / 100
-                                }
-                                onValueChange={(value) =>
-                                  handlePostEdgeRangeChange(1, value)
-                                }
-                                step={0.01}
-                                minValue={0}
-                                classNames={{
-                                  base: "w-full",
-                                  input: "text-xs",
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </AccordionItem>
-                </Accordion>
-
-                {/* Lock Section */}
-                {hasNormalization && (
-                  <div className="border-t border-gray-200 pt-3 dark:border-gray-700">
-                    <Button
-                      type="button"
-                      variant="bordered"
-                      size="sm"
+                  {/* Lock Button */}
+                  {hasNormalization && (
+                    <SubToolButton
+                      icon={
+                        normalizationLocked ? (
+                          <LockClosedIcon className="h-4 w-4" />
+                        ) : (
+                          <LockOpenIcon className="h-4 w-4" />
+                        )
+                      }
+                      tooltip={
+                        normalizationLocked
+                          ? "Unlock normalization"
+                          : "Lock normalization"
+                      }
+                      isActive={normalizationLocked}
                       onClick={onToggleLock}
                       disabled={!hasNormalization}
-                      className="w-full justify-start"
-                    >
-                      {normalizationLocked ? (
-                        <>
-                          <LockClosedIcon className="mr-2 h-4 w-4" />
-                          Unlock
-                        </>
-                      ) : (
-                        <>
-                          <LockOpenIcon className="mr-2 h-4 w-4" />
-                          Lock
-                        </>
-                      )}
-                    </Button>
+                      iconOnly
+                    />
+                  )}
+                </div>
+
+                {/* Pre Edge Min/Max Inputs */}
+                {isSelectingPreEdge && normalizationRegions.pre && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Min (eV)
+                      </label>
+                      <NumberInput
+                        size="sm"
+                        variant="bordered"
+                        value={
+                          Math.round(normalizationRegions.pre[0] * 100) / 100
+                        }
+                        onValueChange={(value) =>
+                          handlePreEdgeRangeChange(0, value)
+                        }
+                        step={0.01}
+                        minValue={0}
+                        classNames={{
+                          base: "w-full",
+                          input: "text-xs",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Max (eV)
+                      </label>
+                      <NumberInput
+                        size="sm"
+                        variant="bordered"
+                        value={
+                          Math.round(normalizationRegions.pre[1] * 100) / 100
+                        }
+                        onValueChange={(value) =>
+                          handlePreEdgeRangeChange(1, value)
+                        }
+                        step={0.01}
+                        minValue={0}
+                        classNames={{
+                          base: "w-full",
+                          input: "text-xs",
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
-              </div>
-            </AccordionItem>
 
-            {/* Identify Peaks Section */}
-            <AccordionItem
-              key="peaks"
-              title={`Identify Peaks (${peaks.length})`}
-              aria-label="Identify peaks"
-            >
+                {/* Post Edge Min/Max Inputs */}
+                {isSelectingPostEdge && normalizationRegions.post && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Min (eV)
+                      </label>
+                      <NumberInput
+                        size="sm"
+                        variant="bordered"
+                        value={
+                          Math.round(normalizationRegions.post[0] * 100) / 100
+                        }
+                        onValueChange={(value) =>
+                          handlePostEdgeRangeChange(0, value)
+                        }
+                        step={0.01}
+                        minValue={0}
+                        classNames={{
+                          base: "w-full",
+                          input: "text-xs",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Max (eV)
+                      </label>
+                      <NumberInput
+                        size="sm"
+                        variant="bordered"
+                        value={
+                          Math.round(normalizationRegions.post[1] * 100) / 100
+                        }
+                        onValueChange={(value) =>
+                          handlePostEdgeRangeChange(1, value)
+                        }
+                        step={0.01}
+                        minValue={0}
+                        classNames={{
+                          base: "w-full",
+                          input: "text-xs",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+            </div>
+          )}
+
+          {selectedTool === "peaks" && (
               <div className="space-y-3 pt-2">
-                <div className="flex items-start gap-2 rounded-lg bg-blue-50/50 p-2 text-xs text-gray-600 dark:bg-blue-900/10 dark:text-gray-400">
-                  <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    You can drag existing peaks on the plot to adjust.
-                  </span>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="bordered"
-                    size="sm"
-                    onClick={handleAutoDetectPeaks}
-                    disabled={spectrumPoints.length === 0}
-                    className="flex-1 text-xs"
-                  >
-                    Auto-detect
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="bordered"
-                    size="sm"
-                    onClick={() => setIsAddingPeak(true)}
-                    disabled={spectrumPoints.length === 0}
-                    className="w-8 shrink-0 p-0"
-                    title="Add peak manually"
-                  >
-                    <PlusIcon className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-
-                {peaks.length === 0 && !isAddingPeak && (
-                  <div className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">
-                    No peaks identified. Click &quot;Auto-detect&quot; or add
-                    manually.
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Peak Detection
+                </h3>
+                <div className="space-y-3 shrink-0">
+                  <div className="flex gap-2">
+                    <SubToolButton
+                      icon={<SparklesIcon className="h-4 w-4" />}
+                      tooltip="Auto-detect peaks"
+                      isActive={peakDetectionMode === "auto"}
+                      onClick={handleAutoDetectPeaks}
+                      disabled={spectrumPoints.length === 0}
+                      iconOnly
+                    />
+                    <SubToolButton
+                      icon={<PencilIcon className="h-4 w-4" />}
+                      tooltip="Click on plot to add peaks manually"
+                      isActive={peakDetectionMode === "manual"}
+                      onClick={handleManualPeakMode}
+                      disabled={spectrumPoints.length === 0}
+                      iconOnly
+                    />
                   </div>
-                )}
 
-                {peaks.length > 0 && (
-                  <div className="max-h-96 space-y-2 overflow-y-auto">
-                    {peaks.map((peak, index) => {
+                  {/* Peak Detection Settings - shown only when auto-detect mode is active */}
+                  {peakDetectionMode === "auto" && (
+                    <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+                      <Tooltip
+                        content="Minimum prominence as fraction of max intensity"
+                        placement="top"
+                        classNames={{
+                          base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+                        }}
+                      >
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 cursor-help mb-2">
+                          Prominence: {(peakParams.minProminence ?? 0.05).toFixed(2)}
+                        </label>
+                      </Tooltip>
+                      <div className="w-full py-2">
+                        <Slider
+                          size="sm"
+                          step={0.01}
+                          minValue={0}
+                          maxValue={1}
+                          value={peakParams.minProminence ?? 0.05}
+                          onChange={(value) => {
+                            const numValue = typeof value === "number"
+                              ? value
+                              : (Array.isArray(value) && value.length > 0
+                                ? value[0]
+                                : 0.05);
+                            if (typeof numValue === "number" && Number.isFinite(numValue)) {
+                              setPeakParams({
+                                ...peakParams,
+                                minProminence: numValue,
+                              });
+                              // Peak detection will be triggered by useEffect when peakParams changes
+                            }
+                          }}
+                          classNames={{
+                            base: "w-full",
+                            track: "h-2 bg-gray-200 dark:bg-gray-700",
+                            filler: "bg-wsu-crimson",
+                            thumb: "w-4 h-4 bg-wsu-crimson border-2 border-wsu-crimson cursor-pointer",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <ScrollShadow
+                  hideScrollBar
+                  className="max-h-[250px]"
+                >
+                  <div className="space-y-2">
+                    {peaks.length === 0 && !isAddingPeak && (
+                      <div className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                        No peaks identified. Click &quot;Auto-detect&quot; or add
+                        manually.
+                      </div>
+                    )}
+
+                    {peaks.length > 0 && (
+                      <div className="space-y-2">
+                        {peaks.map((peak, index) => {
                       const peakId: string =
                         "id" in peak &&
                         typeof (peak as { id?: string }).id === "string"
@@ -461,7 +651,7 @@ export function AnalysisToolbar({
                       return (
                         <div
                           key={peakId}
-                          className={`flex items-start gap-2 rounded-lg border p-2 ${
+                          className={`relative flex flex-col rounded-lg border ${
                             isSelected
                               ? "border-wsu-crimson bg-wsu-crimson/5 dark:border-wsu-crimson dark:bg-wsu-crimson/10"
                               : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
@@ -470,14 +660,12 @@ export function AnalysisToolbar({
                             onPeakSelect(isSelected ? null : peakId)
                           }
                         >
-                          <div className="flex-1 space-y-2">
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                Energy (eV)
-                              </label>
+                          {/* Top bar with Energy input and X button */}
+                          <div className="relative h-7 bg-gray-300 dark:bg-gray-600 rounded-t-lg flex items-center gap-1.5 px-1.5">
+                            <div className="flex-1 min-w-0">
                               <NumberInput
                                 size="sm"
-                                variant="bordered"
+                                variant="flat"
                                 value={Math.round(peak.energy * 100) / 100}
                                 onValueChange={(value) => {
                                   const rounded = Math.round(value * 100) / 100;
@@ -489,74 +677,83 @@ export function AnalysisToolbar({
                                 }}
                                 step={0.01}
                                 minValue={0}
+                                endContent={
+                                  <span className="text-xs text-gray-600 dark:text-gray-300 pr-0.5">
+                                    eV
+                                  </span>
+                                }
                                 classNames={{
                                   base: "w-full",
-                                  input: "text-xs",
+                                  input: "text-xs py-0 h-6 bg-transparent text-gray-900 dark:text-gray-100",
+                                  inputWrapper: "h-6 min-h-6 bg-transparent shadow-none border-0",
                                 }}
+                                onClick={(e) => e.stopPropagation()}
                               />
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePeak(index);
+                              }}
+                              className="rounded p-0.5 text-gray-600 hover:text-red-600 hover:bg-red-100 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 shrink-0"
+                              title="Delete peak"
+                              aria-label="Delete peak"
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
+                          </div>
+
+                          <div className="p-1.5">
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <select
+                                value={peak.bond ?? ""}
+                                onChange={(e) =>
+                                  handleUpdatePeak(index, {
+                                    bond: e.target.value || undefined,
+                                  })
+                                }
+                                className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <option value="" disabled>
                                   Bond
-                                </label>
-                                <select
-                                  value={peak.bond ?? ""}
-                                  onChange={(e) =>
-                                    handleUpdatePeak(index, {
-                                      bond: e.target.value || undefined,
-                                    })
-                                  }
-                                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                                >
-                                  {BOND_OPTIONS.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>
-                                      {opt.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                </option>
+                                {BOND_OPTIONS.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <select
+                                value={peak.transition ?? ""}
+                                onChange={(e) =>
+                                  handleUpdatePeak(index, {
+                                    transition: e.target.value || undefined,
+                                  })
+                                }
+                                className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <option value="" disabled>
                                   Transition
-                                </label>
-                                <select
-                                  value={peak.transition ?? ""}
-                                  onChange={(e) =>
-                                    handleUpdatePeak(index, {
-                                      transition: e.target.value || undefined,
-                                    })
-                                  }
-                                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                                >
-                                  {TRANSITION_OPTIONS.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>
-                                      {opt.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
+                                </option>
+                                {TRANSITION_OPTIONS.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeletePeak(index);
-                            }}
-                            className="rounded p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                            title="Delete peak"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
                         </div>
                       );
-                    })}
-                  </div>
-                )}
+                      })}
+                      </div>
+                    )}
 
-                {isAddingPeak && (
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/40 dark:bg-blue-900/10">
+                    {isAddingPeak && (
+                      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/40 dark:bg-blue-900/10">
                     <div className="space-y-2">
                       <div>
                         <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -652,11 +849,12 @@ export function AnalysisToolbar({
                         </Button>
                       </div>
                     </div>
+                    </div>
+                    )}
                   </div>
-                )}
+                </ScrollShadow>
               </div>
-            </AccordionItem>
-          </Accordion>
+          )}
         </div>
       </div>
     </div>

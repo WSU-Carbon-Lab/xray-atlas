@@ -18,9 +18,13 @@ import { trpc } from "~/trpc/client";
 import { useMoleculeSearch } from "~/app/contribute/nexafs/hooks/useMoleculeSearch";
 import type { MoleculeSearchResult } from "~/app/contribute/nexafs/types";
 import { calculateBareAtomAbsorption } from "~/app/contribute/nexafs/utils/bareAtomCalculation";
-import { computeNormalizationForExperiment } from "~/app/contribute/nexafs/utils";
+import {
+  computeNormalizationForExperiment,
+  computeZeroOneNormalization,
+} from "~/app/contribute/nexafs/utils";
 import type {
   DatasetState,
+  PeakData,
 } from "~/app/contribute/nexafs/types";
 import {
   EXPERIMENT_TYPE_OPTIONS,
@@ -58,6 +62,7 @@ export function DatasetContent({
   const [bareAtomError, setBareAtomError] = useState<string | null>(null);
   const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
     useState<"pre" | "post" | null>(null);
+  const [isManualPeakMode, setIsManualPeakMode] = useState(false);
 
   // Molecule search hook - per dataset
   const {
@@ -165,8 +170,6 @@ export function DatasetContent({
   // Compute normalization when regions are selected
   useEffect(() => {
     if (
-      dataset.bareAtomPoints &&
-      dataset.bareAtomPoints.length > 0 &&
       dataset.spectrumPoints.length > 0 &&
       dataset.normalizationRegions.pre &&
       dataset.normalizationRegions.post
@@ -174,45 +177,73 @@ export function DatasetContent({
       const preRange = dataset.normalizationRegions.pre;
       const postRange = dataset.normalizationRegions.post;
 
-      // Count points in each range
-      const preCount = dataset.spectrumPoints.filter(
-        (p) => p.energy >= preRange[0] && p.energy <= preRange[1],
-      ).length;
-      const postCount = dataset.spectrumPoints.filter(
-        (p) => p.energy >= postRange[0] && p.energy <= postRange[1],
-      ).length;
+      let result: ReturnType<typeof computeNormalizationForExperiment> | null =
+        null;
 
-      if (preCount > 0 && postCount > 0) {
-        const result = computeNormalizationForExperiment(
-          dataset.spectrumPoints,
-          dataset.bareAtomPoints,
-          preCount,
-          postCount,
-        );
+      if (dataset.normalizationType === "bare-atom") {
+        // Bare atom normalization requires bare atom points
+        if (
+          dataset.bareAtomPoints &&
+          dataset.bareAtomPoints.length > 0
+        ) {
+          // Count points in each range
+          const preCount = dataset.spectrumPoints.filter(
+            (p) => p.energy >= preRange[0] && p.energy <= preRange[1],
+          ).length;
+          const postCount = dataset.spectrumPoints.filter(
+            (p) => p.energy >= postRange[0] && p.energy <= postRange[1],
+          ).length;
 
-        if (result) {
-          // Only update if normalization actually changed
-          const currentNormalization = dataset.normalization;
-          const needsUpdate =
-            !currentNormalization ||
-            currentNormalization.scale !== result.scale ||
-            currentNormalization.offset !== result.offset ||
-            currentNormalization.preRange?.[0] !== result.preRange?.[0] ||
-            currentNormalization.preRange?.[1] !== result.preRange?.[1] ||
-            currentNormalization.postRange?.[0] !== result.postRange?.[0] ||
-            currentNormalization.postRange?.[1] !== result.postRange?.[1];
-
-          if (needsUpdate) {
-            onDatasetUpdate(dataset.id, {
-              normalizedPoints: result.normalizedPoints,
-              normalization: {
-                scale: result.scale,
-                offset: result.offset,
-                preRange: result.preRange,
-                postRange: result.postRange,
-              },
-            });
+          if (preCount > 0 && postCount > 0) {
+            result = computeNormalizationForExperiment(
+              dataset.spectrumPoints,
+              dataset.bareAtomPoints,
+              preCount,
+              postCount,
+            );
           }
+        }
+      } else {
+        // Zero-one normalization
+        result = computeZeroOneNormalization(
+          dataset.spectrumPoints,
+          preRange,
+          postRange,
+        );
+      }
+
+      if (result) {
+        // Only update if normalization actually changed
+        const currentNormalization = dataset.normalization;
+        const needsUpdate =
+          !currentNormalization ||
+          currentNormalization.scale !== result.scale ||
+          currentNormalization.offset !== result.offset ||
+          currentNormalization.preRange?.[0] !== result.preRange?.[0] ||
+          currentNormalization.preRange?.[1] !== result.preRange?.[1] ||
+          currentNormalization.postRange?.[0] !== result.postRange?.[0] ||
+          currentNormalization.postRange?.[1] !== result.postRange?.[1];
+
+        if (needsUpdate) {
+          onDatasetUpdate(dataset.id, {
+            normalizedPoints: result.normalizedPoints,
+            normalization: {
+              scale: result.scale,
+              offset: result.offset,
+              preRange: result.preRange,
+              postRange: result.postRange,
+            },
+          });
+        }
+      } else {
+        // Clear normalization if it cannot be computed
+        // This happens when switching to bare-atom without bare atom points,
+        // or when zero-one normalization fails
+        if (dataset.normalizedPoints !== null || dataset.normalization !== null) {
+          onDatasetUpdate(dataset.id, {
+            normalizedPoints: null,
+            normalization: null,
+          });
         }
       }
     }
@@ -224,6 +255,7 @@ export function DatasetContent({
     dataset.normalizationRegions.pre?.[1],
     dataset.normalizationRegions.post?.[0],
     dataset.normalizationRegions.post?.[1],
+    dataset.normalizationType,
     dataset.id,
   ]);
 
@@ -322,6 +354,10 @@ export function DatasetContent({
           hasData={dataset.spectrumPoints.length > 0}
           hasNormalization={!!dataset.normalization}
           normalizationLocked={dataset.normalizationLocked}
+          normalizationType={dataset.normalizationType}
+          onNormalizationTypeChange={(type) => {
+            onDatasetUpdate(dataset.id, { normalizationType: type });
+          }}
           onPreEdgeSelect={() => setNormalizationSelectionTarget("pre")}
           onPostEdgeSelect={() => setNormalizationSelectionTarget("post")}
           onToggleLock={handleToggleLock}
@@ -357,6 +393,17 @@ export function DatasetContent({
             });
             onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
           }}
+          onPeakAdd={(energy) => {
+            const newPeak = {
+              energy: Math.round(energy * 100) / 100,
+              id: `peak-manual-${Date.now()}`,
+            } as PeakData & { id: string };
+            onDatasetUpdate(dataset.id, {
+              peaks: [...dataset.peaks, newPeak],
+            });
+          }}
+          isManualPeakMode={isManualPeakMode}
+          onManualPeakModeChange={setIsManualPeakMode}
         />
 
         {/* Plot and Analysis */}
@@ -403,6 +450,16 @@ export function DatasetContent({
                     selectedPeakId: dataset.selectedPeakId === peakId ? null : dataset.selectedPeakId,
                   });
                 }}
+                onPeakAdd={(energy) => {
+                  const newPeak = {
+                    energy: Math.round(energy * 100) / 100,
+                    id: `peak-manual-${Date.now()}`,
+                  } as PeakData & { id: string };
+                  onDatasetUpdate(dataset.id, {
+                    peaks: [...dataset.peaks, newPeak],
+                  });
+                }}
+                isManualPeakMode={isManualPeakMode}
               />
             ) : dataset.spectrumError ? (
               <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">
@@ -447,6 +504,16 @@ export function DatasetContent({
                       ? "Draw on the plot to select the pre edge region"
                       : "Draw on the plot to select the post edge region"}
                   </span>
+                </div>
+              </div>
+            )}
+
+            {/* Peak Drag Toast */}
+            {dataset.peaks.length > 0 && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                <div className="flex items-center gap-2">
+                  <PencilIcon className="h-4 w-4" />
+                  <span>You can drag existing peaks on the plot to adjust.</span>
                 </div>
               </div>
             )}
