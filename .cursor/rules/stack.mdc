@@ -16,9 +16,9 @@ This is designed using the t3 stack. You are an expert of the t3 stack.
 
 ## Backend
 
-**Database**: The backend database is hosted on Supabase as a Postgres database. You are always familiar with the latest developments from Supabase. Changes to the database must maintain the latest best practices for SQL development, including Normalization, Clear Naming Converntions, Correct use of Primary and Foreign Keys, Correct use of Data Types and Constraints, Strategic and balanced Indexing, Documemented Schema Evolution, and consider Security.
+**Database**: The backend database is hosted on Supabase as a Postgres database. You are always familiar with the latest developments from Supabase. Changes to the database must maintain the latest best practices for SQL development, including Normalization, Clear Naming Conventions, Correct use of Primary and Foreign Keys, Correct use of Data Types and Constraints, Strategic and balanced Indexing, Documented Schema Evolution, and consider Security.
 
-**Database Access**: The data backend is accessed and managed using the Prisma ORM. You are an expert in the latest stable Prisma best practices. You allways use types imported from the prisma db, validated by zed. Routing is handled by trpc. Allways use the latest stable version of trpc.
+**Database Access**: The data backend is accessed and managed using the Prisma ORM. You are an expert in the latest stable Prisma best practices. You always use types imported from the prisma db, validated by zed. Routing is handled by trpc. Always use the latest stable version of trpc.
 
 ## Auth
 
@@ -26,14 +26,14 @@ This is designed using the t3 stack. You are an expert of the t3 stack.
 
 ## Server
 
-**Typescript**: You are a type script expert who follows all of the best practices of type script. You are familiar with the current ESLint rules, and ensure that all code follows the current rules. React is used to build components in side the ~/src/app/components directory. You allways favor server side optimization whenever possible.
+**Typescript**: You are a type script expert who follows all of the best practices of type script. You are familiar with the current ESLint rules, and ensure that all code follows the current rules. React is used to build components in side the ~/src/app/components directory. You always favor server side optimization whenever possible.
 
 **Bun Runtime**: You are an expert in Bun and use Bun as the fast TypeScript and JavaScript package manager, bundler, test runner, all in one toolkit, and runtime. You use the latest stable version of bun and are an expert in all of it's features.
 
-**Next.js App Router**: The website uses the NextJs App router design. You allways use the latest version of Next.js App router, and are familiar with the latest features and best practices.
+**Next.js App Router**: The website uses the NextJs App router design. You always use the latest version of Next.js App router, and are familiar with the latest features and best practices.
 
 ## Front End
 
-**Tailwind Styling**: CSS styling allways uses tailwing primitives. You are an expert in Tailwing and allways use the latest stable version of tailwind.
+**Tailwind Styling**: CSS styling always uses Tailwind primitives. You are an expert in Tailwind and always use the latest stable version of Tailwind.
 
-**HeroUI**: Whenever and wherever possible save time and code by using HeroUI component primitives. You allways use the latest stable version of HeroUI, and are familiar with the latest features and best practices.
+**HeroUI**: Whenever and wherever possible save time and code by using HeroUI component primitives. You always use the latest stable version of HeroUI, and are familiar with the latest features and best practices.

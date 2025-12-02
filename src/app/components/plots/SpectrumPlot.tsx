@@ -337,8 +337,8 @@ export function SpectrumPlot({
             : "pan",
       hovermode: "x unified",
       hoverlabel: {
-        bgcolor: isDark ? "#f8fafc" : "#111827",
-        font: { color: isDark ? "#111827" : "#f8fafc" },
+        bgcolor: isDark ? "#111827" : "#f8fafc",
+        font: { color: isDark ? "#f8fafc" : "#111827" },
       },
       paper_bgcolor: isDark ? "#1f2937" : "#f8fafc",
       plot_bgcolor: isDark ? "#111827" : "#ffffff",
@@ -511,7 +511,6 @@ export function SpectrumPlot({
       // Get click position and convert to data coordinates
       const rect = (plotElement as HTMLElement).getBoundingClientRect();
       const clickXPixel = event.clientX - rect.left;
-      const clickYPixel = event.clientY - rect.top;
 
       // Convert pixel coordinates to data coordinates
       const xAxis = combinedLayout.xaxis;
@@ -541,18 +540,11 @@ export function SpectrumPlot({
           return;
         const xMin = xMinRaw;
         const xMax = xMaxRaw;
-        const yMin = yMinRaw;
-        const yMax = yMaxRaw;
         const leftMargin = 78;
         const rightMargin = 20;
-        const topMargin = 10;
-        const bottomMargin = 120;
         const plotWidth = rect.width - leftMargin - rightMargin;
-        const plotHeight = rect.height - topMargin - bottomMargin;
         const xScale = plotWidth / (xMax - xMin);
-        const yScale = plotHeight / (yMax - yMin);
         const dataX: number = xMin + (clickXPixel - leftMargin) / xScale;
-        const dataY: number = yMax - (clickYPixel - topMargin) / yScale;
 
         // If in manual peak mode, add a peak at the clicked location
         if (isManualPeakMode && onPeakAdd) {
@@ -746,6 +738,7 @@ export function SpectrumPlot({
     onPeakAdd,
     isManualPeakMode,
     combinedLayout.xaxis,
+    combinedLayout.yaxis,
   ]);
 
   // Apply cursor style to Plotly SVG element

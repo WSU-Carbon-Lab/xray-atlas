@@ -37,6 +37,7 @@ export function SubToolButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={tooltip}
       className={`${baseClasses} ${sizeClasses} ${
         isActive ? activeClasses : inactiveClasses
       } ${className}`}
