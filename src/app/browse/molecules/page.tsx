@@ -13,6 +13,7 @@ import { BrowseTabs } from "~/app/components/BrowseTabs";
 import { Squares2X2Icon, ListBulletIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { AddMoleculeButton } from "~/app/components/AddEntityButtons";
+import { ToggleIconButton } from "~/app/components/ToggleIconButton";
 
 function MoleculesBrowseContent() {
   const searchParams = useSearchParams();
@@ -142,33 +143,35 @@ function MoleculesBrowseContent() {
       };
     }
 
-    const synonyms = molecule.moleculesynonyms.map(
+    // TypeScript now knows this is PaginatedResultMolecule
+    const paginatedMolecule = molecule as PaginatedResultMolecule;
+    const synonyms = paginatedMolecule.moleculesynonyms.map(
       (s: { synonym: string }) => s.synonym,
     );
-    const primarySynonym = molecule.moleculesynonyms.find(
+    const primarySynonym = paginatedMolecule.moleculesynonyms.find(
       (s: { order?: number }) => s.order === 0,
     );
     const displayName =
-      primarySynonym?.synonym ?? synonyms[0] ?? molecule.iupacname;
+      primarySynonym?.synonym ?? synonyms[0] ?? paginatedMolecule.iupacname;
 
     return {
       name: displayName,
       commonName: synonyms.length > 0 ? synonyms : undefined,
-      chemical_formula: molecule.chemicalformula,
-      SMILES: molecule.smiles,
-      InChI: molecule.inchi,
-      pubChemCid: molecule.pubchemcid,
-      casNumber: molecule.casnumber,
-      imageUrl: molecule.imageurl ?? undefined,
-      id: molecule.id,
-      upvoteCount: molecule.upvoteCount,
+      chemical_formula: paginatedMolecule.chemicalformula,
+      SMILES: paginatedMolecule.smiles,
+      InChI: paginatedMolecule.inchi,
+      pubChemCid: paginatedMolecule.pubchemcid,
+      casNumber: paginatedMolecule.casnumber,
+      imageUrl: paginatedMolecule.imageurl ?? undefined,
+      id: paginatedMolecule.id,
+      upvoteCount: paginatedMolecule.upvoteCount,
       userHasUpvoted: false,
-      createdBy: molecule.users
+      createdBy: paginatedMolecule.users
         ? {
-            id: molecule.users.id,
-            name: molecule.users.name,
-            email: molecule.users.email,
-            imageurl: molecule.users.imageurl,
+            id: paginatedMolecule.users.id,
+            name: paginatedMolecule.users.name,
+            email: paginatedMolecule.users.email,
+            imageurl: paginatedMolecule.users.imageurl,
           }
         : null,
     };
@@ -251,28 +254,18 @@ function MoleculesBrowseContent() {
           <div className="flex items-center gap-4">
             {/* View Toggle */}
             <div className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-600 dark:bg-gray-800">
-              <button
+              <ToggleIconButton
+                icon={<ListBulletIcon className="h-4 w-4" />}
+                isActive={viewMode === "compact"}
                 onClick={() => setViewMode("compact")}
-                className={`rounded px-3 py-1.5 text-sm transition-colors ${
-                  viewMode === "compact"
-                    ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                }`}
-                aria-label="Compact view"
-              >
-                <ListBulletIcon className="h-4 w-4" />
-              </button>
-              <button
+                ariaLabel="Compact view"
+              />
+              <ToggleIconButton
+                icon={<Squares2X2Icon className="h-4 w-4" />}
+                isActive={viewMode === "spacious"}
                 onClick={() => setViewMode("spacious")}
-                className={`rounded px-3 py-1.5 text-sm transition-colors ${
-                  viewMode === "spacious"
-                    ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                }`}
-                aria-label="Spacious view"
-              >
-                <Squares2X2Icon className="h-4 w-4" />
-              </button>
+                ariaLabel="Spacious view"
+              />
             </div>
 
             {!hasSearchQuery && (
