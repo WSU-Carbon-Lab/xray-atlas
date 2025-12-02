@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   LockClosedIcon,
   LockOpenIcon,
-  TrashIcon,
   InformationCircleIcon,
   PencilIcon,
   Square3Stack3DIcon,
@@ -12,7 +11,6 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import {
-  Atom,
   Mountain,
   ArrowLeftToLine,
   ArrowRightToLine,
@@ -29,7 +27,6 @@ import { SubToolButton } from "./SubToolButton";
 import type {
   PeakData,
   NormalizationType,
-  MoleculeSearchResult,
 } from "~/app/contribute/nexafs/types";
 import {
   detectPeaks,
@@ -107,7 +104,7 @@ export function AnalysisToolbar({
   onPeaksChange,
   onPeakSelect,
   onPeakUpdate,
-  onPeakAdd,
+  onPeakAdd: _onPeakAdd,
   isManualPeakMode: externalManualPeakMode,
   onManualPeakModeChange,
 }: AnalysisToolbarProps) {
@@ -115,18 +112,24 @@ export function AnalysisToolbar({
   const isManualPeakMode = externalManualPeakMode ?? internalManualPeakMode;
   const [selectedTool, setSelectedTool] = useState<"normalize" | "peaks">("normalize");
   const [peakDetectionMode, setPeakDetectionMode] = useState<"auto" | "manual" | null>(null);
+  const peakDetectionModeRef = useRef(peakDetectionMode);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    peakDetectionModeRef.current = peakDetectionMode;
+  }, [peakDetectionMode]);
 
   // Sync peakDetectionMode with external isManualPeakMode
   useEffect(() => {
     if (externalManualPeakMode !== undefined) {
       if (externalManualPeakMode) {
         setPeakDetectionMode("manual");
-      } else if (peakDetectionMode === "manual") {
+      } else if (peakDetectionModeRef.current === "manual") {
         // Only clear if it was manual, don't override auto
         setPeakDetectionMode(null);
       }
     }
-  }, [externalManualPeakMode]); // Remove peakDetectionMode from dependencies to avoid loops
+  }, [externalManualPeakMode]);
   const [isAddingPeak, setIsAddingPeak] = useState(false);
   const [newPeakEnergy, setNewPeakEnergy] = useState("");
   const [newPeakBond, setNewPeakBond] = useState("");
@@ -143,18 +146,8 @@ export function AnalysisToolbar({
   });
 
   // Track which peaks are auto-detected vs manually added
-  const [autoDetectedPeakIds, setAutoDetectedPeakIds] = useState<Set<string>>(
+  const [_autoDetectedPeakIds, setAutoDetectedPeakIds] = useState<Set<string>>(
     new Set(),
-  );
-  const manualPeaks = useMemo(
-    () =>
-      peaks.filter(
-        (peak) =>
-          "id" in peak &&
-          typeof (peak as { id?: string }).id === "string" &&
-          !autoDetectedPeakIds.has((peak as { id: string }).id),
-      ),
-    [peaks, autoDetectedPeakIds],
   );
 
   // Build peak detection options from params
@@ -222,40 +215,6 @@ export function AnalysisToolbar({
     // Replace only auto-detected peaks, keep manual ones
     onPeaksChange([...currentManualPeaks, ...newPeaks]);
   }, [peakParams.minProminence, peakParams.minDistance, peakParams.width, peakParams.height, peakParams.threshold, peakDetectionMode, normalizedPoints, spectrumPoints, buildPeakOptions, peaks, onPeaksChange]);
-
-  // Function to perform peak detection - for manual trigger
-  const performPeakDetection = useCallback(() => {
-    const pointsToAnalyze = normalizedPoints ?? spectrumPoints;
-
-    if (pointsToAnalyze.length === 0) {
-      return;
-    }
-
-    const detected = detectPeaks(pointsToAnalyze, buildPeakOptions);
-    const newPeaks = convertToPeakData(detected).map((peak, index) => ({
-      ...peak,
-      id: `peak-auto-${Date.now()}-${index}`,
-    }));
-
-    const newAutoDetectedIds = new Set(
-      newPeaks
-        .map((p) => ("id" in p && typeof p.id === "string" ? p.id : ""))
-        .filter(Boolean),
-    );
-    setAutoDetectedPeakIds(newAutoDetectedIds);
-
-    // Get current manual peaks (not in newAutoDetectedIds)
-    // Use newAutoDetectedIds instead of autoDetectedPeakIds to avoid stale closure
-    const currentManualPeaks = peaks.filter(
-      (peak) =>
-        "id" in peak &&
-        typeof (peak as { id?: string }).id === "string" &&
-        !newAutoDetectedIds.has((peak as { id: string }).id),
-    );
-
-    // Replace only auto-detected peaks, keep manual ones
-    onPeaksChange([...currentManualPeaks, ...newPeaks]);
-  }, [normalizedPoints, spectrumPoints, buildPeakOptions, peaks, onPeaksChange]);
 
   const handleAutoDetectPeaks = () => {
     // Set auto-detect as the active mode
@@ -739,6 +698,7 @@ export function AnalysisToolbar({
                               }}
                               className="rounded p-0.5 text-gray-600 hover:text-red-600 hover:bg-red-100 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 shrink-0"
                               title="Delete peak"
+                              aria-label="Delete peak"
                             >
                               <XMarkIcon className="h-3 w-3" />
                             </button>

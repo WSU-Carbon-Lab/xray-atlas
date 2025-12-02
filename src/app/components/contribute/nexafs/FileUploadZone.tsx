@@ -102,7 +102,7 @@ export function FileUploadZone({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       handleFiles(e.target.files);
       // Reset input so same file can be selected again
-      // In React 19, we can't directly modify e.target.value, so we use a ref instead
+      // Directly modifying e.target.value is generally unreliable in React due to synthetic events, so we use a ref instead
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }

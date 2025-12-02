@@ -107,7 +107,7 @@ function findLocalMaxima(points: SpectrumPoint[]): number[] {
  */
 function calculateMinDistance(points: SpectrumPoint[]): number {
   if (points.length < 2) {
-    return 0.05; // Default 0.1 eV
+    return 0.05; // Default 0.05 eV
   }
 
   const energies = points.map((p) => p.energy);
@@ -115,7 +115,7 @@ function calculateMinDistance(points: SpectrumPoint[]): number {
   const maxEnergy = Math.max(...energies);
   const energyRange = maxEnergy - minEnergy;
 
-  // Use 1% of energy range as minimum distance, but at least 0.1 eV
+  // Use 1% of energy range as minimum distance, but at least 0.05 eV
   return Math.max(0.05, energyRange * 0.01);
 }
 
@@ -178,11 +178,16 @@ export function detectPeaks(
     filteredPeaks = filteredPeaks.filter((peak) => peak.intensity >= minHeight);
   }
 
-  // Filter by threshold if specified
+  // Filter by threshold if specified (minimum vertical distance to neighbors)
   if (minThreshold !== undefined) {
-    filteredPeaks = filteredPeaks.filter(
-      (peak) => peak.intensity >= minThreshold,
-    );
+    filteredPeaks = filteredPeaks.filter((peak) => {
+      // Get left and right neighbor intensities
+      const leftIntensity = peak.index > 0 ? sortedPoints[peak.index - 1]!.absorption : -Infinity;
+      const rightIntensity = peak.index < sortedPoints.length - 1 ? sortedPoints[peak.index + 1]!.absorption : -Infinity;
+      const neighborMax = Math.max(leftIntensity, rightIntensity);
+      const verticalDistance = peak.intensity - neighborMax;
+      return verticalDistance >= minThreshold;
+    });
   }
 
   // Filter by minimum distance and width
