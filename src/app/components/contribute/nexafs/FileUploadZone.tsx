@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { CloudArrowUpIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 interface FileUploadZoneProps {
@@ -18,6 +18,7 @@ export function FileUploadZone({
 }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): string | null => {
     // Check file type
@@ -70,7 +71,7 @@ export function FileUploadZone({
       }
       // validateFile is defined in the component scope and uses maxFileSize and acceptedFileTypes
       // which are already in the dependency array, so it's safe to omit
-       
+
     },
     [onFilesSelected, maxFileSize, acceptedFileTypes],
   );
@@ -101,7 +102,10 @@ export function FileUploadZone({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       handleFiles(e.target.files);
       // Reset input so same file can be selected again
-      e.target.value = "";
+      // In React 19, we can't directly modify e.target.value, so we use a ref instead
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     },
     [handleFiles],
   );
@@ -119,6 +123,7 @@ export function FileUploadZone({
         }`}
       >
         <input
+          ref={fileInputRef}
           type="file"
           id="file-upload"
           accept={acceptedFileTypes.join(",")}

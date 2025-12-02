@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useRef, useEffect } from "react";
+import { useTheme } from "next-themes";
 import type { Layout, PlotData, PlotSelectionEvent } from "plotly.js";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
@@ -57,6 +58,8 @@ type SpectrumPlotProps = {
   onPeakUpdate?: (peakId: string, energy: number) => void;
   onPeakSelect?: (peakId: string | null) => void;
   onPeakDelete?: (peakId: string) => void;
+  onPeakAdd?: (energy: number) => void;
+  isManualPeakMode?: boolean;
 };
 
 const COLORS = [
@@ -101,7 +104,11 @@ export function SpectrumPlot({
   onPeakUpdate,
   onPeakSelect,
   onPeakDelete,
+  onPeakAdd,
+  isManualPeakMode = false,
 }: SpectrumPlotProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
   const groupedTraces = useMemo(() => {
     const groups = new Map<
       string,
@@ -322,30 +329,46 @@ export function SpectrumPlot({
     })();
 
     return {
-      dragmode: selectionTarget ? "select" : "pan",
+      dragmode:
+        isManualPeakMode
+          ? false
+          : selectionTarget
+            ? "select"
+            : "pan",
       hovermode: "x unified",
       hoverlabel: {
-        bgcolor: "#111827",
-        font: { color: "#f8fafc" },
+        bgcolor: isDark ? "#f8fafc" : "#111827",
+        font: { color: isDark ? "#111827" : "#f8fafc" },
       },
-      paper_bgcolor: "#f8fafc",
-      plot_bgcolor: "#ffffff",
+      paper_bgcolor: isDark ? "#1f2937" : "#f8fafc",
+      plot_bgcolor: isDark ? "#111827" : "#ffffff",
+      title: {
+        text: "",
+      },
+      subtitle: {
+        text: "",
+      } as { text: string },
+      annotations: [], // Remove any default annotations that might show as subtitle
       height,
       margin: { t: 10, r: 20, b: 120, l: 78, pad: 0 },
       font: {
         family: "Inter, system-ui, sans-serif",
-        color: "#4b5563",
+        color: isDark ? "#d1d5db" : "#4b5563",
       },
       xaxis: {
         title: { text: "Energy (eV)", standoff: 18 },
-        gridcolor: "rgba(148, 163, 184, 0.15)",
+        gridcolor: isDark
+          ? "rgba(75, 85, 99, 0.3)"
+          : "rgba(148, 163, 184, 0.15)",
         zeroline: false,
         rangemode: "normal",
         range: energyRange,
       },
       yaxis: {
         title: { text: "Intensity", standoff: 18 },
-        gridcolor: "rgba(148, 163, 184, 0.15)",
+        gridcolor: isDark
+          ? "rgba(75, 85, 99, 0.3)"
+          : "rgba(148, 163, 184, 0.15)",
         zeroline: false,
         rangemode: "normal",
         range: measurementRange,
@@ -356,9 +379,11 @@ export function SpectrumPlot({
         xanchor: "center",
         x: 0.5,
         y: -0.35,
-        bgcolor: "rgba(255,255,255,0.9)",
+        bgcolor: isDark ? "rgba(31, 41, 55, 0.9)" : "rgba(255,255,255,0.9)",
         borderwidth: 1,
-        bordercolor: "rgba(148, 163, 184, 0.3)",
+        bordercolor: isDark
+          ? "rgba(75, 85, 99, 0.5)"
+          : "rgba(148, 163, 184, 0.3)",
         font: {
           size: 13,
         },
@@ -385,6 +410,7 @@ export function SpectrumPlot({
     selectedPeakId,
     referenceCurves,
     totalLegendItems,
+    isDark,
   ]);
 
   const handleSelected = useCallback(
@@ -452,9 +478,16 @@ export function SpectrumPlot({
     const plotElement = plotRef.current.querySelector(".js-plotly-plot");
     if (!plotElement) return;
 
-    // Handle keyboard Delete key
+    // Handle keyboard Delete key - use global listener to work during drag operations
     const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.key === "Delete" || event.key === "Backspace") && selectedPeakId && onPeakDelete) {
+      // Only handle if a peak is selected and we're not typing in an input
+      if (
+        (event.key === "Delete" || event.key === "Backspace") &&
+        selectedPeakId &&
+        onPeakDelete &&
+        !(event.target instanceof HTMLInputElement) &&
+        !(event.target instanceof HTMLTextAreaElement)
+      ) {
         event.preventDefault();
         event.stopPropagation();
         onPeakDelete(selectedPeakId);
@@ -467,37 +500,76 @@ export function SpectrumPlot({
       plotRef.current.addEventListener("keydown", handleKeyDown);
     }
 
+    // Also add global keyboard listener to catch Delete key even during drag operations
+    window.addEventListener("keydown", handleKeyDown);
+
     // Handle peak clicks - detect clicks on or near peak lines
     const handlePlotClick = (event: MouseEvent) => {
-      if (!onPeakSelect) return;
-
       const target = event.target as HTMLElement | null;
       if (!target || !plotElement) return;
-
-      // Check if click was directly on a shape (peak line)
-      const isShapeElement =
-        target.tagName === "path" ||
-        target.closest('g[class*="shape"]') !== null ||
-        target.closest('path[fill="none"]') !== null;
 
       // Get click position and convert to data coordinates
       const rect = (plotElement as HTMLElement).getBoundingClientRect();
       const clickXPixel = event.clientX - rect.left;
+      const clickYPixel = event.clientY - rect.top;
 
       // Convert pixel coordinates to data coordinates
       const xAxis = combinedLayout.xaxis;
+      const yAxis = combinedLayout.yaxis;
       const xAxisRange = xAxis?.range;
-      if (xAxisRange && typeof xAxisRange === "object" && Array.isArray(xAxisRange) && xAxisRange.length === 2) {
+      const yAxisRange = yAxis?.range;
+      if (
+        xAxisRange &&
+        typeof xAxisRange === "object" &&
+        Array.isArray(xAxisRange) &&
+        xAxisRange.length === 2 &&
+        yAxisRange &&
+        typeof yAxisRange === "object" &&
+        Array.isArray(yAxisRange) &&
+        yAxisRange.length === 2
+      ) {
         const xMinRaw: unknown = xAxisRange[0];
         const xMaxRaw: unknown = xAxisRange[1];
-        if (typeof xMinRaw !== "number" || typeof xMaxRaw !== "number") return;
+        const yMinRaw: unknown = yAxisRange[0];
+        const yMaxRaw: unknown = yAxisRange[1];
+        if (
+          typeof xMinRaw !== "number" ||
+          typeof xMaxRaw !== "number" ||
+          typeof yMinRaw !== "number" ||
+          typeof yMaxRaw !== "number"
+        )
+          return;
         const xMin = xMinRaw;
         const xMax = xMaxRaw;
+        const yMin = yMinRaw;
+        const yMax = yMaxRaw;
         const leftMargin = 78;
         const rightMargin = 20;
+        const topMargin = 10;
+        const bottomMargin = 120;
         const plotWidth = rect.width - leftMargin - rightMargin;
+        const plotHeight = rect.height - topMargin - bottomMargin;
         const xScale = plotWidth / (xMax - xMin);
+        const yScale = plotHeight / (yMax - yMin);
         const dataX: number = xMin + (clickXPixel - leftMargin) / xScale;
+        const dataY: number = yMax - (clickYPixel - topMargin) / yScale;
+
+        // If in manual peak mode, add a peak at the clicked location
+        if (isManualPeakMode && onPeakAdd) {
+          event.preventDefault();
+          event.stopPropagation();
+          onPeakAdd(dataX);
+          return;
+        }
+
+        // Otherwise, handle peak selection (existing behavior)
+        if (!onPeakSelect) return;
+
+        // Check if click was directly on a shape (peak line)
+        const isShapeElement =
+          target.tagName === "path" ||
+          target.closest('g[class*="shape"]') !== null ||
+          target.closest('path[fill="none"]') !== null;
 
         // Find closest peak (within reasonable threshold)
         let closestPeak: Peak | null = null;
@@ -662,8 +734,43 @@ export function SpectrumPlot({
       if (plotRef.current instanceof HTMLElement) {
         plotRef.current.removeEventListener("keydown", handleKeyDown);
       }
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onPeakUpdate, peaks, combinedLayout.shapes, selectedPeakId, onPeakSelect, onPeakDelete]);
+  }, [
+    onPeakUpdate,
+    peaks,
+    combinedLayout.shapes,
+    selectedPeakId,
+    onPeakSelect,
+    onPeakDelete,
+    onPeakAdd,
+    isManualPeakMode,
+    combinedLayout.xaxis,
+  ]);
+
+  // Apply cursor style to Plotly SVG element
+  useEffect(() => {
+    if (!plotRef.current) return;
+    const plotElement = plotRef.current.querySelector(".js-plotly-plot");
+    if (!plotElement) return;
+
+    const svgElement = plotElement.querySelector("svg");
+    if (!svgElement) return;
+
+    const cursorStyle = isManualPeakMode
+      ? "crosshair"
+      : selectionTarget
+        ? "text"
+        : "default";
+
+    svgElement.style.cursor = cursorStyle;
+
+    return () => {
+      if (svgElement) {
+        svgElement.style.cursor = "";
+      }
+    };
+  }, [isManualPeakMode, selectionTarget]);
 
   if (points.length === 0) {
     return (
@@ -673,10 +780,19 @@ export function SpectrumPlot({
     );
   }
 
+  // Determine cursor style based on mode
+  // For manual peak mode, use crosshair (flag-like precision)
+  // For pre/post edge selection, use text cursor (indicates selection)
+  const cursorStyle = isManualPeakMode
+    ? "cursor-crosshair"
+    : selectionTarget
+      ? "cursor-text"
+      : "";
+
   return (
     <div
       ref={plotRef}
-      className="focus:outline-none focus:ring-2 focus:ring-wsu-crimson/20 focus:ring-offset-2 rounded-lg"
+      className={`focus:outline-none focus:ring-2 focus:ring-wsu-crimson/20 focus:ring-offset-2 rounded-lg ${cursorStyle}`}
       onClick={() => {
         // Focus the container when clicked to enable keyboard events
         if (plotRef.current instanceof HTMLElement) {

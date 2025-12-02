@@ -133,6 +133,8 @@ export type SampleInfo = {
   newVendorUrl: string;
 };
 
+export type NormalizationType = "bare-atom" | "zero-one";
+
 export type DatasetState = {
   id: string;
   file: File;
@@ -145,6 +147,7 @@ export type DatasetState = {
   normalization: ExperimentNormalization | null;
   normalizationRegions: { pre: [number, number] | null; post: [number, number] | null };
   normalizationLocked: boolean;
+  normalizationType: NormalizationType;
   peaks: PeakData[];
   selectedPeakId: string | null;
   moleculeId: string | null;
@@ -176,6 +179,7 @@ export function createEmptyDatasetState(file: File): DatasetState {
     normalization: null,
     normalizationRegions: { pre: null, post: null },
     normalizationLocked: false,
+    normalizationType: "bare-atom",
     peaks: [],
     selectedPeakId: null,
     moleculeId: null,

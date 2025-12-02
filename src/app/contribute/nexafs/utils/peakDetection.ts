@@ -4,6 +4,9 @@ import type { PeakData } from "../types";
 export interface PeakDetectionOptions {
   minProminence?: number; // Minimum prominence as fraction of max intensity (default 0.05 = 5%)
   minDistance?: number; // Minimum distance between peaks in eV (default: auto-calculated)
+  width?: number; // Required width of peaks in number of samples (default: undefined, no width filter)
+  height?: number; // Required height of peaks as fraction of max intensity (default: undefined, no height filter)
+  threshold?: number; // Required threshold of peaks as fraction of max intensity (default: undefined, no threshold filter)
 }
 
 export interface DetectedPeak {
@@ -104,7 +107,7 @@ function findLocalMaxima(points: SpectrumPoint[]): number[] {
  */
 function calculateMinDistance(points: SpectrumPoint[]): number {
   if (points.length < 2) {
-    return 0.1; // Default 0.1 eV
+    return 0.05; // Default 0.1 eV
   }
 
   const energies = points.map((p) => p.energy);
@@ -113,7 +116,7 @@ function calculateMinDistance(points: SpectrumPoint[]): number {
   const energyRange = maxEnergy - minEnergy;
 
   // Use 1% of energy range as minimum distance, but at least 0.1 eV
-  return Math.max(0.1, energyRange * 0.01);
+  return Math.max(0.05, energyRange * 0.01);
 }
 
 /**
@@ -155,17 +158,36 @@ export function detectPeaks(
     });
   }
 
-  // Filter by minimum prominence
+  // Filter by minimum prominence, height, and threshold
   const maxIntensity = Math.max(...sortedPoints.map((p) => p.absorption));
   const minProminence = options.minProminence ?? 0.05; // Default 5% of max
   const minProminenceValue = maxIntensity * minProminence;
+  const minHeight = options.height
+    ? maxIntensity * options.height
+    : undefined;
+  const minThreshold = options.threshold
+    ? maxIntensity * options.threshold
+    : undefined;
 
-  const filteredPeaks = peaksWithProminence.filter(
+  let filteredPeaks = peaksWithProminence.filter(
     (peak) => peak.prominence >= minProminenceValue,
   );
 
-  // Filter by minimum distance
+  // Filter by height if specified
+  if (minHeight !== undefined) {
+    filteredPeaks = filteredPeaks.filter((peak) => peak.intensity >= minHeight);
+  }
+
+  // Filter by threshold if specified
+  if (minThreshold !== undefined) {
+    filteredPeaks = filteredPeaks.filter(
+      (peak) => peak.intensity >= minThreshold,
+    );
+  }
+
+  // Filter by minimum distance and width
   const minDistance = options.minDistance ?? calculateMinDistance(sortedPoints);
+  const minWidth = options.width;
   const finalPeaks: DetectedPeak[] = [];
 
   // Sort by intensity (descending) to prioritize stronger peaks
@@ -179,14 +201,47 @@ export function detectPeaks(
       (existing) => Math.abs(existing.energy - peak.energy) < minDistance,
     );
 
-    if (!tooClose) {
-      finalPeaks.push({
-        energy: peak.energy,
-        intensity: peak.intensity,
-        prominence: peak.prominence,
-        index: peak.index,
-      });
+    if (tooClose) {
+      continue;
     }
+
+    // Filter by width if specified
+    if (minWidth !== undefined && minWidth > 0) {
+      // Calculate peak width at half prominence
+      const halfProminence = peak.intensity - peak.prominence / 2;
+      let leftWidth = 0;
+      let rightWidth = 0;
+
+      // Find left edge
+      for (let i = peak.index - 1; i >= 0; i--) {
+        if (sortedPoints[i]!.absorption >= halfProminence) {
+          leftWidth++;
+        } else {
+          break;
+        }
+      }
+
+      // Find right edge
+      for (let i = peak.index + 1; i < sortedPoints.length; i++) {
+        if (sortedPoints[i]!.absorption >= halfProminence) {
+          rightWidth++;
+        } else {
+          break;
+        }
+      }
+
+      const totalWidth = leftWidth + rightWidth + 1; // +1 for the peak itself
+      if (totalWidth < minWidth) {
+        continue; // Peak is too narrow
+      }
+    }
+
+    finalPeaks.push({
+      energy: peak.energy,
+      intensity: peak.intensity,
+      prominence: peak.prominence,
+      index: peak.index,
+    });
   }
 
   // Sort final peaks by energy
