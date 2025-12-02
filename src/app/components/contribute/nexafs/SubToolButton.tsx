@@ -27,7 +27,7 @@ export function SubToolButton({
   const baseClasses =
     "flex h-10 items-center justify-center gap-1.5 rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-50";
   const activeClasses =
-    "border-wsu-crimson bg-wsu-crimson text-white shadow-sm dark:border-wsu-crimson dark:bg-wsu-crimson dark:text-white";
+    "border-gray-300 bg-gray-100 text-gray-600 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300";
   const inactiveClasses =
     "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600";
   const sizeClasses = iconOnly ? "w-10" : "flex-1";

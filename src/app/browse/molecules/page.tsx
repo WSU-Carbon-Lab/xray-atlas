@@ -13,6 +13,7 @@ import { BrowseTabs } from "~/app/components/BrowseTabs";
 import { Squares2X2Icon, ListBulletIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { AddMoleculeButton } from "~/app/components/AddEntityButtons";
+import { IconToggleButton } from "~/app/components/IconToggleButton";
 
 function MoleculesBrowseContent() {
   const searchParams = useSearchParams();
@@ -251,28 +252,18 @@ function MoleculesBrowseContent() {
           <div className="flex items-center gap-4">
             {/* View Toggle */}
             <div className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-600 dark:bg-gray-800">
-              <button
+              <IconToggleButton
+                icon={<ListBulletIcon className="h-4 w-4" />}
+                isActive={viewMode === "compact"}
                 onClick={() => setViewMode("compact")}
-                className={`rounded px-3 py-1.5 text-sm transition-colors ${
-                  viewMode === "compact"
-                    ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                }`}
-                aria-label="Compact view"
-              >
-                <ListBulletIcon className="h-4 w-4" />
-              </button>
-              <button
+                ariaLabel="Compact view"
+              />
+              <IconToggleButton
+                icon={<Squares2X2Icon className="h-4 w-4" />}
+                isActive={viewMode === "spacious"}
                 onClick={() => setViewMode("spacious")}
-                className={`rounded px-3 py-1.5 text-sm transition-colors ${
-                  viewMode === "spacious"
-                    ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                }`}
-                aria-label="Spacious view"
-              >
-                <Squares2X2Icon className="h-4 w-4" />
-              </button>
+                ariaLabel="Spacious view"
+              />
             </div>
 
             {!hasSearchQuery && (
