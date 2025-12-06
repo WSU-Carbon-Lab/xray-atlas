@@ -3,9 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { DefaultButton as Button } from "./Button";
 import {
-  CheckIcon,
   ClipboardDocumentIcon,
   HandThumbUpIcon,
   PencilIcon,
@@ -15,49 +13,7 @@ import { useUser } from "@clerk/nextjs";
 import { trpc } from "~/trpc/client";
 import { SynonymsList } from "./SynonymsList";
 import { Badge } from "@heroui/react";
-
-const useCasRegistryLookup = (params: {
-  inchi: string | undefined | null;
-  initialCas: string | null | undefined;
-}) => {
-  const normalizedInchi = params.inchi?.trim() ?? "";
-  const [casRegistryNumber, setCasRegistryNumber] = useState<string | null>(
-    params.initialCas ?? null,
-  );
-
-  useEffect(() => {
-    setCasRegistryNumber(params.initialCas ?? null);
-  }, [params.initialCas]);
-
-  const shouldFetch = Boolean(!casRegistryNumber && normalizedInchi.length > 0);
-
-  const casQuery = trpc.external.searchCas.useQuery(
-    { inchi: normalizedInchi },
-    {
-      enabled: shouldFetch,
-      retry: false,
-      staleTime: Infinity,
-      refetchOnWindowFocus: false,
-    },
-  );
-
-  useEffect(() => {
-    if (casQuery.data?.ok && casQuery.data.data?.casRegistryNumber) {
-      setCasRegistryNumber(casQuery.data.data.casRegistryNumber);
-    }
-  }, [casQuery.data]);
-
-  useEffect(() => {
-    if (casQuery.error) {
-      console.error("Failed to fetch CAS registry number:", casQuery.error);
-    }
-  }, [casQuery.error]);
-
-  return {
-    casRegistryNumber,
-    isFetching: shouldFetch && casQuery.isLoading,
-  };
-};
+import { ToggleIconButton } from "./ToggleIconButton";
 
 // Updated type to match Prisma schema and include external links
 export type DisplayMolecule = {
@@ -80,105 +36,6 @@ export type DisplayMolecule = {
     email: string;
     imageurl: string | null;
   } | null; // User who created the molecule
-};
-
-// Shared helper components
-const CopyButton = ({ text, label }: { text: string; label: string }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
-
-  if (!text) return null;
-
-  return (
-    <Button
-      onClick={handleCopy}
-      color="primary"
-      variant="flat"
-      size="sm"
-      isDisabled={!text}
-    >
-      <ClipboardDocumentIcon className="h-3.5 w-3.5 text-gray-400 transition-colors dark:text-gray-500" />
-      {label}
-      {copied ? (
-        <CheckIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-      ) : (
-        <ClipboardDocumentIcon className="h-3.5 w-3.5 text-gray-400 transition-colors dark:text-gray-500" />
-      )}
-    </Button>
-  );
-};
-
-const ExternalLinkBadge = ({
-  href,
-  label,
-  isPubChem = false,
-  isCAS = false,
-  disabled = false,
-}: {
-  href: string | null;
-  label: string;
-  isPubChem?: boolean;
-  isCAS?: boolean;
-  disabled?: boolean;
-}) => {
-  const baseClasses = `inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all focus:ring-2 focus:ring-offset-1 focus:outline-none ${
-    disabled
-      ? "cursor-not-allowed border-gray-200 bg-gray-50/80 backdrop-blur-sm text-gray-400 opacity-50 dark:border-gray-700 dark:bg-gray-900/80 dark:text-gray-500"
-      : "border-gray-200 bg-white/80 backdrop-blur-sm text-gray-700 hover:border-wsu-crimson hover:bg-wsu-crimson/10 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-200 dark:hover:bg-wsu-crimson/20"
-  }`;
-
-  const iconContent = isPubChem ? (
-    <Image
-      src="https://pubchem.ncbi.nlm.nih.gov/pcfe/favicon/apple-touch-icon.png"
-      alt="PubChem"
-      width={12}
-      height={12}
-      className={`h-3 w-3 object-contain ${disabled ? "opacity-50" : ""}`}
-    />
-  ) : isCAS ? (
-    <Image
-      src="https://cdn.prod.website-files.com/650861f00f97fe8153979335/6585a20f2b9c762a8e082a87_cas-favicon.png"
-      alt="CAS"
-      width={12}
-      height={12}
-      className={`h-3 w-3 object-contain ${disabled ? "opacity-50" : ""}`}
-    />
-  ) : null;
-
-  if (disabled || !href) {
-    return (
-      <span className={baseClasses}>
-        {iconContent}
-        <span>{label}</span>
-      </span>
-    );
-  }
-
-  return (
-    <Button
-      as={Link}
-      href={href}
-      className={baseClasses}
-      color="primary"
-      variant="flat"
-      size="sm"
-      isDisabled={disabled}
-    >
-      {iconContent}
-      <span>{label}</span>
-    </Button>
-  );
 };
 
 // Helper function to get common names
@@ -297,11 +154,6 @@ export const MoleculeDisplay = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [molecule]);
 
-  const { casRegistryNumber, isFetching } = useCasRegistryLookup({
-    inchi: molecule.InChI,
-    initialCas: molecule.casNumber,
-  });
-
   const primaryName =
     orderedSynonyms.length > 0 ? orderedSynonyms[0]! : molecule.name;
   const chemicalFormula = formatFormula(molecule);
@@ -334,13 +186,33 @@ export const MoleculeDisplay = ({
     return filtered.length > 0 ? filtered.slice(0, 3) : sorted.slice(0, 3);
   }, [orderedSynonyms, molecule.name]);
 
+  // Use database values directly
   const pubChemUrl = molecule.pubChemCid
     ? `https://pubchem.ncbi.nlm.nih.gov/compound/${molecule.pubChemCid}`
     : null;
 
-  const casUrl = casRegistryNumber
-    ? `https://commonchemistry.cas.org/detail?cas_rn=${casRegistryNumber}&search=${casRegistryNumber}`
+  const casUrl = molecule.casNumber
+    ? `https://commonchemistry.cas.org/detail?cas_rn=${molecule.casNumber}&search=${molecule.casNumber}`
     : null;
+
+  // Copy handlers
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+  const handleCopy = async (text: string, label: string) => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        setCopiedText(label);
+        setTimeout(() => setCopiedText(null), 2000);
+      }
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  // No-op handler for external links (navigation handled by Link wrapper)
+  const handleExternalLink = () => {
+    // Navigation is handled by the Link component wrapper
+  };
 
   return (
     <div className="group relative flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200/40 bg-white shadow-lg transition-all duration-300 ease-out hover:-translate-y-1 hover:border-gray-300/60 hover:shadow-xl sm:flex-row dark:border-gray-700/40 dark:bg-gray-800 dark:hover:border-gray-600/60">
@@ -449,66 +321,113 @@ export const MoleculeDisplay = ({
             </div>
           </div>
 
-          {/* Actions - Bottom section with capsule buttons - Tighter spacing */}
-          <div className="mt-2.5 space-y-2 border-t border-gray-200/20 pt-2.5 dark:border-gray-700/20">
-            {/* Copy actions - Capsule shapes (half-height radius) */}
-            <div className="flex flex-wrap items-center gap-2">
-              {molecule.SMILES && (
-                <button
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(molecule.SMILES);
-                    } catch (err) {
-                      console.error("Failed to copy:", err);
-                    }
+          {/* Actions - Bottom section with all buttons in one row - Responsive layout */}
+          <div className="mt-2.5 border-t border-gray-200/20 pt-2.5 dark:border-gray-700/20">
+            <div className="flex min-h-10 flex-wrap items-center gap-1.5 sm:gap-2">
+              {molecule.SMILES ? (
+                <ToggleIconButton
+                  icon={<ClipboardDocumentIcon className="h-4 w-4" />}
+                  label="SMILES"
+                  isActive={copiedText === "SMILES"}
+                  onClick={() => handleCopy(molecule.SMILES, "SMILES")}
+                  ariaLabel="Copy SMILES"
+                  tooltip={{
+                    content:
+                      copiedText === "SMILES" ? "Copied!" : "Copy SMILES",
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-200/60 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-700 backdrop-blur-sm transition-all hover:border-gray-300 hover:bg-white/80 dark:border-gray-600/60 dark:bg-gray-700/60 dark:text-gray-200 dark:hover:bg-gray-700/80"
-                >
-                  <ClipboardDocumentIcon className="h-3.5 w-3.5" />
-                  SMILES
-                </button>
+                />
+              ) : (
+                <div className="h-10 w-20" /> // Placeholder for consistent height
               )}
-              {molecule.InChI && (
-                <button
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(molecule.InChI);
-                    } catch (err) {
-                      console.error("Failed to copy:", err);
-                    }
+              {molecule.InChI ? (
+                <ToggleIconButton
+                  icon={<ClipboardDocumentIcon className="h-4 w-4" />}
+                  label="InChI"
+                  isActive={copiedText === "InChI"}
+                  onClick={() => handleCopy(molecule.InChI, "InChI")}
+                  ariaLabel="Copy InChI"
+                  tooltip={{
+                    content: copiedText === "InChI" ? "Copied!" : "Copy InChI",
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-200/60 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-700 backdrop-blur-sm transition-all hover:border-gray-300 hover:bg-white/80 dark:border-gray-600/60 dark:bg-gray-700/60 dark:text-gray-200 dark:hover:bg-gray-700/80"
-                >
-                  <ClipboardDocumentIcon className="h-3.5 w-3.5" />
-                  InChI
-                </button>
+                />
+              ) : (
+                <div className="h-10 w-20" /> // Placeholder for consistent height
               )}
-            </div>
-
-            {/* External links - Capsule shapes with icons */}
-            <div className="flex flex-wrap items-center gap-2">
-              {pubChemUrl && (
-                <ExternalLinkBadge
+              {pubChemUrl ? (
+                <Link
                   href={pubChemUrl}
-                  label="PubChem"
-                  isPubChem={true}
-                  disabled={!pubChemUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ToggleIconButton
+                    icon={
+                      <Image
+                        src="https://pubchem.ncbi.nlm.nih.gov/pcfe/favicon/apple-touch-icon.png"
+                        alt="PubChem"
+                        width={16}
+                        height={16}
+                        className="h-4 w-4 object-contain"
+                      />
+                    }
+                    isActive={false}
+                    onClick={handleExternalLink}
+                    ariaLabel="Open PubChem"
+                    tooltip={{ content: "Open in PubChem" }}
+                  />
+                </Link>
+              ) : (
+                <ToggleIconButton
+                  icon={
+                    <Image
+                      src="https://pubchem.ncbi.nlm.nih.gov/pcfe/favicon/apple-touch-icon.png"
+                      alt="PubChem"
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 object-contain opacity-50"
+                    />
+                  }
+                  isActive={false}
+                  disabled={true}
+                  onClick={handleExternalLink}
+                  ariaLabel="PubChem not available"
+                  tooltip={{ content: "PubChem not available" }}
                 />
               )}
-              {isFetching ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200/60 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-400 backdrop-blur-sm dark:border-gray-600/60 dark:bg-gray-700/60 dark:text-gray-500">
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600 dark:border-gray-600 dark:border-t-gray-300" />
-                  Loading...
-                </span>
-              ) : (
-                casUrl && (
-                  <ExternalLinkBadge
-                    href={casUrl}
-                    label="CAS"
-                    isCAS={true}
-                    disabled={!casUrl}
+              {casUrl ? (
+                <Link href={casUrl} target="_blank" rel="noopener noreferrer">
+                  <ToggleIconButton
+                    icon={
+                      <Image
+                        src="https://cdn.prod.website-files.com/650861f00f97fe8153979335/6585a20f2b9c762a8e082a87_cas-favicon.png"
+                        alt="CAS"
+                        width={16}
+                        height={16}
+                        className="h-4 w-4 object-contain"
+                      />
+                    }
+                    isActive={false}
+                    onClick={handleExternalLink}
+                    ariaLabel="Open CAS"
+                    tooltip={{ content: "Open in CAS Registry" }}
                   />
-                )
+                </Link>
+              ) : (
+                <ToggleIconButton
+                  icon={
+                    <Image
+                      src="https://cdn.prod.website-files.com/650861f00f97fe8153979335/6585a20f2b9c762a8e082a87_cas-favicon.png"
+                      alt="CAS"
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 object-contain opacity-50"
+                    />
+                  }
+                  isActive={false}
+                  disabled={true}
+                  onClick={handleExternalLink}
+                  ariaLabel="CAS not available"
+                  tooltip={{ content: "CAS not available" }}
+                />
               )}
             </div>
           </div>
@@ -547,22 +466,37 @@ export const MoleculeDisplayCompact = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [molecule]);
 
-  const { casRegistryNumber, isFetching } = useCasRegistryLookup({
-    inchi: molecule.InChI,
-    initialCas: molecule.casNumber,
-  });
-
   const primaryName =
     orderedSynonyms.length > 0 ? orderedSynonyms[0]! : molecule.name;
   const chemicalFormula = formatFormula(molecule);
 
+  // Use database values directly
   const pubChemUrl = molecule.pubChemCid
     ? `https://pubchem.ncbi.nlm.nih.gov/compound/${molecule.pubChemCid}`
     : null;
 
-  const casUrl = casRegistryNumber
-    ? `https://commonchemistry.cas.org/detail?cas_rn=${casRegistryNumber}&search=${casRegistryNumber}`
+  const casUrl = molecule.casNumber
+    ? `https://commonchemistry.cas.org/detail?cas_rn=${molecule.casNumber}&search=${molecule.casNumber}`
     : null;
+
+  // Copy handlers
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+  const handleCopy = async (text: string, label: string) => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        setCopiedText(label);
+        setTimeout(() => setCopiedText(null), 2000);
+      }
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  // No-op handler for external links (navigation handled by Link wrapper)
+  const handleExternalLink = () => {
+    // Navigation is handled by the Link component wrapper
+  };
 
   return (
     <div className="group flex w-full flex-col gap-3 overflow-hidden rounded-xl border border-gray-200/50 bg-white/80 p-4 shadow-lg backdrop-blur-xl transition-all hover:shadow-xl dark:border-gray-700/50 dark:bg-gray-800/80">
@@ -601,34 +535,106 @@ export const MoleculeDisplayCompact = ({
         </div>
       )}
 
-      {/* Actions Row - Copy buttons and External links */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-gray-200/20 pt-3 dark:border-gray-700/20">
-        {molecule.SMILES && (
-          <CopyButton text={molecule.SMILES} label="SMILES" />
-        )}
-        {molecule.InChI && <CopyButton text={molecule.InChI} label="InChI" />}
-
-        {molecule.SMILES || molecule.InChI ? (
-          <span className="mx-0.5 h-3 w-px bg-gray-300 dark:bg-gray-600" />
-        ) : null}
-
-        <ExternalLinkBadge
-          href={pubChemUrl}
-          label="PubChem"
-          isPubChem={true}
-          disabled={!pubChemUrl}
-        />
-        {isFetching ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/80 px-2.5 py-1 text-xs font-medium text-gray-400 backdrop-blur-sm dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-500">
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600 dark:border-gray-600 dark:border-t-gray-300" />
-            Loading...
-          </span>
+      {/* Actions Row - Copy buttons and External links - All in one row - Responsive layout */}
+      <div className="flex min-h-10 flex-wrap items-center gap-1.5 border-t border-gray-200/20 pt-3 sm:gap-2 dark:border-gray-700/20">
+        {molecule.SMILES ? (
+          <ToggleIconButton
+            icon={<ClipboardDocumentIcon className="h-4 w-4" />}
+            label="SMILES"
+            isActive={copiedText === "SMILES"}
+            onClick={() => handleCopy(molecule.SMILES, "SMILES")}
+            ariaLabel="Copy SMILES"
+            tooltip={{
+              content: copiedText === "SMILES" ? "Copied!" : "Copy SMILES",
+            }}
+          />
         ) : (
-          <ExternalLinkBadge
-            href={casUrl}
-            label="CAS"
-            isCAS={true}
-            disabled={!casUrl}
+          <div className="h-10 w-20" /> // Placeholder
+        )}
+        {molecule.InChI ? (
+          <ToggleIconButton
+            icon={<ClipboardDocumentIcon className="h-4 w-4" />}
+            label="InChI"
+            isActive={copiedText === "InChI"}
+            onClick={() => handleCopy(molecule.InChI, "InChI")}
+            ariaLabel="Copy InChI"
+            tooltip={{
+              content: copiedText === "InChI" ? "Copied!" : "Copy InChI",
+            }}
+          />
+        ) : (
+          <div className="h-10 w-20" /> // Placeholder
+        )}
+        {pubChemUrl ? (
+          <Link href={pubChemUrl} target="_blank" rel="noopener noreferrer">
+            <ToggleIconButton
+              icon={
+                <Image
+                  src="https://pubchem.ncbi.nlm.nih.gov/pcfe/favicon/apple-touch-icon.png"
+                  alt="PubChem"
+                  width={16}
+                  height={16}
+                  className="h-4 w-4 object-contain"
+                />
+              }
+              isActive={false}
+              onClick={handleExternalLink}
+              ariaLabel="Open PubChem"
+              tooltip={{ content: "Open in PubChem" }}
+            />
+          </Link>
+        ) : (
+          <ToggleIconButton
+            icon={
+              <Image
+                src="https://pubchem.ncbi.nlm.nih.gov/pcfe/favicon/apple-touch-icon.png"
+                alt="PubChem"
+                width={16}
+                height={16}
+                className="h-4 w-4 object-contain opacity-50"
+              />
+            }
+            isActive={false}
+            disabled={true}
+            onClick={handleExternalLink}
+            ariaLabel="PubChem not available"
+            tooltip={{ content: "PubChem not available" }}
+          />
+        )}
+        {casUrl ? (
+          <Link href={casUrl} target="_blank" rel="noopener noreferrer">
+            <ToggleIconButton
+              icon={
+                <Image
+                  src="https://cdn.prod.website-files.com/650861f00f97fe8153979335/6585a20f2b9c762a8e082a87_cas-favicon.png"
+                  alt="CAS"
+                  width={16}
+                  height={16}
+                  className="h-4 w-4 object-contain"
+                />
+              }
+              isActive={false}
+              onClick={handleExternalLink}
+              ariaLabel="Open CAS"
+              tooltip={{ content: "Open in CAS Registry" }}
+            />
+          </Link>
+        ) : (
+          <ToggleIconButton
+            icon={
+              <Image
+                src="https://cdn.prod.website-files.com/650861f00f97fe8153979335/6585a20f2b9c762a8e082a87_cas-favicon.png"
+                alt="CAS"
+                width={16}
+                height={16}
+                className="h-4 w-4 object-contain opacity-50"
+              />
+            }
+            isActive={false}
+            disabled={true}
+            onClick={handleExternalLink}
+            ariaLabel="CAS not available"
+            tooltip={{ content: "CAS not available" }}
           />
         )}
       </div>

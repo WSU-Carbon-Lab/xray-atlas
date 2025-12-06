@@ -10,6 +10,7 @@ type SimpleDialogProps = {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  maxWidth?: string; // Optional max-width class (e.g., "max-w-4xl", "max-w-6xl")
 };
 
 export function SimpleDialog({
@@ -17,6 +18,7 @@ export function SimpleDialog({
   onClose,
   title,
   children,
+  maxWidth = "max-w-md",
 }: SimpleDialogProps) {
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -44,11 +46,13 @@ export function SimpleDialog({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-800">
-                <div className="flex items-center justify-between mb-4">
+              <Dialog.Panel
+                className={`w-full ${maxWidth} transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-800`}
+              >
+                <div className="mb-4 flex items-center justify-between">
                   <Dialog.Title
                     as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
+                    className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100"
                   >
                     {title}
                   </Dialog.Title>

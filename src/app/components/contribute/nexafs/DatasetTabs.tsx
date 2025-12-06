@@ -73,10 +73,11 @@ export function DatasetTabs({
         classNames={{
           base: "w-full",
           tabList:
-            "gap-2 w-full relative rounded-none p-0 border-b border-gray-200 dark:border-gray-700",
+            "gap-0 w-full relative rounded-none p-0 border-b border-gray-200 dark:border-gray-700 overflow-x-auto",
           cursor: "w-full bg-wsu-crimson",
-          tab: "max-w-fit px-4 h-12",
-          tabContent: "group-data-[selected=true]:text-wsu-crimson",
+          tab: "min-w-0 max-w-[200px] px-3 h-12 border-r border-gray-200 dark:border-gray-700 shrink-0",
+          tabContent:
+            "group-data-[selected=true]:text-wsu-crimson flex items-center gap-2 min-w-0",
         }}
       >
         {datasets.map((dataset) => {
@@ -87,11 +88,11 @@ export function DatasetTabs({
             <Tab
               key={dataset.id}
               title={
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5">
                   {allComplete ? (
-                    <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                    <CheckCircleIcon className="h-4 w-4 shrink-0 text-green-500" />
                   ) : (
-                    <div className="flex gap-1">
+                    <div className="flex shrink-0 gap-1">
                       {!checks.molecule && (
                         <span
                           className="h-2 w-2 rounded-full bg-yellow-400"
@@ -126,7 +127,7 @@ export function DatasetTabs({
                         }
                       }}
                       onClick={(e) => e.stopPropagation()}
-                      className="border-wsu-crimson focus:ring-wsu-crimson min-w-[100px] rounded border bg-white px-1 text-sm focus:ring-2 focus:outline-none dark:bg-gray-800"
+                      className="border-wsu-crimson focus:ring-wsu-crimson max-w-full min-w-[80px] rounded border bg-white px-1 text-sm focus:ring-2 focus:outline-none dark:bg-gray-800"
                       autoFocus
                     />
                   ) : (
@@ -135,8 +136,8 @@ export function DatasetTabs({
                         e.stopPropagation();
                         handleStartEdit(dataset.id, dataset.fileName);
                       }}
-                      className="cursor-pointer select-none"
-                      title="Double-click to rename"
+                      className="min-w-0 flex-1 cursor-pointer truncate select-none"
+                      title={`${dataset.fileName} - Double-click to rename`}
                     >
                       {dataset.fileName}
                     </span>
@@ -156,7 +157,7 @@ export function DatasetTabs({
                         onDatasetRemove(dataset.id);
                       }
                     }}
-                    className="focus:ring-wsu-crimson ml-2 cursor-pointer rounded p-1 text-gray-400 opacity-0 transition-opacity group-data-[selected=true]:opacity-100 hover:text-red-600 focus:ring-2 focus:outline-none"
+                    className="focus:ring-wsu-crimson ml-auto shrink-0 cursor-pointer rounded p-1 text-gray-400 opacity-70 transition-opacity hover:text-red-600 hover:opacity-100 focus:ring-2 focus:outline-none"
                     title="Remove dataset"
                   >
                     <XMarkIcon className="h-4 w-4" />

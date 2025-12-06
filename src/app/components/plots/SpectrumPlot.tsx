@@ -44,6 +44,12 @@ type Peak = {
   id?: string;
 };
 
+type DifferenceSpectrum = {
+  label: string;
+  points: SpectrumPoint[];
+  preferred?: boolean;
+};
+
 type SpectrumPlotProps = {
   points: SpectrumPoint[];
   height?: number;
@@ -60,6 +66,9 @@ type SpectrumPlotProps = {
   onPeakDelete?: (peakId: string) => void;
   onPeakAdd?: (energy: number) => void;
   isManualPeakMode?: boolean;
+  differenceSpectra?: DifferenceSpectrum[];
+  showThetaData?: boolean;
+  showPhiData?: boolean;
 };
 
 const COLORS = [
@@ -106,6 +115,9 @@ export function SpectrumPlot({
   onPeakDelete,
   onPeakAdd,
   isManualPeakMode = false,
+  differenceSpectra = [],
+  showThetaData = false,
+  showPhiData = false,
 }: SpectrumPlotProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -121,7 +133,37 @@ export function SpectrumPlot({
       }
     >();
 
-    points.forEach((point) => {
+    // Filter points based on showThetaData and showPhiData
+    // If difference spectra are being shown, don't show original data
+    const showOriginalData = !differenceSpectra || differenceSpectra.length === 0;
+
+    const filteredPoints = showOriginalData ? points.filter((point) => {
+      const hasGeometry =
+        typeof point.theta === "number" &&
+        Number.isFinite(point.theta) &&
+        typeof point.phi === "number" &&
+        Number.isFinite(point.phi);
+
+      if (!hasGeometry) {
+        // Show fixed geometry points only if neither theta nor phi data is shown
+        return !showThetaData && !showPhiData;
+      }
+
+      // If showing theta data, show all points (they all have theta)
+      if (showThetaData) {
+        return true;
+      }
+
+      // If showing phi data, show all points (they all have phi)
+      if (showPhiData) {
+        return true;
+      }
+
+      // If neither is shown, show all points (default behavior)
+      return true;
+    }) : [];
+
+    filteredPoints.forEach((point) => {
       const hasGeometry =
         typeof point.theta === "number" &&
         Number.isFinite(point.theta) &&
@@ -177,7 +219,7 @@ export function SpectrumPlot({
     });
 
     return { traces, keys: Array.from(groups.keys()) };
-  }, [points]);
+  }, [points, showThetaData, showPhiData, differenceSpectra]);
 
   const referenceTraces = useMemo<PlotData[]>(() => {
     return referenceCurves.map((curve) => ({
@@ -198,22 +240,74 @@ export function SpectrumPlot({
     })) as PlotData[];
   }, [referenceCurves]);
 
+  const differenceTraces = useMemo<PlotData[]>(() => {
+    return differenceSpectra.map((diff, index) => {
+      const isPreferred = diff.preferred ?? false;
+      const color = isPreferred ? "#d7263d" : COLORS[(index + 8) % COLORS.length] ?? `hsl(${((index + 8) * 57) % 360} 65% 55%)`;
+      return {
+        type: "scattergl",
+        mode: "lines",
+        name: diff.label + (isPreferred ? " ⭐" : ""),
+        x: diff.points.map((point) => point.energy),
+        y: diff.points.map((point) => point.absorption),
+        line: {
+          color,
+          width: isPreferred ? 2.5 : 2,
+          dash: "dash",
+        },
+        hovertemplate:
+          `<b>${diff.label}</b><br>` +
+          "Energy: %{x:.3f} eV<br>Difference: %{y:.4f}" +
+          "<extra></extra>",
+        showlegend: true,
+      } as PlotData;
+    });
+  }, [differenceSpectra]);
+
   const measurementTraceCount = groupedTraces.traces.length;
   const uniqueGeometryCount = groupedTraces.traces.length;
   const totalLegendItems =
-    uniqueGeometryCount + (referenceCurves.length > 0 ? 1 : 0);
+    uniqueGeometryCount +
+    (referenceCurves.length > 0 ? 1 : 0) +
+    differenceSpectra.length;
 
   const measurementEnergyExtent = useMemo(() => {
+    // If difference spectra are shown, use their extent instead
+    if (differenceSpectra.length > 0) {
+      const allEnergies: number[] = [];
+      differenceSpectra.forEach((spec) => {
+        spec.points.forEach((point) => {
+          allEnergies.push(point.energy);
+        });
+      });
+      if (allEnergies.length > 0) {
+        return { min: Math.min(...allEnergies), max: Math.max(...allEnergies) };
+      }
+    }
+
     if (points.length === 0) return null;
     const energies = points.map((point) => point.energy);
     return { min: Math.min(...energies), max: Math.max(...energies) };
-  }, [points]);
+  }, [points, differenceSpectra]);
 
   const measurementAbsorptionExtent = useMemo(() => {
+    // If difference spectra are shown, use their extent instead
+    if (differenceSpectra.length > 0) {
+      const allAbsorptions: number[] = [];
+      differenceSpectra.forEach((spec) => {
+        spec.points.forEach((point) => {
+          allAbsorptions.push(point.absorption);
+        });
+      });
+      if (allAbsorptions.length > 0) {
+        return { min: Math.min(...allAbsorptions), max: Math.max(...allAbsorptions) };
+      }
+    }
+
     if (points.length === 0) return null;
     const absorptions = points.map((point) => point.absorption);
     return { min: Math.min(...absorptions), max: Math.max(...absorptions) };
-  }, [points]);
+  }, [points, differenceSpectra]);
 
   const combinedLayout = useMemo<Layout>(() => {
     const energyRange = measurementEnergyExtent
@@ -225,32 +319,38 @@ export function SpectrumPlot({
         ? [energyStats.min, energyStats.max]
         : undefined;
 
-    const absorptionCandidates: number[] = [];
-    if (typeof absorptionStats?.min === "number")
-      absorptionCandidates.push(absorptionStats.min);
-    if (typeof absorptionStats?.max === "number")
-      absorptionCandidates.push(absorptionStats.max);
-    if (measurementAbsorptionExtent) {
-      absorptionCandidates.push(
-        measurementAbsorptionExtent.min,
-        measurementAbsorptionExtent.max,
-      );
-    }
-    points.forEach((point) => {
-      absorptionCandidates.push(point.absorption);
-    });
+    // Calculate measurement range - if difference spectra are shown, use their range
+    let measurementRange: [number, number] | undefined;
+    if (differenceSpectra.length > 0 && measurementAbsorptionExtent) {
+      const minAbs = measurementAbsorptionExtent.min;
+      const maxAbs = measurementAbsorptionExtent.max;
+      const padding = Math.max(Math.abs(maxAbs - minAbs) * 0.1, 0.1);
+      measurementRange = [minAbs - padding, maxAbs + padding];
+    } else {
+      const absorptionCandidates: number[] = [];
+      if (typeof absorptionStats?.min === "number")
+        absorptionCandidates.push(absorptionStats.min);
+      if (typeof absorptionStats?.max === "number")
+        absorptionCandidates.push(absorptionStats.max);
+      if (measurementAbsorptionExtent) {
+        absorptionCandidates.push(
+          measurementAbsorptionExtent.min,
+          measurementAbsorptionExtent.max,
+        );
+      }
+      points.forEach((point) => {
+        absorptionCandidates.push(point.absorption);
+      });
 
-    const measurementRange = (() => {
       const finiteValues = absorptionCandidates.filter((value) =>
         Number.isFinite(value),
       );
       if (finiteValues.length >= 1) {
         const maxAbs = Math.max(...finiteValues, 0);
         const padding = maxAbs > 0 ? maxAbs * 0.1 : 0.1;
-        return [0, maxAbs + padding];
+        measurementRange = [0, maxAbs + padding];
       }
-      return undefined;
-    })();
+    }
 
     const normalizationShapes = normalizationRegions
       ? (() => {
@@ -411,6 +511,9 @@ export function SpectrumPlot({
     referenceCurves,
     totalLegendItems,
     isDark,
+    differenceSpectra,
+    showThetaData,
+    showPhiData,
   ]);
 
   const handleSelected = useCallback(
@@ -794,7 +897,7 @@ export function SpectrumPlot({
       }}
     >
       <Plot
-        data={[...groupedTraces.traces, ...referenceTraces]}
+        data={[...groupedTraces.traces, ...referenceTraces, ...differenceTraces]}
         layout={combinedLayout}
         config={
           {

@@ -24,7 +24,7 @@ export default async function RootLayout({
       <html
         lang="en"
         suppressHydrationWarning
-        className={`${geist.variable} mx-auto flex min-h-screen w-6xl flex-col`}
+        className={`${geist.variable} mx-auto flex min-h-screen w-full max-w-7xl flex-col`}
       >
         <body className="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
           <TRPCReactProvider>

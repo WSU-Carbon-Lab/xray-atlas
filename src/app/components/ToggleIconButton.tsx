@@ -5,11 +5,14 @@ import { Tooltip, Badge } from "@heroui/react";
 import type { BadgeProps } from "@heroui/react";
 
 interface ToggleIconButtonProps {
-  icon: ReactNode;
+  icon?: ReactNode;
+  text?: string;
+  label?: string; // Text label to show alongside icon
   isActive: boolean;
   onClick: () => void;
   ariaLabel: string;
   className?: string;
+  disabled?: boolean; // Disabled state for greyed out buttons
   // Tooltip props
   tooltip?: {
     content: string;
@@ -36,60 +39,82 @@ interface ToggleIconButtonProps {
  */
 export function ToggleIconButton({
   icon,
+  text,
+  label,
   isActive,
   onClick,
   ariaLabel,
   className = "",
+  disabled = false,
   tooltip,
   badge,
 }: ToggleIconButtonProps) {
+  const content = text ? (
+    <span className="text-base font-medium">{text}</span>
+  ) : label && icon ? (
+    <span className="flex items-center gap-1.5">
+      {icon}
+      <span className="text-sm">{label}</span>
+    </span>
+  ) : (
+    icon
+  );
+
   const button = (
     <button
       onClick={onClick}
-      className={`rounded px-3 py-1.5 text-sm transition-colors ${
-        isActive
-          ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-          : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+      disabled={disabled}
+      className={`rounded px-2 py-1.5 text-sm transition-colors ${
+        disabled
+          ? "cursor-not-allowed opacity-50 text-gray-400 dark:text-gray-500"
+          : isActive
+            ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+            : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
       } ${className}`}
       aria-label={ariaLabel}
+      aria-disabled={disabled}
     >
-      {icon}
+      {content}
     </button>
   );
 
-  // If badge is provided, wrap button with badge
-  const buttonWithBadge = badge ? (
-    <Badge
-      content={badge.content}
-      color={badge.color ?? "primary"}
-      size={badge.size ?? "sm"}
-      placement={badge.placement ?? "top-right"}
-      shape={badge.shape ?? "rectangle"}
-      showOutline={badge.showOutline ?? true}
-      isInvisible={badge.isInvisible ?? false}
-      classNames={badge.classNames}
+  // If tooltip is provided, wrap button with tooltip first
+  const buttonWithTooltip = tooltip ? (
+    <Tooltip
+      content={tooltip.content}
+      placement={tooltip.placement ?? "top"}
+      offset={tooltip.offset ?? 8}
+      classNames={{
+        base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg mb-2",
+      }}
     >
       {button}
-    </Badge>
+    </Tooltip>
   ) : (
     button
   );
 
-  // If tooltip is provided, wrap with tooltip
-  if (tooltip) {
+  // If badge is provided, wrap buttonWithTooltip with badge
+  // Badge should not intercept pointer events so tooltip works correctly
+  if (badge) {
     return (
-      <Tooltip
-        content={tooltip.content}
-        placement={tooltip.placement ?? "top"}
-        offset={tooltip.offset ?? 8}
+      <Badge
+        content={badge.content}
+        color={badge.color ?? "primary"}
+        size={badge.size ?? "sm"}
+        placement={badge.placement ?? "top-right"}
+        shape={badge.shape ?? "rectangle"}
+        showOutline={badge.showOutline ?? true}
+        isInvisible={badge.isInvisible ?? false}
         classNames={{
-          base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg mb-2",
+          ...badge.classNames,
+          badge: `${String(badge.classNames?.badge ?? "")} pointer-events-none`,
         }}
       >
-        {buttonWithBadge}
-      </Tooltip>
+        {buttonWithTooltip}
+      </Badge>
     );
   }
 
-  return buttonWithBadge;
+  return buttonWithTooltip;
 }

@@ -5,7 +5,6 @@ import { trpc } from "~/trpc/client";
 import { MoleculeDisplay, type DisplayMolecule } from "./MoleculeDisplay";
 import { MoleculeGridSkeleton } from "./LoadingState";
 import { ErrorState } from "./ErrorState";
-import { useRouter } from "next/navigation";
 
 interface MoleculeGridProps {
   limit?: number;
@@ -18,7 +17,6 @@ export function MoleculeGrid({
   enableInfiniteScroll = true,
   className = "",
 }: MoleculeGridProps) {
-  const router = useRouter();
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const {

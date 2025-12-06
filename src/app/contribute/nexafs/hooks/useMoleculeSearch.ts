@@ -36,13 +36,15 @@ export function useMoleculeSearch(params: UseMoleculeSearchParams = {}) {
       return;
     }
 
-    if (term.length < 2) {
+    // Allow search with 1 character for faster prefix matching
+    if (term.length < 1) {
       setSuggestions([]);
       setSuggestionError(null);
       setIsSuggesting(false);
       return;
     }
 
+    // Reduced debounce from 250ms to 100ms for faster response
     const timeout = setTimeout(() => {
       const requestId = suggestionRequestIdRef.current + 1;
       suggestionRequestIdRef.current = requestId;
@@ -84,7 +86,7 @@ export function useMoleculeSearch(params: UseMoleculeSearchParams = {}) {
             setIsSuggesting(false);
           }
         });
-    }, 250);
+    }, 100);
 
     return () => {
       clearTimeout(timeout);

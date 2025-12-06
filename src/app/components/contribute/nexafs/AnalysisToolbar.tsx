@@ -9,6 +9,7 @@ import {
   Square3Stack3DIcon,
   SparklesIcon,
   XMarkIcon,
+  StarIcon,
 } from "@heroicons/react/24/outline";
 import {
   Mountain,
@@ -24,6 +25,7 @@ import {
 import { DefaultButton as Button } from "~/app/components/Button";
 import { SubToolButton } from "./SubToolButton";
 import { ToggleIconButton } from "~/app/components/ToggleIconButton";
+import { SimpleDialog } from "~/app/components/SimpleDialog";
 import type {
   PeakData,
   NormalizationType,
@@ -33,6 +35,10 @@ import {
   convertToPeakData,
 } from "~/app/contribute/nexafs/utils/peakDetection";
 import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
+import {
+  calculateDifferenceSpectra,
+  type DifferenceSpectrum,
+} from "~/app/contribute/nexafs/utils/differenceSpectra";
 
 const BOND_OPTIONS = [
   { value: "", label: "Select bond..." },
@@ -81,6 +87,12 @@ interface AnalysisToolbarProps {
   onPeakAdd?: (energy: number) => void;
   isManualPeakMode?: boolean;
   onManualPeakModeChange?: (enabled: boolean) => void;
+  differenceSpectra?: DifferenceSpectrum[];
+  onDifferenceSpectraChange?: (spectra: DifferenceSpectrum[]) => void;
+  showThetaData?: boolean;
+  showPhiData?: boolean;
+  onShowThetaDataChange?: (show: boolean) => void;
+  onShowPhiDataChange?: (show: boolean) => void;
 }
 
 export function AnalysisToolbar({
@@ -107,12 +119,26 @@ export function AnalysisToolbar({
   onPeakAdd: _onPeakAdd,
   isManualPeakMode: externalManualPeakMode,
   onManualPeakModeChange,
+  differenceSpectra: externalDifferenceSpectra,
+  onDifferenceSpectraChange,
+  showThetaData: _externalShowThetaData,
+  showPhiData: _externalShowPhiData,
+  onShowThetaDataChange,
+  onShowPhiDataChange,
 }: AnalysisToolbarProps) {
   const [internalManualPeakMode, setInternalManualPeakMode] = useState(false);
   const isManualPeakMode = externalManualPeakMode ?? internalManualPeakMode;
-  const [selectedTool, setSelectedTool] = useState<"normalize" | "peaks">("normalize");
+  const [selectedTool, setSelectedTool] = useState<"normalize" | "peaks" | "difference">("normalize");
   const [peakDetectionMode, setPeakDetectionMode] = useState<"auto" | "manual" | null>(null);
   const peakDetectionModeRef = useRef(peakDetectionMode);
+  const [showAutoDetectConfirm, setShowAutoDetectConfirm] = useState(false);
+  const [differenceMode, setDifferenceMode] = useState<"theta" | "phi" | "delta-theta" | "delta-phi" | null>(null);
+  const [internalDifferenceSpectra, setInternalDifferenceSpectra] = useState<DifferenceSpectrum[]>([]);
+  const differenceSpectra = externalDifferenceSpectra ?? internalDifferenceSpectra;
+  const [_internalShowThetaData, setInternalShowThetaData] = useState(false);
+  const [_internalShowPhiData, setInternalShowPhiData] = useState(false);
+  void _internalShowThetaData; // State managed via callbacks, not read directly
+  void _internalShowPhiData; // State managed via callbacks, not read directly
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -146,9 +172,10 @@ export function AnalysisToolbar({
   });
 
   // Track which peaks are auto-detected vs manually added
-  const [_autoDetectedPeakIds, setAutoDetectedPeakIds] = useState<Set<string>>(
+  const [autoDetectedPeakIds, setAutoDetectedPeakIds] = useState<Set<string>>(
     new Set(),
   );
+  void autoDetectedPeakIds; // Reserved for future use
 
   // Build peak detection options from params
   const buildPeakOptions = useMemo(() => {
@@ -217,6 +244,12 @@ export function AnalysisToolbar({
   }, [peakParams.minProminence, peakParams.minDistance, peakParams.width, peakParams.height, peakParams.threshold, peakDetectionMode, normalizedPoints, spectrumPoints, buildPeakOptions, peaks, onPeaksChange]);
 
   const handleAutoDetectPeaks = () => {
+    // Show confirmation dialog first
+    setShowAutoDetectConfirm(true);
+  };
+
+  const handleConfirmAutoDetect = () => {
+    setShowAutoDetectConfirm(false);
     // Set auto-detect as the active mode
     setPeakDetectionMode("auto");
     // Peak detection will be triggered by the useEffect above
@@ -301,6 +334,141 @@ export function AnalysisToolbar({
     onNormalizationRegionChange("post", updated);
   };
 
+  // Check if theta/phi buttons should be enabled
+  const hasMultipleThetas = useMemo(() => {
+    const pointsToCheck = normalizedPoints ?? spectrumPoints;
+    const thetaSet = new Set<number>();
+    pointsToCheck.forEach((point) => {
+      if (typeof point.theta === "number" && Number.isFinite(point.theta) && point.theta !== 0) {
+        thetaSet.add(point.theta);
+      }
+    });
+    return thetaSet.size > 1;
+  }, [spectrumPoints, normalizedPoints]);
+
+  const hasMultiplePhis = useMemo(() => {
+    const pointsToCheck = normalizedPoints ?? spectrumPoints;
+    const phiSet = new Set<number>();
+    pointsToCheck.forEach((point) => {
+      if (typeof point.phi === "number" && Number.isFinite(point.phi) && point.phi !== 0) {
+        phiSet.add(point.phi);
+      }
+    });
+    return phiSet.size > 1;
+  }, [spectrumPoints, normalizedPoints]);
+
+  const hasThetaData = useMemo(() => {
+    const pointsToCheck = normalizedPoints ?? spectrumPoints;
+    return pointsToCheck.some(
+      (point) => typeof point.theta === "number" && Number.isFinite(point.theta) && point.theta !== 0,
+    );
+  }, [spectrumPoints, normalizedPoints]);
+
+  const hasPhiData = useMemo(() => {
+    const pointsToCheck = normalizedPoints ?? spectrumPoints;
+    return pointsToCheck.some(
+      (point) => typeof point.phi === "number" && Number.isFinite(point.phi) && point.phi !== 0,
+    );
+  }, [spectrumPoints, normalizedPoints]);
+
+  const handleDifferenceMode = (mode: "theta" | "phi" | "delta-theta" | "delta-phi") => {
+    setDifferenceMode(mode);
+
+    if (mode === "theta") {
+      const newShowTheta = true;
+      const newShowPhi = false;
+      if (onShowThetaDataChange) {
+        onShowThetaDataChange(newShowTheta);
+      } else {
+        setInternalShowThetaData(newShowTheta);
+      }
+      if (onShowPhiDataChange) {
+        onShowPhiDataChange(newShowPhi);
+      } else {
+        setInternalShowPhiData(newShowPhi);
+      }
+      // Clear difference spectra when showing original data
+      if (onDifferenceSpectraChange) {
+        onDifferenceSpectraChange([]);
+      } else {
+        setInternalDifferenceSpectra([]);
+      }
+    } else if (mode === "phi") {
+      const newShowTheta = false;
+      const newShowPhi = true;
+      if (onShowThetaDataChange) {
+        onShowThetaDataChange(newShowTheta);
+      } else {
+        setInternalShowThetaData(newShowTheta);
+      }
+      if (onShowPhiDataChange) {
+        onShowPhiDataChange(newShowPhi);
+      } else {
+        setInternalShowPhiData(newShowPhi);
+      }
+      // Clear difference spectra when showing original data
+      if (onDifferenceSpectraChange) {
+        onDifferenceSpectraChange([]);
+      } else {
+        setInternalDifferenceSpectra([]);
+      }
+    } else if (mode === "delta-theta") {
+      if (onShowThetaDataChange) {
+        onShowThetaDataChange(false);
+      } else {
+        setInternalShowThetaData(false);
+      }
+      if (onShowPhiDataChange) {
+        onShowPhiDataChange(false);
+      } else {
+        setInternalShowPhiData(false);
+      }
+      const pointsToAnalyze = normalizedPoints ?? spectrumPoints;
+      if (pointsToAnalyze.length === 0) {
+        return;
+      }
+      const calculated = calculateDifferenceSpectra(pointsToAnalyze, "theta");
+      if (onDifferenceSpectraChange) {
+        onDifferenceSpectraChange(calculated);
+      } else {
+        setInternalDifferenceSpectra(calculated);
+      }
+    } else if (mode === "delta-phi") {
+      if (onShowThetaDataChange) {
+        onShowThetaDataChange(false);
+      } else {
+        setInternalShowThetaData(false);
+      }
+      if (onShowPhiDataChange) {
+        onShowPhiDataChange(false);
+      } else {
+        setInternalShowPhiData(false);
+      }
+      const pointsToAnalyze = normalizedPoints ?? spectrumPoints;
+      if (pointsToAnalyze.length === 0) {
+        return;
+      }
+      const calculated = calculateDifferenceSpectra(pointsToAnalyze, "phi");
+      if (onDifferenceSpectraChange) {
+        onDifferenceSpectraChange(calculated);
+      } else {
+        setInternalDifferenceSpectra(calculated);
+      }
+    }
+  };
+
+  const handleTogglePreferred = (index: number) => {
+    const updated = differenceSpectra.map((spec: DifferenceSpectrum, i: number) => ({
+      ...spec,
+      preferred: i === index ? !spec.preferred : false, // Only one can be preferred
+    }));
+    if (onDifferenceSpectraChange) {
+      onDifferenceSpectraChange(updated);
+    } else {
+      setInternalDifferenceSpectra(updated);
+    }
+  };
+
   return (
     <div
       className="w-64 shrink-0 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
@@ -351,6 +519,22 @@ export function AnalysisToolbar({
                 base: "relative",
                 badge: "bg-white text-gray-900 text-[10px] font-semibold h-4 min-w-4 px-1 rounded-full border border-gray-900 dark:border-gray-100",
               },
+            }}
+          />
+          <ToggleIconButton
+            text="Δϴ"
+            isActive={selectedTool === "difference"}
+            onClick={() => setSelectedTool("difference")}
+            ariaLabel="Difference spectra"
+            className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+              selectedTool === "difference"
+                ? "border-wsu-crimson bg-gray-100 dark:bg-gray-700"
+                : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+            }`}
+            tooltip={{
+              content: "Calculate difference spectra for pairs of incident angles",
+              placement: "top",
+              offset: 8,
             }}
           />
         </div>
@@ -551,21 +735,29 @@ export function AnalysisToolbar({
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   Peak Detection
                 </h3>
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                  <div className="flex items-start gap-2">
+                    <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      <strong>Note:</strong> Peak assignments of experimental results are subjective.
+                    </span>
+                  </div>
+                </div>
                 <div className="space-y-3 shrink-0">
                   <div className="flex gap-2">
-                    <SubToolButton
-                      icon={<SparklesIcon className="h-4 w-4" />}
-                      tooltip="Auto-detect peaks"
-                      isActive={peakDetectionMode === "auto"}
-                      onClick={handleAutoDetectPeaks}
-                      disabled={spectrumPoints.length === 0}
-                      iconOnly
-                    />
                     <SubToolButton
                       icon={<PencilIcon className="h-4 w-4" />}
                       tooltip="Click on plot to add peaks manually"
                       isActive={peakDetectionMode === "manual"}
                       onClick={handleManualPeakMode}
+                      disabled={spectrumPoints.length === 0}
+                      iconOnly
+                    />
+                    <SubToolButton
+                      icon={<SparklesIcon className="h-4 w-4" />}
+                      tooltip="Auto-detect peaks"
+                      isActive={peakDetectionMode === "auto"}
+                      onClick={handleAutoDetectPeaks}
                       disabled={spectrumPoints.length === 0}
                       iconOnly
                     />
@@ -846,8 +1038,129 @@ export function AnalysisToolbar({
                 </ScrollShadow>
               </div>
           )}
+
+          {selectedTool === "difference" && (
+            <div className="space-y-3 pt-2">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                Difference Spectra
+              </h3>
+              <div className="space-y-3 shrink-0">
+                <div className="flex gap-2">
+                  <SubToolButton
+                    text="ϴ"
+                    tooltip="Show theta-dependent data"
+                    isActive={differenceMode === "theta"}
+                    onClick={() => handleDifferenceMode("theta")}
+                    disabled={spectrumPoints.length === 0 || !hasThetaData || !hasMultipleThetas}
+                    iconOnly
+                  />
+                  <SubToolButton
+                    text="Φ"
+                    tooltip="Show phi-dependent data"
+                    isActive={differenceMode === "phi"}
+                    onClick={() => handleDifferenceMode("phi")}
+                    disabled={spectrumPoints.length === 0 || !hasPhiData || !hasMultiplePhis}
+                    iconOnly
+                  />
+                  <SubToolButton
+                    text="Δϴ"
+                    tooltip="Calculate polar (theta) difference spectra"
+                    isActive={differenceMode === "delta-theta"}
+                    onClick={() => handleDifferenceMode("delta-theta")}
+                    disabled={spectrumPoints.length === 0 || !hasThetaData || !hasMultipleThetas}
+                    iconOnly
+                  />
+                  <SubToolButton
+                    text="ΔΦ"
+                    tooltip="Calculate azimuthal (phi) difference spectra"
+                    isActive={differenceMode === "delta-phi"}
+                    onClick={() => handleDifferenceMode("delta-phi")}
+                    disabled={spectrumPoints.length === 0 || !hasPhiData || !hasMultiplePhis}
+                    iconOnly
+                  />
+                </div>
+
+                <ScrollShadow
+                  hideScrollBar
+                  className="max-h-[300px]"
+                >
+                  <div className="space-y-2">
+                    {differenceSpectra.length === 0 && (
+                      <div className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                        Click θ or φ to calculate difference spectra.
+                      </div>
+                    )}
+
+                    {differenceSpectra.length > 0 && (
+                      <div className="space-y-2">
+                        {differenceSpectra.map((spec: DifferenceSpectrum, index: number) => (
+                          <div
+                            key={index}
+                            className={`relative flex items-center gap-2 rounded-lg border p-2 ${
+                              spec.preferred
+                                ? "border-wsu-crimson bg-wsu-crimson/5 dark:border-wsu-crimson dark:bg-wsu-crimson/10"
+                                : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePreferred(index)}
+                              className="shrink-0 text-gray-400 hover:text-yellow-500 dark:text-gray-500 dark:hover:text-yellow-400"
+                              title={spec.preferred ? "Remove preferred" : "Set as preferred"}
+                            >
+                              <StarIcon
+                                className={`h-4 w-4 ${
+                                  spec.preferred
+                                    ? "fill-yellow-500 text-yellow-500 dark:fill-yellow-400 dark:text-yellow-400"
+                                    : ""
+                                }`}
+                              />
+                            </button>
+                            <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
+                              {spec.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </ScrollShadow>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Auto-detect Confirmation Dialog */}
+      <SimpleDialog
+        isOpen={showAutoDetectConfirm}
+        onClose={() => setShowAutoDetectConfirm(false)}
+        title="Confirm Peak Detection"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            Peak detection is slow and under development. It may crash your browser.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="bordered"
+              size="sm"
+              onClick={() => setShowAutoDetectConfirm(false)}
+            >
+              No
+            </Button>
+            <Button
+              type="button"
+              variant="solid"
+              size="sm"
+              onClick={handleConfirmAutoDetect}
+            >
+              Yes
+            </Button>
+          </div>
+        </div>
+      </SimpleDialog>
     </div>
   );
 }

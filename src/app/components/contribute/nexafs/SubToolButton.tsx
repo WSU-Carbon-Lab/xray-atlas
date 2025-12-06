@@ -4,7 +4,8 @@ import { Tooltip } from "@heroui/react";
 import type { ReactNode } from "react";
 
 interface SubToolButtonProps {
-  icon: ReactNode;
+  icon?: ReactNode;
+  text?: string;
   label?: string;
   tooltip: string;
   isActive?: boolean;
@@ -16,6 +17,7 @@ interface SubToolButtonProps {
 
 export function SubToolButton({
   icon,
+  text,
   label,
   tooltip,
   isActive = false,
@@ -32,6 +34,12 @@ export function SubToolButton({
     "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700";
   const sizeClasses = iconOnly ? "w-10" : "flex-1";
 
+  const content = text ? (
+    <span className="text-base font-medium">{text}</span>
+  ) : (
+    icon
+  );
+
   const button = (
     <button
       type="button"
@@ -42,7 +50,7 @@ export function SubToolButton({
         isActive ? activeClasses : inactiveClasses
       } ${className}`}
     >
-      {icon}
+      {content}
       {!iconOnly && label && <span className="text-xs">{label}</span>}
     </button>
   );

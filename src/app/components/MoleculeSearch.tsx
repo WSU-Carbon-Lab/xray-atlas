@@ -26,11 +26,11 @@ export function MoleculeSearch({
   const searchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Debounce search query
+  // Debounce search query - reduced from 300ms to 150ms for faster response
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query);
-    }, 300);
+    }, 150);
 
     return () => clearTimeout(timer);
   }, [query]);
@@ -43,8 +43,9 @@ export function MoleculeSearch({
       offset: 0,
     },
     {
-      enabled: debouncedQuery.length > 0,
-      staleTime: 30000, // Cache for 30 seconds
+      enabled: debouncedQuery.length >= 1, // Enable search with just 1 character
+      staleTime: 60000, // Cache for 60 seconds
+      gcTime: 300000, // Keep in cache for 5 minutes
     },
   );
 
@@ -181,11 +182,14 @@ export function MoleculeSearch({
             </div>
           )}
 
-          {!isLoading && !isError && !hasResults && (
-            <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
-              No molecules found for &quot;{debouncedQuery}&quot;
-            </div>
-          )}
+          {!isLoading &&
+            !isError &&
+            !hasResults &&
+            debouncedQuery.length >= 1 && (
+              <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                No molecules found for &quot;{debouncedQuery}&quot;
+              </div>
+            )}
         </div>
       )}
     </div>

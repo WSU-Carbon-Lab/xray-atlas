@@ -70,10 +70,31 @@ model experiments {
   samples                samples                  @relation(fields: [sampleid], references: [id], onUpdate: NoAction)
   spectrumpoints         spectrumpoints[]
   peaksets               peaksets[]
+  // differencespectra    differencespectra[]      // Planned: Difference spectra for experiments with multiple geometries
 
   @@unique([sampleid, edgeid, instrumentid, measurementdate])
   @@index([sampleid, edgeid, instrumentid, measurementdate], map: "idx_experiment_lookup")
 }
+
+// PLANNED: Difference Spectra Model
+// This model will store calculated difference spectra for experiments with multiple incident angles/geometries.
+// Difference spectra are calculated by subtracting lower incident angle spectra from higher incident angle spectra.
+// Only applicable to experiments with more than one incident angle/geometry.
+//
+// model differencespectra {
+//   id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+//   experimentid String      @db.Uuid
+//   mode         String      // 'theta' for polar difference spectra, 'phi' for azimuthal
+//   lowerangle   Decimal     @db.Decimal
+//   higherangle  Decimal     @db.Decimal
+//   ispreferred  Boolean     @default(false)
+//   points       Json        // Array of {energy: number, absorption: number}
+//   createdat    DateTime    @default(now()) @db.Timestamptz(6)
+//   experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade)
+//
+//   @@unique([experimentid, mode, lowerangle, higherangle])
+//   @@index([experimentid, ispreferred])
+// }
 
 model facilities {
   id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

@@ -404,8 +404,11 @@ export const moleculesRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const searchTerm = input.query.trim();
+      const searchTermLower = searchTerm.toLowerCase();
+      const searchPattern = `${searchTermLower}%`; // For prefix matching
 
-      // Advanced full-text search with ranking, using all available indexes
+      // Optimized search with prefix matching, full-text search, and early LIMIT
+      // Supports partial matches like "IT" matching "ITIC"
       const results = await ctx.db.$queryRaw<
         Array<{
           id: string;
@@ -422,60 +425,115 @@ export const moleculesRouter = createTRPCRouter({
           matchtype: string;
         }>
       >`
-        WITH search_results AS (
-          SELECT
-            m.*,
-            GREATEST(
-              -- Full-text search on molecules (uses idx_molecule_ft)
-              ts_rank(
-                to_tsvector('english', m.iupacname || ' ' || COALESCE(m.chemicalformula, '')),
-                plainto_tsquery('english', ${searchTerm})
-              ),
-              -- Full-text search on synonyms (uses idx_moleculeSynonym_ft)
-              COALESCE((
-                SELECT MAX(ts_rank(
-                  to_tsvector('english', ms.synonym),
-                  plainto_tsquery('english', ${searchTerm})
-                ))
-                FROM "moleculesynonyms" ms
-                WHERE ms."moleculeid" = m."id"
-                AND to_tsvector('english', ms.synonym) @@ plainto_tsquery('english', ${searchTerm})
-              ), 0)
-            ) as relevance,
-            CASE
-              WHEN LOWER(COALESCE(m.casnumber, '')) = LOWER(${searchTerm}) THEN 'cas_exact'
-              WHEN ${input.searchPubChemCid} AND LOWER(COALESCE(m.pubchemcid, '')) = LOWER(${searchTerm}) THEN 'pubchem_exact'
-              WHEN to_tsvector('english', m.iupacname || ' ' || COALESCE(m.chemicalformula, ''))
-                   @@ plainto_tsquery('english', ${searchTerm}) THEN 'molecule_fts'
-              ELSE 'synonym_fts'
-            END as matchtype
+        WITH candidate_molecules AS (
+          SELECT DISTINCT m.*
           FROM "molecules" m
           WHERE
-            -- Full-text search on molecules
-            to_tsvector('english', m.iupacname || ' ' || COALESCE(m.chemicalformula, ''))
-            @@ plainto_tsquery('english', ${searchTerm})
+            -- Fast exact matches first (indexed)
+            (${input.searchCasNumber} AND LOWER(COALESCE(m.casnumber, '')) = ${searchTermLower})
             OR
-            -- Full-text search on synonyms
+            (${input.searchPubChemCid} AND LOWER(COALESCE(m.pubchemcid, '')) = ${searchTermLower})
+            OR
+            -- Prefix matching on IUPAC name (fast with index on iupacname)
+            LOWER(m.iupacname) LIKE ${searchPattern}
+            OR
+            -- Prefix matching on chemical formula
+            LOWER(m.chemicalformula) LIKE ${searchPattern}
+            OR
+            -- Prefix matching on synonyms (optimized with EXISTS)
             EXISTS (
+              SELECT 1 FROM "moleculesynonyms" ms
+              WHERE ms."moleculeid" = m."id"
+              AND LOWER(ms.synonym) LIKE ${searchPattern}
+            )
+            OR
+            -- Full-text search on molecules (for multi-word queries)
+            (LENGTH(${searchTerm}) >= 3 AND to_tsvector('english', m.iupacname || ' ' || COALESCE(m.chemicalformula, ''))
+            @@ plainto_tsquery('english', ${searchTerm}))
+            OR
+            -- Full-text search on synonyms (for multi-word queries)
+            (LENGTH(${searchTerm}) >= 3 AND EXISTS (
               SELECT 1 FROM "moleculesynonyms" ms
               WHERE ms."moleculeid" = m."id"
               AND to_tsvector('english', ms.synonym)
               @@ plainto_tsquery('english', ${searchTerm})
-            )
-            OR
-            -- CAS number exact match (if enabled)
-            (${input.searchCasNumber} AND LOWER(COALESCE(m.casnumber, '')) = LOWER(${searchTerm}))
-            OR
-            -- PubChem CID exact match (if enabled)
-            (${input.searchPubChemCid} AND LOWER(COALESCE(m.pubchemcid, '')) = LOWER(${searchTerm}))
+            ))
+          LIMIT ${input.limit * 5}
+        ),
+        search_results AS (
+          SELECT
+            cm.*,
+            GREATEST(
+              -- Prefix match relevance (higher for exact prefix matches)
+              CASE
+                WHEN LOWER(cm.iupacname) = ${searchTermLower} THEN 10.0
+                WHEN LOWER(cm.iupacname) LIKE ${searchPattern} THEN 5.0
+                ELSE 0
+              END,
+              -- Synonym prefix match relevance
+              COALESCE((
+                SELECT CASE
+                  WHEN LOWER(ms.synonym) = ${searchTermLower} THEN 10.0
+                  WHEN LOWER(ms.synonym) LIKE ${searchPattern} THEN 5.0
+                  ELSE 0
+                END
+                FROM "moleculesynonyms" ms
+                WHERE ms."moleculeid" = cm."id"
+                AND (LOWER(ms.synonym) = ${searchTermLower} OR LOWER(ms.synonym) LIKE ${searchPattern})
+                ORDER BY
+                  CASE WHEN LOWER(ms.synonym) = ${searchTermLower} THEN 0 ELSE 1 END,
+                  ms."order" ASC,
+                  LENGTH(ms.synonym) ASC
+                LIMIT 1
+              ), 0),
+              -- Full-text search relevance (only for longer queries)
+              CASE WHEN LENGTH(${searchTerm}) >= 3 THEN
+                GREATEST(
+                  ts_rank(
+                    to_tsvector('english', cm.iupacname || ' ' || COALESCE(cm.chemicalformula, '')),
+                    plainto_tsquery('english', ${searchTerm})
+                  ),
+                  COALESCE((
+                    SELECT MAX(ts_rank(
+                      to_tsvector('english', ms.synonym),
+                      plainto_tsquery('english', ${searchTerm})
+                    ))
+                    FROM "moleculesynonyms" ms
+                    WHERE ms."moleculeid" = cm."id"
+                    AND to_tsvector('english', ms.synonym) @@ plainto_tsquery('english', ${searchTerm})
+                    LIMIT 1
+                  ), 0)
+                )
+              ELSE 0 END
+            ) as relevance,
+            CASE
+              WHEN LOWER(COALESCE(cm.casnumber, '')) = ${searchTermLower} THEN 'cas_exact'
+              WHEN ${input.searchPubChemCid} AND LOWER(COALESCE(cm.pubchemcid, '')) = ${searchTermLower} THEN 'pubchem_exact'
+              WHEN LOWER(cm.iupacname) = ${searchTermLower} OR EXISTS (
+                SELECT 1 FROM "moleculesynonyms" ms
+                WHERE ms."moleculeid" = cm."id"
+                AND LOWER(ms.synonym) = ${searchTermLower}
+              ) THEN 'name_exact'
+              WHEN LOWER(cm.iupacname) LIKE ${searchPattern} OR EXISTS (
+                SELECT 1 FROM "moleculesynonyms" ms
+                WHERE ms."moleculeid" = cm."id"
+                AND LOWER(ms.synonym) LIKE ${searchPattern}
+              ) THEN 'name_prefix'
+              WHEN LENGTH(${searchTerm}) >= 3 AND to_tsvector('english', cm.iupacname || ' ' || COALESCE(cm.chemicalformula, ''))
+                   @@ plainto_tsquery('english', ${searchTerm}) THEN 'molecule_fts'
+              ELSE 'synonym_fts'
+            END as matchtype
+          FROM candidate_molecules cm
         )
         SELECT * FROM search_results
         ORDER BY
           CASE matchtype
             WHEN 'cas_exact' THEN 1
             WHEN 'pubchem_exact' THEN 2
-            WHEN 'molecule_fts' THEN 3
-            ELSE 4
+            WHEN 'name_exact' THEN 3
+            WHEN 'name_prefix' THEN 4
+            WHEN 'molecule_fts' THEN 5
+            ELSE 6
           END,
           relevance DESC,
           iupacname ASC

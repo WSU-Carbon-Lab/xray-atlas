@@ -26,6 +26,7 @@ import type {
   DatasetState,
   PeakData,
 } from "~/app/contribute/nexafs/types";
+import type { DifferenceSpectrum } from "~/app/contribute/nexafs/utils/differenceSpectra";
 import {
   EXPERIMENT_TYPE_OPTIONS,
   type ExperimentTypeOption,
@@ -63,6 +64,9 @@ export function DatasetContent({
   const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
     useState<"pre" | "post" | null>(null);
   const [isManualPeakMode, setIsManualPeakMode] = useState(false);
+  const [differenceSpectra, setDifferenceSpectra] = useState<DifferenceSpectrum[]>([]);
+  const [showThetaData, setShowThetaData] = useState(false);
+  const [showPhiData, setShowPhiData] = useState(false);
 
   // Molecule search hook - per dataset
   const {
@@ -404,6 +408,12 @@ export function DatasetContent({
           }}
           isManualPeakMode={isManualPeakMode}
           onManualPeakModeChange={setIsManualPeakMode}
+          differenceSpectra={differenceSpectra}
+          onDifferenceSpectraChange={setDifferenceSpectra}
+          showThetaData={showThetaData}
+          showPhiData={showPhiData}
+          onShowThetaDataChange={setShowThetaData}
+          onShowPhiDataChange={setShowPhiData}
         />
 
         {/* Plot and Analysis */}
@@ -460,6 +470,9 @@ export function DatasetContent({
                   });
                 }}
                 isManualPeakMode={isManualPeakMode}
+                differenceSpectra={differenceSpectra}
+                showThetaData={showThetaData}
+                showPhiData={showPhiData}
               />
             ) : dataset.spectrumError ? (
               <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">

@@ -15,7 +15,7 @@ import { trpc } from "~/trpc/client";
 
 export default function ContributePage() {
   const router = useRouter();
-  const { isSignedIn, user } = useUser();
+  const { isSignedIn } = useUser();
   const [showAgreementModal, setShowAgreementModal] = useState(false);
 
   // Check if user has already agreed to the contribution agreement
@@ -54,7 +54,7 @@ export default function ContributePage() {
   if (!isSignedIn) {
     return (
       <div className="container mx-auto flex min-h-[calc(100vh-20rem)] items-center justify-center px-4 py-16">
-        <div className="mx-auto max-w-2xl text-center">
+        <div className="mx-auto max-w-7xl text-center">
           <h1 className="mb-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
             Sign In Required
           </h1>
@@ -72,7 +72,7 @@ export default function ContributePage() {
   if (isLoadingAgreement) {
     return (
       <div className="container mx-auto px-4 py-16">
-        <div className="mx-auto max-w-2xl text-center">
+        <div className="mx-auto max-w-7xl text-center">
           <div className="border-t-wsu-crimson mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300"></div>
           <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
@@ -92,7 +92,7 @@ export default function ContributePage() {
       />
 
       <div className="container mx-auto px-4 py-16">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-7xl">
           <div className="mb-8 text-center">
             <h1 className="mb-4 text-4xl font-bold text-gray-900 dark:text-gray-100">
               Contribute to X-ray Atlas

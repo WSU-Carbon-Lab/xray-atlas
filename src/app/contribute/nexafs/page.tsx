@@ -10,15 +10,25 @@ import { ContributionAgreementModal } from "~/app/components/ContributionAgreeme
 import { SimpleDialog } from "~/app/components/SimpleDialog";
 import { FormField } from "~/app/components/FormField";
 import { trpc } from "~/trpc/client";
-import { ArrowLeftIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowLeftIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 import { FileUploadZone } from "~/app/components/contribute/nexafs/FileUploadZone";
 import { ColumnMappingModal } from "~/app/components/contribute/nexafs/ColumnMappingModal";
 import { DatasetTabs } from "~/app/components/contribute/nexafs/DatasetTabs";
 import { DatasetContent } from "~/app/components/contribute/nexafs/DatasetContent";
-import type { DatasetState, CSVColumnMappings, SpectrumStats } from "~/app/contribute/nexafs/types";
+import type {
+  DatasetState,
+  CSVColumnMappings,
+  SpectrumStats,
+} from "~/app/contribute/nexafs/types";
 import { createEmptyDatasetState } from "~/app/contribute/nexafs/types";
 import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
-import { analyzeNumericColumns, extractGeometryPairs } from "~/app/contribute/nexafs/utils";
+import {
+  analyzeNumericColumns,
+  extractGeometryPairs,
+} from "~/app/contribute/nexafs/utils";
 
 const parseCSVFile = (
   file: File,
@@ -59,6 +69,12 @@ export default function NEXAFSContributePage() {
   // Datasets state
   const [datasets, setDatasets] = useState<DatasetState[]>([]);
   const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
+  const [columnMappingQueue, setColumnMappingQueue] = useState<
+    Array<{
+      file: File;
+      datasetId: string;
+    }>
+  >([]);
   const [columnMappingFile, setColumnMappingFile] = useState<{
     file: File;
     datasetId: string;
@@ -75,11 +91,17 @@ export default function NEXAFSContributePage() {
     trpc.experiments.listCalibrationMethods.useQuery();
 
   const instrumentOptions =
-    instrumentsData?.instruments?.map((instrument) => ({
-      id: instrument.id,
-      name: instrument.name,
-      facilityName: instrument.facilities?.name ?? undefined,
-    })) ?? [];
+    instrumentsData?.instruments?.map(
+      (instrument: {
+        id: string;
+        name: string;
+        facilities?: { name: string | null } | null;
+      }) => ({
+        id: instrument.id,
+        name: instrument.name,
+        facilityName: instrument.facilities?.name ?? undefined,
+      }),
+    ) ?? [];
   const edgeOptions = edgesData?.edges ?? [];
   const calibrationOptions = calibrationMethodsData?.calibrationMethods ?? [];
 
@@ -111,7 +133,8 @@ export default function NEXAFSContributePage() {
   // Calibration method creation dialog
   const [showCalibrationDialog, setShowCalibrationDialog] = useState(false);
   const [newCalibrationName, setNewCalibrationName] = useState("");
-  const [newCalibrationDescription, setNewCalibrationDescription] = useState("");
+  const [newCalibrationDescription, setNewCalibrationDescription] =
+    useState("");
   const createCalibrationMutation =
     trpc.experiments.createCalibrationMethod.useMutation();
 
@@ -188,7 +211,11 @@ export default function NEXAFSContributePage() {
 
           // Show column mapping modal if auto-detection might be wrong
           if (!energyCol || !absorptionCol) {
-            setColumnMappingFile({ file, datasetId: dataset.id });
+            // Add to queue instead of directly setting
+            setColumnMappingQueue((prev) => [
+              ...prev,
+              { file, datasetId: dataset.id },
+            ]);
           } else {
             // Auto-process immediately if columns were detected
             // Use setTimeout to ensure state update has completed
@@ -210,128 +237,153 @@ export default function NEXAFSContributePage() {
   };
 
   // Update dataset helper - memoized to prevent infinite loops
-  const updateDataset = useCallback((datasetId: string, updates: Partial<DatasetState>) => {
-    setDatasets((prev) =>
-      prev.map((d) => (d.id === datasetId ? { ...d, ...updates } : d)),
-    );
-  }, []);
+  const updateDataset = useCallback(
+    (datasetId: string, updates: Partial<DatasetState>) => {
+      setDatasets((prev) =>
+        prev.map((d) => (d.id === datasetId ? { ...d, ...updates } : d)),
+      );
+    },
+    [],
+  );
 
   // Process dataset data from CSV - memoized to prevent recreation
-  const processDatasetData = useCallback((datasetId: string) => {
-    const dataset = datasets.find((d) => d.id === datasetId);
-    if (!dataset || dataset.csvRawData.length === 0) return;
+  const processDatasetData = useCallback(
+    (datasetId: string) => {
+      const dataset = datasets.find((d) => d.id === datasetId);
+      if (!dataset || dataset.csvRawData.length === 0) return;
 
-    const energyColumn = dataset.columnMappings.energy;
-    const absorptionColumn = dataset.columnMappings.absorption;
+      const energyColumn = dataset.columnMappings.energy;
+      const absorptionColumn = dataset.columnMappings.absorption;
 
-    if (!energyColumn || !absorptionColumn) {
-      updateDataset(datasetId, {
-        spectrumError: "Select both energy and absorption columns.",
-        spectrumPoints: [],
-      });
-      return;
-    }
-
-    const thetaColumn = dataset.columnMappings.theta;
-    const phiColumn = dataset.columnMappings.phi;
-
-    const numericColumns = new Set<string>([energyColumn, absorptionColumn]);
-    if (thetaColumn) numericColumns.add(thetaColumn);
-    if (phiColumn) numericColumns.add(phiColumn);
-
-    const numericColumnValues = analyzeNumericColumns(
-      dataset.csvRawData,
-      numericColumns,
-    );
-
-    const invalidColumns = Array.from(numericColumns).filter(
-      (column) => numericColumnValues[column]?.sanitizedInvalidRows.length,
-    );
-
-    if (invalidColumns.length > 0) {
-      updateDataset(datasetId, {
-        spectrumError: `Invalid numeric values detected in columns: ${invalidColumns.join(", ")}`,
-        spectrumPoints: [],
-      });
-      return;
-    }
-
-    const spectrumPoints: SpectrumPoint[] = [];
-    const energyStats = { min: Infinity, max: -Infinity, nanCount: 0, validCount: 0 };
-    const absorptionStats = { min: Infinity, max: -Infinity, nanCount: 0, validCount: 0 };
-
-    dataset.csvRawData.forEach((row) => {
-      const energyValue = Number(row[energyColumn] ?? NaN);
-      const absorptionValue = Number(row[absorptionColumn] ?? NaN);
-
-      if (Number.isFinite(energyValue)) {
-        energyStats.validCount += 1;
-        energyStats.min = Math.min(energyStats.min, energyValue);
-        energyStats.max = Math.max(energyStats.max, energyValue);
-      } else {
-        energyStats.nanCount += 1;
+      if (!energyColumn || !absorptionColumn) {
+        updateDataset(datasetId, {
+          spectrumError: "Select both energy and absorption columns.",
+          spectrumPoints: [],
+        });
+        return;
       }
 
-      if (Number.isFinite(absorptionValue)) {
-        absorptionStats.validCount += 1;
-        absorptionStats.min = Math.min(absorptionStats.min, absorptionValue);
-        absorptionStats.max = Math.max(absorptionStats.max, absorptionValue);
-      } else {
-        absorptionStats.nanCount += 1;
+      const thetaColumn = dataset.columnMappings.theta;
+      const phiColumn = dataset.columnMappings.phi;
+
+      const numericColumns = new Set<string>([energyColumn, absorptionColumn]);
+      if (thetaColumn) numericColumns.add(thetaColumn);
+      if (phiColumn) numericColumns.add(phiColumn);
+
+      const numericColumnValues = analyzeNumericColumns(
+        dataset.csvRawData,
+        numericColumns,
+      );
+
+      const invalidColumns = Array.from(numericColumns).filter(
+        (column) => numericColumnValues[column]?.sanitizedInvalidRows.length,
+      );
+
+      if (invalidColumns.length > 0) {
+        updateDataset(datasetId, {
+          spectrumError: `Invalid numeric values detected in columns: ${invalidColumns.join(", ")}`,
+          spectrumPoints: [],
+        });
+        return;
       }
 
-      if (
-        Number.isFinite(energyValue) &&
-        Number.isFinite(absorptionValue)
-      ) {
-        const point: SpectrumPoint = {
-          energy: energyValue,
-          absorption: absorptionValue,
-        };
+      const spectrumPoints: SpectrumPoint[] = [];
+      const energyStats = {
+        min: Infinity,
+        max: -Infinity,
+        nanCount: 0,
+        validCount: 0,
+      };
+      const absorptionStats = {
+        min: Infinity,
+        max: -Infinity,
+        nanCount: 0,
+        validCount: 0,
+      };
 
-        if (thetaColumn && row[thetaColumn] !== undefined) {
-          const thetaValue = Number(row[thetaColumn]);
-          if (Number.isFinite(thetaValue)) {
-            point.theta = thetaValue;
-          }
-        }
-        if (phiColumn && row[phiColumn] !== undefined) {
-          const phiValue = Number(row[phiColumn]);
-          if (Number.isFinite(phiValue)) {
-            point.phi = phiValue;
-          }
+      dataset.csvRawData.forEach((row) => {
+        const energyValue = Number(row[energyColumn] ?? NaN);
+        const absorptionValue = Number(row[absorptionColumn] ?? NaN);
+
+        if (Number.isFinite(energyValue)) {
+          energyStats.validCount += 1;
+          energyStats.min = Math.min(energyStats.min, energyValue);
+          energyStats.max = Math.max(energyStats.max, energyValue);
+        } else {
+          energyStats.nanCount += 1;
         }
 
-        spectrumPoints.push(point);
+        if (Number.isFinite(absorptionValue)) {
+          absorptionStats.validCount += 1;
+          absorptionStats.min = Math.min(absorptionStats.min, absorptionValue);
+          absorptionStats.max = Math.max(absorptionStats.max, absorptionValue);
+        } else {
+          absorptionStats.nanCount += 1;
+        }
+
+        if (Number.isFinite(energyValue) && Number.isFinite(absorptionValue)) {
+          const point: SpectrumPoint = {
+            energy: energyValue,
+            absorption: absorptionValue,
+          };
+
+          if (thetaColumn && row[thetaColumn] !== undefined) {
+            const thetaValue = Number(row[thetaColumn]);
+            if (Number.isFinite(thetaValue)) {
+              point.theta = thetaValue;
+            }
+          }
+          if (phiColumn && row[phiColumn] !== undefined) {
+            const phiValue = Number(row[phiColumn]);
+            if (Number.isFinite(phiValue)) {
+              point.phi = phiValue;
+            }
+          }
+
+          spectrumPoints.push(point);
+        }
+      });
+
+      // Sort points by energy for proper plotting
+      const sortedPoints = spectrumPoints.sort((a, b) => a.energy - b.energy);
+
+      const spectrumStats: SpectrumStats = {
+        totalRows: dataset.csvRawData.length,
+        validPoints: sortedPoints.length,
+        energy: {
+          min: energyStats.validCount > 0 ? energyStats.min : null,
+          max: energyStats.validCount > 0 ? energyStats.max : null,
+          nanCount: energyStats.nanCount,
+          validCount: energyStats.validCount,
+        },
+        absorption: {
+          min: absorptionStats.validCount > 0 ? absorptionStats.min : null,
+          max: absorptionStats.validCount > 0 ? absorptionStats.max : null,
+          nanCount: absorptionStats.nanCount,
+          validCount: absorptionStats.validCount,
+        },
+      };
+
+      updateDataset(datasetId, {
+        spectrumPoints: sortedPoints,
+        spectrumStats,
+        spectrumError:
+          sortedPoints.length === 0 ? "No valid data points found." : null,
+      });
+    },
+    [updateDataset, datasets],
+  );
+
+  // Process the next item in the queue when modal closes
+  useEffect(() => {
+    if (!columnMappingFile && columnMappingQueue.length > 0) {
+      const next = columnMappingQueue[0];
+      if (next) {
+        setColumnMappingQueue((prev) => prev.slice(1));
+        setColumnMappingFile(next);
       }
-    });
-
-    // Sort points by energy for proper plotting
-    const sortedPoints = spectrumPoints.sort((a, b) => a.energy - b.energy);
-
-    const spectrumStats: SpectrumStats = {
-      totalRows: dataset.csvRawData.length,
-      validPoints: sortedPoints.length,
-      energy: {
-        min: energyStats.validCount > 0 ? energyStats.min : null,
-        max: energyStats.validCount > 0 ? energyStats.max : null,
-        nanCount: energyStats.nanCount,
-        validCount: energyStats.validCount,
-      },
-      absorption: {
-        min: absorptionStats.validCount > 0 ? absorptionStats.min : null,
-        max: absorptionStats.validCount > 0 ? absorptionStats.max : null,
-        nanCount: absorptionStats.nanCount,
-        validCount: absorptionStats.validCount,
-      },
-    };
-
-    updateDataset(datasetId, {
-      spectrumPoints: sortedPoints,
-      spectrumStats,
-      spectrumError: sortedPoints.length === 0 ? "No valid data points found." : null,
-    });
-  }, [updateDataset, datasets]);
+    }
+  }, [columnMappingFile, columnMappingQueue]);
 
   const handleColumnMappingConfirm = (mappings: CSVColumnMappings) => {
     if (!columnMappingFile) return;
@@ -344,6 +396,10 @@ export default function NEXAFSContributePage() {
     setTimeout(() => {
       processDatasetData(columnMappingFile.datasetId);
     }, 100);
+  };
+
+  const handleColumnMappingClose = () => {
+    setColumnMappingFile(null);
   };
 
   // Create a stable dependency string for datasets
@@ -383,7 +439,11 @@ export default function NEXAFSContributePage() {
     setDatasets((prev) => {
       const filtered = prev.filter((d) => d.id !== datasetId);
       if (activeDatasetId === datasetId) {
-        setActiveDatasetId(filtered.length > 0 ? filtered[filtered.length - 1]?.id ?? null : null);
+        setActiveDatasetId(
+          filtered.length > 0
+            ? (filtered[filtered.length - 1]?.id ?? null)
+            : null,
+        );
       }
       return filtered;
     });
@@ -394,7 +454,8 @@ export default function NEXAFSContributePage() {
   };
 
   // Submission
-  const createNexafsMutation = trpc.experiments.createWithSpectrum.useMutation();
+  const createNexafsMutation =
+    trpc.experiments.createWithSpectrum.useMutation();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -507,10 +568,15 @@ export default function NEXAFSContributePage() {
           sample: {
             moleculeId: dataset.moleculeId, // Assert non-null after validation check above
             identifier: sampleIdentifier,
-            processMethod:
-              dataset.sampleInfo.processMethod ?? undefined,
-            substrate: dataset.sampleInfo.substrate.trim() === "" ? undefined : dataset.sampleInfo.substrate.trim(),
-            solvent: dataset.sampleInfo.solvent.trim() === "" ? undefined : dataset.sampleInfo.solvent.trim(),
+            processMethod: dataset.sampleInfo.processMethod ?? undefined,
+            substrate:
+              dataset.sampleInfo.substrate.trim() === ""
+                ? undefined
+                : dataset.sampleInfo.substrate.trim(),
+            solvent:
+              dataset.sampleInfo.solvent.trim() === ""
+                ? undefined
+                : dataset.sampleInfo.solvent.trim(),
             thickness:
               typeof dataset.sampleInfo.thickness === "number" &&
               Number.isFinite(dataset.sampleInfo.thickness)
@@ -729,10 +795,20 @@ export default function NEXAFSContributePage() {
 
       <ColumnMappingModal
         isOpen={!!columnMappingFile}
-        onClose={() => setColumnMappingFile(null)}
+        onClose={handleColumnMappingClose}
         onConfirm={handleColumnMappingConfirm}
-        columns={columnMappingFile ? datasets.find((d) => d.id === columnMappingFile.datasetId)?.csvColumns ?? [] : []}
-        rawData={columnMappingFile ? datasets.find((d) => d.id === columnMappingFile.datasetId)?.csvRawData ?? [] : []}
+        columns={
+          columnMappingFile
+            ? (datasets.find((d) => d.id === columnMappingFile.datasetId)
+                ?.csvColumns ?? [])
+            : []
+        }
+        rawData={
+          columnMappingFile
+            ? (datasets.find((d) => d.id === columnMappingFile.datasetId)
+                ?.csvRawData ?? [])
+            : []
+        }
         fileName={columnMappingFile?.file.name ?? ""}
       />
 
