@@ -14,6 +14,7 @@ import { trpc } from "~/trpc/client";
 import { SynonymsList } from "./SynonymsList";
 import { Badge } from "@heroui/react";
 import { ToggleIconButton } from "./ToggleIconButton";
+import { MoleculeImageSVG } from "./MoleculeImageSVG";
 
 // Updated type to match Prisma schema and include external links
 export type DisplayMolecule = {
@@ -74,6 +75,24 @@ const MoleculeImage = ({
   imageUrl: string;
   name: string;
 }) => {
+  // Check if the image is an SVG
+  const isSVG = imageUrl.toLowerCase().endsWith(".svg");
+
+  if (isSVG) {
+    return (
+      <div className="relative aspect-square w-full overflow-hidden sm:w-[45%]">
+        <div className="absolute inset-0 flex items-center justify-center p-4">
+          <MoleculeImageSVG
+            imageUrl={imageUrl}
+            name={name}
+            className="h-full w-full transition-transform duration-300 group-hover:scale-105 [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // For non-SVG images, use Next.js Image component
   return (
     <div className="relative aspect-square w-full overflow-hidden sm:w-[45%]">
       <Image
@@ -362,7 +381,7 @@ export const MoleculeDisplay = ({
                   <ToggleIconButton
                     icon={
                       <Image
-                        src="https://pubchem.ncbi.nlm.nih.gov/pcfe/favicon/apple-touch-icon.png"
+                        src="https://images.icon-icons.com/2415/PNG/512/c_line_logo_icon_146612.png"
                         alt="PubChem"
                         width={16}
                         height={16}
@@ -379,7 +398,7 @@ export const MoleculeDisplay = ({
                 <ToggleIconButton
                   icon={
                     <Image
-                      src="https://pubchem.ncbi.nlm.nih.gov/pcfe/favicon/apple-touch-icon.png"
+                      src="https://images.icon-icons.com/2415/PNG/512/c_line_logo_icon_146612.png"
                       alt="PubChem"
                       width={16}
                       height={16}

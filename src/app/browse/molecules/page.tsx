@@ -144,15 +144,17 @@ function MoleculesBrowseContent() {
     }
 
     // TypeScript now knows this is PaginatedResultMolecule
-    const paginatedMolecule = molecule as PaginatedResultMolecule;
-    const synonyms = paginatedMolecule.moleculesynonyms.map(
+    const synonyms = molecule.moleculesynonyms.map(
       (s: { synonym: string }) => s.synonym,
     );
-    const primarySynonym = paginatedMolecule.moleculesynonyms.find(
+    const primarySynonym = molecule.moleculesynonyms.find(
       (s: { order?: number }) => s.order === 0,
     );
     const displayName =
-      primarySynonym?.synonym ?? synonyms[0] ?? paginatedMolecule.iupacname;
+      primarySynonym?.synonym ?? synonyms[0] ?? molecule.iupacname;
+
+    // After the type guard check, TypeScript knows molecule is PaginatedResultMolecule
+    const paginatedMolecule: PaginatedResultMolecule = molecule;
 
     return {
       name: displayName,

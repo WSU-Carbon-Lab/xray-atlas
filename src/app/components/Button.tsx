@@ -2,6 +2,17 @@
 
 import { Button as HeroButton } from "@heroui/react";
 
+/**
+ * DefaultButton - Wrapper around HeroUI Button with consistent styling.
+ *
+ * Uses HeroUI semantic tokens for theming:
+ * - border-default: Border color that adapts to theme
+ * - text-foreground: Text color that adapts to theme
+ * - bg-default-100: Hover background that adapts to theme
+ *
+ * This ensures the button automatically responds to theme changes without
+ * needing dark: variants.
+ */
 type DefaultButtonProps = React.ComponentProps<typeof HeroButton>;
 
 export function DefaultButton({
@@ -14,7 +25,7 @@ export function DefaultButton({
       {...props}
       variant={props.variant ?? "light"}
       size={props.size ?? "md"}
-      className={`cursor-pointer border-default-200 text-foreground dark:border-default-100/20 flex h-8 items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 px-3 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 ${className ?? ""}`}
+      className={`cursor-pointer border-default text-foreground flex h-8 items-center gap-2 rounded-full border px-3 hover:bg-default-100 ${className ?? ""}`}
     >
       {children}
     </HeroButton>

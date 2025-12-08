@@ -7,6 +7,21 @@ import { siteMetadata } from "./components/Metadata";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProviderWrapper } from "./components/ThemeProviderWrapper";
 import { TRPCReactProvider } from "~/trpc/client";
+
+/**
+ * Root Layout - Main application layout with HeroUI theming integration.
+ *
+ * Theming Setup:
+ * - ThemeProviderWrapper manages theme state and applies 'light'/'dark' classes
+ * - body uses HeroUI semantic tokens (bg-background, text-foreground)
+ * - suppressHydrationWarning prevents hydration mismatches during theme initialization
+ *
+ * HeroUI Token Usage:
+ * - bg-background: Adapts to light/dark theme automatically
+ * - text-foreground: Text color that adapts to theme
+ *
+ * @see ThemeProviderWrapper for theme management details
+ */
 export const metadata = {
   ...siteMetadata,
 };
@@ -26,7 +41,7 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`${geist.variable} mx-auto flex min-h-screen w-full max-w-7xl flex-col`}
       >
-        <body className="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+        <body className="bg-background text-foreground">
           <TRPCReactProvider>
             <ThemeProviderWrapper>
               <Header />

@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/**
+ * Tailwind CSS v4 Dark Mode Configuration
+ *
+ * In Tailwind v4, dark mode is configured using @custom-variant instead of
+ * the darkMode config option. This directive enables the dark: variant
+ * when the .dark class is present on the root element or any ancestor.
+ *
+ * HeroUI components rely on this for theme switching.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans:
     var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
@@ -11,6 +22,67 @@
 
 /* Added WSU Custom Colors */
 
-html {
-  @apply bg-white dark:bg-gray-900;
+/**
+ * Base Layer - Global Theme Styles
+ *
+ * This layer sets up the base background colors for html and body elements.
+ * The colors are defined as CSS custom properties that change based on the
+ * .dark class presence, ensuring smooth theme transitions.
+ *
+ * Note: While HeroUI provides semantic tokens (bg-background), we use
+ * explicit background colors here to ensure the root elements always have
+ * the correct background, even before HeroUI components render.
+ */
+@layer base {
+  :root {
+    --bg-color: rgb(255, 255, 255);
+  }
+
+  .dark {
+    --bg-color: rgb(17, 24, 39); /* gray-900 */
+  }
+
+  html {
+    background-color: var(--bg-color) !important;
+    transition: background-color 0.2s ease;
+  }
+
+  body {
+    background-color: var(--bg-color) !important;
+    min-height: 100vh;
+    transition: background-color 0.2s ease;
+  }
+
+  /* CPK Color Scheme for Molecule SVGs */
+  :root {
+    /* Element colors - light mode */
+    --cpk-h: #000000;
+    --cpk-c: #000000;
+    --cpk-n: #2144d9;
+    --cpk-o: #ff0d0d;
+    --cpk-s: #e1e100;
+    --cpk-p: #ff8000;
+    --cpk-f: #90e000;
+    --cpk-cl: #00e000;
+    --cpk-br: #a52a2a;
+    --cpk-i: #940094;
+    --cpk-bonds: #000000;
+    --cpk-default-atom: #000000; /* Default atom color for non-CPK elements */
+  }
+
+  .dark {
+    /* Element colors - dark mode */
+    --cpk-h: #e0e0e0;
+    --cpk-c: #e0e0e0;
+    --cpk-n: #8fa3ff;
+    --cpk-o: #ff6666;
+    --cpk-s: #ffff00;
+    --cpk-p: #ffb366;
+    --cpk-f: #c3ff00;
+    --cpk-cl: #66ff66;
+    --cpk-br: #d47878;
+    --cpk-i: #d478d4;
+    --cpk-bonds: #ffffff;
+    --cpk-default-atom: #ffffff; /* Default atom color for non-CPK elements */
+  }
 }

@@ -521,8 +521,8 @@ export function DatasetContent({
               </div>
             )}
 
-            {/* Peak Drag Toast */}
-            {dataset.peaks.length > 0 && (
+            {/* Peak Drag Toast - only show when manual peak mode is active */}
+            {dataset.peaks.length > 0 && isManualPeakMode && (
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
                 <div className="flex items-center gap-2">
                   <PencilIcon className="h-4 w-4" />

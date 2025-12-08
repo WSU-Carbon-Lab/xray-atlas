@@ -32,8 +32,14 @@ function calculateProminence(
   let leftMin = peakIntensity;
   let rightMin = peakIntensity;
 
+  // Limit search range to improve performance for large datasets
+  // Search up to 10% of dataset size or 100 points, whichever is smaller
+  const maxSearchRange = Math.min(Math.floor(points.length * 0.1), 100);
+  const leftBound = Math.max(0, peakIndex - maxSearchRange);
+  const rightBound = Math.min(points.length - 1, peakIndex + maxSearchRange);
+
   // Find minimum to the left
-  for (let i = peakIndex - 1; i >= 0; i--) {
+  for (let i = peakIndex - 1; i >= leftBound; i--) {
     const intensity = points[i]!.absorption;
     if (intensity > peakIntensity) {
       break; // Found a higher point, stop searching left
@@ -42,7 +48,7 @@ function calculateProminence(
   }
 
   // Find minimum to the right
-  for (let i = peakIndex + 1; i < points.length; i++) {
+  for (let i = peakIndex + 1; i <= rightBound; i++) {
     const intensity = points[i]!.absorption;
     if (intensity > peakIntensity) {
       break; // Found a higher point, stop searching right
@@ -162,9 +168,7 @@ export function detectPeaks(
   const maxIntensity = Math.max(...sortedPoints.map((p) => p.absorption));
   const minProminence = options.minProminence ?? 0.05; // Default 5% of max
   const minProminenceValue = maxIntensity * minProminence;
-  const minHeight = options.height
-    ? maxIntensity * options.height
-    : undefined;
+  const minHeight = options.height ? maxIntensity * options.height : undefined;
   const minThreshold = options.threshold
     ? maxIntensity * options.threshold
     : undefined;
@@ -182,8 +186,12 @@ export function detectPeaks(
   if (minThreshold !== undefined) {
     filteredPeaks = filteredPeaks.filter((peak) => {
       // Get left and right neighbor intensities
-      const leftIntensity = peak.index > 0 ? sortedPoints[peak.index - 1]!.absorption : -Infinity;
-      const rightIntensity = peak.index < sortedPoints.length - 1 ? sortedPoints[peak.index + 1]!.absorption : -Infinity;
+      const leftIntensity =
+        peak.index > 0 ? sortedPoints[peak.index - 1]!.absorption : -Infinity;
+      const rightIntensity =
+        peak.index < sortedPoints.length - 1
+          ? sortedPoints[peak.index + 1]!.absorption
+          : -Infinity;
       const neighborMax = Math.max(leftIntensity, rightIntensity);
       const verticalDistance = peak.intensity - neighborMax;
       return verticalDistance >= minThreshold;

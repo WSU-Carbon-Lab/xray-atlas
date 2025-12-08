@@ -26,6 +26,10 @@ const config = {
       },
       {
         protocol: "https",
+        hostname: "images.icon-icons.com",
+      },
+      {
+        protocol: "https",
         hostname: "cdn.prod.website-files.com",
       },
       {
