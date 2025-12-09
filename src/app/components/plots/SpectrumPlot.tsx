@@ -69,6 +69,7 @@ type SpectrumPlotProps = {
   differenceSpectra?: DifferenceSpectrum[];
   showThetaData?: boolean;
   showPhiData?: boolean;
+  customCursor?: string | null;
 };
 
 const COLORS = [
@@ -118,6 +119,7 @@ export function SpectrumPlot({
   differenceSpectra = [],
   showThetaData = false,
   showPhiData = false,
+  customCursor,
 }: SpectrumPlotProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -135,33 +137,36 @@ export function SpectrumPlot({
 
     // Filter points based on showThetaData and showPhiData
     // If difference spectra are being shown, don't show original data
-    const showOriginalData = !differenceSpectra || differenceSpectra.length === 0;
+    const showOriginalData =
+      !differenceSpectra || differenceSpectra.length === 0;
 
-    const filteredPoints = showOriginalData ? points.filter((point) => {
-      const hasGeometry =
-        typeof point.theta === "number" &&
-        Number.isFinite(point.theta) &&
-        typeof point.phi === "number" &&
-        Number.isFinite(point.phi);
+    const filteredPoints = showOriginalData
+      ? points.filter((point) => {
+          const hasGeometry =
+            typeof point.theta === "number" &&
+            Number.isFinite(point.theta) &&
+            typeof point.phi === "number" &&
+            Number.isFinite(point.phi);
 
-      if (!hasGeometry) {
-        // Show fixed geometry points only if neither theta nor phi data is shown
-        return !showThetaData && !showPhiData;
-      }
+          if (!hasGeometry) {
+            // Show fixed geometry points only if neither theta nor phi data is shown
+            return !showThetaData && !showPhiData;
+          }
 
-      // If showing theta data, show all points (they all have theta)
-      if (showThetaData) {
-        return true;
-      }
+          // If showing theta data, show all points (they all have theta)
+          if (showThetaData) {
+            return true;
+          }
 
-      // If showing phi data, show all points (they all have phi)
-      if (showPhiData) {
-        return true;
-      }
+          // If showing phi data, show all points (they all have phi)
+          if (showPhiData) {
+            return true;
+          }
 
-      // If neither is shown, show all points (default behavior)
-      return true;
-    }) : [];
+          // If neither is shown, show all points (default behavior)
+          return true;
+        })
+      : [];
 
     filteredPoints.forEach((point) => {
       const hasGeometry =
@@ -243,7 +248,10 @@ export function SpectrumPlot({
   const differenceTraces = useMemo<PlotData[]>(() => {
     return differenceSpectra.map((diff, index) => {
       const isPreferred = diff.preferred ?? false;
-      const color = isPreferred ? "#d7263d" : COLORS[(index + 8) % COLORS.length] ?? `hsl(${((index + 8) * 57) % 360} 65% 55%)`;
+      const color = isPreferred
+        ? "#d7263d"
+        : (COLORS[(index + 8) % COLORS.length] ??
+          `hsl(${((index + 8) * 57) % 360} 65% 55%)`);
       return {
         type: "scattergl",
         mode: "lines",
@@ -300,7 +308,10 @@ export function SpectrumPlot({
         });
       });
       if (allAbsorptions.length > 0) {
-        return { min: Math.min(...allAbsorptions), max: Math.max(...allAbsorptions) };
+        return {
+          min: Math.min(...allAbsorptions),
+          max: Math.max(...allAbsorptions),
+        };
       }
     }
 
@@ -429,12 +440,7 @@ export function SpectrumPlot({
     })();
 
     return {
-      dragmode:
-        isManualPeakMode
-          ? false
-          : selectionTarget
-            ? "select"
-            : "pan",
+      dragmode: isManualPeakMode ? false : selectionTarget ? "select" : "pan",
       hovermode: "x unified",
       hoverlabel: {
         bgcolor: isDark ? "#111827" : "#f8fafc",
@@ -684,7 +690,8 @@ export function SpectrumPlot({
         // If clicked on a shape element or near a peak, select it
         if (closestPeak || isShapeElement) {
           if (closestPeak) {
-            const peakId: string = closestPeak.id ?? `peak-${closestPeak.energy}`;
+            const peakId: string =
+              closestPeak.id ?? `peak-${closestPeak.energy}`;
             const currentSelectedId = selectedPeakId;
             // Toggle selection: if already selected, deselect; otherwise select
             onPeakSelect(currentSelectedId === peakId ? null : peakId);
@@ -749,7 +756,8 @@ export function SpectrumPlot({
           }
 
           if (closestPeak) {
-            const peakId: string = closestPeak.id ?? `peak-${closestPeak.energy}`;
+            const peakId: string =
+              closestPeak.id ?? `peak-${closestPeak.energy}`;
             const currentSelectedId = selectedPeakId;
             onPeakSelect(currentSelectedId === peakId ? null : peakId);
             // Focus the plot container for keyboard events
@@ -814,15 +822,29 @@ export function SpectrumPlot({
       }
     };
 
-    plotElement.addEventListener("plotly_click", handlePlotlyClick as EventListener);
-    plotElement.addEventListener("click", handlePlotClick as EventListener, true); // Use capture phase
+    plotElement.addEventListener(
+      "plotly_click",
+      handlePlotlyClick as EventListener,
+    );
+    plotElement.addEventListener(
+      "click",
+      handlePlotClick as EventListener,
+      true,
+    ); // Use capture phase
     if (onPeakUpdate) {
       plotElement.addEventListener("plotly_relayout", safeRelayoutHandler);
     }
 
     return () => {
-      plotElement.removeEventListener("plotly_click", handlePlotlyClick as EventListener);
-      plotElement.removeEventListener("click", handlePlotClick as EventListener, true);
+      plotElement.removeEventListener(
+        "plotly_click",
+        handlePlotlyClick as EventListener,
+      );
+      plotElement.removeEventListener(
+        "click",
+        handlePlotClick as EventListener,
+        true,
+      );
       if (onPeakUpdate) {
         plotElement.removeEventListener("plotly_relayout", safeRelayoutHandler);
       }
@@ -853,11 +875,24 @@ export function SpectrumPlot({
     const svgElement = plotElement.querySelector("svg");
     if (!svgElement) return;
 
-    const cursorStyle = isManualPeakMode
-      ? "crosshair"
-      : selectionTarget
-        ? "text"
-        : "default";
+    // Check if document.body has a custom cursor set (from AnalysisToolbar)
+    // Custom cursors use data URLs which contain "url("
+    const bodyCursor =
+      typeof document !== "undefined" && document.body
+        ? document.body.style.cursor
+        : "";
+    const hasCustomBodyCursor = bodyCursor && bodyCursor.includes("url(");
+
+    // Use custom cursor prop if provided, then check body cursor, otherwise fall back to default logic
+    const cursorStyle = customCursor
+      ? customCursor
+      : hasCustomBodyCursor
+        ? bodyCursor
+        : isManualPeakMode
+          ? "crosshair"
+          : selectionTarget
+            ? "text"
+            : "default";
 
     svgElement.style.cursor = cursorStyle;
 
@@ -866,7 +901,7 @@ export function SpectrumPlot({
         svgElement.style.cursor = "";
       }
     };
-  }, [isManualPeakMode, selectionTarget]);
+  }, [isManualPeakMode, selectionTarget, customCursor]);
 
   if (points.length === 0) {
     return (
@@ -888,7 +923,7 @@ export function SpectrumPlot({
   return (
     <div
       ref={plotRef}
-      className={`focus:outline-none focus:ring-2 focus:ring-wsu-crimson/20 focus:ring-offset-2 rounded-lg ${cursorStyle}`}
+      className={`focus:ring-wsu-crimson/20 rounded-lg focus:ring-2 focus:ring-offset-2 focus:outline-none ${cursorStyle}`}
       onClick={() => {
         // Focus the container when clicked to enable keyboard events
         if (plotRef.current instanceof HTMLElement) {
@@ -897,7 +932,11 @@ export function SpectrumPlot({
       }}
     >
       <Plot
-        data={[...groupedTraces.traces, ...referenceTraces, ...differenceTraces]}
+        data={[
+          ...groupedTraces.traces,
+          ...referenceTraces,
+          ...differenceTraces,
+        ]}
         layout={combinedLayout}
         config={
           {

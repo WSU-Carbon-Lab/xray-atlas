@@ -22,10 +22,8 @@ import {
   computeNormalizationForExperiment,
   computeZeroOneNormalization,
 } from "~/app/contribute/nexafs/utils";
-import type {
-  DatasetState,
-  PeakData,
-} from "~/app/contribute/nexafs/types";
+import { getCursorForType, type CursorType } from "./utils/cursorUtils";
+import type { DatasetState, PeakData } from "~/app/contribute/nexafs/types";
 import type { DifferenceSpectrum } from "~/app/contribute/nexafs/utils/differenceSpectra";
 import {
   EXPERIMENT_TYPE_OPTIONS,
@@ -64,9 +62,12 @@ export function DatasetContent({
   const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
     useState<"pre" | "post" | null>(null);
   const [isManualPeakMode, setIsManualPeakMode] = useState(false);
-  const [differenceSpectra, setDifferenceSpectra] = useState<DifferenceSpectrum[]>([]);
+  const [differenceSpectra, setDifferenceSpectra] = useState<
+    DifferenceSpectrum[]
+  >([]);
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
+  const [cursorType, setCursorType] = useState<CursorType | null>(null);
 
   // Molecule search hook - per dataset
   const {
@@ -186,10 +187,7 @@ export function DatasetContent({
 
       if (dataset.normalizationType === "bare-atom") {
         // Bare atom normalization requires bare atom points
-        if (
-          dataset.bareAtomPoints &&
-          dataset.bareAtomPoints.length > 0
-        ) {
+        if (dataset.bareAtomPoints && dataset.bareAtomPoints.length > 0) {
           // Count points in each range
           const preCount = dataset.spectrumPoints.filter(
             (p) => p.energy >= preRange[0] && p.energy <= preRange[1],
@@ -243,7 +241,10 @@ export function DatasetContent({
         // Clear normalization if it cannot be computed
         // This happens when switching to bare-atom without bare atom points,
         // or when zero-one normalization fails
-        if (dataset.normalizedPoints !== null || dataset.normalization !== null) {
+        if (
+          dataset.normalizedPoints !== null ||
+          dataset.normalization !== null
+        ) {
           onDatasetUpdate(dataset.id, {
             normalizedPoints: null,
             normalization: null,
@@ -351,7 +352,7 @@ export function DatasetContent({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex gap-6 items-start">
+      <div className="flex items-start gap-6">
         {/* Analysis Toolbar */}
         <AnalysisToolbar
           hasMolecule={!!dataset.moleculeId}
@@ -389,7 +390,8 @@ export function DatasetContent({
           }
           onPeakUpdate={(peakId, energy) => {
             const updatedPeaks = dataset.peaks.map((peak) => {
-              const currentId = peak.id ?? `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
+              const currentId =
+                peak.id ?? `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
               if (currentId === peakId) {
                 return { ...peak, energy };
               }
@@ -414,6 +416,7 @@ export function DatasetContent({
           showPhiData={showPhiData}
           onShowThetaDataChange={setShowThetaData}
           onShowPhiDataChange={setShowPhiData}
+          onCursorTypeChange={setCursorType}
         />
 
         {/* Plot and Analysis */}
@@ -423,93 +426,103 @@ export function DatasetContent({
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
               {plotPoints.length > 0 ? (
                 <SpectrumPlot
-                points={plotPoints}
-                height={500}
-                referenceCurves={referenceCurves}
-                normalizationRegions={normalizationRegions}
-                selectionTarget={normalizationSelectionTarget}
-                onSelectionChange={handleNormalizationSelection}
-                peaks={dataset.peaks.map((peak, index) => ({
-                  energy: peak.energy,
-                  id: peak.id ?? `peak-${index}-${peak.energy}`,
-                }))}
-                selectedPeakId={dataset.selectedPeakId}
-                onPeakSelect={(peakId) =>
-                  onDatasetUpdate(dataset.id, { selectedPeakId: peakId })
-                }
-                onPeakUpdate={(peakId, energy) => {
-                  const roundedEnergy = Math.round(energy * 100) / 100;
-                  const updatedPeaks = dataset.peaks.map((peak) => {
-                    const currentId =
-                      peak.id ?? `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
-                    if (currentId === peakId) {
-                      return { ...peak, energy: roundedEnergy };
-                    }
-                    return peak;
-                  });
-                  onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
-                }}
-                onPeakDelete={(peakId) => {
-                  const updatedPeaks = dataset.peaks.filter((peak) => {
-                    const currentId =
-                      peak.id ?? `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
-                    return currentId !== peakId;
-                  });
-                  onDatasetUpdate(dataset.id, {
-                    peaks: updatedPeaks,
-                    selectedPeakId: dataset.selectedPeakId === peakId ? null : dataset.selectedPeakId,
-                  });
-                }}
-                onPeakAdd={(energy) => {
-                  const newPeak = {
-                    energy: Math.round(energy * 100) / 100,
-                    id: `peak-manual-${Date.now()}`,
-                  } as PeakData & { id: string };
-                  onDatasetUpdate(dataset.id, {
-                    peaks: [...dataset.peaks, newPeak],
-                  });
-                }}
-                isManualPeakMode={isManualPeakMode}
-                differenceSpectra={differenceSpectra}
-                showThetaData={showThetaData}
-                showPhiData={showPhiData}
-              />
-            ) : dataset.spectrumError ? (
-              <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">
-                <div className="text-center">
-                  <p className="font-medium">Error processing data</p>
-                  <p className="mt-1 text-sm">{dataset.spectrumError}</p>
+                  points={plotPoints}
+                  height={500}
+                  referenceCurves={referenceCurves}
+                  normalizationRegions={normalizationRegions}
+                  selectionTarget={normalizationSelectionTarget}
+                  onSelectionChange={handleNormalizationSelection}
+                  customCursor={
+                    cursorType ? getCursorForType(cursorType) : null
+                  }
+                  peaks={dataset.peaks.map((peak, index) => ({
+                    energy: peak.energy,
+                    id: peak.id ?? `peak-${index}-${peak.energy}`,
+                  }))}
+                  selectedPeakId={dataset.selectedPeakId}
+                  onPeakSelect={(peakId) =>
+                    onDatasetUpdate(dataset.id, { selectedPeakId: peakId })
+                  }
+                  onPeakUpdate={(peakId, energy) => {
+                    const roundedEnergy = Math.round(energy * 100) / 100;
+                    const updatedPeaks = dataset.peaks.map((peak) => {
+                      const currentId =
+                        peak.id ??
+                        `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
+                      if (currentId === peakId) {
+                        return { ...peak, energy: roundedEnergy };
+                      }
+                      return peak;
+                    });
+                    onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
+                  }}
+                  onPeakDelete={(peakId) => {
+                    const updatedPeaks = dataset.peaks.filter((peak) => {
+                      const currentId =
+                        peak.id ??
+                        `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
+                      return currentId !== peakId;
+                    });
+                    onDatasetUpdate(dataset.id, {
+                      peaks: updatedPeaks,
+                      selectedPeakId:
+                        dataset.selectedPeakId === peakId
+                          ? null
+                          : dataset.selectedPeakId,
+                    });
+                  }}
+                  onPeakAdd={(energy) => {
+                    const newPeak = {
+                      energy: Math.round(energy * 100) / 100,
+                      id: `peak-manual-${Date.now()}`,
+                    } as PeakData & { id: string };
+                    onDatasetUpdate(dataset.id, {
+                      peaks: [...dataset.peaks, newPeak],
+                    });
+                  }}
+                  isManualPeakMode={isManualPeakMode}
+                  differenceSpectra={differenceSpectra}
+                  showThetaData={showThetaData}
+                  showPhiData={showPhiData}
+                />
+              ) : dataset.spectrumError ? (
+                <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">
+                  <div className="text-center">
+                    <p className="font-medium">Error processing data</p>
+                    <p className="mt-1 text-sm">{dataset.spectrumError}</p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
-                <div className="text-center">
-                  <p className="font-medium">No spectrum data</p>
-                  <p className="mt-1 text-sm">
-                    Upload a CSV file to see the plot
-                  </p>
+              ) : (
+                <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
+                  <div className="text-center">
+                    <p className="font-medium">No spectrum data</p>
+                    <p className="mt-1 text-sm">
+                      Upload a CSV file to see the plot
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
-            {isCalculatingBareAtom && (
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Calculating bare atom absorption...
-              </div>
-            )}
-            {bareAtomError && (
-              <div className="mt-2 text-xs text-red-600 dark:text-red-400">
-                {bareAtomError}
-              </div>
-            )}
+              )}
+              {isCalculatingBareAtom && (
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Calculating bare atom absorption...
+                </div>
+              )}
+              {bareAtomError && (
+                <div className="mt-2 text-xs text-red-600 dark:text-red-400">
+                  {bareAtomError}
+                </div>
+              )}
             </div>
 
             {/* Selection Mode Toast */}
             {normalizationSelectionTarget && (
-              <div className={`rounded-lg border p-3 text-sm ${
-                normalizationSelectionTarget === "pre"
-                  ? "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200"
-                  : "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200"
-              }`}>
+              <div
+                className={`rounded-lg border p-3 text-sm ${
+                  normalizationSelectionTarget === "pre"
+                    ? "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200"
+                    : "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200"
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   <PencilIcon className="h-4 w-4" />
                   <span>
@@ -526,12 +539,13 @@ export function DatasetContent({
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
                 <div className="flex items-center gap-2">
                   <PencilIcon className="h-4 w-4" />
-                  <span>You can drag existing peaks on the plot to adjust.</span>
+                  <span>
+                    You can drag existing peaks on the plot to adjust.
+                  </span>
                 </div>
               </div>
             )}
           </div>
-
         </div>
       </div>
 
