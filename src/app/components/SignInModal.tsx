@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment } from "react";
+import { usePathname } from "next/navigation";
 import { Dialog, Transition } from "@headlessui/react";
 import { SignIn } from "@clerk/nextjs";
 
@@ -10,6 +11,9 @@ interface SignInModalProps {
 }
 
 export function SignInModal({ isOpen, onClose }: SignInModalProps) {
+  const pathname = usePathname();
+  const afterSignInUrl = pathname && pathname !== "/" ? pathname : "/";
+
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -45,8 +49,9 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                         card: "shadow-none",
                       },
                     }}
-                    routing="hash"
-                    afterSignInUrl="/"
+                    routing="virtual"
+                    oauthFlow="popup"
+                    afterSignInUrl={afterSignInUrl}
                   />
                 </div>
               </Dialog.Panel>
@@ -57,4 +62,3 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
     </Transition>
   );
 }
-
