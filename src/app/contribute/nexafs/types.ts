@@ -154,6 +154,7 @@ export type DatasetState = {
   peaks: PeakData[];
   selectedPeakId: string | null;
   moleculeId: string | null;
+  moleculeLocked: boolean;
   bareAtomPoints: BareAtomPoint[] | null;
   sampleInfo: SampleInfo;
   instrumentId: string;
@@ -186,6 +187,7 @@ export function createEmptyDatasetState(file: File): DatasetState {
     peaks: [],
     selectedPeakId: null,
     moleculeId: null,
+    moleculeLocked: false,
     bareAtomPoints: null,
     sampleInfo: {
       processMethod: null,

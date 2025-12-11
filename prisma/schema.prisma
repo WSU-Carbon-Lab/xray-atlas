@@ -275,3 +275,15 @@ enum ProcessMethod {
   DRY
   SOLVENT
 }
+
+model collaborators {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  url         String?
+  ishost      Boolean  @default(false)
+  displayorder Int     @default(0)
+  createdat   DateTime @default(now()) @db.Timestamptz(6)
+  updatedat   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([ishost, displayorder])
+}

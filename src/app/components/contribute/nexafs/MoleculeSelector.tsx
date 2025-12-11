@@ -5,6 +5,8 @@ import {
   CheckCircleIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
+  LockClosedIcon,
+  LockOpenIcon,
 } from "@heroicons/react/24/outline";
 import { Button } from "@heroui/react";
 import { SimpleDialog } from "~/app/components/SimpleDialog";
@@ -30,6 +32,8 @@ type MoleculeSelectorProps = {
   allMoleculeNames: string[];
   onUseMolecule: (payload: MoleculeSearchResult) => void;
   onManualSearch: () => void;
+  moleculeLocked: boolean;
+  onToggleLock: () => void;
 };
 
 const toDisplayMolecule = (result: MoleculeSearchResult): DisplayMolecule => ({
@@ -57,6 +61,8 @@ export function MoleculeSelector({
   allMoleculeNames,
   onUseMolecule,
   onManualSearch,
+  moleculeLocked,
+  onToggleLock,
 }: MoleculeSelectorProps) {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showSearch, setShowSearch] = useState(!selectedMolecule);
@@ -83,14 +89,30 @@ export function MoleculeSelector({
           </button>
           <div className="flex items-center gap-2">
             <CheckCircleIcon className="h-5 w-5 text-green-500" />
+            <button
+              type="button"
+              onClick={onToggleLock}
+              className="rounded p-1 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+              title={moleculeLocked ? "Unlock molecule" : "Lock molecule"}
+              aria-label={moleculeLocked ? "Unlock molecule" : "Lock molecule"}
+            >
+              {moleculeLocked ? (
+                <LockClosedIcon className="h-4 w-4" />
+              ) : (
+                <LockOpenIcon className="h-4 w-4" />
+              )}
+            </button>
             <Button
               isIconOnly
               size="sm"
               variant="light"
               onPress={() => {
-                setShowSearch(true);
-                setSearchTerm("");
+                if (!moleculeLocked) {
+                  setShowSearch(true);
+                  setSearchTerm("");
+                }
               }}
+              disabled={moleculeLocked}
               aria-label="Change molecule"
             >
               <XMarkIcon className="h-4 w-4" />
@@ -179,10 +201,13 @@ export function MoleculeSelector({
                   key={suggestion.id}
                   type="button"
                   onClick={() => {
-                    onUseMolecule(suggestion);
-                    setShowSearch(false);
+                    if (!moleculeLocked) {
+                      onUseMolecule(suggestion);
+                      setShowSearch(false);
+                    }
                   }}
-                  className="hover:border-wsu-crimson flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition hover:bg-white dark:hover:bg-gray-800"
+                  disabled={moleculeLocked}
+                  className="hover:border-wsu-crimson flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-800"
                 >
                   <span className="font-medium text-gray-900 dark:text-gray-100">
                     {suggestion.commonName}
@@ -217,10 +242,13 @@ export function MoleculeSelector({
                   key={result.id}
                   type="button"
                   onClick={() => {
-                    onUseMolecule(result);
-                    setShowSearch(false);
+                    if (!moleculeLocked) {
+                      onUseMolecule(result);
+                      setShowSearch(false);
+                    }
                   }}
-                  className="flex w-full flex-col rounded-lg border border-transparent bg-white/80 px-3 py-2 text-left transition hover:border-blue-400 dark:bg-blue-900/20"
+                  disabled={moleculeLocked}
+                  className="flex w-full flex-col rounded-lg border border-transparent bg-white/80 px-3 py-2 text-left transition hover:border-blue-400 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-900/20"
                 >
                   <span className="font-medium text-gray-900 dark:text-gray-100">
                     {result.commonName}

@@ -10,6 +10,7 @@ import { spectrumpointsRouter } from "~/server/api/routers/spectrumpoints";
 import { externalRouter } from "~/server/api/routers/external";
 import { vendorsRouter } from "~/server/api/routers/vendors";
 import { physicsRouter } from "~/server/api/routers/physics";
+import { collaboratorsRouter } from "~/server/api/routers/collaborators";
 
 export const appRouter = createTRPCRouter({
   molecules: moleculesRouter,
@@ -23,6 +24,7 @@ export const appRouter = createTRPCRouter({
   external: externalRouter,
   vendors: vendorsRouter,
   physics: physicsRouter,
+  collaborators: collaboratorsRouter,
 });
 
 export type AppRouter = typeof appRouter;

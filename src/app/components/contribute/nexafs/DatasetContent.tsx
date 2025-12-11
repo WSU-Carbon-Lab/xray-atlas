@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { skipToken } from "@tanstack/react-query";
-import { PencilIcon } from "@heroicons/react/24/outline";
+import {
+  PencilIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 import {
   SpectrumPlot,
   type SpectrumSelection,
@@ -21,6 +24,7 @@ import { calculateBareAtomAbsorption } from "~/app/contribute/nexafs/utils/bareA
 import {
   computeNormalizationForExperiment,
   computeZeroOneNormalization,
+  extractAtomsFromFormula,
 } from "~/app/contribute/nexafs/utils";
 import type { DatasetState, PeakData } from "~/app/contribute/nexafs/types";
 import type { DifferenceSpectrum } from "~/app/contribute/nexafs/utils/differenceSpectra";
@@ -128,6 +132,50 @@ export function DatasetContent({
       selectMolecule(molecule);
     }
   }, [moleculeQuery.data, selectedMolecule, selectMolecule]);
+
+  // Extract atoms from selected molecule's chemical formula
+  const moleculeAtoms = useMemo(() => {
+    return selectedMolecule?.chemicalFormula
+      ? extractAtomsFromFormula(selectedMolecule.chemicalFormula)
+      : new Set<string>();
+  }, [selectedMolecule?.chemicalFormula]);
+
+  // Filter edge options to only show edges for atoms present in the molecule
+  const availableEdgeOptions = useMemo(() => {
+    if (moleculeAtoms.size === 0 || !dataset.moleculeLocked) {
+      return edgeOptions;
+    }
+
+    return edgeOptions.filter((edge) =>
+      moleculeAtoms.has(edge.targetatom.toUpperCase()),
+    );
+  }, [edgeOptions, moleculeAtoms, dataset.moleculeLocked]);
+
+  // Check if current edge selection matches molecule atoms
+  const selectedEdge = edgeOptions.find((e) => e.id === dataset.edgeId);
+  const edgeAtomMatches =
+    !selectedMolecule ||
+    !selectedEdge ||
+    moleculeAtoms.has(selectedEdge.targetatom.toUpperCase());
+
+  // Clear edge selection if molecule is locked and edge doesn't match
+  useEffect(() => {
+    if (
+      dataset.moleculeLocked &&
+      selectedMolecule &&
+      selectedEdge &&
+      !edgeAtomMatches
+    ) {
+      onDatasetUpdate(dataset.id, { edgeId: "" });
+    }
+  }, [
+    dataset.moleculeLocked,
+    selectedMolecule,
+    selectedEdge,
+    edgeAtomMatches,
+    dataset.id,
+    onDatasetUpdate,
+  ]);
 
   // Calculate bare atom absorption when molecule is selected
   useEffect(() => {
@@ -308,6 +356,12 @@ export function DatasetContent({
     });
   };
 
+  const handleToggleMoleculeLock = () => {
+    onDatasetUpdate(dataset.id, {
+      moleculeLocked: !dataset.moleculeLocked,
+    });
+  };
+
   // Prepare plot data
   const plotPoints = dataset.normalizedPoints ?? dataset.spectrumPoints;
   const referenceCurves = dataset.bareAtomPoints
@@ -346,7 +400,27 @@ export function DatasetContent({
           allMoleculeNames={allMoleculeNames}
           onUseMolecule={(result) => selectMolecule(result)}
           onManualSearch={runManualSearch}
+          moleculeLocked={dataset.moleculeLocked}
+          onToggleLock={handleToggleMoleculeLock}
         />
+        {selectedMolecule && !edgeAtomMatches && dataset.edgeId && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+            <div className="flex items-start gap-2">
+              <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-medium">
+                  Edge atom does not match molecule composition
+                </p>
+                <p className="mt-1">
+                  Selected edge target atom ({selectedEdge?.targetatom}) is not
+                  present in {selectedMolecule.commonName} (
+                  {selectedMolecule.chemicalFormula}). Please select an edge
+                  for an atom present in the molecule.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main Content Area */}
@@ -574,16 +648,24 @@ export function DatasetContent({
                   type="select"
                   name="edgeId"
                   value={dataset.edgeId}
-                  onChange={(value) =>
-                    onDatasetUpdate(dataset.id, { edgeId: value as string })
-                  }
+                  onChange={(value) => {
+                    const newEdgeId = value as string;
+                    // If molecule is locked and edge doesn't match, show warning but allow selection
+                    // User can change molecule if needed
+                    onDatasetUpdate(dataset.id, { edgeId: newEdgeId });
+                  }}
                   required
                   options={[
                     { value: "", label: "Select edge..." },
-                    ...edgeOptions.map((opt) => ({
-                      value: opt.id,
-                      label: `${opt.targetatom} ${opt.corestate}-edge`,
-                    })),
+                    ...(dataset.moleculeLocked && selectedMolecule
+                      ? availableEdgeOptions.map((opt) => ({
+                          value: opt.id,
+                          label: `${opt.targetatom} ${opt.corestate}-edge`,
+                        }))
+                      : edgeOptions.map((opt) => ({
+                          value: opt.id,
+                          label: `${opt.targetatom} ${opt.corestate}-edge`,
+                        }))),
                   ]}
                 />
               </div>
