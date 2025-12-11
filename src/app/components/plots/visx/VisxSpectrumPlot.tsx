@@ -4,9 +4,10 @@
 
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { ParentSize } from "@visx/responsive";
+import { Zoom } from "@visx/zoom";
 import type { SpectrumPlotProps, SpectrumSelection } from "../core/types";
 import { DEFAULT_PLOT_HEIGHT, MARGINS } from "../core/constants";
 import { useSpectrumData } from "../hooks/useSpectrumData";
@@ -29,7 +30,6 @@ import { usePeakVisualization } from "../hooks/usePeakVisualization";
 import { findClosestPoint } from "./utils/findClosestPoint";
 import { THEME_COLORS, NORMALIZATION_COLORS } from "../core/constants";
 import type { PlotDimensions, TraceData } from "../core/types";
-import { useRef, memo } from "react";
 import type { ScaleLinear } from "d3-scale";
 
 export function VisxSpectrumPlot({
@@ -280,6 +280,21 @@ function VisxSpectrumPlotInner({
     containerRef: tooltipContainerRef,
   } = useSpectrumTooltip();
 
+  // Zoom state - use ref to track zoom instance for reset
+  const zoomRef = useRef<{
+    transformMatrix: {
+      scaleX: number;
+      scaleY: number;
+      translateX: number;
+      translateY: number;
+      skewX: number;
+      skewY: number;
+    };
+    isDragging: boolean;
+    reset: () => void;
+  } | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
+
   const themeColors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
   const { mainPlot, peakPlot, hasSubplot } = subplotLayout;
 
@@ -290,7 +305,8 @@ function VisxSpectrumPlotInner({
       ? mainPlot.dimensions.height + peakPlot.dimensions.height
       : mainPlot.dimensions.height;
 
-  // Convert main plot scales to VisxScales format for compatibility
+  // Convert main plot scales to VisxScales format
+  // Zoom transform is applied via SVG transform, not scale domain changes
   const mainPlotScales = useMemo(
     () => ({
       xScale: mainPlot.xScale,
@@ -352,6 +368,18 @@ function VisxSpectrumPlotInner({
       let currentScales = mainPlotScales;
       let currentDimensions = mainPlot.dimensions;
       let adjustedY = y - mainPlot.dimensions.margins.top;
+      let adjustedX = x - currentDimensions.margins.left;
+
+      // Account for zoom transform in main plot
+      // Get current zoom transform from ref if available
+      if (isInMainPlot && zoomRef.current) {
+        const transform = zoomRef.current.transformMatrix;
+        if (transform.scaleX !== 1 || transform.translateX !== 0) {
+          // Transform mouse coordinates by inverse zoom
+          adjustedX = (adjustedX - transform.translateX) / transform.scaleX;
+          adjustedY = (adjustedY - transform.translateY) / transform.scaleY;
+        }
+      }
 
       if (!isInMainPlot && peakPlot && hasSubplot) {
         const peakPlotTop = mainPlot.dimensions.height;
@@ -366,13 +394,13 @@ function VisxSpectrumPlotInner({
           currentScales = peakPlotScales;
           currentDimensions = peakPlot.dimensions;
           adjustedY = y - peakPlotTop - peakPlot.dimensions.margins.top;
+          adjustedX = x - currentDimensions.margins.left;
         } else {
           hideTooltip();
           return;
         }
       }
 
-      const adjustedX = x - currentDimensions.margins.left;
       const plotWidth =
         currentDimensions.width -
         currentDimensions.margins.left -
@@ -382,7 +410,7 @@ function VisxSpectrumPlotInner({
         currentDimensions.margins.top -
         currentDimensions.margins.bottom;
 
-      // Check if within plot bounds
+      // Check if within plot bounds (accounting for zoom)
       if (
         adjustedX < 0 ||
         adjustedX > plotWidth ||
@@ -393,7 +421,7 @@ function VisxSpectrumPlotInner({
         return;
       }
 
-      // Invert to data coordinates
+      // Invert to data coordinates using zoomed scales
       const energy = currentScales.xScale.invert(adjustedX);
 
       // Find closest point across all traces
@@ -445,7 +473,6 @@ function VisxSpectrumPlotInner({
       peakViz.selectedGeometryTrace,
       showTooltip,
       hideTooltip,
-      svgRef,
     ],
   );
 
@@ -483,6 +510,14 @@ function VisxSpectrumPlotInner({
     mainPlot.dimensions.height -
     mainPlot.dimensions.margins.top -
     mainPlot.dimensions.margins.bottom;
+
+  // Reset zoom handler
+  const handleResetZoom = useCallback(() => {
+    if (zoomRef.current) {
+      zoomRef.current.reset();
+      setIsZoomed(false);
+    }
+  }, []);
 
   return (
     <div
@@ -524,120 +559,182 @@ function VisxSpectrumPlotInner({
           width={totalWidth}
           height={totalHeight}
           fill={themeColors.paper}
+          pointerEvents="none"
         />
 
         {/* ==================== MAIN PLOT ==================== */}
-        <g>
-          {/* Main plot area background */}
-          <rect
-            x={mainPlot.dimensions.margins.left}
-            y={mainPlot.dimensions.margins.top}
-            width={mainPlotWidth}
-            height={mainPlotHeight}
-            fill={themeColors.plot}
-          />
-          {/* Normalization region backgrounds */}
-          {normalizationRegions && (
-            <>
-              {normalizationRegions.pre &&
-                normalizationRegions.pre[0] !== normalizationRegions.pre[1] && (
-                  <rect
-                    x={
-                      mainPlot.xScale(normalizationRegions.pre[0]) +
-                      mainPlot.dimensions.margins.left
-                    }
-                    y={mainPlot.dimensions.margins.top}
-                    width={
-                      mainPlot.xScale(normalizationRegions.pre[1]) -
-                      mainPlot.xScale(normalizationRegions.pre[0])
-                    }
-                    height={mainPlotHeight}
-                    fill={NORMALIZATION_COLORS.pre}
-                    opacity={0.12}
-                  />
-                )}
-              {normalizationRegions.post &&
-                normalizationRegions.post[0] !==
-                  normalizationRegions.post[1] && (
-                  <rect
-                    x={
-                      mainPlot.xScale(normalizationRegions.post[0]) +
-                      mainPlot.dimensions.margins.left
-                    }
-                    y={mainPlot.dimensions.margins.top}
-                    width={
-                      mainPlot.xScale(normalizationRegions.post[1]) -
-                      mainPlot.xScale(normalizationRegions.post[0])
-                    }
-                    height={mainPlotHeight}
-                    fill={NORMALIZATION_COLORS.post}
-                    opacity={0.12}
-                  />
-                )}
-            </>
-          )}
-          {/* Main plot grid */}
-          <VisxGrid
-            scales={mainPlotScales}
-            dimensions={mainPlot.dimensions}
-            isDark={isDark}
-          />
-          {/* Main plot axes - only show x-axis label if no subplot */}
-          <g transform={`translate(0, ${mainPlot.dimensions.margins.top})`}>
-            <VisxAxes
-              scales={mainPlotScales}
-              dimensions={mainPlot.dimensions}
-              isDark={isDark}
-              showXAxisLabel={!hasSubplot}
-            />
-          </g>
-          {/* Main plot lines - render in groups for proper z-ordering */}
-          <g
-            transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
-          >
-            {/* Reference traces (background) */}
-            <SpectrumLines traces={referenceTraces} scales={mainPlotScales} />
-            {/* Measurement traces */}
-            <SpectrumLines traces={groupedTraces} scales={mainPlotScales} />
-            {/* Difference traces (foreground) */}
-            <SpectrumLines traces={differenceTraces} scales={mainPlotScales} />
-          </g>
-          {/* Peak indicators (vertical lines on main plot) */}
-          <g
-            transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
-          >
-            <PeakIndicators
-              peaks={peaks}
-              scales={mainPlotScales}
-              dimensions={mainPlot.dimensions}
-              selectedPeakId={selectedPeakId}
-            />
-          </g>
-          {/* Interactive peak drag handles (on main plot) */}
-          {peaks.map((peak, peakIndex) => {
-            const peakId = peak.id ?? `peak-${peakIndex}-${peak.energy}`;
+        <Zoom
+          width={mainPlotWidth}
+          height={mainPlotHeight}
+          scaleXMin={1}
+          scaleXMax={10}
+          scaleYMin={1}
+          scaleYMax={10}
+        >
+          {(zoom) => {
+            // Track zoom state
+            zoomRef.current = zoom;
+            const transform = zoom.transformMatrix;
+            const hasZoom =
+              transform.scaleX !== 1 ||
+              transform.scaleY !== 1 ||
+              transform.translateX !== 0 ||
+              transform.translateY !== 0;
+            if (hasZoom !== isZoomed) {
+              setIsZoomed(hasZoom);
+            }
+
             return (
-              <InteractivePeak
-                key={peakId}
-                peak={peak}
-                peakIndex={peakIndex}
-                scales={mainPlotScales}
-                dimensions={mainPlot.dimensions}
-                isSelected={selectedPeakId === peakId}
-                onEnergyUpdate={handlePeakEnergyUpdate}
-              />
+              <g>
+                {/* Main plot area background */}
+                <rect
+                  x={mainPlot.dimensions.margins.left}
+                  y={mainPlot.dimensions.margins.top}
+                  width={mainPlotWidth}
+                  height={mainPlotHeight}
+                  fill={themeColors.plot}
+                  pointerEvents="none"
+                />
+                {/* Normalization region backgrounds */}
+                {normalizationRegions && (
+                  <>
+                    {normalizationRegions.pre &&
+                      normalizationRegions.pre[0] !==
+                        normalizationRegions.pre[1] && (
+                        <rect
+                          x={
+                            mainPlot.xScale(normalizationRegions.pre[0]) +
+                            mainPlot.dimensions.margins.left
+                          }
+                          y={mainPlot.dimensions.margins.top}
+                          width={
+                            mainPlot.xScale(normalizationRegions.pre[1]) -
+                            mainPlot.xScale(normalizationRegions.pre[0])
+                          }
+                          height={mainPlotHeight}
+                          fill={NORMALIZATION_COLORS.pre}
+                          opacity={0.12}
+                          pointerEvents="none"
+                        />
+                      )}
+                    {normalizationRegions.post &&
+                      normalizationRegions.post[0] !==
+                        normalizationRegions.post[1] && (
+                        <rect
+                          x={
+                            mainPlot.xScale(normalizationRegions.post[0]) +
+                            mainPlot.dimensions.margins.left
+                          }
+                          y={mainPlot.dimensions.margins.top}
+                          width={
+                            mainPlot.xScale(normalizationRegions.post[1]) -
+                            mainPlot.xScale(normalizationRegions.post[0])
+                          }
+                          height={mainPlotHeight}
+                          fill={NORMALIZATION_COLORS.post}
+                          opacity={0.12}
+                          pointerEvents="none"
+                        />
+                      )}
+                  </>
+                )}
+                {/* Zoomable plot content */}
+                <g
+                  transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
+                  ref={zoom.containerRef as React.RefObject<SVGGElement>}
+                  onMouseDown={zoom.dragStart}
+                  onMouseMove={(e) => {
+                    zoom.dragMove(e);
+                    handleMouseMove(e as React.MouseEvent<SVGSVGElement>);
+                  }}
+                  onMouseUp={zoom.dragEnd}
+                  onMouseLeave={(e) => {
+                    if (zoom.isDragging) {
+                      zoom.dragEnd();
+                    }
+                    handleMouseLeave();
+                  }}
+                  onWheel={zoom.handleWheel}
+                  style={{
+                    cursor: zoom.isDragging ? "grabbing" : "grab",
+                  }}
+                >
+                  {/* Main plot grid */}
+                  <VisxGrid
+                    scales={mainPlotScales}
+                    dimensions={mainPlot.dimensions}
+                    isDark={isDark}
+                  />
+                  {/* Main plot lines - render in groups for proper z-ordering */}
+                  <g transform={zoom.toString()}>
+                    {/* Reference traces (background) */}
+                    <SpectrumLines
+                      traces={referenceTraces}
+                      scales={mainPlotScales}
+                    />
+                    {/* Measurement traces */}
+                    <SpectrumLines
+                      traces={groupedTraces}
+                      scales={mainPlotScales}
+                    />
+                    {/* Difference traces (foreground) */}
+                    <SpectrumLines
+                      traces={differenceTraces}
+                      scales={mainPlotScales}
+                    />
+                  </g>
+                  {/* Peak indicators (vertical lines on main plot) */}
+                  <g transform={zoom.toString()}>
+                    <PeakIndicators
+                      peaks={peaks}
+                      scales={mainPlotScales}
+                      dimensions={mainPlot.dimensions}
+                      selectedPeakId={selectedPeakId}
+                    />
+                  </g>
+                  {/* Interactive peak drag handles (on main plot) */}
+                  <g transform={zoom.toString()}>
+                    {peaks.map((peak, peakIndex) => {
+                      const peakId =
+                        peak.id ?? `peak-${peakIndex}-${peak.energy}`;
+                      return (
+                        <InteractivePeak
+                          key={peakId}
+                          peak={peak}
+                          peakIndex={peakIndex}
+                          scales={mainPlotScales}
+                          dimensions={mainPlot.dimensions}
+                          isSelected={selectedPeakId === peakId}
+                          onEnergyUpdate={handlePeakEnergyUpdate}
+                        />
+                      );
+                    })}
+                  </g>
+                </g>
+                {/* Main plot axes - only show x-axis label if no subplot (axes outside zoom container) */}
+                <g
+                  transform={`translate(0, ${mainPlot.dimensions.margins.top})`}
+                >
+                  <VisxAxes
+                    scales={mainPlotScales}
+                    dimensions={mainPlot.dimensions}
+                    isDark={isDark}
+                    showXAxisLabel={!hasSubplot}
+                  />
+                </g>
+                {/* Normalization brush (when selection target is set) */}
+                {selectionTarget && peakPlotScales && (
+                  <NormalizationBrush
+                    scales={mainPlotScales}
+                    dimensions={mainPlot.dimensions}
+                    selectionTarget={selectionTarget}
+                    onSelectionChange={onSelectionChange}
+                  />
+                )}
+              </g>
             );
-          })}
-          {/* Normalization brush (when selection target is set) */}
-          {selectionTarget && peakPlotScales && (
-            <NormalizationBrush
-              scales={mainPlotScales}
-              dimensions={mainPlot.dimensions}
-              selectionTarget={selectionTarget}
-              onSelectionChange={onSelectionChange}
-            />
-          )}
-        </g>
+          }}
+        </Zoom>
 
         {/* ==================== PEAK SUBPLOT ==================== */}
         {hasSubplot && peakPlot && peakPlotScales && (
@@ -657,6 +754,7 @@ function VisxSpectrumPlotInner({
                 peakPlot.dimensions.margins.bottom
               }
               fill={themeColors.plot}
+              pointerEvents="none"
             />
             {/* Peak plot grid */}
             <VisxGrid
@@ -717,7 +815,8 @@ function VisxSpectrumPlotInner({
         <ZoomControls
           dimensions={mainPlot.dimensions}
           isDark={isDark}
-          isZoomed={false}
+          isZoomed={isZoomed}
+          onReset={handleResetZoom}
         />
       </svg>
       {/* Tooltip (rendered in portal for better positioning) */}
