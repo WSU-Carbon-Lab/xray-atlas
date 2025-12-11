@@ -2,8 +2,12 @@
 import Link from "next/link";
 import { WSULogoIcon } from "./icons";
 import GitHubStarsLink from "./GitHubStarsLink";
+import { trpc } from "~/trpc/client";
 
 export function Footer() {
+  const { data: collaboratorsData, isLoading: isLoadingCollaborators } =
+    trpc.collaborators.getAll.useQuery();
+
   return (
     <footer className="border-t border-default bg-content2">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -21,30 +25,43 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-8">
           <div className="col-span-3 space-y-4">
             <h3 className="font-sans text-lg text-foreground">
-              Xray Atlas
+              X-ray Atlas
             </h3>
             <p className="flex-wrap text-sm text-foreground-500">
               Advancing material research through collaborative data.
             </p>
-            <h4 className="text-sm font-semibold text-foreground">
-              Hosted By
-            </h4>
-            <p className="text-sm text-foreground-500">
-              <Link
-                href="https://labs.wsu.edu/carbon/"
-                className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
-              >
-                Washington State University · Collins Research Group
-              </Link>
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              <Link
-                href="https://faculty.psau.edu.sa/en/psau/facultymember/om.alqahtani"
-                className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
-              >
-                Prince Sattam bin Abdulaziz University · Obaid Alqahtani
-              </Link>
-            </p>
+            {isLoadingCollaborators ? (
+              <div className="text-sm text-foreground-500">Loading...</div>
+            ) : (
+              <>
+                {collaboratorsData?.hosts &&
+                  collaboratorsData.hosts.length > 0 && (
+                    <div>
+                      <h4 className="mb-2 text-sm font-semibold text-foreground">
+                        Hosted By
+                      </h4>
+                      <div className="space-y-1">
+                        {collaboratorsData.hosts.map((host) => (
+                          <p key={host.id} className="text-sm text-foreground-500">
+                            {host.url ? (
+                              <Link
+                                href={host.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-wsu-crimson transition-colors hover:underline"
+                              >
+                                {host.name}
+                              </Link>
+                            ) : (
+                              <span>{host.name}</span>
+                            )}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+              </>
+            )}
           </div>
           <div className="col-span-1 space-y-4">
             <h4 className="text-sm font-semibold text-foreground">
@@ -52,10 +69,16 @@ export function Footer() {
             </h4>
             <div className="flex flex-col space-y-2">
               <Link
-                href="/upload"
+                href="/browse"
                 className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
               >
-                Upload
+                Browse
+              </Link>
+              <Link
+                href="/contribute"
+                className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
+              >
+                Contribute
               </Link>
               <Link
                 href="/about"
@@ -75,48 +98,37 @@ export function Footer() {
             <h4 className="text-sm font-semibold text-foreground">
               Collaborators
             </h4>
-            <ul className="space-y-2 text-sm text-foreground-500">
-              <li>
-                <Link
-                  href="https://www.nist.gov/mml/materials-science-and-engineering-division/polymers-processing-group"
-                  className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
-                >
-                  NIST RSoXR Group
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="https://www.bnl.gov/nsls2/beamlines/beamline.php?r=12-ID"
-                  className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
-                >
-                  NSLS II SMI & SST1 Beamlines
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="https://www.ansto.gov.au/facilities/australian-synchrotron/synchrotron-beamlines/soft-x-ray-spectroscopy#content-scientists"
-                  className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
-                >
-                  The Australian Synchrotron Soft X-ray Spectroscopy Beamline
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="https://www.monash.edu/engineering/chrismcneill"
-                  className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
-                >
-                  Monash University Chris McNeill Group
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="https://weiyougroup.org/"
-                  className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
-                >
-                  The University of North Carolina at Chapel Hill You Group
-                </Link>
-              </li>
-            </ul>
+            {isLoadingCollaborators ? (
+              <div className="text-sm text-foreground-500">Loading...</div>
+            ) : (
+              <>
+                {collaboratorsData?.collaborators &&
+                collaboratorsData.collaborators.length > 0 ? (
+                  <ul className="space-y-2 text-sm text-foreground-500">
+                    {collaboratorsData.collaborators.map((collab) => (
+                      <li key={collab.id}>
+                        {collab.url ? (
+                          <Link
+                            href={collab.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-wsu-crimson transition-colors hover:underline"
+                          >
+                            {collab.name}
+                          </Link>
+                        ) : (
+                          <span>{collab.name}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-foreground-500">
+                    No collaborators listed yet.
+                  </p>
+                )}
+              </>
+            )}
           </div>
         </div>
         <div className="mt-8 flex flex-col justify-between border-t border-default pt-4 md:flex-row">
@@ -132,12 +144,16 @@ export function Footer() {
             </Link>
             <Link
               href="https://github.com/WSU-Carbon-Lab/xray-atlas"
+              target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
             >
               GitHub
             </Link>
             <Link
               href="https://wsu.edu/"
+              target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
             >
               WSU
