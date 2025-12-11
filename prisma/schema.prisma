@@ -53,13 +53,13 @@ model experiments {
   edgeid                 String                   @db.Uuid
   polarizationid         String                   @db.Uuid
   calibrationid          String?                  @db.Uuid
-  experimenttype         ExperimentType?
   isstandard             Boolean                  @default(false)
   referencestandard      String?
   measurementdate        DateTime                 @db.Date
   createdby              String?
   createdat              DateTime                 @default(now()) @db.Timestamptz(6)
   updatedat              DateTime                 @default(now()) @db.Timestamptz(6)
+  experimenttype         ExperimentType?
   experimentpublications experimentpublications[]
   experimentquality      experimentquality?
   calibrationmethods     calibrationmethods?      @relation(fields: [calibrationid], references: [id], onUpdate: NoAction)
@@ -68,33 +68,12 @@ model experiments {
   instruments            instruments              @relation(fields: [instrumentid], references: [id], onUpdate: NoAction)
   polarizations          polarizations            @relation(fields: [polarizationid], references: [id], onUpdate: NoAction)
   samples                samples                  @relation(fields: [sampleid], references: [id], onUpdate: NoAction)
-  spectrumpoints         spectrumpoints[]
   peaksets               peaksets[]
-  // differencespectra    differencespectra[]      // Planned: Difference spectra for experiments with multiple geometries
+  spectrumpoints         spectrumpoints[]
 
   @@unique([sampleid, edgeid, instrumentid, measurementdate])
   @@index([sampleid, edgeid, instrumentid, measurementdate], map: "idx_experiment_lookup")
 }
-
-// PLANNED: Difference Spectra Model
-// This model will store calculated difference spectra for experiments with multiple incident angles/geometries.
-// Difference spectra are calculated by subtracting lower incident angle spectra from higher incident angle spectra.
-// Only applicable to experiments with more than one incident angle/geometry.
-//
-// model differencespectra {
-//   id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-//   experimentid String      @db.Uuid
-//   mode         String      // 'theta' for polar difference spectra, 'phi' for azimuthal
-//   lowerangle   Decimal     @db.Decimal
-//   higherangle  Decimal     @db.Decimal
-//   ispreferred  Boolean     @default(false)
-//   points       Json        // Array of {energy: number, absorption: number}
-//   createdat    DateTime    @default(now()) @db.Timestamptz(6)
-//   experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade)
-//
-//   @@unique([experimentid, mode, lowerangle, higherangle])
-//   @@index([experimentid, ispreferred])
-// }
 
 model facilities {
   id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -129,10 +108,10 @@ model molecules {
   imageurl         String?
   createdby        String?
   upvotes          Int                @default(0)
-  moleculesynonyms moleculesynonyms[]
-  samples          samples[]
-  moleculeupvotes  moleculeupvotes[]
   users            users?             @relation(fields: [createdby], references: [clerkid], onUpdate: NoAction)
+  moleculesynonyms moleculesynonyms[]
+  moleculeupvotes  moleculeupvotes[]
+  samples          samples[]
 }
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
@@ -172,15 +151,15 @@ model samples {
   id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   moleculeid      String         @db.Uuid
   identifier      String         @unique
-  processmethod   ProcessMethod?
-  substrate       String?
-  solvent         String?
-  thickness       Float?
-  molecularweight Float?
   preparationdate DateTime?      @db.Date
-  vendorid        String?        @db.Uuid
   createdat       DateTime       @default(now()) @db.Timestamptz(6)
   updatedat       DateTime       @default(now()) @db.Timestamptz(6)
+  vendorid        String?        @db.Uuid
+  molecularweight Float?
+  processmethod   ProcessMethod?
+  solvent         String?
+  substrate       String?
+  thickness       Float?
   experiments     experiments[]
   molecules       molecules      @relation(fields: [moleculeid], references: [id], onUpdate: NoAction)
   vendors         vendors?       @relation(fields: [vendorid], references: [id], onUpdate: NoAction)
@@ -215,10 +194,10 @@ model users {
 }
 
 model moleculeupvotes {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   moleculeid String    @db.Uuid
   userid     String
   createdat  DateTime  @default(now()) @db.Timestamptz(6)
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users      users     @relation(fields: [userid], references: [clerkid], onDelete: Cascade, onUpdate: NoAction)
 
@@ -245,6 +224,18 @@ model peaksets {
   experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([experimentid])
+}
+
+model collaborators {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  url          String?
+  ishost       Boolean  @default(false)
+  displayorder Int      @default(0)
+  createdat    DateTime @default(now()) @db.Timestamptz(6)
+  updatedat    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([ishost, displayorder])
 }
 
 /// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -274,16 +265,4 @@ enum ExperimentType {
 enum ProcessMethod {
   DRY
   SOLVENT
-}
-
-model collaborators {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String
-  url         String?
-  ishost      Boolean  @default(false)
-  displayorder Int     @default(0)
-  createdat   DateTime @default(now()) @db.Timestamptz(6)
-  updatedat   DateTime @default(now()) @db.Timestamptz(6)
-
-  @@index([ishost, displayorder])
 }
