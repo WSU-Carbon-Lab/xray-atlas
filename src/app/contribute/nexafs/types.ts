@@ -113,7 +113,10 @@ export type PeakData = {
   intensity?: number;
   bond?: string;
   transition?: string;
+  amplitude?: number;
+  width?: number;
   id?: string;
+  isStep?: boolean;
 };
 
 export type BareAtomPoint = {

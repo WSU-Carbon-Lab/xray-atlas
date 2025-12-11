@@ -87,6 +87,10 @@ interface AnalysisToolbarProps {
   showPhiData?: boolean;
   onShowThetaDataChange?: (show: boolean) => void;
   onShowPhiDataChange?: (show: boolean) => void;
+  selectedGeometry?: { theta?: number; phi?: number } | null;
+  onSelectedGeometryChange?: (
+    geometry: { theta?: number; phi?: number } | null,
+  ) => void;
 }
 
 export function AnalysisToolbar({
@@ -119,6 +123,8 @@ export function AnalysisToolbar({
   showPhiData: _externalShowPhiData,
   onShowThetaDataChange,
   onShowPhiDataChange,
+  selectedGeometry,
+  onSelectedGeometryChange,
 }: AnalysisToolbarProps) {
   const [internalManualPeakMode, setInternalManualPeakMode] = useState(false);
   const isManualPeakMode = externalManualPeakMode ?? internalManualPeakMode;
@@ -163,9 +169,29 @@ export function AnalysisToolbar({
   const [newPeakEnergy, setNewPeakEnergy] = useState("");
   const [newPeakBond, setNewPeakBond] = useState("");
   const [newPeakTransition, setNewPeakTransition] = useState("");
+  const [newPeakAmplitude, setNewPeakAmplitude] = useState<number | undefined>(
+    undefined,
+  );
+  const [newPeakWidth, setNewPeakWidth] = useState<number | undefined>(
+    undefined,
+  );
   const [expandedPeakIds, setExpandedPeakIds] = useState<Set<string>>(
     new Set(),
   );
+  const [customBonds, setCustomBonds] = useState<string[]>([]);
+  const [customTransitions, setCustomTransitions] = useState<string[]>([]);
+  const [addingCustomBondForPeak, setAddingCustomBondForPeak] = useState<
+    number | null
+  >(null);
+  const [addingCustomTransitionForPeak, setAddingCustomTransitionForPeak] =
+    useState<number | null>(null);
+  const [newCustomBondValue, setNewCustomBondValue] = useState("");
+  const [newCustomTransitionValue, setNewCustomTransitionValue] = useState("");
+  const [addingCustomBondInForm, setAddingCustomBondInForm] = useState(false);
+  const [addingCustomTransitionInForm, setAddingCustomTransitionInForm] =
+    useState(false);
+  const [newFormBondValue, setNewFormBondValue] = useState("");
+  const [newFormTransitionValue, setNewFormTransitionValue] = useState("");
   const [peakParams, setPeakParams] = useState<{
     minProminence?: number;
     minDistance?: number;
@@ -249,10 +275,66 @@ export function AnalysisToolbar({
     return options;
   }, [peakParams]);
 
-  // Helper function to sort peaks by energy in ascending order
-  const sortPeaksByEnergy = (peaksToSort: PeakData[]): PeakData[] => {
-    return [...peaksToSort].sort((a, b) => a.energy - b.energy);
+  // Helper function to get all bond options including custom ones
+  const getAllBondOptions = () => {
+    const customBondOptions = customBonds
+      .filter((bond) => !BOND_OPTIONS.some((opt) => opt.value === bond))
+      .map((bond) => ({ value: bond, label: bond }));
+    return [
+      { value: "__add_new__", label: "+ Add new bond..." },
+      ...BOND_OPTIONS.filter((opt) => opt.value !== ""),
+      ...customBondOptions,
+    ];
   };
+
+  // Helper function to get all transition options including custom ones
+  const getAllTransitionOptions = () => {
+    const customTransitionOptions = customTransitions
+      .filter(
+        (transition) =>
+          !TRANSITION_OPTIONS.some((opt) => opt.value === transition),
+      )
+      .map((transition) => ({ value: transition, label: transition }));
+    return [
+      { value: "__add_new__", label: "+ Add new transition..." },
+      ...TRANSITION_OPTIONS.filter((opt) => opt.value !== ""),
+      ...customTransitionOptions,
+    ];
+  };
+
+  // Helper function to sort peaks - step peaks always first, then by energy
+  const sortPeaksByEnergy = (peaksToSort: PeakData[]): PeakData[] => {
+    return [...peaksToSort].sort((a, b) => {
+      // Step peaks always come first
+      if (a.isStep && !b.isStep) return -1;
+      if (!a.isStep && b.isStep) return 1;
+      // Otherwise sort by energy
+      return a.energy - b.energy;
+    });
+  };
+
+  // Helper function to estimate amplitude from spectrum at a given energy
+  const estimateAmplitudeAtEnergy = useCallback(
+    (energy: number, points: SpectrumPoint[]): number | undefined => {
+      if (points.length === 0) return undefined;
+
+      // Find the closest point to the given energy
+      let closestPoint = points[0];
+      let minDistance = Math.abs(points[0]!.energy - energy);
+
+      for (const point of points) {
+        const distance = Math.abs(point.energy - energy);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestPoint = point;
+        }
+      }
+
+      // Use the absorption value as amplitude
+      return closestPoint?.absorption;
+    },
+    [],
+  );
 
   // Helper function to update peaks with sorting
   const updatePeaksSorted = useCallback(
@@ -275,11 +357,52 @@ export function AnalysisToolbar({
         return;
       }
 
-      const detected = detectPeaks(pointsToAnalyze, buildPeakOptions);
-      const newPeaks = convertToPeakData(detected).map((peak, index) => ({
-        ...peak,
-        id: `peak-auto-${Date.now()}-${index}`,
-      }));
+      // If geometry is selected, filter points to that geometry
+      let filteredPoints = pointsToAnalyze;
+      if (selectedGeometry) {
+        filteredPoints = pointsToAnalyze.filter((point) => {
+          const hasGeometry =
+            typeof point.theta === "number" &&
+            Number.isFinite(point.theta) &&
+            typeof point.phi === "number" &&
+            Number.isFinite(point.phi);
+
+          if (!hasGeometry) {
+            return (
+              selectedGeometry.theta === undefined &&
+              selectedGeometry.phi === undefined
+            );
+          }
+
+          const thetaMatch =
+            selectedGeometry.theta === undefined ||
+            (typeof point.theta === "number" &&
+              Number.isFinite(point.theta) &&
+              Math.abs(point.theta - selectedGeometry.theta) < 0.01);
+          const phiMatch =
+            selectedGeometry.phi === undefined ||
+            (typeof point.phi === "number" &&
+              Number.isFinite(point.phi) &&
+              Math.abs(point.phi - selectedGeometry.phi) < 0.01);
+
+          return thetaMatch && phiMatch;
+        });
+      }
+
+      if (filteredPoints.length === 0) {
+        return;
+      }
+
+      const detected = detectPeaks(filteredPoints, buildPeakOptions);
+      const newPeaks = convertToPeakData(detected).map((peak, index) => {
+        // Estimate amplitude from the filtered spectrum
+        const amplitude = estimateAmplitudeAtEnergy(peak.energy, filteredPoints);
+        return {
+          ...peak,
+          amplitude,
+          id: `peak-auto-${Date.now()}-${index}`,
+        };
+      });
 
       const newAutoDetectedIds = new Set(
         newPeaks
@@ -300,6 +423,8 @@ export function AnalysisToolbar({
       spectrumPoints,
       buildPeakOptions,
       updatePeaksSorted,
+      selectedGeometry,
+      estimateAmplitudeAtEnergy,
     ],
   );
 
@@ -345,10 +470,50 @@ export function AnalysisToolbar({
       return;
     }
 
+    // Estimate amplitude from spectrum if not provided
+    const pointsToAnalyze = normalizedPoints ?? spectrumPoints;
+    let amplitude = newPeakAmplitude;
+    if (amplitude === undefined) {
+      // If geometry is selected, filter points to that geometry for amplitude estimation
+      let filteredPoints = pointsToAnalyze;
+      if (selectedGeometry) {
+        filteredPoints = pointsToAnalyze.filter((point) => {
+          const hasGeometry =
+            typeof point.theta === "number" &&
+            Number.isFinite(point.theta) &&
+            typeof point.phi === "number" &&
+            Number.isFinite(point.phi);
+
+          if (!hasGeometry) {
+            return (
+              selectedGeometry.theta === undefined &&
+              selectedGeometry.phi === undefined
+            );
+          }
+
+          const thetaMatch =
+            selectedGeometry.theta === undefined ||
+            (typeof point.theta === "number" &&
+              Number.isFinite(point.theta) &&
+              Math.abs(point.theta - selectedGeometry.theta) < 0.01);
+          const phiMatch =
+            selectedGeometry.phi === undefined ||
+            (typeof point.phi === "number" &&
+              Number.isFinite(point.phi) &&
+              Math.abs(point.phi - selectedGeometry.phi) < 0.01);
+
+          return thetaMatch && phiMatch;
+        });
+      }
+      amplitude = estimateAmplitudeAtEnergy(energy, filteredPoints);
+    }
+
     const newPeak = {
       energy,
       bond: newPeakBond || undefined,
       transition: newPeakTransition || undefined,
+      amplitude,
+      width: newPeakWidth,
       id: `peak-manual-${Date.now()}`,
     } as PeakData & { id: string };
 
@@ -362,6 +527,8 @@ export function AnalysisToolbar({
     setNewPeakEnergy("");
     setNewPeakBond("");
     setNewPeakTransition("");
+    setNewPeakAmplitude(undefined);
+    setNewPeakWidth(undefined);
   };
 
   const handleUpdatePeak = (index: number, updates: Partial<PeakData>) => {
@@ -909,6 +1076,93 @@ export function AnalysisToolbar({
                   <span>Peak assignments are subjective.</span>
                 </div>
               </div>
+              {/* Geometry Selector for Peak Visualization */}
+              {(() => {
+                const pointsToCheck = normalizedPoints ?? spectrumPoints;
+                const geometries = new Map<
+                  string,
+                  { theta?: number; phi?: number; label: string }
+                >();
+                pointsToCheck.forEach((point) => {
+                  const hasGeometry =
+                    typeof point.theta === "number" &&
+                    Number.isFinite(point.theta) &&
+                    typeof point.phi === "number" &&
+                    Number.isFinite(point.phi);
+                  const key = hasGeometry
+                    ? `${point.theta}:${point.phi}`
+                    : "fixed";
+                  if (!geometries.has(key)) {
+                    const thetaLabel =
+                      typeof point.theta === "number" &&
+                      Number.isFinite(point.theta)
+                        ? `θ=${point.theta.toFixed(1)}°`
+                        : null;
+                    const phiLabel =
+                      typeof point.phi === "number" &&
+                      Number.isFinite(point.phi)
+                        ? `φ=${point.phi.toFixed(1)}°`
+                        : null;
+                    const label =
+                      thetaLabel || phiLabel
+                        ? [thetaLabel, phiLabel].filter(Boolean).join(", ")
+                        : "Fixed Geometry";
+                    geometries.set(key, {
+                      theta: point.theta,
+                      phi: point.phi,
+                      label,
+                    });
+                  }
+                });
+                const geometryArray = Array.from(geometries.values());
+                if (geometryArray.length > 1) {
+                  return (
+                    <div className="shrink-0">
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Geometry for Peak Fitting
+                      </label>
+                      <select
+                        value={
+                          selectedGeometry
+                            ? `${selectedGeometry.theta ?? ""}:${selectedGeometry.phi ?? ""}`
+                            : "none"
+                        }
+                        onChange={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (e.target.value === "none") {
+                            onSelectedGeometryChange?.(null);
+                          } else {
+                            const [thetaStr, phiStr] = e.target.value.split(":");
+                            const theta =
+                              thetaStr && thetaStr !== ""
+                                ? parseFloat(thetaStr)
+                                : undefined;
+                            const phi =
+                              phiStr && phiStr !== ""
+                                ? parseFloat(phiStr)
+                                : undefined;
+                            onSelectedGeometryChange?.({ theta, phi });
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      >
+                        <option value="none">Select geometry...</option>
+                        {geometryArray.map((geo, idx) => {
+                          const value = `${geo.theta ?? ""}:${geo.phi ?? ""}`;
+                          return (
+                            <option key={idx} value={value}>
+                              {geo.label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               <div className="flex shrink-0 flex-col gap-3">
                 <div className="flex gap-2">
                   <SubToolButton
@@ -1004,21 +1258,131 @@ export function AnalysisToolbar({
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <ScrollShadow hideScrollBar className="flex-1 overflow-y-auto">
                   <div className="space-y-2">
-                    {peaks.length === 0 && !isAddingPeak && (
-                      <div className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">
-                        No peaks identified. Click &quot;Auto-detect&quot; or
-                        add manually.
-                      </div>
-                    )}
+                    {/* Step peak - always at the top */}
+                    {(() => {
+                      const stepPeak = peaks.find((p) => p.isStep);
+                      if (!stepPeak) {
+                        // Create a template step peak display if none exists
+                        return (
+                          <div
+                            className={`relative flex flex-col rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50`}
+                          >
+                            <div className="relative flex h-7 items-center gap-1.5 rounded-lg bg-gray-300 px-1.5 dark:bg-gray-600">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const templateId = "step-peak-template";
+                                  togglePeakExpansion(templateId);
+                                }}
+                                className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-gray-400 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-500 dark:hover:text-gray-100"
+                                title="Expand"
+                                aria-label="Expand"
+                              >
+                                {expandedPeakIds.has("step-peak-template") ? (
+                                  <ChevronUpIcon className="h-3 w-3" />
+                                ) : (
+                                  <ChevronDownIcon className="h-3 w-3" />
+                                )}
+                              </button>
+                              <div className="min-w-0 flex-1">
+                                <div className="px-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                  Step
+                                </div>
+                              </div>
+                            </div>
+                            {expandedPeakIds.has("step-peak-template") && (
+                              <div className="border-t border-gray-200 p-1.5 dark:border-gray-700">
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  Step function parameters (template)
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      const stepPeakIndex = peaks.indexOf(stepPeak);
+                      return (
+                        <div key={stepPeak.id ?? "step-peak"}>
+                          {(() => {
+                            const peakId: string =
+                              "id" in stepPeak &&
+                              typeof (stepPeak as { id?: string }).id ===
+                                "string"
+                                ? (stepPeak as { id: string }).id
+                                : "step-peak";
+                            const isSelected = selectedPeakId === peakId;
+                            const isExpanded = expandedPeakIds.has(peakId);
+                            return (
+                              <div
+                                className={`relative flex flex-col rounded-lg border ${
+                                  isSelected
+                                    ? "border-wsu-crimson bg-wsu-crimson/5 dark:border-wsu-crimson dark:bg-wsu-crimson/10"
+                                    : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
+                                }`}
+                              >
+                                {/* Compact top bar with Energy input, expand button, and X button */}
+                                <div className="relative flex h-7 items-center gap-1.5 rounded-lg bg-gray-300 px-1.5 dark:bg-gray-600">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      togglePeakExpansion(peakId);
+                                    }}
+                                    className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-gray-400 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-500 dark:hover:text-gray-100"
+                                    title={isExpanded ? "Collapse" : "Expand"}
+                                    aria-label={
+                                      isExpanded ? "Collapse" : "Expand"
+                                    }
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronUpIcon className="h-3 w-3" />
+                                    ) : (
+                                      <ChevronDownIcon className="h-3 w-3" />
+                                    )}
+                                  </button>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="px-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                      Step
+                                    </div>
+                                  </div>
+                                </div>
 
-                    {peaks.length > 0 && (
+                                {/* Expandable section with Step parameters */}
+                                {isExpanded && (
+                                  <div className="border-t border-gray-200 p-1.5 dark:border-gray-700">
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                      Step function parameters (template)
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      );
+                    })()}
+
+                    {peaks.filter((p) => !p.isStep).length === 0 &&
+                      !isAddingPeak && (
+                        <div className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                          No peaks identified. Click &quot;Auto-detect&quot; or
+                          add manually.
+                        </div>
+                      )}
+
+                    {peaks.filter((p) => !p.isStep).length > 0 && (
                       <div className="space-y-2">
-                        {peaks.map((peak, index) => {
+                        {peaks
+                          .filter((p) => !p.isStep)
+                          .map((peak) => {
+                          // Find the actual index in the full peaks array
+                          const actualIndex = peaks.indexOf(peak);
                           const peakId: string =
                             "id" in peak &&
                             typeof (peak as { id?: string }).id === "string"
                               ? (peak as { id: string }).id
-                              : `peak-${index}`;
+                              : `peak-${actualIndex}`;
                           const isSelected = selectedPeakId === peakId;
                           const isExpanded = expandedPeakIds.has(peakId);
                           return (
@@ -1083,10 +1447,10 @@ export function AnalysisToolbar({
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeletePeak(index);
-                                  }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeletePeak(actualIndex);
+                                    }}
                                   className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-red-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
                                   title="Delete peak"
                                   aria-label="Delete peak"
@@ -1095,55 +1459,232 @@ export function AnalysisToolbar({
                                 </button>
                               </div>
 
-                              {/* Expandable section with Bond and Transition */}
+                              {/* Expandable section with Bond, Transition, Amplitude, and Width */}
                               {isExpanded && (
                                 <div className="border-t border-gray-200 p-1.5 dark:border-gray-700">
                                   <div className="grid grid-cols-2 gap-1.5">
-                                    <select
-                                      value={peak.bond ?? ""}
-                                      onChange={(e) =>
-                                        handleUpdatePeak(index, {
-                                          bond: e.target.value || undefined,
-                                        })
-                                      }
-                                      className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <option value="" disabled>
-                                        Bond
-                                      </option>
-                                      {BOND_OPTIONS.map((opt) => (
-                                        <option
-                                          key={opt.value}
-                                          value={opt.value}
-                                        >
-                                          {opt.label}
+                                    {addingCustomBondForPeak === actualIndex ? (
+                                      <div className="flex gap-1">
+                                        <input
+                                          type="text"
+                                          value={newCustomBondValue}
+                                          onChange={(e) =>
+                                            setNewCustomBondValue(e.target.value)
+                                          }
+                                          onBlur={() => {
+                                            if (
+                                              newCustomBondValue.trim() &&
+                                              !customBonds.includes(
+                                                newCustomBondValue.trim(),
+                                              )
+                                            ) {
+                                              setCustomBonds([
+                                                ...customBonds,
+                                                newCustomBondValue.trim(),
+                                              ]);
+                                            }
+                                            if (newCustomBondValue.trim()) {
+                                              handleUpdatePeak(actualIndex, {
+                                                bond: newCustomBondValue.trim(),
+                                              });
+                                            }
+                                            setAddingCustomBondForPeak(null);
+                                            setNewCustomBondValue("");
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              e.currentTarget.blur();
+                                            } else if (e.key === "Escape") {
+                                              setAddingCustomBondForPeak(null);
+                                              setNewCustomBondValue("");
+                                            }
+                                          }}
+                                          autoFocus
+                                          placeholder="Enter bond type"
+                                          className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </div>
+                                    ) : (
+                                      <select
+                                        value={peak.bond ?? ""}
+                                        onChange={(e) => {
+                                          if (e.target.value === "__add_new__") {
+                                            setAddingCustomBondForPeak(actualIndex);
+                                            setNewCustomBondValue("");
+                                          } else {
+                                            handleUpdatePeak(actualIndex, {
+                                              bond:
+                                                e.target.value || undefined,
+                                            });
+                                          }
+                                        }}
+                                        className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <option value="" disabled>
+                                          Bond
                                         </option>
-                                      ))}
-                                    </select>
-                                    <select
-                                      value={peak.transition ?? ""}
-                                      onChange={(e) =>
-                                        handleUpdatePeak(index, {
-                                          transition:
-                                            e.target.value || undefined,
-                                        })
-                                      }
-                                      className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <option value="" disabled>
-                                        Transition
-                                      </option>
-                                      {TRANSITION_OPTIONS.map((opt) => (
-                                        <option
-                                          key={opt.value}
-                                          value={opt.value}
-                                        >
-                                          {opt.label}
+                                        {getAllBondOptions().map((opt) => (
+                                          <option
+                                            key={opt.value}
+                                            value={opt.value}
+                                          >
+                                            {opt.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
+                                    {addingCustomTransitionForPeak ===
+                                    actualIndex ? (
+                                      <div className="flex gap-1">
+                                        <input
+                                          type="text"
+                                          value={newCustomTransitionValue}
+                                          onChange={(e) =>
+                                            setNewCustomTransitionValue(
+                                              e.target.value,
+                                            )
+                                          }
+                                          onBlur={() => {
+                                            if (
+                                              newCustomTransitionValue.trim() &&
+                                              !customTransitions.includes(
+                                                newCustomTransitionValue.trim(),
+                                              )
+                                            ) {
+                                              setCustomTransitions([
+                                                ...customTransitions,
+                                                newCustomTransitionValue.trim(),
+                                              ]);
+                                            }
+                                            if (newCustomTransitionValue.trim()) {
+                                              handleUpdatePeak(actualIndex, {
+                                                transition:
+                                                  newCustomTransitionValue.trim(),
+                                              });
+                                            }
+                                            setAddingCustomTransitionForPeak(
+                                              null,
+                                            );
+                                            setNewCustomTransitionValue("");
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              e.currentTarget.blur();
+                                            } else if (e.key === "Escape") {
+                                              setAddingCustomTransitionForPeak(
+                                                null,
+                                              );
+                                              setNewCustomTransitionValue("");
+                                            }
+                                          }}
+                                          autoFocus
+                                          placeholder="Enter transition type"
+                                          className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </div>
+                                    ) : (
+                                      <select
+                                        value={peak.transition ?? ""}
+                                        onChange={(e) => {
+                                          if (
+                                            e.target.value === "__add_new__"
+                                          ) {
+                                            setAddingCustomTransitionForPeak(
+                                              actualIndex,
+                                            );
+                                            setNewCustomTransitionValue("");
+                                          } else {
+                                            handleUpdatePeak(actualIndex, {
+                                              transition:
+                                                e.target.value || undefined,
+                                            });
+                                          }
+                                        }}
+                                        className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <option value="" disabled>
+                                          Transition
                                         </option>
-                                      ))}
-                                    </select>
+                                        {getAllTransitionOptions().map((opt) => (
+                                          <option
+                                            key={opt.value}
+                                            value={opt.value}
+                                          >
+                                            {opt.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
+                                    <NumberInput
+                                      size="sm"
+                                      variant="bordered"
+                                      value={peak.amplitude ?? undefined}
+                                      onValueChange={(value) => {
+                                        const numValue =
+                                          typeof value === "number"
+                                            ? value
+                                            : Array.isArray(value) &&
+                                                value.length > 0
+                                              ? value[0]
+                                              : undefined;
+                                        handleUpdatePeak(actualIndex, {
+                                          amplitude:
+                                            typeof numValue === "number" &&
+                                            Number.isFinite(numValue)
+                                              ? numValue
+                                              : undefined,
+                                        });
+                                      }}
+                                      step={0.01}
+                                      minValue={0}
+                                      placeholder="Amp"
+                                      classNames={{
+                                        base: "w-full",
+                                        input:
+                                          "!text-gray-500 dark:!text-gray-400 text-xs",
+                                        inputWrapper:
+                                          "h-7 min-h-7 max-h-7 px-2 py-1 focus:border-wsu-crimson focus:ring-wsu-crimson/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700",
+                                        mainWrapper: "text-gray-500 dark:text-gray-400",
+                                      }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <NumberInput
+                                      size="sm"
+                                      variant="bordered"
+                                      value={peak.width ?? undefined}
+                                      onValueChange={(value) => {
+                                        const numValue =
+                                          typeof value === "number"
+                                            ? value
+                                            : Array.isArray(value) &&
+                                                value.length > 0
+                                              ? value[0]
+                                              : undefined;
+                                        handleUpdatePeak(actualIndex, {
+                                          width:
+                                            typeof numValue === "number" &&
+                                            Number.isFinite(numValue)
+                                              ? numValue
+                                              : undefined,
+                                        });
+                                      }}
+                                      step={0.1}
+                                      minValue={0}
+                                      placeholder="Width"
+                                      classNames={{
+                                        base: "w-full",
+                                        input:
+                                          "!text-gray-500 dark:!text-gray-400 text-xs",
+                                        inputWrapper:
+                                          "h-7 min-h-7 max-h-7 px-2 py-1 focus:border-wsu-crimson focus:ring-wsu-crimson/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700",
+                                        mainWrapper: "text-gray-500 dark:text-gray-400",
+                                      }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
                                   </div>
                                 </div>
                               )}
@@ -1190,35 +1731,199 @@ export function AnalysisToolbar({
                               <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                                 Bond
                               </label>
-                              <select
-                                value={newPeakBond}
-                                onChange={(e) => setNewPeakBond(e.target.value)}
-                                className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                              >
-                                {BOND_OPTIONS.map((opt) => (
-                                  <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </option>
-                                ))}
-                              </select>
+                              {addingCustomBondInForm ? (
+                                <input
+                                  type="text"
+                                  value={newFormBondValue}
+                                  onChange={(e) =>
+                                    setNewFormBondValue(e.target.value)
+                                  }
+                                  onBlur={() => {
+                                    if (
+                                      newFormBondValue.trim() &&
+                                      !customBonds.includes(
+                                        newFormBondValue.trim(),
+                                      )
+                                    ) {
+                                      setCustomBonds([
+                                        ...customBonds,
+                                        newFormBondValue.trim(),
+                                      ]);
+                                    }
+                                    if (newFormBondValue.trim()) {
+                                      setNewPeakBond(newFormBondValue.trim());
+                                    }
+                                    setAddingCustomBondInForm(false);
+                                    setNewFormBondValue("");
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    } else if (e.key === "Escape") {
+                                      setAddingCustomBondInForm(false);
+                                      setNewFormBondValue("");
+                                    }
+                                  }}
+                                  autoFocus
+                                  placeholder="Enter bond type"
+                                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                />
+                              ) : (
+                                <select
+                                  value={newPeakBond}
+                                  onChange={(e) => {
+                                    if (e.target.value === "__add_new__") {
+                                      setAddingCustomBondInForm(true);
+                                      setNewFormBondValue("");
+                                    } else {
+                                      setNewPeakBond(e.target.value);
+                                    }
+                                  }}
+                                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                >
+                                  <option value="">Select bond...</option>
+                                  {getAllBondOptions().map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
                             </div>
                             <div>
                               <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                                 Transition
                               </label>
-                              <select
-                                value={newPeakTransition}
-                                onChange={(e) =>
-                                  setNewPeakTransition(e.target.value)
-                                }
-                                className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                              >
-                                {TRANSITION_OPTIONS.map((opt) => (
-                                  <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </option>
-                                ))}
-                              </select>
+                              {addingCustomTransitionInForm ? (
+                                <input
+                                  type="text"
+                                  value={newFormTransitionValue}
+                                  onChange={(e) =>
+                                    setNewFormTransitionValue(e.target.value)
+                                  }
+                                  onBlur={() => {
+                                    if (
+                                      newFormTransitionValue.trim() &&
+                                      !customTransitions.includes(
+                                        newFormTransitionValue.trim(),
+                                      )
+                                    ) {
+                                      setCustomTransitions([
+                                        ...customTransitions,
+                                        newFormTransitionValue.trim(),
+                                      ]);
+                                    }
+                                    if (newFormTransitionValue.trim()) {
+                                      setNewPeakTransition(
+                                        newFormTransitionValue.trim(),
+                                      );
+                                    }
+                                    setAddingCustomTransitionInForm(false);
+                                    setNewFormTransitionValue("");
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    } else if (e.key === "Escape") {
+                                      setAddingCustomTransitionInForm(false);
+                                      setNewFormTransitionValue("");
+                                    }
+                                  }}
+                                  autoFocus
+                                  placeholder="Enter transition type"
+                                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                />
+                              ) : (
+                                <select
+                                  value={newPeakTransition}
+                                  onChange={(e) => {
+                                    if (e.target.value === "__add_new__") {
+                                      setAddingCustomTransitionInForm(true);
+                                      setNewFormTransitionValue("");
+                                    } else {
+                                      setNewPeakTransition(e.target.value);
+                                    }
+                                  }}
+                                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                >
+                                  <option value="">Select transition...</option>
+                                  {getAllTransitionOptions().map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                Amp
+                              </label>
+                              <NumberInput
+                                size="sm"
+                                variant="bordered"
+                                value={newPeakAmplitude ?? undefined}
+                                onValueChange={(value) => {
+                                  const numValue =
+                                    typeof value === "number"
+                                      ? value
+                                      : Array.isArray(value) && value.length > 0
+                                        ? value[0]
+                                        : undefined;
+                                  setNewPeakAmplitude(
+                                    typeof numValue === "number" &&
+                                      Number.isFinite(numValue)
+                                      ? numValue
+                                      : undefined,
+                                  );
+                                }}
+                                step={0.01}
+                                minValue={0}
+                                placeholder="Amp"
+                                classNames={{
+                                  base: "w-full",
+                                  input:
+                                    "!text-gray-500 dark:!text-gray-400 text-xs",
+                                  inputWrapper:
+                                    "h-7 min-h-7 max-h-7 focus:border-wsu-crimson focus:ring-wsu-crimson/20",
+                                  mainWrapper: "text-gray-500 dark:text-gray-400",
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                Width
+                              </label>
+                              <NumberInput
+                                size="sm"
+                                variant="bordered"
+                                value={newPeakWidth ?? undefined}
+                                onValueChange={(value) => {
+                                  const numValue =
+                                    typeof value === "number"
+                                      ? value
+                                      : Array.isArray(value) && value.length > 0
+                                        ? value[0]
+                                        : undefined;
+                                  setNewPeakWidth(
+                                    typeof numValue === "number" &&
+                                      Number.isFinite(numValue)
+                                      ? numValue
+                                      : undefined,
+                                  );
+                                }}
+                                step={0.1}
+                                minValue={0}
+                                placeholder="Width"
+                                classNames={{
+                                  base: "w-full",
+                                  input:
+                                    "!text-gray-500 dark:!text-gray-400 text-xs",
+                                  inputWrapper:
+                                    "h-7 min-h-7 max-h-7 focus:border-wsu-crimson focus:ring-wsu-crimson/20",
+                                  mainWrapper: "text-gray-500 dark:text-gray-400",
+                                }}
+                              />
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -1244,6 +1949,12 @@ export function AnalysisToolbar({
                                 setNewPeakEnergy("");
                                 setNewPeakBond("");
                                 setNewPeakTransition("");
+                                setNewPeakAmplitude(undefined);
+                                setNewPeakWidth(undefined);
+                                setAddingCustomBondInForm(false);
+                                setAddingCustomTransitionInForm(false);
+                                setNewFormBondValue("");
+                                setNewFormTransitionValue("");
                               }}
                               className="flex-1"
                             >

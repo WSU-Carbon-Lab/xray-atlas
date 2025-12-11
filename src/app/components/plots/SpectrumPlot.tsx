@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useMemo, useRef, useEffect } from "react";
 import { useTheme } from "next-themes";
 import type { Layout, PlotData, PlotSelectionEvent } from "plotly.js";
+import { generateGaussianPeak } from "~/app/contribute/nexafs/utils";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
@@ -41,6 +42,8 @@ type NormalizationRegions = {
 
 type Peak = {
   energy: number;
+  amplitude?: number;
+  width?: number;
   id?: string;
 };
 
@@ -69,6 +72,7 @@ type SpectrumPlotProps = {
   differenceSpectra?: DifferenceSpectrum[];
   showThetaData?: boolean;
   showPhiData?: boolean;
+  selectedGeometry?: { theta?: number; phi?: number } | null;
 };
 
 const COLORS = [
@@ -118,6 +122,7 @@ export function SpectrumPlot({
   differenceSpectra = [],
   showThetaData = false,
   showPhiData = false,
+  selectedGeometry = null,
 }: SpectrumPlotProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -269,6 +274,155 @@ export function SpectrumPlot({
       } as PlotData;
     });
   }, [differenceSpectra]);
+
+  // Filter points for selected geometry and generate peak traces
+  const selectedGeometryPoints = useMemo(() => {
+    if (!selectedGeometry) return null;
+
+    return points.filter((point) => {
+      const hasGeometry =
+        typeof point.theta === "number" &&
+        Number.isFinite(point.theta) &&
+        typeof point.phi === "number" &&
+        Number.isFinite(point.phi);
+
+      if (!hasGeometry) {
+        // If selected geometry is null/undefined, match fixed geometry points
+        return (
+          selectedGeometry.theta === undefined &&
+          selectedGeometry.phi === undefined
+        );
+      }
+
+      const thetaMatch =
+        selectedGeometry.theta === undefined ||
+        (typeof point.theta === "number" &&
+          Number.isFinite(point.theta) &&
+          Math.abs(point.theta - selectedGeometry.theta) < 0.01);
+      const phiMatch =
+        selectedGeometry.phi === undefined ||
+        (typeof point.phi === "number" &&
+          Number.isFinite(point.phi) &&
+          Math.abs(point.phi - selectedGeometry.phi) < 0.01);
+
+      return thetaMatch && phiMatch;
+    });
+  }, [points, selectedGeometry]);
+
+  // Generate peak traces as Gaussian curves (excluding step peaks)
+  const peakTraces = useMemo<PlotData[]>(() => {
+    if (!selectedGeometry || !selectedGeometryPoints || peaks.length === 0) {
+      return [];
+    }
+
+    // Filter out step peaks from visualization
+    const nonStepPeaks = peaks.filter((peak) => !peak.isStep);
+    if (nonStepPeaks.length === 0) {
+      return [];
+    }
+
+    // Get energy range from selected geometry points
+    if (selectedGeometryPoints.length === 0) return [];
+
+    const energies = selectedGeometryPoints.map((p) => p.energy).sort((a, b) => a - b);
+    const minEnergy = energies[0] ?? 0;
+    const maxEnergy = energies[energies.length - 1] ?? 0;
+
+    // Create a fine energy grid for smooth Gaussian curves
+    const numPoints = Math.max(200, selectedGeometryPoints.length);
+    const energyRange: number[] = [];
+    for (let i = 0; i < numPoints; i++) {
+      energyRange.push(minEnergy + (maxEnergy - minEnergy) * (i / (numPoints - 1)));
+    }
+
+    // Generate individual peak traces
+    return nonStepPeaks.map((peak, peakIndex) => {
+      const peakId =
+        peak.id ?? `peak-${peakIndex}-${peak.energy}`;
+      const isSelected = selectedPeakId === peakId;
+
+      // Use default amplitude and width if not specified
+      const amplitude = peak.amplitude ?? 1;
+      const width = peak.width ?? 0.1;
+
+      // Generate Gaussian curve
+      const intensities = generateGaussianPeak(
+        { energy: peak.energy, amplitude, width },
+        energyRange,
+      );
+
+      return {
+        type: "scattergl",
+        mode: "lines",
+        name: `Peak ${peakIndex + 1}`,
+        x: energyRange,
+        y: intensities,
+        line: {
+          color: isSelected ? "#a60f2d" : "#6b7280",
+          width: isSelected ? 2 : 1.5,
+          dash: "dash",
+        },
+        hovertemplate:
+          `<b>Peak ${peakIndex + 1}</b><br>` +
+          `Energy: ${peak.energy.toFixed(2)} eV<br>` +
+          `Amplitude: ${amplitude.toFixed(3)}<br>` +
+          `Width: ${width.toFixed(3)} eV` +
+          "<extra></extra>",
+        showlegend: false,
+        xaxis: "x2",
+        yaxis: "y2",
+      } as PlotData;
+    });
+  }, [selectedGeometry, selectedGeometryPoints, peaks, selectedPeakId]);
+
+  // Generate trace for selected geometry spectrum
+  const selectedGeometryTrace = useMemo<PlotData | null>(() => {
+    if (!selectedGeometry || !selectedGeometryPoints || selectedGeometryPoints.length === 0) {
+      return null;
+    }
+
+    const energies = selectedGeometryPoints.map((p) => p.energy);
+    const absorptions = selectedGeometryPoints.map((p) => p.absorption);
+
+    const thetaLabel =
+      typeof selectedGeometry.theta === "number" &&
+      Number.isFinite(selectedGeometry.theta)
+        ? `θ=${selectedGeometry.theta.toFixed(1)}°`
+        : null;
+    const phiLabel =
+      typeof selectedGeometry.phi === "number" &&
+      Number.isFinite(selectedGeometry.phi)
+        ? `φ=${selectedGeometry.phi.toFixed(1)}°`
+        : null;
+    const label =
+      thetaLabel || phiLabel
+        ? [thetaLabel, phiLabel].filter(Boolean).join(", ")
+        : "Selected Spectrum";
+
+    return {
+      type: "scattergl",
+      mode: "lines+markers",
+      name: label,
+      x: energies,
+      y: absorptions,
+      marker: {
+        color: "#d7263d",
+        size: 4,
+        opacity: 0.7,
+      },
+      line: {
+        color: "#d7263d",
+        width: 2,
+      },
+      hovertemplate:
+        `<b>${label}</b><br>` +
+        "Energy: %{x:.3f} eV<br>Intensity: %{y:.4f}" +
+        "<extra></extra>",
+      showlegend: false,
+      xaxis: "x2",
+      yaxis: "y2",
+    } as PlotData;
+  }, [selectedGeometry, selectedGeometryPoints]);
 
   const measurementTraceCount = groupedTraces.traces.length;
   const uniqueGeometryCount = groupedTraces.traces.length;
@@ -437,7 +591,14 @@ export function SpectrumPlot({
       return style;
     })();
 
-    return {
+    // If geometry is selected, create subplot layout
+    // Secondary plot (peak visualization) is taller than primary plot
+    const hasPeakVisualization =
+      selectedGeometry !== null && selectedGeometryTrace !== null;
+    const mainPlotHeight = hasPeakVisualization ? height * 0.4 : height;
+    const peakPlotHeight = hasPeakVisualization ? height * 0.6 : 0;
+
+    const baseLayout = {
       dragmode: isManualPeakMode ? false : selectionTarget ? "select" : "pan",
       hovermode: "x unified",
       hoverlabel: {
@@ -452,13 +613,92 @@ export function SpectrumPlot({
       subtitle: {
         text: "",
       } as { text: string },
-      annotations: [], // Remove any default annotations that might show as subtitle
+      annotations: [],
       height,
-      margin: { t: 10, r: 20, b: 120, l: 78, pad: 0 },
       font: {
         family: "Inter, system-ui, sans-serif",
         color: isDark ? "#d1d5db" : "#4b5563",
       },
+      legend: {
+        orientation: "h",
+        yanchor: "bottom",
+        xanchor: "center",
+        x: 0.5,
+        y: hasPeakVisualization ? -0.25 : -0.35,
+        bgcolor: isDark ? "rgba(31, 41, 55, 0.9)" : "rgba(255,255,255,0.9)",
+        borderwidth: 1,
+        bordercolor: isDark
+          ? "rgba(75, 85, 99, 0.5)"
+          : "rgba(148, 163, 184, 0.3)",
+        font: {
+          size: 13,
+        },
+        borderradius: 8,
+        itemclick: "toggle",
+        itemdoubleclick: "toggleothers",
+        ...(totalLegendItems > 0 && {
+          tracegroupgap: 10,
+        }),
+      },
+      shapes: [...normalizationShapes, ...peakShapes],
+      newselection: newSelectionStyle,
+    };
+
+    if (hasPeakVisualization) {
+      // Subplot layout: main plot on top, peak plot below
+      return {
+        ...baseLayout,
+        margin: { t: 10, r: 20, b: 10, l: 78, pad: 0 },
+        xaxis: {
+          title: { text: "Energy (eV)", standoff: 18 },
+          domain: [0, 1],
+          anchor: "y",
+          gridcolor: isDark
+            ? "rgba(75, 85, 99, 0.3)"
+            : "rgba(148, 163, 184, 0.15)",
+          zeroline: false,
+          rangemode: "normal",
+          range: energyRange,
+        },
+        yaxis: {
+          title: { text: "Intensity", standoff: 18 },
+          domain: [peakPlotHeight / height, 1],
+          anchor: "x",
+          gridcolor: isDark
+            ? "rgba(75, 85, 99, 0.3)"
+            : "rgba(148, 163, 184, 0.15)",
+          zeroline: false,
+          rangemode: "normal",
+          range: measurementRange,
+        },
+        xaxis2: {
+          title: { text: "Energy (eV)", standoff: 18 },
+          domain: [0, 1],
+          anchor: "y2",
+          gridcolor: isDark
+            ? "rgba(75, 85, 99, 0.3)"
+            : "rgba(148, 163, 184, 0.15)",
+          zeroline: false,
+          rangemode: "normal",
+          range: energyRange,
+        },
+        yaxis2: {
+          title: { text: "Intensity", standoff: 18 },
+          domain: [0, peakPlotHeight / height],
+          anchor: "x2",
+          gridcolor: isDark
+            ? "rgba(75, 85, 99, 0.3)"
+            : "rgba(148, 163, 184, 0.15)",
+          zeroline: false,
+          rangemode: "normal",
+        },
+      } as unknown as Layout;
+    }
+
+    // Single plot layout (no subplot)
+    return {
+      ...baseLayout,
+      margin: { t: 10, r: 20, b: 120, l: 78, pad: 0 },
       xaxis: {
         title: { text: "Energy (eV)", standoff: 18 },
         gridcolor: isDark
@@ -477,29 +717,6 @@ export function SpectrumPlot({
         rangemode: "normal",
         range: measurementRange,
       },
-      legend: {
-        orientation: "h",
-        yanchor: "bottom",
-        xanchor: "center",
-        x: 0.5,
-        y: -0.35,
-        bgcolor: isDark ? "rgba(31, 41, 55, 0.9)" : "rgba(255,255,255,0.9)",
-        borderwidth: 1,
-        bordercolor: isDark
-          ? "rgba(75, 85, 99, 0.5)"
-          : "rgba(148, 163, 184, 0.3)",
-        font: {
-          size: 13,
-        },
-        borderradius: 8,
-        itemclick: "toggle",
-        itemdoubleclick: "toggleothers",
-        ...(totalLegendItems > 0 && {
-          tracegroupgap: 10,
-        }),
-      },
-      shapes: [...normalizationShapes, ...peakShapes],
-      newselection: newSelectionStyle,
     } as unknown as Layout;
   }, [
     absorptionStats,
@@ -518,6 +735,8 @@ export function SpectrumPlot({
     differenceSpectra,
     showThetaData,
     showPhiData,
+    selectedGeometry,
+    peakTraces,
   ]);
 
   const handleSelected = useCallback(
@@ -889,6 +1108,9 @@ export function SpectrumPlot({
           ...groupedTraces.traces,
           ...referenceTraces,
           ...differenceTraces,
+          ...(selectedGeometry && selectedGeometryTrace
+            ? [selectedGeometryTrace, ...peakTraces]
+            : []),
         ]}
         layout={combinedLayout}
         config={

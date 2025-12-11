@@ -70,6 +70,10 @@ export function DatasetContent({
   >([]);
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
+  const [selectedGeometry, setSelectedGeometry] = useState<{
+    theta?: number;
+    phi?: number;
+  } | null>(null);
 
   // Molecule search hook - per dataset
   const {
@@ -488,6 +492,8 @@ export function DatasetContent({
           showPhiData={showPhiData}
           onShowThetaDataChange={setShowThetaData}
           onShowPhiDataChange={setShowPhiData}
+          selectedGeometry={selectedGeometry}
+          onSelectedGeometryChange={setSelectedGeometry}
         />
 
         {/* Plot and Analysis */}
@@ -540,8 +546,28 @@ export function DatasetContent({
                     });
                   }}
                   onPeakAdd={(energy) => {
+                    const roundedEnergy = Math.round(energy * 100) / 100;
+
+                    // Estimate amplitude from spectrum at this energy
+                    const pointsToAnalyze = dataset.normalizedPoints ?? dataset.spectrumPoints;
+                    let amplitude: number | undefined;
+                    if (pointsToAnalyze.length > 0) {
+                      // Find closest point to estimate amplitude
+                      let closestPoint = pointsToAnalyze[0];
+                      let minDistance = Math.abs(pointsToAnalyze[0]!.energy - roundedEnergy);
+                      for (const point of pointsToAnalyze) {
+                        const distance = Math.abs(point.energy - roundedEnergy);
+                        if (distance < minDistance) {
+                          minDistance = distance;
+                          closestPoint = point;
+                        }
+                      }
+                      amplitude = closestPoint?.absorption;
+                    }
+
                     const newPeak = {
-                      energy: Math.round(energy * 100) / 100,
+                      energy: roundedEnergy,
+                      amplitude,
                       id: `peak-manual-${Date.now()}`,
                     } as PeakData & { id: string };
                     onDatasetUpdate(dataset.id, {
@@ -552,6 +578,7 @@ export function DatasetContent({
                   differenceSpectra={differenceSpectra}
                   showThetaData={showThetaData}
                   showPhiData={showPhiData}
+                  selectedGeometry={selectedGeometry}
                 />
               ) : dataset.spectrumError ? (
                 <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">
