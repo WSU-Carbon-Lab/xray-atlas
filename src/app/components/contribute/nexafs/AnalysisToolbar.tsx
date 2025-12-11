@@ -20,8 +20,6 @@ import { DefaultButton as Button } from "~/app/components/Button";
 import { SubToolButton } from "./SubToolButton";
 import { ToggleIconButton } from "~/app/components/ToggleIconButton";
 import { SimpleDialog } from "~/app/components/SimpleDialog";
-import { useCustomCursor } from "./hooks/useCustomCursor";
-import type { CursorType } from "./utils/cursorUtils";
 import type {
   PeakData,
   NormalizationType,
@@ -89,7 +87,6 @@ interface AnalysisToolbarProps {
   showPhiData?: boolean;
   onShowThetaDataChange?: (show: boolean) => void;
   onShowPhiDataChange?: (show: boolean) => void;
-  onCursorTypeChange?: (cursorType: CursorType | null) => void;
 }
 
 export function AnalysisToolbar({
@@ -122,7 +119,6 @@ export function AnalysisToolbar({
   showPhiData: _externalShowPhiData,
   onShowThetaDataChange,
   onShowPhiDataChange,
-  onCursorTypeChange,
 }: AnalysisToolbarProps) {
   const [internalManualPeakMode, setInternalManualPeakMode] = useState(false);
   const isManualPeakMode = externalManualPeakMode ?? internalManualPeakMode;
@@ -146,52 +142,6 @@ export function AnalysisToolbar({
   const [_internalShowPhiData, setInternalShowPhiData] = useState(false);
   void _internalShowThetaData; // State managed via callbacks, not read directly
   void _internalShowPhiData; // State managed via callbacks, not read directly
-
-  // Compute cursor type based on button states with priority:
-  // Pre/Post Edge > Peak modes > Tool selection
-  const cursorType = useMemo<CursorType | null>(() => {
-    // Highest priority: Pre/Post Edge selection
-    if (isSelectingPreEdge) {
-      return "pre-edge";
-    }
-    if (isSelectingPostEdge) {
-      return "post-edge";
-    }
-
-    // Second priority: Peak detection modes
-    if (peakDetectionMode === "manual") {
-      return "manual-peak";
-    }
-    if (peakDetectionMode === "auto") {
-      return "auto-peak";
-    }
-
-    // Third priority: Tool selection (only when tool is active)
-    if (selectedTool === "normalize") {
-      return "normalize";
-    }
-    if (selectedTool === "peaks") {
-      return "peaks";
-    }
-    if (selectedTool === "difference") {
-      return "difference";
-    }
-
-    return null;
-  }, [
-    isSelectingPreEdge,
-    isSelectingPostEdge,
-    peakDetectionMode,
-    selectedTool,
-  ]);
-
-  // Apply custom cursor based on active tool state
-  useCustomCursor(cursorType);
-
-  // Notify parent component of cursor type change
-  useEffect(() => {
-    onCursorTypeChange?.(cursorType);
-  }, [cursorType, onCursorTypeChange]);
 
   // Keep ref in sync with state
   useEffect(() => {

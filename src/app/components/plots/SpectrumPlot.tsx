@@ -69,7 +69,6 @@ type SpectrumPlotProps = {
   differenceSpectra?: DifferenceSpectrum[];
   showThetaData?: boolean;
   showPhiData?: boolean;
-  customCursor?: string | null;
 };
 
 const COLORS = [
@@ -119,7 +118,6 @@ export function SpectrumPlot({
   differenceSpectra = [],
   showThetaData = false,
   showPhiData = false,
-  customCursor,
 }: SpectrumPlotProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -866,42 +864,6 @@ export function SpectrumPlot({
     combinedLayout.yaxis,
   ]);
 
-  // Apply cursor style to Plotly SVG element
-  useEffect(() => {
-    if (!plotRef.current) return;
-    const plotElement = plotRef.current.querySelector(".js-plotly-plot");
-    if (!plotElement) return;
-
-    const svgElement = plotElement.querySelector("svg");
-    if (!svgElement) return;
-
-    // Check if document.body has a custom cursor set (from AnalysisToolbar)
-    // Custom cursors use data URLs which contain "url("
-    const bodyCursor =
-      typeof document !== "undefined" && document.body
-        ? document.body.style.cursor
-        : "";
-    const hasCustomBodyCursor = bodyCursor && bodyCursor.includes("url(");
-
-    // Use custom cursor prop if provided, then check body cursor, otherwise fall back to default logic
-    const cursorStyle = customCursor
-      ? customCursor
-      : hasCustomBodyCursor
-        ? bodyCursor
-        : isManualPeakMode
-          ? "crosshair"
-          : selectionTarget
-            ? "text"
-            : "default";
-
-    svgElement.style.cursor = cursorStyle;
-
-    return () => {
-      if (svgElement) {
-        svgElement.style.cursor = "";
-      }
-    };
-  }, [isManualPeakMode, selectionTarget, customCursor]);
 
   if (points.length === 0) {
     return (
@@ -911,19 +873,10 @@ export function SpectrumPlot({
     );
   }
 
-  // Determine cursor style based on mode
-  // For manual peak mode, use crosshair (flag-like precision)
-  // For pre/post edge selection, use text cursor (indicates selection)
-  const cursorStyle = isManualPeakMode
-    ? "cursor-crosshair"
-    : selectionTarget
-      ? "cursor-text"
-      : "";
-
   return (
     <div
       ref={plotRef}
-      className={`focus:ring-wsu-crimson/20 rounded-lg focus:ring-2 focus:ring-offset-2 focus:outline-none ${cursorStyle}`}
+      className="focus:ring-wsu-crimson/20 rounded-lg focus:ring-2 focus:ring-offset-2 focus:outline-none"
       onClick={() => {
         // Focus the container when clicked to enable keyboard events
         if (plotRef.current instanceof HTMLElement) {

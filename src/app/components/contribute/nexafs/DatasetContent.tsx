@@ -22,7 +22,6 @@ import {
   computeNormalizationForExperiment,
   computeZeroOneNormalization,
 } from "~/app/contribute/nexafs/utils";
-import { getCursorForType, type CursorType } from "./utils/cursorUtils";
 import type { DatasetState, PeakData } from "~/app/contribute/nexafs/types";
 import type { DifferenceSpectrum } from "~/app/contribute/nexafs/utils/differenceSpectra";
 import {
@@ -67,7 +66,6 @@ export function DatasetContent({
   >([]);
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
-  const [cursorType, setCursorType] = useState<CursorType | null>(null);
 
   // Molecule search hook - per dataset
   const {
@@ -416,7 +414,6 @@ export function DatasetContent({
           showPhiData={showPhiData}
           onShowThetaDataChange={setShowThetaData}
           onShowPhiDataChange={setShowPhiData}
-          onCursorTypeChange={setCursorType}
         />
 
         {/* Plot and Analysis */}
@@ -432,9 +429,6 @@ export function DatasetContent({
                   normalizationRegions={normalizationRegions}
                   selectionTarget={normalizationSelectionTarget}
                   onSelectionChange={handleNormalizationSelection}
-                  customCursor={
-                    cursorType ? getCursorForType(cursorType) : null
-                  }
                   peaks={dataset.peaks.map((peak, index) => ({
                     energy: peak.energy,
                     id: peak.id ?? `peak-${index}-${peak.energy}`,
