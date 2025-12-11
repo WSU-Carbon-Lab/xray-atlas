@@ -485,14 +485,29 @@ function VisxSpectrumPlotInner({
     mainPlot.dimensions.margins.bottom;
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      style={{
+        width: totalWidth,
+        height: totalHeight,
+        overflow: "hidden",
+      }}
+    >
       <svg
         ref={(node) => {
           // Set both refs - tooltip container and our own ref
-          if (tooltipContainerRef && "current" in tooltipContainerRef) {
-            tooltipContainerRef.current = node;
+          if (
+            tooltipContainerRef &&
+            typeof tooltipContainerRef === "object" &&
+            "current" in tooltipContainerRef
+          ) {
+            (
+              tooltipContainerRef as React.MutableRefObject<SVGSVGElement | null>
+            ).current = node;
           }
-          svgRef.current = node;
+          if (node) {
+            svgRef.current = node;
+          }
         }}
         width={totalWidth}
         height={totalHeight}
@@ -501,6 +516,7 @@ function VisxSpectrumPlotInner({
         onClick={handlePeakClick}
         style={{
           cursor: selectionTarget ? "crosshair" : undefined,
+          display: "block",
         }}
       >
         {/* Background */}

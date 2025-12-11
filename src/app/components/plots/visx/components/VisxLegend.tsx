@@ -85,41 +85,40 @@ export function VisxLegend({
 
   if (legendItems.length === 0) return null;
 
-  // Calculate legend position (bottom center, adjusted by yOffset)
-  const legendY =
-    dimensions.height - dimensions.margins.bottom + 10 + (yOffset ?? 0);
+  // Calculate legend position (top right, single column, under zoom controls)
+  const legendX = dimensions.width - 160; // Match zoom controls X position
+  const legendY = 50; // Position under zoom controls (10px zoom + 32px height + 8px gap)
 
   return (
     <g>
       <foreignObject
-        x={0}
+        x={legendX}
         y={legendY}
-        width={dimensions.width}
-        height={Math.max(dimensions.margins.bottom - 10, 32)}
-        style={{ overflow: "visible" }}
+        width={150}
+        height={legendItems.length * 24 + 16} // Single column height
+        style={{ overflow: "hidden" }}
       >
         <div
           style={{
             display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: "8px 0",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            padding: "8px",
             fontFamily: "Inter, system-ui, sans-serif",
             fontSize: "12px",
           }}
         >
           <LegendOrdinal
             scale={legendScale}
-            direction="row"
+            direction="column"
             itemDirection="row"
             labelMargin="0"
             shapeMargin="0 6px 0 0"
             style={{
               display: "flex",
-              flexWrap: "wrap",
-              gap: "12px",
-              justifyContent: "center",
-              alignItems: "center",
+              flexDirection: "column",
+              gap: "8px",
+              alignItems: "flex-start",
             }}
           >
             {(labels) =>
@@ -130,7 +129,7 @@ export function VisxLegend({
                 return (
                   <LegendItem
                     key={`legend-item-${i}`}
-                    margin="0"
+                    margin="0 0 4px 0"
                     style={{
                       display: "flex",
                       alignItems: "center",

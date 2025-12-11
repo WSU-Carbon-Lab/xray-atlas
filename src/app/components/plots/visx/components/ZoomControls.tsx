@@ -32,7 +32,7 @@ export function ZoomControls({
         y={controlsY}
         width={150}
         height={32}
-        style={{ overflow: "visible" }}
+        style={{ overflow: "hidden" }}
       >
         <div
           style={{
