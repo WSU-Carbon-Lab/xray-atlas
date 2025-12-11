@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Home, Info, Upload, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Home, Info, Upload, Search, ChevronDown } from "lucide-react";
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/react";
 import { WSULogoIcon } from "./icons";
 import { GitHubStarsLink } from "./GitHubStarsLink";
@@ -9,6 +11,84 @@ import { SignedIn, SignedOut } from "@clerk/nextjs";
 import CustomUserButton from "./CustomUserButton";
 import { SignInButton } from "./SignInButton";
 import { ThemeToggle } from "./ThemeToggle";
+import { BoltIcon, BeakerIcon, BuildingOfficeIcon } from "@heroicons/react/24/outline";
+
+function ContributeDropdown() {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleItemClick = (path: string) => {
+    router.push(path);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-foreground hover:text-foreground flex items-center text-sm"
+        aria-expanded={isOpen}
+        aria-haspopup="true"
+      >
+        <Upload className="mr-2 h-4 w-4" />
+        Contribute
+        <ChevronDown
+          className={`ml-1 h-3 w-3 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+          <div className="py-1">
+            <button
+              onClick={() => handleItemClick("/contribute/nexafs")}
+              className="hover:bg-gray-100 dark:hover:bg-gray-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300"
+            >
+              <BoltIcon className="h-4 w-4 text-wsu-crimson" />
+              <span>NEXAFS</span>
+            </button>
+            <button
+              onClick={() => handleItemClick("/contribute/molecule")}
+              className="hover:bg-gray-100 dark:hover:bg-gray-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300"
+            >
+              <BeakerIcon className="h-4 w-4 text-wsu-crimson" />
+              <span>Molecule</span>
+            </button>
+            <button
+              onClick={() => handleItemClick("/contribute/facility")}
+              className="hover:bg-gray-100 dark:hover:bg-gray-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300"
+            >
+              <BuildingOfficeIcon className="h-4 w-4 text-wsu-crimson" />
+              <span>Facility</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Header() {
   return (
@@ -65,13 +145,7 @@ export default function Header() {
           </Link>
         </NavbarItem>
         <NavbarItem className="hidden sm:flex">
-          <Link
-            href="/contribute"
-            className="text-foreground hover:text-foreground flex items-center text-sm"
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Contribute
-          </Link>
+          <ContributeDropdown />
         </NavbarItem>
         {/* Vertical divider between navigation and actions */}
         <NavbarItem className="flex items-center">

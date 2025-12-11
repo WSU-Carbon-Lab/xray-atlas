@@ -5,7 +5,7 @@ import { trpc } from "~/trpc/client";
 import {
   BeakerIcon,
   ChartBarIcon,
-  DatabaseIcon,
+  CircleStackIcon,
   AcademicCapIcon,
   LinkIcon,
   BookOpenIcon,
@@ -100,7 +100,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <DatabaseIcon className="h-6 w-6 text-wsu-crimson" />
+              <CircleStackIcon className="h-6 w-6 text-wsu-crimson" />
               Data Representation and Structure
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
