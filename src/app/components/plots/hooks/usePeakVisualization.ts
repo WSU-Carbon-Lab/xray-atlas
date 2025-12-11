@@ -4,15 +4,14 @@
  */
 
 import { useMemo } from "react";
-import type { PlotData } from "plotly.js";
-import type { SpectrumPoint, Peak } from "../core/types";
+import type { TraceData, SpectrumPoint, Peak } from "../core/types";
 import { generateGaussianPeak } from "~/app/contribute/nexafs/utils";
 import { filterPointsByGeometry, buildGeometryLabel } from "../utils/traceUtils";
 
 export type PeakVisualizationResult = {
   selectedGeometryPoints: SpectrumPoint[] | null;
-  peakTraces: PlotData[];
-  selectedGeometryTrace: PlotData | null;
+  peakTraces: TraceData[];
+  selectedGeometryTrace: TraceData | null;
   hasPeakVisualization: boolean;
 };
 
@@ -32,7 +31,7 @@ export function usePeakVisualization(
   }, [points, selectedGeometry]);
 
   // Generate peak traces as Gaussian curves (excluding step peaks)
-  const peakTraces = useMemo<PlotData[]>(() => {
+  const peakTraces = useMemo<TraceData[]>(() => {
     if (!selectedGeometry || !selectedGeometryPoints || peaks.length === 0) {
       return [];
     }
@@ -93,12 +92,12 @@ export function usePeakVisualization(
         showlegend: false,
         xaxis: "x2",
         yaxis: "y2",
-      } as PlotData;
+      };
     });
   }, [selectedGeometry, selectedGeometryPoints, peaks, selectedPeakId]);
 
   // Generate trace for selected geometry spectrum
-  const selectedGeometryTrace = useMemo<PlotData | null>(() => {
+  const selectedGeometryTrace = useMemo<TraceData | null>(() => {
     if (!selectedGeometry || !selectedGeometryPoints || selectedGeometryPoints.length === 0) {
       return null;
     }
@@ -130,7 +129,7 @@ export function usePeakVisualization(
       showlegend: false,
       xaxis: "x2",
       yaxis: "y2",
-    } as PlotData;
+    };
   }, [selectedGeometry, selectedGeometryPoints]);
 
   const hasPeakVisualization =

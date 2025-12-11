@@ -3,23 +3,22 @@
  */
 
 import { useMemo } from "react";
-import type { PlotData } from "plotly.js";
-import type { ReferenceCurve, DifferenceSpectrum } from "../core/types";
+import type { TraceData, ReferenceCurve, DifferenceSpectrum } from "../core/types";
 import { COLORS } from "../core/constants";
 
 export type ReferenceDataResult = {
-  referenceTraces: PlotData[];
-  differenceTraces: PlotData[];
+  referenceTraces: TraceData[];
+  differenceTraces: TraceData[];
 };
 
 /**
- * Process reference curves and difference spectra into Plotly traces
+ * Process reference curves and difference spectra into trace data
  */
 export function useReferenceData(
   referenceCurves: ReferenceCurve[],
   differenceSpectra: DifferenceSpectrum[],
 ): ReferenceDataResult {
-  const referenceTraces = useMemo<PlotData[]>(() => {
+  const referenceTraces = useMemo<TraceData[]>(() => {
     return referenceCurves.map((curve) => ({
       type: "scattergl",
       mode: "lines",
@@ -35,10 +34,10 @@ export function useReferenceData(
         "Energy: %{x:.3f} eV<br>Bare μ: %{y:.3f}" +
         "<extra></extra>",
       showlegend: true,
-    })) as PlotData[];
+    }));
   }, [referenceCurves]);
 
-  const differenceTraces = useMemo<PlotData[]>(() => {
+  const differenceTraces = useMemo<TraceData[]>(() => {
     return differenceSpectra.map((diff, index) => {
       const isPreferred = diff.preferred ?? false;
       const color = isPreferred
@@ -61,7 +60,7 @@ export function useReferenceData(
           "Energy: %{x:.3f} eV<br>Difference: %{y:.4f}" +
           "<extra></extra>",
         showlegend: true,
-      } as PlotData;
+      };
     });
   }, [differenceSpectra]);
 

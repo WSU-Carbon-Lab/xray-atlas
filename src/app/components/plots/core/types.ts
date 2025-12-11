@@ -73,6 +73,33 @@ export type SpectrumPlotProps = {
 
 /**
  * Unified trace representation (replaces Plotly PlotData for abstraction)
+ * Used internally for data processing and rendering
+ */
+export type TraceData = {
+  type: "scattergl" | "scatter";
+  mode: "lines" | "markers" | "lines+markers";
+  name?: string;
+  x: number[];
+  y: number[];
+  line?: {
+    color?: string;
+    width?: number;
+    dash?: "solid" | "dash" | "dot" | "dashdot";
+  };
+  marker?: {
+    color?: string;
+    size?: number;
+    opacity?: number;
+  };
+  hovertemplate?: string;
+  showlegend?: boolean;
+  xaxis?: string;
+  yaxis?: string;
+};
+
+/**
+ * Legacy type - kept for backward compatibility during migration
+ * @deprecated Use TraceData instead
  */
 export type SpectrumTrace = {
   id: string;

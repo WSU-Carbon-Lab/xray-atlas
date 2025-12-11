@@ -3,13 +3,12 @@
  */
 
 import { useMemo } from "react";
-import type { PlotData } from "plotly.js";
-import type { SpectrumPoint, DifferenceSpectrum } from "../core/types";
+import type { TraceData, SpectrumPoint, DifferenceSpectrum } from "../core/types";
 import { COLORS } from "../core/constants";
 import { groupPointsByGeometry } from "../utils/traceUtils";
 
 export type SpectrumDataResult = {
-  traces: PlotData[];
+  traces: TraceData[];
   keys: string[];
   groups: Map<string, { label: string; theta?: number; phi?: number; energies: number[]; absorptions: number[] }>;
 };
@@ -59,7 +58,7 @@ export function useSpectrumData(
 
     const groups = groupPointsByGeometry(filteredPoints);
 
-    const traces: PlotData[] = [];
+    const traces: TraceData[] = [];
     let index = 0;
     groups.forEach((group, key) => {
       const color = COLORS[index] ?? `hsl(${(index * 57) % 360} 65% 55%)`;
@@ -73,9 +72,6 @@ export function useSpectrumData(
           color,
           size: 4,
           opacity: 0.7,
-          line: {
-            width: 0,
-          },
         },
         line: {
           color,
@@ -85,7 +81,7 @@ export function useSpectrumData(
           `<b>${group.label || key}</b><br>` +
           "Energy: %{x:.3f} eV<br>Intensity: %{y:.4f}" +
           "<extra></extra>",
-      } as PlotData);
+      });
       index += 1;
     });
 

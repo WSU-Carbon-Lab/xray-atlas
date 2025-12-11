@@ -1423,9 +1423,12 @@ export function AnalysisToolbar({
                                       const rounded =
                                         Math.round(value * 100) / 100;
                                       if (Number.isFinite(rounded)) {
-                                        handleUpdatePeak(index, {
-                                          energy: rounded,
-                                        });
+                                        const actualIndex = peaks.indexOf(peak);
+                                        if (actualIndex !== -1) {
+                                          handleUpdatePeak(actualIndex, {
+                                            energy: rounded,
+                                          });
+                                        }
                                       }
                                     }}
                                     step={0.01}
@@ -1624,20 +1627,20 @@ export function AnalysisToolbar({
                                       variant="bordered"
                                       value={peak.amplitude ?? undefined}
                                       onValueChange={(value) => {
-                                        const numValue =
-                                          typeof value === "number"
-                                            ? value
-                                            : Array.isArray(value) &&
-                                                value.length > 0
-                                              ? value[0]
-                                              : undefined;
-                                        handleUpdatePeak(actualIndex, {
-                                          amplitude:
-                                            typeof numValue === "number" &&
-                                            Number.isFinite(numValue)
-                                              ? numValue
-                                              : undefined,
-                                        });
+                                        let numValue: number | undefined;
+                                        if (typeof value === "number") {
+                                          numValue = value;
+                                        } else if (Array.isArray(value)) {
+                                          const firstVal = value[0];
+                                          if (typeof firstVal === "number") {
+                                            numValue = firstVal;
+                                          }
+                                        }
+                                        if (typeof numValue === "number" && Number.isFinite(numValue)) {
+                                          handleUpdatePeak(actualIndex, {
+                                            amplitude: numValue,
+                                          });
+                                        }
                                       }}
                                       step={0.01}
                                       minValue={0}
@@ -1657,20 +1660,20 @@ export function AnalysisToolbar({
                                       variant="bordered"
                                       value={peak.width ?? undefined}
                                       onValueChange={(value) => {
-                                        const numValue =
-                                          typeof value === "number"
-                                            ? value
-                                            : Array.isArray(value) &&
-                                                value.length > 0
-                                              ? value[0]
-                                              : undefined;
-                                        handleUpdatePeak(actualIndex, {
-                                          width:
-                                            typeof numValue === "number" &&
-                                            Number.isFinite(numValue)
-                                              ? numValue
-                                              : undefined,
-                                        });
+                                        let numValue: number | undefined;
+                                        if (typeof value === "number") {
+                                          numValue = value;
+                                        } else if (Array.isArray(value)) {
+                                          const firstVal = value[0];
+                                          if (typeof firstVal === "number") {
+                                            numValue = firstVal;
+                                          }
+                                        }
+                                        if (typeof numValue === "number" && Number.isFinite(numValue)) {
+                                          handleUpdatePeak(actualIndex, {
+                                            width: numValue,
+                                          });
+                                        }
                                       }}
                                       step={0.1}
                                       minValue={0}
@@ -1864,18 +1867,21 @@ export function AnalysisToolbar({
                                 variant="bordered"
                                 value={newPeakAmplitude ?? undefined}
                                 onValueChange={(value) => {
-                                  const numValue =
-                                    typeof value === "number"
-                                      ? value
-                                      : Array.isArray(value) && value.length > 0
-                                        ? value[0]
-                                        : undefined;
-                                  setNewPeakAmplitude(
-                                    typeof numValue === "number" &&
-                                      Number.isFinite(numValue)
-                                      ? numValue
-                                      : undefined,
-                                  );
+                                    let numValue: number | undefined;
+                                    if (typeof value === "number") {
+                                      numValue = value;
+                                    } else if (Array.isArray(value)) {
+                                      const firstVal = value[0];
+                                      if (typeof firstVal === "number") {
+                                        numValue = firstVal;
+                                      }
+                                    }
+                                    setNewPeakAmplitude(
+                                      typeof numValue === "number" &&
+                                        Number.isFinite(numValue)
+                                        ? numValue
+                                        : undefined,
+                                    );
                                 }}
                                 step={0.01}
                                 minValue={0}
@@ -1899,12 +1905,15 @@ export function AnalysisToolbar({
                                 variant="bordered"
                                 value={newPeakWidth ?? undefined}
                                 onValueChange={(value) => {
-                                  const numValue =
-                                    typeof value === "number"
-                                      ? value
-                                      : Array.isArray(value) && value.length > 0
-                                        ? value[0]
-                                        : undefined;
+                                  let numValue: number | undefined;
+                                  if (typeof value === "number") {
+                                    numValue = value;
+                                  } else if (Array.isArray(value)) {
+                                    const firstVal = value[0];
+                                    if (typeof firstVal === "number") {
+                                      numValue = firstVal;
+                                    }
+                                  }
                                   setNewPeakWidth(
                                     typeof numValue === "number" &&
                                       Number.isFinite(numValue)
