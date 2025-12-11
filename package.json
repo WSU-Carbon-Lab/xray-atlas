@@ -40,6 +40,7 @@
     "@trpc/react-query": "^11.7.1",
     "@trpc/server": "^11.7.1",
     "@types/google.maps": "^3.58.1",
+    "@visx/visx": "^3.12.0",
     "@visx/zoom": "^3.12.0",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.552.0",
