@@ -145,7 +145,10 @@ export type DatasetState = {
   spectrumPoints: SpectrumPoint[];
   normalizedPoints: SpectrumPoint[] | null;
   normalization: ExperimentNormalization | null;
-  normalizationRegions: { pre: [number, number] | null; post: [number, number] | null };
+  normalizationRegions: {
+    pre: [number, number] | null;
+    post: [number, number] | null;
+  };
   normalizationLocked: boolean;
   normalizationType: NormalizationType;
   peaks: PeakData[];
