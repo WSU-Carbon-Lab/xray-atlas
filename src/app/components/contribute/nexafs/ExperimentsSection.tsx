@@ -6,8 +6,8 @@ import { CSVUpload } from "~/app/components/CSVUpload";
 import { FormField } from "~/app/components/FormField";
 import {
   SpectrumPlot,
-  type SpectrumSelection,
 } from "~/app/components/plots/SpectrumPlot";
+import type { SpectrumSelection } from "~/app/components/plots/core/types";
 import { AddDatasetButton } from "./AddDatasetButton";
 import { SelectionSummary, SpectrumSummary } from "./SpectrumSummary";
 import {

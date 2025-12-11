@@ -28,7 +28,7 @@ import {
   detectPeaks,
   convertToPeakData,
 } from "~/app/contribute/nexafs/utils/peakDetection";
-import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
+import type { SpectrumPoint } from "~/app/components/plots/core/types";
 import {
   calculateDifferenceSpectra,
   type DifferenceSpectrum,

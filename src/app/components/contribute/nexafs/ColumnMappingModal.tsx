@@ -12,7 +12,7 @@ import {
   analyzeNumericColumns,
   formatStatNumber,
 } from "~/app/contribute/nexafs/utils";
-import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
+import type { SpectrumPoint } from "~/app/components/plots/core/types";
 
 interface ColumnMappingModalProps {
   isOpen: boolean;

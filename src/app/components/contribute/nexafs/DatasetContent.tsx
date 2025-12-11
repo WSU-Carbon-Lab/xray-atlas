@@ -6,10 +6,8 @@ import {
   PencilIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import {
-  SpectrumPlot,
-  type SpectrumSelection,
-} from "~/app/components/plots/SpectrumPlot";
+import { SpectrumPlot } from "~/app/components/plots/SpectrumPlot";
+import type { SpectrumSelection } from "~/app/components/plots/core/types";
 import { MoleculeSelector } from "./MoleculeSelector";
 import { AnalysisToolbar } from "./AnalysisToolbar";
 import { AddMoleculeModal } from "./AddMoleculeModal";
@@ -418,8 +416,8 @@ export function DatasetContent({
                 <p className="mt-1">
                   Selected edge target atom ({selectedEdge?.targetatom}) is not
                   present in {selectedMolecule.commonName} (
-                  {selectedMolecule.chemicalFormula}). Please select an edge
-                  for an atom present in the molecule.
+                  {selectedMolecule.chemicalFormula}). Please select an edge for
+                  an atom present in the molecule.
                 </p>
               </div>
             </div>
@@ -549,12 +547,15 @@ export function DatasetContent({
                     const roundedEnergy = Math.round(energy * 100) / 100;
 
                     // Estimate amplitude from spectrum at this energy
-                    const pointsToAnalyze = dataset.normalizedPoints ?? dataset.spectrumPoints;
+                    const pointsToAnalyze =
+                      dataset.normalizedPoints ?? dataset.spectrumPoints;
                     let amplitude: number | undefined;
                     if (pointsToAnalyze.length > 0) {
                       // Find closest point to estimate amplitude
                       let closestPoint = pointsToAnalyze[0];
-                      let minDistance = Math.abs(pointsToAnalyze[0]!.energy - roundedEnergy);
+                      let minDistance = Math.abs(
+                        pointsToAnalyze[0]!.energy - roundedEnergy,
+                      );
                       for (const point of pointsToAnalyze) {
                         const distance = Math.abs(point.energy - roundedEnergy);
                         if (distance < minDistance) {

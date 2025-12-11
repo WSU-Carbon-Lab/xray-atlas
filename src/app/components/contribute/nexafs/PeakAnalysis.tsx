@@ -6,7 +6,7 @@ import { DefaultButton as Button } from "~/app/components/Button";
 import { FormField } from "~/app/components/FormField";
 import type { PeakData } from "~/app/contribute/nexafs/types";
 import { detectPeaks, convertToPeakData } from "~/app/contribute/nexafs/utils/peakDetection";
-import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
+import type { SpectrumPoint } from "~/app/components/plots/core/types";
 
 interface PeakAnalysisProps {
   peaks: PeakData[];

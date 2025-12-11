@@ -1,6 +1,6 @@
 "use client";
 
-import type { SpectrumSelection } from "~/app/components/plots/SpectrumPlot";
+import type { SpectrumSelection } from "~/app/components/plots/core/types";
 import type { ColumnStats, SpectrumStats } from "~/app/contribute/nexafs/types";
 import { formatStatNumber } from "~/app/contribute/nexafs/utils";
 
@@ -103,4 +103,3 @@ export function SelectionSummary({
     </div>
   );
 }
-
