@@ -4,10 +4,9 @@
 
 "use client";
 
-import { useMemo, useCallback, useRef, useState } from "react";
+import { useMemo, useCallback, useRef, useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { ParentSize } from "@visx/responsive";
-import { Zoom } from "@visx/zoom";
 import type { SpectrumPlotProps, SpectrumSelection } from "../core/types";
 import { DEFAULT_PLOT_HEIGHT, MARGINS } from "../core/constants";
 import { useSpectrumData } from "../hooks/useSpectrumData";
@@ -19,12 +18,13 @@ import { VisxGrid } from "./components/VisxGrid";
 import { SpectrumLines } from "./components/SpectrumLines";
 import { VisxTooltip, useSpectrumTooltip } from "./components/VisxTooltip";
 import { localPoint } from "@visx/event";
-import { VisxLegend } from "./components/VisxLegend";
+import { DraggableLegend } from "./components/DraggableLegend";
 import { NormalizationBrush } from "./components/NormalizationBrush";
-import { ZoomControls } from "./components/ZoomControls";
 import { PeakIndicators } from "./components/PeakIndicators";
 import { PeakCurves } from "./components/PeakCurves";
 import { InteractivePeak } from "./components/InteractivePeak";
+import { BrushZoom, type ZoomMode } from "./components/BrushZoom";
+import type { CursorMode } from "./components/CursorModeSelector";
 import { useVisxPeakInteractions } from "./hooks/useVisxPeakInteractions";
 import { usePeakVisualization } from "../hooks/usePeakVisualization";
 import { findClosestPoint } from "./utils/findClosestPoint";
@@ -52,7 +52,12 @@ export function VisxSpectrumPlot({
   showThetaData = false,
   showPhiData = false,
   selectedGeometry = null,
-}: SpectrumPlotProps) {
+  cursorMode: externalCursorMode,
+  onCursorModeChange,
+}: SpectrumPlotProps & {
+  cursorMode?: CursorMode;
+  onCursorModeChange?: (mode: CursorMode) => void;
+}) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
@@ -128,6 +133,8 @@ export function VisxSpectrumPlot({
             onPeakDelete={onPeakDelete}
             onPeakAdd={onPeakAdd}
             isManualPeakMode={isManualPeakMode}
+            cursorMode={externalCursorMode}
+            onCursorModeChange={onCursorModeChange}
           />
         );
       }}
@@ -160,6 +167,8 @@ function VisxSpectrumPlotWithWidth({
   onPeakDelete,
   onPeakAdd,
   isManualPeakMode,
+  cursorMode,
+  onCursorModeChange,
 }: {
   width: number;
   height: number;
@@ -186,6 +195,8 @@ function VisxSpectrumPlotWithWidth({
   onPeakDelete?: (peakId: string) => void;
   onPeakAdd?: (energy: number) => void;
   isManualPeakMode?: boolean;
+  cursorMode?: CursorMode;
+  onCursorModeChange?: (mode: CursorMode) => void;
 }) {
   // Use subplot layout hook to calculate dual plot structure
   // Now called at top level of component, so hooks are fine
@@ -220,6 +231,8 @@ function VisxSpectrumPlotWithWidth({
       isManualPeakMode={isManualPeakMode}
       energyStats={energyStats}
       absorptionStats={absorptionStats}
+      cursorMode={cursorMode}
+      onCursorModeChange={onCursorModeChange}
     />
   );
 }
@@ -244,6 +257,8 @@ function VisxSpectrumPlotInner({
   isManualPeakMode,
   energyStats,
   absorptionStats,
+  cursorMode: externalCursorMode,
+  onCursorModeChange,
 }: {
   subplotLayout: ReturnType<typeof useVisxSubplotLayout>;
   groupedTraces: TraceData[];
@@ -268,6 +283,8 @@ function VisxSpectrumPlotInner({
   isManualPeakMode?: boolean;
   energyStats?: Parameters<typeof VisxSpectrumPlot>[0]["energyStats"];
   absorptionStats?: Parameters<typeof VisxSpectrumPlot>[0]["absorptionStats"];
+  cursorMode?: CursorMode;
+  onCursorModeChange?: (mode: CursorMode) => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const {
@@ -280,20 +297,49 @@ function VisxSpectrumPlotInner({
     containerRef: tooltipContainerRef,
   } = useSpectrumTooltip();
 
-  // Zoom state - use ref to track zoom instance for reset
-  const zoomRef = useRef<{
-    transformMatrix: {
-      scaleX: number;
-      scaleY: number;
-      translateX: number;
-      translateY: number;
-      skewX: number;
-      skewY: number;
-    };
-    isDragging: boolean;
-    reset: () => void;
-  } | null>(null);
-  const [isZoomed, setIsZoomed] = useState(false);
+  // Cursor mode state management - default to inspect mode
+  const [internalCursorMode, setInternalCursorMode] =
+    useState<CursorMode>("inspect");
+  const cursorMode = externalCursorMode ?? internalCursorMode;
+
+  // Default to inspect mode when not explicitly set to pan or zoom
+  const effectiveCursorMode = useMemo(() => {
+    if (selectionTarget) return "select";
+    if (isManualPeakMode) return "peak";
+    return cursorMode === "pan" || cursorMode === "zoom"
+      ? cursorMode
+      : "inspect";
+  }, [cursorMode, selectionTarget, isManualPeakMode]);
+  const handleCursorModeChange = useCallback(
+    (mode: CursorMode) => {
+      if (onCursorModeChange) {
+        onCursorModeChange(mode);
+      } else {
+        setInternalCursorMode(mode);
+      }
+    },
+    [onCursorModeChange],
+  );
+
+  // Domain-based zoom state (instead of transform-based)
+  const [zoomMode, setZoomMode] = useState<ZoomMode>("default");
+
+  // Reset zoom handler - also clears brush
+  const handleResetZoom = useCallback(() => {
+    setZoomedXDomain(null);
+    setZoomedYDomain(null);
+  }, []);
+  const [zoomedXDomain, setZoomedXDomain] = useState<[number, number] | null>(
+    null,
+  );
+  const [zoomedYDomain, setZoomedYDomain] = useState<[number, number] | null>(
+    null,
+  );
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragCurrentRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Note: effectiveCursorMode handles selection and peak mode automatically
 
   const themeColors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
   const { mainPlot, peakPlot, hasSubplot } = subplotLayout;
@@ -305,17 +351,39 @@ function VisxSpectrumPlotInner({
       ? mainPlot.dimensions.height + peakPlot.dimensions.height
       : mainPlot.dimensions.height;
 
-  // Convert main plot scales to VisxScales format
-  // Zoom transform is applied via SVG transform, not scale domain changes
+  // Get original domains
+  const originalXDomain = useMemo(
+    () => mainPlot.xScale.domain() as [number, number],
+    [mainPlot.xScale],
+  );
+  const originalYDomain = useMemo(
+    () => mainPlot.yScale.domain() as [number, number],
+    [mainPlot.yScale],
+  );
+
+  // Create zoomed scales based on current zoom state
+  const zoomedXScale = useMemo(() => {
+    const domain = zoomedXDomain ?? originalXDomain;
+    return mainPlot.xScale.copy().domain(domain);
+  }, [mainPlot.xScale, zoomedXDomain, originalXDomain]);
+
+  const zoomedYScale = useMemo(() => {
+    const domain = zoomedYDomain ?? originalYDomain;
+    return mainPlot.yScale.copy().domain(domain);
+  }, [mainPlot.yScale, zoomedYDomain, originalYDomain]);
+
+  // Convert main plot scales to VisxScales format with zoomed domains
   const mainPlotScales = useMemo(
     () => ({
-      xScale: mainPlot.xScale,
-      yScale: mainPlot.yScale,
-      xInvert: (pixel: number) => mainPlot.xScale.invert(pixel),
-      yInvert: (pixel: number) => mainPlot.yScale.invert(pixel),
+      xScale: zoomedXScale,
+      yScale: zoomedYScale,
+      xInvert: (pixel: number) => zoomedXScale.invert(pixel),
+      yInvert: (pixel: number) => zoomedYScale.invert(pixel),
     }),
-    [mainPlot.xScale, mainPlot.yScale],
+    [zoomedXScale, zoomedYScale],
   );
+
+  const isZoomed = zoomedXDomain !== null || zoomedYDomain !== null;
 
   // Convert peak plot scales if subplot exists
   const peakPlotScales = useMemo(() => {
@@ -350,8 +418,20 @@ function VisxSpectrumPlotInner({
   }, [peakViz.selectedGeometryPoints]);
 
   // Handle mouse move for tooltip (works for both main plot and subplot)
+  // Default to inspect mode - show tooltip unless in zoom mode
   const handleMouseMove = useCallback(
     (event: React.MouseEvent<SVGSVGElement>) => {
+      // Don't show tooltip when in normalization selection mode
+      if (selectionTarget) {
+        hideTooltip();
+        return;
+      }
+      // Show tooltip in inspect mode (default) or when in pan mode
+      // Don't show in zoom mode (brush selection active)
+      if (effectiveCursorMode === "zoom") {
+        hideTooltip();
+        return;
+      }
       const svgRect = event.currentTarget.getBoundingClientRect();
       const x = event.clientX - svgRect.left;
       const y = event.clientY - svgRect.top;
@@ -370,16 +450,7 @@ function VisxSpectrumPlotInner({
       let adjustedY = y - mainPlot.dimensions.margins.top;
       let adjustedX = x - currentDimensions.margins.left;
 
-      // Account for zoom transform in main plot
-      // Get current zoom transform from ref if available
-      if (isInMainPlot && zoomRef.current) {
-        const transform = zoomRef.current.transformMatrix;
-        if (transform.scaleX !== 1 || transform.translateX !== 0) {
-          // Transform mouse coordinates by inverse zoom
-          adjustedX = (adjustedX - transform.translateX) / transform.scaleX;
-          adjustedY = (adjustedY - transform.translateY) / transform.scaleY;
-        }
-      }
+      // No need to account for zoom transform - scales already have zoomed domains
 
       if (!isInMainPlot && peakPlot && hasSubplot) {
         const peakPlotTop = mainPlot.dimensions.height;
@@ -473,6 +544,8 @@ function VisxSpectrumPlotInner({
       peakViz.selectedGeometryTrace,
       showTooltip,
       hideTooltip,
+      effectiveCursorMode,
+      selectionTarget,
     ],
   );
 
@@ -511,13 +584,99 @@ function VisxSpectrumPlotInner({
     mainPlot.dimensions.margins.top -
     mainPlot.dimensions.margins.bottom;
 
-  // Reset zoom handler
-  const handleResetZoom = useCallback(() => {
-    if (zoomRef.current) {
-      zoomRef.current.reset();
-      setIsZoomed(false);
-    }
+  // Horizontal-only pan handler
+  const handlePanStart = useCallback(
+    (event: React.MouseEvent<SVGGElement>) => {
+      // Don't allow panning when in normalization selection mode
+      if (selectionTarget) return;
+      // Only allow panning in pan mode
+      if (effectiveCursorMode !== "pan") return;
+
+      if (event.button !== 0) return; // Only handle left mouse button
+      const svgRect =
+        event.currentTarget.ownerSVGElement?.getBoundingClientRect();
+      if (!svgRect) return;
+
+      const x = event.clientX - svgRect.left - mainPlot.dimensions.margins.left;
+      const y = event.clientY - svgRect.top - mainPlot.dimensions.margins.top;
+
+      // Only allow panning if within plot bounds
+      if (x >= 0 && x <= mainPlotWidth && y >= 0 && y <= mainPlotHeight) {
+        setIsDragging(true);
+        dragStartRef.current = { x, y };
+        dragCurrentRef.current = { x, y };
+        event.preventDefault(); // Prevent text selection
+      }
+    },
+    [
+      mainPlot.dimensions.margins,
+      mainPlotWidth,
+      mainPlotHeight,
+      selectionTarget,
+    ],
+  );
+
+  const handlePanMove = useCallback(
+    (event: React.MouseEvent<SVGGElement>) => {
+      if (!isDragging || !dragStartRef.current) return;
+
+      const svgRect =
+        event.currentTarget.ownerSVGElement?.getBoundingClientRect();
+      if (!svgRect) return;
+
+      const x = event.clientX - svgRect.left - mainPlot.dimensions.margins.left;
+
+      dragCurrentRef.current = { x, y: dragStartRef.current.y ?? 0 };
+
+      // Calculate pan delta (horizontal only)
+      const deltaX = x - (dragStartRef.current.x ?? 0);
+
+      // Use a ref to get the current domain without causing re-renders during drag
+      // We'll calculate the final domain based on the total delta
+      const totalDeltaX = x - (dragStartRef.current.x ?? 0);
+
+      // Convert pixel delta to data domain delta
+      const currentXDomain = zoomedXDomain ?? originalXDomain;
+      const domainWidth = currentXDomain[1] - currentXDomain[0];
+      const pixelToDataRatio = domainWidth / mainPlotWidth;
+      const dataDelta = -totalDeltaX * pixelToDataRatio;
+
+      // Update x domain (horizontal pan only)
+      const newXMin = currentXDomain[0] + dataDelta;
+      const newXMax = currentXDomain[1] + dataDelta;
+
+      // Constrain to original domain bounds
+      const constrainedMin = Math.max(originalXDomain[0], newXMin);
+      const constrainedMax = Math.min(originalXDomain[1], newXMax);
+
+      // Only update if we have valid constraints and meaningful change
+      if (constrainedMin < constrainedMax && Math.abs(dataDelta) > 0.001) {
+        setZoomedXDomain([constrainedMin, constrainedMax]);
+      }
+    },
+    [
+      isDragging,
+      mainPlotWidth,
+      zoomedXDomain,
+      originalXDomain,
+      mainPlot.dimensions.margins,
+    ],
+  );
+
+  const handlePanEnd = useCallback(() => {
+    setIsDragging(false);
+    dragStartRef.current = null;
+    dragCurrentRef.current = null;
   }, []);
+
+  // Marquee zoom handler
+  const handleMarqueeZoom = useCallback(
+    (xDomain: [number, number], yDomain: [number, number]) => {
+      setZoomedXDomain(xDomain);
+      setZoomedYDomain(yDomain);
+    },
+    [],
+  );
 
   return (
     <div
@@ -546,9 +705,15 @@ function VisxSpectrumPlotInner({
         }}
         width={totalWidth}
         height={totalHeight}
-        onMouseMove={handleMouseMove}
+        onMouseMove={(e) => {
+          // Don't handle mouse move for tooltip when in normalization selection mode
+          if (selectionTarget) return;
+          // Show tooltip in inspect mode (default) or pan mode, but not in zoom mode
+          if (!isDragging && effectiveCursorMode !== "zoom") {
+            handleMouseMove(e);
+          }
+        }}
         onMouseLeave={handleMouseLeave}
-        onClick={handlePeakClick}
         style={{
           cursor: selectionTarget ? "crosshair" : undefined,
           display: "block",
@@ -563,178 +728,160 @@ function VisxSpectrumPlotInner({
         />
 
         {/* ==================== MAIN PLOT ==================== */}
-        <Zoom
-          width={mainPlotWidth}
-          height={mainPlotHeight}
-          scaleXMin={1}
-          scaleXMax={10}
-          scaleYMin={1}
-          scaleYMax={10}
-        >
-          {(zoom) => {
-            // Track zoom state
-            zoomRef.current = zoom;
-            const transform = zoom.transformMatrix;
-            const hasZoom =
-              transform.scaleX !== 1 ||
-              transform.scaleY !== 1 ||
-              transform.translateX !== 0 ||
-              transform.translateY !== 0;
-            if (hasZoom !== isZoomed) {
-              setIsZoomed(hasZoom);
-            }
-
-            return (
-              <g>
-                {/* Main plot area background */}
-                <rect
-                  x={mainPlot.dimensions.margins.left}
-                  y={mainPlot.dimensions.margins.top}
-                  width={mainPlotWidth}
-                  height={mainPlotHeight}
-                  fill={themeColors.plot}
-                  pointerEvents="none"
-                />
-                {/* Normalization region backgrounds */}
-                {normalizationRegions && (
-                  <>
-                    {normalizationRegions.pre &&
-                      normalizationRegions.pre[0] !==
-                        normalizationRegions.pre[1] && (
-                        <rect
-                          x={
-                            mainPlot.xScale(normalizationRegions.pre[0]) +
-                            mainPlot.dimensions.margins.left
-                          }
-                          y={mainPlot.dimensions.margins.top}
-                          width={
-                            mainPlot.xScale(normalizationRegions.pre[1]) -
-                            mainPlot.xScale(normalizationRegions.pre[0])
-                          }
-                          height={mainPlotHeight}
-                          fill={NORMALIZATION_COLORS.pre}
-                          opacity={0.12}
-                          pointerEvents="none"
-                        />
-                      )}
-                    {normalizationRegions.post &&
-                      normalizationRegions.post[0] !==
-                        normalizationRegions.post[1] && (
-                        <rect
-                          x={
-                            mainPlot.xScale(normalizationRegions.post[0]) +
-                            mainPlot.dimensions.margins.left
-                          }
-                          y={mainPlot.dimensions.margins.top}
-                          width={
-                            mainPlot.xScale(normalizationRegions.post[1]) -
-                            mainPlot.xScale(normalizationRegions.post[0])
-                          }
-                          height={mainPlotHeight}
-                          fill={NORMALIZATION_COLORS.post}
-                          opacity={0.12}
-                          pointerEvents="none"
-                        />
-                      )}
-                  </>
-                )}
-                {/* Zoomable plot content */}
-                <g
-                  transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
-                  ref={zoom.containerRef as React.RefObject<SVGGElement>}
-                  onMouseDown={zoom.dragStart}
-                  onMouseMove={(e) => {
-                    zoom.dragMove(e);
-                    handleMouseMove(e as React.MouseEvent<SVGSVGElement>);
-                  }}
-                  onMouseUp={zoom.dragEnd}
-                  onMouseLeave={(e) => {
-                    if (zoom.isDragging) {
-                      zoom.dragEnd();
+        <g>
+          {/* Main plot area background */}
+          <rect
+            x={mainPlot.dimensions.margins.left}
+            y={mainPlot.dimensions.margins.top}
+            width={mainPlotWidth}
+            height={mainPlotHeight}
+            fill={themeColors.plot}
+            pointerEvents="none"
+          />
+          {/* Normalization region backgrounds */}
+          {normalizationRegions && (
+            <>
+              {normalizationRegions.pre &&
+                normalizationRegions.pre[0] !== normalizationRegions.pre[1] && (
+                  <rect
+                    x={
+                      mainPlot.xScale(normalizationRegions.pre[0]) +
+                      mainPlot.dimensions.margins.left
                     }
-                    handleMouseLeave();
-                  }}
-                  onWheel={zoom.handleWheel}
-                  style={{
-                    cursor: zoom.isDragging ? "grabbing" : "grab",
-                  }}
-                >
-                  {/* Main plot grid */}
-                  <VisxGrid
-                    scales={mainPlotScales}
-                    dimensions={mainPlot.dimensions}
-                    isDark={isDark}
+                    y={mainPlot.dimensions.margins.top}
+                    width={
+                      mainPlot.xScale(normalizationRegions.pre[1]) -
+                      mainPlot.xScale(normalizationRegions.pre[0])
+                    }
+                    height={mainPlotHeight}
+                    fill={NORMALIZATION_COLORS.pre}
+                    opacity={0.12}
+                    pointerEvents="none"
                   />
-                  {/* Main plot lines - render in groups for proper z-ordering */}
-                  <g transform={zoom.toString()}>
-                    {/* Reference traces (background) */}
-                    <SpectrumLines
-                      traces={referenceTraces}
-                      scales={mainPlotScales}
-                    />
-                    {/* Measurement traces */}
-                    <SpectrumLines
-                      traces={groupedTraces}
-                      scales={mainPlotScales}
-                    />
-                    {/* Difference traces (foreground) */}
-                    <SpectrumLines
-                      traces={differenceTraces}
-                      scales={mainPlotScales}
-                    />
-                  </g>
-                  {/* Peak indicators (vertical lines on main plot) */}
-                  <g transform={zoom.toString()}>
-                    <PeakIndicators
-                      peaks={peaks}
+                )}
+              {normalizationRegions.post &&
+                normalizationRegions.post[0] !==
+                  normalizationRegions.post[1] && (
+                  <rect
+                    x={
+                      mainPlot.xScale(normalizationRegions.post[0]) +
+                      mainPlot.dimensions.margins.left
+                    }
+                    y={mainPlot.dimensions.margins.top}
+                    width={
+                      mainPlot.xScale(normalizationRegions.post[1]) -
+                      mainPlot.xScale(normalizationRegions.post[0])
+                    }
+                    height={mainPlotHeight}
+                    fill={NORMALIZATION_COLORS.post}
+                    opacity={0.12}
+                    pointerEvents="none"
+                  />
+                )}
+            </>
+          )}
+          {/* Plot content container */}
+          <g
+            transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
+            onMouseDown={handlePanStart}
+            onMouseMove={handlePanMove}
+            onMouseUp={handlePanEnd}
+            onMouseLeave={handlePanEnd}
+            style={{
+              cursor: selectionTarget
+                ? "crosshair"
+                : isDragging
+                  ? "grabbing"
+                  : effectiveCursorMode === "select"
+                    ? "crosshair"
+                    : effectiveCursorMode === "peak"
+                      ? "crosshair"
+                      : effectiveCursorMode === "zoom"
+                        ? "crosshair"
+                        : effectiveCursorMode === "pan"
+                          ? "grab"
+                          : "default",
+            }}
+            onClick={(e) => {
+              // Only handle peak click if not dragging and in peak mode
+              if (!isDragging && effectiveCursorMode === "peak") {
+                handlePeakClick(e);
+              }
+            }}
+          >
+            {/* Main plot grid */}
+            <VisxGrid
+              scales={mainPlotScales}
+              dimensions={mainPlot.dimensions}
+              isDark={isDark}
+            />
+            {/* Plot content - scales already have zoomed domains */}
+            <g>
+              {/* Main plot lines - render in groups for proper z-ordering */}
+              <g>
+                {/* Reference traces (background) */}
+                <SpectrumLines
+                  traces={referenceTraces}
+                  scales={mainPlotScales}
+                />
+                {/* Measurement traces */}
+                <SpectrumLines traces={groupedTraces} scales={mainPlotScales} />
+                {/* Difference traces (foreground) */}
+                <SpectrumLines
+                  traces={differenceTraces}
+                  scales={mainPlotScales}
+                />
+              </g>
+              {/* Peak indicators (vertical lines on main plot) */}
+              <g>
+                <PeakIndicators
+                  peaks={peaks}
+                  scales={mainPlotScales}
+                  dimensions={mainPlot.dimensions}
+                  selectedPeakId={selectedPeakId}
+                />
+              </g>
+              {/* Interactive peak drag handles (on main plot) */}
+              <g>
+                {peaks.map((peak, peakIndex) => {
+                  const peakId = peak.id ?? `peak-${peakIndex}-${peak.energy}`;
+                  return (
+                    <InteractivePeak
+                      key={peakId}
+                      peak={peak}
+                      peakIndex={peakIndex}
                       scales={mainPlotScales}
                       dimensions={mainPlot.dimensions}
-                      selectedPeakId={selectedPeakId}
+                      isSelected={selectedPeakId === peakId}
+                      onEnergyUpdate={handlePeakEnergyUpdate}
                     />
-                  </g>
-                  {/* Interactive peak drag handles (on main plot) */}
-                  <g transform={zoom.toString()}>
-                    {peaks.map((peak, peakIndex) => {
-                      const peakId =
-                        peak.id ?? `peak-${peakIndex}-${peak.energy}`;
-                      return (
-                        <InteractivePeak
-                          key={peakId}
-                          peak={peak}
-                          peakIndex={peakIndex}
-                          scales={mainPlotScales}
-                          dimensions={mainPlot.dimensions}
-                          isSelected={selectedPeakId === peakId}
-                          onEnergyUpdate={handlePeakEnergyUpdate}
-                        />
-                      );
-                    })}
-                  </g>
-                </g>
-                {/* Main plot axes - only show x-axis label if no subplot (axes outside zoom container) */}
-                <g
-                  transform={`translate(0, ${mainPlot.dimensions.margins.top})`}
-                >
-                  <VisxAxes
-                    scales={mainPlotScales}
-                    dimensions={mainPlot.dimensions}
-                    isDark={isDark}
-                    showXAxisLabel={!hasSubplot}
-                  />
-                </g>
-                {/* Normalization brush (when selection target is set) */}
-                {selectionTarget && peakPlotScales && (
-                  <NormalizationBrush
-                    scales={mainPlotScales}
-                    dimensions={mainPlot.dimensions}
-                    selectionTarget={selectionTarget}
-                    onSelectionChange={onSelectionChange}
-                  />
-                )}
+                  );
+                })}
               </g>
-            );
-          }}
-        </Zoom>
+            </g>
+          </g>
+          {/* Brush zoom (only when in zoom mode and not in normalization selection mode) */}
+          {!selectionTarget && effectiveCursorMode === "zoom" && (
+            <BrushZoom
+              xScale={mainPlotScales.xScale}
+              yScale={mainPlotScales.yScale}
+              dimensions={mainPlot.dimensions}
+              isDark={isDark}
+              zoomMode={zoomMode}
+              onZoom={handleMarqueeZoom}
+              onReset={handleResetZoom}
+            />
+          )}
+          {/* Main plot axes - only show x-axis label if no subplot (axes outside zoom container) */}
+          <g transform={`translate(0, ${mainPlot.dimensions.margins.top})`}>
+            <VisxAxes
+              scales={mainPlotScales}
+              dimensions={mainPlot.dimensions}
+              isDark={isDark}
+              showXAxisLabel={!hasSubplot}
+            />
+          </g>
+        </g>
 
         {/* ==================== PEAK SUBPLOT ==================== */}
         {hasSubplot && peakPlot && peakPlotScales && (
@@ -799,26 +946,175 @@ function VisxSpectrumPlotInner({
           </g>
         )}
 
-        {/* Legend */}
-        <VisxLegend
+        {/* Draggable Legend with Tool Selection */}
+        <DraggableLegend
           traces={groupedTraces}
           referenceTraces={referenceTraces}
           differenceTraces={differenceTraces}
           dimensions={mainPlot.dimensions}
           isDark={isDark}
+          cursorMode={effectiveCursorMode}
+          onCursorModeChange={handleCursorModeChange}
+          hoveredEnergy={
+            tooltipData && effectiveCursorMode === "inspect"
+              ? tooltipData.energy
+              : null
+          }
+          hoveredValues={useMemo(() => {
+            if (!tooltipData || effectiveCursorMode !== "inspect")
+              return new Map();
+            const values = new Map<string, number>();
+            // Find values for all traces at the hovered energy
+            const energy = tooltipData.energy;
+            const energyDomainRange =
+              mainPlotScales.xScale.domain()[1] -
+              mainPlotScales.xScale.domain()[0];
+            const threshold = energyDomainRange * 0.02;
+
+            allTraces.forEach((trace) => {
+              const label =
+                typeof trace.name === "string" ? trace.name : "Trace";
+              const xValues = trace.x;
+              const yValues = trace.y;
+
+              if (
+                Array.isArray(xValues) &&
+                Array.isArray(yValues) &&
+                xValues.length === yValues.length &&
+                xValues.length > 0
+              ) {
+                // Find closest point in this trace
+                let closestIndex = 0;
+                let minDistance = Math.abs((xValues[0] as number) - energy);
+
+                for (let i = 0; i < xValues.length; i++) {
+                  const xVal = xValues[i] as number;
+                  if (typeof xVal === "number") {
+                    const distance = Math.abs(xVal - energy);
+                    if (distance < minDistance) {
+                      minDistance = distance;
+                      closestIndex = i;
+                    }
+                  }
+                }
+
+                // Only include if within threshold
+                if (
+                  minDistance <= threshold &&
+                  typeof yValues[closestIndex] === "number"
+                ) {
+                  values.set(label, yValues[closestIndex] as number);
+                }
+              }
+            });
+            return values;
+          }, [tooltipData, effectiveCursorMode, allTraces, mainPlotScales])}
           yOffset={
             hasSubplot && peakPlot ? mainPlot.dimensions.height : undefined
           }
         />
 
-        {/* Zoom Controls (top right) */}
-        <ZoomControls
-          dimensions={mainPlot.dimensions}
-          isDark={isDark}
-          isZoomed={isZoomed}
-          onReset={handleResetZoom}
-        />
+        {/* Reset Zoom Button (top right, only when zoomed) */}
+        {isZoomed && (
+          <g>
+            <foreignObject
+              x={mainPlot.dimensions.width - 80}
+              y={10}
+              width={70}
+              height={32}
+              style={{ overflow: "visible" }}
+            >
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleResetZoom();
+                }}
+                style={{
+                  padding: "6px 12px",
+                  backgroundColor: themeColors.legendBg,
+                  border: `1px solid ${themeColors.legendBorder}`,
+                  borderRadius: "6px",
+                  color: themeColors.text,
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  transition: "background-color 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = themeColors.plot;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = themeColors.legendBg;
+                }}
+              >
+                Reset Zoom
+              </button>
+            </foreignObject>
+          </g>
+        )}
+
+        {/* Crosshair indicator and circle rendered in SVG when tooltip is active */}
+        {tooltipData && effectiveCursorMode === "inspect" && (
+          <g style={{ pointerEvents: "none" }}>
+            {/* Vertical crosshair line */}
+            <line
+              x1={
+                mainPlotScales.xScale(tooltipData.energy) +
+                mainPlot.dimensions.margins.left
+              }
+              y1={mainPlot.dimensions.margins.top}
+              x2={
+                mainPlotScales.xScale(tooltipData.energy) +
+                mainPlot.dimensions.margins.left
+              }
+              y2={
+                mainPlot.dimensions.height - mainPlot.dimensions.margins.bottom
+              }
+              stroke={themeColors.text}
+              strokeWidth={2}
+              strokeDasharray="5,2"
+              opacity={0.4}
+              style={{ transition: "opacity 0.2s ease-in-out" }}
+            />
+            {/* Circle indicator at data point */}
+            <circle
+              cx={
+                mainPlotScales.xScale(tooltipData.energy) +
+                mainPlot.dimensions.margins.left
+              }
+              cy={
+                mainPlotScales.yScale(tooltipData.intensity) +
+                mainPlot.dimensions.margins.top
+              }
+              r={4}
+              fill="black"
+              fillOpacity={0.1}
+              stroke="black"
+              strokeOpacity={0.1}
+              strokeWidth={2}
+            />
+            <circle
+              cx={
+                mainPlotScales.xScale(tooltipData.energy) +
+                mainPlot.dimensions.margins.left
+              }
+              cy={
+                mainPlotScales.yScale(tooltipData.intensity) +
+                mainPlot.dimensions.margins.top
+              }
+              r={4}
+              fill={themeColors.text}
+              stroke="white"
+              strokeWidth={2}
+              opacity={0.9}
+            />
+          </g>
+        )}
       </svg>
+
       {/* Tooltip (rendered in portal for better positioning) */}
       {tooltipData &&
         tooltipLeft !== undefined &&
@@ -828,8 +1124,22 @@ function VisxSpectrumPlotInner({
             tooltipData={tooltipData}
             tooltipLeft={tooltipLeft}
             tooltipTop={tooltipTop}
+            tooltipX={
+              tooltipData
+                ? mainPlotScales.xScale(tooltipData.energy) +
+                  mainPlot.dimensions.margins.left
+                : undefined
+            }
+            tooltipY={
+              tooltipData
+                ? mainPlotScales.yScale(tooltipData.intensity) +
+                  mainPlot.dimensions.margins.top
+                : undefined
+            }
             isDark={isDark}
             TooltipInPortal={TooltipInPortal}
+            plotDimensions={mainPlot.dimensions}
+            scales={mainPlotScales}
           />
         )}
     </div>

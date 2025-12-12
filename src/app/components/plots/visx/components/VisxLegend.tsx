@@ -85,27 +85,31 @@ export function VisxLegend({
 
   if (legendItems.length === 0) return null;
 
-  // Calculate legend position (top right, single column, under zoom controls)
-  const legendX = dimensions.width - 160; // Match zoom controls X position
-  const legendY = 50; // Position under zoom controls (10px zoom + 32px height + 8px gap)
+  // Calculate legend position (top right corner)
+  const legendX = dimensions.width - 160;
+  const legendY = 10;
 
   return (
     <g>
       <foreignObject
         x={legendX}
         y={legendY}
-        width={150}
+        width={170}
         height={legendItems.length * 24 + 16} // Single column height
-        style={{ overflow: "hidden" }}
+        style={{ overflow: "visible" }}
       >
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "flex-start",
-            padding: "8px",
+            padding: "8px 10px",
+            backgroundColor: themeColors.legendBg,
+            border: `1px solid ${themeColors.legendBorder}`,
+            borderRadius: "6px",
             fontFamily: "Inter, system-ui, sans-serif",
             fontSize: "12px",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
           }}
         >
           <LegendOrdinal
@@ -160,7 +164,7 @@ export function VisxLegend({
                       align="left"
                       margin="0 0 0 6px"
                       style={{
-                        color: label.value,
+                        color: themeColors.text,
                         fontSize: "12px",
                         fontWeight: 400,
                       }}

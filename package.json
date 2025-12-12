@@ -42,6 +42,9 @@
     "@types/google.maps": "^3.58.1",
     "@visx/visx": "^3.12.0",
     "@visx/zoom": "^3.12.0",
+    "d3": "^7.9.0",
+    "d3-selection": "^3.0.0",
+    "d3-zoom": "^3.0.0",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.552.0",
     "next": "^16.0.7",
@@ -55,6 +58,8 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.0.15",
+    "@types/d3-selection": "^3.0.11",
+    "@types/d3-zoom": "^3.0.8",
     "@types/node": "^20.14.10",
     "@types/papaparse": "^5.3.15",
     "@types/react": "^19.0.0",

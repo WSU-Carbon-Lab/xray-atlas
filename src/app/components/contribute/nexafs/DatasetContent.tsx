@@ -30,6 +30,7 @@ import {
   EXPERIMENT_TYPE_OPTIONS,
   type ExperimentTypeOption,
 } from "~/app/contribute/nexafs/types";
+import type { CursorMode } from "~/app/components/plots/visx/components/CursorModeSelector";
 
 interface DatasetContentProps {
   dataset: DatasetState;
@@ -72,6 +73,7 @@ export function DatasetContent({
     theta?: number;
     phi?: number;
   } | null>(null);
+  const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
 
   // Molecule search hook - per dataset
   const {
@@ -498,11 +500,11 @@ export function DatasetContent({
         <div className="flex-1">
           {/* Spectrum Plot */}
           <div className="space-y-2">
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
               {plotPoints.length > 0 ? (
                 <SpectrumPlot
                   points={plotPoints}
-                  height={500}
+                  height={600}
                   referenceCurves={referenceCurves}
                   normalizationRegions={normalizationRegions}
                   selectionTarget={normalizationSelectionTarget}
@@ -580,6 +582,8 @@ export function DatasetContent({
                   showThetaData={showThetaData}
                   showPhiData={showPhiData}
                   selectedGeometry={selectedGeometry}
+                  cursorMode={cursorMode}
+                  onCursorModeChange={setCursorMode}
                 />
               ) : dataset.spectrumError ? (
                 <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">
