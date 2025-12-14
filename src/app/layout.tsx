@@ -1,6 +1,7 @@
 import "~/styles/globals.css";
 
 import { Geist } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import Header from "./components/Header";
 import { Footer } from "./components/Footer";
 import { siteMetadata } from "./components/Metadata";
@@ -49,6 +50,7 @@ export default async function RootLayout({
               <Footer />
             </ThemeProviderWrapper>
           </TRPCReactProvider>
+          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>
