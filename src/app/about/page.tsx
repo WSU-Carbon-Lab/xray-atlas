@@ -31,7 +31,7 @@ export default function AboutPage() {
         <div className="space-y-12">
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <InformationCircleIcon className="h-6 w-6 text-wsu-crimson" />
+              <InformationCircleIcon className="h-6 w-6 text-accent dark:text-accent-light" />
               What is X-ray Atlas?
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
@@ -54,7 +54,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <BookOpenIcon className="h-6 w-6 text-wsu-crimson" />
+              <BookOpenIcon className="h-6 w-6 text-accent dark:text-accent-light" />
               Understanding NEXAFS Spectroscopy
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
@@ -100,7 +100,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <CircleStackIcon className="h-6 w-6 text-wsu-crimson" />
+              <CircleStackIcon className="h-6 w-6 text-accent dark:text-accent-light" />
               Data Representation and Structure
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
@@ -164,7 +164,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <ChartBarIcon className="h-6 w-6 text-wsu-crimson" />
+              <ChartBarIcon className="h-6 w-6 text-accent dark:text-accent-light" />
               Platform Features
             </h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -237,7 +237,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <LinkIcon className="h-6 w-6 text-wsu-crimson" />
+              <LinkIcon className="h-6 w-6 text-accent dark:text-accent-light" />
               Contributing Data
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
@@ -254,7 +254,7 @@ export default function AboutPage() {
                   <li>
                     <Link
                       href="/contribute"
-                      className="text-wsu-crimson hover:underline"
+                      className="text-accent dark:text-accent-light hover:underline"
                     >
                       Sign in and review the contribution agreement
                     </Link>
@@ -286,7 +286,7 @@ export default function AboutPage() {
               <div className="flex justify-center">
                 <Link
                   href="/contribute"
-                  className="rounded-lg bg-wsu-crimson px-6 py-3 text-white transition-colors hover:bg-wsu-crimson-dark"
+                  className="rounded-lg bg-accent px-6 py-3 text-white transition-colors hover:bg-accent-dark"
                 >
                   Start Contributing
                 </Link>
@@ -296,7 +296,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <AcademicCapIcon className="h-6 w-6 text-wsu-crimson" />
+              <AcademicCapIcon className="h-6 w-6 text-accent dark:text-accent-light" />
               Core Contributors
             </h2>
             <div className="space-y-6">
@@ -320,7 +320,7 @@ export default function AboutPage() {
                                   href={host.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-wsu-crimson hover:underline"
+                                  className="text-accent dark:text-accent-light hover:underline"
                                 >
                                   {host.name}
                                 </Link>
@@ -349,7 +349,7 @@ export default function AboutPage() {
                                   href={collab.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-wsu-crimson hover:underline"
+                                  className="text-accent dark:text-accent-light hover:underline"
                                 >
                                   {collab.name}
                                 </Link>
@@ -379,7 +379,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <BeakerIcon className="h-6 w-6 text-wsu-crimson" />
+              <BeakerIcon className="h-6 w-6 text-accent dark:text-accent-light" />
               Getting Started
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
@@ -390,7 +390,7 @@ export default function AboutPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <Link
                   href="/browse"
-                  className="rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:border-wsu-crimson hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+                  className="rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:border-accent hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                 >
                   <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
                     Browse Molecules
@@ -402,7 +402,7 @@ export default function AboutPage() {
 
                 <Link
                   href="/browse/facilities"
-                  className="rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:border-wsu-crimson hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+                  className="rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:border-accent hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                 >
                   <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
                     Browse Facilities

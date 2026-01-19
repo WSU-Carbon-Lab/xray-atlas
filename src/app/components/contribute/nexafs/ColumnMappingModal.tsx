@@ -277,7 +277,7 @@ export function ColumnMappingModal({
                 onChange={(e) =>
                   setMappings({ ...mappings, energy: e.target.value })
                 }
-                className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               >
                 <option value="">Select column...</option>
                 {columns.map((col) => (
@@ -305,7 +305,7 @@ export function ColumnMappingModal({
                 onChange={(e) =>
                   setMappings({ ...mappings, absorption: e.target.value })
                 }
-                className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               >
                 <option value="">Select column...</option>
                 {columns.map((col) => (
@@ -337,7 +337,7 @@ export function ColumnMappingModal({
                     theta: e.target.value === "" ? undefined : e.target.value,
                   })
                 }
-                className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               >
                 <option value="">None</option>
                 {columns.map((col) => (
@@ -368,7 +368,7 @@ export function ColumnMappingModal({
                     phi: e.target.value === "" ? undefined : e.target.value,
                   })
                 }
-                className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               >
                 <option value="">None</option>
                 {columns.map((col) => (

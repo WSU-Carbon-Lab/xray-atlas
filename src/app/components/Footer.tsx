@@ -48,7 +48,7 @@ export function Footer() {
                                 href={host.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="hover:text-wsu-crimson transition-colors hover:underline"
+                                className="hover:text-accent dark:text-accent-light transition-colors hover:underline"
                               >
                                 {host.name}
                               </Link>
@@ -70,25 +70,25 @@ export function Footer() {
             <div className="flex flex-col space-y-2">
               <Link
                 href="/browse"
-                className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
+                className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
               >
                 Browse
               </Link>
               <Link
                 href="/contribute"
-                className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
+                className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
               >
                 Contribute
               </Link>
               <Link
                 href="/about"
-                className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
+                className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
               >
                 About
               </Link>
               <Link
                 href="mailto:brian.collins@wsu.edu"
-                className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
+                className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
               >
                 Contact
               </Link>
@@ -112,7 +112,7 @@ export function Footer() {
                             href={collab.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="hover:text-wsu-crimson transition-colors hover:underline"
+                            className="hover:text-accent dark:text-accent-light transition-colors hover:underline"
                           >
                             {collab.name}
                           </Link>
@@ -138,7 +138,7 @@ export function Footer() {
           <div className="mt-4 flex justify-center gap-4 text-sm md:mt-0 md:justify-end">
             <Link
               href="/privacy"
-              className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
+              className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
             >
               Privacy
             </Link>
@@ -146,7 +146,7 @@ export function Footer() {
               href="https://github.com/WSU-Carbon-Lab/xray-atlas"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
+              className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
             >
               GitHub
             </Link>
@@ -154,7 +154,7 @@ export function Footer() {
               href="https://wsu.edu/"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-wsu-crimson text-sm text-foreground-500 transition-colors hover:underline"
+              className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
             >
               WSU
             </Link>

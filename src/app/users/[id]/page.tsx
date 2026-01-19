@@ -67,7 +67,7 @@ export default function UserProfilePage() {
       <div className="mb-6">
         <Link
           href="/"
-          className="text-sm text-gray-600 hover:text-wsu-crimson dark:text-gray-400 dark:hover:text-wsu-crimson"
+          className="text-sm text-gray-600 hover:text-accent dark:text-accent-light dark:text-gray-400 dark:hover:text-accent dark:text-accent-light"
         >
           ← Back to Home
         </Link>
@@ -86,7 +86,7 @@ export default function UserProfilePage() {
               />
             </div>
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-wsu-crimson text-2xl font-bold text-white">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-accent text-2xl font-bold text-white">
               {user.name.charAt(0).toUpperCase()}
             </div>
           )}
@@ -104,7 +104,7 @@ export default function UserProfilePage() {
                   href={`https://orcid.org/${user.orcid}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-wsu-crimson hover:underline"
+                  className="inline-flex items-center gap-2 text-sm text-accent dark:text-accent-light hover:underline"
                 >
                   <span>ORCID: {user.orcid}</span>
                   <svg

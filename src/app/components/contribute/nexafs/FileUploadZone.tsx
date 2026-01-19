@@ -118,7 +118,7 @@ export function FileUploadZone({
         onDrop={handleDrop}
         className={`relative rounded-lg border-2 border-dashed p-4 transition-colors ${
           isDragging
-            ? "border-wsu-crimson bg-wsu-crimson/5 dark:border-wsu-crimson dark:bg-wsu-crimson/10"
+            ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
             : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/40"
         }`}
       >
@@ -136,7 +136,7 @@ export function FileUploadZone({
           <CloudArrowUpIcon
             className={`h-6 w-6 shrink-0 transition-colors ${
               isDragging
-                ? "text-wsu-crimson"
+                ? "text-accent dark:text-accent-light"
                 : "text-gray-400 dark:text-gray-500"
             }`}
           />

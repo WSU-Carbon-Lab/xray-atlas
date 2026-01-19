@@ -43,7 +43,7 @@ export function FacilityCard({
       <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 p-6 dark:from-gray-900 dark:to-gray-800">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-wsu-crimson/10 text-wsu-crimson dark:bg-wsu-crimson/20">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light">
               <BuildingOfficeIcon className="h-7 w-7" />
             </div>
             <div>

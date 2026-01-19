@@ -175,13 +175,13 @@ export function SampleInformationSection({
             value={newVendorName}
             onChange={(event) => setNewVendorName(event.target.value)}
             placeholder="Vendor name"
-            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
           />
           <input
             value={newVendorUrl}
             onChange={(event) => setNewVendorUrl(event.target.value)}
             placeholder="Vendor website (optional)"
-            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
           />
         </div>
       </div>

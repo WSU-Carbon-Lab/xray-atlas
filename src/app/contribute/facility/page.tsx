@@ -233,7 +233,7 @@ export default function FacilityContributePage({
   if (isLoadingAgreement) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-wsu-crimson mx-auto"></div>
+        <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-accent mx-auto"></div>
         <p className="text-gray-600 dark:text-gray-400">Loading...</p>
       </div>
     );
@@ -258,7 +258,7 @@ export default function FacilityContributePage({
             <div className="mb-6">
               <Link
                 href="/contribute"
-                className="text-sm text-gray-600 hover:text-wsu-crimson dark:text-gray-400 dark:hover:text-wsu-crimson"
+                className="text-sm text-gray-600 hover:text-accent dark:text-accent-light dark:text-gray-400 dark:hover:text-accent dark:text-accent-light"
               >
                 ← Back to contribution type selection
               </Link>
@@ -322,7 +322,7 @@ export default function FacilityContributePage({
                   required
                   value={facilityData.name}
                   onChange={handleInputChange}
-                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                   placeholder="e.g., Advanced Light Source"
                 />
               </div>
@@ -342,7 +342,7 @@ export default function FacilityContributePage({
                     name="city"
                     value={facilityData.city}
                     onChange={handleInputChange}
-                    className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                    className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                     placeholder="e.g., Berkeley"
                   />
                 </div>
@@ -359,7 +359,7 @@ export default function FacilityContributePage({
                     name="country"
                     value={facilityData.country}
                     onChange={handleInputChange}
-                    className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                    className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                     placeholder="e.g., United States"
                   />
                 </div>
@@ -379,7 +379,7 @@ export default function FacilityContributePage({
                   required
                   value={facilityData.facilityType}
                   onChange={handleInputChange}
-                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                 >
                   <option value="LAB_SOURCE">Lab Source</option>
                   <option value="SYNCHROTRON">Synchrotron</option>
@@ -507,7 +507,7 @@ function InstrumentForm({
               required
               value={instrument.name}
               onChange={(e) => onChange("name", e.target.value)}
-              className={`focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:bg-gray-800 dark:text-gray-100 ${
+              className={`focus:border-accent focus:ring-accent/20 w-full rounded-lg border px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:bg-gray-800 dark:text-gray-100 ${
                 instrumentExists
                   ? "border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/20"
                   : "border-gray-300 bg-white dark:border-gray-600"
@@ -531,7 +531,7 @@ function InstrumentForm({
             type="url"
             value={instrument.link}
             onChange={(e) => onChange("link", e.target.value)}
-            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
             placeholder="https://..."
           />
         </div>
@@ -545,7 +545,7 @@ function InstrumentForm({
             onChange={(e) =>
               onChange("status", e.target.value as InstrumentFormData["status"])
             }
-            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
           >
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>

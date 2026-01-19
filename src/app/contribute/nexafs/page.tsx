@@ -662,7 +662,7 @@ export default function NEXAFSContributePage() {
       return (
         <div className="container mx-auto px-4 py-16">
           <div className="mx-auto max-w-2xl text-center">
-            <div className="border-t-wsu-crimson mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300"></div>
+            <div className="border-t-accent mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300"></div>
             <p className="text-gray-600 dark:text-gray-400">Loading...</p>
           </div>
         </div>
@@ -674,7 +674,7 @@ export default function NEXAFSContributePage() {
         <div className="mb-6 flex items-center justify-between">
           <Link
             href="/contribute"
-            className="hover:text-wsu-crimson dark:hover:text-wsu-crimson inline-flex items-center gap-2 text-sm text-gray-600 transition-colors dark:text-gray-400"
+            className="hover:text-accent dark:hover:text-accent-light inline-flex items-center gap-2 text-sm text-gray-600 transition-colors dark:text-gray-400"
           >
             <ArrowLeftIcon className="h-4 w-4" /> Back to contribution options
           </Link>

@@ -18,7 +18,7 @@ export function FieldTooltip({ description }: FieldTooltipProps) {
         onMouseLeave={() => setShowTooltip(false)}
         onFocus={() => setShowTooltip(true)}
         onBlur={() => setShowTooltip(false)}
-        className="ml-1.5 text-gray-400 hover:text-wsu-crimson focus:outline-none focus:ring-2 focus:ring-wsu-crimson focus:ring-offset-1 rounded-full transition-colors dark:text-gray-500 dark:hover:text-wsu-crimson"
+        className="ml-1.5 text-gray-400 hover:text-accent dark:text-accent-light focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1 rounded-full transition-colors dark:text-gray-500 dark:hover:text-accent dark:text-accent-light"
         aria-label={`Tooltip: ${description}`}
       >
         <InformationCircleIcon className="h-4 w-4" />

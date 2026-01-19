@@ -200,7 +200,7 @@ export function CSVUpload({
           onClick={handleClick}
           className={`cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
             isDragging
-              ? "border-wsu-crimson bg-wsu-crimson/5"
+              ? "border-accent bg-accent/5"
               : "border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
           } ${hasError ? "border-red-300 dark:border-red-700" : ""}`}
         >

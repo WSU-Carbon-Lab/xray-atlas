@@ -73,7 +73,7 @@ export function DatabaseNavigation({
             ))}
             <button
               onClick={handleClearAllFilters}
-              className="text-sm text-wsu-crimson hover:underline"
+              className="text-sm text-accent dark:text-accent-light hover:underline"
             >
               Clear all
             </button>
@@ -94,7 +94,7 @@ export function DatabaseNavigation({
                 id="sort-select"
                 value={sortBy}
                 onChange={(e) => onSortChange(e.target.value)}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-wsu-crimson focus:outline-none focus:ring-2 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
               >
                 <option value="relevance">Relevance</option>
                 <option value="name-asc">Name (A-Z)</option>

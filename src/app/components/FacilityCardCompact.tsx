@@ -34,7 +34,7 @@ export function FacilityCardCompact({
       className="group flex w-full items-center gap-4 overflow-hidden rounded-xl border border-gray-200/50 bg-white/80 p-4 shadow-lg backdrop-blur-xl transition-all hover:shadow-xl dark:border-gray-700/50 dark:bg-gray-800/80"
     >
       {/* Icon */}
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-wsu-crimson/10 text-wsu-crimson dark:bg-wsu-crimson/20">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light">
         <BuildingOfficeIcon className="h-6 w-6" />
       </div>
 

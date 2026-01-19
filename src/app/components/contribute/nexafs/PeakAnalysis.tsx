@@ -139,7 +139,7 @@ export function PeakAnalysis({
                       }
                     }}
                     step="0.1"
-                    className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -152,7 +152,7 @@ export function PeakAnalysis({
                       onChange={(e) =>
                         handleUpdatePeak(index, { bond: e.target.value || undefined })
                       }
-                      className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                     >
                       {BOND_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -172,7 +172,7 @@ export function PeakAnalysis({
                           transition: e.target.value || undefined,
                         })
                       }
-                      className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                     >
                       {TRANSITION_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -209,7 +209,7 @@ export function PeakAnalysis({
                 onChange={(e) => setNewPeakEnergy(e.target.value)}
                 step="0.1"
                 placeholder="e.g., 285.0"
-                className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                 autoFocus
               />
             </div>
@@ -221,7 +221,7 @@ export function PeakAnalysis({
                 <select
                   value={newPeakBond}
                   onChange={(e) => setNewPeakBond(e.target.value)}
-                  className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                 >
                   {BOND_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -237,7 +237,7 @@ export function PeakAnalysis({
                 <select
                   value={newPeakTransition}
                   onChange={(e) => setNewPeakTransition(e.target.value)}
-                  className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-wsu-crimson focus:ring-2 focus:ring-wsu-crimson/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                 >
                   {TRANSITION_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>

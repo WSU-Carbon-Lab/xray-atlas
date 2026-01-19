@@ -88,7 +88,7 @@ export default function FacilityDetailPage({
         <div className="mb-8">
           <Link
             href="/browse/facilities"
-            className="mb-4 inline-flex items-center text-sm text-gray-600 hover:text-wsu-crimson dark:text-gray-400 dark:hover:text-wsu-crimson"
+            className="mb-4 inline-flex items-center text-sm text-gray-600 hover:text-accent dark:text-accent-light dark:text-gray-400 dark:hover:text-accent dark:text-accent-light"
           >
             ← Back to Facilities
           </Link>
@@ -152,7 +152,7 @@ export default function FacilityDetailPage({
                           href={instrument.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-2 inline-flex items-center gap-1.5 text-sm text-wsu-crimson hover:underline"
+                          className="mt-2 inline-flex items-center gap-1.5 text-sm text-accent dark:text-accent-light hover:underline"
                         >
                           <LinkIcon className="h-4 w-4" />
                           Visit Instrument Page

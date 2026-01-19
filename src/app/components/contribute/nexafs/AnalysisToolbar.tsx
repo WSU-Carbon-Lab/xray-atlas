@@ -818,7 +818,7 @@ export function AnalysisToolbar({
             ariaLabel="Normalize spectrum"
             className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
               selectedTool === "normalize"
-                ? "border-wsu-crimson bg-gray-100 dark:bg-gray-700"
+                ? "border-accent bg-gray-100 dark:bg-gray-700"
                 : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
             }`}
             tooltip={{
@@ -837,7 +837,7 @@ export function AnalysisToolbar({
             ariaLabel="Identify peaks"
             className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
               selectedTool === "peaks"
-                ? "border-wsu-crimson bg-gray-100 dark:bg-gray-700"
+                ? "border-accent bg-gray-100 dark:bg-gray-700"
                 : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
             }`}
             tooltip={{
@@ -867,7 +867,7 @@ export function AnalysisToolbar({
             ariaLabel="Difference spectra"
             className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
               selectedTool === "difference"
-                ? "border-wsu-crimson bg-gray-100 dark:bg-gray-700"
+                ? "border-accent bg-gray-100 dark:bg-gray-700"
                 : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
             }`}
             tooltip={{
@@ -910,7 +910,7 @@ export function AnalysisToolbar({
                     )
                   }
                   disabled={normalizationLocked}
-                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                 >
                   <option value="bare-atom">Bare Atom</option>
                   <option value="zero-one">Absolute</option>
@@ -1153,7 +1153,7 @@ export function AnalysisToolbar({
                           }
                         }}
                         onClick={(e) => e.stopPropagation()}
-                        className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                        className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                       >
                         <option value="none">Select geometry...</option>
                         {geometryArray.map((geo, idx) => {
@@ -1241,9 +1241,9 @@ export function AnalysisToolbar({
                           classNames={{
                             base: "w-full",
                             track: "h-2 bg-gray-200 dark:bg-gray-700",
-                            filler: "bg-wsu-crimson",
+                            filler: "bg-accent",
                             thumb:
-                              "w-4 h-4 bg-wsu-crimson border-2 border-wsu-crimson cursor-pointer",
+                              "w-4 h-4 bg-accent border-2 border-accent cursor-pointer",
                           }}
                         />
                       </div>
@@ -1324,7 +1324,7 @@ export function AnalysisToolbar({
                               <div
                                 className={`relative flex flex-col rounded-lg border ${
                                   isSelected
-                                    ? "border-wsu-crimson bg-wsu-crimson/5 dark:border-wsu-crimson dark:bg-wsu-crimson/10"
+                                    ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
                                     : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
                                 }`}
                               >
@@ -1397,7 +1397,7 @@ export function AnalysisToolbar({
                                 key={peakId}
                                 className={`relative flex flex-col rounded-lg border ${
                                   isSelected
-                                    ? "border-wsu-crimson bg-wsu-crimson/5 dark:border-wsu-crimson dark:bg-wsu-crimson/10"
+                                    ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
                                     : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
                                 }`}
                               >
@@ -1519,7 +1519,7 @@ export function AnalysisToolbar({
                                             }}
                                             autoFocus
                                             placeholder="Enter bond type"
-                                            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                            className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
                                             onClick={(e) => e.stopPropagation()}
                                           />
                                         </div>
@@ -1541,7 +1541,7 @@ export function AnalysisToolbar({
                                               });
                                             }
                                           }}
-                                          className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                          className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <option value="" disabled>
@@ -1605,7 +1605,7 @@ export function AnalysisToolbar({
                                             }}
                                             autoFocus
                                             placeholder="Enter transition type"
-                                            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                            className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
                                             onClick={(e) => e.stopPropagation()}
                                           />
                                         </div>
@@ -1627,7 +1627,7 @@ export function AnalysisToolbar({
                                               });
                                             }
                                           }}
-                                          className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                          className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <option value="" disabled>
@@ -1676,7 +1676,7 @@ export function AnalysisToolbar({
                                           input:
                                             "!text-gray-500 dark:!text-gray-400 text-xs",
                                           inputWrapper:
-                                            "h-7 min-h-7 max-h-7 px-2 py-1 focus:border-wsu-crimson focus:ring-wsu-crimson/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700",
+                                            "h-7 min-h-7 max-h-7 px-2 py-1 focus:border-accent focus:ring-accent/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700",
                                           mainWrapper:
                                             "text-gray-500 dark:text-gray-400",
                                         }}
@@ -1713,7 +1713,7 @@ export function AnalysisToolbar({
                                           input:
                                             "!text-gray-500 dark:!text-gray-400 text-xs",
                                           inputWrapper:
-                                            "h-7 min-h-7 max-h-7 px-2 py-1 focus:border-wsu-crimson focus:ring-wsu-crimson/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700",
+                                            "h-7 min-h-7 max-h-7 px-2 py-1 focus:border-accent focus:ring-accent/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700",
                                           mainWrapper:
                                             "text-gray-500 dark:text-gray-400",
                                         }}
@@ -1800,7 +1800,7 @@ export function AnalysisToolbar({
                                   }}
                                   autoFocus
                                   placeholder="Enter bond type"
-                                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                                 />
                               ) : (
                                 <select
@@ -1813,7 +1813,7 @@ export function AnalysisToolbar({
                                       setNewPeakBond(e.target.value);
                                     }
                                   }}
-                                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                                 >
                                   <option value="">Select bond...</option>
                                   {getAllBondOptions().map((opt) => (
@@ -1865,7 +1865,7 @@ export function AnalysisToolbar({
                                   }}
                                   autoFocus
                                   placeholder="Enter transition type"
-                                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                                 />
                               ) : (
                                 <select
@@ -1878,7 +1878,7 @@ export function AnalysisToolbar({
                                       setNewPeakTransition(e.target.value);
                                     }
                                   }}
-                                  className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                                 >
                                   <option value="">Select transition...</option>
                                   {getAllTransitionOptions().map((opt) => (
@@ -1922,7 +1922,7 @@ export function AnalysisToolbar({
                                   input:
                                     "!text-gray-500 dark:!text-gray-400 text-xs",
                                   inputWrapper:
-                                    "h-7 min-h-7 max-h-7 focus:border-wsu-crimson focus:ring-wsu-crimson/20",
+                                    "h-7 min-h-7 max-h-7 focus:border-accent focus:ring-accent/20",
                                   mainWrapper:
                                     "text-gray-500 dark:text-gray-400",
                                 }}
@@ -1961,7 +1961,7 @@ export function AnalysisToolbar({
                                   input:
                                     "!text-gray-500 dark:!text-gray-400 text-xs",
                                   inputWrapper:
-                                    "h-7 min-h-7 max-h-7 focus:border-wsu-crimson focus:ring-wsu-crimson/20",
+                                    "h-7 min-h-7 max-h-7 focus:border-accent focus:ring-accent/20",
                                   mainWrapper:
                                     "text-gray-500 dark:text-gray-400",
                                 }}
@@ -2085,7 +2085,7 @@ export function AnalysisToolbar({
                               key={index}
                               className={`relative flex items-center gap-2 rounded-lg border p-2 ${
                                 spec.preferred
-                                  ? "border-wsu-crimson bg-wsu-crimson/5 dark:border-wsu-crimson dark:bg-wsu-crimson/10"
+                                  ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
                                   : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
                               }`}
                             >

@@ -134,12 +134,12 @@ export function InstrumentContributionForm({
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Search facilities..."
-              className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
             <select
               value={selectedFacilityId}
               onChange={(event) => setSelectedFacilityId(event.target.value)}
-              className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             >
               <option value="">Select a facility</option>
               {filteredFacilities.map((facility) => (
@@ -173,7 +173,7 @@ export function InstrumentContributionForm({
             value={instrumentName}
             onChange={(event) => setInstrumentName(event.target.value)}
             placeholder="e.g., Beamline 5A, XPS Analyzer"
-            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             required
           />
         </div>
@@ -188,7 +188,7 @@ export function InstrumentContributionForm({
             value={instrumentLink}
             onChange={(event) => setInstrumentLink(event.target.value)}
             placeholder="https://..."
-            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
           />
         </div>
 
@@ -200,7 +200,7 @@ export function InstrumentContributionForm({
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value as InstrumentStatus)}
-            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>

@@ -73,7 +73,7 @@ export default function ContributePage() {
     return (
       <div className="container mx-auto px-4 py-16">
         <div className="mx-auto max-w-7xl text-center">
-          <div className="border-t-wsu-crimson mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300"></div>
+          <div className="border-t-accent mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300"></div>
           <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
@@ -152,11 +152,11 @@ export default function ContributePage() {
               disabled={!agreementStatus?.accepted}
               className={`group rounded-xl border-2 p-8 text-left transition-all md:col-span-2 ${
                 agreementStatus?.accepted
-                  ? "hover:border-wsu-crimson border-gray-200 bg-white hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                  ? "hover:border-accent border-gray-200 bg-white hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
                   : "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 dark:border-gray-700 dark:bg-gray-900"
               }`}
             >
-              <BoltIcon className="text-wsu-crimson mb-4 h-12 w-12" />
+              <BoltIcon className="text-accent dark:text-accent-light mb-4 h-12 w-12" />
               <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
                 Upload NEXAFS Experiment
               </h3>
@@ -171,11 +171,11 @@ export default function ContributePage() {
               disabled={!agreementStatus?.accepted}
               className={`group rounded-xl border-2 p-8 text-left transition-all ${
                 agreementStatus?.accepted
-                  ? "hover:border-wsu-crimson border-gray-200 bg-white hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                  ? "hover:border-accent border-gray-200 bg-white hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
                   : "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 dark:border-gray-700 dark:bg-gray-900"
               }`}
             >
-              <BeakerIcon className="text-wsu-crimson mb-4 h-12 w-12" />
+              <BeakerIcon className="text-accent dark:text-accent-light mb-4 h-12 w-12" />
               <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
                 Contribute Molecule
               </h3>
@@ -190,11 +190,11 @@ export default function ContributePage() {
               disabled={!agreementStatus?.accepted}
               className={`group rounded-xl border-2 p-8 text-left transition-all ${
                 agreementStatus?.accepted
-                  ? "hover:border-wsu-crimson border-gray-200 bg-white hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                  ? "hover:border-accent border-gray-200 bg-white hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
                   : "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 dark:border-gray-700 dark:bg-gray-900"
               }`}
             >
-              <BuildingOfficeIcon className="text-wsu-crimson mb-4 h-12 w-12" />
+              <BuildingOfficeIcon className="text-accent dark:text-accent-light mb-4 h-12 w-12" />
               <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
                 Link Facility and Instrument
               </h3>

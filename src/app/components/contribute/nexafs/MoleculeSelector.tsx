@@ -165,13 +165,13 @@ export function MoleculeSelector({
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search by name, synonym, CAS, or PubChem CID"
-            className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 pr-28 pl-10 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 pr-28 pl-10 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
           />
           <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <button
             type="button"
             onClick={onManualSearch}
-            className="hover:border-wsu-crimson hover:text-wsu-crimson absolute top-1/2 right-3 -translate-y-1/2 rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 transition dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="hover:border-accent hover:text-accent dark:hover:text-accent-light absolute top-1/2 right-3 -translate-y-1/2 rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 transition dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
           >
             Search
           </button>
@@ -207,7 +207,7 @@ export function MoleculeSelector({
                     }
                   }}
                   disabled={moleculeLocked}
-                  className="hover:border-wsu-crimson flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-800"
+                  className="hover:border-accent flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-800"
                 >
                   <span className="font-medium text-gray-900 dark:text-gray-100">
                     {suggestion.commonName}

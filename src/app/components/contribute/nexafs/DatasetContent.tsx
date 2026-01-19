@@ -775,7 +775,7 @@ export function DatasetContent({
                     isStandard: event.target.checked,
                   })
                 }
-                className="text-wsu-crimson focus:ring-wsu-crimson h-4 w-4 rounded border-gray-300"
+                className="text-accent dark:text-accent-light focus:ring-accent h-4 w-4 rounded border-gray-300"
               />
               <label
                 htmlFor={`is-standard-${dataset.id}`}

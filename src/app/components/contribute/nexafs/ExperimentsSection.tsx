@@ -349,7 +349,7 @@ function ExperimentCard({
                 key={dataset.id}
                 className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${
                   dataset.id === experiment.activeDatasetId
-                    ? "border-wsu-crimson bg-wsu-crimson/10 text-wsu-crimson"
+                    ? "border-accent bg-accent/10 text-accent dark:text-accent-light"
                     : "border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                 }`}
               >
@@ -430,7 +430,7 @@ function ExperimentCard({
               <button
                 type="button"
                 onClick={onRequestAddEdge}
-                className="text-wsu-crimson flex items-center gap-1 text-xs hover:underline"
+                className="text-accent dark:text-accent-light flex items-center gap-1 text-xs hover:underline"
               >
                 <PlusIcon className="h-3 w-3" />
                 Add new
@@ -445,7 +445,7 @@ function ExperimentCard({
                 })
               }
               required
-              className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
             >
               <option value="" disabled>
                 {isLoadingEdges ? "Loading edges..." : "Select edge"}
@@ -502,7 +502,7 @@ function ExperimentCard({
               <button
                 type="button"
                 onClick={onRequestAddCalibration}
-                className="text-wsu-crimson flex items-center gap-1 text-xs hover:underline"
+                className="text-accent dark:text-accent-light flex items-center gap-1 text-xs hover:underline"
               >
                 <PlusIcon className="h-3 w-3" />
                 Add new
@@ -516,7 +516,7 @@ function ExperimentCard({
                   calibrationId: event.target.value,
                 })
               }
-              className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
             >
               <option value="">
                 {isLoadingCalibrations
@@ -554,7 +554,7 @@ function ExperimentCard({
                     isStandard: event.target.checked,
                   })
                 }
-                className="text-wsu-crimson focus:ring-wsu-crimson"
+                className="text-accent dark:text-accent-light focus:ring-accent"
               />
               Mark as standard experiment
             </label>

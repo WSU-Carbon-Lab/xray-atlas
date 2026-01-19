@@ -655,7 +655,7 @@ export default function MoleculeContributePage({
   if (isLoadingAgreement) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-wsu-crimson mx-auto"></div>
+        <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-accent mx-auto"></div>
         <p className="text-gray-600 dark:text-gray-400">Loading...</p>
       </div>
     );
@@ -680,7 +680,7 @@ export default function MoleculeContributePage({
           <div className="mb-6">
             <Link
               href="/contribute"
-              className="text-sm text-gray-600 hover:text-wsu-crimson dark:text-gray-400 dark:hover:text-wsu-crimson"
+              className="text-sm text-gray-600 hover:text-accent dark:text-accent-light dark:text-gray-400 dark:hover:text-accent dark:text-accent-light"
             >
               ← Back to contribution type selection
             </Link>
@@ -723,7 +723,7 @@ export default function MoleculeContributePage({
                           setSearchSuccess(null);
                           setSearchWarnings([]);
                         }}
-                        className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                        className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                         placeholder="e.g., PC61BM"
                       />
                     </div>
@@ -747,7 +747,7 @@ export default function MoleculeContributePage({
                           setSearchSuccess(null);
                           setSearchWarnings([]);
                         }}
-                        className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                        className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                         placeholder="205"
                       />
                     </div>
@@ -771,7 +771,7 @@ export default function MoleculeContributePage({
                           setSearchSuccess(null);
                           setSearchWarnings([]);
                         }}
-                        className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                        className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                         placeholder="50-5-5"
                       />
                     </div>
@@ -846,7 +846,7 @@ export default function MoleculeContributePage({
                           href={pubChemUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-wsu-crimson hover:text-wsu-crimson/80 inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:underline"
+                          className="text-accent dark:text-accent-light hover:text-accent dark:text-accent-light/80 inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:underline"
                         >
                           <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                           View on PubChem
@@ -870,7 +870,7 @@ export default function MoleculeContributePage({
                       required
                       value={formData.iupacName}
                       onChange={handleInputChange}
-                      className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                       placeholder="e.g., 2,2'-[[6,6,12,12-tetrakis(4-hexylphenyl)-6,12-dihydrodithieno[2,3-d:2',3'-d']s-indaceno[1,2-b:5,6-b']dithiophene-2,8-diyl]bis[methylidyne(3-oxo-1H-indene-2,1(3H)-diylidene)]]bis[propanedinitrile]"
                     />
                   </div>
@@ -919,7 +919,7 @@ export default function MoleculeContributePage({
                         value={newSynonym}
                         onChange={(e) => setNewSynonym(e.target.value)}
                         onKeyDown={handleSynonymKeyDown}
-                        className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                        className="focus:border-accent focus:ring-accent/20 flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                         placeholder="Add a synonym (press Enter)"
                       />
                       <Button
@@ -948,7 +948,7 @@ export default function MoleculeContributePage({
                       required
                       value={formData.smiles}
                       onChange={handleInputChange}
-                      className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 font-mono text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 font-mono text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                       placeholder="e.g., CC1=C(C2=C(S1)C=C3C(=C2)C4=C(C(=O)C(=C4)C#N)SC3=C5C6=C(C=C5)C(=O)C(=C6)C#N)C..."
                     />
                   </div>
@@ -968,7 +968,7 @@ export default function MoleculeContributePage({
                       required
                       value={formData.inchi}
                       onChange={handleInputChange}
-                      className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 font-mono text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 font-mono text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                       placeholder="e.g., InChI=1S/C82H86F4N8O2S5/c1-15-..."
                     />
                   </div>
@@ -988,7 +988,7 @@ export default function MoleculeContributePage({
                       required
                       value={formData.chemicalFormula}
                       onChange={handleInputChange}
-                      className="focus:border-wsu-crimson focus:ring-wsu-crimson/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                       placeholder="e.g., C82H86F4N8O2S5"
                     />
                   </div>
@@ -1028,7 +1028,7 @@ export default function MoleculeContributePage({
                       </button>
                     </div>
                   ) : (
-                    <label className="hover:border-wsu-crimson dark:hover:border-wsu-crimson flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900">
+                    <label className="hover:border-accent dark:hover:border-accent flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900">
                       <PhotoIcon className="mb-4 h-12 w-12 text-gray-400" />
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         Click to upload molecule image

@@ -109,7 +109,7 @@ export function MoleculeSearch({
             onChange={handleInputChange}
             onFocus={() => setIsOpen(true)}
             placeholder={placeholder}
-            className="focus:border-wsu-crimson focus:ring-wsu-crimson dark:focus:border-wsu-crimson w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-12 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
+            className="focus:border-accent focus:ring-accent dark:focus:border-accent w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-12 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
           />
           {query && (
             <button
@@ -174,7 +174,7 @@ export function MoleculeSearch({
               )}
               <Link
                 href={`/browse?q=${encodeURIComponent(debouncedQuery)}`}
-                className="text-wsu-crimson block border-t border-gray-200 px-4 py-3 text-center text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
+                className="text-accent dark:text-accent-light block border-t border-gray-200 px-4 py-3 text-center text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
                 onClick={() => setIsOpen(false)}
               >
                 View all results ({data.total})

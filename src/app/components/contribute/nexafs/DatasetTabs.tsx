@@ -74,10 +74,10 @@ export function DatasetTabs({
           base: "w-full",
           tabList:
             "gap-0 w-full relative rounded-none p-0 border-b border-gray-200 dark:border-gray-700 overflow-x-auto",
-          cursor: "w-full bg-wsu-crimson",
+          cursor: "w-full bg-accent",
           tab: "min-w-0 max-w-[200px] px-3 h-12 border-r border-gray-200 dark:border-gray-700 shrink-0",
           tabContent:
-            "group-data-[selected=true]:text-wsu-crimson flex items-center gap-2 min-w-0",
+            "group-data-[selected=true]:text-accent dark:text-accent-light flex items-center gap-2 min-w-0",
         }}
       >
         {datasets.map((dataset) => {
@@ -127,7 +127,7 @@ export function DatasetTabs({
                         }
                       }}
                       onClick={(e) => e.stopPropagation()}
-                      className="border-wsu-crimson focus:ring-wsu-crimson max-w-full min-w-[80px] rounded border bg-white px-1 text-sm focus:ring-2 focus:outline-none dark:bg-gray-800"
+                      className="border-accent focus:ring-accent max-w-full min-w-[80px] rounded border bg-white px-1 text-sm focus:ring-2 focus:outline-none dark:bg-gray-800"
                       autoFocus
                     />
                   ) : (
@@ -157,7 +157,7 @@ export function DatasetTabs({
                         onDatasetRemove(dataset.id);
                       }
                     }}
-                    className="focus:ring-wsu-crimson ml-auto shrink-0 cursor-pointer rounded p-1 text-gray-400 opacity-70 transition-opacity hover:text-red-600 hover:opacity-100 focus:ring-2 focus:outline-none"
+                    className="focus:ring-accent ml-auto shrink-0 cursor-pointer rounded p-1 text-gray-400 opacity-70 transition-opacity hover:text-red-600 hover:opacity-100 focus:ring-2 focus:outline-none"
                     title="Remove dataset"
                   >
                     <XMarkIcon className="h-4 w-4" />

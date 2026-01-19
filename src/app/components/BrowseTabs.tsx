@@ -16,13 +16,13 @@ export function BrowseTabs() {
           href="/browse/molecules"
           className={`group inline-flex items-center border-b-2 px-1 py-4 text-sm font-medium transition-colors ${
             isMolecules
-              ? "border-wsu-crimson text-wsu-crimson"
+              ? "border-accent text-accent dark:text-accent-light"
               : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
           }`}
         >
           <BeakerIcon
             className={`-ml-0.5 mr-2 h-5 w-5 ${
-              isMolecules ? "text-wsu-crimson" : "text-gray-400 group-hover:text-gray-500"
+              isMolecules ? "text-accent dark:text-accent-light" : "text-gray-400 group-hover:text-gray-500"
             }`}
           />
           Molecules
@@ -31,13 +31,13 @@ export function BrowseTabs() {
           href="/browse/facilities"
           className={`group inline-flex items-center border-b-2 px-1 py-4 text-sm font-medium transition-colors ${
             isFacilities
-              ? "border-wsu-crimson text-wsu-crimson"
+              ? "border-accent text-accent dark:text-accent-light"
               : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
           }`}
         >
           <BuildingOfficeIcon
             className={`-ml-0.5 mr-2 h-5 w-5 ${
-              isFacilities ? "text-wsu-crimson" : "text-gray-400 group-hover:text-gray-500"
+              isFacilities ? "text-accent dark:text-accent-light" : "text-gray-400 group-hover:text-gray-500"
             }`}
           />
           Facilities

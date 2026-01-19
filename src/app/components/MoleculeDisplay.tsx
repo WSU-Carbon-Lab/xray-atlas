@@ -251,7 +251,7 @@ export const MoleculeDisplay = ({
                 <div className="min-w-0 flex-1">
                   <h3 className="text-left text-2xl leading-tight font-bold text-gray-900 dark:text-gray-100">
                     <Link href={`/molecules/${molecule.id}`}>
-                      <span className="hover:text-wsu-crimson dark:hover:text-wsu-crimson">
+                      <span className="hover:text-accent dark:hover:text-accent-light">
                         {primaryName}
                       </span>
                     </Link>
@@ -261,7 +261,7 @@ export const MoleculeDisplay = ({
                     <div className="mt-1">
                       <Link
                         href={`/users/${molecule.createdBy.id}`}
-                        className="hover:text-wsu-crimson dark:hover:text-wsu-crimson inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400"
+                        className="hover:text-accent dark:hover:text-accent-light inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400"
                       >
                         <span>Created by</span>
                         <span className="font-medium">
@@ -279,8 +279,8 @@ export const MoleculeDisplay = ({
                       disabled={upvoteMutation.isPending}
                       className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 disabled:opacity-50 ${
                         molecule.userHasUpvoted
-                          ? "border-wsu-crimson bg-wsu-crimson/10 text-wsu-crimson dark:bg-wsu-crimson/20"
-                          : "hover:border-wsu-crimson hover:bg-wsu-crimson/10 dark:hover:bg-wsu-crimson/20 border-gray-300 bg-white/60 text-gray-700 dark:border-gray-600 dark:bg-gray-800/60 dark:text-gray-200"
+                          ? "border-accent bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light"
+                          : "hover:border-accent hover:bg-accent/10 dark:hover:bg-accent/20 border-gray-300 bg-white/60 text-gray-700 dark:border-gray-600 dark:bg-gray-800/60 dark:text-gray-200"
                       }`}
                     >
                       {molecule.userHasUpvoted ? (
@@ -295,7 +295,7 @@ export const MoleculeDisplay = ({
                     {isOwner && onEdit && (
                       <button
                         onClick={onEdit}
-                        className="hover:border-wsu-crimson hover:bg-wsu-crimson/10 dark:hover:bg-wsu-crimson/20 flex items-center gap-1.5 rounded-full border border-gray-300 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all active:scale-95 dark:border-gray-600 dark:bg-gray-800/60 dark:text-gray-200"
+                        className="hover:border-accent hover:bg-accent/10 dark:hover:bg-accent/20 flex items-center gap-1.5 rounded-full border border-gray-300 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all active:scale-95 dark:border-gray-600 dark:bg-gray-800/60 dark:text-gray-200"
                         title="Edit molecule"
                       >
                         <PencilIcon className="h-4 w-4" />
@@ -536,7 +536,7 @@ export const MoleculeDisplayCompact = ({
         </div>
         {molecule.experimentCount !== undefined &&
           molecule.experimentCount > 0 && (
-            <span className="bg-wsu-crimson shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-white">
+            <span className="bg-accent shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-white">
               {molecule.experimentCount} exp
             </span>
           )}

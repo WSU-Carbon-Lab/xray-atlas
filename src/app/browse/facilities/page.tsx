@@ -116,7 +116,7 @@ function FacilitiesBrowseContent() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search facilities by name, city, or country..."
-            className="focus:border-wsu-crimson focus:ring-wsu-crimson dark:focus:border-wsu-crimson w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-4 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
+            className="focus:border-accent focus:ring-accent dark:focus:border-accent w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-4 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
           />
         </div>
       </div>
@@ -142,7 +142,7 @@ function FacilitiesBrowseContent() {
               id="items-per-page"
               value={itemsPerPage}
               onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className="focus:border-wsu-crimson focus:ring-wsu-crimson rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              className="focus:border-accent focus:ring-accent rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             >
               <option value={12}>12</option>
               <option value={24}>24</option>
@@ -177,7 +177,7 @@ function FacilitiesBrowseContent() {
                           | "LAB_SOURCE"),
                   )
                 }
-                className="focus:border-wsu-crimson focus:ring-wsu-crimson rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                className="focus:border-accent focus:ring-accent rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
               >
                 <option value="">All Types</option>
                 <option value="SYNCHROTRON">Synchrotron</option>
@@ -198,7 +198,7 @@ function FacilitiesBrowseContent() {
                 onChange={(e) =>
                   setSortBy(e.target.value as "name" | "city" | "country")
                 }
-                className="focus:border-wsu-crimson focus:ring-wsu-crimson rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                className="focus:border-accent focus:ring-accent rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
               >
                 <option value="name">Name (A-Z)</option>
                 <option value="city">City</option>
@@ -247,7 +247,7 @@ function FacilitiesBrowseContent() {
                     Try a different search term or{" "}
                     <Link
                       href="/browse/facilities"
-                      className="text-wsu-crimson hover:underline"
+                      className="text-accent dark:text-accent-light hover:underline"
                       onClick={(e) => {
                         e.preventDefault();
                         setQuery("");
@@ -308,7 +308,7 @@ function FacilitiesBrowseContent() {
                             onClick={() => setCurrentPage(page)}
                             className={`rounded px-3 py-1 text-sm ${
                               page === currentPage
-                                ? "bg-wsu-crimson text-white"
+                                ? "bg-accent text-white"
                                 : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                             }`}
                           >
@@ -347,7 +347,7 @@ function FacilitiesBrowseContent() {
                               onClick={() => setCurrentPage(page)}
                               className={`rounded px-3 py-1 text-sm ${
                                 page === currentPage
-                                  ? "bg-wsu-crimson text-white"
+                                  ? "bg-accent text-white"
                                   : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                               }`}
                             >

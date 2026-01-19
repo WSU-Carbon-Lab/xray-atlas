@@ -66,21 +66,21 @@ function ContributeDropdown() {
               onClick={() => handleItemClick("/contribute/nexafs")}
               className="hover:bg-gray-100 dark:hover:bg-gray-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300"
             >
-              <BoltIcon className="h-4 w-4 text-wsu-crimson" />
+              <BoltIcon className="h-4 w-4 text-accent dark:text-accent-light" />
               <span>NEXAFS</span>
             </button>
             <button
               onClick={() => handleItemClick("/contribute/molecule")}
               className="hover:bg-gray-100 dark:hover:bg-gray-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300"
             >
-              <BeakerIcon className="h-4 w-4 text-wsu-crimson" />
+              <BeakerIcon className="h-4 w-4 text-accent dark:text-accent-light" />
               <span>Molecule</span>
             </button>
             <button
               onClick={() => handleItemClick("/contribute/facility")}
               className="hover:bg-gray-100 dark:hover:bg-gray-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300"
             >
-              <BuildingOfficeIcon className="h-4 w-4 text-wsu-crimson" />
+              <BuildingOfficeIcon className="h-4 w-4 text-accent dark:text-accent-light" />
               <span>Facility</span>
             </button>
           </div>

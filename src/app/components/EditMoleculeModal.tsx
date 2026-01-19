@@ -110,7 +110,7 @@ export function EditMoleculeModal({
                   setFormData({ ...formData, iupacName: e.target.value })
                 }
                 required
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-wsu-crimson focus:outline-none focus:ring-1 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
 
@@ -126,7 +126,7 @@ export function EditMoleculeModal({
                       value={synonym}
                       onChange={(e) => updateSynonym(index, e.target.value)}
                       placeholder="Synonym name"
-                      className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-wsu-crimson focus:outline-none focus:ring-1 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                     />
                     {synonyms.length > 1 && (
                       <button
@@ -142,7 +142,7 @@ export function EditMoleculeModal({
                 <button
                   type="button"
                   onClick={addSynonym}
-                  className="text-sm text-wsu-crimson hover:underline"
+                  className="text-sm text-accent dark:text-accent-light hover:underline"
                 >
                   + Add Synonym
                 </button>
@@ -160,7 +160,7 @@ export function EditMoleculeModal({
                   setFormData({ ...formData, chemicalFormula: e.target.value })
                 }
                 required
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-gray-900 focus:border-wsu-crimson focus:outline-none focus:ring-1 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-gray-900 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
 
@@ -175,7 +175,7 @@ export function EditMoleculeModal({
                   setFormData({ ...formData, SMILES: e.target.value })
                 }
                 required
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-wsu-crimson focus:outline-none focus:ring-1 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
 
@@ -190,7 +190,7 @@ export function EditMoleculeModal({
                   setFormData({ ...formData, InChI: e.target.value })
                 }
                 required
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-wsu-crimson focus:outline-none focus:ring-1 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
 
@@ -208,7 +208,7 @@ export function EditMoleculeModal({
                       casNumber: e.target.value,
                     })
                   }
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-wsu-crimson focus:outline-none focus:ring-1 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
 
@@ -225,7 +225,7 @@ export function EditMoleculeModal({
                       pubChemCid: e.target.value,
                     })
                   }
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-wsu-crimson focus:outline-none focus:ring-1 focus:ring-wsu-crimson dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
             </div>

@@ -108,7 +108,7 @@ export default function MoleculeDetailPage() {
       <div className="mb-6">
         <Link
           href="/"
-          className="hover:text-wsu-crimson dark:hover:text-wsu-crimson text-sm text-gray-600 dark:text-gray-400"
+          className="hover:text-accent dark:hover:text-accent-light text-sm text-gray-600 dark:text-gray-400"
         >
           ← Back to Home
         </Link>
@@ -234,7 +234,7 @@ export default function MoleculeDetailPage() {
                 <dd className="mt-1">
                   <Link
                     href={`/users/${(molecule as { users?: { id: string; name: string } | null }).users?.id}`}
-                    className="text-sm font-medium text-wsu-crimson hover:underline dark:text-wsu-crimson"
+                    className="text-sm font-medium text-accent dark:text-accent-light hover:underline dark:text-accent dark:text-accent-light"
                   >
                     {(molecule as { users?: { id: string; name: string } | null }).users?.name}
                   </Link>
