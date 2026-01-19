@@ -1,6 +1,6 @@
 export const CATEGORICAL_COLORS = [
-  "#d7263d",
-  "#1b998b",
+  "#6366f1",
+  "#10b981",
   "#3b82f6",
   "#f59e0b",
   "#8b5cf6",
@@ -13,12 +13,12 @@ export const COLORS = CATEGORICAL_COLORS;
 
 export const SEQUENTIAL_SCALES = {
   blue: ["#eff6ff", "#bfdbfe", "#60a5fa", "#2563eb", "#1e40af"],
-  crimson: ["#fef2f2", "#fecaca", "#f87171", "#dc2626", "#991b1b"],
+  indigo: ["#eef2ff", "#c7d2fe", "#818cf8", "#4f46e5", "#3730a3"],
   viridis: ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"],
 } as const;
 
 export const DIVERGING_SCALES = {
-  redBlue: ["#dc2626", "#f87171", "#fecaca", "#f8fafc", "#bfdbfe", "#60a5fa", "#2563eb"],
+  indigoTeal: ["#4f46e5", "#818cf8", "#c7d2fe", "#f8fafc", "#99f6e4", "#2dd4bf", "#0d9488"],
   purpleGreen: ["#7c3aed", "#a78bfa", "#ddd6fe", "#f8fafc", "#bbf7d0", "#4ade80", "#16a34a"],
 } as const;
 
@@ -61,8 +61,8 @@ export const THEME_COLORS = {
     legendBg: "rgba(255, 255, 255, 0.95)",
     legendBorder: "rgba(148, 163, 184, 0.3)",
     crosshair: "rgba(71, 85, 105, 0.5)",
-    selection: "rgba(166, 15, 45, 0.1)",
-    selectionBorder: "rgba(166, 15, 45, 0.5)",
+    selection: "rgba(99, 102, 241, 0.1)",
+    selectionBorder: "rgba(99, 102, 241, 0.5)",
   },
   dark: {
     background: "#0f172a",
@@ -78,8 +78,8 @@ export const THEME_COLORS = {
     legendBg: "rgba(30, 41, 59, 0.95)",
     legendBorder: "rgba(71, 85, 105, 0.5)",
     crosshair: "rgba(148, 163, 184, 0.5)",
-    selection: "rgba(202, 18, 55, 0.15)",
-    selectionBorder: "rgba(202, 18, 55, 0.6)",
+    selection: "rgba(129, 140, 248, 0.15)",
+    selectionBorder: "rgba(129, 140, 248, 0.6)",
   },
 } as const;
 
@@ -95,15 +95,15 @@ export const NORMALIZATION_COLORS = {
 } as const;
 
 export const PEAK_COLORS = {
-  selected: "#a60f2d",
+  selected: "#6366f1",
   unselected: "#94a3b8",
-  hover: "#ca1237",
+  hover: "#818cf8",
   fitted: "#8b5cf6",
   residual: "#f59e0b",
   annotation: "#64748b",
 } as const;
 
-export const SELECTED_GEOMETRY_COLOR = "#d7263d";
+export const SELECTED_GEOMETRY_COLOR = "#6366f1";
 
 export const FONT_CONFIG = {
   family: "Inter, system-ui, sans-serif",

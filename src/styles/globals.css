@@ -14,13 +14,17 @@
   --color-wsu-crimson-dark: #ca1237;
   --color-wsu-gray: #5e6a71;
 
+  --color-accent: #6366f1;
+  --color-accent-light: #818cf8;
+  --color-accent-dark: #4f46e5;
+
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
   --color-info: #3b82f6;
 
-  --shadow-glow: 0 0 20px rgba(166, 15, 45, 0.3);
-  --shadow-glow-sm: 0 0 10px rgba(166, 15, 45, 0.2);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
+  --shadow-glow-sm: 0 0 10px rgba(99, 102, 241, 0.2);
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -52,7 +56,7 @@
     --border-default: #e2e8f0;
     --border-subtle: #f1f5f9;
     --border-strong: #cbd5e1;
-    --border-focus: #a60f2d;
+    --border-focus: #6366f1;
 
     --cpk-h: #000000;
     --cpk-c: #000000;
@@ -83,7 +87,7 @@
     --border-default: #334155;
     --border-subtle: #1e293b;
     --border-strong: #475569;
-    --border-focus: #ca1237;
+    --border-focus: #818cf8;
 
     --cpk-h: #e0e0e0;
     --cpk-c: #e0e0e0;
@@ -117,7 +121,7 @@
   }
 
   ::selection {
-    background-color: rgba(166, 15, 45, 0.2);
+    background-color: rgba(99, 102, 241, 0.2);
     color: inherit;
   }
 }
