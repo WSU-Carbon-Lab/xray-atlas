@@ -1,0 +1,444 @@
+---
+description: "Apple HIG: Typography"
+globs: ["src/**/*.tsx", "src/**/*.ts", "src/**/*.css"]
+alwaysApply: false
+---
+
+# Human Interface Guidelines: Typography
+
+Based on Apple Human Interface Guidelines. Typography is fundamental to great design - it should be legible, accessible, and aesthetically pleasing.
+
+## Core Principles
+
+1. **Legibility** - Text must be easy to read at all sizes
+2. **Hierarchy** - Clear distinction between heading levels
+3. **Consistency** - Uniform type treatments throughout
+4. **Accessibility** - Support dynamic type and user preferences
+
+---
+
+## Font Stack
+
+### Primary Fonts
+
+```css
+:root {
+  /* Sans-serif for UI */
+  --font-sans: "Geist Sans", "Inter", system-ui, -apple-system, 
+               BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  
+  /* Monospace for code and data */
+  --font-mono: "Geist Mono", "JetBrains Mono", "Fira Code", 
+               ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  
+  /* Display for large headlines (optional) */
+  --font-display: "Geist Sans", system-ui, sans-serif;
+}
+```
+
+### Font Usage
+
+```tsx
+// Default body text - uses sans
+className="font-sans"
+
+// Code, data values, technical content
+className="font-mono"
+
+// Display headlines (if using different weight/style)
+className="font-display"
+```
+
+---
+
+## Type Scale
+
+### Recommended Scale
+
+| Name | Size | Line Height | Weight | Usage |
+|------|------|-------------|--------|-------|
+| `text-xs` | 12px | 1.4 | 400 | Captions, metadata |
+| `text-sm` | 14px | 1.5 | 400 | Secondary text, labels |
+| `text-base` | 16px | 1.6 | 400 | Body text (default) |
+| `text-lg` | 18px | 1.6 | 400 | Lead paragraphs |
+| `text-xl` | 20px | 1.5 | 500-600 | Small headings |
+| `text-2xl` | 24px | 1.4 | 600 | Section headings |
+| `text-3xl` | 30px | 1.3 | 600-700 | Page headings |
+| `text-4xl` | 36px | 1.2 | 700 | Display headings |
+| `text-5xl` | 48px | 1.1 | 700 | Hero headlines |
+
+### Minimum Sizes
+
+- Body text: **16px minimum** (never smaller for reading)
+- Secondary text: **14px minimum**
+- Captions/metadata: **12px minimum** (sparingly)
+
+```tsx
+// Good: Readable body text
+<p className="text-base">Main content here</p>
+
+// Bad: Too small for body text
+<p className="text-xs">This is hard to read as body text</p>
+```
+
+---
+
+## Heading Hierarchy
+
+### Semantic Headings
+
+```tsx
+// Always use proper heading hierarchy
+<article>
+  <h1 className="text-4xl font-bold">Page Title</h1>
+  
+  <section>
+    <h2 className="text-2xl font-semibold">Section</h2>
+    
+    <h3 className="text-xl font-semibold">Subsection</h3>
+    
+    <h4 className="text-lg font-medium">Sub-subsection</h4>
+  </section>
+</article>
+
+// Never skip heading levels
+// Bad: h1 -> h3 (skipped h2)
+// Good: h1 -> h2 -> h3
+```
+
+### Visual vs Semantic Headings
+
+```tsx
+// When visual size differs from semantic level
+<h2 className="text-lg font-semibold">
+  {/* Semantically h2, visually smaller */}
+  Widget Title
+</h2>
+
+// Or use explicit role when needed
+<div role="heading" aria-level={2} className="text-lg font-semibold">
+  Widget Title
+</div>
+```
+
+---
+
+## Line Height and Spacing
+
+### Line Height Guidelines
+
+```tsx
+// Tight: headings, single lines
+className="leading-tight"  // 1.25
+
+// Snug: compact UI text
+className="leading-snug"   // 1.375
+
+// Normal: default, most text
+className="leading-normal" // 1.5
+
+// Relaxed: long-form reading
+className="leading-relaxed" // 1.625
+
+// Loose: very open, decorative
+className="leading-loose"  // 2
+```
+
+### Line Length (Measure)
+
+```tsx
+// Optimal reading: 45-75 characters per line
+// Target: ~65 characters
+
+<article className="max-w-prose">
+  {/* max-w-prose = 65ch */}
+  <p>Long-form content with optimal line length for reading.</p>
+</article>
+
+// For data-heavy interfaces, wider is acceptable
+<div className="max-w-4xl">
+  {/* Tables and data can be wider */}
+</div>
+```
+
+### Paragraph Spacing
+
+```tsx
+// Space between paragraphs
+<div className="space-y-4">
+  <p>First paragraph.</p>
+  <p>Second paragraph.</p>
+</div>
+
+// Or using prose class
+<article className="prose prose-p:my-4">
+  {/* Automatic paragraph spacing */}
+</article>
+```
+
+---
+
+## Font Weights
+
+### Weight Scale
+
+```tsx
+const weights = {
+  normal: 400,    // Body text
+  medium: 500,    // Emphasized text, labels
+  semibold: 600,  // Subheadings, buttons
+  bold: 700,      // Headings, strong emphasis
+};
+```
+
+### Usage Guidelines
+
+```tsx
+// Body text - normal weight
+<p className="font-normal">Regular body text</p>
+
+// Labels, slightly emphasized
+<label className="font-medium">Form Label</label>
+
+// Headings - semibold or bold
+<h2 className="font-semibold">Section Title</h2>
+<h1 className="font-bold">Page Title</h1>
+
+// Avoid: too many weight variations
+// Pick 2-3 weights and use consistently
+```
+
+---
+
+## Scientific and Technical Typography
+
+### Numeric Data Display
+
+```tsx
+// Always use tabular numbers for data
+className="tabular-nums"
+
+// CSS equivalent
+.data-value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+// Example: aligned numbers in columns
+<td className="text-right tabular-nums font-mono">
+  {value.toFixed(3)}
+</td>
+```
+
+### Units and Values
+
+```tsx
+// Units slightly smaller, secondary color
+<span className="tabular-nums">
+  285.4
+  <span className="text-sm text-gray-500 ml-0.5">eV</span>
+</span>
+
+// Scientific notation
+<span className="font-mono">
+  1.23 × 10<sup className="text-xs">-4</sup>
+</span>
+```
+
+### Chemical Formulas
+
+```tsx
+// Subscripts for chemical formulas
+<span className="formula">
+  C<sub>60</sub>H<sub>22</sub>O<sub>4</sub>
+</span>
+
+// CSS for formula class
+.formula {
+  font-family: var(--font-mono);
+}
+.formula sub {
+  font-size: 0.75em;
+  vertical-align: sub;
+}
+.formula sup {
+  font-size: 0.75em;
+  vertical-align: super;
+}
+```
+
+### Axis Labels and Scientific Notation
+
+```tsx
+// Greek letters and symbols
+<span>Energy (eV)</span>
+<span>Intensity (arb. units)</span>
+<span>θ (degrees)</span>
+<span>λ = 1.54 Å</span>
+
+// Superscripts for inverse units
+<span>cm<sup>-1</sup></span>
+```
+
+---
+
+## Text Colors
+
+### Semantic Text Colors
+
+```tsx
+// Primary: main content
+className="text-gray-900 dark:text-gray-100"
+
+// Secondary: supporting text
+className="text-gray-600 dark:text-gray-400"
+
+// Tertiary: captions, metadata
+className="text-gray-500 dark:text-gray-500"
+
+// Disabled
+className="text-gray-400 dark:text-gray-600"
+
+// Link/interactive
+className="text-accent dark:text-accent-light"
+
+// Status colors
+className="text-red-600 dark:text-red-400"    // Error
+className="text-green-600 dark:text-green-400" // Success
+className="text-amber-600 dark:text-amber-400" // Warning
+```
+
+---
+
+## Text Alignment
+
+### General Guidelines
+
+```tsx
+// Body text: left-aligned (LTR languages)
+<p className="text-left">Body content should be left-aligned.</p>
+
+// Centered: headings, hero text, short labels
+<h1 className="text-center">Hero Headline</h1>
+
+// Right-aligned: numbers, prices, dates
+<td className="text-right tabular-nums">$1,234.56</td>
+
+// Justify: avoid (creates uneven spacing)
+// Bad: className="text-justify"
+```
+
+---
+
+## Truncation and Overflow
+
+### Single Line Truncation
+
+```tsx
+// Truncate with ellipsis
+className="truncate"  // text-overflow: ellipsis
+
+<div className="truncate max-w-xs">
+  Very long text that will be truncated with an ellipsis
+</div>
+```
+
+### Multi-Line Truncation
+
+```tsx
+// Line clamp (2 lines)
+className="line-clamp-2"
+
+// Line clamp (3 lines)
+className="line-clamp-3"
+
+<p className="line-clamp-3">
+  Long paragraph that will be clamped after three lines
+  with an ellipsis at the end...
+</p>
+```
+
+### Word Breaking
+
+```tsx
+// Break long words (URLs, technical strings)
+className="break-words"  // word-break: break-word
+className="break-all"    // word-break: break-all
+
+// Prevent wrapping
+className="whitespace-nowrap"
+```
+
+---
+
+## Responsive Typography
+
+### Fluid Type Scaling
+
+```tsx
+// Scale headings with viewport
+<h1 className="text-3xl md:text-4xl lg:text-5xl">
+  Responsive Headline
+</h1>
+
+// Body text can stay consistent
+<p className="text-base">
+  Body text typically doesn't need to scale much.
+</p>
+```
+
+### Container Queries (Modern)
+
+```tsx
+// Scale based on container, not viewport
+<div className="@container">
+  <h2 className="@sm:text-xl @md:text-2xl @lg:text-3xl">
+    Container-responsive heading
+  </h2>
+</div>
+```
+
+---
+
+## Accessibility
+
+### Support User Font Settings
+
+```tsx
+// Use relative units (rem/em), not px
+// Tailwind uses rem by default, which is correct
+
+// Don't disable zoom
+// Bad: <meta name="viewport" content="user-scalable=no">
+// Good: <meta name="viewport" content="width=device-width, initial-scale=1">
+```
+
+### Sufficient Contrast
+
+```tsx
+// Verify contrast ratios
+// Body text: minimum 4.5:1
+// Large text (18px+): minimum 3:1
+
+// Good contrast
+className="text-gray-900 dark:text-gray-100"  // High contrast
+
+// Avoid low contrast
+className="text-gray-400"  // May fail on light backgrounds
+```
+
+---
+
+## Implementation Checklist
+
+- [ ] Using system font stack with fallbacks
+- [ ] Body text is minimum 16px
+- [ ] Heading hierarchy is semantic and sequential
+- [ ] Line length is 45-75 characters for reading
+- [ ] Tabular numbers used for data display
+- [ ] Text contrast meets WCAG requirements
+- [ ] Font weights limited to 2-3 variations
+- [ ] Units and subscripts properly styled
+- [ ] Responsive scaling on headings
+- [ ] Truncation handled gracefully
+- [ ] Dark mode text colors appropriate
