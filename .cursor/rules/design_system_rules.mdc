@@ -5,319 +5,811 @@ alwaysApply: true
 
 # Design System Rules for X-ray Atlas
 
-This document defines the design system rules for the X-ray Atlas project, enabling seamless integration of Figma designs using the Model Context Protocol.
+A comprehensive design system for scientific data visualization and interactive analysis. Optimized for data display, user experience, and modern aesthetics.
+
+## Design Philosophy
+
+**Core Principles:**
+1. **Data First** - Visual hierarchy prioritizes data comprehension
+2. **Responsive Interaction** - Every action has immediate, meaningful feedback
+3. **Scientific Precision** - Typography and displays optimized for numerical data
+4. **Accessible by Default** - WCAG AA minimum, color-blind safe palettes
+5. **Motion with Purpose** - Animations guide attention and confirm actions
+
+---
 
 ## Token Definitions
 
-### Colors
-
-Colors are defined in `tailwind.config.js` and `globals.css`:
+### Color System
 
 #### Brand Colors
-- **WSU Crimson Light**: `#a60f2d` - Use class: `text-wsu-crimson`, `bg-wsu-crimson`, `border-wsu-crimson`
-- **WSU Crimson Dark**: `#ca1237` - Defined in CSS variables: `--color-wsu-crimson-dark`
-- **WSU Gray**: `#5e6a71` - Use class: `text-wsu-gray`, `bg-wsu-gray`, `border-wsu-gray`
+```css
+--wsu-crimson-light: #a60f2d;
+--wsu-crimson-dark: #ca1237;
+--wsu-gray: #5e6a71;
+```
 
-#### Neutral Palette
-- **Gray Scale**: Use Tailwind defaults `gray-50` through `gray-900`
-- **Background Colors**:
-  - Light mode: `bg-white` (white)
-  - Dark mode: `dark:bg-gray-900` (dark gray)
-- **Card Backgrounds**:
-  - Light mode: `bg-white`
-  - Dark mode: `dark:bg-gray-800`
-- **Border Colors**:
-  - Light mode: `border-gray-200`
-  - Dark mode: `dark:border-gray-700`
-- **Text Colors**:
-  - Light mode: `text-gray-900` (primary), `text-gray-700` (secondary), `text-gray-500` (tertiary)
-  - Dark mode: `dark:text-gray-100` (primary), `dark:text-gray-300` (secondary), `dark:text-gray-400` (tertiary)
+**Usage:**
+- `text-wsu-crimson`, `bg-wsu-crimson`, `border-wsu-crimson`
+- Primary actions, active states, brand elements
 
-#### Dark Mode
-- All color variants must include dark mode using `dark:` prefix
-- Pattern: `"base-classes dark:dark-classes hover:state-classes"`
-- Dark mode is class-based via `next-themes` library
+#### Semantic Colors
+
+| Token | Light Mode | Dark Mode | Usage |
+|-------|------------|-----------|-------|
+| `--color-success` | `#10b981` | `#34d399` | Confirmations, valid states |
+| `--color-warning` | `#f59e0b` | `#fbbf24` | Cautions, pending states |
+| `--color-error` | `#ef4444` | `#f87171` | Errors, destructive actions |
+| `--color-info` | `#3b82f6` | `#60a5fa` | Information, links |
+
+#### Surface Colors
+
+| Surface | Light | Dark | Use Case |
+|---------|-------|------|----------|
+| `background` | `#ffffff` | `#0f172a` | Page background |
+| `surface-1` | `#f8fafc` | `#1e293b` | Cards, elevated content |
+| `surface-2` | `#f1f5f9` | `#334155` | Nested cards, wells |
+| `surface-3` | `#e2e8f0` | `#475569` | Hover states, dividers |
+| `surface-glass` | `rgba(255,255,255,0.8)` | `rgba(15,23,42,0.8)` | Floating panels |
+
+#### Text Colors
+
+| Token | Light | Dark | Usage |
+|-------|-------|------|-------|
+| `text-primary` | `#0f172a` | `#f8fafc` | Headlines, primary content |
+| `text-secondary` | `#475569` | `#cbd5e1` | Body text, descriptions |
+| `text-tertiary` | `#94a3b8` | `#64748b` | Captions, metadata |
+| `text-disabled` | `#cbd5e1` | `#475569` | Disabled states |
+
+#### Border Colors
+
+| Token | Light | Dark |
+|-------|-------|------|
+| `border-default` | `#e2e8f0` | `#334155` |
+| `border-subtle` | `#f1f5f9` | `#1e293b` |
+| `border-strong` | `#cbd5e1` | `#475569` |
+| `border-focus` | `#a60f2d` | `#ca1237` |
+
+---
+
+### Data Visualization Colors
+
+#### Categorical Palette (Color-blind Safe)
+For discrete data series, up to 8 categories:
+
+```typescript
+export const CATEGORICAL_COLORS = [
+  "#d7263d", // Crimson Red
+  "#1b998b", // Teal
+  "#3b82f6", // Blue
+  "#f59e0b", // Amber
+  "#8b5cf6", // Violet
+  "#06b6d4", // Cyan
+  "#ec4899", // Pink
+  "#84cc16", // Lime
+] as const;
+```
+
+#### Sequential Scales
+For continuous data (intensity, concentration):
+
+```typescript
+export const SEQUENTIAL_SCALES = {
+  blue: ["#eff6ff", "#bfdbfe", "#60a5fa", "#2563eb", "#1e40af"],
+  crimson: ["#fef2f2", "#fecaca", "#f87171", "#dc2626", "#991b1b"],
+  viridis: ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"],
+} as const;
+```
+
+#### Diverging Scales
+For data with meaningful midpoint (difference spectra):
+
+```typescript
+export const DIVERGING_SCALES = {
+  redBlue: ["#dc2626", "#f87171", "#fecaca", "#f8fafc", "#bfdbfe", "#60a5fa", "#2563eb"],
+  purpleGreen: ["#7c3aed", "#a78bfa", "#ddd6fe", "#f8fafc", "#bbf7d0", "#4ade80", "#16a34a"],
+} as const;
+```
+
+#### Normalization Region Colors
+```typescript
+export const NORMALIZATION_COLORS = {
+  preEdge: {
+    fill: "rgba(59, 130, 246, 0.12)",
+    stroke: "rgba(59, 130, 246, 0.8)",
+    handle: "#3b82f6",
+  },
+  postEdge: {
+    fill: "rgba(16, 185, 129, 0.12)",
+    stroke: "rgba(16, 185, 129, 0.8)",
+    handle: "#10b981",
+  },
+} as const;
+```
+
+#### Peak Analysis Colors
+```typescript
+export const PEAK_COLORS = {
+  selected: "#a60f2d",
+  unselected: "#94a3b8",
+  hover: "#ca1237",
+  fitted: "#8b5cf6",
+  residual: "#f59e0b",
+} as const;
+```
+
+---
 
 ### Typography
 
-#### Font Family
-- **Primary**: Geist Sans (via `--font-geist-sans` variable)
-- **Code**: Monospace for formulas (use `font-mono`)
-- Defined in `layout.tsx` and applied globally
+#### Font Stack
+```css
+--font-sans: "Geist Sans", "Inter", system-ui, -apple-system, sans-serif;
+--font-mono: "Geist Mono", "JetBrains Mono", "Fira Code", monospace;
+--font-display: "Geist Sans", system-ui, sans-serif;
+```
 
-#### Font Sizes
-Use Tailwind text size classes:
-- `text-xs` - 12px
-- `text-sm` - 14px
-- `text-base` - 16px (default)
-- `text-lg` - 18px
-- `text-xl` - 20px
-- `text-2xl` - 24px
-- `text-3xl` - 30px
-- `text-4xl` - 36px
+#### Type Scale
 
-#### Font Weights
-- `font-normal` - 400
-- `font-medium` - 500
-- `font-semibold` - 600
-- `font-bold` - 700
+| Name | Size | Line Height | Weight | Usage |
+|------|------|-------------|--------|-------|
+| `display-xl` | 48px | 1.1 | 700 | Hero headlines |
+| `display-lg` | 36px | 1.2 | 700 | Page titles |
+| `display-md` | 30px | 1.2 | 600 | Section headers |
+| `heading-lg` | 24px | 1.3 | 600 | Card titles |
+| `heading-md` | 20px | 1.4 | 600 | Subsection headers |
+| `heading-sm` | 16px | 1.4 | 600 | Small headers |
+| `body-lg` | 18px | 1.6 | 400 | Lead paragraphs |
+| `body-md` | 16px | 1.6 | 400 | Body text |
+| `body-sm` | 14px | 1.5 | 400 | Secondary text |
+| `caption` | 12px | 1.4 | 400 | Metadata, labels |
+| `overline` | 11px | 1.3 | 600 | Category labels |
 
-### Spacing
+#### Scientific Typography
 
-Use Tailwind spacing scale (4px base unit):
-- `p-1` = 4px, `p-2` = 8px, `p-3` = 12px, `p-4` = 16px
-- `gap-1` through `gap-8` for grid/flex gaps
-- `space-y-2` through `space-y-8` for vertical spacing
-
-### Border Radius
-
-- `rounded` - 4px
-- `rounded-lg` - 8px
-- `rounded-xl` - 12px
-- `rounded-full` - 9999px (for pills/badges)
-
-### Shadows
-
-- `shadow-sm` - Small shadow
-- `shadow` - Default shadow
-- `shadow-lg` - Large shadow
-- `shadow-xl` - Extra large shadow
-- Hover states: `hover:shadow-xl` for elevation
-
-## Component Library
-
-### Location
-All components are in `src/app/components/`
-
-### Base Components
-- **HeroUI** (`@heroui/react`) serves as the foundation
-- Custom components wrap HeroUI with consistent styling
-- Pattern: Custom wrapper components that extend HeroUI components
-
-### Component Pattern
-
-```typescript
-// Example: Button component pattern
-import { Button as HeroButton } from "@heroui/react";
-
-export function DefaultButton({ className, ...props }) {
-  return (
-    <HeroButton
-      {...props}
-      className={`base-classes dark:dark-classes ${className ?? ""}`}
-    />
-  );
+**Tabular Numbers** - Always use for data:
+```css
+.data-value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 ```
 
-### Key Components
-
-1. **Button** (`Button.tsx`)
-   - Wraps HeroUI Button
-   - Default variant: `light`
-   - Default size: `md`
-   - Includes hover and dark mode styles
-
-2. **MoleculeDisplay** (`MoleculeDisplay.tsx`)
-   - Displays molecule information card
-   - Horizontal compact layout
-   - Includes copy buttons, external links, synonyms
-
-3. **Header** (`Header.tsx`)
-   - Uses HeroUI Navbar
-   - Includes logo, navigation, theme toggle, auth buttons
-
-4. **Footer** (`Footer.tsx`)
-   - Grid layout with links and collaborators
-
-## Frameworks & Libraries
-
-### UI Framework
-- **React**: Version 19
-- **Next.js**: Version 16 with App Router
-- **TypeScript**: Full type safety throughout
-
-### Styling
-- **Tailwind CSS**: Version 4
-- **HeroUI Theme Plugin**: `@heroui/theme` for component styling
-- **PostCSS**: For CSS processing
-
-### State Management
-- **React Query**: Via tRPC for server state
-- **tRPC**: Type-safe API layer
-- **React Hooks**: `useState`, `useEffect` for local state
-
-### Icons
-- **Heroicons**: `@heroicons/react/24/outline` (outline variant)
-- **Lucide React**: `lucide-react` for additional icons
-- **Custom Icons**: Defined in `src/app/components/icons.tsx`
-
-### Authentication
-- **Clerk**: `@clerk/nextjs` for authentication
-
-## Styling Approach
-
-### Methodology
-Utility-first CSS with Tailwind CSS. No CSS Modules or Styled Components.
-
-### Component Styling Pattern
-
-```typescript
-// Standard pattern for component classes
-className={`base-classes dark:dark-classes hover:state-classes focus:focus-classes ${className ?? ""}`}
+**Chemical Formulas:**
+```css
+.formula {
+  font-family: var(--font-mono);
+}
+.formula sub { font-size: 0.75em; vertical-align: sub; }
+.formula sup { font-size: 0.75em; vertical-align: super; }
 ```
 
-### Responsive Design
-Mobile-first approach with breakpoints:
-- `sm:` - 640px and up
-- `md:` - 768px and up
-- `lg:` - 1024px and up
-- `xl:` - 1280px and up
+**Units Display:**
+```css
+.unit {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  margin-left: 0.25em;
+}
+```
 
-### Grid Layouts
-- Use CSS Grid: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4`
-- Use Flexbox: `flex flex-col md:flex-row`
+**Axis Labels:**
+- Font size: 13px
+- Weight: 500
+- Color: `text-secondary`
+- Use proper unicode: eV, cm⁻¹, Å
 
-### Dark Mode Implementation
-- Toggle via `next-themes` ThemeProvider
-- Apply `dark:` prefix to all color/background classes
-- Always provide both light and dark variants
+---
+
+### Spacing System
+
+Base unit: 4px
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `space-0` | 0px | Reset |
+| `space-1` | 4px | Tight grouping |
+| `space-2` | 8px | Related elements |
+| `space-3` | 12px | Component padding |
+| `space-4` | 16px | Standard spacing |
+| `space-5` | 20px | Card padding |
+| `space-6` | 24px | Section gaps |
+| `space-8` | 32px | Large gaps |
+| `space-10` | 40px | Section separation |
+| `space-12` | 48px | Page sections |
+| `space-16` | 64px | Major divisions |
+
+---
+
+### Border Radius
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `radius-none` | 0px | Sharp edges |
+| `radius-sm` | 4px | Buttons, inputs |
+| `radius-md` | 8px | Cards, modals |
+| `radius-lg` | 12px | Large cards |
+| `radius-xl` | 16px | Feature cards |
+| `radius-2xl` | 24px | Hero sections |
+| `radius-full` | 9999px | Pills, avatars |
+
+---
+
+### Shadows & Elevation
+
+#### Shadow Scale
+```css
+--shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+--shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+--shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+--shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+--shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+--shadow-glow: 0 0 20px rgba(166, 15, 45, 0.3);
+--shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+```
+
+#### Elevation Levels
+| Level | Shadow | Use Case |
+|-------|--------|----------|
+| 0 | none | Flat surfaces |
+| 1 | `shadow-xs` | Subtle lift |
+| 2 | `shadow-sm` | Cards at rest |
+| 3 | `shadow-md` | Hover cards |
+| 4 | `shadow-lg` | Dropdowns, popovers |
+| 5 | `shadow-xl` | Modals, dialogs |
+| 6 | `shadow-2xl` | Floating panels |
+
+---
+
+### Z-Index Scale
+
+```css
+--z-base: 0;
+--z-dropdown: 100;
+--z-sticky: 200;
+--z-fixed: 300;
+--z-modal-backdrop: 400;
+--z-modal: 500;
+--z-popover: 600;
+--z-tooltip: 700;
+--z-toast: 800;
+--z-spotlight: 900;
+--z-max: 9999;
+```
+
+---
+
+## Motion & Animation
+
+### Duration Scale
+
+| Token | Duration | Usage |
+|-------|----------|-------|
+| `duration-instant` | 0ms | Immediate feedback |
+| `duration-fast` | 100ms | Micro-interactions |
+| `duration-normal` | 200ms | Standard transitions |
+| `duration-slow` | 300ms | Complex animations |
+| `duration-slower` | 500ms | Page transitions |
+| `duration-slowest` | 700ms | Dramatic reveals |
+
+### Easing Functions
+
+```css
+--ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+--ease-in: cubic-bezier(0.4, 0, 1, 1);
+--ease-out: cubic-bezier(0, 0, 0.2, 1);
+--ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+--ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+```
+
+### Animation Patterns
+
+**Micro-interactions:**
+```typescript
+// Button press
+{ scale: 0.98, transition: { duration: 0.1 } }
+
+// Hover lift
+{ y: -2, shadow: "shadow-lg", transition: { duration: 0.2 } }
+
+// Toggle
+{ rotate: 180, transition: { type: "spring", stiffness: 300 } }
+```
+
+**Data Loading:**
+```typescript
+// Skeleton pulse
+{ opacity: [0.5, 1, 0.5], transition: { duration: 1.5, repeat: Infinity } }
+
+// Stagger children
+{ staggerChildren: 0.05, delayChildren: 0.1 }
+
+// Chart line draw
+{ pathLength: [0, 1], transition: { duration: 1, ease: "easeOut" } }
+```
+
+**Page Transitions:**
+```typescript
+// Fade in up
+initial: { opacity: 0, y: 20 }
+animate: { opacity: 1, y: 0 }
+exit: { opacity: 0, y: -10 }
+transition: { duration: 0.3 }
+```
+
+### Reduced Motion
+
+Always respect user preferences:
+```css
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+---
+
+## Interactive States
+
+### State Definitions
+
+| State | Visual Treatment |
+|-------|------------------|
+| `default` | Base appearance |
+| `hover` | Subtle lift, color shift |
+| `focus` | Ring outline (2px crimson) |
+| `active/pressed` | Scale down (0.98), darker bg |
+| `disabled` | 50% opacity, no pointer events |
+| `loading` | Pulse animation, disabled interaction |
+| `selected` | Crimson accent, checkmark |
+| `error` | Red border, error icon |
+| `success` | Green border, check icon |
+| `dragging` | Elevated shadow, slight rotation |
+
+### Focus Visible
+
+```css
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--wsu-crimson-light);
+}
+```
+
+### Interactive Feedback Classes
+
+```typescript
+// Standard interactive element
+className="transition-all duration-200 hover:bg-surface-3 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-wsu-crimson"
+
+// Card hover
+className="transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+
+// Button states
+className="transition-all duration-150 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+```
+
+---
+
+## Component Patterns
+
+### Cards
+
+**Data Card (for spectrum/molecule display):**
+```typescript
+className={`
+  bg-surface-1 dark:bg-surface-1
+  border border-border-default dark:border-border-default
+  rounded-lg shadow-sm
+  hover:shadow-md hover:border-border-strong
+  transition-all duration-200
+  overflow-hidden
+`}
+```
+
+**Interactive Card:**
+```typescript
+className={`
+  bg-surface-1 dark:bg-surface-1
+  border border-border-default
+  rounded-xl shadow-sm
+  hover:shadow-lg hover:-translate-y-1
+  active:scale-[0.99]
+  transition-all duration-200
+  cursor-pointer
+`}
+```
+
+**Glass Card (floating panels):**
+```typescript
+className={`
+  bg-white/80 dark:bg-slate-900/80
+  backdrop-blur-xl backdrop-saturate-150
+  border border-white/20 dark:border-slate-700/50
+  rounded-xl shadow-xl
+`}
+```
+
+### Buttons
+
+**Primary:**
+```typescript
+className={`
+  bg-wsu-crimson text-white
+  hover:bg-wsu-crimson-dark
+  active:scale-[0.98]
+  focus-visible:ring-2 focus-visible:ring-wsu-crimson focus-visible:ring-offset-2
+  disabled:opacity-50 disabled:pointer-events-none
+  transition-all duration-150
+  font-medium rounded-lg px-4 py-2
+`}
+```
+
+**Secondary:**
+```typescript
+className={`
+  bg-surface-2 text-text-primary
+  border border-border-default
+  hover:bg-surface-3 hover:border-border-strong
+  active:scale-[0.98]
+  transition-all duration-150
+  font-medium rounded-lg px-4 py-2
+`}
+```
+
+**Ghost:**
+```typescript
+className={`
+  text-text-secondary
+  hover:bg-surface-2 hover:text-text-primary
+  active:bg-surface-3
+  transition-all duration-150
+  rounded-lg px-3 py-1.5
+`}
+```
+
+**Icon Button:**
+```typescript
+className={`
+  p-2 rounded-lg
+  text-text-tertiary hover:text-text-primary
+  hover:bg-surface-2
+  active:bg-surface-3
+  transition-all duration-150
+`}
+```
+
+### Data Tables
+
+```typescript
+// Table container
+className="overflow-hidden rounded-lg border border-border-default"
+
+// Header row
+className="bg-surface-2 border-b border-border-default"
+
+// Header cell
+className="px-4 py-3 text-left text-sm font-semibold text-text-primary tabular-nums"
+
+// Body row
+className="border-b border-border-subtle hover:bg-surface-1 transition-colors"
+
+// Body cell
+className="px-4 py-3 text-sm text-text-secondary tabular-nums"
+
+// Numeric cell alignment
+className="text-right font-mono tabular-nums"
+```
+
+### Form Inputs
+
+```typescript
+className={`
+  w-full px-3 py-2
+  bg-surface-1 dark:bg-surface-2
+  border border-border-default
+  rounded-lg
+  text-text-primary placeholder:text-text-tertiary
+  focus:outline-none focus:ring-2 focus:ring-wsu-crimson focus:border-transparent
+  disabled:opacity-50 disabled:cursor-not-allowed
+  transition-all duration-150
+`}
+```
+
+### Tooltips
+
+```typescript
+className={`
+  px-3 py-2
+  bg-slate-900 dark:bg-slate-100
+  text-white dark:text-slate-900
+  text-sm rounded-lg shadow-lg
+  animate-in fade-in-0 zoom-in-95
+  data-[state=closed]:animate-out data-[state=closed]:fade-out-0
+`}
+```
+
+---
+
+## Data Visualization Standards
+
+### Plot Configuration
+
+```typescript
+export const PLOT_CONFIG = {
+  height: {
+    compact: 240,
+    default: 360,
+    expanded: 480,
+  },
+  margins: {
+    top: 16,
+    right: 24,
+    bottom: 48,
+    left: 64,
+  },
+  axis: {
+    fontSize: 12,
+    fontWeight: 500,
+    tickSize: 5,
+    tickPadding: 8,
+  },
+  grid: {
+    strokeWidth: 1,
+    strokeDasharray: "4 4",
+  },
+  line: {
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+  },
+} as const;
+```
+
+### Chart Theme Colors
+
+```typescript
+export const CHART_THEME = {
+  light: {
+    background: "#ffffff",
+    paper: "#f8fafc",
+    grid: "rgba(148, 163, 184, 0.2)",
+    axis: "#64748b",
+    text: "#475569",
+    tooltip: {
+      background: "rgba(255, 255, 255, 0.95)",
+      border: "rgba(148, 163, 184, 0.3)",
+      text: "#1e293b",
+    },
+  },
+  dark: {
+    background: "#0f172a",
+    paper: "#1e293b",
+    grid: "rgba(71, 85, 105, 0.3)",
+    axis: "#94a3b8",
+    text: "#cbd5e1",
+    tooltip: {
+      background: "rgba(30, 41, 59, 0.95)",
+      border: "rgba(71, 85, 105, 0.5)",
+      text: "#f1f5f9",
+    },
+  },
+} as const;
+```
+
+### Interaction Patterns
+
+**Zoom/Pan:**
+- Scroll to zoom (with shift for pan)
+- Click-drag for marquee zoom
+- Double-click to reset
+- Pinch gesture on touch
+
+**Tooltips:**
+- Appear on hover with 100ms delay
+- Follow cursor or snap to nearest point
+- Show all series values at x-position
+- Crosshair for precision
+
+**Selection:**
+- Click to select single item
+- Shift+click for range
+- Cmd/Ctrl+click for multi-select
+- Escape to deselect all
+
+---
+
+## Layout Patterns
+
+### Dashboard Grid
+
+```typescript
+// Main dashboard layout
+className="grid grid-cols-12 gap-6"
+
+// Full width
+className="col-span-12"
+
+// Two column
+className="col-span-12 lg:col-span-6"
+
+// Sidebar + main
+// Sidebar: col-span-12 lg:col-span-3
+// Main: col-span-12 lg:col-span-9
+```
+
+### Split Panels
+
+```typescript
+// Resizable split view
+<ResizablePanelGroup direction="horizontal">
+  <ResizablePanel defaultSize={30} minSize={20}>
+    {/* Sidebar content */}
+  </ResizablePanel>
+  <ResizableHandle />
+  <ResizablePanel defaultSize={70}>
+    {/* Main content */}
+  </ResizablePanel>
+</ResizablePanelGroup>
+```
+
+### Responsive Breakpoints
+
+| Breakpoint | Width | Usage |
+|------------|-------|-------|
+| `sm` | 640px | Mobile landscape |
+| `md` | 768px | Tablets |
+| `lg` | 1024px | Small laptops |
+| `xl` | 1280px | Desktops |
+| `2xl` | 1536px | Large screens |
+
+---
+
+## Feedback & Status
+
+### Toast Notifications
+
+```typescript
+// Success
+className="bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200"
+
+// Error
+className="bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200"
+
+// Warning
+className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200"
+
+// Info
+className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200"
+```
+
+### Progress Indicators
+
+**Determinate:**
+```typescript
+<div className="h-2 bg-surface-3 rounded-full overflow-hidden">
+  <div 
+    className="h-full bg-wsu-crimson transition-all duration-300 ease-out"
+    style={{ width: `${progress}%` }}
+  />
+</div>
+```
+
+**Indeterminate:**
+```typescript
+<div className="h-1 bg-surface-3 rounded-full overflow-hidden">
+  <div className="h-full w-1/3 bg-wsu-crimson animate-[shimmer_1.5s_infinite]" />
+</div>
+```
+
+### Status Badges
+
+```typescript
+// Status dot + label
+<span className="inline-flex items-center gap-1.5">
+  <span className={`w-2 h-2 rounded-full ${statusColor}`} />
+  <span className="text-sm">{label}</span>
+</span>
+
+// Colors
+const statusColors = {
+  active: "bg-emerald-500",
+  pending: "bg-amber-500",
+  error: "bg-red-500",
+  inactive: "bg-slate-400",
+};
+```
+
+---
+
+## Accessibility Requirements
+
+### Color Contrast
+- Normal text: 4.5:1 minimum (WCAG AA)
+- Large text (18px+): 3:1 minimum
+- UI components: 3:1 minimum
+- Data visualization: Use patterns/shapes in addition to color
+
+### Keyboard Navigation
+- All interactive elements focusable
+- Visible focus indicators
+- Logical tab order
+- Escape closes modals/dropdowns
+- Arrow keys for menu navigation
+
+### Screen Reader Support
+- Semantic HTML elements
+- ARIA labels for icon buttons
+- Live regions for dynamic updates
+- Descriptive alt text for charts
+
+### Motion
+- Respect `prefers-reduced-motion`
+- Provide pause controls for animations
+- No auto-playing content without controls
+
+---
 
 ## Icon System
 
-### Location
-- Custom icons: `src/app/components/icons.tsx`
-- External icons: Imported from `@heroicons/react` or `lucide-react`
+### Libraries
+- **Primary:** Lucide React (`lucide-react`)
+- **Secondary:** Heroicons (`@heroicons/react/24/outline`)
+- **Custom:** `src/app/components/icons.tsx`
 
-### Naming Convention
-- PascalCase for component names (e.g., `WSULogoIcon`, `SearchIcon`)
-- Descriptive names that indicate purpose
+### Size Scale
 
-### Usage Pattern
+| Size | Class | Usage |
+|------|-------|-------|
+| XS | `h-3 w-3` | Inline with small text |
+| SM | `h-4 w-4` | Buttons, inputs |
+| MD | `h-5 w-5` | Navigation, default |
+| LG | `h-6 w-6` | Feature icons |
+| XL | `h-8 w-8` | Empty states |
+| 2XL | `h-10 w-10` | Hero sections |
 
+### Icon Buttons
 ```typescript
-import { SearchIcon } from "@heroicons/react/24/outline";
-import { WSULogoIcon } from "~/app/components/icons";
-
-// Use as React components
-<SearchIcon className="h-4 w-4" />
-<WSULogoIcon className="h-10 w-10" />
+// Always include aria-label
+<button
+  aria-label="Download spectrum data"
+  className="p-2 rounded-lg hover:bg-surface-2 transition-colors"
+>
+  <DownloadIcon className="h-5 w-5" />
+</button>
 ```
 
-### Icon Sizes
-Common sizes:
-- `h-4 w-4` - Small (16px)
-- `h-5 w-5` - Medium (20px)
-- `h-6 w-6` - Large (24px)
-- `h-10 w-10` - Extra large (40px)
+---
 
-## Asset Management
+## Implementation Checklist
 
-### Images
-- Use Next.js `Image` component for optimization
-- Pattern: `<Image src={src} alt={alt} width={w} height={h} />`
-- Place static images in `public/` directory
-- External images: Use full URL with Next.js Image component
+When building new components, verify:
 
-### SVG
-- Custom SVGs: React components in `icons.tsx`
-- Inline SVG: Use as JSX elements
-- Optimization: Use viewBox for responsive SVGs
+- [ ] Dark mode variants defined
+- [ ] All interactive states (hover, focus, active, disabled)
+- [ ] Keyboard accessible
+- [ ] ARIA labels where needed
+- [ ] Tabular nums for data values
+- [ ] Proper z-index layer
+- [ ] Animation respects reduced motion
+- [ ] Loading/skeleton state
+- [ ] Error state handling
+- [ ] Responsive at all breakpoints
 
-### Structure
-```
-public/
-  - Static assets (favicons, images)
-src/app/components/icons.tsx
-  - Custom SVG icon components
-```
+---
 
-## Component Styling Guidelines
+## File Locations
 
-### Buttons
-- Use `DefaultButton` wrapper component
-- Hover states: `hover:bg-gray-200 dark:hover:bg-gray-700`
-- Focus states: `focus:ring-2 focus:ring-wsu-crimson`
-
-### Cards
-- Background: `bg-white dark:bg-gray-800`
-- Border: `border border-gray-200 dark:border-gray-700`
-- Padding: `p-4` or `p-6`
-- Shadow: `shadow-lg hover:shadow-xl`
-- Border radius: `rounded-xl`
-
-### Forms
-- Input borders: `border-gray-300 dark:border-gray-600`
-- Focus: `focus:ring-2 focus:ring-wsu-crimson focus:border-wsu-crimson`
-- Error states: Use red colors (`text-red-600`)
-
-### Navigation
-- Active state: `text-wsu-crimson` or underline
-- Hover: `hover:text-gray-900 dark:hover:text-white`
-
-## Animation & Transitions
-
-### Transitions
-- Use `transition-all` for smooth state changes
-- Duration: Default Tailwind transitions (150ms)
-- Hover effects: `hover:scale-105` for subtle scale
-
-### Loading States
-- Use skeleton components with `animate-pulse`
-- Skeleton colors: `bg-gray-200 dark:bg-gray-700`
-
-## Figma Integration Guidelines
-
-### Converting Figma Designs
-
-1. **Colors**: Match Figma colors to Tailwind classes or custom colors
-2. **Spacing**: Convert Figma spacing to Tailwind spacing scale (divide by 4)
-3. **Typography**: Match font sizes to Tailwind text classes
-4. **Components**: Use existing component patterns where possible
-5. **Icons**: Extract SVG or use closest matching icon from icon libraries
-
-### Design Token Mapping
-
-When importing from Figma:
-- Colors → Tailwind color classes or custom colors
-- Spacing → Tailwind spacing utilities
-- Typography → Tailwind text utilities
-- Shadows → Tailwind shadow utilities
-- Border Radius → Tailwind rounded utilities
-
-### Component Structure
-
-Figma components should map to:
-- Buttons → `DefaultButton` or HeroUI Button
-- Cards → Custom card components with standard styling
-- Navigation → HeroUI Navbar or custom navigation
-- Forms → HeroUI Input/Select with custom styling
-
-## Accessibility
-
-### Requirements
-- All interactive elements must be keyboard accessible
-- Use semantic HTML elements
-- Include ARIA labels where needed
-- Ensure sufficient color contrast (WCAG AA)
-
-### Patterns
-- Buttons: Include `aria-label` for icon-only buttons
-- Forms: Associate labels with inputs
-- Navigation: Use proper heading hierarchy
-
-## Performance Considerations
-
-### Image Optimization
-- Always use Next.js `Image` component
-- Specify width and height for layout stability
-- Use appropriate image formats (WebP preferred)
-
-### Code Splitting
-- Use Next.js dynamic imports for heavy components
-- Lazy load components below the fold
-
-### Bundle Size
-- Import only needed icons
-- Use tree-shaking friendly imports
-- Avoid unnecessary dependencies
+| Type | Path |
+|------|------|
+| Global CSS | `src/styles/globals.css` |
+| Tailwind Config | `tailwind.config.js` |
+| Theme Constants | `src/app/components/theme/constants.ts` |
+| Plot Constants | `src/app/components/plots/core/constants.ts` |
+| Custom Icons | `src/app/components/icons.tsx` |
+| Components | `src/app/components/` |

@@ -1,61 +1,59 @@
 @import "tailwindcss";
 
-/**
- * Tailwind CSS v4 Dark Mode Configuration
- *
- * In Tailwind v4, dark mode is configured using @custom-variant instead of
- * the darkMode config option. This directive enables the dark: variant
- * when the .dark class is present on the root element or any ancestor.
- *
- * HeroUI components rely on this for theme switching.
- */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans:
-    var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
+    var(--font-geist-sans), "Inter", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono:
+    var(--font-geist-mono), "JetBrains Mono", "Fira Code", ui-monospace, monospace;
 
+  --color-wsu-crimson: #a60f2d;
   --color-wsu-crimson-light: #a60f2d;
   --color-wsu-crimson-dark: #ca1237;
+  --color-wsu-gray: #5e6a71;
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  --shadow-glow: 0 0 20px rgba(166, 15, 45, 0.3);
+  --shadow-glow-sm: 0 0 10px rgba(166, 15, 45, 0.2);
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+  --z-toast: 800;
+  --z-spotlight: 900;
 }
 
-/* Added WSU Custom Colors */
-
-/**
- * Base Layer - Global Theme Styles
- *
- * This layer sets up the base background colors for html and body elements.
- * The colors are defined as CSS custom properties that change based on the
- * .dark class presence, ensuring smooth theme transitions.
- *
- * Note: While HeroUI provides semantic tokens (bg-background), we use
- * explicit background colors here to ensure the root elements always have
- * the correct background, even before HeroUI components render.
- */
 @layer base {
   :root {
-    --bg-color: rgb(255, 255, 255);
-  }
+    --bg-color: #ffffff;
+    --surface-1: #f8fafc;
+    --surface-2: #f1f5f9;
+    --surface-3: #e2e8f0;
+    --surface-glass: rgba(255, 255, 255, 0.8);
 
-  .dark {
-    --bg-color: rgb(17, 24, 39); /* gray-900 */
-  }
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-tertiary: #94a3b8;
+    --text-disabled: #cbd5e1;
 
-  html {
-    background-color: var(--bg-color) !important;
-    transition: background-color 0.2s ease;
-  }
+    --border-default: #e2e8f0;
+    --border-subtle: #f1f5f9;
+    --border-strong: #cbd5e1;
+    --border-focus: #a60f2d;
 
-  body {
-    background-color: var(--bg-color) !important;
-    min-height: 100vh;
-    transition: background-color 0.2s ease;
-  }
-
-  /* CPK Color Scheme for Molecule SVGs */
-  :root {
-    /* Element colors - light mode */
     --cpk-h: #000000;
     --cpk-c: #000000;
     --cpk-n: #2144d9;
@@ -67,11 +65,26 @@
     --cpk-br: #a52a2a;
     --cpk-i: #940094;
     --cpk-bonds: #000000;
-    --cpk-default-atom: #000000; /* Default atom color for non-CPK elements */
+    --cpk-default-atom: #000000;
   }
 
   .dark {
-    /* Element colors - dark mode */
+    --bg-color: #0f172a;
+    --surface-1: #1e293b;
+    --surface-2: #334155;
+    --surface-3: #475569;
+    --surface-glass: rgba(15, 23, 42, 0.8);
+
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #64748b;
+    --text-disabled: #475569;
+
+    --border-default: #334155;
+    --border-subtle: #1e293b;
+    --border-strong: #475569;
+    --border-focus: #ca1237;
+
     --cpk-h: #e0e0e0;
     --cpk-c: #e0e0e0;
     --cpk-n: #8fa3ff;
@@ -83,6 +96,225 @@
     --cpk-br: #d47878;
     --cpk-i: #d478d4;
     --cpk-bonds: #ffffff;
-    --cpk-default-atom: #ffffff; /* Default atom color for non-CPK elements */
+    --cpk-default-atom: #ffffff;
+  }
+
+  html {
+    background-color: var(--bg-color) !important;
+    transition: background-color 0.2s ease;
+  }
+
+  body {
+    background-color: var(--bg-color) !important;
+    min-height: 100vh;
+    transition: background-color 0.2s ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    border-color: var(--border-default);
+  }
+
+  ::selection {
+    background-color: rgba(166, 15, 45, 0.2);
+    color: inherit;
+  }
+}
+
+@layer components {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  .focus-ring {
+    outline: none;
+  }
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 2px var(--bg-color), 0 0 0 4px var(--border-focus);
+  }
+
+  .glass {
+    background: var(--surface-glass);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+  }
+
+  .glass-strong {
+    background: var(--surface-glass);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  .data-value {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    font-family: var(--font-mono);
+  }
+
+  .formula sub {
+    font-size: 0.75em;
+    vertical-align: sub;
+  }
+
+  .formula sup {
+    font-size: 0.75em;
+    vertical-align: super;
+  }
+
+  .unit {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    margin-left: 0.25em;
+  }
+
+  .interactive {
+    transition: all 0.2s ease;
+  }
+  .interactive:hover {
+    background-color: var(--surface-2);
+  }
+  .interactive:active {
+    transform: scale(0.98);
+  }
+
+  .card-hover {
+    transition: all 0.2s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--surface-2) 0%,
+      var(--surface-3) 50%,
+      var(--surface-2) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .animate-in {
+    animation: animate-in 0.2s ease-out;
+  }
+
+  .animate-out {
+    animation: animate-out 0.15s ease-in forwards;
+  }
+
+  .fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .slide-in-from-bottom {
+    animation: slide-in-from-bottom 0.3s ease-out;
+  }
+
+  .slide-in-from-top {
+    animation: slide-in-from-top 0.3s ease-out;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes animate-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes animate-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-from-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

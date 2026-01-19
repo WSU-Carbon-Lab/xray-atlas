@@ -1,78 +1,88 @@
-/**
- * Constants for spectrum plotting
- * Extracted from SpectrumPlot.tsx for reuse
- */
-
-/**
- * Color palette for spectrum traces
- */
-export const COLORS = [
+export const CATEGORICAL_COLORS = [
   "#d7263d",
   "#1b998b",
-  "#2a9d8f",
-  "#f4a261",
-  "#577590",
-  "#ff7f50",
-  "#6a4c93",
-  "#0b3d91",
+  "#3b82f6",
+  "#f59e0b",
+  "#8b5cf6",
+  "#06b6d4",
+  "#ec4899",
+  "#84cc16",
 ] as const;
 
-/**
- * Default plot height in pixels
- */
+export const COLORS = CATEGORICAL_COLORS;
+
+export const SEQUENTIAL_SCALES = {
+  blue: ["#eff6ff", "#bfdbfe", "#60a5fa", "#2563eb", "#1e40af"],
+  crimson: ["#fef2f2", "#fecaca", "#f87171", "#dc2626", "#991b1b"],
+  viridis: ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"],
+} as const;
+
+export const DIVERGING_SCALES = {
+  redBlue: ["#dc2626", "#f87171", "#fecaca", "#f8fafc", "#bfdbfe", "#60a5fa", "#2563eb"],
+  purpleGreen: ["#7c3aed", "#a78bfa", "#ddd6fe", "#f8fafc", "#bbf7d0", "#4ade80", "#16a34a"],
+} as const;
+
 export const DEFAULT_PLOT_HEIGHT = 360;
 
-/**
- * Plot margins in pixels
- */
+export const PLOT_HEIGHTS = {
+  compact: 240,
+  default: 360,
+  expanded: 480,
+} as const;
+
 export const MARGINS = {
-  top: 10,
-  right: 20,
+  top: 16,
+  right: 24,
   bottom: 120,
   left: 78,
   pad: 0,
 } as const;
 
-/**
- * Subplot margins (when peak visualization is shown)
- */
 export const SUBPLOT_MARGINS = {
-  top: 10,
-  right: 20,
-  bottom: 10,
+  top: 16,
+  right: 24,
+  bottom: 16,
   left: 78,
   pad: 0,
 } as const;
 
-/**
- * Color mappings for dark/light mode
- */
 export const THEME_COLORS = {
   light: {
+    background: "#ffffff",
     paper: "#f8fafc",
     plot: "#ffffff",
-    grid: "rgba(148, 163, 184, 0.15)",
-    text: "#4b5563",
+    grid: "rgba(148, 163, 184, 0.2)",
+    gridStrong: "rgba(148, 163, 184, 0.4)",
+    axis: "#64748b",
+    text: "#475569",
+    textSecondary: "#94a3b8",
     hoverBg: "#f8fafc",
     hoverText: "#111827",
-    legendBg: "rgba(255,255,255,0.9)",
+    legendBg: "rgba(255, 255, 255, 0.95)",
     legendBorder: "rgba(148, 163, 184, 0.3)",
+    crosshair: "rgba(71, 85, 105, 0.5)",
+    selection: "rgba(166, 15, 45, 0.1)",
+    selectionBorder: "rgba(166, 15, 45, 0.5)",
   },
   dark: {
-    paper: "#1f2937",
-    plot: "#111827",
-    grid: "rgba(75, 85, 99, 0.3)",
-    text: "#d1d5db",
-    hoverBg: "#111827",
+    background: "#0f172a",
+    paper: "#1e293b",
+    plot: "#0f172a",
+    grid: "rgba(71, 85, 105, 0.3)",
+    gridStrong: "rgba(71, 85, 105, 0.5)",
+    axis: "#94a3b8",
+    text: "#cbd5e1",
+    textSecondary: "#64748b",
+    hoverBg: "#1e293b",
     hoverText: "#f8fafc",
-    legendBg: "rgba(31, 41, 55, 0.9)",
-    legendBorder: "rgba(75, 85, 99, 0.5)",
+    legendBg: "rgba(30, 41, 59, 0.95)",
+    legendBorder: "rgba(71, 85, 105, 0.5)",
+    crosshair: "rgba(148, 163, 184, 0.5)",
+    selection: "rgba(202, 18, 55, 0.15)",
+    selectionBorder: "rgba(202, 18, 55, 0.6)",
   },
 } as const;
 
-/**
- * Normalization region colors
- */
 export const NORMALIZATION_COLORS = {
   pre: "rgba(59, 130, 246, 0.12)",
   post: "rgba(16, 185, 129, 0.12)",
@@ -80,25 +90,85 @@ export const NORMALIZATION_COLORS = {
   postLine: "rgba(16, 185, 129, 0.8)",
   preFill: "rgba(59, 130, 246, 0.2)",
   postFill: "rgba(16, 185, 129, 0.2)",
+  preHandle: "#3b82f6",
+  postHandle: "#10b981",
 } as const;
 
-/**
- * Peak colors
- */
 export const PEAK_COLORS = {
   selected: "#a60f2d",
-  unselected: "#6b7280",
+  unselected: "#94a3b8",
+  hover: "#ca1237",
+  fitted: "#8b5cf6",
+  residual: "#f59e0b",
+  annotation: "#64748b",
 } as const;
 
-/**
- * Selected geometry trace color
- */
 export const SELECTED_GEOMETRY_COLOR = "#d7263d";
 
-/**
- * Font configuration
- */
 export const FONT_CONFIG = {
   family: "Inter, system-ui, sans-serif",
-  size: 13,
+  mono: "JetBrains Mono, Fira Code, monospace",
+  size: {
+    axis: 12,
+    label: 13,
+    title: 14,
+    legend: 12,
+    tooltip: 13,
+  },
+  weight: {
+    normal: 400,
+    medium: 500,
+    semibold: 600,
+  },
+} as const;
+
+export const AXIS_CONFIG = {
+  fontSize: 12,
+  fontWeight: 500,
+  tickSize: 5,
+  tickPadding: 8,
+  labelPadding: 40,
+} as const;
+
+export const LINE_CONFIG = {
+  strokeWidth: {
+    thin: 1,
+    default: 2,
+    thick: 3,
+  },
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+} as const;
+
+export const GRID_CONFIG = {
+  strokeWidth: 1,
+  strokeDasharray: "4 4",
+  strokeDasharrayStrong: "none",
+} as const;
+
+export const ANIMATION_CONFIG = {
+  duration: {
+    fast: 150,
+    normal: 300,
+    slow: 500,
+  },
+  easing: {
+    default: "ease-out",
+    spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+  },
+} as const;
+
+export const INTERACTION_CONFIG = {
+  tooltip: {
+    delay: 100,
+    offset: 12,
+  },
+  zoom: {
+    minScale: 0.1,
+    maxScale: 100,
+    wheelDelta: 0.1,
+  },
+  selection: {
+    minSize: 10,
+  },
 } as const;
