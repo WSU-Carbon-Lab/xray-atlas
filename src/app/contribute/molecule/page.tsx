@@ -680,7 +680,7 @@ export default function MoleculeContributePage({
           <div className="mb-6">
             <Link
               href="/contribute"
-              className="text-sm text-gray-600 hover:text-accent dark:text-accent-light dark:text-gray-400 dark:hover:text-accent dark:text-accent-light"
+              className="text-sm text-gray-600 hover:text-accent dark:text-gray-400 dark:hover:text-accent-light"
             >
               ← Back to contribution type selection
             </Link>
@@ -846,7 +846,7 @@ export default function MoleculeContributePage({
                           href={pubChemUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-accent dark:text-accent-light hover:text-accent dark:text-accent-light/80 inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:underline"
+                          className="inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-colors hover:text-accent-dark hover:underline dark:text-accent-light dark:hover:text-accent-light/80"
                         >
                           <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                           View on PubChem
@@ -1028,19 +1028,26 @@ export default function MoleculeContributePage({
                       </button>
                     </div>
                   ) : (
-                    <label className="hover:border-accent dark:hover:border-accent flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900">
-                      <PhotoIcon className="mb-4 h-12 w-12 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Click to upload molecule image
-                      </span>
-                      <span className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        PNG, JPG, GIF up to 10MB
-                      </span>
+                    <label className="group relative flex w-full cursor-pointer items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-white px-6 py-6 text-left transition-transform duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-sm font-semibold uppercase tracking-wide text-accent dark:text-accent-light">
+                          Upload Molecule Image
+                        </span>
+                        <span className="text-base text-gray-700 transition-colors duration-200 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-gray-100">
+                          Click to upload molecule image
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          PNG, JPG, GIF up to 10MB
+                        </span>
+                      </div>
+                      <div className="hidden shrink-0 text-gray-300 transition-colors duration-200 group-hover:text-accent dark:text-accent-light md:block">
+                        <PhotoIcon className="h-16 w-16" aria-hidden="true" />
+                      </div>
                       <input
                         type="file"
                         accept="image/*"
                         onChange={handleImageChange}
-                        className="hidden"
+                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                       />
                     </label>
                   )}

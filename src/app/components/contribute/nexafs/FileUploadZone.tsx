@@ -12,42 +12,45 @@ interface FileUploadZoneProps {
 
 export function FileUploadZone({
   onFilesSelected,
-  acceptedFileTypes = [".csv", "text/csv"],
+  acceptedFileTypes = [".csv", "text/csv", ".json", "application/json"],
   maxFileSize = 10 * 1024 * 1024, // 10MB default
   multiple = true,
 }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [draggedFileType, setDraggedFileType] = useState<"csv" | "json" | "mixed" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const validateFile = (file: File): string | null => {
-    // Check file type
-    const isValidType =
-      acceptedFileTypes.some((type) => {
-        if (type.startsWith(".")) {
-          return file.name.toLowerCase().endsWith(type.toLowerCase());
-        }
-        return file.type === type;
-      }) || file.type === ""; // Some browsers don't set CSV MIME type
-
-    if (!isValidType && !file.name.toLowerCase().endsWith(".csv")) {
-      return `Invalid file type. Expected CSV file, got: ${file.type || "unknown"}`;
-    }
-
-    // Check file size
-    if (file.size > maxFileSize) {
-      const maxSizeMB = (maxFileSize / (1024 * 1024)).toFixed(1);
-      return `File too large. Maximum size is ${maxSizeMB}MB, got ${(file.size / (1024 * 1024)).toFixed(1)}MB`;
-    }
-
-    return null;
-  };
 
   const handleFiles = useCallback(
     (files: FileList | null) => {
       if (!files || files.length === 0) {
         return;
       }
+
+      const validateFile = (file: File): string | null => {
+        const fileName = file.name.toLowerCase();
+        const isCsv = fileName.endsWith(".csv");
+        const isJson = fileName.endsWith(".json");
+
+        const isValidType =
+          acceptedFileTypes.some((type) => {
+            if (type.startsWith(".")) {
+              return fileName.endsWith(type.toLowerCase());
+            }
+            return file.type === type;
+          }) || file.type === "" || isCsv || isJson;
+
+        if (!isValidType && !isCsv && !isJson) {
+          return `Invalid file type. Expected CSV or JSON file, got: ${file.type ?? "unknown"}`;
+        }
+
+        if (file.size > maxFileSize) {
+          const maxSizeMB = (maxFileSize / (1024 * 1024)).toFixed(1);
+          return `File too large. Maximum size is ${maxSizeMB}MB, got ${(file.size / (1024 * 1024)).toFixed(1)}MB`;
+        }
+
+        return null;
+      };
 
       setError(null);
       const validFiles: File[] = [];
@@ -69,9 +72,6 @@ export function FileUploadZone({
       if (validFiles.length > 0) {
         onFilesSelected(validFiles);
       }
-      // validateFile is defined in the component scope and uses maxFileSize and acceptedFileTypes
-      // which are already in the dependency array, so it's safe to omit
-
     },
     [onFilesSelected, maxFileSize, acceptedFileTypes],
   );
@@ -80,12 +80,35 @@ export function FileUploadZone({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
+
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      const items = Array.from(e.dataTransfer.items);
+      const fileTypes = items
+        .filter((item) => item.kind === "file")
+        .map((item) => {
+          const mimeType = item.type.toLowerCase();
+          if (mimeType === "application/json" || mimeType === "text/json") return "json";
+          if (mimeType === "text/csv" || mimeType === "application/csv") return "csv";
+          return null;
+        })
+        .filter((type): type is "csv" | "json" => type !== null);
+
+      if (fileTypes.length > 0) {
+        const uniqueTypes = Array.from(new Set(fileTypes));
+        if (uniqueTypes.length === 1) {
+          setDraggedFileType(uniqueTypes[0]!);
+        } else {
+          setDraggedFileType("mixed");
+        }
+      }
+    }
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+    setDraggedFileType(null);
   }, []);
 
   const handleDrop = useCallback(
@@ -93,6 +116,7 @@ export function FileUploadZone({
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(false);
+      setDraggedFileType(null);
       handleFiles(e.dataTransfer.files);
     },
     [handleFiles],
@@ -116,39 +140,49 @@ export function FileUploadZone({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`relative rounded-lg border-2 border-dashed p-4 transition-colors ${
+        className={`group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed bg-white px-6 py-6 text-left transition-transform duration-200 dark:bg-gray-800 ${
           isDragging
-            ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
-            : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/40"
+            ? "border-accent bg-accent/5 shadow-lg dark:border-accent dark:bg-accent/10"
+            : "border-gray-300 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg dark:border-gray-700"
         }`}
       >
         <input
           ref={fileInputRef}
           type="file"
           id="file-upload"
-          accept={acceptedFileTypes.join(",")}
+          accept=".csv,.json,text/csv,application/json"
           multiple={multiple}
           onChange={handleFileInputChange}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         />
 
-        <div className="flex items-center justify-center gap-3 text-center">
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-semibold uppercase tracking-wide text-accent dark:text-accent-light">
+            Upload CSV or JSON Files
+          </span>
+          <span className="text-base text-gray-700 transition-colors duration-200 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-gray-100">
+            {isDragging
+              ? draggedFileType === "json"
+                ? "Drop JSON file here"
+                : draggedFileType === "csv"
+                  ? "Drop CSV file here"
+                  : "Drop files here"
+              : "Drag and drop CSV or JSON files here"}
+          </span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            or click to browse • CSV or JSON files • Max {(maxFileSize / (1024 * 1024)).toFixed(0)}MB per file
+            {multiple && " • Multiple files supported"}
+          </span>
+        </div>
+        <div className="hidden shrink-0 text-gray-300 transition-colors duration-200 group-hover:text-accent dark:text-accent-light md:block">
           <CloudArrowUpIcon
-            className={`h-6 w-6 shrink-0 transition-colors ${
+            className={`h-16 w-16 transition-colors ${
               isDragging
                 ? "text-accent dark:text-accent-light"
-                : "text-gray-400 dark:text-gray-500"
+                : "text-gray-300 group-hover:text-accent dark:text-accent-light"
             }`}
+            aria-hidden="true"
           />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {isDragging ? "Drop files here" : "Drag and drop CSV files here"}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              or click to browse • CSV files only • Max {(maxFileSize / (1024 * 1024)).toFixed(0)}MB per file
-              {multiple && " • Multiple files supported"}
-            </p>
-          </div>
         </div>
       </div>
 

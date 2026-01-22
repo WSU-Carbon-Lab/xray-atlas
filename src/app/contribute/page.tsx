@@ -12,6 +12,54 @@ import {
   BoltIcon,
 } from "@heroicons/react/24/outline";
 import { trpc } from "~/trpc/client";
+import type { ComponentType, HTMLAttributes } from "react";
+
+type ContributionCardIcon = ComponentType<
+  HTMLAttributes<SVGSVGElement> & { className?: string }
+>;
+
+type ContributionCardProps = {
+  label: string;
+  description: string;
+  icon: ContributionCardIcon;
+  onClick: () => void;
+  disabled?: boolean;
+  fullWidth?: boolean;
+};
+
+function ContributionCard({
+  label,
+  description,
+  icon: Icon,
+  onClick,
+  disabled = false,
+  fullWidth = false,
+}: ContributionCardProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed bg-white px-6 py-6 text-left transition-transform duration-200 dark:bg-gray-800 ${
+        disabled
+          ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 dark:border-gray-700 dark:bg-gray-900"
+          : "border-gray-300 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg dark:border-gray-700"
+      } ${fullWidth ? "md:col-span-2" : ""}`}
+    >
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-semibold uppercase tracking-wide text-accent dark:text-accent-light">
+          {label}
+        </span>
+        <span className="text-base text-gray-700 transition-colors duration-200 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-gray-100">
+          {description}
+        </span>
+      </div>
+      <div className="hidden shrink-0 text-gray-300 transition-colors duration-200 group-hover:text-accent dark:text-accent-light md:block">
+        <Icon className="h-16 w-16" aria-hidden="true" />
+      </div>
+    </button>
+  );
+}
 
 export default function ContributePage() {
   const router = useRouter();
@@ -147,61 +195,28 @@ export default function ContributePage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <button
+            <ContributionCard
+              label="Upload NEXAFS Experiment"
+              description="Contribute Near-Edge X-ray Absorption Fine Structure data with geometry and spectral datasets."
+              icon={BoltIcon}
               onClick={() => handleContributionTypeSelect("nexafs")}
               disabled={!agreementStatus?.accepted}
-              className={`group rounded-xl border-2 p-8 text-left transition-all md:col-span-2 ${
-                agreementStatus?.accepted
-                  ? "hover:border-accent border-gray-200 bg-white hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
-                  : "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 dark:border-gray-700 dark:bg-gray-900"
-              }`}
-            >
-              <BoltIcon className="text-accent dark:text-accent-light mb-4 h-12 w-12" />
-              <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Upload NEXAFS Experiment
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Contribute Near-Edge X-ray Absorption Fine Structure data with
-                geometry and spectral datasets.
-              </p>
-            </button>
-
-            <button
+              fullWidth
+            />
+            <ContributionCard
+              label="Contribute Molecule"
+              description="Add a new molecule with its chemical properties, structure, and related data."
+              icon={BeakerIcon}
               onClick={() => handleContributionTypeSelect("molecule")}
               disabled={!agreementStatus?.accepted}
-              className={`group rounded-xl border-2 p-8 text-left transition-all ${
-                agreementStatus?.accepted
-                  ? "hover:border-accent border-gray-200 bg-white hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
-                  : "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 dark:border-gray-700 dark:bg-gray-900"
-              }`}
-            >
-              <BeakerIcon className="text-accent dark:text-accent-light mb-4 h-12 w-12" />
-              <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Contribute Molecule
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Add a new molecule with its chemical properties, structure, and
-                related data.
-              </p>
-            </button>
-
-            <button
+            />
+            <ContributionCard
+              label="Link Facility and Instrument"
+              description="Add a missing facility and its instruments to the database."
+              icon={BuildingOfficeIcon}
               onClick={() => handleContributionTypeSelect("facility")}
               disabled={!agreementStatus?.accepted}
-              className={`group rounded-xl border-2 p-8 text-left transition-all ${
-                agreementStatus?.accepted
-                  ? "hover:border-accent border-gray-200 bg-white hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
-                  : "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 dark:border-gray-700 dark:bg-gray-900"
-              }`}
-            >
-              <BuildingOfficeIcon className="text-accent dark:text-accent-light mb-4 h-12 w-12" />
-              <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Link Facility and Instrument
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Add a missing facility and its instruments to the database.
-              </p>
-            </button>
+            />
           </div>
         </div>
       </div>
