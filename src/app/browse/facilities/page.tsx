@@ -8,6 +8,8 @@ import { ErrorState } from "~/app/components/ErrorState";
 import { BrowseTabs } from "~/app/components/BrowseTabs";
 import Link from "next/link";
 import { AddFacilityButton } from "~/app/components/AddEntityButtons";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { Tooltip } from "@heroui/react";
 
 function FacilitiesBrowseContent() {
   const searchParams = useSearchParams();
@@ -289,13 +291,21 @@ function FacilitiesBrowseContent() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-8 flex items-center justify-center gap-4">
-                <button
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                <Tooltip
+                  content="Go to previous page"
+                  classNames={{
+                    base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+                  }}
                 >
-                  Previous
-                </button>
+                  <button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    <ChevronLeftIcon className="h-4 w-4" />
+                    <span>Previous</span>
+                  </button>
+                </Tooltip>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-700 dark:text-gray-300">
                     Page {currentPage} of {totalPages}
@@ -303,29 +313,43 @@ function FacilitiesBrowseContent() {
                   {totalPages <= 7
                     ? Array.from({ length: totalPages }, (_, i) => i + 1).map(
                         (page) => (
-                          <button
+                          <Tooltip
                             key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`rounded px-3 py-1 text-sm ${
-                              page === currentPage
-                                ? "bg-accent text-white"
-                                : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                            }`}
+                            content={`Go to page ${page}`}
+                            classNames={{
+                              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+                            }}
                           >
-                            {page}
-                          </button>
+                            <button
+                              onClick={() => setCurrentPage(page)}
+                              className={`rounded px-3 py-1 text-sm ${
+                                page === currentPage
+                                  ? "bg-accent text-white"
+                                  : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </Tooltip>
                         ),
                       )
                     : (
                       <>
                         {currentPage > 3 && (
                           <>
-                            <button
-                              onClick={() => setCurrentPage(1)}
-                              className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                            <Tooltip
+                              content="Go to page 1"
+                              classNames={{
+                                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+                              }}
                             >
-                              1
-                            </button>
+                              <button
+                                onClick={() => setCurrentPage(1)}
+                                className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                              >
+                                1
+                              </button>
+                            </Tooltip>
                             {currentPage > 4 && (
                               <span className="text-gray-500">...</span>
                             )}
@@ -342,41 +366,63 @@ function FacilitiesBrowseContent() {
                           .filter((page, idx, arr) => arr.indexOf(page) === idx)
                           .filter((page) => page >= 1 && page <= totalPages)
                           .map((page) => (
-                            <button
+                            <Tooltip
                               key={page}
-                              onClick={() => setCurrentPage(page)}
-                              className={`rounded px-3 py-1 text-sm ${
-                                page === currentPage
-                                  ? "bg-accent text-white"
-                                  : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                              }`}
+                              content={`Go to page ${page}`}
+                              classNames={{
+                                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+                              }}
                             >
-                              {page}
-                            </button>
+                              <button
+                                onClick={() => setCurrentPage(page)}
+                                className={`rounded px-3 py-1 text-sm ${
+                                  page === currentPage
+                                    ? "bg-accent text-white"
+                                    : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            </Tooltip>
                           ))}
                         {currentPage < totalPages - 2 && (
                           <>
                             {currentPage < totalPages - 3 && (
                               <span className="text-gray-500">...</span>
                             )}
-                            <button
-                              onClick={() => setCurrentPage(totalPages)}
-                              className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                            <Tooltip
+                              content={`Go to page ${totalPages}`}
+                              classNames={{
+                                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+                              }}
                             >
-                              {totalPages}
-                            </button>
+                              <button
+                                onClick={() => setCurrentPage(totalPages)}
+                                className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                              >
+                                {totalPages}
+                              </button>
+                            </Tooltip>
                           </>
                         )}
                       </>
                     )}
                 </div>
-                <button
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                <Tooltip
+                  content="Go to next page"
+                  classNames={{
+                    base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+                  }}
                 >
-                  Next
-                </button>
+                  <button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    <span>Next</span>
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </button>
+                </Tooltip>
               </div>
             )}
           </>

@@ -117,12 +117,6 @@ export function BrushZoom({
           strokeWidth: 2,
           strokeDasharray: "4 4",
         }}
-        resizeTriggerAreasStyle={{
-          fill: themeColors.plot,
-          fillOpacity: 0.6,
-          stroke: themeColors.text,
-          strokeWidth: 2,
-        }}
         handleSize={8}
       />
     </g>

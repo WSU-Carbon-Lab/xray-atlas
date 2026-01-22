@@ -7,7 +7,7 @@ import { Home, Info, Upload, Search, ChevronDown } from "lucide-react";
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/react";
 import { WSULogoIcon } from "./icons";
 import { GitHubStarsLink } from "./GitHubStarsLink";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import CustomUserButton from "./CustomUserButton";
 import { SignInButton } from "./SignInButton";
 import { ThemeToggle } from "./ThemeToggle";
@@ -91,6 +91,13 @@ function ContributeDropdown() {
 }
 
 export default function Header() {
+  const { isSignedIn, isLoaded } = useUser();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <Navbar
       isBordered
@@ -161,21 +168,24 @@ export default function Header() {
           <GitHubStarsLink />
         </NavbarItem>
         <NavbarItem className="flex items-center">
-          <SignedOut>
-            <SignInButton variant="bordered" size="sm">
-              Sign In
-            </SignInButton>
-          </SignedOut>
-          <SignedIn>
-            <CustomUserButton
-              appearance={{
-                elements: {
-                  userButtonAvatarBox: "h-10 w-10",
-                  userButtonRoot: "flex items-center",
-                },
-              }}
-            />
-          </SignedIn>
+          {mounted && isLoaded ? (
+            isSignedIn ? (
+              <CustomUserButton
+                appearance={{
+                  elements: {
+                    userButtonAvatarBox: "h-10 w-10",
+                    userButtonRoot: "flex items-center",
+                  },
+                }}
+              />
+            ) : (
+              <SignInButton variant="bordered" size="sm">
+                Sign In
+              </SignInButton>
+            )
+          ) : (
+            <div className="h-10 w-10" />
+          )}
         </NavbarItem>
       </NavbarContent>
     </Navbar>

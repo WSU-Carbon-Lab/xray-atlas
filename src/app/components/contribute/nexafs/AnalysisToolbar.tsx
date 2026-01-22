@@ -13,9 +13,13 @@ import {
   TrashIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   HandRaisedIcon,
   MagnifyingGlassIcon,
   EyeIcon,
+  ArrowPathIcon,
+  Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 import { Mountain, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 import { NumberInput, Tooltip, Slider, ScrollShadow } from "@heroui/react";
@@ -23,6 +27,8 @@ import { DefaultButton as Button } from "~/app/components/Button";
 import { SubToolButton } from "./SubToolButton";
 import { ToggleIconButton } from "~/app/components/ToggleIconButton";
 import { SimpleDialog } from "~/app/components/SimpleDialog";
+import { MoleculeSelector } from "./MoleculeSelector";
+import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import type {
   PeakData,
   NormalizationType,
@@ -94,6 +100,81 @@ interface AnalysisToolbarProps {
   onSelectedGeometryChange?: (
     geometry: { theta?: number; phi?: number } | null,
   ) => void;
+  onReloadData?: () => void;
+  // Config tool props
+  moleculeId?: string | null;
+  instrumentId?: string | null;
+  edgeId?: string | null;
+  onMoleculeChange?: (moleculeId: string) => void;
+  onInstrumentChange?: (instrumentId: string) => void;
+  onEdgeChange?: (edgeId: string) => void;
+  instrumentOptions?: Array<{ id: string; name: string; facilityName?: string }>;
+  edgeOptions?: Array<{ id: string; targetatom: string; corestate: string }>;
+  availableEdgeOptions?: Array<{ id: string; targetatom: string; corestate: string }>;
+  onAddFacility?: () => void;
+  // Molecule selector props
+  moleculeSearchTerm?: string;
+  onMoleculeSearchTermChange?: (term: string) => void;
+  moleculeSuggestions?: Array<{
+    id: string;
+    iupacName: string;
+    commonName: string;
+    synonyms: string[];
+    inchi: string;
+    smiles: string;
+    chemicalFormula: string;
+    casNumber: string | null;
+    pubChemCid: string | null;
+    imageUrl?: string;
+  }>;
+  moleculeManualResults?: Array<{
+    id: string;
+    iupacName: string;
+    commonName: string;
+    synonyms: string[];
+    inchi: string;
+    smiles: string;
+    chemicalFormula: string;
+    casNumber: string | null;
+    pubChemCid: string | null;
+    imageUrl?: string;
+  }>;
+  moleculeSuggestionError?: string | null;
+  moleculeManualError?: string | null;
+  isMoleculeSuggesting?: boolean;
+  isMoleculeManualSearching?: boolean;
+  selectedMolecule?: {
+    id: string;
+    iupacName: string;
+    commonName: string;
+    synonyms: string[];
+    inchi: string;
+    smiles: string;
+    chemicalFormula: string;
+    casNumber: string | null;
+    pubChemCid: string | null;
+    imageUrl?: string;
+  } | null;
+  selectedMoleculePreferredName?: string;
+  onSelectedMoleculePreferredNameChange?: (name: string) => void;
+  allMoleculeNames?: string[];
+  onUseMolecule?: (molecule: {
+    id: string;
+    iupacName: string;
+    commonName: string;
+    synonyms: string[];
+    inchi: string;
+    smiles: string;
+    chemicalFormula: string;
+    casNumber: string | null;
+    pubChemCid: string | null;
+    imageUrl?: string;
+  }) => void;
+  onMoleculeManualSearch?: () => void;
+  moleculeLocked?: boolean;
+  onToggleMoleculeLock?: () => void;
+  edgeAtomMatches?: boolean;
+  selectedEdge?: { targetatom: string; corestate: string } | null;
 }
 
 export function AnalysisToolbar({
@@ -128,12 +209,41 @@ export function AnalysisToolbar({
   onShowPhiDataChange,
   selectedGeometry,
   onSelectedGeometryChange,
+  onReloadData,
+  moleculeId,
+  instrumentId,
+  edgeId,
+  onMoleculeChange,
+  onInstrumentChange,
+  onEdgeChange,
+  instrumentOptions = [],
+  edgeOptions = [],
+  availableEdgeOptions,
+  onAddFacility,
+  moleculeSearchTerm,
+  onMoleculeSearchTermChange,
+  moleculeSuggestions = [],
+  moleculeManualResults = [],
+  moleculeSuggestionError,
+  moleculeManualError,
+  isMoleculeSuggesting = false,
+  isMoleculeManualSearching = false,
+  selectedMolecule,
+  selectedMoleculePreferredName,
+  onSelectedMoleculePreferredNameChange,
+  allMoleculeNames = [],
+  onUseMolecule,
+  onMoleculeManualSearch,
+  moleculeLocked = false,
+  onToggleMoleculeLock,
+  edgeAtomMatches = true,
+  selectedEdge,
 }: AnalysisToolbarProps) {
   const [internalManualPeakMode, setInternalManualPeakMode] = useState(false);
   const isManualPeakMode = externalManualPeakMode ?? internalManualPeakMode;
   const [selectedTool, setSelectedTool] = useState<
-    "normalize" | "peaks" | "difference"
-  >("normalize");
+    "config" | "normalize" | "peaks" | "difference"
+  >("config");
   const [peakDetectionMode, setPeakDetectionMode] = useState<
     "auto" | "manual" | null
   >(null);
@@ -801,14 +911,146 @@ export function AnalysisToolbar({
     }
   };
 
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   return (
     <div
-      className="w-64 shrink-0 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
-      style={{ height: "532px" }}
+      className={`shrink-0 self-stretch rounded-lg border border-gray-200 bg-white transition-all dark:border-gray-700 dark:bg-gray-800 ${
+        isCollapsed ? "w-12" : "w-64"
+      }`}
     >
-      <div className="flex h-full flex-col p-4">
-        {/* Horizontal Icon Toolbar */}
-        <div className="mb-4 flex items-center gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
+      <div className="relative flex h-full flex-col p-4">
+        {!isCollapsed && (
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(true)}
+            className="absolute right-3 top-3 z-10 rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            aria-label="Collapse toolbar"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+          </button>
+        )}
+        {isCollapsed && (
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(false)}
+            className="absolute right-3 top-3 z-10 rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            aria-label="Expand toolbar"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        )}
+        {isCollapsed ? (
+          <div className="flex flex-col items-center gap-2 pt-8">
+            <ToggleIconButton
+              icon={
+                <Cog6ToothIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+              }
+              isActive={selectedTool === "config"}
+              onClick={() => setSelectedTool("config")}
+              ariaLabel="Configuration"
+              className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+                selectedTool === "config"
+                  ? "border-accent bg-gray-100 dark:bg-gray-700"
+                  : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+              }`}
+              tooltip={{
+                content: "Configure molecule, instrument, and edge",
+                placement: "right",
+                offset: 8,
+              }}
+            />
+            <ToggleIconButton
+              icon={
+                <Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+              }
+              isActive={selectedTool === "normalize"}
+              onClick={() => setSelectedTool("normalize")}
+              ariaLabel="Normalize spectrum"
+              className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+                selectedTool === "normalize"
+                  ? "border-accent bg-gray-100 dark:bg-gray-700"
+                  : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+              }`}
+              tooltip={{
+                content:
+                  "Normalize spectrum using bare atom absorption or 0-1 mapping",
+                placement: "right",
+                offset: 8,
+              }}
+            />
+            <ToggleIconButton
+              icon={
+                <Mountain className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+              }
+              isActive={selectedTool === "peaks"}
+              onClick={() => setSelectedTool("peaks")}
+              ariaLabel="Identify peaks"
+              className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+                selectedTool === "peaks"
+                  ? "border-accent bg-gray-100 dark:bg-gray-700"
+                  : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+              }`}
+              tooltip={{
+                content:
+                  "Identify peaks in spectrum using automatic detection or manual entry",
+                placement: "right",
+                offset: 8,
+              }}
+              badge={{
+                content: peaks.length,
+                color: "primary",
+                size: "sm",
+                isInvisible: peaks.length === 0,
+                shape: "rectangle",
+                showOutline: true,
+                classNames: {
+                  base: "relative",
+                  badge:
+                    "bg-white text-gray-900 text-[10px] font-semibold h-4 min-w-4 px-1 rounded-full border border-gray-900 dark:border-gray-100",
+                },
+              }}
+            />
+            <ToggleIconButton
+              text="Δϴ"
+              isActive={selectedTool === "difference"}
+              onClick={() => setSelectedTool("difference")}
+              ariaLabel="Difference spectra"
+              className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+                selectedTool === "difference"
+                  ? "border-accent bg-gray-100 dark:bg-gray-700"
+                  : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+              }`}
+              tooltip={{
+                content:
+                  "Calculate difference spectra for pairs of incident angles",
+                placement: "right",
+                offset: 8,
+              }}
+            />
+          </div>
+        ) : (
+          <>
+            {/* Horizontal Icon Toolbar */}
+            <div className="mb-4 flex items-center gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
+          <ToggleIconButton
+            icon={
+              <Cog6ToothIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+            }
+            isActive={selectedTool === "config"}
+            onClick={() => setSelectedTool("config")}
+            ariaLabel="Configuration"
+            className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+              selectedTool === "config"
+                ? "border-accent bg-gray-100 dark:bg-gray-700"
+                : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+            }`}
+            tooltip={{
+              content: "Configure molecule, instrument, and edge",
+              placement: "top",
+              offset: 8,
+            }}
+          />
           <ToggleIconButton
             icon={
               <Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
@@ -878,8 +1120,10 @@ export function AnalysisToolbar({
             }}
           />
         </div>
+          </>
+        )}
 
-        {!hasMolecule && selectedTool === "normalize" && (
+        {!hasMolecule && selectedTool === "normalize" && !isCollapsed && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
             <div className="flex items-start gap-2">
               <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
@@ -891,8 +1135,106 @@ export function AnalysisToolbar({
           </div>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {selectedTool === "normalize" && (
+        {!isCollapsed && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {selectedTool === "config" && (
+              <ScrollShadow hideScrollBar className="flex-1 overflow-y-auto">
+                <div className="space-y-4 pt-2">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Configuration
+                  </h3>
+                  <div className="space-y-3">
+                    {onMoleculeSearchTermChange && (
+                      <div>
+                        <MoleculeSelector
+                          searchTerm={moleculeSearchTerm ?? ""}
+                          setSearchTerm={onMoleculeSearchTermChange}
+                          suggestions={moleculeSuggestions ?? []}
+                          manualResults={moleculeManualResults ?? []}
+                          suggestionError={moleculeSuggestionError ?? null}
+                          manualError={moleculeManualError ?? null}
+                          isSuggesting={isMoleculeSuggesting ?? false}
+                          isManualSearching={isMoleculeManualSearching ?? false}
+                          selectedMolecule={selectedMolecule ?? null}
+                          selectedPreferredName={selectedMoleculePreferredName ?? ""}
+                          setSelectedPreferredName={onSelectedMoleculePreferredNameChange ?? (() => {})}
+                          allMoleculeNames={allMoleculeNames ?? []}
+                          onUseMolecule={onUseMolecule ?? (() => {})}
+                          onManualSearch={onMoleculeManualSearch ?? (() => {})}
+                          moleculeLocked={moleculeLocked ?? false}
+                          onToggleLock={onToggleMoleculeLock ?? (() => {})}
+                        />
+                        {selectedMolecule && !edgeAtomMatches && edgeId && (
+                          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                            <div className="flex items-start gap-2">
+                              <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                              <div>
+                                <p className="font-medium">
+                                  Edge atom does not match molecule composition
+                                </p>
+                                <p className="mt-1">
+                                  Selected edge target atom ({selectedEdge?.targetatom}) is not
+                                  present in {selectedMolecule.commonName} (
+                                  {selectedMolecule.chemicalFormula}). Please select an edge for
+                                  an atom present in the molecule.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Instrument <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={instrumentId ?? ""}
+                        onChange={(e) => onInstrumentChange?.(e.target.value)}
+                        className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      >
+                        <option value="">Select instrument...</option>
+                        {instrumentOptions.map((opt) => (
+                          <option key={opt.id} value={opt.id}>
+                            {opt.name}
+                            {opt.facilityName ? ` (${opt.facilityName})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Edge <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={edgeId ?? ""}
+                        onChange={(e) => onEdgeChange?.(e.target.value)}
+                        className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      >
+                        <option value="">Select edge...</option>
+                        {(availableEdgeOptions ?? edgeOptions).map((opt) => (
+                          <option key={opt.id} value={opt.id}>
+                            {opt.targetatom} {opt.corestate}-edge
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {onAddFacility && (
+                      <Button
+                        type="button"
+                        variant="bordered"
+                        size="sm"
+                        onClick={onAddFacility}
+                        className="w-full text-xs"
+                      >
+                        Add Facility/Instrument
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </ScrollShadow>
+            )}
+            {selectedTool === "normalize" && (
             <div className="space-y-4 pt-2">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Normalization
@@ -2120,7 +2462,8 @@ export function AnalysisToolbar({
               </div>
             </div>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Auto-detect Confirmation Dialog */}

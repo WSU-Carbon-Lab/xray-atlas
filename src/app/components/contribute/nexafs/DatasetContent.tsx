@@ -4,17 +4,19 @@ import { useState, useEffect, useMemo } from "react";
 import { skipToken } from "@tanstack/react-query";
 import {
   PencilIcon,
-  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { SpectrumPlot } from "~/app/components/plots/SpectrumPlot";
 import type { SpectrumSelection } from "~/app/components/plots/core/types";
-import { MoleculeSelector } from "./MoleculeSelector";
 import { AnalysisToolbar } from "./AnalysisToolbar";
 import { AddMoleculeModal } from "./AddMoleculeModal";
 import { AddFacilityModal } from "./AddFacilityModal";
 import { SampleInformationSection } from "./SampleInformationSection";
-import { FormField } from "~/app/components/FormField";
-import { DefaultButton as Button } from "~/app/components/Button";
+import { InlineColumnMapping } from "./InlineColumnMapping";
+import {
+  VisualizationToggle,
+  type VisualizationMode,
+  type GraphStyle,
+} from "./VisualizationToggle";
 import { trpc } from "~/trpc/client";
 import { useMoleculeSearch } from "~/app/contribute/nexafs/hooks/useMoleculeSearch";
 import type { MoleculeSearchResult } from "~/app/contribute/nexafs/types";
@@ -26,15 +28,12 @@ import {
 } from "~/app/contribute/nexafs/utils";
 import type { DatasetState, PeakData } from "~/app/contribute/nexafs/types";
 import type { DifferenceSpectrum } from "~/app/contribute/nexafs/utils/differenceSpectra";
-import {
-  EXPERIMENT_TYPE_OPTIONS,
-  type ExperimentTypeOption,
-} from "~/app/contribute/nexafs/types";
 import type { CursorMode } from "~/app/components/plots/visx/components/CursorModeSelector";
 
 interface DatasetContentProps {
   dataset: DatasetState;
   onDatasetUpdate: (datasetId: string, updates: Partial<DatasetState>) => void;
+  onReloadData?: () => void;
   instrumentOptions: Array<{ id: string; name: string; facilityName?: string }>;
   edgeOptions: Array<{ id: string; targetatom: string; corestate: string }>;
   calibrationOptions: Array<{ id: string; name: string }>;
@@ -48,9 +47,10 @@ interface DatasetContentProps {
 export function DatasetContent({
   dataset,
   onDatasetUpdate,
+  onReloadData,
   instrumentOptions,
   edgeOptions,
-  calibrationOptions,
+  calibrationOptions: _calibrationOptions,
   vendors,
   isLoadingInstruments: _isLoadingInstruments,
   isLoadingEdges: _isLoadingEdges,
@@ -73,6 +73,9 @@ export function DatasetContent({
     theta?: number;
     phi?: number;
   } | null>(null);
+  const [visualizationMode, setVisualizationMode] =
+    useState<VisualizationMode>("table");
+  const [graphStyle, setGraphStyle] = useState<GraphStyle>("line");
   const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
 
   // Molecule search hook - per dataset
@@ -91,7 +94,6 @@ export function DatasetContent({
     setSelectedPreferredName,
     allMoleculeNames,
     selectMolecule,
-    clearSelection,
   } = useMoleculeSearch({
     onSelectionChange: (molecule) => {
       if (molecule?.id) {
@@ -387,48 +389,47 @@ export function DatasetContent({
 
   return (
     <div className="space-y-6">
-      {/* Molecule Selector */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <MoleculeSelector
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          suggestions={suggestions}
-          manualResults={manualResults}
-          suggestionError={suggestionError}
-          manualError={manualError}
-          isSuggesting={isSuggesting}
-          isManualSearching={isManualSearching}
-          selectedMolecule={selectedMolecule}
-          selectedPreferredName={selectedPreferredName}
-          setSelectedPreferredName={setSelectedPreferredName}
-          allMoleculeNames={allMoleculeNames}
-          onUseMolecule={(result) => selectMolecule(result)}
-          onManualSearch={runManualSearch}
-          moleculeLocked={dataset.moleculeLocked}
-          onToggleLock={handleToggleMoleculeLock}
-        />
-        {selectedMolecule && !edgeAtomMatches && dataset.edgeId && (
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-            <div className="flex items-start gap-2">
-              <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-medium">
-                  Edge atom does not match molecule composition
-                </p>
-                <p className="mt-1">
-                  Selected edge target atom ({selectedEdge?.targetatom}) is not
-                  present in {selectedMolecule.commonName} (
-                  {selectedMolecule.chemicalFormula}). Please select an edge for
-                  an atom present in the molecule.
-                </p>
-              </div>
-            </div>
+      {/* Column Mapping Section - Show when CSV data exists but no spectrum points AND not in table mode */}
+            {dataset.csvRawData.length > 0 &&
+        dataset.csvColumns.length > 0 &&
+        visualizationMode !== "table" &&
+        (!dataset.spectrumPoints.length || !dataset.columnMappings.energy || !dataset.columnMappings.absorption) && (
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <InlineColumnMapping
+              columns={dataset.csvColumns}
+              rawData={dataset.csvRawData}
+              mappings={dataset.columnMappings}
+              fixedTheta={dataset.fixedTheta}
+              fixedPhi={dataset.fixedPhi}
+              onMappingsChange={(newMappings) => {
+                onDatasetUpdate(dataset.id, { columnMappings: newMappings });
+                if (onReloadData) {
+                  setTimeout(() => {
+                    onReloadData();
+                  }, 100);
+                }
+              }}
+              onFixedValuesChange={(values) => {
+                const updates: Partial<DatasetState> = {};
+                if (values.theta !== undefined) {
+                  updates.fixedTheta = values.theta;
+                }
+                if (values.phi !== undefined) {
+                  updates.fixedPhi = values.phi;
+                }
+                onDatasetUpdate(dataset.id, updates);
+                if (onReloadData) {
+                  setTimeout(() => {
+                    onReloadData();
+                  }, 100);
+                }
+              }}
+            />
           </div>
         )}
-      </div>
 
       {/* Main Content Area */}
-      <div className="flex items-start gap-6">
+      <div className="flex items-stretch gap-6">
         {/* Analysis Toolbar */}
         <AnalysisToolbar
           hasMolecule={!!dataset.moleculeId}
@@ -494,14 +495,57 @@ export function DatasetContent({
           onShowPhiDataChange={setShowPhiData}
           selectedGeometry={selectedGeometry}
           onSelectedGeometryChange={setSelectedGeometry}
+          onReloadData={onReloadData}
+          moleculeId={dataset.moleculeId}
+          instrumentId={dataset.instrumentId}
+          edgeId={dataset.edgeId}
+          onMoleculeChange={(moleculeId) =>
+            onDatasetUpdate(dataset.id, { moleculeId })
+          }
+          onInstrumentChange={(instrumentId) =>
+            onDatasetUpdate(dataset.id, { instrumentId })
+          }
+          onEdgeChange={(edgeId) => {
+            onDatasetUpdate(dataset.id, { edgeId });
+          }}
+          instrumentOptions={instrumentOptions}
+          edgeOptions={edgeOptions}
+          availableEdgeOptions={availableEdgeOptions}
+          onAddFacility={() => setShowAddFacilityModal(true)}
+          moleculeSearchTerm={searchTerm}
+          onMoleculeSearchTermChange={setSearchTerm}
+          moleculeSuggestions={suggestions}
+          moleculeManualResults={manualResults}
+          moleculeSuggestionError={suggestionError}
+          moleculeManualError={manualError}
+          isMoleculeSuggesting={isSuggesting}
+          isMoleculeManualSearching={isManualSearching}
+          selectedMolecule={selectedMolecule}
+          selectedMoleculePreferredName={selectedPreferredName}
+          onSelectedMoleculePreferredNameChange={setSelectedPreferredName}
+          allMoleculeNames={allMoleculeNames}
+          onUseMolecule={(result) => selectMolecule(result)}
+          onMoleculeManualSearch={runManualSearch}
+          moleculeLocked={dataset.moleculeLocked}
+          onToggleMoleculeLock={handleToggleMoleculeLock}
+          edgeAtomMatches={edgeAtomMatches}
+          selectedEdge={selectedEdge}
         />
 
         {/* Plot and Analysis */}
         <div className="flex-1">
-          {/* Spectrum Plot */}
-          <div className="space-y-2">
-            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-              {plotPoints.length > 0 ? (
+          {/* Visualization Toggle and Plot */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <VisualizationToggle
+                mode={visualizationMode}
+                graphStyle={graphStyle}
+                onModeChange={setVisualizationMode}
+                onGraphStyleChange={setGraphStyle}
+              />
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 min-h-[600px]">
+              {visualizationMode === "graph" && plotPoints.length > 0 ? (
                 <SpectrumPlot
                   points={plotPoints}
                   height={600}
@@ -585,6 +629,107 @@ export function DatasetContent({
                   cursorMode={cursorMode}
                   onCursorModeChange={setCursorMode}
                 />
+              ) : visualizationMode === "table" ? (
+                dataset.csvRawData.length > 0 && dataset.csvColumns.length > 0 ? (
+                  <InlineColumnMapping
+                    columns={dataset.csvColumns}
+                    rawData={dataset.csvRawData}
+                    mappings={dataset.columnMappings}
+                    fixedTheta={dataset.fixedTheta}
+                    fixedPhi={dataset.fixedPhi}
+                    onMappingsChange={(newMappings) => {
+                      onDatasetUpdate(dataset.id, { columnMappings: newMappings });
+                      if (onReloadData) {
+                        setTimeout(() => {
+                          onReloadData();
+                        }, 100);
+                      }
+                    }}
+                    onFixedValuesChange={(values) => {
+                      const updates: Partial<DatasetState> = {};
+                      if (values.theta !== undefined) {
+                        updates.fixedTheta = values.theta;
+                      }
+                      if (values.phi !== undefined) {
+                        updates.fixedPhi = values.phi;
+                      }
+                      onDatasetUpdate(dataset.id, updates);
+                      if (onReloadData) {
+                        setTimeout(() => {
+                          onReloadData();
+                        }, 100);
+                      }
+                    }}
+                  />
+                ) : dataset.spectrumPoints.length > 0 ? (
+                  <div className="max-h-[600px] overflow-auto">
+                    <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                      <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                            Energy (eV)
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                            Absorption
+                          </th>
+                          {plotPoints.some((p) => typeof p.theta === "number") && (
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                              θ (°)
+                            </th>
+                          )}
+                          {plotPoints.some((p) => typeof p.phi === "number") && (
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                              φ (°)
+                            </th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                        {dataset.spectrumPoints.slice(0, 1000).map((point, index) => (
+                          <tr
+                            key={`${point.energy}-${index}`}
+                            className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                          >
+                            <td className="whitespace-nowrap px-4 py-2 font-mono text-xs tabular-nums text-gray-900 dark:text-gray-100">
+                              {point.energy.toFixed(2)}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-2 font-mono text-xs tabular-nums text-gray-900 dark:text-gray-100">
+                              {point.absorption.toExponential(3)}
+                            </td>
+                            {dataset.spectrumPoints.some((p) => typeof p.theta === "number") && (
+                              <td className="whitespace-nowrap px-4 py-2 font-mono text-xs tabular-nums text-gray-900 dark:text-gray-100">
+                                {typeof point.theta === "number"
+                                  ? point.theta.toFixed(1)
+                                  : "-"}
+                              </td>
+                            )}
+                            {dataset.spectrumPoints.some((p) => typeof p.phi === "number") && (
+                              <td className="whitespace-nowrap px-4 py-2 font-mono text-xs tabular-nums text-gray-900 dark:text-gray-100">
+                                {typeof point.phi === "number"
+                                  ? point.phi.toFixed(1)
+                                  : "-"}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {dataset.spectrumPoints.length > 1000 && (
+                      <div className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+                        Showing first 1000 of {dataset.spectrumPoints.length} points
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
+                    <div className="text-center">
+                      <p className="font-medium">No data available</p>
+                      <p className="mt-1 text-sm">
+                        Upload a CSV file to see the table
+                      </p>
+                    </div>
+                  </div>
+                )
               ) : dataset.spectrumError ? (
                 <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">
                   <div className="text-center">
@@ -649,155 +794,8 @@ export function DatasetContent({
         </div>
       </div>
 
-      {/* Experiment Configuration */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Experiment Configuration
-          </h3>
-          <div className="space-y-4">
-            <FormField
-              label="Instrument"
-              type="select"
-              name="instrumentId"
-              value={dataset.instrumentId}
-              onChange={(value) =>
-                onDatasetUpdate(dataset.id, { instrumentId: value as string })
-              }
-              required
-              options={[
-                { value: "", label: "Select instrument..." },
-                ...instrumentOptions.map((opt) => ({
-                  value: opt.id,
-                  label: `${opt.name}${opt.facilityName ? ` (${opt.facilityName})` : ""}`,
-                })),
-              ]}
-            />
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <FormField
-                  label="Edge"
-                  type="select"
-                  name="edgeId"
-                  value={dataset.edgeId}
-                  onChange={(value) => {
-                    const newEdgeId = value as string;
-                    // If molecule is locked and edge doesn't match, show warning but allow selection
-                    // User can change molecule if needed
-                    onDatasetUpdate(dataset.id, { edgeId: newEdgeId });
-                  }}
-                  required
-                  options={[
-                    { value: "", label: "Select edge..." },
-                    ...(dataset.moleculeLocked && selectedMolecule
-                      ? availableEdgeOptions.map((opt) => ({
-                          value: opt.id,
-                          label: `${opt.targetatom} ${opt.corestate}-edge`,
-                        }))
-                      : edgeOptions.map((opt) => ({
-                          value: opt.id,
-                          label: `${opt.targetatom} ${opt.corestate}-edge`,
-                        }))),
-                  ]}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="bordered"
-                size="sm"
-                onClick={() => {
-                  // Open edge creation dialog - this would need to be handled by parent
-                }}
-              >
-                Add
-              </Button>
-            </div>
-            <FormField
-              label="Experiment Type"
-              type="select"
-              name="experimentType"
-              value={dataset.experimentType}
-              onChange={(value) =>
-                onDatasetUpdate(dataset.id, {
-                  experimentType: value as ExperimentTypeOption,
-                })
-              }
-              options={EXPERIMENT_TYPE_OPTIONS.map((opt) => ({
-                value: opt.value,
-                label: opt.label,
-              }))}
-            />
-            <FormField
-              label="Measurement Date"
-              type="date"
-              name="measurementDate"
-              value={dataset.measurementDate}
-              onChange={(value) =>
-                onDatasetUpdate(dataset.id, {
-                  measurementDate: value as string,
-                })
-              }
-            />
-            <FormField
-              label="Calibration Method"
-              type="select"
-              name="calibrationId"
-              value={dataset.calibrationId}
-              onChange={(value) =>
-                onDatasetUpdate(dataset.id, { calibrationId: value as string })
-              }
-              options={[
-                { value: "", label: "None" },
-                ...calibrationOptions.map((opt) => ({
-                  value: opt.id,
-                  label: opt.name,
-                })),
-              ]}
-            />
-            <FormField
-              label="Reference Standard"
-              type="text"
-              name="referenceStandard"
-              value={dataset.referenceStandard}
-              onChange={(value) =>
-                onDatasetUpdate(dataset.id, {
-                  referenceStandard: value as string,
-                })
-              }
-            />
-            <div className="flex items-center gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-              <input
-                id={`is-standard-${dataset.id}`}
-                type="checkbox"
-                checked={dataset.isStandard}
-                onChange={(event) =>
-                  onDatasetUpdate(dataset.id, {
-                    isStandard: event.target.checked,
-                  })
-                }
-                className="text-accent dark:text-accent-light focus:ring-accent h-4 w-4 rounded border-gray-300"
-              />
-              <label
-                htmlFor={`is-standard-${dataset.id}`}
-                className="text-sm text-gray-700 dark:text-gray-300"
-              >
-                Is Standard
-              </label>
-            </div>
-          </div>
-          <div className="mt-4">
-            <Button
-              type="button"
-              variant="bordered"
-              size="sm"
-              onClick={() => setShowAddFacilityModal(true)}
-            >
-              Add Facility/Instrument
-            </Button>
-          </div>
-        </div>
-
-        {/* Sample Information */}
+      {/* Sample Information */}
+      <div>
         <SampleInformationSection
           preparationDate={dataset.sampleInfo.preparationDate}
           setPreparationDate={(value) =>

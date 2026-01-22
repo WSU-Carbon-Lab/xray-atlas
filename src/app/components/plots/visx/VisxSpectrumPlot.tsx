@@ -805,7 +805,7 @@ function VisxSpectrumPlotInner({
             onClick={(e) => {
               // Only handle peak click if not dragging and in peak mode
               if (!isDragging && effectiveCursorMode === "peak") {
-                handlePeakClick(e);
+                handlePeakClick(e as React.MouseEvent<SVGSVGElement, MouseEvent>);
               }
             }}
           >
@@ -966,9 +966,11 @@ function VisxSpectrumPlotInner({
             const values = new Map<string, number>();
             // Find values for all traces at the hovered energy
             const energy = tooltipData.energy;
+            const domain = mainPlotScales.xScale.domain();
             const energyDomainRange =
-              mainPlotScales.xScale.domain()[1] -
-              mainPlotScales.xScale.domain()[0];
+              domain && domain.length >= 2 && typeof domain[1] === "number" && typeof domain[0] === "number"
+                ? domain[1] - domain[0]
+                : 100;
             const threshold = energyDomainRange * 0.02;
 
             allTraces.forEach((trace) => {

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { DefaultButton as Button } from "~/app/components/Button";
 import { SimpleDialog } from "~/app/components/SimpleDialog";
 import { SpectrumPlot } from "~/app/components/plots/SpectrumPlot";
+import { Chip, Slider } from "@heroui/react";
+import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import type {
   CSVColumnMappings,
   ColumnStats,
@@ -17,7 +19,10 @@ import type { SpectrumPoint } from "~/app/components/plots/core/types";
 interface ColumnMappingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (mappings: CSVColumnMappings) => void;
+  onConfirm: (
+    mappings: CSVColumnMappings,
+    fixedValues?: { theta?: string; phi?: string },
+  ) => void;
   columns: string[];
   rawData: Record<string, unknown>[];
   fileName: string;
@@ -37,10 +42,42 @@ export function ColumnMappingModal({
     theta: undefined,
     phi: undefined,
   });
+  const [thetaMode, setThetaMode] = useState<"column" | "fixed">("column");
+  const [phiMode, setPhiMode] = useState<"column" | "fixed">("column");
+  const [fixedTheta, setFixedTheta] = useState<string>("");
+  const [fixedPhi, setFixedPhi] = useState<string>("");
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [openStatusDropdown, setOpenStatusDropdown] = useState<
+    "energy" | "absorption" | "theta" | "phi" | null
+  >(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpenDropdown(null);
+      }
+      if (
+        statusDropdownRef.current &&
+        !statusDropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpenStatusDropdown(null);
+      }
+    };
+
+    if (openDropdown || openStatusDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [openDropdown, openStatusDropdown]);
 
   // Auto-detect columns on open
-  useMemo(() => {
-    if (columns.length === 0) return;
+  useEffect(() => {
+    if (columns.length === 0 || !isOpen) return;
 
     const energyCol = columns.find(
       (col) =>
@@ -64,7 +101,7 @@ export function ColumnMappingModal({
       theta: thetaCol ?? undefined,
       phi: phiCol ?? undefined,
     });
-  }, [columns]);
+  }, [columns, isOpen]);
 
   // Analyze numeric columns for statistics
   const columnStats = useMemo(() => {
@@ -116,7 +153,102 @@ export function ColumnMappingModal({
     if (!mappings.energy || !mappings.absorption) {
       return;
     }
-    onConfirm(mappings);
+
+    const fixedValues: { theta?: string; phi?: string } = {};
+    if (thetaMode === "fixed" && fixedTheta) {
+      fixedValues.theta = fixedTheta;
+    }
+    if (phiMode === "fixed" && fixedPhi) {
+      fixedValues.phi = fixedPhi;
+    }
+
+    const finalMappings = { ...mappings };
+    if (thetaMode === "fixed") {
+      finalMappings.theta = undefined;
+    }
+    if (phiMode === "fixed") {
+      finalMappings.phi = undefined;
+    }
+
+    onConfirm(finalMappings, Object.keys(fixedValues).length > 0 ? fixedValues : undefined);
+  };
+
+  const handleAssignColumn = (
+    columnName: string,
+    assignment: "energy" | "absorption" | "theta" | "phi" | "none",
+  ) => {
+    const newMappings = { ...mappings };
+
+    if (assignment === "none") {
+      if (columnName === mappings.energy) {
+        newMappings.energy = "";
+      } else if (columnName === mappings.absorption) {
+        newMappings.absorption = "";
+      } else if (columnName === mappings.theta) {
+        newMappings.theta = undefined;
+      } else if (columnName === mappings.phi) {
+        newMappings.phi = undefined;
+      }
+    } else {
+      if (assignment === "energy") {
+        newMappings.energy = columnName;
+        if (mappings.energy && mappings.energy !== columnName) {
+          newMappings.energy = columnName;
+        }
+      } else if (assignment === "absorption") {
+        newMappings.absorption = columnName;
+        if (mappings.absorption && mappings.absorption !== columnName) {
+          newMappings.absorption = columnName;
+        }
+      } else if (assignment === "theta") {
+        newMappings.theta = columnName;
+        if (mappings.theta && mappings.theta !== columnName) {
+          newMappings.theta = columnName;
+        }
+      } else if (assignment === "phi") {
+        newMappings.phi = columnName;
+        if (mappings.phi && mappings.phi !== columnName) {
+          newMappings.phi = columnName;
+        }
+      }
+
+      if (mappings.energy === columnName && assignment !== "energy") {
+        newMappings.energy = "";
+      }
+      if (mappings.absorption === columnName && assignment !== "absorption") {
+        newMappings.absorption = "";
+      }
+      if (mappings.theta === columnName && assignment !== "theta") {
+        newMappings.theta = undefined;
+      }
+      if (mappings.phi === columnName && assignment !== "phi") {
+        newMappings.phi = undefined;
+      }
+    }
+
+    setMappings(newMappings);
+    setOpenDropdown(null);
+  };
+
+  const getColumnMappingType = (columnName: string): "energy" | "absorption" | "theta" | "phi" | null => {
+    if (columnName === mappings.energy) return "energy";
+    if (columnName === mappings.absorption) return "absorption";
+    if (columnName === mappings.theta) return "theta";
+    if (columnName === mappings.phi) return "phi";
+    return null;
+  };
+
+  const getColumnColor = (type: "energy" | "absorption" | "theta" | "phi"): "primary" | "secondary" | "success" | "warning" | "danger" => {
+    switch (type) {
+      case "energy":
+        return "primary";
+      case "absorption":
+        return "secondary";
+      case "theta":
+        return "warning";
+      case "phi":
+        return "success";
+    }
   };
 
   // Generate preview spectrum points from mapped columns
@@ -163,84 +295,596 @@ export function ColumnMappingModal({
       isOpen={isOpen}
       onClose={onClose}
       title={`Map Columns: ${fileName}`}
-      maxWidth="max-w-6xl"
+      maxWidth="max-w-5xl"
     >
       <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-        Select which columns contain energy, absorption, and optional geometry
-        data (theta, phi).
+        Assign columns using the dropdown widgets in the table headers. Required: Energy and Absorption.
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Left Side: Preview */}
-        <div className="space-y-4">
-          {/* Preview Graph */}
-          {previewPoints.length > 0 &&
-            mappings.energy &&
-            mappings.absorption && (
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Preview Graph
-                </label>
-                <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                  <SpectrumPlot points={previewPoints} height={300} />
+      {/* Column Assignment Status - Moved to Top */}
+      <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {/* Energy */}
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <Chip
+                size="sm"
+                variant="solid"
+                color={mappings.energy ? "primary" : "default"}
+                radius="md"
+                classNames={{
+                  base: "h-6 px-2.5",
+                  content: "text-xs font-semibold text-white",
+                }}
+              >
+                Energy
+              </Chip>
+              <span className="text-red-500">*</span>
+            </label>
+            <div className="relative" ref={openStatusDropdown === "energy" ? statusDropdownRef : null}>
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenStatusDropdown(
+                    openStatusDropdown === "energy" ? null : "energy",
+                  )
+                }
+                className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                  mappings.energy
+                    ? "border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200"
+                    : "border-gray-300 bg-white text-gray-500 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:border-gray-500"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="truncate">
+                    {mappings.energy || "Select column..."}
+                  </span>
+                  <ChevronDownIcon className="h-3 w-3 shrink-0" />
                 </div>
-              </div>
-            )}
+              </button>
+              {openStatusDropdown === "energy" && (
+                <div className="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <div className="py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMappings({ ...mappings, energy: "" });
+                        setOpenStatusDropdown(null);
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-xs text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                    >
+                      None
+                    </button>
+                    {columns.map((col) => (
+                      <button
+                        key={col}
+                        type="button"
+                        onClick={() => {
+                          setMappings({ ...mappings, energy: col });
+                          setOpenStatusDropdown(null);
+                        }}
+                        className={`w-full px-3 py-1.5 text-left text-xs ${
+                          mappings.energy === col
+                            ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+                            : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {col} {mappings.energy === col && "✓"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
-          {/* Preview Table */}
-          {previewRows.length > 0 && (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Preview (first {previewRows.length} rows)
-              </label>
-              <div className="max-h-64 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
-                  <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      {columns.map((col) => {
-                        const isMapped =
-                          col === mappings.energy ||
-                          col === mappings.absorption ||
-                          col === mappings.theta ||
-                          col === mappings.phi;
-                        const isRequired =
-                          col === mappings.energy ||
-                          col === mappings.absorption;
-                        return (
-                          <th
-                            key={col}
-                            className={`px-3 py-2 text-left text-xs font-medium ${
-                              isMapped
-                                ? isRequired
-                                  ? "bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200"
-                                  : "bg-green-100 text-green-900 dark:bg-green-900/30 dark:text-green-200"
-                                : "text-gray-700 dark:text-gray-300"
-                            }`}
-                          >
-                            {col}
+          {/* Absorption */}
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <Chip
+                size="sm"
+                variant="solid"
+                color={mappings.absorption ? "secondary" : "default"}
+                radius="md"
+                classNames={{
+                  base: "h-6 px-2.5",
+                  content: "text-xs font-semibold text-white",
+                }}
+              >
+                Absorption
+              </Chip>
+              <span className="text-red-500">*</span>
+            </label>
+            <div className="relative" ref={openStatusDropdown === "absorption" ? statusDropdownRef : null}>
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenStatusDropdown(
+                    openStatusDropdown === "absorption" ? null : "absorption",
+                  )
+                }
+                className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                  mappings.absorption
+                    ? "border-purple-300 bg-purple-50 text-purple-900 dark:border-purple-700 dark:bg-purple-900/20 dark:text-purple-200"
+                    : "border-gray-300 bg-white text-gray-500 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:border-gray-500"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="truncate">
+                    {mappings.absorption || "Select column..."}
+                  </span>
+                  <ChevronDownIcon className="h-3 w-3 shrink-0" />
+                </div>
+              </button>
+              {openStatusDropdown === "absorption" && (
+                <div className="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <div className="py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMappings({ ...mappings, absorption: "" });
+                        setOpenStatusDropdown(null);
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-xs text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                    >
+                      None
+                    </button>
+                    {columns.map((col) => (
+                      <button
+                        key={col}
+                        type="button"
+                        onClick={() => {
+                          setMappings({ ...mappings, absorption: col });
+                          setOpenStatusDropdown(null);
+                        }}
+                        className={`w-full px-3 py-1.5 text-left text-xs ${
+                          mappings.absorption === col
+                            ? "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200"
+                            : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {col} {mappings.absorption === col && "✓"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Theta */}
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <Chip
+                size="sm"
+                variant="solid"
+                color={
+                  thetaMode === "column" && mappings.theta
+                    ? "warning"
+                    : thetaMode === "fixed" && fixedTheta
+                      ? "warning"
+                      : "default"
+                }
+                radius="md"
+                classNames={{
+                  base: "h-6 px-2.5",
+                  content: "text-xs font-semibold text-white",
+                }}
+              >
+                Theta
+              </Chip>
+            </label>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-gray-600 dark:text-gray-400">
+                <span>Column</span>
+                <span>Fixed</span>
+              </div>
+              <Slider
+                size="sm"
+                step={1}
+                minValue={0}
+                maxValue={1}
+                value={thetaMode === "column" ? 0 : 1}
+                onChange={(value) => {
+                  const numValue =
+                    typeof value === "number"
+                      ? value
+                      : Array.isArray(value) && value.length > 0
+                        ? value[0]
+                        : 0;
+                  const newMode = numValue === 0 ? "column" : "fixed";
+                  setThetaMode(newMode);
+                  if (newMode === "column") {
+                    setFixedTheta("");
+                  } else {
+                    setMappings({ ...mappings, theta: undefined });
+                  }
+                }}
+                classNames={{
+                  base: "w-full",
+                  track: "bg-gray-200 dark:bg-gray-700",
+                  filler: "bg-accent dark:bg-accent-light",
+                }}
+                aria-label="Theta mode"
+              />
+            </div>
+            {thetaMode === "column" ? (
+              <div className="relative" ref={openStatusDropdown === "theta" ? statusDropdownRef : null}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenStatusDropdown(
+                      openStatusDropdown === "theta" ? null : "theta",
+                    )
+                  }
+                  className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                    mappings.theta
+                      ? "border-orange-300 bg-orange-50 text-orange-900 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200"
+                      : "border-gray-300 bg-white text-gray-500 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:border-gray-500"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="truncate">
+                      {mappings.theta || "Select column..."}
+                    </span>
+                    <ChevronDownIcon className="h-3 w-3 shrink-0" />
+                  </div>
+                </button>
+                {openStatusDropdown === "theta" && (
+                  <div className="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMappings({ ...mappings, theta: undefined });
+                          setOpenStatusDropdown(null);
+                        }}
+                        className="w-full px-3 py-1.5 text-left text-xs text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                      >
+                        None
+                      </button>
+                      {columns.map((col) => (
+                        <button
+                          key={col}
+                          type="button"
+                          onClick={() => {
+                            setMappings({ ...mappings, theta: col });
+                            setOpenStatusDropdown(null);
+                          }}
+                          className={`w-full px-3 py-1.5 text-left text-xs ${
+                            mappings.theta === col
+                              ? "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-200"
+                              : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          {col} {mappings.theta === col && "✓"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <input
+                type="number"
+                value={fixedTheta}
+                onChange={(e) => setFixedTheta(e.target.value)}
+                placeholder="Fixed value (°)"
+                step="0.01"
+                className="w-full rounded-lg border border-orange-300 bg-orange-50 px-3 py-2 text-xs text-orange-900 placeholder:text-orange-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200 dark:placeholder:text-orange-500 dark:focus:ring-orange-800"
+              />
+            )}
+          </div>
+
+          {/* Phi */}
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <Chip
+                size="sm"
+                variant="solid"
+                color={
+                  phiMode === "column" && mappings.phi
+                    ? "success"
+                    : phiMode === "fixed" && fixedPhi
+                      ? "success"
+                      : "default"
+                }
+                radius="md"
+                classNames={{
+                  base: "h-6 px-2.5",
+                  content: "text-xs font-semibold text-white",
+                }}
+              >
+                Phi
+              </Chip>
+            </label>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-gray-600 dark:text-gray-400">
+                <span>Column</span>
+                <span>Fixed</span>
+              </div>
+              <Slider
+                size="sm"
+                step={1}
+                minValue={0}
+                maxValue={1}
+                value={phiMode === "column" ? 0 : 1}
+                onChange={(value) => {
+                  const numValue =
+                    typeof value === "number"
+                      ? value
+                      : Array.isArray(value) && value.length > 0
+                        ? value[0]
+                        : 0;
+                  const newMode = numValue === 0 ? "column" : "fixed";
+                  setPhiMode(newMode);
+                  if (newMode === "column") {
+                    setFixedPhi("");
+                  } else {
+                    setMappings({ ...mappings, phi: undefined });
+                  }
+                }}
+                classNames={{
+                  base: "w-full",
+                  track: "bg-gray-200 dark:bg-gray-700",
+                  filler: "bg-accent dark:bg-accent-light",
+                }}
+                aria-label="Phi mode"
+              />
+            </div>
+            {phiMode === "column" ? (
+              <div className="relative" ref={openStatusDropdown === "phi" ? statusDropdownRef : null}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenStatusDropdown(
+                      openStatusDropdown === "phi" ? null : "phi",
+                    )
+                  }
+                  className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                    mappings.phi
+                      ? "border-teal-300 bg-teal-50 text-teal-900 dark:border-teal-700 dark:bg-teal-900/20 dark:text-teal-200"
+                      : "border-gray-300 bg-white text-gray-500 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:border-gray-500"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="truncate">
+                      {mappings.phi || "Select column..."}
+                    </span>
+                    <ChevronDownIcon className="h-3 w-3 shrink-0" />
+                  </div>
+                </button>
+                {openStatusDropdown === "phi" && (
+                  <div className="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMappings({ ...mappings, phi: undefined });
+                          setOpenStatusDropdown(null);
+                        }}
+                        className="w-full px-3 py-1.5 text-left text-xs text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                      >
+                        None
+                      </button>
+                      {columns.map((col) => (
+                        <button
+                          key={col}
+                          type="button"
+                          onClick={() => {
+                            setMappings({ ...mappings, phi: col });
+                            setOpenStatusDropdown(null);
+                          }}
+                          className={`w-full px-3 py-1.5 text-left text-xs ${
+                            mappings.phi === col
+                              ? "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-200"
+                              : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          {col} {mappings.phi === col && "✓"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <input
+                type="number"
+                value={fixedPhi}
+                onChange={(e) => setFixedPhi(e.target.value)}
+                placeholder="Fixed value (°)"
+                step="0.01"
+                className="w-full rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-xs text-teal-900 placeholder:text-teal-400 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200 dark:border-teal-700 dark:bg-teal-900/20 dark:text-teal-200 dark:placeholder:text-teal-500 dark:focus:ring-teal-800"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        {/* Left Side: Data Table */}
+        {previewRows.length > 0 && (
+          <div className="flex flex-col">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Data Preview (first {previewRows.length} rows)
+            </label>
+            <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700" style={{ minHeight: '500px', maxHeight: '500px' }}>
+              <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
+                <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    {columns.map((col) => {
+                      const mappingType = getColumnMappingType(col);
+                      const isMapped = mappingType !== null;
+
+                      return (
+                        <th
+                          key={col}
+                          className="relative px-2 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate flex-1">{col}</span>
                             {isMapped && (
-                              <span className="ml-1 text-[10px]">
-                                {col === mappings.energy
-                                  ? "(Energy)"
-                                  : col === mappings.absorption
-                                    ? "(Absorption)"
-                                    : col === mappings.theta
-                                      ? "(Theta)"
-                                      : "(Phi)"}
-                              </span>
+                              <Chip
+                                size="sm"
+                                variant="solid"
+                                color={getColumnColor(mappingType)}
+                                radius="md"
+                                classNames={{
+                                  base: "h-5 shrink-0 px-2",
+                                  content: "text-[10px] font-semibold text-white",
+                                }}
+                              >
+                                {mappingType === "energy"
+                                  ? "Energy"
+                                  : mappingType === "absorption"
+                                    ? "Absorption"
+                                    : mappingType === "theta"
+                                      ? "Theta"
+                                      : "Phi"}
+                              </Chip>
                             )}
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-                    {previewRows.map((row, idx) => (
-                      <tr key={idx}>
-                        {columns.map((col) => (
+                            <div className="relative shrink-0" ref={openDropdown === col ? dropdownRef : null}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdown(openDropdown === col ? null : col);
+                                }}
+                                className={`rounded p-0.5 transition-colors ${
+                                  isMapped
+                                    ? "hover:bg-white/50 dark:hover:bg-gray-700/50"
+                                    : "hover:bg-gray-200 dark:hover:bg-gray-700"
+                                }`}
+                                title="Assign column"
+                              >
+                                <ChevronDownIcon className="h-3.5 w-3.5" />
+                              </button>
+                              {openDropdown === col && (
+                                <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
+                                  <div className="py-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAssignColumn(col, "energy")}
+                                      className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition-colors ${
+                                        mappingType === "energy"
+                                          ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+                                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                      }`}
+                                    >
+                                      <Chip
+                                        size="sm"
+                                        variant="solid"
+                                        color="primary"
+                                        radius="md"
+                                        classNames={{
+                                          base: "h-5 px-2",
+                                          content: "text-[10px] font-semibold text-white",
+                                        }}
+                                      >
+                                        Energy
+                                      </Chip>
+                                      {mappingType === "energy" && <span className="ml-auto">✓</span>}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAssignColumn(col, "absorption")}
+                                      className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition-colors ${
+                                        mappingType === "absorption"
+                                          ? "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200"
+                                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                      }`}
+                                    >
+                                      <Chip
+                                        size="sm"
+                                        variant="solid"
+                                        color="secondary"
+                                        radius="md"
+                                        classNames={{
+                                          base: "h-5 px-2",
+                                          content: "text-[10px] font-semibold text-white",
+                                        }}
+                                      >
+                                        Absorption
+                                      </Chip>
+                                      {mappingType === "absorption" && <span className="ml-auto">✓</span>}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAssignColumn(col, "theta")}
+                                      className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition-colors ${
+                                        mappingType === "theta"
+                                          ? "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-200"
+                                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                      }`}
+                                    >
+                                      <Chip
+                                        size="sm"
+                                        variant="solid"
+                                        color="warning"
+                                        radius="md"
+                                        classNames={{
+                                          base: "h-5 px-2",
+                                          content: "text-[10px] font-semibold text-white",
+                                        }}
+                                      >
+                                        Theta
+                                      </Chip>
+                                      {mappingType === "theta" && <span className="ml-auto">✓</span>}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAssignColumn(col, "phi")}
+                                      className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition-colors ${
+                                        mappingType === "phi"
+                                          ? "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-200"
+                                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                      }`}
+                                    >
+                                      <Chip
+                                        size="sm"
+                                        variant="solid"
+                                        color="success"
+                                        radius="md"
+                                        classNames={{
+                                          base: "h-5 px-2",
+                                          content: "text-[10px] font-semibold text-white",
+                                        }}
+                                      >
+                                        Phi
+                                      </Chip>
+                                      {mappingType === "phi" && <span className="ml-auto">✓</span>}
+                                    </button>
+                                    {isMapped && (
+                                      <>
+                                        <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+                                        <button
+                                          type="button"
+                                          onClick={() => handleAssignColumn(col, "none")}
+                                          className="w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+                                        >
+                                          Unassign
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                  {previewRows.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                      {columns.map((col) => {
+                        return (
                           <td
                             key={col}
-                            className="px-3 py-2 whitespace-nowrap text-gray-900 dark:text-gray-100"
+                            className="px-2 py-2 whitespace-nowrap text-gray-900 dark:text-gray-100"
                           >
                             {(() => {
                               const cellVal = row[col];
@@ -254,139 +898,34 @@ export function ColumnMappingModal({
                               return JSON.stringify(cellVal);
                             })()}
                           </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right Side: Column Mappings */}
-        <div className="space-y-4">
-          {/* Column Mappings */}
-          <div className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Energy Column <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={mappings.energy}
-                onChange={(e) =>
-                  setMappings({ ...mappings, energy: e.target.value })
-                }
-                className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-              >
-                <option value="">Select column...</option>
-                {columns.map((col) => (
-                  <option key={col} value={col}>
-                    {col}
-                  </option>
-                ))}
-              </select>
-              {mappings.energy && columnStats[mappings.energy] && (
-                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Range: {formatStatNumber(columnStats[mappings.energy]!.min)} -{" "}
-                  {formatStatNumber(columnStats[mappings.energy]!.max)} •{" "}
-                  {columnStats[mappings.energy]!.validCount} valid,{" "}
-                  {columnStats[mappings.energy]!.nanCount} invalid
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Absorption Column <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={mappings.absorption}
-                onChange={(e) =>
-                  setMappings({ ...mappings, absorption: e.target.value })
-                }
-                className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-              >
-                <option value="">Select column...</option>
-                {columns.map((col) => (
-                  <option key={col} value={col}>
-                    {col}
-                  </option>
-                ))}
-              </select>
-              {mappings.absorption && columnStats[mappings.absorption] && (
-                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Range:{" "}
-                  {formatStatNumber(columnStats[mappings.absorption]!.min)} -{" "}
-                  {formatStatNumber(columnStats[mappings.absorption]!.max)} •{" "}
-                  {columnStats[mappings.absorption]!.validCount} valid,{" "}
-                  {columnStats[mappings.absorption]!.nanCount} invalid
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Theta Column (Optional)
-              </label>
-              <select
-                value={mappings.theta ?? ""}
-                onChange={(e) =>
-                  setMappings({
-                    ...mappings,
-                    theta: e.target.value === "" ? undefined : e.target.value,
-                  })
-                }
-                className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-              >
-                <option value="">None</option>
-                {columns.map((col) => (
-                  <option key={col} value={col}>
-                    {col}
-                  </option>
-                ))}
-              </select>
-              {mappings.theta && columnStats[mappings.theta] && (
-                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Range: {formatStatNumber(columnStats[mappings.theta]!.min)} -{" "}
-                  {formatStatNumber(columnStats[mappings.theta]!.max)} •{" "}
-                  {columnStats[mappings.theta]!.validCount} valid,{" "}
-                  {columnStats[mappings.theta]!.nanCount} invalid
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Phi Column (Optional)
-              </label>
-              <select
-                value={mappings.phi ?? ""}
-                onChange={(e) =>
-                  setMappings({
-                    ...mappings,
-                    phi: e.target.value === "" ? undefined : e.target.value,
-                  })
-                }
-                className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-              >
-                <option value="">None</option>
-                {columns.map((col) => (
-                  <option key={col} value={col}>
-                    {col}
-                  </option>
-                ))}
-              </select>
-              {mappings.phi && columnStats[mappings.phi] && (
-                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Range: {formatStatNumber(columnStats[mappings.phi]!.min)} -{" "}
-                  {formatStatNumber(columnStats[mappings.phi]!.max)} •{" "}
-                  {columnStats[mappings.phi]!.validCount} valid,{" "}
-                  {columnStats[mappings.phi]!.nanCount} invalid
-                </div>
-              )}
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
+        )}
+
+        {/* Right Side: Preview Graph */}
+        <div className="flex flex-col">
+          {previewPoints.length > 0 && mappings.energy && mappings.absorption ? (
+            <div className="flex flex-1 flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800" style={{ minHeight: '500px', maxHeight: '500px' }}>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Preview Graph
+              </label>
+              <div className="flex-1">
+                <SpectrumPlot points={previewPoints} height={450} />
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-1 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50" style={{ minHeight: '500px', maxHeight: '500px' }}>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Assign Energy and Absorption columns to see preview
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

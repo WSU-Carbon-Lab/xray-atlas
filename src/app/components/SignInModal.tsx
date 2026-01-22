@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { usePathname } from "next/navigation";
 import { Dialog, Transition } from "@headlessui/react";
 import { SignIn } from "@clerk/nextjs";
+import { isDevelopment } from "~/utils/isDevelopment";
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface SignInModalProps {
 export function SignInModal({ isOpen, onClose }: SignInModalProps) {
   const pathname = usePathname();
   const afterSignInUrl = pathname && pathname !== "/" ? pathname : "/";
+  const isDev = isDevelopment();
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -50,7 +52,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                       },
                     }}
                     routing="virtual"
-                    oauthFlow="popup"
+                    oauthFlow={isDev ? "redirect" : "popup"}
                     afterSignInUrl={afterSignInUrl}
                   />
                 </div>

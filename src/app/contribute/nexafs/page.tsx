@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import Papa from "papaparse";
@@ -13,7 +13,15 @@ import { trpc } from "~/trpc/client";
 import {
   ArrowLeftIcon,
   ExclamationTriangleIcon,
+  DocumentArrowUpIcon,
+  XMarkIcon,
+  CheckIcon,
+  PlusIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { BrushCleaning } from "lucide-react";
+import { Tooltip } from "@heroui/react";
+import { useToast, ToastContainer } from "~/app/components/Toast";
 import { FileUploadZone } from "~/app/components/contribute/nexafs/FileUploadZone";
 import { ColumnMappingModal } from "~/app/components/contribute/nexafs/ColumnMappingModal";
 import { DatasetTabs } from "~/app/components/contribute/nexafs/DatasetTabs";
@@ -21,14 +29,10 @@ import { DatasetContent } from "~/app/components/contribute/nexafs/DatasetConten
 import type {
   DatasetState,
   CSVColumnMappings,
-  SpectrumStats,
 } from "~/app/contribute/nexafs/types";
 import { createEmptyDatasetState } from "~/app/contribute/nexafs/types";
 import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
-import {
-  analyzeNumericColumns,
-  extractGeometryPairs,
-} from "~/app/contribute/nexafs/utils";
+import { extractGeometryPairs } from "~/app/contribute/nexafs/utils";
 
 const parseCSVFile = (
   file: File,
@@ -49,6 +53,9 @@ export default function NEXAFSContributePage() {
   const [submitStatus, setSubmitStatus] = useState<
     { type: "success" | "error"; message: string } | undefined
   >(undefined);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
+  const { toasts, removeToast, showToast } = useToast();
 
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const { data: agreementStatus, isLoading: isLoadingAgreement } =
@@ -69,12 +76,6 @@ export default function NEXAFSContributePage() {
   // Datasets state
   const [datasets, setDatasets] = useState<DatasetState[]>([]);
   const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
-  const [columnMappingQueue, setColumnMappingQueue] = useState<
-    Array<{
-      file: File;
-      datasetId: string;
-    }>
-  >([]);
   const [columnMappingFile, setColumnMappingFile] = useState<{
     file: File;
     datasetId: string;
@@ -157,8 +158,96 @@ export default function NEXAFSContributePage() {
     }
   };
 
+  // Update dataset helper - memoized to prevent infinite loops
+  const updateDataset = useCallback(
+    (datasetId: string, updates: Partial<DatasetState>) => {
+      setDatasets((prev) =>
+        prev.map((d) => (d.id === datasetId ? { ...d, ...updates } : d)),
+      );
+    },
+    [],
+  );
+
+  // Process dataset data from CSV - memoized to prevent recreation
+  const processDatasetData = useCallback(
+    (datasetId: string) => {
+      const dataset = datasets.find((d) => d.id === datasetId);
+      if (!dataset || dataset.csvRawData.length === 0) return;
+
+      const energyColumn = dataset.columnMappings.energy;
+      const absorptionColumn = dataset.columnMappings.absorption;
+      const thetaColumn = dataset.columnMappings.theta;
+      const phiColumn = dataset.columnMappings.phi;
+
+      if (!energyColumn || !absorptionColumn) {
+        return;
+      }
+
+      try {
+        const spectrumPoints: SpectrumPoint[] = [];
+
+        for (const row of dataset.csvRawData) {
+          const energyValue = row[energyColumn];
+          const absorptionValue = row[absorptionColumn];
+
+          const energyStr = typeof energyValue === "string" || typeof energyValue === "number" ? String(energyValue) : "";
+          const absorptionStr = typeof absorptionValue === "string" || typeof absorptionValue === "number" ? String(absorptionValue) : "";
+          const energy = parseFloat(energyStr.trim());
+          const absorption = parseFloat(absorptionStr.trim());
+
+          if (isNaN(energy) || isNaN(absorption)) continue;
+
+          const point: SpectrumPoint = { energy, absorption };
+
+          if (thetaColumn && row[thetaColumn] !== undefined && row[thetaColumn] !== null) {
+            const thetaValueRaw = row[thetaColumn];
+            const thetaStr = typeof thetaValueRaw === "string" || typeof thetaValueRaw === "number" ? String(thetaValueRaw) : "";
+            const thetaValue = parseFloat(thetaStr.trim());
+            if (!isNaN(thetaValue)) {
+              point.theta = thetaValue;
+            }
+          } else if (dataset.fixedTheta !== undefined && dataset.fixedTheta !== "") {
+            const fixedThetaValue = parseFloat(dataset.fixedTheta);
+            if (!isNaN(fixedThetaValue)) {
+              point.theta = fixedThetaValue;
+            }
+          }
+
+          if (phiColumn && row[phiColumn] !== undefined && row[phiColumn] !== null) {
+            const phiValueRaw = row[phiColumn];
+            const phiStr = typeof phiValueRaw === "string" || typeof phiValueRaw === "number" ? String(phiValueRaw) : "";
+            const phiValue = parseFloat(phiStr.trim());
+            if (!isNaN(phiValue)) {
+              point.phi = phiValue;
+            }
+          } else if (dataset.fixedPhi !== undefined && dataset.fixedPhi !== "") {
+            const fixedPhiValue = parseFloat(dataset.fixedPhi);
+            if (!isNaN(fixedPhiValue)) {
+              point.phi = fixedPhiValue;
+            }
+          }
+
+          spectrumPoints.push(point);
+        }
+
+        updateDataset(datasetId, {
+          spectrumPoints,
+          spectrumError: undefined,
+        });
+      } catch (error) {
+        updateDataset(datasetId, {
+          spectrumError:
+            error instanceof Error
+              ? error.message
+              : "Failed to process spectrum data.",
+        });
+      }
+    },
+    [datasets, updateDataset],
+  );
+
   // File upload handling
-  const handleFilesSelected = async (files: File[]) => {
+  const handleFilesSelected = useCallback(async (files: File[]) => {
     for (const file of files) {
       const dataset = createEmptyDatasetState(file);
       setDatasets((prev) => {
@@ -203,26 +292,37 @@ export default function NEXAFSContributePage() {
             phi: phiCol ?? undefined,
           };
 
+          const missingColumns: string[] = [];
+          if (!energyCol) missingColumns.push("Energy");
+          if (!absorptionCol) missingColumns.push("Absorption");
+
           updateDataset(dataset.id, {
             csvColumns: columns,
             csvRawData: parsed.data,
             columnMappings,
           });
 
-          // Show column mapping modal if auto-detection might be wrong
-          if (!energyCol || !absorptionCol) {
-            // Add to queue instead of directly setting
-            setColumnMappingQueue((prev) => [
-              ...prev,
-              { file, datasetId: dataset.id },
-            ]);
-          } else {
-            // Auto-process immediately if columns were detected
-            // Use setTimeout to ensure state update has completed
+          if (missingColumns.length > 0) {
+            showToast(
+              `Missing required columns: ${missingColumns.join(", ")}. Please map columns in the table view.`,
+              "error",
+              8000
+            );
+          }
+
+          // Auto-process if both required columns are detected
+          if (energyCol && absorptionCol) {
             setTimeout(() => {
               processDatasetData(dataset.id);
             }, 50);
           }
+          // If columns aren't auto-detected, inline mapping will be shown in DatasetContent
+        } else {
+          showToast(
+            "CSV file has no columns. Please check the file format.",
+            "error",
+            8000
+          );
         }
       } catch (error) {
         console.error("Failed to parse CSV", error);
@@ -234,167 +334,34 @@ export default function NEXAFSContributePage() {
         });
       }
     }
-  };
+  }, [updateDataset, processDatasetData, showToast, activeDatasetId]);
 
-  // Update dataset helper - memoized to prevent infinite loops
-  const updateDataset = useCallback(
-    (datasetId: string, updates: Partial<DatasetState>) => {
-      setDatasets((prev) =>
-        prev.map((d) => (d.id === datasetId ? { ...d, ...updates } : d)),
-      );
-    },
-    [],
-  );
 
-  // Process dataset data from CSV - memoized to prevent recreation
-  const processDatasetData = useCallback(
-    (datasetId: string) => {
-      const dataset = datasets.find((d) => d.id === datasetId);
-      if (!dataset || dataset.csvRawData.length === 0) return;
-
-      const energyColumn = dataset.columnMappings.energy;
-      const absorptionColumn = dataset.columnMappings.absorption;
-
-      if (!energyColumn || !absorptionColumn) {
-        updateDataset(datasetId, {
-          spectrumError: "Select both energy and absorption columns.",
-          spectrumPoints: [],
-        });
-        return;
-      }
-
-      const thetaColumn = dataset.columnMappings.theta;
-      const phiColumn = dataset.columnMappings.phi;
-
-      const numericColumns = new Set<string>([energyColumn, absorptionColumn]);
-      if (thetaColumn) numericColumns.add(thetaColumn);
-      if (phiColumn) numericColumns.add(phiColumn);
-
-      const numericColumnValues = analyzeNumericColumns(
-        dataset.csvRawData,
-        numericColumns,
-      );
-
-      const invalidColumns = Array.from(numericColumns).filter(
-        (column) => numericColumnValues[column]?.sanitizedInvalidRows.length,
-      );
-
-      if (invalidColumns.length > 0) {
-        updateDataset(datasetId, {
-          spectrumError: `Invalid numeric values detected in columns: ${invalidColumns.join(", ")}`,
-          spectrumPoints: [],
-        });
-        return;
-      }
-
-      const spectrumPoints: SpectrumPoint[] = [];
-      const energyStats = {
-        min: Infinity,
-        max: -Infinity,
-        nanCount: 0,
-        validCount: 0,
-      };
-      const absorptionStats = {
-        min: Infinity,
-        max: -Infinity,
-        nanCount: 0,
-        validCount: 0,
-      };
-
-      dataset.csvRawData.forEach((row) => {
-        const energyValue = Number(row[energyColumn] ?? NaN);
-        const absorptionValue = Number(row[absorptionColumn] ?? NaN);
-
-        if (Number.isFinite(energyValue)) {
-          energyStats.validCount += 1;
-          energyStats.min = Math.min(energyStats.min, energyValue);
-          energyStats.max = Math.max(energyStats.max, energyValue);
-        } else {
-          energyStats.nanCount += 1;
-        }
-
-        if (Number.isFinite(absorptionValue)) {
-          absorptionStats.validCount += 1;
-          absorptionStats.min = Math.min(absorptionStats.min, absorptionValue);
-          absorptionStats.max = Math.max(absorptionStats.max, absorptionValue);
-        } else {
-          absorptionStats.nanCount += 1;
-        }
-
-        if (Number.isFinite(energyValue) && Number.isFinite(absorptionValue)) {
-          const point: SpectrumPoint = {
-            energy: energyValue,
-            absorption: absorptionValue,
-          };
-
-          if (thetaColumn && row[thetaColumn] !== undefined) {
-            const thetaValue = Number(row[thetaColumn]);
-            if (Number.isFinite(thetaValue)) {
-              point.theta = thetaValue;
-            }
-          }
-          if (phiColumn && row[phiColumn] !== undefined) {
-            const phiValue = Number(row[phiColumn]);
-            if (Number.isFinite(phiValue)) {
-              point.phi = phiValue;
-            }
-          }
-
-          spectrumPoints.push(point);
-        }
-      });
-
-      // Sort points by energy for proper plotting
-      const sortedPoints = spectrumPoints.sort((a, b) => a.energy - b.energy);
-
-      const spectrumStats: SpectrumStats = {
-        totalRows: dataset.csvRawData.length,
-        validPoints: sortedPoints.length,
-        energy: {
-          min: energyStats.validCount > 0 ? energyStats.min : null,
-          max: energyStats.validCount > 0 ? energyStats.max : null,
-          nanCount: energyStats.nanCount,
-          validCount: energyStats.validCount,
-        },
-        absorption: {
-          min: absorptionStats.validCount > 0 ? absorptionStats.min : null,
-          max: absorptionStats.validCount > 0 ? absorptionStats.max : null,
-          nanCount: absorptionStats.nanCount,
-          validCount: absorptionStats.validCount,
-        },
-      };
-
-      updateDataset(datasetId, {
-        spectrumPoints: sortedPoints,
-        spectrumStats,
-        spectrumError:
-          sortedPoints.length === 0 ? "No valid data points found." : null,
-      });
-    },
-    [updateDataset, datasets],
-  );
-
-  // Process the next item in the queue when modal closes
-  useEffect(() => {
-    if (!columnMappingFile && columnMappingQueue.length > 0) {
-      const next = columnMappingQueue[0];
-      if (next) {
-        setColumnMappingQueue((prev) => prev.slice(1));
-        setColumnMappingFile(next);
-      }
-    }
-  }, [columnMappingFile, columnMappingQueue]);
-
-  const handleColumnMappingConfirm = (mappings: CSVColumnMappings) => {
+  const handleColumnMappingConfirm = (
+    mappings: CSVColumnMappings,
+    fixedValues?: { theta?: string; phi?: string },
+  ) => {
     if (!columnMappingFile) return;
 
-    updateDataset(columnMappingFile.datasetId, {
+    const updates: Partial<DatasetState> = {
       columnMappings: mappings,
-    });
+    };
+
+    if (fixedValues) {
+      if (fixedValues.theta !== undefined) {
+        updates.fixedTheta = fixedValues.theta;
+      }
+      if (fixedValues.phi !== undefined) {
+        updates.fixedPhi = fixedValues.phi;
+      }
+    }
+
+    const datasetId = columnMappingFile.datasetId;
+    updateDataset(datasetId, updates);
     setColumnMappingFile(null);
     // Process immediately after column mappings are confirmed
     setTimeout(() => {
-      processDatasetData(columnMappingFile.datasetId);
+      processDatasetData(datasetId);
     }, 100);
   };
 
@@ -403,32 +370,90 @@ export default function NEXAFSContributePage() {
   };
 
   // Create a stable dependency string for datasets
+  // Exclude spectrumPoints.length to avoid circular dependency - we only track input changes (mappings, raw data)
   const datasetsDependency = useMemo(
     () =>
       datasets
         .map(
           (d) =>
-            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.spectrumPoints.length}:${d.csvRawData.length}`,
+            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${d.csvRawData.length}`,
         )
         .join(","),
     [datasets],
   );
 
-  // Process dataset when column mappings change
+  // Process dataset when column mappings change (triggered by inline mapping)
+  // Only depends on datasetsDependency and processDatasetData - datasets is removed to avoid circular dependency
+  // datasetsDependency already captures all necessary input changes (column mappings, fixed values, raw data length)
+  // Note: datasets is used in the effect body but not in deps - this is intentional to avoid circular dependency.
+  // Since datasetsDependency is computed from datasets, when datasets changes, datasetsDependency changes,
+  // triggering the effect with the latest datasets through closure.
   useEffect(() => {
     datasets.forEach((dataset) => {
       if (
         dataset.csvRawData.length > 0 &&
         dataset.columnMappings.energy &&
-        dataset.columnMappings.absorption &&
-        dataset.spectrumPoints.length === 0 &&
-        !dataset.spectrumError
+        dataset.columnMappings.absorption
       ) {
-        // Only process if we have mappings but no points yet
+        // Always reprocess when mappings change to ensure plot updates reactively
         processDatasetData(dataset.id);
       }
     });
-  }, [datasetsDependency, processDatasetData, datasets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datasetsDependency, processDatasetData]);
+
+  // Global drag and drop handlers
+  useEffect(() => {
+    const handleDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current++;
+      if (e.dataTransfer?.types.includes("Files")) {
+        setIsDragging(true);
+      }
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current--;
+      if (dragCounterRef.current === 0) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current = 0;
+      setIsDragging(false);
+
+      const files = Array.from(e.dataTransfer?.files ?? []).filter(
+        (file) => file.name.toLowerCase().endsWith(".csv")
+      );
+
+      if (files.length > 0) {
+        void handleFilesSelected(files);
+      }
+    };
+
+    window.addEventListener("dragenter", handleDragEnter);
+    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("drop", handleDrop);
+
+    return () => {
+      window.removeEventListener("dragenter", handleDragEnter);
+      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("dragleave", handleDragLeave);
+      window.removeEventListener("drop", handleDrop);
+    };
+  }, [handleFilesSelected]);
 
   // Dataset management
   const handleDatasetSelect = (datasetId: string) => {
@@ -452,6 +477,7 @@ export default function NEXAFSContributePage() {
   const handleDatasetRename = (datasetId: string, newName: string) => {
     updateDataset(datasetId, { fileName: newName });
   };
+
 
   // Submission
   const createNexafsMutation =
@@ -678,12 +704,21 @@ export default function NEXAFSContributePage() {
           >
             <ArrowLeftIcon className="h-4 w-4" /> Back to contribution options
           </Link>
-          <Button type="button" variant="bordered" onClick={clearForm}>
-            Clear Form
-          </Button>
+          <Tooltip
+            content="Clear all uploaded datasets and reset the form"
+            classNames={{
+              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+            }}
+          >
+            <Button type="button" variant="bordered" onClick={clearForm}>
+              <BrushCleaning className="h-4 w-4" />
+              <span>Clear Form</span>
+            </Button>
+          </Tooltip>
         </div>
 
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-7xl">
+          <ToastContainer toasts={toasts} onRemove={removeToast} />
           <h1 className="mb-3 text-4xl font-bold text-gray-900 dark:text-gray-100">
             Upload NEXAFS Experiment
           </h1>
@@ -693,46 +728,79 @@ export default function NEXAFSContributePage() {
             can upload multiple datasets and process them through tabs.
           </p>
 
-          <form className="space-y-10" onSubmit={handleSubmit}>
-            {/* File Upload Zone */}
-            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-              <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Upload CSV Files
-              </h2>
-              <FileUploadZone
-                onFilesSelected={handleFilesSelected}
-                multiple={true}
-              />
+          {/* Drag and Drop Overlay */}
+          {isDragging && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-4 rounded-2xl border-4 border-dashed border-accent bg-white/95 p-12 shadow-2xl dark:bg-gray-900/95">
+                <DocumentArrowUpIcon className="h-24 w-24 animate-bounce text-accent" />
+                <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  Drop CSV files here to upload
+                </p>
+              </div>
             </div>
+          )}
+
+          <form className="space-y-10" onSubmit={handleSubmit}>
+
+            {/* File Upload Zone */}
+            {datasets.length === 0 && (
+              <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  Upload CSV Files
+                </h2>
+                <FileUploadZone
+                  onFilesSelected={handleFilesSelected}
+                  multiple={true}
+                />
+              </div>
+            )}
 
             {/* Dataset Tabs */}
             {datasets.length > 0 && (
-              <>
+              <div className="flex-1">
                 <DatasetTabs
                   datasets={datasets}
                   activeDatasetId={activeDatasetId}
                   onDatasetSelect={handleDatasetSelect}
                   onDatasetRemove={handleDatasetRemove}
                   onDatasetRename={handleDatasetRename}
+                  onNewDataset={async () => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".csv,text/csv";
+                    input.multiple = true;
+                    input.onchange = async (e) => {
+                      const files = Array.from((e.target as HTMLInputElement).files ?? []);
+                      if (files.length > 0) {
+                        await handleFilesSelected(files);
+                      }
+                    };
+                    input.click();
+                  }}
                 />
 
-                {/* Active Dataset Content */}
-                {activeDataset && (
-                  <DatasetContent
-                    key={activeDataset.id}
-                    dataset={activeDataset}
-                    onDatasetUpdate={updateDataset}
-                    instrumentOptions={instrumentOptions}
-                    edgeOptions={edgeOptions}
-                    calibrationOptions={calibrationOptions}
-                    vendors={vendorsData?.vendors ?? []}
-                    isLoadingInstruments={isLoadingInstruments}
-                    isLoadingEdges={isLoadingEdges}
-                    isLoadingCalibrations={isLoadingCalibrations}
-                    isLoadingVendors={isLoadingVendors}
-                  />
-                )}
-              </>
+                  {/* Active Dataset Content */}
+                  {activeDataset && (
+                    <DatasetContent
+                      key={activeDataset.id}
+                      dataset={activeDataset}
+                      onDatasetUpdate={updateDataset}
+                      onReloadData={() => {
+                        if (activeDataset.id) {
+                          processDatasetData(activeDataset.id);
+                        }
+                      }}
+                      instrumentOptions={instrumentOptions}
+                      edgeOptions={edgeOptions}
+                      calibrationOptions={calibrationOptions}
+                      vendors={vendorsData?.vendors ?? []}
+                      isLoadingInstruments={isLoadingInstruments}
+                      isLoadingEdges={isLoadingEdges}
+                      isLoadingCalibrations={isLoadingCalibrations}
+                      isLoadingVendors={isLoadingVendors}
+                    />
+                  )}
+              </div>
             )}
 
             {/* Warning */}
@@ -766,15 +834,33 @@ export default function NEXAFSContributePage() {
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   Files remain private until reviewed and approved.
                 </div>
-                <Button
-                  type="submit"
-                  disabled={createNexafsMutation.isPending}
-                  className="px-6"
+                <Tooltip
+                  content="Submit all datasets for review. Files will remain private until approved by an administrator."
+                  classNames={{
+                    base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+                  }}
                 >
-                  {createNexafsMutation.isPending
-                    ? "Submitting..."
-                    : `Submit ${datasets.length} Dataset${datasets.length > 1 ? "s" : ""}`}
-                </Button>
+                  <Button
+                    type="submit"
+                    disabled={createNexafsMutation.isPending}
+                    className="px-6"
+                  >
+                    {createNexafsMutation.isPending ? (
+                      <>
+                        <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                        <span>Submitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckIcon className="h-4 w-4" />
+                        <span>
+                          Submit {datasets.length} Dataset
+                          {datasets.length > 1 ? "s" : ""}
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                </Tooltip>
               </div>
             )}
           </form>
@@ -839,21 +925,46 @@ export default function NEXAFSContributePage() {
             tooltip="The core state of the electron (e.g., K for K-edge)"
           />
           <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="bordered"
-              onClick={() => setShowEdgeDialog(false)}
+            <Tooltip
+              content="Cancel creating a new edge"
+              classNames={{
+                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+              }}
             >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="solid"
-              onClick={handleCreateEdge}
-              disabled={createEdgeMutation.isPending}
+              <Button
+                type="button"
+                variant="bordered"
+                onClick={() => setShowEdgeDialog(false)}
+              >
+                <XMarkIcon className="h-4 w-4" />
+                <span>Cancel</span>
+              </Button>
+            </Tooltip>
+            <Tooltip
+              content="Create a new absorption edge with the specified target atom and core state"
+              classNames={{
+                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+              }}
             >
-              {createEdgeMutation.isPending ? "Creating..." : "Create Edge"}
-            </Button>
+              <Button
+                type="button"
+                variant="solid"
+                onClick={handleCreateEdge}
+                disabled={createEdgeMutation.isPending}
+              >
+                {createEdgeMutation.isPending ? (
+                  <>
+                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                    <span>Creating...</span>
+                  </>
+                ) : (
+                  <>
+                    <PlusIcon className="h-4 w-4" />
+                    <span>Create Edge</span>
+                  </>
+                )}
+              </Button>
+            </Tooltip>
           </div>
         </div>
       </SimpleDialog>
@@ -884,23 +995,46 @@ export default function NEXAFSContributePage() {
             tooltip="Additional details about the calibration method"
           />
           <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="bordered"
-              onClick={() => setShowCalibrationDialog(false)}
+            <Tooltip
+              content="Cancel creating a new calibration method"
+              classNames={{
+                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+              }}
             >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="solid"
-              onClick={handleCreateCalibration}
-              disabled={createCalibrationMutation.isPending}
+              <Button
+                type="button"
+                variant="bordered"
+                onClick={() => setShowCalibrationDialog(false)}
+              >
+                <XMarkIcon className="h-4 w-4" />
+                <span>Cancel</span>
+              </Button>
+            </Tooltip>
+            <Tooltip
+              content="Create a new calibration method with the specified name and description"
+              classNames={{
+                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
+              }}
             >
-              {createCalibrationMutation.isPending
-                ? "Creating..."
-                : "Create Method"}
-            </Button>
+              <Button
+                type="button"
+                variant="solid"
+                onClick={handleCreateCalibration}
+                disabled={createCalibrationMutation.isPending}
+              >
+                {createCalibrationMutation.isPending ? (
+                  <>
+                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                    <span>Creating...</span>
+                  </>
+                ) : (
+                  <>
+                    <PlusIcon className="h-4 w-4" />
+                    <span>Create Method</span>
+                  </>
+                )}
+              </Button>
+            </Tooltip>
           </div>
         </div>
       </SimpleDialog>

@@ -25,7 +25,7 @@ export function DefaultButton({
       {...props}
       variant={props.variant ?? "light"}
       size={props.size ?? "md"}
-      className={`cursor-pointer border-default text-foreground flex h-8 items-center gap-2 rounded-full border px-3 hover:bg-default-100 ${className ?? ""}`}
+      className={`cursor-pointer border-default text-foreground flex h-8 items-center gap-2 rounded-lg border px-3 backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 hover:bg-white/90 dark:hover:bg-gray-800/90 transition-all shadow-sm hover:shadow-md ${className ?? ""}`}
     >
       {children}
     </HeroButton>

@@ -40,7 +40,6 @@ export const extractAtomsFromFormula = (formula: string): Set<string> => {
   // - [a-z]? - optional lowercase letter (e.g., Cl, Fe, Na)
   // Element symbols are always: 1 uppercase, 0-1 lowercase
   const elementPattern = /[A-Z][a-z]?/g;
-  let match: RegExpMatchArray | null;
 
   // Find all element symbols in the formula
   const matches = cleaned.match(elementPattern);

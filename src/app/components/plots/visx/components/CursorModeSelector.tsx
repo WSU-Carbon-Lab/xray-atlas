@@ -26,7 +26,7 @@ type CursorModeSelectorProps = {
 const MODE_CONFIG: Record<
   CursorMode,
   {
-    icon: React.ComponentType<{ className?: string }>;
+    icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
     label: string;
     tooltip: string;
   }
@@ -143,9 +143,8 @@ export function CursorModeSelector({
                 }}
               >
                 <Icon
+                  className="w-3.5 h-3.5"
                   style={{
-                    width: "14px",
-                    height: "14px",
                     strokeWidth: isActive ? 2.5 : 2,
                   }}
                 />

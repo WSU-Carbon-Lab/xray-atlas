@@ -1,0 +1,475 @@
+---
+description: "UI Component Standards"
+alwaysApply: true
+globs: ["src/**/*.tsx", "src/**/*.ts"]
+---
+
+# UI Component Rules for X-ray Atlas
+
+Mandatory standards for interactive UI components ensuring consistency, accessibility, and user experience.
+
+---
+
+## Button Requirements
+
+### All Buttons Must Have Icons
+
+Every button MUST include an icon to provide visual affordance and improve scanability.
+
+**Icon Placement:**
+- **Leading icon (default):** Icon before text for most actions
+- **Trailing icon:** Icon after text for directional actions (Next, External links)
+- **Icon-only:** Acceptable only with `aria-label` and tooltip
+
+**Implementation Pattern:**
+```typescript
+// Primary action button
+<Button>
+  <PlusIcon className="h-4 w-4" />
+  <span>Add Dataset</span>
+</Button>
+
+// Directional button (trailing icon)
+<Button>
+  <span>Continue</span>
+  <ArrowRightIcon className="h-4 w-4" />
+</Button>
+
+// Icon-only button (requires aria-label AND tooltip)
+<Tooltip content="Delete spectrum">
+  <Button aria-label="Delete spectrum" variant="ghost" size="icon">
+    <TrashIcon className="h-4 w-4" />
+  </Button>
+</Tooltip>
+```
+
+**Icon Selection Guidelines:**
+| Action Type | Recommended Icon |
+|-------------|------------------|
+| Create/Add | `Plus`, `PlusCircle` |
+| Edit | `Pencil`, `Edit` |
+| Delete | `Trash2`, `X` |
+| Save | `Save`, `Check` |
+| Cancel | `X`, `XCircle` |
+| Download | `Download`, `ArrowDownToLine` |
+| Upload | `Upload`, `ArrowUpFromLine` |
+| Search | `Search`, `MagnifyingGlass` |
+| Filter | `Filter`, `SlidersHorizontal` |
+| Settings | `Settings`, `Cog` |
+| Refresh | `RefreshCw`, `RotateCcw` |
+| Expand | `ChevronDown`, `ChevronsUpDown` |
+| Collapse | `ChevronUp` |
+| External Link | `ExternalLink`, `ArrowUpRight` |
+| Copy | `Copy`, `Clipboard` |
+| Share | `Share2` |
+
+**Icon Sizing in Buttons:**
+| Button Size | Icon Class |
+|-------------|------------|
+| `sm` | `h-3.5 w-3.5` |
+| `md` (default) | `h-4 w-4` |
+| `lg` | `h-5 w-5` |
+
+---
+
+## Input Field Requirements
+
+### All Inputs Must Have Tooltips
+
+Every input field MUST have an associated tooltip providing context or guidance.
+
+**Tooltip Content Guidelines:**
+- Explain the expected input format
+- Provide examples when helpful
+- Include validation requirements
+- State character limits if applicable
+- Describe how the data will be used
+
+**Implementation Pattern:**
+```typescript
+<Tooltip content="Enter the photon energy in electron volts (eV). Example: 285.5">
+  <div className="w-full">
+    <Label htmlFor="energy">Photon Energy</Label>
+    <Input
+      id="energy"
+      type="number"
+      placeholder="e.g., 285.5"
+      step="0.1"
+    />
+  </div>
+</Tooltip>
+
+// For complex tooltips
+<Tooltip 
+  content={
+    <div className="space-y-1">
+      <p className="font-medium">Chemical Formula</p>
+      <p>Use standard notation with subscripts.</p>
+      <p className="text-text-tertiary">Examples: H2O, C6H12O6, NaCl</p>
+    </div>
+  }
+>
+  <Input id="formula" placeholder="e.g., H2O" />
+</Tooltip>
+```
+
+**Tooltip Placement:**
+- Default: `top` for most inputs
+- Use `right` for inline forms
+- Use `bottom` if top space is constrained
+- Ensure tooltip does not obstruct other form elements
+
+---
+
+## Required Field Requirements
+
+### All Required Fields Must Be Clearly Indicated
+
+Every required field MUST be visually marked AND programmatically identified.
+
+**Visual Indicators:**
+1. **Asterisk marker:** Red asterisk after label text
+2. **Label styling:** Slightly bolder weight for required fields
+3. **Placeholder hint:** Include "(required)" in placeholder when space allows
+
+**Programmatic Requirements:**
+1. Set `required` attribute on input element
+2. Set `aria-required="true"` for screen readers
+3. Implement validation with clear error messages
+
+**Implementation Pattern:**
+```typescript
+// Required field with all indicators
+<div className="space-y-2">
+  <Label htmlFor="sampleName" className="flex items-center gap-1">
+    Sample Name
+    <span className="text-red-500" aria-hidden="true">*</span>
+    <span className="sr-only">(required)</span>
+  </Label>
+  <Tooltip content="Enter a unique identifier for this sample">
+    <Input
+      id="sampleName"
+      required
+      aria-required="true"
+      placeholder="Enter sample name (required)"
+    />
+  </Tooltip>
+</div>
+
+// With validation error state
+<div className="space-y-2">
+  <Label htmlFor="email" className="flex items-center gap-1">
+    Email Address
+    <span className="text-red-500" aria-hidden="true">*</span>
+  </Label>
+  <Input
+    id="email"
+    type="email"
+    required
+    aria-required="true"
+    aria-invalid={!!errors.email}
+    aria-describedby={errors.email ? "email-error" : undefined}
+    className={errors.email ? "border-red-500 focus:ring-red-500" : ""}
+  />
+  {errors.email && (
+    <p id="email-error" className="text-sm text-red-500" role="alert">
+      {errors.email.message}
+    </p>
+  )}
+</div>
+```
+
+**Form-Level Required Indicator:**
+```typescript
+// Add legend at form start
+<p className="text-sm text-text-secondary mb-4">
+  Fields marked with <span className="text-red-500">*</span> are required.
+</p>
+```
+
+---
+
+## Form Validation Rules
+
+### Client-Side Validation Requirements
+
+All forms MUST implement comprehensive validation:
+
+**Validation Timing:**
+- Validate on blur for individual fields
+- Validate on submit for entire form
+- Show inline errors immediately after field loses focus
+- Clear errors when user begins correcting input
+
+**Error Message Requirements:**
+- Be specific about what went wrong
+- Suggest how to fix the issue
+- Use sentence case, no periods
+- Position directly below the field
+- Use `role="alert"` for screen readers
+
+**Error Message Examples:**
+| Field Type | Bad Error | Good Error |
+|------------|-----------|------------|
+| Email | "Invalid" | "Enter a valid email address (e.g., name@example.com)" |
+| Number | "Wrong format" | "Enter a number between 0 and 1000" |
+| Required | "Required" | "Sample name is required" |
+| Min length | "Too short" | "Password must be at least 8 characters" |
+
+**Implementation Pattern:**
+```typescript
+// Using react-hook-form with zod
+const schema = z.object({
+  energy: z.number()
+    .min(0, "Energy must be a positive value")
+    .max(10000, "Energy cannot exceed 10,000 eV"),
+  sampleName: z.string()
+    .min(1, "Sample name is required")
+    .max(100, "Sample name cannot exceed 100 characters"),
+});
+```
+
+---
+
+## Label Requirements
+
+### All Inputs Must Have Associated Labels
+
+Every form input MUST have a visible, associated label.
+
+**Label Requirements:**
+- Use semantic `<label>` element with `htmlFor` attribute
+- Label text must clearly describe the expected input
+- Include units in label when applicable (e.g., "Energy (eV)")
+- Never use placeholder text as the only label
+
+**Implementation Pattern:**
+```typescript
+// Standard label
+<Label htmlFor="temperature">Temperature (K)</Label>
+<Input id="temperature" type="number" />
+
+// Label with description
+<div className="space-y-1">
+  <Label htmlFor="notes">Notes</Label>
+  <p className="text-sm text-text-tertiary" id="notes-desc">
+    Optional observations about the measurement conditions
+  </p>
+  <Textarea id="notes" aria-describedby="notes-desc" />
+</div>
+```
+
+---
+
+## Loading State Requirements
+
+### All Async Actions Must Show Loading State
+
+Every button or action that triggers async operations MUST indicate loading state.
+
+**Loading Indicators:**
+- Replace button icon with spinner during loading
+- Disable button to prevent double-submission
+- Preserve button width to prevent layout shift
+- Update button text to indicate progress when appropriate
+
+**Implementation Pattern:**
+```typescript
+<Button disabled={isLoading}>
+  {isLoading ? (
+    <>
+      <Spinner className="h-4 w-4 animate-spin" />
+      <span>Saving...</span>
+    </>
+  ) : (
+    <>
+      <SaveIcon className="h-4 w-4" />
+      <span>Save Changes</span>
+    </>
+  )}
+</Button>
+```
+
+---
+
+## Disabled State Requirements
+
+### Disabled Elements Must Explain Why
+
+When disabling an interactive element, provide context for why it's disabled.
+
+**Implementation Pattern:**
+```typescript
+// Disabled with tooltip explanation
+<Tooltip content="Sign in to upload data">
+  <span tabIndex={0}>
+    <Button disabled>
+      <UploadIcon className="h-4 w-4" />
+      <span>Upload</span>
+    </Button>
+  </span>
+</Tooltip>
+
+// Conditional disable with dynamic tooltip
+<Tooltip content={!isValid ? "Complete all required fields first" : "Submit your data"}>
+  <span tabIndex={!isValid ? 0 : undefined}>
+    <Button disabled={!isValid}>
+      <SendIcon className="h-4 w-4" />
+      <span>Submit</span>
+    </Button>
+  </span>
+</Tooltip>
+```
+
+---
+
+## Empty State Requirements
+
+### Empty Views Must Provide Guidance
+
+When displaying empty states (no data, no results), provide helpful guidance.
+
+**Empty State Must Include:**
+1. Illustrative icon or image
+2. Clear heading explaining the state
+3. Brief description of why it's empty
+4. Primary action to resolve (when applicable)
+
+**Implementation Pattern:**
+```typescript
+<div className="flex flex-col items-center justify-center py-12 text-center">
+  <FileSearchIcon className="h-12 w-12 text-text-tertiary mb-4" />
+  <h3 className="text-lg font-medium text-text-primary mb-2">
+    No datasets found
+  </h3>
+  <p className="text-text-secondary mb-4 max-w-sm">
+    Upload your first NEXAFS dataset to get started with analysis.
+  </p>
+  <Button>
+    <UploadIcon className="h-4 w-4" />
+    <span>Upload Dataset</span>
+  </Button>
+</div>
+```
+
+---
+
+## Confirmation Dialog Requirements
+
+### Destructive Actions Must Require Confirmation
+
+Any destructive or irreversible action MUST present a confirmation dialog.
+
+**Confirmation Dialog Must Include:**
+1. Clear statement of what will happen
+2. Specific details about affected items
+3. Cancel button (primary visual weight)
+4. Destructive action button (red/warning styling)
+
+**Implementation Pattern:**
+```typescript
+<AlertDialog>
+  <AlertDialogTrigger asChild>
+    <Button variant="destructive">
+      <TrashIcon className="h-4 w-4" />
+      <span>Delete Dataset</span>
+    </Button>
+  </AlertDialogTrigger>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Delete "{datasetName}"?</AlertDialogTitle>
+      <AlertDialogDescription>
+        This will permanently delete the dataset and all associated spectra. 
+        This action cannot be undone.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>
+        <XIcon className="h-4 w-4" />
+        <span>Cancel</span>
+      </AlertDialogCancel>
+      <AlertDialogAction className="bg-red-600 hover:bg-red-700">
+        <TrashIcon className="h-4 w-4" />
+        <span>Delete</span>
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+```
+
+---
+
+## Feedback Requirements
+
+### All Actions Must Provide Feedback
+
+Every user action MUST result in visible feedback.
+
+**Feedback Types:**
+| Action Result | Feedback Type |
+|---------------|---------------|
+| Success | Toast notification (auto-dismiss after 5s) |
+| Error | Toast notification (persistent until dismissed) |
+| Warning | Toast notification (auto-dismiss after 8s) |
+| Loading | Inline spinner or skeleton |
+| Progress | Progress bar with percentage |
+
+**Toast Content Requirements:**
+- Include relevant icon
+- State what happened clearly
+- For errors, suggest resolution
+- Include action button when appropriate (e.g., "Undo")
+
+---
+
+## Keyboard Navigation Requirements
+
+### All Interactive Elements Must Be Keyboard Accessible
+
+**Required Keyboard Support:**
+- `Tab` / `Shift+Tab`: Navigate between focusable elements
+- `Enter` / `Space`: Activate buttons and links
+- `Escape`: Close modals, dropdowns, and cancel operations
+- `Arrow keys`: Navigate within menus, tabs, and lists
+
+**Focus Management:**
+- Trap focus within modals
+- Return focus to trigger element when modal closes
+- Skip links for main content areas
+- Visible focus indicators on all interactive elements
+
+---
+
+## Responsive Design Requirements
+
+### All Components Must Be Mobile-Friendly
+
+**Touch Target Sizes:**
+- Minimum touch target: 44x44 pixels
+- Spacing between targets: minimum 8px
+- Buttons on mobile: full-width when in single column
+
+**Responsive Patterns:**
+- Stack form fields vertically on mobile
+- Use bottom sheets instead of dropdowns on mobile
+- Collapse secondary actions into menu on small screens
+- Ensure text remains readable without horizontal scroll
+
+---
+
+## Implementation Checklist
+
+When building UI components, verify:
+
+- [ ] All buttons have appropriate icons
+- [ ] All inputs have tooltips with helpful content
+- [ ] All required fields are marked visually and programmatically
+- [ ] All form fields have associated labels
+- [ ] All async actions show loading states
+- [ ] All disabled elements explain why they're disabled
+- [ ] All empty states provide guidance and actions
+- [ ] All destructive actions require confirmation
+- [ ] All actions provide appropriate feedback
+- [ ] All interactive elements are keyboard accessible
+- [ ] All components work on mobile devices
+- [ ] Form validation is clear and helpful

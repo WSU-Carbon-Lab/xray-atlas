@@ -153,17 +153,6 @@ export function NormalizationBrush({
           strokeWidth: 2.5,
           strokeDasharray: "4 2",
         }}
-        resizeTriggerAreasStyle={{
-          fill:
-            selectionTarget === "pre"
-              ? "rgba(59, 130, 246, 0.6)"
-              : "rgba(16, 185, 129, 0.6)",
-          stroke:
-            selectionTarget === "pre"
-              ? "rgba(59, 130, 246, 1)"
-              : "rgba(16, 185, 129, 1)",
-          strokeWidth: 2,
-        }}
       />
       {/* Selection preview text */}
       {selectionPreview && selectionPreview.width > 50 && (
