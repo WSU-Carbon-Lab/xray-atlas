@@ -370,10 +370,10 @@ export default function NEXAFSContributePage() {
             }, 50);
           } else {
             const missingColumns: string[] = [];
-            if (!detectedEnergyCol) {
+            if (!columnMappings.energy) {
               missingColumns.push("Energy");
             }
-            if (!detectedAbsorptionCol) {
+            if (!columnMappings.absorption) {
               missingColumns.push("Absorption");
             }
 
@@ -418,8 +418,8 @@ export default function NEXAFSContributePage() {
             };
 
             const missingColumns: string[] = [];
-            if (!energyCol) missingColumns.push("Energy");
-            if (!absorptionCol) missingColumns.push("Absorption");
+            if (!columnMappings.energy) missingColumns.push("Energy");
+            if (!columnMappings.absorption) missingColumns.push("Absorption");
 
             updateDataset(dataset.id, {
               ...updates,
@@ -436,7 +436,7 @@ export default function NEXAFSContributePage() {
               );
             }
 
-            if (energyCol && absorptionCol) {
+            if (columnMappings.energy && columnMappings.absorption) {
               setTimeout(() => {
                 processDatasetData(dataset.id);
               }, 50);
