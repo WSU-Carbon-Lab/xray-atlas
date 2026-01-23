@@ -4,6 +4,7 @@ import { currentUser } from "@clerk/nextjs/server";
 export interface UserData {
   clerkId: string;
   name: string;
+  email?: string;
   image: string;
   orcid?: string;
 }
@@ -20,6 +21,7 @@ export async function syncUserFromClerk(userData: UserData) {
       },
       update: {
         name: userData.name,
+        email: userData.email && userData.email.trim() !== "" ? userData.email : undefined,
         imageurl: userData.image,
         orcid: userData.orcid ?? undefined,
       },
@@ -27,7 +29,7 @@ export async function syncUserFromClerk(userData: UserData) {
         id: userData.clerkId,
         clerkid: userData.clerkId,
         name: userData.name,
-        email: "", // Will be set by sync function
+        email: userData.email && userData.email.trim() !== "" ? userData.email : "",
         imageurl: userData.image,
         orcid: userData.orcid ?? undefined,
       },
@@ -54,6 +56,12 @@ export async function syncCurrentUser() {
       (user.fullName ??
         `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()) ||
       "User",
+    email:
+      user.emailAddresses.find(
+        (email) => email.id === user.primaryEmailAddressId,
+      )?.emailAddress ||
+      user.emailAddresses[0]?.emailAddress ||
+      undefined,
     image: user.imageUrl,
     orcid: user.username ?? undefined,
   };

@@ -15,6 +15,7 @@ import { SynonymsList } from "./SynonymsList";
 import { Badge } from "@heroui/react";
 import { ToggleIconButton } from "./ToggleIconButton";
 import { MoleculeImageSVG } from "./MoleculeImageSVG";
+import { useRealtimeUpvotes } from "~/hooks/useRealtimeUpvotes";
 
 // Updated type to match Prisma schema and include external links
 export type DisplayMolecule = {
@@ -144,12 +145,22 @@ export const MoleculeDisplay = ({
   const utils = trpc.useUtils();
   const upvoteMutation = trpc.molecules.upvote.useMutation({
     onSuccess: () => {
-      // Invalidate queries to refresh upvote count
+      // Real-time updates will handle the UI refresh automatically
+      // Still invalidate to ensure data consistency
       if (molecule.id) {
         void utils.molecules.getById.invalidate({ id: molecule.id });
       }
     },
   });
+
+  // Real-time upvote updates
+  const { upvoteCount: realtimeUpvoteCount, userHasUpvoted: realtimeUserHasUpvoted } =
+    useRealtimeUpvotes({
+      moleculeId: molecule.id,
+      initialUpvoteCount: molecule.upvoteCount ?? 0,
+      initialUserHasUpvoted: molecule.userHasUpvoted ?? false,
+      userId: user?.id,
+    });
 
   // Sync synonyms with molecule prop changes
   const getCommonNamesHelper = (): string[] => {
@@ -278,18 +289,18 @@ export const MoleculeDisplay = ({
                       onClick={handleUpvote}
                       disabled={upvoteMutation.isPending}
                       className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 disabled:opacity-50 ${
-                        molecule.userHasUpvoted
+                        realtimeUserHasUpvoted
                           ? "border-accent bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light"
                           : "hover:border-accent hover:bg-accent/10 dark:hover:bg-accent/20 border-gray-300 bg-white/60 text-gray-700 dark:border-gray-600 dark:bg-gray-800/60 dark:text-gray-200"
                       }`}
                     >
-                      {molecule.userHasUpvoted ? (
+                      {realtimeUserHasUpvoted ? (
                         <HandThumbUpIconSolid className="h-4 w-4" />
                       ) : (
                         <HandThumbUpIcon className="h-4 w-4" />
                       )}
                       <span className="font-semibold">
-                        {molecule.upvoteCount ?? 0}
+                        {realtimeUpvoteCount}
                       </span>
                     </button>
                     {isOwner && onEdit && (
