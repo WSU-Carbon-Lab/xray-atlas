@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 
 function SignInContent() {
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get("redirect_url") || "/";
+  const redirectUrl = searchParams.get("redirect_url") ?? "/";
 
   return (
     <div className="flex min-h-screen items-center justify-center">

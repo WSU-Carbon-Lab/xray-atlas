@@ -24,8 +24,6 @@ export function NormalizationBrush({
   onSelectionChange?: (selection: SpectrumSelection | null) => void;
   isDark?: boolean;
 }) {
-  if (!selectionTarget || !onSelectionChange) return null;
-
   const [currentBounds, setCurrentBounds] = useState<Bounds | null>(null);
   const themeColors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
 
@@ -40,7 +38,7 @@ export function NormalizationBrush({
     (bounds: Bounds | null) => {
       setCurrentBounds(bounds);
       if (!bounds) {
-        onSelectionChange(null);
+        onSelectionChange?.(null);
         return;
       }
 
@@ -51,7 +49,7 @@ export function NormalizationBrush({
       const x1 = bounds.x1;
 
       if (typeof x0 !== "number" || typeof x1 !== "number") {
-        onSelectionChange(null);
+        onSelectionChange?.(null);
         return;
       }
 
@@ -84,7 +82,7 @@ export function NormalizationBrush({
         typeof domain[0] !== "number" ||
         typeof domain[1] !== "number"
       ) {
-        onSelectionChange(null);
+        onSelectionChange?.(null);
         return;
       }
       const energyRange = domain[1] - domain[0];
@@ -100,7 +98,7 @@ export function NormalizationBrush({
         geometryKeys: [],
       };
 
-      onSelectionChange(selection);
+      onSelectionChange?.(selection);
     },
     [onSelectionChange, scales.xScale, scales.yScale],
   );
@@ -130,6 +128,8 @@ export function NormalizationBrush({
       width: Math.abs(currentBounds.x1 - currentBounds.x0),
     };
   }, [currentBounds, scales.xScale]);
+
+  if (!selectionTarget || !onSelectionChange) return null;
 
   return (
     <g transform={`translate(${left}, ${top})`} style={{ cursor: "crosshair" }}>

@@ -58,8 +58,8 @@ export async function POST(req: Request) {
     // Extract primary email from email_addresses array (same logic as syncCurrentUser)
     const primaryEmail = email_addresses && Array.isArray(email_addresses) && email_addresses.length > 0
       ? (primary_email_address_id
-          ? email_addresses.find((e: { id: string }) => e.id === primary_email_address_id)?.email_address
-          : email_addresses.find((e: { verification?: { status: string } }) => e.verification?.status === "verified")?.email_address) ||
+          ? email_addresses.find((e) => e.id === primary_email_address_id)?.email_address
+          : email_addresses.find((e) => e.verification?.status === "verified")?.email_address) ??
         email_addresses[0]?.email_address
       : undefined;
 

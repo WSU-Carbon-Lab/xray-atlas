@@ -87,14 +87,19 @@ export function useVisxSubplotLayout(
       let mainEnergyDomain: [number, number];
       if (extents.energyExtent) {
         mainEnergyDomain = [extents.energyExtent.min, extents.energyExtent.max];
-      } else if (
-        energyStats &&
-        energyStats.min !== null &&
-        energyStats.max !== null &&
-        typeof energyStats.min === "number" &&
-        typeof energyStats.max === "number"
-      ) {
-        mainEnergyDomain = [energyStats.min, energyStats.max];
+      } else if (energyStats) {
+        const min = energyStats.min;
+        const max = energyStats.max;
+        if (
+          min !== null &&
+          max !== null &&
+          typeof min === "number" &&
+          typeof max === "number"
+        ) {
+          mainEnergyDomain = [min, max];
+        } else {
+          mainEnergyDomain = [0, 1000];
+        }
       } else {
         mainEnergyDomain = [0, 1000];
       }
@@ -105,18 +110,20 @@ export function useVisxSubplotLayout(
         const maxAbs = extents.absorptionExtent.max;
         const padding = Math.max(Math.abs(maxAbs - minAbs) * 0.1, 0.1);
         mainAbsorptionDomain = [0, maxAbs + padding];
-      } else if (
-        absorptionStats &&
-        absorptionStats.min !== null &&
-        absorptionStats.max !== null &&
-        typeof absorptionStats.min === "number" &&
-        typeof absorptionStats.max === "number"
-      ) {
-        const padding = Math.max(
-          (absorptionStats.max - absorptionStats.min) * 0.1,
-          0.1,
-        );
-        mainAbsorptionDomain = [0, absorptionStats.max + padding];
+      } else if (absorptionStats) {
+        const min = absorptionStats.min;
+        const max = absorptionStats.max;
+        if (
+          min !== null &&
+          max !== null &&
+          typeof min === "number" &&
+          typeof max === "number"
+        ) {
+          const padding = Math.max((max - min) * 0.1, 0.1);
+          mainAbsorptionDomain = [0, max + padding];
+        } else {
+          mainAbsorptionDomain = [0, 1];
+        }
       } else {
         mainAbsorptionDomain = [0, 1];
       }
@@ -208,14 +215,19 @@ export function useVisxSubplotLayout(
       let mainEnergyDomain: [number, number];
       if (extents.energyExtent) {
         mainEnergyDomain = [extents.energyExtent.min, extents.energyExtent.max];
-      } else if (
-        energyStats &&
-        energyStats.min !== null &&
-        energyStats.max !== null &&
-        typeof energyStats.min === "number" &&
-        typeof energyStats.max === "number"
-      ) {
-        mainEnergyDomain = [energyStats.min, energyStats.max];
+      } else if (energyStats) {
+        const min = energyStats.min;
+        const max = energyStats.max;
+        if (
+          min !== null &&
+          max !== null &&
+          typeof min === "number" &&
+          typeof max === "number"
+        ) {
+          mainEnergyDomain = [min, max];
+        } else {
+          mainEnergyDomain = [0, 1000];
+        }
       } else {
         mainEnergyDomain = [0, 1000];
       }
@@ -226,18 +238,20 @@ export function useVisxSubplotLayout(
         const maxAbs = extents.absorptionExtent.max;
         const padding = Math.max(Math.abs(maxAbs - minAbs) * 0.1, 0.1);
         mainAbsorptionDomain = [0, maxAbs + padding];
-      } else if (
-        absorptionStats &&
-        absorptionStats.min !== null &&
-        absorptionStats.max !== null &&
-        typeof absorptionStats.min === "number" &&
-        typeof absorptionStats.max === "number"
-      ) {
-        const padding = Math.max(
-          (absorptionStats.max - absorptionStats.min) * 0.1,
-          0.1,
-        );
-        mainAbsorptionDomain = [0, absorptionStats.max + padding];
+      } else if (absorptionStats) {
+        const min = absorptionStats.min;
+        const max = absorptionStats.max;
+        if (
+          min !== null &&
+          max !== null &&
+          typeof min === "number" &&
+          typeof max === "number"
+        ) {
+          const padding = Math.max((max - min) * 0.1, 0.1);
+          mainAbsorptionDomain = [0, max + padding];
+        } else {
+          mainAbsorptionDomain = [0, 1];
+        }
       } else {
         mainAbsorptionDomain = [0, 1];
       }

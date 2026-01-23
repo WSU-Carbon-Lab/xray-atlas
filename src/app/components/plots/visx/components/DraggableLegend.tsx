@@ -64,8 +64,8 @@ export function DraggableLegend({
     traces.forEach((trace) => {
       const label = typeof trace.name === "string" ? trace.name : "Trace";
       const color =
-        (trace.marker?.color as string | undefined) ??
-        (trace.line?.color as string | undefined) ??
+        trace.marker?.color ??
+        trace.line?.color ??
         "#666";
       const lineWidth =
         typeof trace.line?.width === "number" ? trace.line.width : 1.6;
@@ -75,7 +75,7 @@ export function DraggableLegend({
     // Add reference traces
     referenceTraces.forEach((trace) => {
       const label = typeof trace.name === "string" ? trace.name : "Reference";
-      const color = (trace.line?.color as string | undefined) ?? "#111827";
+      const color = trace.line?.color ?? "#111827";
       const lineWidth =
         typeof trace.line?.width === "number" ? trace.line.width : 2.5;
       items.push({ label, color, lineWidth, trace });
@@ -84,7 +84,7 @@ export function DraggableLegend({
     // Add difference traces
     differenceTraces.forEach((trace) => {
       const label = typeof trace.name === "string" ? trace.name : "Difference";
-      const color = (trace.line?.color as string | undefined) ?? "#666";
+      const color = trace.line?.color ?? "#666";
       const lineWidth =
         typeof trace.line?.width === "number" ? trace.line.width : 2;
       const lineDash =

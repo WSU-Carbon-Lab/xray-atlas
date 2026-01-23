@@ -49,8 +49,8 @@ export const SpectrumLines = memo(function SpectrumLines({
 
         // Get color from trace
         const color =
-          (trace.marker?.color as string | undefined) ??
-          (trace.line?.color as string | undefined) ??
+          trace.marker?.color ??
+          trace.line?.color ??
           "#666";
 
         // Get line width

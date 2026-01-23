@@ -61,8 +61,8 @@ export function VisxTooltip({
     margins: { top: number; right: number; bottom: number; left: number };
   };
   scales?: {
-    xScale: { (value: number): number };
-    yScale: { (value: number): number };
+    xScale: (value: number) => number;
+    yScale: (value: number) => number;
   };
 }) {
   if (!tooltipData) return null;

@@ -525,7 +525,7 @@ export function ColumnMappingModal({
                 >
                   <div className="flex items-center justify-between">
                     <span className="truncate">
-                      {mappings.theta || "Select column..."}
+                      {mappings.theta ?? "Select column..."}
                     </span>
                     <ChevronDownIcon className="h-3 w-3 shrink-0" />
                   </div>
@@ -649,7 +649,7 @@ export function ColumnMappingModal({
                 >
                   <div className="flex items-center justify-between">
                     <span className="truncate">
-                      {mappings.phi || "Select column..."}
+                      {mappings.phi ?? "Select column..."}
                     </span>
                     <ChevronDownIcon className="h-3 w-3 shrink-0" />
                   </div>

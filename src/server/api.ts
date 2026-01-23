@@ -59,8 +59,8 @@ export async function syncCurrentUser() {
     email:
       user.emailAddresses.find(
         (email) => email.id === user.primaryEmailAddressId,
-      )?.emailAddress ||
-      user.emailAddresses[0]?.emailAddress ||
+      )?.emailAddress ??
+      user.emailAddresses[0]?.emailAddress ??
       undefined,
     image: user.imageUrl,
     orcid: user.username ?? undefined,

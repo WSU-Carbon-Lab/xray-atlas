@@ -190,20 +190,20 @@ function processSVGForDarkMode(svgText: string, isDark: boolean): string {
     // Match element symbols - handle both single and multi-character elements
     // Pattern matches: N, O, C, H, S, P, F, Cl, Br, I, etc.
     // This regex matches uppercase letter optionally followed by lowercase letter
-    const elementMatch = text.match(/^([A-Z][a-z]?)/);
+    const elementMatch = /^([A-Z][a-z]?)/.exec(text);
     if (elementMatch?.[1]) {
-      const elementSymbol: string = elementMatch[1];
+      const elementSymbol = elementMatch[1];
 
       // Check if it's a CPK element
       if (elementSymbol in CPK_COLORS) {
-        const colorVar = CPK_COLORS[elementSymbol as keyof typeof CPK_COLORS] ?? DEFAULT_ATOM_COLOR;
+        const colorVar = CPK_COLORS[elementSymbol] ?? DEFAULT_ATOM_COLOR;
 
         // Force the color by removing all existing fill attributes and setting new ones
         // Remove fill attribute
         textElem.removeAttribute("fill");
 
         // Remove fill from style attribute if it exists
-        const existingStyle = textElem.getAttribute("style") || "";
+        const existingStyle = textElem.getAttribute("style") ?? "";
         const styleProps = existingStyle
           .split(";")
           .map((prop) => prop.trim())
@@ -225,7 +225,7 @@ function processSVGForDarkMode(svgText: string, isDark: boolean): string {
           // Check if it's a number (subscript)
           if (/^\d+$/.test(siblingText)) {
             nextSibling.removeAttribute("fill");
-            const siblingStyle = nextSibling.getAttribute("style") || "";
+            const siblingStyle = nextSibling.getAttribute("style") ?? "";
             const newSiblingStyle = siblingStyle
               .split(";")
               .filter((prop) => !prop.trim().startsWith("fill"))
@@ -238,7 +238,7 @@ function processSVGForDarkMode(svgText: string, isDark: boolean): string {
       } else {
         // Default atom color for non-CPK elements
         textElem.removeAttribute("fill");
-        const existingStyle = textElem.getAttribute("style") || "";
+        const existingStyle = textElem.getAttribute("style") ?? "";
         const newStyle = existingStyle
           .split(";")
           .filter((prop) => !prop.trim().startsWith("fill"))
@@ -250,7 +250,7 @@ function processSVGForDarkMode(svgText: string, isDark: boolean): string {
     } else {
       // Default atom color for text that doesn't match element pattern
       textElem.removeAttribute("fill");
-      const existingStyle = textElem.getAttribute("style") || "";
+      const existingStyle = textElem.getAttribute("style") ?? "";
       const newStyle = existingStyle
         .split(";")
         .filter((prop) => !prop.trim().startsWith("fill"))

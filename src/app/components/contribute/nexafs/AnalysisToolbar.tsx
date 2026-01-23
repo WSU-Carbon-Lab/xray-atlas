@@ -38,6 +38,7 @@ import {
   convertToPeakData,
 } from "~/app/contribute/nexafs/utils/peakDetection";
 import type { SpectrumPoint } from "~/app/components/plots/core/types";
+import { noop, noopString, noopMolecule } from "~/lib/noop";
 import {
   calculateDifferenceSpectra,
   type DifferenceSpectrum,
@@ -1157,12 +1158,12 @@ export function AnalysisToolbar({
                           isManualSearching={isMoleculeManualSearching ?? false}
                           selectedMolecule={selectedMolecule ?? null}
                           selectedPreferredName={selectedMoleculePreferredName ?? ""}
-                          setSelectedPreferredName={onSelectedMoleculePreferredNameChange ?? (() => {})}
+                          setSelectedPreferredName={onSelectedMoleculePreferredNameChange ?? noopString}
                           allMoleculeNames={allMoleculeNames ?? []}
-                          onUseMolecule={onUseMolecule ?? (() => {})}
-                          onManualSearch={onMoleculeManualSearch ?? (() => {})}
+                          onUseMolecule={onUseMolecule ?? noopMolecule}
+                          onManualSearch={onMoleculeManualSearch ?? noop}
                           moleculeLocked={moleculeLocked ?? false}
-                          onToggleLock={onToggleMoleculeLock ?? (() => {})}
+                          onToggleLock={onToggleMoleculeLock ?? noop}
                         />
                         {selectedMolecule && !edgeAtomMatches && edgeId && (
                           <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
@@ -1654,7 +1655,7 @@ export function AnalysisToolbar({
                       return (
                         <div key={stepPeak.id ?? "step-peak"}>
                           {(() => {
-                            const peakId: string =
+                            const peakId =
                               "id" in stepPeak &&
                               typeof (stepPeak as { id?: string }).id ===
                                 "string"
@@ -1727,7 +1728,7 @@ export function AnalysisToolbar({
                           .map((peak) => {
                             // Find the actual index in the full peaks array
                             const actualIndex = peaks.indexOf(peak);
-                            const peakId: string =
+                            const peakId =
                               "id" in peak &&
                               typeof (peak as { id?: string }).id === "string"
                                 ? (peak as { id: string }).id

@@ -108,8 +108,8 @@ export function getCursorForType(cursorType: CursorType): string {
   }
 
   let svgString: string;
-  let hotSpotX = 12;
-  let hotSpotY = 12;
+  const hotSpotX = 12;
+  const hotSpotY = 12;
 
   switch (cursorType) {
     case "pre-edge":

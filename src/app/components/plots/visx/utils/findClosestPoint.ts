@@ -7,7 +7,7 @@ import type { TraceData } from "../../core/types";
 export function findClosestPoint(
   targetEnergy: number,
   traces: TraceData[],
-  threshold: number = Infinity,
+  threshold = Infinity,
 ): { energy: number; absorption: number; label?: string } | null {
   let closestPoint: {
     energy: number;

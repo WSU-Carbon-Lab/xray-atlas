@@ -987,10 +987,10 @@ function VisxSpectrumPlotInner({
               ) {
                 // Find closest point in this trace
                 let closestIndex = 0;
-                let minDistance = Math.abs((xValues[0] as number) - energy);
+                let minDistance = Math.abs(xValues[0]! - energy);
 
                 for (let i = 0; i < xValues.length; i++) {
-                  const xVal = xValues[i] as number;
+                  const xVal = xValues[i]!;
                   if (typeof xVal === "number") {
                     const distance = Math.abs(xVal - energy);
                     if (distance < minDistance) {
@@ -1005,7 +1005,7 @@ function VisxSpectrumPlotInner({
                   minDistance <= threshold &&
                   typeof yValues[closestIndex] === "number"
                 ) {
-                  values.set(label, yValues[closestIndex] as number);
+                  values.set(label, yValues[closestIndex]!);
                 }
               }
             });

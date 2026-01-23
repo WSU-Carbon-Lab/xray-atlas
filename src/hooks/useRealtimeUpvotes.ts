@@ -45,15 +45,17 @@ export function useRealtimeUpvotes({
           table: "moleculeupvotes",
           filter: `moleculeid=eq.${moleculeId}`,
         },
-        (payload: RealtimePostgresChangesPayload<any>) => {
+        (payload: RealtimePostgresChangesPayload<{ userid: string; moleculeid: string }>) => {
           if (payload.eventType === "INSERT") {
             setUpvoteCount((prev) => prev + 1);
-            if (payload.new.userid === userId) {
+            const newData = payload.new as { userid?: string } | null;
+            if (newData?.userid === userId) {
               setUserHasUpvoted(true);
             }
           } else if (payload.eventType === "DELETE") {
             setUpvoteCount((prev) => Math.max(0, prev - 1));
-            if (payload.old.userid === userId) {
+            const oldData = payload.old as { userid?: string } | null;
+            if (oldData?.userid === userId) {
               setUserHasUpvoted(false);
             }
           }
@@ -67,16 +69,17 @@ export function useRealtimeUpvotes({
           table: "molecules",
           filter: `id=eq.${moleculeId}`,
         },
-        (payload: RealtimePostgresChangesPayload<any>) => {
-          if (payload.new.upvotes !== undefined) {
-            setUpvoteCount(payload.new.upvotes);
+        (payload: RealtimePostgresChangesPayload<{ upvotes?: number }>) => {
+          const newData = payload.new as { upvotes?: number } | null;
+          if (newData?.upvotes !== undefined && typeof newData.upvotes === "number") {
+            setUpvoteCount(newData.upvotes);
           }
         },
       )
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
+        if (String(status) === "SUBSCRIBED") {
           console.log(`Subscribed to real-time updates for molecule ${moleculeId}`);
-        } else if (status === "CHANNEL_ERROR") {
+        } else if (String(status) === "CHANNEL_ERROR") {
           console.error(`Error subscribing to molecule ${moleculeId} updates`);
         }
       });

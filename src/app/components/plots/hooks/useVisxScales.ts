@@ -34,14 +34,19 @@ export function useVisxScales(
     let energyDomain: [number, number];
     if (extents.energyExtent) {
       energyDomain = [extents.energyExtent.min, extents.energyExtent.max];
-    } else if (
-      energyStats &&
-      energyStats.min !== null &&
-      energyStats.max !== null &&
-      typeof energyStats.min === "number" &&
-      typeof energyStats.max === "number"
-    ) {
-      energyDomain = [energyStats.min, energyStats.max];
+    } else if (energyStats) {
+      const min = energyStats.min;
+      const max = energyStats.max;
+      if (
+        min !== null &&
+        max !== null &&
+        typeof min === "number" &&
+        typeof max === "number"
+      ) {
+        energyDomain = [min, max];
+      } else {
+        energyDomain = [0, 1000];
+      }
     } else {
       // Fallback domain if no data
       energyDomain = [0, 1000];
@@ -54,15 +59,20 @@ export function useVisxScales(
       const maxAbs = extents.absorptionExtent.max;
       const padding = Math.max(Math.abs(maxAbs - minAbs) * 0.1, 0.1);
       absorptionDomain = [0, maxAbs + padding];
-    } else if (
-      absorptionStats &&
-      absorptionStats.min !== null &&
-      absorptionStats.max !== null &&
-      typeof absorptionStats.min === "number" &&
-      typeof absorptionStats.max === "number"
-    ) {
-      const padding = Math.max((absorptionStats.max - absorptionStats.min) * 0.1, 0.1);
-      absorptionDomain = [0, absorptionStats.max + padding];
+    } else if (absorptionStats) {
+      const min = absorptionStats.min;
+      const max = absorptionStats.max;
+      if (
+        min !== null &&
+        max !== null &&
+        typeof min === "number" &&
+        typeof max === "number"
+      ) {
+        const padding = Math.max((max - min) * 0.1, 0.1);
+        absorptionDomain = [0, max + padding];
+      } else {
+        absorptionDomain = [0, 1];
+      }
     } else {
       // Fallback domain if no data
       absorptionDomain = [0, 1];
