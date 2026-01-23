@@ -8,6 +8,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProviderWrapper } from "./components/ThemeProviderWrapper";
 import { TRPCReactProvider } from "~/trpc/client";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/react";
 
 /**
  * Root Layout - Main application layout with HeroUI theming integration.
@@ -47,10 +48,11 @@ export default async function RootLayout({
             <ThemeProviderWrapper>
               <Header />
               {children}
+              <SpeedInsights />
+              <Analytics />
               <Footer />
             </ThemeProviderWrapper>
           </TRPCReactProvider>
-          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>
