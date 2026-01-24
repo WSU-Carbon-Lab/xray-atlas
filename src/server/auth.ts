@@ -4,6 +4,18 @@ import { db } from "~/server/db";
 import { env } from "~/env";
 import type { OAuthConfig } from "next-auth/providers";
 
+const ORCID_BASE_URL = env.ORCID_USE_SANDBOX === "true" 
+  ? "https://sandbox.orcid.org" 
+  : "https://orcid.org";
+
+if (env.ORCID_CLIENT_ID && env.NODE_ENV === "development") {
+  console.log("[ORCID Config] Using:", {
+    baseUrl: ORCID_BASE_URL,
+    clientId: env.ORCID_CLIENT_ID,
+    useSandbox: env.ORCID_USE_SANDBOX,
+  });
+}
+
 const ORCID: OAuthConfig<Record<string, unknown>> | null = 
   env.ORCID_CLIENT_ID && env.ORCID_CLIENT_SECRET
     ? {
@@ -11,14 +23,14 @@ const ORCID: OAuthConfig<Record<string, unknown>> | null =
         name: "ORCID",
         type: "oauth",
         authorization: {
-          url: "https://orcid.org/oauth/authorize",
+          url: `${ORCID_BASE_URL}/oauth/authorize`,
           params: {
             scope: "/authenticate",
             response_type: "code",
           },
         },
-        token: "https://orcid.org/oauth/token",
-        userinfo: "https://orcid.org/oauth/userinfo",
+        token: `${ORCID_BASE_URL}/oauth/token`,
+        userinfo: `${ORCID_BASE_URL}/oauth/userinfo`,
         clientId: env.ORCID_CLIENT_ID,
         clientSecret: env.ORCID_CLIENT_SECRET,
         profile(profile: Record<string, unknown>) {
@@ -35,6 +47,7 @@ const ORCID: OAuthConfig<Record<string, unknown>> | null =
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   providers: ORCID ? [ORCID] : [],
+  trustHost: true,
   session: {
     strategy: "database",
   },
