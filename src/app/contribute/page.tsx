@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import { SignInButton } from "~/app/components/SignInButton";
 import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
 import {
@@ -63,7 +63,8 @@ function ContributionCard({
 
 export default function ContributePage() {
   const router = useRouter();
-  const { isSignedIn } = useUser();
+  const { data: session } = useSession();
+  const isSignedIn = !!session?.user;
   const [showAgreementModal, setShowAgreementModal] = useState(false);
 
   // Check if user has already agreed to the contribution agreement

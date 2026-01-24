@@ -709,7 +709,7 @@ export const moleculesRouter = createTRPCRouter({
   getByCreator: publicProcedure
     .input(
       z.object({
-        creatorId: z.string(), // Clerk ID
+        creatorId: z.string(),
         limit: z.number().min(1).max(100).default(10),
         cursor: z.string().uuid().optional(),
       }),

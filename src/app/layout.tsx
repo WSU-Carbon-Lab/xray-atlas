@@ -4,7 +4,7 @@ import { Geist } from "next/font/google";
 import Header from "./components/Header";
 import { Footer } from "./components/Footer";
 import { siteMetadata } from "./components/Metadata";
-import { ClerkProvider } from "@clerk/nextjs";
+import { SessionProvider } from "./components/SessionProvider";
 import { ThemeProviderWrapper } from "./components/ThemeProviderWrapper";
 import { TRPCReactProvider } from "~/trpc/client";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -37,13 +37,13 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ClerkProvider>
-      <html
-        lang="en"
-        suppressHydrationWarning
-        className={`${geist.variable} mx-auto flex min-h-screen w-full max-w-7xl flex-col`}
-      >
-        <body className="bg-background text-foreground">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${geist.variable} mx-auto flex min-h-screen w-full max-w-7xl flex-col`}
+    >
+      <body className="bg-background text-foreground">
+        <SessionProvider>
           <TRPCReactProvider>
             <ThemeProviderWrapper>
               <Header />
@@ -53,8 +53,8 @@ export default async function RootLayout({
               <Footer />
             </ThemeProviderWrapper>
           </TRPCReactProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </SessionProvider>
+      </body>
+    </html>
   );
 }

@@ -9,7 +9,7 @@ import {
   PencilIcon,
 } from "@heroicons/react/24/outline";
 import { HandThumbUpIcon as HandThumbUpIconSolid } from "@heroicons/react/24/solid";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
 import { SynonymsList } from "./SynonymsList";
 import { Badge } from "@heroui/react";
@@ -141,7 +141,9 @@ export const MoleculeDisplay = ({
   molecule: DisplayMolecule;
   onEdit?: () => void;
 }) => {
-  const { user, isSignedIn } = useUser();
+  const { data: session } = useSession();
+  const user = session?.user;
+  const isSignedIn = !!session?.user;
   const utils = trpc.useUtils();
   const upvoteMutation = trpc.molecules.upvote.useMutation({
     onSuccess: () => {

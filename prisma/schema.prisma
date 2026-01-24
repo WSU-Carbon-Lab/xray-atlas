@@ -6,6 +6,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  schemas   = ["public", "next_auth"]
 }
 
 model calibrationmethods {
@@ -13,6 +14,8 @@ model calibrationmethods {
   name        String        @unique
   description String?
   experiments experiments[]
+
+  @@schema("public")
 }
 
 model edges {
@@ -22,6 +25,7 @@ model edges {
   experiments experiments[]
 
   @@unique([targetatom, corestate])
+  @@schema("public")
 }
 
 model experimentpublications {
@@ -32,6 +36,7 @@ model experimentpublications {
   publications  publications @relation(fields: [publicationid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([experimentid, publicationid])
+  @@schema("public")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -44,6 +49,8 @@ model experimentquality {
   comments      Json?
   lastchecked   DateTime?   @db.Timestamptz(6)
   experiments   experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
 }
 
 model experiments {
@@ -73,6 +80,7 @@ model experiments {
 
   @@unique([sampleid, edgeid, instrumentid, measurementdate])
   @@index([sampleid, edgeid, instrumentid, measurementdate], map: "idx_experiment_lookup")
+  @@schema("public")
 }
 
 model facilities {
@@ -82,6 +90,8 @@ model facilities {
   country      String?
   facilitytype FacilityType
   instruments  instruments[]
+
+  @@schema("public")
 }
 
 model instruments {
@@ -92,6 +102,8 @@ model instruments {
   status      String        @default("active")
   experiments experiments[]
   facilities  facilities    @relation(fields: [facilityid], references: [id], onUpdate: NoAction)
+
+  @@schema("public")
 }
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
@@ -108,10 +120,12 @@ model molecules {
   imageurl         String?
   createdby        String?
   upvotes          Int                @default(0)
-  users            users?             @relation(fields: [createdby], references: [clerkid], onUpdate: NoAction)
+  users            users?             @relation(fields: [createdby], references: [id], onUpdate: NoAction)
   moleculesynonyms moleculesynonyms[]
   moleculeupvotes  moleculeupvotes[]
   samples          samples[]
+
+  @@schema("public")
 }
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
@@ -124,6 +138,7 @@ model moleculesynonyms {
 
   @@unique([moleculeid, synonym])
   @@index([moleculeid, order])
+  @@schema("public")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -134,6 +149,7 @@ model polarizations {
   experiments experiments[]
 
   @@index([azimuthdeg, polardeg], map: "idx_polarization_geom")
+  @@schema("public")
 }
 
 model publications {
@@ -145,6 +161,8 @@ model publications {
   authors                Json?
   metadata               Json?
   experimentpublications experimentpublications[]
+
+  @@schema("public")
 }
 
 model samples {
@@ -163,6 +181,8 @@ model samples {
   experiments     experiments[]
   molecules       molecules      @relation(fields: [moleculeid], references: [id], onUpdate: NoAction)
   vendors         vendors?       @relation(fields: [vendorid], references: [id], onUpdate: NoAction)
+
+  @@schema("public")
 }
 
 model spectrumpoints {
@@ -176,6 +196,7 @@ model spectrumpoints {
 
   @@unique([experimentid, energyev])
   @@index([experimentid, energyev], map: "idx_spectrum_energy")
+  @@schema("public")
 }
 
 model users {
@@ -185,12 +206,16 @@ model users {
   imageurl                      String?
   orcid                         String?           @unique(map: "idx_user_orcid")
   role                          String            @default("contributor")
-  clerkid                       String            @unique
+  clerkid                       String?           @unique
+  nextAuthId                    String?           @unique @map("nextAuthId") @db.Uuid
+  migratedAt                    DateTime?         @db.Timestamptz(6)
   contributionAgreementAccepted Boolean           @default(false)
   contributionAgreementDate     DateTime?         @db.Timestamptz(6)
   experiments                   experiments[]
   molecules                     molecules[]
   moleculeupvotes               moleculeupvotes[]
+
+  @@schema("public")
 }
 
 model moleculeupvotes {
@@ -199,11 +224,12 @@ model moleculeupvotes {
   createdat  DateTime  @default(now()) @db.Timestamptz(6)
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users      users     @relation(fields: [userid], references: [clerkid], onDelete: Cascade, onUpdate: NoAction)
+  users      users     @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([moleculeid, userid])
   @@index([moleculeid])
   @@index([userid])
+  @@schema("public")
 }
 
 model vendors {
@@ -211,6 +237,8 @@ model vendors {
   name    String    @unique
   url     String?
   samples samples[]
+
+  @@schema("public")
 }
 
 model peaksets {
@@ -224,6 +252,7 @@ model peaksets {
   experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([experimentid])
+  @@schema("public")
 }
 
 model collaborators {
@@ -236,6 +265,66 @@ model collaborators {
   updatedat    DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([ishost, displayorder])
+  @@schema("public")
+}
+
+model NextAuthUser {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String?
+  email         String?   @unique @map("email")
+  emailVerified DateTime? @map("emailVerified") @db.Timestamptz
+  image         String?
+
+  accounts NextAuthAccount[]
+  sessions NextAuthSession[]
+
+  @@map("users")
+  @@schema("next_auth")
+}
+
+model NextAuthAccount {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String        @map("userId") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String        @map("providerAccountId")
+  refresh_token     String?       @db.Text
+  access_token      String?       @db.Text
+  expires_at        BigInt?
+  token_type        String?
+  scope             String?
+  id_token          String?       @db.Text
+  session_state     String?
+  oauth_token_secret String?      @map("oauth_token_secret")
+  oauth_token       String?       @map("oauth_token")
+
+  user NextAuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId], map: "provider_unique")
+  @@map("accounts")
+  @@schema("next_auth")
+}
+
+model NextAuthSession {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String        @unique @map("sessionToken")
+  userId       String        @map("userId") @db.Uuid
+  expires      DateTime      @db.Timestamptz
+
+  user NextAuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+  @@schema("next_auth")
+}
+
+model NextAuthVerificationToken {
+  identifier String
+  token      String   @id
+  expires    DateTime @db.Timestamptz
+
+  @@unique([token, identifier], map: "token_identifier_unique")
+  @@map("verification_tokens")
+  @@schema("next_auth")
 }
 
 /// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -247,12 +336,16 @@ enum CoreLevel {
   M1
   M2
   M3
+
+  @@schema("public")
 }
 
 enum FacilityType {
   SYNCHROTRON
   FREE_ELECTRON_LASER
   LAB_SOURCE
+
+  @@schema("public")
 }
 
 enum ExperimentType {
@@ -260,9 +353,13 @@ enum ExperimentType {
   PARTIAL_ELECTRON_YIELD
   FLUORESCENT_YIELD
   TRANSMISSION
+
+  @@schema("public")
 }
 
 enum ProcessMethod {
   DRY
   SOLVENT
+
+  @@schema("public")
 }

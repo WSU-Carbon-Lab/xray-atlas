@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import Papa from "papaparse";
 import { DefaultButton as Button } from "~/app/components/Button";
 import { SignInButton } from "~/app/components/SignInButton";
@@ -50,7 +50,8 @@ const parseCSVFile = (
   });
 
 export default function NEXAFSContributePage() {
-  const { isSignedIn } = useUser();
+  const { data: session } = useSession();
+  const isSignedIn = !!session?.user;
   const utils = trpc.useUtils();
 
   const [submitStatus, setSubmitStatus] = useState<

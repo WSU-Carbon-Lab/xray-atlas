@@ -7,7 +7,7 @@ import { Home, Info, Upload, Search, ChevronDown } from "lucide-react";
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/react";
 import { WSULogoIcon } from "./icons";
 import { GitHubStarsLink } from "./GitHubStarsLink";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import CustomUserButton from "./CustomUserButton";
 import { SignInButton } from "./SignInButton";
 import { ThemeToggle } from "./ThemeToggle";
@@ -91,12 +91,15 @@ function ContributeDropdown() {
 }
 
 export default function Header() {
-  const { isSignedIn, isLoaded } = useUser();
+  const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const isSignedIn = !!session?.user;
+  const isLoaded = status !== "loading";
 
   return (
     <Navbar
@@ -170,14 +173,7 @@ export default function Header() {
         <NavbarItem className="flex items-center">
           {mounted && isLoaded ? (
             isSignedIn ? (
-              <CustomUserButton
-                appearance={{
-                  elements: {
-                    userButtonAvatarBox: "h-10 w-10",
-                    userButtonRoot: "flex items-center",
-                  },
-                }}
-              />
+              <CustomUserButton />
             ) : (
               <SignInButton variant="bordered" size="sm">
                 Sign In

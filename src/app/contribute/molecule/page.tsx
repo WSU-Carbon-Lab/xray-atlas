@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -44,7 +44,8 @@ export default function MoleculeContributePage({
   onClose,
 }: MoleculeContributePageProps = {}) {
   const router = useRouter();
-  const { isSignedIn } = useUser();
+  const { data: session } = useSession();
+  const isSignedIn = !!session?.user;
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const isModal = variant === "modal";
 

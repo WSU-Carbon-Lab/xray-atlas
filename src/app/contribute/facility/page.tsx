@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DefaultButton as Button } from "~/app/components/Button";
@@ -38,7 +38,8 @@ export default function FacilityContributePage({
   onClose,
 }: FacilityContributePageProps = {}) {
   const router = useRouter();
-  const { isSignedIn } = useUser();
+  const { data: session } = useSession();
+  const isSignedIn = !!session?.user;
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const isModal = variant === "modal";
 

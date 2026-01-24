@@ -1,5 +1,5 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "~/server/auth";
 import { db } from "~/server/db";
 
 interface CreateContextOptions {
@@ -19,11 +19,10 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
 };
 
 export const createTRPCContext = async (
-  _opts: FetchCreateContextOptions = {}, // Parameter kept for API consistency but not used
+  _opts: FetchCreateContextOptions = {},
 ) => {
-  const authResult = await auth();
-  const user = await currentUser();
-  const userId = user?.id ?? authResult?.userId ?? null;
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
 
   return createInnerTRPCContext({
     userId,

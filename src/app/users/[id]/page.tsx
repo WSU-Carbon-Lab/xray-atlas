@@ -161,7 +161,7 @@ export default function UserProfilePage() {
         <h2 className="mb-6 text-2xl font-semibold text-gray-900 dark:text-gray-100">
           Molecules Created
         </h2>
-        <UserMoleculesList userId={user.clerkid} />
+        <UserMoleculesList userId={user.id} />
       </div>
     </div>
   );

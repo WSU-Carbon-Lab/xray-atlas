@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useSession, signIn } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { DefaultButton as Button } from "./Button";
 import { SignInModal } from "./SignInModal";
@@ -17,7 +17,7 @@ export function SignInButton({
   ...buttonProps
 }: SignInButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { isSignedIn } = useUser();
+  const { data: session } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const isDev = isDevelopment();
@@ -26,22 +26,22 @@ export function SignInButton({
 
   const handleSignIn = () => {
     if (isDev) {
-      const signInUrl = `/sign-in?redirect_url=${encodeURIComponent(
+      const signInUrl = `/sign-in?callbackUrl=${encodeURIComponent(
         afterSignInUrl,
       )}`;
       router.push(signInUrl);
     } else {
-      setIsOpen(true);
+      void signIn("orcid", { callbackUrl: afterSignInUrl });
     }
   };
 
   useEffect(() => {
-    if (isSignedIn && isOpen) {
+    if (session?.user && isOpen) {
       setIsOpen(false);
     }
-  }, [isSignedIn, isOpen]);
+  }, [session, isOpen]);
 
-  if (isSignedIn) {
+  if (session?.user) {
     return null;
   }
 
