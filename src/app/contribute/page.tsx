@@ -67,31 +67,16 @@ export default function ContributePage() {
   const isSignedIn = !!session?.user;
   const [showAgreementModal, setShowAgreementModal] = useState(false);
 
-  // Check if user has already agreed to the contribution agreement
-  const { data: agreementStatus, isLoading: isLoadingAgreement } =
-    trpc.users.getContributionAgreementStatus.useQuery(undefined, {
-      enabled: isSignedIn ?? false,
-    });
-
-  // Show modal automatically when page loads if user hasn't agreed yet
-  useEffect(() => {
-    if (isSignedIn && !isLoadingAgreement && !agreementStatus?.accepted) {
-      setShowAgreementModal(true);
-    }
-  }, [isSignedIn, isLoadingAgreement, agreementStatus?.accepted]);
 
   const handleContributionTypeSelect = (
     type: "molecule" | "facility" | "nexafs",
   ) => {
-    // User can only select if they've already agreed
-    if (agreementStatus?.accepted) {
-      if (type === "molecule") {
-        router.push("/contribute/molecule");
-      } else if (type === "facility") {
-        router.push("/contribute/facility");
-      } else if (type === "nexafs") {
-        router.push("/contribute/nexafs");
-      }
+    if (type === "molecule") {
+      router.push("/contribute/molecule");
+    } else if (type === "facility") {
+      router.push("/contribute/facility");
+    } else if (type === "nexafs") {
+      router.push("/contribute/nexafs");
     }
   };
 
@@ -118,16 +103,6 @@ export default function ContributePage() {
     );
   }
 
-  if (isLoadingAgreement) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="mx-auto max-w-7xl text-center">
-          <div className="border-t-accent mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -150,16 +125,6 @@ export default function ContributePage() {
               Help advance material research by contributing your data to our
               open database.
             </p>
-            {agreementStatus?.accepted && (
-              <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-                ✓ You have agreed to the contribution terms
-              </p>
-            )}
-            {!agreementStatus?.accepted && !isLoadingAgreement && (
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                Please review and accept the contribution agreement to continue.
-              </p>
-            )}
           </div>
 
           <div className="mb-8 rounded-xl border border-gray-200 bg-blue-50 p-6 dark:border-gray-700 dark:bg-blue-900/20">
@@ -201,7 +166,6 @@ export default function ContributePage() {
               description="Contribute Near-Edge X-ray Absorption Fine Structure data with geometry and spectral datasets."
               icon={BoltIcon}
               onClick={() => handleContributionTypeSelect("nexafs")}
-              disabled={!agreementStatus?.accepted}
               fullWidth
             />
             <ContributionCard
@@ -209,14 +173,12 @@ export default function ContributePage() {
               description="Add a new molecule with its chemical properties, structure, and related data."
               icon={BeakerIcon}
               onClick={() => handleContributionTypeSelect("molecule")}
-              disabled={!agreementStatus?.accepted}
             />
             <ContributionCard
               label="Link Facility and Instrument"
               description="Add a missing facility and its instruments to the database."
               icon={BuildingOfficeIcon}
               onClick={() => handleContributionTypeSelect("facility")}
-              disabled={!agreementStatus?.accepted}
             />
           </div>
         </div>

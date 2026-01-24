@@ -166,6 +166,12 @@ export const moleculesRouter = createTRPCRouter({
       }
 
       // Create molecule with createdby set to current user
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
       // Cast to any to work around Prisma type issues until client is regenerated
       /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any */
       const molecule = await ctx.db.molecules.create({
@@ -293,17 +299,9 @@ export const moleculesRouter = createTRPCRouter({
         where: { id: input.id },
         include: {
           moleculesynonyms: {
-            orderBy: [{ order: "asc" }, { synonym: "asc" }], // Order=0 first
+            orderBy: [{ order: "asc" }, { synonym: "asc" }],
           },
           samples: true,
-          users: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              imageurl: true,
-            },
-          },
           _count: {
             select: {
               moleculeupvotes: true,
@@ -604,14 +602,6 @@ export const moleculesRouter = createTRPCRouter({
           moleculesynonyms: {
             orderBy: [{ order: "asc" }],
           },
-          users: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              imageurl: true,
-            },
-          },
           _count: {
             select: {
               moleculeupvotes: true,
@@ -664,14 +654,6 @@ export const moleculesRouter = createTRPCRouter({
           include: {
             moleculesynonyms: {
               orderBy: [{ order: "asc" }],
-            },
-            users: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                imageurl: true,
-              },
             },
             _count: {
               select: {
@@ -851,6 +833,13 @@ export const moleculesRouter = createTRPCRouter({
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Molecule not found",
+        });
+      }
+
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
         });
       }
 

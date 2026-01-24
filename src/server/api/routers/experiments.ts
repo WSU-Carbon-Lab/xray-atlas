@@ -29,7 +29,6 @@ export const experimentsRouter = createTRPCRouter({
           },
           polarizations: true,
           calibrationmethods: true,
-          users: true,
           experimentpublications: {
             include: {
               publications: true,
@@ -109,7 +108,6 @@ export const experimentsRouter = createTRPCRouter({
           },
           edges: true,
           instruments: true,
-          users: true,
         },
         orderBy: {
           createdat: "desc",

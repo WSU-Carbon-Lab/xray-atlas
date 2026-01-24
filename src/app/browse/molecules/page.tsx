@@ -174,14 +174,7 @@ function MoleculesBrowseContent() {
       id: paginatedMolecule.id,
       upvoteCount: paginatedMolecule.upvoteCount,
       userHasUpvoted: false,
-      createdBy: paginatedMolecule.users
-        ? {
-            id: paginatedMolecule.users.id,
-            name: paginatedMolecule.users.name,
-            email: paginatedMolecule.users.email,
-            imageurl: paginatedMolecule.users.imageurl,
-          }
-        : null,
+      createdBy: null,
     };
   };
 

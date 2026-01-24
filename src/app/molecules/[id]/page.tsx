@@ -92,7 +92,7 @@ export default function MoleculeDetailPage() {
     id: molecule.id,
     upvoteCount: (molecule as { upvoteCount?: number }).upvoteCount,
     userHasUpvoted: (molecule as { userHasUpvoted?: boolean }).userHasUpvoted,
-    createdBy: (molecule as { users?: { id: string; name: string; email: string; imageurl: string | null } | null }).users ?? null,
+    createdBy: null,
   };
 
   const handleEdit = () => {

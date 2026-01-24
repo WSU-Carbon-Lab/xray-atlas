@@ -58,12 +58,7 @@ function TopUpvotedMolecules() {
       id: molecule.id,
       upvoteCount: molecule.upvoteCount,
       userHasUpvoted: false,
-      createdBy: molecule.users ? {
-        id: molecule.users.id,
-        name: molecule.users.name,
-        email: molecule.users.email,
-        imageurl: molecule.users.imageurl,
-      } : null,
+      createdBy: null,
     } satisfies DisplayMolecule;
   });
 

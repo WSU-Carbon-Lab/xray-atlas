@@ -49,18 +49,6 @@ export default function MoleculeContributePage({
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const isModal = variant === "modal";
 
-  // Check if user has agreed to the contribution agreement
-  const { data: agreementStatus, isLoading: isLoadingAgreement } =
-    trpc.users.getContributionAgreementStatus.useQuery(undefined, {
-      enabled: isSignedIn ?? false,
-    });
-
-  // Show modal if user hasn't agreed yet
-  useEffect(() => {
-    if (isSignedIn && !isLoadingAgreement && !agreementStatus?.accepted) {
-      setShowAgreementModal(true);
-    }
-  }, [isSignedIn, isLoadingAgreement, agreementStatus?.accepted]);
 
   const handleAgreementAccepted = () => {
     setShowAgreementModal(false);
@@ -653,7 +641,7 @@ export default function MoleculeContributePage({
     );
   }
 
-  if (isLoadingAgreement) {
+  if (false) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-accent mx-auto"></div>

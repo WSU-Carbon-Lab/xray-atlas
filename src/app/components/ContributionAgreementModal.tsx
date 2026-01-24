@@ -57,14 +57,10 @@ export function ContributionAgreementModal({
   onAgree,
 }: ContributionAgreementModalProps) {
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
-  const utils = trpc.useUtils();
-  const acceptAgreement = trpc.users.acceptContributionAgreement.useMutation({
-    onSuccess: () => {
-      // Invalidate the agreement status query to refetch
-      void utils.users.getContributionAgreementStatus.invalidate();
-      onAgree();
-    },
-  });
+
+  const handleAccept = () => {
+    onAgree();
+  };
 
   // Reset answers when modal opens
   useEffect(() => {
@@ -81,13 +77,8 @@ export function ContributionAgreementModal({
     (q) => answers[q.id] === true,
   );
 
-  const handleAgree = async () => {
-    try {
-      await acceptAgreement.mutateAsync();
-      // onAgree will be called in onSuccess
-    } catch (error) {
-      console.error("Failed to accept agreement:", error);
-    }
+  const handleAgree = () => {
+    handleAccept();
   };
 
   return (
@@ -189,10 +180,10 @@ export function ContributionAgreementModal({
                   <Button
                     variant="solid"
                     onClick={handleAgree}
-                    disabled={!allRequiredAnswered || acceptAgreement.isPending}
+                    disabled={!allRequiredAnswered}
                     className="w-full sm:w-auto min-w-[200px]"
                   >
-                    {acceptAgreement.isPending ? "Saving..." : "I Agree"}
+                    I Agree
                   </Button>
                 </div>
               </Dialog.Panel>

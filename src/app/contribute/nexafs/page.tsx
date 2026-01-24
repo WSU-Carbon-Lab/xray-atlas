@@ -63,16 +63,6 @@ export default function NEXAFSContributePage() {
   const { toasts, removeToast, showToast } = useToast();
 
   const [showAgreementModal, setShowAgreementModal] = useState(false);
-  const { data: agreementStatus, isLoading: isLoadingAgreement } =
-    trpc.users.getContributionAgreementStatus.useQuery(undefined, {
-      enabled: isSignedIn ?? false,
-    });
-
-  useEffect(() => {
-    if (isSignedIn && !isLoadingAgreement && !agreementStatus?.accepted) {
-      setShowAgreementModal(true);
-    }
-  }, [isSignedIn, isLoadingAgreement, agreementStatus?.accepted]);
 
   const handleAgreementAccepted = () => {
     setShowAgreementModal(false);
@@ -845,7 +835,7 @@ export default function NEXAFSContributePage() {
       );
     }
 
-    if (isLoadingAgreement) {
+    if (false) {
       return (
         <div className="container mx-auto px-4 py-16">
           <div className="mx-auto max-w-2xl text-center">

@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { PageSkeleton } from "~/app/components/LoadingState";
 import { NotFoundState, ErrorState } from "~/app/components/ErrorState";
-import { MoleculeDisplay, type DisplayMolecule } from "~/app/components/MoleculeDisplay";
+import { MoleculeDisplay } from "~/app/components/MoleculeDisplay";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -76,18 +76,18 @@ export default function UserProfilePage() {
       <div className="rounded-xl border border-gray-200 bg-white p-8 dark:border-gray-700 dark:bg-gray-800">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
           {/* User Avatar */}
-          {user.imageurl ? (
+          {user.image ? (
             <div className="relative h-24 w-24 overflow-hidden rounded-full">
               <Image
-                src={user.imageurl}
-                alt={user.name}
+                src={user.image}
+                alt={user.name ?? "User"}
                 fill
                 className="object-cover"
               />
             </div>
           ) : (
             <div className="flex h-24 w-24 items-center justify-center rounded-full bg-accent text-2xl font-bold text-white">
-              {user.name.charAt(0).toUpperCase()}
+              {user.name?.charAt(0).toUpperCase() ?? "U"}
             </div>
           )}
 
@@ -97,61 +97,16 @@ export default function UserProfilePage() {
               {user.name}
             </h1>
             <p className="mb-4 text-gray-600 dark:text-gray-400">{user.email}</p>
-
-            {user.orcid && (
-              <div className="mb-4">
-                <a
-                  href={`https://orcid.org/${user.orcid}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-accent dark:text-accent-light hover:underline"
-                >
-                  <span>ORCID: {user.orcid}</span>
-                  <svg
-                    className="h-4 w-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </a>
-              </div>
-            )}
-
-            <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-              <span className="capitalize">{user.role}</span>
-            </div>
           </div>
         </div>
 
         {/* User Statistics */}
         <div className="mt-8 border-t border-gray-200 pt-8 dark:border-gray-700">
           <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
-            Contributions
+            Profile
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
-              <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Experiments
-              </div>
-              <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {user.experiments?.length ?? 0}
-              </div>
-            </div>
-            {(user as { _count?: { molecules?: number } })._count?.molecules !== undefined && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Molecules
-                </div>
-                <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {(user as { _count?: { molecules?: number } })._count?.molecules ?? 0}
-                </div>
-              </div>
-            )}
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            User profile information
           </div>
         </div>
       </div>
