@@ -53,20 +53,22 @@ export function GitHubStarsLink({
   }, [repo]);
 
   return (
-    <Button as={Link} href={`https://github.com/${repo}`}>
-      <GitHubIcon className="h-4 w-4 text-gray-700 dark:text-gray-200" />
-      {stars === null ? (
-        <Skeleton className="h-4 w-4 rounded" />
-      ) : (
-        <span
-          aria-label="GitHub stars"
-          className="text-foreground-600 inline-block w-4 text-sm tabular-nums"
-        >
-          {formatCompactStars(stars)}
-        </span>
-      )}
-      <StarIcon className="h-4 w-4 text-gray-700 dark:text-gray-200" />
-    </Button>
+    <Link href={`https://github.com/${repo}`} className="inline-block">
+      <Button>
+        <GitHubIcon className="h-4 w-4 text-gray-700 dark:text-gray-200" />
+        {stars === null ? (
+          <Skeleton className="h-4 w-4 rounded" />
+        ) : (
+          <span
+            aria-label="GitHub stars"
+            className="text-foreground-600 inline-block w-4 text-sm tabular-nums"
+          >
+            {formatCompactStars(stars)}
+          </span>
+        )}
+        <StarIcon className="h-4 w-4 text-gray-700 dark:text-gray-200" />
+      </Button>
+    </Link>
   );
 }
 

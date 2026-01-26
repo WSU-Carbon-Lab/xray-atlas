@@ -239,7 +239,9 @@ export function DatasetTabs({
           </Tabs.List>
         </Tabs.ListContainer>
         {datasets.map((dataset) => (
-          <Tabs.Panel key={dataset.id} id={dataset.id} className="hidden" />
+          <Tabs.Panel key={dataset.id} id={dataset.id} className="hidden">
+            <></>
+          </Tabs.Panel>
         ))}
       </Tabs>
       {onNewDataset && (

@@ -767,16 +767,14 @@ export default function MoleculeContributePage({
 
                     <div className="flex items-end">
                       <Button
-                        type="button"
-                        onClick={handlePubChemSearch}
-                        disabled={
+                        onPress={handlePubChemSearch}
+                        isDisabled={
                           isSearching ||
                           isSearchingCAS ||
                           (!formData.commonName.trim() &&
                             !(formData.pubchemCid?.trim() ?? ""))
                         }
                         className="h-10 w-10 justify-center p-0"
-                        title="Search PubChem and CAS"
                       >
                         {isSearching || isSearchingCAS ? (
                           <svg
@@ -914,7 +912,7 @@ export default function MoleculeContributePage({
                       <Button
                         type="button"
                         onClick={addSynonym}
-                        disabled={!newSynonym.trim()}
+                        isDisabled={!newSynonym.trim()}
                         className="h-10 shrink-0 justify-center whitespace-nowrap"
                       >
                         Add
@@ -1047,7 +1045,7 @@ export default function MoleculeContributePage({
               <div className="flex justify-end border-t border-gray-200 pt-6 dark:border-gray-700">
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  isDisabled={isSubmitting}
                   className="flex items-center gap-2"
                 >
                   <DocumentArrowUpIcon className="h-5 w-5" />

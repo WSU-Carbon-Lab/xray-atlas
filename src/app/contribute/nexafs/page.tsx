@@ -828,7 +828,7 @@ export default function NEXAFSContributePage() {
               You must be signed in to contribute NEXAFS experiments.
             </p>
             <div className="flex justify-center">
-              <SignInButton variant="solid">Sign In</SignInButton>
+              <SignInButton variant="primary">Sign In</SignInButton>
             </div>
           </div>
         </div>
@@ -856,7 +856,7 @@ export default function NEXAFSContributePage() {
             <ArrowLeftIcon className="h-4 w-4" /> Back to contribution options
           </Link>
           <Tooltip delay={0}>
-            <Button type="button" variant="bordered" onClick={clearForm}>
+            <Button type="button" variant="outline" onClick={clearForm}>
               <BrushCleaning className="h-4 w-4" />
               <span>Clear Form</span>
             </Button>
@@ -990,7 +990,7 @@ export default function NEXAFSContributePage() {
                 <Tooltip delay={0}>
                   <Button
                     type="submit"
-                    disabled={createNexafsMutation.isPending}
+                    isDisabled={createNexafsMutation.isPending}
                     className="px-6"
                   >
                     {createNexafsMutation.isPending ? (
@@ -1079,7 +1079,7 @@ export default function NEXAFSContributePage() {
             <Tooltip delay={0}>
               <Button
                 type="button"
-                variant="bordered"
+                variant="outline"
                 onClick={() => setShowEdgeDialog(false)}
               >
                 <XMarkIcon className="h-4 w-4" />
@@ -1092,9 +1092,9 @@ export default function NEXAFSContributePage() {
             <Tooltip delay={0}>
               <Button
                 type="button"
-                variant="solid"
+                variant="primary"
                 onClick={handleCreateEdge}
-                disabled={createEdgeMutation.isPending}
+                isDisabled={createEdgeMutation.isPending}
               >
                 {createEdgeMutation.isPending ? (
                   <>
@@ -1145,7 +1145,7 @@ export default function NEXAFSContributePage() {
             <Tooltip delay={0}>
               <Button
                 type="button"
-                variant="bordered"
+                variant="outline"
                 onClick={() => setShowCalibrationDialog(false)}
               >
                 <XMarkIcon className="h-4 w-4" />
@@ -1158,9 +1158,9 @@ export default function NEXAFSContributePage() {
             <Tooltip delay={0}>
               <Button
                 type="button"
-                variant="solid"
+                variant="primary"
                 onClick={handleCreateCalibration}
-                disabled={createCalibrationMutation.isPending}
+                isDisabled={createCalibrationMutation.isPending}
               >
                 {createCalibrationMutation.isPending ? (
                   <>

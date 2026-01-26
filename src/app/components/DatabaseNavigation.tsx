@@ -107,7 +107,7 @@ export function DatabaseNavigation({
 
           {onFilterChange && (
             <Button
-              variant="bordered"
+              variant="outline"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center gap-2"
@@ -130,10 +130,10 @@ export function DatabaseNavigation({
       {onPageChange && totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           <Button
-            variant="bordered"
+            variant="outline"
             size="sm"
             onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
+            isDisabled={currentPage === 1}
             className="disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
@@ -142,10 +142,10 @@ export function DatabaseNavigation({
             Page {currentPage} of {totalPages}
           </span>
           <Button
-            variant="bordered"
+            variant="outline"
             size="sm"
             onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
+            isDisabled={currentPage === totalPages}
             className="disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next

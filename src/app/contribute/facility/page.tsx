@@ -378,7 +378,7 @@ export default function FacilityContributePage({
               </h2>
               <Button
                 type="button"
-                variant="bordered"
+                variant="outline"
                 onClick={addInstrument}
                 className="flex items-center gap-2"
               >
@@ -410,7 +410,7 @@ export default function FacilityContributePage({
           <div className="flex justify-end border-t border-gray-200 pt-6 dark:border-gray-700">
             <Button
               type="submit"
-              disabled={isSubmitting || !!existingFacility}
+              isDisabled={isSubmitting || !!existingFacility}
               className="flex items-center gap-2"
             >
               {isSubmitting ? "Creating..." : "Create Facility"}

@@ -105,14 +105,14 @@ export function MoleculeSelector({
             <Button
               isIconOnly
               size="sm"
-              variant="light"
+              variant="tertiary"
               onPress={() => {
                 if (!moleculeLocked) {
                   setShowSearch(true);
                   setSearchTerm("");
                 }
               }}
-              disabled={moleculeLocked}
+              isDisabled={moleculeLocked}
               aria-label="Change molecule"
             >
               <XMarkIcon className="h-4 w-4" />

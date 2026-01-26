@@ -20,12 +20,23 @@ export function DefaultButton({
   className,
   ...props
 }: DefaultButtonProps) {
+  const baseClassName = "cursor-pointer border-default text-foreground flex h-8 items-center gap-2 rounded-lg border px-3 backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 hover:bg-white/90 dark:hover:bg-gray-800/90 transition-all shadow-sm hover:shadow-md";
+  
+  const resolvedClassName = typeof className === "string" 
+    ? `${baseClassName} ${className}` 
+    : typeof className === "function"
+      ? (renderProps: Parameters<typeof className>[0]) => {
+          const custom = className(renderProps);
+          return typeof custom === "string" ? `${baseClassName} ${custom}` : baseClassName;
+        }
+      : baseClassName;
+
   return (
     <HeroButton
       {...props}
       variant={props.variant ?? "primary"}
       size={props.size ?? "md"}
-      className={`cursor-pointer border-default text-foreground flex h-8 items-center gap-2 rounded-lg border px-3 backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 hover:bg-white/90 dark:hover:bg-gray-800/90 transition-all shadow-sm hover:shadow-md ${className ?? ""}`}
+      className={resolvedClassName}
     >
       {children}
     </HeroButton>

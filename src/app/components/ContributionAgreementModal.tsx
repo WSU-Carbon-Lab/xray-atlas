@@ -178,9 +178,9 @@ export function ContributionAgreementModal({
 
                 <div className="flex items-center justify-center border-t border-gray-200 pt-6 dark:border-gray-700">
                   <Button
-                    variant="solid"
+                    variant="primary"
                     onClick={handleAgree}
-                    disabled={!allRequiredAnswered}
+                    isDisabled={!allRequiredAnswered}
                     className="w-full sm:w-auto min-w-[200px]"
                   >
                     I Agree

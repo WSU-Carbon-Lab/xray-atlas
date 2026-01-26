@@ -313,7 +313,6 @@ export function InlineColumnMapping({
                         <DropdownItem
                           key="theta-fixed"
                           textValue="Theta (Fixed Value)"
-                          closeOnSelect={false}
                           className="rounded-lg"
                           onPress={() => {
                             setThetaMode("fixed");
@@ -365,7 +364,6 @@ export function InlineColumnMapping({
                         <DropdownItem
                           key="phi-fixed"
                           textValue="Phi (Fixed Value)"
-                          closeOnSelect={false}
                           className="rounded-lg"
                           onPress={() => {
                             setPhiMode("fixed");
@@ -402,7 +400,6 @@ export function InlineColumnMapping({
                           <>
                             <DropdownItem
                               key="divider"
-                              isReadOnly
                               className="h-0 p-0 my-1"
                             >
                               <div className="border-t border-gray-300 dark:border-gray-600" />
@@ -410,7 +407,6 @@ export function InlineColumnMapping({
                             <DropdownItem
                               key="none"
                               className="text-danger rounded-lg"
-                              color="danger"
                               textValue="Unassign"
                             >
                               <span className="text-sm font-medium">Unassign</span>

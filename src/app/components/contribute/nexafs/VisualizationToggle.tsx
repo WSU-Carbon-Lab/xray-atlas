@@ -42,7 +42,7 @@ export function VisualizationToggle({
         <Tooltip delay={0}>
           <Button
             type="button"
-            variant={mode === "graph" ? "solid" : "bordered"}
+            variant={mode === "graph" ? "primary" : "outline"}
             size="sm"
             onClick={() => onModeChange("graph")}
             className={`rounded-lg border-2 px-4 py-2 transition-all ${
@@ -63,7 +63,7 @@ export function VisualizationToggle({
         <Tooltip delay={0}>
           <Button
             type="button"
-            variant={mode === "table" ? "solid" : "bordered"}
+            variant={mode === "table" ? "primary" : "outline"}
             size="sm"
             onClick={() => onModeChange("table")}
             className={`rounded-lg border-2 px-4 py-2 transition-all ${
@@ -89,7 +89,7 @@ export function VisualizationToggle({
             <Tooltip key={style} delay={0}>
               <Button
                 type="button"
-                variant={graphStyle === style ? "solid" : "bordered"}
+                variant={graphStyle === style ? "primary" : "outline"}
                 size="sm"
                 onClick={() => onGraphStyleChange(style)}
                 className={`rounded-lg border-2 px-3 py-1.5 text-xs transition-all ${

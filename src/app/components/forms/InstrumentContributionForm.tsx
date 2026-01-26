@@ -229,10 +229,10 @@ export function InstrumentContributionForm({
       )}
 
       <div className="flex items-center justify-between">
-        <Button type="submit" variant="solid" disabled={createInstrument.isPending}>
+        <Button type="submit" variant="primary" isDisabled={createInstrument.isPending}>
           {createInstrument.isPending ? "Saving..." : "Save Instrument"}
         </Button>
-        <Button type="button" variant="bordered" onClick={onClose}>
+        <Button type="button" variant="outline" onClick={onClose}>
           Cancel
         </Button>
       </div>

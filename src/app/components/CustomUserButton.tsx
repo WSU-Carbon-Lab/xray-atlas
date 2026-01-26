@@ -30,7 +30,7 @@ export function CustomUserButton() {
     setIsOpen(false);
     switch (action) {
       case "logout":
-        handleLogout();
+        void handleLogout();
         break;
       case "profile":
         router.push(`/users/${user.id}`);

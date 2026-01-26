@@ -318,7 +318,7 @@ function ExperimentCard({
         {canRemove && (
           <Button
             type="button"
-            variant="bordered"
+            variant="outline"
             onClick={() => onRemove(experiment.id)}
             className="flex items-center gap-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
           >
@@ -772,7 +772,7 @@ function ExperimentCard({
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                variant="bordered"
+                variant="outline"
                 className="text-xs"
                 onClick={() =>
                   onStartNormalizationSelection(experiment.id, "pre")
@@ -782,7 +782,7 @@ function ExperimentCard({
               </Button>
               <Button
                 type="button"
-                variant="bordered"
+                variant="outline"
                 className="text-xs"
                 onClick={() =>
                   onStartNormalizationSelection(experiment.id, "post")

@@ -29,7 +29,7 @@ export function ErrorState({
         </p>
       </div>
       {onRetry && (
-        <Button onClick={onRetry} variant="bordered">
+        <Button onClick={onRetry} variant="outline">
           {retryLabel}
         </Button>
       )}

@@ -102,10 +102,10 @@ export function PeakAnalysis({
         </h4>
         <Button
           type="button"
-          variant="bordered"
+          variant="outline"
           size="sm"
           onClick={handleIdentifyPeaks}
-          disabled={spectrumPoints.length === 0}
+          isDisabled={spectrumPoints.length === 0}
         >
           Auto-detect
         </Button>
@@ -250,16 +250,16 @@ export function PeakAnalysis({
             <div className="flex gap-2">
               <Button
                 type="button"
-                variant="solid"
+                variant="primary"
                 size="sm"
                 onClick={handleAddPeak}
-                disabled={!newPeakEnergy || !Number.isFinite(parseFloat(newPeakEnergy))}
+                isDisabled={!newPeakEnergy || !Number.isFinite(parseFloat(newPeakEnergy))}
               >
                 Add
               </Button>
               <Button
                 type="button"
-                variant="bordered"
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   setIsAddingPeak(false);
@@ -276,7 +276,7 @@ export function PeakAnalysis({
       ) : (
         <Button
           type="button"
-          variant="bordered"
+          variant="outline"
           size="sm"
           onClick={() => setIsAddingPeak(true)}
           className="mt-4 w-full"

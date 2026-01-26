@@ -102,13 +102,13 @@ export default function HomePage() {
             {/* CTA Buttons */}
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link href="/contribute">
-                <Button variant="solid" className="w-full sm:w-auto">
+                <Button variant="primary" className="w-full sm:w-auto">
                   <Upload className="mr-2 h-4 w-4" />
                   Contribute
                 </Button>
               </Link>
               <Link href="/browse">
-                <Button variant="bordered" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto">
                   <Search className="mr-2 h-4 w-4" />
                   Browse Database
                 </Button>

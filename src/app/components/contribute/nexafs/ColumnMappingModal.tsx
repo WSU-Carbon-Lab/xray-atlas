@@ -238,12 +238,12 @@ export function ColumnMappingModal({
     return null;
   };
 
-  const getColumnColor = (type: "energy" | "absorption" | "theta" | "phi"): "primary" | "secondary" | "success" | "warning" | "danger" => {
+  const getColumnColor = (type: "energy" | "absorption" | "theta" | "phi"): "accent" | "default" | "success" | "warning" | "danger" => {
     switch (type) {
       case "energy":
-        return "primary";
+        return "accent";
       case "absorption":
-        return "secondary";
+        return "default";
       case "theta":
         return "warning";
       case "phi":
@@ -895,14 +895,14 @@ export function ColumnMappingModal({
 
       {/* Actions */}
       <div className="mt-6 flex justify-end gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">
-        <Button type="button" variant="bordered" onClick={onClose}>
+        <Button type="button" variant="outline" onClick={onClose}>
           Cancel
         </Button>
         <Button
           type="button"
-          variant="solid"
+          variant="primary"
           onClick={handleConfirm}
-          disabled={!mappings.energy || !mappings.absorption}
+          isDisabled={!mappings.energy || !mappings.absorption}
         >
           Confirm
         </Button>

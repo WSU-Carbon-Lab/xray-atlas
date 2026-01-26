@@ -96,7 +96,7 @@ export default function ContributePage() {
             You must be signed in to contribute data to the X-ray Atlas.
           </p>
           <div className="flex justify-center">
-            <SignInButton variant="solid">Sign In</SignInButton>
+            <SignInButton variant="primary">Sign In</SignInButton>
           </div>
         </div>
       </div>

@@ -1215,7 +1215,7 @@ export function AnalysisToolbar({
                     {onAddFacility && (
                       <Button
                         type="button"
-                        variant="bordered"
+                        variant="outline"
                         size="sm"
                         onClick={onAddFacility}
                         className="w-full text-xs"
@@ -1570,10 +1570,10 @@ export function AnalysisToolbar({
                       </div>
                       <Button
                         type="button"
-                        variant="solid"
+                        variant="primary"
                         size="sm"
                         onClick={() => runPeakDetection()}
-                        disabled={spectrumPoints.length === 0}
+                        isDisabled={spectrumPoints.length === 0}
                         className="shrink-0"
                       >
                         Go
@@ -2217,10 +2217,10 @@ export function AnalysisToolbar({
                           <div className="flex gap-2">
                             <Button
                               type="button"
-                              variant="solid"
+                              variant="primary"
                               size="sm"
                               onClick={handleAddPeak}
-                              disabled={
+                              isDisabled={
                                 !newPeakEnergy ||
                                 !Number.isFinite(parseFloat(newPeakEnergy))
                               }
@@ -2230,7 +2230,7 @@ export function AnalysisToolbar({
                             </Button>
                             <Button
                               type="button"
-                              variant="bordered"
+                              variant="outline"
                               size="sm"
                               onClick={() => {
                                 setIsAddingPeak(false);
@@ -2384,7 +2384,7 @@ export function AnalysisToolbar({
           <div className="flex justify-end gap-2">
             <Button
               type="button"
-              variant="bordered"
+              variant="outline"
               size="sm"
               onClick={() => setShowAutoDetectConfirm(false)}
             >
@@ -2392,7 +2392,7 @@ export function AnalysisToolbar({
             </Button>
             <Button
               type="button"
-              variant="solid"
+              variant="primary"
               size="sm"
               onClick={handleConfirmAutoDetect}
             >
