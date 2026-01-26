@@ -3,18 +3,20 @@
 import { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { DefaultButton as Button } from "./Button";
+import { Button } from "@heroui/react";
 import { SignInModal } from "./SignInModal";
 import { isDevelopment } from "~/utils/isDevelopment";
-import type { ButtonProps } from "@heroui/react";
 
-interface SignInButtonProps extends Omit<ButtonProps, "onClick"> {
+interface SignInButtonProps {
   children?: React.ReactNode;
+  variant?: "primary" | "secondary" | "tertiary" | "outline" | "ghost" | "danger";
+  size?: "sm" | "md" | "lg";
 }
 
 export function SignInButton({
   children = "Sign In",
-  ...buttonProps
+  variant = "outline",
+  size = "sm",
 }: SignInButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { data: session } = useSession();
@@ -47,7 +49,7 @@ export function SignInButton({
 
   return (
     <>
-      <Button {...buttonProps} onClick={handleSignIn}>
+      <Button variant={variant} size={size} onPress={handleSignIn}>
         {children}
       </Button>
       {!isDev && (

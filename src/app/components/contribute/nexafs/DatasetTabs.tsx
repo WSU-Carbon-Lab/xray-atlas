@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Tabs, Tab, Chip } from "@heroui/react";
+import { Tabs, Chip } from "@heroui/react";
 import {
   XMarkIcon,
   CheckCircleIcon,
@@ -49,13 +49,9 @@ function DatasetTabContent({
       return (
         <Chip
           size="sm"
-          variant="solid"
+          variant="primary"
           color="success"
-          radius="md"
-          classNames={{
-            base: "h-5 px-1.5",
-            content: "text-[10px] font-semibold text-white",
-          }}
+          className="h-5 px-1.5 text-[10px] font-semibold text-white"
         >
           <CheckCircleIcon className="h-3 w-3" />
         </Chip>
@@ -65,13 +61,9 @@ function DatasetTabContent({
       return (
         <Chip
           size="sm"
-          variant="solid"
+          variant="primary"
           color="danger"
-          radius="md"
-          classNames={{
-            base: "h-5 px-1.5",
-            content: "text-[10px] font-semibold text-white",
-          }}
+          className="h-5 px-1.5 text-[10px] font-semibold text-white"
         >
           <ExclamationTriangleIcon className="h-3 w-3" />
         </Chip>
@@ -80,13 +72,9 @@ function DatasetTabContent({
     return (
       <Chip
         size="sm"
-        variant="flat"
+        variant="soft"
         color="warning"
-        radius="md"
-        classNames={{
-          base: "h-5 px-1.5",
-          content: "text-[10px] font-semibold",
-        }}
+        className="h-5 px-1.5 text-[10px] font-semibold"
       >
         {statusInfo.missingFields.length}
       </Chip>
@@ -218,35 +206,40 @@ export function DatasetTabs({
             onDatasetSelect(key);
           }
         }}
-        classNames={{
-          base: "flex-1 min-w-0",
-          tabList:
-            "gap-0 w-full relative rounded-none p-0 border-0 overflow-x-auto flex min-w-0",
-          cursor: "hidden",
-          tab: shouldStretch
-            ? "flex-1 px-4 h-14 border-r border-gray-200 dark:border-gray-700 shrink-0 relative data-[selected=true]:after:content-[''] data-[selected=true]:after:absolute data-[selected=true]:after:bottom-0 data-[selected=true]:after:left-0 data-[selected=true]:after:right-0 data-[selected=true]:after:h-[2px] data-[selected=true]:after:bg-accent dark:data-[selected=true]:after:bg-accent-light data-[selected=true]:bg-gray-50 dark:data-[selected=true]:bg-gray-800/50 transition-all min-w-0 max-w-[200px]"
-            : "min-w-0 max-w-[200px] flex-shrink px-4 h-14 border-r border-gray-200 dark:border-gray-700 relative data-[selected=true]:after:content-[''] data-[selected=true]:after:absolute data-[selected=true]:after:bottom-0 data-[selected=true]:after:left-0 data-[selected=true]:after:right-0 data-[selected=true]:after:h-[2px] data-[selected=true]:after:bg-accent dark:data-[selected=true]:after:bg-accent-light data-[selected=true]:bg-gray-50 dark:data-[selected=true]:bg-gray-800/50 transition-all",
-          tabContent:
-            "group-data-[selected=true]:text-gray-900 dark:group-data-[selected=true]:text-gray-100 group-data-[selected=true]:font-semibold group-data-[selected=false]:text-gray-500 dark:group-data-[selected=false]:text-gray-400 flex items-center gap-2 min-w-0 max-w-full transition-colors text-sm",
-        }}
+        className="flex-1 min-w-0"
       >
-        {datasets.map((dataset, index) => (
-          <Tab
-            key={dataset.id}
-            title={
-              <DatasetTabContent
-                dataset={dataset}
-                index={index}
-                editingId={editingId}
-                editValue={editValue}
-                onStartEdit={handleStartEdit}
-                onFinishEdit={handleFinishEdit}
-                onCancelEdit={handleCancelEdit}
-                onEditValueChange={setEditValue}
-                onRemove={onDatasetRemove}
-              />
-            }
-          />
+        <Tabs.ListContainer>
+          <Tabs.List
+            aria-label="Dataset tabs"
+            className="gap-0 w-full relative rounded-none p-0 border-0 overflow-x-auto flex min-w-0"
+          >
+            {datasets.map((dataset, index) => (
+              <Tabs.Tab
+                key={dataset.id}
+                id={dataset.id}
+                className={
+                  shouldStretch
+                    ? "flex-1 px-4 h-14 border-r border-gray-200 dark:border-gray-700 shrink-0 relative data-[selected=true]:after:content-[''] data-[selected=true]:after:absolute data-[selected=true]:after:bottom-0 data-[selected=true]:after:left-0 data-[selected=true]:after:right-0 data-[selected=true]:after:h-[2px] data-[selected=true]:after:bg-accent dark:data-[selected=true]:after:bg-accent-light data-[selected=true]:bg-gray-50 dark:data-[selected=true]:bg-gray-800/50 transition-all min-w-0 max-w-[200px]"
+                    : "min-w-0 max-w-[200px] shrink px-4 h-14 border-r border-gray-200 dark:border-gray-700 relative data-[selected=true]:after:content-[''] data-[selected=true]:after:absolute data-[selected=true]:after:bottom-0 data-[selected=true]:after:left-0 data-[selected=true]:after:right-0 data-[selected=true]:after:h-[2px] data-[selected=true]:after:bg-accent dark:data-[selected=true]:after:bg-accent-light data-[selected=true]:bg-gray-50 dark:data-[selected=true]:bg-gray-800/50 transition-all"
+                }
+              >
+                <DatasetTabContent
+                  dataset={dataset}
+                  index={index}
+                  editingId={editingId}
+                  editValue={editValue}
+                  onStartEdit={handleStartEdit}
+                  onFinishEdit={handleFinishEdit}
+                  onCancelEdit={handleCancelEdit}
+                  onEditValueChange={setEditValue}
+                  onRemove={onDatasetRemove}
+                />
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs.ListContainer>
+        {datasets.map((dataset) => (
+          <Tabs.Panel key={dataset.id} id={dataset.id} className="hidden" />
         ))}
       </Tabs>
       {onNewDataset && (

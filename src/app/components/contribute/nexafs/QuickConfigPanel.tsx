@@ -111,26 +111,26 @@ export function QuickConfigPanel({
             <div className="flex gap-2">
               <Chip
                 size="sm"
-                variant="flat"
+                variant="soft"
                 color="success"
-                classNames={{ base: "h-6 px-2", content: "text-xs" }}
+                className="h-6 px-2 text-xs"
               >
                 {completeCount} Complete
               </Chip>
               <Chip
                 size="sm"
-                variant="flat"
+                variant="soft"
                 color="warning"
-                classNames={{ base: "h-6 px-2", content: "text-xs" }}
+                className="h-6 px-2 text-xs"
               >
                 {incompleteCount} Incomplete
               </Chip>
               {errorCount > 0 && (
                 <Chip
                   size="sm"
-                  variant="flat"
+                  variant="soft"
                   color="danger"
-                  classNames={{ base: "h-6 px-2", content: "text-xs" }}
+                  className="h-6 px-2 text-xs"
                 >
                   {errorCount} Error
                 </Chip>

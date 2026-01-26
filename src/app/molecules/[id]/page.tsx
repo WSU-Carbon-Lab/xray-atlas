@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useState, use } from "react";
 import { trpc } from "~/trpc/client";
 import {
   MoleculeDisplay,
@@ -13,10 +12,13 @@ import { EditMoleculeModal } from "~/app/components/EditMoleculeModal";
 import Link from "next/link";
 import { CalendarIcon } from "@heroicons/react/24/outline";
 
-export default function MoleculeDetailPage() {
+export default function MoleculeDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const params = useParams();
-  const moleculeId = params.id as string;
+  const { id: moleculeId } = use(params);
 
   const {
     data: molecule,
@@ -234,7 +236,7 @@ export default function MoleculeDetailPage() {
                 <dd className="mt-1">
                   <Link
                     href={`/users/${(molecule as { users?: { id: string; name: string } | null }).users?.id}`}
-                    className="text-sm font-medium text-accent dark:text-accent-light hover:underline dark:text-accent dark:text-accent-light"
+                    className="text-sm font-medium text-accent hover:underline dark:text-accent-light"
                   >
                     {(molecule as { users?: { id: string; name: string } | null }).users?.name}
                   </Link>

@@ -26,6 +26,14 @@ const config = {
       },
       {
         protocol: "https",
+        hostname: "heroui-assets.nyc3.cdn.digitaloceanspaces.com",
+      },
+      {
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+      },
+      {
+        protocol: "https",
         hostname: "images.icon-icons.com",
       },
       {

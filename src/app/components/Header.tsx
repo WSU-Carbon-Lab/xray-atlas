@@ -4,11 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Home, Info, Upload, Search, ChevronDown } from "lucide-react";
-import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/react";
+import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/navbar";
 import { WSULogoIcon } from "./icons";
 import { GitHubStarsLink } from "./GitHubStarsLink";
 import { useSession } from "next-auth/react";
-import CustomUserButton from "./CustomUserButton";
+import { CustomUserButton } from "./CustomUserButton";
 import { SignInButton } from "./SignInButton";
 import { ThemeToggle } from "./ThemeToggle";
 import { BoltIcon, BeakerIcon, BuildingOfficeIcon } from "@heroicons/react/24/outline";
@@ -102,14 +102,11 @@ export default function Header() {
   const isLoaded = status !== "loading";
 
   return (
-    <Navbar
-      isBordered
-      className="border-default bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-50 border-b backdrop-blur"
-      classNames={{
-        base: "h-20",
-        wrapper: "w-full px-4",
-      }}
-    >
+    <div className="w-full px-4">
+      <Navbar
+        isBordered
+        className="border-default bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-50 border-b backdrop-blur h-20"
+      >
       <NavbarBrand className="items-center justify-start">
         <Link
           href="/"
@@ -175,7 +172,7 @@ export default function Header() {
             isSignedIn ? (
               <CustomUserButton />
             ) : (
-              <SignInButton variant="bordered" size="sm">
+              <SignInButton variant="outline" size="sm">
                 Sign In
               </SignInButton>
             )
@@ -184,6 +181,7 @@ export default function Header() {
           )}
         </NavbarItem>
       </NavbarContent>
-    </Navbar>
+      </Navbar>
+    </div>
   );
 }

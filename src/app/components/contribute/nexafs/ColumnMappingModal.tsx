@@ -309,13 +309,9 @@ export function ColumnMappingModal({
             <label className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
               <Chip
                 size="sm"
-                variant="solid"
-                color={mappings.energy ? "primary" : "default"}
-                radius="md"
-                classNames={{
-                  base: "h-6 px-2.5",
-                  content: "text-xs font-semibold text-white",
-                }}
+                variant="primary"
+                color={mappings.energy ? "accent" : "default"}
+                className="h-6 px-2.5 text-xs font-semibold text-white"
               >
                 Energy
               </Chip>
@@ -383,13 +379,9 @@ export function ColumnMappingModal({
             <label className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
               <Chip
                 size="sm"
-                variant="solid"
-                color={mappings.absorption ? "secondary" : "default"}
-                radius="md"
-                classNames={{
-                  base: "h-6 px-2.5",
-                  content: "text-xs font-semibold text-white",
-                }}
+                variant="primary"
+                color={mappings.absorption ? "accent" : "default"}
+                className="h-6 px-2.5 text-xs font-semibold text-white"
               >
                 Absorption
               </Chip>
@@ -457,7 +449,7 @@ export function ColumnMappingModal({
             <label className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
               <Chip
                 size="sm"
-                variant="solid"
+                variant="primary"
                 color={
                   thetaMode === "column" && mappings.theta
                     ? "warning"
@@ -465,11 +457,7 @@ export function ColumnMappingModal({
                       ? "warning"
                       : "default"
                 }
-                radius="md"
-                classNames={{
-                  base: "h-6 px-2.5",
-                  content: "text-xs font-semibold text-white",
-                }}
+                className="h-6 px-2.5 text-xs font-semibold text-white"
               >
                 Theta
               </Chip>
@@ -480,7 +468,6 @@ export function ColumnMappingModal({
                 <span>Fixed</span>
               </div>
               <Slider
-                size="sm"
                 step={1}
                 minValue={0}
                 maxValue={1}
@@ -500,13 +487,14 @@ export function ColumnMappingModal({
                     setMappings({ ...mappings, theta: undefined });
                   }
                 }}
-                classNames={{
-                  base: "w-full",
-                  track: "bg-gray-200 dark:bg-gray-700",
-                  filler: "bg-accent dark:bg-accent-light",
-                }}
+                className="w-full"
                 aria-label="Theta mode"
-              />
+              >
+                <Slider.Track className="bg-gray-200 dark:bg-gray-700">
+                  <Slider.Fill className="bg-accent dark:bg-accent-light" />
+                  <Slider.Thumb />
+                </Slider.Track>
+              </Slider>
             </div>
             {thetaMode === "column" ? (
               <div className="relative" ref={openStatusDropdown === "theta" ? statusDropdownRef : null}>
@@ -581,7 +569,7 @@ export function ColumnMappingModal({
             <label className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
               <Chip
                 size="sm"
-                variant="solid"
+                variant="primary"
                 color={
                   phiMode === "column" && mappings.phi
                     ? "success"
@@ -589,11 +577,7 @@ export function ColumnMappingModal({
                       ? "success"
                       : "default"
                 }
-                radius="md"
-                classNames={{
-                  base: "h-6 px-2.5",
-                  content: "text-xs font-semibold text-white",
-                }}
+                className="h-6 px-2.5 text-xs font-semibold text-white"
               >
                 Phi
               </Chip>
@@ -604,7 +588,6 @@ export function ColumnMappingModal({
                 <span>Fixed</span>
               </div>
               <Slider
-                size="sm"
                 step={1}
                 minValue={0}
                 maxValue={1}
@@ -624,13 +607,14 @@ export function ColumnMappingModal({
                     setMappings({ ...mappings, phi: undefined });
                   }
                 }}
-                classNames={{
-                  base: "w-full",
-                  track: "bg-gray-200 dark:bg-gray-700",
-                  filler: "bg-accent dark:bg-accent-light",
-                }}
+                className="w-full"
                 aria-label="Phi mode"
-              />
+              >
+                <Slider.Track className="bg-gray-200 dark:bg-gray-700">
+                  <Slider.Fill className="bg-accent dark:bg-accent-light" />
+                  <Slider.Thumb />
+                </Slider.Track>
+              </Slider>
             </div>
             {phiMode === "column" ? (
               <div className="relative" ref={openStatusDropdown === "phi" ? statusDropdownRef : null}>
@@ -727,13 +711,9 @@ export function ColumnMappingModal({
                             {isMapped && (
                               <Chip
                                 size="sm"
-                                variant="solid"
+                                variant="primary"
                                 color={getColumnColor(mappingType)}
-                                radius="md"
-                                classNames={{
-                                  base: "h-5 shrink-0 px-2",
-                                  content: "text-[10px] font-semibold text-white",
-                                }}
+                                className="h-5 shrink-0 px-2 text-[10px] font-semibold text-white"
                               >
                                 {mappingType === "energy"
                                   ? "Energy"
@@ -774,13 +754,9 @@ export function ColumnMappingModal({
                                     >
                                       <Chip
                                         size="sm"
-                                        variant="solid"
-                                        color="primary"
-                                        radius="md"
-                                        classNames={{
-                                          base: "h-5 px-2",
-                                          content: "text-[10px] font-semibold text-white",
-                                        }}
+                                        variant="primary"
+                                        color="accent"
+                                        className="h-5 px-2 text-[10px] font-semibold text-white"
                                       >
                                         Energy
                                       </Chip>
@@ -797,13 +773,9 @@ export function ColumnMappingModal({
                                     >
                                       <Chip
                                         size="sm"
-                                        variant="solid"
-                                        color="secondary"
-                                        radius="md"
-                                        classNames={{
-                                          base: "h-5 px-2",
-                                          content: "text-[10px] font-semibold text-white",
-                                        }}
+                                        variant="primary"
+                                        color="accent"
+                                        className="h-5 px-2 text-[10px] font-semibold text-white"
                                       >
                                         Absorption
                                       </Chip>
@@ -820,13 +792,9 @@ export function ColumnMappingModal({
                                     >
                                       <Chip
                                         size="sm"
-                                        variant="solid"
+                                        variant="primary"
                                         color="warning"
-                                        radius="md"
-                                        classNames={{
-                                          base: "h-5 px-2",
-                                          content: "text-[10px] font-semibold text-white",
-                                        }}
+                                        className="h-5 px-2 text-[10px] font-semibold text-white"
                                       >
                                         Theta
                                       </Chip>
@@ -843,13 +811,9 @@ export function ColumnMappingModal({
                                     >
                                       <Chip
                                         size="sm"
-                                        variant="solid"
+                                        variant="primary"
                                         color="success"
-                                        radius="md"
-                                        classNames={{
-                                          base: "h-5 px-2",
-                                          content: "text-[10px] font-semibold text-white",
-                                        }}
+                                        className="h-5 px-2 text-[10px] font-semibold text-white"
                                       >
                                         Phi
                                       </Chip>

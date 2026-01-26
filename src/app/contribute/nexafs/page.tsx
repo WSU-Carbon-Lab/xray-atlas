@@ -855,16 +855,14 @@ export default function NEXAFSContributePage() {
           >
             <ArrowLeftIcon className="h-4 w-4" /> Back to contribution options
           </Link>
-          <Tooltip
-            content="Clear all uploaded datasets and reset the form"
-            classNames={{
-              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-            }}
-          >
+          <Tooltip delay={0}>
             <Button type="button" variant="bordered" onClick={clearForm}>
               <BrushCleaning className="h-4 w-4" />
               <span>Clear Form</span>
             </Button>
+            <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+              Clear all uploaded datasets and reset the form
+            </Tooltip.Content>
           </Tooltip>
         </div>
 
@@ -989,12 +987,7 @@ export default function NEXAFSContributePage() {
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   Files remain private until reviewed and approved.
                 </div>
-                <Tooltip
-                  content="Submit all datasets for review. Files will remain private until approved by an administrator."
-                  classNames={{
-                    base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-                  }}
-                >
+                <Tooltip delay={0}>
                   <Button
                     type="submit"
                     disabled={createNexafsMutation.isPending}
@@ -1015,6 +1008,9 @@ export default function NEXAFSContributePage() {
                       </>
                     )}
                   </Button>
+                  <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                    Submit all datasets for review. Files will remain private until approved by an administrator.
+                  </Tooltip.Content>
                 </Tooltip>
               </div>
             )}
@@ -1080,12 +1076,7 @@ export default function NEXAFSContributePage() {
             tooltip="The core state of the electron (e.g., K for K-edge)"
           />
           <div className="flex justify-end gap-2 pt-2">
-            <Tooltip
-              content="Cancel creating a new edge"
-              classNames={{
-                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-              }}
-            >
+            <Tooltip delay={0}>
               <Button
                 type="button"
                 variant="bordered"
@@ -1094,13 +1085,11 @@ export default function NEXAFSContributePage() {
                 <XMarkIcon className="h-4 w-4" />
                 <span>Cancel</span>
               </Button>
+              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                Cancel creating a new edge
+              </Tooltip.Content>
             </Tooltip>
-            <Tooltip
-              content="Create a new absorption edge with the specified target atom and core state"
-              classNames={{
-                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-              }}
-            >
+            <Tooltip delay={0}>
               <Button
                 type="button"
                 variant="solid"
@@ -1119,6 +1108,9 @@ export default function NEXAFSContributePage() {
                   </>
                 )}
               </Button>
+              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                Create a new absorption edge with the specified target atom and core state
+              </Tooltip.Content>
             </Tooltip>
           </div>
         </div>
@@ -1150,12 +1142,7 @@ export default function NEXAFSContributePage() {
             tooltip="Additional details about the calibration method"
           />
           <div className="flex justify-end gap-2 pt-2">
-            <Tooltip
-              content="Cancel creating a new calibration method"
-              classNames={{
-                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-              }}
-            >
+            <Tooltip delay={0}>
               <Button
                 type="button"
                 variant="bordered"
@@ -1164,13 +1151,11 @@ export default function NEXAFSContributePage() {
                 <XMarkIcon className="h-4 w-4" />
                 <span>Cancel</span>
               </Button>
+              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                Cancel creating a new calibration method
+              </Tooltip.Content>
             </Tooltip>
-            <Tooltip
-              content="Create a new calibration method with the specified name and description"
-              classNames={{
-                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-              }}
-            >
+            <Tooltip delay={0}>
               <Button
                 type="button"
                 variant="solid"
@@ -1189,6 +1174,9 @@ export default function NEXAFSContributePage() {
                   </>
                 )}
               </Button>
+              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                Create a new calibration method with the specified name and description
+              </Tooltip.Content>
             </Tooltip>
           </div>
         </div>

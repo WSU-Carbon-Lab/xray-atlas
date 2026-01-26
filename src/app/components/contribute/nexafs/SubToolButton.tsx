@@ -56,14 +56,14 @@ export function SubToolButton({
   );
 
   return (
-    <Tooltip
-      content={tooltip}
-      placement="top"
-      classNames={{
-        base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-      }}
-    >
+    <Tooltip delay={0}>
       {button}
+      <Tooltip.Content
+        placement="top"
+        className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg"
+      >
+        {tooltip}
+      </Tooltip.Content>
     </Tooltip>
   );
 }

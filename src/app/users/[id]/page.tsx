@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { use } from "react";
 import { trpc } from "~/trpc/client";
 import { PageSkeleton } from "~/app/components/LoadingState";
 import { NotFoundState, ErrorState } from "~/app/components/ErrorState";
@@ -8,9 +8,12 @@ import { MoleculeDisplay } from "~/app/components/MoleculeDisplay";
 import Link from "next/link";
 import Image from "next/image";
 
-export default function UserProfilePage() {
-  const params = useParams();
-  const userId = params.id as string;
+export default function UserProfilePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id: userId } = use(params);
 
   const {
     data: user,
@@ -67,7 +70,7 @@ export default function UserProfilePage() {
       <div className="mb-6">
         <Link
           href="/"
-          className="text-sm text-gray-600 hover:text-accent dark:text-accent-light dark:text-gray-400 dark:hover:text-accent dark:text-accent-light"
+          className="text-sm text-gray-600 hover:text-accent dark:text-gray-400 dark:hover:text-accent"
         >
           ← Back to Home
         </Link>

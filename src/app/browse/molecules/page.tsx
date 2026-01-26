@@ -448,12 +448,7 @@ function MoleculesBrowseContent() {
               {/* Pagination */}
               {totalPages > 1 && (
                 <div className="mt-8 flex items-center justify-center gap-4">
-                  <Tooltip
-                    content="Go to previous page"
-                    classNames={{
-                      base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-                    }}
-                  >
+                  <Tooltip delay={0}>
                     <button
                       onClick={() => setCurrentPage(currentPage - 1)}
                       disabled={currentPage === 1}
@@ -462,6 +457,9 @@ function MoleculesBrowseContent() {
                       <ChevronLeftIcon className="h-4 w-4" />
                       <span>Previous</span>
                     </button>
+                    <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                      Go to previous page
+                    </Tooltip.Content>
                   </Tooltip>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -470,13 +468,7 @@ function MoleculesBrowseContent() {
                     {totalPages <= 7 ? (
                       Array.from({ length: totalPages }, (_, i) => i + 1).map(
                         (page) => (
-                          <Tooltip
-                            key={page}
-                            content={`Go to page ${page}`}
-                            classNames={{
-                              base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-                            }}
-                          >
+                          <Tooltip key={page} delay={0}>
                             <button
                               onClick={() => setCurrentPage(page)}
                               className={`rounded px-3 py-1 text-sm ${
@@ -487,6 +479,9 @@ function MoleculesBrowseContent() {
                             >
                               {page}
                             </button>
+                            <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                              {`Go to page ${page}`}
+                            </Tooltip.Content>
                           </Tooltip>
                         ),
                       )
@@ -494,18 +489,16 @@ function MoleculesBrowseContent() {
                       <>
                         {currentPage > 3 && (
                           <>
-                            <Tooltip
-                              content="Go to page 1"
-                              classNames={{
-                                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-                              }}
-                            >
+                            <Tooltip delay={0}>
                               <button
                                 onClick={() => setCurrentPage(1)}
                                 className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                               >
                                 1
                               </button>
+                              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                                Go to page 1
+                              </Tooltip.Content>
                             </Tooltip>
                             {currentPage > 4 && (
                               <span className="text-gray-500">...</span>
@@ -523,13 +516,7 @@ function MoleculesBrowseContent() {
                           .filter((page, idx, arr) => arr.indexOf(page) === idx)
                           .filter((page) => page >= 1 && page <= totalPages)
                           .map((page) => (
-                            <Tooltip
-                              key={page}
-                              content={`Go to page ${page}`}
-                              classNames={{
-                                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-                              }}
-                            >
+                            <Tooltip key={page} delay={0}>
                               <button
                                 onClick={() => setCurrentPage(page)}
                                 className={`rounded px-3 py-1 text-sm ${
@@ -540,6 +527,9 @@ function MoleculesBrowseContent() {
                               >
                                 {page}
                               </button>
+                              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                                {`Go to page ${page}`}
+                              </Tooltip.Content>
                             </Tooltip>
                           ))}
                         {currentPage < totalPages - 2 && (
@@ -547,30 +537,23 @@ function MoleculesBrowseContent() {
                             {currentPage < totalPages - 3 && (
                               <span className="text-gray-500">...</span>
                             )}
-                            <Tooltip
-                              content={`Go to page ${totalPages}`}
-                              classNames={{
-                                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-                              }}
-                            >
+                            <Tooltip delay={0}>
                               <button
                                 onClick={() => setCurrentPage(totalPages)}
                                 className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                               >
                                 {totalPages}
                               </button>
+                              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                                {`Go to page ${totalPages}`}
+                              </Tooltip.Content>
                             </Tooltip>
                           </>
                         )}
                       </>
                     )}
                   </div>
-                  <Tooltip
-                    content="Go to next page"
-                    classNames={{
-                      base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-                    }}
-                  >
+                  <Tooltip delay={0}>
                     <button
                       onClick={() => setCurrentPage(currentPage + 1)}
                       disabled={currentPage === totalPages}
@@ -579,6 +562,9 @@ function MoleculesBrowseContent() {
                       <span>Next</span>
                       <ChevronRightIcon className="h-4 w-4" />
                     </button>
+                    <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                      Go to next page
+                    </Tooltip.Content>
                   </Tooltip>
                 </div>
               )}

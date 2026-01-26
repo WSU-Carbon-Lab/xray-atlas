@@ -3,15 +3,24 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "~/server/db";
 import { env } from "~/env";
 import GitHub from "next-auth/providers/github";
+// Check if we are in development mode and use the dev GitHub credentials
+const isDev = process.env.NODE_ENV === "development";
+const githubClientId = isDev
+  ? env.DEV_GITHUB_CLIENT_ID ?? env.GITHUB_CLIENT_ID
+  : env.GITHUB_CLIENT_ID;
+const githubClientSecret = isDev
+  ? env.DEV_GITHUB_CLIENT_SECRET ?? env.GITHUB_CLIENT_SECRET
+  : env.GITHUB_CLIENT_SECRET;
 
-const providers = env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
-  ? [
-      GitHub({
-        clientId: env.GITHUB_CLIENT_ID,
-        clientSecret: env.GITHUB_CLIENT_SECRET,
-      }),
-    ]
-  : [];
+const providers =
+  githubClientId && githubClientSecret
+    ? [
+        GitHub({
+          clientId: githubClientId,
+          clientSecret: githubClientSecret,
+        }),
+      ]
+    : [];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),

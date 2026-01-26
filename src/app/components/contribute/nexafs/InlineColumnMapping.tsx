@@ -2,18 +2,19 @@
 
 import { useState, useEffect } from "react";
 import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownItem,
+  Input,
+} from "@heroui/react";
+import {
   Table,
   TableHeader,
   TableColumn,
   TableBody,
   TableRow,
   TableCell,
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-  Input,
-} from "@heroui/react";
+} from "@heroui/table";
 import type {
   CSVColumnMappings,
 } from "~/app/contribute/nexafs/types";
@@ -191,12 +192,10 @@ export function InlineColumnMapping({
     <div className="space-y-4">
       {previewRows.length > 0 && (
         <div className="flex flex-col">
-          <Table
-            aria-label="CSV data preview with column mapping"
-            classNames={{
-              wrapper: "max-h-[600px] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm",
-            }}
-          >
+          <div className="max-h-[600px] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-auto">
+            <Table
+              aria-label="CSV data preview with column mapping"
+            >
             <TableHeader>
               {columns.map((col) => {
                 const mappingType = getColumnMappingType(col);
@@ -225,12 +224,10 @@ export function InlineColumnMapping({
                           <span className="text-sm font-semibold">{col}</span>
                         </div>
                       </DropdownTrigger>
-                      <DropdownMenu
-                        aria-label="Column assignment"
-                        classNames={{
-                          base: "bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 shadow-2xl min-w-[200px] p-2 gap-1",
-                        }}
-                        onAction={(key) => {
+                      <Dropdown.Popover className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 shadow-2xl min-w-[200px]">
+                        <Dropdown.Menu
+                          aria-label="Column assignment"
+                          onAction={(key) => {
                           if (key === "none") {
                             handleAssignColumn(col, "none");
                             if (fixedThetaColumn === col) {
@@ -335,7 +332,6 @@ export function InlineColumnMapping({
                             </div>
                             <Input
                               type="number"
-                              size="sm"
                               placeholder="Enter value (°)"
                               value={localFixedTheta}
                               onChange={(e) => {
@@ -346,11 +342,7 @@ export function InlineColumnMapping({
                               onFocus={() => {
                                 setThetaMode("fixed");
                               }}
-                              classNames={{
-                                base: "w-full",
-                                input: "text-xs",
-                                inputWrapper: "h-8 rounded-lg border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20",
-                              }}
+                              className="w-full h-8 text-xs rounded-lg border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20"
                             />
                           </div>
                         </DropdownItem>
@@ -392,7 +384,6 @@ export function InlineColumnMapping({
                             </div>
                             <Input
                               type="number"
-                              size="sm"
                               placeholder="Enter value (°)"
                               value={localFixedPhi}
                               onChange={(e) => {
@@ -403,11 +394,7 @@ export function InlineColumnMapping({
                               onFocus={() => {
                                 setPhiMode("fixed");
                               }}
-                              classNames={{
-                                base: "w-full",
-                                input: "text-xs",
-                                inputWrapper: "h-8 rounded-lg border-2 border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/20",
-                              }}
+                              className="w-full h-8 text-xs rounded-lg border-2 border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/20"
                             />
                           </div>
                         </DropdownItem>
@@ -430,7 +417,8 @@ export function InlineColumnMapping({
                             </DropdownItem>
                           </>
                         ) : null}
-                      </DropdownMenu>
+                        </Dropdown.Menu>
+                      </Dropdown.Popover>
                     </Dropdown>
                   </TableColumn>
                 );
@@ -466,6 +454,7 @@ export function InlineColumnMapping({
               }}
             </TableBody>
           </Table>
+          </div>
         </div>
       )}
     </div>

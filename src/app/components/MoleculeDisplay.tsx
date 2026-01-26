@@ -12,7 +12,7 @@ import { HandThumbUpIcon as HandThumbUpIconSolid } from "@heroicons/react/24/sol
 import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
 import { SynonymsList } from "./SynonymsList";
-import { Badge } from "@heroui/react";
+import { Badge } from "@heroui/badge";
 import { ToggleIconButton } from "./ToggleIconButton";
 import { MoleculeImageSVG } from "./MoleculeImageSVG";
 import { useRealtimeUpvotes } from "~/hooks/useRealtimeUpvotes";
@@ -602,7 +602,7 @@ export const MoleculeDisplayCompact = ({
             <ToggleIconButton
               icon={
                 <Image
-                  src="https://pubchem.ncbi.nlm.nih.gov/pcfe/favicon/apple-touch-icon.png"
+                  src="https://images.icon-icons.com/2415/PNG/512/c_line_logo_icon_146612.png"
                   alt="PubChem"
                   width={16}
                   height={16}
@@ -619,7 +619,7 @@ export const MoleculeDisplayCompact = ({
           <ToggleIconButton
             icon={
               <Image
-                src="https://pubchem.ncbi.nlm.nih.gov/pcfe/favicon/apple-touch-icon.png"
+                src="https://images.icon-icons.com/2415/PNG/512/c_line_logo_icon_146612.png"
                 alt="PubChem"
                 width={16}
                 height={16}

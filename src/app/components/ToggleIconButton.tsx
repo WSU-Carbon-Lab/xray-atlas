@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Tooltip, Badge } from "@heroui/react";
-import type { BadgeProps } from "@heroui/react";
+import { Tooltip } from "@heroui/react";
+import { Badge } from "@heroui/badge";
+import type { BadgeProps } from "@heroui/badge";
 
 interface ToggleIconButtonProps {
   icon?: ReactNode;
@@ -28,7 +29,7 @@ interface ToggleIconButtonProps {
     shape?: BadgeProps["shape"];
     showOutline?: boolean;
     isInvisible?: boolean;
-    classNames?: BadgeProps["classNames"];
+    className?: string;
   };
 }
 
@@ -80,15 +81,15 @@ export function ToggleIconButton({
 
   // If tooltip is provided, wrap button with tooltip first
   const buttonWithTooltip = tooltip ? (
-    <Tooltip
-      content={tooltip.content}
-      placement={tooltip.placement ?? "top"}
-      offset={tooltip.offset ?? 8}
-      classNames={{
-        base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg mb-2",
-      }}
-    >
+    <Tooltip delay={0}>
       {button}
+      <Tooltip.Content
+        placement={tooltip.placement ?? "top"}
+        offset={tooltip.offset ?? 8}
+        className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg mb-2"
+      >
+        {tooltip.content}
+      </Tooltip.Content>
     </Tooltip>
   ) : (
     button
@@ -106,10 +107,7 @@ export function ToggleIconButton({
         shape={badge.shape ?? "rectangle"}
         showOutline={badge.showOutline ?? true}
         isInvisible={badge.isInvisible ?? false}
-        classNames={{
-          ...badge.classNames,
-          badge: `${String(badge.classNames?.badge ?? "")} pointer-events-none`,
-        }}
+        className={badge.className}
       >
         {buttonWithTooltip}
       </Badge>

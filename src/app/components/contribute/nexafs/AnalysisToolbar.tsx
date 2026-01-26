@@ -22,7 +22,7 @@ import {
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 import { Mountain, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
-import { NumberInput, Tooltip, Slider, ScrollShadow } from "@heroui/react";
+import { Input, Tooltip, Slider, ScrollShadow } from "@heroui/react";
 import { DefaultButton as Button } from "~/app/components/Button";
 import { SubToolButton } from "./SubToolButton";
 import { ToggleIconButton } from "~/app/components/ToggleIconButton";
@@ -1005,11 +1005,7 @@ export function AnalysisToolbar({
                 isInvisible: peaks.length === 0,
                 shape: "rectangle",
                 showOutline: true,
-                classNames: {
-                  base: "relative",
-                  badge:
-                    "bg-white text-gray-900 text-[10px] font-semibold h-4 min-w-4 px-1 rounded-full border border-gray-900 dark:border-gray-100",
-                },
+                className: "relative [&_.badge]:bg-white [&_.badge]:text-gray-900 [&_.badge]:text-[10px] [&_.badge]:font-semibold [&_.badge]:h-4 [&_.badge]:min-w-4 [&_.badge]:px-1 [&_.badge]:rounded-full [&_.badge]:border [&_.badge]:border-gray-900 dark:[&_.badge]:border-gray-100",
               }}
             />
             <ToggleIconButton
@@ -1096,11 +1092,7 @@ export function AnalysisToolbar({
               isInvisible: peaks.length === 0,
               shape: "rectangle",
               showOutline: true,
-              classNames: {
-                base: "relative",
-                badge:
-                  "bg-white text-gray-900 text-[10px] font-semibold h-4 min-w-4 px-1 rounded-full border border-gray-900 dark:border-gray-100",
-              },
+              className: "relative [&_.badge]:bg-white [&_.badge]:text-gray-900 [&_.badge]:text-[10px] [&_.badge]:font-semibold [&_.badge]:h-4 [&_.badge]:min-w-4 [&_.badge]:px-1 [&_.badge]:rounded-full [&_.badge]:border [&_.badge]:border-gray-900 dark:[&_.badge]:border-gray-100",
             }}
           />
           <ToggleIconButton
@@ -1323,42 +1315,36 @@ export function AnalysisToolbar({
                     <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                       Min (eV)
                     </label>
-                    <NumberInput
-                      size="sm"
-                      variant="bordered"
+                    <Input
+                      type="number"
+                      variant="secondary"
                       value={
                         Math.round(normalizationRegions.pre[0] * 100) / 100
                       }
-                      onValueChange={(value) =>
-                        handlePreEdgeRangeChange(0, value)
+                      onChange={(e) =>
+                        handlePreEdgeRangeChange(0, parseFloat(e.target.value) || 0)
                       }
                       step={0.01}
-                      minValue={0}
-                      classNames={{
-                        base: "w-full",
-                        input: "text-xs",
-                      }}
+                      min={0}
+                      className="w-full text-xs"
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                       Max (eV)
                     </label>
-                    <NumberInput
-                      size="sm"
-                      variant="bordered"
+                    <Input
+                      type="number"
+                      variant="secondary"
                       value={
                         Math.round(normalizationRegions.pre[1] * 100) / 100
                       }
-                      onValueChange={(value) =>
-                        handlePreEdgeRangeChange(1, value)
+                      onChange={(e) =>
+                        handlePreEdgeRangeChange(1, parseFloat(e.target.value) || 0)
                       }
                       step={0.01}
-                      minValue={0}
-                      classNames={{
-                        base: "w-full",
-                        input: "text-xs",
-                      }}
+                      min={0}
+                      className="w-full text-xs"
                     />
                   </div>
                 </div>
@@ -1371,42 +1357,36 @@ export function AnalysisToolbar({
                     <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                       Min (eV)
                     </label>
-                    <NumberInput
-                      size="sm"
-                      variant="bordered"
+                    <Input
+                      type="number"
+                      variant="secondary"
                       value={
                         Math.round(normalizationRegions.post[0] * 100) / 100
                       }
-                      onValueChange={(value) =>
-                        handlePostEdgeRangeChange(0, value)
+                      onChange={(e) =>
+                        handlePostEdgeRangeChange(0, parseFloat(e.target.value) || 0)
                       }
                       step={0.01}
-                      minValue={0}
-                      classNames={{
-                        base: "w-full",
-                        input: "text-xs",
-                      }}
+                      min={0}
+                      className="w-full text-xs"
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                       Max (eV)
                     </label>
-                    <NumberInput
-                      size="sm"
-                      variant="bordered"
+                    <Input
+                      type="number"
+                      variant="secondary"
                       value={
                         Math.round(normalizationRegions.post[1] * 100) / 100
                       }
-                      onValueChange={(value) =>
-                        handlePostEdgeRangeChange(1, value)
+                      onChange={(e) =>
+                        handlePostEdgeRangeChange(1, parseFloat(e.target.value) || 0)
                       }
                       step={0.01}
-                      minValue={0}
-                      classNames={{
-                        base: "w-full",
-                        input: "text-xs",
-                      }}
+                      min={0}
+                      className="w-full text-xs"
                     />
                   </div>
                 </div>
@@ -1544,22 +1524,21 @@ export function AnalysisToolbar({
                 {/* Peak Detection Settings - shown only when auto-detect mode is active */}
                 {peakDetectionMode === "auto" && (
                   <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
-                    <Tooltip
-                      content="Minimum prominence as fraction of max intensity"
-                      placement="top"
-                      classNames={{
-                        base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-                      }}
-                    >
+                    <Tooltip delay={0}>
                       <label className="mb-2 block cursor-help text-xs font-medium text-gray-700 dark:text-gray-300">
                         Prominence:{" "}
                         {(peakParams.minProminence ?? 0.05).toFixed(2)}
                       </label>
+                      <Tooltip.Content
+                        placement="top"
+                        className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg"
+                      >
+                        Minimum prominence as fraction of max intensity
+                      </Tooltip.Content>
                     </Tooltip>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 py-2">
                         <Slider
-                          size="sm"
                           step={0.01}
                           minValue={0}
                           maxValue={1}
@@ -1581,14 +1560,13 @@ export function AnalysisToolbar({
                               });
                             }
                           }}
-                          classNames={{
-                            base: "w-full",
-                            track: "h-2 bg-gray-200 dark:bg-gray-700",
-                            filler: "bg-accent",
-                            thumb:
-                              "w-4 h-4 bg-accent border-2 border-accent cursor-pointer",
-                          }}
-                        />
+                          className="w-full"
+                        >
+                          <Slider.Track className="h-2 bg-gray-200 dark:bg-gray-700">
+                            <Slider.Fill className="bg-accent" />
+                            <Slider.Thumb className="w-4 h-4 bg-accent border-2 border-accent cursor-pointer" />
+                          </Slider.Track>
+                        </Slider>
                       </div>
                       <Button
                         type="button"
@@ -1765,41 +1743,35 @@ export function AnalysisToolbar({
                                     )}
                                   </button>
                                   <div className="min-w-0 flex-1">
-                                    <NumberInput
-                                      size="sm"
-                                      variant="flat"
-                                      value={
-                                        Math.round(peak.energy * 100) / 100
-                                      }
-                                      onValueChange={(value) => {
-                                        const rounded =
-                                          Math.round(value * 100) / 100;
-                                        if (Number.isFinite(rounded)) {
-                                          const actualIndex =
-                                            peaks.indexOf(peak);
-                                          if (actualIndex !== -1) {
-                                            handleUpdatePeak(actualIndex, {
-                                              energy: rounded,
-                                            });
-                                          }
+                                    <div className="relative w-full">
+                                      <Input
+                                        type="number"
+                                        variant="secondary"
+                                        value={
+                                          Math.round(peak.energy * 100) / 100
                                         }
-                                      }}
-                                      step={0.01}
-                                      minValue={0}
-                                      endContent={
-                                        <span className="pr-0.5 text-xs text-gray-600 dark:text-gray-300">
-                                          eV
-                                        </span>
-                                      }
-                                      classNames={{
-                                        base: "w-full",
-                                        input:
-                                          "text-xs py-0 h-6 bg-transparent text-gray-900 dark:text-gray-100",
-                                        inputWrapper:
-                                          "h-6 min-h-6 bg-transparent shadow-none border-0",
-                                      }}
-                                      onClick={(e) => e.stopPropagation()}
-                                    />
+                                        onChange={(e) => {
+                                          const rounded =
+                                            Math.round(parseFloat(e.target.value) * 100) / 100;
+                                          if (Number.isFinite(rounded)) {
+                                            const actualIndex =
+                                              peaks.indexOf(peak);
+                                            if (actualIndex !== -1) {
+                                              handleUpdatePeak(actualIndex, {
+                                                energy: rounded,
+                                              });
+                                            }
+                                          }
+                                        }}
+                                        step={0.01}
+                                        min={0}
+                                        className="w-full text-xs py-0 h-6 bg-transparent text-gray-900 dark:text-gray-100 pr-8"
+                                        onClick={(e) => e.stopPropagation()}
+                                      />
+                                      <span className="absolute right-2 top-1/2 -translate-y-1/2 pr-0.5 text-xs text-gray-600 dark:text-gray-300 pointer-events-none">
+                                        eV
+                                      </span>
+                                    </div>
                                   </div>
                                   <button
                                     type="button"
@@ -1988,20 +1960,12 @@ export function AnalysisToolbar({
                                           )}
                                         </select>
                                       )}
-                                      <NumberInput
-                                        size="sm"
-                                        variant="bordered"
-                                        value={peak.amplitude ?? undefined}
-                                        onValueChange={(value) => {
-                                          let numValue: number | undefined;
-                                          if (typeof value === "number") {
-                                            numValue = value;
-                                          } else if (Array.isArray(value)) {
-                                            const firstVal = value[0];
-                                            if (typeof firstVal === "number") {
-                                              numValue = firstVal;
-                                            }
-                                          }
+                                      <Input
+                                        type="number"
+                                        variant="secondary"
+                                        value={peak.amplitude?.toString() ?? ""}
+                                        onChange={(e) => {
+                                          const numValue = parseFloat(e.target.value);
                                           if (
                                             typeof numValue === "number" &&
                                             Number.isFinite(numValue)
@@ -2012,33 +1976,17 @@ export function AnalysisToolbar({
                                           }
                                         }}
                                         step={0.01}
-                                        minValue={0}
+                                        min={0}
                                         placeholder="Amp"
-                                        classNames={{
-                                          base: "w-full",
-                                          input:
-                                            "!text-gray-500 dark:!text-gray-400 text-xs",
-                                          inputWrapper:
-                                            "h-7 min-h-7 max-h-7 px-2 py-1 focus:border-accent focus:ring-accent/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700",
-                                          mainWrapper:
-                                            "text-gray-500 dark:text-gray-400",
-                                        }}
+                                        className="w-full !text-gray-500 dark:!text-gray-400 text-xs h-7 min-h-7 max-h-7 px-2 py-1 focus:border-accent focus:ring-accent/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700"
                                         onClick={(e) => e.stopPropagation()}
                                       />
-                                      <NumberInput
-                                        size="sm"
-                                        variant="bordered"
-                                        value={peak.width ?? undefined}
-                                        onValueChange={(value) => {
-                                          let numValue: number | undefined;
-                                          if (typeof value === "number") {
-                                            numValue = value;
-                                          } else if (Array.isArray(value)) {
-                                            const firstVal = value[0];
-                                            if (typeof firstVal === "number") {
-                                              numValue = firstVal;
-                                            }
-                                          }
+                                      <Input
+                                        type="number"
+                                        variant="secondary"
+                                        value={peak.width?.toString() ?? ""}
+                                        onChange={(e) => {
+                                          const numValue = parseFloat(e.target.value);
                                           if (
                                             typeof numValue === "number" &&
                                             Number.isFinite(numValue)
@@ -2049,17 +1997,9 @@ export function AnalysisToolbar({
                                           }
                                         }}
                                         step={0.1}
-                                        minValue={0}
+                                        min={0}
                                         placeholder="Width"
-                                        classNames={{
-                                          base: "w-full",
-                                          input:
-                                            "!text-gray-500 dark:!text-gray-400 text-xs",
-                                          inputWrapper:
-                                            "h-7 min-h-7 max-h-7 px-2 py-1 focus:border-accent focus:ring-accent/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700",
-                                          mainWrapper:
-                                            "text-gray-500 dark:text-gray-400",
-                                        }}
+                                        className="w-full !text-gray-500 dark:!text-gray-400 text-xs h-7 min-h-7 max-h-7 px-2 py-1 focus:border-accent focus:ring-accent/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700"
                                         onClick={(e) => e.stopPropagation()}
                                       />
                                     </div>
@@ -2079,29 +2019,24 @@ export function AnalysisToolbar({
                               Energy (eV){" "}
                               <span className="text-red-500">*</span>
                             </label>
-                            <NumberInput
-                              size="sm"
-                              variant="bordered"
-                              value={
-                                newPeakEnergy
-                                  ? parseFloat(newPeakEnergy)
-                                  : undefined
-                              }
-                              onValueChange={(value) =>
-                                setNewPeakEnergy(value.toString())
-                              }
-                              step={0.01}
-                              minValue={0}
-                              placeholder="e.g., 285.0"
-                              label="Energy (eV)"
-                              labelPlacement="outside"
-                              classNames={{
-                                base: "w-full",
-                                input: "text-xs",
-                                label: "text-xs font-medium",
-                              }}
-                              autoFocus
-                            />
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                Energy (eV)
+                              </label>
+                              <Input
+                                type="number"
+                                variant="secondary"
+                                value={newPeakEnergy ?? ""}
+                                onChange={(e) =>
+                                  setNewPeakEnergy(e.target.value)
+                                }
+                                step={0.01}
+                                min={0}
+                                placeholder="e.g., 285.0"
+                                className="w-full text-xs"
+                                autoFocus
+                              />
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div>
@@ -2236,20 +2171,12 @@ export function AnalysisToolbar({
                               <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                                 Amp
                               </label>
-                              <NumberInput
-                                size="sm"
-                                variant="bordered"
-                                value={newPeakAmplitude ?? undefined}
-                                onValueChange={(value) => {
-                                  let numValue: number | undefined;
-                                  if (typeof value === "number") {
-                                    numValue = value;
-                                  } else if (Array.isArray(value)) {
-                                    const firstVal = value[0];
-                                    if (typeof firstVal === "number") {
-                                      numValue = firstVal;
-                                    }
-                                  }
+                              <Input
+                                type="number"
+                                variant="secondary"
+                                value={newPeakAmplitude?.toString() ?? ""}
+                                onChange={(e) => {
+                                  const numValue = parseFloat(e.target.value);
                                   setNewPeakAmplitude(
                                     typeof numValue === "number" &&
                                       Number.isFinite(numValue)
@@ -2258,37 +2185,21 @@ export function AnalysisToolbar({
                                   );
                                 }}
                                 step={0.01}
-                                minValue={0}
+                                min={0}
                                 placeholder="Amp"
-                                classNames={{
-                                  base: "w-full",
-                                  input:
-                                    "!text-gray-500 dark:!text-gray-400 text-xs",
-                                  inputWrapper:
-                                    "h-7 min-h-7 max-h-7 focus:border-accent focus:ring-accent/20",
-                                  mainWrapper:
-                                    "text-gray-500 dark:text-gray-400",
-                                }}
+                                className="w-full !text-gray-500 dark:!text-gray-400 text-xs h-7 min-h-7 max-h-7 focus:border-accent focus:ring-accent/20"
                               />
                             </div>
                             <div>
                               <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                                 Width
                               </label>
-                              <NumberInput
-                                size="sm"
-                                variant="bordered"
-                                value={newPeakWidth ?? undefined}
-                                onValueChange={(value) => {
-                                  let numValue: number | undefined;
-                                  if (typeof value === "number") {
-                                    numValue = value;
-                                  } else if (Array.isArray(value)) {
-                                    const firstVal = value[0];
-                                    if (typeof firstVal === "number") {
-                                      numValue = firstVal;
-                                    }
-                                  }
+                              <Input
+                                type="number"
+                                variant="secondary"
+                                value={newPeakWidth?.toString() ?? ""}
+                                onChange={(e) => {
+                                  const numValue = parseFloat(e.target.value);
                                   setNewPeakWidth(
                                     typeof numValue === "number" &&
                                       Number.isFinite(numValue)
@@ -2297,17 +2208,9 @@ export function AnalysisToolbar({
                                   );
                                 }}
                                 step={0.1}
-                                minValue={0}
+                                min={0}
                                 placeholder="Width"
-                                classNames={{
-                                  base: "w-full",
-                                  input:
-                                    "!text-gray-500 dark:!text-gray-400 text-xs",
-                                  inputWrapper:
-                                    "h-7 min-h-7 max-h-7 focus:border-accent focus:ring-accent/20",
-                                  mainWrapper:
-                                    "text-gray-500 dark:text-gray-400",
-                                }}
+                                className="w-full !text-gray-500 dark:!text-gray-400 text-xs h-7 min-h-7 max-h-7 focus:border-accent focus:ring-accent/20"
                               />
                             </div>
                           </div>

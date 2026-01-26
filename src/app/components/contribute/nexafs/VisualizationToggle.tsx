@@ -39,12 +39,7 @@ export function VisualizationToggle({
   return (
     <div className="flex items-center justify-between w-full gap-2">
       <div className="flex items-center gap-2">
-        <Tooltip
-          content="View spectrum data as an interactive graph"
-          classNames={{
-            base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-          }}
-        >
+        <Tooltip delay={0}>
           <Button
             type="button"
             variant={mode === "graph" ? "solid" : "bordered"}
@@ -61,13 +56,11 @@ export function VisualizationToggle({
               <span className="text-sm font-medium">Graph</span>
             </div>
           </Button>
+          <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+            View spectrum data as an interactive graph
+          </Tooltip.Content>
         </Tooltip>
-        <Tooltip
-          content="View spectrum data as a table with all data points"
-          classNames={{
-            base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-          }}
-        >
+        <Tooltip delay={0}>
           <Button
             type="button"
             variant={mode === "table" ? "solid" : "bordered"}
@@ -84,25 +77,16 @@ export function VisualizationToggle({
               <span className="text-sm font-medium">Table</span>
             </div>
           </Button>
+          <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+            View spectrum data as a table with all data points
+          </Tooltip.Content>
         </Tooltip>
       </div>
 
       {mode === "graph" && showGraphStyles && onGraphStyleChange && (
         <div className="flex items-center gap-2">
           {graphStyles.map((style) => (
-            <Tooltip
-              key={style}
-              content={
-                style === "line"
-                  ? "Display spectrum as a continuous line"
-                  : style === "scatter"
-                    ? "Display spectrum as individual data points"
-                    : "Display spectrum as a filled area under the curve"
-              }
-              classNames={{
-                base: "bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg",
-              }}
-            >
+            <Tooltip key={style} delay={0}>
               <Button
                 type="button"
                 variant={graphStyle === style ? "solid" : "bordered"}
@@ -123,6 +107,13 @@ export function VisualizationToggle({
                   </span>
                 </div>
               </Button>
+              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                {style === "line"
+                  ? "Display spectrum as a continuous line"
+                  : style === "scatter"
+                    ? "Display spectrum as individual data points"
+                    : "Display spectrum as a filled area under the curve"}
+              </Tooltip.Content>
             </Tooltip>
           ))}
         </div>
