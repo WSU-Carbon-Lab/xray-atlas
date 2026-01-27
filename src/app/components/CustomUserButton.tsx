@@ -35,6 +35,9 @@ export function CustomUserButton() {
       case "profile":
         router.push(`/users/${user.id}`);
         break;
+      case "settings":
+        router.push("/settings");
+        break;
       default:
         break;
     }
@@ -119,9 +122,8 @@ export function CustomUserButton() {
                 Dashboard
               </button>
               <button
-                disabled
-                className="flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm text-gray-400 dark:text-gray-500"
-                title="Coming soon"
+                onClick={() => handleAction("settings")}
+                className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 <Settings className="h-4 w-4" />
                 Settings

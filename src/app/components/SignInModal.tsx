@@ -1,33 +1,24 @@
 "use client";
 
 import { Fragment } from "react";
-import { usePathname } from "next/navigation";
 import { Dialog, Transition } from "@headlessui/react";
-import { signIn } from "next-auth/react";
-import { GitHubIcon } from "./icons";
+import { Button } from "@heroui/react";
+import { SocialSignInButtons } from "./SocialSignInButtons";
 
 interface SignInModalProps {
   isOpen: boolean;
   onClose: () => void;
+  callbackUrl: string;
 }
 
-export function SignInModal({ isOpen, onClose }: SignInModalProps) {
-  const pathname = usePathname();
-  const callbackUrl = pathname && pathname !== "/" ? pathname : "/";
-
-  const handleGitHubSignIn = () => {
-    void signIn("github", { callbackUrl });
-    onClose();
-  };
-
-  const handleORCIDSignIn = () => {
-    void signIn("orcid", { callbackUrl });
-    onClose();
-  };
-
+export function SignInModal({
+  isOpen,
+  onClose,
+  callbackUrl,
+}: SignInModalProps) {
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
+      <Dialog as="div" className="relative z-modal" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -40,7 +31,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
           <div className="fixed inset-0 bg-black/25 backdrop-blur-sm dark:bg-black/50" />
         </Transition.Child>
 
-        <div className="fixed inset-0 overflow-y-auto">
+        <div className="fixed inset-0 overflow-y-auto overscroll-contain">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
               as={Fragment}
@@ -51,28 +42,37 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 text-left align-middle shadow-xl transition-all dark:border-gray-700 dark:bg-gray-800">
-                <div className="flex flex-col items-center justify-center space-y-4">
-                  <h2 className="text-xl font-semibold">Sign in to X-ray Atlas</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Choose your preferred sign-in method
+              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl border border-border-default bg-surface-1 p-6 text-left align-middle shadow-xl transition-[opacity,transform] duration-200">
+                <Dialog.Title
+                  as="h2"
+                  className="mb-1 text-xl font-semibold text-text-primary"
+                >
+                  Sign in to X-ray Atlas
+                </Dialog.Title>
+                <p className="mb-6 text-sm text-text-secondary">
+                  ORCID is recommended for researchers. GitHub and passkeys are
+                  also available as alternatives.
+                </p>
+                <SocialSignInButtons
+                  callbackUrl={callbackUrl}
+                  onSignIn={onClose}
+                />
+                <div className="mt-4 rounded-lg bg-surface-2 p-4">
+                  <p className="text-xs text-text-secondary">
+                    <a
+                      href="https://orcid.org"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:text-accent-dark underline"
+                    >
+                      Learn more at orcid.org
+                    </a>
                   </p>
-                  <div className="w-full space-y-3">
-                    <button
-                      onClick={handleGitHubSignIn}
-                      className="flex w-full items-center justify-center gap-3 rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-gray-800 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
-                    >
-                      <GitHubIcon className="h-5 w-5" />
-                      Sign in with GitHub
-                    </button>
-                    <button
-                      onClick={handleORCIDSignIn}
-                      className="flex w-full items-center justify-center gap-3 rounded-lg bg-accent px-4 py-2 text-white hover:bg-accent-dark transition-colors"
-                    >
-                      <span className="text-sm font-semibold">ORCID</span>
-                      Sign in with ORCID
-                    </button>
-                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <Button variant="ghost" onPress={onClose}>
+                    Cancel
+                  </Button>
                 </div>
               </Dialog.Panel>
             </Transition.Child>

@@ -20,7 +20,7 @@ export function DefaultButton({
   className,
   ...props
 }: DefaultButtonProps) {
-  const baseClassName = "cursor-pointer border-default text-foreground flex h-8 items-center gap-2 rounded-lg border px-3 backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 hover:bg-white/90 dark:hover:bg-gray-800/90 transition-all shadow-sm hover:shadow-md";
+  const baseClassName = "cursor-pointer border-default text-foreground flex h-8 items-center gap-2 rounded-lg border px-3 backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 hover:bg-white/90 dark:hover:bg-gray-800/90 transition-[background-color,box-shadow] shadow-sm hover:shadow-md [touch-action:manipulation]";
   
   const resolvedClassName = typeof className === "string" 
     ? `${baseClassName} ${className}` 

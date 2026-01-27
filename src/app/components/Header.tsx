@@ -172,7 +172,7 @@ export default function Header() {
             isSignedIn ? (
               <CustomUserButton />
             ) : (
-              <SignInButton variant="outline" size="sm">
+              <SignInButton size="sm">
                 Sign In
               </SignInButton>
             )

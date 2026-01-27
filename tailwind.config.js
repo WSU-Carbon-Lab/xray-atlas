@@ -74,6 +74,7 @@ const config = {
         "scale-in": "scale-in 0.2s ease-out",
         shimmer: "shimmer 1.5s ease-in-out infinite",
         pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        border: "border 4s linear infinite",
       },
       keyframes: {
         "fade-in": {
@@ -99,6 +100,9 @@ const config = {
         shimmer: {
           "0%": { backgroundPosition: "200% 0" },
           "100%": { backgroundPosition: "-200% 0" },
+        },
+        border: {
+          to: { "--border-angle": "360deg" },
         },
       },
       zIndex: {

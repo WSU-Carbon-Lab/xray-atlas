@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession, signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@heroui/react";
+import { DefaultButton } from "./Button";
 import { SignInModal } from "./SignInModal";
 import { isDevelopment } from "~/utils/isDevelopment";
 
@@ -15,7 +15,7 @@ interface SignInButtonProps {
 
 export function SignInButton({
   children = "Sign In",
-  variant = "outline",
+  variant = "primary",
   size = "sm",
 }: SignInButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,12 +28,11 @@ export function SignInButton({
 
   const handleSignIn = () => {
     if (isDev) {
-      const signInUrl = `/sign-in?callbackUrl=${encodeURIComponent(
-        afterSignInUrl,
-      )}`;
-      router.push(signInUrl);
+      router.push(
+        `/sign-in?callbackUrl=${encodeURIComponent(afterSignInUrl)}`,
+      );
     } else {
-      void signIn("orcid", { callbackUrl: afterSignInUrl });
+      setIsOpen(true);
     }
   };
 
@@ -49,11 +48,15 @@ export function SignInButton({
 
   return (
     <>
-      <Button variant={variant} size={size} onPress={handleSignIn}>
+      <DefaultButton variant={variant} size={size} onPress={handleSignIn}>
         {children}
-      </Button>
+      </DefaultButton>
       {!isDev && (
-        <SignInModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+        <SignInModal
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          callbackUrl={afterSignInUrl}
+        />
       )}
     </>
   );

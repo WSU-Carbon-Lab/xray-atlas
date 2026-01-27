@@ -308,14 +308,20 @@ model session {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model user {
-  id            String    @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String?
-  email         String?   @unique(map: "email_unique")
-  emailVerified DateTime? @db.Timestamptz(6)
-  image         String?
-  account       account[]
-  session       session[]
+  id                           String         @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                         String?
+  email                        String?        @unique(map: "email_unique")
+  emailVerified                DateTime?      @db.Timestamptz(6)
+  image                        String?
+  orcid                        String?
+  role                         String         @default("contributor")
+  contributionAgreementAccepted Boolean       @default(false)
+  contributionAgreementDate    DateTime?      @db.Timestamptz(6)
+  account                      account[]
+  session                      session[]
+  authenticator                Authenticator[]
 
+  @@index([orcid], map: "users_orcid_idx")
   @@schema("next_auth")
 }
 
@@ -326,6 +332,21 @@ model verificationToken {
   expires    DateTime @db.Timestamptz(6)
 
   @@unique([token, identifier], map: "token_identifier_unique")
+  @@schema("next_auth")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Authenticator {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  credentialID         String   @unique @db.VarChar(1024)
+  userId               String   @db.Uuid
+  counter              BigInt
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports          String?
+  user                 user     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId])
   @@schema("next_auth")
 }
 
