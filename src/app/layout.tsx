@@ -35,7 +35,8 @@ const geist = Geist({
 
 export default async function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+  modal,
+}: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
   return (
     <html
       lang="en"
@@ -48,6 +49,7 @@ export default async function RootLayout({
             <ThemeProviderWrapper>
               <Header />
               {children}
+              {modal}
               <SpeedInsights />
               <Analytics />
               <Footer />

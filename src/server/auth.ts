@@ -6,15 +6,10 @@ import GitHub from "next-auth/providers/github";
 import Passkey from "next-auth/providers/passkey";
 import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers";
 
-const isDev = process.env.NODE_ENV === "development";
 const useSandbox = env.ORCID_USE_SANDBOX === "true";
 
-const githubClientId = isDev
-  ? env.DEV_GITHUB_CLIENT_ID ?? env.GITHUB_CLIENT_ID
-  : env.GITHUB_CLIENT_ID;
-const githubClientSecret = isDev
-  ? env.DEV_GITHUB_CLIENT_SECRET ?? env.GITHUB_CLIENT_SECRET
-  : env.GITHUB_CLIENT_SECRET;
+const githubClientId = env.GITHUB_CLIENT_ID;
+const githubClientSecret = env.GITHUB_CLIENT_SECRET;
 
 interface ORCIDProfile {
   sub: string;
@@ -94,24 +89,62 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   trustHost: true,
   basePath: "/api/auth",
+  ...(env.AUTH_URL && { url: env.AUTH_URL }),
   session: {
     strategy: "database",
   },
   callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === "orcid" && account.providerAccountId) {
-        const orcidId = account.providerAccountId.startsWith("https://")
-          ? account.providerAccountId.replace("https://orcid.org/", "").replace("https://sandbox.orcid.org/", "")
-          : account.providerAccountId;
+      try {
+        console.log("[NextAuth] signIn callback:", {
+          provider: account?.provider ?? "unknown",
+          userId: user?.id ?? "unknown",
+          hasAccount: !!account,
+          hasUser: !!user,
+          userEmail: user?.email ?? "unknown",
+        });
 
-        if (user.id) {
-          await db.user.update({
-            where: { id: user.id },
-            data: { orcid: orcidId },
-          });
+        if (account?.provider === "orcid" && account.providerAccountId && user.id) {
+          let orcidId = account.providerAccountId;
+          
+          if (orcidId.startsWith("https://orcid.org/")) {
+            orcidId = orcidId.replace("https://orcid.org/", "");
+          } else if (orcidId.startsWith("https://sandbox.orcid.org/")) {
+            orcidId = orcidId.replace("https://sandbox.orcid.org/", "");
+          }
+          
+          orcidId = orcidId.replace(/\/$/, "");
+
+          try {
+            const existingUser = await db.user.findUnique({
+              where: { id: user.id },
+              select: { id: true },
+            });
+
+            if (existingUser) {
+              await db.user.update({
+                where: { id: user.id },
+                data: { orcid: orcidId },
+              });
+              console.log("[NextAuth] Updated ORCID for user:", user.id, "ORCID:", orcidId);
+            } else {
+              console.warn("[NextAuth] User not found when trying to update ORCID:", user.id);
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            console.error("[NextAuth] Error updating ORCID:", errorMessage, {
+              userId: user.id,
+              orcidId,
+              providerAccountId: account.providerAccountId,
+            });
+          }
         }
+        return true;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        console.error("[NextAuth] Fatal error in signIn callback:", errorMessage);
+        return true;
       }
-      return true;
     },
     async session({ session, user }) {
       if (user?.id) {

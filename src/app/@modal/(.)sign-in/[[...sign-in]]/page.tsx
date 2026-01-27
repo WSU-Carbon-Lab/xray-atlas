@@ -1,24 +1,23 @@
 "use client";
 
-import { Fragment } from "react";
+import { Suspense, Fragment } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Dialog, Transition } from "@headlessui/react";
 import { Button } from "@heroui/react";
-import { SocialSignInButtons } from "./SocialSignInButtons";
+import { SocialSignInButtons } from "~/app/components/SocialSignInButtons";
 
-interface SignInModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  callbackUrl: string;
-}
+function SignInModalContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
 
-export function SignInModal({
-  isOpen,
-  onClose,
-  callbackUrl,
-}: SignInModalProps) {
+  const handleClose = () => {
+    router.push(callbackUrl);
+  };
+
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-modal" onClose={onClose}>
+    <Transition appear show={true} as={Fragment}>
+      <Dialog as="div" className="relative z-modal" onClose={handleClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -55,10 +54,11 @@ export function SignInModal({
                 </p>
                 <SocialSignInButtons
                   callbackUrl={callbackUrl}
-                  onSignIn={onClose}
+                  onSignIn={handleClose}
                 />
                 <div className="mt-4 rounded-lg bg-surface-2 p-4">
                   <p className="text-xs text-text-secondary">
+                    Hover the ORCID button above for details.{" "}
                     <a
                       href="https://orcid.org"
                       target="_blank"
@@ -70,7 +70,7 @@ export function SignInModal({
                   </p>
                 </div>
                 <div className="mt-4 flex justify-end">
-                  <Button variant="ghost" onPress={onClose}>
+                  <Button variant="ghost" onPress={handleClose}>
                     Cancel
                   </Button>
                 </div>
@@ -80,5 +80,19 @@ export function SignInModal({
         </div>
       </Dialog>
     </Transition>
+  );
+}
+
+export default function SignInModalPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="fixed inset-0 flex items-center justify-center bg-black/25 backdrop-blur-sm dark:bg-black/50">
+          <div className="text-text-secondary">Loading…</div>
+        </div>
+      }
+    >
+      <SignInModalContent />
+    </Suspense>
   );
 }

@@ -11,7 +11,9 @@ export default auth((req) => {
   const isAuthenticated = !!req.auth;
 
   if (!isAuthenticated && pathname.startsWith("/contribute")) {
-    return NextResponse.redirect(new URL("/sign-in", req.url));
+    return NextResponse.redirect(
+      new URL(`/sign-in?callbackUrl=${encodeURIComponent(pathname)}`, req.url),
+    );
   }
 
   return NextResponse.next();

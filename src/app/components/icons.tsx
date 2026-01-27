@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useId } from "react";
+import React, { useId, useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 
 type IconProps = React.ComponentPropsWithoutRef<"svg">;
@@ -756,10 +756,16 @@ export function ORCIDIcon({
   ...props
 }: ORCIDIconProps) {
   const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
+  const [mounted, setMounted] = useState(false);
   const size = typeof width === "number" ? width : typeof height === "number" ? height : 24;
 
-  if (!resolvedTheme) {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && resolvedTheme === "dark";
+
+  if (!mounted) {
     return (
       <svg
         width={size}
@@ -769,6 +775,7 @@ export function ORCIDIcon({
         xmlns="http://www.w3.org/2000/svg"
         className={className}
         aria-label={authenticated ? "ORCID iD" : "ORCID iD (unauthenticated)"}
+        suppressHydrationWarning
         {...props}
       >
         <path
