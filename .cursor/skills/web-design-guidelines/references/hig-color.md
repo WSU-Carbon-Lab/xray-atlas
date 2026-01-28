@@ -1,0 +1,322 @@
+# Human Interface Guidelines: Color
+
+Based on [Apple Human Interface Guidelines: Color](https://developer.apple.com/design/human-interface-guidelines/color)
+
+Use color to enhance communication, not as the primary means of conveying information.
+
+## Core Principles
+
+1. **Use color sparingly** - Reserve vibrant colors for emphasis and important information
+2. **Ensure accessibility** - Meet contrast requirements and don't rely on color alone
+3. **Support appearance modes** - Colors must work in both light and dark modes
+4. **Be platform-aware** - Respect system colors and user preferences
+
+## Semantic Color System
+
+### Use Semantic Colors Over Raw Values
+
+**Define colors by their purpose, not their appearance:**
+
+```typescript
+// Good: Semantic naming
+const colors = {
+  textPrimary: "...",
+  textSecondary: "...",
+  backgroundSurface: "...",
+  borderDefault: "...",
+  accentPrimary: "...",
+  statusSuccess: "...",
+  statusError: "...",
+};
+
+// Bad: Appearance-based naming
+const colors = {
+  darkGray: "...",
+  lightBlue: "...",
+  brightRed: "...",
+};
+```
+
+### Standard Semantic Roles
+
+| Role | Purpose | Light Mode | Dark Mode |
+|------|---------|------------|-----------|
+| `text-primary` | Main content | `#0f172a` | `#f8fafc` |
+| `text-secondary` | Supporting text | `#475569` | `#cbd5e1` |
+| `text-tertiary` | Captions, hints | `#94a3b8` | `#64748b` |
+| `background` | Page background | `#ffffff` | `#0f172a` |
+| `surface` | Cards, elevated | `#f8fafc` | `#1e293b` |
+| `border-default` | Standard borders | `#e2e8f0` | `#334155` |
+| `accent` | Interactive, focus | `#6366f1` | `#818cf8` |
+
+## Status Colors
+
+### Semantic Status Indicators
+
+```typescript
+const statusColors = {
+  success: {
+    light: "#10b981", // Emerald 500
+    dark: "#34d399",  // Emerald 400
+    background: "bg-emerald-50 dark:bg-emerald-950",
+    text: "text-emerald-700 dark:text-emerald-300",
+  },
+  warning: {
+    light: "#f59e0b", // Amber 500
+    dark: "#fbbf24",  // Amber 400
+    background: "bg-amber-50 dark:bg-amber-950",
+    text: "text-amber-700 dark:text-amber-300",
+  },
+  error: {
+    light: "#ef4444", // Red 500
+    dark: "#f87171",  // Red 400
+    background: "bg-red-50 dark:bg-red-950",
+    text: "text-red-700 dark:text-red-300",
+  },
+  info: {
+    light: "#3b82f6", // Blue 500
+    dark: "#60a5fa",  // Blue 400
+    background: "bg-blue-50 dark:bg-blue-950",
+    text: "text-blue-700 dark:text-blue-300",
+  },
+};
+```
+
+### Always Pair Color with Additional Indicators
+
+```tsx
+// Bad: Color alone indicates status
+<div className="text-red-500">{errorMessage}</div>
+
+// Good: Color + icon + clear text
+<div className="flex items-center gap-2 text-red-500 dark:text-red-400">
+  <ExclamationCircleIcon className="h-5 w-5" />
+  <span>Error: {errorMessage}</span>
+</div>
+```
+
+## Data Visualization Colors
+
+### Categorical Color Palette
+
+For discrete data categories (max 8 for distinguishability):
+
+```typescript
+export const CATEGORICAL_COLORS = [
+  "#6366f1", // Indigo
+  "#10b981", // Emerald
+  "#3b82f6", // Blue
+  "#f59e0b", // Amber
+  "#8b5cf6", // Violet
+  "#06b6d4", // Cyan
+  "#ec4899", // Pink
+  "#84cc16", // Lime
+] as const;
+```
+
+**Requirements:**
+- Visually distinct from each other
+- Work on both light and dark backgrounds
+- Accessible for common color blindness types
+- Maintain distinction when printed in grayscale
+
+### Sequential Color Scales
+
+For continuous data (intensity, concentration):
+
+```typescript
+export const SEQUENTIAL_SCALES = {
+  // Single hue progression
+  indigo: ["#eef2ff", "#c7d2fe", "#818cf8", "#4f46e5", "#3730a3"],
+  
+  // Perceptually uniform (preferred for scientific data)
+  viridis: ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"],
+};
+```
+
+### Diverging Color Scales
+
+For data with meaningful midpoint (difference spectra):
+
+```typescript
+export const DIVERGING_SCALES = {
+  // Cool to warm through neutral
+  indigoTeal: [
+    "#4f46e5", "#818cf8", "#c7d2fe", 
+    "#f8fafc",  // Neutral midpoint
+    "#99f6e4", "#2dd4bf", "#0d9488"
+  ],
+};
+```
+
+## Contrast Requirements
+
+### Text Contrast Ratios
+
+| Element | Minimum Ratio | Target Ratio |
+|---------|---------------|--------------|
+| Body text | 4.5:1 | 7:1 |
+| Large text (18px+) | 3:1 | 4.5:1 |
+| UI components | 3:1 | 4.5:1 |
+| Decorative | N/A | N/A |
+
+### Testing Contrast
+
+```typescript
+// Calculate contrast ratio
+function getContrastRatio(foreground: string, background: string): number {
+  const lumA = getRelativeLuminance(foreground);
+  const lumB = getRelativeLuminance(background);
+  const lighter = Math.max(lumA, lumB);
+  const darker = Math.min(lumA, lumB);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+// Verify before using
+const ratio = getContrastRatio("#475569", "#ffffff");
+console.assert(ratio >= 4.5, "Contrast ratio must be at least 4.5:1");
+```
+
+## Appearance Mode Adaptation
+
+### Every Color Needs Light and Dark Variants
+
+```tsx
+// Always provide both modes
+className="text-gray-900 dark:text-gray-100"
+className="bg-white dark:bg-slate-900"
+className="border-gray-200 dark:border-gray-700"
+
+// For accent colors, use lighter variant in dark mode
+className="text-accent dark:text-accent-light"
+// accent = #6366f1, accent-light = #818cf8
+```
+
+### Avoid Hard-Coded Colors
+
+```tsx
+// Bad: Hard-coded color doesn't adapt
+style={{ color: '#1f2937' }}
+
+// Bad: Only light mode considered
+className="text-gray-800"
+
+// Good: Both modes specified
+className="text-gray-800 dark:text-gray-200"
+
+// Best: Using semantic CSS variables
+className="text-[var(--text-primary)]"
+```
+
+### Dynamic Color Values
+
+When colors must be computed (e.g., for charts):
+
+```typescript
+function getThemedColor(theme: 'light' | 'dark') {
+  return {
+    grid: theme === 'light' 
+      ? 'rgba(148, 163, 184, 0.2)' 
+      : 'rgba(71, 85, 105, 0.3)',
+    text: theme === 'light' 
+      ? '#475569' 
+      : '#cbd5e1',
+    accent: theme === 'light'
+      ? '#6366f1'
+      : '#818cf8',
+  };
+}
+```
+
+## Accent Color Usage
+
+### Use Accent Sparingly
+
+Accent colors should highlight:
+- Primary actions (main CTA button)
+- Selected/active states
+- Focus indicators
+- Interactive elements
+- Important information
+
+```tsx
+// Primary action - uses accent
+<button className="bg-accent text-white">Submit</button>
+
+// Secondary action - neutral
+<button className="bg-gray-100 text-gray-900">Cancel</button>
+
+// Selected state
+className={selected 
+  ? "border-accent bg-accent/10 text-accent" 
+  : "border-gray-200"
+}
+```
+
+### Don't Overuse Accent
+
+```tsx
+// Bad: Too much accent color
+<div className="bg-accent">
+  <h1 className="text-accent-light">Title</h1>
+  <p className="text-accent-dark">All accent, all the time</p>
+  <button className="bg-accent-dark">More accent</button>
+</div>
+
+// Good: Accent for emphasis only
+<div className="bg-white dark:bg-slate-900">
+  <h1 className="text-gray-900 dark:text-white">Title</h1>
+  <p className="text-gray-600 dark:text-gray-400">Normal text</p>
+  <button className="bg-accent text-white">Primary Action</button>
+</div>
+```
+
+## Transparency and Opacity
+
+### Use Opacity for Layering
+
+```typescript
+// Surface overlays
+const overlays = {
+  subtle: "bg-black/5 dark:bg-white/5",
+  light: "bg-black/10 dark:bg-white/10",
+  medium: "bg-black/20 dark:bg-white/20",
+  heavy: "bg-black/40 dark:bg-white/40",
+};
+
+// Backdrop for modals
+className="bg-black/50 backdrop-blur-sm"
+
+// Disabled states
+className="opacity-50 pointer-events-none"
+```
+
+### Glass/Translucent Effects
+
+```tsx
+// Glass card effect
+className={`
+  bg-white/80 dark:bg-slate-900/80
+  backdrop-blur-xl backdrop-saturate-150
+  border border-white/20 dark:border-slate-700/50
+`}
+```
+
+## Implementation Checklist
+
+- [ ] All colors have light and dark mode variants
+- [ ] Semantic color names used throughout
+- [ ] Text meets 4.5:1 contrast ratio
+- [ ] UI components meet 3:1 contrast ratio
+- [ ] Color is never the sole indicator of meaning
+- [ ] Data visualization colors are colorblind-safe
+- [ ] Accent color used sparingly for emphasis
+- [ ] No hard-coded color values in components
+- [ ] Colors tested in both light and dark modes
+
+## Related Apple HIG Resources
+
+- [Color Overview](https://developer.apple.com/design/human-interface-guidelines/color)
+- [System Colors](https://developer.apple.com/design/human-interface-guidelines/color#System-colors)
+- [Color Accessibility](https://developer.apple.com/design/human-interface-guidelines/color#Accessibility)
+- [Dark Mode](https://developer.apple.com/design/human-interface-guidelines/dark-mode)
