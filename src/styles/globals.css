@@ -109,37 +109,6 @@
     --cpk-default-atom: #ffffff;
   }
 
-  .dark.oled {
-    --bg-color: #000000;
-    --surface-1: #0a0a0a;
-    --surface-2: #141414;
-    --surface-3: #1f1f1f;
-    --surface-glass: rgba(0, 0, 0, 0.8);
-
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-tertiary: #64748b;
-    --text-disabled: #475569;
-
-    --border-default: #262626;
-    --border-subtle: #0a0a0a;
-    --border-strong: #404040;
-    --border-focus: #818cf8;
-
-    --cpk-h: #e0e0e0;
-    --cpk-c: #e0e0e0;
-    --cpk-n: #8fa3ff;
-    --cpk-o: #ff6666;
-    --cpk-s: #ffff00;
-    --cpk-p: #ffb366;
-    --cpk-f: #c3ff00;
-    --cpk-cl: #66ff66;
-    --cpk-br: #d47878;
-    --cpk-i: #d478d4;
-    --cpk-bonds: #ffffff;
-    --cpk-default-atom: #ffffff;
-  }
-
   html {
     background-color: var(--bg-color) !important;
     transition: background-color 0.2s ease;
