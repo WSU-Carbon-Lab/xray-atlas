@@ -8,7 +8,7 @@ import { trpc } from "~/trpc/client";
 import { PageSkeleton } from "~/app/components/LoadingState";
 import { Button, Tooltip, Alert } from "@heroui/react";
 import Link from "next/link";
-import { Settings, Palette, Bell, User, ArrowRight, Sun, Moon, Monitor, Link as LinkIcon, X } from "lucide-react";
+import { Settings, Palette, Bell, User, ArrowRight, Sun, Moon, Monitor, Link as LinkIcon, X, Key, Plus } from "lucide-react";
 import { type Theme } from "~/app/components/theme/constants";
 import { ORCIDIcon, GitHubIcon } from "~/app/components/icons";
 
@@ -26,11 +26,23 @@ function SettingsContent() {
       enabled: !!session?.user,
     },
   );
+  const { data: passkeys, refetch: refetchPasskeys } = trpc.users.getPasskeys.useQuery(
+    undefined,
+    {
+      enabled: !!session?.user,
+    },
+  );
   const unlinkAccountMutation = trpc.users.unlinkAccount.useMutation({
     onSuccess: () => {
       void refetchAccounts();
     },
   });
+  const deletePasskeyMutation = trpc.users.deletePasskey.useMutation({
+    onSuccess: () => {
+      void refetchPasskeys();
+    },
+  });
+  const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -331,6 +343,161 @@ function SettingsContent() {
                   </Tooltip>
                 )}
               </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border-default pt-8">
+            <div className="mb-4 flex items-center gap-3">
+              <Key className="h-5 w-5 text-text-secondary" />
+              <h2 className="text-xl font-semibold text-text-primary">
+                Passkeys
+              </h2>
+            </div>
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <p className="mb-4 text-sm text-text-secondary">
+                  Manage your passkeys for passwordless authentication. Passkeys use your device's biometric authentication or a security key.
+                </p>
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <p>
+                  Passkeys provide secure, passwordless sign-in using biometric authentication or security keys. You can register multiple passkeys for different devices.
+                </p>
+              </Tooltip.Content>
+            </Tooltip>
+
+            <div className="space-y-3">
+              {passkeys?.map((passkey) => (
+                <div
+                  key={passkey.id}
+                  className="flex items-center justify-between rounded-lg border border-border-default bg-surface-2 p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <Key className="h-5 w-5 text-text-secondary" />
+                    <div>
+                      <p className="font-medium text-text-primary capitalize">
+                        {passkey.deviceType === "singleDevice" ? "Device Passkey" : "Cross-Platform Passkey"}
+                      </p>
+                      <p className="text-sm text-text-secondary">
+                        {passkey.backedUp ? "Synced" : "Device-only"} • {passkey.transports.length > 0 ? passkey.transports.join(", ") : "No transports"}
+                      </p>
+                    </div>
+                  </div>
+                  {(passkeys.length > 1 || (linkedAccounts?.length ?? 0) > 0) && (
+                    <Tooltip delay={0}>
+                      <Tooltip.Trigger>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          isDisabled={deletePasskeyMutation.isPending}
+                          onPress={() => {
+                            if (confirm("Are you sure you want to delete this passkey? You will no longer be able to sign in with it.")) {
+                              deletePasskeyMutation.mutate({ passkeyId: passkey.id });
+                            }
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                          <span>Delete</span>
+                        </Button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>
+                        <p>Remove this passkey</p>
+                      </Tooltip.Content>
+                    </Tooltip>
+                  )}
+                </div>
+              ))}
+
+              <Tooltip delay={0}>
+                <Tooltip.Trigger>
+                  <Button
+                    variant="outline"
+                    isDisabled={isRegisteringPasskey}
+                    onPress={async () => {
+                      try {
+                        setIsRegisteringPasskey(true);
+                        const registerResponse = await fetch("/api/passkeys/register", {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                        });
+
+                        if (!registerResponse.ok) {
+                          const error = await registerResponse.json();
+                          throw new Error(error.error ?? "Failed to start registration");
+                        }
+
+                        const options = await registerResponse.json();
+
+                        if (!window.PublicKeyCredential) {
+                          throw new Error("WebAuthn is not supported in this browser");
+                        }
+
+                        const credential = await navigator.credentials.create({
+                          publicKey: options,
+                        }) as PublicKeyCredential | null;
+
+                        if (!credential) {
+                          throw new Error("Failed to create passkey");
+                        }
+
+                        const attestationResponse = credential.response as AuthenticatorAttestationResponse;
+
+                        const rawIdArray = new Uint8Array(credential.rawId);
+                        const attestationObjectArray = new Uint8Array(attestationResponse.attestationObject);
+                        const clientDataJSONArray = new Uint8Array(attestationResponse.clientDataJSON);
+
+                        const verifyResponse = await fetch("/api/passkeys/verify", {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                            credential: {
+                              id: credential.id,
+                              rawId: Array.from(rawIdArray),
+                              response: {
+                                attestationObject: Array.from(attestationObjectArray),
+                                clientDataJSON: Array.from(clientDataJSONArray),
+                                transports: attestationResponse.getTransports?.() ?? undefined,
+                              },
+                              type: credential.type,
+                            },
+                          }),
+                        });
+
+                        if (!verifyResponse.ok) {
+                          const error = await verifyResponse.json();
+                          throw new Error(error.error ?? "Failed to verify passkey");
+                        }
+
+                        void refetchPasskeys();
+                        setIsRegisteringPasskey(false);
+                      } catch (error) {
+                        setIsRegisteringPasskey(false);
+                        const errorMessage = error instanceof Error ? error.message : "Failed to register passkey";
+                        alert(errorMessage);
+                      }
+                    }}
+                  >
+                    {isRegisteringPasskey ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        <span>Registering...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        <span>Add Passkey</span>
+                      </>
+                    )}
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  <p>Register a new passkey for this device</p>
+                </Tooltip.Content>
+              </Tooltip>
             </div>
           </div>
 

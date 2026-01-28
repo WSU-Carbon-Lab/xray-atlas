@@ -147,4 +147,82 @@ export const usersRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  getPasskeys: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new Error("User not authenticated");
+    }
+
+    const passkeys = await ctx.db.authenticator.findMany({
+      where: { userId: ctx.userId },
+      select: {
+        id: true,
+        credentialID: true,
+        credentialDeviceType: true,
+        credentialBackedUp: true,
+        transports: true,
+        counter: true,
+      },
+      orderBy: {
+        counter: "desc",
+      },
+    });
+
+    return passkeys.map((p) => ({
+      id: p.id,
+      deviceType: p.credentialDeviceType,
+      backedUp: p.credentialBackedUp,
+      transports: p.transports?.split(",") ?? [],
+      lastUsed: Number(p.counter),
+    }));
+  }),
+
+  deletePasskey: protectedProcedure
+    .input(
+      z.object({
+        passkeyId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new Error("User not authenticated");
+      }
+
+      const passkey = await ctx.db.authenticator.findUnique({
+        where: { id: input.passkeyId },
+        include: {
+          user: {
+            include: {
+              authenticator: true,
+              account: true,
+            },
+          },
+        },
+      });
+
+      if (!passkey) {
+        throw new Error("Passkey not found");
+      }
+
+      if (passkey.userId !== ctx.userId) {
+        throw new Error("Unauthorized");
+      }
+
+      if (!passkey.user) {
+        throw new Error("Passkey user not found");
+      }
+
+      const userAuthenticators = passkey.user.authenticator;
+      const userAccounts = passkey.user.account;
+
+      if (userAuthenticators.length <= 1 && userAccounts.length === 0) {
+        throw new Error("Cannot delete the only authentication method");
+      }
+
+      await ctx.db.authenticator.delete({
+        where: { id: input.passkeyId },
+      });
+
+      return { success: true };
+    }),
 });
