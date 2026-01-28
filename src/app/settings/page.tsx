@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { PageSkeleton } from "~/app/components/LoadingState";
-import { ORCIDIcon } from "~/app/components/icons";
-import { Button, Input, Label, Tooltip } from "@heroui/react";
+import { Button, Tooltip } from "@heroui/react";
 import Link from "next/link";
-import { Avatar } from "@heroui/react";
+import { Settings, Palette, Bell, User, ArrowRight, Sun, Moon, Monitor } from "lucide-react";
+import { THEMES, type Theme } from "~/app/components/theme/constants";
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
@@ -17,13 +19,13 @@ export default function SettingsPage() {
       enabled: !!session?.user,
     },
   );
-  const updateORCID = trpc.users.updateORCID.useMutation();
-  const removeORCID = trpc.users.removeORCID.useMutation();
-  const utils = trpc.useUtils();
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
-  const [orcidInput, setOrcidInput] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (status === "loading" || isLoadingUser) {
     return (
@@ -36,248 +38,169 @@ export default function SettingsPage() {
   if (!session?.user || !user) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="rounded-xl border border-gray-200 bg-white p-8 dark:border-gray-700 dark:bg-gray-800">
-          <h1 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
+        <div className="rounded-xl border border-border-default bg-surface-1 p-8">
+          <h1 className="mb-4 text-2xl font-bold text-text-primary">
             Access Denied
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Please sign in to access your account preferences.
+          <p className="text-text-secondary">
+            Please sign in to access application settings.
           </p>
         </div>
       </div>
     );
   }
 
-  const handleSaveORCID = async () => {
-    setError(null);
-    try {
-      await updateORCID.mutateAsync({ orcid: orcidInput });
-      await utils.users.getCurrent.invalidate();
-      setIsEditing(false);
-      setOrcidInput("");
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to update ORCID. Please check the format and try again.",
-      );
-    }
+  const handleThemeChange = (newTheme: Theme) => {
+    setTheme(newTheme);
   };
 
-  const handleRemoveORCID = async () => {
-    setError(null);
-    try {
-      await removeORCID.mutateAsync();
-      await utils.users.getCurrent.invalidate();
-      setIsEditing(false);
-      setOrcidInput("");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to remove ORCID. Please try again.",
-      );
-    }
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setOrcidInput("");
-    setError(null);
-  };
+  const currentTheme = mounted ? (theme ?? "system") : "system";
+  const displayTheme = mounted ? resolvedTheme ?? "light" : "light";
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
         <Link
           href="/"
-          className="text-sm text-gray-600 hover:text-accent dark:text-gray-400 dark:hover:text-accent"
+          className="text-sm text-text-secondary transition-colors hover:text-accent"
         >
           ← Back to Home
         </Link>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-8 dark:border-gray-700 dark:bg-gray-800">
+      <div className="rounded-xl border border-border-default bg-surface-1 p-8">
         <div className="mb-8">
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Account Preferences
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage your account settings and preferences
+          <div className="mb-2 flex items-center gap-3">
+            <Settings className="h-8 w-8 text-accent" />
+            <h1 className="text-3xl font-bold text-text-primary">
+              Application Settings
+            </h1>
+          </div>
+          <p className="text-text-secondary">
+            Manage your application preferences and display options
           </p>
         </div>
 
         <div className="space-y-8">
-          <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
-            <Avatar size="lg" className="h-24 w-24">
-              {session.user.image ? (
-                <Avatar.Image
-                  src={session.user.image}
-                  alt={session.user.name ?? "User"}
-                />
-              ) : null}
-              <Avatar.Fallback>
-                {session.user.name?.charAt(0).toUpperCase() ?? "U"}
-              </Avatar.Fallback>
-            </Avatar>
-
-            <div className="flex-1">
-              <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
-                {session.user.name}
+          <div className="border-t border-border-default pt-8">
+            <div className="mb-4 flex items-center gap-3">
+              <Palette className="h-5 w-5 text-text-secondary" />
+              <h2 className="text-xl font-semibold text-text-primary">
+                Appearance
               </h2>
-              <p className="text-gray-600 dark:text-gray-400">{session.user.email}</p>
             </div>
-          </div>
-
-          <div className="border-t border-gray-200 pt-8 dark:border-gray-700">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="mb-1 text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  ORCID iD
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Link your ORCID iD to your account for better research attribution
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <p className="mb-4 text-sm text-text-secondary">
+                  Choose how the application appears. System will match your device settings.
                 </p>
-              </div>
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <p>
+                  Theme preferences are saved locally in your browser and will persist across sessions.
+                </p>
+              </Tooltip.Content>
+            </Tooltip>
+
+            <div className="flex flex-wrap gap-3">
+              <Tooltip delay={0}>
+                <Tooltip.Trigger>
+                  <Button
+                    variant={currentTheme === "light" ? "solid" : "bordered"}
+                    color={currentTheme === "light" ? "primary" : "default"}
+                    onPress={() => handleThemeChange("light")}
+                    startContent={<Sun className="h-4 w-4" />}
+                    className="min-w-[120px]"
+                  >
+                    Light
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  <p>Use light theme</p>
+                </Tooltip.Content>
+              </Tooltip>
+
+              <Tooltip delay={0}>
+                <Tooltip.Trigger>
+                  <Button
+                    variant={currentTheme === "dark" ? "solid" : "bordered"}
+                    color={currentTheme === "dark" ? "primary" : "default"}
+                    onPress={() => handleThemeChange("dark")}
+                    startContent={<Moon className="h-4 w-4" />}
+                    className="min-w-[120px]"
+                  >
+                    Dark
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  <p>Use dark theme</p>
+                </Tooltip.Content>
+              </Tooltip>
+
+              <Tooltip delay={0}>
+                <Tooltip.Trigger>
+                  <Button
+                    variant={currentTheme === "system" ? "solid" : "bordered"}
+                    color={currentTheme === "system" ? "primary" : "default"}
+                    onPress={() => handleThemeChange("system")}
+                    startContent={<Monitor className="h-4 w-4" />}
+                    className="min-w-[120px]"
+                  >
+                    System
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  <p>Match your device theme</p>
+                </Tooltip.Content>
+              </Tooltip>
             </div>
 
-            {user.orcid && !isEditing ? (
-              <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-surface-1 p-4 dark:border-gray-700 dark:bg-surface-2">
-                <div className="flex items-center gap-3">
-                  <ORCIDIcon className="h-6 w-6" authenticated />
-                  <div>
-                    <a
-                      href={`https://orcid.org/${user.orcid}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm font-medium text-accent hover:text-accent-dark transition-colors"
-                      aria-label={`View ORCID record - ${user.orcid}`}
-                    >
-                      <span className="tabular-nums">{user.orcid}</span>
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                        />
-                      </svg>
-                    </a>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Authenticated ORCID iD
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onPress={() => {
-                      setIsEditing(true);
-                      setOrcidInput(user.orcid ?? "");
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onPress={handleRemoveORCID}
-                    isPending={removeORCID.isPending}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <Tooltip delay={0}>
-                  <Tooltip.Trigger>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="settings-orcid">
-                        ORCID iD{" "}
-                        <span className="text-error" aria-hidden>
-                          *
-                        </span>
-                      </Label>
-                      <Input
-                        id="settings-orcid"
-                        aria-label="ORCID iD"
-                        placeholder="0000-0000-0000-0000"
-                        value={orcidInput}
-                        onChange={(e) => {
-                          setOrcidInput(e.target.value);
-                          setError(null);
-                        }}
-                        className="tabular-nums"
-                        variant="secondary"
-                        fullWidth
-                        aria-invalid={!!error}
-                        aria-errormessage={
-                          error ? "settings-orcid-error" : undefined
-                        }
-                      />
-                      <p className="text-tiny text-text-tertiary">
-                        Your ORCID iD helps connect your research contributions.
-                      </p>
-                      {error && (
-                        <p
-                          id="settings-orcid-error"
-                          className="text-sm text-error"
-                          role="alert"
-                        >
-                          {error}
-                        </p>
-                      )}
-                    </div>
-                  </Tooltip.Trigger>
-                  <Tooltip.Content>
-                    <p>
-                      Enter your ORCID iD in the format XXXX-XXXX-XXXX-XXXX or
-                      the full URL (https://orcid.org/XXXX-XXXX-XXXX-XXXX).
-                    </p>
-                  </Tooltip.Content>
-                </Tooltip>
-                <div className="flex gap-2">
-                  <Button
-                    variant="primary"
-                    onPress={handleSaveORCID}
-                    isPending={updateORCID.isPending}
-                  >
-                    {user.orcid ? "Update" : "Add"} ORCID
-                  </Button>
-                  {isEditing && (
-                    <Button variant="ghost" onPress={handleCancel}>
-                      Cancel
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Don&apos;t have an ORCID iD?{" "}
-                  <a
-                    href="https://orcid.org/register"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent hover:text-accent-dark underline"
-                  >
-                    Create one for free
-                  </a>
-                </p>
-              </div>
+            {mounted && currentTheme === "system" && (
+              <p className="mt-3 text-sm text-text-tertiary">
+                Currently using {displayTheme === "dark" ? "dark" : "light"} theme based on your system settings
+              </p>
             )}
           </div>
 
-          <div className="border-t border-gray-200 pt-8 dark:border-gray-700">
-            <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
-              Notification Preferences
-            </h2>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Notification preferences will be available here.
+          <div className="border-t border-border-default pt-8">
+            <div className="mb-4 flex items-center gap-3">
+              <User className="h-5 w-5 text-text-secondary" />
+              <h2 className="text-xl font-semibold text-text-primary">
+                Account Settings
+              </h2>
             </div>
+            <p className="mb-4 text-sm text-text-secondary">
+              Manage your account information and profile settings
+            </p>
+            <Button
+              variant="bordered"
+              onPress={() => router.push(`/users/${user.id}`)}
+              startContent={<User className="h-4 w-4" />}
+              endContent={<ArrowRight className="h-4 w-4" />}
+            >
+              View Profile Settings
+            </Button>
+          </div>
+
+          <div className="border-t border-border-default pt-8">
+            <div className="mb-4 flex items-center gap-3">
+              <Bell className="h-5 w-5 text-text-secondary" />
+              <h2 className="text-xl font-semibold text-text-primary">
+                Notification Preferences
+              </h2>
+            </div>
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <p className="text-sm text-text-secondary">
+                  Notification preferences will be available here.
+                </p>
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <p>
+                  Configure email notifications, browser notifications, and other alerts.
+                </p>
+              </Tooltip.Content>
+            </Tooltip>
           </div>
         </div>
       </div>

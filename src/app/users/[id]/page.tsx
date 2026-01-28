@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { PageSkeleton } from "~/app/components/LoadingState";
 import { NotFoundState, ErrorState } from "~/app/components/ErrorState";
@@ -10,6 +11,7 @@ import { ORCIDIcon } from "~/app/components/icons";
 import Link from "next/link";
 import Image from "next/image";
 import { Button, Input, Label, Tooltip } from "@heroui/react";
+import { Settings, ArrowRight } from "lucide-react";
 
 export default function UserProfilePage({
   params,
@@ -18,6 +20,7 @@ export default function UserProfilePage({
 }) {
   const { id: userId } = use(params);
   const { data: session, status } = useSession();
+  const router = useRouter();
   const {
     data: user,
     isLoading,
@@ -174,14 +177,36 @@ export default function UserProfilePage({
         </div>
 
         {isOwnProfile && (
-          <div className="mt-8 border-t border-border-default pt-8">
-            <h2 className="mb-1 text-xl font-semibold text-text-primary">
-              ORCID iD
-            </h2>
-            <p className="mb-4 text-sm text-text-secondary">
-              Link your ORCID iD to your account for better research
-              attribution.
-            </p>
+          <>
+            <div className="mt-8 border-t border-border-default pt-8">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="mb-1 text-xl font-semibold text-text-primary">
+                    Application Settings
+                  </h2>
+                  <p className="text-sm text-text-secondary">
+                    Manage your application preferences and display options
+                  </p>
+                </div>
+                <Button
+                  variant="bordered"
+                  onPress={() => router.push("/settings")}
+                  startContent={<Settings className="h-4 w-4" />}
+                  endContent={<ArrowRight className="h-4 w-4" />}
+                >
+                  Settings
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-8 border-t border-border-default pt-8">
+              <h2 className="mb-1 text-xl font-semibold text-text-primary">
+                ORCID iD
+              </h2>
+              <p className="mb-4 text-sm text-text-secondary">
+                Link your ORCID iD to your account for better research
+                attribution.
+              </p>
 
             {user.orcid && !isEditingOrcid ? (
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border-default bg-surface-2 p-4">
@@ -299,7 +324,8 @@ export default function UserProfilePage({
                 </p>
               </div>
             )}
-          </div>
+            </div>
+          </>
         )}
 
         {!isOwnProfile && user.orcid && (
