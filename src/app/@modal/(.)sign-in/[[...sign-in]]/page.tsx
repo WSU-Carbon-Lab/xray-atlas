@@ -3,7 +3,7 @@
 import { Suspense, Fragment } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Dialog, Transition } from "@headlessui/react";
-import { Button } from "@heroui/react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 import { SocialSignInButtons } from "~/app/components/SocialSignInButtons";
 
 function SignInModalContent() {
@@ -12,7 +12,12 @@ function SignInModalContent() {
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
 
   const handleClose = () => {
-    router.push(callbackUrl);
+    const targetUrl = callbackUrl === "/sign-in" ? "/" : callbackUrl;
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      window.location.href = targetUrl;
+    }
   };
 
   return (
@@ -27,7 +32,7 @@ function SignInModalContent() {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/25 backdrop-blur-sm dark:bg-black/50" />
+          <div className="fixed inset-0 bg-black/25 backdrop-blur-lg dark:bg-black/50" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto overscroll-contain">
@@ -42,12 +47,22 @@ function SignInModalContent() {
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl border border-border-default bg-surface-1 p-6 text-left align-middle shadow-xl transition-[opacity,transform] duration-200">
-                <Dialog.Title
-                  as="h2"
-                  className="mb-1 text-xl font-semibold text-text-primary"
-                >
-                  Sign in to X-ray Atlas
-                </Dialog.Title>
+                <div className="mb-4 flex items-start justify-between">
+                  <Dialog.Title
+                    as="h2"
+                    className="text-xl font-semibold text-text-primary"
+                  >
+                    Sign in to X-ray Atlas
+                  </Dialog.Title>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    aria-label="Close sign in modal"
+                    className="cursor-pointer rounded-lg border border-red-500 bg-red-50 p-2 text-red-600 transition-[background-color,border-color,transform] duration-150 hover:bg-red-100 hover:border-red-600 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 active:scale-[0.98] dark:border-red-600 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 dark:hover:border-red-500"
+                  >
+                    <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </div>
                 <p className="mb-6 text-sm text-text-secondary">
                   ORCID is recommended for researchers. GitHub and passkeys are
                   also available as alternatives.
@@ -68,11 +83,6 @@ function SignInModalContent() {
                       Learn more at orcid.org
                     </a>
                   </p>
-                </div>
-                <div className="mt-4 flex justify-end">
-                  <Button variant="ghost" onPress={handleClose}>
-                    Cancel
-                  </Button>
                 </div>
               </Dialog.Panel>
             </Transition.Child>
