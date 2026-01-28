@@ -1,5 +1,6 @@
 "use client";
 
+import { signIn } from "next-auth/react";
 import { signIn as webauthnSignIn } from "next-auth/webauthn";
 import { Button, Tooltip } from "@heroui/react";
 import { Key } from "lucide-react";
@@ -20,16 +21,14 @@ export function SocialSignInButtons({
   callbackUrl,
   onSignIn,
 }: SocialSignInButtonsProps) {
-  const handleORCID = () => {
+  const handleORCID = async () => {
     onSignIn?.();
-    const signInUrl = `/api/auth/signin/orcid?callbackUrl=${encodeURIComponent(callbackUrl)}`;
-    window.location.href = signInUrl;
+    await signIn("orcid", { callbackUrl });
   };
 
-  const handleGitHub = () => {
+  const handleGitHub = async () => {
     onSignIn?.();
-    const signInUrl = `/api/auth/signin/github?callbackUrl=${encodeURIComponent(callbackUrl)}`;
-    window.location.href = signInUrl;
+    await signIn("github", { callbackUrl });
   };
 
   const handlePasskey = async () => {
