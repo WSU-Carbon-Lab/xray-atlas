@@ -76,4 +76,75 @@ export const usersRouter = createTRPCRouter({
 
     return user;
   }),
+
+  getLinkedAccounts: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new Error("User not authenticated");
+    }
+
+    const accounts = await ctx.db.account.findMany({
+      where: { userId: ctx.userId },
+      select: {
+        id: true,
+        provider: true,
+        providerAccountId: true,
+        type: true,
+      },
+    });
+
+    return accounts;
+  }),
+
+  unlinkAccount: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new Error("User not authenticated");
+      }
+
+      const account = await ctx.db.account.findUnique({
+        where: { id: input.accountId },
+        include: {
+          user: {
+            include: {
+              account: true,
+            },
+          },
+        },
+      });
+
+      if (!account) {
+        throw new Error("Account not found");
+      }
+
+      if (account.userId !== ctx.userId) {
+        throw new Error("Unauthorized");
+      }
+
+      if (!account.user) {
+        throw new Error("Account user not found");
+      }
+
+      const userAccounts = account.user.account;
+      if (userAccounts.length <= 1) {
+        throw new Error("Cannot unlink the only account");
+      }
+
+      await ctx.db.account.delete({
+        where: { id: input.accountId },
+      });
+
+      if (account.provider === "orcid") {
+        await ctx.db.user.update({
+          where: { id: ctx.userId },
+          data: { orcid: null },
+        });
+      }
+
+      return { success: true };
+    }),
 });
