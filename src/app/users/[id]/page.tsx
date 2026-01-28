@@ -189,12 +189,12 @@ export default function UserProfilePage({
                   </p>
                 </div>
                 <Button
-                  variant="bordered"
+                  variant="outline"
                   onPress={() => router.push("/settings")}
-                  startContent={<Settings className="h-4 w-4" />}
-                  endContent={<ArrowRight className="h-4 w-4" />}
                 >
-                  Settings
+                  <Settings className="h-4 w-4" />
+                  <span>Settings</span>
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>

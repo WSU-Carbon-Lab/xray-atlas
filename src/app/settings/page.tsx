@@ -9,7 +9,7 @@ import { PageSkeleton } from "~/app/components/LoadingState";
 import { Button, Tooltip } from "@heroui/react";
 import Link from "next/link";
 import { Settings, Palette, Bell, User, ArrowRight, Sun, Moon, Monitor } from "lucide-react";
-import { THEMES, type Theme } from "~/app/components/theme/constants";
+import { type Theme } from "~/app/components/theme/constants";
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
@@ -106,13 +106,12 @@ export default function SettingsPage() {
               <Tooltip delay={0}>
                 <Tooltip.Trigger>
                   <Button
-                    variant={currentTheme === "light" ? "solid" : "bordered"}
-                    color={currentTheme === "light" ? "primary" : "default"}
+                    variant={currentTheme === "light" ? "primary" : "outline"}
                     onPress={() => handleThemeChange("light")}
-                    startContent={<Sun className="h-4 w-4" />}
                     className="min-w-[120px]"
                   >
-                    Light
+                    <Sun className="h-4 w-4" />
+                    <span>Light</span>
                   </Button>
                 </Tooltip.Trigger>
                 <Tooltip.Content>
@@ -123,13 +122,12 @@ export default function SettingsPage() {
               <Tooltip delay={0}>
                 <Tooltip.Trigger>
                   <Button
-                    variant={currentTheme === "dark" ? "solid" : "bordered"}
-                    color={currentTheme === "dark" ? "primary" : "default"}
+                    variant={currentTheme === "dark" ? "primary" : "outline"}
                     onPress={() => handleThemeChange("dark")}
-                    startContent={<Moon className="h-4 w-4" />}
                     className="min-w-[120px]"
                   >
-                    Dark
+                    <Moon className="h-4 w-4" />
+                    <span>Dark</span>
                   </Button>
                 </Tooltip.Trigger>
                 <Tooltip.Content>
@@ -140,13 +138,12 @@ export default function SettingsPage() {
               <Tooltip delay={0}>
                 <Tooltip.Trigger>
                   <Button
-                    variant={currentTheme === "system" ? "solid" : "bordered"}
-                    color={currentTheme === "system" ? "primary" : "default"}
+                    variant={currentTheme === "system" ? "primary" : "outline"}
                     onPress={() => handleThemeChange("system")}
-                    startContent={<Monitor className="h-4 w-4" />}
                     className="min-w-[120px]"
                   >
-                    System
+                    <Monitor className="h-4 w-4" />
+                    <span>System</span>
                   </Button>
                 </Tooltip.Trigger>
                 <Tooltip.Content>
@@ -173,12 +170,12 @@ export default function SettingsPage() {
               Manage your account information and profile settings
             </p>
             <Button
-              variant="bordered"
+              variant="outline"
               onPress={() => router.push(`/users/${user.id}`)}
-              startContent={<User className="h-4 w-4" />}
-              endContent={<ArrowRight className="h-4 w-4" />}
             >
-              View Profile Settings
+              <User className="h-4 w-4" />
+              <span>View Profile Settings</span>
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
 
