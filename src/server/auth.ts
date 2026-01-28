@@ -6,8 +6,6 @@ import GitHub from "next-auth/providers/github";
 import Passkey from "next-auth/providers/passkey";
 import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers";
 
-const useSandbox = env.ORCID_USE_SANDBOX === "true";
-
 const githubClientId = env.GITHUB_CLIENT_ID;
 const githubClientSecret = env.GITHUB_CLIENT_SECRET;
 
@@ -22,9 +20,7 @@ interface ORCIDProfile {
 function ORCID(
   options: OAuthUserConfig<ORCIDProfile>,
 ): OAuthConfig<ORCIDProfile> {
-  const baseUrl = useSandbox
-    ? "https://sandbox.orcid.org"
-    : "https://orcid.org";
+  const baseUrl = "https://orcid.org";
 
   return {
     ...options,
@@ -106,13 +102,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (account?.provider === "orcid" && account.providerAccountId && user.id) {
           let orcidId = account.providerAccountId;
-          
+
           if (orcidId.startsWith("https://orcid.org/")) {
             orcidId = orcidId.replace("https://orcid.org/", "");
-          } else if (orcidId.startsWith("https://sandbox.orcid.org/")) {
-            orcidId = orcidId.replace("https://sandbox.orcid.org/", "");
           }
-          
+
           orcidId = orcidId.replace(/\/$/, "");
 
           try {
