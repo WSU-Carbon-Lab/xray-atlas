@@ -32,15 +32,12 @@ function ThemeSync() {
     if (!resolvedTheme) return;
     const root = document.documentElement;
 
-    // Remove both light and dark classes first to avoid conflicts
     root.classList.remove("light", "dark");
-
-    // Add the resolved theme class (HeroUI expects "light" or "dark")
     root.classList.add(resolvedTheme);
 
-    // Set data attributes for HeroUI compatibility
     root.dataset.theme = resolvedTheme;
     root.style.colorScheme = resolvedTheme;
+    root.dataset.colorMode = resolvedTheme === "dark" ? "oled" : "light";
   }, [resolvedTheme]);
 
   return null;

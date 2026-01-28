@@ -247,14 +247,14 @@ export const MoleculeDisplay = ({
   };
 
   return (
-    <div className="group relative flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200/40 bg-white shadow-lg transition-all duration-300 ease-out hover:-translate-y-1 hover:border-gray-300/60 hover:shadow-xl sm:flex-row dark:border-gray-700/40 dark:bg-gray-800 dark:hover:border-gray-600/60">
+    <div className="group relative flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200/40 bg-white shadow-lg transition-all duration-300 ease-out hover:-translate-y-1 hover:border-gray-300/60 hover:shadow-xl sm:flex-row dark:border-zinc-800/50 dark:bg-zinc-900 dark:hover:border-zinc-700/60">
       {/* Image Section - Left side with concentric shape */}
       <BadgedMolecule molecule={molecule} />
 
       {/* Content Section - Right side with Liquid Glass material */}
-      <div className="relative flex flex-1 flex-col bg-white/60 backdrop-blur-2xl sm:w-[55%] dark:bg-gray-800/60">
+      <div className="relative flex flex-1 flex-col bg-white/60 backdrop-blur-2xl sm:w-[55%] dark:bg-zinc-900/60">
         {/* Liquid Glass background effect - layered transparency */}
-        <div className="absolute inset-0 rounded-r-2xl bg-linear-to-br from-white/40 to-white/20 dark:from-gray-900/20 dark:to-gray-800/40" />
+        <div className="absolute inset-0 rounded-r-2xl bg-linear-to-br from-white/40 to-white/20 dark:from-zinc-900/20 dark:to-zinc-800/40" />
         {/* Content */}
         <div className="relative flex flex-1 flex-col p-6">
           <div className="space-y-3">
@@ -262,7 +262,7 @@ export const MoleculeDisplay = ({
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-left text-2xl leading-tight font-bold text-gray-900 dark:text-gray-100">
+                  <h3 className="text-left text-2xl leading-tight font-bold text-gray-900 dark:text-white">
                     <Link href={`/molecules/${molecule.id}`}>
                       <span className="hover:text-accent dark:hover:text-accent-light">
                         {primaryName}
@@ -274,7 +274,7 @@ export const MoleculeDisplay = ({
                     <div className="mt-1">
                       <Link
                         href={`/users/${molecule.createdBy.id}`}
-                        className="hover:text-accent dark:hover:text-accent-light inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400"
+                        className="hover:text-accent dark:hover:text-accent-light inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-zinc-400"
                       >
                         <span>Created by</span>
                         <span className="font-medium">
@@ -293,7 +293,7 @@ export const MoleculeDisplay = ({
                       className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 disabled:opacity-50 ${
                         realtimeUserHasUpvoted
                           ? "border-accent bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light"
-                          : "hover:border-accent hover:bg-accent/10 dark:hover:bg-accent/20 border-gray-300 bg-white/60 text-gray-700 dark:border-gray-600 dark:bg-gray-800/60 dark:text-gray-200"
+                          : "hover:border-accent hover:bg-accent/10 dark:hover:bg-accent/20 border-gray-300 bg-white/60 text-gray-700 dark:border-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-200"
                       }`}
                     >
                       {realtimeUserHasUpvoted ? (
@@ -308,7 +308,7 @@ export const MoleculeDisplay = ({
                     {isOwner && onEdit && (
                       <button
                         onClick={onEdit}
-                        className="hover:border-accent hover:bg-accent/10 dark:hover:bg-accent/20 flex items-center gap-1.5 rounded-full border border-gray-300 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all active:scale-95 dark:border-gray-600 dark:bg-gray-800/60 dark:text-gray-200"
+                        className="hover:border-accent hover:bg-accent/10 dark:hover:bg-accent/20 flex items-center gap-1.5 rounded-full border border-gray-300 bg-white/60 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all active:scale-95 dark:border-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-200"
                         title="Edit molecule"
                       >
                         <PencilIcon className="h-4 w-4" />
@@ -343,10 +343,10 @@ export const MoleculeDisplay = ({
 
               {/* Chemical Formula - Prominent display with better hierarchy */}
               <div className="flex items-baseline gap-3">
-                <span className="text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                <span className="text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-zinc-400">
                   Formula
                 </span>
-                <span className="font-mono text-lg font-bold text-gray-900 dark:text-gray-100">
+                <span className="font-mono text-lg font-bold text-gray-900 dark:text-white">
                   {chemicalFormula || "N/A"}
                 </span>
               </div>
@@ -354,7 +354,7 @@ export const MoleculeDisplay = ({
           </div>
 
           {/* Actions - Bottom section with all buttons in one row - Responsive layout */}
-          <div className="mt-2.5 border-t border-gray-200/20 pt-2.5 dark:border-gray-700/20">
+          <div className="mt-2.5 border-t border-gray-200/20 pt-2.5 dark:border-zinc-800/20">
             <div className="flex min-h-10 flex-wrap items-center gap-1.5 sm:gap-2">
               {molecule.SMILES ? (
                 <ToggleIconButton
@@ -531,18 +531,18 @@ export const MoleculeDisplayCompact = ({
   };
 
   return (
-    <div className="group flex w-full flex-col gap-3 overflow-hidden rounded-xl border border-gray-200/50 bg-white/80 p-4 shadow-lg backdrop-blur-xl transition-all hover:shadow-xl dark:border-gray-700/50 dark:bg-gray-800/80">
+    <div className="group flex w-full flex-col gap-3 overflow-hidden rounded-xl border border-gray-200/50 bg-white/80 p-4 shadow-lg backdrop-blur-xl transition-all hover:shadow-xl dark:border-zinc-800/50 dark:bg-zinc-900/80">
       {/* Header Row - Name, Formula, Experiment Count */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-baseline gap-3">
-          <h3 className="truncate text-lg font-bold text-gray-900 dark:text-gray-100">
+          <h3 className="truncate text-lg font-bold text-gray-900 dark:text-white">
             {primaryName}
           </h3>
           <div className="flex items-baseline gap-2">
-            <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+            <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-zinc-400">
               Formula:
             </span>
-            <span className="font-mono text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
               {chemicalFormula || "N/A"}
             </span>
           </div>
@@ -568,7 +568,7 @@ export const MoleculeDisplayCompact = ({
       )}
 
       {/* Actions Row - Copy buttons and External links - All in one row - Responsive layout */}
-      <div className="flex min-h-10 flex-wrap items-center gap-1.5 border-t border-gray-200/20 pt-3 sm:gap-2 dark:border-gray-700/20">
+      <div className="flex min-h-10 flex-wrap items-center gap-1.5 border-t border-gray-200/20 pt-3 sm:gap-2 dark:border-zinc-800/20">
         {molecule.SMILES ? (
           <ToggleIconButton
             icon={<ClipboardDocumentIcon className="h-4 w-4" />}

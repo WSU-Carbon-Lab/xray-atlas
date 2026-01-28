@@ -6,17 +6,35 @@ import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { SocialSignInButtons } from "~/app/components/SocialSignInButtons";
 
+function getSafeRedirectTarget(callbackUrl: string | null): string {
+  const raw = callbackUrl ?? "/";
+  if (raw === "/sign-in" || raw.startsWith("/sign-in?")) return "/";
+  if (raw.startsWith("//")) return "/";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    if (typeof window === "undefined") return "/";
+    try {
+      const u = new URL(raw);
+      return u.origin === window.location.origin
+        ? u.pathname + u.search + u.hash
+        : "/";
+    } catch {
+      return "/";
+    }
+  }
+  return raw.startsWith("/") ? raw : "/";
+}
+
 function SignInModalContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const rawCallback = searchParams.get("callbackUrl") ?? "/";
+  const safeCallbackUrl = getSafeRedirectTarget(rawCallback);
 
   const handleClose = () => {
-    const targetUrl = callbackUrl === "/sign-in" ? "/" : callbackUrl;
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
     } else {
-      window.location.href = targetUrl;
+      window.location.href = safeCallbackUrl;
     }
   };
 
@@ -67,10 +85,7 @@ function SignInModalContent() {
                   ORCID is recommended for researchers. GitHub and passkeys are
                   also available as alternatives.
                 </p>
-                <SocialSignInButtons
-                  callbackUrl={callbackUrl}
-                  onSignIn={handleClose}
-                />
+                <SocialSignInButtons callbackUrl={safeCallbackUrl} />
                 <div className="mt-4 rounded-lg bg-surface-2 p-4">
                   <p className="text-xs text-text-secondary">
                     Hover the ORCID button above for details.{" "}
