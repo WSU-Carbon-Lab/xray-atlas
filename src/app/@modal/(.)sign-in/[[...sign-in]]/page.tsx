@@ -34,7 +34,7 @@ function SignInModalContent() {
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
     } else {
-      window.location.href = safeCallbackUrl;
+      router.push(safeCallbackUrl);
     }
   };
 
@@ -85,7 +85,9 @@ function SignInModalContent() {
                   ORCID is recommended for researchers. GitHub and passkeys are
                   also available as alternatives.
                 </p>
-                <SocialSignInButtons callbackUrl={safeCallbackUrl} />
+                <SocialSignInButtons
+                  callbackUrl={safeCallbackUrl}
+                />
                 <div className="mt-4 rounded-lg bg-surface-2 p-4">
                   <p className="text-xs text-text-secondary">
                     Hover the ORCID button above for details.{" "}
