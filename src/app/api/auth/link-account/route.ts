@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.redirect(
-        new URL(`/sign-in?callbackUrl=${encodeURIComponent("/settings")}`, request.url),
+        new URL("/sign-in", request.url),
       );
     }
 
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const validationResult = linkAccountSchema.safeParse({ provider });
     if (!validationResult.success) {
       return NextResponse.redirect(
-        new URL("/settings?error=Invalid provider", request.url),
+        new URL(`/users/${session.user.id}?error=Invalid provider`, request.url),
       );
     }
 
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
     if (existingAccount) {
       return NextResponse.redirect(
-        new URL("/settings?error=Account already linked", request.url),
+        new URL(`/users/${session.user.id}?error=Account already linked`, request.url),
       );
     }
 
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
       maxAge: 600,
     });
 
-    const callbackUrl = `/settings?linked=true`;
+    const callbackUrl = `/users/${session.user.id}?linked=true`;
     return await signIn(validationResult.data.provider, {
       callbackUrl,
       redirect: true,
@@ -68,14 +68,17 @@ export async function GET(request: Request) {
 
     console.error("[Link Account] Error:", errorMessage);
 
+    const session = await auth();
+    const userId = session?.user?.id ?? "";
+
     if (errorMessage.includes("ACCOUNT_EXISTS")) {
       return NextResponse.redirect(
-        new URL("/settings?error=Account already linked to another user", request.url),
+        new URL(`/users/${userId}?error=Account already linked to another user`, request.url),
       );
     }
 
     return NextResponse.redirect(
-      new URL("/settings?error=Failed to link account", request.url),
+      new URL(`/users/${userId}?error=Failed to link account`, request.url),
     );
   }
 }

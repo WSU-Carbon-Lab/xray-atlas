@@ -1,5 +1,12 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
+import {
+  DEV_MOCK_USER,
+  DEV_MOCK_LINKED_ACCOUNTS,
+  DEV_MOCK_PASSKEYS,
+  DEV_MOCK_MOLECULES,
+  isDevMockUser,
+} from "~/lib/dev-mock-data";
 
 const orcidIdSchema = z
   .string()
@@ -10,6 +17,10 @@ export const usersRouter = createTRPCRouter({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");
+    }
+
+    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+      return DEV_MOCK_USER;
     }
 
     const user = await ctx.db.user.findUnique({
@@ -26,6 +37,10 @@ export const usersRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
+      if (ctx.isDevMock && isDevMockUser(input.id)) {
+        return DEV_MOCK_USER;
+      }
+
       const user = await ctx.db.user.findUnique({
         where: { id: input.id },
       });
@@ -46,6 +61,10 @@ export const usersRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) {
         throw new Error("User not authenticated");
+      }
+
+      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+        return { ...DEV_MOCK_USER, orcid: input.orcid };
       }
 
       let orcidId = input.orcid;
@@ -69,6 +88,10 @@ export const usersRouter = createTRPCRouter({
       throw new Error("User not authenticated");
     }
 
+    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+      return { ...DEV_MOCK_USER, orcid: null };
+    }
+
     const user = await ctx.db.user.update({
       where: { id: ctx.userId },
       data: { orcid: null },
@@ -80,6 +103,10 @@ export const usersRouter = createTRPCRouter({
   getLinkedAccounts: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");
+    }
+
+    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+      return DEV_MOCK_LINKED_ACCOUNTS;
     }
 
     const accounts = await ctx.db.account.findMany({
@@ -104,6 +131,10 @@ export const usersRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) {
         throw new Error("User not authenticated");
+      }
+
+      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+        throw new Error("Cannot modify accounts in dev mode");
       }
 
       const account = await ctx.db.account.findUnique({
@@ -153,6 +184,10 @@ export const usersRouter = createTRPCRouter({
       throw new Error("User not authenticated");
     }
 
+    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+      return DEV_MOCK_PASSKEYS;
+    }
+
     const passkeys = await ctx.db.authenticator.findMany({
       where: { userId: ctx.userId },
       select: {
@@ -186,6 +221,10 @@ export const usersRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) {
         throw new Error("User not authenticated");
+      }
+
+      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+        throw new Error("Cannot modify passkeys in dev mode");
       }
 
       const passkey = await ctx.db.authenticator.findUnique({

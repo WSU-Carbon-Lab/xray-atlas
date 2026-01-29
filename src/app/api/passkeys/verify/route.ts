@@ -7,7 +7,7 @@ import { getBaseUrl } from "~/utils/getBaseUrl";
 import { z } from "zod";
 
 const verifySchema = z.object({
-  credential: z.any(),
+  credential: z.unknown(),
   name: z.string().min(1).max(100).optional(),
 });
 
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
+    const body: unknown = await request.json();
     const validationResult = verifySchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { credential, name } = validationResult.data;
+    const { credential } = validationResult.data;
 
     const user = await db.user.findUnique({
       where: { id: session.user.id },

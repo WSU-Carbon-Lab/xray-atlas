@@ -41,15 +41,12 @@ export async function POST() {
         : undefined,
     }));
 
-    const userIdHex = user.id.replace(/-/g, "");
-    const userIdBuffer = Buffer.from(userIdHex, "hex");
-
     const options = await generateRegistrationOptions({
       rpName,
       rpID: rpId,
       userName: user.email ?? user.id,
       userDisplayName: user.name ?? user.email ?? "User",
-      userID: userIdBuffer as any,
+      userID: user.id,
       timeout: 60000,
       attestationType: "none",
       excludeCredentials,

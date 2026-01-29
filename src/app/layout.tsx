@@ -9,6 +9,7 @@ import { ThemeProviderWrapper } from "./components/ThemeProviderWrapper";
 import { TRPCReactProvider } from "~/trpc/client";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
+import { DevUserPanel } from "./components/DevUserPanel";
 
 /**
  * Root Layout - Main application layout with HeroUI theming integration.
@@ -50,6 +51,7 @@ export default async function RootLayout({
               <Header />
               {children}
               {modal}
+              <DevUserPanel />
               <SpeedInsights />
               <Analytics />
               <Footer />

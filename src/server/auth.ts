@@ -263,7 +263,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
     },
     async session({ session, user }) {
+      if (process.env.NODE_ENV === "development") {
+        const cookieStore = await cookies();
+        const devSession = cookieStore.get("dev-auth-session");
+        if (devSession?.value === "00000000-0000-0000-0000-000000000000") {
+          return {
+            ...session,
+            user: {
+              id: "00000000-0000-0000-0000-000000000000",
+              name: "Dr. Jane Smith",
+              email: "jane.smith@example.edu",
+              image: null,
+              orcid: "0000-0001-2345-6789",
+            },
+          };
+        }
+      }
+
       if (user?.id) {
+        if (process.env.NODE_ENV === "development") {
+          const cookieStore = await cookies();
+          const devSession = cookieStore.get("dev-auth-session");
+          if (devSession?.value === "00000000-0000-0000-0000-000000000000" && user.id !== "00000000-0000-0000-0000-000000000000") {
+            return {
+              ...session,
+              user: {
+                id: "00000000-0000-0000-0000-000000000000",
+                name: "Dr. Jane Smith",
+                email: "jane.smith@example.edu",
+                image: null,
+                orcid: "0000-0001-2345-6789",
+              },
+            };
+          }
+        }
+
         const userWithOrcid = await db.user.findUnique({
           where: { id: user.id },
           select: { orcid: true },

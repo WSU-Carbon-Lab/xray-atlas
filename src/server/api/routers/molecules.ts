@@ -8,6 +8,7 @@ import { TRPCError } from "@trpc/server";
 import { moleculeUploadSchema } from "~/app/upload/types";
 import { moleculeUploadDataToPrismaInput } from "~/app/upload/types";
 import { uploadMoleculeImage, deleteMoleculeImage } from "~/server/storage";
+import { DEV_MOCK_MOLECULES, DEV_MOCK_USER_ID, isDevMockUser } from "~/lib/dev-mock-data";
 
 export const moleculesRouter = createTRPCRouter({
   search: publicProcedure
@@ -697,6 +698,45 @@ export const moleculesRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      if (ctx.isDevMock && isDevMockUser(input.creatorId)) {
+        const requestedLimit = input.limit;
+        const molecules = await ctx.db.molecules.findMany({
+          take: Math.min(requestedLimit + 1, 11),
+          cursor: input.cursor ? { id: input.cursor } : undefined,
+          include: {
+            moleculesynonyms: {
+              orderBy: [{ order: "asc" }],
+            },
+          },
+          orderBy: {
+            createdat: "desc",
+          },
+        });
+
+        const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
+          ...molecule,
+          moleculesynonyms: [
+            ...molecule.moleculesynonyms
+              .filter((syn) => syn.order === 0)
+              .sort((a, b) => a.synonym.length - b.synonym.length),
+            ...molecule.moleculesynonyms
+              .filter((syn) => syn.order !== 0)
+              .sort((a, b) => a.synonym.length - b.synonym.length),
+          ],
+        }));
+
+        let nextCursor: string | undefined = undefined;
+        if (moleculesWithSortedSynonyms.length > input.limit) {
+          const nextItem = moleculesWithSortedSynonyms.pop();
+          nextCursor = nextItem?.id;
+        }
+
+        return {
+          molecules: moleculesWithSortedSynonyms,
+          nextCursor,
+        };
+      }
+
       const molecules = await ctx.db.molecules.findMany({
         where: {
           createdby: input.creatorId,
