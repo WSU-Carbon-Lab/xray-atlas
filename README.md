@@ -551,25 +551,7 @@ git push origin feature/your-feature
 - [x] Core spectrum visualization
 - [x] Molecule search and browse
 - [x] ORCID authentication
-- [x] Data contribution workflow
-
-### Q2 2026
-- [ ] Public REST API v1
-- [ ] Python client library
-- [ ] Bulk data export (CSV, HDF5)
-- [ ] Advanced peak fitting UI
-
-### Q3 2026
-- [ ] EXAFS support
-- [ ] Theoretical spectrum overlay
-- [ ] DOI minting for datasets
-- [ ] Institution dashboards
-
-### Q4 2026
-- [ ] Machine learning peak assignment
-- [ ] Spectrum similarity search
-- [ ] Jupyter notebook integration
-- [ ] Community forums
+- [ ] Data contribution workflow
 
 ---
 
@@ -582,7 +564,7 @@ If you use X-ray Atlas in your research, please cite:
   title = {X-ray Atlas: An Open Database for NEXAFS Spectroscopy},
   author = {X-ray Atlas Contributors},
   year = {2026},
-  url = {https://xray-atlas.vercel.app},
+  url = {https://xrayatlas.wsu.edu},
   version = {0.1.0}
 }
 ```
