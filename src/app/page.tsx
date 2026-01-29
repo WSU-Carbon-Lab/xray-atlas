@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { Upload, Search } from "lucide-react";
-import { MoleculeSearch } from "./components/MoleculeSearch";
-import { MoleculeDisplay, type DisplayMolecule } from "./components/MoleculeDisplay";
-import { MoleculeGridSkeleton } from "./components/LoadingState";
-import { ErrorState } from "./components/ErrorState";
-import { DefaultButton as Button } from "./components/Button";
+import { MoleculeSearch } from "@/components/molecules/molecule-search";
+import { MoleculeDisplay, type DisplayMolecule } from "@/components/molecules/molecule-display";
+import { MoleculeGridSkeleton } from "@/components/feedback/loading-state";
+import { ErrorState } from "@/components/feedback/error-state";
+import { DefaultButton as Button } from "@/components/ui/button";
 import { trpc } from "~/trpc/client";
 import { useRouter } from "next/navigation";
 
