@@ -3,10 +3,10 @@
 import { use, useState } from "react";
 import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
-import { PageSkeleton } from "~/app/components/LoadingState";
-import { NotFoundState, ErrorState } from "~/app/components/ErrorState";
-import { MoleculeDisplay } from "~/app/components/MoleculeDisplay";
-import { ORCIDIcon, GitHubIcon, HuggingFaceIcon } from "~/app/components/icons";
+import { PageSkeleton } from "@/components/feedback/loading-state";
+import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
+import { MoleculeDisplay } from "@/components/molecules/molecule-display";
+import { ORCIDIcon, GitHubIcon, HuggingFaceIcon } from "@/components/icons";
 import { Avatar } from "~/app/components/CustomUserButton";
 import Link from "next/link";
 import { Button, Card } from "@heroui/react";

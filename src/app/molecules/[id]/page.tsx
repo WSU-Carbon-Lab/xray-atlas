@@ -5,9 +5,9 @@ import { trpc } from "~/trpc/client";
 import {
   MoleculeDisplay,
   type DisplayMolecule,
-} from "~/app/components/MoleculeDisplay";
-import { PageSkeleton } from "~/app/components/LoadingState";
-import { NotFoundState, ErrorState } from "~/app/components/ErrorState";
+} from "@/components/molecules/molecule-display";
+import { PageSkeleton } from "@/components/feedback/loading-state";
+import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
 import { EditMoleculeModal } from "~/app/components/EditMoleculeModal";
 import Link from "next/link";
 import { CalendarIcon } from "@heroicons/react/24/outline";

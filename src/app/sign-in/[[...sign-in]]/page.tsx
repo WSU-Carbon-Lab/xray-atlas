@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { SocialSignInButtons } from "~/app/components/SocialSignInButtons";
+import { SocialSignInButtons } from "@/components/auth/social-sign-in-buttons";
 
 function SignInContent() {
   const searchParams = useSearchParams();

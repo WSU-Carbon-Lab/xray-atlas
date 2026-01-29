@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DefaultButton as Button } from "~/app/components/Button";
+import { DefaultButton as Button } from "@/components/ui/button";
 import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
 import { trpc } from "~/trpc/client";
 import {
