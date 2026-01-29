@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "~/server/db";
 import { env } from "~/env";
 import GitHub from "next-auth/providers/github";
+import HuggingFace from "next-auth/providers/huggingface";
 import Passkey from "next-auth/providers/passkey";
 import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers";
 import { cookies } from "next/headers";
@@ -55,7 +56,7 @@ function ORCID(
 }
 
 const providers: Array<
-  OAuthConfig<ORCIDProfile> | ReturnType<typeof GitHub> | ReturnType<typeof Passkey>
+  OAuthConfig<ORCIDProfile> | ReturnType<typeof GitHub> | ReturnType<typeof HuggingFace> | ReturnType<typeof Passkey>
 > = [];
 
 if (env.ORCID_CLIENT_ID && env.ORCID_CLIENT_SECRET) {
@@ -72,6 +73,20 @@ if (githubClientId && githubClientSecret) {
     GitHub({
       clientId: githubClientId,
       clientSecret: githubClientSecret,
+    }),
+  );
+}
+
+if (env.HUGGINGFACE_CLIENT_ID && env.HUGGINGFACE_CLIENT_SECRET) {
+  providers.push(
+    HuggingFace({
+      clientId: env.HUGGINGFACE_CLIENT_ID,
+      clientSecret: env.HUGGINGFACE_CLIENT_SECRET,
+      authorization: {
+        params: {
+          scope: "openid profile email",
+        },
+      },
     }),
   );
 }
@@ -273,7 +288,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               id: "00000000-0000-0000-0000-000000000000",
               name: "Dr. Jane Smith",
               email: "jane.smith@example.edu",
-              image: null,
+              image: "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
               orcid: "0000-0001-2345-6789",
             },
           };
@@ -291,7 +306,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 id: "00000000-0000-0000-0000-000000000000",
                 name: "Dr. Jane Smith",
                 email: "jane.smith@example.edu",
-                image: null,
+                image: "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
                 orcid: "0000-0001-2345-6789",
               },
             };

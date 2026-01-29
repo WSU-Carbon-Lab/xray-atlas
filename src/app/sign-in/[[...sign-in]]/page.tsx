@@ -15,7 +15,7 @@ function SignInContent() {
           Sign in to X-ray Atlas
         </h1>
         <p className="mb-6 text-sm text-text-secondary">
-          ORCID is recommended for researchers. GitHub and passkeys are also
+          ORCID is recommended for researchers. GitHub, Hugging Face, and passkeys are also
           available as alternatives.
         </p>
         <SocialSignInButtons callbackUrl={callbackUrl} />

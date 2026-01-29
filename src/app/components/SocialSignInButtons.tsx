@@ -4,7 +4,7 @@ import { signIn } from "next-auth/react";
 import { signIn as webauthnSignIn } from "next-auth/webauthn";
 import { Button, Tooltip } from "@heroui/react";
 import { Key } from "lucide-react";
-import { ORCIDIcon, GitHubIcon } from "~/app/components/icons";
+import { ORCIDIcon, GitHubIcon, HuggingFaceIcon } from "~/app/components/icons";
 
 const ORCID_TOOLTIP =
   "ORCID is a free, unique, persistent identifier (PID) for individuals to use as they engage in research, scholarship, and innovation activities. It can also help you save time when you use your ORCID to sign into systems like this one. Learn more at orcid.org.";
@@ -29,6 +29,11 @@ export function SocialSignInButtons({
   const handleGitHub = async () => {
     onSignIn?.();
     await signIn("github", { callbackUrl });
+  };
+
+  const handleHuggingFace = async () => {
+    onSignIn?.();
+    await signIn("huggingface", { callbackUrl });
   };
 
   const handlePasskey = async () => {
@@ -64,6 +69,14 @@ export function SocialSignInButtons({
       >
         <GitHubIcon className="h-5 w-5 shrink-0" />
         Sign in with GitHub
+      </Button>
+      <Button
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border-default bg-surface-2 text-text-primary transition-[background-color,box-shadow,transform,filter] hover:scale-[1.01] hover:bg-surface-3 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 data-[hovered=true]:scale-[1.01] data-[hovered=true]:brightness-105 touch-manipulation"
+        variant="tertiary"
+        onPress={handleHuggingFace}
+      >
+        <HuggingFaceIcon className="h-5 w-5 shrink-0" />
+        Sign in with Hugging Face
       </Button>
       <div className="relative mt-2 flex w-full items-center">
         <div className="flex-1 border-t border-border-default" />

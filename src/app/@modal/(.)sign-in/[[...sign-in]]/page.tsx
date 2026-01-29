@@ -82,7 +82,7 @@ function SignInModalContent() {
                   </button>
                 </div>
                 <p className="mb-6 text-sm text-text-secondary">
-                  ORCID is recommended for researchers. GitHub and passkeys are
+                  ORCID is recommended for researchers. GitHub, Hugging Face, and passkeys are
                   also available as alternatives.
                 </p>
                 <SocialSignInButtons

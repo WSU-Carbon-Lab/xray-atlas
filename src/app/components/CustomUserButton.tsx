@@ -1,13 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { LogOut, User as UserIcon, LayoutDashboard, Users } from "lucide-react";
 import Image from "next/image";
 import type { User as NextAuthUser } from "next-auth";
+import { trpc } from "~/trpc/client";
+import { ORCIDIcon } from "~/app/components/icons";
 
-const profileImage = (user: NextAuthUser) => {
+type UserWithOrcid = NextAuthUser & {
+  orcid?: string | null;
+};
+
+type AvatarUser = {
+  image?: string | null;
+  name?: string | null;
+};
+
+const profileImage = (user: UserWithOrcid) => {
   if (user.image) {
     return user.image;
   }
@@ -17,20 +28,62 @@ const profileImage = (user: NextAuthUser) => {
 };
 
 interface AvatarButtonProps {
-  user: NextAuthUser;
-  userInitials: string;
+  user: UserWithOrcid;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   handleAction: (action: string) => void;
 }
 
+interface AvatarProps {
+  user: AvatarUser;
+  size?: "sm" | "md" | "lg";
+  width?: number;
+  height?: number;
+  className?: string;
+}
+
+const sizeMap = {
+  sm: { width: 20, height: 20 },
+  md: { width: 40, height: 40 },
+  lg: { width: 96, height: 96 },
+} as const;
+
+export function Avatar({
+  user,
+  size = "sm",
+  width,
+  height,
+  className = "",
+}: AvatarProps) {
+  if (!user.image) {
+    return null;
+  }
+
+  const dimensions = width && height
+    ? { width, height }
+    : sizeMap[size];
+
+  return (
+    <Image
+      src={user.image}
+      alt={user.name ?? "User"}
+      width={dimensions.width}
+      height={dimensions.height}
+      className={`rounded-full object-cover ${className}`}
+    />
+  );
+}
+
 export function AvatarButton({
   user,
-  userInitials,
   isOpen,
   setIsOpen,
   handleAction,
 }: AvatarButtonProps) {
+  if (!user.image) {
+    return null;
+  }
+
   return (
     <div className="relative">
       <button
@@ -41,19 +94,7 @@ export function AvatarButton({
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        {user.image ? (
-          <Image
-            src={user.image}
-            alt={user.name ?? "User"}
-            width={36}
-            height={36}
-            className="rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-sm font-medium text-white">
-            {userInitials}
-          </div>
-        )}
+        <Avatar user={user} size="md" width={36} height={36} />
       </button>
 
       {isOpen && (
@@ -66,20 +107,39 @@ export function AvatarButton({
           <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
             <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
               <div className="flex items-center gap-3">
-                <Image
-                  src={profileImage(user)}
-                  alt={user.name ?? "User"}
-                  width={40}
-                  height={40}
-                  className="rounded-full object-cover"
-                />
-                <div className="flex flex-col">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <Avatar user={user} size="md" />
+                <div className="flex flex-col gap-0.5">
+                  <a
+                    href={`/users/${user.id}`}
+                    className="text-sm font-medium text-gray-900 transition-colors hover:text-accent dark:text-gray-100 dark:hover:text-accent-light"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAction("profile");
+                    }}
+                  >
                     {user.name ?? "User"}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {user.email}
-                  </p>
+                  </a>
+                  {user.orcid && (
+                    <a
+                      href={`https://orcid.org/${user.orcid}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-gray-500 transition-colors hover:text-accent dark:text-gray-400 dark:hover:text-accent-light"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ORCIDIcon className="h-3 w-3 shrink-0" authenticated />
+                      <span className="tabular-nums">{user.orcid}</span>
+                    </a>
+                  )}
+                  {user.email && (
+                    <a
+                      href={`mailto:${user.email}`}
+                      className="text-xs text-gray-500 transition-colors hover:text-accent dark:text-gray-400 dark:hover:text-accent-light"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {user.email}
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -126,23 +186,35 @@ export function AvatarButton({
 
 export function CustomUserButton() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const [isOpen, setIsOpen] = useState(false);
+  const updateImage = trpc.users.updateImage.useMutation();
+  const utils = trpc.useUtils();
 
   const user = session?.user;
+
+  useEffect(() => {
+    if (user?.id && !user.image && !updateImage.isPending && !updateImage.isSuccess) {
+      const generatedImage = profileImage(user);
+      void updateImage.mutateAsync(
+        { image: generatedImage },
+        {
+          onSuccess: () => {
+            void updateSession();
+            void utils.users.getCurrent.invalidate();
+          },
+        },
+      );
+    }
+  }, [user?.id, user?.image, updateImage.isPending, updateImage.isSuccess, updateImage, updateSession, utils]);
 
   if (!user) {
     return null;
   }
 
-  const userInitials = user.name
-    ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "U";
+  if (!user.image) {
+    return null;
+  }
 
   const handleAction = (action: string) => {
     setIsOpen(false);
@@ -165,7 +237,6 @@ export function CustomUserButton() {
   return (
     <AvatarButton
       user={user}
-      userInitials={userInitials}
       isOpen={isOpen}
       setIsOpen={setIsOpen}
       handleAction={handleAction}

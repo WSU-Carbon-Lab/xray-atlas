@@ -2,16 +2,15 @@
 
 import { use, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { PageSkeleton } from "~/app/components/LoadingState";
 import { NotFoundState, ErrorState } from "~/app/components/ErrorState";
 import { MoleculeDisplay } from "~/app/components/MoleculeDisplay";
-import { ORCIDIcon } from "~/app/components/icons";
+import { ORCIDIcon, GitHubIcon, HuggingFaceIcon } from "~/app/components/icons";
+import { Avatar } from "~/app/components/CustomUserButton";
 import Link from "next/link";
-import Image from "next/image";
-import { Button, Input, Label, Tooltip } from "@heroui/react";
-import { ArrowRight } from "lucide-react";
+import { Button, Card } from "@heroui/react";
+import { Key, Plus, Trash2, X } from "lucide-react";
 
 export default function UserProfilePage({
   params,
@@ -20,7 +19,6 @@ export default function UserProfilePage({
 }) {
   const { id: userId } = use(params);
   const { data: session, status } = useSession();
-  const router = useRouter();
   const {
     data: user,
     isLoading,
@@ -34,51 +32,150 @@ export default function UserProfilePage({
   );
   const updateORCID = trpc.users.updateORCID.useMutation();
   const removeORCID = trpc.users.removeORCID.useMutation();
+  const unlinkAccount = trpc.users.unlinkAccount.useMutation();
+  const deletePasskey = trpc.users.deletePasskey.useMutation();
   const utils = trpc.useUtils();
 
   const [orcidInput, setOrcidInput] = useState("");
   const [isEditingOrcid, setIsEditingOrcid] = useState(false);
-  const [orcidError, setOrcidError] = useState<string | null>(null);
+  const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
+  const [showConnectAccountModal, setShowConnectAccountModal] = useState(false);
 
   const isOwnProfile =
     !!session?.user?.id && !!user && session.user.id === user.id;
 
-  const handleSaveORCID = async () => {
-    setOrcidError(null);
-    try {
-      await updateORCID.mutateAsync({ orcid: orcidInput });
-      await utils.users.getById.invalidate({ id: userId });
-      setIsEditingOrcid(false);
-      setOrcidInput("");
-    } catch (err) {
-      setOrcidError(
-        err instanceof Error
-          ? err.message
-          : "Failed to update ORCID. Please check the format and try again.",
-      );
-    }
-  };
+  const { data: linkedAccounts } = trpc.users.getLinkedAccounts.useQuery(
+    undefined,
+    {
+      enabled: isOwnProfile,
+    },
+  );
+
+  const { data: passkeys } = trpc.users.getPasskeys.useQuery(
+    undefined,
+    {
+      enabled: isOwnProfile,
+    },
+  );
 
   const handleRemoveORCID = async () => {
-    setOrcidError(null);
     try {
       await removeORCID.mutateAsync();
       await utils.users.getById.invalidate({ id: userId });
       setIsEditingOrcid(false);
       setOrcidInput("");
     } catch (err) {
-      setOrcidError(
-        err instanceof Error
-          ? err.message
-          : "Failed to remove ORCID. Please try again.",
-      );
+      console.error("Failed to remove ORCID:", err);
     }
   };
 
-  const handleCancelOrcid = () => {
-    setIsEditingOrcid(false);
-    setOrcidInput("");
-    setOrcidError(null);
+  const handleRegisterPasskey = async () => {
+    setIsRegisteringPasskey(true);
+    try {
+      const registerResponse = await fetch("/api/passkeys/register", {
+        method: "POST",
+      });
+
+      if (!registerResponse.ok) {
+        throw new Error("Failed to generate registration options");
+      }
+
+      const options = (await registerResponse.json()) as {
+        challenge: string;
+        user: { id: string; name: string; displayName: string };
+        excludeCredentials?: Array<{ id: string; type: "public-key" }>;
+        rp: { name: string; id: string };
+        pubKeyCredParams: Array<{ type: "public-key"; alg: number }>;
+        authenticatorSelection?: unknown;
+        timeout?: number;
+        attestation?: "none" | "indirect" | "direct";
+      };
+
+      const publicKeyOptions: PublicKeyCredentialCreationOptions = {
+        challenge: Uint8Array.from(atob(options.challenge), (c) => c.charCodeAt(0)),
+        rp: options.rp,
+        user: {
+          id: Uint8Array.from(atob(options.user.id), (c) => c.charCodeAt(0)),
+          name: options.user.name,
+          displayName: options.user.displayName,
+        },
+        pubKeyCredParams: options.pubKeyCredParams.map((param) => ({
+          type: "public-key" as const,
+          alg: param.alg,
+        })),
+        excludeCredentials: options.excludeCredentials?.map((cred) => ({
+          id: Uint8Array.from(atob(cred.id), (c) => c.charCodeAt(0)),
+          type: "public-key",
+        })),
+        timeout: options.timeout,
+        attestation: options.attestation ?? "none",
+        authenticatorSelection: options.authenticatorSelection as AuthenticatorSelectionCriteria | undefined,
+      };
+
+      const credential = (await navigator.credentials.create({
+        publicKey: publicKeyOptions,
+      })) as PublicKeyCredential | null;
+
+      if (!credential) {
+        throw new Error("Failed to create credential");
+      }
+
+      const attestationResponse = credential.response as AuthenticatorAttestationResponse;
+      const credentialId = Array.from(new Uint8Array(credential.rawId))
+        .map((b) => String.fromCharCode(b))
+        .join("");
+      const clientDataJSON = Array.from(new Uint8Array(attestationResponse.clientDataJSON))
+        .map((b) => String.fromCharCode(b))
+        .join("");
+      const attestationObject = Array.from(new Uint8Array(attestationResponse.attestationObject))
+        .map((b) => String.fromCharCode(b))
+        .join("");
+
+      const transports = attestationResponse.getTransports();
+
+      const verifyResponse = await fetch("/api/passkeys/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          credential: {
+            id: credential.id,
+            rawId: btoa(credentialId),
+            response: {
+              clientDataJSON: btoa(clientDataJSON),
+              attestationObject: btoa(attestationObject),
+              transports,
+            },
+            type: credential.type,
+          },
+        }),
+      });
+
+      if (!verifyResponse.ok) {
+        throw new Error("Failed to verify passkey");
+      }
+
+      await utils.users.getPasskeys.invalidate();
+    } catch (error) {
+      console.error("Failed to register passkey:", error);
+      alert(error instanceof Error ? error.message : "Failed to register passkey");
+    } finally {
+      setIsRegisteringPasskey(false);
+    }
+  };
+
+  const handleDeletePasskey = async (passkeyId: string) => {
+    if (!confirm("Are you sure you want to delete this passkey?")) {
+      return;
+    }
+    try {
+      await deletePasskey.mutateAsync({ passkeyId });
+      await utils.users.getPasskeys.invalidate();
+    } catch (error) {
+      console.error("Failed to delete passkey:", error);
+      alert(error instanceof Error ? error.message : "Failed to delete passkey");
+    }
   };
 
   if (isLoading || status === "loading") {
@@ -138,14 +235,7 @@ export default function UserProfilePage({
       <div className="rounded-xl border border-border-default bg-surface-1 p-8">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
           {user.image ? (
-            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full">
-              <Image
-                src={user.image}
-                alt={user.name ?? "User"}
-                fill
-                className="object-cover"
-              />
-            </div>
+            <Avatar user={user} size="lg" />
           ) : (
             <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-accent text-2xl font-bold text-white">
               {user.name?.charAt(0).toUpperCase() ?? "U"}
@@ -179,151 +269,320 @@ export default function UserProfilePage({
         {isOwnProfile && (
           <>
             <div className="mt-8 border-t border-border-default pt-8">
-              <h2 className="mb-1 text-xl font-semibold text-text-primary">
-                ORCID iD
-              </h2>
-              <p className="mb-4 text-sm text-text-secondary">
-                Link your ORCID iD to your account for better research
-                attribution.
-              </p>
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <div>
+                  <h2 className="mb-1 text-xl font-semibold text-text-primary">
+                    ORCID iD
+                  </h2>
+                  <p className="mb-4 text-sm text-text-secondary">
+                    Link your ORCID iD to your account for better research
+                    attribution.
+                  </p>
 
-            {user.orcid && !isEditingOrcid ? (
-              <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border-default bg-surface-2 p-4">
-                <div className="flex items-center gap-3">
-                  <ORCIDIcon className="h-6 w-6 shrink-0" authenticated />
-                  <div>
-                    <a
-                      href={`https://orcid.org/${user.orcid}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm font-medium text-accent transition-colors hover:text-accent-dark"
-                      aria-label={`View ORCID record - ${user.orcid}`}
-                    >
-                      <span className="tabular-nums">{user.orcid}</span>
-                    </a>
-                    <p className="text-xs text-text-tertiary">
-                      Authenticated ORCID iD
-                    </p>
-                  </div>
+                  {user.orcid ? (
+                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border-default bg-surface-2 p-4">
+                      <div className="flex items-center gap-3">
+                        <ORCIDIcon className="h-6 w-6 shrink-0" authenticated />
+                        <div>
+                          <a
+                            href={`https://orcid.org/${user.orcid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-sm font-medium text-accent transition-colors hover:text-accent-dark"
+                            aria-label={`View ORCID record - ${user.orcid}`}
+                          >
+                            <span className="tabular-nums">{user.orcid}</span>
+                          </a>
+                          <p className="text-xs text-text-tertiary">
+                            Authenticated ORCID iD
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onPress={() => {
+                            setIsEditingOrcid(true);
+                            setOrcidInput(user.orcid ?? "");
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onPress={handleRemoveORCID}
+                          isPending={removeORCID.isPending}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 rounded-lg border border-border-default bg-surface-2 p-4">
+                      <ORCIDIcon className="h-6 w-6 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-text-tertiary">
+                          Authenticate ORCID iD
+                        </p>
+                        <p className="text-xs text-text-tertiary">
+                          Link your ORCID account to verify your identity
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onPress={() => {
+                          window.location.href = `/api/auth/link-account?provider=orcid`;
+                        }}
+                      >
+                        Authenticate
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex gap-2">
+
+                <div>
+                  <h2 className="mb-1 text-xl font-semibold text-text-primary">
+                    Connected Accounts
+                  </h2>
+                  <p className="mb-4 text-sm text-text-secondary">
+                    Link additional accounts to your profile.
+                  </p>
+
+                  <div className="space-y-3">
+                    {linkedAccounts?.some((acc) => acc.provider === "github") && (
+                      <Card variant="default" className="border border-border-default">
+                        <Card.Content className="flex items-center justify-between p-4">
+                          <div className="flex items-center gap-3">
+                            <GitHubIcon className="h-6 w-6 shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-text-primary">
+                                GitHub
+                              </p>
+                              <p className="text-xs text-text-tertiary">Connected</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onPress={async () => {
+                              const githubAccount = linkedAccounts.find(
+                                (acc) => acc.provider === "github",
+                              );
+                              if (githubAccount) {
+                                await unlinkAccount.mutateAsync({
+                                  accountId: githubAccount.id,
+                                });
+                                await utils.users.getLinkedAccounts.invalidate();
+                              }
+                            }}
+                            isPending={unlinkAccount.isPending}
+                          >
+                            <X className="h-4 w-4" />
+                            <span>Disconnect</span>
+                          </Button>
+                        </Card.Content>
+                      </Card>
+                    )}
+
+                    {linkedAccounts?.some((acc) => acc.provider === "huggingface") && (
+                      <Card variant="default" className="border border-border-default">
+                        <Card.Content className="flex items-center justify-between p-4">
+                          <div className="flex items-center gap-3">
+                            <HuggingFaceIcon className="h-6 w-6 shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-text-primary">
+                                Hugging Face
+                              </p>
+                              <p className="text-xs text-text-tertiary">Connected</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onPress={async () => {
+                              const hfAccount = linkedAccounts.find(
+                                (acc) => acc.provider === "huggingface",
+                              );
+                              if (hfAccount) {
+                                await unlinkAccount.mutateAsync({
+                                  accountId: hfAccount.id,
+                                });
+                                await utils.users.getLinkedAccounts.invalidate();
+                              }
+                            }}
+                            isPending={unlinkAccount.isPending}
+                          >
+                            <X className="h-4 w-4" />
+                            <span>Disconnect</span>
+                          </Button>
+                        </Card.Content>
+                      </Card>
+                    )}
+                  </div>
+
                   <Button
                     size="sm"
                     variant="ghost"
-                    onPress={() => {
-                      setIsEditingOrcid(true);
-                      setOrcidInput(user.orcid ?? "");
-                    }}
+                    className="mt-4"
+                    onPress={() => setShowConnectAccountModal(true)}
                   >
-                    Edit
+                    <Plus className="h-4 w-4" />
+                    <span>Connect account</span>
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onPress={handleRemoveORCID}
-                    isPending={removeORCID.isPending}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <Tooltip delay={0}>
-                  <Tooltip.Trigger>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="profile-orcid">
-                        ORCID iD{" "}
-                        <span className="text-error" aria-hidden>
-                          *
-                        </span>
-                      </Label>
-                      <Input
-                        id="profile-orcid"
-                        aria-label="ORCID iD"
-                        placeholder="0000-0000-0000-0000"
-                        value={orcidInput}
-                        onChange={(e) => {
-                          setOrcidInput(e.target.value);
-                          setOrcidError(null);
-                        }}
-                        className="tabular-nums"
-                        variant="secondary"
-                        fullWidth
-                        aria-invalid={!!orcidError}
-                        aria-errormessage={
-                          orcidError ? "profile-orcid-error" : undefined
+
+                  {showConnectAccountModal && (
+                    <div
+                      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                      onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                          setShowConnectAccountModal(false);
                         }
-                      />
-                      <p className="text-tiny text-text-tertiary">
-                        Your ORCID iD helps connect your research contributions.
-                      </p>
-                      {orcidError && (
-                        <p
-                          id="profile-orcid-error"
-                          className="text-sm text-error"
-                          role="alert"
-                        >
-                          {orcidError}
-                        </p>
-                      )}
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          setShowConnectAccountModal(false);
+                        }
+                      }}
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="connect-account-title"
+                    >
+                      <Card className="w-full max-w-md border border-border-default bg-surface-1 p-6">
+                        <Card.Header className="mb-4">
+                          <Card.Title
+                            id="connect-account-title"
+                            className="text-xl font-semibold text-text-primary"
+                          >
+                            Connect Account
+                          </Card.Title>
+                          <Card.Description className="text-sm text-text-secondary">
+                            Choose an account to connect
+                          </Card.Description>
+                        </Card.Header>
+                        <Card.Content className="space-y-3">
+                          {!linkedAccounts?.some((acc) => acc.provider === "github") && (
+                            <Button
+                              className="w-full justify-start"
+                              variant="ghost"
+                              onPress={() => {
+                                window.location.href = `/api/auth/link-account?provider=github`;
+                              }}
+                            >
+                              <GitHubIcon className="h-5 w-5 shrink-0" />
+                              <span>Connect GitHub</span>
+                            </Button>
+                          )}
+                          {!linkedAccounts?.some((acc) => acc.provider === "huggingface") && (
+                            <Button
+                              className="w-full justify-start"
+                              variant="ghost"
+                              onPress={() => {
+                                window.location.href = `/api/auth/link-account?provider=huggingface`;
+                              }}
+                            >
+                              <HuggingFaceIcon className="h-5 w-5 shrink-0" />
+                              <span>Connect Hugging Face</span>
+                            </Button>
+                          )}
+                          {linkedAccounts?.some((acc) => acc.provider === "github") &&
+                            linkedAccounts?.some((acc) => acc.provider === "huggingface") && (
+                              <p className="text-sm text-text-tertiary">
+                                All available accounts are connected.
+                              </p>
+                            )}
+                        </Card.Content>
+                        <Card.Footer>
+                          <Button
+                            className="w-full"
+                            variant="ghost"
+                            onPress={() => setShowConnectAccountModal(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </Card.Footer>
+                      </Card>
                     </div>
-                  </Tooltip.Trigger>
-                  <Tooltip.Content>
-                    <p>
-                      Enter your ORCID iD in the format XXXX-XXXX-XXXX-XXXX or
-                      the full URL (https://orcid.org/XXXX-XXXX-XXXX-XXXX).
-                    </p>
-                  </Tooltip.Content>
-                </Tooltip>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="primary"
-                    onPress={handleSaveORCID}
-                    isPending={updateORCID.isPending}
-                  >
-                    {user.orcid ? "Update" : "Add"} ORCID
-                  </Button>
-                  {isEditingOrcid && (
-                    <Button variant="ghost" onPress={handleCancelOrcid}>
-                      Cancel
-                    </Button>
                   )}
                 </div>
-                <p className="text-xs text-text-tertiary">
-                  Don&apos;t have an ORCID iD?{" "}
-                  <a
-                    href="https://orcid.org/register"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent underline transition-colors hover:text-accent-dark"
-                  >
-                    Create one for free
-                  </a>
-                </p>
               </div>
-            )}
+            </div>
+
+            <div className="mt-8 border-t border-border-default pt-8">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="mb-1 text-xl font-semibold text-text-primary">
+                    Security
+                  </h2>
+                  <p className="text-sm text-text-secondary">
+                    Manage your passwordless authentication methods
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onPress={handleRegisterPasskey}
+                  isPending={isRegisteringPasskey}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Create Passkey</span>
+                </Button>
+              </div>
+
+              {passkeys && passkeys.length > 0 ? (
+                <div className="space-y-2">
+                  {passkeys.map((passkey) => (
+                    <Card
+                      key={passkey.id}
+                      variant="default"
+                      className="border border-border-default"
+                    >
+                      <Card.Content className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                          <Key className="h-5 w-5 shrink-0 text-text-secondary" />
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {passkey.deviceType === "cross-platform"
+                                ? "Cross-platform Passkey"
+                                : "Single Device Passkey"}
+                            </p>
+                            <p className="text-xs text-text-tertiary">
+                              {passkey.transports.length > 0
+                                ? `Transports: ${passkey.transports.join(", ")}`
+                                : "No transport info"}
+                              {passkey.backedUp ? " · Backed up" : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-error hover:text-error-dark"
+                          onPress={() => handleDeletePasskey(passkey.id)}
+                          isPending={deletePasskey.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Delete</span>
+                        </Button>
+                      </Card.Content>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card variant="default" className="border border-border-default">
+                  <Card.Content className="p-4 text-center">
+                    <p className="text-sm text-text-tertiary">
+                      No passkeys registered. Create one to enable passwordless sign-in.
+                    </p>
+                  </Card.Content>
+                </Card>
+              )}
             </div>
           </>
         )}
 
-        {!isOwnProfile && user.orcid && (
-          <div className="mt-8 border-t border-border-default pt-8">
-            <h2 className="mb-4 text-xl font-semibold text-text-primary">
-              ORCID iD
-            </h2>
-            <a
-              href={`https://orcid.org/${user.orcid}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-accent"
-              aria-label={`View ORCID record - ${user.orcid}`}
-            >
-              <ORCIDIcon className="h-5 w-5 shrink-0" authenticated />
-              <span className="tabular-nums">{user.orcid}</span>
-            </a>
-          </div>
-        )}
       </div>
 
       <div className="mt-8">

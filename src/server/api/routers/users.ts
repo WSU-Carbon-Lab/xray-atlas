@@ -264,4 +264,27 @@ export const usersRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  updateImage: protectedProcedure
+    .input(
+      z.object({
+        image: z.string().url(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new Error("User not authenticated");
+      }
+
+      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+        throw new Error("Cannot modify user image in dev mode");
+      }
+
+      const updatedUser = await ctx.db.user.update({
+        where: { id: ctx.userId },
+        data: { image: input.image },
+      });
+
+      return { image: updatedUser.image };
+    }),
 });

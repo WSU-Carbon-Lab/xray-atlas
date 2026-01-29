@@ -5,7 +5,7 @@ export const DEV_MOCK_USER = {
   name: "Dr. Jane Smith",
   email: "jane.smith@example.edu",
   emailVerified: new Date("2024-01-15T10:30:00Z"),
-  image: null,
+  image: "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
   orcid: "0000-0001-2345-6789",
   role: "contributor" as const,
   contributionAgreementAccepted: true,
