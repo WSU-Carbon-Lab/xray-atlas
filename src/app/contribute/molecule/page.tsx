@@ -7,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { DefaultButton as Button } from "~/app/components/Button";
 import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
-import type { MoleculeUploadData } from "../../upload/types";
+import type { MoleculeUploadData } from "~/types/upload";
 import {
   MoleculeDisplay,
   type DisplayMolecule,

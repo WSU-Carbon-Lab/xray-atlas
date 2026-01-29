@@ -1,10 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-/**
- * Type for molecule upload data from the frontend form
- * Note: image is handled separately as a File, so it's not included here
- */
 export interface MoleculeUploadData {
   commonName: string;
   pubchemCid: string | null;
@@ -13,12 +9,9 @@ export interface MoleculeUploadData {
   synonyms: string[];
   smiles: string;
   inchi: string;
-  chemicalFormula: string; // Comma-separated string from form, will be split
+  chemicalFormula: string;
 }
 
-/**
- * Zod schema for validating MoleculeUploadData
- */
 export const moleculeUploadSchema = z.object({
   commonName: z.string().min(1, "Common name is required"),
   pubchemCid: z.string().nullable(),
@@ -30,26 +23,17 @@ export const moleculeUploadSchema = z.object({
   chemicalFormula: z.string().min(1, "Chemical formula is required"),
 });
 
-/**
- * Converts MoleculeUploadData to Prisma create input
- * Handles deduplication and array transformation
- */
 export function moleculeUploadDataToPrismaInput(
   data: MoleculeUploadData,
 ): Omit<Prisma.moleculesCreateInput, "id" | "createdat" | "updatedat"> {
-  // Process synonyms: remove duplicates and include common name
-  // The commonName is the primary name to display
   const allSynonyms = [
     data.commonName.trim(),
     ...data.synonyms.filter((s) => s.trim().length > 0),
   ];
   const uniqueSynonyms = Array.from(new Set(allSynonyms));
 
-  // Process chemical formula: trim whitespace
   const chemicalFormula = data.chemicalFormula.trim();
 
-  // Return input matching the schema
-  // The commonName is marked as primary (true), others as false
   return {
     iupacname: data.iupacName.trim(),
     inchi: data.inchi.trim(),
