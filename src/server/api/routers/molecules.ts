@@ -5,8 +5,7 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { moleculeUploadSchema } from "~/app/upload/types";
-import { moleculeUploadDataToPrismaInput } from "~/app/upload/types";
+import { moleculeUploadSchema, moleculeUploadDataToPrismaInput } from "~/types/upload";
 import { uploadMoleculeImage, deleteMoleculeImage } from "~/server/storage";
 import { DEV_MOCK_MOLECULES, DEV_MOCK_USER_ID, isDevMockUser } from "~/lib/dev-mock-data";
 
