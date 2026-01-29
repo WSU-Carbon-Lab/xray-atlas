@@ -5,13 +5,13 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { DefaultButton as Button } from "~/app/components/Button";
+import { DefaultButton as Button } from "@/components/ui/button";
 import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
-import type { MoleculeUploadData } from "../../upload/types";
+import type { MoleculeUploadData } from "~/types/upload";
 import {
   MoleculeDisplay,
   type DisplayMolecule,
-} from "~/app/components/MoleculeDisplay";
+} from "@/components/molecules/molecule-display";
 import { trpc } from "~/trpc/client";
 import {
   DocumentArrowUpIcon,
@@ -19,8 +19,8 @@ import {
   XMarkIcon,
   ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/24/outline";
-import { FieldTooltip } from "~/app/components/FieldTooltip";
-import { SearchIcon } from "../../components/icons";
+import { FieldTooltip } from "@/components/ui/field-tooltip";
+import { SearchIcon } from "@/components/icons";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
 

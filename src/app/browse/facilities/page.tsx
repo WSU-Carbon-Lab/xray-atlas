@@ -3,9 +3,9 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
-import { FacilityCardCompact } from "~/app/components/FacilityCardCompact";
-import { ErrorState } from "~/app/components/ErrorState";
-import { BrowseTabs } from "~/app/components/BrowseTabs";
+import { FacilityCardCompact } from "@/components/facilities/facility-card";
+import { ErrorState } from "@/components/feedback/error-state";
+import { BrowseTabs } from "@/components/layout/browse-tabs";
 import Link from "next/link";
 import { AddFacilityButton } from "~/app/components/AddEntityButtons";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";

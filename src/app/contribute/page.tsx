@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { SignInButton } from "~/app/components/SignInButton";
+import { SignInButton } from "@/components/auth/sign-in-button";
 import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
 import {
   CheckCircleIcon,

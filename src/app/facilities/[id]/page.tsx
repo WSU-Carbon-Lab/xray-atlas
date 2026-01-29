@@ -2,8 +2,8 @@
 
 import { use } from "react";
 import { trpc } from "~/trpc/client";
-import { ErrorState } from "~/app/components/ErrorState";
-import { PageSkeleton } from "~/app/components/LoadingState";
+import { ErrorState } from "@/components/feedback/error-state";
+import { PageSkeleton } from "@/components/feedback/loading-state";
 import Link from "next/link";
 import {
   BuildingOfficeIcon,

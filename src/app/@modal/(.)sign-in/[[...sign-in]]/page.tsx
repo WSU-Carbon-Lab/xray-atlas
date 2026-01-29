@@ -4,7 +4,7 @@ import { Suspense, Fragment } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { SocialSignInButtons } from "~/app/components/SocialSignInButtons";
+import { SocialSignInButtons } from "@/components/auth/social-sign-in-buttons";
 
 function getSafeRedirectTarget(callbackUrl: string | null): string {
   const raw = callbackUrl ?? "/";

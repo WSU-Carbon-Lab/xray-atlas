@@ -7,9 +7,9 @@ import {
   MoleculeDisplayCompact,
   MoleculeDisplay,
   type DisplayMolecule,
-} from "~/app/components/MoleculeDisplay";
-import { ErrorState } from "~/app/components/ErrorState";
-import { BrowseTabs } from "~/app/components/BrowseTabs";
+} from "@/components/molecules/molecule-display";
+import { ErrorState } from "@/components/feedback/error-state";
+import { BrowseTabs } from "@/components/layout/browse-tabs";
 import {
   Squares2X2Icon,
   ListBulletIcon,
