@@ -93,15 +93,41 @@ if (env.HUGGINGFACE_CLIENT_ID && env.HUGGINGFACE_CLIENT_SECRET) {
 
 providers.push(Passkey({}));
 
+const useSecureCookies = env.AUTH_URL?.startsWith("https://") ?? false;
+const cookiePrefix = useSecureCookies ? "__Secure-" : "";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   providers,
+  debug: process.env.NODE_ENV === "development",
   experimental: {
     enableWebAuthn: true,
   },
   trustHost: true,
   basePath: "/api/auth",
   ...(env.AUTH_URL && { url: env.AUTH_URL }),
+  cookies: {
+    pkceCodeVerifier: {
+      name: `${cookiePrefix}next-auth.pkce.code_verifier`,
+      options: {
+        httpOnly: true,
+        sameSite: "none",
+        path: "/",
+        secure: useSecureCookies,
+        maxAge: 60 * 15,
+      },
+    },
+    state: {
+      name: `${cookiePrefix}next-auth.state`,
+      options: {
+        httpOnly: true,
+        sameSite: "none",
+        path: "/",
+        secure: useSecureCookies,
+        maxAge: 60 * 15,
+      },
+    },
+  },
   session: {
     strategy: "database",
   },
