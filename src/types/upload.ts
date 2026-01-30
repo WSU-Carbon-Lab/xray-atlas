@@ -21,6 +21,7 @@ export const moleculeUploadSchema = z.object({
   smiles: z.string().min(1, "SMILES is required"),
   inchi: z.string().min(1, "InChI is required"),
   chemicalFormula: z.string().min(1, "Chemical formula is required"),
+  tagIds: z.array(z.string().uuid()).optional(),
 });
 
 export function moleculeUploadDataToPrismaInput(

@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 
 function TopUpvotedMolecules() {
   const router = useRouter();
-  const { data, isLoading, isError, error } = trpc.molecules.getTopUpvoted.useQuery({
+  const { data, isLoading, isError, error } = trpc.molecules.getTopFavorited.useQuery({
     limit: 4,
   });
 
@@ -56,7 +56,7 @@ function TopUpvotedMolecules() {
       casNumber: molecule.casnumber,
       imageUrl: molecule.imageurl ?? undefined,
       id: molecule.id,
-      upvoteCount: molecule.upvoteCount,
+      upvoteCount: molecule.favoriteCount,
       userHasUpvoted: false,
       createdBy: null,
     } satisfies DisplayMolecule;

@@ -26,8 +26,8 @@ function MoleculesBrowseContent() {
   const router = useRouter();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [debouncedQuery, setDebouncedQuery] = useState(query);
-  const [sortBy, setSortBy] = useState<"upvotes" | "created" | "name">(
-    "upvotes",
+  const [sortBy, setSortBy] = useState<"favorites" | "created" | "name">(
+    "favorites",
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
@@ -172,7 +172,7 @@ function MoleculesBrowseContent() {
       casNumber: paginatedMolecule.casnumber,
       imageUrl: paginatedMolecule.imageurl ?? undefined,
       id: paginatedMolecule.id,
-      upvoteCount: paginatedMolecule.upvoteCount,
+      upvoteCount: (paginatedMolecule as { favoriteCount?: number }).favoriteCount,
       userHasUpvoted: false,
       createdBy: null,
     };
@@ -289,11 +289,11 @@ function MoleculesBrowseContent() {
                   id="sort-select"
                   value={sortBy}
                   onChange={(e) =>
-                    setSortBy(e.target.value as "upvotes" | "created" | "name")
+                    setSortBy(e.target.value as "favorites" | "created" | "name")
                   }
                   className="focus:border-accent focus:ring-accent rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 >
-                  <option value="upvotes">Most Upvoted</option>
+                  <option value="favorites">Most Favorited</option>
                   <option value="created">Newest First</option>
                   <option value="name">Name (A-Z)</option>
                 </select>

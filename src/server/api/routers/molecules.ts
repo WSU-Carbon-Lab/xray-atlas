@@ -7,7 +7,28 @@ import {
 import { TRPCError } from "@trpc/server";
 import { moleculeUploadSchema, moleculeUploadDataToPrismaInput } from "~/types/upload";
 import { uploadMoleculeImage, deleteMoleculeImage } from "~/server/storage";
-import { DEV_MOCK_MOLECULES, DEV_MOCK_USER_ID, isDevMockUser } from "~/lib/dev-mock-data";
+import type { db } from "~/server/db";
+import { isDevMockUser } from "~/lib/dev-mock-data";
+
+async function checkCanEdit(
+  prisma: typeof db,
+  moleculeId: string,
+  userId: string,
+  createdby: string | null,
+): Promise<boolean> {
+  if (createdby === userId) return true;
+  const userRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { orcid: true },
+  });
+  if (!userRow?.orcid) return false;
+  const contributor = await prisma.moleculecontributors.findUnique({
+    where: {
+      moleculeid_userid: { moleculeid: moleculeId, userid: userId },
+    },
+  });
+  return !!contributor;
+}
 
 export const moleculesRouter = createTRPCRouter({
   search: publicProcedure
@@ -165,23 +186,34 @@ export const moleculesRouter = createTRPCRouter({
         });
       }
 
-      // Create molecule with createdby set to current user
       if (!ctx.userId) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "User not authenticated",
         });
       }
-      // Cast to any to work around Prisma type issues until client is regenerated
-      /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any */
+      const tagIds = input.tagIds ?? [];
       const molecule = await ctx.db.molecules.create({
         data: {
           ...prismaInput,
           createdby: ctx.userId,
-          upvotes: 0,
-        } as any,
+          moleculecontributors: {
+            create: {
+              userid: ctx.userId,
+              contributiontype: "creator",
+            },
+          },
+          ...(tagIds.length > 0
+            ? {
+                moleculetags: {
+                  create: tagIds.map((tagId) => ({
+                    tagid: tagId,
+                  })),
+                },
+              }
+            : {}),
+        },
       });
-      /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any */
 
       return {
         success: true,
@@ -302,10 +334,16 @@ export const moleculesRouter = createTRPCRouter({
             orderBy: [{ order: "asc" }, { synonym: "asc" }],
           },
           samples: true,
-          _count: {
-            select: {
-              moleculeupvotes: true,
+          moleculecontributors: {
+            include: {
+              user: {
+                select: { id: true, name: true, image: true },
+              },
             },
+            orderBy: { contributedat: "asc" },
+          },
+          moleculetags: {
+            include: { tags: true },
           },
         },
       });
@@ -317,10 +355,9 @@ export const moleculesRouter = createTRPCRouter({
         });
       }
 
-      // Check if current user has upvoted this molecule
-      let userHasUpvoted = false;
+      let userHasFavorited = false;
       if (ctx.userId) {
-        const upvote = await ctx.db.moleculeupvotes.findUnique({
+        const favorite = await ctx.db.moleculefavorites.findUnique({
           where: {
             moleculeid_userid: {
               moleculeid: molecule.id,
@@ -328,13 +365,27 @@ export const moleculesRouter = createTRPCRouter({
             },
           },
         });
-        userHasUpvoted = !!upvote;
+        userHasFavorited = !!favorite;
       }
 
       return {
         ...molecule,
-        upvoteCount: molecule._count.moleculeupvotes,
-        userHasUpvoted,
+        favoriteCount: molecule.favoritecount,
+        userHasFavorited,
+        contributors: molecule.moleculecontributors.map((c) => ({
+          id: c.id,
+          userId: c.userid,
+          contributionType: c.contributiontype,
+          contributedAt: c.contributedat,
+          user: c.user,
+        })),
+        tags: molecule.moleculetags.map((mt) => ({
+          id: mt.tags.id,
+          name: mt.tags.name,
+          slug: mt.tags.slug,
+          color: mt.tags.color,
+        })),
+        viewCount: molecule.viewcount,
       };
     }),
 
@@ -343,13 +394,13 @@ export const moleculesRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(10),
         cursor: z.string().uuid().optional(),
-        sortBy: z.enum(["created", "upvotes"]).default("created"),
+        sortBy: z.enum(["created", "favorites"]).default("created"),
       }),
     )
     .query(async ({ ctx, input }) => {
       const orderBy =
-        input.sortBy === "upvotes"
-          ? [{ upvotes: "desc" as const }, { createdat: "desc" as const }]
+        input.sortBy === "favorites"
+          ? [{ favoritecount: "desc" as const }, { createdat: "desc" as const }]
           : [{ createdat: "desc" as const }];
 
       const molecules = await ctx.db.molecules.findMany({
@@ -589,7 +640,7 @@ export const moleculesRouter = createTRPCRouter({
       };
     }),
 
-  getTopUpvoted: publicProcedure
+  getTopFavorited: publicProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(10),
@@ -602,16 +653,10 @@ export const moleculesRouter = createTRPCRouter({
           moleculesynonyms: {
             orderBy: [{ order: "asc" }],
           },
-          _count: {
-            select: {
-              moleculeupvotes: true,
-            },
-          },
         },
-        orderBy: [{ upvotes: "desc" }, { createdat: "desc" }],
+        orderBy: [{ favoritecount: "desc" }, { createdat: "desc" }],
       });
 
-      // Sort synonyms by length (shortest first) within each molecule, keeping primary first
       const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
         ...molecule,
         moleculesynonyms: [
@@ -622,8 +667,7 @@ export const moleculesRouter = createTRPCRouter({
             .filter((syn) => syn.order !== 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
         ],
-        upvoteCount: molecule._count.moleculeupvotes,
-        userHasUpvoted: false, // Not needed for homepage
+        favoriteCount: molecule.favoritecount,
       }));
 
       return {
@@ -636,13 +680,13 @@ export const moleculesRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(12),
         offset: z.number().min(0).default(0),
-        sortBy: z.enum(["upvotes", "created", "name"]).default("upvotes"),
+        sortBy: z.enum(["favorites", "created", "name"]).default("favorites"),
       }),
     )
     .query(async ({ ctx, input }) => {
       const orderBy =
-        input.sortBy === "upvotes"
-          ? [{ upvotes: "desc" as const }, { createdat: "desc" as const }]
+        input.sortBy === "favorites"
+          ? [{ favoritecount: "desc" as const }, { createdat: "desc" as const }]
           : input.sortBy === "name"
             ? [{ iupacname: "asc" as const }]
             : [{ createdat: "desc" as const }];
@@ -655,18 +699,12 @@ export const moleculesRouter = createTRPCRouter({
             moleculesynonyms: {
               orderBy: [{ order: "asc" }],
             },
-            _count: {
-              select: {
-                moleculeupvotes: true,
-              },
-            },
           },
           orderBy,
         }),
         ctx.db.molecules.count(),
       ]);
 
-      // Sort synonyms by length (shortest first)
       const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
         ...molecule,
         moleculesynonyms: [
@@ -677,8 +715,7 @@ export const moleculesRouter = createTRPCRouter({
             .filter((syn) => syn.order !== 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
         ],
-        upvoteCount: molecule._count.moleculeupvotes,
-        userHasUpvoted: false, // Not needed for list view
+        favoriteCount: molecule.favoritecount,
       }));
 
       return {
@@ -686,6 +723,165 @@ export const moleculesRouter = createTRPCRouter({
         total: totalCount,
         hasMore: input.offset + molecules.length < totalCount,
       };
+    }),
+
+  canEdit: protectedProcedure
+    .input(z.object({ moleculeId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+        select: { createdby: true },
+      });
+      if (!molecule || !ctx.userId) return { canEdit: false };
+      const allowed = await checkCanEdit(
+        ctx.db,
+        input.moleculeId,
+        ctx.userId,
+        molecule.createdby,
+      );
+      return { canEdit: allowed };
+    }),
+
+  getContributors: publicProcedure
+    .input(z.object({ moleculeId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const contributors = await ctx.db.moleculecontributors.findMany({
+        where: { moleculeid: input.moleculeId },
+        include: {
+          user: {
+            select: { id: true, name: true, image: true },
+          },
+        },
+        orderBy: [
+          { contributiontype: "asc" },
+          { contributedat: "asc" },
+        ],
+      });
+      return contributors.map((c) => ({
+        id: c.id,
+        userId: c.userid,
+        contributionType: c.contributiontype,
+        contributedAt: c.contributedat,
+        user: c.user,
+      }));
+    }),
+
+  getTags: publicProcedure
+    .input(z.object({ moleculeId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const moleculeTags = await ctx.db.moleculetags.findMany({
+        where: { moleculeid: input.moleculeId },
+        include: { tags: true },
+      });
+      return moleculeTags.map((mt) => ({
+        id: mt.tags.id,
+        name: mt.tags.name,
+        slug: mt.tags.slug,
+        color: mt.tags.color,
+      }));
+    }),
+
+  listTags: publicProcedure.query(async ({ ctx }) => {
+    const tags = await ctx.db.tags.findMany({
+      orderBy: { name: "asc" },
+    });
+    return tags.map((t) => ({
+      id: t.id,
+      name: t.name,
+      slug: t.slug,
+      color: t.color,
+    }));
+  }),
+
+  setTags: protectedProcedure
+    .input(
+      z.object({
+        moleculeId: z.string().uuid(),
+        tagIds: z.array(z.string().uuid()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+      });
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+      const allowed = await checkCanEdit(
+        ctx.db,
+        input.moleculeId,
+        ctx.userId,
+        molecule.createdby,
+      );
+      if (!allowed) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to edit this molecule",
+        });
+      }
+      await ctx.db.$transaction(async (tx) => {
+        await tx.moleculetags.deleteMany({
+          where: { moleculeid: input.moleculeId },
+        });
+        if (input.tagIds.length > 0) {
+          await tx.moleculetags.createMany({
+            data: input.tagIds.map((tagId) => ({
+              moleculeid: input.moleculeId,
+              tagid: tagId,
+            })),
+          });
+        }
+      });
+      return { success: true };
+    }),
+
+  trackView: publicProcedure
+    .input(
+      z.object({
+        moleculeId: z.string().uuid(),
+        sessionId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+      });
+      if (!molecule) return { recorded: false };
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const dedupWhere = ctx.userId
+        ? { userid: ctx.userId }
+        : input.sessionId
+          ? { userid: null, sessionid: input.sessionId }
+          : { userid: null, sessionid: null };
+      const existingView = await ctx.db.moleculeviews.findFirst({
+        where: {
+          moleculeid: input.moleculeId,
+          viewedat: { gte: oneHourAgo },
+          ...dedupWhere,
+        },
+      });
+      if (existingView) return { recorded: false };
+      await ctx.db.moleculeviews.create({
+        data: {
+          moleculeid: input.moleculeId,
+          userid: ctx.userId ?? null,
+          sessionid: input.sessionId ?? null,
+        },
+      });
+      await ctx.db.molecules.update({
+        where: { id: input.moleculeId },
+        data: { viewcount: { increment: 1 } },
+      });
+      return { recorded: true };
     }),
 
   getByCreator: publicProcedure
@@ -777,23 +973,19 @@ export const moleculesRouter = createTRPCRouter({
       };
     }),
 
-  upvote: protectedProcedure
+  toggleFavorite: protectedProcedure
     .input(z.object({ moleculeId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      // Check if molecule exists
       const molecule = await ctx.db.molecules.findUnique({
         where: { id: input.moleculeId },
       });
-
       if (!molecule) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Molecule not found",
         });
       }
-
-      // Check if user already upvoted
-      const existingUpvote = await ctx.db.moleculeupvotes.findUnique({
+      const existing = await ctx.db.moleculefavorites.findUnique({
         where: {
           moleculeid_userid: {
             moleculeid: input.moleculeId,
@@ -801,10 +993,8 @@ export const moleculesRouter = createTRPCRouter({
           },
         },
       });
-
-      if (existingUpvote) {
-        // Remove upvote (toggle off)
-        await ctx.db.moleculeupvotes.delete({
+      if (existing) {
+        await ctx.db.moleculefavorites.delete({
           where: {
             moleculeid_userid: {
               moleculeid: input.moleculeId,
@@ -812,39 +1002,29 @@ export const moleculesRouter = createTRPCRouter({
             },
           },
         });
-
-        // Decrement upvote count
-        await ctx.db.molecules.update({
+        const updated = await ctx.db.molecules.findUnique({
           where: { id: input.moleculeId },
-          data: {
-            upvotes: {
-              decrement: 1,
-            },
-          },
+          select: { favoritecount: true },
         });
-
-        return { upvoted: false, upvoteCount: molecule.upvotes - 1 };
-      } else {
-        // Add upvote
-        await ctx.db.moleculeupvotes.create({
-          data: {
-            moleculeid: input.moleculeId,
-            userid: ctx.userId,
-          },
-        });
-
-        // Increment upvote count
-        await ctx.db.molecules.update({
-          where: { id: input.moleculeId },
-          data: {
-            upvotes: {
-              increment: 1,
-            },
-          },
-        });
-
-        return { upvoted: true, upvoteCount: molecule.upvotes + 1 };
+        return {
+          favorited: false,
+          favoriteCount: updated?.favoritecount ?? molecule.favoritecount - 1,
+        };
       }
+      await ctx.db.moleculefavorites.create({
+        data: {
+          moleculeid: input.moleculeId,
+          userid: ctx.userId,
+        },
+      });
+      const updated = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+        select: { favoritecount: true },
+      });
+      return {
+        favorited: true,
+        favoriteCount: updated?.favoritecount ?? molecule.favoritecount + 1,
+      };
     }),
 
   update: protectedProcedure
@@ -882,10 +1062,16 @@ export const moleculesRouter = createTRPCRouter({
         });
       }
 
-      if (molecule.createdby !== ctx.userId) {
+      const allowed = await checkCanEdit(
+        ctx.db,
+        moleculeId,
+        ctx.userId,
+        molecule.createdby,
+      );
+      if (!allowed) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "You can only edit molecules you created",
+          message: "You do not have permission to edit this molecule",
         });
       }
 
@@ -928,7 +1114,6 @@ export const moleculesRouter = createTRPCRouter({
 
       // Note: updatedat is automatically handled by Prisma @updatedAt directive
 
-      // Update molecule
       const updatedMolecule = await ctx.db.molecules.update({
         where: { id: moleculeId },
         data: prismaUpdateData,
@@ -938,6 +1123,21 @@ export const moleculesRouter = createTRPCRouter({
           },
         },
       });
+
+      const existingContributor = await ctx.db.moleculecontributors.findUnique({
+        where: {
+          moleculeid_userid: { moleculeid: moleculeId, userid: ctx.userId },
+        },
+      });
+      if (!existingContributor) {
+        await ctx.db.moleculecontributors.create({
+          data: {
+            moleculeid: moleculeId,
+            userid: ctx.userId,
+            contributiontype: "editor",
+          },
+        });
+      }
 
       return {
         success: true,

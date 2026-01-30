@@ -145,7 +145,7 @@ export const MoleculeDisplay = ({
   const user = session?.user;
   const isSignedIn = !!session?.user;
   const utils = trpc.useUtils();
-  const upvoteMutation = trpc.molecules.upvote.useMutation({
+  const favoriteMutation = trpc.molecules.toggleFavorite.useMutation({
     onSuccess: () => {
       // Real-time updates will handle the UI refresh automatically
       // Still invalidate to ensure data consistency
@@ -193,10 +193,9 @@ export const MoleculeDisplay = ({
   // Check if current user is the creator
   const isOwner = molecule.createdBy && user?.id === molecule.createdBy.id;
 
-  // Handle upvote
-  const handleUpvote = async () => {
+  const handleFavorite = async () => {
     if (!isSignedIn || !molecule.id) return;
-    await upvoteMutation.mutateAsync({ moleculeId: molecule.id });
+    await favoriteMutation.mutateAsync({ moleculeId: molecule.id });
   };
 
   // Sort synonyms by length (shortest first) and take the first 3
@@ -288,8 +287,8 @@ export const MoleculeDisplay = ({
                 {molecule.id && isSignedIn && (
                   <div className="flex shrink-0 items-center gap-2">
                     <button
-                      onClick={handleUpvote}
-                      disabled={upvoteMutation.isPending}
+                      onClick={handleFavorite}
+                      disabled={favoriteMutation.isPending}
                       className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 disabled:opacity-50 ${
                         realtimeUserHasUpvoted
                           ? "border-accent bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light"

@@ -92,8 +92,8 @@ export default function MoleculeDetailPage({
     casNumber: molecule.casnumber,
     imageUrl: molecule.imageurl ?? undefined,
     id: molecule.id,
-    upvoteCount: (molecule as { upvoteCount?: number }).upvoteCount,
-    userHasUpvoted: (molecule as { userHasUpvoted?: boolean }).userHasUpvoted,
+    upvoteCount: (molecule as { favoriteCount?: number }).favoriteCount,
+    userHasUpvoted: (molecule as { userHasFavorited?: boolean }).userHasFavorited,
     createdBy: null,
   };
 
@@ -218,13 +218,13 @@ export default function MoleculeDetailPage({
                 {samples.length}
               </dd>
             </div>
-            {(molecule as { upvoteCount?: number }).upvoteCount !== undefined && (
+            {(molecule as { favoriteCount?: number }).favoriteCount !== undefined && (
               <div>
                 <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Upvotes
+                  Favorites
                 </dt>
                 <dd className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {(molecule as { upvoteCount?: number }).upvoteCount ?? 0}
+                  {(molecule as { favoriteCount?: number }).favoriteCount ?? 0}
                 </dd>
               </div>
             )}
