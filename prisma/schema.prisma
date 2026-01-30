@@ -136,21 +136,27 @@ model instruments {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model molecules {
-  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  iupacname        String
-  inchi            String
-  smiles           String
-  chemicalformula  String
-  casnumber        String?            @unique
-  pubchemcid       String?            @unique
-  createdat        DateTime           @default(now()) @db.Timestamptz(6)
-  updatedat        DateTime           @default(now()) @db.Timestamptz(6)
-  imageurl         String?
-  createdby        String?
-  upvotes          Int                @default(0)
-  moleculesynonyms moleculesynonyms[]
-  moleculeupvotes  moleculeupvotes[]
-  samples          samples[]
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  iupacname            String
+  inchi                String
+  smiles               String
+  chemicalformula      String
+  casnumber            String?                @unique
+  pubchemcid           String?                @unique
+  createdat            DateTime               @default(now()) @db.Timestamptz(6)
+  updatedat            DateTime               @default(now()) @db.Timestamptz(6)
+  imageurl             String?
+  createdby            String?
+  upvotes              Int                    @default(0)
+  favoritecount        Int                    @default(0) @map("favorite_count")
+  viewcount            Int                    @default(0) @map("view_count")
+  moleculesynonyms     moleculesynonyms[]
+  moleculeupvotes      moleculeupvotes[]
+  samples              samples[]
+  moleculecontributors moleculecontributors[]
+  moleculefavorites    moleculefavorites[]
+  moleculeviews        moleculeviews[]
+  moleculetags         moleculetags[]
 
   @@index([createdby], map: "idx_molecules_createdby")
   @@schema("public")
@@ -181,6 +187,81 @@ model moleculeupvotes {
   @@unique([moleculeid, userid])
   @@index([moleculeid])
   @@index([userid])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tags {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String         @unique
+  slug         String         @unique
+  color        String?
+  createdat    DateTime       @default(now()) @db.Timestamptz(6)
+  moleculetags moleculetags[]
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model moleculecontributors {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moleculeid       String    @map("molecule_id") @db.Uuid
+  userid           String    @map("user_id") @db.Uuid
+  contributiontype String    @default("contributor") @map("contribution_type")
+  contributedat    DateTime  @default(now()) @map("contributed_at") @db.Timestamptz(6)
+  molecules        molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user             user      @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([moleculeid, userid])
+  @@index([moleculeid])
+  @@index([userid])
+  @@map("molecule_contributors")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model moleculefavorites {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moleculeid String    @map("molecule_id") @db.Uuid
+  userid     String    @map("user_id") @db.Uuid
+  createdat  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       user      @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([moleculeid, userid])
+  @@index([moleculeid])
+  @@index([userid])
+  @@map("molecule_favorites")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model moleculeviews {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moleculeid String    @map("molecule_id") @db.Uuid
+  userid     String?   @map("user_id") @db.Uuid
+  viewedat   DateTime  @default(now()) @map("viewed_at") @db.Timestamptz(6)
+  sessionid  String?   @map("session_id")
+  molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       user?     @relation(fields: [userid], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([moleculeid])
+  @@index([userid])
+  @@index([moleculeid, userid, sessionid])
+  @@map("molecule_views")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model moleculetags {
+  moleculeid String    @map("molecule_id") @db.Uuid
+  tagid      String    @map("tag_id") @db.Uuid
+  molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tags       tags      @relation(fields: [tagid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([moleculeid, tagid])
+  @@index([tagid])
+  @@map("molecule_tags")
   @@schema("public")
 }
 
@@ -308,18 +389,21 @@ model session {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model user {
-  id                           String         @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                         String?
-  email                        String?        @unique(map: "email_unique")
-  emailVerified                DateTime?      @db.Timestamptz(6)
-  image                        String?
-  orcid                        String?
-  role                         String         @default("contributor")
-  contributionAgreementAccepted Boolean       @default(false)
-  contributionAgreementDate    DateTime?      @db.Timestamptz(6)
-  account                      account[]
-  session                      session[]
-  authenticator                Authenticator[]
+  id                            String                 @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                          String?
+  email                         String?                @unique(map: "email_unique")
+  emailVerified                 DateTime?              @db.Timestamptz(6)
+  image                         String?
+  orcid                         String?
+  role                          String                 @default("contributor")
+  contributionAgreementAccepted Boolean                @default(false)
+  contributionAgreementDate     DateTime?              @db.Timestamptz(6)
+  account                       account[]
+  session                       session[]
+  authenticator                 Authenticator[]
+  moleculecontributors          moleculecontributors[]
+  moleculefavorites             moleculefavorites[]
+  moleculeviews                 moleculeviews[]
 
   @@index([orcid], map: "users_orcid_idx")
   @@schema("next_auth")
@@ -337,14 +421,14 @@ model verificationToken {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Authenticator {
-  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  credentialID         String   @unique @db.VarChar(1024)
-  userId               String   @db.Uuid
+  id                   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  credentialID         String  @unique @db.VarChar(1024)
+  userId               String  @db.Uuid
   counter              BigInt
   credentialDeviceType String
   credentialBackedUp   Boolean
-  transports          String?
-  user                 user     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  transports           String?
+  user                 user    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([userId])
   @@schema("next_auth")
