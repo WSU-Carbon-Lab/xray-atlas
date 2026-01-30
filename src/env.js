@@ -10,7 +10,7 @@ export const env = createEnv({
     DATABASE_URL: z.string().url(),
     DIRECT_URL: z.string().url(),
     AUTH_SECRET: z.string(),
-    AUTH_URL: z.string().url().optional(),
+    AUTH_URL: z.string().url(),
     ORCID_CLIENT_ID: z.string().optional(),
     ORCID_CLIENT_SECRET: z.string().optional(),
     ORCID_USE_SANDBOX: z.enum(["true", "false"]).optional(),
