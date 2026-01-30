@@ -16,32 +16,18 @@ import { Badge } from "@heroui/badge";
 import { ToggleIconButton } from "../ui/toggle-icon-button";
 import { MoleculeImageSVG } from "./molecule-image-svg";
 import { useRealtimeUpvotes } from "~/hooks/useRealtimeUpvotes";
-
-// Updated type to match Prisma schema and include external links
-export type DisplayMolecule = {
-  name: string; // IUPAC name or common name
-  commonName?: string[]; // Array of common names
-  chemical_formula: string | string[]; // Chemical formula (can be string or array from Prisma)
-  SMILES: string;
-  InChI: string;
-  imageUrl?: string;
-  pubChemCid?: string | null;
-  casNumber?: string | null;
-  description?: string;
-  experimentCount?: number; // Optional experiment count badge
-  id?: string; // Molecule ID for upvoting and editing
-  upvoteCount?: number; // Number of upvotes
-  userHasUpvoted?: boolean; // Whether current user has upvoted
-  createdBy?: {
-    id: string;
-    name: string;
-    email: string;
-    imageurl: string | null;
-  } | null; // User who created the molecule
-};
+import type {
+  molecules as Molecule,
+  moleculesynonyms as MoleculeSynonym,
+  moleculecontributors as MoleculeContributor,
+  moleculefavorites as MoleculeFavorite,
+  moleculeviews as MoleculeView,
+  moleculetags as MoleculeTag,
+  moleculeupvotes as MoleculeUpvote,
+} from "@prisma/client";
 
 // Helper function to get common names
-const getCommonNames = (molecule: DisplayMolecule): string[] => {
+const getCommonNames = (molecule: Molecule): string[] => {
   const commonNameValue = molecule.commonName;
   if (Array.isArray(commonNameValue)) {
     const validNames = commonNameValue.filter(
@@ -56,7 +42,7 @@ const getCommonNames = (molecule: DisplayMolecule): string[] => {
 };
 
 // Helper to format chemical formula
-const formatFormula = (molecule: DisplayMolecule): string => {
+const formatFormula = (molecule: Molecule): string => {
   if (typeof molecule.chemical_formula === "string") {
     return molecule.chemical_formula;
   }
@@ -107,7 +93,7 @@ const MoleculeImage = ({
   );
 };
 
-const BadgedMolecule = ({ molecule }: { molecule: DisplayMolecule }) => {
+const BadgedMolecule = ({ molecule }: { molecule: Molecule }) => {
   const experimentCount =
     typeof molecule.experimentCount === "number" ? molecule.experimentCount : 0;
 
@@ -138,7 +124,7 @@ export const MoleculeDisplay = ({
   molecule,
   onEdit,
 }: {
-  molecule: DisplayMolecule;
+  molecule: Molecule;
   onEdit?: () => void;
 }) => {
   const { data: session } = useSession();
@@ -156,13 +142,15 @@ export const MoleculeDisplay = ({
   });
 
   // Real-time upvote updates
-  const { upvoteCount: realtimeUpvoteCount, userHasUpvoted: realtimeUserHasUpvoted } =
-    useRealtimeUpvotes({
-      moleculeId: molecule.id,
-      initialUpvoteCount: molecule.upvoteCount ?? 0,
-      initialUserHasUpvoted: molecule.userHasUpvoted ?? false,
-      userId: user?.id,
-    });
+  const {
+    upvoteCount: realtimeUpvoteCount,
+    userHasUpvoted: realtimeUserHasUpvoted,
+  } = useRealtimeUpvotes({
+    moleculeId: molecule.id,
+    initialUpvoteCount: molecule.upvoteCount ?? 0,
+    initialUserHasUpvoted: molecule.userHasUpvoted ?? false,
+    userId: user?.id,
+  });
 
   // Sync synonyms with molecule prop changes
   const getCommonNamesHelper = (): string[] => {
@@ -475,7 +463,7 @@ export const MoleculeDisplay = ({
 export const MoleculeDisplayCompact = ({
   molecule,
 }: {
-  molecule: DisplayMolecule;
+  molecule: Molecule;
 }) => {
   // Sync synonyms with molecule prop changes
   const getCommonNamesHelper = (): string[] => {
@@ -671,4 +659,37 @@ export const MoleculeDisplayCompact = ({
       </div>
     </div>
   );
+};
+
+// Compact Card
+const CompactCard = ({ molecule }: { molecule: Molecule }) => {
+  return <div></div>;
+};
+
+// Full Card
+const FullCard = ({ molecule }: { molecule: Molecule }) => {
+  return <div></div>;
+};
+
+// Header Card
+const HeaderCard = ({ molecule }: { molecule: Molecule }) => {
+  return <div></div>;
+};
+
+// Card props
+type MoleculeCardProps = {
+  molecule: Molecule;
+  variant: "compact" | "full" | "header";
+};
+
+// Just the JSX for the molecule card barren of logic
+export const MoleculeCard = ({ molecule, variant }: MoleculeCardProps) => {
+  switch (variant) {
+    case "compact":
+      return <CompactCard molecule={molecule} />;
+    case "full":
+      return <FullCard molecule={molecule} />;
+    case "header":
+      return <HeaderCard molecule={molecule} />;
+  }
 };
