@@ -119,19 +119,16 @@ export function DatasetContent({
     ) {
       const molecule: MoleculeSearchResult = {
         id: moleculeQuery.data.id,
-        iupacName: moleculeQuery.data.iupacname,
+        iupacName: moleculeQuery.data.iupacName,
         commonName:
-          moleculeQuery.data.moleculesynonyms[0]?.synonym ??
-          moleculeQuery.data.iupacname,
-        synonyms: moleculeQuery.data.moleculesynonyms.map(
-          (s: { synonym: string }) => s.synonym,
-        ),
-        inchi: moleculeQuery.data.inchi,
-        smiles: moleculeQuery.data.smiles,
-        chemicalFormula: moleculeQuery.data.chemicalformula,
-        casNumber: moleculeQuery.data.casnumber,
-        pubChemCid: moleculeQuery.data.pubchemcid,
-        imageUrl: moleculeQuery.data.imageurl ?? undefined,
+          moleculeQuery.data.commonName?.[0] ?? moleculeQuery.data.iupacName,
+        synonyms: moleculeQuery.data.commonName ?? [],
+        inchi: moleculeQuery.data.InChI,
+        smiles: moleculeQuery.data.SMILES,
+        chemicalFormula: moleculeQuery.data.chemicalFormula,
+        casNumber: moleculeQuery.data.casNumber ?? null,
+        pubChemCid: moleculeQuery.data.pubChemCid ?? null,
+        imageUrl: moleculeQuery.data.imageUrl ?? undefined,
       };
       selectMolecule(molecule);
     }

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { LogOut, User, LayoutDashboard, Users } from "lucide-react";
 import { DEV_MOCK_USER } from "~/lib/dev-mock-data";
-import { Avatar } from "~/app/components/Avatar";
+import { CustomAvatar } from "~/components/ui/avatar";
 import { ORCIDIcon } from "~/app/components/icons";
 
 export function DevUserPanel() {
@@ -59,7 +59,7 @@ export function DevUserPanel() {
         aria-label="Open dev user panel"
       >
         {displayUser.image ? (
-          <Avatar user={displayUser} size="md" width={36} height={36} />
+          <CustomAvatar user={displayUser} size="md" className="h-9 w-9" />
         ) : (
           <div className="bg-accent flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium text-white">
             JS
@@ -79,7 +79,7 @@ export function DevUserPanel() {
               <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
                 <div className="flex items-center gap-3">
                   {displayUser.image ? (
-                    <Avatar user={displayUser} size="md" />
+                    <CustomAvatar user={displayUser} size="md" />
                   ) : (
                     <div className="bg-accent flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium text-white">
                       JS

@@ -7,8 +7,18 @@
 import { useMemo, useCallback, useRef, useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { ParentSize } from "@visx/responsive";
-import type { SpectrumPlotProps, SpectrumSelection, PlotDimensions, TraceData } from "../types";
-import { DEFAULT_PLOT_HEIGHT, MARGINS, THEME_COLORS, NORMALIZATION_COLORS } from "../constants";
+import type {
+  SpectrumPlotProps,
+  SpectrumSelection,
+  PlotDimensions,
+  TraceData,
+} from "../types";
+import {
+  DEFAULT_PLOT_HEIGHT,
+  MARGINS,
+  THEME_COLORS,
+  NORMALIZATION_COLORS,
+} from "../constants";
 import { useSpectrumData } from "../hooks/useSpectrumData";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { useDataExtents } from "../hooks/useDataExtents";
@@ -803,7 +813,9 @@ function VisxSpectrumPlotInner({
             onClick={(e) => {
               // Only handle peak click if not dragging and in peak mode
               if (!isDragging && effectiveCursorMode === "peak") {
-                handlePeakClick(e as React.MouseEvent<SVGSVGElement, MouseEvent>);
+                handlePeakClick(
+                  e as React.MouseEvent<SVGSVGElement, MouseEvent>,
+                );
               }
             }}
           >
@@ -966,7 +978,10 @@ function VisxSpectrumPlotInner({
             const energy = tooltipData.energy;
             const domain = mainPlotScales.xScale.domain();
             const energyDomainRange =
-              domain && domain.length >= 2 && typeof domain[1] === "number" && typeof domain[0] === "number"
+              domain &&
+              domain.length >= 2 &&
+              typeof domain[1] === "number" &&
+              typeof domain[0] === "number"
                 ? domain[1] - domain[0]
                 : 100;
             const threshold = energyDomainRange * 0.02;
@@ -1137,7 +1152,15 @@ function VisxSpectrumPlotInner({
                 : undefined
             }
             isDark={isDark}
-            TooltipInPortal={TooltipInPortal}
+            TooltipInPortal={
+              TooltipInPortal as React.ComponentType<{
+                left: number;
+                top: number;
+                style?: React.CSSProperties;
+                offsetLeft?: number;
+                offsetTop?: number;
+              }>
+            }
             plotDimensions={mainPlot.dimensions}
             scales={mainPlotScales}
           />

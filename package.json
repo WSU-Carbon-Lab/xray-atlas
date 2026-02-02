@@ -33,6 +33,7 @@
     "@heroui/badge": "^2.2.18",
     "@heroui/dropdown": "^2.3.30",
     "@heroui/navbar": "^2.2.28",
+    "@heroui/pagination": "^2.2.26",
     "@heroui/react": "3.0.0-beta.5",
     "@heroui/styles": "3.0.0-beta.5",
     "@heroui/system": "^2.4.26",

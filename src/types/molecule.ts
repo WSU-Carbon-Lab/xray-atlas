@@ -43,6 +43,7 @@ export interface MoleculeView {
   moleculeTags?: MoleculeViewTag[];
   viewCount?: number;
   sampleCount?: number;
+  experimentCount?: number;
   samples?: MoleculeViewSample[];
   createdAt?: Date | string;
   updatedAt?: Date | string;

@@ -52,17 +52,50 @@ export function MoleculeCardSkeleton() {
   );
 }
 
+export function MoleculeCompactSkeleton() {
+  return (
+    <div className="border-border-default dark:border-border-default flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm md:flex-row md:items-center md:gap-4 dark:bg-zinc-800">
+      <div className="flex shrink-0 items-center gap-4 md:flex-row">
+        <LoadingSkeleton className="h-14 w-14 shrink-0 rounded-xl" />
+        <div className="min-w-0 flex-1 md:w-40 md:flex-initial">
+          <LoadingSkeleton className="h-4 w-24" />
+          <LoadingSkeleton className="mt-1 h-3 w-16" />
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5 md:mt-0 md:flex-1 md:items-center md:gap-4">
+        <LoadingSkeleton className="h-5 w-14 rounded-full" />
+        <LoadingSkeleton className="h-5 w-16 rounded-full" />
+      </div>
+      <div className="mt-2 flex shrink-0 items-center gap-4 border-t border-gray-200 pt-3 md:mt-0 md:border-t-0 md:border-l md:pt-0 md:pl-6 dark:border-gray-700">
+        <LoadingSkeleton className="h-6 w-6 rounded-full" />
+        <LoadingSkeleton className="h-3.5 w-8" />
+        <LoadingSkeleton className="h-3.5 w-6" />
+      </div>
+    </div>
+  );
+}
+
 export function MoleculeGridSkeleton({
   count = 8,
   className = "",
+  variant = "full",
 }: {
   count?: number;
   className?: string;
+  variant?: "full" | "compact";
 }) {
+  const Skeleton =
+    variant === "compact" ? MoleculeCompactSkeleton : MoleculeCardSkeleton;
   return (
-    <div className={`grid grid-cols-1 gap-6 lg:grid-cols-2 ${className}`}>
+    <div
+      className={
+        variant === "compact"
+          ? `space-y-3 ${className}`
+          : `grid grid-cols-1 gap-6 lg:grid-cols-2 ${className}`
+      }
+    >
       {Array.from({ length: count }).map((_, i) => (
-        <MoleculeCardSkeleton key={i} />
+        <Skeleton key={i} />
       ))}
     </div>
   );

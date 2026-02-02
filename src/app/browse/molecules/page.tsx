@@ -9,29 +9,41 @@ import {
   type DisplayMolecule,
 } from "@/components/molecules/molecule-display";
 import { ErrorState } from "@/components/feedback/error-state";
+import {
+  MoleculeCardSkeleton,
+  MoleculeCompactSkeleton,
+} from "@/components/feedback/loading-state";
 import { BrowseTabs } from "@/components/layout/browse-tabs";
 import {
   Squares2X2Icon,
   ListBulletIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
+  FunnelIcon,
+  HeartIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { AddMoleculeButton } from "~/app/components/AddEntityButtons";
-import { ToggleIconButton } from "~/app/components/ToggleIconButton";
-import { Tooltip } from "@heroui/react";
+import { BrowseHeader, selectClasses } from "@/components/browse/browse-header";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+} from "@heroui/dropdown";
+import { Label, Tabs, Tooltip } from "@heroui/react";
+import { Pagination } from "@heroui/pagination";
 
 function MoleculesBrowseContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [debouncedQuery, setDebouncedQuery] = useState(query);
-  const [sortBy, setSortBy] = useState<"favorites" | "created" | "name">(
-    "favorites",
-  );
+  const [sortBy, setSortBy] = useState<
+    "favorites" | "created" | "name" | "views"
+  >("favorites");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
-  const [viewMode, setViewMode] = useState<"compact" | "spacious">("compact");
+  const [viewMode, setViewMode] = useState<"compact" | "spacious">("spacious");
 
   // Debounce search query
   useEffect(() => {
@@ -106,16 +118,15 @@ function MoleculesBrowseContent() {
   type SearchResult = NonNullable<typeof searchData.data>;
   type PaginatedResult = NonNullable<typeof allData.data>;
   type SearchResultMolecule = NonNullable<SearchResult["results"]>[number];
-  type PaginatedResultMolecule = NonNullable<PaginatedResult["molecules"]>[number];
+  type PaginatedResultMolecule = NonNullable<
+    PaginatedResult["molecules"]
+  >[number];
   type NormalizedMolecule = SearchResultMolecule | PaginatedResultMolecule;
 
   const normalizedData = hasSearchQuery
     ? {
         molecules: (searchData.data?.results ?? []) as NormalizedMolecule[],
-        total:
-          searchData.data?.total ??
-          searchData.data?.results?.length ??
-          0,
+        total: searchData.data?.total ?? searchData.data?.results?.length ?? 0,
         hasMore: searchData.data?.hasMore ?? false,
       }
     : {
@@ -129,11 +140,12 @@ function MoleculesBrowseContent() {
   ): molecule is SearchResultMolecule =>
     "iupacName" in molecule && "synonyms" in molecule;
 
-  const searchResultToView = (molecule: SearchResultMolecule): DisplayMolecule => ({
+  const searchResultToView = (
+    molecule: SearchResultMolecule,
+  ): DisplayMolecule => ({
     name: molecule.iupacName,
     iupacName: molecule.iupacName,
-    commonName:
-      molecule.synonyms.length > 0 ? molecule.synonyms : undefined,
+    commonName: molecule.synonyms.length > 0 ? molecule.synonyms : undefined,
     chemicalFormula: molecule.chemicalFormula,
     SMILES: molecule.smiles,
     InChI: molecule.inchi,
@@ -145,7 +157,9 @@ function MoleculesBrowseContent() {
     userHasFavorited: false,
   });
 
-  const toDisplayMolecule = (molecule: NormalizedMolecule): DisplayMolecule | null => {
+  const toDisplayMolecule = (
+    molecule: NormalizedMolecule,
+  ): DisplayMolecule | null => {
     if (!molecule) return null;
     if (isSearchResultMolecule(molecule)) return searchResultToView(molecule);
     return molecule as DisplayMolecule;
@@ -178,102 +192,114 @@ function MoleculesBrowseContent() {
       <BrowseTabs />
 
       <div className="space-y-6">
-        {/* Search Bar */}
-        <div>
-          <div className="relative w-full max-w-3xl">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search molecules by name, formula, CAS number, or PubChem CID..."
-              className="focus:border-accent focus:ring-accent dark:focus:border-accent w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-4 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
-            />
-          </div>
-        </div>
-
-        {/* Controls Bar */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-4">
-            {data && (
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Showing {(currentPage - 1) * itemsPerPage + 1}-
-                {Math.min(currentPage * itemsPerPage, normalizedData.total)} of{" "}
-                {normalizedData.total} molecules
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="items-per-page"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Show:
-              </label>
-              <select
-                id="items-per-page"
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className="focus:border-accent focus:ring-accent rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-              >
-                <option value={12}>12</option>
-                <option value={24}>24</option>
-                <option value={48}>48</option>
-                <option value={96}>96</option>
-              </select>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                per page
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* View Toggle */}
-            <div className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-600 dark:bg-gray-800">
-              <ToggleIconButton
-                icon={<ListBulletIcon className="h-4 w-4" />}
-                isActive={viewMode === "compact"}
-                onClick={() => setViewMode("compact")}
-                ariaLabel="Compact view"
-                tooltip={{
-                  content: "Display molecules in a compact list view",
-                  placement: "top",
-                }}
-              />
-              <ToggleIconButton
-                icon={<Squares2X2Icon className="h-4 w-4" />}
-                isActive={viewMode === "spacious"}
-                onClick={() => setViewMode("spacious")}
-                ariaLabel="Spacious view"
-                tooltip={{
-                  content: "Display molecules in a spacious grid view",
-                  placement: "top",
-                }}
-              />
-            </div>
-
-            {!hasSearchQuery && (
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="sort-select"
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Sort:
-                </label>
-                <select
-                  id="sort-select"
-                  value={sortBy}
-                  onChange={(e) =>
-                    setSortBy(e.target.value as "favorites" | "created" | "name")
+        <BrowseHeader
+          searchValue={query}
+          onSearchChange={setQuery}
+          searchPlaceholder="Search molecules"
+        >
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <Tooltip delay={0}>
+              <div>
+                <Tabs
+                  selectedKey={viewMode}
+                  onSelectionChange={(key) =>
+                    setViewMode(key as "compact" | "spacious")
                   }
-                  className="focus:border-accent focus:ring-accent rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                  className="w-fit"
                 >
-                  <option value="favorites">Most Favorited</option>
-                  <option value="created">Newest First</option>
-                  <option value="name">Name (A-Z)</option>
-                </select>
+                  <Tabs.ListContainer>
+                    <Tabs.List
+                      aria-label="View mode"
+                      className="*:data-[selected=true]:bg-accent/15 *:data-[selected=true]:text-accent *:data-[selected=true]:dark:bg-accent/20 *:data-[selected=true]:dark:text-accent-light flex w-fit flex-row gap-1 rounded-lg border border-gray-300 bg-white p-1 *:flex *:h-8 *:min-h-8 *:w-8 *:min-w-8 *:items-center *:justify-center *:p-0 *:text-sm *:leading-none *:font-normal *:transition-colors dark:border-gray-600 dark:bg-gray-800 *:[&_svg]:block"
+                    >
+                      <Tabs.Tab
+                        id="compact"
+                        aria-label="Compact list view"
+                        className="rounded-md"
+                      >
+                        <ListBulletIcon className="h-4 w-4 shrink-0 stroke-[1.5]" />
+                        <Tabs.Indicator className="bg-accent rounded" />
+                      </Tabs.Tab>
+                      <Tabs.Tab
+                        id="spacious"
+                        aria-label="Spacious grid view"
+                        className="rounded-md"
+                      >
+                        <Squares2X2Icon className="h-4 w-4 shrink-0 stroke-[1.5]" />
+                        <Tabs.Indicator className="bg-accent rounded" />
+                      </Tabs.Tab>
+                    </Tabs.List>
+                  </Tabs.ListContainer>
+                </Tabs>
               </div>
+              <Tooltip.Content
+                placement="top"
+                className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"
+              >
+                Display molecules in a compact list or spacious grid view
+              </Tooltip.Content>
+            </Tooltip>
+            {!hasSearchQuery && (
+              <Dropdown>
+                <DropdownTrigger>
+                  <button
+                    type="button"
+                    className="flex h-8 min-h-8 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                    aria-label="Sort molecules"
+                  >
+                    <FunnelIcon className="h-4 w-4 shrink-0" />
+                    <span className="text-sm font-medium">Sort</span>
+                  </button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  aria-label="Sort molecules"
+                  className="rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
+                >
+                  <DropdownItem
+                    key="name"
+                    textValue="Name"
+                    onPress={() => setSortBy("name")}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-semibold">A</span>
+                      <Label>Name (A-Z)</Label>
+                    </span>
+                  </DropdownItem>
+                  <DropdownItem
+                    key="favorites"
+                    textValue="Favorites"
+                    onPress={() => setSortBy("favorites")}
+                  >
+                    <span className="flex items-center gap-2">
+                      <HeartIcon className="h-4 w-4 shrink-0" />
+                      <Label>Most Favorited</Label>
+                    </span>
+                  </DropdownItem>
+                  <DropdownItem
+                    key="views"
+                    textValue="Views"
+                    onPress={() => setSortBy("views")}
+                  >
+                    <span className="flex items-center gap-2">
+                      <EyeIcon className="h-4 w-4 shrink-0" />
+                      <Label>Most Viewed</Label>
+                    </span>
+                  </DropdownItem>
+                  <DropdownItem
+                    key="created"
+                    textValue="Newest"
+                    onPress={() => setSortBy("created")}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs">New</span>
+                      <Label>Newest First</Label>
+                    </span>
+                  </DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
             )}
           </div>
-        </div>
+        </BrowseHeader>
 
         {/* Results */}
         <div>
@@ -285,14 +311,13 @@ function MoleculesBrowseContent() {
                   : "grid grid-cols-1 gap-6 md:grid-cols-2"
               }
             >
-              {Array.from({ length: itemsPerPage }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`animate-pulse rounded-xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800 ${
-                    viewMode === "compact" ? "h-32" : "h-64"
-                  }`}
-                />
-              ))}
+              {Array.from({ length: itemsPerPage }).map((_, i) =>
+                viewMode === "compact" ? (
+                  <MoleculeCompactSkeleton key={i} />
+                ) : (
+                  <MoleculeCardSkeleton key={i} />
+                ),
+              )}
             </div>
           )}
 
@@ -349,35 +374,17 @@ function MoleculesBrowseContent() {
                         onCreated={handleMoleculeCreated}
                       />
                       {molecules.map((molecule) => {
-                          const displayMolecule = toDisplayMolecule(molecule);
-                          if (!displayMolecule) return null;
+                        const displayMolecule = toDisplayMolecule(molecule);
+                        if (!displayMolecule) return null;
 
-                          const handleCardClick = (e: React.MouseEvent) => {
-                            const target = e.target as HTMLElement;
-                            if (
-                              target.closest("a") ||
-                              target.closest("button") ||
-                              target.tagName === "A" ||
-                              target.tagName === "BUTTON"
-                            ) {
-                              return;
-                            }
-                            router.push(`/molecules/${molecule.id}`);
-                          };
-
-                          return (
-                            <div
-                              key={molecule.id}
-                              onClick={handleCardClick}
-                              className="cursor-pointer"
-                            >
-                              <MoleculeDisplayCompact
-                                molecule={displayMolecule}
-                              />
-                            </div>
-                          );
-                        },
-                      )}
+                        return (
+                          <div key={molecule.id}>
+                            <MoleculeDisplayCompact
+                              molecule={displayMolecule}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -386,161 +393,62 @@ function MoleculesBrowseContent() {
                         onCreated={handleMoleculeCreated}
                       />
                       {molecules.map((molecule) => {
-                          const displayMolecule = toDisplayMolecule(molecule);
-                          if (!displayMolecule) return null;
+                        const displayMolecule = toDisplayMolecule(molecule);
+                        if (!displayMolecule) return null;
 
-                          const handleCardClick = (e: React.MouseEvent) => {
-                            const target = e.target as HTMLElement;
-                            if (
-                              target.closest("a") ||
-                              target.closest("button") ||
-                              target.tagName === "A" ||
-                              target.tagName === "BUTTON"
-                            ) {
-                              return;
-                            }
-                            router.push(`/molecules/${molecule.id}`);
-                          };
-
-                          return (
-                            <div
-                              key={molecule.id}
-                              onClick={handleCardClick}
-                              className="cursor-pointer"
-                            >
-                              <MoleculeDisplay molecule={displayMolecule} />
-                            </div>
-                          );
-                        },
-                      )}
+                        return (
+                          <div key={molecule.id}>
+                            <MoleculeDisplay molecule={displayMolecule} />
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </>
               )}
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="mt-8 flex items-center justify-center gap-4">
-                  <Tooltip delay={0}>
-                    <button
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 flex items-center gap-2"
-                    >
-                      <ChevronLeftIcon className="h-4 w-4" />
-                      <span>Previous</span>
-                    </button>
-                    <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                      Go to previous page
-                    </Tooltip.Content>
-                  </Tooltip>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    {totalPages <= 7 ? (
-                      Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                        (page) => (
-                          <Tooltip key={page} delay={0}>
-                            <button
-                              onClick={() => setCurrentPage(page)}
-                              className={`rounded px-3 py-1 text-sm ${
-                                page === currentPage
-                                  ? "bg-accent text-white"
-                                  : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                              }`}
-                            >
-                              {page}
-                            </button>
-                            <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                              {`Go to page ${page}`}
-                            </Tooltip.Content>
-                          </Tooltip>
-                        ),
-                      )
-                    ) : (
-                      <>
-                        {currentPage > 3 && (
-                          <>
-                            <Tooltip delay={0}>
-                              <button
-                                onClick={() => setCurrentPage(1)}
-                                className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                              >
-                                1
-                              </button>
-                              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                                Go to page 1
-                              </Tooltip.Content>
-                            </Tooltip>
-                            {currentPage > 4 && (
-                              <span className="text-gray-500">...</span>
-                            )}
-                          </>
-                        )}
-                        {Array.from(
-                          { length: Math.min(5, totalPages) },
-                          (_, i) =>
-                            Math.max(
-                              1,
-                              Math.min(currentPage - 2 + i, totalPages - 4 + i),
-                            ),
-                        )
-                          .filter((page, idx, arr) => arr.indexOf(page) === idx)
-                          .filter((page) => page >= 1 && page <= totalPages)
-                          .map((page) => (
-                            <Tooltip key={page} delay={0}>
-                              <button
-                                onClick={() => setCurrentPage(page)}
-                                className={`rounded px-3 py-1 text-sm ${
-                                  page === currentPage
-                                    ? "bg-accent text-white"
-                                    : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                                }`}
-                              >
-                                {page}
-                              </button>
-                              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                                {`Go to page ${page}`}
-                              </Tooltip.Content>
-                            </Tooltip>
-                          ))}
-                        {currentPage < totalPages - 2 && (
-                          <>
-                            {currentPage < totalPages - 3 && (
-                              <span className="text-gray-500">...</span>
-                            )}
-                            <Tooltip delay={0}>
-                              <button
-                                onClick={() => setCurrentPage(totalPages)}
-                                className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                              >
-                                {totalPages}
-                              </button>
-                              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                                {`Go to page ${totalPages}`}
-                              </Tooltip.Content>
-                            </Tooltip>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <Tooltip delay={0}>
-                    <button
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 flex items-center gap-2"
-                    >
-                      <span>Next</span>
-                      <ChevronRightIcon className="h-4 w-4" />
-                    </button>
-                    <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                      Go to next page
-                    </Tooltip.Content>
-                  </Tooltip>
+              <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="items-per-page"
+                    className="text-sm text-gray-600 dark:text-gray-400"
+                  >
+                    Show
+                  </label>
+                  <select
+                    id="items-per-page"
+                    value={itemsPerPage}
+                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                    className={selectClasses}
+                  >
+                    <option value={12}>12</option>
+                    <option value={24}>24</option>
+                    <option value={48}>48</option>
+                    <option value={96}>96</option>
+                  </select>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    per page
+                  </span>
                 </div>
-              )}
+                {totalPages > 1 && (
+                  <Pagination
+                    total={totalPages}
+                    page={currentPage}
+                    onChange={setCurrentPage}
+                    showControls
+                    size="sm"
+                    classNames={{
+                      base: "gap-2",
+                      item: "rounded-lg border border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200",
+                      cursor:
+                        "bg-accent text-white border-accent dark:bg-accent dark:text-white dark:border-accent",
+                      prev: "rounded-lg border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800",
+                      next: "rounded-lg border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800",
+                    }}
+                  />
+                )}
+              </div>
             </>
           )}
         </div>
@@ -558,9 +466,7 @@ export default function MoleculesBrowsePage() {
             <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-gray-100">
               Browse Molecules
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Loading...
-            </p>
+            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
           </div>
           <BrowseTabs />
         </div>

@@ -17,6 +17,52 @@ interface SynonymTagGroupProps extends React.ComponentProps<typeof TagGroup> {
   tagGroupProps?: React.ComponentProps<typeof TagGroup>;
 }
 
+function SynonymsPopup({
+  synonyms,
+  remaining,
+}: {
+  synonyms: string[];
+  remaining: number;
+}) {
+  return (
+    <span className="inline-flex shrink-0" onClick={(e) => e.stopPropagation()}>
+      <Dropdown>
+        <DropdownTrigger>
+          <button
+            type="button"
+            className="bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+            aria-label={`Show all ${synonyms.length} synonyms`}
+          >
+            +{remaining}
+          </button>
+        </DropdownTrigger>
+        <DropdownMenu
+          aria-label="All synonyms"
+          className="max-w-[320px] min-w-[200px] rounded-lg border border-zinc-200 bg-zinc-100 shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+          closeOnSelect={false}
+        >
+          <DropdownSection
+            title="All synonyms"
+            showDivider={false}
+            className="max-h-[200px] overflow-y-auto overscroll-contain"
+          >
+            {synonyms.map((syn) => (
+              <DropdownItem
+                key={syn}
+                textValue={syn}
+                className="cursor-default text-sm text-zinc-900 dark:text-zinc-100"
+                closeOnSelect={false}
+              >
+                {syn}
+              </DropdownItem>
+            ))}
+          </DropdownSection>
+        </DropdownMenu>
+      </Dropdown>
+    </span>
+  );
+}
+
 interface SynonymChipsProps {
   synonyms: string[];
   maxSynonyms?: number;
@@ -44,13 +90,13 @@ export const SynonymChips = ({
         </span>
       ))}
       {remaining > 0 ? (
-        <span className="text-text-tertiary self-center text-[10px]">
-          +{remaining}
-        </span>
+        <SynonymsPopup synonyms={synonyms} remaining={remaining} />
       ) : null}
     </div>
   );
 };
+
+export const SynonymChipsWithPopup = SynonymChips;
 
 export const SynonymTagGroup = ({
   synonyms,

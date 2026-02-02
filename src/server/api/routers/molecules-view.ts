@@ -30,6 +30,7 @@ type SampleRow = {
   id: string;
   identifier: string | null;
   preparationdate: Date | null;
+  _count?: { experiments: number };
 };
 
 interface FullMoleculeRow extends BaseMoleculeRow {
@@ -82,9 +83,17 @@ export function toMoleculeView(
       contributedAt: c.contributedat,
       user: c.user,
     })),
-    tags: row.moleculetags?.map((mt) => mt.tags),
+    moleculeTags: row.moleculetags?.map((mt) => ({
+      id: mt.tags.id,
+      name: mt.tags.name,
+      slug: mt.tags.slug,
+      color: mt.tags.color,
+    })),
     viewCount: row.viewcount,
     sampleCount: Array.isArray(row.samples) ? row.samples.length : undefined,
+    experimentCount: Array.isArray(row.samples)
+      ? row.samples.reduce((sum, s) => sum + (s._count?.experiments ?? 0), 0)
+      : undefined,
     samples: row.samples?.map((s) => ({
       id: s.id,
       identifier: s.identifier,

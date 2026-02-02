@@ -7,7 +7,7 @@ import { LogOut, User as UserIcon, LayoutDashboard, Users } from "lucide-react";
 import type { User as NextAuthUser } from "next-auth";
 import { trpc } from "~/trpc/client";
 import { ORCIDIcon } from "~/app/components/icons";
-import { Button, Avatar, type AvatarProps } from "@heroui/react";
+import { Button, Avatar, Tooltip, type AvatarProps } from "@heroui/react";
 
 export type UserWithOrcid = NextAuthUser & {
   orcid?: string | null;
@@ -248,8 +248,8 @@ interface AvatarGroupProps extends React.ComponentProps<typeof Avatar> {
 }
 
 const avatarSizeClasses = {
-  sm: "h-6 w-6",
-  md: "h-8 w-8",
+  sm: "h-7 w-7",
+  md: "h-9 w-9",
   lg: "h-10 w-10",
 } as const;
 
@@ -265,7 +265,7 @@ export function AvatarGroup({
     return (
       <div className="flex -space-x-2.5 overflow-visible">
         <span
-          className={`bg-surface-1 relative z-0 flex overflow-hidden rounded-full border-2 border-white shadow-sm ring-2 ring-white dark:border-slate-900 dark:ring-slate-900 ${sizeClass}`}
+          className={`bg-surface-1 relative z-0 flex overflow-hidden rounded-full shadow-sm ${sizeClass}`}
         >
           <CustomAvatar
             size={size}
@@ -286,17 +286,22 @@ export function AvatarGroup({
       role="group"
     >
       {displayUsers.map((user) => (
-        <span
-          key={user.id}
-          className={`bg-surface-1 relative z-0 flex shrink-0 overflow-hidden rounded-full border-2 border-white shadow-sm ring-2 ring-white dark:border-slate-900 dark:ring-slate-900 ${sizeClass}`}
-        >
-          <CustomAvatar size={size} user={user} className={constrainedClass} />
-        </span>
+        <Tooltip key={user.id} delay={0}>
+          <span
+            className={`bg-surface-1 relative z-0 flex shrink-0 overflow-hidden rounded-full shadow-sm ${sizeClass}`}
+          >
+            <CustomAvatar size={size} user={user} className={constrainedClass} />
+          </span>
+          <Tooltip.Content showArrow>
+            <Tooltip.Arrow />
+            <p>{user.name ?? "User"}</p>
+          </Tooltip.Content>
+        </Tooltip>
       ))}
       {remaining > 0 ? (
         <span
-          className={`bg-surface-2 text-text-primary relative z-10 flex shrink-0 items-center justify-center rounded-full border-2 border-white font-bold shadow-sm ring-2 ring-white dark:border-slate-900 dark:ring-slate-900 ${
-            size === "sm" ? "h-6 w-6 text-[10px]" : "h-8 w-8 text-xs"
+          className={`bg-surface-2 text-text-primary relative z-10 flex shrink-0 items-center justify-center rounded-full font-bold shadow-sm ${
+            size === "sm" ? "h-7 w-7 text-[10px]" : "h-9 w-9 text-xs"
           }`}
           title={`${remaining} more`}
         >

@@ -79,7 +79,7 @@ export function FormField({
           onChange={handleChange}
           placeholder={placeholder}
           required={required}
-          isDisabled={disabled}
+          disabled={disabled}
           rows={rows}
           className={`${baseInputClasses} ${errorInputClasses}`}
         />
@@ -90,7 +90,7 @@ export function FormField({
           value={value ?? ""}
           onChange={handleChange}
           required={required}
-          isDisabled={disabled}
+          disabled={disabled}
           className={`${baseInputClasses} ${errorInputClasses}`}
         >
           <option value="" disabled>
@@ -111,7 +111,7 @@ export function FormField({
           onChange={handleChange}
           placeholder={placeholder}
           required={required}
-          isDisabled={disabled}
+          disabled={disabled}
           min={min}
           max={max}
           step={step}

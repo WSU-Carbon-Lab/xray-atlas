@@ -64,10 +64,10 @@ export function ToggleIconButton({
   const button = (
     <button
       onClick={onClick}
-      isDisabled={disabled}
+      disabled={disabled}
       className={`rounded px-2 py-1.5 text-sm transition-colors ${
         disabled
-          ? "cursor-not-allowed opacity-50 text-gray-400 dark:text-gray-500"
+          ? "cursor-not-allowed text-gray-400 opacity-50 dark:text-gray-500"
           : isActive
             ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
             : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -86,7 +86,7 @@ export function ToggleIconButton({
       <Tooltip.Content
         placement={tooltip.placement ?? "top"}
         offset={tooltip.offset ?? 8}
-        className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg mb-2"
+        className="mb-2 rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"
       >
         {tooltip.content}
       </Tooltip.Content>
