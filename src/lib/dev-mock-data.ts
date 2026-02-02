@@ -57,7 +57,7 @@ export const DEV_MOCK_MOLECULES = [
     updatedat: new Date("2024-01-20T14:30:00Z"),
     imageurl: null,
     createdby: DEV_MOCK_USER_ID,
-    upvotes: 12,
+    favoritecount: 12,
     moleculesynonyms: [
       {
         id: "00000000-0000-0000-0000-000000000011",
@@ -85,7 +85,7 @@ export const DEV_MOCK_MOLECULES = [
     updatedat: new Date("2024-01-18T09:15:00Z"),
     imageurl: null,
     createdby: DEV_MOCK_USER_ID,
-    upvotes: 8,
+    favoritecount: 8,
     moleculesynonyms: [
       {
         id: "00000000-0000-0000-0000-000000000021",
@@ -107,7 +107,7 @@ export const DEV_MOCK_MOLECULES = [
     updatedat: new Date("2024-01-15T11:45:00Z"),
     imageurl: null,
     createdby: DEV_MOCK_USER_ID,
-    upvotes: 25,
+    favoritecount: 25,
     moleculesynonyms: [
       {
         id: "00000000-0000-0000-0000-000000000031",

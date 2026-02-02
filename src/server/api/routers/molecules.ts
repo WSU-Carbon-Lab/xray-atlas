@@ -5,10 +5,14 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { moleculeUploadSchema, moleculeUploadDataToPrismaInput } from "~/types/upload";
+import {
+  moleculeUploadSchema,
+  moleculeUploadDataToPrismaInput,
+} from "~/types/upload";
 import { uploadMoleculeImage, deleteMoleculeImage } from "~/server/storage";
 import type { db } from "~/server/db";
 import { isDevMockUser } from "~/lib/dev-mock-data";
+import { toMoleculeView } from "./molecules-view";
 
 async function checkCanEdit(
   prisma: typeof db,
@@ -368,25 +372,10 @@ export const moleculesRouter = createTRPCRouter({
         userHasFavorited = !!favorite;
       }
 
-      return {
-        ...molecule,
-        favoriteCount: molecule.favoritecount,
-        userHasFavorited,
-        contributors: molecule.moleculecontributors.map((c) => ({
-          id: c.id,
-          userId: c.userid,
-          contributionType: c.contributiontype,
-          contributedAt: c.contributedat,
-          user: c.user,
-        })),
-        tags: molecule.moleculetags.map((mt) => ({
-          id: mt.tags.id,
-          name: mt.tags.name,
-          slug: mt.tags.slug,
-          color: mt.tags.color,
-        })),
-        viewCount: molecule.viewcount,
-      };
+      return toMoleculeView(
+        { ...molecule, viewcount: molecule.viewcount },
+        { userHasFavorited },
+      );
     }),
 
   list: publicProcedure
@@ -414,20 +403,30 @@ export const moleculesRouter = createTRPCRouter({
         orderBy,
       });
 
-      // Sort synonyms by length (shortest first) within each molecule, keeping order=0 first
       const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
         ...molecule,
         moleculesynonyms: [
-          // Order=0 synonyms first
           ...molecule.moleculesynonyms
             .filter((syn) => syn.order === 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
-          // Then other synonyms, sorted by length
           ...molecule.moleculesynonyms
             .filter((syn) => syn.order !== 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
         ],
       }));
+
+      let favoritedSet = new Set<string>();
+      if (ctx.userId && moleculesWithSortedSynonyms.length > 0) {
+        const ids = moleculesWithSortedSynonyms.map((m) => m.id);
+        const favorited = await ctx.db.moleculefavorites.findMany({
+          where: {
+            moleculeid: { in: ids },
+            userid: ctx.userId,
+          },
+          select: { moleculeid: true },
+        });
+        favoritedSet = new Set(favorited.map((f) => f.moleculeid));
+      }
 
       let nextCursor: string | undefined = undefined;
       if (moleculesWithSortedSynonyms.length > input.limit) {
@@ -435,8 +434,14 @@ export const moleculesRouter = createTRPCRouter({
         nextCursor = nextItem?.id;
       }
 
+      const viewMolecules = moleculesWithSortedSynonyms.map((mol) =>
+        toMoleculeView(mol, {
+          userHasFavorited: favoritedSet.has(mol.id),
+        }),
+      );
+
       return {
-        molecules: moleculesWithSortedSynonyms,
+        molecules: viewMolecules,
         nextCursor,
       };
     }),
@@ -653,6 +658,14 @@ export const moleculesRouter = createTRPCRouter({
           moleculesynonyms: {
             orderBy: [{ order: "asc" }],
           },
+          moleculecontributors: {
+            include: {
+              user: {
+                select: { id: true, name: true, image: true },
+              },
+            },
+            orderBy: { contributedat: "asc" },
+          },
         },
         orderBy: [{ favoritecount: "desc" }, { createdat: "desc" }],
       });
@@ -667,11 +680,29 @@ export const moleculesRouter = createTRPCRouter({
             .filter((syn) => syn.order !== 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
         ],
-        favoriteCount: molecule.favoritecount,
       }));
 
+      let favoritedSet = new Set<string>();
+      if (ctx.userId && moleculesWithSortedSynonyms.length > 0) {
+        const ids = moleculesWithSortedSynonyms.map((m) => m.id);
+        const favorited = await ctx.db.moleculefavorites.findMany({
+          where: {
+            moleculeid: { in: ids },
+            userid: ctx.userId,
+          },
+          select: { moleculeid: true },
+        });
+        favoritedSet = new Set(favorited.map((f) => f.moleculeid));
+      }
+
+      const viewMolecules = moleculesWithSortedSynonyms.map((mol) =>
+        toMoleculeView(mol, {
+          userHasFavorited: favoritedSet.has(mol.id),
+        }),
+      );
+
       return {
-        molecules: moleculesWithSortedSynonyms,
+        molecules: viewMolecules,
       };
     }),
 
@@ -699,6 +730,14 @@ export const moleculesRouter = createTRPCRouter({
             moleculesynonyms: {
               orderBy: [{ order: "asc" }],
             },
+            moleculecontributors: {
+              include: {
+                user: {
+                  select: { id: true, name: true, image: true },
+                },
+              },
+              orderBy: { contributedat: "asc" },
+            },
           },
           orderBy,
         }),
@@ -715,11 +754,29 @@ export const moleculesRouter = createTRPCRouter({
             .filter((syn) => syn.order !== 0)
             .sort((a, b) => a.synonym.length - b.synonym.length),
         ],
-        favoriteCount: molecule.favoritecount,
       }));
 
+      let favoritedSet = new Set<string>();
+      if (ctx.userId && moleculesWithSortedSynonyms.length > 0) {
+        const ids = moleculesWithSortedSynonyms.map((m) => m.id);
+        const favorited = await ctx.db.moleculefavorites.findMany({
+          where: {
+            moleculeid: { in: ids },
+            userid: ctx.userId,
+          },
+          select: { moleculeid: true },
+        });
+        favoritedSet = new Set(favorited.map((f) => f.moleculeid));
+      }
+
+      const viewMolecules = moleculesWithSortedSynonyms.map((mol) =>
+        toMoleculeView(mol, {
+          userHasFavorited: favoritedSet.has(mol.id),
+        }),
+      );
+
       return {
-        molecules: moleculesWithSortedSynonyms,
+        molecules: viewMolecules,
         total: totalCount,
         hasMore: input.offset + molecules.length < totalCount,
       };
@@ -752,10 +809,7 @@ export const moleculesRouter = createTRPCRouter({
             select: { id: true, name: true, image: true },
           },
         },
-        orderBy: [
-          { contributiontype: "asc" },
-          { contributedat: "asc" },
-        ],
+        orderBy: [{ contributiontype: "asc" }, { contributedat: "asc" }],
       });
       return contributors.map((c) => ({
         id: c.id,
@@ -856,9 +910,13 @@ export const moleculesRouter = createTRPCRouter({
         where: { id: input.moleculeId },
       });
       if (!molecule) return { recorded: false };
+      const effectiveUserId =
+        ctx.userId && !(ctx.isDevMock && isDevMockUser(ctx.userId))
+          ? ctx.userId
+          : null;
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      const dedupWhere = ctx.userId
-        ? { userid: ctx.userId }
+      const dedupWhere = effectiveUserId
+        ? { userid: effectiveUserId }
         : input.sessionId
           ? { userid: null, sessionid: input.sessionId }
           : { userid: null, sessionid: null };
@@ -873,7 +931,7 @@ export const moleculesRouter = createTRPCRouter({
       await ctx.db.moleculeviews.create({
         data: {
           moleculeid: input.moleculeId,
-          userid: ctx.userId ?? null,
+          userid: effectiveUserId,
           sessionid: input.sessionId ?? null,
         },
       });
@@ -926,8 +984,27 @@ export const moleculesRouter = createTRPCRouter({
           nextCursor = nextItem?.id;
         }
 
+        let favoritedSet = new Set<string>();
+        if (ctx.userId && moleculesWithSortedSynonyms.length > 0) {
+          const ids = moleculesWithSortedSynonyms.map((m) => m.id);
+          const favorited = await ctx.db.moleculefavorites.findMany({
+            where: {
+              moleculeid: { in: ids },
+              userid: ctx.userId,
+            },
+            select: { moleculeid: true },
+          });
+          favoritedSet = new Set(favorited.map((f) => f.moleculeid));
+        }
+
+        const viewMolecules = moleculesWithSortedSynonyms.map((mol) =>
+          toMoleculeView(mol, {
+            userHasFavorited: favoritedSet.has(mol.id),
+          }),
+        );
+
         return {
-          molecules: moleculesWithSortedSynonyms,
+          molecules: viewMolecules,
           nextCursor,
         };
       }
@@ -948,7 +1025,6 @@ export const moleculesRouter = createTRPCRouter({
         },
       });
 
-      // Sort synonyms by length (shortest first)
       const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
         ...molecule,
         moleculesynonyms: [
@@ -967,8 +1043,27 @@ export const moleculesRouter = createTRPCRouter({
         nextCursor = nextItem?.id;
       }
 
+      let favoritedSet = new Set<string>();
+      if (ctx.userId && moleculesWithSortedSynonyms.length > 0) {
+        const ids = moleculesWithSortedSynonyms.map((m) => m.id);
+        const favorited = await ctx.db.moleculefavorites.findMany({
+          where: {
+            moleculeid: { in: ids },
+            userid: ctx.userId,
+          },
+          select: { moleculeid: true },
+        });
+        favoritedSet = new Set(favorited.map((f) => f.moleculeid));
+      }
+
+      const viewMolecules = moleculesWithSortedSynonyms.map((mol) =>
+        toMoleculeView(mol, {
+          userHasFavorited: favoritedSet.has(mol.id),
+        }),
+      );
+
       return {
-        molecules: moleculesWithSortedSynonyms,
+        molecules: viewMolecules,
         nextCursor,
       };
     }),
@@ -985,6 +1080,12 @@ export const moleculesRouter = createTRPCRouter({
           message: "Molecule not found",
         });
       }
+      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+        return {
+          favorited: false,
+          favoriteCount: molecule.favoritecount,
+        };
+      }
       const existing = await ctx.db.moleculefavorites.findUnique({
         where: {
           moleculeid_userid: {
@@ -994,36 +1095,38 @@ export const moleculesRouter = createTRPCRouter({
         },
       });
       if (existing) {
-        await ctx.db.moleculefavorites.delete({
-          where: {
-            moleculeid_userid: {
-              moleculeid: input.moleculeId,
-              userid: ctx.userId,
+        await ctx.db.$transaction([
+          ctx.db.moleculefavorites.delete({
+            where: {
+              moleculeid_userid: {
+                moleculeid: input.moleculeId,
+                userid: ctx.userId,
+              },
             },
-          },
-        });
-        const updated = await ctx.db.molecules.findUnique({
-          where: { id: input.moleculeId },
-          select: { favoritecount: true },
-        });
-        return {
-          favorited: false,
-          favoriteCount: updated?.favoritecount ?? molecule.favoritecount - 1,
-        };
+          }),
+          ctx.db.molecules.update({
+            where: { id: input.moleculeId },
+            data: { favoritecount: { decrement: 1 } },
+          }),
+        ]);
+        const newCount = Math.max(0, molecule.favoritecount - 1);
+        return { favorited: false, favoriteCount: newCount };
       }
-      await ctx.db.moleculefavorites.create({
-        data: {
-          moleculeid: input.moleculeId,
-          userid: ctx.userId,
-        },
-      });
-      const updated = await ctx.db.molecules.findUnique({
-        where: { id: input.moleculeId },
-        select: { favoritecount: true },
-      });
+      await ctx.db.$transaction([
+        ctx.db.moleculefavorites.create({
+          data: {
+            moleculeid: input.moleculeId,
+            userid: ctx.userId,
+          },
+        }),
+        ctx.db.molecules.update({
+          where: { id: input.moleculeId },
+          data: { favoritecount: { increment: 1 } },
+        }),
+      ]);
       return {
         favorited: true,
-        favoriteCount: updated?.favoritecount ?? molecule.favoritecount + 1,
+        favoriteCount: molecule.favoritecount + 1,
       };
     }),
 

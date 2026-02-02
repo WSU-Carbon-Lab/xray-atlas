@@ -147,11 +147,9 @@ model molecules {
   updatedat            DateTime               @default(now()) @db.Timestamptz(6)
   imageurl             String?
   createdby            String?
-  upvotes              Int                    @default(0)
   favoritecount        Int                    @default(0) @map("favorite_count")
   viewcount            Int                    @default(0) @map("view_count")
   moleculesynonyms     moleculesynonyms[]
-  moleculeupvotes      moleculeupvotes[]
   samples              samples[]
   moleculecontributors moleculecontributors[]
   moleculefavorites    moleculefavorites[]
@@ -173,20 +171,6 @@ model moleculesynonyms {
 
   @@unique([moleculeid, synonym])
   @@index([moleculeid, order])
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model moleculeupvotes {
-  moleculeid String    @db.Uuid
-  userid     String
-  createdat  DateTime  @default(now()) @db.Timestamptz(6)
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([moleculeid, userid])
-  @@index([moleculeid])
-  @@index([userid])
   @@schema("public")
 }
 

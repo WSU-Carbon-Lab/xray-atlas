@@ -5,57 +5,46 @@ import React from "react";
 export function LoadingSkeleton({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`animate-pulse rounded-xl bg-gray-200 dark:bg-zinc-800 ${className}`}
+      className={`animate-pulse rounded-xl bg-gray-200 dark:bg-gray-700 ${className}`}
     />
   );
 }
 
 export function MoleculeCardSkeleton() {
   return (
-    <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-gray-200/40 bg-white shadow-lg sm:flex-row dark:border-zinc-800/50 dark:bg-zinc-900">
-      {/* Image skeleton - Left side */}
-      <div className="relative aspect-square w-full overflow-hidden sm:w-[45%]">
-        <div className="absolute inset-4 overflow-hidden rounded-xl bg-gray-200/80 dark:bg-zinc-800/50">
-          <LoadingSkeleton className="h-full w-full rounded-xl" />
-        </div>
+    <div className="border-border-default dark:border-border-default flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm sm:flex-row dark:bg-zinc-800">
+      <div className="relative h-40 w-full shrink-0 overflow-hidden sm:h-auto sm:min-h-[240px] sm:w-[45%]">
+        <LoadingSkeleton className="h-full w-full rounded-none" />
       </div>
-
-      {/* Content skeleton - Right side with Liquid Glass effect */}
-      <div className="relative flex flex-1 flex-col bg-white/60 backdrop-blur-2xl sm:w-[55%] dark:bg-zinc-900/60">
-        <div className="absolute inset-0 rounded-r-2xl bg-gray-200/20 dark:bg-zinc-800/20" />
-
-        {/* Content */}
-        <div className="relative flex flex-1 flex-col p-6">
-          <div className="space-y-3">
-            {/* Header skeleton */}
-            <div className="space-y-2">
-              <LoadingSkeleton className="h-8 w-3/4" />
-
-              {/* Synonyms skeleton */}
-              <div className="flex gap-2">
-                <LoadingSkeleton className="h-6 w-16 rounded-full" />
-                <LoadingSkeleton className="h-6 w-20 rounded-full" />
-                <LoadingSkeleton className="h-6 w-14 rounded-full" />
-              </div>
-
-              {/* Formula skeleton */}
-              <div className="flex items-baseline gap-3">
-                <LoadingSkeleton className="h-3 w-12" />
-                <LoadingSkeleton className="h-5 w-24" />
-              </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <LoadingSkeleton className="h-6 w-3/5 rounded" />
+          <LoadingSkeleton className="h-5 w-24 rounded" />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <LoadingSkeleton className="h-5 w-14 rounded-full" />
+          <LoadingSkeleton className="h-5 w-16 rounded-full" />
+          <LoadingSkeleton className="h-5 w-12 rounded-full" />
+        </div>
+        <LoadingSkeleton className="h-3 w-full max-w-sm rounded" />
+        <div className="flex flex-wrap items-center gap-2">
+          <LoadingSkeleton className="h-6 w-6 rounded-full" />
+          <LoadingSkeleton className="h-8 w-20 rounded-lg" />
+          <LoadingSkeleton className="h-8 w-16 rounded-lg" />
+          <LoadingSkeleton className="h-8 w-8 rounded-lg" />
+          <LoadingSkeleton className="h-8 w-8 rounded-lg" />
+        </div>
+        <div className="border-border-subtle mt-auto flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+          <div className="flex items-center gap-3">
+            <LoadingSkeleton className="h-3.5 w-8 rounded" />
+            <div className="flex items-center gap-1">
+              <LoadingSkeleton className="h-3.5 w-3.5 rounded" />
+              <LoadingSkeleton className="h-3.5 w-6 rounded" />
             </div>
           </div>
-
-          {/* Actions skeleton */}
-          <div className="mt-2.5 space-y-2 border-t border-gray-200/20 pt-2.5 dark:border-zinc-800/20">
-            <div className="flex flex-wrap items-center gap-2">
-              <LoadingSkeleton className="h-8 w-20 rounded-full" />
-              <LoadingSkeleton className="h-8 w-16 rounded-full" />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <LoadingSkeleton className="h-8 w-20 rounded-full" />
-              <LoadingSkeleton className="h-8 w-16 rounded-full" />
-            </div>
+          <div className="flex items-center gap-2">
+            <LoadingSkeleton className="h-5 w-16 rounded-full" />
+            <LoadingSkeleton className="h-3.5 w-24 rounded" />
           </div>
         </div>
       </div>
@@ -71,9 +60,7 @@ export function MoleculeGridSkeleton({
   className?: string;
 }) {
   return (
-    <div
-      className={`grid grid-cols-1 gap-6 lg:grid-cols-2 ${className}`}
-    >
+    <div className={`grid grid-cols-1 gap-6 lg:grid-cols-2 ${className}`}>
       {Array.from({ length: count }).map((_, i) => (
         <MoleculeCardSkeleton key={i} />
       ))}

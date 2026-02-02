@@ -8,10 +8,14 @@ import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/navbar";
 import { WSULogoIcon } from "../icons";
 import { GitHubStarsLink } from "./github-stars-link";
 import { useSession } from "next-auth/react";
-import { CustomUserButton } from "~/app/components/CustomUserButton";
+import { CustomUserButton } from "@/components/ui/avatar";
 import { SignInButton } from "../auth/sign-in-button";
 import { ThemeToggle } from "../theme/theme-toggle";
-import { BoltIcon, BeakerIcon, BuildingOfficeIcon } from "@heroicons/react/24/outline";
+import {
+  BoltIcon,
+  BeakerIcon,
+  BuildingOfficeIcon,
+} from "@heroicons/react/24/outline";
 
 function ContributeDropdown() {
   const [isOpen, setIsOpen] = useState(false);
@@ -60,27 +64,27 @@ function ContributeDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+        <div className="absolute top-full right-0 z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
           <div className="py-1">
             <button
               onClick={() => handleItemClick("/contribute/nexafs")}
-              className="hover:bg-gray-100 dark:hover:bg-gray-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300"
+              className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              <BoltIcon className="h-4 w-4 text-accent dark:text-accent-light" />
+              <BoltIcon className="text-accent dark:text-accent-light h-4 w-4" />
               <span>NEXAFS</span>
             </button>
             <button
               onClick={() => handleItemClick("/contribute/molecule")}
-              className="hover:bg-gray-100 dark:hover:bg-gray-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300"
+              className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              <BeakerIcon className="h-4 w-4 text-accent dark:text-accent-light" />
+              <BeakerIcon className="text-accent dark:text-accent-light h-4 w-4" />
               <span>Molecule</span>
             </button>
             <button
               onClick={() => handleItemClick("/contribute/facility")}
-              className="hover:bg-gray-100 dark:hover:bg-gray-700 flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300"
+              className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              <BuildingOfficeIcon className="h-4 w-4 text-accent dark:text-accent-light" />
+              <BuildingOfficeIcon className="text-accent dark:text-accent-light h-4 w-4" />
               <span>Facility</span>
             </button>
           </div>
@@ -105,82 +109,80 @@ export default function Header() {
     <div className="w-full px-4">
       <Navbar
         isBordered
-        className="border-default bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-50 border-b backdrop-blur h-20"
+        className="border-default bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-50 h-20 border-b backdrop-blur"
       >
-      <NavbarBrand className="items-center justify-start">
-        <Link
-          href="/"
-          className="text-foreground hover:text-foreground flex items-center justify-start space-x-2 no-underline"
-        >
-          <WSULogoIcon className="block h-10 w-10 justify-start align-middle" />
-          <span className="align-middle font-sans text-3xl leading-none font-bold">
-            X-ray Atlas
-          </span>
-        </Link>
-      </NavbarBrand>
-
-      <NavbarContent
-        justify="end"
-        className="ml-auto items-center gap-2 md:gap-5"
-      >
-        {/* Primary nav packed near GitHub / Sign In */}
-        <NavbarItem className="hidden sm:flex">
+        <NavbarBrand className="items-center justify-start">
           <Link
             href="/"
-            className="text-foreground hover:text-foreground flex items-center text-sm"
+            className="text-foreground hover:text-foreground flex items-center justify-start space-x-2 no-underline"
           >
-            <Home className="mr-2 h-4 w-4" />
-            Home
+            <WSULogoIcon className="block h-10 w-10 justify-start align-middle" />
+            <span className="align-middle font-sans text-3xl leading-none font-bold">
+              X-ray Atlas
+            </span>
           </Link>
-        </NavbarItem>
-        <NavbarItem className="hidden sm:flex">
-          <Link
-            href="/about"
-            className="text-foreground hover:text-foreground flex items-center text-sm"
-          >
-            <Info className="mr-2 h-4 w-4" />
-            About
-          </Link>
-        </NavbarItem>
-        <NavbarItem className="hidden sm:flex">
-          <Link
-            href="/browse"
-            className="text-foreground hover:text-foreground flex items-center text-sm"
-          >
-            <Search className="mr-2 h-4 w-4" />
-            Browse
-          </Link>
-        </NavbarItem>
-        <NavbarItem className="hidden sm:flex">
-          <ContributeDropdown />
-        </NavbarItem>
-        {/* Vertical divider between navigation and actions */}
-        <NavbarItem className="flex items-center">
-          <div
-            className="mx-2 h-6 w-px bg-gray-500 dark:bg-gray-300"
-            style={{ minWidth: "1px" }}
-          />
-        </NavbarItem>
-        <NavbarItem className="flex">
-          <ThemeToggle />
-        </NavbarItem>
-        <NavbarItem className="flex">
-          <GitHubStarsLink />
-        </NavbarItem>
-        <NavbarItem className="flex items-center">
-          {mounted && isLoaded ? (
-            isSignedIn ? (
-              <CustomUserButton />
+        </NavbarBrand>
+
+        <NavbarContent
+          justify="end"
+          className="ml-auto items-center gap-2 md:gap-5"
+        >
+          {/* Primary nav packed near GitHub / Sign In */}
+          <NavbarItem className="hidden sm:flex">
+            <Link
+              href="/"
+              className="text-foreground hover:text-foreground flex items-center text-sm"
+            >
+              <Home className="mr-2 h-4 w-4" />
+              Home
+            </Link>
+          </NavbarItem>
+          <NavbarItem className="hidden sm:flex">
+            <Link
+              href="/about"
+              className="text-foreground hover:text-foreground flex items-center text-sm"
+            >
+              <Info className="mr-2 h-4 w-4" />
+              About
+            </Link>
+          </NavbarItem>
+          <NavbarItem className="hidden sm:flex">
+            <Link
+              href="/browse"
+              className="text-foreground hover:text-foreground flex items-center text-sm"
+            >
+              <Search className="mr-2 h-4 w-4" />
+              Browse
+            </Link>
+          </NavbarItem>
+          <NavbarItem className="hidden sm:flex">
+            <ContributeDropdown />
+          </NavbarItem>
+          {/* Vertical divider between navigation and actions */}
+          <NavbarItem className="flex items-center">
+            <div
+              className="mx-2 h-6 w-px bg-gray-500 dark:bg-gray-300"
+              style={{ minWidth: "1px" }}
+            />
+          </NavbarItem>
+          <NavbarItem className="flex">
+            <ThemeToggle />
+          </NavbarItem>
+          <NavbarItem className="flex">
+            <GitHubStarsLink />
+          </NavbarItem>
+          <NavbarItem className="flex items-center">
+            {mounted && isLoaded ? (
+              isSignedIn ? (
+                <CustomUserButton />
+              ) : (
+                <SignInButton size="sm">Sign In</SignInButton>
+              )
             ) : (
-              <SignInButton size="sm">
-                Sign In
-              </SignInButton>
-            )
-          ) : (
-            <div className="h-10 w-10" />
-          )}
-        </NavbarItem>
-      </NavbarContent>
+              <div className="h-10 w-10" />
+            )}
+          </NavbarItem>
+        </NavbarContent>
       </Navbar>
     </div>
   );

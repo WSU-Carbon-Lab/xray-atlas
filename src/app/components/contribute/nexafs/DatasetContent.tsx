@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { skipToken } from "@tanstack/react-query";
-import {
-  PencilIcon,
-} from "@heroicons/react/24/outline";
+import { PencilIcon } from "@heroicons/react/24/outline";
 import { SpectrumPlot } from "~/app/components/plots/SpectrumPlot";
 import type { SpectrumSelection } from "~/app/components/plots/core/types";
 import { AnalysisToolbar } from "./AnalysisToolbar";
@@ -390,10 +388,12 @@ export function DatasetContent({
   return (
     <div className="space-y-6">
       {/* Column Mapping Section - Show when CSV data exists but no spectrum points AND not in table mode */}
-            {dataset.csvRawData.length > 0 &&
+      {dataset.csvRawData.length > 0 &&
         dataset.csvColumns.length > 0 &&
         visualizationMode !== "table" &&
-        (!dataset.spectrumPoints.length || !dataset.columnMappings.energy || !dataset.columnMappings.absorption) && (
+        (!dataset.spectrumPoints.length ||
+          !dataset.columnMappings.energy ||
+          !dataset.columnMappings.absorption) && (
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <InlineColumnMapping
               columns={dataset.csvColumns}
@@ -544,7 +544,7 @@ export function DatasetContent({
                 onGraphStyleChange={setGraphStyle}
               />
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 min-h-[600px]">
+            <div className="min-h-[600px] rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
               {visualizationMode === "graph" && plotPoints.length > 0 ? (
                 <SpectrumPlot
                   points={plotPoints}
@@ -630,7 +630,8 @@ export function DatasetContent({
                   onCursorModeChange={setCursorMode}
                 />
               ) : visualizationMode === "table" ? (
-                dataset.csvRawData.length > 0 && dataset.csvColumns.length > 0 ? (
+                dataset.csvRawData.length > 0 &&
+                dataset.csvColumns.length > 0 ? (
                   <InlineColumnMapping
                     columns={dataset.csvColumns}
                     rawData={dataset.csvRawData}
@@ -638,7 +639,9 @@ export function DatasetContent({
                     fixedTheta={dataset.fixedTheta}
                     fixedPhi={dataset.fixedPhi}
                     onMappingsChange={(newMappings) => {
-                      onDatasetUpdate(dataset.id, { columnMappings: newMappings });
+                      onDatasetUpdate(dataset.id, {
+                        columnMappings: newMappings,
+                      });
                       if (onReloadData) {
                         setTimeout(() => {
                           onReloadData();
@@ -666,57 +669,68 @@ export function DatasetContent({
                     <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                       <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
                             Energy (eV)
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
                             Absorption
                           </th>
-                          {plotPoints.some((p) => typeof p.theta === "number") && (
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                          {plotPoints.some(
+                            (p) => typeof p.theta === "number",
+                          ) && (
+                            <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
                               θ (°)
                             </th>
                           )}
-                          {plotPoints.some((p) => typeof p.phi === "number") && (
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                          {plotPoints.some(
+                            (p) => typeof p.phi === "number",
+                          ) && (
+                            <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
                               φ (°)
                             </th>
                           )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-                        {dataset.spectrumPoints.slice(0, 1000).map((point, index) => (
-                          <tr
-                            key={`${point.energy}-${index}`}
-                            className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                          >
-                            <td className="whitespace-nowrap px-4 py-2 font-mono text-xs tabular-nums text-gray-900 dark:text-gray-100">
-                              {point.energy.toFixed(2)}
-                            </td>
-                            <td className="whitespace-nowrap px-4 py-2 font-mono text-xs tabular-nums text-gray-900 dark:text-gray-100">
-                              {point.absorption.toExponential(3)}
-                            </td>
-                            {dataset.spectrumPoints.some((p) => typeof p.theta === "number") && (
-                              <td className="whitespace-nowrap px-4 py-2 font-mono text-xs tabular-nums text-gray-900 dark:text-gray-100">
-                                {typeof point.theta === "number"
-                                  ? point.theta.toFixed(1)
-                                  : "-"}
+                        {dataset.spectrumPoints
+                          .slice(0, 1000)
+                          .map((point, index) => (
+                            <tr
+                              key={`${point.energy}-${index}`}
+                              className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                            >
+                              <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
+                                {point.energy.toFixed(2)}
                               </td>
-                            )}
-                            {dataset.spectrumPoints.some((p) => typeof p.phi === "number") && (
-                              <td className="whitespace-nowrap px-4 py-2 font-mono text-xs tabular-nums text-gray-900 dark:text-gray-100">
-                                {typeof point.phi === "number"
-                                  ? point.phi.toFixed(1)
-                                  : "-"}
+                              <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
+                                {point.absorption.toExponential(3)}
                               </td>
-                            )}
-                          </tr>
-                        ))}
+                              {dataset.spectrumPoints.some(
+                                (p) => typeof p.theta === "number",
+                              ) && (
+                                <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
+                                  {typeof point.theta === "number"
+                                    ? point.theta.toFixed(1)
+                                    : "-"}
+                                </td>
+                              )}
+                              {dataset.spectrumPoints.some(
+                                (p) => typeof p.phi === "number",
+                              ) && (
+                                <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
+                                  {typeof point.phi === "number"
+                                    ? point.phi.toFixed(1)
+                                    : "-"}
+                                </td>
+                              )}
+                            </tr>
+                          ))}
                       </tbody>
                     </table>
                     {dataset.spectrumPoints.length > 1000 && (
                       <div className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
-                        Showing first 1000 of {dataset.spectrumPoints.length} points
+                        Showing first 1000 of {dataset.spectrumPoints.length}{" "}
+                        points
                       </div>
                     )}
                   </div>

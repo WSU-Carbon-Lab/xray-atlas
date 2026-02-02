@@ -129,53 +129,26 @@ function MoleculesBrowseContent() {
   ): molecule is SearchResultMolecule =>
     "iupacName" in molecule && "synonyms" in molecule;
 
-  const transformMolecule = (
-    molecule: NormalizedMolecule,
-  ): DisplayMolecule | null => {
+  const searchResultToView = (molecule: SearchResultMolecule): DisplayMolecule => ({
+    name: molecule.iupacName,
+    iupacName: molecule.iupacName,
+    commonName:
+      molecule.synonyms.length > 0 ? molecule.synonyms : undefined,
+    chemicalFormula: molecule.chemicalFormula,
+    SMILES: molecule.smiles,
+    InChI: molecule.inchi,
+    pubChemCid: molecule.pubChemCid ?? undefined,
+    casNumber: molecule.casNumber ?? undefined,
+    imageUrl: molecule.imageUrl ?? undefined,
+    id: molecule.id,
+    favoriteCount: 0,
+    userHasFavorited: false,
+  });
+
+  const toDisplayMolecule = (molecule: NormalizedMolecule): DisplayMolecule | null => {
     if (!molecule) return null;
-
-    if (isSearchResultMolecule(molecule)) {
-      return {
-        name: molecule.iupacName,
-        commonName:
-          molecule.synonyms.length > 0 ? molecule.synonyms : undefined,
-        chemical_formula: molecule.chemicalFormula,
-        SMILES: molecule.smiles,
-        InChI: molecule.inchi,
-        pubChemCid: molecule.pubChemCid,
-        casNumber: molecule.casNumber,
-        imageUrl: molecule.imageUrl,
-        id: molecule.id,
-      };
-    }
-
-    // TypeScript now knows this is PaginatedResultMolecule
-    const synonyms = molecule.moleculesynonyms.map(
-      (s: { synonym: string }) => s.synonym,
-    );
-    const primarySynonym = molecule.moleculesynonyms.find(
-      (s: { order?: number }) => s.order === 0,
-    );
-    const displayName =
-      primarySynonym?.synonym ?? synonyms[0] ?? molecule.iupacname;
-
-    // After the type guard check, TypeScript knows molecule is PaginatedResultMolecule
-    const paginatedMolecule: PaginatedResultMolecule = molecule;
-
-    return {
-      name: displayName,
-      commonName: synonyms.length > 0 ? synonyms : undefined,
-      chemical_formula: paginatedMolecule.chemicalformula,
-      SMILES: paginatedMolecule.smiles,
-      InChI: paginatedMolecule.inchi,
-      pubChemCid: paginatedMolecule.pubchemcid,
-      casNumber: paginatedMolecule.casnumber,
-      imageUrl: paginatedMolecule.imageurl ?? undefined,
-      id: paginatedMolecule.id,
-      upvoteCount: (paginatedMolecule as { favoriteCount?: number }).favoriteCount,
-      userHasUpvoted: false,
-      createdBy: null,
-    };
+    if (isSearchResultMolecule(molecule)) return searchResultToView(molecule);
+    return molecule as DisplayMolecule;
   };
 
   const totalPages = Math.max(
@@ -376,7 +349,7 @@ function MoleculesBrowseContent() {
                         onCreated={handleMoleculeCreated}
                       />
                       {molecules.map((molecule) => {
-                          const displayMolecule = transformMolecule(molecule);
+                          const displayMolecule = toDisplayMolecule(molecule);
                           if (!displayMolecule) return null;
 
                           const handleCardClick = (e: React.MouseEvent) => {
@@ -413,7 +386,7 @@ function MoleculesBrowseContent() {
                         onCreated={handleMoleculeCreated}
                       />
                       {molecules.map((molecule) => {
-                          const displayMolecule = transformMolecule(molecule);
+                          const displayMolecule = toDisplayMolecule(molecule);
                           if (!displayMolecule) return null;
 
                           const handleCardClick = (e: React.MouseEvent) => {

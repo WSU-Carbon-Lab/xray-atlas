@@ -7,7 +7,7 @@ import { PageSkeleton } from "@/components/feedback/loading-state";
 import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
 import { MoleculeDisplay } from "@/components/molecules/molecule-display";
 import { ORCIDIcon, GitHubIcon, HuggingFaceIcon } from "@/components/icons";
-import { Avatar } from "~/app/components/CustomUserButton";
+import { CustomAvatar } from "@/components/ui/avatar";
 import Link from "next/link";
 import { Button, Card } from "@heroui/react";
 import { Key, Plus, Trash2, X } from "lucide-react";
@@ -51,12 +51,9 @@ export default function UserProfilePage({
     },
   );
 
-  const { data: passkeys } = trpc.users.getPasskeys.useQuery(
-    undefined,
-    {
-      enabled: isOwnProfile,
-    },
-  );
+  const { data: passkeys } = trpc.users.getPasskeys.useQuery(undefined, {
+    enabled: isOwnProfile,
+  });
 
   const handleRemoveORCID = async () => {
     try {
@@ -92,7 +89,9 @@ export default function UserProfilePage({
       };
 
       const publicKeyOptions: PublicKeyCredentialCreationOptions = {
-        challenge: Uint8Array.from(atob(options.challenge), (c) => c.charCodeAt(0)),
+        challenge: Uint8Array.from(atob(options.challenge), (c) =>
+          c.charCodeAt(0),
+        ),
         rp: options.rp,
         user: {
           id: Uint8Array.from(atob(options.user.id), (c) => c.charCodeAt(0)),
@@ -109,7 +108,9 @@ export default function UserProfilePage({
         })),
         timeout: options.timeout,
         attestation: options.attestation ?? "none",
-        authenticatorSelection: options.authenticatorSelection as AuthenticatorSelectionCriteria | undefined,
+        authenticatorSelection: options.authenticatorSelection as
+          | AuthenticatorSelectionCriteria
+          | undefined,
       };
 
       const credential = (await navigator.credentials.create({
@@ -120,14 +121,19 @@ export default function UserProfilePage({
         throw new Error("Failed to create credential");
       }
 
-      const attestationResponse = credential.response as AuthenticatorAttestationResponse;
+      const attestationResponse =
+        credential.response as AuthenticatorAttestationResponse;
       const credentialId = Array.from(new Uint8Array(credential.rawId))
         .map((b) => String.fromCharCode(b))
         .join("");
-      const clientDataJSON = Array.from(new Uint8Array(attestationResponse.clientDataJSON))
+      const clientDataJSON = Array.from(
+        new Uint8Array(attestationResponse.clientDataJSON),
+      )
         .map((b) => String.fromCharCode(b))
         .join("");
-      const attestationObject = Array.from(new Uint8Array(attestationResponse.attestationObject))
+      const attestationObject = Array.from(
+        new Uint8Array(attestationResponse.attestationObject),
+      )
         .map((b) => String.fromCharCode(b))
         .join("");
 
@@ -159,7 +165,9 @@ export default function UserProfilePage({
       await utils.users.getPasskeys.invalidate();
     } catch (error) {
       console.error("Failed to register passkey:", error);
-      alert(error instanceof Error ? error.message : "Failed to register passkey");
+      alert(
+        error instanceof Error ? error.message : "Failed to register passkey",
+      );
     } finally {
       setIsRegisteringPasskey(false);
     }
@@ -174,7 +182,9 @@ export default function UserProfilePage({
       await utils.users.getPasskeys.invalidate();
     } catch (error) {
       console.error("Failed to delete passkey:", error);
-      alert(error instanceof Error ? error.message : "Failed to delete passkey");
+      alert(
+        error instanceof Error ? error.message : "Failed to delete passkey",
+      );
     }
   };
 
@@ -226,28 +236,22 @@ export default function UserProfilePage({
       <div className="mb-6">
         <Link
           href="/"
-          className="text-sm text-text-secondary transition-colors hover:text-accent"
+          className="text-text-secondary hover:text-accent text-sm transition-colors"
         >
           Back to Home
         </Link>
       </div>
 
-      <div className="rounded-xl border border-border-default bg-surface-1 p-8">
+      <div className="border-border-default bg-surface-1 rounded-xl border p-8">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
-          {user.image ? (
-            <Avatar user={user} size="lg" />
-          ) : (
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-accent text-2xl font-bold text-white">
-              {user.name?.charAt(0).toUpperCase() ?? "U"}
-            </div>
-          )}
+          <CustomAvatar user={user} size="lg" />
 
           <div className="min-w-0 flex-1 text-center sm:text-left">
-            <h1 className="mb-2 text-3xl font-bold text-text-primary">
+            <h1 className="text-text-primary mb-2 text-3xl font-bold">
               {user.name}
             </h1>
             {user.email && (
-              <p className="mb-2 text-text-secondary">{user.email}</p>
+              <p className="text-text-secondary mb-2">{user.email}</p>
             )}
             {user.orcid && !isEditingOrcid && (
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
@@ -255,7 +259,7 @@ export default function UserProfilePage({
                   href={`https://orcid.org/${user.orcid}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-accent"
+                  className="text-text-secondary hover:text-accent inline-flex items-center gap-2 text-sm transition-colors"
                   aria-label={`View ORCID record - ${user.orcid}`}
                 >
                   <ORCIDIcon className="h-5 w-5 shrink-0" authenticated />
@@ -268,19 +272,19 @@ export default function UserProfilePage({
 
         {isOwnProfile && (
           <>
-            <div className="mt-8 border-t border-border-default pt-8">
+            <div className="border-border-default mt-8 border-t pt-8">
               <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                 <div>
-                  <h2 className="mb-1 text-xl font-semibold text-text-primary">
+                  <h2 className="text-text-primary mb-1 text-xl font-semibold">
                     ORCID iD
                   </h2>
-                  <p className="mb-4 text-sm text-text-secondary">
+                  <p className="text-text-secondary mb-4 text-sm">
                     Link your ORCID iD to your account for better research
                     attribution.
                   </p>
 
                   {user.orcid ? (
-                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border-default bg-surface-2 p-4">
+                    <div className="border-border-default bg-surface-2 flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
                       <div className="flex items-center gap-3">
                         <ORCIDIcon className="h-6 w-6 shrink-0" authenticated />
                         <div>
@@ -288,12 +292,12 @@ export default function UserProfilePage({
                             href={`https://orcid.org/${user.orcid}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-sm font-medium text-accent transition-colors hover:text-accent-dark"
+                            className="text-accent hover:text-accent-dark inline-flex items-center gap-2 text-sm font-medium transition-colors"
                             aria-label={`View ORCID record - ${user.orcid}`}
                           >
                             <span className="tabular-nums">{user.orcid}</span>
                           </a>
-                          <p className="text-xs text-text-tertiary">
+                          <p className="text-text-tertiary text-xs">
                             Authenticated ORCID iD
                           </p>
                         </div>
@@ -320,13 +324,13 @@ export default function UserProfilePage({
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 rounded-lg border border-border-default bg-surface-2 p-4">
+                    <div className="border-border-default bg-surface-2 flex items-center gap-3 rounded-lg border p-4">
                       <ORCIDIcon className="h-6 w-6 shrink-0" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-text-tertiary">
+                        <p className="text-text-tertiary text-sm font-medium">
                           Authenticate ORCID iD
                         </p>
-                        <p className="text-xs text-text-tertiary">
+                        <p className="text-text-tertiary text-xs">
                           Link your ORCID account to verify your identity
                         </p>
                       </div>
@@ -344,24 +348,31 @@ export default function UserProfilePage({
                 </div>
 
                 <div>
-                  <h2 className="mb-1 text-xl font-semibold text-text-primary">
+                  <h2 className="text-text-primary mb-1 text-xl font-semibold">
                     Connected Accounts
                   </h2>
-                  <p className="mb-4 text-sm text-text-secondary">
+                  <p className="text-text-secondary mb-4 text-sm">
                     Link additional accounts to your profile.
                   </p>
 
                   <div className="space-y-3">
-                    {linkedAccounts?.some((acc) => acc.provider === "github") && (
-                      <Card variant="default" className="border border-border-default">
+                    {linkedAccounts?.some(
+                      (acc) => acc.provider === "github",
+                    ) && (
+                      <Card
+                        variant="default"
+                        className="border-border-default border"
+                      >
                         <Card.Content className="flex items-center justify-between p-4">
                           <div className="flex items-center gap-3">
                             <GitHubIcon className="h-6 w-6 shrink-0" />
                             <div>
-                              <p className="text-sm font-medium text-text-primary">
+                              <p className="text-text-primary text-sm font-medium">
                                 GitHub
                               </p>
-                              <p className="text-xs text-text-tertiary">Connected</p>
+                              <p className="text-text-tertiary text-xs">
+                                Connected
+                              </p>
                             </div>
                           </div>
                           <Button
@@ -387,16 +398,23 @@ export default function UserProfilePage({
                       </Card>
                     )}
 
-                    {linkedAccounts?.some((acc) => acc.provider === "huggingface") && (
-                      <Card variant="default" className="border border-border-default">
+                    {linkedAccounts?.some(
+                      (acc) => acc.provider === "huggingface",
+                    ) && (
+                      <Card
+                        variant="default"
+                        className="border-border-default border"
+                      >
                         <Card.Content className="flex items-center justify-between p-4">
                           <div className="flex items-center gap-3">
                             <HuggingFaceIcon className="h-6 w-6 shrink-0" />
                             <div>
-                              <p className="text-sm font-medium text-text-primary">
+                              <p className="text-text-primary text-sm font-medium">
                                 Hugging Face
                               </p>
-                              <p className="text-xs text-text-tertiary">Connected</p>
+                              <p className="text-text-tertiary text-xs">
+                                Connected
+                              </p>
                             </div>
                           </div>
                           <Button
@@ -450,20 +468,22 @@ export default function UserProfilePage({
                       aria-modal="true"
                       aria-labelledby="connect-account-title"
                     >
-                      <Card className="w-full max-w-md border border-border-default bg-surface-1 p-6">
+                      <Card className="border-border-default bg-surface-1 w-full max-w-md border p-6">
                         <Card.Header className="mb-4">
                           <Card.Title
                             id="connect-account-title"
-                            className="text-xl font-semibold text-text-primary"
+                            className="text-text-primary text-xl font-semibold"
                           >
                             Connect Account
                           </Card.Title>
-                          <Card.Description className="text-sm text-text-secondary">
+                          <Card.Description className="text-text-secondary text-sm">
                             Choose an account to connect
                           </Card.Description>
                         </Card.Header>
                         <Card.Content className="space-y-3">
-                          {!linkedAccounts?.some((acc) => acc.provider === "github") && (
+                          {!linkedAccounts?.some(
+                            (acc) => acc.provider === "github",
+                          ) && (
                             <Button
                               className="w-full justify-start"
                               variant="ghost"
@@ -475,7 +495,9 @@ export default function UserProfilePage({
                               <span>Connect GitHub</span>
                             </Button>
                           )}
-                          {!linkedAccounts?.some((acc) => acc.provider === "huggingface") && (
+                          {!linkedAccounts?.some(
+                            (acc) => acc.provider === "huggingface",
+                          ) && (
                             <Button
                               className="w-full justify-start"
                               variant="ghost"
@@ -487,9 +509,13 @@ export default function UserProfilePage({
                               <span>Connect Hugging Face</span>
                             </Button>
                           )}
-                          {linkedAccounts?.some((acc) => acc.provider === "github") &&
-                            linkedAccounts?.some((acc) => acc.provider === "huggingface") && (
-                              <p className="text-sm text-text-tertiary">
+                          {linkedAccounts?.some(
+                            (acc) => acc.provider === "github",
+                          ) &&
+                            linkedAccounts?.some(
+                              (acc) => acc.provider === "huggingface",
+                            ) && (
+                              <p className="text-text-tertiary text-sm">
                                 All available accounts are connected.
                               </p>
                             )}
@@ -510,13 +536,13 @@ export default function UserProfilePage({
               </div>
             </div>
 
-            <div className="mt-8 border-t border-border-default pt-8">
+            <div className="border-border-default mt-8 border-t pt-8">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h2 className="mb-1 text-xl font-semibold text-text-primary">
+                  <h2 className="text-text-primary mb-1 text-xl font-semibold">
                     Security
                   </h2>
-                  <p className="text-sm text-text-secondary">
+                  <p className="text-text-secondary text-sm">
                     Manage your passwordless authentication methods
                   </p>
                 </div>
@@ -537,18 +563,18 @@ export default function UserProfilePage({
                     <Card
                       key={passkey.id}
                       variant="default"
-                      className="border border-border-default"
+                      className="border-border-default border"
                     >
                       <Card.Content className="flex items-center justify-between p-4">
                         <div className="flex items-center gap-3">
-                          <Key className="h-5 w-5 shrink-0 text-text-secondary" />
+                          <Key className="text-text-secondary h-5 w-5 shrink-0" />
                           <div>
-                            <p className="text-sm font-medium text-text-primary">
+                            <p className="text-text-primary text-sm font-medium">
                               {passkey.deviceType === "cross-platform"
                                 ? "Cross-platform Passkey"
                                 : "Single Device Passkey"}
                             </p>
-                            <p className="text-xs text-text-tertiary">
+                            <p className="text-text-tertiary text-xs">
                               {passkey.transports.length > 0
                                 ? `Transports: ${passkey.transports.join(", ")}`
                                 : "No transport info"}
@@ -571,10 +597,14 @@ export default function UserProfilePage({
                   ))}
                 </div>
               ) : (
-                <Card variant="default" className="border border-border-default">
+                <Card
+                  variant="default"
+                  className="border-border-default border"
+                >
                   <Card.Content className="p-4 text-center">
-                    <p className="text-sm text-text-tertiary">
-                      No passkeys registered. Create one to enable passwordless sign-in.
+                    <p className="text-text-tertiary text-sm">
+                      No passkeys registered. Create one to enable passwordless
+                      sign-in.
                     </p>
                   </Card.Content>
                 </Card>
@@ -582,11 +612,10 @@ export default function UserProfilePage({
             </div>
           </>
         )}
-
       </div>
 
       <div className="mt-8">
-        <h2 className="mb-6 text-2xl font-semibold text-text-primary">
+        <h2 className="text-text-primary mb-6 text-2xl font-semibold">
           Molecules Created
         </h2>
         <UserMoleculesList userId={user.id} />
@@ -596,21 +625,20 @@ export default function UserProfilePage({
 }
 
 function UserMoleculesList({ userId }: { userId: string }) {
-  const { data, isLoading } =
-    trpc.molecules.getByCreator.useInfiniteQuery(
-      {
-        creatorId: userId,
-        limit: 12,
-      },
-      {
-        getNextPageParam: (lastPage) => lastPage.nextCursor,
-      },
-    );
+  const { data, isLoading } = trpc.molecules.getByCreator.useInfiniteQuery(
+    {
+      creatorId: userId,
+      limit: 12,
+    },
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+    },
+  );
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border-default bg-surface-1 p-6">
-        <div className="text-center text-sm text-text-secondary">
+      <div className="border-border-default bg-surface-1 rounded-xl border p-6">
+        <div className="text-text-secondary text-center text-sm">
           Loading molecules…
         </div>
       </div>
@@ -621,38 +649,17 @@ function UserMoleculesList({ userId }: { userId: string }) {
 
   if (molecules.length === 0) {
     return (
-      <div className="rounded-xl border border-border-default bg-surface-1 p-6">
-        <p className="text-sm text-text-secondary">
+      <div className="border-border-default bg-surface-1 rounded-xl border p-6">
+        <p className="text-text-secondary text-sm">
           This user has not created any molecules yet.
         </p>
       </div>
     );
   }
 
-  const displayMolecules = molecules.map((molecule) => {
-    const synonyms = molecule.moleculesynonyms.map((s) => s.synonym);
-    const primarySynonym = molecule.moleculesynonyms.find(
-      (s) => s.order === 0,
-    );
-    const displayName =
-      primarySynonym?.synonym ?? synonyms[0] ?? molecule.iupacname;
-
-    return {
-      name: displayName,
-      commonName: synonyms.length > 0 ? synonyms : undefined,
-      chemical_formula: molecule.chemicalformula,
-      SMILES: molecule.smiles,
-      InChI: molecule.inchi,
-      pubChemCid: molecule.pubchemcid,
-      casNumber: molecule.casnumber,
-      imageUrl: molecule.imageurl ?? undefined,
-      id: molecule.id,
-    };
-  });
-
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      {displayMolecules.map((molecule) => (
+      {molecules.map((molecule) => (
         <div key={molecule.id}>
           <MoleculeDisplay molecule={molecule} />
         </div>

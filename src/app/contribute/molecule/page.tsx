@@ -611,20 +611,23 @@ export default function MoleculeContributePage({
     }
   };
 
-  // Create preview molecule object
   const previewMolecule: DisplayMolecule | null =
     (formData.iupacName ?? formData.commonName)
       ? {
           name: formData.iupacName ?? formData.commonName ?? "",
+          iupacName: formData.iupacName ?? formData.commonName ?? "",
           commonName: formData.commonName
             ? [formData.commonName, ...formData.synonyms]
             : formData.synonyms,
+          chemicalFormula: formData.chemicalFormula ?? "",
           SMILES: formData.smiles ?? "",
           InChI: formData.inchi ?? "",
-          chemical_formula: formData.chemicalFormula ?? "",
           imageUrl: imagePreview ?? undefined,
           pubChemCid: formData.pubchemCid ?? null,
           casNumber: formData.casNumber ?? null,
+          id: "",
+          favoriteCount: 0,
+          userHasFavorited: false,
         }
       : null;
 

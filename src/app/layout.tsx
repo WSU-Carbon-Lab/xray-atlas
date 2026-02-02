@@ -3,14 +3,12 @@ import "~/styles/globals.css";
 import { Geist } from "next/font/google";
 import Header from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { siteMetadata } from "./components/Metadata";
+import { siteMetadata } from "./metadata";
 import { SessionProvider } from "@/components/auth/session-provider";
 import { ThemeProviderWrapper } from "@/components/theme/theme-provider";
-import { TRPCReactProvider } from "~/trpc/client";
+import { TRPCReactProvider } from "@/trpc/client";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
-import { DevUserPanel } from "@/components/dev-user-panel";
-
 /**
  * Root Layout - Main application layout with HeroUI theming integration.
  *
@@ -51,7 +49,6 @@ export default async function RootLayout({
               <Header />
               {children}
               {modal}
-              <DevUserPanel />
               <SpeedInsights />
               <Analytics />
               <Footer />

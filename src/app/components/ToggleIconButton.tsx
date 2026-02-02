@@ -64,7 +64,7 @@ export function ToggleIconButton({
   const button = (
     <button
       onClick={onClick}
-      disabled={disabled}
+      isDisabled={disabled}
       className={`rounded px-2 py-1.5 text-sm transition-colors ${
         disabled
           ? "cursor-not-allowed opacity-50 text-gray-400 dark:text-gray-500"
