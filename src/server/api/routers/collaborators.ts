@@ -1,17 +1,9 @@
-import { z } from "zod";
-import {
-  createTRPCRouter,
-  publicProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 
 export const collaboratorsRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
     const collaborators = await ctx.db.collaborators.findMany({
-      orderBy: [
-        { ishost: "desc" },
-        { displayorder: "asc" },
-        { name: "asc" },
-      ],
+      orderBy: [{ ishost: "desc" }, { displayorder: "asc" }, { name: "asc" }],
     });
 
     return {

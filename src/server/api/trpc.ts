@@ -2,7 +2,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
 import { cookies } from "next/headers";
-import { isDevMockUser, DEV_MOCK_USER_ID } from "~/lib/dev-mock-data";
+import { DEV_MOCK_USER_ID } from "~/lib/dev-mock-data";
 
 interface CreateContextOptions {
   userId: string | null;

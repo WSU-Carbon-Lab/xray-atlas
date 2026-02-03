@@ -7,7 +7,7 @@ import { LogOut, User as UserIcon, LayoutDashboard, Users } from "lucide-react";
 import type { User as NextAuthUser } from "next-auth";
 import { trpc } from "~/trpc/client";
 import { ORCIDIcon } from "~/app/components/icons";
-import { Button, Avatar, Tooltip, type AvatarProps } from "@heroui/react";
+import { Button, Avatar, Tooltip } from "@heroui/react";
 
 export type UserWithOrcid = NextAuthUser & {
   orcid?: string | null;
@@ -46,7 +46,7 @@ export const CustomAvatar = ({
       .map((n) => n[0])
       .join("")
       .toUpperCase() ?? "U";
-  const showImage = Boolean(user.image && user.image.trim());
+  const showImage = Boolean(user.image?.trim());
   return (
     <Avatar size={size} className={className} {...rest}>
       {showImage ? (
@@ -197,8 +197,7 @@ export function CustomUserButton() {
       );
     }
   }, [
-    user?.id,
-    user?.image,
+    user,
     updateImage.isPending,
     updateImage.isSuccess,
     updateImage,
@@ -290,7 +289,11 @@ export function AvatarGroup({
           <span
             className={`bg-surface-1 relative z-0 flex shrink-0 overflow-hidden rounded-full shadow-sm ${sizeClass}`}
           >
-            <CustomAvatar size={size} user={user} className={constrainedClass} />
+            <CustomAvatar
+              size={size}
+              user={user}
+              className={constrainedClass}
+            />
           </span>
           <Tooltip.Content showArrow>
             <Tooltip.Arrow />

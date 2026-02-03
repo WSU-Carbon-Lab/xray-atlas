@@ -6,7 +6,6 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { PageSkeleton } from "@/components/feedback/loading-state";
 import Link from "next/link";
 import {
-  BuildingOfficeIcon,
   MapPinIcon,
   BeakerIcon,
   LinkIcon,
@@ -33,15 +32,17 @@ export default function FacilityDetailPage({
     return (
       <ErrorState
         title="Facility Not Found"
-        message={error?.message ?? "The facility you're looking for doesn't exist."}
+        message={
+          error?.message ?? "The facility you're looking for doesn't exist."
+        }
         onRetry={() => window.location.reload()}
       />
     );
   }
 
-  const location = [facility.city, facility.country]
-    .filter(Boolean)
-    .join(", ") || "Location unknown";
+  const location =
+    [facility.city, facility.country].filter(Boolean).join(", ") ||
+    "Location unknown";
 
   const facilityTypeLabel = {
     SYNCHROTRON: "Synchrotron",
@@ -54,21 +55,25 @@ export default function FacilityDetailPage({
       active: {
         label: "Active",
         icon: CheckCircleIcon,
-        className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+        className:
+          "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
       },
       inactive: {
         label: "Inactive",
         icon: XCircleIcon,
-        className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+        className:
+          "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
       },
       under_maintenance: {
         label: "Under Maintenance",
         icon: ClockIcon,
-        className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+        className:
+          "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
       },
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.active;
+    const config =
+      statusConfig[status as keyof typeof statusConfig] || statusConfig.active;
     const Icon = config.icon;
 
     return (
@@ -88,7 +93,7 @@ export default function FacilityDetailPage({
         <div className="mb-8">
           <Link
             href="/browse/facilities"
-            className="mb-4 inline-flex items-center text-sm text-gray-600 hover:text-accent dark:text-accent-light dark:text-gray-400 dark:hover:text-accent dark:text-accent-light"
+            className="hover:text-accent dark:text-accent-light dark:hover:text-accent dark:text-accent-light mb-4 inline-flex items-center text-sm text-gray-600 dark:text-gray-400"
           >
             ← Back to Facilities
           </Link>
@@ -113,18 +118,18 @@ export default function FacilityDetailPage({
         {/* Instruments Section */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
                 <BeakerIcon className="h-5 w-5" />
                 Instruments ({facility.instruments.length})
               </h2>
-            <AddInstrumentButton
-              facilityId={facility.id}
-              facilityName={facility.name}
-              onCreated={() => {
-                void refetch();
-              }}
-            />
+              <AddInstrumentButton
+                facilityId={facility.id}
+                facilityName={facility.name}
+                onCreated={() => {
+                  void refetch();
+                }}
+              />
             </div>
           </div>
 
@@ -152,7 +157,7 @@ export default function FacilityDetailPage({
                           href={instrument.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-2 inline-flex items-center gap-1.5 text-sm text-accent dark:text-accent-light hover:underline"
+                          className="text-accent dark:text-accent-light mt-2 inline-flex items-center gap-1.5 text-sm hover:underline"
                         >
                           <LinkIcon className="h-4 w-4" />
                           Visit Instrument Page

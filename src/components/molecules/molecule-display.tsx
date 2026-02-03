@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { Copy } from "lucide-react";
@@ -15,14 +16,15 @@ import {
 } from "@heroui/react";
 import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
-import {
-  SynonymChips,
-  SynonymChipsWithPopup,
-  SynonymTagGroup,
-} from "./synonyms-list";
+import { SynonymChipsWithPopup } from "./synonyms-list";
 import { MoleculeImageSVG } from "./molecule-image-svg";
 import { useRealtimeUpvotes } from "~/hooks/useRealtimeUpvotes";
 import type { MoleculeView } from "~/types/molecule";
+import {
+  getTagChipClass,
+  getTagGradient,
+  getTagInlineStyle,
+} from "~/lib/tag-colors";
 import { Atom, Database, Eye, Heart, User, X } from "lucide-react";
 
 const CAS_FAVICON_URL =
@@ -38,32 +40,6 @@ const PREVIEW_GRADIENTS = [
   "from-violet-500/20 to-purple-500/20",
 ] as const;
 
-const TAG_COLOR_TO_GRADIENT: Record<string, string> = {
-  blue: "from-blue-500/20 to-cyan-500/20",
-  green: "from-emerald-500/20 to-teal-500/20",
-  pink: "from-rose-500/20 to-pink-500/20",
-  red: "from-rose-500/20 to-orange-500/20",
-  orange: "from-amber-500/20 to-orange-500/20",
-  purple: "from-violet-500/20 to-purple-500/20",
-  gray: "from-slate-500/20 to-slate-600/20",
-};
-
-const TAG_COLOR_TO_CHIP: Record<string, string> = {
-  blue: "bg-blue-500/20 text-blue-800 dark:bg-blue-500/30 dark:text-blue-200",
-  green:
-    "bg-emerald-500/20 text-emerald-800 dark:bg-emerald-500/30 dark:text-emerald-200",
-  pink: "bg-rose-500/20 text-rose-800 dark:bg-rose-500/30 dark:text-rose-200",
-  red: "bg-red-500/20 text-red-800 dark:bg-red-500/30 dark:text-red-200",
-  orange:
-    "bg-amber-500/20 text-amber-800 dark:bg-amber-500/30 dark:text-amber-200",
-  purple:
-    "bg-violet-500/20 text-violet-800 dark:bg-violet-500/30 dark:text-violet-200",
-  gray: "bg-slate-500/20 text-slate-800 dark:bg-slate-500/30 dark:text-slate-200",
-};
-
-const DEFAULT_TAG_CHIP =
-  "bg-slate-500/20 text-slate-800 dark:bg-slate-500/30 dark:text-slate-200";
-
 const DEFAULT_PREVIEW_GRADIENT = "from-slate-500/20 to-slate-600/20";
 
 function hashString(s: string): number {
@@ -77,9 +53,8 @@ function hashString(s: string): number {
 
 function getPreviewGradient(molecule: MoleculeView): string {
   const firstTag = molecule.moleculeTags?.[0];
-  const tagColor = firstTag?.color ?? null;
-  if (tagColor && typeof tagColor === "string") {
-    const gradient = TAG_COLOR_TO_GRADIENT[tagColor.toLowerCase()];
+  if (firstTag) {
+    const gradient = getTagGradient(firstTag);
     if (gradient) return gradient;
   }
   if (molecule.id) {
@@ -220,12 +195,13 @@ export const MoleculeTags = ({ molecule }: { molecule: MoleculeView }) => {
   return (
     <div className="flex flex-wrap gap-1.5">
       {tags.slice(0, 5).map((tag) => {
-        const colorKey = tag.color?.toLowerCase() ?? "";
-        const chipClass = TAG_COLOR_TO_CHIP[colorKey] ?? DEFAULT_TAG_CHIP;
+        const chipClass = getTagChipClass(tag);
+        const inlineStyle = getTagInlineStyle(tag);
         return (
           <span
             key={tag.id}
             className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
+            style={inlineStyle}
           >
             {tag.name}
           </span>
@@ -430,6 +406,76 @@ export interface MoleculeCardProps {
   handleCopy: (text: string, label: string) => void;
 }
 
+interface MoleculeImageModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  hasImage: boolean;
+  imageUrl: string;
+  primaryName: string;
+  chemicalFormula: string | null;
+  previewGradient: string;
+}
+
+function MoleculeImageModal({
+  isOpen,
+  onClose,
+  hasImage,
+  imageUrl,
+  primaryName,
+  chemicalFormula: _chemicalFormula,
+  previewGradient,
+}: MoleculeImageModalProps) {
+  if (!isOpen || typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-9999 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md"
+      onClick={onClose}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      role="button"
+      tabIndex={0}
+      aria-label="Close"
+    >
+      <div
+        className="relative max-h-[90vh] max-w-[90vw] overflow-hidden rounded-xl border-2 border-zinc-600 bg-black shadow-2xl dark:border-zinc-500"
+        onClick={(e) => e.stopPropagation()}
+        role="presentation"
+      >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          aria-label="Close"
+          className="absolute top-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        >
+          <X className="h-5 w-5" aria-hidden />
+        </button>
+        {hasImage ? (
+          <div className="flex h-[min(75vh,800px)] max-h-[85vh] w-[min(75vw,800px)] max-w-[85vw] items-center justify-center overflow-hidden bg-black p-8">
+            <MoleculeImageSVG
+              imageUrl={imageUrl}
+              name={primaryName}
+              className="h-full max-h-[65vh] w-full max-w-[65vw] [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
+            />
+          </div>
+        ) : (
+          <div
+            className={`flex h-80 w-80 items-center justify-center rounded-xl bg-linear-to-br ${previewGradient}`}
+          >
+            <Atom
+              className="h-40 w-40 text-white/80"
+              strokeWidth={1}
+              aria-hidden
+            />
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
   const fromContributorsCompact =
     (props.molecule.contributors?.length ?? 0) > 0
@@ -442,23 +488,27 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
         ? [props.molecule.createdBy]
         : [];
   const previewGradient = getPreviewGradient(props.molecule);
-  const hasImage = Boolean(
-    props.molecule.imageUrl && props.molecule.imageUrl.trim(),
-  );
-  const sampleCount = props.molecule.sampleCount ?? 0;
+  const hasImage = Boolean(props.molecule.imageUrl?.trim());
   const viewCount = props.molecule.viewCount ?? 0;
   const experimentCount = props.molecule.experimentCount ?? 0;
+  const [imageModalOpen, setImageModalOpen] = useState(false);
 
   return (
-    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md md:flex-row md:items-center md:gap-4 dark:bg-zinc-800">
-      <div className="border-border-subtle flex min-w-0 flex-1 items-center gap-4 border-r pr-4 md:flex-row">
-        <div
-          className={`relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 ${
+    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md md:flex-row md:items-start md:gap-4 dark:bg-zinc-800">
+      <div className="border-border-subtle flex min-w-0 flex-1 items-start gap-2 border-r pr-2 md:flex-row md:gap-4 md:pr-4">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setImageModalOpen(true);
+          }}
+          className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-black motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 md:h-14 md:w-14 ${
             hasImage ? "" : `bg-linear-to-br ${previewGradient}`
           }`}
+          aria-label="View molecule structure"
         >
           {hasImage ? (
-            <div className="absolute inset-0 flex items-center justify-center p-1">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-1">
               <MoleculeImageSVG
                 imageUrl={props.molecule.imageUrl ?? ""}
                 name={props.primaryName}
@@ -480,37 +530,73 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
               aria-hidden
             />
           ) : null}
-        </div>
-        <div className="border-border-subtle divide-border-subtle grid min-w-0 flex-1 grid-cols-[minmax(0,7rem)_minmax(8rem,8rem)_minmax(0,4rem)] items-center gap-x-0 divide-x md:grid-cols-[minmax(0,8rem)_minmax(9rem,9rem)_minmax(0,5rem)]">
-          <div className="min-w-0 py-0.5 pr-2">
-            <Link
-              href={`/molecules/${props.molecule.id}`}
-              className="text-text-primary motion-safe:group-hover:text-accent block truncate text-sm font-bold hover:underline motion-safe:transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {props.primaryName}
-            </Link>
-            <span className="text-text-tertiary border-border-default mt-0.5 inline-block rounded border bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] tabular-nums dark:bg-zinc-700">
-              {props.molecule.chemicalFormula || "N/A"}
-            </span>
+        </button>
+        <div className="border-border-subtle divide-border-subtle flex min-w-0 flex-1 items-center divide-x overflow-hidden">
+          <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5 pr-2">
+            <div className="flex min-w-0 items-end gap-2 overflow-hidden">
+              <div className="flex h-5 shrink-0 items-end">
+                <Link
+                  href={`/molecules/${props.molecule.id}`}
+                  className="text-text-primary motion-safe:group-hover:text-accent block truncate text-sm leading-tight font-bold hover:underline motion-safe:transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {props.primaryName}
+                </Link>
+              </div>
+              {props.orderedSynonyms.length > 0 ? (
+                <div className="flex h-5 shrink-0 items-end">
+                  <SynonymChipsWithPopup
+                    synonyms={props.orderedSynonyms}
+                    collapseOnly
+                  />
+                </div>
+              ) : null}
+            </div>
+            <div className="flex min-w-0 shrink items-center gap-2 overflow-hidden">
+              <span className="text-text-tertiary border-border-default inline-flex h-5 shrink-0 items-center rounded border bg-zinc-100 px-1.5 font-mono text-[9px] tabular-nums sm:text-[10px] dark:bg-zinc-700">
+                {props.molecule.chemicalFormula || "N/A"}
+              </span>
+              {props.molecule.casNumber ? (
+                <Tooltip delay={0}>
+                  <Tooltip.Trigger>
+                    <button
+                      type="button"
+                      aria-label="Copy CAS number"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        props.handleCopy(props.molecule.casNumber ?? "", "CAS");
+                      }}
+                      className={`focus-visible:ring-accent inline-flex h-5 max-w-full shrink items-center gap-1 rounded px-1.5 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 sm:px-2 ${
+                        props.copiedText === "CAS"
+                          ? "bg-info/30 text-info dark:bg-info/40 dark:text-info-light"
+                          : "bg-info/20 text-info dark:bg-info/30 dark:text-info-light"
+                      }`}
+                    >
+                      <Copy
+                        className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5"
+                        aria-hidden
+                      />
+                      <span className="truncate font-mono text-[9px] tabular-nums sm:text-[10px]">
+                        CAS {props.molecule.casNumber}
+                      </span>
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content placement="top">
+                    {props.copiedText === "CAS" ? "Copied!" : "Copy CAS number"}
+                  </Tooltip.Content>
+                </Tooltip>
+              ) : null}
+            </div>
           </div>
-          <div className="flex min-w-0 flex-wrap items-center justify-start gap-1 px-2 py-0.5">
-            {props.orderedSynonyms.length > 0 ? (
-              <SynonymChipsWithPopup
-                synonyms={props.orderedSynonyms}
-                maxSynonyms={2}
-                className="flex-wrap justify-start"
-              />
-            ) : null}
-          </div>
-          <div className="flex min-w-0 flex-wrap items-center justify-start gap-1 py-0.5 pl-2">
+          <div className="flex min-w-[6rem] flex-1 shrink-0 flex-wrap items-center justify-start gap-0.5 py-0.5 pl-2 sm:gap-1">
             {(props.molecule.moleculeTags ?? []).slice(0, 3).map((tag) => {
-              const colorKey = tag.color?.toLowerCase() ?? "";
-              const chipClass = TAG_COLOR_TO_CHIP[colorKey] ?? DEFAULT_TAG_CHIP;
+              const chipClass = getTagChipClass(tag);
+              const inlineStyle = getTagInlineStyle(tag);
               return (
                 <span
                   key={tag.id}
-                  className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium uppercase ${chipClass}`}
+                  className={`inline-flex max-w-12 shrink-0 items-center truncate rounded-md px-1 py-0.5 text-[8px] font-medium uppercase sm:max-w-none sm:px-1.5 sm:text-[9px] ${chipClass}`}
+                  style={inlineStyle}
                 >
                   {tag.name}
                 </span>
@@ -520,10 +606,10 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
         </div>
       </div>
       <div
-        className="border-border-subtle divide-border-subtle flex shrink-0 flex-wrap items-center justify-end gap-x-0 gap-y-3 divide-x border-t pt-3 md:ml-auto md:gap-x-4 md:gap-y-0 md:border-t-0 md:border-l md:pt-0 md:pl-6"
+        className="border-border-subtle divide-border-subtle flex shrink-0 flex-wrap items-center justify-end gap-x-0 gap-y-3 divide-x border-t pt-3 md:ml-auto md:gap-x-2 md:gap-y-0 md:border-t-0 md:border-l md:pt-0 md:pl-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="pr-3 md:pr-4">
+        <div className="pr-2 md:pr-3">
           <MoleculeCardActions
             molecule={props.molecule}
             pubChemUrl={props.pubChemUrl}
@@ -533,10 +619,10 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
             size="sm"
           />
         </div>
-        <div className="px-3 md:px-4">
+        <div className="px-2 md:px-3">
           <AvatarGroup users={avatarUsers} max={3} size="sm" />
         </div>
-        <div className="flex min-w-[60px] flex-col items-end gap-0.5 pl-3 md:pl-4">
+        <div className="flex min-w-[56px] shrink-0 flex-col items-end gap-0.5 pl-2 md:pl-3">
           <span className="flex items-center gap-1 text-[10px] text-sky-500 tabular-nums">
             <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {viewCount >= 1000
@@ -600,6 +686,15 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
           </span>
         </div>
       </div>
+      <MoleculeImageModal
+        isOpen={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        hasImage={hasImage}
+        imageUrl={props.molecule.imageUrl ?? ""}
+        primaryName={props.primaryName}
+        chemicalFormula={props.molecule.chemicalFormula}
+        previewGradient={previewGradient}
+      />
     </div>
   );
 };
@@ -639,10 +734,7 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
         ? [props.molecule.createdBy]
         : [];
   const previewGradient = getPreviewGradient(props.molecule);
-  const hasImage = Boolean(
-    props.molecule.imageUrl && props.molecule.imageUrl.trim(),
-  );
-  const sampleCount = props.molecule.sampleCount ?? 0;
+  const hasImage = Boolean(props.molecule.imageUrl?.trim());
   const experimentCount = props.molecule.experimentCount ?? 0;
 
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -663,11 +755,13 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
           aria-label="View molecule structure"
         >
           {hasImage ? (
-            <MoleculeImageSVG
-              imageUrl={props.molecule.imageUrl ?? ""}
-              name={props.primaryName}
-              className="h-full w-full motion-safe:transition-[transform,opacity] motion-safe:duration-300 motion-safe:group-hover/image:scale-105 [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
-            />
+            <div className="pointer-events-none flex h-full w-full items-center justify-center">
+              <MoleculeImageSVG
+                imageUrl={props.molecule.imageUrl ?? ""}
+                name={props.primaryName}
+                className="h-full w-full motion-safe:transition-[transform,opacity] motion-safe:duration-300 motion-safe:group-hover/image:scale-105 [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
+              />
+            </div>
           ) : (
             <div
               className={`flex h-full w-full items-center justify-center bg-linear-to-br ${previewGradient}`}
@@ -700,53 +794,15 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
           <ContributorsOrEmpty users={avatarUsers} overlay />
         </div>
       </div>
-      {imageModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md"
-          onClick={() => setImageModalOpen(false)}
-          onKeyDown={(e) => e.key === "Escape" && setImageModalOpen(false)}
-          role="button"
-          tabIndex={0}
-          aria-label="Close"
-        >
-          <div
-            className="relative max-h-[90vh] max-w-[90vw] overflow-hidden rounded-xl border-2 border-zinc-600 bg-black shadow-2xl dark:border-zinc-500"
-            onClick={(e) => e.stopPropagation()}
-            role="presentation"
-          >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setImageModalOpen(false);
-              }}
-              aria-label="Close"
-              className="absolute top-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            >
-              <X className="h-5 w-5" aria-hidden />
-            </button>
-            {hasImage ? (
-              <div className="flex h-[min(75vh,800px)] max-h-[85vh] w-[min(75vw,800px)] max-w-[85vw] items-center justify-center overflow-hidden bg-black p-8">
-                <MoleculeImageSVG
-                  imageUrl={props.molecule.imageUrl ?? ""}
-                  name={props.primaryName}
-                  className="h-full max-h-[65vh] w-full max-w-[65vw] [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
-                />
-              </div>
-            ) : (
-              <div
-                className={`flex h-80 w-80 items-center justify-center rounded-xl bg-linear-to-br ${previewGradient}`}
-              >
-                <Atom
-                  className="h-40 w-40 text-white/80"
-                  strokeWidth={1}
-                  aria-hidden
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
+      <MoleculeImageModal
+        isOpen={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        hasImage={hasImage}
+        imageUrl={props.molecule.imageUrl ?? ""}
+        primaryName={props.primaryName}
+        chemicalFormula={props.molecule.chemicalFormula}
+        previewGradient={previewGradient}
+      />
       <Card.Content className="flex min-w-0 flex-1 flex-col gap-2 p-4">
         <div
           className="border-border-subtle border-b pb-2"
@@ -770,6 +826,36 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
               maxSynonyms={3}
               className="flex-wrap"
             />
+          </div>
+        ) : null}
+        {props.molecule.casNumber ? (
+          <div
+            className="border-border-subtle min-w-0 border-b pb-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <button
+                  type="button"
+                  aria-label="Copy CAS number"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.handleCopy(props.molecule.casNumber ?? "", "CAS");
+                  }}
+                  className={`focus-visible:ring-accent inline-flex items-center gap-2 rounded-md px-2 py-1 font-mono text-xs tabular-nums transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+                    props.copiedText === "CAS"
+                      ? "bg-info/30 text-info dark:bg-info/40 dark:text-info-light"
+                      : "bg-info/20 text-info dark:bg-info/30 dark:text-info-light"
+                  }`}
+                >
+                  <Copy className="h-4 w-4 shrink-0" aria-hidden />
+                  CAS {props.molecule.casNumber}
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Content placement="top">
+                {props.copiedText === "CAS" ? "Copied!" : "Copy CAS number"}
+              </Tooltip.Content>
+            </Tooltip>
           </div>
         ) : null}
         {props.molecule.iupacName ? (
@@ -815,7 +901,7 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
             title="Views"
           >
             <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            {props.molecule.viewCount != null ? props.molecule.viewCount : 0}
+            {props.molecule.viewCount ?? 0}
           </span>
           <div
             className={`flex items-center gap-1 text-xs tabular-nums ${

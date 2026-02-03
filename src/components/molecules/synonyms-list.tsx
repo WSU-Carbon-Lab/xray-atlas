@@ -20,10 +20,13 @@ interface SynonymTagGroupProps extends React.ComponentProps<typeof TagGroup> {
 function SynonymsPopup({
   synonyms,
   remaining,
+  label,
 }: {
   synonyms: string[];
   remaining: number;
+  label?: string;
 }) {
+  const displayLabel = label ?? `+${remaining}`;
   return (
     <span className="inline-flex shrink-0" onClick={(e) => e.stopPropagation()}>
       <Dropdown>
@@ -33,7 +36,7 @@ function SynonymsPopup({
             className="bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
             aria-label={`Show all ${synonyms.length} synonyms`}
           >
-            +{remaining}
+            {displayLabel}
           </button>
         </DropdownTrigger>
         <DropdownMenu
@@ -66,26 +69,44 @@ function SynonymsPopup({
 interface SynonymChipsProps {
   synonyms: string[];
   maxSynonyms?: number;
+  size?: "default" | "compact";
   className?: string;
+  collapseOnly?: boolean;
 }
 
 export const SynonymChips = ({
   synonyms,
   maxSynonyms = 3,
+  size = "default",
   className = "",
+  collapseOnly = false,
 }: SynonymChipsProps) => {
   if (synonyms.length === 0) return null;
+  if (collapseOnly) {
+    return (
+      <div className={className}>
+        <SynonymsPopup
+          synonyms={synonyms}
+          remaining={synonyms.length}
+          label={`+${synonyms.length}`}
+        />
+      </div>
+    );
+  }
   const truncated = [...synonyms]
     .sort((a: string, b: string) => a.length - b.length)
     .slice(0, maxSynonyms);
   const remaining = synonyms.length - truncated.length;
+  const chipClass =
+    size === "compact"
+      ? "bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light inline-flex max-w-[4.5rem] shrink-0 truncate rounded border-0 px-1.5 py-0.5 text-[9px] font-medium tracking-wider uppercase"
+      : "bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light inline-flex items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase";
   return (
-    <div className={`flex flex-wrap items-center gap-1 ${className}`}>
+    <div
+      className={`flex flex-wrap items-center gap-0.5 sm:gap-1 ${className}`}
+    >
       {truncated.map((syn: string) => (
-        <span
-          key={syn}
-          className="bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light inline-flex items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase"
-        >
+        <span key={syn} className={chipClass} title={syn}>
           {syn}
         </span>
       ))}

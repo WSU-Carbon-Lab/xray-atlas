@@ -22,12 +22,14 @@ type AddEntityModalProps = {
   children: (helpers: { close: () => void }) => ReactNode;
 };
 
-const sizeToPanelClass: Record<NonNullable<AddEntityModalProps["size"]>, string> =
-  {
-    md: "max-w-2xl",
-    lg: "max-w-4xl",
-    xl: "max-w-5xl",
-  };
+const sizeToPanelClass: Record<
+  NonNullable<AddEntityModalProps["size"]>,
+  string
+> = {
+  md: "max-w-2xl",
+  lg: "max-w-4xl",
+  xl: "max-w-5xl",
+};
 
 export function AddEntityModal({
   title,
@@ -48,8 +50,8 @@ export function AddEntityModal({
 
   const isCompact = variant === "compact";
   const triggerBaseClasses = isCompact
-    ? "group inline-flex items-center gap-3 rounded-xl border-2 border-dashed border-gray-300 bg-white px-4 py-3 text-left transition hover:border-accent hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-500"
-    : "group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-white px-6 py-6 text-left transition-transform duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg dark:border-gray-700 dark:bg-gray-800";
+    ? "group inline-flex items-center gap-3 rounded-xl border border-border-default bg-surface-1 px-4 py-3 text-left transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-md dark:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+    : "group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border border-border-default bg-zinc-50 px-6 py-6 text-left shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md dark:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2";
 
   return (
     <>
@@ -59,7 +61,7 @@ export function AddEntityModal({
         className={`${triggerBaseClasses} ${fullWidth ? "" : "md:w-auto"} ${triggerClassName}`}
       >
         <div className="flex flex-col gap-2">
-          <span className="text-sm font-semibold uppercase tracking-wide text-accent dark:text-accent-light">
+          <span className="text-accent dark:text-accent-light text-sm font-semibold tracking-wide uppercase">
             {triggerLabel}
           </span>
           {description && (
@@ -74,12 +76,12 @@ export function AddEntityModal({
           )}
         </div>
         {Icon && !isCompact && (
-          <div className="hidden shrink-0 text-gray-300 transition-colors duration-200 group-hover:text-accent dark:text-accent-light md:block">
+          <div className="group-hover:text-accent dark:text-accent-light hidden shrink-0 text-gray-300 transition-colors duration-200 md:block">
             <Icon className="h-16 w-16" aria-hidden="true" />
           </div>
         )}
         {Icon && isCompact && (
-          <div className="shrink-0 text-gray-300 transition-colors duration-200 group-hover:text-accent dark:text-accent-light">
+          <div className="group-hover:text-accent dark:text-accent-light shrink-0 text-gray-300 transition-colors duration-200">
             <Icon className="h-6 w-6" aria-hidden="true" />
           </div>
         )}

@@ -56,7 +56,7 @@ export default function MoleculeDetailPage({
         },
       },
     );
-  }, [molecule?.id]);
+  }, [molecule?.id, trackView]);
 
   if (isLoading) {
     return (

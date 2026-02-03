@@ -23,7 +23,8 @@ const profileImage = (user: UserWithOrcid) => {
     return user.image;
   }
   const colorVariants = ["blue", "green", "purple", "orange", "red"];
-  const randomColor = colorVariants[Math.floor(Math.random() * colorVariants.length)];
+  const randomColor =
+    colorVariants[Math.floor(Math.random() * colorVariants.length)];
   return `https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/${randomColor}.jpg`;
 };
 
@@ -59,9 +60,7 @@ export function Avatar({
     return null;
   }
 
-  const dimensions = width && height
-    ? { width, height }
-    : sizeMap[size];
+  const dimensions = width && height ? { width, height } : sizeMap[size];
 
   return (
     <Image
@@ -89,7 +88,7 @@ export function AvatarButton({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex h-10 w-10 items-center justify-center rounded-full transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+        className="focus-visible:ring-accent flex h-10 w-10 items-center justify-center rounded-full transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         aria-label="User menu"
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -104,14 +103,14 @@ export function AvatarButton({
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+          <div className="absolute top-full right-0 z-50 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
             <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
               <div className="flex items-center gap-3">
                 <Avatar user={user} size="md" />
                 <div className="flex flex-col gap-0.5">
                   <a
                     href={`/users/${user.id}`}
-                    className="text-sm font-medium text-gray-900 transition-colors hover:text-accent dark:text-gray-100 dark:hover:text-accent-light"
+                    className="hover:text-accent dark:hover:text-accent-light text-sm font-medium text-gray-900 transition-colors dark:text-gray-100"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleAction("profile");
@@ -124,7 +123,7 @@ export function AvatarButton({
                       href={`https://orcid.org/${user.orcid}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-gray-500 transition-colors hover:text-accent dark:text-gray-400 dark:hover:text-accent-light"
+                      className="hover:text-accent dark:hover:text-accent-light flex items-center gap-1.5 text-xs text-gray-500 transition-colors dark:text-gray-400"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <ORCIDIcon className="h-3 w-3 shrink-0" authenticated />
@@ -134,7 +133,7 @@ export function AvatarButton({
                   {user.email && (
                     <a
                       href={`mailto:${user.email}`}
-                      className="text-xs text-gray-500 transition-colors hover:text-accent dark:text-gray-400 dark:hover:text-accent-light"
+                      className="hover:text-accent dark:hover:text-accent-light text-xs text-gray-500 transition-colors dark:text-gray-400"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {user.email}
@@ -194,7 +193,12 @@ export function CustomUserButton() {
   const user = session?.user;
 
   useEffect(() => {
-    if (user?.id && !user.image && !updateImage.isPending && !updateImage.isSuccess) {
+    if (
+      user?.id &&
+      !user.image &&
+      !updateImage.isPending &&
+      !updateImage.isSuccess
+    ) {
       const generatedImage = profileImage(user);
       void updateImage.mutateAsync(
         { image: generatedImage },
@@ -206,7 +210,14 @@ export function CustomUserButton() {
         },
       );
     }
-  }, [user?.id, user?.image, updateImage.isPending, updateImage.isSuccess, updateImage, updateSession, utils]);
+  }, [
+    user,
+    updateImage.isPending,
+    updateImage.isSuccess,
+    updateImage,
+    updateSession,
+    utils,
+  ]);
 
   if (!user) {
     return null;

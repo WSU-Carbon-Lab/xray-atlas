@@ -31,7 +31,7 @@ export function BrushZoom({
   onZoom,
   onReset,
 }: BrushZoomProps) {
-  const [brushBounds, setBrushBounds] = useState<Bounds | null>(null);
+  const [_brushBounds, setBrushBounds] = useState<Bounds | null>(null);
   const themeColors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
 
   const plotWidth =

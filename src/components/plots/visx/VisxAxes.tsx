@@ -25,7 +25,7 @@ export const VisxAxes = memo(function VisxAxes({
   const axisColor = themeColors.text;
   const tickLabelColor = themeColors.text;
 
-  const plotWidth =
+  const _plotWidth =
     dimensions.width - dimensions.margins.left - dimensions.margins.right;
   const plotHeight =
     dimensions.height - dimensions.margins.top - dimensions.margins.bottom;

@@ -454,6 +454,7 @@ export const moleculesRouter = createTRPCRouter({
         offset: z.number().min(0).default(0),
         searchCasNumber: z.boolean().default(true),
         searchPubChemCid: z.boolean().default(true),
+        tagIds: z.array(z.string().uuid()).optional().default([]),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -512,6 +513,14 @@ export const moleculesRouter = createTRPCRouter({
               AND to_tsvector('english', ms.synonym)
               @@ plainto_tsquery('english', ${searchTerm})
             ))
+          AND (
+            cardinality(${input.tagIds}::uuid[]) = 0
+            OR EXISTS (
+              SELECT 1 FROM moleculetags mt
+              WHERE mt.moleculeid = m.id
+              AND mt.tagid = ANY(${input.tagIds}::uuid[])
+            )
+          )
           LIMIT ${input.limit * 5}
         ),
         search_results AS (
@@ -714,6 +723,7 @@ export const moleculesRouter = createTRPCRouter({
         sortBy: z
           .enum(["favorites", "created", "name", "views"])
           .default("favorites"),
+        tagIds: z.array(z.string().uuid()).optional().default([]),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -737,11 +747,25 @@ export const moleculesRouter = createTRPCRouter({
         >
       >;
 
+      const tagFilter =
+        input.tagIds.length > 0
+          ? { moleculetags: { some: { tagid: { in: input.tagIds } } } }
+          : {};
+
       if (input.sortBy === "name") {
         const orderedIds = await ctx.db.$queryRaw<Array<{ id: string }>>`
           SELECT m.id
           FROM public.molecules m
           LEFT JOIN public.moleculesynonyms ms ON ms.moleculeid = m.id AND ms."order" = 0
+          WHERE
+            (
+              cardinality(${input.tagIds}::uuid[]) = 0
+              OR EXISTS (
+                SELECT 1 FROM moleculetags mt
+                WHERE mt.moleculeid = m.id
+                AND mt.tagid = ANY(${input.tagIds}::uuid[])
+              )
+            )
           ORDER BY LOWER(COALESCE(ms.synonym, m.iupacname)) ASC
           LIMIT ${input.limit}
           OFFSET ${input.offset}
@@ -783,6 +807,7 @@ export const moleculesRouter = createTRPCRouter({
               : [{ createdat: "desc" as const }];
 
         molecules = await ctx.db.molecules.findMany({
+          where: tagFilter,
           take: input.limit,
           skip: input.offset,
           include: {
@@ -802,7 +827,9 @@ export const moleculesRouter = createTRPCRouter({
         });
       }
 
-      const totalCount = await ctx.db.molecules.count();
+      const totalCount = await ctx.db.molecules.count({
+        where: tagFilter,
+      });
 
       const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
         ...molecule,

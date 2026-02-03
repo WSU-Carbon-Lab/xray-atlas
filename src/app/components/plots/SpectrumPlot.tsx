@@ -1,10 +1,6 @@
 "use client";
 
-import type {
-  SpectrumPlotProps,
-  SpectrumPoint,
-  SpectrumSelection,
-} from "./core/types";
+import type { SpectrumPlotProps } from "./core/types";
 import { VisxSpectrumPlot } from "./visx/VisxSpectrumPlot";
 import type { CursorMode } from "./visx/components/CursorModeSelector";
 

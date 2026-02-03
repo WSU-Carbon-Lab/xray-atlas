@@ -40,8 +40,8 @@ export function BrowseHeader({
   }, [searchShortcutKey]);
 
   return (
-    <div className="flex flex-1 flex-wrap items-center justify-start gap-2 sm:gap-4">
-      <div className="flex min-w-[200px] flex-1 items-center sm:max-w-[400px] sm:min-w-[320px]">
+    <div className="flex w-full flex-wrap items-center justify-between gap-4 py-2">
+      <div className="flex min-w-[200px] flex-1 basis-0 items-center sm:max-w-[400px]">
         <SearchField
           name="browse-search"
           value={searchValue}
@@ -49,7 +49,7 @@ export function BrowseHeader({
           variant="secondary"
           className="w-full"
         >
-          <SearchField.Group className="flex h-8 w-full flex-row items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 dark:border-gray-600 dark:bg-gray-800">
+          <SearchField.Group className="flex h-12 min-h-12 w-full flex-row items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 dark:border-gray-600 dark:bg-gray-800">
             <SearchField.SearchIcon className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
             <SearchField.Input
               ref={inputRef}
@@ -69,7 +69,9 @@ export function BrowseHeader({
           </SearchField.Group>
         </SearchField>
       </div>
-      {children}
+      <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
+        {children}
+      </div>
     </div>
   );
 }

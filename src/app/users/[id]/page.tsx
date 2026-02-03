@@ -30,13 +30,12 @@ export default function UserProfilePage({
       retry: false,
     },
   );
-  const updateORCID = trpc.users.updateORCID.useMutation();
   const removeORCID = trpc.users.removeORCID.useMutation();
   const unlinkAccount = trpc.users.unlinkAccount.useMutation();
   const deletePasskey = trpc.users.deletePasskey.useMutation();
   const utils = trpc.useUtils();
 
-  const [orcidInput, setOrcidInput] = useState("");
+  const [_orcidInput, setOrcidInput] = useState("");
   const [isEditingOrcid, setIsEditingOrcid] = useState(false);
   const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
   const [showConnectAccountModal, setShowConnectAccountModal] = useState(false);

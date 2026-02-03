@@ -8,7 +8,6 @@ import {
   DEV_MOCK_USER,
   DEV_MOCK_LINKED_ACCOUNTS,
   DEV_MOCK_PASSKEYS,
-  DEV_MOCK_MOLECULES,
   isDevMockUser,
 } from "~/lib/dev-mock-data";
 

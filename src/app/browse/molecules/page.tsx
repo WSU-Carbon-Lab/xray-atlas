@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import {
@@ -17,13 +17,15 @@ import { BrowseTabs } from "@/components/layout/browse-tabs";
 import {
   Squares2X2Icon,
   ListBulletIcon,
-  FunnelIcon,
+  ArrowsUpDownIcon,
   HeartIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { AddMoleculeButton } from "~/app/components/AddEntityButtons";
 import { BrowseHeader, selectClasses } from "@/components/browse/browse-header";
+import { TagFilterBar } from "@/components/browse/tag-filter-bar";
+import { TagsDropdown } from "@/components/browse/tags-dropdown";
 import {
   Dropdown,
   DropdownTrigger,
@@ -44,6 +46,34 @@ function MoleculesBrowseContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [viewMode, setViewMode] = useState<"compact" | "spacious">("spacious");
+
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(() => {
+    const tagsParam = searchParams.get("tags");
+    if (!tagsParam) return new Set();
+    const ids = tagsParam.split(",").filter(Boolean);
+    return new Set(ids);
+  });
+
+  useEffect(() => {
+    const tagsParam = searchParams.get("tags");
+    if (!tagsParam) {
+      if (selectedTagIds.size > 0) setSelectedTagIds(new Set());
+      return;
+    }
+    const ids = tagsParam.split(",").filter(Boolean);
+    const fromUrl = new Set(ids);
+    if (
+      fromUrl.size !== selectedTagIds.size ||
+      [...fromUrl].some((id) => !selectedTagIds.has(id))
+    ) {
+      setSelectedTagIds(fromUrl);
+    }
+  }, [searchParams, selectedTagIds]);
+
+  const tagIdsArray = useMemo(
+    () => (selectedTagIds.size > 0 ? [...selectedTagIds] : []),
+    [selectedTagIds],
+  );
 
   // Debounce search query
   useEffect(() => {
@@ -67,12 +97,12 @@ function MoleculesBrowseContent() {
     localStorage.setItem("moleculeViewMode", viewMode);
   }, [viewMode]);
 
-  // Reset to first page when sort or items per page changes
+  // Reset to first page when sort, items per page, or tag selection changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [sortBy, itemsPerPage]);
+  }, [sortBy, itemsPerPage, selectedTagIds]);
 
-  // Update URL when query or page changes
+  // Update URL when query, page, or tag selection changes
   useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedQuery) {
@@ -81,9 +111,12 @@ function MoleculesBrowseContent() {
     if (currentPage > 1) {
       params.set("page", currentPage.toString());
     }
+    if (selectedTagIds.size > 0) {
+      params.set("tags", [...selectedTagIds].join(","));
+    }
     const newUrl = `/browse/molecules${params.toString() ? `?${params.toString()}` : ""}`;
     router.replace(newUrl, { scroll: false });
-  }, [debouncedQuery, currentPage, router]);
+  }, [debouncedQuery, currentPage, selectedTagIds, router]);
 
   const hasSearchQuery = debouncedQuery.trim().length > 0;
 
@@ -92,10 +125,12 @@ function MoleculesBrowseContent() {
       query: debouncedQuery,
       limit: itemsPerPage,
       offset: (currentPage - 1) * itemsPerPage,
+      tagIds: tagIdsArray,
     },
     {
       enabled: hasSearchQuery,
       staleTime: 30000,
+      placeholderData: (previousData) => previousData,
     },
   );
 
@@ -104,10 +139,12 @@ function MoleculesBrowseContent() {
       limit: itemsPerPage,
       offset: (currentPage - 1) * itemsPerPage,
       sortBy,
+      tagIds: tagIdsArray,
     },
     {
       enabled: !hasSearchQuery,
       staleTime: 30000,
+      placeholderData: (previousData) => previousData,
     },
   );
 
@@ -195,111 +232,124 @@ function MoleculesBrowseContent() {
         <BrowseHeader
           searchValue={query}
           onSearchChange={setQuery}
-          searchPlaceholder="Search molecules"
+          searchPlaceholder="Search molecules…"
         >
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <Tooltip delay={0}>
-              <div>
-                <Tabs
-                  selectedKey={viewMode}
-                  onSelectionChange={(key) =>
-                    setViewMode(key as "compact" | "spacious")
-                  }
-                  className="w-fit"
-                >
-                  <Tabs.ListContainer>
-                    <Tabs.List
-                      aria-label="View mode"
-                      className="*:data-[selected=true]:bg-accent/15 *:data-[selected=true]:text-accent *:data-[selected=true]:dark:bg-accent/20 *:data-[selected=true]:dark:text-accent-light flex w-fit flex-row gap-1 rounded-lg border border-gray-300 bg-white p-1 *:flex *:h-8 *:min-h-8 *:w-8 *:min-w-8 *:items-center *:justify-center *:p-0 *:text-sm *:leading-none *:font-normal *:transition-colors dark:border-gray-600 dark:bg-gray-800 *:[&_svg]:block"
-                    >
-                      <Tabs.Tab
-                        id="compact"
-                        aria-label="Compact list view"
-                        className="rounded-md"
-                      >
-                        <ListBulletIcon className="h-4 w-4 shrink-0 stroke-[1.5]" />
-                        <Tabs.Indicator className="bg-accent rounded" />
-                      </Tabs.Tab>
-                      <Tabs.Tab
-                        id="spacious"
-                        aria-label="Spacious grid view"
-                        className="rounded-md"
-                      >
-                        <Squares2X2Icon className="h-4 w-4 shrink-0 stroke-[1.5]" />
-                        <Tabs.Indicator className="bg-accent rounded" />
-                      </Tabs.Tab>
-                    </Tabs.List>
-                  </Tabs.ListContainer>
-                </Tabs>
-              </div>
-              <Tooltip.Content
-                placement="top"
-                className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"
-              >
-                Display molecules in a compact list or spacious grid view
-              </Tooltip.Content>
-            </Tooltip>
-            {!hasSearchQuery && (
-              <Dropdown>
-                <DropdownTrigger>
-                  <button
-                    type="button"
-                    className="flex h-8 min-h-8 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-                    aria-label="Sort molecules"
-                  >
-                    <FunnelIcon className="h-4 w-4 shrink-0" />
-                    <span className="text-sm font-medium">Sort</span>
-                  </button>
-                </DropdownTrigger>
-                <DropdownMenu
+          <TagsDropdown
+            selectedTagIds={selectedTagIds}
+            onSelectionChange={setSelectedTagIds}
+          />
+          {!hasSearchQuery && (
+            <Dropdown>
+              <DropdownTrigger>
+                <button
+                  type="button"
+                  className="focus-visible:ring-accent flex h-12 min-h-12 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-gray-600 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
                   aria-label="Sort molecules"
-                  className="rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
                 >
-                  <DropdownItem
-                    key="name"
-                    textValue="Name"
-                    onPress={() => setSortBy("name")}
+                  <ArrowsUpDownIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
+                  <span className="text-sm font-medium">Sort</span>
+                </button>
+              </DropdownTrigger>
+              <DropdownMenu
+                aria-label="Sort molecules"
+                className="rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
+              >
+                <DropdownItem
+                  key="name"
+                  textValue="Name"
+                  onPress={() => setSortBy("name")}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="font-mono text-sm font-semibold">A</span>
+                    <Label>Name (A-Z)</Label>
+                  </span>
+                </DropdownItem>
+                <DropdownItem
+                  key="favorites"
+                  textValue="Favorites"
+                  onPress={() => setSortBy("favorites")}
+                >
+                  <span className="flex items-center gap-2">
+                    <HeartIcon className="h-4 w-4 shrink-0" />
+                    <Label>Most Favorited</Label>
+                  </span>
+                </DropdownItem>
+                <DropdownItem
+                  key="views"
+                  textValue="Views"
+                  onPress={() => setSortBy("views")}
+                >
+                  <span className="flex items-center gap-2">
+                    <EyeIcon className="h-4 w-4 shrink-0" />
+                    <Label>Most Viewed</Label>
+                  </span>
+                </DropdownItem>
+                <DropdownItem
+                  key="created"
+                  textValue="Newest"
+                  onPress={() => setSortBy("created")}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs">New</span>
+                    <Label>Newest First</Label>
+                  </span>
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
+          )}
+          <Tooltip delay={0}>
+            <div>
+              <Tabs
+                selectedKey={viewMode}
+                onSelectionChange={(key) =>
+                  setViewMode(key as "compact" | "spacious")
+                }
+                className="w-fit"
+              >
+                <Tabs.ListContainer>
+                  <Tabs.List
+                    aria-label="View mode"
+                    className="*:data-[selected=true]:bg-accent/15 *:data-[selected=true]:text-accent *:data-[selected=true]:dark:bg-accent/20 *:data-[selected=true]:dark:text-accent-light flex h-12 min-h-12 w-fit flex-row gap-0.5 rounded-lg border border-gray-300 bg-white p-0.5 *:flex *:h-10 *:min-h-10 *:w-9 *:min-w-9 *:items-center *:justify-center *:p-0 *:text-sm *:leading-none *:font-normal *:transition-colors dark:border-gray-600 dark:bg-gray-800 *:[&_svg]:block"
                   >
-                    <span className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-semibold">A</span>
-                      <Label>Name (A-Z)</Label>
-                    </span>
-                  </DropdownItem>
-                  <DropdownItem
-                    key="favorites"
-                    textValue="Favorites"
-                    onPress={() => setSortBy("favorites")}
-                  >
-                    <span className="flex items-center gap-2">
-                      <HeartIcon className="h-4 w-4 shrink-0" />
-                      <Label>Most Favorited</Label>
-                    </span>
-                  </DropdownItem>
-                  <DropdownItem
-                    key="views"
-                    textValue="Views"
-                    onPress={() => setSortBy("views")}
-                  >
-                    <span className="flex items-center gap-2">
-                      <EyeIcon className="h-4 w-4 shrink-0" />
-                      <Label>Most Viewed</Label>
-                    </span>
-                  </DropdownItem>
-                  <DropdownItem
-                    key="created"
-                    textValue="Newest"
-                    onPress={() => setSortBy("created")}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="text-xs">New</span>
-                      <Label>Newest First</Label>
-                    </span>
-                  </DropdownItem>
-                </DropdownMenu>
-              </Dropdown>
-            )}
-          </div>
+                    <Tabs.Tab
+                      id="compact"
+                      aria-label="Compact list view"
+                      className="rounded-md"
+                    >
+                      <ListBulletIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
+                      <Tabs.Indicator className="bg-accent rounded" />
+                    </Tabs.Tab>
+                    <Tabs.Tab
+                      id="spacious"
+                      aria-label="Spacious grid view"
+                      className="rounded-md"
+                    >
+                      <Squares2X2Icon className="h-5 w-5 shrink-0 stroke-[1.5]" />
+                      <Tabs.Indicator className="bg-accent rounded" />
+                    </Tabs.Tab>
+                  </Tabs.List>
+                </Tabs.ListContainer>
+              </Tabs>
+            </div>
+            <Tooltip.Content
+              placement="top"
+              className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"
+            >
+              Display molecules in a compact list or spacious grid view
+            </Tooltip.Content>
+          </Tooltip>
         </BrowseHeader>
+
+        <TagFilterBar
+          selectedTagIds={selectedTagIds}
+          onRemove={(tagId) => {
+            setSelectedTagIds((prev) => {
+              const next = new Set(prev);
+              next.delete(tagId);
+              return next;
+            });
+          }}
+        />
 
         {/* Results */}
         <div>
@@ -368,7 +418,7 @@ function MoleculesBrowseContent() {
               ) : (
                 <>
                   {viewMode === "compact" ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 [&>div]:[contain-intrinsic-size:0_80px] [&>div]:[content-visibility:auto]">
                       <AddMoleculeButton
                         className="min-h-[140px]"
                         onCreated={handleMoleculeCreated}
@@ -387,7 +437,7 @@ function MoleculesBrowseContent() {
                       })}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 [&>div]:[contain-intrinsic-size:0_220px] [&>div]:[content-visibility:auto]">
                       <AddMoleculeButton
                         className="min-h-[220px]"
                         onCreated={handleMoleculeCreated}
@@ -466,7 +516,7 @@ export default function MoleculesBrowsePage() {
             <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-gray-100">
               Browse Molecules
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+            <p className="text-gray-600 dark:text-gray-400">Loading…</p>
           </div>
           <BrowseTabs />
         </div>

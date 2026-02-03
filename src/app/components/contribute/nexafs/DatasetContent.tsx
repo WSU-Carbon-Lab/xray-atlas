@@ -107,16 +107,12 @@ export function DatasetContent({
     dataset.moleculeId ? { id: dataset.moleculeId } : skipToken,
     {
       enabled:
-        !!dataset.moleculeId &&
-        (!selectedMolecule || selectedMolecule.id !== dataset.moleculeId),
+        !!dataset.moleculeId && selectedMolecule?.id !== dataset.moleculeId,
     },
   );
 
   useEffect(() => {
-    if (
-      moleculeQuery.data &&
-      (!selectedMolecule || selectedMolecule.id !== moleculeQuery.data.id)
-    ) {
+    if (moleculeQuery.data && selectedMolecule?.id !== moleculeQuery.data.id) {
       const molecule: MoleculeSearchResult = {
         id: moleculeQuery.data.id,
         iupacName: moleculeQuery.data.iupacName,
@@ -219,7 +215,15 @@ export function DatasetContent({
     dataset.id,
   ]);
 
-  // Compute normalization when regions are selected
+  const bareAtomPointsLength = dataset.bareAtomPoints?.length;
+  const spectrumPointsLength = dataset.spectrumPoints.length;
+  const pre0 = dataset.normalizationRegions.pre?.[0];
+  const pre1 = dataset.normalizationRegions.pre?.[1];
+  const post0 = dataset.normalizationRegions.post?.[0];
+  const post1 = dataset.normalizationRegions.post?.[1];
+  const normalizationType = dataset.normalizationType;
+  const datasetId = dataset.id;
+
   useEffect(() => {
     if (
       dataset.spectrumPoints.length > 0 &&
@@ -265,9 +269,8 @@ export function DatasetContent({
         // Only update if normalization actually changed
         const currentNormalization = dataset.normalization;
         const needsUpdate =
-          !currentNormalization ||
-          currentNormalization.scale !== result.scale ||
-          currentNormalization.offset !== result.offset ||
+          currentNormalization?.scale !== result.scale ||
+          currentNormalization?.offset !== result.offset ||
           currentNormalization.preRange?.[0] !== result.preRange?.[0] ||
           currentNormalization.preRange?.[1] !== result.preRange?.[1] ||
           currentNormalization.postRange?.[0] !== result.postRange?.[0] ||
@@ -299,19 +302,19 @@ export function DatasetContent({
         }
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- extracted deps; full deps would cause unnecessary reruns
   }, [
-    dataset.bareAtomPoints?.length,
-    dataset.spectrumPoints.length,
-    dataset.normalizationRegions.pre?.[0],
-    dataset.normalizationRegions.pre?.[1],
-    dataset.normalizationRegions.post?.[0],
-    dataset.normalizationRegions.post?.[1],
-    dataset.normalizationType,
-    dataset.id,
+    bareAtomPointsLength,
+    spectrumPointsLength,
+    pre0,
+    pre1,
+    post0,
+    post1,
+    normalizationType,
+    datasetId,
   ]);
 
-  const handleMoleculeCreated = (moleculeId: string) => {
+  const handleMoleculeCreated = (_moleculeId: string) => {
     setShowAddMoleculeModal(false);
     // The molecule selector should refresh and select the new molecule
     // For now, we'll just close the modal - the user can search for it
