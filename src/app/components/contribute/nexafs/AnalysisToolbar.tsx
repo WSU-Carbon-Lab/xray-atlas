@@ -15,10 +15,6 @@ import {
   ChevronUpIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  HandRaisedIcon,
-  MagnifyingGlassIcon,
-  EyeIcon,
-  ArrowPathIcon,
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 import { Mountain, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
@@ -109,9 +105,17 @@ interface AnalysisToolbarProps {
   onMoleculeChange?: (moleculeId: string) => void;
   onInstrumentChange?: (instrumentId: string) => void;
   onEdgeChange?: (edgeId: string) => void;
-  instrumentOptions?: Array<{ id: string; name: string; facilityName?: string }>;
+  instrumentOptions?: Array<{
+    id: string;
+    name: string;
+    facilityName?: string;
+  }>;
   edgeOptions?: Array<{ id: string; targetatom: string; corestate: string }>;
-  availableEdgeOptions?: Array<{ id: string; targetatom: string; corestate: string }>;
+  availableEdgeOptions?: Array<{
+    id: string;
+    targetatom: string;
+    corestate: string;
+  }>;
   onAddFacility?: () => void;
   // Molecule selector props
   moleculeSearchTerm?: string;
@@ -210,11 +214,11 @@ export function AnalysisToolbar({
   onShowPhiDataChange,
   selectedGeometry,
   onSelectedGeometryChange,
-  onReloadData,
-  moleculeId,
+  onReloadData: _onReloadData,
+  moleculeId: _moleculeId,
   instrumentId,
   edgeId,
-  onMoleculeChange,
+  onMoleculeChange: _onMoleculeChange,
   onInstrumentChange,
   onEdgeChange,
   instrumentOptions = [],
@@ -346,9 +350,8 @@ export function AnalysisToolbar({
         currentManualPeaks.some((peak, idx) => {
           const refPeak = manualPeaksRef.current[idx];
           return (
-            !refPeak ||
-            peak.energy !== refPeak.energy ||
-            (peak.id ?? "") !== (refPeak.id ?? "")
+            peak.energy !== refPeak?.energy ||
+            (peak.id ?? "") !== (refPeak?.id ?? "")
           );
         });
       if (manualPeaksChanged) {
@@ -925,7 +928,7 @@ export function AnalysisToolbar({
           <button
             type="button"
             onClick={() => setIsCollapsed(true)}
-            className="absolute right-3 top-3 z-10 rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            className="absolute top-3 right-3 z-10 rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
             aria-label="Collapse toolbar"
           >
             <ChevronLeftIcon className="h-4 w-4" />
@@ -935,7 +938,7 @@ export function AnalysisToolbar({
           <button
             type="button"
             onClick={() => setIsCollapsed(false)}
-            className="absolute right-3 top-3 z-10 rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            className="absolute top-3 right-3 z-10 rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
             aria-label="Expand toolbar"
           >
             <ChevronRightIcon className="h-4 w-4" />
@@ -1005,7 +1008,8 @@ export function AnalysisToolbar({
                 isInvisible: peaks.length === 0,
                 shape: "rectangle",
                 showOutline: true,
-                className: "relative [&_.badge]:bg-white [&_.badge]:text-gray-900 [&_.badge]:text-[10px] [&_.badge]:font-semibold [&_.badge]:h-4 [&_.badge]:min-w-4 [&_.badge]:px-1 [&_.badge]:rounded-full [&_.badge]:border [&_.badge]:border-gray-900 dark:[&_.badge]:border-gray-100",
+                className:
+                  "relative [&_.badge]:bg-white [&_.badge]:text-gray-900 [&_.badge]:text-[10px] [&_.badge]:font-semibold [&_.badge]:h-4 [&_.badge]:min-w-4 [&_.badge]:px-1 [&_.badge]:rounded-full [&_.badge]:border [&_.badge]:border-gray-900 dark:[&_.badge]:border-gray-100",
               }}
             />
             <ToggleIconButton
@@ -1030,89 +1034,90 @@ export function AnalysisToolbar({
           <>
             {/* Horizontal Icon Toolbar */}
             <div className="mb-4 flex items-center gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
-          <ToggleIconButton
-            icon={
-              <Cog6ToothIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-            }
-            isActive={selectedTool === "config"}
-            onClick={() => setSelectedTool("config")}
-            ariaLabel="Configuration"
-            className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-              selectedTool === "config"
-                ? "border-accent bg-gray-100 dark:bg-gray-700"
-                : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-            }`}
-            tooltip={{
-              content: "Configure molecule, instrument, and edge",
-              placement: "top",
-              offset: 8,
-            }}
-          />
-          <ToggleIconButton
-            icon={
-              <Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-            }
-            isActive={selectedTool === "normalize"}
-            onClick={() => setSelectedTool("normalize")}
-            ariaLabel="Normalize spectrum"
-            className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-              selectedTool === "normalize"
-                ? "border-accent bg-gray-100 dark:bg-gray-700"
-                : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-            }`}
-            tooltip={{
-              content:
-                "Normalize spectrum using bare atom absorption or 0-1 mapping",
-              placement: "top",
-              offset: 8,
-            }}
-          />
-          <ToggleIconButton
-            icon={
-              <Mountain className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-            }
-            isActive={selectedTool === "peaks"}
-            onClick={() => setSelectedTool("peaks")}
-            ariaLabel="Identify peaks"
-            className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-              selectedTool === "peaks"
-                ? "border-accent bg-gray-100 dark:bg-gray-700"
-                : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-            }`}
-            tooltip={{
-              content:
-                "Identify peaks in spectrum using automatic detection or manual entry",
-              placement: "top",
-              offset: 8,
-            }}
-            badge={{
-              content: peaks.length,
-              color: "primary",
-              size: "sm",
-              isInvisible: peaks.length === 0,
-              shape: "rectangle",
-              showOutline: true,
-              className: "relative [&_.badge]:bg-white [&_.badge]:text-gray-900 [&_.badge]:text-[10px] [&_.badge]:font-semibold [&_.badge]:h-4 [&_.badge]:min-w-4 [&_.badge]:px-1 [&_.badge]:rounded-full [&_.badge]:border [&_.badge]:border-gray-900 dark:[&_.badge]:border-gray-100",
-            }}
-          />
-          <ToggleIconButton
-            text="Δϴ"
-            isActive={selectedTool === "difference"}
-            onClick={() => setSelectedTool("difference")}
-            ariaLabel="Difference spectra"
-            className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-              selectedTool === "difference"
-                ? "border-accent bg-gray-100 dark:bg-gray-700"
-                : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-            }`}
-            tooltip={{
-              content:
-                "Calculate difference spectra for pairs of incident angles",
-              placement: "top",
-              offset: 8,
-            }}
-          />
-        </div>
+              <ToggleIconButton
+                icon={
+                  <Cog6ToothIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+                }
+                isActive={selectedTool === "config"}
+                onClick={() => setSelectedTool("config")}
+                ariaLabel="Configuration"
+                className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+                  selectedTool === "config"
+                    ? "border-accent bg-gray-100 dark:bg-gray-700"
+                    : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                }`}
+                tooltip={{
+                  content: "Configure molecule, instrument, and edge",
+                  placement: "top",
+                  offset: 8,
+                }}
+              />
+              <ToggleIconButton
+                icon={
+                  <Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+                }
+                isActive={selectedTool === "normalize"}
+                onClick={() => setSelectedTool("normalize")}
+                ariaLabel="Normalize spectrum"
+                className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+                  selectedTool === "normalize"
+                    ? "border-accent bg-gray-100 dark:bg-gray-700"
+                    : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                }`}
+                tooltip={{
+                  content:
+                    "Normalize spectrum using bare atom absorption or 0-1 mapping",
+                  placement: "top",
+                  offset: 8,
+                }}
+              />
+              <ToggleIconButton
+                icon={
+                  <Mountain className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+                }
+                isActive={selectedTool === "peaks"}
+                onClick={() => setSelectedTool("peaks")}
+                ariaLabel="Identify peaks"
+                className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+                  selectedTool === "peaks"
+                    ? "border-accent bg-gray-100 dark:bg-gray-700"
+                    : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                }`}
+                tooltip={{
+                  content:
+                    "Identify peaks in spectrum using automatic detection or manual entry",
+                  placement: "top",
+                  offset: 8,
+                }}
+                badge={{
+                  content: peaks.length,
+                  color: "primary",
+                  size: "sm",
+                  isInvisible: peaks.length === 0,
+                  shape: "rectangle",
+                  showOutline: true,
+                  className:
+                    "relative [&_.badge]:bg-white [&_.badge]:text-gray-900 [&_.badge]:text-[10px] [&_.badge]:font-semibold [&_.badge]:h-4 [&_.badge]:min-w-4 [&_.badge]:px-1 [&_.badge]:rounded-full [&_.badge]:border [&_.badge]:border-gray-900 dark:[&_.badge]:border-gray-100",
+                }}
+              />
+              <ToggleIconButton
+                text="Δϴ"
+                isActive={selectedTool === "difference"}
+                onClick={() => setSelectedTool("difference")}
+                ariaLabel="Difference spectra"
+                className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+                  selectedTool === "difference"
+                    ? "border-accent bg-gray-100 dark:bg-gray-700"
+                    : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+                }`}
+                tooltip={{
+                  content:
+                    "Calculate difference spectra for pairs of incident angles",
+                  placement: "top",
+                  offset: 8,
+                }}
+              />
+            </div>
           </>
         )}
 
@@ -1149,8 +1154,12 @@ export function AnalysisToolbar({
                           isSuggesting={isMoleculeSuggesting ?? false}
                           isManualSearching={isMoleculeManualSearching ?? false}
                           selectedMolecule={selectedMolecule ?? null}
-                          selectedPreferredName={selectedMoleculePreferredName ?? ""}
-                          setSelectedPreferredName={onSelectedMoleculePreferredNameChange ?? noopString}
+                          selectedPreferredName={
+                            selectedMoleculePreferredName ?? ""
+                          }
+                          setSelectedPreferredName={
+                            onSelectedMoleculePreferredNameChange ?? noopString
+                          }
                           allMoleculeNames={allMoleculeNames ?? []}
                           onUseMolecule={onUseMolecule ?? noopMolecule}
                           onManualSearch={onMoleculeManualSearch ?? noop}
@@ -1166,10 +1175,12 @@ export function AnalysisToolbar({
                                   Edge atom does not match molecule composition
                                 </p>
                                 <p className="mt-1">
-                                  Selected edge target atom ({selectedEdge?.targetatom}) is not
-                                  present in {selectedMolecule.commonName} (
-                                  {selectedMolecule.chemicalFormula}). Please select an edge for
-                                  an atom present in the molecule.
+                                  Selected edge target atom (
+                                  {selectedEdge?.targetatom}) is not present in{" "}
+                                  {selectedMolecule.commonName} (
+                                  {selectedMolecule.chemicalFormula}). Please
+                                  select an edge for an atom present in the
+                                  molecule.
                                 </p>
                               </div>
                             </div>
@@ -1228,1144 +1239,1183 @@ export function AnalysisToolbar({
               </ScrollShadow>
             )}
             {selectedTool === "normalize" && (
-            <div className="space-y-4 pt-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Normalization
-              </h3>
-              {/* Normalization Type Selector */}
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                  Normalization Method
-                </label>
-                <select
-                  value={normalizationType}
-                  onChange={(e) =>
-                    onNormalizationTypeChange(
-                      e.target.value as NormalizationType,
-                    )
-                  }
-                  disabled={normalizationLocked}
-                  className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                >
-                  <option value="bare-atom">Bare Atom</option>
-                  <option value="zero-one">Absolute</option>
-                </select>
-                {normalizationType === "bare-atom" && (
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Normalizes using bare atom absorption reference
-                  </p>
-                )}
-                {normalizationType === "zero-one" && (
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Maps pre-edge to 0 and post-edge to 1 (absolute
-                    normalization)
-                  </p>
-                )}
-              </div>
-
-              {/* Three Toggle Buttons: Pre Edge, Post Edge, Lock */}
-              <div className="flex items-center gap-2">
-                {/* Pre Edge Button */}
-                <SubToolButton
-                  icon={<ArrowLeftToLine className="h-4 w-4" />}
-                  label="Pre"
-                  tooltip="Select pre-edge region"
-                  isActive={isSelectingPreEdge}
-                  onClick={onPreEdgeSelect}
-                  disabled={!hasMolecule || !hasData}
-                />
-
-                {/* Post Edge Button */}
-                <SubToolButton
-                  icon={<ArrowRightToLine className="h-4 w-4" />}
-                  label="Post"
-                  tooltip="Select post-edge region"
-                  isActive={isSelectingPostEdge}
-                  onClick={onPostEdgeSelect}
-                  disabled={!hasMolecule || !hasData}
-                />
-
-                {/* Lock Button */}
-                {hasNormalization && (
-                  <SubToolButton
-                    icon={
-                      normalizationLocked ? (
-                        <LockClosedIcon className="h-4 w-4" />
-                      ) : (
-                        <LockOpenIcon className="h-4 w-4" />
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Normalization
+                </h3>
+                {/* Normalization Type Selector */}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Normalization Method
+                  </label>
+                  <select
+                    value={normalizationType}
+                    onChange={(e) =>
+                      onNormalizationTypeChange(
+                        e.target.value as NormalizationType,
                       )
                     }
-                    tooltip={
-                      normalizationLocked
-                        ? "Unlock normalization"
-                        : "Lock normalization"
-                    }
-                    isActive={normalizationLocked}
-                    onClick={onToggleLock}
-                    disabled={!hasNormalization}
-                    iconOnly
+                    disabled={normalizationLocked}
+                    className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  >
+                    <option value="bare-atom">Bare Atom</option>
+                    <option value="zero-one">Absolute</option>
+                  </select>
+                  {normalizationType === "bare-atom" && (
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Normalizes using bare atom absorption reference
+                    </p>
+                  )}
+                  {normalizationType === "zero-one" && (
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Maps pre-edge to 0 and post-edge to 1 (absolute
+                      normalization)
+                    </p>
+                  )}
+                </div>
+
+                {/* Three Toggle Buttons: Pre Edge, Post Edge, Lock */}
+                <div className="flex items-center gap-2">
+                  {/* Pre Edge Button */}
+                  <SubToolButton
+                    icon={<ArrowLeftToLine className="h-4 w-4" />}
+                    label="Pre"
+                    tooltip="Select pre-edge region"
+                    isActive={isSelectingPreEdge}
+                    onClick={onPreEdgeSelect}
+                    disabled={!hasMolecule || !hasData}
                   />
+
+                  {/* Post Edge Button */}
+                  <SubToolButton
+                    icon={<ArrowRightToLine className="h-4 w-4" />}
+                    label="Post"
+                    tooltip="Select post-edge region"
+                    isActive={isSelectingPostEdge}
+                    onClick={onPostEdgeSelect}
+                    disabled={!hasMolecule || !hasData}
+                  />
+
+                  {/* Lock Button */}
+                  {hasNormalization && (
+                    <SubToolButton
+                      icon={
+                        normalizationLocked ? (
+                          <LockClosedIcon className="h-4 w-4" />
+                        ) : (
+                          <LockOpenIcon className="h-4 w-4" />
+                        )
+                      }
+                      tooltip={
+                        normalizationLocked
+                          ? "Unlock normalization"
+                          : "Lock normalization"
+                      }
+                      isActive={normalizationLocked}
+                      onClick={onToggleLock}
+                      disabled={!hasNormalization}
+                      iconOnly
+                    />
+                  )}
+                </div>
+
+                {/* Pre Edge Min/Max Inputs */}
+                {isSelectingPreEdge && normalizationRegions.pre && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Min (eV)
+                      </label>
+                      <Input
+                        type="number"
+                        variant="secondary"
+                        value={
+                          Math.round(normalizationRegions.pre[0] * 100) / 100
+                        }
+                        onChange={(e) =>
+                          handlePreEdgeRangeChange(
+                            0,
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
+                        step={0.01}
+                        min={0}
+                        className="w-full text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Max (eV)
+                      </label>
+                      <Input
+                        type="number"
+                        variant="secondary"
+                        value={
+                          Math.round(normalizationRegions.pre[1] * 100) / 100
+                        }
+                        onChange={(e) =>
+                          handlePreEdgeRangeChange(
+                            1,
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
+                        step={0.01}
+                        min={0}
+                        className="w-full text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Post Edge Min/Max Inputs */}
+                {isSelectingPostEdge && normalizationRegions.post && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Min (eV)
+                      </label>
+                      <Input
+                        type="number"
+                        variant="secondary"
+                        value={
+                          Math.round(normalizationRegions.post[0] * 100) / 100
+                        }
+                        onChange={(e) =>
+                          handlePostEdgeRangeChange(
+                            0,
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
+                        step={0.01}
+                        min={0}
+                        className="w-full text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Max (eV)
+                      </label>
+                      <Input
+                        type="number"
+                        variant="secondary"
+                        value={
+                          Math.round(normalizationRegions.post[1] * 100) / 100
+                        }
+                        onChange={(e) =>
+                          handlePostEdgeRangeChange(
+                            1,
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
+                        step={0.01}
+                        min={0}
+                        className="w-full text-xs"
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
+            )}
 
-              {/* Pre Edge Min/Max Inputs */}
-              {isSelectingPreEdge && normalizationRegions.pre && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                      Min (eV)
-                    </label>
-                    <Input
-                      type="number"
-                      variant="secondary"
-                      value={
-                        Math.round(normalizationRegions.pre[0] * 100) / 100
-                      }
-                      onChange={(e) =>
-                        handlePreEdgeRangeChange(0, parseFloat(e.target.value) || 0)
-                      }
-                      step={0.01}
-                      min={0}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                      Max (eV)
-                    </label>
-                    <Input
-                      type="number"
-                      variant="secondary"
-                      value={
-                        Math.round(normalizationRegions.pre[1] * 100) / 100
-                      }
-                      onChange={(e) =>
-                        handlePreEdgeRangeChange(1, parseFloat(e.target.value) || 0)
-                      }
-                      step={0.01}
-                      min={0}
-                      className="w-full text-xs"
-                    />
+            {selectedTool === "peaks" && (
+              <div className="flex min-h-0 flex-1 flex-col gap-3 pt-2">
+                <h3 className="shrink-0 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Peak Detection
+                </h3>
+                <div className="shrink-0 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                  <div className="flex items-start gap-2">
+                    <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>Peak assignments are subjective.</span>
                   </div>
                 </div>
-              )}
-
-              {/* Post Edge Min/Max Inputs */}
-              {isSelectingPostEdge && normalizationRegions.post && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                      Min (eV)
-                    </label>
-                    <Input
-                      type="number"
-                      variant="secondary"
-                      value={
-                        Math.round(normalizationRegions.post[0] * 100) / 100
-                      }
-                      onChange={(e) =>
-                        handlePostEdgeRangeChange(0, parseFloat(e.target.value) || 0)
-                      }
-                      step={0.01}
-                      min={0}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                      Max (eV)
-                    </label>
-                    <Input
-                      type="number"
-                      variant="secondary"
-                      value={
-                        Math.round(normalizationRegions.post[1] * 100) / 100
-                      }
-                      onChange={(e) =>
-                        handlePostEdgeRangeChange(1, parseFloat(e.target.value) || 0)
-                      }
-                      step={0.01}
-                      min={0}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {selectedTool === "peaks" && (
-            <div className="flex min-h-0 flex-1 flex-col gap-3 pt-2">
-              <h3 className="shrink-0 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Peak Detection
-              </h3>
-              <div className="shrink-0 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-                <div className="flex items-start gap-2">
-                  <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>Peak assignments are subjective.</span>
-                </div>
-              </div>
-              {/* Geometry Selector for Peak Visualization */}
-              {(() => {
-                const pointsToCheck = normalizedPoints ?? spectrumPoints;
-                const geometries = new Map<
-                  string,
-                  { theta?: number; phi?: number; label: string }
-                >();
-                pointsToCheck.forEach((point) => {
-                  const hasGeometry =
-                    typeof point.theta === "number" &&
-                    Number.isFinite(point.theta) &&
-                    typeof point.phi === "number" &&
-                    Number.isFinite(point.phi);
-                  const key = hasGeometry
-                    ? `${point.theta}:${point.phi}`
-                    : "fixed";
-                  if (!geometries.has(key)) {
-                    const thetaLabel =
+                {/* Geometry Selector for Peak Visualization */}
+                {(() => {
+                  const pointsToCheck = normalizedPoints ?? spectrumPoints;
+                  const geometries = new Map<
+                    string,
+                    { theta?: number; phi?: number; label: string }
+                  >();
+                  pointsToCheck.forEach((point) => {
+                    const hasGeometry =
                       typeof point.theta === "number" &&
-                      Number.isFinite(point.theta)
-                        ? `θ=${point.theta.toFixed(1)}°`
-                        : null;
-                    const phiLabel =
+                      Number.isFinite(point.theta) &&
                       typeof point.phi === "number" &&
-                      Number.isFinite(point.phi)
-                        ? `φ=${point.phi.toFixed(1)}°`
-                        : null;
-                    const label =
-                      thetaLabel || phiLabel
-                        ? [thetaLabel, phiLabel].filter(Boolean).join(", ")
-                        : "Fixed Geometry";
-                    geometries.set(key, {
-                      theta: point.theta,
-                      phi: point.phi,
-                      label,
-                    });
-                  }
-                });
-                const geometryArray = Array.from(geometries.values());
-                if (geometryArray.length > 1) {
-                  return (
-                    <div className="shrink-0">
-                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Geometry for Peak Fitting
-                      </label>
-                      <select
-                        value={
-                          selectedGeometry
-                            ? `${selectedGeometry.theta ?? ""}:${selectedGeometry.phi ?? ""}`
-                            : "none"
-                        }
-                        onChange={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (e.target.value === "none") {
-                            onSelectedGeometryChange?.(null);
-                          } else {
-                            const [thetaStr, phiStr] =
-                              e.target.value.split(":");
-                            const theta =
-                              thetaStr && thetaStr !== ""
-                                ? parseFloat(thetaStr)
-                                : undefined;
-                            const phi =
-                              phiStr && phiStr !== ""
-                                ? parseFloat(phiStr)
-                                : undefined;
-                            onSelectedGeometryChange?.({ theta, phi });
+                      Number.isFinite(point.phi);
+                    const key = hasGeometry
+                      ? `${point.theta}:${point.phi}`
+                      : "fixed";
+                    if (!geometries.has(key)) {
+                      const thetaLabel =
+                        typeof point.theta === "number" &&
+                        Number.isFinite(point.theta)
+                          ? `θ=${point.theta.toFixed(1)}°`
+                          : null;
+                      const phiLabel =
+                        typeof point.phi === "number" &&
+                        Number.isFinite(point.phi)
+                          ? `φ=${point.phi.toFixed(1)}°`
+                          : null;
+                      const label =
+                        thetaLabel || phiLabel
+                          ? [thetaLabel, phiLabel].filter(Boolean).join(", ")
+                          : "Fixed Geometry";
+                      geometries.set(key, {
+                        theta: point.theta,
+                        phi: point.phi,
+                        label,
+                      });
+                    }
+                  });
+                  const geometryArray = Array.from(geometries.values());
+                  if (geometryArray.length > 1) {
+                    return (
+                      <div className="shrink-0">
+                        <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Geometry for Peak Fitting
+                        </label>
+                        <select
+                          value={
+                            selectedGeometry
+                              ? `${selectedGeometry.theta ?? ""}:${selectedGeometry.phi ?? ""}`
+                              : "none"
                           }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                      >
-                        <option value="none">Select geometry...</option>
-                        {geometryArray.map((geo, idx) => {
-                          const value = `${geo.theta ?? ""}:${geo.phi ?? ""}`;
-                          return (
-                            <option key={idx} value={value}>
-                              {geo.label}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-              <div className="flex shrink-0 flex-col gap-3">
-                <div className="flex gap-2">
-                  <SubToolButton
-                    icon={<PencilIcon className="h-4 w-4" />}
-                    tooltip="Click on plot to add peaks manually"
-                    isActive={peakDetectionMode === "manual"}
-                    onClick={handleManualPeakMode}
-                    disabled={spectrumPoints.length === 0}
-                    iconOnly
-                  />
-                  <SubToolButton
-                    icon={<SparklesIcon className="h-4 w-4" />}
-                    tooltip="Auto-detect peaks"
-                    isActive={peakDetectionMode === "auto"}
-                    onClick={handleAutoDetectPeaks}
-                    disabled={spectrumPoints.length === 0}
-                    iconOnly
-                  />
-                  <SubToolButton
-                    icon={<TrashIcon className="h-4 w-4" />}
-                    tooltip="Clear all peaks"
-                    isActive={false}
-                    onClick={handleClearAllPeaks}
-                    disabled={peaks.length === 0}
-                    iconOnly
-                  />
-                </div>
-
-                {/* Peak Detection Settings - shown only when auto-detect mode is active */}
-                {peakDetectionMode === "auto" && (
-                  <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
-                    <Tooltip delay={0}>
-                      <label className="mb-2 block cursor-help text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Prominence:{" "}
-                        {(peakParams.minProminence ?? 0.05).toFixed(2)}
-                      </label>
-                      <Tooltip.Content
-                        placement="top"
-                        className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg"
-                      >
-                        Minimum prominence as fraction of max intensity
-                      </Tooltip.Content>
-                    </Tooltip>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 py-2">
-                        <Slider
-                          step={0.01}
-                          minValue={0}
-                          maxValue={1}
-                          value={peakParams.minProminence ?? 0.05}
-                          onChange={(value) => {
-                            const numValue =
-                              typeof value === "number"
-                                ? value
-                                : Array.isArray(value) && value.length > 0
-                                  ? value[0]
-                                  : 0.05;
-                            if (
-                              typeof numValue === "number" &&
-                              Number.isFinite(numValue)
-                            ) {
-                              setPeakParams({
-                                ...peakParams,
-                                minProminence: numValue,
-                              });
+                          onChange={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (e.target.value === "none") {
+                              onSelectedGeometryChange?.(null);
+                            } else {
+                              const [thetaStr, phiStr] =
+                                e.target.value.split(":");
+                              const theta =
+                                thetaStr && thetaStr !== ""
+                                  ? parseFloat(thetaStr)
+                                  : undefined;
+                              const phi =
+                                phiStr && phiStr !== ""
+                                  ? parseFloat(phiStr)
+                                  : undefined;
+                              onSelectedGeometryChange?.({ theta, phi });
                             }
                           }}
-                          className="w-full"
+                          onClick={(e) => e.stopPropagation()}
+                          className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                         >
-                          <Slider.Track className="h-2 bg-gray-200 dark:bg-gray-700">
-                            <Slider.Fill className="bg-accent" />
-                            <Slider.Thumb className="w-4 h-4 bg-accent border-2 border-accent cursor-pointer" />
-                          </Slider.Track>
-                        </Slider>
+                          <option value="none">Select geometry...</option>
+                          {geometryArray.map((geo, idx) => {
+                            const value = `${geo.theta ?? ""}:${geo.phi ?? ""}`;
+                            return (
+                              <option key={idx} value={value}>
+                                {geo.label}
+                              </option>
+                            );
+                          })}
+                        </select>
                       </div>
-                      <Button
-                        type="button"
-                        variant="primary"
-                        size="sm"
-                        onClick={() => runPeakDetection()}
-                        isDisabled={spectrumPoints.length === 0}
-                        className="shrink-0"
-                      >
-                        Go
-                      </Button>
-                    </div>
+                    );
+                  }
+                  return null;
+                })()}
+                <div className="flex shrink-0 flex-col gap-3">
+                  <div className="flex gap-2">
+                    <SubToolButton
+                      icon={<PencilIcon className="h-4 w-4" />}
+                      tooltip="Click on plot to add peaks manually"
+                      isActive={peakDetectionMode === "manual"}
+                      onClick={handleManualPeakMode}
+                      disabled={spectrumPoints.length === 0}
+                      iconOnly
+                    />
+                    <SubToolButton
+                      icon={<SparklesIcon className="h-4 w-4" />}
+                      tooltip="Auto-detect peaks"
+                      isActive={peakDetectionMode === "auto"}
+                      onClick={handleAutoDetectPeaks}
+                      disabled={spectrumPoints.length === 0}
+                      iconOnly
+                    />
+                    <SubToolButton
+                      icon={<TrashIcon className="h-4 w-4" />}
+                      tooltip="Clear all peaks"
+                      isActive={false}
+                      onClick={handleClearAllPeaks}
+                      disabled={peaks.length === 0}
+                      iconOnly
+                    />
                   </div>
-                )}
-              </div>
 
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <ScrollShadow hideScrollBar className="flex-1 overflow-y-auto">
-                  <div className="space-y-2">
-                    {/* Step peak - always at the top */}
-                    {(() => {
-                      const stepPeak = peaks.find((p) => p.isStep);
-                      if (!stepPeak) {
-                        // Create a template step peak display if none exists
-                        return (
-                          <div
-                            className={`relative flex flex-col rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50`}
+                  {/* Peak Detection Settings - shown only when auto-detect mode is active */}
+                  {peakDetectionMode === "auto" && (
+                    <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+                      <Tooltip delay={0}>
+                        <label className="mb-2 block cursor-help text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Prominence:{" "}
+                          {(peakParams.minProminence ?? 0.05).toFixed(2)}
+                        </label>
+                        <Tooltip.Content
+                          placement="top"
+                          className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"
+                        >
+                          Minimum prominence as fraction of max intensity
+                        </Tooltip.Content>
+                      </Tooltip>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 py-2">
+                          <Slider
+                            step={0.01}
+                            minValue={0}
+                            maxValue={1}
+                            value={peakParams.minProminence ?? 0.05}
+                            onChange={(value) => {
+                              const numValue =
+                                typeof value === "number"
+                                  ? value
+                                  : Array.isArray(value) && value.length > 0
+                                    ? value[0]
+                                    : 0.05;
+                              if (
+                                typeof numValue === "number" &&
+                                Number.isFinite(numValue)
+                              ) {
+                                setPeakParams({
+                                  ...peakParams,
+                                  minProminence: numValue,
+                                });
+                              }
+                            }}
+                            className="w-full"
                           >
-                            <div className="relative flex h-7 items-center gap-1.5 rounded-lg bg-gray-300 px-1.5 dark:bg-gray-600">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const templateId = "step-peak-template";
-                                  togglePeakExpansion(templateId);
-                                }}
-                                className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-gray-400 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-500 dark:hover:text-gray-100"
-                                title="Expand"
-                                aria-label="Expand"
-                              >
-                                {expandedPeakIds.has("step-peak-template") ? (
-                                  <ChevronUpIcon className="h-3 w-3" />
-                                ) : (
-                                  <ChevronDownIcon className="h-3 w-3" />
-                                )}
-                              </button>
-                              <div className="min-w-0 flex-1">
-                                <div className="px-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                                  Step
+                            <Slider.Track className="h-2 bg-gray-200 dark:bg-gray-700">
+                              <Slider.Fill className="bg-accent" />
+                              <Slider.Thumb className="bg-accent border-accent h-4 w-4 cursor-pointer border-2" />
+                            </Slider.Track>
+                          </Slider>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          onClick={() => runPeakDetection()}
+                          isDisabled={spectrumPoints.length === 0}
+                          className="shrink-0"
+                        >
+                          Go
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <ScrollShadow
+                    hideScrollBar
+                    className="flex-1 overflow-y-auto"
+                  >
+                    <div className="space-y-2">
+                      {/* Step peak - always at the top */}
+                      {(() => {
+                        const stepPeak = peaks.find((p) => p.isStep);
+                        if (!stepPeak) {
+                          // Create a template step peak display if none exists
+                          return (
+                            <div
+                              className={`relative flex flex-col rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50`}
+                            >
+                              <div className="relative flex h-7 items-center gap-1.5 rounded-lg bg-gray-300 px-1.5 dark:bg-gray-600">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const templateId = "step-peak-template";
+                                    togglePeakExpansion(templateId);
+                                  }}
+                                  className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-gray-400 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-500 dark:hover:text-gray-100"
+                                  title="Expand"
+                                  aria-label="Expand"
+                                >
+                                  {expandedPeakIds.has("step-peak-template") ? (
+                                    <ChevronUpIcon className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronDownIcon className="h-3 w-3" />
+                                  )}
+                                </button>
+                                <div className="min-w-0 flex-1">
+                                  <div className="px-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                    Step
+                                  </div>
                                 </div>
                               </div>
+                              {expandedPeakIds.has("step-peak-template") && (
+                                <div className="border-t border-gray-200 p-1.5 dark:border-gray-700">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    Step function parameters (template)
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                            {expandedPeakIds.has("step-peak-template") && (
-                              <div className="border-t border-gray-200 p-1.5 dark:border-gray-700">
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  Step function parameters (template)
+                          );
+                        }
+                        return (
+                          <div key={stepPeak.id ?? "step-peak"}>
+                            {(() => {
+                              const peakId =
+                                "id" in stepPeak &&
+                                typeof (stepPeak as { id?: string }).id ===
+                                  "string"
+                                  ? (stepPeak as { id: string }).id
+                                  : "step-peak";
+                              const isSelected = selectedPeakId === peakId;
+                              const isExpanded = expandedPeakIds.has(peakId);
+                              return (
+                                <div
+                                  className={`relative flex flex-col rounded-lg border ${
+                                    isSelected
+                                      ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
+                                      : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
+                                  }`}
+                                >
+                                  {/* Compact top bar with Energy input, expand button, and X button */}
+                                  <div className="relative flex h-7 items-center gap-1.5 rounded-lg bg-gray-300 px-1.5 dark:bg-gray-600">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        togglePeakExpansion(peakId);
+                                      }}
+                                      className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-gray-400 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-500 dark:hover:text-gray-100"
+                                      title={isExpanded ? "Collapse" : "Expand"}
+                                      aria-label={
+                                        isExpanded ? "Collapse" : "Expand"
+                                      }
+                                    >
+                                      {isExpanded ? (
+                                        <ChevronUpIcon className="h-3 w-3" />
+                                      ) : (
+                                        <ChevronDownIcon className="h-3 w-3" />
+                                      )}
+                                    </button>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="px-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        Step
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Expandable section with Step parameters */}
+                                  {isExpanded && (
+                                    <div className="border-t border-gray-200 p-1.5 dark:border-gray-700">
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        Step function parameters (template)
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            )}
+                              );
+                            })()}
                           </div>
                         );
-                      }
-                      const stepPeakIndex = peaks.indexOf(stepPeak);
-                      return (
-                        <div key={stepPeak.id ?? "step-peak"}>
-                          {(() => {
-                            const peakId =
-                              "id" in stepPeak &&
-                              typeof (stepPeak as { id?: string }).id ===
-                                "string"
-                                ? (stepPeak as { id: string }).id
-                                : "step-peak";
-                            const isSelected = selectedPeakId === peakId;
-                            const isExpanded = expandedPeakIds.has(peakId);
-                            return (
-                              <div
-                                className={`relative flex flex-col rounded-lg border ${
-                                  isSelected
-                                    ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
-                                    : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
-                                }`}
-                              >
-                                {/* Compact top bar with Energy input, expand button, and X button */}
-                                <div className="relative flex h-7 items-center gap-1.5 rounded-lg bg-gray-300 px-1.5 dark:bg-gray-600">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      togglePeakExpansion(peakId);
-                                    }}
-                                    className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-gray-400 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-500 dark:hover:text-gray-100"
-                                    title={isExpanded ? "Collapse" : "Expand"}
-                                    aria-label={
-                                      isExpanded ? "Collapse" : "Expand"
-                                    }
-                                  >
-                                    {isExpanded ? (
-                                      <ChevronUpIcon className="h-3 w-3" />
-                                    ) : (
-                                      <ChevronDownIcon className="h-3 w-3" />
-                                    )}
-                                  </button>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="px-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                                      Step
-                                    </div>
-                                  </div>
-                                </div>
+                      })()}
 
-                                {/* Expandable section with Step parameters */}
-                                {isExpanded && (
-                                  <div className="border-t border-gray-200 p-1.5 dark:border-gray-700">
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      Step function parameters (template)
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      );
-                    })()}
+                      {peaks.filter((p) => !p.isStep).length === 0 &&
+                        !isAddingPeak && (
+                          <div className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                            No peaks identified. Click &quot;Auto-detect&quot;
+                            or add manually.
+                          </div>
+                        )}
 
-                    {peaks.filter((p) => !p.isStep).length === 0 &&
-                      !isAddingPeak && (
-                        <div className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">
-                          No peaks identified. Click &quot;Auto-detect&quot; or
-                          add manually.
-                        </div>
-                      )}
-
-                    {peaks.filter((p) => !p.isStep).length > 0 && (
-                      <div className="space-y-2">
-                        {peaks
-                          .filter((p) => !p.isStep)
-                          .map((peak) => {
-                            // Find the actual index in the full peaks array
-                            const actualIndex = peaks.indexOf(peak);
-                            const peakId =
-                              "id" in peak &&
-                              typeof (peak as { id?: string }).id === "string"
-                                ? (peak as { id: string }).id
-                                : `peak-${actualIndex}`;
-                            const isSelected = selectedPeakId === peakId;
-                            const isExpanded = expandedPeakIds.has(peakId);
-                            return (
-                              <div
-                                key={peakId}
-                                className={`relative flex flex-col rounded-lg border ${
-                                  isSelected
-                                    ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
-                                    : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
-                                }`}
-                              >
-                                {/* Compact top bar with Energy input, expand button, and X button */}
-                                <div className="relative flex h-7 items-center gap-1.5 rounded-lg bg-gray-300 px-1.5 dark:bg-gray-600">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      togglePeakExpansion(peakId);
-                                    }}
-                                    className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-gray-400 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-500 dark:hover:text-gray-100"
-                                    title={isExpanded ? "Collapse" : "Expand"}
-                                    aria-label={
-                                      isExpanded ? "Collapse" : "Expand"
-                                    }
-                                  >
-                                    {isExpanded ? (
-                                      <ChevronUpIcon className="h-3 w-3" />
-                                    ) : (
-                                      <ChevronDownIcon className="h-3 w-3" />
-                                    )}
-                                  </button>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="relative w-full">
-                                      <Input
-                                        type="number"
-                                        variant="secondary"
-                                        value={
-                                          Math.round(peak.energy * 100) / 100
-                                        }
-                                        onChange={(e) => {
-                                          const rounded =
-                                            Math.round(parseFloat(e.target.value) * 100) / 100;
-                                          if (Number.isFinite(rounded)) {
-                                            const actualIndex =
-                                              peaks.indexOf(peak);
-                                            if (actualIndex !== -1) {
-                                              handleUpdatePeak(actualIndex, {
-                                                energy: rounded,
-                                              });
-                                            }
+                      {peaks.filter((p) => !p.isStep).length > 0 && (
+                        <div className="space-y-2">
+                          {peaks
+                            .filter((p) => !p.isStep)
+                            .map((peak) => {
+                              // Find the actual index in the full peaks array
+                              const actualIndex = peaks.indexOf(peak);
+                              const peakId =
+                                "id" in peak &&
+                                typeof (peak as { id?: string }).id === "string"
+                                  ? (peak as { id: string }).id
+                                  : `peak-${actualIndex}`;
+                              const isSelected = selectedPeakId === peakId;
+                              const isExpanded = expandedPeakIds.has(peakId);
+                              return (
+                                <div
+                                  key={peakId}
+                                  className={`relative flex flex-col rounded-lg border ${
+                                    isSelected
+                                      ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
+                                      : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
+                                  }`}
+                                >
+                                  {/* Compact top bar with Energy input, expand button, and X button */}
+                                  <div className="relative flex h-7 items-center gap-1.5 rounded-lg bg-gray-300 px-1.5 dark:bg-gray-600">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        togglePeakExpansion(peakId);
+                                      }}
+                                      className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-gray-400 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-500 dark:hover:text-gray-100"
+                                      title={isExpanded ? "Collapse" : "Expand"}
+                                      aria-label={
+                                        isExpanded ? "Collapse" : "Expand"
+                                      }
+                                    >
+                                      {isExpanded ? (
+                                        <ChevronUpIcon className="h-3 w-3" />
+                                      ) : (
+                                        <ChevronDownIcon className="h-3 w-3" />
+                                      )}
+                                    </button>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="relative w-full">
+                                        <Input
+                                          type="number"
+                                          variant="secondary"
+                                          value={
+                                            Math.round(peak.energy * 100) / 100
                                           }
-                                        }}
-                                        step={0.01}
-                                        min={0}
-                                        className="w-full text-xs py-0 h-6 bg-transparent text-gray-900 dark:text-gray-100 pr-8"
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
-                                      <span className="absolute right-2 top-1/2 -translate-y-1/2 pr-0.5 text-xs text-gray-600 dark:text-gray-300 pointer-events-none">
-                                        eV
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeletePeak(actualIndex);
-                                    }}
-                                    className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-red-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-                                    title="Delete peak"
-                                    aria-label="Delete peak"
-                                  >
-                                    <XMarkIcon className="h-3 w-3" />
-                                  </button>
-                                </div>
-
-                                {/* Expandable section with Bond, Transition, Amplitude, and Width */}
-                                {isExpanded && (
-                                  <div className="border-t border-gray-200 p-1.5 dark:border-gray-700">
-                                    <div className="grid grid-cols-2 gap-1.5">
-                                      {addingCustomBondForPeak ===
-                                      actualIndex ? (
-                                        <div className="flex gap-1">
-                                          <input
-                                            type="text"
-                                            value={newCustomBondValue}
-                                            onChange={(e) =>
-                                              setNewCustomBondValue(
-                                                e.target.value,
-                                              )
-                                            }
-                                            onBlur={() => {
-                                              if (
-                                                newCustomBondValue.trim() &&
-                                                !customBonds.includes(
-                                                  newCustomBondValue.trim(),
-                                                )
-                                              ) {
-                                                setCustomBonds([
-                                                  ...customBonds,
-                                                  newCustomBondValue.trim(),
-                                                ]);
-                                              }
-                                              if (newCustomBondValue.trim()) {
+                                          onChange={(e) => {
+                                            const rounded =
+                                              Math.round(
+                                                parseFloat(e.target.value) *
+                                                  100,
+                                              ) / 100;
+                                            if (Number.isFinite(rounded)) {
+                                              const actualIndex =
+                                                peaks.indexOf(peak);
+                                              if (actualIndex !== -1) {
                                                 handleUpdatePeak(actualIndex, {
-                                                  bond: newCustomBondValue.trim(),
+                                                  energy: rounded,
                                                 });
                                               }
-                                              setAddingCustomBondForPeak(null);
-                                              setNewCustomBondValue("");
-                                            }}
-                                            onKeyDown={(e) => {
-                                              if (e.key === "Enter") {
-                                                e.currentTarget.blur();
-                                              } else if (e.key === "Escape") {
+                                            }
+                                          }}
+                                          step={0.01}
+                                          min={0}
+                                          className="h-6 w-full bg-transparent py-0 pr-8 text-xs text-gray-900 dark:text-gray-100"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                        <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 pr-0.5 text-xs text-gray-600 dark:text-gray-300">
+                                          eV
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeletePeak(actualIndex);
+                                      }}
+                                      className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-red-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                                      title="Delete peak"
+                                      aria-label="Delete peak"
+                                    >
+                                      <XMarkIcon className="h-3 w-3" />
+                                    </button>
+                                  </div>
+
+                                  {/* Expandable section with Bond, Transition, Amplitude, and Width */}
+                                  {isExpanded && (
+                                    <div className="border-t border-gray-200 p-1.5 dark:border-gray-700">
+                                      <div className="grid grid-cols-2 gap-1.5">
+                                        {addingCustomBondForPeak ===
+                                        actualIndex ? (
+                                          <div className="flex gap-1">
+                                            <input
+                                              type="text"
+                                              value={newCustomBondValue}
+                                              onChange={(e) =>
+                                                setNewCustomBondValue(
+                                                  e.target.value,
+                                                )
+                                              }
+                                              onBlur={() => {
+                                                if (
+                                                  newCustomBondValue.trim() &&
+                                                  !customBonds.includes(
+                                                    newCustomBondValue.trim(),
+                                                  )
+                                                ) {
+                                                  setCustomBonds([
+                                                    ...customBonds,
+                                                    newCustomBondValue.trim(),
+                                                  ]);
+                                                }
+                                                if (newCustomBondValue.trim()) {
+                                                  handleUpdatePeak(
+                                                    actualIndex,
+                                                    {
+                                                      bond: newCustomBondValue.trim(),
+                                                    },
+                                                  );
+                                                }
                                                 setAddingCustomBondForPeak(
                                                   null,
                                                 );
                                                 setNewCustomBondValue("");
+                                              }}
+                                              onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                  e.currentTarget.blur();
+                                                } else if (e.key === "Escape") {
+                                                  setAddingCustomBondForPeak(
+                                                    null,
+                                                  );
+                                                  setNewCustomBondValue("");
+                                                }
+                                              }}
+                                              autoFocus
+                                              placeholder="Enter bond type"
+                                              className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                              onClick={(e) =>
+                                                e.stopPropagation()
                                               }
-                                            }}
-                                            autoFocus
-                                            placeholder="Enter bond type"
-                                            className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                                            onClick={(e) => e.stopPropagation()}
-                                          />
-                                        </div>
-                                      ) : (
-                                        <select
-                                          value={peak.bond ?? ""}
-                                          onChange={(e) => {
-                                            if (
-                                              e.target.value === "__add_new__"
-                                            ) {
-                                              setAddingCustomBondForPeak(
-                                                actualIndex,
-                                              );
-                                              setNewCustomBondValue("");
-                                            } else {
-                                              handleUpdatePeak(actualIndex, {
-                                                bond:
-                                                  e.target.value || undefined,
-                                              });
-                                            }
-                                          }}
-                                          className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <option value="" disabled>
-                                            Bond
-                                          </option>
-                                          {getAllBondOptions().map((opt) => (
-                                            <option
-                                              key={opt.value}
-                                              value={opt.value}
-                                            >
-                                              {opt.label}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      )}
-                                      {addingCustomTransitionForPeak ===
-                                      actualIndex ? (
-                                        <div className="flex gap-1">
-                                          <input
-                                            type="text"
-                                            value={newCustomTransitionValue}
-                                            onChange={(e) =>
-                                              setNewCustomTransitionValue(
-                                                e.target.value,
-                                              )
-                                            }
-                                            onBlur={() => {
+                                            />
+                                          </div>
+                                        ) : (
+                                          <select
+                                            value={peak.bond ?? ""}
+                                            onChange={(e) => {
                                               if (
-                                                newCustomTransitionValue.trim() &&
-                                                !customTransitions.includes(
-                                                  newCustomTransitionValue.trim(),
-                                                )
+                                                e.target.value === "__add_new__"
                                               ) {
-                                                setCustomTransitions([
-                                                  ...customTransitions,
-                                                  newCustomTransitionValue.trim(),
-                                                ]);
-                                              }
-                                              if (
-                                                newCustomTransitionValue.trim()
-                                              ) {
+                                                setAddingCustomBondForPeak(
+                                                  actualIndex,
+                                                );
+                                                setNewCustomBondValue("");
+                                              } else {
                                                 handleUpdatePeak(actualIndex, {
-                                                  transition:
-                                                    newCustomTransitionValue.trim(),
+                                                  bond:
+                                                    e.target.value || undefined,
                                                 });
                                               }
-                                              setAddingCustomTransitionForPeak(
-                                                null,
-                                              );
-                                              setNewCustomTransitionValue("");
                                             }}
-                                            onKeyDown={(e) => {
-                                              if (e.key === "Enter") {
-                                                e.currentTarget.blur();
-                                              } else if (e.key === "Escape") {
-                                                setAddingCustomTransitionForPeak(
-                                                  null,
-                                                );
-                                                setNewCustomTransitionValue("");
-                                              }
-                                            }}
-                                            autoFocus
-                                            placeholder="Enter transition type"
                                             className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
                                             onClick={(e) => e.stopPropagation()}
-                                          />
-                                        </div>
-                                      ) : (
-                                        <select
-                                          value={peak.transition ?? ""}
-                                          onChange={(e) => {
-                                            if (
-                                              e.target.value === "__add_new__"
-                                            ) {
-                                              setAddingCustomTransitionForPeak(
-                                                actualIndex,
-                                              );
-                                              setNewCustomTransitionValue("");
-                                            } else {
-                                              handleUpdatePeak(actualIndex, {
-                                                transition:
-                                                  e.target.value || undefined,
-                                              });
-                                            }
-                                          }}
-                                          className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <option value="" disabled>
-                                            Transition
-                                          </option>
-                                          {getAllTransitionOptions().map(
-                                            (opt) => (
+                                          >
+                                            <option value="" disabled>
+                                              Bond
+                                            </option>
+                                            {getAllBondOptions().map((opt) => (
                                               <option
                                                 key={opt.value}
                                                 value={opt.value}
                                               >
                                                 {opt.label}
                                               </option>
-                                            ),
-                                          )}
-                                        </select>
-                                      )}
-                                      <Input
-                                        type="number"
-                                        variant="secondary"
-                                        value={peak.amplitude?.toString() ?? ""}
-                                        onChange={(e) => {
-                                          const numValue = parseFloat(e.target.value);
-                                          if (
-                                            typeof numValue === "number" &&
-                                            Number.isFinite(numValue)
-                                          ) {
-                                            handleUpdatePeak(actualIndex, {
-                                              amplitude: numValue,
-                                            });
+                                            ))}
+                                          </select>
+                                        )}
+                                        {addingCustomTransitionForPeak ===
+                                        actualIndex ? (
+                                          <div className="flex gap-1">
+                                            <input
+                                              type="text"
+                                              value={newCustomTransitionValue}
+                                              onChange={(e) =>
+                                                setNewCustomTransitionValue(
+                                                  e.target.value,
+                                                )
+                                              }
+                                              onBlur={() => {
+                                                if (
+                                                  newCustomTransitionValue.trim() &&
+                                                  !customTransitions.includes(
+                                                    newCustomTransitionValue.trim(),
+                                                  )
+                                                ) {
+                                                  setCustomTransitions([
+                                                    ...customTransitions,
+                                                    newCustomTransitionValue.trim(),
+                                                  ]);
+                                                }
+                                                if (
+                                                  newCustomTransitionValue.trim()
+                                                ) {
+                                                  handleUpdatePeak(
+                                                    actualIndex,
+                                                    {
+                                                      transition:
+                                                        newCustomTransitionValue.trim(),
+                                                    },
+                                                  );
+                                                }
+                                                setAddingCustomTransitionForPeak(
+                                                  null,
+                                                );
+                                                setNewCustomTransitionValue("");
+                                              }}
+                                              onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                  e.currentTarget.blur();
+                                                } else if (e.key === "Escape") {
+                                                  setAddingCustomTransitionForPeak(
+                                                    null,
+                                                  );
+                                                  setNewCustomTransitionValue(
+                                                    "",
+                                                  );
+                                                }
+                                              }}
+                                              autoFocus
+                                              placeholder="Enter transition type"
+                                              className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
+                                            />
+                                          </div>
+                                        ) : (
+                                          <select
+                                            value={peak.transition ?? ""}
+                                            onChange={(e) => {
+                                              if (
+                                                e.target.value === "__add_new__"
+                                              ) {
+                                                setAddingCustomTransitionForPeak(
+                                                  actualIndex,
+                                                );
+                                                setNewCustomTransitionValue("");
+                                              } else {
+                                                handleUpdatePeak(actualIndex, {
+                                                  transition:
+                                                    e.target.value || undefined,
+                                                });
+                                              }
+                                            }}
+                                            className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <option value="" disabled>
+                                              Transition
+                                            </option>
+                                            {getAllTransitionOptions().map(
+                                              (opt) => (
+                                                <option
+                                                  key={opt.value}
+                                                  value={opt.value}
+                                                >
+                                                  {opt.label}
+                                                </option>
+                                              ),
+                                            )}
+                                          </select>
+                                        )}
+                                        <Input
+                                          type="number"
+                                          variant="secondary"
+                                          value={
+                                            peak.amplitude?.toString() ?? ""
                                           }
-                                        }}
-                                        step={0.01}
-                                        min={0}
-                                        placeholder="Amp"
-                                        className="w-full !text-gray-500 dark:!text-gray-400 text-xs h-7 min-h-7 max-h-7 px-2 py-1 focus:border-accent focus:ring-accent/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700"
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
-                                      <Input
-                                        type="number"
-                                        variant="secondary"
-                                        value={peak.width?.toString() ?? ""}
-                                        onChange={(e) => {
-                                          const numValue = parseFloat(e.target.value);
-                                          if (
-                                            typeof numValue === "number" &&
-                                            Number.isFinite(numValue)
-                                          ) {
-                                            handleUpdatePeak(actualIndex, {
-                                              width: numValue,
-                                            });
-                                          }
-                                        }}
-                                        step={0.1}
-                                        min={0}
-                                        placeholder="Width"
-                                        className="w-full !text-gray-500 dark:!text-gray-400 text-xs h-7 min-h-7 max-h-7 px-2 py-1 focus:border-accent focus:ring-accent/20 rounded border border-gray-300 bg-white focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700"
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
+                                          onChange={(e) => {
+                                            const numValue = parseFloat(
+                                              e.target.value,
+                                            );
+                                            if (
+                                              typeof numValue === "number" &&
+                                              Number.isFinite(numValue)
+                                            ) {
+                                              handleUpdatePeak(actualIndex, {
+                                                amplitude: numValue,
+                                              });
+                                            }
+                                          }}
+                                          step={0.01}
+                                          min={0}
+                                          placeholder="Amp"
+                                          className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs !text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:!text-gray-400"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                        <Input
+                                          type="number"
+                                          variant="secondary"
+                                          value={peak.width?.toString() ?? ""}
+                                          onChange={(e) => {
+                                            const numValue = parseFloat(
+                                              e.target.value,
+                                            );
+                                            if (
+                                              typeof numValue === "number" &&
+                                              Number.isFinite(numValue)
+                                            ) {
+                                              handleUpdatePeak(actualIndex, {
+                                                width: numValue,
+                                              });
+                                            }
+                                          }}
+                                          step={0.1}
+                                          min={0}
+                                          placeholder="Width"
+                                          className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs !text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:!text-gray-400"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                      </div>
-                    )}
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
 
-                    {isAddingPeak && (
-                      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/40 dark:bg-blue-900/10">
-                        <div className="space-y-2">
-                          <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                              Energy (eV){" "}
-                              <span className="text-red-500">*</span>
-                            </label>
-                            <div className="flex flex-col gap-1">
-                              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                Energy (eV)
-                              </label>
-                              <Input
-                                type="number"
-                                variant="secondary"
-                                value={newPeakEnergy ?? ""}
-                                onChange={(e) =>
-                                  setNewPeakEnergy(e.target.value)
-                                }
-                                step={0.01}
-                                min={0}
-                                placeholder="e.g., 285.0"
-                                className="w-full text-xs"
-                                autoFocus
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
+                      {isAddingPeak && (
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/40 dark:bg-blue-900/10">
+                          <div className="space-y-2">
                             <div>
                               <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                Bond
+                                Energy (eV){" "}
+                                <span className="text-red-500">*</span>
                               </label>
-                              {addingCustomBondInForm ? (
-                                <input
-                                  type="text"
-                                  value={newFormBondValue}
+                              <div className="flex flex-col gap-1">
+                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                  Energy (eV)
+                                </label>
+                                <Input
+                                  type="number"
+                                  variant="secondary"
+                                  value={newPeakEnergy ?? ""}
                                   onChange={(e) =>
-                                    setNewFormBondValue(e.target.value)
+                                    setNewPeakEnergy(e.target.value)
                                   }
-                                  onBlur={() => {
-                                    if (
-                                      newFormBondValue.trim() &&
-                                      !customBonds.includes(
-                                        newFormBondValue.trim(),
-                                      )
-                                    ) {
-                                      setCustomBonds([
-                                        ...customBonds,
-                                        newFormBondValue.trim(),
-                                      ]);
+                                  step={0.01}
+                                  min={0}
+                                  placeholder="e.g., 285.0"
+                                  className="w-full text-xs"
+                                  autoFocus
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                  Bond
+                                </label>
+                                {addingCustomBondInForm ? (
+                                  <input
+                                    type="text"
+                                    value={newFormBondValue}
+                                    onChange={(e) =>
+                                      setNewFormBondValue(e.target.value)
                                     }
-                                    if (newFormBondValue.trim()) {
-                                      setNewPeakBond(newFormBondValue.trim());
-                                    }
-                                    setAddingCustomBondInForm(false);
-                                    setNewFormBondValue("");
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.currentTarget.blur();
-                                    } else if (e.key === "Escape") {
+                                    onBlur={() => {
+                                      if (
+                                        newFormBondValue.trim() &&
+                                        !customBonds.includes(
+                                          newFormBondValue.trim(),
+                                        )
+                                      ) {
+                                        setCustomBonds([
+                                          ...customBonds,
+                                          newFormBondValue.trim(),
+                                        ]);
+                                      }
+                                      if (newFormBondValue.trim()) {
+                                        setNewPeakBond(newFormBondValue.trim());
+                                      }
                                       setAddingCustomBondInForm(false);
                                       setNewFormBondValue("");
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                      } else if (e.key === "Escape") {
+                                        setAddingCustomBondInForm(false);
+                                        setNewFormBondValue("");
+                                      }
+                                    }}
+                                    autoFocus
+                                    placeholder="Enter bond type"
+                                    className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  />
+                                ) : (
+                                  <select
+                                    value={newPeakBond}
+                                    onChange={(e) => {
+                                      if (e.target.value === "__add_new__") {
+                                        setAddingCustomBondInForm(true);
+                                        setNewFormBondValue("");
+                                      } else {
+                                        setNewPeakBond(e.target.value);
+                                      }
+                                    }}
+                                    className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  >
+                                    <option value="">Select bond...</option>
+                                    {getAllBondOptions().map((opt) => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                  Transition
+                                </label>
+                                {addingCustomTransitionInForm ? (
+                                  <input
+                                    type="text"
+                                    value={newFormTransitionValue}
+                                    onChange={(e) =>
+                                      setNewFormTransitionValue(e.target.value)
                                     }
-                                  }}
-                                  autoFocus
-                                  placeholder="Enter bond type"
-                                  className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                                />
-                              ) : (
-                                <select
-                                  value={newPeakBond}
-                                  onChange={(e) => {
-                                    if (e.target.value === "__add_new__") {
-                                      setAddingCustomBondInForm(true);
-                                      setNewFormBondValue("");
-                                    } else {
-                                      setNewPeakBond(e.target.value);
-                                    }
-                                  }}
-                                  className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                                >
-                                  <option value="">Select bond...</option>
-                                  {getAllBondOptions().map((opt) => (
-                                    <option key={opt.value} value={opt.value}>
-                                      {opt.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                Transition
-                              </label>
-                              {addingCustomTransitionInForm ? (
-                                <input
-                                  type="text"
-                                  value={newFormTransitionValue}
-                                  onChange={(e) =>
-                                    setNewFormTransitionValue(e.target.value)
-                                  }
-                                  onBlur={() => {
-                                    if (
-                                      newFormTransitionValue.trim() &&
-                                      !customTransitions.includes(
-                                        newFormTransitionValue.trim(),
-                                      )
-                                    ) {
-                                      setCustomTransitions([
-                                        ...customTransitions,
-                                        newFormTransitionValue.trim(),
-                                      ]);
-                                    }
-                                    if (newFormTransitionValue.trim()) {
-                                      setNewPeakTransition(
-                                        newFormTransitionValue.trim(),
-                                      );
-                                    }
-                                    setAddingCustomTransitionInForm(false);
-                                    setNewFormTransitionValue("");
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.currentTarget.blur();
-                                    } else if (e.key === "Escape") {
+                                    onBlur={() => {
+                                      if (
+                                        newFormTransitionValue.trim() &&
+                                        !customTransitions.includes(
+                                          newFormTransitionValue.trim(),
+                                        )
+                                      ) {
+                                        setCustomTransitions([
+                                          ...customTransitions,
+                                          newFormTransitionValue.trim(),
+                                        ]);
+                                      }
+                                      if (newFormTransitionValue.trim()) {
+                                        setNewPeakTransition(
+                                          newFormTransitionValue.trim(),
+                                        );
+                                      }
                                       setAddingCustomTransitionInForm(false);
                                       setNewFormTransitionValue("");
-                                    }
-                                  }}
-                                  autoFocus
-                                  placeholder="Enter transition type"
-                                  className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                                />
-                              ) : (
-                                <select
-                                  value={newPeakTransition}
-                                  onChange={(e) => {
-                                    if (e.target.value === "__add_new__") {
-                                      setAddingCustomTransitionInForm(true);
-                                      setNewFormTransitionValue("");
-                                    } else {
-                                      setNewPeakTransition(e.target.value);
-                                    }
-                                  }}
-                                  className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                                >
-                                  <option value="">Select transition...</option>
-                                  {getAllTransitionOptions().map((opt) => (
-                                    <option key={opt.value} value={opt.value}>
-                                      {opt.label}
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                      } else if (e.key === "Escape") {
+                                        setAddingCustomTransitionInForm(false);
+                                        setNewFormTransitionValue("");
+                                      }
+                                    }}
+                                    autoFocus
+                                    placeholder="Enter transition type"
+                                    className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  />
+                                ) : (
+                                  <select
+                                    value={newPeakTransition}
+                                    onChange={(e) => {
+                                      if (e.target.value === "__add_new__") {
+                                        setAddingCustomTransitionInForm(true);
+                                        setNewFormTransitionValue("");
+                                      } else {
+                                        setNewPeakTransition(e.target.value);
+                                      }
+                                    }}
+                                    className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  >
+                                    <option value="">
+                                      Select transition...
                                     </option>
-                                  ))}
-                                </select>
-                              )}
+                                    {getAllTransitionOptions().map((opt) => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                  Amp
+                                </label>
+                                <Input
+                                  type="number"
+                                  variant="secondary"
+                                  value={newPeakAmplitude?.toString() ?? ""}
+                                  onChange={(e) => {
+                                    const numValue = parseFloat(e.target.value);
+                                    setNewPeakAmplitude(
+                                      typeof numValue === "number" &&
+                                        Number.isFinite(numValue)
+                                        ? numValue
+                                        : undefined,
+                                    );
+                                  }}
+                                  step={0.01}
+                                  min={0}
+                                  placeholder="Amp"
+                                  className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full text-xs !text-gray-500 dark:!text-gray-400"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                  Width
+                                </label>
+                                <Input
+                                  type="number"
+                                  variant="secondary"
+                                  value={newPeakWidth?.toString() ?? ""}
+                                  onChange={(e) => {
+                                    const numValue = parseFloat(e.target.value);
+                                    setNewPeakWidth(
+                                      typeof numValue === "number" &&
+                                        Number.isFinite(numValue)
+                                        ? numValue
+                                        : undefined,
+                                    );
+                                  }}
+                                  step={0.1}
+                                  min={0}
+                                  placeholder="Width"
+                                  className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full text-xs !text-gray-500 dark:!text-gray-400"
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                Amp
-                              </label>
-                              <Input
-                                type="number"
-                                variant="secondary"
-                                value={newPeakAmplitude?.toString() ?? ""}
-                                onChange={(e) => {
-                                  const numValue = parseFloat(e.target.value);
-                                  setNewPeakAmplitude(
-                                    typeof numValue === "number" &&
-                                      Number.isFinite(numValue)
-                                      ? numValue
-                                      : undefined,
-                                  );
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="primary"
+                                size="sm"
+                                onClick={handleAddPeak}
+                                isDisabled={
+                                  !newPeakEnergy ||
+                                  !Number.isFinite(parseFloat(newPeakEnergy))
+                                }
+                                className="flex-1"
+                              >
+                                Add
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setIsAddingPeak(false);
+                                  setNewPeakEnergy("");
+                                  setNewPeakBond("");
+                                  setNewPeakTransition("");
+                                  setNewPeakAmplitude(undefined);
+                                  setNewPeakWidth(undefined);
+                                  setAddingCustomBondInForm(false);
+                                  setAddingCustomTransitionInForm(false);
+                                  setNewFormBondValue("");
+                                  setNewFormTransitionValue("");
                                 }}
-                                step={0.01}
-                                min={0}
-                                placeholder="Amp"
-                                className="w-full !text-gray-500 dark:!text-gray-400 text-xs h-7 min-h-7 max-h-7 focus:border-accent focus:ring-accent/20"
-                              />
+                                className="flex-1"
+                              >
+                                Cancel
+                              </Button>
                             </div>
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                Width
-                              </label>
-                              <Input
-                                type="number"
-                                variant="secondary"
-                                value={newPeakWidth?.toString() ?? ""}
-                                onChange={(e) => {
-                                  const numValue = parseFloat(e.target.value);
-                                  setNewPeakWidth(
-                                    typeof numValue === "number" &&
-                                      Number.isFinite(numValue)
-                                      ? numValue
-                                      : undefined,
-                                  );
-                                }}
-                                step={0.1}
-                                min={0}
-                                placeholder="Width"
-                                className="w-full !text-gray-500 dark:!text-gray-400 text-xs h-7 min-h-7 max-h-7 focus:border-accent focus:ring-accent/20"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              variant="primary"
-                              size="sm"
-                              onClick={handleAddPeak}
-                              isDisabled={
-                                !newPeakEnergy ||
-                                !Number.isFinite(parseFloat(newPeakEnergy))
-                              }
-                              className="flex-1"
-                            >
-                              Add
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setIsAddingPeak(false);
-                                setNewPeakEnergy("");
-                                setNewPeakBond("");
-                                setNewPeakTransition("");
-                                setNewPeakAmplitude(undefined);
-                                setNewPeakWidth(undefined);
-                                setAddingCustomBondInForm(false);
-                                setAddingCustomTransitionInForm(false);
-                                setNewFormBondValue("");
-                                setNewFormTransitionValue("");
-                              }}
-                              className="flex-1"
-                            >
-                              Cancel
-                            </Button>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </ScrollShadow>
-              </div>
-            </div>
-          )}
-
-          {selectedTool === "difference" && (
-            <div className="space-y-3 pt-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Difference Spectra
-              </h3>
-              <div className="shrink-0 space-y-3">
-                <div className="flex gap-2">
-                  <SubToolButton
-                    text="ϴ"
-                    tooltip="Show theta-dependent data"
-                    isActive={differenceMode === "theta"}
-                    onClick={() => handleDifferenceMode("theta")}
-                    disabled={
-                      spectrumPoints.length === 0 ||
-                      !hasThetaData ||
-                      !hasMultipleThetas
-                    }
-                    iconOnly
-                  />
-                  <SubToolButton
-                    text="Φ"
-                    tooltip="Show phi-dependent data"
-                    isActive={differenceMode === "phi"}
-                    onClick={() => handleDifferenceMode("phi")}
-                    disabled={
-                      spectrumPoints.length === 0 ||
-                      !hasPhiData ||
-                      !hasMultiplePhis
-                    }
-                    iconOnly
-                  />
-                  <SubToolButton
-                    text="Δϴ"
-                    tooltip="Calculate polar (theta) difference spectra"
-                    isActive={differenceMode === "delta-theta"}
-                    onClick={() => handleDifferenceMode("delta-theta")}
-                    disabled={
-                      spectrumPoints.length === 0 ||
-                      !hasThetaData ||
-                      !hasMultipleThetas
-                    }
-                    iconOnly
-                  />
-                  <SubToolButton
-                    text="ΔΦ"
-                    tooltip="Calculate azimuthal (phi) difference spectra"
-                    isActive={differenceMode === "delta-phi"}
-                    onClick={() => handleDifferenceMode("delta-phi")}
-                    disabled={
-                      spectrumPoints.length === 0 ||
-                      !hasPhiData ||
-                      !hasMultiplePhis
-                    }
-                    iconOnly
-                  />
+                      )}
+                    </div>
+                  </ScrollShadow>
                 </div>
-
-                <ScrollShadow hideScrollBar className="max-h-[300px]">
-                  <div className="space-y-2">
-                    {differenceSpectra.length === 0 && (
-                      <div className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">
-                        Click θ or φ to calculate difference spectra.
-                      </div>
-                    )}
-
-                    {differenceSpectra.length > 0 && (
-                      <div className="space-y-2">
-                        {differenceSpectra.map(
-                          (spec: DifferenceSpectrum, index: number) => (
-                            <div
-                              key={index}
-                              className={`relative flex items-center gap-2 rounded-lg border p-2 ${
-                                spec.preferred
-                                  ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
-                                  : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => handleTogglePreferred(index)}
-                                className="shrink-0 text-gray-400 hover:text-yellow-500 dark:text-gray-500 dark:hover:text-yellow-400"
-                                title={
-                                  spec.preferred
-                                    ? "Remove preferred"
-                                    : "Set as preferred"
-                                }
-                              >
-                                <StarIcon
-                                  className={`h-4 w-4 ${
-                                    spec.preferred
-                                      ? "fill-yellow-500 text-yellow-500 dark:fill-yellow-400 dark:text-yellow-400"
-                                      : ""
-                                  }`}
-                                />
-                              </button>
-                              <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
-                                {spec.label}
-                              </span>
-                            </div>
-                          ),
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </ScrollShadow>
               </div>
-            </div>
-          )}
+            )}
+
+            {selectedTool === "difference" && (
+              <div className="space-y-3 pt-2">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Difference Spectra
+                </h3>
+                <div className="shrink-0 space-y-3">
+                  <div className="flex gap-2">
+                    <SubToolButton
+                      text="ϴ"
+                      tooltip="Show theta-dependent data"
+                      isActive={differenceMode === "theta"}
+                      onClick={() => handleDifferenceMode("theta")}
+                      disabled={
+                        spectrumPoints.length === 0 ||
+                        !hasThetaData ||
+                        !hasMultipleThetas
+                      }
+                      iconOnly
+                    />
+                    <SubToolButton
+                      text="Φ"
+                      tooltip="Show phi-dependent data"
+                      isActive={differenceMode === "phi"}
+                      onClick={() => handleDifferenceMode("phi")}
+                      disabled={
+                        spectrumPoints.length === 0 ||
+                        !hasPhiData ||
+                        !hasMultiplePhis
+                      }
+                      iconOnly
+                    />
+                    <SubToolButton
+                      text="Δϴ"
+                      tooltip="Calculate polar (theta) difference spectra"
+                      isActive={differenceMode === "delta-theta"}
+                      onClick={() => handleDifferenceMode("delta-theta")}
+                      disabled={
+                        spectrumPoints.length === 0 ||
+                        !hasThetaData ||
+                        !hasMultipleThetas
+                      }
+                      iconOnly
+                    />
+                    <SubToolButton
+                      text="ΔΦ"
+                      tooltip="Calculate azimuthal (phi) difference spectra"
+                      isActive={differenceMode === "delta-phi"}
+                      onClick={() => handleDifferenceMode("delta-phi")}
+                      disabled={
+                        spectrumPoints.length === 0 ||
+                        !hasPhiData ||
+                        !hasMultiplePhis
+                      }
+                      iconOnly
+                    />
+                  </div>
+
+                  <ScrollShadow hideScrollBar className="max-h-[300px]">
+                    <div className="space-y-2">
+                      {differenceSpectra.length === 0 && (
+                        <div className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                          Click θ or φ to calculate difference spectra.
+                        </div>
+                      )}
+
+                      {differenceSpectra.length > 0 && (
+                        <div className="space-y-2">
+                          {differenceSpectra.map(
+                            (spec: DifferenceSpectrum, index: number) => (
+                              <div
+                                key={index}
+                                className={`relative flex items-center gap-2 rounded-lg border p-2 ${
+                                  spec.preferred
+                                    ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
+                                    : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
+                                }`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => handleTogglePreferred(index)}
+                                  className="shrink-0 text-gray-400 hover:text-yellow-500 dark:text-gray-500 dark:hover:text-yellow-400"
+                                  title={
+                                    spec.preferred
+                                      ? "Remove preferred"
+                                      : "Set as preferred"
+                                  }
+                                >
+                                  <StarIcon
+                                    className={`h-4 w-4 ${
+                                      spec.preferred
+                                        ? "fill-yellow-500 text-yellow-500 dark:fill-yellow-400 dark:text-yellow-400"
+                                        : ""
+                                    }`}
+                                  />
+                                </button>
+                                <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
+                                  {spec.label}
+                                </span>
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </ScrollShadow>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -2,11 +2,24 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
 import { cookies } from "next/headers";
-import { isDevMockUser, DEV_MOCK_USER_ID } from "~/lib/dev-mock-data";
+import { DEV_MOCK_USER_ID } from "~/lib/dev-mock-data";
+
+function getClientIpFromRequest(req: Request | undefined): string | null {
+  if (!req) return null;
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+  return null;
+}
 
 interface CreateContextOptions {
   userId: string | null;
   isDevMock: boolean;
+  clientIp: string | null;
 }
 
 interface FetchCreateContextOptions {
@@ -18,12 +31,13 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
   return {
     userId: opts.userId,
     isDevMock: opts.isDevMock,
+    clientIp: opts.clientIp,
     db,
   };
 };
 
 export const createTRPCContext = async (
-  _opts: FetchCreateContextOptions = {},
+  opts: FetchCreateContextOptions = {},
 ) => {
   const session = await auth();
   let userId = session?.user?.id ?? null;
@@ -38,9 +52,12 @@ export const createTRPCContext = async (
     }
   }
 
+  const clientIp = getClientIpFromRequest(opts.req);
+
   return createInnerTRPCContext({
     userId,
     isDevMock,
+    clientIp,
   });
 };
 

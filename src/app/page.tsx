@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Upload, Search } from "lucide-react";
 import { MoleculeSearch } from "@/components/molecules/molecule-search";
-import { MoleculeDisplay, type DisplayMolecule } from "@/components/molecules/molecule-display";
+import { MoleculeCard } from "@/components/molecules/molecule-display";
 import { MoleculeGridSkeleton } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { DefaultButton as Button } from "@/components/ui/button";
@@ -12,9 +12,10 @@ import { useRouter } from "next/navigation";
 
 function TopUpvotedMolecules() {
   const router = useRouter();
-  const { data, isLoading, isError, error } = trpc.molecules.getTopUpvoted.useQuery({
-    limit: 4,
-  });
+  const { data, isLoading, isError, error } =
+    trpc.molecules.getTopFavorited.useQuery({
+      limit: 4,
+    });
 
   if (isLoading) {
     return <MoleculeGridSkeleton count={4} />;
@@ -40,37 +41,15 @@ function TopUpvotedMolecules() {
     );
   }
 
-  // Transform to DisplayMolecule format
-  const displayMolecules = data.molecules.map((molecule) => {
-    const synonyms = molecule.moleculesynonyms.map((s) => s.synonym);
-    const primarySynonym = molecule.moleculesynonyms.find((s) => s.order === 0);
-    const displayName = primarySynonym?.synonym ?? synonyms[0] ?? molecule.iupacname;
-
-    return {
-      name: displayName,
-      commonName: synonyms.length > 0 ? synonyms : undefined,
-      chemical_formula: molecule.chemicalformula,
-      SMILES: molecule.smiles,
-      InChI: molecule.inchi,
-      pubChemCid: molecule.pubchemcid,
-      casNumber: molecule.casnumber,
-      imageUrl: molecule.imageurl ?? undefined,
-      id: molecule.id,
-      upvoteCount: molecule.upvoteCount,
-      userHasUpvoted: false,
-      createdBy: null,
-    } satisfies DisplayMolecule;
-  });
-
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      {displayMolecules.map((molecule) => (
+      {data.molecules.map((molecule) => (
         <div
           key={molecule.id}
           onClick={() => router.push(`/molecules/${molecule.id}`)}
           className="cursor-pointer transition-transform hover:scale-[1.02]"
         >
-          <MoleculeDisplay molecule={molecule} />
+          <MoleculeCard molecule={molecule} variant="full" />
         </div>
       ))}
     </div>
@@ -122,11 +101,10 @@ export default function HomePage() {
       <section className="container mx-auto px-4 py-12">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-gray-100">
-            Most Upvoted Molecules
+            Popular Molecules
           </h2>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Explore our most popular molecules with X-ray absorption
-            spectroscopy data.
+            Explore our most popular molecules.
           </p>
         </div>
         <TopUpvotedMolecules />

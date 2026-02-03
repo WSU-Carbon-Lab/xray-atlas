@@ -4,7 +4,6 @@ import { Fragment, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { DefaultButton as Button } from "~/app/components/Button";
-import { trpc } from "~/trpc/client";
 
 interface ContributionQuestion {
   id: string;
@@ -111,7 +110,7 @@ export function ContributionAgreementModal({
                 <div className="mb-6">
                   <Dialog.Title
                     as="h3"
-                    className="text-2xl font-bold leading-6 text-gray-900 dark:text-gray-100"
+                    className="text-2xl leading-6 font-bold text-gray-900 dark:text-gray-100"
                   >
                     Contribution Agreement
                   </Dialog.Title>
@@ -119,9 +118,9 @@ export function ContributionAgreementModal({
 
                 <div className="mb-6">
                   <p className="text-gray-600 dark:text-gray-400">
-                    Please answer the following questions before proceeding with your
-                    contribution. Your agreement will be saved so you won&rsquo;t need to
-                    answer these again.
+                    Please answer the following questions before proceeding with
+                    your contribution. Your agreement will be saved so you
+                    won&rsquo;t need to answer these again.
                   </p>
                 </div>
 
@@ -169,7 +168,8 @@ export function ContributionAgreementModal({
                         answers[question.id] === false &&
                         answers[question.id] !== undefined && (
                           <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-                            This question must be answered &quot;Yes&quot; to proceed.
+                            This question must be answered &quot;Yes&quot; to
+                            proceed.
                           </p>
                         )}
                     </div>
@@ -181,7 +181,7 @@ export function ContributionAgreementModal({
                     variant="primary"
                     onClick={handleAgree}
                     isDisabled={!allRequiredAnswered}
-                    className="w-full sm:w-auto min-w-[200px]"
+                    className="w-full min-w-[200px] sm:w-auto"
                   >
                     I Agree
                   </Button>

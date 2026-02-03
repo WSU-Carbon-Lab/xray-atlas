@@ -8,7 +8,12 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { BrowseTabs } from "@/components/layout/browse-tabs";
 import Link from "next/link";
 import { AddFacilityButton } from "~/app/components/AddEntityButtons";
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  BarsArrowDownIcon,
+} from "@heroicons/react/24/outline";
+import { BrowseHeader, selectClasses } from "@/components/browse/browse-header";
 import { Tooltip } from "@heroui/react";
 
 function FacilitiesBrowseContent() {
@@ -84,9 +89,7 @@ function FacilitiesBrowseContent() {
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;
 
-  const totalPages = data
-    ? Math.ceil((data.total ?? 0) / itemsPerPage)
-    : 1;
+  const totalPages = data ? Math.ceil((data.total ?? 0) / itemsPerPage) : 1;
 
   const handleFacilityCreated = () => {
     void searchData.refetch();
@@ -109,207 +112,197 @@ function FacilitiesBrowseContent() {
       <BrowseTabs />
 
       <div className="space-y-6">
+        <BrowseHeader
+          searchValue={query}
+          onSearchChange={setQuery}
+          searchPlaceholder="Search facilities by name, city, or country..."
+        >
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="items-per-page"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Show:
+              </label>
+              <select
+                id="items-per-page"
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className={selectClasses}
+              >
+                <option value={12}>12</option>
+                <option value={24}>24</option>
+                <option value={48}>48</option>
+                <option value={96}>96</option>
+              </select>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                per page
+              </span>
+            </div>
+            {!hasSearchQuery && (
+              <>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="facility-type"
+                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Type:
+                  </label>
+                  <select
+                    id="facility-type"
+                    value={facilityType ?? ""}
+                    onChange={(e) =>
+                      setFacilityType(
+                        e.target.value === ""
+                          ? undefined
+                          : (e.target.value as
+                              | "SYNCHROTRON"
+                              | "FREE_ELECTRON_LASER"
+                              | "LAB_SOURCE"),
+                      )
+                    }
+                    className={selectClasses}
+                  >
+                    <option value="">All Types</option>
+                    <option value="SYNCHROTRON">Synchrotron</option>
+                    <option value="FREE_ELECTRON_LASER">
+                      Free Electron Laser
+                    </option>
+                    <option value="LAB_SOURCE">Lab Source</option>
+                  </select>
+                </div>
+                <Tooltip delay={0}>
+                  <div className="flex items-center gap-2">
+                    <BarsArrowDownIcon
+                      className="h-4 w-4 shrink-0 stroke-[1.5] text-gray-600 dark:text-gray-400"
+                      aria-hidden
+                    />
+                    <select
+                      id="sort-select"
+                      value={sortBy}
+                      onChange={(e) =>
+                        setSortBy(e.target.value as "name" | "city" | "country")
+                      }
+                      className={`${selectClasses} cursor-pointer`}
+                      aria-label="Sort by"
+                    >
+                      <option value="name">Name (A-Z)</option>
+                      <option value="city">City</option>
+                      <option value="country">Country</option>
+                    </select>
+                  </div>
+                  <Tooltip.Content
+                    placement="top"
+                    className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"
+                  >
+                    Sort facilities
+                  </Tooltip.Content>
+                </Tooltip>
+              </>
+            )}
+          </div>
+        </BrowseHeader>
 
-      {/* Search Bar */}
-      <div>
-        <div className="relative w-full max-w-3xl">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search facilities by name, city, or country..."
-            className="focus:border-accent focus:ring-accent dark:focus:border-accent w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-4 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
-          />
-        </div>
-      </div>
-
-      {/* Controls Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-4">
-          {data && (
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {(currentPage - 1) * itemsPerPage + 1}-
-              {Math.min(currentPage * itemsPerPage, data.total)} of {data.total}{" "}
-              facilities
+        {/* Results */}
+        <div>
+          {isLoading && (
+            <div className="space-y-3">
+              {Array.from({ length: itemsPerPage }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-32 animate-pulse rounded-xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                />
+              ))}
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <label
-              htmlFor="items-per-page"
-              className="text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-              Show:
-            </label>
-            <select
-              id="items-per-page"
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className="focus:border-accent focus:ring-accent rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-            >
-              <option value={12}>12</option>
-              <option value={24}>24</option>
-              <option value={48}>48</option>
-              <option value={96}>96</option>
-            </select>
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              per page
-            </span>
-          </div>
-        </div>
 
-        {!hasSearchQuery && (
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="facility-type"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Type:
-              </label>
-              <select
-                id="facility-type"
-                value={facilityType ?? ""}
-                onChange={(e) =>
-                  setFacilityType(
-                    e.target.value === ""
-                      ? undefined
-                      : (e.target.value as
-                          | "SYNCHROTRON"
-                          | "FREE_ELECTRON_LASER"
-                          | "LAB_SOURCE"),
-                  )
-                }
-                className="focus:border-accent focus:ring-accent rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-              >
-                <option value="">All Types</option>
-                <option value="SYNCHROTRON">Synchrotron</option>
-                <option value="FREE_ELECTRON_LASER">Free Electron Laser</option>
-                <option value="LAB_SOURCE">Lab Source</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="sort-select"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Sort:
-              </label>
-              <select
-                id="sort-select"
-                value={sortBy}
-                onChange={(e) =>
-                  setSortBy(e.target.value as "name" | "city" | "country")
-                }
-                className="focus:border-accent focus:ring-accent rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-              >
-                <option value="name">Name (A-Z)</option>
-                <option value="city">City</option>
-                <option value="country">Country</option>
-              </select>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Results */}
-      <div>
-        {isLoading && (
-          <div className="space-y-3">
-            {Array.from({ length: itemsPerPage }).map((_, i) => (
-              <div
-                key={i}
-                className="h-32 animate-pulse rounded-xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-              />
-            ))}
-          </div>
-        )}
-
-        {isError && (
-          <ErrorState
-            title="Failed to load results"
+          {isError && (
+            <ErrorState
+              title="Failed to load results"
               message={
                 error?.message ??
                 "An error occurred while loading search results."
               }
-            onRetry={() => window.location.reload()}
-          />
-        )}
+              onRetry={() => window.location.reload()}
+            />
+          )}
 
-        {!isLoading && !isError && data && (
-          <>
-            {data.facilities.length === 0 ? (
-              <div className="rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800">
-                <p className="text-gray-600 dark:text-gray-400">
-                  {hasSearchQuery
-                    ? `No facilities found for "${debouncedQuery}".`
-                    : "No facilities found in the database."}
-                </p>
-                {hasSearchQuery && (
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
-                    Try a different search term or{" "}
-                    <Link
-                      href="/browse/facilities"
-                      className="text-accent dark:text-accent-light hover:underline"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setQuery("");
-                        setDebouncedQuery("");
-                      }}
-                    >
-                      browse all facilities
-                    </Link>
-                    .
+          {!isLoading && !isError && data && (
+            <>
+              {data.facilities.length === 0 ? (
+                <div className="rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {hasSearchQuery
+                      ? `No facilities found for "${debouncedQuery}".`
+                      : "No facilities found in the database."}
                   </p>
-                )}
-                <div className="mt-6">
+                  {hasSearchQuery && (
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
+                      Try a different search term or{" "}
+                      <Link
+                        href="/browse/facilities"
+                        className="text-accent dark:text-accent-light hover:underline"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setQuery("");
+                          setDebouncedQuery("");
+                        }}
+                      >
+                        browse all facilities
+                      </Link>
+                      .
+                    </p>
+                  )}
+                  <div className="mt-6">
+                    <AddFacilityButton
+                      className="min-h-[140px]"
+                      onCreated={handleFacilityCreated}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
                   <AddFacilityButton
                     className="min-h-[140px]"
                     onCreated={handleFacilityCreated}
                   />
+                  {data.facilities.map((facility) => (
+                    <FacilityCardCompact
+                      key={facility.id}
+                      id={facility.id}
+                      name={facility.name}
+                      city={facility.city}
+                      country={facility.country}
+                      facilityType={facility.facilitytype}
+                      instrumentCount={facility.instruments?.length ?? 0}
+                    />
+                  ))}
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <AddFacilityButton
-                  className="min-h-[140px]"
-                  onCreated={handleFacilityCreated}
-                />
-                {data.facilities.map((facility) => (
-                  <FacilityCardCompact
-                    key={facility.id}
-                    id={facility.id}
-                    name={facility.name}
-                    city={facility.city}
-                    country={facility.country}
-                    facilityType={facility.facilitytype}
-                    instrumentCount={facility.instruments?.length ?? 0}
-                  />
-                ))}
-              </div>
-            )}
+              )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-8 flex items-center justify-center gap-4">
-                <Tooltip delay={0}>
-                  <button
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 flex items-center gap-2"
-                  >
-                    <ChevronLeftIcon className="h-4 w-4" />
-                    <span>Previous</span>
-                  </button>
-                  <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                    Go to previous page
-                  </Tooltip.Content>
-                </Tooltip>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  {totalPages <= 7
-                    ? Array.from({ length: totalPages }, (_, i) => i + 1).map(
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-8 flex items-center justify-center gap-4">
+                  <Tooltip delay={0}>
+                    <button
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      <ChevronLeftIcon className="h-4 w-4" />
+                      <span>Previous</span>
+                    </button>
+                    <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+                      Go to previous page
+                    </Tooltip.Content>
+                  </Tooltip>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    {totalPages <= 7 ? (
+                      Array.from({ length: totalPages }, (_, i) => i + 1).map(
                         (page) => (
                           <Tooltip key={page} delay={0}>
                             <button
@@ -322,13 +315,13 @@ function FacilitiesBrowseContent() {
                             >
                               {page}
                             </button>
-                            <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                            <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
                               {`Go to page ${page}`}
                             </Tooltip.Content>
                           </Tooltip>
                         ),
                       )
-                    : (
+                    ) : (
                       <>
                         {currentPage > 3 && (
                           <>
@@ -339,7 +332,7 @@ function FacilitiesBrowseContent() {
                               >
                                 1
                               </button>
-                              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
                                 Go to page 1
                               </Tooltip.Content>
                             </Tooltip>
@@ -370,7 +363,7 @@ function FacilitiesBrowseContent() {
                               >
                                 {page}
                               </button>
-                              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
                                 {`Go to page ${page}`}
                               </Tooltip.Content>
                             </Tooltip>
@@ -387,7 +380,7 @@ function FacilitiesBrowseContent() {
                               >
                                 {totalPages}
                               </button>
-                              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
                                 {`Go to page ${totalPages}`}
                               </Tooltip.Content>
                             </Tooltip>
@@ -395,25 +388,25 @@ function FacilitiesBrowseContent() {
                         )}
                       </>
                     )}
+                  </div>
+                  <Tooltip delay={0}>
+                    <button
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      <span>Next</span>
+                      <ChevronRightIcon className="h-4 w-4" />
+                    </button>
+                    <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+                      Go to next page
+                    </Tooltip.Content>
+                  </Tooltip>
                 </div>
-                <Tooltip delay={0}>
-                  <button
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 flex items-center gap-2"
-                  >
-                    <span>Next</span>
-                    <ChevronRightIcon className="h-4 w-4" />
-                  </button>
-                  <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                    Go to next page
-                  </Tooltip.Content>
-                </Tooltip>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -428,9 +421,7 @@ export default function FacilitiesBrowsePage() {
             <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-gray-100">
               Browse Facilities
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Loading...
-            </p>
+            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
           </div>
           <BrowseTabs />
         </div>

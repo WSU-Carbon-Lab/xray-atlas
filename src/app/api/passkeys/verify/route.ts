@@ -15,10 +15,7 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body: unknown = await request.json();
@@ -40,10 +37,7 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const baseUrl = getBaseUrl();
@@ -79,7 +73,8 @@ export async function POST(request: Request) {
         requireUserVerification: true,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       console.error("[Passkey Verify] Verification failed:", errorMessage);
       return NextResponse.json(
         { error: "Verification failed", details: errorMessage },
@@ -96,7 +91,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const { credentialID, credentialPublicKey, counter, credentialDeviceType, credentialBackedUp } = registrationInfo;
+    const { credentialID, counter, credentialDeviceType, credentialBackedUp } =
+      registrationInfo;
 
     const existingAuthenticator = await db.authenticator.findUnique({
       where: { credentialID: Buffer.from(credentialID).toString("base64url") },
@@ -111,7 +107,9 @@ export async function POST(request: Request) {
 
     const credentialIdBase64 = Buffer.from(credentialID).toString("base64url");
 
-    const transports = (credential as RegistrationResponseJSON).response.transports?.join(",") ?? null;
+    const transports =
+      (credential as RegistrationResponseJSON).response.transports?.join(",") ??
+      null;
 
     await db.authenticator.create({
       data: {
@@ -132,7 +130,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ verified: true });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error("[Passkey Verify] Error:", errorMessage);
     return NextResponse.json(
       { error: "Failed to verify passkey" },

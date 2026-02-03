@@ -4,11 +4,11 @@
 
 "use client";
 
-import { useMemo, useCallback, useRef, useState, useEffect } from "react";
+import { useMemo, useCallback, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { ParentSize } from "@visx/responsive";
 import type { SpectrumPlotProps, SpectrumSelection } from "../core/types";
-import { DEFAULT_PLOT_HEIGHT, MARGINS } from "../core/constants";
+import { DEFAULT_PLOT_HEIGHT } from "../core/constants";
 import { useSpectrumData } from "../hooks/useSpectrumData";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { useDataExtents } from "../hooks/useDataExtents";
@@ -17,9 +17,7 @@ import { VisxAxes } from "./components/VisxAxes";
 import { VisxGrid } from "./components/VisxGrid";
 import { SpectrumLines } from "./components/SpectrumLines";
 import { VisxTooltip, useSpectrumTooltip } from "./components/VisxTooltip";
-import { localPoint } from "@visx/event";
 import { DraggableLegend } from "./components/DraggableLegend";
-import { NormalizationBrush } from "./components/NormalizationBrush";
 import { PeakIndicators } from "./components/PeakIndicators";
 import { PeakCurves } from "./components/PeakCurves";
 import { InteractivePeak } from "./components/InteractivePeak";
@@ -29,8 +27,7 @@ import { useVisxPeakInteractions } from "./hooks/useVisxPeakInteractions";
 import { usePeakVisualization } from "../hooks/usePeakVisualization";
 import { findClosestPoint } from "./utils/findClosestPoint";
 import { THEME_COLORS, NORMALIZATION_COLORS } from "../core/constants";
-import type { PlotDimensions, TraceData } from "../core/types";
-import type { ScaleLinear } from "d3-scale";
+import type { TraceData } from "../core/types";
 
 export function VisxSpectrumPlot({
   points,
@@ -249,14 +246,14 @@ function VisxSpectrumPlotInner({
   peakViz,
   normalizationRegions,
   selectionTarget,
-  onSelectionChange,
+  onSelectionChange: _onSelectionChange,
   onPeakUpdate,
   onPeakSelect,
   onPeakDelete,
   onPeakAdd,
   isManualPeakMode,
-  energyStats,
-  absorptionStats,
+  energyStats: _energyStats,
+  absorptionStats: _absorptionStats,
   cursorMode: externalCursorMode,
   onCursorModeChange,
 }: {
@@ -322,7 +319,7 @@ function VisxSpectrumPlotInner({
   );
 
   // Domain-based zoom state (instead of transform-based)
-  const [zoomMode, setZoomMode] = useState<ZoomMode>("default");
+  const [zoomMode, _setZoomMode] = useState<ZoomMode>("default");
 
   // Reset zoom handler - also clears brush
   const handleResetZoom = useCallback(() => {
@@ -613,6 +610,7 @@ function VisxSpectrumPlotInner({
       mainPlotWidth,
       mainPlotHeight,
       selectionTarget,
+      effectiveCursorMode,
     ],
   );
 
@@ -627,9 +625,6 @@ function VisxSpectrumPlotInner({
       const x = event.clientX - svgRect.left - mainPlot.dimensions.margins.left;
 
       dragCurrentRef.current = { x, y: dragStartRef.current.y ?? 0 };
-
-      // Calculate pan delta (horizontal only)
-      const deltaX = x - (dragStartRef.current.x ?? 0);
 
       // Use a ref to get the current domain without causing re-renders during drag
       // We'll calculate the final domain based on the total delta
@@ -805,7 +800,9 @@ function VisxSpectrumPlotInner({
             onClick={(e) => {
               // Only handle peak click if not dragging and in peak mode
               if (!isDragging && effectiveCursorMode === "peak") {
-                handlePeakClick(e as React.MouseEvent<SVGSVGElement, MouseEvent>);
+                handlePeakClick(
+                  e as React.MouseEvent<SVGSVGElement, MouseEvent>,
+                );
               }
             }}
           >
@@ -968,7 +965,10 @@ function VisxSpectrumPlotInner({
             const energy = tooltipData.energy;
             const domain = mainPlotScales.xScale.domain();
             const energyDomainRange =
-              domain && domain.length >= 2 && typeof domain[1] === "number" && typeof domain[0] === "number"
+              domain &&
+              domain.length >= 2 &&
+              typeof domain[1] === "number" &&
+              typeof domain[0] === "number"
                 ? domain[1] - domain[0]
                 : 100;
             const threshold = energyDomainRange * 0.02;
@@ -1139,7 +1139,15 @@ function VisxSpectrumPlotInner({
                 : undefined
             }
             isDark={isDark}
-            TooltipInPortal={TooltipInPortal}
+            TooltipInPortal={
+              TooltipInPortal as React.ComponentType<{
+                left: number;
+                top: number;
+                style?: React.CSSProperties;
+                offsetLeft?: number;
+                offsetTop?: number;
+              }>
+            }
             plotDimensions={mainPlot.dimensions}
             scales={mainPlotScales}
           />

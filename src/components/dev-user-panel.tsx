@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { LogOut, User, LayoutDashboard, Users } from "lucide-react";
 import { DEV_MOCK_USER } from "~/lib/dev-mock-data";
-import { Avatar } from "~/app/components/CustomUserButton";
+import { CustomAvatar } from "~/components/ui/avatar";
 import { ORCIDIcon } from "~/app/components/icons";
 
 export function DevUserPanel() {
@@ -20,7 +20,8 @@ export function DevUserPanel() {
     return null;
   }
 
-  const isDevUser = session?.user?.id === "00000000-0000-0000-0000-000000000000";
+  const isDevUser =
+    session?.user?.id === "00000000-0000-0000-0000-000000000000";
   const displayUser = session?.user ?? DEV_MOCK_USER;
 
   const handleAction = async (action: string) => {
@@ -54,13 +55,13 @@ export function DevUserPanel() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed right-0 top-1/2 z-50 flex -translate-y-1/2 items-center justify-center rounded-l-lg border border-gray-200 bg-white/90 backdrop-blur-sm px-2 py-3 shadow-lg transition-all hover:bg-white dark:border-gray-700 dark:bg-gray-800/90 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+        className="focus-visible:ring-accent fixed top-1/2 right-0 z-50 flex -translate-y-1/2 items-center justify-center rounded-l-lg border border-gray-200 bg-white/90 px-2 py-3 shadow-lg backdrop-blur-sm transition-all hover:bg-white focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800/90 dark:hover:bg-gray-800"
         aria-label="Open dev user panel"
       >
         {displayUser.image ? (
-          <Avatar user={displayUser} size="md" width={36} height={36} />
+          <CustomAvatar user={displayUser} size="md" className="h-9 w-9" />
         ) : (
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-sm font-medium text-white">
+          <div className="bg-accent flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium text-white">
             JS
           </div>
         )}
@@ -73,21 +74,21 @@ export function DevUserPanel() {
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
-          <div className="fixed right-0 top-0 z-50 h-full w-64 bg-white/95 backdrop-blur-xl dark:bg-gray-800/95 shadow-2xl">
+          <div className="fixed top-0 right-0 z-50 h-full w-64 bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-gray-800/95">
             <div className="flex h-full flex-col border-l border-gray-200 dark:border-gray-700">
               <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
                 <div className="flex items-center gap-3">
                   {displayUser.image ? (
-                    <Avatar user={displayUser} size="md" />
+                    <CustomAvatar user={displayUser} size="md" />
                   ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-medium text-white">
+                    <div className="bg-accent flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium text-white">
                       JS
                     </div>
                   )}
                   <div className="flex flex-col gap-0.5">
                     <a
                       href={`/users/${DEV_MOCK_USER.id}`}
-                      className="text-sm font-medium text-gray-900 transition-colors hover:text-accent dark:text-gray-100 dark:hover:text-accent-light"
+                      className="hover:text-accent dark:hover:text-accent-light text-sm font-medium text-gray-900 transition-colors dark:text-gray-100"
                       onClick={(e) => {
                         e.stopPropagation();
                         void handleAction("profile");
@@ -100,17 +101,19 @@ export function DevUserPanel() {
                         href={`https://orcid.org/${DEV_MOCK_USER.orcid}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-xs text-gray-500 transition-colors hover:text-accent dark:text-gray-400 dark:hover:text-accent-light"
+                        className="hover:text-accent dark:hover:text-accent-light flex items-center gap-1.5 text-xs text-gray-500 transition-colors dark:text-gray-400"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <ORCIDIcon className="h-3 w-3 shrink-0" authenticated />
-                        <span className="tabular-nums">{DEV_MOCK_USER.orcid}</span>
+                        <span className="tabular-nums">
+                          {DEV_MOCK_USER.orcid}
+                        </span>
                       </a>
                     )}
                     {DEV_MOCK_USER.email && (
                       <a
                         href={`mailto:${DEV_MOCK_USER.email}`}
-                        className="text-xs text-gray-500 transition-colors hover:text-accent dark:text-gray-400 dark:hover:text-accent-light"
+                        className="hover:text-accent dark:hover:text-accent-light text-xs text-gray-500 transition-colors dark:text-gray-400"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {DEV_MOCK_USER.email}

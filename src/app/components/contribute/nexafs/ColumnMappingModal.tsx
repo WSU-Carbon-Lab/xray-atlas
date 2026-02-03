@@ -10,10 +10,7 @@ import type {
   CSVColumnMappings,
   ColumnStats,
 } from "~/app/contribute/nexafs/types";
-import {
-  analyzeNumericColumns,
-  formatStatNumber,
-} from "~/app/contribute/nexafs/utils";
+import { analyzeNumericColumns } from "~/app/contribute/nexafs/utils";
 import type { SpectrumPoint } from "~/app/components/plots/core/types";
 
 interface ColumnMappingModalProps {
@@ -71,7 +68,8 @@ export function ColumnMappingModal({
 
     if (openDropdown || openStatusDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [openDropdown, openStatusDropdown]);
 
@@ -103,8 +101,7 @@ export function ColumnMappingModal({
     });
   }, [columns, isOpen]);
 
-  // Analyze numeric columns for statistics
-  const columnStats = useMemo(() => {
+  const _columnStats = useMemo(() => {
     const numericColumns = new Set<string>();
     if (mappings.energy) numericColumns.add(mappings.energy);
     if (mappings.absorption) numericColumns.add(mappings.absorption);
@@ -170,7 +167,10 @@ export function ColumnMappingModal({
       finalMappings.phi = undefined;
     }
 
-    onConfirm(finalMappings, Object.keys(fixedValues).length > 0 ? fixedValues : undefined);
+    onConfirm(
+      finalMappings,
+      Object.keys(fixedValues).length > 0 ? fixedValues : undefined,
+    );
   };
 
   const handleAssignColumn = (
@@ -230,7 +230,9 @@ export function ColumnMappingModal({
     setOpenDropdown(null);
   };
 
-  const getColumnMappingType = (columnName: string): "energy" | "absorption" | "theta" | "phi" | null => {
+  const getColumnMappingType = (
+    columnName: string,
+  ): "energy" | "absorption" | "theta" | "phi" | null => {
     if (columnName === mappings.energy) return "energy";
     if (columnName === mappings.absorption) return "absorption";
     if (columnName === mappings.theta) return "theta";
@@ -238,7 +240,9 @@ export function ColumnMappingModal({
     return null;
   };
 
-  const getColumnColor = (type: "energy" | "absorption" | "theta" | "phi"): "accent" | "default" | "success" | "warning" | "danger" => {
+  const getColumnColor = (
+    type: "energy" | "absorption" | "theta" | "phi",
+  ): "accent" | "default" | "success" | "warning" | "danger" => {
     switch (type) {
       case "energy":
         return "accent";
@@ -298,7 +302,8 @@ export function ColumnMappingModal({
       maxWidth="max-w-5xl"
     >
       <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-        Assign columns using the dropdown widgets in the table headers. Required: Energy and Absorption.
+        Assign columns using the dropdown widgets in the table headers.
+        Required: Energy and Absorption.
       </div>
 
       {/* Column Assignment Status - Moved to Top */}
@@ -317,7 +322,10 @@ export function ColumnMappingModal({
               </Chip>
               <span className="text-red-500">*</span>
             </label>
-            <div className="relative" ref={openStatusDropdown === "energy" ? statusDropdownRef : null}>
+            <div
+              className="relative"
+              ref={openStatusDropdown === "energy" ? statusDropdownRef : null}
+            >
               <button
                 type="button"
                 onClick={() =>
@@ -339,7 +347,7 @@ export function ColumnMappingModal({
                 </div>
               </button>
               {openStatusDropdown === "energy" && (
-                <div className="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                <div className="absolute top-full left-0 z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                   <div className="py-1">
                     <button
                       type="button"
@@ -387,7 +395,12 @@ export function ColumnMappingModal({
               </Chip>
               <span className="text-red-500">*</span>
             </label>
-            <div className="relative" ref={openStatusDropdown === "absorption" ? statusDropdownRef : null}>
+            <div
+              className="relative"
+              ref={
+                openStatusDropdown === "absorption" ? statusDropdownRef : null
+              }
+            >
               <button
                 type="button"
                 onClick={() =>
@@ -409,7 +422,7 @@ export function ColumnMappingModal({
                 </div>
               </button>
               {openStatusDropdown === "absorption" && (
-                <div className="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                <div className="absolute top-full left-0 z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                   <div className="py-1">
                     <button
                       type="button"
@@ -497,7 +510,10 @@ export function ColumnMappingModal({
               </Slider>
             </div>
             {thetaMode === "column" ? (
-              <div className="relative" ref={openStatusDropdown === "theta" ? statusDropdownRef : null}>
+              <div
+                className="relative"
+                ref={openStatusDropdown === "theta" ? statusDropdownRef : null}
+              >
                 <button
                   type="button"
                   onClick={() =>
@@ -519,7 +535,7 @@ export function ColumnMappingModal({
                   </div>
                 </button>
                 {openStatusDropdown === "theta" && (
-                  <div className="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <div className="absolute top-full left-0 z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                     <div className="py-1">
                       <button
                         type="button"
@@ -559,7 +575,7 @@ export function ColumnMappingModal({
                 onChange={(e) => setFixedTheta(e.target.value)}
                 placeholder="Fixed value (°)"
                 step="0.01"
-                className="w-full rounded-lg border border-orange-300 bg-orange-50 px-3 py-2 text-xs text-orange-900 placeholder:text-orange-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200 dark:placeholder:text-orange-500 dark:focus:ring-orange-800"
+                className="w-full rounded-lg border border-orange-300 bg-orange-50 px-3 py-2 text-xs text-orange-900 placeholder:text-orange-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-200 focus:outline-none dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-200 dark:placeholder:text-orange-500 dark:focus:ring-orange-800"
               />
             )}
           </div>
@@ -617,7 +633,10 @@ export function ColumnMappingModal({
               </Slider>
             </div>
             {phiMode === "column" ? (
-              <div className="relative" ref={openStatusDropdown === "phi" ? statusDropdownRef : null}>
+              <div
+                className="relative"
+                ref={openStatusDropdown === "phi" ? statusDropdownRef : null}
+              >
                 <button
                   type="button"
                   onClick={() =>
@@ -639,7 +658,7 @@ export function ColumnMappingModal({
                   </div>
                 </button>
                 {openStatusDropdown === "phi" && (
-                  <div className="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <div className="absolute top-full left-0 z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                     <div className="py-1">
                       <button
                         type="button"
@@ -679,7 +698,7 @@ export function ColumnMappingModal({
                 onChange={(e) => setFixedPhi(e.target.value)}
                 placeholder="Fixed value (°)"
                 step="0.01"
-                className="w-full rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-xs text-teal-900 placeholder:text-teal-400 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200 dark:border-teal-700 dark:bg-teal-900/20 dark:text-teal-200 dark:placeholder:text-teal-500 dark:focus:ring-teal-800"
+                className="w-full rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-xs text-teal-900 placeholder:text-teal-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none dark:border-teal-700 dark:bg-teal-900/20 dark:text-teal-200 dark:placeholder:text-teal-500 dark:focus:ring-teal-800"
               />
             )}
           </div>
@@ -693,7 +712,10 @@ export function ColumnMappingModal({
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Data Preview (first {previewRows.length} rows)
             </label>
-            <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700" style={{ minHeight: '500px', maxHeight: '500px' }}>
+            <div
+              className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700"
+              style={{ minHeight: "500px", maxHeight: "500px" }}
+            >
               <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
                 <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
                   <tr>
@@ -707,7 +729,7 @@ export function ColumnMappingModal({
                           className="relative px-2 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300"
                         >
                           <div className="flex items-center gap-1.5">
-                            <span className="truncate flex-1">{col}</span>
+                            <span className="flex-1 truncate">{col}</span>
                             {isMapped && (
                               <Chip
                                 size="sm"
@@ -724,12 +746,17 @@ export function ColumnMappingModal({
                                       : "Phi"}
                               </Chip>
                             )}
-                            <div className="relative shrink-0" ref={openDropdown === col ? dropdownRef : null}>
+                            <div
+                              className="relative shrink-0"
+                              ref={openDropdown === col ? dropdownRef : null}
+                            >
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setOpenDropdown(openDropdown === col ? null : col);
+                                  setOpenDropdown(
+                                    openDropdown === col ? null : col,
+                                  );
                                 }}
                                 className={`rounded p-0.5 transition-colors ${
                                   isMapped
@@ -741,12 +768,14 @@ export function ColumnMappingModal({
                                 <ChevronDownIcon className="h-3.5 w-3.5" />
                               </button>
                               {openDropdown === col && (
-                                <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
+                                <div className="absolute top-full right-0 z-10 mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
                                   <div className="py-1">
                                     <button
                                       type="button"
-                                      onClick={() => handleAssignColumn(col, "energy")}
-                                      className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition-colors ${
+                                      onClick={() =>
+                                        handleAssignColumn(col, "energy")
+                                      }
+                                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
                                         mappingType === "energy"
                                           ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
                                           : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -760,12 +789,16 @@ export function ColumnMappingModal({
                                       >
                                         Energy
                                       </Chip>
-                                      {mappingType === "energy" && <span className="ml-auto">✓</span>}
+                                      {mappingType === "energy" && (
+                                        <span className="ml-auto">✓</span>
+                                      )}
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => handleAssignColumn(col, "absorption")}
-                                      className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition-colors ${
+                                      onClick={() =>
+                                        handleAssignColumn(col, "absorption")
+                                      }
+                                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
                                         mappingType === "absorption"
                                           ? "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200"
                                           : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -779,12 +812,16 @@ export function ColumnMappingModal({
                                       >
                                         Absorption
                                       </Chip>
-                                      {mappingType === "absorption" && <span className="ml-auto">✓</span>}
+                                      {mappingType === "absorption" && (
+                                        <span className="ml-auto">✓</span>
+                                      )}
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => handleAssignColumn(col, "theta")}
-                                      className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition-colors ${
+                                      onClick={() =>
+                                        handleAssignColumn(col, "theta")
+                                      }
+                                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
                                         mappingType === "theta"
                                           ? "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-200"
                                           : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -798,12 +835,16 @@ export function ColumnMappingModal({
                                       >
                                         Theta
                                       </Chip>
-                                      {mappingType === "theta" && <span className="ml-auto">✓</span>}
+                                      {mappingType === "theta" && (
+                                        <span className="ml-auto">✓</span>
+                                      )}
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => handleAssignColumn(col, "phi")}
-                                      className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition-colors ${
+                                      onClick={() =>
+                                        handleAssignColumn(col, "phi")
+                                      }
+                                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
                                         mappingType === "phi"
                                           ? "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-200"
                                           : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -817,15 +858,19 @@ export function ColumnMappingModal({
                                       >
                                         Phi
                                       </Chip>
-                                      {mappingType === "phi" && <span className="ml-auto">✓</span>}
+                                      {mappingType === "phi" && (
+                                        <span className="ml-auto">✓</span>
+                                      )}
                                     </button>
                                     {isMapped && (
                                       <>
                                         <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
                                         <button
                                           type="button"
-                                          onClick={() => handleAssignColumn(col, "none")}
-                                          className="w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+                                          onClick={() =>
+                                            handleAssignColumn(col, "none")
+                                          }
+                                          className="w-full px-3 py-2 text-left text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                                         >
                                           Unassign
                                         </button>
@@ -843,7 +888,10 @@ export function ColumnMappingModal({
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                   {previewRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <tr
+                      key={idx}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    >
                       {columns.map((col) => {
                         return (
                           <td
@@ -874,8 +922,13 @@ export function ColumnMappingModal({
 
         {/* Right Side: Preview Graph */}
         <div className="flex flex-col">
-          {previewPoints.length > 0 && mappings.energy && mappings.absorption ? (
-            <div className="flex flex-1 flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800" style={{ minHeight: '500px', maxHeight: '500px' }}>
+          {previewPoints.length > 0 &&
+          mappings.energy &&
+          mappings.absorption ? (
+            <div
+              className="flex flex-1 flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+              style={{ minHeight: "500px", maxHeight: "500px" }}
+            >
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Preview Graph
               </label>
@@ -884,7 +937,10 @@ export function ColumnMappingModal({
               </div>
             </div>
           ) : (
-            <div className="flex flex-1 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50" style={{ minHeight: '500px', maxHeight: '500px' }}>
+            <div
+              className="flex flex-1 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
+              style={{ minHeight: "500px", maxHeight: "500px" }}
+            >
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Assign Energy and Absorption columns to see preview
               </p>

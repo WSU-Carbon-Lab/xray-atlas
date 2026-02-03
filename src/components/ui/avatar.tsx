@@ -1,21 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { LogOut, User as UserIcon, LayoutDashboard, Users } from "lucide-react";
-import Image from "next/image";
 import type { User as NextAuthUser } from "next-auth";
 import { trpc } from "~/trpc/client";
 import { ORCIDIcon } from "~/app/components/icons";
+import { Button, Avatar } from "@heroui/react";
 
-type UserWithOrcid = NextAuthUser & {
+export type UserWithOrcid = NextAuthUser & {
   orcid?: string | null;
-};
-
-type AvatarUser = {
-  image?: string | null;
-  name?: string | null;
 };
 
 const profileImage = (user: UserWithOrcid) => {
@@ -35,43 +32,38 @@ interface AvatarButtonProps {
   handleAction: (action: string) => void;
 }
 
-interface AvatarProps {
-  user: AvatarUser;
-  size?: "sm" | "md" | "lg";
-  width?: number;
-  height?: number;
-  className?: string;
+interface CustomAvatarProps extends React.ComponentProps<typeof Avatar> {
+  user: UserWithOrcid;
 }
 
-const sizeMap = {
-  sm: { width: 20, height: 20 },
-  md: { width: 40, height: 40 },
-  lg: { width: 96, height: 96 },
-} as const;
-
-export function Avatar({
+export const CustomAvatar = ({
   user,
-  size = "sm",
-  width,
-  height,
-  className = "",
-}: AvatarProps) {
-  if (!user.image) {
-    return null;
-  }
-
-  const dimensions = width && height ? { width, height } : sizeMap[size];
-
+  size = "md",
+  className,
+  ...rest
+}: CustomAvatarProps) => {
+  const initials =
+    user.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase() ?? "U";
+  const showImage = Boolean(user.image?.trim());
   return (
-    <Image
-      src={user.image}
-      alt={user.name ?? "User"}
-      width={dimensions.width}
-      height={dimensions.height}
-      className={`rounded-full object-cover ${className}`}
-    />
+    <Avatar size={size} className={className} {...rest}>
+      {showImage ? (
+        <Avatar.Image
+          alt={user.name ?? "User"}
+          src={user.image ?? ""}
+          className="rounded-full"
+        />
+      ) : null}
+      <Avatar.Fallback className="text-xs">
+        {initials.length > 0 ? initials.slice(0, 2) : "U"}
+      </Avatar.Fallback>
+    </Avatar>
   );
-}
+};
 
 export function AvatarButton({
   user,
@@ -79,13 +71,9 @@ export function AvatarButton({
   setIsOpen,
   handleAction,
 }: AvatarButtonProps) {
-  if (!user.image) {
-    return null;
-  }
-
   return (
     <div className="relative">
-      <button
+      <Button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="focus-visible:ring-accent flex h-10 w-10 items-center justify-center rounded-full transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
@@ -93,8 +81,8 @@ export function AvatarButton({
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        <Avatar user={user} size="md" width={36} height={36} />
-      </button>
+        <CustomAvatar user={user} size="md" />
+      </Button>
 
       {isOpen && (
         <>
@@ -106,7 +94,7 @@ export function AvatarButton({
           <div className="absolute top-full right-0 z-50 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
             <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
               <div className="flex items-center gap-3">
-                <Avatar user={user} size="md" />
+                <CustomAvatar user={user} size="md" />
                 <div className="flex flex-col gap-0.5">
                   <a
                     href={`/users/${user.id}`}
@@ -252,5 +240,148 @@ export function CustomUserButton() {
       setIsOpen={setIsOpen}
       handleAction={handleAction}
     />
+  );
+}
+
+interface AvatarGroupProps extends React.ComponentProps<typeof Avatar> {
+  users?: UserWithOrcid[];
+  max?: number;
+}
+
+const avatarSizeClasses = {
+  sm: "h-7 w-7",
+  md: "h-9 w-9",
+  lg: "h-10 w-10",
+} as const;
+
+function AvatarWithTooltip({
+  user,
+  avatarWrapperClass,
+  constrainedClass,
+  size,
+}: {
+  user: UserWithOrcid;
+  avatarWrapperClass: string;
+  constrainedClass: string;
+  size: "sm" | "md" | "lg";
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLSpanElement>(null);
+
+  const updatePosition = () => {
+    const el = triggerRef.current;
+    if (!el || typeof document === "undefined") return;
+    const rect = el.getBoundingClientRect();
+    setPosition({
+      left: rect.left + rect.width / 2,
+      top: rect.top - 4,
+    });
+  };
+
+  const handleMouseEnter = () => {
+    updatePosition();
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+  };
+
+  const userName = user.name ?? "User";
+  const avatarElement = (
+    <span className={avatarWrapperClass}>
+      <CustomAvatar size={size} user={user} className={constrainedClass} />
+    </span>
+  );
+  const triggerElement = user.id ? (
+    <Link
+      href={`/users/${user.id}`}
+      aria-label={`View ${userName}'s profile`}
+      className="focus-visible:ring-accent block focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-offset-1"
+    >
+      {avatarElement}
+    </Link>
+  ) : (
+    avatarElement
+  );
+
+  return (
+    <>
+      <span
+        ref={triggerRef}
+        className="inline-flex shrink-0"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {triggerElement}
+      </span>
+      {isHovered &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[700] -translate-x-1/2 -translate-y-full"
+            style={{ left: position.left, top: position.top }}
+          >
+            <div className="rounded-full bg-slate-200 px-2.5 py-1 text-sm font-medium text-slate-900 shadow-lg dark:bg-slate-700 dark:text-slate-100">
+              {userName}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+export function AvatarGroup({
+  users = [],
+  max = 5,
+  size = "md",
+}: AvatarGroupProps) {
+  const sizeClass = avatarSizeClasses[size] ?? avatarSizeClasses.md;
+  const constrainedClass = `${sizeClass} min-h-0 min-w-0 shrink-0`;
+  const avatarWrapperClass = `bg-surface-1 relative z-0 flex shrink-0 overflow-hidden rounded-full shadow-sm hover:z-20 ${sizeClass}`;
+
+  if (!users || users.length === 0) {
+    return (
+      <div className="flex -space-x-2.5 overflow-visible">
+        <span
+          className={`bg-surface-1 relative z-0 flex overflow-hidden rounded-full shadow-sm ${sizeClass}`}
+        >
+          <CustomAvatar
+            size={size}
+            user={{ name: "?" }}
+            className={constrainedClass}
+          />
+        </span>
+      </div>
+    );
+  }
+
+  const displayUsers = users.slice(0, max);
+  const remaining = users.length - max;
+
+  return (
+    <div className="flex -space-x-2.5 overflow-visible" role="group">
+      {displayUsers.map((user) => (
+        <AvatarWithTooltip
+          key={user.id ?? user.name ?? "user"}
+          user={user}
+          avatarWrapperClass={avatarWrapperClass}
+          constrainedClass={constrainedClass}
+          size={size}
+        />
+      ))}
+      {remaining > 0 ? (
+        <span
+          className={`bg-surface-2 text-text-primary relative z-10 flex shrink-0 items-center justify-center rounded-full font-bold shadow-sm ${
+            size === "sm" ? "h-7 w-7 text-[10px]" : "h-9 w-9 text-xs"
+          }`}
+          title={`${remaining} more`}
+        >
+          +{remaining}
+        </span>
+      ) : null}
+    </div>
   );
 }

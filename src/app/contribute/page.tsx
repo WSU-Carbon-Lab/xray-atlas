@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { SignInButton } from "@/components/auth/sign-in-button";
@@ -11,7 +11,6 @@ import {
   BuildingOfficeIcon,
   BoltIcon,
 } from "@heroicons/react/24/outline";
-import { trpc } from "~/trpc/client";
 import type { ComponentType, HTMLAttributes } from "react";
 
 type ContributionCardIcon = ComponentType<
@@ -43,18 +42,18 @@ function ContributionCard({
       className={`group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed bg-white px-6 py-6 text-left transition-transform duration-200 dark:bg-gray-800 ${
         disabled
           ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 dark:border-gray-700 dark:bg-gray-900"
-          : "border-gray-300 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg dark:border-gray-700"
+          : "hover:border-accent border-gray-300 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700"
       } ${fullWidth ? "md:col-span-2" : ""}`}
     >
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-semibold uppercase tracking-wide text-accent dark:text-accent-light">
+        <span className="text-accent dark:text-accent-light text-sm font-semibold tracking-wide uppercase">
           {label}
         </span>
         <span className="text-base text-gray-700 transition-colors duration-200 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-gray-100">
           {description}
         </span>
       </div>
-      <div className="hidden shrink-0 text-gray-300 transition-colors duration-200 group-hover:text-accent dark:text-accent-light md:block">
+      <div className="group-hover:text-accent dark:text-accent-light hidden shrink-0 text-gray-300 transition-colors duration-200 md:block">
         <Icon className="h-16 w-16" aria-hidden="true" />
       </div>
     </button>
@@ -66,7 +65,6 @@ export default function ContributePage() {
   const { data: session } = useSession();
   const isSignedIn = !!session?.user;
   const [showAgreementModal, setShowAgreementModal] = useState(false);
-
 
   const handleContributionTypeSelect = (
     type: "molecule" | "facility" | "nexafs",
@@ -102,7 +100,6 @@ export default function ContributePage() {
       </div>
     );
   }
-
 
   return (
     <>

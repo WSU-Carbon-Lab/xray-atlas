@@ -1,131 +1,300 @@
 "use client";
 
-import React from "react";
-import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
+import React, { useState } from "react";
+import { TagGroup, Tag, Label, Button, EmptyState, Input } from "@heroui/react";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownSection,
+  DropdownItem,
+} from "@heroui/dropdown";
+import { PlusIcon } from "@heroicons/react/24/outline";
+import { X } from "lucide-react";
 
-interface SynonymsListProps {
-  /** Synonyms to display as badges (usually filtered/sorted subset) */
+export const SYNONYM_CHIP_CLASS =
+  "inline-flex items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light";
+
+interface SynonymTagGroupProps extends React.ComponentProps<typeof TagGroup> {
   synonyms: string[];
-  /** All synonyms to show in the popover modal (if different from synonyms prop) */
-  allSynonyms?: string[];
-  /** Maximum number of synonyms to display as badges before showing popover */
-  maxDisplay?: number;
-  /** Custom className for the container */
-  className?: string;
-  /** Custom className for individual synonym badges */
-  badgeClassName?: string;
-  /** Variant style for badges */
-  variant?: "default" | "liquid-glass" | "compact";
+  maxSynonyms?: number;
+  tagGroupProps?: React.ComponentProps<typeof TagGroup>;
 }
 
-/**
- * Reusable component for displaying synonyms with badges and a popover modal
- * Shows up to maxDisplay synonyms as badges, then a "+X" button that opens a popover with all synonyms
- * Constrains all synonyms and the "+X" button to a single line, truncating the last synonym if needed
- */
-export const SynonymsList = ({
+function SynonymsPopup({
   synonyms,
-  allSynonyms,
-  maxDisplay = 5,
+  remaining,
+  label,
+}: {
+  synonyms: string[];
+  remaining: number;
+  label?: string;
+}) {
+  const displayLabel = label ?? `+${remaining}`;
+  return (
+    <span className="inline-flex shrink-0" onClick={(e) => e.stopPropagation()}>
+      <Dropdown>
+        <DropdownTrigger>
+          <button
+            type="button"
+            className="bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+            aria-label={`Show all ${synonyms.length} synonyms`}
+          >
+            {displayLabel}
+          </button>
+        </DropdownTrigger>
+        <DropdownMenu
+          aria-label="All synonyms"
+          className="max-w-[320px] min-w-[200px] rounded-lg border border-zinc-200 bg-zinc-100 shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+          closeOnSelect={false}
+        >
+          <DropdownSection
+            title="All synonyms"
+            showDivider={false}
+            className="max-h-[200px] overflow-y-auto overscroll-contain"
+          >
+            {synonyms.map((syn) => (
+              <DropdownItem
+                key={syn}
+                textValue={syn}
+                className="cursor-default text-sm text-zinc-900 dark:text-zinc-100"
+                closeOnSelect={false}
+              >
+                {syn}
+              </DropdownItem>
+            ))}
+          </DropdownSection>
+        </DropdownMenu>
+      </Dropdown>
+    </span>
+  );
+}
+
+interface SynonymChipsProps {
+  synonyms: string[];
+  maxSynonyms?: number;
+  size?: "default" | "compact";
+  className?: string;
+  collapseOnly?: boolean;
+}
+
+export const SynonymChips = ({
+  synonyms,
+  maxSynonyms = 3,
+  size = "default",
   className = "",
-  badgeClassName = "",
-  variant = "default",
-}: SynonymsListProps) => {
+  collapseOnly = false,
+}: SynonymChipsProps) => {
   if (synonyms.length === 0) return null;
-
-  // Use allSynonyms for popover if provided, otherwise use synonyms
-  const popoverSynonyms = allSynonyms ?? synonyms;
-
-  // Get synonyms to display as badges
-  const displayedSynonyms = synonyms.slice(0, maxDisplay);
-  const remainingCount = popoverSynonyms.length - displayedSynonyms.length;
-
-  // Variant-based default styles
-  const getBadgeStyles = () => {
-    switch (variant) {
-      case "liquid-glass":
-        return "rounded-full bg-gray-100/80 px-3 py-1 text-xs font-medium text-gray-700 backdrop-blur-sm dark:bg-gray-700/80 dark:text-gray-300";
-      case "compact":
-        return "rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-300";
-      default:
-        return "rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-300";
-    }
-  };
-
-  const badgeClass = badgeClassName || getBadgeStyles();
-
+  if (collapseOnly) {
+    return (
+      <div className={className}>
+        <SynonymsPopup
+          synonyms={synonyms}
+          remaining={synonyms.length}
+          label={`+${synonyms.length}`}
+        />
+      </div>
+    );
+  }
+  const truncated = [...synonyms]
+    .sort((a: string, b: string) => a.length - b.length)
+    .slice(0, maxSynonyms);
+  const remaining = synonyms.length - truncated.length;
+  const chipClass =
+    size === "compact"
+      ? "bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light inline-flex max-w-[4.5rem] shrink-0 truncate rounded border-0 px-1.5 py-0.5 text-[9px] font-medium tracking-wider uppercase"
+      : SYNONYM_CHIP_CLASS;
   return (
     <div
-      className={`flex flex-nowrap items-center gap-2 overflow-hidden ${className}`}
+      className={`flex flex-wrap items-center gap-0.5 sm:gap-1 ${className}`}
     >
-      {displayedSynonyms.map((name, idx) => {
-        // Allow the last synonym to truncate if needed to keep everything on one line
-        const isLast = idx === displayedSynonyms.length - 1;
-        const shouldTruncate = isLast;
-
-        return (
-          <span
-            key={`${name}-${idx}`}
-            className={`${badgeClass} ${shouldTruncate ? "max-w-[200px] min-w-0 shrink overflow-hidden" : "shrink-0"}`}
-            title={shouldTruncate && name.length > 20 ? name : undefined}
-          >
-            {shouldTruncate ? (
-              <span className="block truncate">{name}</span>
-            ) : (
-              name
-            )}
-          </span>
-        );
-      })}
-      {remainingCount > 0 && (
-        <div className="shrink-0">
-          <SynonymsPopover
-            synonyms={popoverSynonyms}
-            displayedCount={displayedSynonyms.length}
-          />
-        </div>
-      )}
+      {truncated.map((syn: string) => (
+        <span key={syn} className={chipClass} title={syn}>
+          {syn}
+        </span>
+      ))}
+      {remaining > 0 ? (
+        <SynonymsPopup synonyms={synonyms} remaining={remaining} />
+      ) : null}
     </div>
   );
 };
 
-/**
- * Popover component that displays all synonyms in a modal
- */
-const SynonymsPopover = ({
-  synonyms,
-  displayedCount,
-}: {
-  synonyms: string[];
-  displayedCount: number;
-}) => {
-  const remainingSynonyms = synonyms.slice(displayedCount);
+export const SynonymChipsWithPopup = SynonymChips;
 
-  if (remainingSynonyms.length === 0) return null;
+export const SynonymTagGroup = ({
+  synonyms,
+  maxSynonyms = 5,
+  tagGroupProps,
+}: SynonymTagGroupProps) => {
+  if (synonyms.length === 0) return null;
+  const truncatedSynonyms = [...synonyms]
+    .sort((a: string, b: string) => a.length - b.length)
+    .slice(0, maxSynonyms);
 
   return (
-    <Popover className="relative flex shrink-0 items-center">
-      <PopoverButton className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600">
-        +{remainingSynonyms.length}
-      </PopoverButton>
-      <PopoverPanel
-        anchor="bottom start"
-        className="z-50 mt-2 w-64 rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+    <TagGroup {...tagGroupProps}>
+      <Label>Synonyms</Label>
+      <TagGroup.List
+        renderEmptyState={() => (
+          <EmptyState className="p-1">No synonyms</EmptyState>
+        )}
       >
-        <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          All Synonyms ({synonyms.length})
-        </div>
-        <div className="max-h-64 space-y-1 overflow-y-auto">
-          {synonyms.map((synonym, idx) => (
-            <div
-              key={idx}
-              className="rounded px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+        {truncatedSynonyms.map((synonym: string) => (
+          <Tag key={synonym} id={synonym} textValue={synonym}>
+            {synonym}
+          </Tag>
+        ))}
+        {truncatedSynonyms.length < synonyms.length && (
+          <Dropdown>
+            <DropdownTrigger>
+              <Button variant="ghost" size="sm" aria-label="Show all synonyms">
+                <PlusIcon className="h-4 w-4" />
+                <span>+{synonyms.length - truncatedSynonyms.length}</span>
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu
+              aria-label="All Synonyms"
+              className="max-w-sm min-w-[220px]"
+              closeOnSelect={false}
             >
-              {synonym}
-            </div>
-          ))}
-        </div>
-      </PopoverPanel>
-    </Popover>
+              <DropdownSection
+                title="All Synonyms"
+                showDivider={false}
+                className="px-2"
+              >
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {synonyms.map((synonym) => (
+                    <Tag key={synonym} id={synonym} textValue={synonym}>
+                      {synonym}
+                    </Tag>
+                  ))}
+                </div>
+              </DropdownSection>
+            </DropdownMenu>
+          </Dropdown>
+        )}
+      </TagGroup.List>
+    </TagGroup>
   );
 };
+
+const inputClass =
+  "w-full rounded-xl border border-zinc-300 bg-zinc-50/80 px-4 py-2.5 text-zinc-900 placeholder:text-zinc-500 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20 focus-visible:ring-offset-0 dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-100 dark:placeholder:text-zinc-400";
+
+export interface SynonymTagGroupEditableProps extends Omit<
+  React.ComponentProps<typeof TagGroup>,
+  "onRemove"
+> {
+  synonyms: string[];
+  onSynonymsChange: (synonyms: string[]) => void;
+  allowRemove?: boolean;
+  label?: React.ReactNode;
+  addPlaceholder?: string;
+  description?: React.ReactNode;
+}
+
+export function SynonymTagGroupEditable({
+  synonyms,
+  onSynonymsChange,
+  allowRemove = false,
+  label = "Synonyms",
+  addPlaceholder = "Add a synonym (press Enter)…",
+  description,
+  className,
+  ...tagGroupProps
+}: SynonymTagGroupEditableProps) {
+  const [newSynonym, setNewSynonym] = useState("");
+
+  const handleRemove = (keys: Set<React.Key>) => {
+    const indices = new Set(Array.from(keys).map((k) => Number(k)));
+    onSynonymsChange(synonyms.filter((_, i) => !indices.has(i)));
+  };
+
+  const addSynonym = () => {
+    const trimmed = newSynonym.trim();
+    if (trimmed && !synonyms.includes(trimmed)) {
+      onSynonymsChange([...synonyms, trimmed]);
+      setNewSynonym("");
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addSynonym();
+    }
+  };
+
+  const items = synonyms.map((name, i) => ({ id: String(i), name }));
+
+  return (
+    <div className={className}>
+      <TagGroup
+        {...tagGroupProps}
+        selectionMode="none"
+        onRemove={allowRemove ? handleRemove : undefined}
+      >
+        {description ? (
+          <div className="mb-1.5 flex items-center gap-1">
+            <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              {label}
+            </Label>
+            {description}
+          </div>
+        ) : (
+          <Label className="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+            {label}
+          </Label>
+        )}
+        <TagGroup.List
+          items={items}
+          className="mb-2 flex flex-wrap gap-1.5"
+          renderEmptyState={() => (
+            <EmptyState className="p-1">No synonyms</EmptyState>
+          )}
+        >
+          {(item) => (
+            <Tag
+              key={item.id}
+              id={item.id}
+              textValue={item.name}
+              className={`${SYNONYM_CHIP_CLASS} gap-1`}
+            >
+              <span className="min-w-0 truncate">{item.name}</span>
+              {allowRemove && (
+                <Tag.RemoveButton
+                  className="focus-visible:ring-accent ml-1 rounded-md bg-slate-200/80 p-0.5 text-slate-600 transition-colors hover:bg-slate-300 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:bg-slate-600/80 dark:text-slate-300 dark:hover:bg-slate-500 dark:hover:text-slate-100"
+                  aria-label={`Remove ${item.name}`}
+                >
+                  <X className="h-3 w-3" aria-hidden />
+                </Tag.RemoveButton>
+              )}
+            </Tag>
+          )}
+        </TagGroup.List>
+      </TagGroup>
+      <div className="flex items-center gap-2">
+        <Input
+          type="text"
+          value={newSynonym}
+          onChange={(e) => setNewSynonym(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={addPlaceholder}
+          aria-label="New synonym"
+          className={inputClass}
+        />
+        <Button
+          type="button"
+          onPress={addSynonym}
+          isDisabled={!newSynonym.trim()}
+          className="shrink-0 rounded-xl whitespace-nowrap"
+          aria-label="Add synonym"
+        >
+          Add
+        </Button>
+      </div>
+    </div>
+  );
+}

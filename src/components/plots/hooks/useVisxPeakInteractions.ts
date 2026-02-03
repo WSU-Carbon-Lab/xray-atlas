@@ -2,7 +2,7 @@
  * Hook for handling peak interactions in visx (click, drag, keyboard)
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import type { Peak, PlotDimensions } from "../types";
 import type { VisxScales } from "./useVisxScales";
 
@@ -14,7 +14,7 @@ export function useVisxPeakInteractions({
   onPeakSelect,
   onPeakAdd,
   onPeakDelete,
-  onPeakUpdate,
+  onPeakUpdate: _onPeakUpdate,
   isManualPeakMode,
   plotRef,
 }: {
@@ -29,8 +29,10 @@ export function useVisxPeakInteractions({
   isManualPeakMode?: boolean;
   plotRef: React.RefObject<SVGSVGElement | null>;
 }) {
-  const plotWidth = dimensions.width - dimensions.margins.left - dimensions.margins.right;
-  const plotHeight = dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
+  const plotWidth =
+    dimensions.width - dimensions.margins.left - dimensions.margins.right;
+  const plotHeight =
+    dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
 
   // Find closest peak to a click position
   const findClosestPeak = useCallback(
@@ -40,7 +42,12 @@ export function useVisxPeakInteractions({
       const adjustedX = clickX - dimensions.margins.left;
       const adjustedY = clickY - dimensions.margins.top;
 
-      if (adjustedX < 0 || adjustedX > plotWidth || adjustedY < 0 || adjustedY > plotHeight) {
+      if (
+        adjustedX < 0 ||
+        adjustedX > plotWidth ||
+        adjustedY < 0 ||
+        adjustedY > plotHeight
+      ) {
         return null;
       }
 
@@ -48,7 +55,12 @@ export function useVisxPeakInteractions({
 
       // Find closest peak within threshold
       const domain = scales.xScale.domain();
-      if (!domain || domain.length < 2 || typeof domain[0] !== "number" || typeof domain[1] !== "number") {
+      if (
+        !domain ||
+        domain.length < 2 ||
+        typeof domain[0] !== "number" ||
+        typeof domain[1] !== "number"
+      ) {
         return null;
       }
       const energyRange = domain[1] - domain[0];

@@ -1,17 +1,28 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 import {
   DEV_MOCK_USER,
   DEV_MOCK_LINKED_ACCOUNTS,
   DEV_MOCK_PASSKEYS,
-  DEV_MOCK_MOLECULES,
   isDevMockUser,
 } from "~/lib/dev-mock-data";
 
 const orcidIdSchema = z
   .string()
-  .regex(/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/, "Invalid ORCID iD format. Expected format: XXXX-XXXX-XXXX-XXXX")
-  .or(z.string().url().refine((url) => url.includes("orcid.org"), "Must be a valid ORCID URL"));
+  .regex(
+    /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/,
+    "Invalid ORCID iD format. Expected format: XXXX-XXXX-XXXX-XXXX",
+  )
+  .or(
+    z
+      .string()
+      .url()
+      .refine((url) => url.includes("orcid.org"), "Must be a valid ORCID URL"),
+  );
 
 export const usersRouter = createTRPCRouter({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
@@ -37,7 +48,7 @@ export const usersRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      if (ctx.isDevMock && isDevMockUser(input.id)) {
+      if (isDevMockUser(input.id)) {
         return DEV_MOCK_USER;
       }
 
@@ -69,10 +80,14 @@ export const usersRouter = createTRPCRouter({
 
       let orcidId = input.orcid;
       if (orcidId.startsWith("https://")) {
-        orcidId = orcidId.replace("https://orcid.org/", "").replace("https://sandbox.orcid.org/", "");
+        orcidId = orcidId
+          .replace("https://orcid.org/", "")
+          .replace("https://sandbox.orcid.org/", "");
       }
       if (orcidId.startsWith("http://")) {
-        orcidId = orcidId.replace("http://orcid.org/", "").replace("http://sandbox.orcid.org/", "");
+        orcidId = orcidId
+          .replace("http://orcid.org/", "")
+          .replace("http://sandbox.orcid.org/", "");
       }
 
       const user = await ctx.db.user.update({
@@ -287,4 +302,82 @@ export const usersRouter = createTRPCRouter({
 
       return { image: updatedUser.image };
     }),
+
+  updateEmail: protectedProcedure
+    .input(
+      z.object({
+        email: z.string().email("Invalid email address"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new Error("User not authenticated");
+      }
+
+      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+        return { ...DEV_MOCK_USER, email: input.email };
+      }
+
+      const updatedUser = await ctx.db.user.update({
+        where: { id: ctx.userId },
+        data: { email: input.email },
+      });
+
+      return { email: updatedUser.email };
+    }),
+
+  removeEmail: protectedProcedure.mutation(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new Error("User not authenticated");
+    }
+
+    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+      return { ...DEV_MOCK_USER, email: null };
+    }
+
+    const updatedUser = await ctx.db.user.update({
+      where: { id: ctx.userId },
+      data: { email: null },
+    });
+
+    return { email: updatedUser.email };
+  }),
+
+  deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new Error("User not authenticated");
+    }
+
+    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
+      throw new Error("Cannot delete account in dev mode");
+    }
+
+    await ctx.db.$transaction(async (tx) => {
+      await tx.experiments.deleteMany({
+        where: { createdby: ctx.userId },
+      });
+
+      await tx.molecules.deleteMany({
+        where: { createdby: ctx.userId },
+      });
+
+      await tx.authenticator.deleteMany({
+        where: { userId: ctx.userId },
+      });
+
+      await tx.account.deleteMany({
+        where: { userId: ctx.userId },
+      });
+
+      await tx.session.deleteMany({
+        where: { userId: ctx.userId },
+      });
+
+      await tx.user.delete({
+        where: { id: ctx.userId },
+      });
+    });
+
+    return { success: true };
+  }),
 });
