@@ -979,11 +979,23 @@ export function MoleculeCard({
   const user = session?.user;
   const isSignedIn = !!session?.user;
   const utils = trpc.useUtils();
+  const [optimisticFavoriteDelta, setOptimisticFavoriteDelta] = useState(0);
+  const [optimisticUserFavorited, setOptimisticUserFavorited] = useState<
+    boolean | null
+  >(null);
   const favoriteMutation = trpc.molecules.toggleFavorite.useMutation({
+    onMutate: () => {
+      setOptimisticUserFavorited(realtimeUserHasUpvoted ? false : true);
+      setOptimisticFavoriteDelta(realtimeUserHasUpvoted ? -1 : 1);
+    },
     onSuccess: () => {
       if (molecule.id) {
         void utils.molecules.getById.invalidate({ id: molecule.id });
       }
+    },
+    onSettled: () => {
+      setOptimisticFavoriteDelta(0);
+      setOptimisticUserFavorited(null);
     },
   });
   const {
@@ -995,6 +1007,9 @@ export function MoleculeCard({
     initialUserHasUpvoted: molecule.userHasFavorited ?? false,
     userId: user?.id,
   });
+  const displayUpvoteCount = realtimeUpvoteCount + optimisticFavoriteDelta;
+  const displayUserHasUpvoted =
+    optimisticUserFavorited ?? realtimeUserHasUpvoted;
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const handleFavorite = () => {
     if (!isSignedIn || !molecule.id) return;
@@ -1016,8 +1031,8 @@ export function MoleculeCard({
     isSignedIn,
     handleFavorite,
     favoriteMutation,
-    realtimeUserHasUpvoted,
-    realtimeUpvoteCount,
+    realtimeUserHasUpvoted: displayUserHasUpvoted,
+    realtimeUpvoteCount: displayUpvoteCount,
     copiedText,
     handleCopy,
   };

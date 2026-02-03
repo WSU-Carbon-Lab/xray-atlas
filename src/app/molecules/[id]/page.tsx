@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, use, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
 import { MoleculeDisplay } from "@/components/molecules/molecule-display";
 import { PageSkeleton } from "@/components/feedback/loading-state";
 import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
 import { EditMoleculeModal } from "~/app/components/EditMoleculeModal";
+import { useRealtimeFavorites } from "~/hooks/useRealtimeFavorites";
 import Link from "next/link";
 import { CalendarIcon } from "@heroicons/react/24/outline";
 
@@ -27,10 +29,20 @@ export default function MoleculeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [optimisticViewCount, setOptimisticViewCount] = useState<number | null>(
+    null,
+  );
   const { id: moleculeId } = use(params);
   const trackViewSent = useRef(false);
+  const { data: session } = useSession();
 
-  const trackView = trpc.molecules.trackView.useMutation();
+  const trackView = trpc.molecules.trackView.useMutation({
+    onMutate: () => setOptimisticViewCount(1),
+    onSuccess: (data) => {
+      if (data?.recorded !== true) setOptimisticViewCount(null);
+    },
+    onError: () => setOptimisticViewCount(null),
+  });
 
   const {
     data: molecule,
@@ -43,6 +55,19 @@ export default function MoleculeDetailPage({
       retry: false,
     },
   );
+
+  const { favoriteCount: realtimeFavoriteCount } = useRealtimeFavorites({
+    moleculeId: molecule?.id,
+    initialFavoriteCount: molecule?.favoriteCount ?? 0,
+    initialUserHasFavorited: molecule?.userHasFavorited ?? false,
+    userId: session?.user?.id,
+  });
+
+  const displayFavoriteCount = molecule != null ? realtimeFavoriteCount : 0;
+  const displayViewCount =
+    optimisticViewCount != null
+      ? (molecule?.viewCount ?? 0) + optimisticViewCount
+      : (molecule?.viewCount ?? 0);
 
   useEffect(() => {
     if (!molecule?.id || trackViewSent.current) return;
@@ -216,16 +241,22 @@ export default function MoleculeDetailPage({
                 {samplesCount}
               </dd>
             </div>
-            {molecule.favoriteCount !== undefined && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Favorites
-                </dt>
-                <dd className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {molecule.favoriteCount ?? 0}
-                </dd>
-              </div>
-            )}
+            <div>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Views
+              </dt>
+              <dd className="mt-1 text-2xl font-bold text-gray-900 tabular-nums dark:text-gray-100">
+                {displayViewCount}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Favorites
+              </dt>
+              <dd className="mt-1 text-2xl font-bold text-gray-900 tabular-nums dark:text-gray-100">
+                {displayFavoriteCount}
+              </dd>
+            </div>
             {molecule.createdBy && (
               <div>
                 <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
