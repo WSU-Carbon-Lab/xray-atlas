@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import {
@@ -47,32 +47,31 @@ function MoleculesBrowseContent() {
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [viewMode, setViewMode] = useState<"compact" | "spacious">("spacious");
 
-  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(() => {
+  const selectedTagIds = useMemo(() => {
     const tagsParam = searchParams.get("tags");
-    if (!tagsParam) return new Set();
-    const ids = tagsParam.split(",").filter(Boolean);
-    return new Set(ids);
-  });
-
-  useEffect(() => {
-    const tagsParam = searchParams.get("tags");
-    if (!tagsParam) {
-      if (selectedTagIds.size > 0) setSelectedTagIds(new Set());
-      return;
-    }
-    const ids = tagsParam.split(",").filter(Boolean);
-    const fromUrl = new Set(ids);
-    if (
-      fromUrl.size !== selectedTagIds.size ||
-      [...fromUrl].some((id) => !selectedTagIds.has(id))
-    ) {
-      setSelectedTagIds(fromUrl);
-    }
-  }, [searchParams, selectedTagIds]);
+    if (!tagsParam) return new Set<string>();
+    return new Set(tagsParam.split(",").filter(Boolean));
+  }, [searchParams]);
 
   const tagIdsArray = useMemo(
     () => (selectedTagIds.size > 0 ? [...selectedTagIds] : []),
     [selectedTagIds],
+  );
+
+  const updateTagsInUrl = useCallback(
+    (newTagIds: Set<string>) => {
+      setCurrentPage(1);
+      const params = new URLSearchParams();
+      if (debouncedQuery) {
+        params.set("q", debouncedQuery);
+      }
+      if (newTagIds.size > 0) {
+        params.set("tags", [...newTagIds].join(","));
+      }
+      const newUrl = `/browse/molecules${params.toString() ? `?${params.toString()}` : ""}`;
+      router.replace(newUrl, { scroll: false });
+    },
+    [debouncedQuery, router],
   );
 
   // Debounce search query
@@ -102,7 +101,7 @@ function MoleculesBrowseContent() {
     setCurrentPage(1);
   }, [sortBy, itemsPerPage, selectedTagIds]);
 
-  // Update URL when query, page, or tag selection changes
+  // Update URL when query or page changes; preserve tags from URL
   useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedQuery) {
@@ -111,12 +110,13 @@ function MoleculesBrowseContent() {
     if (currentPage > 1) {
       params.set("page", currentPage.toString());
     }
-    if (selectedTagIds.size > 0) {
-      params.set("tags", [...selectedTagIds].join(","));
+    const tagsFromUrl = searchParams.get("tags");
+    if (tagsFromUrl) {
+      params.set("tags", tagsFromUrl);
     }
     const newUrl = `/browse/molecules${params.toString() ? `?${params.toString()}` : ""}`;
     router.replace(newUrl, { scroll: false });
-  }, [debouncedQuery, currentPage, selectedTagIds, router]);
+  }, [debouncedQuery, currentPage, searchParams, router]);
 
   const hasSearchQuery = debouncedQuery.trim().length > 0;
 
@@ -236,7 +236,7 @@ function MoleculesBrowseContent() {
         >
           <TagsDropdown
             selectedTagIds={selectedTagIds}
-            onSelectionChange={setSelectedTagIds}
+            onSelectionChange={updateTagsInUrl}
           />
           {!hasSearchQuery && (
             <Dropdown>
@@ -343,11 +343,9 @@ function MoleculesBrowseContent() {
         <TagFilterBar
           selectedTagIds={selectedTagIds}
           onRemove={(tagId) => {
-            setSelectedTagIds((prev) => {
-              const next = new Set(prev);
-              next.delete(tagId);
-              return next;
-            });
+            const next = new Set(selectedTagIds);
+            next.delete(tagId);
+            updateTagsInUrl(next);
           }}
         />
 

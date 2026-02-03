@@ -7,9 +7,7 @@ import {
   DropdownMenu,
   DropdownItem,
 } from "@heroui/dropdown";
-import { TagIcon } from "@heroicons/react/24/outline";
-import { TagIcon as TagIconSolid } from "@heroicons/react/24/solid";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { TagIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { trpc } from "~/trpc/client";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
 
@@ -50,22 +48,14 @@ export function TagsDropdown({
       <DropdownTrigger>
         <button
           type="button"
-          className={`focus-visible:ring-accent flex h-12 min-h-12 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-            hasSelection
-              ? "border-accent bg-accent/10 text-accent dark:border-accent dark:bg-accent/20 dark:text-accent-light"
-              : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-          } ${triggerClassName}`}
+          className={`focus-visible:ring-accent flex h-12 min-h-12 cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-gray-600 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 ${triggerClassName}`}
           aria-label={ariaLabel}
           aria-pressed={hasSelection}
         >
-          {hasSelection ? (
-            <TagIconSolid className="h-5 w-5 shrink-0" aria-hidden />
-          ) : (
-            <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
-          )}
+          <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
           <span className="text-sm font-medium">Tags</span>
           {hasSelection ? (
-            <span className="bg-accent/30 text-accent dark:bg-accent/40 dark:text-accent-light ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
+            <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-gray-200 px-1.5 text-xs font-medium text-gray-700 tabular-nums dark:bg-gray-600 dark:text-gray-200">
               {selectedTagIds.size}
             </span>
           ) : null}
