@@ -12,6 +12,13 @@ import Link from "next/link";
 import { Button, Card } from "@heroui/react";
 import { Key, Plus, Trash2, X } from "lucide-react";
 
+function base64urlDecode(str: string): Uint8Array {
+  let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = base64.length % 4;
+  if (pad) base64 += "=".repeat(4 - pad);
+  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+}
+
 export default function UserProfilePage({
   params,
 }: {
@@ -79,7 +86,10 @@ export default function UserProfilePage({
       const options = (await registerResponse.json()) as {
         challenge: string;
         user: { id: string; name: string; displayName: string };
-        excludeCredentials?: Array<{ id: string; type: "public-key" }>;
+        excludeCredentials?: Array<{
+          id: string | { type: "Buffer"; data: number[] };
+          type: "public-key";
+        }>;
         rp: { name: string; id: string };
         pubKeyCredParams: Array<{ type: "public-key"; alg: number }>;
         authenticatorSelection?: unknown;
@@ -87,13 +97,16 @@ export default function UserProfilePage({
         attestation?: "none" | "indirect" | "direct";
       };
 
+      const credentialIdToBufferSource = (id: string | { type: "Buffer"; data: number[] }): BufferSource =>
+        (typeof id === "string" ? base64urlDecode(id) : new Uint8Array(id.data)) as BufferSource;
+
       const publicKeyOptions: PublicKeyCredentialCreationOptions = {
         challenge: Uint8Array.from(atob(options.challenge), (c) =>
           c.charCodeAt(0),
         ),
         rp: options.rp,
         user: {
-          id: Uint8Array.from(atob(options.user.id), (c) => c.charCodeAt(0)),
+          id: base64urlDecode(options.user.id) as BufferSource,
           name: options.user.name,
           displayName: options.user.displayName,
         },
@@ -102,7 +115,7 @@ export default function UserProfilePage({
           alg: param.alg,
         })),
         excludeCredentials: options.excludeCredentials?.map((cred) => ({
-          id: Uint8Array.from(atob(cred.id), (c) => c.charCodeAt(0)),
+          id: credentialIdToBufferSource(cred.id),
           type: "public-key",
         })),
         timeout: options.timeout,
