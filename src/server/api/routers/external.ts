@@ -537,4 +537,55 @@ export const externalRouter = createTRPCRouter({
         },
       };
     }),
+
+  validateCasNumber: publicProcedure
+    .input(z.object({ casNumber: z.string() }))
+    .query(async ({ input }) => {
+      const casNumber = input.casNumber.trim();
+      if (!casNumber) return { valid: false };
+      if (!env.CAS_API_KEY) return { valid: false };
+      try {
+        const detailUrl = `https://commonchemistry.cas.org/api/detail?cas_rn=${encodeURIComponent(casNumber)}`;
+        const res = await fetch(detailUrl, {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+            "X-API-KEY": env.CAS_API_KEY,
+          },
+        });
+        if (!res.ok) return { valid: false };
+        const data = (await res.json()) as unknown;
+        const hasMolecule =
+          data !== null &&
+          typeof data === "object" &&
+          ("name" in data || "molecule" in data || "rn" in data);
+        return { valid: !!hasMolecule };
+      } catch {
+        return { valid: false };
+      }
+    }),
+
+  validatePubChemCid: publicProcedure
+    .input(z.object({ cid: z.string() }))
+    .query(async ({ input }) => {
+      const cid = input.cid.trim();
+      if (!cid || !/^\d+$/.test(cid)) return { valid: false };
+      try {
+        const res = await fetch(
+          `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/property/MolecularFormula/JSON`,
+          { headers: { Accept: "application/json" } },
+        );
+        if (!res.ok) return { valid: false };
+        const data = (await res.json()) as {
+          PropertyTable?: { Properties?: unknown[] };
+        };
+        const hasProperties =
+          data?.PropertyTable?.Properties &&
+          Array.isArray(data.PropertyTable.Properties) &&
+          data.PropertyTable.Properties.length > 0;
+        return { valid: !!hasProperties };
+      } catch {
+        return { valid: false };
+      }
+    }),
 });

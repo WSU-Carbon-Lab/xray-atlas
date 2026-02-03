@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, use, useEffect, useRef } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
 import { MoleculeDisplay } from "@/components/molecules/molecule-display";
+import { AddNexafsCard } from "@/components/molecules/AddNexafsCard";
 import { PageSkeleton } from "@/components/feedback/loading-state";
 import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
-import { EditMoleculeModal } from "~/app/components/EditMoleculeModal";
-import { useRealtimeFavorites } from "~/hooks/useRealtimeFavorites";
 import Link from "next/link";
 import { CalendarIcon } from "@heroicons/react/24/outline";
+
+type SessionUserWithOrcid = { orcid?: string | null };
 
 const VIEW_SESSION_KEY = "xray-atlas-view-session";
 const VIEW_DEBOUNCE_KEY = "xray-atlas-view-debounce";
@@ -43,13 +44,15 @@ export default function MoleculeDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [optimisticViewCount, setOptimisticViewCount] = useState<number | null>(
     null,
   );
   const { id: moleculeId } = use(params);
   const trackViewSent = useRef(false);
   const { data: session } = useSession();
+  const isSignedIn = !!session?.user;
+  const hasOrcid = !!(session?.user as SessionUserWithOrcid)?.orcid;
+  const canEdit = isSignedIn && hasOrcid;
 
   const trackView = trpc.molecules.trackView.useMutation({
     onMutate: () => setOptimisticViewCount(1),
@@ -73,19 +76,6 @@ export default function MoleculeDetailPage({
       retry: false,
     },
   );
-
-  const { favoriteCount: realtimeFavoriteCount } = useRealtimeFavorites({
-    moleculeId: molecule?.id,
-    initialFavoriteCount: molecule?.favoriteCount ?? 0,
-    initialUserHasFavorited: molecule?.userHasFavorited ?? false,
-    userId: session?.user?.id,
-  });
-
-  const displayFavoriteCount = molecule != null ? realtimeFavoriteCount : 0;
-  const displayViewCount =
-    optimisticViewCount != null
-      ? (molecule?.viewCount ?? 0) + optimisticViewCount
-      : (molecule?.viewCount ?? 0);
 
   useEffect(() => {
     if (!molecule?.id || trackViewSent.current) return;
@@ -142,12 +132,6 @@ export default function MoleculeDetailPage({
     );
   }
 
-  const handleEdit = () => {
-    setIsEditModalOpen(true);
-  };
-
-  const samplesCount = molecule.sampleCount ?? 0;
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
@@ -160,160 +144,23 @@ export default function MoleculeDetailPage({
       </div>
 
       <div className="mb-8">
-        <MoleculeDisplay molecule={molecule} onEdit={handleEdit} />
+        <MoleculeDisplay
+          molecule={molecule}
+          variant="header"
+          canEdit={canEdit}
+          isSignedIn={isSignedIn}
+        />
       </div>
 
-      <EditMoleculeModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        moleculeId={molecule.id}
-        initialData={{
-          iupacName: molecule.iupacName,
-          commonNames: molecule.commonName ?? [],
-          chemicalFormula: molecule.chemicalFormula,
-          SMILES: molecule.SMILES,
-          InChI: molecule.InChI,
-          casNumber: molecule.casNumber ?? null,
-          pubChemCid: molecule.pubChemCid ?? null,
-        }}
-        onSuccess={() => {
-          // Refetch molecule data after successful update
-          // This is handled automatically by the mutation's onSuccess
-        }}
-      />
-
-      {/* Additional Information */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Molecule Information */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
-            Molecule Information
-          </h2>
-          <dl className="space-y-3">
-            <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                IUPAC Name
-              </dt>
-              <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-                {molecule.iupacName}
-              </dd>
-            </div>
-            {(molecule.commonName?.length ?? 0) > 0 && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Common Names
-                </dt>
-                <dd className="mt-1 flex flex-wrap gap-2">
-                  {molecule.commonName!.map((synonym: string, idx: number) => (
-                    <span
-                      key={idx}
-                      className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-                    >
-                      {synonym}
-                    </span>
-                  ))}
-                </dd>
-              </div>
-            )}
-            <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Chemical Formula
-              </dt>
-              <dd className="mt-1 font-mono text-sm text-gray-900 dark:text-gray-100">
-                {molecule.chemicalFormula}
-              </dd>
-            </div>
-            {molecule.casNumber && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  CAS Number
-                </dt>
-                <dd className="mt-1 font-mono text-sm text-gray-900 dark:text-gray-100">
-                  {molecule.casNumber}
-                </dd>
-              </div>
-            )}
-            {molecule.pubChemCid && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  PubChem CID
-                </dt>
-                <dd className="mt-1 font-mono text-sm text-gray-900 dark:text-gray-100">
-                  {molecule.pubChemCid}
-                </dd>
-              </div>
-            )}
-          </dl>
-        </div>
-
-        {/* Statistics */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
-            Database Statistics
-          </h2>
-          <dl className="space-y-3">
-            <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Samples
-              </dt>
-              <dd className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {samplesCount}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Views
-              </dt>
-              <dd className="mt-1 text-2xl font-bold text-gray-900 tabular-nums dark:text-gray-100">
-                {displayViewCount}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Favorites
-              </dt>
-              <dd className="mt-1 text-2xl font-bold text-gray-900 tabular-nums dark:text-gray-100">
-                {displayFavoriteCount}
-              </dd>
-            </div>
-            {molecule.createdBy && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Uploaded By
-                </dt>
-                <dd className="mt-1">
-                  <Link
-                    href={`/users/${molecule.createdBy.id}`}
-                    className="text-accent dark:text-accent-light text-sm font-medium hover:underline"
-                  >
-                    {molecule.createdBy.name}
-                  </Link>
-                </dd>
-              </div>
-            )}
-            {molecule.createdAt && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Created
-                </dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-                  {new Date(molecule.createdAt).toLocaleDateString()}
-                </dd>
-              </div>
-            )}
-            {molecule.updatedAt && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Last Updated
-                </dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-                  {new Date(molecule.updatedAt).toLocaleDateString()}
-                </dd>
-              </div>
-            )}
-          </dl>
-        </div>
-      </div>
+      <section className="mt-8 space-y-6" aria-labelledby="browse-heading">
+        <h2
+          id="browse-heading"
+          className="text-xl font-semibold text-gray-900 dark:text-gray-100"
+        >
+          NEXAFS
+        </h2>
+        <AddNexafsCard />
+      </section>
 
       {molecule.samples && molecule.samples.length > 0 && (
         <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
