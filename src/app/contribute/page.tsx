@@ -9,7 +9,7 @@ import {
   AddMoleculeCard,
   AddFacilityCard,
 } from "@/components/contribute";
-import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
+import { ContributionAgreementModal } from "@/components/contribute";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
 
 export default function ContributePage() {

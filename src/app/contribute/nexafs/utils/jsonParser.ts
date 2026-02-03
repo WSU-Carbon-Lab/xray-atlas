@@ -1,4 +1,4 @@
-import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
+import type { SpectrumPoint } from "~/components/plots/types";
 
 export interface NEXAFSJsonData {
   energy?: number[] | Array<{ energy: number }>;

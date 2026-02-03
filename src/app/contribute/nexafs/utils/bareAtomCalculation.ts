@@ -1,5 +1,5 @@
 import type { BareAtomPoint } from "../types";
-import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
+import type { SpectrumPoint } from "~/components/plots/types";
 import {
   parseChemicalFormula,
   getAtomicWeight,

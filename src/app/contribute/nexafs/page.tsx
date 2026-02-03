@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import Papa from "papaparse";
-import { DefaultButton as Button } from "~/app/components/Button";
-import { SignInButton } from "~/app/components/SignInButton";
-import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
-import { SimpleDialog } from "~/app/components/SimpleDialog";
-import { FormField } from "~/app/components/FormField";
+import { DefaultButton as Button } from "@/components/ui/button";
+import { SignInButton } from "@/components/auth/sign-in-button";
+import { ContributionAgreementModal } from "@/components/contribute";
+import { SimpleDialog } from "@/components/ui/dialog";
+import { FormField } from "@/components/ui/form-field";
 import { trpc } from "~/trpc/client";
 import {
   ArrowLeftIcon,
@@ -21,18 +21,20 @@ import {
 } from "@heroicons/react/24/outline";
 import { BrushCleaning } from "lucide-react";
 import { Tooltip } from "@heroui/react";
-import { useToast, ToastContainer } from "~/app/components/Toast";
-import { FileUploadZone } from "~/app/components/contribute/nexafs/FileUploadZone";
-import { ColumnMappingModal } from "~/app/components/contribute/nexafs/ColumnMappingModal";
-import { DatasetTabs } from "~/app/components/contribute/nexafs/DatasetTabs";
-import { DatasetContent } from "~/app/components/contribute/nexafs/DatasetContent";
+import { useToast, ToastContainer } from "@/components/ui/toast";
+import {
+  FileUploadZone,
+  ColumnMappingModal,
+  DatasetTabs,
+  DatasetContent,
+} from "@/components/contribute/nexafs";
 import type {
   DatasetState,
   CSVColumnMappings,
   ExperimentTypeOption,
 } from "~/app/contribute/nexafs/types";
 import { createEmptyDatasetState, EXPERIMENT_TYPE_OPTIONS } from "~/app/contribute/nexafs/types";
-import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
+import type { SpectrumPoint } from "@/components/plots/spectrum-plot";
 import { extractGeometryPairs } from "~/app/contribute/nexafs/utils";
 import { parseNexafsFilename, normalizeEdge, normalizeExperimentMode } from "~/app/contribute/nexafs/utils/filenameParser";
 import { parseNexafsJson } from "~/app/contribute/nexafs/utils/jsonParser";

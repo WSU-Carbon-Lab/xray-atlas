@@ -16,7 +16,7 @@ import {
   ScrollShadow,
 } from "@heroui/react";
 import { useSession } from "next-auth/react";
-import { showToast } from "~/app/components/Toast";
+import { showToast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
 import { SynonymChipsWithPopup } from "./synonyms-list";
 import { MoleculeImageSVG } from "./molecule-image-svg";
