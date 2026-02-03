@@ -760,13 +760,12 @@ export const FullCard = memo(function FullCard({
         </div>
         {props.orderedSynonyms.length > 0 ? (
           <div
-            className="min-w-0 overflow-visible"
+            className="min-w-0 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <SynonymChipsWithPopup
               synonyms={props.orderedSynonyms}
               maxSynonyms={3}
-              className="flex-wrap"
             />
           </div>
         ) : null}
@@ -810,10 +809,7 @@ export const FullCard = memo(function FullCard({
             </ScrollShadow>
           </div>
         ) : null}
-        <div
-          className="bg-surface-1 dark:bg-surface-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-600"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="p-2" onClick={(e) => e.stopPropagation()}>
           <MoleculeCardActions
             molecule={props.molecule}
             pubChemUrl={props.pubChemUrl}
