@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DefaultButton as Button } from "@/components/ui/button";
-import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
+import { ContributionAgreementModal } from "@/components/contribute";
 import { trpc } from "~/trpc/client";
 import {
   BuildingOfficeIcon,

@@ -1,7 +1,7 @@
 import type {
   SpectrumPoint,
   SpectrumSelection,
-} from "~/app/components/plots/SpectrumPlot";
+} from "~/components/plots/types";
 import type { ProcessMethod } from "@prisma/client";
 
 export const EXPERIMENT_TYPE_OPTIONS = [

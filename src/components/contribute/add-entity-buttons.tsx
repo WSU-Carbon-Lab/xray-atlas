@@ -8,7 +8,7 @@ import {
 import { AddEntityModal } from "./add-entity-modal";
 import MoleculeContributePage from "~/app/contribute/molecule/page";
 import FacilityContributePage from "~/app/contribute/facility/page";
-import { InstrumentContributionForm } from "~/app/components/forms/InstrumentContributionForm";
+import { InstrumentContributionForm } from "~/components/forms/instrument-contribution-form";
 
 type BaseTriggerProps = {
   className?: string;

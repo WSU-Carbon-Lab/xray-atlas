@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { DefaultButton as Button } from "@/components/ui/button";
-import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
+import { ContributionAgreementModal } from "@/components/contribute";
 import type { MoleculeUploadData } from "~/types/upload";
 import {
   MoleculeDisplay,

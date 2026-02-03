@@ -8,7 +8,7 @@ import { useSession, signOut } from "next-auth/react";
 import { LogOut, User as UserIcon, LayoutDashboard, Users } from "lucide-react";
 import type { User as NextAuthUser } from "next-auth";
 import { trpc } from "~/trpc/client";
-import { ORCIDIcon } from "~/app/components/icons";
+import { ORCIDIcon } from "~/components/icons";
 import { Button, Avatar } from "@heroui/react";
 
 export type UserWithOrcid = NextAuthUser & {
