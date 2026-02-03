@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { memo, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -373,7 +373,7 @@ function MoleculeImageModal({
       aria-label="Close"
     >
       <div
-        className="relative max-h-[90vh] max-w-[90vw] overflow-hidden rounded-xl border-2 border-zinc-600 bg-black shadow-2xl dark:border-zinc-500"
+        className="relative max-h-[90vh] max-w-[90vw] overflow-hidden rounded-xl border-2 border-zinc-600 bg-white shadow-2xl dark:border-zinc-500 dark:bg-black"
         onClick={(e) => e.stopPropagation()}
         role="presentation"
       >
@@ -389,7 +389,7 @@ function MoleculeImageModal({
           <X className="h-5 w-5" aria-hidden />
         </button>
         {hasImage ? (
-          <div className="flex h-[min(75vh,800px)] max-h-[85vh] w-[min(75vw,800px)] max-w-[85vw] items-center justify-center overflow-hidden bg-black p-8">
+          <div className="flex h-[min(75vh,800px)] max-h-[85vh] w-[min(75vw,800px)] max-w-[85vw] items-center justify-center overflow-hidden bg-white p-8 dark:bg-black">
             <MoleculeImageSVG
               imageUrl={imageUrl}
               name={primaryName}
@@ -413,7 +413,11 @@ function MoleculeImageModal({
   );
 }
 
-export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
+export const CompactCard = memo(function CompactCard({
+  props,
+}: {
+  props: MoleculeCardProps;
+}) {
   const fromContributorsCompact =
     (props.molecule.contributors?.length ?? 0) > 0
       ? props.molecule.contributors!.map((c) => c.user)
@@ -432,14 +436,14 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
 
   return (
     <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md md:flex-row md:items-start md:gap-4 dark:bg-zinc-800">
-      <div className="border-border-subtle flex min-w-0 flex-1 items-start gap-2 border-r pr-2 md:flex-row md:gap-4 md:pr-4">
+      <div className="flex min-w-0 flex-1 items-start gap-2 border-r border-zinc-200 pr-2 md:flex-row md:gap-4 md:pr-4 dark:border-zinc-600">
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             setImageModalOpen(true);
           }}
-          className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-black motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 md:h-14 md:w-14 ${
+          className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 md:h-14 md:w-14 dark:bg-black ${
             hasImage ? "" : `bg-linear-to-br ${previewGradient}`
           }`}
           aria-label="View molecule structure"
@@ -468,8 +472,8 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
             />
           ) : null}
         </button>
-        <div className="border-border-subtle divide-border-subtle flex min-w-0 flex-1 items-center divide-x overflow-hidden">
-          <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5 pr-2">
+        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+          <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5">
             <div className="flex min-w-0 items-end gap-2 overflow-hidden">
               <div className="flex h-5 shrink-0 items-end">
                 <Link
@@ -525,7 +529,7 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
               ) : null}
             </div>
           </div>
-          <div className="flex min-w-[6rem] flex-1 shrink-0 flex-wrap items-center justify-start gap-0.5 py-0.5 pl-2 sm:gap-1">
+          <div className="flex min-w-[6rem] flex-1 shrink-0 flex-wrap items-center justify-start gap-0.5 py-0.5 sm:gap-1">
             {(props.molecule.moleculeTags ?? []).slice(0, 3).map((tag) => {
               const chipClass = getTagChipClass(tag);
               const inlineStyle = getTagInlineStyle(tag);
@@ -543,10 +547,10 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
         </div>
       </div>
       <div
-        className="border-border-subtle divide-border-subtle flex shrink-0 flex-wrap items-center justify-end gap-x-0 gap-y-3 divide-x border-t pt-3 md:ml-auto md:gap-x-2 md:gap-y-0 md:border-t-0 md:border-l md:pt-0 md:pl-4"
+        className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 md:ml-auto md:gap-x-3 md:gap-y-0 md:border-t-0 md:pt-0 md:pl-4 dark:border-zinc-600"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="pr-2 md:pr-3">
+        <div>
           <MoleculeCardActions
             molecule={props.molecule}
             pubChemUrl={props.pubChemUrl}
@@ -556,10 +560,10 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
             size="sm"
           />
         </div>
-        <div className="px-2 md:px-3">
-          <AvatarGroup users={avatarUsers} max={3} size="sm" />
+        <div>
+          <AvatarGroup users={avatarUsers} size="sm" />
         </div>
-        <div className="flex min-w-[56px] shrink-0 flex-col items-end gap-0.5 pl-2 md:pl-3">
+        <div className="flex min-w-[56px] shrink-0 flex-col items-end gap-0.5">
           <span className="flex items-center gap-1 text-[10px] text-sky-500 tabular-nums">
             <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {viewCount >= 1000
@@ -634,7 +638,7 @@ export const CompactCard = ({ props }: { props: MoleculeCardProps }) => {
       />
     </div>
   );
-};
+});
 
 function ContributorsOrEmpty({
   users,
@@ -644,12 +648,12 @@ function ContributorsOrEmpty({
   overlay?: boolean;
 }) {
   if (users.length > 0) {
-    return <AvatarGroup users={users} max={3} size="sm" />;
+    return <AvatarGroup users={users} size="sm" />;
   }
   return (
     <span
       className={`flex items-center gap-1.5 text-xs ${
-        overlay ? "text-white/80" : "text-text-tertiary"
+        overlay ? "text-slate-700 dark:text-slate-200" : "text-text-tertiary"
       }`}
       title="No contributors"
     >
@@ -659,7 +663,11 @@ function ContributorsOrEmpty({
   );
 }
 
-export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
+export const FullCard = memo(function FullCard({
+  props,
+}: {
+  props: MoleculeCardProps;
+}) {
   const fromContributors =
     (props.molecule.contributors?.length ?? 0) > 0
       ? props.molecule.contributors!.map((c) => c.user)
@@ -679,7 +687,7 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
   return (
     <Card className="group border-border-default hover:border-border-strong hover:border-accent/30 dark:border-border-default dark:hover:border-border-strong flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md sm:flex-row dark:bg-zinc-800">
       <div
-        className="group/image relative flex h-40 w-full shrink-0 overflow-hidden rounded-lg bg-black sm:h-auto sm:min-h-[240px] sm:w-[45%]"
+        className="group/image relative flex h-40 w-full shrink-0 overflow-hidden rounded-lg bg-white sm:h-auto sm:min-h-[240px] sm:w-[45%] dark:bg-black"
         aria-hidden
       >
         <button
@@ -724,7 +732,7 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
           </span>
         </div>
         <div
-          className="absolute inset-x-0 bottom-0 flex justify-end bg-black/60 px-2 py-2 text-white backdrop-blur-sm"
+          className="absolute inset-x-0 bottom-0 flex justify-end bg-white/60 px-2 py-2 text-slate-900 backdrop-blur-md dark:bg-black/60 dark:text-slate-100"
           onClick={(e) => e.stopPropagation()}
           aria-hidden
         >
@@ -740,11 +748,8 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
         chemicalFormula={props.molecule.chemicalFormula}
         previewGradient={previewGradient}
       />
-      <Card.Content className="flex min-w-0 flex-1 flex-col gap-2 p-4">
-        <div
-          className="border-border-subtle border-b pb-2"
-          onClick={(e) => e.stopPropagation()}
-        >
+      <Card.Content className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+        <div onClick={(e) => e.stopPropagation()}>
           <Link
             href={`/molecules/${props.molecule.id}`}
             className="text-text-primary hover:text-accent dark:hover:text-accent-light line-clamp-1 text-lg leading-tight font-bold transition-colors"
@@ -755,7 +760,7 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
         </div>
         {props.orderedSynonyms.length > 0 ? (
           <div
-            className="border-border-subtle min-w-0 overflow-visible border-b pr-2 pb-2"
+            className="min-w-0 overflow-visible"
             onClick={(e) => e.stopPropagation()}
           >
             <SynonymChipsWithPopup
@@ -766,10 +771,7 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
           </div>
         ) : null}
         {props.molecule.casNumber ? (
-          <div
-            className="border-border-subtle min-w-0 border-b pb-2"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="min-w-0" onClick={(e) => e.stopPropagation()}>
             <Tooltip delay={0}>
               <Tooltip.Trigger>
                 <button
@@ -797,7 +799,7 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
         ) : null}
         {props.molecule.iupacName ? (
           <div
-            className="border-border-subtle min-w-0 flex-1 border-b pb-2 text-xs leading-relaxed"
+            className="min-w-0 flex-1 text-xs leading-relaxed"
             onClick={(e) => e.stopPropagation()}
           >
             <ScrollShadow
@@ -809,7 +811,7 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
           </div>
         ) : null}
         <div
-          className="border-border-subtle border-border-default bg-surface-1 dark:bg-surface-2 rounded-lg border p-2"
+          className="bg-surface-1 dark:bg-surface-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-600"
           onClick={(e) => e.stopPropagation()}
         >
           <MoleculeCardActions
@@ -822,15 +824,12 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
           />
         </div>
         {(props.molecule.moleculeTags?.length ?? 0) > 0 ? (
-          <div
-            className="border-border-subtle border-b pb-2"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div onClick={(e) => e.stopPropagation()}>
             <MoleculeTags molecule={props.molecule} />
           </div>
         ) : null}
         <footer
-          className="border-border-subtle mt-auto flex flex-wrap items-center gap-3 border-t pt-2"
+          className="mt-auto flex flex-wrap items-center gap-3 border-t border-zinc-200 pt-2 dark:border-zinc-600"
           onClick={(e) => e.stopPropagation()}
         >
           <span
@@ -897,20 +896,22 @@ export const FullCard = ({ props }: { props: MoleculeCardProps }) => {
       </Card.Content>
     </Card>
   );
-};
+});
 
 export const HeaderCard = ({ props: _props }: { props: MoleculeCardProps }) => {
   return <div></div>;
 };
 
-export function MoleculeCard({
+export const MoleculeCard = memo(function MoleculeCard({
   molecule,
   onEdit,
   variant = "full",
+  enableRealtime = true,
 }: {
   molecule: MoleculeView;
   onEdit?: () => void;
   variant?: "full" | "compact";
+  enableRealtime?: boolean;
 }) {
   const { data: session } = useSession();
   const user = session?.user;
@@ -920,10 +921,26 @@ export function MoleculeCard({
   const [optimisticUserFavorited, setOptimisticUserFavorited] = useState<
     boolean | null
   >(null);
+  const {
+    upvoteCount: realtimeUpvoteCount,
+    userHasUpvoted: realtimeUserHasUpvoted,
+  } = useRealtimeUpvotes({
+    moleculeId: enableRealtime ? molecule.id : undefined,
+    initialUpvoteCount: molecule.favoriteCount ?? 0,
+    initialUserHasUpvoted: molecule.userHasFavorited ?? false,
+    userId: user?.id,
+    enabled: enableRealtime,
+  });
+  const baseUpvoteCount = enableRealtime
+    ? realtimeUpvoteCount
+    : (molecule.favoriteCount ?? 0);
+  const baseUserHasUpvoted = enableRealtime
+    ? realtimeUserHasUpvoted
+    : (molecule.userHasFavorited ?? false);
   const favoriteMutation = trpc.molecules.toggleFavorite.useMutation({
     onMutate: () => {
-      setOptimisticUserFavorited(realtimeUserHasUpvoted ? false : true);
-      setOptimisticFavoriteDelta(realtimeUserHasUpvoted ? -1 : 1);
+      setOptimisticUserFavorited(baseUserHasUpvoted ? false : true);
+      setOptimisticFavoriteDelta(baseUserHasUpvoted ? -1 : 1);
     },
     onSuccess: () => {
       if (molecule.id) {
@@ -935,18 +952,8 @@ export function MoleculeCard({
       setOptimisticUserFavorited(null);
     },
   });
-  const {
-    upvoteCount: realtimeUpvoteCount,
-    userHasUpvoted: realtimeUserHasUpvoted,
-  } = useRealtimeUpvotes({
-    moleculeId: molecule.id,
-    initialUpvoteCount: molecule.favoriteCount ?? 0,
-    initialUserHasUpvoted: molecule.userHasFavorited ?? false,
-    userId: user?.id,
-  });
-  const displayUpvoteCount = realtimeUpvoteCount + optimisticFavoriteDelta;
-  const displayUserHasUpvoted =
-    optimisticUserFavorited ?? realtimeUserHasUpvoted;
+  const displayUpvoteCount = baseUpvoteCount + optimisticFavoriteDelta;
+  const displayUserHasUpvoted = optimisticUserFavorited ?? baseUserHasUpvoted;
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const handleFavorite = () => {
     if (!isSignedIn || !molecule.id) return;
@@ -979,7 +986,7 @@ export function MoleculeCard({
   ) : (
     <FullCard props={cardProps} />
   );
-}
+});
 
 function shortestSynonymsFromOrdered(
   orderedSynonyms: string[],
@@ -1026,8 +1033,16 @@ export const MoleculeDisplay = MoleculeCard;
 
 export function MoleculeDisplayCompact({
   molecule,
+  enableRealtime = true,
 }: {
   molecule: MoleculeView;
+  enableRealtime?: boolean;
 }) {
-  return <MoleculeCard molecule={molecule} variant="compact" />;
+  return (
+    <MoleculeCard
+      molecule={molecule}
+      variant="compact"
+      enableRealtime={enableRealtime}
+    />
+  );
 }

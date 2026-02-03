@@ -14,6 +14,7 @@ interface UseRealtimeFavoritesOptions {
   initialFavoriteCount: number;
   initialUserHasFavorited: boolean;
   userId: string | undefined;
+  enabled?: boolean;
 }
 
 export function useRealtimeFavorites({
@@ -21,6 +22,7 @@ export function useRealtimeFavorites({
   initialFavoriteCount,
   initialUserHasFavorited,
   userId,
+  enabled = true,
 }: UseRealtimeFavoritesOptions): FavoriteState {
   const [favoriteCount, setFavoriteCount] = useState(initialFavoriteCount);
   const [userHasFavorited, setUserHasFavorited] = useState(
@@ -34,7 +36,7 @@ export function useRealtimeFavorites({
   }, [moleculeId, initialFavoriteCount, initialUserHasFavorited]);
 
   useEffect(() => {
-    if (!moleculeId) return;
+    if (!moleculeId || !enabled) return;
 
     const channel = supabaseClient
       .channel(`molecule-favorites:${moleculeId}`)
@@ -104,7 +106,7 @@ export function useRealtimeFavorites({
     return () => {
       void supabaseClient.removeChannel(channel);
     };
-  }, [moleculeId, userId]);
+  }, [moleculeId, userId, enabled]);
 
   return { favoriteCount, userHasFavorited };
 }

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { LogOut, User as UserIcon, LayoutDashboard, Users } from "lucide-react";
 import type { User as NextAuthUser } from "next-auth";
 import { trpc } from "~/trpc/client";
 import { ORCIDIcon } from "~/app/components/icons";
-import { Button, Avatar, Tooltip } from "@heroui/react";
+import { Button, Avatar } from "@heroui/react";
 
 export type UserWithOrcid = NextAuthUser & {
   orcid?: string | null;
@@ -252,13 +254,93 @@ const avatarSizeClasses = {
   lg: "h-10 w-10",
 } as const;
 
+function AvatarWithTooltip({
+  user,
+  avatarWrapperClass,
+  constrainedClass,
+  size,
+}: {
+  user: UserWithOrcid;
+  avatarWrapperClass: string;
+  constrainedClass: string;
+  size: "sm" | "md" | "lg";
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLSpanElement>(null);
+
+  const updatePosition = () => {
+    const el = triggerRef.current;
+    if (!el || typeof document === "undefined") return;
+    const rect = el.getBoundingClientRect();
+    setPosition({
+      left: rect.left + rect.width / 2,
+      top: rect.top - 4,
+    });
+  };
+
+  const handleMouseEnter = () => {
+    updatePosition();
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+  };
+
+  const userName = user.name ?? "User";
+  const avatarElement = (
+    <span className={avatarWrapperClass}>
+      <CustomAvatar size={size} user={user} className={constrainedClass} />
+    </span>
+  );
+  const triggerElement = user.id ? (
+    <Link
+      href={`/users/${user.id}`}
+      aria-label={`View ${userName}'s profile`}
+      className="focus-visible:ring-accent block focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-offset-1"
+    >
+      {avatarElement}
+    </Link>
+  ) : (
+    avatarElement
+  );
+
+  return (
+    <>
+      <span
+        ref={triggerRef}
+        className="inline-flex shrink-0"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {triggerElement}
+      </span>
+      {isHovered &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[700] -translate-x-1/2 -translate-y-full"
+            style={{ left: position.left, top: position.top }}
+          >
+            <div className="rounded-full bg-slate-200 px-2.5 py-1 text-sm font-medium text-slate-900 shadow-lg dark:bg-slate-700 dark:text-slate-100">
+              {userName}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 export function AvatarGroup({
   users = [],
-  max = 3,
+  max = 5,
   size = "md",
 }: AvatarGroupProps) {
   const sizeClass = avatarSizeClasses[size] ?? avatarSizeClasses.md;
   const constrainedClass = `${sizeClass} min-h-0 min-w-0 shrink-0`;
+  const avatarWrapperClass = `bg-surface-1 relative z-0 flex shrink-0 overflow-hidden rounded-full shadow-sm hover:z-20 ${sizeClass}`;
 
   if (!users || users.length === 0) {
     return (
@@ -280,26 +362,15 @@ export function AvatarGroup({
   const remaining = users.length - max;
 
   return (
-    <div
-      className="flex -space-x-2.5 overflow-visible transition-[margin] duration-200 hover:space-x-1"
-      role="group"
-    >
+    <div className="flex -space-x-2.5 overflow-visible" role="group">
       {displayUsers.map((user) => (
-        <Tooltip key={user.id} delay={0}>
-          <span
-            className={`bg-surface-1 relative z-0 flex shrink-0 overflow-hidden rounded-full shadow-sm ${sizeClass}`}
-          >
-            <CustomAvatar
-              size={size}
-              user={user}
-              className={constrainedClass}
-            />
-          </span>
-          <Tooltip.Content showArrow>
-            <Tooltip.Arrow />
-            <p>{user.name ?? "User"}</p>
-          </Tooltip.Content>
-        </Tooltip>
+        <AvatarWithTooltip
+          key={user.id ?? user.name ?? "user"}
+          user={user}
+          avatarWrapperClass={avatarWrapperClass}
+          constrainedClass={constrainedClass}
+          size={size}
+        />
       ))}
       {remaining > 0 ? (
         <span

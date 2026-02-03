@@ -7,12 +7,14 @@ export function useRealtimeUpvotes(opts: {
   initialUpvoteCount: number;
   initialUserHasUpvoted: boolean;
   userId: string | undefined;
+  enabled?: boolean;
 }) {
   const { favoriteCount, userHasFavorited } = useRealtimeFavorites({
     moleculeId: opts.moleculeId,
     initialFavoriteCount: opts.initialUpvoteCount,
     initialUserHasFavorited: opts.initialUserHasUpvoted,
     userId: opts.userId,
+    enabled: opts.enabled,
   });
   return {
     upvoteCount: favoriteCount,

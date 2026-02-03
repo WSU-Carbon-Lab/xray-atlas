@@ -34,7 +34,7 @@ export function MoleculeCardSkeleton() {
           <LoadingSkeleton className="h-8 w-8 rounded-lg" />
           <LoadingSkeleton className="h-8 w-8 rounded-lg" />
         </div>
-        <div className="border-border-subtle mt-auto flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-3 dark:border-zinc-600">
           <div className="flex items-center gap-3">
             <LoadingSkeleton className="h-3.5 w-8 rounded" />
             <div className="flex items-center gap-1">

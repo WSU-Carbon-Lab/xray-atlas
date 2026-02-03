@@ -12,6 +12,8 @@ import Link from "next/link";
 import { CalendarIcon } from "@heroicons/react/24/outline";
 
 const VIEW_SESSION_KEY = "xray-atlas-view-session";
+const VIEW_DEBOUNCE_KEY = "xray-atlas-view-debounce";
+const VIEW_DEBOUNCE_MS = 2000;
 
 function getOrCreateViewSessionId(): string {
   if (typeof window === "undefined") return "";
@@ -21,6 +23,19 @@ function getOrCreateViewSessionId(): string {
     sessionStorage.setItem(VIEW_SESSION_KEY, id);
   }
   return id;
+}
+
+function shouldDebounceTrackView(): boolean {
+  if (typeof window === "undefined") return true;
+  const last = sessionStorage.getItem(VIEW_DEBOUNCE_KEY);
+  if (!last) return false;
+  const elapsed = Date.now() - parseInt(last, 10);
+  return elapsed < VIEW_DEBOUNCE_MS;
+}
+
+function markTrackViewSent(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(VIEW_DEBOUNCE_KEY, Date.now().toString());
 }
 
 export default function MoleculeDetailPage({
@@ -39,10 +54,13 @@ export default function MoleculeDetailPage({
   const trackView = trpc.molecules.trackView.useMutation({
     onMutate: () => setOptimisticViewCount(1),
     onSuccess: (data) => {
+      if (data?.recorded === true) markTrackViewSent();
       if (data?.recorded !== true) setOptimisticViewCount(null);
     },
     onError: () => setOptimisticViewCount(null),
   });
+  const trackViewMutateRef = useRef(trackView.mutate);
+  trackViewMutateRef.current = trackView.mutate;
 
   const {
     data: molecule,
@@ -71,9 +89,10 @@ export default function MoleculeDetailPage({
 
   useEffect(() => {
     if (!molecule?.id || trackViewSent.current) return;
+    if (shouldDebounceTrackView()) return;
     trackViewSent.current = true;
     const sessionId = getOrCreateViewSessionId();
-    trackView.mutate(
+    trackViewMutateRef.current(
       { moleculeId: molecule.id, ...(sessionId ? { sessionId } : {}) },
       {
         onError: () => {
@@ -81,7 +100,7 @@ export default function MoleculeDetailPage({
         },
       },
     );
-  }, [molecule?.id, trackView]);
+  }, [molecule?.id]);
 
   if (isLoading) {
     return (

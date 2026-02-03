@@ -429,6 +429,7 @@ function MoleculesBrowseContent() {
                           <div key={molecule.id}>
                             <MoleculeDisplayCompact
                               molecule={displayMolecule}
+                              enableRealtime={false}
                             />
                           </div>
                         );
@@ -446,7 +447,10 @@ function MoleculesBrowseContent() {
 
                         return (
                           <div key={molecule.id}>
-                            <MoleculeDisplay molecule={displayMolecule} />
+                            <MoleculeDisplay
+                              molecule={displayMolecule}
+                              enableRealtime={false}
+                            />
                           </div>
                         );
                       })}

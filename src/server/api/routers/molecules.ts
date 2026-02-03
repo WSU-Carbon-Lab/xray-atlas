@@ -4,6 +4,29 @@ import {
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
+
+const TRACK_VIEW_THROTTLE_WINDOW_MS = 60_000;
+const TRACK_VIEW_MAX_PER_WINDOW = 5;
+
+const trackViewThrottle = new Map<
+  string,
+  { count: number; windowEnd: number }
+>();
+
+function checkTrackViewThrottle(key: string): boolean {
+  const now = Date.now();
+  const entry = trackViewThrottle.get(key);
+  if (!entry || now > entry.windowEnd) {
+    trackViewThrottle.set(key, {
+      count: 1,
+      windowEnd: now + TRACK_VIEW_THROTTLE_WINDOW_MS,
+    });
+    return true;
+  }
+  if (entry.count >= TRACK_VIEW_MAX_PER_WINDOW) return false;
+  entry.count += 1;
+  return true;
+}
 import { TRPCError } from "@trpc/server";
 import {
   moleculeUploadSchema,
@@ -48,6 +71,25 @@ async function checkCanEdit(
     },
   });
   return !!contributor;
+}
+
+async function ensureContributor(
+  prisma: typeof db,
+  moleculeId: string,
+  userId: string,
+  contributionType: "creator" | "editor" | "contributor",
+): Promise<void> {
+  await prisma.moleculecontributors.upsert({
+    where: {
+      moleculeid_userid: { moleculeid: moleculeId, userid: userId },
+    },
+    create: {
+      moleculeid: moleculeId,
+      userid: userId,
+      contributiontype: contributionType,
+    },
+    update: { contributiontype: contributionType },
+  });
 }
 
 export const moleculesRouter = createTRPCRouter({
@@ -217,12 +259,6 @@ export const moleculesRouter = createTRPCRouter({
         data: {
           ...prismaInput,
           createdby: ctx.userId,
-          moleculecontributors: {
-            create: {
-              userid: ctx.userId,
-              contributiontype: "creator",
-            },
-          },
           ...(tagIds.length > 0
             ? {
                 moleculetags: {
@@ -234,6 +270,7 @@ export const moleculesRouter = createTRPCRouter({
             : {}),
         },
       });
+      await ensureContributor(ctx.db, molecule.id, ctx.userId, "creator");
 
       return {
         success: true,
@@ -923,6 +960,49 @@ export const moleculesRouter = createTRPCRouter({
       }));
     }),
 
+  addContributor: protectedProcedure
+    .input(
+      z.object({
+        moleculeId: z.string().uuid(),
+        userId: z.string().uuid(),
+        contributionType: z
+          .enum(["creator", "editor", "contributor"])
+          .default("contributor"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+        select: { createdby: true },
+      });
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+      const allowed = await checkCanEdit(
+        ctx.db,
+        input.moleculeId,
+        ctx.userId,
+        molecule.createdby,
+      );
+      if (!allowed) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "You do not have permission to add contributors to this molecule",
+        });
+      }
+      await ensureContributor(
+        ctx.db,
+        input.moleculeId,
+        input.userId,
+        input.contributionType,
+      );
+      return { success: true };
+    }),
+
   getTags: publicProcedure
     .input(z.object({ moleculeId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
@@ -1060,6 +1140,14 @@ export const moleculesRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const throttleKey =
+        input.sessionId ??
+        (ctx.userId && !(ctx.isDevMock && isDevMockUser(ctx.userId))
+          ? ctx.userId
+          : null) ??
+        ctx.clientIp ??
+        "anon";
+      if (!checkTrackViewThrottle(throttleKey)) return { recorded: false };
       const molecule = await ctx.db.molecules.findUnique({
         where: { id: input.moleculeId },
       });
@@ -1381,20 +1469,7 @@ export const moleculesRouter = createTRPCRouter({
         },
       });
 
-      const existingContributor = await ctx.db.moleculecontributors.findUnique({
-        where: {
-          moleculeid_userid: { moleculeid: moleculeId, userid: ctx.userId },
-        },
-      });
-      if (!existingContributor) {
-        await ctx.db.moleculecontributors.create({
-          data: {
-            moleculeid: moleculeId,
-            userid: ctx.userId,
-            contributiontype: "editor",
-          },
-        });
-      }
+      await ensureContributor(ctx.db, moleculeId, ctx.userId, "editor");
 
       return {
         success: true,
