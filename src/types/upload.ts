@@ -10,6 +10,7 @@ export interface MoleculeUploadData {
   smiles: string;
   inchi: string;
   chemicalFormula: string;
+  tagIds?: string[];
 }
 
 export const moleculeUploadSchema = z.object({

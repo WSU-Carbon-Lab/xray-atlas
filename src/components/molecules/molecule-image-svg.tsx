@@ -52,12 +52,37 @@ export const MoleculeImageSVG = ({
           throw new Error(`Failed to fetch SVG: ${response.statusText}`);
         }
 
+        const contentType = (
+          response.headers.get("content-type") ?? ""
+        ).toLowerCase();
+        if (
+          contentType.includes("image/png") ||
+          contentType.includes("image/jpeg") ||
+          contentType.includes("image/gif") ||
+          contentType.includes("image/webp")
+        ) {
+          if (isMounted) {
+            setError("Image is not SVG (PNG/raster not supported)");
+          }
+          return;
+        }
+
         const svgText = await response.text();
 
         if (!isMounted) return;
 
-        // Process the SVG to inject CPK color variables
-        const processedSVG = processSVGForDarkMode(svgText, resolvedTheme === "dark");
+        const trimmed = svgText.trim();
+        if (!trimmed.startsWith("<")) {
+          if (isMounted) {
+            setError("Invalid SVG or non-SVG content");
+          }
+          return;
+        }
+
+        const processedSVG = processSVGForDarkMode(
+          svgText,
+          resolvedTheme === "dark",
+        );
         setSvgContent(processedSVG);
       } catch (err) {
         if (isMounted) {
@@ -117,15 +142,15 @@ export const MoleculeImageSVG = ({
  * and apply them to element symbols and bonds.
  */
 function processSVGForDarkMode(svgText: string, isDark: boolean): string {
-  // Parse the SVG
+  const trimmed = svgText.trim();
+  if (!trimmed.startsWith("<")) {
+    return svgText;
+  }
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, "image/svg+xml");
-
-  // Check for parsing errors
   const parserError = doc.querySelector("parsererror");
   if (parserError) {
-    console.error("SVG parsing error:", parserError.textContent);
-    return svgText; // Return original if parsing fails
+    return svgText;
   }
 
   const svg = doc.documentElement;
@@ -210,9 +235,10 @@ function processSVGForDarkMode(svgText: string, isDark: boolean): string {
           .filter((prop) => prop && !prop.toLowerCase().startsWith("fill"));
 
         // Set style with fill at the end (higher specificity)
-        const newStyle = styleProps.length > 0
-          ? `${styleProps.join("; ")}; fill: ${colorVar} !important;`
-          : `fill: ${colorVar} !important;`;
+        const newStyle =
+          styleProps.length > 0
+            ? `${styleProps.join("; ")}; fill: ${colorVar} !important;`
+            : `fill: ${colorVar} !important;`;
         textElem.setAttribute("style", newStyle);
 
         // Also set fill attribute (SVG fill attribute takes precedence)
@@ -231,7 +257,12 @@ function processSVGForDarkMode(svgText: string, isDark: boolean): string {
               .filter((prop) => !prop.trim().startsWith("fill"))
               .join(";")
               .trim();
-            nextSibling.setAttribute("style", newSiblingStyle ? `${newSiblingStyle}; fill: ${colorVar};` : `fill: ${colorVar};`);
+            nextSibling.setAttribute(
+              "style",
+              newSiblingStyle
+                ? `${newSiblingStyle}; fill: ${colorVar};`
+                : `fill: ${colorVar};`,
+            );
             nextSibling.setAttribute("fill", colorVar);
           }
         }
@@ -244,7 +275,12 @@ function processSVGForDarkMode(svgText: string, isDark: boolean): string {
           .filter((prop) => !prop.trim().startsWith("fill"))
           .join(";")
           .trim();
-        textElem.setAttribute("style", newStyle ? `${newStyle}; fill: ${DEFAULT_ATOM_COLOR};` : `fill: ${DEFAULT_ATOM_COLOR};`);
+        textElem.setAttribute(
+          "style",
+          newStyle
+            ? `${newStyle}; fill: ${DEFAULT_ATOM_COLOR};`
+            : `fill: ${DEFAULT_ATOM_COLOR};`,
+        );
         textElem.setAttribute("fill", DEFAULT_ATOM_COLOR);
       }
     } else {
@@ -256,7 +292,12 @@ function processSVGForDarkMode(svgText: string, isDark: boolean): string {
         .filter((prop) => !prop.trim().startsWith("fill"))
         .join(";")
         .trim();
-      textElem.setAttribute("style", newStyle ? `${newStyle}; fill: ${DEFAULT_ATOM_COLOR};` : `fill: ${DEFAULT_ATOM_COLOR};`);
+      textElem.setAttribute(
+        "style",
+        newStyle
+          ? `${newStyle}; fill: ${DEFAULT_ATOM_COLOR};`
+          : `fill: ${DEFAULT_ATOM_COLOR};`,
+      );
       textElem.setAttribute("fill", DEFAULT_ATOM_COLOR);
     }
   });

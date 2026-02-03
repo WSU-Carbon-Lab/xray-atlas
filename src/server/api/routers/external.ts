@@ -173,8 +173,9 @@ export const externalRouter = createTRPCRouter({
           }
         }
 
-        // Also get the molecule name from CAS if available
         let moleculeName: string | null = null;
+        let inchi: string | null = null;
+        let smiles: string | null = null;
         if (casRegistryNumber) {
           try {
             const detailUrl = `https://commonchemistry.cas.org/api/detail?cas_rn=${encodeURIComponent(casRegistryNumber)}`;
@@ -190,8 +191,10 @@ export const externalRouter = createTRPCRouter({
               const detailData = (await detailResponse.json()) as {
                 name?: string | { name?: string } | null;
                 molecule?: { name?: string | null } | null;
+                inchi?: string | null;
+                smiles?: string | null;
+                molecularFormula?: string | null;
               } | null;
-              // CAS API returns name in different possible fields
               if (detailData) {
                 if (typeof detailData.name === "string") {
                   moleculeName = detailData.name;
@@ -210,10 +213,22 @@ export const externalRouter = createTRPCRouter({
                 ) {
                   moleculeName = detailData.molecule.name;
                 }
+                if (
+                  typeof detailData.inchi === "string" &&
+                  detailData.inchi.trim()
+                ) {
+                  inchi = detailData.inchi.trim();
+                }
+                if (
+                  typeof detailData.smiles === "string" &&
+                  detailData.smiles.trim()
+                ) {
+                  smiles = detailData.smiles.trim();
+                }
               }
             }
           } catch (error) {
-            console.warn("Could not fetch molecule name from CAS:", error);
+            console.warn("Could not fetch CAS detail:", error);
           }
         }
 
@@ -243,6 +258,8 @@ export const externalRouter = createTRPCRouter({
           data: {
             casRegistryNumber,
             moleculeName,
+            inchi: inchi ?? undefined,
+            smiles: smiles ?? undefined,
           },
         };
       } catch (error) {
@@ -330,21 +347,16 @@ export const externalRouter = createTRPCRouter({
         });
       }
 
-      // Fetch all data in parallel
-      const [propertiesResponse, synonymsResponse, imageResponse] =
-        await Promise.allSettled([
-          fetch(
-            `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/property/IUPACName,CanonicalSMILES,InChI,InChIKey,MolecularFormula/JSON`,
-            { headers: { Accept: "application/json" } },
-          ),
-          fetch(
-            `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/synonyms/JSON`,
-            { headers: { Accept: "application/json" } },
-          ),
-          fetch(
-            `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/PNG`,
-          ),
-        ]);
+      const [propertiesResponse, synonymsResponse] = await Promise.allSettled([
+        fetch(
+          `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/property/IUPACName,CanonicalSMILES,InChI,InChIKey,MolecularFormula/JSON`,
+          { headers: { Accept: "application/json" } },
+        ),
+        fetch(
+          `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/synonyms/JSON`,
+          { headers: { Accept: "application/json" } },
+        ),
+      ]);
 
       // Parse properties
       let iupacName = "";
@@ -406,20 +418,6 @@ export const externalRouter = createTRPCRouter({
           synonyms = synList
             .filter((s: unknown): s is string => typeof s === "string")
             .slice(0, 50);
-        }
-      }
-
-      // Handle image
-      let imageData: string | null = null;
-      if (imageResponse.status === "fulfilled" && imageResponse.value.ok) {
-        try {
-          const imageBlob = await imageResponse.value.blob();
-          const arrayBuffer = await imageBlob.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          const base64 = buffer.toString("base64");
-          imageData = `data:image/png;base64,${base64}`;
-        } catch (error) {
-          console.warn("Could not fetch image:", error);
         }
       }
 
@@ -535,7 +533,6 @@ export const externalRouter = createTRPCRouter({
           inchiKey,
           casNumber,
           pubChemCid: cid,
-          image: imageData,
           source: "pubchem",
         },
       };

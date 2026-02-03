@@ -1,5 +1,20 @@
 import type { CSSProperties } from "react";
 
+export const TAG_COLOR_NAMES = [
+  "blue",
+  "green",
+  "pink",
+  "red",
+  "orange",
+  "purple",
+  "gray",
+] as const;
+
+export function pickRandomTagColor(): string {
+  const idx = Math.floor(Math.random() * TAG_COLOR_NAMES.length);
+  return TAG_COLOR_NAMES[idx] ?? "gray";
+}
+
 export const TAG_COLOR_TO_CHIP: Record<string, string> = {
   blue: "bg-blue-500/20 text-blue-800 dark:bg-blue-500/30 dark:text-blue-200",
   green:
@@ -79,7 +94,7 @@ export function getTagChipClass(tag: {
   const mapped =
     SLUG_TO_COLOR[slugKey] ?? SLUG_TO_COLOR[slugKey.replace(/-/g, "")];
   if (mapped && TAG_COLOR_TO_CHIP[mapped]) {
-    return TAG_COLOR_TO_CHIP[mapped]!;
+    return TAG_COLOR_TO_CHIP[mapped] ?? DEFAULT_TAG_CHIP;
   }
   return DEFAULT_TAG_CHIP;
 }

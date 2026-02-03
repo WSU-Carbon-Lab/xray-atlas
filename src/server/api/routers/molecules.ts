@@ -12,7 +12,23 @@ import {
 import { uploadMoleculeImage, deleteMoleculeImage } from "~/server/storage";
 import type { db } from "~/server/db";
 import { isDevMockUser } from "~/lib/dev-mock-data";
+import { pickRandomTagColor } from "~/lib/tag-colors";
 import { toMoleculeView } from "./molecules-view";
+
+function slugifyTagName(name: string): string {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return base || "tag";
+}
+
+function normalizeTagNameForStorage(name: string): string {
+  const t = name.trim();
+  if (t.length === 0) return t;
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+}
 
 async function checkCanEdit(
   prisma: typeof db,
@@ -933,6 +949,57 @@ export const moleculesRouter = createTRPCRouter({
       color: t.color,
     }));
   }),
+
+  findOrCreateTag: protectedProcedure
+    .input(z.object({ name: z.string().min(1).max(200) }))
+    .mutation(async ({ ctx, input }) => {
+      const trimmed = input.name.trim();
+      if (!trimmed) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Tag name is required",
+        });
+      }
+      const existing = await ctx.db.tags.findFirst({
+        where: { name: { equals: trimmed, mode: "insensitive" } },
+      });
+      if (existing) {
+        return {
+          id: existing.id,
+          name: existing.name,
+          slug: existing.slug,
+          color: existing.color,
+        };
+      }
+      let slug = slugifyTagName(trimmed);
+      let suffix = 0;
+      while (true) {
+        const candidateSlug = suffix === 0 ? slug : `${slug}-${suffix}`;
+        const existingSlug = await ctx.db.tags.findUnique({
+          where: { slug: candidateSlug },
+        });
+        if (!existingSlug) {
+          slug = candidateSlug;
+          break;
+        }
+        suffix += 1;
+      }
+      const color = pickRandomTagColor();
+      const canonicalName = normalizeTagNameForStorage(trimmed);
+      const created = await ctx.db.tags.create({
+        data: {
+          name: canonicalName,
+          slug,
+          color,
+        },
+      });
+      return {
+        id: created.id,
+        name: created.name,
+        slug: created.slug,
+        color: created.color,
+      };
+    }),
 
   setTags: protectedProcedure
     .input(

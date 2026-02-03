@@ -20,49 +20,13 @@ import { SynonymChipsWithPopup } from "./synonyms-list";
 import { MoleculeImageSVG } from "./molecule-image-svg";
 import { useRealtimeUpvotes } from "~/hooks/useRealtimeUpvotes";
 import type { MoleculeView } from "~/types/molecule";
-import {
-  getTagChipClass,
-  getTagGradient,
-  getTagInlineStyle,
-} from "~/lib/tag-colors";
+import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
+import { MoleculeTags, getPreviewGradient } from "./category-tags";
 import { Atom, Database, Eye, Heart, User, X } from "lucide-react";
 
 const CAS_FAVICON_URL =
   "https://cdn.prod.website-files.com/650861f00f97fe8153979335/6585a20f2b9c762a8e082a87_cas-favicon.png";
 const PUBCHEM_FAVICON_URL = "https://pubchem.ncbi.nlm.nih.gov/favicon.ico";
-
-const PREVIEW_GRADIENTS = [
-  "from-indigo-500/20 to-purple-500/20",
-  "from-blue-500/20 to-cyan-500/20",
-  "from-emerald-500/20 to-teal-500/20",
-  "from-amber-500/20 to-orange-500/20",
-  "from-rose-500/20 to-pink-500/20",
-  "from-violet-500/20 to-purple-500/20",
-] as const;
-
-const DEFAULT_PREVIEW_GRADIENT = "from-slate-500/20 to-slate-600/20";
-
-function hashString(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = (h << 5) - h + s.charCodeAt(i);
-    h |= 0;
-  }
-  return Math.abs(h);
-}
-
-function getPreviewGradient(molecule: MoleculeView): string {
-  const firstTag = molecule.moleculeTags?.[0];
-  if (firstTag) {
-    const gradient = getTagGradient(firstTag);
-    if (gradient) return gradient;
-  }
-  if (molecule.id) {
-    const idx = hashString(molecule.id) % PREVIEW_GRADIENTS.length;
-    return PREVIEW_GRADIENTS[idx] ?? DEFAULT_PREVIEW_GRADIENT;
-  }
-  return DEFAULT_PREVIEW_GRADIENT;
-}
 
 // API Interface Helper Functions
 const pubChemUrl = (cid: string) => {
@@ -186,33 +150,6 @@ export const MoleculeDecriptionTags = ({
         </Tag>
       </TagGroup.List>
     </TagGroup>
-  );
-};
-
-export const MoleculeTags = ({ molecule }: { molecule: MoleculeView }) => {
-  const tags = molecule.moleculeTags ?? [];
-  if (tags.length === 0) return null;
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {tags.slice(0, 5).map((tag) => {
-        const chipClass = getTagChipClass(tag);
-        const inlineStyle = getTagInlineStyle(tag);
-        return (
-          <span
-            key={tag.id}
-            className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
-            style={inlineStyle}
-          >
-            {tag.name}
-          </span>
-        );
-      })}
-      {tags.length > 5 ? (
-        <span className="text-text-tertiary inline-flex items-center rounded-md px-2 py-0.5 text-xs">
-          +{tags.length - 5} more
-        </span>
-      ) : null}
-    </div>
   );
 };
 

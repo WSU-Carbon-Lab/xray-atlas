@@ -1,13 +1,15 @@
 "use client";
 
+import React, { useState, useCallback } from "react";
 import type { Key } from "@heroui/react";
+import { Input } from "@heroui/react";
 import {
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
 } from "@heroui/dropdown";
-import { TagIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { TagIcon, XMarkIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { trpc } from "~/trpc/client";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
 
@@ -16,14 +18,22 @@ export interface TagsDropdownProps {
   onSelectionChange: (keys: Set<string>) => void;
   triggerClassName?: string;
   ariaLabel?: string;
+  allowCreateFromInput?: boolean;
+  onCreateTag?: (name: string) => Promise<string>;
 }
+
+const searchInputClass =
+  "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-400";
 
 export function TagsDropdown({
   selectedTagIds,
   onSelectionChange,
   triggerClassName = "",
   ariaLabel = "Filter by tags",
+  allowCreateFromInput = false,
+  onCreateTag,
 }: TagsDropdownProps) {
+  const [searchInput, setSearchInput] = useState("");
   const { data: tags = [], isLoading } = trpc.molecules.listTags.useQuery(
     undefined,
     { staleTime: 5 * 60 * 1000 },
@@ -33,15 +43,88 @@ export function TagsDropdown({
     selectedTagIds.size > 0 ? selectedTagIds : new Set<Key>();
   const hasSelection = selectedTagIds.size > 0;
 
-  const handleSelectionChange = (keys: "all" | Set<Key>) => {
-    if (keys === "all") {
-      onSelectionChange(new Set(tags.map((t) => t.id)));
-    } else {
-      onSelectionChange(new Set([...keys].map(String)));
-    }
-  };
+  const trimmedSearch = searchInput.trim();
+  const searchLower = trimmedSearch.toLowerCase();
+  const filteredTags = allowCreateFromInput
+    ? tags.filter((t) => t.name.toLowerCase().includes(searchLower))
+    : tags;
+  const exactMatch =
+    trimmedSearch.length > 0 &&
+    tags.some((t) => t.name.toLowerCase() === searchLower);
+  const showCreateOption =
+    allowCreateFromInput &&
+    trimmedSearch.length > 0 &&
+    !exactMatch &&
+    typeof onCreateTag === "function";
+
+  const handleCreateClick = useCallback(() => {
+    if (!trimmedSearch || !onCreateTag) return;
+    void onCreateTag(trimmedSearch).then((id) => {
+      onSelectionChange(new Set([...selectedTagIds, id]));
+      setSearchInput("");
+    });
+  }, [trimmedSearch, onCreateTag, onSelectionChange, selectedTagIds]);
+
+  const handleSelectionChange = useCallback(
+    (keys: "all" | Set<Key>) => {
+      if (keys === "all") {
+        onSelectionChange(new Set(tags.map((t) => t.id)));
+      } else {
+        onSelectionChange(new Set([...keys].map(String)));
+      }
+    },
+    [onSelectionChange, tags],
+  );
 
   const emptyContent = isLoading ? "Loading…" : "No tags yet";
+
+  const topContentNodes: React.ReactNode[] = [];
+  if (hasSelection) {
+    topContentNodes.push(
+      <button
+        key="clear"
+        type="button"
+        onClick={() => onSelectionChange(new Set())}
+        className="focus-visible:ring-accent flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs text-gray-600 transition-colors hover:bg-gray-200/80 focus:outline-none focus-visible:ring-2 dark:text-gray-400 dark:hover:bg-gray-700/80"
+        aria-label="Clear all tag filters"
+      >
+        <XMarkIcon className="h-4 w-4 shrink-0" aria-hidden />
+        Clear all filters
+      </button>,
+    );
+  }
+  if (allowCreateFromInput) {
+    topContentNodes.push(
+      <div
+        key="search"
+        className="space-y-1.5 px-2 py-1.5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search or type new tag…"
+          aria-label="Search or create tag"
+          className={searchInputClass}
+        />
+        {showCreateOption ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCreateClick();
+            }}
+            className="focus-visible:ring-accent text-accent hover:bg-accent/10 dark:text-accent-light dark:hover:bg-accent/20 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2"
+            aria-label={`Add "${trimmedSearch}" as new tag`}
+          >
+            <PlusIcon className="h-4 w-4 shrink-0" aria-hidden />
+            Add &quot;{trimmedSearch}&quot; as new tag
+          </button>
+        ) : null}
+      </div>,
+    );
+  }
 
   return (
     <Dropdown closeOnSelect={false}>
@@ -70,16 +153,8 @@ export function TagsDropdown({
         emptyContent={emptyContent}
         hideSelectedIcon={false}
         topContent={
-          hasSelection ? (
-            <button
-              type="button"
-              onClick={() => onSelectionChange(new Set())}
-              className="focus-visible:ring-accent flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs text-gray-600 transition-colors hover:bg-gray-200/80 focus:outline-none focus-visible:ring-2 dark:text-gray-400 dark:hover:bg-gray-700/80"
-              aria-label="Clear all tag filters"
-            >
-              <XMarkIcon className="h-4 w-4 shrink-0" aria-hidden />
-              Clear all filters
-            </button>
+          topContentNodes.length > 0 ? (
+            <div className="space-y-0.5">{topContentNodes}</div>
           ) : null
         }
         className="max-h-[min(240px,50vh)] w-[256px] overflow-y-auto rounded-2xl border border-zinc-200 bg-zinc-100 py-0.5 shadow-xl dark:border-zinc-700 dark:bg-zinc-800"
@@ -89,7 +164,7 @@ export function TagsDropdown({
           selectedIcon: "text-accent dark:text-accent-light",
         }}
       >
-        {tags.map((tag) => {
+        {filteredTags.map((tag) => {
           const chipClass = getTagChipClass(tag);
           const inlineStyle = getTagInlineStyle(tag);
           return (

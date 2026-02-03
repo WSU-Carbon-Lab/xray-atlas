@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { TagGroup, Tag, Label, Button, EmptyState } from "@heroui/react";
+import React, { useState } from "react";
+import { TagGroup, Tag, Label, Button, EmptyState, Input } from "@heroui/react";
 import {
   Dropdown,
   DropdownTrigger,
@@ -10,6 +10,10 @@ import {
   DropdownItem,
 } from "@heroui/dropdown";
 import { PlusIcon } from "@heroicons/react/24/outline";
+import { X } from "lucide-react";
+
+export const SYNONYM_CHIP_CLASS =
+  "inline-flex items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light";
 
 interface SynonymTagGroupProps extends React.ComponentProps<typeof TagGroup> {
   synonyms: string[];
@@ -100,7 +104,7 @@ export const SynonymChips = ({
   const chipClass =
     size === "compact"
       ? "bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light inline-flex max-w-[4.5rem] shrink-0 truncate rounded border-0 px-1.5 py-0.5 text-[9px] font-medium tracking-wider uppercase"
-      : "bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light inline-flex items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase";
+      : SYNONYM_CHIP_CLASS;
   return (
     <div
       className={`flex flex-wrap items-center gap-0.5 sm:gap-1 ${className}`}
@@ -175,3 +179,122 @@ export const SynonymTagGroup = ({
     </TagGroup>
   );
 };
+
+const inputClass =
+  "w-full rounded-xl border border-zinc-300 bg-zinc-50/80 px-4 py-2.5 text-zinc-900 placeholder:text-zinc-500 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20 focus-visible:ring-offset-0 dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-100 dark:placeholder:text-zinc-400";
+
+export interface SynonymTagGroupEditableProps extends Omit<
+  React.ComponentProps<typeof TagGroup>,
+  "onRemove"
+> {
+  synonyms: string[];
+  onSynonymsChange: (synonyms: string[]) => void;
+  allowRemove?: boolean;
+  label?: React.ReactNode;
+  addPlaceholder?: string;
+  description?: React.ReactNode;
+}
+
+export function SynonymTagGroupEditable({
+  synonyms,
+  onSynonymsChange,
+  allowRemove = false,
+  label = "Synonyms",
+  addPlaceholder = "Add a synonym (press Enter)…",
+  description,
+  className,
+  ...tagGroupProps
+}: SynonymTagGroupEditableProps) {
+  const [newSynonym, setNewSynonym] = useState("");
+
+  const handleRemove = (keys: Set<React.Key>) => {
+    const indices = new Set(Array.from(keys).map((k) => Number(k)));
+    onSynonymsChange(synonyms.filter((_, i) => !indices.has(i)));
+  };
+
+  const addSynonym = () => {
+    const trimmed = newSynonym.trim();
+    if (trimmed && !synonyms.includes(trimmed)) {
+      onSynonymsChange([...synonyms, trimmed]);
+      setNewSynonym("");
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addSynonym();
+    }
+  };
+
+  const items = synonyms.map((name, i) => ({ id: String(i), name }));
+
+  return (
+    <div className={className}>
+      <TagGroup
+        {...tagGroupProps}
+        selectionMode="none"
+        onRemove={allowRemove ? handleRemove : undefined}
+      >
+        {description ? (
+          <div className="mb-1.5 flex items-center gap-1">
+            <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              {label}
+            </Label>
+            {description}
+          </div>
+        ) : (
+          <Label className="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+            {label}
+          </Label>
+        )}
+        <TagGroup.List
+          items={items}
+          className="mb-2 flex flex-wrap gap-1.5"
+          renderEmptyState={() => (
+            <EmptyState className="p-1">No synonyms</EmptyState>
+          )}
+        >
+          {(item) => (
+            <Tag
+              key={item.id}
+              id={item.id}
+              textValue={item.name}
+              className={`${SYNONYM_CHIP_CLASS} gap-1`}
+            >
+              <span className="min-w-0 truncate">{item.name}</span>
+              {allowRemove && (
+                <Tag.RemoveButton
+                  className="focus-visible:ring-accent ml-1 rounded-md bg-slate-200/80 p-0.5 text-slate-600 transition-colors hover:bg-slate-300 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:bg-slate-600/80 dark:text-slate-300 dark:hover:bg-slate-500 dark:hover:text-slate-100"
+                  aria-label={`Remove ${item.name}`}
+                >
+                  <X className="h-3 w-3" aria-hidden />
+                </Tag.RemoveButton>
+              )}
+            </Tag>
+          )}
+        </TagGroup.List>
+      </TagGroup>
+      <div className="flex items-center gap-2">
+        <Input
+          type="text"
+          value={newSynonym}
+          onChange={(e) => setNewSynonym(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={addPlaceholder}
+          aria-label="New synonym"
+          className={inputClass}
+        />
+        <Button
+          type="button"
+          onPress={addSynonym}
+          isDisabled={!newSynonym.trim()}
+          className="shrink-0 rounded-xl whitespace-nowrap"
+          aria-label="Add synonym"
+        >
+          Add
+        </Button>
+      </div>
+    </div>
+  );
+}
