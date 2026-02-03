@@ -1026,7 +1026,7 @@ function initEditForm(m: MoleculeView): HeaderEditForm {
   };
 }
 
-function editFormHasChanges(
+function _editFormHasChanges(
   form: HeaderEditForm | null,
   m: MoleculeView,
 ): boolean {
@@ -1555,7 +1555,7 @@ export const HeaderCard = memo(function HeaderCard({
             editForm.commonNames[editForm.primaryIndex] ??
               editForm.commonNames[0],
             ...editForm.commonNames.filter(
-              (_, i) => i !== editForm!.primaryIndex,
+              (_, i) => i !== editForm.primaryIndex,
             ),
           ].filter((s): s is string => typeof s === "string" && s.length > 0)
         : [];

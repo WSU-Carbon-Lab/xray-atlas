@@ -5,10 +5,10 @@ import {
   BuildingOfficeIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
-import { AddEntityModal } from "./AddEntityModal";
+import { AddEntityModal } from "./add-entity-modal";
 import MoleculeContributePage from "~/app/contribute/molecule/page";
 import FacilityContributePage from "~/app/contribute/facility/page";
-import { InstrumentContributionForm } from "./forms/InstrumentContributionForm";
+import { InstrumentContributionForm } from "~/app/components/forms/InstrumentContributionForm";
 
 type BaseTriggerProps = {
   className?: string;
@@ -18,7 +18,10 @@ type MoleculeTriggerProps = BaseTriggerProps & {
   onCreated?: (moleculeId?: string) => void;
 };
 
-export function AddMoleculeButton({ className, onCreated }: MoleculeTriggerProps) {
+export function AddMoleculeButton({
+  className,
+  onCreated,
+}: MoleculeTriggerProps) {
   return (
     <AddEntityModal
       title="Contribute Molecule"
@@ -47,7 +50,10 @@ type FacilityTriggerProps = BaseTriggerProps & {
   onCreated?: (facilityId?: string) => void;
 };
 
-export function AddFacilityButton({ className, onCreated }: FacilityTriggerProps) {
+export function AddFacilityButton({
+  className,
+  onCreated,
+}: FacilityTriggerProps) {
   return (
     <AddEntityModal
       title="Contribute Facility"

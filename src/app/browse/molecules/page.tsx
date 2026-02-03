@@ -22,7 +22,7 @@ import {
   EyeIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import { AddMoleculeButton } from "~/app/components/AddEntityButtons";
+import { AddMoleculeButton } from "@/components/contribute";
 import { BrowseHeader, selectClasses } from "@/components/browse/browse-header";
 import { TagFilterBar } from "@/components/browse/tag-filter-bar";
 import { TagsDropdown } from "@/components/browse/tags-dropdown";

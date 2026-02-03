@@ -4,7 +4,7 @@ import { use, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
 import { MoleculeDisplay } from "@/components/molecules/molecule-display";
-import { AddNexafsCard } from "@/components/molecules/AddNexafsCard";
+import { AddNexafsCard } from "@/components/contribute";
 import { PageSkeleton } from "@/components/feedback/loading-state";
 import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
 import Link from "next/link";
@@ -44,9 +44,9 @@ export default function MoleculeDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [optimisticViewCount, setOptimisticViewCount] = useState<number | null>(
-    null,
-  );
+  const [_optimisticViewCount, setOptimisticViewCount] = useState<
+    number | null
+  >(null);
   const { id: moleculeId } = use(params);
   const trackViewSent = useRef(false);
   const { data: session } = useSession();
@@ -159,7 +159,7 @@ export default function MoleculeDetailPage({
         >
           NEXAFS
         </h2>
-        <AddNexafsCard />
+        <AddNexafsCard href="/contribute/nexafs" />
       </section>
 
       {molecule.samples && molecule.samples.length > 0 && (

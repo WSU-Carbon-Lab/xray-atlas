@@ -7,7 +7,7 @@ import { FacilityCardCompact } from "@/components/facilities/facility-card";
 import { ErrorState } from "@/components/feedback/error-state";
 import { BrowseTabs } from "@/components/layout/browse-tabs";
 import Link from "next/link";
-import { AddFacilityButton } from "~/app/components/AddEntityButtons";
+import { AddFacilityButton } from "@/components/contribute";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,

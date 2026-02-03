@@ -4,61 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { SignInButton } from "@/components/auth/sign-in-button";
-import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
 import {
-  CheckCircleIcon,
-  BeakerIcon,
-  BuildingOfficeIcon,
-  BoltIcon,
-} from "@heroicons/react/24/outline";
-import type { ComponentType, HTMLAttributes } from "react";
-
-type ContributionCardIcon = ComponentType<
-  HTMLAttributes<SVGSVGElement> & { className?: string }
->;
-
-type ContributionCardProps = {
-  label: string;
-  description: string;
-  icon: ContributionCardIcon;
-  onClick: () => void;
-  disabled?: boolean;
-  fullWidth?: boolean;
-};
-
-function ContributionCard({
-  label,
-  description,
-  icon: Icon,
-  onClick,
-  disabled = false,
-  fullWidth = false,
-}: ContributionCardProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed bg-white px-6 py-6 text-left transition-transform duration-200 dark:bg-gray-800 ${
-        disabled
-          ? "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 dark:border-gray-700 dark:bg-gray-900"
-          : "hover:border-accent border-gray-300 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700"
-      } ${fullWidth ? "md:col-span-2" : ""}`}
-    >
-      <div className="flex flex-col gap-2">
-        <span className="text-accent dark:text-accent-light text-sm font-semibold tracking-wide uppercase">
-          {label}
-        </span>
-        <span className="text-base text-gray-700 transition-colors duration-200 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-gray-100">
-          {description}
-        </span>
-      </div>
-      <div className="group-hover:text-accent dark:text-accent-light hidden shrink-0 text-gray-300 transition-colors duration-200 md:block">
-        <Icon className="h-16 w-16" aria-hidden="true" />
-      </div>
-    </button>
-  );
-}
+  AddNexafsCard,
+  AddMoleculeCard,
+  AddFacilityCard,
+} from "@/components/contribute";
+import { ContributionAgreementModal } from "~/app/components/ContributionAgreementModal";
+import { CheckCircleIcon } from "@heroicons/react/24/outline";
 
 export default function ContributePage() {
   const router = useRouter();
@@ -158,23 +110,14 @@ export default function ContributePage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <ContributionCard
-              label="Upload NEXAFS Experiment"
-              description="Contribute Near-Edge X-ray Absorption Fine Structure data with geometry and spectral datasets."
-              icon={BoltIcon}
+            <AddNexafsCard
               onClick={() => handleContributionTypeSelect("nexafs")}
               fullWidth
             />
-            <ContributionCard
-              label="Contribute Molecule"
-              description="Add a new molecule with its chemical properties, structure, and related data."
-              icon={BeakerIcon}
+            <AddMoleculeCard
               onClick={() => handleContributionTypeSelect("molecule")}
             />
-            <ContributionCard
-              label="Link Facility and Instrument"
-              description="Add a missing facility and its instruments to the database."
-              icon={BuildingOfficeIcon}
+            <AddFacilityCard
               onClick={() => handleContributionTypeSelect("facility")}
             />
           </div>
