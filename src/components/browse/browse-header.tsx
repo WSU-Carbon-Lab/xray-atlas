@@ -69,7 +69,7 @@ export function BrowseHeader({
           </SearchField.Group>
         </SearchField>
       </div>
-      <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
         {children}
       </div>
     </div>

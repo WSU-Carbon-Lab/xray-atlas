@@ -529,7 +529,7 @@ export const CompactCard = memo(function CompactCard({
               ) : null}
             </div>
           </div>
-          <div className="flex min-w-[6rem] flex-1 shrink-0 flex-wrap items-center justify-start gap-0.5 py-0.5 sm:gap-1">
+          <div className="flex min-w-24 flex-1 shrink-0 flex-wrap items-center justify-start gap-0.5 py-0.5 sm:gap-1">
             {(props.molecule.moleculeTags ?? []).slice(0, 3).map((tag) => {
               const chipClass = getTagChipClass(tag);
               const inlineStyle = getTagInlineStyle(tag);

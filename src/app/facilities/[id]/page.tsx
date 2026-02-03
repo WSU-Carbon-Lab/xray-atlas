@@ -93,7 +93,7 @@ export default function FacilityDetailPage({
         <div className="mb-8">
           <Link
             href="/browse/facilities"
-            className="hover:text-accent dark:text-accent-light dark:hover:text-accent dark:text-accent-light mb-4 inline-flex items-center text-sm text-gray-600 dark:text-gray-400"
+            className="hover:text-accent dark:text-accent-light dark:hover:text-accent mb-4 inline-flex items-center text-sm text-gray-600"
           >
             ← Back to Facilities
           </Link>

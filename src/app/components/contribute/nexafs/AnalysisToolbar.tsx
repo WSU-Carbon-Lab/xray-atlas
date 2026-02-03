@@ -2024,7 +2024,7 @@ export function AnalysisToolbar({
                                           step={0.01}
                                           min={0}
                                           placeholder="Amp"
-                                          className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs !text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:!text-gray-400"
+                                          className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500! focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400!"
                                           onClick={(e) => e.stopPropagation()}
                                         />
                                         <Input
@@ -2047,7 +2047,7 @@ export function AnalysisToolbar({
                                           step={0.1}
                                           min={0}
                                           placeholder="Width"
-                                          className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs !text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:!text-gray-400"
+                                          className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500! focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400!"
                                           onClick={(e) => e.stopPropagation()}
                                         />
                                       </div>
@@ -2237,7 +2237,7 @@ export function AnalysisToolbar({
                                   step={0.01}
                                   min={0}
                                   placeholder="Amp"
-                                  className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full text-xs !text-gray-500 dark:!text-gray-400"
+                                  className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full text-xs text-gray-500! dark:text-gray-400!"
                                 />
                               </div>
                               <div>
@@ -2260,7 +2260,7 @@ export function AnalysisToolbar({
                                   step={0.1}
                                   min={0}
                                   placeholder="Width"
-                                  className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full text-xs !text-gray-500 dark:!text-gray-400"
+                                  className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full text-xs text-gray-500! dark:text-gray-400!"
                                 />
                               </div>
                             </div>

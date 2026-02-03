@@ -320,7 +320,7 @@ function AvatarWithTooltip({
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className="pointer-events-none fixed z-[700] -translate-x-1/2 -translate-y-full"
+            className="z-tooltip pointer-events-none fixed -translate-x-1/2 -translate-y-full"
             style={{ left: position.left, top: position.top }}
           >
             <div className="rounded-full bg-slate-200 px-2.5 py-1 text-sm font-medium text-slate-900 shadow-lg dark:bg-slate-700 dark:text-slate-100">
