@@ -44,6 +44,9 @@ import {
 const EDIT_FIELD_CLASS =
   "rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-zinc-600 dark:bg-zinc-700/90";
 
+const IDENTIFIER_CHIP_CLASS =
+  "rounded-md border border-zinc-200/80 bg-zinc-50/60 px-2 py-1.5 dark:border-zinc-600/60 dark:bg-zinc-700/30";
+
 const CAS_FAVICON_URL =
   "https://cdn.prod.website-files.com/650861f00f97fe8153979335/6585a20f2b9c762a8e082a87_cas-favicon.png";
 const PUBCHEM_FAVICON_URL = "https://pubchem.ncbi.nlm.nih.gov/favicon.ico";
@@ -1122,13 +1125,14 @@ function HeaderCardIdentifierRow({
     editForm.pubChemCid.trim() !== "" &&
     !validatePubChemCid(editForm.pubChemCid);
   const inputBaseClass = `${EDIT_FIELD_CLASS} font-mono text-xs`;
+  const chipClass = isEditing ? "" : IDENTIFIER_CHIP_CLASS;
   return (
     <div
-      className={`flex flex-wrap items-center ${isEditing ? "gap-x-3 gap-y-2" : "gap-x-4 gap-y-3"}`}
+      className={`grid grid-cols-2 gap-2 ${isEditing ? "gap-x-3" : ""}`}
       role="group"
     >
       <div
-        className={`flex max-w-[200px] min-w-0 items-center ${showCopyButtons ? "gap-2" : "gap-1.5"} ${isEditing ? "mr-3 pr-1" : ""}`}
+        className={`flex max-w-full min-w-0 items-center ${chipClass} ${showCopyButtons ? "gap-1.5" : "gap-1"} ${isEditing ? "" : ""}`}
       >
         <Image
           src={CAS_FAVICON_URL}
@@ -1195,7 +1199,7 @@ function HeaderCardIdentifierRow({
         ) : null}
       </div>
       <div
-        className={`flex max-w-[200px] min-w-0 items-center ${showCopyButtons ? "gap-2" : "gap-1.5"}`}
+        className={`flex max-w-full min-w-0 items-center ${chipClass} ${showCopyButtons ? "gap-1.5" : "gap-1"}`}
       >
         <Image
           src={PUBCHEM_FAVICON_URL}
@@ -1262,7 +1266,7 @@ function HeaderCardIdentifierRow({
         ) : null}
       </div>
       <div
-        className={`flex max-w-[240px] min-w-0 items-center ${showCopyButtons ? "gap-2" : "gap-1.5"}`}
+        className={`flex max-w-full min-w-0 items-center ${chipClass} ${showCopyButtons ? "gap-1.5" : "gap-1"}`}
       >
         <span className="text-text-tertiary shrink-0 text-xs font-medium">
           InChI
@@ -1295,7 +1299,7 @@ function HeaderCardIdentifierRow({
         ) : null}
       </div>
       <div
-        className={`flex max-w-[240px] min-w-0 items-center ${showCopyButtons ? "gap-2" : "gap-1.5"}`}
+        className={`flex max-w-full min-w-0 items-center ${chipClass} ${showCopyButtons ? "gap-1.5" : "gap-1"}`}
       >
         <span className="text-text-tertiary shrink-0 text-xs font-medium">
           SMILES
@@ -1592,7 +1596,7 @@ export const HeaderCard = memo(function HeaderCard({
     <>
       <Card className="group border-border-default hover:border-border-strong dark:border-border-default dark:hover:border-border-strong flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md sm:flex-row dark:bg-zinc-800">
         <div
-          className="group/image relative flex h-44 w-full shrink-0 overflow-hidden rounded-lg bg-white sm:h-auto sm:min-h-[220px] sm:w-[42%] dark:bg-black"
+          className="group/image relative flex h-32 w-full shrink-0 overflow-hidden rounded-lg bg-white sm:h-auto sm:min-h-[100px] sm:w-[32%] dark:bg-black"
           aria-hidden
         >
           <button
@@ -1601,7 +1605,7 @@ export const HeaderCard = memo(function HeaderCard({
               e.stopPropagation();
               setImageModalOpen(true);
             }}
-            className="flex h-full w-full cursor-pointer items-center justify-center p-3 sm:p-4"
+            className="flex h-full w-full cursor-pointer items-center justify-center p-2 sm:p-3"
             aria-label="View molecule structure"
           >
             {hasImage ? (
@@ -1617,7 +1621,7 @@ export const HeaderCard = memo(function HeaderCard({
                 className={`flex h-full w-full items-center justify-center bg-linear-to-br ${previewGradient}`}
               >
                 <Atom
-                  className="h-16 w-16 text-white/80 drop-shadow-lg motion-safe:transition-[transform,opacity] motion-safe:duration-300 motion-safe:group-hover/image:scale-110 motion-safe:group-hover/image:opacity-100"
+                  className="h-12 w-12 text-white/80 drop-shadow-lg motion-safe:transition-[transform,opacity] motion-safe:duration-300 motion-safe:group-hover/image:scale-110 motion-safe:group-hover/image:opacity-100 sm:h-14 sm:w-14"
                   strokeWidth={1}
                   aria-hidden
                 />
@@ -1664,9 +1668,9 @@ export const HeaderCard = memo(function HeaderCard({
           chemicalFormula={props.molecule.chemicalFormula}
           previewGradient={previewGradient}
         />
-        <Card.Content className="flex min-w-0 flex-1 flex-col gap-3 p-5">
+        <Card.Content className="flex min-w-0 flex-1 flex-col gap-2.5 p-4">
           <div
-            className={`min-w-0 flex-1 space-y-3 ${isEditMode ? "min-h-[260px]" : ""}`}
+            className={`min-w-0 space-y-3 ${isEditMode ? "min-h-[260px] flex-1" : ""}`}
           >
             {isEditMode && editForm ? (
               <>
@@ -1724,7 +1728,7 @@ export const HeaderCard = memo(function HeaderCard({
               </>
             ) : (
               <>
-                <div className="flex items-center gap-2">
+                <div className="flex w-fit items-center gap-2">
                   <h1 className="text-text-primary text-xl leading-tight font-bold sm:text-2xl">
                     {props.primaryName}
                   </h1>
@@ -1758,7 +1762,9 @@ export const HeaderCard = memo(function HeaderCard({
             />
           </div>
           {!isEditMode && props.molecule.iupacName ? (
-            <div className="flex items-start gap-2">
+            <div
+              className={`flex items-start gap-2 ${IDENTIFIER_CHIP_CLASS} min-w-0`}
+            >
               <ScrollShadow
                 className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
                 hideScrollBar
@@ -1797,7 +1803,7 @@ export const HeaderCard = memo(function HeaderCard({
             ) : null}
           </div>
           <footer
-            className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-3 dark:border-zinc-600"
+            className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-3 dark:border-zinc-600"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-wrap items-center gap-4">

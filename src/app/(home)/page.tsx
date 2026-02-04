@@ -71,7 +71,6 @@ export default function HomePage() {
               Advancing material research through collaborative data.
             </p>
 
-            {/* Search Bar */}
             <div className="mb-8 flex justify-center">
               <MoleculeSearch
                 placeholder="Search molecules by name, formula, CAS number..."
@@ -79,7 +78,6 @@ export default function HomePage() {
               />
             </div>
 
-            {/* CTA Buttons */}
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link href="/contribute">
                 <Button variant="primary" className="w-full sm:w-auto">
