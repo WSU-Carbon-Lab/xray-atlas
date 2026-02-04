@@ -90,8 +90,8 @@ export function MoleculeGridSkeleton({
     <div
       className={
         variant === "compact"
-          ? `space-y-3 ${className}`
-          : `grid grid-cols-1 gap-6 lg:grid-cols-2 ${className}`
+          ? `w-full space-y-3 ${className}`
+          : `grid w-full grid-cols-1 gap-6 lg:grid-cols-2 ${className}`
       }
     >
       {Array.from({ length: count }).map((_, i) => (

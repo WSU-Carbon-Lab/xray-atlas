@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useCallback,
+  Suspense,
+} from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import {
@@ -34,6 +41,8 @@ import {
 } from "@heroui/dropdown";
 import { Label, Tabs, Tooltip } from "@heroui/react";
 import { Pagination } from "@heroui/pagination";
+
+const BROWSE_CONTENT_CLASS = "mx-auto w-full max-w-7xl px-4 py-8";
 
 function MoleculesBrowseContent() {
   const searchParams = useSearchParams();
@@ -83,8 +92,7 @@ function MoleculesBrowseContent() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Load view mode from localStorage on mount
-  useEffect(() => {
+  useLayoutEffect(() => {
     const savedViewMode = localStorage.getItem("moleculeViewMode");
     if (savedViewMode === "compact" || savedViewMode === "spacious") {
       setViewMode(savedViewMode);
@@ -214,7 +222,7 @@ function MoleculesBrowseContent() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className={BROWSE_CONTENT_CLASS}>
       <div className="mb-8">
         <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-gray-100">
           Browse Molecules
@@ -349,14 +357,13 @@ function MoleculesBrowseContent() {
           }}
         />
 
-        {/* Results */}
-        <div>
+        <div className="min-w-0">
           {isLoading && (
             <div
               className={
                 viewMode === "compact"
-                  ? "space-y-3"
-                  : "grid grid-cols-1 gap-6 md:grid-cols-2"
+                  ? "w-full space-y-3"
+                  : "grid w-full grid-cols-1 gap-6 md:grid-cols-2"
               }
             >
               {Array.from({ length: itemsPerPage }).map((_, i) =>
@@ -416,7 +423,7 @@ function MoleculesBrowseContent() {
               ) : (
                 <>
                   {viewMode === "compact" ? (
-                    <div className="space-y-3 [&>div]:[contain-intrinsic-size:0_80px] [&>div]:[content-visibility:auto]">
+                    <div className="w-full space-y-3 [&>div]:[contain-intrinsic-size:0_80px] [&>div]:[content-visibility:auto]">
                       <AddMoleculeButton
                         className="min-h-[140px]"
                         onCreated={handleMoleculeCreated}
@@ -436,7 +443,7 @@ function MoleculesBrowseContent() {
                       })}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 [&>div]:[contain-intrinsic-size:0_220px] [&>div]:[content-visibility:auto]">
+                    <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2 [&>div]:[contain-intrinsic-size:0_220px] [&>div]:[content-visibility:auto]">
                       <AddMoleculeButton
                         className="min-h-[220px]"
                         onCreated={handleMoleculeCreated}
@@ -513,7 +520,7 @@ export default function MoleculesBrowsePage() {
   return (
     <Suspense
       fallback={
-        <div className="container mx-auto px-4 py-8">
+        <div className={BROWSE_CONTENT_CLASS}>
           <div className="mb-8">
             <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-gray-100">
               Browse Molecules

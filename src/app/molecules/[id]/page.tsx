@@ -1,16 +1,10 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
-import { trpc } from "~/trpc/client";
-import { MoleculeDisplay } from "@/components/molecules/molecule-display";
+import { useEffect, useRef } from "react";
+import { useMoleculeDetail } from "@/components/browse/molecule-detail-context";
 import { AddNexafsCard } from "@/components/contribute";
-import { PageSkeleton } from "@/components/feedback/loading-state";
-import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
-import Link from "next/link";
+import { trpc } from "~/trpc/client";
 import { CalendarIcon } from "@heroicons/react/24/outline";
-
-type SessionUserWithOrcid = { orcid?: string | null };
 
 const VIEW_SESSION_KEY = "xray-atlas-view-session";
 const VIEW_DEBOUNCE_KEY = "xray-atlas-view-debounce";
@@ -39,43 +33,13 @@ function markTrackViewSent(): void {
   sessionStorage.setItem(VIEW_DEBOUNCE_KEY, Date.now().toString());
 }
 
-export default function MoleculeDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const [_optimisticViewCount, setOptimisticViewCount] = useState<
-    number | null
-  >(null);
-  const { id: moleculeId } = use(params);
+export default function MoleculeDetailPage() {
+  const { molecule, moleculeId } = useMoleculeDetail();
   const trackViewSent = useRef(false);
-  const { data: session } = useSession();
-  const isSignedIn = !!session?.user;
-  const hasOrcid = !!(session?.user as SessionUserWithOrcid)?.orcid;
-  const canEdit = isSignedIn && hasOrcid;
 
-  const trackView = trpc.molecules.trackView.useMutation({
-    onMutate: () => setOptimisticViewCount(1),
-    onSuccess: (data) => {
-      if (data?.recorded === true) markTrackViewSent();
-      if (data?.recorded !== true) setOptimisticViewCount(null);
-    },
-    onError: () => setOptimisticViewCount(null),
-  });
+  const trackView = trpc.molecules.trackView.useMutation();
   const trackViewMutateRef = useRef(trackView.mutate);
   trackViewMutateRef.current = trackView.mutate;
-
-  const {
-    data: molecule,
-    isLoading,
-    isError,
-    error,
-  } = trpc.molecules.getById.useQuery(
-    { id: moleculeId },
-    {
-      retry: false,
-    },
-  );
 
   useEffect(() => {
     if (!molecule?.id || trackViewSent.current) return;
@@ -85,6 +49,9 @@ export default function MoleculeDetailPage({
     trackViewMutateRef.current(
       { moleculeId: molecule.id, ...(sessionId ? { sessionId } : {}) },
       {
+        onSuccess: (data) => {
+          if (data?.recorded === true) markTrackViewSent();
+        },
         onError: () => {
           trackViewSent.current = false;
         },
@@ -92,78 +59,19 @@ export default function MoleculeDetailPage({
     );
   }, [molecule?.id]);
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <PageSkeleton />
-      </div>
-    );
-  }
-
-  if (isError) {
-    if (error?.data?.code === "NOT_FOUND") {
-      return (
-        <div className="container mx-auto px-4 py-8">
-          <NotFoundState
-            title="Molecule Not Found"
-            message="The molecule you're looking for doesn't exist in our database."
-          />
-        </div>
-      );
-    }
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <ErrorState
-          title="Failed to load molecule"
-          message={
-            error?.message || "An error occurred while loading the molecule."
-          }
-          onRetry={() => window.location.reload()}
-        />
-      </div>
-    );
-  }
-
-  if (!molecule) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <NotFoundState />
-      </div>
-    );
-  }
+  const contributeHref = `/contribute/nexafs?moleculeId=${moleculeId}`;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link
-          href="/"
-          className="hover:text-accent dark:hover:text-accent-light text-sm text-gray-600 dark:text-gray-400"
-        >
-          ← Back to Home
-        </Link>
+    <section className="space-y-6" aria-labelledby="nexafs-heading">
+      <h2 id="nexafs-heading" className="sr-only">
+        NEXAFS spectra for this molecule
+      </h2>
+      <div className="space-y-3 [&>a]:block">
+        <AddNexafsCard href={contributeHref} className="min-h-[140px] w-full" />
       </div>
-
-      <div className="mb-8">
-        <MoleculeDisplay
-          molecule={molecule}
-          variant="header"
-          canEdit={canEdit}
-          isSignedIn={isSignedIn}
-        />
-      </div>
-
-      <section className="mt-8 space-y-6" aria-labelledby="browse-heading">
-        <h2
-          id="browse-heading"
-          className="text-xl font-semibold text-gray-900 dark:text-gray-100"
-        >
-          NEXAFS
-        </h2>
-        <AddNexafsCard href="/contribute/nexafs" />
-      </section>
 
       {molecule.samples && molecule.samples.length > 0 && (
-        <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
           <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
             Samples ({molecule.samples.length})
           </h2>
@@ -192,6 +100,6 @@ export default function MoleculeDetailPage({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }
