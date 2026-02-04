@@ -1,4 +1,4 @@
-import type { SpectrumPoint } from "~/app/components/plots/SpectrumPlot";
+import type { SpectrumPoint } from "~/components/plots/types";
 import type { PeakData } from "../types";
 
 export interface PeakDetectionOptions {

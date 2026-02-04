@@ -106,11 +106,8 @@ export default function Header() {
   const isLoaded = status !== "loading";
 
   return (
-    <div className="w-full px-4">
-      <Navbar
-        isBordered
-        className="border-default bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-50 h-20 border-b backdrop-blur"
-      >
+    <header className="border-default bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-50 w-full border-b backdrop-blur">
+      <Navbar isBordered={false} className="mx-auto h-20 max-w-7xl px-4">
         <NavbarBrand className="items-center justify-start">
           <Link
             href="/"
@@ -184,6 +181,6 @@ export default function Header() {
           </NavbarItem>
         </NavbarContent>
       </Navbar>
-    </div>
+    </header>
   );
 }

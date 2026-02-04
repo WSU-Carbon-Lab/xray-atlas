@@ -103,11 +103,11 @@ export const SynonymChips = ({
   const remaining = synonyms.length - truncated.length;
   const chipClass =
     size === "compact"
-      ? "bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light inline-flex max-w-[4.5rem] shrink-0 truncate rounded border-0 px-1.5 py-0.5 text-[9px] font-medium tracking-wider uppercase"
-      : SYNONYM_CHIP_CLASS;
+      ? "bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light inline-flex max-w-[4.5rem] min-w-0 shrink truncate rounded border-0 px-1.5 py-0.5 text-[9px] font-medium tracking-wider uppercase"
+      : `${SYNONYM_CHIP_CLASS} min-w-0 max-w-[6rem] shrink truncate`;
   return (
     <div
-      className={`flex flex-wrap items-center gap-0.5 sm:gap-1 ${className}`}
+      className={`flex min-w-0 flex-nowrap items-center gap-0.5 overflow-hidden sm:gap-1 ${className}`}
     >
       {truncated.map((syn: string) => (
         <span key={syn} className={chipClass} title={syn}>

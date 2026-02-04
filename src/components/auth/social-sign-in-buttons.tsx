@@ -4,7 +4,7 @@ import { signIn } from "next-auth/react";
 import { signIn as webauthnSignIn } from "next-auth/webauthn";
 import { Button, Tooltip } from "@heroui/react";
 import { Key } from "lucide-react";
-import { ORCIDIcon, GitHubIcon, HuggingFaceIcon } from "~/app/components/icons";
+import { ORCIDIcon, GitHubIcon, HuggingFaceIcon } from "~/components/icons";
 
 const ORCID_TOOLTIP =
   "ORCID is a free, unique, persistent identifier (PID) for individuals to use as they engage in research, scholarship, and innovation activities. It can also help you save time when you use your ORCID to sign into systems like this one. Learn more at orcid.org.";

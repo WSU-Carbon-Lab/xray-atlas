@@ -13,7 +13,7 @@ import {
   XCircleIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
-import { AddInstrumentButton } from "~/app/components/AddEntityButtons";
+import { AddInstrumentButton } from "@/components/contribute";
 
 export default function FacilityDetailPage({
   params,

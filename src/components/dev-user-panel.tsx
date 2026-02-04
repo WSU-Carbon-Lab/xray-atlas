@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { LogOut, User, LayoutDashboard, Users } from "lucide-react";
 import { DEV_MOCK_USER } from "~/lib/dev-mock-data";
 import { CustomAvatar } from "~/components/ui/avatar";
-import { ORCIDIcon } from "~/app/components/icons";
+import { ORCIDIcon } from "~/components/icons";
 
 export function DevUserPanel() {
   const { data: session } = useSession();

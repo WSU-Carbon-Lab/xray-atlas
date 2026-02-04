@@ -106,10 +106,14 @@ export const MoleculeImageSVG = ({
   if (isLoading) {
     return (
       <div
-        className={`flex items-center justify-center ${className}`}
+        className={`flex items-center justify-center bg-gray-100 dark:bg-gray-800/50 ${className}`}
         aria-label={`Loading ${name}`}
       >
-        <div className="h-8 w-8 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+        <div
+          className="border-t-accent dark:border-t-accent-light h-10 w-10 animate-spin rounded-full border-2 border-gray-300 dark:border-gray-600"
+          role="status"
+          aria-hidden
+        />
       </div>
     );
   }

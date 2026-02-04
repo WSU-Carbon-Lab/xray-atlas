@@ -90,13 +90,78 @@ export function MoleculeGridSkeleton({
     <div
       className={
         variant === "compact"
-          ? `space-y-3 ${className}`
-          : `grid grid-cols-1 gap-6 lg:grid-cols-2 ${className}`
+          ? `w-full space-y-3 ${className}`
+          : `grid w-full grid-cols-1 gap-6 lg:grid-cols-2 ${className}`
       }
     >
       {Array.from({ length: count }).map((_, i) => (
         <Skeleton key={i} />
       ))}
+    </div>
+  );
+}
+
+export function ImageLoadingSpinner({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-center ${className}`}
+      role="status"
+      aria-label="Loading image"
+    >
+      <div
+        className="border-t-accent dark:border-t-accent-light h-10 w-10 animate-spin rounded-full border-2 border-gray-300 dark:border-gray-600"
+        aria-hidden
+      />
+    </div>
+  );
+}
+
+export function MoleculeHeaderSkeleton() {
+  return (
+    <div className="border-border-default dark:border-border-default flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm sm:flex-row dark:bg-zinc-800">
+      <div className="relative flex h-32 w-full shrink-0 items-center justify-center overflow-hidden bg-gray-100 sm:h-auto sm:min-h-[100px] sm:w-[32%] dark:bg-gray-800">
+        <ImageLoadingSpinner className="h-full w-full rounded-none" />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-3 p-5">
+        <LoadingSkeleton className="h-8 w-48 rounded" />
+        <div className="flex flex-wrap gap-1.5">
+          <LoadingSkeleton className="h-6 w-14 rounded-full" />
+          <LoadingSkeleton className="h-6 w-20 rounded-full" />
+        </div>
+        <div className="flex flex-wrap gap-4">
+          <LoadingSkeleton className="h-4 w-24 rounded" />
+          <LoadingSkeleton className="h-4 w-20 rounded" />
+        </div>
+        <LoadingSkeleton className="h-3 w-full max-w-md rounded" />
+        <div className="mt-auto flex flex-wrap items-center gap-4 border-t border-zinc-200 pt-3 dark:border-zinc-600">
+          <LoadingSkeleton className="h-4 w-12 rounded" />
+          <LoadingSkeleton className="h-4 w-8 rounded" />
+          <LoadingSkeleton className="h-4 w-16 rounded" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ContributionCardSkeleton({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-white px-6 py-6 dark:border-gray-700 dark:bg-gray-800 ${className}`}
+    >
+      <div className="flex flex-col gap-2">
+        <LoadingSkeleton className="h-4 w-32 rounded" />
+        <LoadingSkeleton className="h-5 w-full max-w-sm rounded" />
+        <LoadingSkeleton className="h-4 w-64 rounded" />
+      </div>
+      <LoadingSkeleton className="hidden h-16 w-16 shrink-0 rounded md:block" />
     </div>
   );
 }

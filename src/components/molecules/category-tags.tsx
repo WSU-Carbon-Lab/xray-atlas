@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Label } from "@heroui/react";
+import { Label, ScrollShadow } from "@heroui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { trpc } from "~/trpc/client";
 import {
@@ -89,6 +89,7 @@ export interface CategoryTagGroupEditableProps {
   label?: React.ReactNode;
   description?: React.ReactNode;
   className?: string;
+  inlineLayout?: boolean;
 }
 
 export function CategoryTagGroupEditable({
@@ -97,6 +98,7 @@ export function CategoryTagGroupEditable({
   label = "Category tags",
   description,
   className,
+  inlineLayout = false,
 }: CategoryTagGroupEditableProps) {
   const { data: allTags = [], isLoading } = trpc.molecules.listTags.useQuery(
     undefined,
@@ -127,6 +129,80 @@ export function CategoryTagGroupEditable({
     return tag.id;
   };
 
+  const tagChips = (
+    <>
+      {selectedTags.length === 0 && !isLoading ? (
+        <span className="text-text-tertiary shrink-0 text-sm">
+          No category tags selected
+        </span>
+      ) : null}
+      {selectedTags.map((tag) => {
+        const chipClass = getTagChipClass(tag);
+        const inlineStyle = getTagInlineStyle(tag);
+        return (
+          <span
+            key={tag.id}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${chipClass}`}
+            style={inlineStyle}
+          >
+            {tag.name}
+            <button
+              type="button"
+              onClick={() => removeTagId(tag.id)}
+              aria-label={`Remove ${tag.name}`}
+              className="focus-visible:ring-accent -mr-0.5 rounded p-0.5 transition-colors hover:bg-black/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:hover:bg-white/10"
+            >
+              <XMarkIcon className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </span>
+        );
+      })}
+    </>
+  );
+
+  if (inlineLayout) {
+    return (
+      <div className={className}>
+        {description ? (
+          <div className="mb-1 flex items-center gap-1">
+            <Label className="text-text-secondary text-sm font-medium">
+              {label}
+            </Label>
+            {description}
+          </div>
+        ) : (
+          <Label className="text-text-secondary mb-1 block text-sm font-medium">
+            {label}
+          </Label>
+        )}
+        <div
+          className="flex min-h-0 items-center gap-2 rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700/90"
+          role="region"
+          aria-label="Category tags"
+        >
+          <ScrollShadow
+            orientation="horizontal"
+            className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
+            hideScrollBar
+          >
+            <div className="flex w-max items-center gap-2 py-0.5">
+              {tagChips}
+            </div>
+          </ScrollShadow>
+          <div className="shrink-0 border-l border-zinc-200 pl-2 dark:border-zinc-600">
+            <TagsDropdown
+              selectedTagIds={selectedTagIdsSet}
+              onSelectionChange={handleSelectionChange}
+              ariaLabel="Add category tag"
+              allowCreateFromInput
+              onCreateTag={handleCreateTag}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={className}>
       {description ? (
@@ -146,32 +222,7 @@ export function CategoryTagGroupEditable({
         role="region"
         aria-label="Category tags"
       >
-        {selectedTags.length === 0 && !isLoading ? (
-          <span className="text-sm text-slate-500 dark:text-slate-400">
-            No category tags selected
-          </span>
-        ) : null}
-        {selectedTags.map((tag) => {
-          const chipClass = getTagChipClass(tag);
-          const inlineStyle = getTagInlineStyle(tag);
-          return (
-            <span
-              key={tag.id}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${chipClass}`}
-              style={inlineStyle}
-            >
-              {tag.name}
-              <button
-                type="button"
-                onClick={() => removeTagId(tag.id)}
-                aria-label={`Remove ${tag.name}`}
-                className="focus-visible:ring-accent -mr-0.5 rounded p-0.5 transition-colors hover:bg-black/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:hover:bg-white/10"
-              >
-                <XMarkIcon className="h-3.5 w-3.5" aria-hidden />
-              </button>
-            </span>
-          );
-        })}
+        {tagChips}
       </div>
       <div className="mt-2">
         <TagsDropdown
