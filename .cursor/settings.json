@@ -1,0 +1,13 @@
+{
+  "plugins": {
+    "vercel": {
+      "enabled": true
+    },
+    "supabase": {
+      "enabled": true
+    },
+    "prisma": {
+      "enabled": true
+    }
+  }
+}

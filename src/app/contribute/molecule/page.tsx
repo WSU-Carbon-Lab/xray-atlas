@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { DefaultButton as Button } from "@/components/ui/button";
-import { ContributionAgreementModal } from "@/components/contribute";
+import {
+  ContributionAgreementModal,
+  ContributionFileDropOverlay,
+  type ContributionFileDropOverlayFileKind,
+} from "@/components/contribute";
 import type { MoleculeUploadData } from "~/types/upload";
 import {
   MoleculeDisplay,
@@ -25,6 +29,7 @@ import { FieldTooltip } from "@/components/ui/field-tooltip";
 import { SearchIcon } from "@/components/icons";
 import { Label, Input as HeroInput } from "@heroui/react";
 import { parseMoleculeJsonFile } from "~/app/contribute/molecule/utils/parseMoleculeJson";
+import { parseMoleculeCsvFile } from "~/app/contribute/molecule/utils/parseMoleculeCsv";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
 
@@ -88,7 +93,10 @@ export default function MoleculeContributePage({
   const [editingMoleculeId, setEditingMoleculeId] = useState<string | null>(
     null,
   );
-  const [isDraggingJson, setIsDraggingJson] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedFileType, setDraggedFileType] =
+    useState<ContributionFileDropOverlayFileKind | null>(null);
+  const [draggedFileName, setDraggedFileName] = useState<string | null>(null);
   const dragCounterRef = useRef(0);
 
   // tRPC hooks
@@ -560,6 +568,34 @@ export default function MoleculeContributePage({
     }
   }, []);
 
+  const handleCsvDropped = useCallback(async (file: File) => {
+    try {
+      const parsed = await parseMoleculeCsvFile(file);
+      setSearchError(null);
+      setSearchSuccess(null);
+      setSearchWarnings([]);
+      setFormData((prev) => ({
+        ...prev,
+        commonName: parsed.commonName || prev.commonName,
+        iupacName: parsed.iupacName || prev.iupacName,
+        synonyms: parsed.synonyms.length > 0 ? parsed.synonyms : prev.synonyms,
+        smiles: parsed.smiles || prev.smiles,
+        inchi: parsed.inchi || prev.inchi,
+        chemicalFormula: parsed.chemicalFormula || prev.chemicalFormula,
+        casNumber: parsed.casNumber ?? prev.casNumber,
+        pubchemCid: parsed.pubchemCid ?? prev.pubchemCid,
+        tagIds: parsed.tagIds.length > 0 ? parsed.tagIds : (prev.tagIds ?? []),
+      }));
+      setTimeout(() => {
+        void searchHandlerRef.current();
+      }, 150);
+    } catch (err) {
+      setSearchError(
+        err instanceof Error ? err.message : "Failed to parse CSV file",
+      );
+    }
+  }, []);
+
   useEffect(() => {
     const handleDragEnter = (e: DragEvent) => {
       e.preventDefault();
@@ -567,12 +603,23 @@ export default function MoleculeContributePage({
       dragCounterRef.current++;
       if (e.dataTransfer?.types.includes("Files")) {
         const items = Array.from(e.dataTransfer?.items ?? []);
-        const hasJson = items.some((item) => {
-          if (item.kind !== "file") return false;
-          const f = item.getAsFile();
-          return f?.name.toLowerCase().endsWith(".json");
-        });
-        if (hasJson) setIsDraggingJson(true);
+        const fileTypes = items
+          .filter((item) => item.kind === "file")
+          .map((item) => {
+            const f = item.getAsFile();
+            const name = f?.name.toLowerCase() ?? "";
+            if (name.endsWith(".json")) return "json" as const;
+            if (name.endsWith(".csv")) return "csv" as const;
+            return null;
+          })
+          .filter((t): t is "csv" | "json" => t !== null);
+        if (fileTypes.length > 0) {
+          setIsDragging(true);
+          const unique = Array.from(new Set(fileTypes));
+          setDraggedFileType(unique.length === 1 ? unique[0]! : "mixed");
+          const first = items.find((item) => item.kind === "file")?.getAsFile();
+          if (first?.name) setDraggedFileName(first.name);
+        }
       }
     };
     const handleDragOver = (e: DragEvent) => {
@@ -583,18 +630,31 @@ export default function MoleculeContributePage({
       e.preventDefault();
       e.stopPropagation();
       dragCounterRef.current--;
-      if (dragCounterRef.current === 0) setIsDraggingJson(false);
+      if (dragCounterRef.current === 0) {
+        setIsDragging(false);
+        setDraggedFileType(null);
+        setDraggedFileName(null);
+      }
     };
     const handleDrop = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       dragCounterRef.current = 0;
-      setIsDraggingJson(false);
-      const files = Array.from(e.dataTransfer?.files ?? []).filter((file) =>
-        file.name.toLowerCase().endsWith(".json"),
+      setIsDragging(false);
+      setDraggedFileType(null);
+      setDraggedFileName(null);
+      const files = Array.from(e.dataTransfer?.files ?? []).filter(
+        (file) =>
+          file.name.toLowerCase().endsWith(".json") ||
+          file.name.toLowerCase().endsWith(".csv"),
       );
-      const jsonFile = files[0];
-      if (jsonFile) void handleJsonDropped(jsonFile);
+      const first = files[0];
+      if (!first) return;
+      if (first.name.toLowerCase().endsWith(".json")) {
+        void handleJsonDropped(first);
+      } else {
+        void handleCsvDropped(first);
+      }
     };
     window.addEventListener("dragenter", handleDragEnter);
     window.addEventListener("dragover", handleDragOver);
@@ -606,7 +666,7 @@ export default function MoleculeContributePage({
       window.removeEventListener("dragleave", handleDragLeave);
       window.removeEventListener("drop", handleDrop);
     };
-  }, [handleJsonDropped]);
+  }, [handleJsonDropped, handleCsvDropped]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -796,24 +856,11 @@ export default function MoleculeContributePage({
             Contribute Molecule
           </h1>
 
-          {isDraggingJson && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md">
-              <div className="border-accent flex flex-col items-center gap-6 rounded-3xl border-4 border-dashed bg-white/98 px-16 py-14 shadow-2xl dark:bg-slate-900/98">
-                <div className="bg-accent/10 dark:bg-accent/20 rounded-full p-5">
-                  <DocumentArrowUpIcon
-                    className="text-accent h-20 w-20"
-                    aria-hidden
-                  />
-                </div>
-                <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-                  Drop JSON file here
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Load molecule data and run PubChem and CAS search for synonyms
-                </p>
-              </div>
-            </div>
-          )}
+          <ContributionFileDropOverlay
+            isDragging={isDragging}
+            fileKind={draggedFileType ?? "mixed"}
+            fileName={draggedFileName}
+          />
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
             {/* Upload Form */}

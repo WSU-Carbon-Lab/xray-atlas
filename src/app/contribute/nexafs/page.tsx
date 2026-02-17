@@ -6,14 +6,16 @@ import { useSession } from "next-auth/react";
 import Papa from "papaparse";
 import { DefaultButton as Button } from "@/components/ui/button";
 import { SignInButton } from "@/components/auth/sign-in-button";
-import { ContributionAgreementModal } from "@/components/contribute";
+import {
+  ContributionAgreementModal,
+  ContributionFileDropOverlay,
+} from "@/components/contribute";
 import { SimpleDialog } from "@/components/ui/dialog";
 import { FormField } from "@/components/ui/form-field";
 import { trpc } from "~/trpc/client";
 import {
   ArrowLeftIcon,
   ExclamationTriangleIcon,
-  DocumentArrowUpIcon,
   XMarkIcon,
   CheckIcon,
   PlusIcon,
@@ -33,10 +35,17 @@ import type {
   CSVColumnMappings,
   ExperimentTypeOption,
 } from "~/app/contribute/nexafs/types";
-import { createEmptyDatasetState, EXPERIMENT_TYPE_OPTIONS } from "~/app/contribute/nexafs/types";
+import {
+  createEmptyDatasetState,
+  EXPERIMENT_TYPE_OPTIONS,
+} from "~/app/contribute/nexafs/types";
 import type { SpectrumPoint } from "@/components/plots/spectrum-plot";
 import { extractGeometryPairs } from "~/app/contribute/nexafs/utils";
-import { parseNexafsFilename, normalizeEdge, normalizeExperimentMode } from "~/app/contribute/nexafs/utils/filenameParser";
+import {
+  parseNexafsFilename,
+  normalizeEdge,
+  normalizeExperimentMode,
+} from "~/app/contribute/nexafs/utils/filenameParser";
 import { parseNexafsJson } from "~/app/contribute/nexafs/utils/jsonParser";
 
 const parseCSVFile = (
@@ -60,7 +69,10 @@ export default function NEXAFSContributePage() {
     { type: "success" | "error"; message: string } | undefined
   >(undefined);
   const [isDragging, setIsDragging] = useState(false);
-  const [draggedFileType, setDraggedFileType] = useState<"csv" | "json" | "mixed" | null>(null);
+  const [draggedFileType, setDraggedFileType] = useState<
+    "csv" | "json" | "mixed" | null
+  >(null);
+  const [draggedFileName, setDraggedFileName] = useState<string | null>(null);
   const dragCounterRef = useRef(0);
   const { toasts, removeToast, showToast } = useToast();
 
@@ -103,10 +115,7 @@ export default function NEXAFSContributePage() {
       ) ?? [],
     [instrumentsData?.instruments],
   );
-  const edgeOptions = useMemo(
-    () => edgesData?.edges ?? [],
-    [edgesData?.edges],
-  );
+  const edgeOptions = useMemo(() => edgesData?.edges ?? [], [edgesData?.edges]);
   const calibrationOptions = calibrationMethodsData?.calibrationMethods ?? [];
 
   // Edge creation dialog
@@ -193,8 +202,15 @@ export default function NEXAFSContributePage() {
           const energyValue = row[energyColumn];
           const absorptionValue = row[absorptionColumn];
 
-          const energyStr = typeof energyValue === "string" || typeof energyValue === "number" ? String(energyValue) : "";
-          const absorptionStr = typeof absorptionValue === "string" || typeof absorptionValue === "number" ? String(absorptionValue) : "";
+          const energyStr =
+            typeof energyValue === "string" || typeof energyValue === "number"
+              ? String(energyValue)
+              : "";
+          const absorptionStr =
+            typeof absorptionValue === "string" ||
+            typeof absorptionValue === "number"
+              ? String(absorptionValue)
+              : "";
           const energy = parseFloat(energyStr.trim());
           const absorption = parseFloat(absorptionStr.trim());
 
@@ -202,28 +218,49 @@ export default function NEXAFSContributePage() {
 
           const point: SpectrumPoint = { energy, absorption };
 
-          if (thetaColumn && row[thetaColumn] !== undefined && row[thetaColumn] !== null) {
+          if (
+            thetaColumn &&
+            row[thetaColumn] !== undefined &&
+            row[thetaColumn] !== null
+          ) {
             const thetaValueRaw = row[thetaColumn];
-            const thetaStr = typeof thetaValueRaw === "string" || typeof thetaValueRaw === "number" ? String(thetaValueRaw) : "";
+            const thetaStr =
+              typeof thetaValueRaw === "string" ||
+              typeof thetaValueRaw === "number"
+                ? String(thetaValueRaw)
+                : "";
             const thetaValue = parseFloat(thetaStr.trim());
             if (!isNaN(thetaValue)) {
               point.theta = thetaValue;
             }
-          } else if (dataset.fixedTheta !== undefined && dataset.fixedTheta !== "") {
+          } else if (
+            dataset.fixedTheta !== undefined &&
+            dataset.fixedTheta !== ""
+          ) {
             const fixedThetaValue = parseFloat(dataset.fixedTheta);
             if (!isNaN(fixedThetaValue)) {
               point.theta = fixedThetaValue;
             }
           }
 
-          if (phiColumn && row[phiColumn] !== undefined && row[phiColumn] !== null) {
+          if (
+            phiColumn &&
+            row[phiColumn] !== undefined &&
+            row[phiColumn] !== null
+          ) {
             const phiValueRaw = row[phiColumn];
-            const phiStr = typeof phiValueRaw === "string" || typeof phiValueRaw === "number" ? String(phiValueRaw) : "";
+            const phiStr =
+              typeof phiValueRaw === "string" || typeof phiValueRaw === "number"
+                ? String(phiValueRaw)
+                : "";
             const phiValue = parseFloat(phiStr.trim());
             if (!isNaN(phiValue)) {
               point.phi = phiValue;
             }
-          } else if (dataset.fixedPhi !== undefined && dataset.fixedPhi !== "") {
+          } else if (
+            dataset.fixedPhi !== undefined &&
+            dataset.fixedPhi !== ""
+          ) {
             const fixedPhiValue = parseFloat(dataset.fixedPhi);
             if (!isNaN(fixedPhiValue)) {
               point.phi = fixedPhiValue;
@@ -250,218 +287,249 @@ export default function NEXAFSContributePage() {
   );
 
   // File upload handling
-  const handleFilesSelected = useCallback(async (files: File[]) => {
-    for (const file of files) {
-      const dataset = createEmptyDatasetState(file);
+  const handleFilesSelected = useCallback(
+    async (files: File[]) => {
+      for (const file of files) {
+        const dataset = createEmptyDatasetState(file);
 
-      const parsedFilename = parseNexafsFilename(file.name);
+        const parsedFilename = parseNexafsFilename(file.name);
 
-      const updates: Partial<DatasetState> = {};
+        const updates: Partial<DatasetState> = {};
 
-      if (parsedFilename.edge) {
-        const normalizedEdge = normalizeEdge(parsedFilename.edge);
-        if (normalizedEdge) {
-          const matchingEdge = edgeOptions.find((edge) => {
-            const edgeLabel = `${edge.targetatom}(${edge.corestate})`;
-            return edgeLabel === normalizedEdge || edgeLabel.toLowerCase() === normalizedEdge.toLowerCase();
-          });
-          if (matchingEdge) {
-            updates.edgeId = matchingEdge.id;
-          }
-        }
-      }
-
-      if (parsedFilename.experimentMode) {
-        const normalizedMode = normalizeExperimentMode(parsedFilename.experimentMode);
-        if (normalizedMode && EXPERIMENT_TYPE_OPTIONS.some((opt) => opt.value === normalizedMode)) {
-          updates.experimentType = normalizedMode as ExperimentTypeOption;
-        }
-      }
-
-      if (parsedFilename.facility) {
-        const matchingInstrument = instrumentOptions.find((inst) => {
-          const facilityName = inst.facilityName?.toUpperCase().replace(/\s+/g, "");
-          const parsedFacility = parsedFilename.facility?.toUpperCase().replace(/\s+/g, "");
-          return (facilityName === parsedFacility) ||
-                 (facilityName?.includes(parsedFacility ?? "") ?? false) ||
-                 (parsedFacility?.includes(facilityName ?? "") ?? false);
-        });
-        if (matchingInstrument) {
-          updates.instrumentId = matchingInstrument.id;
-        }
-      }
-
-      if (parsedFilename.beamline) {
-        const matchingInstrument = instrumentOptions.find((inst) => {
-          const instrumentName = inst.name.toUpperCase().replace(/\s+/g, "");
-          const parsedBeamline = parsedFilename.beamline?.toUpperCase().replace(/\s+/g, "");
-          return instrumentName === parsedBeamline ||
-                 instrumentName.includes(parsedBeamline ?? "") ||
-                 parsedBeamline?.includes(instrumentName);
-        });
-        if (matchingInstrument && !updates.instrumentId) {
-          updates.instrumentId = matchingInstrument.id;
-        }
-      }
-
-      setDatasets((prev) => {
-        const updated = [...prev, { ...dataset, ...updates }];
-        if (!activeDatasetId) {
-          setActiveDatasetId(dataset.id);
-        }
-        return updated;
-      });
-
-      const isJson = file.name.toLowerCase().endsWith(".json");
-
-      try {
-        if (isJson) {
-          const { spectrumPoints, columns, rawData } = await parseNexafsJson(file);
-
-          const detectedEnergyCol = columns.find((col) =>
-            col.toLowerCase().includes("energy") ||
-            col.toLowerCase().includes("ev") ||
-            col.toLowerCase().includes("photon"),
-          );
-
-          const detectedAbsorptionCol = columns.find((col) =>
-            col.toLowerCase().includes("absorption") ||
-            col.toLowerCase().includes("abs") ||
-            col.toLowerCase().includes("intensity") ||
-            col.toLowerCase().includes("signal"),
-          );
-
-          const energyCol = detectedEnergyCol ?? columns[0] ?? "";
-          const absorptionCol = detectedAbsorptionCol ?? columns[1] ?? "";
-
-          const thetaCol = columns.find((col) =>
-            col.toLowerCase().includes("theta"),
-          );
-
-          const phiCol = columns.find((col) =>
-            col.toLowerCase().includes("phi"),
-          );
-
-          const columnMappings: CSVColumnMappings = {
-            energy: energyCol,
-            absorption: absorptionCol,
-            theta: thetaCol ?? undefined,
-            phi: phiCol ?? undefined,
-          };
-
-          updateDataset(dataset.id, {
-            ...updates,
-            csvColumns: columns,
-            csvRawData: rawData,
-            columnMappings,
-            spectrumPoints,
-          });
-
-          if (spectrumPoints.length > 0) {
-            setTimeout(() => {
-              processDatasetData(dataset.id);
-            }, 50);
-          } else {
-            const missingColumns: string[] = [];
-            if (!columnMappings.energy) {
-              missingColumns.push("Energy");
-            }
-            if (!columnMappings.absorption) {
-              missingColumns.push("Absorption");
-            }
-
-            if (missingColumns.length > 0) {
-              showToast(
-                `Missing required columns: ${missingColumns.join(", ")}. Please map columns in the table view.`,
-                "error",
-                8000
+        if (parsedFilename.edge) {
+          const normalizedEdge = normalizeEdge(parsedFilename.edge);
+          if (normalizedEdge) {
+            const matchingEdge = edgeOptions.find((edge) => {
+              const edgeLabel = `${edge.targetatom}(${edge.corestate})`;
+              return (
+                edgeLabel === normalizedEdge ||
+                edgeLabel.toLowerCase() === normalizedEdge.toLowerCase()
               );
+            });
+            if (matchingEdge) {
+              updates.edgeId = matchingEdge.id;
             }
           }
-        } else {
-          const parsed = await parseCSVFile(file);
-          const columns = parsed.meta.fields ?? [];
+        }
 
-          if (columns.length > 0) {
-            const energyCol = columns.find(
+        if (parsedFilename.experimentMode) {
+          const normalizedMode = normalizeExperimentMode(
+            parsedFilename.experimentMode,
+          );
+          if (
+            normalizedMode &&
+            EXPERIMENT_TYPE_OPTIONS.some((opt) => opt.value === normalizedMode)
+          ) {
+            updates.experimentType = normalizedMode as ExperimentTypeOption;
+          }
+        }
+
+        if (parsedFilename.facility) {
+          const matchingInstrument = instrumentOptions.find((inst) => {
+            const facilityName = inst.facilityName
+              ?.toUpperCase()
+              .replace(/\s+/g, "");
+            const parsedFacility = parsedFilename.facility
+              ?.toUpperCase()
+              .replace(/\s+/g, "");
+            return (
+              facilityName === parsedFacility ||
+              (facilityName?.includes(parsedFacility ?? "") ?? false) ||
+              (parsedFacility?.includes(facilityName ?? "") ?? false)
+            );
+          });
+          if (matchingInstrument) {
+            updates.instrumentId = matchingInstrument.id;
+          }
+        }
+
+        if (parsedFilename.beamline) {
+          const matchingInstrument = instrumentOptions.find((inst) => {
+            const instrumentName = inst.name.toUpperCase().replace(/\s+/g, "");
+            const parsedBeamline = parsedFilename.beamline
+              ?.toUpperCase()
+              .replace(/\s+/g, "");
+            return (
+              instrumentName === parsedBeamline ||
+              instrumentName.includes(parsedBeamline ?? "") ||
+              parsedBeamline?.includes(instrumentName)
+            );
+          });
+          if (matchingInstrument && !updates.instrumentId) {
+            updates.instrumentId = matchingInstrument.id;
+          }
+        }
+
+        setDatasets((prev) => {
+          const updated = [...prev, { ...dataset, ...updates }];
+          if (!activeDatasetId) {
+            setActiveDatasetId(dataset.id);
+          }
+          return updated;
+        });
+
+        const isJson = file.name.toLowerCase().endsWith(".json");
+
+        try {
+          if (isJson) {
+            const { spectrumPoints, columns, rawData } =
+              await parseNexafsJson(file);
+
+            const detectedEnergyCol = columns.find(
               (col) =>
                 col.toLowerCase().includes("energy") ||
                 col.toLowerCase().includes("ev") ||
                 col.toLowerCase().includes("photon"),
             );
-            const absorptionCol = columns.find(
+
+            const detectedAbsorptionCol = columns.find(
               (col) =>
                 col.toLowerCase().includes("absorption") ||
                 col.toLowerCase().includes("abs") ||
                 col.toLowerCase().includes("intensity") ||
                 col.toLowerCase().includes("signal"),
             );
+
+            const energyCol = detectedEnergyCol ?? columns[0] ?? "";
+            const absorptionCol = detectedAbsorptionCol ?? columns[1] ?? "";
+
             const thetaCol = columns.find((col) =>
               col.toLowerCase().includes("theta"),
             );
+
             const phiCol = columns.find((col) =>
               col.toLowerCase().includes("phi"),
             );
 
             const columnMappings: CSVColumnMappings = {
-              energy: energyCol ?? columns[0] ?? "",
-              absorption: absorptionCol ?? columns[1] ?? "",
+              energy: energyCol,
+              absorption: absorptionCol,
               theta: thetaCol ?? undefined,
               phi: phiCol ?? undefined,
             };
 
-            const missingColumns: string[] = [];
-            if (!columnMappings.energy) missingColumns.push("Energy");
-            if (!columnMappings.absorption) missingColumns.push("Absorption");
-
             updateDataset(dataset.id, {
               ...updates,
               csvColumns: columns,
-              csvRawData: parsed.data,
+              csvRawData: rawData,
               columnMappings,
+              spectrumPoints,
             });
 
-            if (missingColumns.length > 0) {
-              showToast(
-                `Missing required columns: ${missingColumns.join(", ")}. Please map columns in the table view.`,
-                "error",
-                8000
-              );
-            }
-
-            if (columnMappings.energy && columnMappings.absorption) {
+            if (spectrumPoints.length > 0) {
               setTimeout(() => {
                 processDatasetData(dataset.id);
               }, 50);
+            } else {
+              const missingColumns: string[] = [];
+              if (!columnMappings.energy) {
+                missingColumns.push("Energy");
+              }
+              if (!columnMappings.absorption) {
+                missingColumns.push("Absorption");
+              }
+
+              if (missingColumns.length > 0) {
+                showToast(
+                  `Missing required columns: ${missingColumns.join(", ")}. Please map columns in the table view.`,
+                  "error",
+                  8000,
+                );
+              }
             }
           } else {
-            showToast(
-              "CSV file has no columns. Please check the file format.",
-              "error",
-              8000
-            );
+            const parsed = await parseCSVFile(file);
+            const columns = parsed.meta.fields ?? [];
+
+            if (columns.length > 0) {
+              const energyCol = columns.find(
+                (col) =>
+                  col.toLowerCase().includes("energy") ||
+                  col.toLowerCase().includes("ev") ||
+                  col.toLowerCase().includes("photon"),
+              );
+              const absorptionCol = columns.find(
+                (col) =>
+                  col.toLowerCase().includes("absorption") ||
+                  col.toLowerCase().includes("abs") ||
+                  col.toLowerCase().includes("intensity") ||
+                  col.toLowerCase().includes("signal"),
+              );
+              const thetaCol = columns.find((col) =>
+                col.toLowerCase().includes("theta"),
+              );
+              const phiCol = columns.find((col) =>
+                col.toLowerCase().includes("phi"),
+              );
+
+              const columnMappings: CSVColumnMappings = {
+                energy: energyCol ?? columns[0] ?? "",
+                absorption: absorptionCol ?? columns[1] ?? "",
+                theta: thetaCol ?? undefined,
+                phi: phiCol ?? undefined,
+              };
+
+              const missingColumns: string[] = [];
+              if (!columnMappings.energy) missingColumns.push("Energy");
+              if (!columnMappings.absorption) missingColumns.push("Absorption");
+
+              updateDataset(dataset.id, {
+                ...updates,
+                csvColumns: columns,
+                csvRawData: parsed.data,
+                columnMappings,
+              });
+
+              if (missingColumns.length > 0) {
+                showToast(
+                  `Missing required columns: ${missingColumns.join(", ")}. Please map columns in the table view.`,
+                  "error",
+                  8000,
+                );
+              }
+
+              if (columnMappings.energy && columnMappings.absorption) {
+                setTimeout(() => {
+                  processDatasetData(dataset.id);
+                }, 50);
+              }
+            } else {
+              showToast(
+                "CSV file has no columns. Please check the file format.",
+                "error",
+                8000,
+              );
+            }
           }
+        } catch (error) {
+          console.error(`Failed to parse ${isJson ? "JSON" : "CSV"}`, error);
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : `Failed to parse ${isJson ? "JSON" : "CSV"} file.`;
+
+          updateDataset(dataset.id, {
+            ...updates,
+            spectrumError: errorMessage,
+          });
+
+          showToast(
+            `Failed to process ${file.name}: ${errorMessage}`,
+            "error",
+            10000,
+          );
         }
-      } catch (error) {
-        console.error(`Failed to parse ${isJson ? "JSON" : "CSV"}`, error);
-        const errorMessage = error instanceof Error
-          ? error.message
-          : `Failed to parse ${isJson ? "JSON" : "CSV"} file.`;
-
-        updateDataset(dataset.id, {
-          ...updates,
-          spectrumError: errorMessage,
-        });
-
-        showToast(
-          `Failed to process ${file.name}: ${errorMessage}`,
-          "error",
-          10000
-        );
       }
-    }
-  }, [updateDataset, processDatasetData, showToast, activeDatasetId, edgeOptions, instrumentOptions]);
-
+    },
+    [
+      updateDataset,
+      processDatasetData,
+      showToast,
+      activeDatasetId,
+      edgeOptions,
+      instrumentOptions,
+    ],
+  );
 
   const handleColumnMappingConfirm = (
     mappings: CSVColumnMappings,
@@ -539,12 +607,19 @@ export default function NEXAFSContributePage() {
 
         if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
           const items = Array.from(e.dataTransfer.items);
+          const firstFile = items
+            .find((item) => item.kind === "file")
+            ?.getAsFile();
+          if (firstFile?.name) setDraggedFileName(firstFile.name);
+
           const fileTypes = items
             .filter((item) => item.kind === "file")
             .map((item) => {
               const mimeType = item.type.toLowerCase();
-              if (mimeType === "application/json" || mimeType === "text/json") return "json";
-              if (mimeType === "text/csv" || mimeType === "application/csv") return "csv";
+              if (mimeType === "application/json" || mimeType === "text/json")
+                return "json";
+              if (mimeType === "text/csv" || mimeType === "application/csv")
+                return "csv";
               return null;
             })
             .filter((type): type is "csv" | "json" => type !== null);
@@ -573,6 +648,7 @@ export default function NEXAFSContributePage() {
       if (dragCounterRef.current === 0) {
         setIsDragging(false);
         setDraggedFileType(null);
+        setDraggedFileName(null);
       }
     };
 
@@ -582,13 +658,12 @@ export default function NEXAFSContributePage() {
       dragCounterRef.current = 0;
       setIsDragging(false);
       setDraggedFileType(null);
+      setDraggedFileName(null);
 
-      const files = Array.from(e.dataTransfer?.files ?? []).filter(
-        (file) => {
-          const fileName = file.name.toLowerCase();
-          return fileName.endsWith(".csv") || fileName.endsWith(".json");
-        }
-      );
+      const files = Array.from(e.dataTransfer?.files ?? []).filter((file) => {
+        const fileName = file.name.toLowerCase();
+        return fileName.endsWith(".csv") || fileName.endsWith(".json");
+      });
 
       if (files.length > 0) {
         void handleFilesSelected(files);
@@ -630,7 +705,6 @@ export default function NEXAFSContributePage() {
   const handleDatasetRename = (datasetId: string, newName: string) => {
     updateDataset(datasetId, { fileName: newName });
   };
-
 
   // Submission
   const createNexafsMutation =
@@ -862,7 +936,7 @@ export default function NEXAFSContributePage() {
               <BrushCleaning className="h-4 w-4" />
               <span>Clear Form</span>
             </Button>
-            <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+            <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
               Clear all uploaded datasets and reset the form
             </Tooltip.Content>
           </Tooltip>
@@ -879,24 +953,13 @@ export default function NEXAFSContributePage() {
             can upload multiple datasets and process them through tabs.
           </p>
 
-          {/* Drag and Drop Overlay */}
-          {isDragging && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-              <div className="flex flex-col items-center gap-4 rounded-2xl border-4 border-dashed border-accent bg-white/95 p-12 shadow-2xl dark:bg-gray-900/95">
-                <DocumentArrowUpIcon className="h-24 w-24 animate-bounce text-accent" />
-                <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  {draggedFileType === "json"
-                    ? "Drop JSON file here to upload"
-                    : draggedFileType === "csv"
-                      ? "Drop CSV file here to upload"
-                      : "Drop CSV or JSON files here to upload"}
-                </p>
-              </div>
-            </div>
-          )}
+          <ContributionFileDropOverlay
+            isDragging={isDragging}
+            fileKind={draggedFileType ?? "mixed"}
+            fileName={draggedFileName}
+          />
 
           <form className="space-y-10" onSubmit={handleSubmit}>
-
             {/* File Upload Zone */}
             {datasets.length === 0 && (
               <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -925,7 +988,9 @@ export default function NEXAFSContributePage() {
                     input.accept = ".csv,.json,text/csv,application/json";
                     input.multiple = true;
                     input.onchange = async (e) => {
-                      const files = Array.from((e.target as HTMLInputElement).files ?? []);
+                      const files = Array.from(
+                        (e.target as HTMLInputElement).files ?? [],
+                      );
                       if (files.length > 0) {
                         await handleFilesSelected(files);
                       }
@@ -934,27 +999,27 @@ export default function NEXAFSContributePage() {
                   }}
                 />
 
-                  {/* Active Dataset Content */}
-                  {activeDataset && (
-                    <DatasetContent
-                      key={activeDataset.id}
-                      dataset={activeDataset}
-                      onDatasetUpdate={updateDataset}
-                      onReloadData={() => {
-                        if (activeDataset.id) {
-                          processDatasetData(activeDataset.id);
-                        }
-                      }}
-                      instrumentOptions={instrumentOptions}
-                      edgeOptions={edgeOptions}
-                      calibrationOptions={calibrationOptions}
-                      vendors={vendorsData?.vendors ?? []}
-                      isLoadingInstruments={isLoadingInstruments}
-                      isLoadingEdges={isLoadingEdges}
-                      isLoadingCalibrations={isLoadingCalibrations}
-                      isLoadingVendors={isLoadingVendors}
-                    />
-                  )}
+                {/* Active Dataset Content */}
+                {activeDataset && (
+                  <DatasetContent
+                    key={activeDataset.id}
+                    dataset={activeDataset}
+                    onDatasetUpdate={updateDataset}
+                    onReloadData={() => {
+                      if (activeDataset.id) {
+                        processDatasetData(activeDataset.id);
+                      }
+                    }}
+                    instrumentOptions={instrumentOptions}
+                    edgeOptions={edgeOptions}
+                    calibrationOptions={calibrationOptions}
+                    vendors={vendorsData?.vendors ?? []}
+                    isLoadingInstruments={isLoadingInstruments}
+                    isLoadingEdges={isLoadingEdges}
+                    isLoadingCalibrations={isLoadingCalibrations}
+                    isLoadingVendors={isLoadingVendors}
+                  />
+                )}
               </div>
             )}
 
@@ -1010,8 +1075,9 @@ export default function NEXAFSContributePage() {
                       </>
                     )}
                   </Button>
-                  <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                    Submit all datasets for review. Files will remain private until approved by an administrator.
+                  <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+                    Submit all datasets for review. Files will remain private
+                    until approved by an administrator.
                   </Tooltip.Content>
                 </Tooltip>
               </div>
@@ -1087,7 +1153,7 @@ export default function NEXAFSContributePage() {
                 <XMarkIcon className="h-4 w-4" />
                 <span>Cancel</span>
               </Button>
-              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
                 Cancel creating a new edge
               </Tooltip.Content>
             </Tooltip>
@@ -1110,8 +1176,9 @@ export default function NEXAFSContributePage() {
                   </>
                 )}
               </Button>
-              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                Create a new absorption edge with the specified target atom and core state
+              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+                Create a new absorption edge with the specified target atom and
+                core state
               </Tooltip.Content>
             </Tooltip>
           </div>
@@ -1153,7 +1220,7 @@ export default function NEXAFSContributePage() {
                 <XMarkIcon className="h-4 w-4" />
                 <span>Cancel</span>
               </Button>
-              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
                 Cancel creating a new calibration method
               </Tooltip.Content>
             </Tooltip>
@@ -1176,8 +1243,9 @@ export default function NEXAFSContributePage() {
                   </>
                 )}
               </Button>
-              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
-                Create a new calibration method with the specified name and description
+              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+                Create a new calibration method with the specified name and
+                description
               </Tooltip.Content>
             </Tooltip>
           </div>
