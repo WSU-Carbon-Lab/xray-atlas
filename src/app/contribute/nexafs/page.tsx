@@ -11,7 +11,7 @@ import {
   ContributionFileDropOverlay,
 } from "@/components/contribute";
 import { SimpleDialog } from "@/components/ui/dialog";
-import { FormField } from "@/components/ui/form-field";
+import { FieldTooltip } from "@/components/ui/field-tooltip";
 import { trpc } from "~/trpc/client";
 import {
   ArrowLeftIcon,
@@ -22,7 +22,7 @@ import {
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { BrushCleaning } from "lucide-react";
-import { Tooltip } from "@heroui/react";
+import { Tooltip, Label, Input } from "@heroui/react";
 import { useToast, ToastContainer } from "@/components/ui/toast";
 import {
   FileUploadZone,
@@ -184,7 +184,7 @@ export default function NEXAFSContributePage() {
   const processDatasetData = useCallback(
     (datasetId: string) => {
       const dataset = datasets.find((d) => d.id === datasetId);
-      if (!dataset || dataset.csvRawData.length === 0) return;
+      if (!dataset || !Array.isArray(dataset.csvRawData) || dataset.csvRawData.length === 0) return;
 
       const energyColumn = dataset.columnMappings.energy;
       const absorptionColumn = dataset.columnMappings.absorption;
@@ -286,6 +286,9 @@ export default function NEXAFSContributePage() {
     [datasets, updateDataset],
   );
 
+  const processDatasetDataRef = useRef(processDatasetData);
+  processDatasetDataRef.current = processDatasetData;
+
   // File upload handling
   const handleFilesSelected = useCallback(
     async (files: File[]) => {
@@ -360,13 +363,10 @@ export default function NEXAFSContributePage() {
           }
         }
 
-        setDatasets((prev) => {
-          const updated = [...prev, { ...dataset, ...updates }];
-          if (!activeDatasetId) {
-            setActiveDatasetId(dataset.id);
-          }
-          return updated;
-        });
+        setDatasets((prev) => [...prev, { ...dataset, ...updates }]);
+        if (!activeDatasetId) {
+          setActiveDatasetId(dataset.id);
+        }
 
         const isJson = file.name.toLowerCase().endsWith(".json");
 
@@ -387,7 +387,8 @@ export default function NEXAFSContributePage() {
                 col.toLowerCase().includes("absorption") ||
                 col.toLowerCase().includes("abs") ||
                 col.toLowerCase().includes("intensity") ||
-                col.toLowerCase().includes("signal"),
+                col.toLowerCase().includes("signal") ||
+                col.toLowerCase().trim() === "mu",
             );
 
             const energyCol = detectedEnergyCol ?? columns[0] ?? "";
@@ -453,7 +454,8 @@ export default function NEXAFSContributePage() {
                   col.toLowerCase().includes("absorption") ||
                   col.toLowerCase().includes("abs") ||
                   col.toLowerCase().includes("intensity") ||
-                  col.toLowerCase().includes("signal"),
+                  col.toLowerCase().includes("signal") ||
+                  col.toLowerCase().trim() === "mu",
               );
               const thetaCol = columns.find((col) =>
                 col.toLowerCase().includes("theta"),
@@ -476,7 +478,7 @@ export default function NEXAFSContributePage() {
               updateDataset(dataset.id, {
                 ...updates,
                 csvColumns: columns,
-                csvRawData: parsed.data,
+                csvRawData: Array.isArray(parsed.data) ? parsed.data : [],
                 columnMappings,
               });
 
@@ -512,6 +514,10 @@ export default function NEXAFSContributePage() {
             ...updates,
             spectrumError: errorMessage,
           });
+
+          setColumnMappingFile((prev) =>
+            prev?.datasetId === dataset.id ? null : prev,
+          );
 
           showToast(
             `Failed to process ${file.name}: ${errorMessage}`,
@@ -570,31 +576,30 @@ export default function NEXAFSContributePage() {
       datasets
         .map(
           (d) =>
-            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${d.csvRawData.length}`,
+            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${Array.isArray(d.csvRawData) ? d.csvRawData.length : 0}`,
         )
         .join(","),
     [datasets],
   );
 
-  // Process dataset when column mappings change (triggered by inline mapping)
-  // Only depends on datasetsDependency and processDatasetData - datasets is removed to avoid circular dependency
-  // datasetsDependency already captures all necessary input changes (column mappings, fixed values, raw data length)
-  // Note: datasets is used in the effect body but not in deps - this is intentional to avoid circular dependency.
-  // Since datasetsDependency is computed from datasets, when datasets changes, datasetsDependency changes,
-  // triggering the effect with the latest datasets through closure.
+  // Process dataset when column mappings / raw data change. Depends only on datasetsDependency so that
+  // updateDataset -> setDatasets (spectrumPoints only) does not retrigger this effect (datasetsDependency
+  // is unchanged when only spectrumPoints/spectrumError change), breaking the update loop.
   useEffect(() => {
     datasets.forEach((dataset) => {
       if (
+        Array.isArray(dataset.csvRawData) &&
         dataset.csvRawData.length > 0 &&
         dataset.columnMappings.energy &&
         dataset.columnMappings.absorption
       ) {
-        // Always reprocess when mappings change to ensure plot updates reactively
-        processDatasetData(dataset.id);
+        processDatasetDataRef.current(dataset.id);
       }
     });
+    // datasets intentionally omitted: effect must only run when datasetsDependency changes so that
+    // processDatasetData -> updateDataset -> setDatasets does not retrigger and cause an update loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [datasetsDependency, processDatasetData]);
+  }, [datasetsDependency]);
 
   // Global drag and drop handlers
   useEffect(() => {
@@ -683,23 +688,36 @@ export default function NEXAFSContributePage() {
     };
   }, [handleFilesSelected]);
 
-  // Dataset management
-  const handleDatasetSelect = (datasetId: string) => {
+  const handleDatasetSelect = useCallback((datasetId: string) => {
     setActiveDatasetId(datasetId);
-  };
+  }, []);
+
+  const handleNewDataset = useCallback(() => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".csv,.json,text/csv,application/json";
+    input.multiple = true;
+    input.onchange = async (e) => {
+      const files = Array.from(
+        (e.target as HTMLInputElement).files ?? [],
+      );
+      if (files.length > 0) {
+        await handleFilesSelected(files);
+      }
+    };
+    input.click();
+  }, [handleFilesSelected]);
 
   const handleDatasetRemove = (datasetId: string) => {
-    setDatasets((prev) => {
-      const filtered = prev.filter((d) => d.id !== datasetId);
-      if (activeDatasetId === datasetId) {
-        setActiveDatasetId(
-          filtered.length > 0
-            ? (filtered[filtered.length - 1]?.id ?? null)
-            : null,
-        );
-      }
-      return filtered;
-    });
+    const filtered = datasets.filter((d) => d.id !== datasetId);
+    setDatasets(filtered);
+    if (activeDatasetId === datasetId) {
+      setActiveDatasetId(
+        filtered.length > 0
+          ? (filtered[filtered.length - 1]?.id ?? null)
+          : null,
+      );
+    }
   };
 
   const handleDatasetRename = (datasetId: string, newName: string) => {
@@ -897,10 +915,10 @@ export default function NEXAFSContributePage() {
       return (
         <div className="container mx-auto flex min-h-[calc(100vh-20rem)] items-center justify-center px-4 py-16">
           <div className="mx-auto max-w-2xl text-center">
-            <h1 className="mb-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-foreground mb-4 text-3xl font-bold">
               Sign In Required
             </h1>
-            <p className="mb-8 text-gray-600 dark:text-gray-400">
+            <p className="text-muted mb-8">
               You must be signed in to contribute NEXAFS experiments.
             </p>
             <div className="flex justify-center">
@@ -915,8 +933,8 @@ export default function NEXAFSContributePage() {
       return (
         <div className="container mx-auto px-4 py-16">
           <div className="mx-auto max-w-2xl text-center">
-            <div className="border-t-accent mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+            <div className="border-border mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4"></div>
+            <p className="text-muted">Loading...</p>
           </div>
         </div>
       );
@@ -927,7 +945,7 @@ export default function NEXAFSContributePage() {
         <div className="mb-6 flex items-center justify-between">
           <Link
             href="/contribute"
-            className="hover:text-accent dark:hover:text-accent-light inline-flex items-center gap-2 text-sm text-gray-600 transition-colors dark:text-gray-400"
+            className="text-muted hover:text-accent inline-flex items-center gap-2 text-sm transition-colors"
           >
             <ArrowLeftIcon className="h-4 w-4" /> Back to contribution options
           </Link>
@@ -936,7 +954,7 @@ export default function NEXAFSContributePage() {
               <BrushCleaning className="h-4 w-4" />
               <span>Clear Form</span>
             </Button>
-            <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+            <Tooltip.Content className="tooltip-content-panel">
               Clear all uploaded datasets and reset the form
             </Tooltip.Content>
           </Tooltip>
@@ -944,10 +962,10 @@ export default function NEXAFSContributePage() {
 
         <div className="mx-auto max-w-7xl">
           <ToastContainer toasts={toasts} onRemove={removeToast} />
-          <h1 className="mb-3 text-4xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-foreground mb-3 text-4xl font-bold">
             Upload NEXAFS Experiment
           </h1>
-          <p className="mb-8 text-lg text-gray-600 dark:text-gray-400">
+          <p className="text-muted mb-8 text-lg">
             Contribute Near-Edge X-ray Absorption Fine Structure (NEXAFS) data
             including sample metadata, geometry, and spectral measurements. You
             can upload multiple datasets and process them through tabs.
@@ -962,8 +980,8 @@ export default function NEXAFSContributePage() {
           <form className="space-y-10" onSubmit={handleSubmit}>
             {/* File Upload Zone */}
             {datasets.length === 0 && (
-              <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
+              <div className="border-border bg-surface mb-8 rounded-xl border p-6 shadow-sm">
+                <h2 className="text-foreground mb-4 text-xl font-semibold">
                   Upload CSV or JSON Files
                 </h2>
                 <FileUploadZone
@@ -982,21 +1000,7 @@ export default function NEXAFSContributePage() {
                   onDatasetSelect={handleDatasetSelect}
                   onDatasetRemove={handleDatasetRemove}
                   onDatasetRename={handleDatasetRename}
-                  onNewDataset={async () => {
-                    const input = document.createElement("input");
-                    input.type = "file";
-                    input.accept = ".csv,.json,text/csv,application/json";
-                    input.multiple = true;
-                    input.onchange = async (e) => {
-                      const files = Array.from(
-                        (e.target as HTMLInputElement).files ?? [],
-                      );
-                      if (files.length > 0) {
-                        await handleFilesSelected(files);
-                      }
-                    };
-                    input.click();
-                  }}
+                  onNewDataset={handleNewDataset}
                 />
 
                 {/* Active Dataset Content */}
@@ -1024,7 +1028,7 @@ export default function NEXAFSContributePage() {
             )}
 
             {/* Warning */}
-            <div className="flex items-center justify-between rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700 dark:border-yellow-900/40 dark:bg-yellow-900/10 dark:text-yellow-200">
+            <div className="border-warning/40 bg-warning/10 text-warning-foreground flex items-center justify-between rounded-xl border p-4 text-sm">
               <div className="flex items-center gap-2">
                 <ExclamationTriangleIcon className="h-5 w-5" />
                 <span>
@@ -1040,8 +1044,8 @@ export default function NEXAFSContributePage() {
               <div
                 className={`rounded-lg border p-4 text-sm ${
                   submitStatus.type === "success"
-                    ? "border-green-200 bg-green-50 text-green-800 dark:border-green-900/40 dark:bg-green-900/10 dark:text-green-200"
-                    : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-200"
+                    ? "border-success/40 bg-success/10 text-success-foreground"
+                    : "border-danger/40 bg-danger/10 text-danger-foreground"
                 }`}
               >
                 {submitStatus.message}
@@ -1051,7 +1055,7 @@ export default function NEXAFSContributePage() {
             {/* Submit Button */}
             {datasets.length > 0 && (
               <div className="flex items-center justify-between">
-                <div className="text-xs text-gray-500 dark:text-gray-400">
+                <div className="text-muted text-xs">
                   Files remain private until reviewed and approved.
                 </div>
                 <Tooltip delay={0}>
@@ -1075,7 +1079,7 @@ export default function NEXAFSContributePage() {
                       </>
                     )}
                   </Button>
-                  <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+                  <Tooltip.Content className="tooltip-content-panel">
                     Submit all datasets for review. Files will remain private
                     until approved by an administrator.
                   </Tooltip.Content>
@@ -1123,26 +1127,38 @@ export default function NEXAFSContributePage() {
         title="Create New Edge"
       >
         <div className="space-y-4">
-          <FormField
-            label="Target Atom"
-            type="text"
-            name="targetAtom"
-            value={newEdgeTargetAtom}
-            onChange={(value) => setNewEdgeTargetAtom(value as string)}
-            required
-            placeholder="e.g., C, N, O"
-            tooltip="The target atom for the absorption edge (e.g., C for carbon K-edge)"
-          />
-          <FormField
-            label="Core State"
-            type="text"
-            name="coreState"
-            value={newEdgeCoreState}
-            onChange={(value) => setNewEdgeCoreState(value as string)}
-            required
-            placeholder="e.g., K, L1, L2, L3"
-            tooltip="The core state of the electron (e.g., K for K-edge)"
-          />
+          <div>
+            <Label className="text-foreground mb-2 flex items-center gap-1 text-sm font-medium">
+              Target Atom
+              <span className="text-red-500">*</span>
+              <FieldTooltip description="The target atom for the absorption edge (e.g., C for carbon K-edge)" />
+            </Label>
+            <Input
+              name="targetAtom"
+              value={newEdgeTargetAtom}
+              onChange={(e) => setNewEdgeTargetAtom(e.target.value)}
+              placeholder="e.g., C, N, O"
+              required
+              className="form-input"
+              aria-label="Target atom"
+            />
+          </div>
+          <div>
+            <Label className="text-foreground mb-2 flex items-center gap-1 text-sm font-medium">
+              Core State
+              <span className="text-red-500">*</span>
+              <FieldTooltip description="The core state of the electron (e.g., K for K-edge)" />
+            </Label>
+            <Input
+              name="coreState"
+              value={newEdgeCoreState}
+              onChange={(e) => setNewEdgeCoreState(e.target.value)}
+              placeholder="e.g., K, L1, L2, L3"
+              required
+              className="form-input"
+              aria-label="Core state"
+            />
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Tooltip delay={0}>
               <Button
@@ -1153,7 +1169,7 @@ export default function NEXAFSContributePage() {
                 <XMarkIcon className="h-4 w-4" />
                 <span>Cancel</span>
               </Button>
-              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+              <Tooltip.Content className="tooltip-content-panel">
                 Cancel creating a new edge
               </Tooltip.Content>
             </Tooltip>
@@ -1176,7 +1192,7 @@ export default function NEXAFSContributePage() {
                   </>
                 )}
               </Button>
-              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+              <Tooltip.Content className="tooltip-content-panel">
                 Create a new absorption edge with the specified target atom and
                 core state
               </Tooltip.Content>
@@ -1191,25 +1207,37 @@ export default function NEXAFSContributePage() {
         title="Create New Calibration Method"
       >
         <div className="space-y-4">
-          <FormField
-            label="Name"
-            type="text"
-            name="calibrationName"
-            value={newCalibrationName}
-            onChange={(value) => setNewCalibrationName(value as string)}
-            required
-            placeholder="e.g., Carbon K-edge calibration"
-            tooltip="The name of the calibration method"
-          />
-          <FormField
-            label="Description"
-            type="textarea"
-            name="calibrationDescription"
-            value={newCalibrationDescription}
-            onChange={(value) => setNewCalibrationDescription(value as string)}
-            placeholder="Optional description of the calibration method"
-            tooltip="Additional details about the calibration method"
-          />
+          <div>
+            <Label className="text-foreground mb-2 flex items-center gap-1 text-sm font-medium">
+              Name
+              <span className="text-red-500">*</span>
+              <FieldTooltip description="The name of the calibration method" />
+            </Label>
+            <Input
+              name="calibrationName"
+              value={newCalibrationName}
+              onChange={(e) => setNewCalibrationName(e.target.value)}
+              placeholder="e.g., Carbon K-edge calibration"
+              required
+              className="form-input"
+              aria-label="Calibration method name"
+            />
+          </div>
+          <div>
+            <Label className="text-foreground mb-2 flex items-center gap-1 text-sm font-medium">
+              Description
+              <FieldTooltip description="Additional details about the calibration method" />
+            </Label>
+            <textarea
+              name="calibrationDescription"
+              value={newCalibrationDescription}
+              onChange={(e) => setNewCalibrationDescription(e.target.value)}
+              placeholder="Optional description of the calibration method"
+              rows={3}
+              className="form-input min-h-[80px] resize-y"
+              aria-label="Calibration method description"
+            />
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Tooltip delay={0}>
               <Button
@@ -1220,7 +1248,7 @@ export default function NEXAFSContributePage() {
                 <XMarkIcon className="h-4 w-4" />
                 <span>Cancel</span>
               </Button>
-              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+              <Tooltip.Content className="tooltip-content-panel">
                 Cancel creating a new calibration method
               </Tooltip.Content>
             </Tooltip>
@@ -1243,7 +1271,7 @@ export default function NEXAFSContributePage() {
                   </>
                 )}
               </Button>
-              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
+              <Tooltip.Content className="tooltip-content-panel">
                 Create a new calibration method with the specified name and
                 description
               </Tooltip.Content>

@@ -45,13 +45,13 @@ export function ContributionFileDropOverlay({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-      <div className="border-accent flex flex-col items-center gap-4 rounded-2xl border-4 border-dashed bg-white/95 p-12 shadow-2xl dark:bg-gray-900/95">
+      <div className="border-accent bg-surface flex flex-col items-center gap-4 rounded-2xl border-4 border-dashed p-12 shadow-2xl">
         <DocumentArrowUpIcon className="text-accent h-24 w-24 animate-bounce" />
-        <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+        <p className="text-foreground text-xl font-semibold">
           {message}
         </p>
         {displayFileName && (
-          <p className="max-w-md truncate text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-muted max-w-md truncate text-sm">
             {displayFileName}
           </p>
         )}

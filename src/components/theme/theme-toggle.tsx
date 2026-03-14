@@ -16,9 +16,7 @@ import { Sun, Moon } from "lucide-react";
  * - Automatically syncs with ThemeProviderWrapper
  * - Persists theme preference in localStorage
  *
- * HeroUI Token Usage:
- * - Uses text-foreground for icon color (adapts to theme)
- * - Uses bg-default-100 for hover state (adapts to theme)
+ * Theme tokens: text-foreground, border-border, bg-surface, hover:bg-default, rounded-lg.
  *
  * @see ThemeProviderWrapper for theme management setup
  */
@@ -31,11 +29,10 @@ export function ThemeToggle() {
     setMounted(true);
   }, []);
 
-  // Don't render until mounted to prevent hydration issues
   if (!mounted) {
     return (
       <button
-        className="flex items-center justify-center rounded px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-default-100"
+        className="border-border bg-surface flex h-10 w-10 items-center justify-center rounded-lg border text-foreground transition-colors hover:bg-default"
         aria-label="Toggle theme"
         disabled
       >
@@ -53,7 +50,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={handleToggle}
-      className="flex items-center justify-center rounded px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-default-100"
+      className="border-border bg-surface flex h-10 w-10 items-center justify-center rounded-lg border text-foreground transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       type="button"
     >

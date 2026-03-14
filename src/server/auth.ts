@@ -40,7 +40,8 @@ function ORCID(
     token: `${baseUrl}/oauth/token`,
     userinfo: `${baseUrl}/oauth/userinfo`,
     profile(profile) {
-      const fullName = `${profile.given_name ?? ""} ${profile.family_name ?? ""}`.trim();
+      const fullName =
+        `${profile.given_name ?? ""} ${profile.family_name ?? ""}`.trim();
       return {
         id: profile.sub,
         name: profile.name ?? (fullName || undefined),
@@ -56,7 +57,10 @@ function ORCID(
 }
 
 const providers: Array<
-  OAuthConfig<ORCIDProfile> | ReturnType<typeof GitHub> | ReturnType<typeof HuggingFace> | ReturnType<typeof Passkey>
+  | OAuthConfig<ORCIDProfile>
+  | ReturnType<typeof GitHub>
+  | ReturnType<typeof HuggingFace>
+  | ReturnType<typeof Passkey>
 > = [];
 
 if (env.ORCID_CLIENT_ID && env.ORCID_CLIENT_SECRET) {
@@ -95,6 +99,7 @@ providers.push(Passkey({}));
 
 const useSecureCookies = env.AUTH_URL?.startsWith("https://") ?? false;
 const cookiePrefix = useSecureCookies ? "__Secure-" : "";
+const sameSite = useSecureCookies ? ("none" as const) : ("lax" as const);
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -111,7 +116,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       name: `${cookiePrefix}next-auth.pkce.code_verifier`,
       options: {
         httpOnly: true,
-        sameSite: "none",
+        sameSite,
         path: "/",
         secure: useSecureCookies,
         maxAge: 60 * 15,
@@ -121,7 +126,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       name: `${cookiePrefix}next-auth.state`,
       options: {
         httpOnly: true,
-        sameSite: "none",
+        sameSite,
         path: "/",
         secure: useSecureCookies,
         maxAge: 60 * 15,
@@ -257,7 +262,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("ACCOUNT_EXISTS");
         }
 
-        if (account.provider === "orcid" && account.providerAccountId && user.id) {
+        if (
+          account.provider === "orcid" &&
+          account.providerAccountId &&
+          user.id
+        ) {
           let orcidId = account.providerAccountId;
 
           if (orcidId.startsWith("https://orcid.org/")) {
@@ -279,7 +288,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               });
             }
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            const errorMessage =
+              error instanceof Error ? error.message : "Unknown error";
             console.error("[NextAuth] Error updating ORCID:", errorMessage, {
               userId: user.id,
               orcidId,
@@ -295,11 +305,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cookieStore.delete("linkAccountUserId");
         cookieStore.delete("linkAccountProvider");
 
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         if (errorMessage === "ACCOUNT_EXISTS") {
           throw error;
         }
-        console.error("[NextAuth] Fatal error in signIn callback:", errorMessage);
+        console.error(
+          "[NextAuth] Fatal error in signIn callback:",
+          errorMessage,
+        );
         return true;
       }
     },
@@ -314,7 +328,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               id: "00000000-0000-0000-0000-000000000000",
               name: "Dr. Jane Smith",
               email: "jane.smith@example.edu",
-              image: "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
+              image:
+                "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
               orcid: "0000-0001-2345-6789",
             },
           };
@@ -325,14 +340,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (process.env.NODE_ENV === "development") {
           const cookieStore = await cookies();
           const devSession = cookieStore.get("dev-auth-session");
-          if (devSession?.value === "00000000-0000-0000-0000-000000000000" && user.id !== "00000000-0000-0000-0000-000000000000") {
+          if (
+            devSession?.value === "00000000-0000-0000-0000-000000000000" &&
+            user.id !== "00000000-0000-0000-0000-000000000000"
+          ) {
             return {
               ...session,
               user: {
                 id: "00000000-0000-0000-0000-000000000000",
                 name: "Dr. Jane Smith",
                 email: "jane.smith@example.edu",
-                image: "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
+                image:
+                  "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
                 orcid: "0000-0001-2345-6789",
               },
             };
@@ -360,7 +379,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/sign-in",
   },
 });
-
 
 export async function getServerSession() {
   return await auth();

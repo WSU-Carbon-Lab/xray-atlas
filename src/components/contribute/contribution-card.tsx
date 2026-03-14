@@ -31,7 +31,7 @@ export type ContributionCardProps =
   | ContributionCardWithOnClick;
 
 const cardClasses =
-  "group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-white px-6 py-6 text-left transition-transform duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg dark:border-gray-700 dark:bg-gray-800 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2";
+  "group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed border-border bg-surface px-6 py-6 text-left transition-transform duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2";
 
 function CardContent({
   label,
@@ -45,19 +45,19 @@ function CardContent({
   return (
     <>
       <div className="flex flex-col gap-2">
-        <span className="text-accent dark:text-accent-light text-sm font-semibold tracking-wide uppercase">
+        <span className="text-accent text-sm font-semibold tracking-wide uppercase">
           {label}
         </span>
-        <span className="text-base text-gray-700 transition-colors duration-200 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-gray-100">
+        <span className="text-foreground text-base transition-colors duration-200 group-hover:opacity-90">
           {description}
         </span>
         {subDescription !== undefined && (
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="text-muted text-sm">
             {subDescription}
           </span>
         )}
       </div>
-      <div className="group-hover:text-accent dark:text-accent-light hidden shrink-0 text-gray-300 transition-colors duration-200 md:block">
+      <div className="text-muted group-hover:text-accent hidden shrink-0 transition-colors duration-200 md:block">
         <Icon className="h-16 w-16" aria-hidden />
       </div>
     </>

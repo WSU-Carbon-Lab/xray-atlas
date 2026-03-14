@@ -1,4 +1,23 @@
-@import "tailwindcss";
+@import "@heroui/styles";
+
+:root,
+.light,
+.default,
+[data-theme="light"],
+[data-theme="default"] {
+  --accent: oklch(0.504 0.227 17.38);
+  --accent-foreground: oklch(0.991 0 0);
+  --focus: oklch(0.504 0.227 17.38);
+  --muted: oklch(0.475 0.025 253);
+}
+
+.dark,
+[data-theme="dark"] {
+  --accent: oklch(0.55 0.22 17.38);
+  --accent-foreground: oklch(0.991 0 0);
+  --focus: oklch(0.55 0.22 17.38);
+  --muted: oklch(0.475 0.025 253);
+}
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -21,17 +40,13 @@
   --color-wsu-crimson-dark: #ca1237;
   --color-wsu-gray: #5e6a71;
 
-  --color-accent: #6366f1;
-  --color-accent-light: #818cf8;
-  --color-accent-dark: #4f46e5;
-
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
   --color-info: #3b82f6;
 
-  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
-  --shadow-glow-sm: 0 0 10px rgba(99, 102, 241, 0.2);
+  --shadow-glow: 0 0 20px rgba(202, 18, 55, 0.3);
+  --shadow-glow-sm: 0 0 10px rgba(202, 18, 55, 0.2);
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -49,13 +64,13 @@
 
 @layer base {
   :root {
-    --bg-color: #ffffff;
+    --bg-color: var(--background);
     --surface-1: #f8fafc;
     --surface-2: #f1f5f9;
     --surface-3: #e2e8f0;
     --surface-glass: rgba(255, 255, 255, 0.8);
 
-    --text-primary: #0f172a;
+    --text-primary: var(--foreground);
     --text-secondary: #475569;
     --text-tertiary: #94a3b8;
     --text-disabled: #cbd5e1;
@@ -63,7 +78,7 @@
     --border-default: #e2e8f0;
     --border-subtle: #f1f5f9;
     --border-strong: #cbd5e1;
-    --border-focus: #6366f1;
+    --border-focus: var(--focus);
 
     --cpk-h: #000000;
     --cpk-c: #000000;
@@ -80,13 +95,13 @@
   }
 
   .dark {
-    --bg-color: #000000;
+    --bg-color: var(--background);
     --surface-1: #18181b;
     --surface-2: #27272a;
     --surface-3: #3f3f46;
     --surface-glass: rgba(0, 0, 0, 0.8);
 
-    --text-primary: #ffffff;
+    --text-primary: var(--foreground);
     --text-secondary: #e4e4e7;
     --text-tertiary: #a1a1aa;
     --text-disabled: #52525b;
@@ -94,7 +109,7 @@
     --border-default: #27272a;
     --border-subtle: #3f3f46;
     --border-strong: #3f3f46;
-    --border-focus: #818cf8;
+    --border-focus: var(--focus);
 
     --cpk-h: #e0e0e0;
     --cpk-c: #e0e0e0;
@@ -128,7 +143,7 @@
   }
 
   ::selection {
-    background-color: rgba(99, 102, 241, 0.2);
+    background-color: color-mix(in oklab, var(--accent) 20%, transparent);
     color: inherit;
   }
 }
@@ -144,8 +159,8 @@
   }
   .focus-ring:focus-visible {
     box-shadow:
-      0 0 0 2px var(--bg-color),
-      0 0 0 4px var(--border-focus);
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--focus);
   }
 
   .glass {
@@ -252,13 +267,21 @@
       conic-gradient(
           from var(--border-angle),
           rgba(71, 85, 105, 0.48) 80%,
-          #6366f1 86%,
-          #818cf8 90%,
-          #6366f1 94%,
+          var(--accent) 86%,
+          var(--accent) 90%,
+          var(--accent) 94%,
           rgba(71, 85, 105, 0.48)
         )
         border-box;
     animation: border 4s linear infinite;
+  }
+
+  .form-input {
+    @apply w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder:text-gray-500 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20 focus-visible:ring-offset-0 focus-visible:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-400;
+  }
+
+  .tooltip-content-panel {
+    @apply rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100;
   }
 }
 

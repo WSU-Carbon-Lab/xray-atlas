@@ -6,15 +6,14 @@ import { trpc } from "~/trpc/client";
 import { FacilityCardCompact } from "@/components/facilities/facility-card";
 import { ErrorState } from "@/components/feedback/error-state";
 import { BrowseTabs } from "@/components/layout/browse-tabs";
-import Link from "next/link";
 import { AddFacilityButton } from "@/components/contribute";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  BarsArrowDownIcon,
-} from "@heroicons/react/24/outline";
+import { BarsArrowDownIcon } from "@heroicons/react/24/outline";
 import { BrowseHeader, selectClasses } from "@/components/browse/browse-header";
+import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
+import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
+import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { Tooltip } from "@heroui/react";
+import { Pagination } from "@heroui/pagination";
 
 function FacilitiesBrowseContent() {
   const searchParams = useSearchParams();
@@ -96,19 +95,12 @@ function FacilitiesBrowseContent() {
     void allData.refetch();
   };
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-gray-100">
-          Browse Facilities
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          {hasSearchQuery
-            ? `Search results for "${debouncedQuery}"`
-            : "Explore all facilities in the X-ray Atlas database."}
-        </p>
-      </div>
+  const subtitle = hasSearchQuery
+    ? `Search results for "${debouncedQuery}"`
+    : "Explore all facilities in the X-ray Atlas database.";
 
+  return (
+    <BrowsePageLayout title="Browse Facilities" subtitle={subtitle}>
       <BrowseTabs />
 
       <div className="space-y-6">
@@ -118,34 +110,17 @@ function FacilitiesBrowseContent() {
           searchPlaceholder="Search facilities by name, city, or country..."
         >
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="items-per-page"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Show:
-              </label>
-              <select
-                id="items-per-page"
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className={selectClasses}
-              >
-                <option value={12}>12</option>
-                <option value={24}>24</option>
-                <option value={48}>48</option>
-                <option value={96}>96</option>
-              </select>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                per page
-              </span>
-            </div>
+            <ItemsPerPageSelect
+              value={itemsPerPage}
+              onChange={setItemsPerPage}
+              labelId="facilities-items-per-page"
+            />
             {!hasSearchQuery && (
               <>
                 <div className="flex items-center gap-2">
                   <label
                     htmlFor="facility-type"
-                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    className="text-muted text-sm font-medium"
                   >
                     Type:
                   </label>
@@ -175,7 +150,7 @@ function FacilitiesBrowseContent() {
                 <Tooltip delay={0}>
                   <div className="flex items-center gap-2">
                     <BarsArrowDownIcon
-                      className="h-4 w-4 shrink-0 stroke-[1.5] text-gray-600 dark:text-gray-400"
+                      className="text-muted h-4 w-4 shrink-0 stroke-[1.5]"
                       aria-hidden
                     />
                     <select
@@ -194,7 +169,7 @@ function FacilitiesBrowseContent() {
                   </div>
                   <Tooltip.Content
                     placement="top"
-                    className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"
+                    className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
                   >
                     Sort facilities
                   </Tooltip.Content>
@@ -211,7 +186,7 @@ function FacilitiesBrowseContent() {
               {Array.from({ length: itemsPerPage }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-32 animate-pulse rounded-xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                  className="border-border bg-surface h-32 animate-pulse rounded-xl border p-4 shadow-lg"
                 />
               ))}
             </div>
@@ -231,36 +206,24 @@ function FacilitiesBrowseContent() {
           {!isLoading && !isError && data && (
             <>
               {data.facilities.length === 0 ? (
-                <div className="rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800">
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {hasSearchQuery
+                <BrowseEmptyState
+                  message={
+                    hasSearchQuery
                       ? `No facilities found for "${debouncedQuery}".`
-                      : "No facilities found in the database."}
-                  </p>
-                  {hasSearchQuery && (
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
-                      Try a different search term or{" "}
-                      <Link
-                        href="/browse/facilities"
-                        className="text-accent dark:text-accent-light hover:underline"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setQuery("");
-                          setDebouncedQuery("");
-                        }}
-                      >
-                        browse all facilities
-                      </Link>
-                      .
-                    </p>
-                  )}
-                  <div className="mt-6">
-                    <AddFacilityButton
-                      className="min-h-[140px]"
-                      onCreated={handleFacilityCreated}
-                    />
-                  </div>
-                </div>
+                      : "No facilities found in the database."
+                  }
+                  hasSearchQuery={hasSearchQuery}
+                  browseAllHref="/browse/facilities"
+                  onClearSearch={() => {
+                    setQuery("");
+                    setDebouncedQuery("");
+                  }}
+                >
+                  <AddFacilityButton
+                    className="min-h-[140px]"
+                    onCreated={handleFacilityCreated}
+                  />
+                </BrowseEmptyState>
               ) : (
                 <div className="space-y-3">
                   <AddFacilityButton
@@ -281,134 +244,29 @@ function FacilitiesBrowseContent() {
                 </div>
               )}
 
-              {/* Pagination */}
               {totalPages > 1 && (
-                <div className="mt-8 flex items-center justify-center gap-4">
-                  <Tooltip delay={0}>
-                    <button
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      <ChevronLeftIcon className="h-4 w-4" />
-                      <span>Previous</span>
-                    </button>
-                    <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
-                      Go to previous page
-                    </Tooltip.Content>
-                  </Tooltip>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    {totalPages <= 7 ? (
-                      Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                        (page) => (
-                          <Tooltip key={page} delay={0}>
-                            <button
-                              onClick={() => setCurrentPage(page)}
-                              className={`rounded px-3 py-1 text-sm ${
-                                page === currentPage
-                                  ? "bg-accent text-white"
-                                  : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                              }`}
-                            >
-                              {page}
-                            </button>
-                            <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
-                              {`Go to page ${page}`}
-                            </Tooltip.Content>
-                          </Tooltip>
-                        ),
-                      )
-                    ) : (
-                      <>
-                        {currentPage > 3 && (
-                          <>
-                            <Tooltip delay={0}>
-                              <button
-                                onClick={() => setCurrentPage(1)}
-                                className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                              >
-                                1
-                              </button>
-                              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
-                                Go to page 1
-                              </Tooltip.Content>
-                            </Tooltip>
-                            {currentPage > 4 && (
-                              <span className="text-gray-500">...</span>
-                            )}
-                          </>
-                        )}
-                        {Array.from(
-                          { length: Math.min(5, totalPages) },
-                          (_, i) =>
-                            Math.max(
-                              1,
-                              Math.min(currentPage - 2 + i, totalPages - 4 + i),
-                            ),
-                        )
-                          .filter((page, idx, arr) => arr.indexOf(page) === idx)
-                          .filter((page) => page >= 1 && page <= totalPages)
-                          .map((page) => (
-                            <Tooltip key={page} delay={0}>
-                              <button
-                                onClick={() => setCurrentPage(page)}
-                                className={`rounded px-3 py-1 text-sm ${
-                                  page === currentPage
-                                    ? "bg-accent text-white"
-                                    : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                                }`}
-                              >
-                                {page}
-                              </button>
-                              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
-                                {`Go to page ${page}`}
-                              </Tooltip.Content>
-                            </Tooltip>
-                          ))}
-                        {currentPage < totalPages - 2 && (
-                          <>
-                            {currentPage < totalPages - 3 && (
-                              <span className="text-gray-500">...</span>
-                            )}
-                            <Tooltip delay={0}>
-                              <button
-                                onClick={() => setCurrentPage(totalPages)}
-                                className="rounded border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                              >
-                                {totalPages}
-                              </button>
-                              <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
-                                {`Go to page ${totalPages}`}
-                              </Tooltip.Content>
-                            </Tooltip>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <Tooltip delay={0}>
-                    <button
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      <span>Next</span>
-                      <ChevronRightIcon className="h-4 w-4" />
-                    </button>
-                    <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
-                      Go to next page
-                    </Tooltip.Content>
-                  </Tooltip>
+                <div className="mt-8 flex justify-center">
+                  <Pagination
+                    total={totalPages}
+                    page={currentPage}
+                    onChange={setCurrentPage}
+                    showControls
+                    size="sm"
+                    classNames={{
+                      base: "gap-2",
+                      item: "rounded-lg border border-border bg-surface text-foreground",
+                      cursor: "bg-accent text-accent-foreground border-accent",
+                      prev: "rounded-lg border border-border bg-surface",
+                      next: "rounded-lg border border-border bg-surface",
+                    }}
+                  />
                 </div>
               )}
             </>
           )}
         </div>
       </div>
-    </div>
+    </BrowsePageLayout>
   );
 }
 
@@ -416,15 +274,12 @@ export default function FacilitiesBrowsePage() {
   return (
     <Suspense
       fallback={
-        <div className="container mx-auto px-4 py-8">
-          <div className="mb-8">
-            <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-gray-100">
-              Browse Facilities
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-          </div>
+        <BrowsePageLayout
+          title="Browse Facilities"
+          subtitle="Loading..."
+        >
           <BrowseTabs />
-        </div>
+        </BrowsePageLayout>
       }
     >
       <FacilitiesBrowseContent />

@@ -39,10 +39,10 @@ export default function ContributePage() {
     return (
       <div className="container mx-auto flex min-h-[calc(100vh-20rem)] items-center justify-center px-4 py-16">
         <div className="mx-auto max-w-7xl text-center">
-          <h1 className="mb-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-foreground mb-4 text-3xl font-bold">
             Sign In Required
           </h1>
-          <p className="mb-8 text-gray-600 dark:text-gray-400">
+          <p className="text-muted mb-8">
             You must be signed in to contribute data to the X-ray Atlas.
           </p>
           <div className="flex justify-center">
@@ -67,41 +67,41 @@ export default function ContributePage() {
       <div className="container mx-auto px-4 py-16">
         <div className="mx-auto max-w-7xl">
           <div className="mb-8 text-center">
-            <h1 className="mb-4 text-4xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-foreground mb-4 text-4xl font-bold">
               Contribute to X-ray Atlas
             </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400">
+            <p className="text-muted text-lg">
               Help advance material research by contributing your data to our
               open database.
             </p>
           </div>
 
-          <div className="mb-8 rounded-xl border border-gray-200 bg-blue-50 p-6 dark:border-gray-700 dark:bg-blue-900/20">
-            <h2 className="mb-3 text-xl font-semibold text-gray-900 dark:text-gray-100">
+          <div className="border-border bg-background-secondary text-foreground mb-8 rounded-xl border p-6">
+            <h2 className="text-foreground mb-3 text-xl font-semibold">
               Contribution Guidelines
             </h2>
-            <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+            <ul className="text-muted space-y-2 text-sm">
               <li className="flex items-start">
-                <CheckCircleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
+                <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
                 <span>
                   All contributions must be accurate and properly documented
                 </span>
               </li>
               <li className="flex items-start">
-                <CheckCircleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
+                <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
                 <span>
                   Data will be made available under an open data license
                 </span>
               </li>
               <li className="flex items-start">
-                <CheckCircleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
+                <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
                 <span>
                   Please verify that your data does not already exist in the
                   database
                 </span>
               </li>
               <li className="flex items-start">
-                <CheckCircleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
+                <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
                 <span>
                   You must have the legal rights to contribute the data
                 </span>

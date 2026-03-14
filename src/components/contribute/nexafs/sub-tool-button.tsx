@@ -29,9 +29,9 @@ export function SubToolButton({
   const baseClasses =
     "flex h-10 items-center justify-center gap-1.5 rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-50";
   const activeClasses =
-    "border-gray-300 bg-gray-100 text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300";
+    "border-border bg-default text-muted shadow-sm";
   const inactiveClasses =
-    "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700";
+    "border-border bg-surface hover:bg-default text-foreground";
   const sizeClasses = iconOnly ? "w-10" : "flex-1";
 
   const content = text ? (
@@ -60,7 +60,7 @@ export function SubToolButton({
       {button}
       <Tooltip.Content
         placement="top"
-        className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg"
+        className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
       >
         {tooltip}
       </Tooltip.Content>

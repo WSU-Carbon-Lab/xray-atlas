@@ -9,7 +9,7 @@ export function Footer() {
     trpc.collaborators.getAll.useQuery();
 
   return (
-    <footer className="border-t border-default bg-content2">
+    <footer className="border-border bg-surface border-t">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -27,11 +27,11 @@ export function Footer() {
             <h3 className="font-sans text-lg text-foreground">
               X-ray Atlas
             </h3>
-            <p className="flex-wrap text-sm text-foreground-500">
+            <p className="text-muted flex-wrap text-sm">
               Advancing material research through collaborative data.
             </p>
             {isLoadingCollaborators ? (
-              <div className="text-sm text-foreground-500">Loading...</div>
+              <div className="text-muted text-sm">Loading...</div>
             ) : (
               <>
                 {collaboratorsData?.hosts &&
@@ -42,13 +42,13 @@ export function Footer() {
                       </h4>
                       <div className="space-y-1">
                         {collaboratorsData.hosts.map((host) => (
-                          <p key={host.id} className="text-sm text-foreground-500">
+                          <p key={host.id} className="text-muted text-sm">
                             {host.url ? (
                               <Link
                                 href={host.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="hover:text-accent dark:text-accent-light transition-colors hover:underline"
+                                className="text-muted transition-colors hover:text-accent hover:underline"
                               >
                                 {host.name}
                               </Link>
@@ -70,25 +70,25 @@ export function Footer() {
             <div className="flex flex-col space-y-2">
               <Link
                 href="/browse"
-                className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
+                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
               >
                 Browse
               </Link>
               <Link
                 href="/contribute"
-                className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
+                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
               >
                 Contribute
               </Link>
               <Link
                 href="/about"
-                className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
+                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
               >
                 About
               </Link>
               <Link
                 href="mailto:brian.collins@wsu.edu"
-                className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
+                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
               >
                 Contact
               </Link>
@@ -104,7 +104,7 @@ export function Footer() {
               <>
                 {collaboratorsData?.collaborators &&
                 collaboratorsData.collaborators.length > 0 ? (
-                  <ul className="space-y-2 text-sm text-foreground-500">
+                  <ul className="text-muted space-y-2 text-sm">
                     {collaboratorsData.collaborators.map((collab) => (
                       <li key={collab.id}>
                         {collab.url ? (
@@ -112,7 +112,7 @@ export function Footer() {
                             href={collab.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="hover:text-accent dark:text-accent-light transition-colors hover:underline"
+                            className="text-muted transition-colors hover:text-accent hover:underline"
                           >
                             {collab.name}
                           </Link>
@@ -123,7 +123,7 @@ export function Footer() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-foreground-500">
+                  <p className="text-muted text-sm">
                     No collaborators listed yet.
                   </p>
                 )}
@@ -131,14 +131,14 @@ export function Footer() {
             )}
           </div>
         </div>
-        <div className="mt-8 flex flex-col justify-between border-t border-default pt-4 md:flex-row">
-          <div className="text-center text-sm text-foreground-500 md:text-left">
+        <div className="border-border mt-8 flex flex-col justify-between border-t pt-4 md:flex-row">
+          <div className="text-muted text-center text-sm md:text-left">
             © {new Date().getFullYear()} X-ray Atlas. All rights reserved.
           </div>
           <div className="mt-4 flex justify-center gap-4 text-sm md:mt-0 md:justify-end">
             <Link
               href="/privacy"
-              className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
+              className="text-muted text-sm transition-colors hover:text-accent hover:underline"
             >
               Privacy
             </Link>
@@ -146,7 +146,7 @@ export function Footer() {
               href="https://github.com/WSU-Carbon-Lab/xray-atlas"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
+              className="text-muted text-sm transition-colors hover:text-accent hover:underline"
             >
               GitHub
             </Link>
@@ -154,7 +154,7 @@ export function Footer() {
               href="https://wsu.edu/"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-accent dark:text-accent-light text-sm text-foreground-500 transition-colors hover:underline"
+              className="text-muted text-sm transition-colors hover:text-accent hover:underline"
             >
               WSU
             </Link>

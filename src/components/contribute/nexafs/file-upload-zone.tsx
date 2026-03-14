@@ -67,6 +67,9 @@ export function FileUploadZone({
 
       if (errors.length > 0) {
         setError(errors.join("\n"));
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       }
 
       if (validFiles.length > 0) {
@@ -138,7 +141,7 @@ export function FileUploadZone({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed bg-white px-6 py-6 text-left transition-transform duration-200 dark:bg-gray-800 ${
+        className={`group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed bg-surface px-6 py-6 text-left transition-transform duration-200 ${
           isDragging
             ? "border-accent bg-accent/5 shadow-lg dark:border-accent dark:bg-accent/10"
             : "border-gray-300 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg dark:border-gray-700"
@@ -185,14 +188,20 @@ export function FileUploadZone({
       </div>
 
       {error && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-200">
-          <div className="flex items-start gap-2">
-            <XMarkIcon className="h-5 w-5 shrink-0" />
-            <div className="flex-1">
-              <p className="font-medium">File validation errors:</p>
-              <pre className="mt-1 whitespace-pre-wrap text-xs">{error}</pre>
-            </div>
+        <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-200">
+          <XMarkIcon className="h-5 w-5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">File validation errors:</p>
+            <pre className="mt-1 whitespace-pre-wrap text-xs">{error}</pre>
           </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="shrink-0 rounded p-1.5 text-red-600 hover:bg-red-100 dark:text-red-300 dark:hover:bg-red-900/30"
+            aria-label="Dismiss"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
         </div>
       )}
     </div>

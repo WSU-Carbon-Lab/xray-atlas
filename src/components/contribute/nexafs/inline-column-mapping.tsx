@@ -215,13 +215,13 @@ export function InlineColumnMapping({
                     <Dropdown>
                       <DropdownTrigger>
                         <div
-                          className={`flex-1 rounded-lg border-2 px-3 py-2 cursor-pointer transition-all hover:shadow-md ${
+                          className={`flex flex-1 items-center justify-end rounded-lg border-2 px-3 py-2 cursor-pointer transition-all hover:shadow-md ${
                             colorScheme
                               ? `${colorScheme.bg} ${colorScheme.border} ${colorScheme.text}`
                               : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
                           } shadow-sm`}
                         >
-                          <span className="text-sm font-semibold">{col}</span>
+                          <span className="text-sm font-semibold tabular-nums">{col}</span>
                         </div>
                       </DropdownTrigger>
                       <Dropdown.Popover className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 shadow-2xl min-w-[200px]">
@@ -433,13 +433,13 @@ export function InlineColumnMapping({
                       return (
                         <TableCell
                           key={`${rowIndex}-${col}`}
-                          className={
+                          className={`text-right font-mono text-xs tabular-nums ${
                             isFixedTheta
                               ? `${COLUMN_COLORS.theta.bg} ${COLUMN_COLORS.theta.text} font-medium`
                               : isFixedPhi
                                 ? `${COLUMN_COLORS.phi.bg} ${COLUMN_COLORS.phi.text} font-medium`
                                 : ""
-                          }
+                          }`}
                         >
                           {displayValue}
                         </TableCell>

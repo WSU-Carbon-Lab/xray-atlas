@@ -23,7 +23,7 @@ export interface TagsDropdownProps {
 }
 
 const searchInputClass =
-  "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-400";
+  "border-border bg-surface text-foreground placeholder:text-muted rounded-lg border px-3 py-2 text-sm focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20";
 
 export function TagsDropdown({
   selectedTagIds,
@@ -85,7 +85,7 @@ export function TagsDropdown({
         key="clear"
         type="button"
         onClick={() => onSelectionChange(new Set())}
-        className="focus-visible:ring-accent flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs text-gray-600 transition-colors hover:bg-gray-200/80 focus:outline-none focus-visible:ring-2 dark:text-gray-400 dark:hover:bg-gray-700/80"
+        className="text-muted focus-visible:ring-accent flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs transition-colors hover:bg-default focus:outline-none focus-visible:ring-2"
         aria-label="Clear all tag filters"
       >
         <XMarkIcon className="h-4 w-4 shrink-0" aria-hidden />
@@ -115,7 +115,7 @@ export function TagsDropdown({
               e.stopPropagation();
               handleCreateClick();
             }}
-            className="focus-visible:ring-accent text-accent hover:bg-accent/10 dark:text-accent-light dark:hover:bg-accent/20 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2"
+            className="text-accent focus-visible:ring-accent flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs transition-colors hover:bg-accent/10 focus:outline-none focus-visible:ring-2"
             aria-label={`Add "${trimmedSearch}" as new tag`}
           >
             <PlusIcon className="h-4 w-4 shrink-0" aria-hidden />
@@ -131,14 +131,14 @@ export function TagsDropdown({
       <DropdownTrigger>
         <button
           type="button"
-          className={`focus-visible:ring-accent flex h-12 min-h-12 cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-gray-600 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 ${triggerClassName}`}
+          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "bg-accent/15 text-accent border-accent/40" : ""} ${triggerClassName}`}
           aria-label={ariaLabel}
           aria-pressed={hasSelection}
         >
           <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
           <span className="text-sm font-medium">Tags</span>
           {hasSelection ? (
-            <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-gray-200 px-1.5 text-xs font-medium text-gray-700 tabular-nums dark:bg-gray-600 dark:text-gray-200">
+            <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
               {selectedTagIds.size}
             </span>
           ) : null}
@@ -157,7 +157,7 @@ export function TagsDropdown({
             <div className="space-y-0.5">{topContentNodes}</div>
           ) : null
         }
-        className="max-h-[min(240px,50vh)] w-[256px] overflow-y-auto rounded-2xl border border-zinc-200 bg-zinc-100 py-0.5 shadow-xl dark:border-zinc-700 dark:bg-zinc-800"
+        className="border-border bg-surface max-h-[min(240px,50vh)] w-[256px] overflow-y-auto rounded-2xl border py-0.5 shadow-xl"
         itemClasses={{
           base: "min-h-0 py-1 data-[selected=true]:bg-accent/15 data-[selected=true]:ring-1 data-[selected=true]:ring-accent/50 dark:data-[selected=true]:bg-accent/25 dark:data-[selected=true]:ring-accent/40",
           wrapper: "py-0.5",

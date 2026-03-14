@@ -55,12 +55,12 @@ export function SampleInformationSection({
   isLoadingVendors,
 }: SampleInformationSectionProps) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <section className="border-border bg-surface rounded-xl border p-6 shadow-sm">
       <div className="mb-4 space-y-2">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+        <h2 className="text-foreground text-xl font-semibold">
           2. Sample Information
         </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-muted text-sm">
           Provide context describing the specimen used across your experiments.
         </p>
       </div>
@@ -168,20 +168,20 @@ export function SampleInformationSection({
         />
       </div>
 
-      <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+      <div className="border-border bg-default text-muted mt-4 rounded-lg border p-4 text-sm">
         <p className="font-medium">Or create a new vendor</p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <input
             value={newVendorName}
             onChange={(event) => setNewVendorName(event.target.value)}
             placeholder="Vendor name"
-            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="border-border bg-surface text-foreground focus:border-accent focus:ring-accent/20 w-full rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
           />
           <input
             value={newVendorUrl}
             onChange={(event) => setNewVendorUrl(event.target.value)}
             placeholder="Vendor website (optional)"
-            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="border-border bg-surface text-foreground focus:border-accent focus:ring-accent/20 w-full rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
           />
         </div>
       </div>

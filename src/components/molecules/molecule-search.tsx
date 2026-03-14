@@ -102,20 +102,20 @@ export function MoleculeSearch({
     <div ref={searchRef} className={`relative w-full ${className}`}>
       <form onSubmit={handleSubmit} className="relative">
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <MagnifyingGlassIcon className="text-muted absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2" />
           <input
             type="text"
             value={query}
             onChange={handleInputChange}
             onFocus={() => setIsOpen(true)}
             placeholder={placeholder}
-            className="focus:border-accent focus:ring-accent dark:focus:border-accent w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-12 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
+            className="border-border bg-surface text-foreground placeholder:text-muted focus:border-accent focus:ring-accent w-full rounded-lg border py-3 pr-12 pl-12 focus:ring-2 focus:ring-offset-2 focus:outline-none"
           />
           {query && (
             <button
               type="button"
               onClick={clearSearch}
-              className="absolute top-1/2 right-4 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="text-muted hover:text-foreground absolute top-1/2 right-4 -translate-y-1/2 transition-colors"
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -125,7 +125,7 @@ export function MoleculeSearch({
 
       {/* Results Dropdown */}
       {showDropdown && (
-        <div className="absolute z-50 mt-2 w-full rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
+        <div className="border-border bg-surface absolute z-50 mt-2 w-full rounded-lg border shadow-xl">
           {isLoading && (
             <div className="p-4">
               <div className="space-y-2">
@@ -137,7 +137,7 @@ export function MoleculeSearch({
           )}
 
           {isError && (
-            <div className="p-4 text-sm text-red-600 dark:text-red-400">
+            <div className="text-danger p-4 text-sm">
               Error loading search results
             </div>
           )}
@@ -154,18 +154,18 @@ export function MoleculeSearch({
                   <button
                     key={molecule.id}
                     onClick={() => handleResultClick(molecule.id)}
-                    className="w-full border-b border-gray-200 px-4 py-3 text-left hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
+                    className="border-border text-foreground hover:bg-default w-full border-b px-4 py-3 text-left transition-colors"
                   >
                     <div className="flex flex-col gap-1">
-                      <span className="font-semibold text-gray-900 dark:text-gray-100">
+                      <span className="font-semibold">
                         {molecule.commonName || molecule.iupacName}
                       </span>
                       {molecule.commonName !== molecule.iupacName && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-muted text-xs">
                           {molecule.iupacName}
                         </span>
                       )}
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="text-muted text-sm">
                         {molecule.chemicalFormula}
                       </span>
                     </div>
@@ -174,7 +174,7 @@ export function MoleculeSearch({
               )}
               <Link
                 href={`/browse?q=${encodeURIComponent(debouncedQuery)}`}
-                className="text-accent dark:text-accent-light block border-t border-gray-200 px-4 py-3 text-center text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
+                className="border-border text-accent hover:bg-default block border-t px-4 py-3 text-center text-sm font-medium transition-colors"
                 onClick={() => setIsOpen(false)}
               >
                 View all results ({data.total})
@@ -186,7 +186,7 @@ export function MoleculeSearch({
             !isError &&
             !hasResults &&
             debouncedQuery.length >= 1 && (
-              <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+              <div className="text-muted p-4 text-center text-sm">
                 No molecules found for &quot;{debouncedQuery}&quot;
               </div>
             )}

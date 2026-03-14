@@ -28,9 +28,11 @@ import {
   HeartIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
-import Link from "next/link";
 import { AddMoleculeButton } from "@/components/contribute";
 import { BrowseHeader, selectClasses } from "@/components/browse/browse-header";
+import { BrowsePageLayout, BROWSE_CONTENT_CLASS } from "@/components/browse/browse-page-layout";
+import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
+import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { TagFilterBar } from "@/components/browse/tag-filter-bar";
 import { TagsDropdown } from "@/components/browse/tags-dropdown";
 import {
@@ -41,8 +43,6 @@ import {
 } from "@heroui/dropdown";
 import { Label, Tabs, Tooltip } from "@heroui/react";
 import { Pagination } from "@heroui/pagination";
-
-const BROWSE_CONTENT_CLASS = "mx-auto w-full max-w-7xl px-4 py-8";
 
 function MoleculesBrowseContent() {
   const searchParams = useSearchParams();
@@ -221,19 +221,12 @@ function MoleculesBrowseContent() {
     void allData.refetch();
   };
 
-  return (
-    <div className={BROWSE_CONTENT_CLASS}>
-      <div className="mb-8">
-        <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-gray-100">
-          Browse Molecules
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          {hasSearchQuery
-            ? `Search results for "${debouncedQuery}"`
-            : "Explore all molecules in the X-ray Atlas database."}
-        </p>
-      </div>
+  const subtitle = hasSearchQuery
+    ? `Search results for "${debouncedQuery}"`
+    : "Explore all molecules in the X-ray Atlas database.";
 
+  return (
+    <BrowsePageLayout title="Browse Molecules" subtitle={subtitle}>
       <BrowseTabs />
 
       <div className="space-y-6">
@@ -251,7 +244,7 @@ function MoleculesBrowseContent() {
               <DropdownTrigger>
                 <button
                   type="button"
-                  className="focus-visible:ring-accent flex h-12 min-h-12 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-gray-600 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                  className="border-border bg-surface text-muted focus-visible:ring-accent flex h-12 min-h-12 items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                   aria-label="Sort molecules"
                 >
                   <ArrowsUpDownIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
@@ -260,7 +253,7 @@ function MoleculesBrowseContent() {
               </DropdownTrigger>
               <DropdownMenu
                 aria-label="Sort molecules"
-                className="rounded-lg border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
+                className="border-border bg-default rounded-lg border"
               >
                 <DropdownItem
                   key="name"
@@ -317,7 +310,7 @@ function MoleculesBrowseContent() {
                 <Tabs.ListContainer>
                   <Tabs.List
                     aria-label="View mode"
-                    className="*:data-[selected=true]:bg-accent/15 *:data-[selected=true]:text-accent *:data-[selected=true]:dark:bg-accent/20 *:data-[selected=true]:dark:text-accent-light flex h-12 min-h-12 w-fit flex-row gap-0.5 rounded-lg border border-gray-300 bg-white p-0.5 *:flex *:h-10 *:min-h-10 *:w-9 *:min-w-9 *:items-center *:justify-center *:p-0 *:text-sm *:leading-none *:font-normal *:transition-colors dark:border-gray-600 dark:bg-gray-800 *:[&_svg]:block"
+                    className="*:flex *:h-10 *:min-h-10 *:w-9 *:min-w-9 *:items-center *:justify-center *:p-0 *:text-sm *:leading-none *:font-normal *:transition-colors *:[&_svg]:block *:text-muted *:data-[selected=true]:bg-accent *:data-[selected=true]:text-accent-foreground flex h-12 min-h-12 w-fit flex-row gap-0.5 rounded-lg border border-border bg-surface p-0.5"
                   >
                     <Tabs.Tab
                       id="compact"
@@ -341,7 +334,7 @@ function MoleculesBrowseContent() {
             </div>
             <Tooltip.Content
               placement="top"
-              className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"
+              className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
             >
               Display molecules in a compact list or spacious grid view
             </Tooltip.Content>
@@ -390,36 +383,24 @@ function MoleculesBrowseContent() {
           {!isLoading && !isError && data && (
             <>
               {molecules.length === 0 ? (
-                <div className="rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800">
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {hasSearchQuery
+                <BrowseEmptyState
+                  message={
+                    hasSearchQuery
                       ? `No molecules found for "${debouncedQuery}".`
-                      : "No molecules found in the database."}
-                  </p>
-                  {hasSearchQuery && (
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
-                      Try a different search term or{" "}
-                      <Link
-                        href="/browse/molecules"
-                        className="text-accent dark:text-accent-light hover:underline"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setQuery("");
-                          setDebouncedQuery("");
-                        }}
-                      >
-                        browse all molecules
-                      </Link>
-                      .
-                    </p>
-                  )}
-                  <div className="mt-6">
-                    <AddMoleculeButton
-                      className="min-h-[140px]"
-                      onCreated={handleMoleculeCreated}
-                    />
-                  </div>
-                </div>
+                      : "No molecules found in the database."
+                  }
+                  hasSearchQuery={hasSearchQuery}
+                  browseAllHref="/browse/molecules"
+                  onClearSearch={() => {
+                    setQuery("");
+                    setDebouncedQuery("");
+                  }}
+                >
+                  <AddMoleculeButton
+                    className="min-h-[140px]"
+                    onCreated={handleMoleculeCreated}
+                  />
+                </BrowseEmptyState>
               ) : (
                 <>
                   {viewMode === "compact" ? (
@@ -468,28 +449,10 @@ function MoleculesBrowseContent() {
 
               {/* Pagination */}
               <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
-                  <label
-                    htmlFor="items-per-page"
-                    className="text-sm text-gray-600 dark:text-gray-400"
-                  >
-                    Show
-                  </label>
-                  <select
-                    id="items-per-page"
-                    value={itemsPerPage}
-                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                    className={selectClasses}
-                  >
-                    <option value={12}>12</option>
-                    <option value={24}>24</option>
-                    <option value={48}>48</option>
-                    <option value={96}>96</option>
-                  </select>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    per page
-                  </span>
-                </div>
+                <ItemsPerPageSelect
+                  value={itemsPerPage}
+                  onChange={setItemsPerPage}
+                />
                 {totalPages > 1 && (
                   <Pagination
                     total={totalPages}
@@ -499,11 +462,10 @@ function MoleculesBrowseContent() {
                     size="sm"
                     classNames={{
                       base: "gap-2",
-                      item: "rounded-lg border border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200",
-                      cursor:
-                        "bg-accent text-white border-accent dark:bg-accent dark:text-white dark:border-accent",
-                      prev: "rounded-lg border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800",
-                      next: "rounded-lg border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800",
+                      item: "rounded-lg border border-border bg-surface text-foreground",
+                      cursor: "bg-accent text-accent-foreground border-accent",
+                      prev: "rounded-lg border border-border bg-surface",
+                      next: "rounded-lg border border-border bg-surface",
                     }}
                   />
                 )}
@@ -512,7 +474,7 @@ function MoleculesBrowseContent() {
           )}
         </div>
       </div>
-    </div>
+    </BrowsePageLayout>
   );
 }
 
@@ -520,15 +482,12 @@ export default function MoleculesBrowsePage() {
   return (
     <Suspense
       fallback={
-        <div className={BROWSE_CONTENT_CLASS}>
-          <div className="mb-8">
-            <h1 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl dark:text-gray-100">
-              Browse Molecules
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">Loading…</p>
-          </div>
+        <BrowsePageLayout
+          title="Browse Molecules"
+          subtitle="Loading…"
+        >
           <BrowseTabs />
-        </div>
+        </BrowsePageLayout>
       }
     >
       <MoleculesBrowseContent />

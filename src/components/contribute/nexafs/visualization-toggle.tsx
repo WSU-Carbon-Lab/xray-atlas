@@ -45,7 +45,7 @@ export function VisualizationToggle({
             variant={mode === "graph" ? "primary" : "outline"}
             size="sm"
             onClick={() => onModeChange("graph")}
-            className={`rounded-lg border-2 px-4 py-2 transition-all ${
+            className={`rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-all ${
               mode === "graph"
                 ? "bg-blue-100 border-blue-300 text-blue-900 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-200 shadow-sm"
                 : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -53,7 +53,7 @@ export function VisualizationToggle({
           >
             <div className="flex items-center gap-1.5">
               <ChartBarIcon className="h-4 w-4" />
-              <span className="text-sm font-medium">Graph</span>
+              <span>Graph</span>
             </div>
           </Button>
           <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
@@ -66,7 +66,7 @@ export function VisualizationToggle({
             variant={mode === "table" ? "primary" : "outline"}
             size="sm"
             onClick={() => onModeChange("table")}
-            className={`rounded-lg border-2 px-4 py-2 transition-all ${
+            className={`rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-all ${
               mode === "table"
                 ? "bg-purple-100 border-purple-300 text-purple-900 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-200 shadow-sm"
                 : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -74,7 +74,7 @@ export function VisualizationToggle({
           >
             <div className="flex items-center gap-1.5">
               <TableCellsIcon className="h-4 w-4" />
-              <span className="text-sm font-medium">Table</span>
+              <span>Table</span>
             </div>
           </Button>
           <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">

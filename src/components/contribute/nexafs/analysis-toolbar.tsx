@@ -13,11 +13,15 @@ import {
   TrashIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
-import { Mountain, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+import {
+  Mountain,
+  ArrowLeftToLine,
+  ArrowRightToLine,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import { Input, Tooltip, Slider, ScrollShadow } from "@heroui/react";
 import { DefaultButton as Button } from "~/components/ui/button";
 import { SubToolButton } from "./sub-tool-button";
@@ -56,6 +60,91 @@ const TRANSITION_OPTIONS = [
   { value: "Rydberg", label: "Rydberg" },
   { value: "Other", label: "Other" },
 ];
+
+export type AnalysisToolId =
+  | "config"
+  | "normalize"
+  | "peaks"
+  | "difference";
+
+interface AnalysisToolbarStripProps {
+  selectedTool: AnalysisToolId;
+  onToolSelect: (tool: AnalysisToolId) => void;
+}
+
+export function AnalysisToolbarStrip({
+  selectedTool,
+  onToolSelect,
+}: AnalysisToolbarStripProps) {
+  const buttonClass = (active: boolean) =>
+    `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+      active
+        ? "border-accent bg-gray-100 dark:bg-gray-700"
+        : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+    }`;
+
+  return (
+    <div className="flex items-center gap-2">
+      <ToggleIconButton
+        icon={
+          <Cog6ToothIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+        }
+        isActive={selectedTool === "config"}
+        onClick={() => onToolSelect("config")}
+        ariaLabel="Configuration"
+        className={buttonClass(selectedTool === "config")}
+        tooltip={{
+          content: "Configure molecule, instrument, and edge",
+          placement: "bottom",
+          offset: 8,
+        }}
+      />
+      <ToggleIconButton
+        icon={
+          <Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+        }
+        isActive={selectedTool === "normalize"}
+        onClick={() => onToolSelect("normalize")}
+        ariaLabel="Normalize spectrum"
+        className={buttonClass(selectedTool === "normalize")}
+        tooltip={{
+          content:
+            "Normalize spectrum using bare atom absorption or 0-1 mapping",
+          placement: "bottom",
+          offset: 8,
+        }}
+      />
+      <ToggleIconButton
+        icon={
+          <Mountain className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+        }
+        isActive={selectedTool === "peaks"}
+        onClick={() => onToolSelect("peaks")}
+        ariaLabel="Identify peaks"
+        className={buttonClass(selectedTool === "peaks")}
+        tooltip={{
+          content:
+            "Identify peaks in spectrum using automatic detection or manual entry",
+          placement: "bottom",
+          offset: 8,
+        }}
+      />
+      <ToggleIconButton
+        text="Δϴ"
+        isActive={selectedTool === "difference"}
+        onClick={() => onToolSelect("difference")}
+        ariaLabel="Difference spectra"
+        className={buttonClass(selectedTool === "difference")}
+        tooltip={{
+          content:
+            "Calculate difference spectra for pairs of incident angles",
+          placement: "bottom",
+          offset: 8,
+        }}
+      />
+    </div>
+  );
+}
 
 interface AnalysisToolbarProps {
   hasMolecule: boolean;
@@ -180,6 +269,9 @@ interface AnalysisToolbarProps {
   onToggleMoleculeLock?: () => void;
   edgeAtomMatches?: boolean;
   selectedEdge?: { targetatom: string; corestate: string } | null;
+  panelOnly?: boolean;
+  selectedTool?: AnalysisToolId;
+  onSelectedToolChange?: (tool: AnalysisToolId) => void;
 }
 
 export function AnalysisToolbar({
@@ -243,12 +335,27 @@ export function AnalysisToolbar({
   onToggleMoleculeLock,
   edgeAtomMatches = true,
   selectedEdge,
+  panelOnly = false,
+  selectedTool: controlledSelectedTool,
+  onSelectedToolChange,
 }: AnalysisToolbarProps) {
   const [internalManualPeakMode, setInternalManualPeakMode] = useState(false);
   const isManualPeakMode = externalManualPeakMode ?? internalManualPeakMode;
-  const [selectedTool, setSelectedTool] = useState<
-    "config" | "normalize" | "peaks" | "difference"
+  const [internalSelectedTool, setInternalSelectedTool] = useState<
+    AnalysisToolId
   >("config");
+  const selectedTool =
+    controlledSelectedTool ?? internalSelectedTool;
+  const setSelectedTool = useCallback(
+    (tool: AnalysisToolId) => {
+      if (onSelectedToolChange) {
+        onSelectedToolChange(tool);
+      } else {
+        setInternalSelectedTool(tool);
+      }
+    },
+    [onSelectedToolChange],
+  );
   const [peakDetectionMode, setPeakDetectionMode] = useState<
     "auto" | "manual" | null
   >(null);
@@ -917,211 +1024,67 @@ export function AnalysisToolbar({
 
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const showNormalizeAlert =
+    !hasMolecule &&
+    selectedTool === "normalize" &&
+    (panelOnly || !isCollapsed);
+
   return (
     <div
       className={`shrink-0 self-stretch rounded-lg border border-gray-200 bg-white transition-all dark:border-gray-700 dark:bg-gray-800 ${
-        isCollapsed ? "w-12" : "w-64"
+        panelOnly ? "w-64" : isCollapsed ? "relative z-801 w-20" : "w-64"
       }`}
     >
-      <div className="relative flex h-full flex-col p-4">
-        {!isCollapsed && (
-          <button
-            type="button"
-            onClick={() => setIsCollapsed(true)}
-            className="absolute top-3 right-3 z-10 rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-            aria-label="Collapse toolbar"
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </button>
-        )}
-        {isCollapsed && (
+      <div
+        className={`relative flex h-full flex-col ${isCollapsed ? "px-2 py-4" : "p-4"}`}
+      >
+        {!panelOnly && isCollapsed && (
           <button
             type="button"
             onClick={() => setIsCollapsed(false)}
-            className="absolute top-3 right-3 z-10 rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
             aria-label="Expand toolbar"
           >
-            <ChevronRightIcon className="h-4 w-4" />
+            <PanelLeftOpen className="h-5 w-5" />
           </button>
         )}
-        {isCollapsed ? (
-          <div className="flex flex-col items-center gap-2 pt-8">
-            <ToggleIconButton
-              icon={
-                <Cog6ToothIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-              }
-              isActive={selectedTool === "config"}
-              onClick={() => setSelectedTool("config")}
-              ariaLabel="Configuration"
-              className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                selectedTool === "config"
-                  ? "border-accent bg-gray-100 dark:bg-gray-700"
-                  : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-              }`}
-              tooltip={{
-                content: "Configure molecule, instrument, and edge",
-                placement: "right",
-                offset: 8,
-              }}
-            />
-            <ToggleIconButton
-              icon={
-                <Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-              }
-              isActive={selectedTool === "normalize"}
-              onClick={() => setSelectedTool("normalize")}
-              ariaLabel="Normalize spectrum"
-              className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                selectedTool === "normalize"
-                  ? "border-accent bg-gray-100 dark:bg-gray-700"
-                  : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-              }`}
-              tooltip={{
-                content:
-                  "Normalize spectrum using bare atom absorption or 0-1 mapping",
-                placement: "right",
-                offset: 8,
-              }}
-            />
-            <ToggleIconButton
-              icon={
-                <Mountain className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-              }
-              isActive={selectedTool === "peaks"}
-              onClick={() => setSelectedTool("peaks")}
-              ariaLabel="Identify peaks"
-              className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                selectedTool === "peaks"
-                  ? "border-accent bg-gray-100 dark:bg-gray-700"
-                  : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-              }`}
-              tooltip={{
-                content:
-                  "Identify peaks in spectrum using automatic detection or manual entry",
-                placement: "right",
-                offset: 8,
-              }}
-              badge={{
-                content: peaks.length,
-                color: "primary",
-                size: "sm",
-                isInvisible: peaks.length === 0,
-                shape: "rectangle",
-                showOutline: true,
-                className:
-                  "relative [&_.badge]:bg-white [&_.badge]:text-gray-900 [&_.badge]:text-[10px] [&_.badge]:font-semibold [&_.badge]:h-4 [&_.badge]:min-w-4 [&_.badge]:px-1 [&_.badge]:rounded-full [&_.badge]:border [&_.badge]:border-gray-900 dark:[&_.badge]:border-gray-100",
-              }}
-            />
-            <ToggleIconButton
-              text="Δϴ"
-              isActive={selectedTool === "difference"}
-              onClick={() => setSelectedTool("difference")}
-              ariaLabel="Difference spectra"
-              className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                selectedTool === "difference"
-                  ? "border-accent bg-gray-100 dark:bg-gray-700"
-                  : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-              }`}
-              tooltip={{
-                content:
-                  "Calculate difference spectra for pairs of incident angles",
-                placement: "right",
-                offset: 8,
-              }}
-            />
-          </div>
-        ) : (
-          <>
-            {/* Horizontal Icon Toolbar */}
-            <div className="mb-4 flex items-center gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
-              <ToggleIconButton
-                icon={
-                  <Cog6ToothIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-                }
-                isActive={selectedTool === "config"}
-                onClick={() => setSelectedTool("config")}
-                ariaLabel="Configuration"
-                className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                  selectedTool === "config"
-                    ? "border-accent bg-gray-100 dark:bg-gray-700"
-                    : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-                }`}
-                tooltip={{
-                  content: "Configure molecule, instrument, and edge",
-                  placement: "top",
-                  offset: 8,
-                }}
-              />
-              <ToggleIconButton
-                icon={
-                  <Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-                }
-                isActive={selectedTool === "normalize"}
-                onClick={() => setSelectedTool("normalize")}
-                ariaLabel="Normalize spectrum"
-                className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                  selectedTool === "normalize"
-                    ? "border-accent bg-gray-100 dark:bg-gray-700"
-                    : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-                }`}
-                tooltip={{
-                  content:
-                    "Normalize spectrum using bare atom absorption or 0-1 mapping",
-                  placement: "top",
-                  offset: 8,
-                }}
-              />
-              <ToggleIconButton
-                icon={
-                  <Mountain className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-                }
-                isActive={selectedTool === "peaks"}
-                onClick={() => setSelectedTool("peaks")}
-                ariaLabel="Identify peaks"
-                className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                  selectedTool === "peaks"
-                    ? "border-accent bg-gray-100 dark:bg-gray-700"
-                    : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-                }`}
-                tooltip={{
-                  content:
-                    "Identify peaks in spectrum using automatic detection or manual entry",
-                  placement: "top",
-                  offset: 8,
-                }}
-                badge={{
-                  content: peaks.length,
-                  color: "primary",
-                  size: "sm",
-                  isInvisible: peaks.length === 0,
-                  shape: "rectangle",
-                  showOutline: true,
-                  className:
-                    "relative [&_.badge]:bg-white [&_.badge]:text-gray-900 [&_.badge]:text-[10px] [&_.badge]:font-semibold [&_.badge]:h-4 [&_.badge]:min-w-4 [&_.badge]:px-1 [&_.badge]:rounded-full [&_.badge]:border [&_.badge]:border-gray-900 dark:[&_.badge]:border-gray-100",
-                }}
-              />
-              <ToggleIconButton
-                text="Δϴ"
-                isActive={selectedTool === "difference"}
-                onClick={() => setSelectedTool("difference")}
-                ariaLabel="Difference spectra"
-                className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                  selectedTool === "difference"
-                    ? "border-accent bg-gray-100 dark:bg-gray-700"
-                    : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-                }`}
-                tooltip={{
-                  content:
-                    "Calculate difference spectra for pairs of incident angles",
-                  placement: "top",
-                  offset: 8,
-                }}
+        {!panelOnly &&
+          (isCollapsed ? (
+            <div className="flex flex-col items-center gap-2 pt-8">
+              <AnalysisToolbarStrip
+                selectedTool={selectedTool}
+                onToolSelect={setSelectedTool}
               />
             </div>
-          </>
+          ) : (
+            <>
+              <div className="mb-4 flex items-center justify-between gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
+                <AnalysisToolbarStrip
+                  selectedTool={selectedTool}
+                  onToolSelect={setSelectedTool}
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsCollapsed(true)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                  aria-label="Collapse toolbar"
+                >
+                  <PanelLeftClose className="h-5 w-5" />
+                </button>
+              </div>
+            </>
+          ))}
+
+        {panelOnly && (
+          <div className="mb-4 flex items-center gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
+            <AnalysisToolbarStrip
+              selectedTool={selectedTool}
+              onToolSelect={setSelectedTool}
+            />
+          </div>
         )}
 
-        {!hasMolecule && selectedTool === "normalize" && !isCollapsed && (
+        {showNormalizeAlert && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
             <div className="flex items-start gap-2">
               <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
@@ -1133,7 +1096,7 @@ export function AnalysisToolbar({
           </div>
         )}
 
-        {!isCollapsed && (
+        {(panelOnly || !isCollapsed) && (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {selectedTool === "config" && (
               <ScrollShadow hideScrollBar className="flex-1 overflow-y-auto">

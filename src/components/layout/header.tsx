@@ -64,27 +64,27 @@ function ContributeDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 z-50 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+        <div className="border-border bg-surface absolute top-full right-0 z-50 mt-2 w-48 rounded-lg border shadow-lg">
           <div className="py-1">
             <button
               onClick={() => handleItemClick("/contribute/nexafs")}
-              className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
             >
-              <BoltIcon className="text-accent dark:text-accent-light h-4 w-4" />
+              <BoltIcon className="text-accent h-4 w-4" />
               <span>NEXAFS</span>
             </button>
             <button
               onClick={() => handleItemClick("/contribute/molecule")}
-              className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
             >
-              <BeakerIcon className="text-accent dark:text-accent-light h-4 w-4" />
+              <BeakerIcon className="text-accent h-4 w-4" />
               <span>Molecule</span>
             </button>
             <button
               onClick={() => handleItemClick("/contribute/facility")}
-              className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
             >
-              <BuildingOfficeIcon className="text-accent dark:text-accent-light h-4 w-4" />
+              <BuildingOfficeIcon className="text-accent h-4 w-4" />
               <span>Facility</span>
             </button>
           </div>
@@ -106,7 +106,7 @@ export default function Header() {
   const isLoaded = status !== "loading";
 
   return (
-    <header className="border-default bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-50 w-full border-b backdrop-blur">
+    <header className="border-border bg-background/95 sticky top-0 z-[var(--z-fixed)] w-full border-b backdrop-blur supports-backdrop-filter:bg-background/60">
       <Navbar isBordered={false} className="mx-auto h-20 max-w-7xl px-4">
         <NavbarBrand className="items-center justify-start">
           <Link
@@ -158,7 +158,7 @@ export default function Header() {
           {/* Vertical divider between navigation and actions */}
           <NavbarItem className="flex items-center">
             <div
-              className="mx-2 h-6 w-px bg-gray-500 dark:bg-gray-300"
+              className="bg-border mx-2 h-6 w-px"
               style={{ minWidth: "1px" }}
             />
           </NavbarItem>

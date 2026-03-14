@@ -23,19 +23,19 @@ export function SpectrumSummary({ stats }: { stats: SpectrumStats }) {
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-      <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-700">
-        <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+    <div className="border-border bg-surface rounded-2xl border shadow-sm">
+      <div className="border-border border-b px-5 py-4">
+        <h4 className="text-foreground text-base font-semibold">
           Dataset Summary
         </h4>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-muted mt-1 text-sm">
           {stats.validPoints} of {stats.totalRows} rows produced valid spectrum
           points.
         </p>
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-700">
-          <thead className="bg-gray-50 text-xs tracking-wide text-gray-500 uppercase dark:bg-gray-900/40 dark:text-gray-400">
+        <table className="text-foreground border-separator min-w-full divide-y divide-separator text-sm">
+          <thead className="bg-default text-muted text-xs uppercase tracking-wide">
             <tr>
               <th className="px-5 py-3 text-left">Column</th>
               <th className="px-5 py-3 text-right">Min</th>
@@ -44,27 +44,27 @@ export function SpectrumSummary({ stats }: { stats: SpectrumStats }) {
               <th className="px-5 py-3 text-right">NaNs</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <tbody className="divide-y divide-separator">
             {visibleColumns.map((column) => (
               <tr key={column.label}>
-                <td className="px-5 py-3 font-medium text-gray-900 dark:text-gray-100">
+                <td className="px-5 py-3 font-medium">
                   {column.label}
                   {column.unit ? (
-                    <span className="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">
+                    <span className="text-muted ml-1 text-xs font-normal">
                       ({column.unit})
                     </span>
                   ) : null}
                 </td>
-                <td className="px-5 py-3 text-right text-gray-800 dark:text-gray-200">
+                <td className="px-5 py-3 text-right">
                   {formatStatNumber(column.stats?.min ?? null)}
                 </td>
-                <td className="px-5 py-3 text-right text-gray-800 dark:text-gray-200">
+                <td className="px-5 py-3 text-right">
                   {formatStatNumber(column.stats?.max ?? null)}
                 </td>
-                <td className="px-5 py-3 text-right text-gray-800 dark:text-gray-200">
+                <td className="px-5 py-3 text-right">
                   {column.stats?.validCount ?? 0}
                 </td>
-                <td className="px-5 py-3 text-right text-gray-800 dark:text-gray-200">
+                <td className="px-5 py-3 text-right">
                   {column.stats?.nanCount ?? 0}
                 </td>
               </tr>
@@ -82,17 +82,17 @@ export function SelectionSummary({
   selection: SpectrumSelection;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/10 dark:text-blue-200">
+    <div className="border-accent/40 bg-accent/10 text-foreground flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 text-sm">
       <span className="font-semibold">Selection</span>
       <span>
         {selection.pointCount} point{selection.pointCount === 1 ? "" : "s"}
       </span>
-      <span className="text-blue-600/70 dark:text-blue-200/80">•</span>
+      <span className="text-accent/80">•</span>
       <span>
         Energy {formatStatNumber(selection.energyMin)} –{" "}
         {formatStatNumber(selection.energyMax)} eV
       </span>
-      <span className="text-blue-600/70 dark:text-blue-200/80">•</span>
+      <span className="text-accent/80">•</span>
       <span>
         Intensity {formatStatNumber(selection.absorptionMin)} –{" "}
         {formatStatNumber(selection.absorptionMax)}

@@ -31,7 +31,7 @@ export function TagFilterBar({
   if (isLoading && selectedTags.length === 0) {
     return (
       <div
-        className={`border-border-default bg-surface-1 dark:bg-surface-2 rounded-lg border px-4 py-3 ${className}`}
+        className={`border-border bg-surface rounded-lg border px-4 py-3 ${className}`}
         aria-hidden
       >
         <div className="bg-surface-3 h-6 animate-pulse rounded" />
@@ -41,7 +41,7 @@ export function TagFilterBar({
 
   return (
     <div
-      className={`border-border-default bg-surface-1 dark:bg-surface-2 flex flex-wrap items-center gap-2 rounded-lg border px-4 py-3 shadow-sm ${className}`}
+      className={`border-border bg-surface flex flex-wrap items-center gap-2 rounded-lg border px-4 py-3 shadow-sm ${className}`}
       role="region"
       aria-label="Active tag filters"
     >

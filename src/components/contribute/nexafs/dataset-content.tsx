@@ -1,15 +1,44 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { skipToken } from "@tanstack/react-query";
 import { PencilIcon } from "@heroicons/react/24/outline";
+import {
+  ChevronDown,
+  Columns3,
+  Copy,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
+import {
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@heroui/table";
+import {
+  Accordion,
+  Button,
+  Checkbox,
+  Chip,
+  Tooltip,
+} from "@heroui/react";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  DropdownSection,
+} from "@heroui/dropdown";
+import { Pagination } from "@heroui/pagination";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import type { SpectrumSelection } from "~/components/plots/types";
-import { AnalysisToolbar } from "./analysis-toolbar";
+import { AnalysisToolbar, type AnalysisToolId } from "./analysis-toolbar";
 import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
 import { SampleInformationSection } from "./sample-information-section";
-import { InlineColumnMapping } from "./inline-column-mapping";
 import {
   VisualizationToggle,
   type VisualizationMode,
@@ -27,6 +56,535 @@ import {
 import type { DatasetState, PeakData } from "~/app/contribute/nexafs/types";
 import type { DifferenceSpectrum } from "~/app/contribute/nexafs/utils/differenceSpectra";
 import type { CursorMode } from "~/components/plots/visx/CursorModeSelector";
+import { showToast } from "~/components/ui/toast";
+
+type SpectrumPoint = DatasetState["spectrumPoints"][number];
+
+function spectrumRowsToCsv(rows: SpectrumPoint[]): string {
+  const header = "Energy (eV),mu,theta,phi";
+  const escape = (v: string) =>
+    /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  const lines = rows.map(
+    (p) =>
+      [
+        p.energy.toFixed(4),
+        p.absorption.toExponential(6),
+        typeof p.theta === "number" ? p.theta.toFixed(2) : "",
+        typeof p.phi === "number" ? p.phi.toFixed(2) : "",
+      ].map(escape).join(","),
+  );
+  return [header, ...lines].join("\n");
+}
+
+type SortColumn = "energy" | "absorption" | "theta" | "phi";
+
+type SortDirection = "asc" | "desc";
+
+const THETA_PHI_CHIP_COLORS = [
+  "accent",
+  "success",
+  "warning",
+  "danger",
+  "default",
+] as const;
+
+type ThetaPhiChipColor = (typeof THETA_PHI_CHIP_COLORS)[number];
+
+const SPECTRUM_TABLE_PAGE_SIZE = 10;
+
+type SpectrumTableColumnId = "energy" | "mu" | "theta" | "phi";
+
+const SPECTRUM_TABLE_COLUMNS: { id: SpectrumTableColumnId; label: string }[] = [
+  { id: "energy", label: "Energy (eV)" },
+  { id: "mu", label: "mu" },
+  { id: "theta", label: "theta" },
+  { id: "phi", label: "phi" },
+];
+
+const DEFAULT_VISIBLE_COLUMNS: Record<SpectrumTableColumnId, boolean> = {
+  energy: true,
+  mu: true,
+  theta: true,
+  phi: true,
+};
+
+function chipColorForIndex(index: number): ThetaPhiChipColor {
+  return (
+    THETA_PHI_CHIP_COLORS[index % THETA_PHI_CHIP_COLORS.length] ?? "accent"
+  );
+}
+
+interface GeometrySpectrumTableBlockProps {
+  keyStr: string;
+  theta: number | undefined;
+  phi: number | undefined;
+  rows: SpectrumPoint[];
+  groupPage: Record<string, number>;
+  setGroupPage: React.Dispatch<
+    React.SetStateAction<Record<string, number>>
+  >;
+  visibleColumns: Record<SpectrumTableColumnId, boolean>;
+  toggleColumn: (id: SpectrumTableColumnId) => void;
+  visibleColumnList: { id: SpectrumTableColumnId; label: string }[];
+  hasTheta: boolean;
+  hasPhi: boolean;
+  thetaColorByValue: Map<number, ThetaPhiChipColor>;
+  phiColorByValue: Map<number, ThetaPhiChipColor>;
+  tableClassNames: { table: string };
+  onCopyCsv: (rows: SpectrumPoint[]) => void;
+}
+
+function GeometrySpectrumTableBlock({
+  keyStr,
+  theta,
+  phi,
+  rows,
+  groupPage,
+  setGroupPage,
+  visibleColumns,
+  toggleColumn,
+  visibleColumnList,
+  hasTheta,
+  hasPhi,
+  thetaColorByValue,
+  phiColorByValue,
+  tableClassNames,
+  onCopyCsv,
+}: GeometrySpectrumTableBlockProps) {
+  const pageIndex = groupPage[keyStr] ?? 0;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(rows.length / SPECTRUM_TABLE_PAGE_SIZE),
+  );
+  const start =
+    rows.length === 0 ? 0 : pageIndex * SPECTRUM_TABLE_PAGE_SIZE + 1;
+  const end = Math.min(
+    (pageIndex + 1) * SPECTRUM_TABLE_PAGE_SIZE,
+    rows.length,
+  );
+  const pageRows = rows.slice(
+    pageIndex * SPECTRUM_TABLE_PAGE_SIZE,
+    (pageIndex + 1) * SPECTRUM_TABLE_PAGE_SIZE,
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Tooltip delay={0}>
+          <Dropdown>
+            <DropdownTrigger>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
+              >
+                <Columns3 className="size-3.5" />
+                Columns
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu
+              aria-label="Toggle table columns"
+              closeOnSelect={false}
+              className="min-w-[180px]"
+            >
+              <DropdownSection title="Show columns">
+                {SPECTRUM_TABLE_COLUMNS.map(({ id, label }) => (
+                  <DropdownItem
+                    key={id}
+                    textValue={label}
+                    className="cursor-default py-1.5"
+                    onAction={() => {}}
+                  >
+                    <div
+                      className="flex items-center gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        isSelected={visibleColumns[id]}
+                        onChange={() => toggleColumn(id)}
+                        className="[&_[data-slot=checkbox-content]]:text-xs [&_[data-slot=checkbox-content]]:text-[var(--text-primary)]"
+                      >
+                        {label}
+                      </Checkbox>
+                    </div>
+                  </DropdownItem>
+                ))}
+              </DropdownSection>
+            </DropdownMenu>
+          </Dropdown>
+          <Tooltip.Content
+            placement="top"
+            className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg"
+          >
+            Show or hide table columns
+          </Tooltip.Content>
+        </Tooltip>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
+          onPress={() => onCopyCsv(rows)}
+        >
+          <Copy className="size-3.5" />
+          Copy as CSV
+        </Button>
+      </div>
+      {visibleColumnList.length === 0 ? (
+        <p className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-2)] px-4 py-6 text-center text-xs text-[var(--text-tertiary)]">
+          Show at least one column above to view the table.
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-[var(--border-default)] bg-[var(--surface-2)]">
+          <Table
+            aria-label={`Spectrum table theta ${theta ?? "—"} phi ${phi ?? "—"}`}
+            removeWrapper
+            classNames={tableClassNames}
+          >
+            <TableHeader>
+              {visibleColumnList.map((c) => (
+                <TableColumn key={c.id}>{c.label}</TableColumn>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {pageRows.map((point, index) => (
+                <TableRow
+                  key={`${point.energy}-${index}-${String(point.theta)}-${String(point.phi)}`}
+                >
+                  {visibleColumnList.map((col) => {
+                    switch (col.id) {
+                      case "energy":
+                        return (
+                          <TableCell
+                            key={col.id}
+                            className="text-right text-[var(--text-primary)]"
+                          >
+                            {point.energy.toFixed(2)}
+                          </TableCell>
+                        );
+                      case "mu":
+                        return (
+                          <TableCell
+                            key={col.id}
+                            className="text-right text-[var(--text-primary)]"
+                          >
+                            {point.absorption.toExponential(3)}
+                          </TableCell>
+                        );
+                      case "theta":
+                        return (
+                          <TableCell key={col.id} className="text-right">
+                            <span className="flex justify-end">
+                              {hasTheta &&
+                              typeof point.theta === "number" ? (
+                                <Chip
+                                  color={
+                                    thetaColorByValue.get(point.theta) ??
+                                    "accent"
+                                  }
+                                  size="sm"
+                                  variant="soft"
+                                >
+                                  {point.theta.toFixed(1)}
+                                </Chip>
+                              ) : (
+                                <span className="text-[var(--text-tertiary)]">
+                                  —
+                                </span>
+                              )}
+                            </span>
+                          </TableCell>
+                        );
+                      case "phi":
+                        return (
+                          <TableCell key={col.id} className="text-right">
+                            <span className="flex justify-end">
+                              {hasPhi && typeof point.phi === "number" ? (
+                                <Chip
+                                  color={
+                                    phiColorByValue.get(point.phi) ?? "accent"
+                                  }
+                                  size="sm"
+                                  variant="soft"
+                                >
+                                  {point.phi.toFixed(1)}
+                                </Chip>
+                              ) : (
+                                <span className="text-[var(--text-tertiary)]">
+                                  —
+                                </span>
+                              )}
+                            </span>
+                          </TableCell>
+                        );
+                    }
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-default)] bg-[var(--surface-2)] px-4 py-3">
+            <span className="text-xs text-[var(--text-tertiary)]">
+              {rows.length === 0
+                ? "0 results"
+                : `${start} to ${end} of ${rows.length} results`}
+            </span>
+            <Pagination
+              total={totalPages}
+              page={pageIndex + 1}
+              onChange={(p) =>
+                setGroupPage((prev) => ({ ...prev, [keyStr]: p - 1 }))
+              }
+              showControls
+              size="sm"
+              classNames={{
+                base: "gap-1",
+                item: "rounded-md border border-[var(--border-default)] bg-[var(--surface-1)] text-[var(--text-primary)]",
+                cursor:
+                  "bg-accent text-accent-foreground border-accent",
+                prev: "rounded-md border border-[var(--border-default)] bg-[var(--surface-1)]",
+                next: "rounded-md border border-[var(--border-default)] bg-[var(--surface-1)]",
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface DatasetSpectrumTableProps {
+  points: SpectrumPoint[];
+  uniqueThetaValues: number[];
+  uniquePhiValues: number[];
+}
+
+function DatasetSpectrumTable({
+  points,
+  uniqueThetaValues,
+  uniquePhiValues,
+}: DatasetSpectrumTableProps) {
+  const [sortColumn, setSortColumn] = useState<SortColumn>("energy");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [groupPage, setGroupPage] = useState<Record<string, number>>({});
+  const [visibleColumns, setVisibleColumns] =
+    useState<Record<SpectrumTableColumnId, boolean>>(DEFAULT_VISIBLE_COLUMNS);
+
+  const hasTheta = points.some((p) => typeof p.theta === "number");
+  const hasPhi = points.some((p) => typeof p.phi === "number");
+
+  const sortedPoints = useMemo(() => {
+    const copy = [...points];
+    const direction = sortDirection === "asc" ? 1 : -1;
+
+    return copy.sort((a, b) => {
+      const aValue =
+        sortColumn === "energy"
+          ? a.energy
+          : sortColumn === "absorption"
+            ? a.absorption
+            : sortColumn === "theta"
+              ? typeof a.theta === "number"
+                ? a.theta
+                : Number.NaN
+              : typeof a.phi === "number"
+                ? a.phi
+                : Number.NaN;
+      const bValue =
+        sortColumn === "energy"
+          ? b.energy
+          : sortColumn === "absorption"
+            ? b.absorption
+            : sortColumn === "theta"
+              ? typeof b.theta === "number"
+                ? b.theta
+                : Number.NaN
+              : typeof b.phi === "number"
+                ? b.phi
+                : Number.NaN;
+
+      if (Number.isNaN(aValue) && Number.isNaN(bValue)) return 0;
+      if (Number.isNaN(aValue)) return 1;
+      if (Number.isNaN(bValue)) return -1;
+      if (aValue === bValue) return 0;
+      return aValue > bValue ? direction : -direction;
+    });
+  }, [points, sortColumn, sortDirection]);
+
+  type GroupKey = { theta: number | undefined; phi: number | undefined };
+  const groups = useMemo(() => {
+    const map = new Map<string, { key: GroupKey; rows: SpectrumPoint[] }>();
+    for (const p of sortedPoints) {
+      const theta =
+        hasTheta && typeof p.theta === "number" ? p.theta : undefined;
+      const phi = hasPhi && typeof p.phi === "number" ? p.phi : undefined;
+      const keyStr = `theta-${theta ?? "none"}-phi-${phi ?? "none"}`;
+      const existing = map.get(keyStr);
+      if (existing) existing.rows.push(p);
+      else map.set(keyStr, { key: { theta, phi }, rows: [p] });
+    }
+    const list = Array.from(map.entries()).map(([keyStr, { key, rows }]) => {
+      const energies = rows.map((r) => r.energy);
+      const minEnergy =
+        energies.length > 0 ? Math.min(...energies) : Number.NaN;
+      const maxEnergy =
+        energies.length > 0 ? Math.max(...energies) : Number.NaN;
+      return {
+        keyStr,
+        theta: key.theta,
+        phi: key.phi,
+        rows,
+        minEnergy,
+        maxEnergy,
+      };
+    });
+    list.sort((a, b) => {
+      const at = a.theta ?? Number.NaN;
+      const bt = b.theta ?? Number.NaN;
+      if (!Number.isNaN(at) && !Number.isNaN(bt) && at !== bt) return at - bt;
+      if (Number.isNaN(at) && !Number.isNaN(bt)) return 1;
+      if (!Number.isNaN(at) && Number.isNaN(bt)) return -1;
+      const ap = a.phi ?? Number.NaN;
+      const bp = b.phi ?? Number.NaN;
+      if (!Number.isNaN(ap) && !Number.isNaN(bp) && ap !== bp) return ap - bp;
+      if (Number.isNaN(ap) && !Number.isNaN(bp)) return 1;
+      if (!Number.isNaN(ap) && Number.isNaN(bp)) return -1;
+      return 0;
+    });
+    return list;
+  }, [sortedPoints, hasTheta, hasPhi]);
+
+  const thetaColorByValue = useMemo(() => {
+    const map = new Map<number, ThetaPhiChipColor>();
+    uniqueThetaValues.forEach((v, i) => map.set(v, chipColorForIndex(i)));
+    return map;
+  }, [uniqueThetaValues]);
+
+  const phiColorByValue = useMemo(() => {
+    const map = new Map<number, ThetaPhiChipColor>();
+    uniquePhiValues.forEach((v, i) => map.set(v, chipColorForIndex(i)));
+    return map;
+  }, [uniquePhiValues]);
+
+  const toggleColumn = useCallback((id: SpectrumTableColumnId) => {
+    setVisibleColumns((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  const showColumn = useCallback(
+    (id: SpectrumTableColumnId) => {
+      if (!visibleColumns[id]) return false;
+      if (id === "theta" && !hasTheta) return false;
+      if (id === "phi" && !hasPhi) return false;
+      return true;
+    },
+    [visibleColumns, hasTheta, hasPhi],
+  );
+
+  const tableClassNames = {
+    table:
+      "w-full text-sm [&_td]:whitespace-nowrap [&_td]:font-mono [&_td]:tabular-nums [&_td]:px-4 [&_td]:py-3 [&_th]:px-4 [&_th]:py-3 [&_tbody_tr]:transition-colors [&_tbody_tr:nth-child(odd)]:bg-[var(--surface-2)] [&_tbody_tr:nth-child(even)]:bg-[var(--surface-3)] [&_tbody_tr:hover]:bg-[var(--surface-3)] [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-[var(--z-sticky)] [&_thead]:bg-[var(--surface-2)] [&_thead_th]:bg-[var(--surface-2)] [&_thead_th]:text-right [&_thead_th]:text-xs [&_thead_th]:font-semibold [&_thead_th]:uppercase [&_thead_th]:tracking-wider [&_thead_th]:text-[var(--text-secondary)] [&_thead_th]:border-b [&_thead_th]:border-[var(--border-default)] [&_thead_th]:shadow-[0_1px_0_0_var(--border-default)]",
+  };
+
+  const visibleColumnList = useMemo(
+    () => SPECTRUM_TABLE_COLUMNS.filter((c) => showColumn(c.id)),
+    [showColumn],
+  );
+
+  const handleCopyCsv = useCallback((rows: SpectrumPoint[]) => {
+    const csv = spectrumRowsToCsv(rows);
+    void navigator.clipboard.writeText(csv).then(() => {
+      showToast(`Copied ${rows.length} rows as CSV`, "success");
+    });
+  }, []);
+
+  return (
+    <div className="flex flex-col rounded-xl border border-[var(--border-default)] bg-[var(--surface-1)] p-3">
+      <Accordion
+        defaultExpandedKeys={[]}
+        variant="surface"
+        className="w-full rounded-xl"
+      >
+        {groups.map(
+          ({
+            keyStr,
+            theta,
+            phi,
+            rows,
+            minEnergy,
+            maxEnergy,
+          }) => {
+            const energyRangeStr =
+              !Number.isNaN(minEnergy) && !Number.isNaN(maxEnergy)
+                ? `${minEnergy.toFixed(1)} – ${maxEnergy.toFixed(1)} eV`
+                : "—";
+            return (
+              <Accordion.Item
+                key={keyStr}
+                id={keyStr}
+                className="rounded-lg first:rounded-t-xl last:rounded-b-xl [&+&]:mt-2"
+              >
+                <Accordion.Heading>
+                  <Accordion.Trigger className="flex min-h-[52px] w-full items-center justify-between gap-2 rounded-lg px-5 py-3.5 text-left">
+                    <span className="flex shrink-0 items-center gap-2">
+                      {hasTheta && theta !== undefined ? (
+                        <Chip
+                          color={thetaColorByValue.get(theta) ?? "accent"}
+                          size="sm"
+                          variant="soft"
+                        >
+                          {theta.toFixed(1)}
+                        </Chip>
+                      ) : null}
+                      {hasPhi && phi !== undefined ? (
+                        <Chip
+                          color={phiColorByValue.get(phi) ?? "accent"}
+                          size="sm"
+                          variant="soft"
+                        >
+                          {phi.toFixed(1)}
+                        </Chip>
+                      ) : null}
+                      {!hasTheta && !hasPhi ? (
+                        <span className="text-[var(--text-tertiary)]">—</span>
+                      ) : null}
+                      <span className="text-[var(--text-tertiary)]">
+                        {energyRangeStr}
+                      </span>
+                    </span>
+                    <Accordion.Indicator>
+                      <ChevronDown className="size-4" />
+                    </Accordion.Indicator>
+                  </Accordion.Trigger>
+                </Accordion.Heading>
+                <Accordion.Panel>
+                  <Accordion.Body>
+                    <GeometrySpectrumTableBlock
+                      keyStr={keyStr}
+                      theta={theta}
+                      phi={phi}
+                      rows={rows}
+                      groupPage={groupPage}
+                      setGroupPage={setGroupPage}
+                      visibleColumns={visibleColumns}
+                      toggleColumn={toggleColumn}
+                      visibleColumnList={visibleColumnList}
+                      hasTheta={hasTheta}
+                      hasPhi={hasPhi}
+                      thetaColorByValue={thetaColorByValue}
+                      phiColorByValue={phiColorByValue}
+                      tableClassNames={tableClassNames}
+                      onCopyCsv={handleCopyCsv}
+                    />
+                  </Accordion.Body>
+                </Accordion.Panel>
+              </Accordion.Item>
+            );
+          },
+        )}
+      </Accordion>
+    </div>
+  );
+}
 
 interface DatasetContentProps {
   dataset: DatasetState;
@@ -74,6 +632,9 @@ export function DatasetContent({
   const [visualizationMode, setVisualizationMode] =
     useState<VisualizationMode>("table");
   const [graphStyle, setGraphStyle] = useState<GraphStyle>("line");
+  const [analysisPanelOpen, setAnalysisPanelOpen] = useState(false);
+  const [selectedAnalysisTool, setSelectedAnalysisTool] =
+    useState<AnalysisToolId>("config");
   const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
 
   // Molecule search hook - per dataset
@@ -385,166 +946,170 @@ export function DatasetContent({
       }
     : undefined;
 
+  const tableUniqueThetaValues = useMemo(() => {
+    const set = new Set<number>();
+    for (const p of plotPoints) {
+      if (typeof p.theta === "number") set.add(p.theta);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [plotPoints]);
+
+  const tableUniquePhiValues = useMemo(() => {
+    const set = new Set<number>();
+    for (const p of plotPoints) {
+      if (typeof p.phi === "number") set.add(p.phi);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [plotPoints]);
+
   return (
     <div className="space-y-6">
-      {/* Column Mapping Section - Show when CSV data exists but no spectrum points AND not in table mode */}
-      {dataset.csvRawData.length > 0 &&
-        dataset.csvColumns.length > 0 &&
-        visualizationMode !== "table" &&
-        (!dataset.spectrumPoints.length ||
-          !dataset.columnMappings.energy ||
-          !dataset.columnMappings.absorption) && (
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <InlineColumnMapping
-              columns={dataset.csvColumns}
-              rawData={dataset.csvRawData}
-              mappings={dataset.columnMappings}
-              fixedTheta={dataset.fixedTheta}
-              fixedPhi={dataset.fixedPhi}
-              onMappingsChange={(newMappings) => {
-                onDatasetUpdate(dataset.id, { columnMappings: newMappings });
-                if (onReloadData) {
-                  setTimeout(() => {
-                    onReloadData();
-                  }, 100);
-                }
-              }}
-              onFixedValuesChange={(values) => {
-                const updates: Partial<DatasetState> = {};
-                if (values.theta !== undefined) {
-                  updates.fixedTheta = values.theta;
-                }
-                if (values.phi !== undefined) {
-                  updates.fixedPhi = values.phi;
-                }
-                onDatasetUpdate(dataset.id, updates);
-                if (onReloadData) {
-                  setTimeout(() => {
-                    onReloadData();
-                  }, 100);
-                }
-              }}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center">
+            <Tooltip delay={0}>
+              <button
+                type="button"
+                onClick={() => setAnalysisPanelOpen(!analysisPanelOpen)}
+                className="flex h-8 items-center justify-center rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-all bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                aria-label={analysisPanelOpen ? "Close analysis toolbar" : "Open analysis toolbar"}
+              >
+                {analysisPanelOpen ? (
+                  <PanelLeftClose className="h-4 w-4" />
+                ) : (
+                  <PanelLeftOpen className="h-4 w-4" />
+                )}
+              </button>
+              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                Toggles the analysis toolbar
+              </Tooltip.Content>
+            </Tooltip>
+          </div>
+          <div className="min-w-0 flex-1">
+            <VisualizationToggle
+              mode={visualizationMode}
+              graphStyle={graphStyle}
+              onModeChange={setVisualizationMode}
+              onGraphStyleChange={setGraphStyle}
             />
           </div>
-        )}
-
-      {/* Main Content Area */}
-      <div className="flex items-stretch gap-6">
-        {/* Analysis Toolbar */}
-        <AnalysisToolbar
-          hasMolecule={!!dataset.moleculeId}
-          hasData={dataset.spectrumPoints.length > 0}
-          hasNormalization={!!dataset.normalization}
-          normalizationLocked={dataset.normalizationLocked}
-          normalizationType={dataset.normalizationType}
-          onNormalizationTypeChange={(type) => {
-            onDatasetUpdate(dataset.id, { normalizationType: type });
-          }}
-          onPreEdgeSelect={() => setNormalizationSelectionTarget("pre")}
-          onPostEdgeSelect={() => setNormalizationSelectionTarget("post")}
-          onToggleLock={handleToggleLock}
-          isSelectingPreEdge={normalizationSelectionTarget === "pre"}
-          isSelectingPostEdge={normalizationSelectionTarget === "post"}
-          normalizationRegions={dataset.normalizationRegions}
-          onNormalizationRegionChange={(type, range) => {
-            onDatasetUpdate(dataset.id, {
-              normalizationRegions: {
-                ...dataset.normalizationRegions,
-                [type]: range,
-              },
-            });
-          }}
-          peaks={dataset.peaks.map((peak, index) => ({
-            ...peak,
-            id: peak.id ?? `peak-${index}-${peak.energy}`,
-          }))}
-          spectrumPoints={dataset.spectrumPoints}
-          normalizedPoints={dataset.normalizedPoints}
-          selectedPeakId={dataset.selectedPeakId}
-          onPeaksChange={(peaks) => onDatasetUpdate(dataset.id, { peaks })}
-          onPeakSelect={(peakId) =>
-            onDatasetUpdate(dataset.id, { selectedPeakId: peakId })
-          }
-          onPeakUpdate={(peakId, energy) => {
-            const updatedPeaks = dataset.peaks.map((peak) => {
-              const currentId =
-                peak.id ?? `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
-              if (currentId === peakId) {
-                return { ...peak, energy };
+        </div>
+        <div className="mt-3 flex min-h-0 flex-1 items-stretch gap-6">
+          {analysisPanelOpen && (
+            <AnalysisToolbar
+              panelOnly
+              selectedTool={selectedAnalysisTool}
+              onSelectedToolChange={setSelectedAnalysisTool}
+              hasMolecule={!!dataset.moleculeId}
+              hasData={dataset.spectrumPoints.length > 0}
+              hasNormalization={!!dataset.normalization}
+              normalizationLocked={dataset.normalizationLocked}
+              normalizationType={dataset.normalizationType}
+              onNormalizationTypeChange={(type) => {
+                onDatasetUpdate(dataset.id, { normalizationType: type });
+              }}
+              onPreEdgeSelect={() => setNormalizationSelectionTarget("pre")}
+              onPostEdgeSelect={() => setNormalizationSelectionTarget("post")}
+              onToggleLock={handleToggleLock}
+              isSelectingPreEdge={normalizationSelectionTarget === "pre"}
+              isSelectingPostEdge={normalizationSelectionTarget === "post"}
+              normalizationRegions={dataset.normalizationRegions}
+              onNormalizationRegionChange={(type, range) => {
+                onDatasetUpdate(dataset.id, {
+                  normalizationRegions: {
+                    ...dataset.normalizationRegions,
+                    [type]: range,
+                  },
+                });
+              }}
+              peaks={dataset.peaks.map((peak, index) => ({
+                ...peak,
+                id: peak.id ?? `peak-${index}-${peak.energy}`,
+              }))}
+              spectrumPoints={dataset.spectrumPoints}
+              normalizedPoints={dataset.normalizedPoints}
+              selectedPeakId={dataset.selectedPeakId}
+              onPeaksChange={(peaks) => onDatasetUpdate(dataset.id, { peaks })}
+              onPeakSelect={(peakId) =>
+                onDatasetUpdate(dataset.id, { selectedPeakId: peakId })
               }
-              return peak;
-            });
-            onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
-          }}
-          onPeakAdd={(energy) => {
-            const newPeak = {
-              energy: Math.round(energy * 100) / 100,
-              id: `peak-manual-${Date.now()}`,
-            } as PeakData & { id: string };
-            onDatasetUpdate(dataset.id, {
-              peaks: [...dataset.peaks, newPeak],
-            });
-          }}
-          isManualPeakMode={isManualPeakMode}
-          onManualPeakModeChange={setIsManualPeakMode}
-          differenceSpectra={differenceSpectra}
-          onDifferenceSpectraChange={setDifferenceSpectra}
-          showThetaData={showThetaData}
-          showPhiData={showPhiData}
-          onShowThetaDataChange={setShowThetaData}
-          onShowPhiDataChange={setShowPhiData}
-          selectedGeometry={selectedGeometry}
-          onSelectedGeometryChange={setSelectedGeometry}
-          onReloadData={onReloadData}
-          moleculeId={dataset.moleculeId}
-          instrumentId={dataset.instrumentId}
-          edgeId={dataset.edgeId}
-          onMoleculeChange={(moleculeId) =>
-            onDatasetUpdate(dataset.id, { moleculeId })
-          }
-          onInstrumentChange={(instrumentId) =>
-            onDatasetUpdate(dataset.id, { instrumentId })
-          }
-          onEdgeChange={(edgeId) => {
-            onDatasetUpdate(dataset.id, { edgeId });
-          }}
-          instrumentOptions={instrumentOptions}
-          edgeOptions={edgeOptions}
-          availableEdgeOptions={availableEdgeOptions}
-          onAddFacility={() => setShowAddFacilityModal(true)}
-          moleculeSearchTerm={searchTerm}
-          onMoleculeSearchTermChange={setSearchTerm}
-          moleculeSuggestions={suggestions}
-          moleculeManualResults={manualResults}
-          moleculeSuggestionError={suggestionError}
-          moleculeManualError={manualError}
-          isMoleculeSuggesting={isSuggesting}
-          isMoleculeManualSearching={isManualSearching}
-          selectedMolecule={selectedMolecule}
-          selectedMoleculePreferredName={selectedPreferredName}
-          onSelectedMoleculePreferredNameChange={setSelectedPreferredName}
-          allMoleculeNames={allMoleculeNames}
-          onUseMolecule={(result) => selectMolecule(result)}
-          onMoleculeManualSearch={runManualSearch}
-          moleculeLocked={dataset.moleculeLocked}
-          onToggleMoleculeLock={handleToggleMoleculeLock}
-          edgeAtomMatches={edgeAtomMatches}
-          selectedEdge={selectedEdge}
-        />
+              onPeakUpdate={(peakId, energy) => {
+                const updatedPeaks = dataset.peaks.map((peak) => {
+                  const currentId =
+                    peak.id ??
+                    `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
+                  if (currentId === peakId) {
+                    return { ...peak, energy };
+                  }
+                  return peak;
+                });
+                onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
+              }}
+              onPeakAdd={(energy) => {
+                const newPeak = {
+                  energy: Math.round(energy * 100) / 100,
+                  id: `peak-manual-${Date.now()}`,
+                } as PeakData & { id: string };
+                onDatasetUpdate(dataset.id, {
+                  peaks: [...dataset.peaks, newPeak],
+                });
+              }}
+              isManualPeakMode={isManualPeakMode}
+              onManualPeakModeChange={setIsManualPeakMode}
+              differenceSpectra={differenceSpectra}
+              onDifferenceSpectraChange={setDifferenceSpectra}
+              showThetaData={showThetaData}
+              showPhiData={showPhiData}
+              onShowThetaDataChange={setShowThetaData}
+              onShowPhiDataChange={setShowPhiData}
+              selectedGeometry={selectedGeometry}
+              onSelectedGeometryChange={setSelectedGeometry}
+              onReloadData={onReloadData}
+              moleculeId={dataset.moleculeId}
+              instrumentId={dataset.instrumentId}
+              edgeId={dataset.edgeId}
+              onMoleculeChange={(moleculeId) =>
+                onDatasetUpdate(dataset.id, { moleculeId })
+              }
+              onInstrumentChange={(instrumentId) =>
+                onDatasetUpdate(dataset.id, { instrumentId })
+              }
+              onEdgeChange={(edgeId) => {
+                onDatasetUpdate(dataset.id, { edgeId });
+              }}
+              instrumentOptions={instrumentOptions}
+              edgeOptions={edgeOptions}
+              availableEdgeOptions={availableEdgeOptions}
+              onAddFacility={() => setShowAddFacilityModal(true)}
+              moleculeSearchTerm={searchTerm}
+              onMoleculeSearchTermChange={setSearchTerm}
+              moleculeSuggestions={suggestions}
+              moleculeManualResults={manualResults}
+              moleculeSuggestionError={suggestionError}
+              moleculeManualError={manualError}
+              isMoleculeSuggesting={isSuggesting}
+              isMoleculeManualSearching={isManualSearching}
+              selectedMolecule={selectedMolecule}
+              selectedMoleculePreferredName={selectedPreferredName}
+              onSelectedMoleculePreferredNameChange={setSelectedPreferredName}
+              allMoleculeNames={allMoleculeNames}
+              onUseMolecule={(result) => selectMolecule(result)}
+              onMoleculeManualSearch={runManualSearch}
+              moleculeLocked={dataset.moleculeLocked}
+              onToggleMoleculeLock={handleToggleMoleculeLock}
+              edgeAtomMatches={edgeAtomMatches}
+              selectedEdge={selectedEdge}
+            />
+          )}
 
-        {/* Plot and Analysis */}
-        <div className="flex-1">
-          {/* Visualization Toggle and Plot */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <VisualizationToggle
-                mode={visualizationMode}
-                graphStyle={graphStyle}
-                onModeChange={setVisualizationMode}
-                onGraphStyleChange={setGraphStyle}
-              />
-            </div>
-            <div className="min-h-[600px] rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div
+              className={`rounded-lg border border-[var(--border-default)] bg-[var(--surface-1)] p-6 shadow-sm ${
+                visualizationMode === "table"
+                  ? "flex flex-col"
+                  : "min-h-[600px] flex-1"
+              }`}
+            >
               {visualizationMode === "graph" && plotPoints.length > 0 ? (
                 <SpectrumPlot
                   points={plotPoints}
@@ -630,110 +1195,12 @@ export function DatasetContent({
                   onCursorModeChange={setCursorMode}
                 />
               ) : visualizationMode === "table" ? (
-                dataset.csvRawData.length > 0 &&
-                dataset.csvColumns.length > 0 ? (
-                  <InlineColumnMapping
-                    columns={dataset.csvColumns}
-                    rawData={dataset.csvRawData}
-                    mappings={dataset.columnMappings}
-                    fixedTheta={dataset.fixedTheta}
-                    fixedPhi={dataset.fixedPhi}
-                    onMappingsChange={(newMappings) => {
-                      onDatasetUpdate(dataset.id, {
-                        columnMappings: newMappings,
-                      });
-                      if (onReloadData) {
-                        setTimeout(() => {
-                          onReloadData();
-                        }, 100);
-                      }
-                    }}
-                    onFixedValuesChange={(values) => {
-                      const updates: Partial<DatasetState> = {};
-                      if (values.theta !== undefined) {
-                        updates.fixedTheta = values.theta;
-                      }
-                      if (values.phi !== undefined) {
-                        updates.fixedPhi = values.phi;
-                      }
-                      onDatasetUpdate(dataset.id, updates);
-                      if (onReloadData) {
-                        setTimeout(() => {
-                          onReloadData();
-                        }, 100);
-                      }
-                    }}
+                plotPoints.length > 0 ? (
+                  <DatasetSpectrumTable
+                    points={plotPoints}
+                    uniqueThetaValues={tableUniqueThetaValues}
+                    uniquePhiValues={tableUniquePhiValues}
                   />
-                ) : dataset.spectrumPoints.length > 0 ? (
-                  <div className="max-h-[600px] overflow-auto">
-                    <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-                      <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                            Energy (eV)
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                            Absorption
-                          </th>
-                          {plotPoints.some(
-                            (p) => typeof p.theta === "number",
-                          ) && (
-                            <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                              θ (°)
-                            </th>
-                          )}
-                          {plotPoints.some(
-                            (p) => typeof p.phi === "number",
-                          ) && (
-                            <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
-                              φ (°)
-                            </th>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-                        {dataset.spectrumPoints
-                          .slice(0, 1000)
-                          .map((point, index) => (
-                            <tr
-                              key={`${point.energy}-${index}`}
-                              className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                            >
-                              <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
-                                {point.energy.toFixed(2)}
-                              </td>
-                              <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
-                                {point.absorption.toExponential(3)}
-                              </td>
-                              {dataset.spectrumPoints.some(
-                                (p) => typeof p.theta === "number",
-                              ) && (
-                                <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
-                                  {typeof point.theta === "number"
-                                    ? point.theta.toFixed(1)
-                                    : "-"}
-                                </td>
-                              )}
-                              {dataset.spectrumPoints.some(
-                                (p) => typeof p.phi === "number",
-                              ) && (
-                                <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
-                                  {typeof point.phi === "number"
-                                    ? point.phi.toFixed(1)
-                                    : "-"}
-                                </td>
-                              )}
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                    {dataset.spectrumPoints.length > 1000 && (
-                      <div className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
-                        Showing first 1000 of {dataset.spectrumPoints.length}{" "}
-                        points
-                      </div>
-                    )}
-                  </div>
                 ) : (
                   <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
                     <div className="text-center">
@@ -869,8 +1336,6 @@ export function DatasetContent({
           isLoadingVendors={isLoadingVendors}
         />
       </div>
-
-      {/* Modals */}
       <AddMoleculeModal
         isOpen={showAddMoleculeModal}
         onClose={() => setShowAddMoleculeModal(false)}

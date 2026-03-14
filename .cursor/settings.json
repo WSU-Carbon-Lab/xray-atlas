@@ -8,6 +8,9 @@
     },
     "prisma": {
       "enabled": true
+    },
+    "figma": {
+      "enabled": true
     }
   }
 }

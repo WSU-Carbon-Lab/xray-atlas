@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Tabs, Chip } from "@heroui/react";
+import { useState, useEffect, useCallback } from "react";
+import { Chip } from "@heroui/react";
 import {
   XMarkIcon,
   CheckCircleIcon,
@@ -98,7 +98,7 @@ function DatasetTabContent({
             }
           }}
           onClick={(e) => e.stopPropagation()}
-          className="border-accent focus:ring-accent max-w-full min-w-[80px] rounded border bg-white px-1 text-sm focus:ring-2 focus:outline-none dark:bg-gray-800"
+          className="border-border bg-surface focus:ring-accent max-w-full min-w-[80px] rounded border px-1 text-sm focus:ring-2 focus:outline-none"
           autoFocus
         />
       ) : (
@@ -197,31 +197,58 @@ export function DatasetTabs({
 
   const shouldStretch = datasets.length === 1;
 
+  const handleTabKeyDown = useCallback(
+    (e: React.KeyboardEvent, index: number) => {
+      if (e.key === "ArrowLeft" && index > 0) {
+        e.preventDefault();
+        onDatasetSelect(datasets[index - 1]!.id);
+      } else if (e.key === "ArrowRight" && index < datasets.length - 1) {
+        e.preventDefault();
+        onDatasetSelect(datasets[index + 1]!.id);
+      }
+    },
+    [datasets, onDatasetSelect]
+  );
+
+  const tabListClass =
+    "gap-0 w-full relative rounded-none p-0 border-0 overflow-x-auto flex min-w-0";
+  const tabBaseClass =
+    "border-border flex min-w-0 max-w-[200px] shrink px-4 h-14 border-r relative transition-all outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset";
+  const tabSelectedClass =
+    "bg-default after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-accent";
+
   return (
-    <div className="mb-6 flex items-stretch border-b border-gray-200 dark:border-gray-700">
-      <Tabs
-        selectedKey={activeKey}
-        onSelectionChange={(key) => {
-          if (typeof key === "string") {
-            onDatasetSelect(key);
-          }
-        }}
-        className="flex-1 min-w-0"
-      >
-        <Tabs.ListContainer>
-          <Tabs.List
-            aria-label="Dataset tabs"
-            className="gap-0 w-full relative rounded-none p-0 border-0 overflow-x-auto flex min-w-0"
-          >
-            {datasets.map((dataset, index) => (
-              <Tabs.Tab
+    <div className="border-border mb-6 flex items-stretch border-b">
+      <div className="flex-1 min-w-0">
+        <div
+          role="tablist"
+          aria-label="Dataset tabs"
+          className={tabListClass}
+        >
+          {datasets.map((dataset, index) => {
+            const isSelected = activeKey === dataset.id;
+            return (
+              <div
                 key={dataset.id}
-                id={dataset.id}
-                className={
-                  shouldStretch
-                    ? "flex-1 px-4 h-14 border-r border-gray-200 dark:border-gray-700 shrink-0 relative data-[selected=true]:after:content-[''] data-[selected=true]:after:absolute data-[selected=true]:after:bottom-0 data-[selected=true]:after:left-0 data-[selected=true]:after:right-0 data-[selected=true]:after:h-[2px] data-[selected=true]:after:bg-accent dark:data-[selected=true]:after:bg-accent-light data-[selected=true]:bg-gray-50 dark:data-[selected=true]:bg-gray-800/50 transition-all min-w-0 max-w-[200px]"
-                    : "min-w-0 max-w-[200px] shrink px-4 h-14 border-r border-gray-200 dark:border-gray-700 relative data-[selected=true]:after:content-[''] data-[selected=true]:after:absolute data-[selected=true]:after:bottom-0 data-[selected=true]:after:left-0 data-[selected=true]:after:right-0 data-[selected=true]:after:h-[2px] data-[selected=true]:after:bg-accent dark:data-[selected=true]:after:bg-accent-light data-[selected=true]:bg-gray-50 dark:data-[selected=true]:bg-gray-800/50 transition-all"
-                }
+                role="tab"
+                aria-selected={isSelected}
+                tabIndex={isSelected ? 0 : -1}
+                onClick={() => {
+                  if (dataset.id !== activeDatasetId) {
+                    onDatasetSelect(dataset.id);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    if (dataset.id !== activeDatasetId) {
+                      onDatasetSelect(dataset.id);
+                    }
+                  } else {
+                    handleTabKeyDown(e, index);
+                  }
+                }}
+                className={`${tabBaseClass} ${shouldStretch ? "flex-1" : ""} ${isSelected ? tabSelectedClass : ""} cursor-pointer`}
               >
                 <DatasetTabContent
                   dataset={dataset}
@@ -234,16 +261,11 @@ export function DatasetTabs({
                   onEditValueChange={setEditValue}
                   onRemove={onDatasetRemove}
                 />
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-        </Tabs.ListContainer>
-        {datasets.map((dataset) => (
-          <Tabs.Panel key={dataset.id} id={dataset.id} className="hidden">
-            <></>
-          </Tabs.Panel>
-        ))}
-      </Tabs>
+              </div>
+            );
+          })}
+        </div>
+      </div>
       {onNewDataset && (
         <button
           type="button"
@@ -251,10 +273,10 @@ export function DatasetTabs({
             e.stopPropagation();
             onNewDataset();
           }}
-          className="h-14 px-4 border-l border-gray-200 dark:border-gray-700 shrink-0 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+          className="border-border hover:bg-default h-14 shrink-0 flex items-center gap-2 border-l px-4 transition-colors"
           title="Add new dataset (Cmd+K)"
         >
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">
+          <span className="text-muted whitespace-nowrap text-sm font-medium">
             <span className="hidden sm:inline">+ New Dataset</span>
             <span className="sm:hidden">+</span>
           </span>

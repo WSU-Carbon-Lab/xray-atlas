@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Skeleton } from "@heroui/react";
-import { DefaultButton as Button } from "../ui/button";
 import { GitHubIcon } from "../icons";
 import { StarIcon } from "@heroicons/react/24/solid";
 
 type GitHubStarsLinkProps = {
-  repo?: string; // format: owner/name
+  repo?: string;
 };
 
 export function GitHubStarsLink({
@@ -24,7 +23,7 @@ export function GitHubStarsLink({
           headers: { Accept: "application/vnd.github+json" },
           cache: "force-cache",
           next: {
-            revalidate: 60 * 10, // 10 minutes
+            revalidate: 60 * 10,
           },
         });
         if (!res.ok) {
@@ -36,10 +35,10 @@ export function GitHubStarsLink({
           setStars(
             typeof data.stargazers_count === "number"
               ? data.stargazers_count
-              : 2, // Default to 2 if stars are not returned
+              : 2,
           );
       } catch {
-        if (!cancelled) setStars(2); // Default to 2 on error
+        if (!cancelled) setStars(2);
       }
     }
     void load();
@@ -53,21 +52,25 @@ export function GitHubStarsLink({
   }, [repo]);
 
   return (
-    <Link href={`https://github.com/${repo}`} className="inline-block">
-      <Button>
-        <GitHubIcon className="h-4 w-4 text-gray-700 dark:text-gray-200" />
-        {stars === null ? (
-          <Skeleton className="h-4 w-4 rounded" />
-        ) : (
-          <span
-            aria-label="GitHub stars"
-            className="text-foreground-600 inline-block w-4 text-sm tabular-nums"
-          >
-            {formatCompactStars(stars)}
-          </span>
-        )}
-        <StarIcon className="h-4 w-4 text-gray-700 dark:text-gray-200" />
-      </Button>
+    <Link
+      href={`https://github.com/${repo}`}
+      className="border-border bg-surface text-foreground focus-visible:ring-accent inline-flex h-10 items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="View repository on GitHub"
+    >
+      <GitHubIcon className="h-4 w-4 shrink-0" />
+      {stars === null ? (
+        <Skeleton className="h-4 w-4 rounded" />
+      ) : (
+        <span
+          aria-label="GitHub stars"
+          className="text-foreground inline-block w-4 text-sm tabular-nums"
+        >
+          {formatCompactStars(stars)}
+        </span>
+      )}
+      <StarIcon className="h-4 w-4 shrink-0" />
     </Link>
   );
 }

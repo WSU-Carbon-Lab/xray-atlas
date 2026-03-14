@@ -6,7 +6,6 @@ import { MoleculeSearch } from "@/components/molecules/molecule-search";
 import { MoleculeCard } from "@/components/molecules/molecule-display";
 import { MoleculeGridSkeleton } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
-import { DefaultButton as Button } from "@/components/ui/button";
 import { trpc } from "~/trpc/client";
 import { useRouter } from "next/navigation";
 
@@ -33,8 +32,8 @@ function TopUpvotedMolecules() {
 
   if (!data || data.molecules.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="text-gray-600 dark:text-zinc-400">
+      <div className="border-border bg-surface rounded-xl border p-8 text-center">
+        <p className="text-muted">
           No molecules found in the database.
         </p>
       </div>
@@ -61,13 +60,13 @@ const CONTENT_MAX_WIDTH = "max-w-7xl";
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col">
-      <section className="border-b border-gray-200 from-gray-50 to-white py-16 sm:py-24 dark:border-gray-700 dark:from-gray-900 dark:to-gray-800">
+      <section className="border-border bg-background border-b py-16 sm:py-24">
         <div className={`mx-auto w-full ${CONTENT_MAX_WIDTH} px-4`}>
           <div className="mx-auto max-w-4xl text-center">
-            <h1 className="mb-4 text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl dark:text-gray-100">
+            <h1 className="text-foreground mb-4 text-4xl font-bold sm:text-5xl md:text-6xl">
               X-ray Atlas
             </h1>
-            <p className="mb-8 text-lg text-gray-600 sm:text-xl dark:text-gray-400">
+            <p className="text-muted mb-8 text-lg sm:text-xl">
               Advancing material research through collaborative data.
             </p>
 
@@ -79,17 +78,19 @@ export default function HomePage() {
             </div>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link href="/contribute">
-                <Button variant="primary" className="w-full sm:w-auto">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Contribute
-                </Button>
+              <Link
+                href="/contribute"
+                className="bg-accent text-accent-foreground focus-visible:ring-accent flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:w-auto"
+              >
+                <Upload className="h-4 w-4 shrink-0" />
+                Contribute
               </Link>
-              <Link href="/browse">
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <Search className="mr-2 h-4 w-4" />
-                  Browse Database
-                </Button>
+              <Link
+                href="/browse"
+                className="border-border bg-surface text-foreground focus-visible:ring-accent flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:w-auto"
+              >
+                <Search className="h-4 w-4 shrink-0" />
+                Browse Database
               </Link>
             </div>
           </div>
@@ -98,10 +99,10 @@ export default function HomePage() {
 
       <section className={`mx-auto w-full ${CONTENT_MAX_WIDTH} px-4 py-12`}>
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-gray-100">
+          <h2 className="text-foreground text-2xl font-bold sm:text-3xl">
             Popular Molecules
           </h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
+          <p className="text-muted mt-2">
             Explore our most popular molecules.
           </p>
         </div>
