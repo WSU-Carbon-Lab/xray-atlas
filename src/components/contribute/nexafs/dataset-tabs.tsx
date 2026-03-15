@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Chip } from "@heroui/react";
+import { Chip, Button, Tooltip, Tabs } from "@heroui/react";
 import {
   XMarkIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
 import type { DatasetState } from "~/app/contribute/nexafs/types";
 import { useDatasetStatus } from "./hooks/use-dataset-status";
@@ -128,7 +129,7 @@ function DatasetTabContent({
             onRemove(dataset.id);
           }
         }}
-        className="focus:ring-accent ml-auto shrink-0 cursor-pointer rounded p-1 text-gray-400 opacity-70 transition-opacity hover:text-red-600 hover:opacity-100 focus:ring-2 focus:outline-none"
+        className="text-muted focus-visible:ring-accent ml-auto shrink-0 cursor-pointer rounded p-1 opacity-70 transition-colors hover:text-danger hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
         title="Remove dataset"
       >
         <XMarkIcon className="h-4 w-4" />
@@ -171,7 +172,7 @@ export function DatasetTabs({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
         onNewDataset?.();
         return;
@@ -194,61 +195,43 @@ export function DatasetTabs({
   }
 
   const activeKey = activeDatasetId ?? datasets[0]?.id ?? "";
+  const validKey = datasets.some((d) => d.id === activeKey) ? activeKey : undefined;
 
-  const shouldStretch = datasets.length === 1;
-
-  const handleTabKeyDown = useCallback(
-    (e: React.KeyboardEvent, index: number) => {
-      if (e.key === "ArrowLeft" && index > 0) {
-        e.preventDefault();
-        onDatasetSelect(datasets[index - 1]!.id);
-      } else if (e.key === "ArrowRight" && index < datasets.length - 1) {
-        e.preventDefault();
-        onDatasetSelect(datasets[index + 1]!.id);
+  const handleSelectionChange = useCallback(
+    (key: React.Key) => {
+      const id = key == null ? null : String(key);
+      if (id && datasets.some((d) => d.id === id)) {
+        queueMicrotask(() => onDatasetSelect(id));
       }
     },
     [datasets, onDatasetSelect]
   );
 
-  const tabListClass =
-    "gap-0 w-full relative rounded-none p-0 border-0 overflow-x-auto flex min-w-0";
-  const tabBaseClass =
-    "border-border flex min-w-0 max-w-[200px] shrink px-4 h-14 border-r relative transition-all outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset";
-  const tabSelectedClass =
-    "bg-default after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-accent";
+  const shouldStretch = datasets.length === 1;
 
   return (
-    <div className="border-border mb-6 flex items-stretch border-b">
-      <div className="flex-1 min-w-0">
-        <div
-          role="tablist"
-          aria-label="Dataset tabs"
-          className={tabListClass}
-        >
-          {datasets.map((dataset, index) => {
-            const isSelected = activeKey === dataset.id;
-            return (
-              <div
+    <div className="border-border bg-surface/50 mb-6 flex items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 shadow-sm">
+      <Tabs
+        selectedKey={validKey}
+        onSelectionChange={handleSelectionChange}
+        className="min-w-0 flex-1"
+      >
+        <Tabs.ListContainer className="w-full">
+          <Tabs.List
+            aria-label="Dataset tabs"
+            className="bg-surface-2 flex h-12 min-w-0 gap-1 overflow-x-auto rounded-full p-1.5 [&_.tabs__list]:flex [&_.tabs__list]:min-w-0 [&_.tabs__list]:flex-1 [&_.tabs__list]:gap-1 [&_.tabs__list]:rounded-full"
+          >
+            {datasets.map((dataset, index) => (
+              <Tabs.Tab
                 key={dataset.id}
-                role="tab"
-                aria-selected={isSelected}
-                tabIndex={isSelected ? 0 : -1}
-                onClick={() => {
-                  if (dataset.id !== activeDatasetId) {
-                    onDatasetSelect(dataset.id);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    if (dataset.id !== activeDatasetId) {
-                      onDatasetSelect(dataset.id);
-                    }
-                  } else {
-                    handleTabKeyDown(e, index);
-                  }
-                }}
-                className={`${tabBaseClass} ${shouldStretch ? "flex-1" : ""} ${isSelected ? tabSelectedClass : ""} cursor-pointer`}
+                id={dataset.id}
+                className={`
+                  text-secondary flex h-9 min-w-0 max-w-[220px] shrink cursor-pointer items-center rounded-full px-4 transition-colors
+                  data-[selected=true]:bg-surface-3 data-[selected=true]:text-foreground
+                  data-[selected=true]:ring-2 data-[selected=true]:ring-inset data-[selected=true]:ring-accent/40
+                  data-[hovered=true]:text-foreground data-[hovered=true]:data-[selected=false]:bg-surface-3/50
+                  ${shouldStretch ? "flex-1" : ""}
+                `}
               >
                 <DatasetTabContent
                   dataset={dataset}
@@ -261,26 +244,34 @@ export function DatasetTabs({
                   onEditValueChange={setEditValue}
                   onRemove={onDatasetRemove}
                 />
-              </div>
-            );
-          })}
-        </div>
-      </div>
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs.ListContainer>
+      </Tabs>
       {onNewDataset && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onNewDataset();
-          }}
-          className="border-border hover:bg-default h-14 shrink-0 flex items-center gap-2 border-l px-4 transition-colors"
-          title="Add new dataset (Cmd+K)"
-        >
-          <span className="text-muted whitespace-nowrap text-sm font-medium">
-            <span className="hidden sm:inline">+ New Dataset</span>
-            <span className="sm:hidden">+</span>
-          </span>
-        </button>
+        <Tooltip delay={0}>
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            onPress={() => onNewDataset()}
+            className="h-11 shrink-0 gap-2 rounded-lg px-4 font-medium focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label="Add new dataset (Cmd+N)"
+          >
+            <PlusIcon className="h-5 w-5 shrink-0" />
+            <span className="whitespace-nowrap">
+              <span className="hidden sm:inline">New Dataset</span>
+              <span className="sm:hidden">New</span>
+            </span>
+            <kbd className="text-accent-foreground/90 ml-1 hidden rounded border border-current/40 px-1.5 py-0.5 font-sans text-[10px] font-medium sm:inline" aria-hidden>
+              ⌘N
+            </kbd>
+          </Button>
+          <Tooltip.Content className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg">
+            Add a new dataset tab (⌘N)
+          </Tooltip.Content>
+        </Tooltip>
       )}
     </div>
   );

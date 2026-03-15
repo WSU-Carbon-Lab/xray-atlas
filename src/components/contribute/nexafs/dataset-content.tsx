@@ -5,10 +5,12 @@ import { skipToken } from "@tanstack/react-query";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import {
   ChevronDown,
+  ClipboardPaste,
   Columns3,
   Copy,
   PanelLeftClose,
   PanelLeftOpen,
+  Trash2,
 } from "lucide-react";
 import {
   Table,
@@ -57,6 +59,8 @@ import type { DatasetState, PeakData } from "~/app/contribute/nexafs/types";
 import type { DifferenceSpectrum } from "~/app/contribute/nexafs/utils/differenceSpectra";
 import type { CursorMode } from "~/components/plots/visx/CursorModeSelector";
 import { showToast } from "~/components/ui/toast";
+import { SimpleDialog } from "~/components/ui/dialog";
+import { DefaultButton as DialogButton } from "~/components/ui/button";
 
 type SpectrumPoint = DatasetState["spectrumPoints"][number];
 
@@ -74,6 +78,65 @@ function spectrumRowsToCsv(rows: SpectrumPoint[]): string {
       ].map(escape).join(","),
   );
   return [header, ...lines].join("\n");
+}
+
+function parsePastedSpectrumText(
+  text: string,
+): { points: SpectrumPoint[]; error?: string } {
+  const trimmed = text.trim();
+  if (!trimmed) return { points: [], error: "Empty input" };
+  const lines = trimmed.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length === 0) return { points: [], error: "No rows" };
+  const sep = trimmed.includes("\t") ? "\t" : ",";
+  const firstRow = lines[0]!.split(sep).map((c) => c.trim().toLowerCase());
+  const hasHeader =
+    firstRow.some((c) => c.includes("energy") || c === "ev") ||
+    firstRow.some((c) => c.includes("mu") || c.includes("absorption") || c === "abs") ||
+    firstRow.some((c) => c.includes("theta")) ||
+    firstRow.some((c) => c.includes("phi"));
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  const parseNum = (s: string): number => parseFloat(String(s).trim());
+  const points: SpectrumPoint[] = [];
+  let energyIdx = 0;
+  let absorptionIdx = 1;
+  let thetaIdx = -1;
+  let phiIdx = -1;
+  if (hasHeader && lines[0]) {
+    const headers = lines[0].split(sep).map((c) => c.trim().toLowerCase());
+    energyIdx = headers.findIndex(
+      (h) => h.includes("energy") || h === "ev" || h === "energy (ev)",
+    );
+    if (energyIdx < 0) energyIdx = 0;
+    absorptionIdx = headers.findIndex(
+      (h) =>
+        h === "mu" ||
+        h.includes("absorption") ||
+        h === "abs" ||
+        h.includes("intensity"),
+    );
+    if (absorptionIdx < 0) absorptionIdx = 1;
+    thetaIdx = headers.findIndex((h) => h.includes("theta"));
+    phiIdx = headers.findIndex((h) => h.includes("phi"));
+  }
+  for (const line of dataLines) {
+    const cells = line.split(sep).map((c) => c.trim());
+    const energy = parseNum(cells[energyIdx] ?? "NaN");
+    const absorption = parseNum(cells[absorptionIdx] ?? "NaN");
+    if (!Number.isFinite(energy) || !Number.isFinite(absorption)) continue;
+    const point: SpectrumPoint = { energy, absorption };
+    if (thetaIdx >= 0 && cells[thetaIdx]) {
+      const t = parseNum(cells[thetaIdx]!);
+      if (Number.isFinite(t)) point.theta = t;
+    }
+    if (phiIdx >= 0 && cells[phiIdx]) {
+      const p = parseNum(cells[phiIdx]!);
+      if (Number.isFinite(p)) point.phi = p;
+    }
+    points.push(point);
+  }
+  if (points.length === 0)
+    return { points: [], error: "No valid rows (need numeric energy and mu/absorption)" };
+  return { points };
 }
 
 type SortColumn = "energy" | "absorption" | "theta" | "phi";
@@ -132,6 +195,11 @@ interface GeometrySpectrumTableBlockProps {
   phiColorByValue: Map<number, ThetaPhiChipColor>;
   tableClassNames: { table: string };
   onCopyCsv: (rows: SpectrumPoint[]) => void;
+  editMode?: boolean;
+  onReplacePoint?: (
+    oldPoint: SpectrumPoint,
+    newPoint: SpectrumPoint,
+  ) => void;
 }
 
 function GeometrySpectrumTableBlock({
@@ -150,6 +218,8 @@ function GeometrySpectrumTableBlock({
   phiColorByValue,
   tableClassNames,
   onCopyCsv,
+  editMode = false,
+  onReplacePoint,
 }: GeometrySpectrumTableBlockProps) {
   const pageIndex = groupPage[keyStr] ?? 0;
   const totalPages = Math.max(
@@ -252,6 +322,13 @@ function GeometrySpectrumTableBlock({
                   key={`${point.energy}-${index}-${String(point.theta)}-${String(point.phi)}`}
                 >
                   {visibleColumnList.map((col) => {
+                    const canEdit =
+                      editMode &&
+                      onReplacePoint &&
+                      (col.id === "energy" ||
+                        col.id === "mu" ||
+                        col.id === "theta" ||
+                        col.id === "phi");
                     switch (col.id) {
                       case "energy":
                         return (
@@ -259,7 +336,24 @@ function GeometrySpectrumTableBlock({
                             key={col.id}
                             className="text-right text-[var(--text-primary)]"
                           >
-                            {point.energy.toFixed(2)}
+                            {canEdit ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                defaultValue={point.energy}
+                                onBlur={(e) => {
+                                  const v = parseFloat(e.target.value);
+                                  if (Number.isFinite(v))
+                                    onReplacePoint(point, {
+                                      ...point,
+                                      energy: v,
+                                    });
+                                }}
+                                className="w-20 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
+                              />
+                            ) : (
+                              point.energy.toFixed(2)
+                            )}
                           </TableCell>
                         );
                       case "mu":
@@ -268,53 +362,119 @@ function GeometrySpectrumTableBlock({
                             key={col.id}
                             className="text-right text-[var(--text-primary)]"
                           >
-                            {point.absorption.toExponential(3)}
+                            {canEdit ? (
+                              <input
+                                type="number"
+                                step="any"
+                                defaultValue={point.absorption}
+                                onBlur={(e) => {
+                                  const v = parseFloat(e.target.value);
+                                  if (Number.isFinite(v))
+                                    onReplacePoint(point, {
+                                      ...point,
+                                      absorption: v,
+                                    });
+                                }}
+                                className="w-24 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
+                              />
+                            ) : (
+                              point.absorption.toExponential(3)
+                            )}
                           </TableCell>
                         );
                       case "theta":
                         return (
                           <TableCell key={col.id} className="text-right">
-                            <span className="flex justify-end">
-                              {hasTheta &&
-                              typeof point.theta === "number" ? (
-                                <Chip
-                                  color={
-                                    thetaColorByValue.get(point.theta) ??
-                                    "accent"
-                                  }
-                                  size="sm"
-                                  variant="soft"
-                                >
-                                  {point.theta.toFixed(1)}
-                                </Chip>
-                              ) : (
-                                <span className="text-[var(--text-tertiary)]">
-                                  —
-                                </span>
-                              )}
-                            </span>
+                            {canEdit ? (
+                              <input
+                                type="number"
+                                step="0.1"
+                                defaultValue={
+                                  typeof point.theta === "number"
+                                    ? point.theta
+                                    : ""
+                                }
+                                onBlur={(e) => {
+                                  const s = e.target.value.trim();
+                                  const v = s === "" ? undefined : parseFloat(s);
+                                  onReplacePoint(point, {
+                                    ...point,
+                                    theta:
+                                      v !== undefined && Number.isFinite(v)
+                                        ? v
+                                        : undefined,
+                                  });
+                                }}
+                                className="w-16 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
+                              />
+                            ) : (
+                              <span className="flex justify-end">
+                                {hasTheta &&
+                                typeof point.theta === "number" ? (
+                                  <Chip
+                                    color={
+                                      thetaColorByValue.get(point.theta) ??
+                                      "accent"
+                                    }
+                                    size="sm"
+                                    variant="soft"
+                                  >
+                                    {point.theta.toFixed(1)}
+                                  </Chip>
+                                ) : (
+                                  <span className="text-[var(--text-tertiary)]">
+                                    —
+                                  </span>
+                                )}
+                              </span>
+                            )}
                           </TableCell>
                         );
                       case "phi":
                         return (
                           <TableCell key={col.id} className="text-right">
-                            <span className="flex justify-end">
-                              {hasPhi && typeof point.phi === "number" ? (
-                                <Chip
-                                  color={
-                                    phiColorByValue.get(point.phi) ?? "accent"
-                                  }
-                                  size="sm"
-                                  variant="soft"
-                                >
-                                  {point.phi.toFixed(1)}
-                                </Chip>
-                              ) : (
-                                <span className="text-[var(--text-tertiary)]">
-                                  —
-                                </span>
-                              )}
-                            </span>
+                            {canEdit ? (
+                              <input
+                                type="number"
+                                step="0.1"
+                                defaultValue={
+                                  typeof point.phi === "number"
+                                    ? point.phi
+                                    : ""
+                                }
+                                onBlur={(e) => {
+                                  const s = e.target.value.trim();
+                                  const v = s === "" ? undefined : parseFloat(s);
+                                  onReplacePoint(point, {
+                                    ...point,
+                                    phi:
+                                      v !== undefined && Number.isFinite(v)
+                                        ? v
+                                        : undefined,
+                                  });
+                                }}
+                                className="w-16 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
+                              />
+                            ) : (
+                              <span className="flex justify-end">
+                                {hasPhi && typeof point.phi === "number" ? (
+                                  <Chip
+                                    color={
+                                      phiColorByValue.get(point.phi) ??
+                                      "accent"
+                                    }
+                                    size="sm"
+                                    variant="soft"
+                                  >
+                                    {point.phi.toFixed(1)}
+                                  </Chip>
+                                ) : (
+                                  <span className="text-[var(--text-tertiary)]">
+                                    —
+                                  </span>
+                                )}
+                              </span>
+                            )}
                           </TableCell>
                         );
                     }
@@ -357,12 +517,24 @@ interface DatasetSpectrumTableProps {
   points: SpectrumPoint[];
   uniqueThetaValues: number[];
   uniquePhiValues: number[];
+  editMode?: boolean;
+  onDeleteGeometry?: (
+    theta: number | undefined,
+    phi: number | undefined,
+    pointCount: number,
+  ) => void;
+  onPasteGeometries?: () => void;
+  onReplacePoint?: (oldPoint: SpectrumPoint, newPoint: SpectrumPoint) => void;
 }
 
 function DatasetSpectrumTable({
   points,
   uniqueThetaValues,
   uniquePhiValues,
+  editMode = false,
+  onDeleteGeometry,
+  onPasteGeometries,
+  onReplacePoint,
 }: DatasetSpectrumTableProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>("energy");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -551,9 +723,38 @@ function DatasetSpectrumTable({
                         {energyRangeStr}
                       </span>
                     </span>
-                    <Accordion.Indicator>
-                      <ChevronDown className="size-4" />
-                    </Accordion.Indicator>
+                    <span className="flex shrink-0 items-center gap-2">
+                      {onDeleteGeometry && (
+                        <Tooltip delay={0}>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onDeleteGeometry(theta, phi, rows.length);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onDeleteGeometry(theta, phi, rows.length);
+                              }
+                            }}
+                            className="flex items-center justify-center rounded-lg p-2 text-[var(--text-tertiary)] transition-colors hover:bg-red-100 hover:text-red-700 dark:hover:bg-red-900/30 dark:hover:text-red-400 cursor-pointer"
+                            aria-label="Remove this geometry"
+                          >
+                            <Trash2 className="size-4" />
+                          </span>
+                          <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                            Remove this geometry ({rows.length} points)
+                          </Tooltip.Content>
+                        </Tooltip>
+                      )}
+                      <Accordion.Indicator>
+                        <ChevronDown className="size-4" />
+                      </Accordion.Indicator>
+                    </span>
                   </Accordion.Trigger>
                 </Accordion.Heading>
                 <Accordion.Panel>
@@ -574,6 +775,13 @@ function DatasetSpectrumTable({
                       phiColorByValue={phiColorByValue}
                       tableClassNames={tableClassNames}
                       onCopyCsv={handleCopyCsv}
+                      editMode={editMode}
+                      onReplacePoint={
+                        onReplacePoint
+                          ? (oldPoint, newPoint) =>
+                              onReplacePoint(oldPoint, newPoint)
+                          : undefined
+                      }
                     />
                   </Accordion.Body>
                 </Accordion.Panel>
@@ -582,6 +790,24 @@ function DatasetSpectrumTable({
           },
         )}
       </Accordion>
+      {onPasteGeometries && (
+        <div className="mt-4 flex items-center justify-end border-t border-[var(--border-default)] pt-3">
+          <Tooltip delay={0}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={onPasteGeometries}
+              className="gap-2"
+            >
+              <ClipboardPaste className="size-4" />
+              Add geometry
+            </Button>
+            <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+              Add geometry from CSV or tab-separated data (Energy, mu, theta, phi) from clipboard
+            </Tooltip.Content>
+          </Tooltip>
+        </div>
+      )}
     </div>
   );
 }
@@ -636,6 +862,88 @@ export function DatasetContent({
   const [selectedAnalysisTool, setSelectedAnalysisTool] =
     useState<AnalysisToolId>("config");
   const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
+  const [geometryEditMode, setGeometryEditMode] = useState(false);
+  const [deleteConfirmGeometry, setDeleteConfirmGeometry] = useState<{
+    theta: number | undefined;
+    phi: number | undefined;
+    pointCount: number;
+  } | null>(null);
+  const [pasteDialogOpen, setPasteDialogOpen] = useState(false);
+  const [pasteDialogText, setPasteDialogText] = useState("");
+
+  const handleDeleteGeometry = useCallback(
+    (theta: number | undefined, phi: number | undefined, pointCount: number) => {
+      setDeleteConfirmGeometry({ theta, phi, pointCount });
+    },
+    [],
+  );
+
+  const confirmDeleteGeometry = useCallback(() => {
+    if (!deleteConfirmGeometry) return;
+    const { theta, phi } = deleteConfirmGeometry;
+    const next = dataset.spectrumPoints.filter((p) => {
+      const matchTheta =
+        theta === undefined
+          ? typeof p.theta !== "number"
+          : typeof p.theta === "number" && p.theta === theta;
+      const matchPhi =
+        phi === undefined
+          ? typeof p.phi !== "number"
+          : typeof p.phi === "number" && p.phi === phi;
+      return !(matchTheta && matchPhi);
+    });
+    onDatasetUpdate(dataset.id, { spectrumPoints: next });
+    showToast("Geometry removed", "success");
+    setDeleteConfirmGeometry(null);
+  }, [deleteConfirmGeometry, dataset.id, dataset.spectrumPoints, onDatasetUpdate]);
+
+  const handlePasteGeometries = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const result = parsePastedSpectrumText(text);
+      if (result.error) {
+        setPasteDialogText(text);
+        setPasteDialogOpen(true);
+        return;
+      }
+      const next = [...dataset.spectrumPoints, ...result.points];
+      onDatasetUpdate(dataset.id, { spectrumPoints: next });
+      showToast(`Added ${result.points.length} points`, "success");
+    } catch {
+      setPasteDialogText("");
+      setPasteDialogOpen(true);
+    }
+  }, [dataset.id, dataset.spectrumPoints, onDatasetUpdate]);
+
+  const handlePasteFromDialog = useCallback(() => {
+    const result = parsePastedSpectrumText(pasteDialogText);
+    if (result.error) {
+      showToast(result.error, "error");
+      return;
+    }
+    const next = [...dataset.spectrumPoints, ...result.points];
+    onDatasetUpdate(dataset.id, { spectrumPoints: next });
+    showToast(`Added ${result.points.length} points`, "success");
+    setPasteDialogOpen(false);
+    setPasteDialogText("");
+  }, [pasteDialogText, dataset.id, dataset.spectrumPoints, onDatasetUpdate]);
+
+  const handleReplacePoint = useCallback(
+    (oldPoint: SpectrumPoint, newPoint: SpectrumPoint) => {
+      const idx = dataset.spectrumPoints.findIndex(
+        (p) =>
+          p.energy === oldPoint.energy &&
+          p.absorption === oldPoint.absorption &&
+          (p.theta ?? undefined) === (oldPoint.theta ?? undefined) &&
+          (p.phi ?? undefined) === (oldPoint.phi ?? undefined),
+      );
+      if (idx < 0) return;
+      const next = [...dataset.spectrumPoints];
+      next[idx] = newPoint;
+      onDatasetUpdate(dataset.id, { spectrumPoints: next });
+    },
+    [dataset.id, dataset.spectrumPoints, onDatasetUpdate],
+  );
 
   // Molecule search hook - per dataset
   const {
@@ -971,7 +1279,7 @@ export function DatasetContent({
               <button
                 type="button"
                 onClick={() => setAnalysisPanelOpen(!analysisPanelOpen)}
-                className="flex h-8 items-center justify-center rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-all bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                className="border-border bg-surface text-foreground flex h-8 items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-default"
                 aria-label={analysisPanelOpen ? "Close analysis toolbar" : "Open analysis toolbar"}
               >
                 {analysisPanelOpen ? (
@@ -980,7 +1288,7 @@ export function DatasetContent({
                   <PanelLeftOpen className="h-4 w-4" />
                 )}
               </button>
-              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+              <Tooltip.Content className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg">
                 Toggles the analysis toolbar
               </Tooltip.Content>
             </Tooltip>
@@ -991,6 +1299,9 @@ export function DatasetContent({
               graphStyle={graphStyle}
               onModeChange={setVisualizationMode}
               onGraphStyleChange={setGraphStyle}
+              showEditButton={visualizationMode === "table"}
+              editMode={geometryEditMode}
+              onEditModeChange={setGeometryEditMode}
             />
           </div>
         </div>
@@ -1104,7 +1415,7 @@ export function DatasetContent({
 
           <div className="flex min-h-0 flex-1 flex-col">
             <div
-              className={`rounded-lg border border-[var(--border-default)] bg-[var(--surface-1)] p-6 shadow-sm ${
+              className={`border-border bg-surface rounded-lg border p-6 shadow-sm ${
                 visualizationMode === "table"
                   ? "flex flex-col"
                   : "min-h-[600px] flex-1"
@@ -1200,6 +1511,10 @@ export function DatasetContent({
                     points={plotPoints}
                     uniqueThetaValues={tableUniqueThetaValues}
                     uniquePhiValues={tableUniquePhiValues}
+                    editMode={geometryEditMode}
+                    onDeleteGeometry={handleDeleteGeometry}
+                    onPasteGeometries={handlePasteGeometries}
+                    onReplacePoint={handleReplacePoint}
                   />
                 ) : (
                   <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
@@ -1346,6 +1661,82 @@ export function DatasetContent({
         onClose={() => setShowAddFacilityModal(false)}
         onFacilityCreated={handleFacilityCreated}
       />
+
+      <SimpleDialog
+        isOpen={!!deleteConfirmGeometry}
+        onClose={() => setDeleteConfirmGeometry(null)}
+        title="Remove geometry?"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {deleteConfirmGeometry
+              ? `This will remove ${deleteConfirmGeometry.pointCount.toLocaleString()} point(s) for this geometry. This cannot be undone.`
+              : ""}
+          </p>
+          <div className="flex justify-end gap-2">
+            <DialogButton
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteConfirmGeometry(null)}
+            >
+              Cancel
+            </DialogButton>
+            <DialogButton
+              type="button"
+              variant="primary"
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                confirmDeleteGeometry();
+              }}
+            >
+              Remove
+            </DialogButton>
+          </div>
+        </div>
+      </SimpleDialog>
+
+      <SimpleDialog
+        isOpen={pasteDialogOpen}
+        onClose={() => {
+          setPasteDialogOpen(false);
+          setPasteDialogText("");
+        }}
+        title="Add geometry"
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            Add geometry from CSV or tab-separated data with columns: Energy (eV), mu, optional theta, optional phi. First row may be a header.
+          </p>
+          <textarea
+            value={pasteDialogText}
+            onChange={(e) => setPasteDialogText(e.target.value)}
+            placeholder="Energy (eV),mu,theta,phi&#10;285.0,0.5,30,0&#10;..."
+            rows={8}
+            className="w-full rounded-lg border border-border bg-field-background px-3 py-2 font-mono text-sm text-field-foreground placeholder:text-field-placeholder"
+            aria-label="Add geometry data"
+          />
+          <div className="flex justify-end gap-2">
+            <DialogButton
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setPasteDialogOpen(false);
+                setPasteDialogText("");
+              }}
+            >
+              Cancel
+            </DialogButton>
+            <DialogButton
+              type="button"
+              variant="primary"
+              onClick={handlePasteFromDialog}
+            >
+              Add points
+            </DialogButton>
+          </div>
+        </div>
+      </SimpleDialog>
     </div>
   );
 }

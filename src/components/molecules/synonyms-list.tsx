@@ -181,7 +181,7 @@ export const SynonymTagGroup = ({
 };
 
 const inputClass =
-  "w-full rounded-xl border border-zinc-300 bg-zinc-50/80 px-4 py-2.5 text-zinc-900 placeholder:text-zinc-500 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20 focus-visible:ring-offset-0 dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-100 dark:placeholder:text-zinc-400";
+  "border-border bg-field-background text-field-foreground placeholder:text-muted focus-visible:border-accent focus-visible:ring-accent-soft-hover h-11 w-full min-w-0 rounded-xl border px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0";
 
 export interface SynonymTagGroupEditableProps extends Omit<
   React.ComponentProps<typeof TagGroup>,
@@ -238,13 +238,13 @@ export function SynonymTagGroupEditable({
       >
         {description ? (
           <div className="mb-1.5 flex items-center gap-1">
-            <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <Label className="text-foreground text-sm font-medium">
               {label}
             </Label>
             {description}
           </div>
         ) : (
-          <Label className="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+          <Label className="text-foreground mb-1.5 text-sm font-medium">
             {label}
           </Label>
         )}
@@ -265,7 +265,7 @@ export function SynonymTagGroupEditable({
               <span className="min-w-0 truncate">{item.name}</span>
               {allowRemove && (
                 <Tag.RemoveButton
-                  className="focus-visible:ring-accent ml-1 rounded-md bg-slate-200/80 p-0.5 text-slate-600 transition-colors hover:bg-slate-300 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:bg-slate-600/80 dark:text-slate-300 dark:hover:bg-slate-500 dark:hover:text-slate-100"
+                  className="text-muted hover:text-foreground focus-visible:ring-accent ml-1 rounded-md bg-surface-secondary p-0.5 transition-colors hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                   aria-label={`Remove ${item.name}`}
                 >
                   <X className="h-3 w-3" aria-hidden />
@@ -289,7 +289,7 @@ export function SynonymTagGroupEditable({
           type="button"
           onPress={addSynonym}
           isDisabled={!newSynonym.trim()}
-          className="shrink-0 rounded-xl whitespace-nowrap"
+          className="h-11 shrink-0 rounded-xl px-4 whitespace-nowrap"
           aria-label="Add synonym"
         >
           Add

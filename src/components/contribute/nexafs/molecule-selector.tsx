@@ -8,7 +8,7 @@ import {
   LockClosedIcon,
   LockOpenIcon,
 } from "@heroicons/react/24/outline";
-import { Button } from "@heroui/react";
+import { Button, Label, Input } from "@heroui/react";
 import { SimpleDialog } from "~/components/ui/dialog";
 import {
   MoleculeDisplayCompact,
@@ -74,17 +74,17 @@ export function MoleculeSelector({
   // If molecule is selected and not searching, show compact view
   if (selectedMolecule && !showSearch && (searchTerm.length === 0 || searchTerm === selectedPreferredName || searchTerm === selectedMolecule.commonName)) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+      <div className="border-border bg-surface rounded-lg border p-3">
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={() => setShowDetailsModal(true)}
             className="flex flex-1 flex-col text-left hover:opacity-80"
           >
-            <span className="font-medium text-gray-900 dark:text-gray-100">
+            <span className="text-foreground font-medium">
               {selectedPreferredName || selectedMolecule.commonName}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-muted text-xs">
               {selectedMolecule.chemicalFormula || "No formula"} •{" "}
               {selectedMolecule.casNumber
                 ? `CAS ${selectedMolecule.casNumber}`
@@ -92,11 +92,11 @@ export function MoleculeSelector({
             </span>
           </button>
           <div className="flex items-center gap-2">
-            <CheckCircleIcon className="h-5 w-5 text-green-500" />
+            <CheckCircleIcon className="text-success h-5 w-5" />
             <button
               type="button"
               onClick={onToggleLock}
-              className="rounded p-1 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+              className="text-muted hover:bg-default rounded p-1"
               title={moleculeLocked ? "Unlock molecule" : "Lock molecule"}
               aria-label={moleculeLocked ? "Unlock molecule" : "Lock molecule"}
             >
@@ -153,50 +153,49 @@ export function MoleculeSelector({
     );
   }
 
-  // Show search interface
   return (
     <div className="space-y-3">
-      <label
-        htmlFor="molecule-search"
-        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-      >
+      <Label className="text-foreground block text-sm font-medium">
         Select Molecule
-      </label>
+      </Label>
       <div className="space-y-2">
-        <div className="relative flex-1">
-          <input
-            id="molecule-search"
+        <div className="relative flex items-center gap-2">
+          <div className="text-muted pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+            <MagnifyingGlassIcon className="h-4 w-4" />
+          </div>
+          <Input
+            type="text"
             value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by name, synonym, CAS, or PubChem CID"
-            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 pr-28 pl-10 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            variant="secondary"
+            className="min-w-0 flex-1 pl-10 pr-24"
+            autoComplete="off"
+            aria-label="Search molecule by name, synonym, CAS, or PubChem CID"
           />
-          <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <button
+          <Button
             type="button"
-            onClick={onManualSearch}
-            className="hover:border-accent hover:text-accent dark:hover:text-accent-light absolute top-1/2 right-3 -translate-y-1/2 rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 transition dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            variant="secondary"
+            size="sm"
+            onPress={onManualSearch}
+            className="absolute right-2 top-1/2 -translate-y-1/2 shrink-0"
           >
             Search
-          </button>
+          </Button>
         </div>
         {suggestionError && (
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {suggestionError}
-          </p>
+          <p className="text-muted text-xs">{suggestionError}</p>
         )}
       </div>
 
       <div className="space-y-3">
         {isSuggesting && (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Updating suggestions…
-          </p>
+          <p className="text-muted text-sm">Updating suggestions…</p>
         )}
 
         {suggestions.length > 0 && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
-            <p className="mb-3 text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">
+          <div className="border-border bg-surface rounded-lg border p-4">
+            <p className="text-muted mb-3 text-xs font-semibold uppercase">
               Suggestions
             </p>
             <div className="space-y-2">
@@ -211,12 +210,12 @@ export function MoleculeSelector({
                     }
                   }}
                   disabled={moleculeLocked}
-                  className="hover:border-accent flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-800"
+                  className="hover:border-accent flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition hover:bg-default disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                  <span className="text-foreground font-medium">
                     {suggestion.commonName}
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <span className="text-muted text-xs">
                     {suggestion.chemicalFormula || "No formula"} •{" "}
                     {suggestion.casNumber
                       ? `CAS ${suggestion.casNumber}`
@@ -229,15 +228,13 @@ export function MoleculeSelector({
         )}
 
         {manualResults.length > 0 && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/40 dark:bg-blue-900/10">
+          <div className="border-accent/50 bg-accent/10 rounded-lg border p-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-semibold text-blue-700 uppercase dark:text-blue-200">
+              <p className="text-foreground text-xs font-semibold uppercase">
                 Search results
               </p>
               {isManualSearching && (
-                <span className="text-xs text-blue-600 dark:text-blue-300">
-                  Refreshing…
-                </span>
+                <span className="text-muted text-xs">Refreshing…</span>
               )}
             </div>
             <div className="space-y-2">
@@ -252,12 +249,12 @@ export function MoleculeSelector({
                     }
                   }}
                   disabled={moleculeLocked}
-                  className="flex w-full flex-col rounded-lg border border-transparent bg-white/80 px-3 py-2 text-left transition hover:border-blue-400 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-900/20"
+                  className="hover:border-accent flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition hover:bg-default disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                  <span className="text-foreground font-medium">
                     {result.commonName}
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-300">
+                  <span className="text-muted text-xs">
                     {result.iupacName}
                   </span>
                 </button>
@@ -267,18 +264,16 @@ export function MoleculeSelector({
         )}
 
         {manualError && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {manualError}
-          </p>
+          <p className="text-danger text-sm">{manualError}</p>
         )}
 
         {suggestions.length === 0 &&
           manualResults.length === 0 &&
           !isSuggesting &&
           searchTerm.length >= 2 && (
-            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-600 dark:border-gray-600 dark:text-gray-300">
+            <div className="border-border text-muted rounded-lg border border-dashed p-4 text-center text-sm">
               <p className="mb-2">No molecules found matching &quot;{searchTerm}&quot;</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs">
                 Try a different search term or add a new molecule
               </p>
             </div>

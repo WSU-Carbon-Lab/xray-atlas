@@ -22,7 +22,14 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
-import { Input, Tooltip, Slider, ScrollShadow } from "@heroui/react";
+import {
+  Input,
+  Label,
+  Tooltip,
+  Slider,
+  ScrollShadow,
+  Button as HeroButton,
+} from "@heroui/react";
 import { DefaultButton as Button } from "~/components/ui/button";
 import { SubToolButton } from "./sub-tool-button";
 import { ToggleIconButton } from "~/components/ui/toggle-icon-button";
@@ -61,6 +68,11 @@ const TRANSITION_OPTIONS = [
   { value: "Other", label: "Other" },
 ];
 
+const FORM_LABEL_CLASS =
+  "text-foreground mb-1 block text-xs font-medium";
+const FORM_SELECT_CLASS =
+  "border-border bg-field-background text-field-foreground focus:border-accent focus:ring-accent-soft-hover w-full rounded-lg border px-3 py-2 text-xs focus:outline-none focus:ring-2";
+
 export type AnalysisToolId =
   | "config"
   | "normalize"
@@ -76,23 +88,17 @@ export function AnalysisToolbarStrip({
   selectedTool,
   onToolSelect,
 }: AnalysisToolbarStripProps) {
-  const buttonClass = (active: boolean) =>
-    `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors ${
-      active
-        ? "border-accent bg-gray-100 dark:bg-gray-700"
-        : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-    }`;
+  const sizeClass =
+    "flex h-9 w-9 shrink-0 items-center justify-center";
 
   return (
     <div className="flex items-center gap-2">
       <ToggleIconButton
-        icon={
-          <Cog6ToothIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-        }
+        icon={<Cog6ToothIcon className="h-5 w-5" />}
         isActive={selectedTool === "config"}
         onClick={() => onToolSelect("config")}
         ariaLabel="Configuration"
-        className={buttonClass(selectedTool === "config")}
+        className={sizeClass}
         tooltip={{
           content: "Configure molecule, instrument, and edge",
           placement: "bottom",
@@ -100,13 +106,11 @@ export function AnalysisToolbarStrip({
         }}
       />
       <ToggleIconButton
-        icon={
-          <Square3Stack3DIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-        }
+        icon={<Square3Stack3DIcon className="h-5 w-5" />}
         isActive={selectedTool === "normalize"}
         onClick={() => onToolSelect("normalize")}
         ariaLabel="Normalize spectrum"
-        className={buttonClass(selectedTool === "normalize")}
+        className={sizeClass}
         tooltip={{
           content:
             "Normalize spectrum using bare atom absorption or 0-1 mapping",
@@ -115,13 +119,11 @@ export function AnalysisToolbarStrip({
         }}
       />
       <ToggleIconButton
-        icon={
-          <Mountain className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-        }
+        icon={<Mountain className="h-5 w-5" />}
         isActive={selectedTool === "peaks"}
         onClick={() => onToolSelect("peaks")}
         ariaLabel="Identify peaks"
-        className={buttonClass(selectedTool === "peaks")}
+        className={sizeClass}
         tooltip={{
           content:
             "Identify peaks in spectrum using automatic detection or manual entry",
@@ -134,7 +136,7 @@ export function AnalysisToolbarStrip({
         isActive={selectedTool === "difference"}
         onClick={() => onToolSelect("difference")}
         ariaLabel="Difference spectra"
-        className={buttonClass(selectedTool === "difference")}
+        className={sizeClass}
         tooltip={{
           content:
             "Calculate difference spectra for pairs of incident angles",
@@ -1031,7 +1033,7 @@ export function AnalysisToolbar({
 
   return (
     <div
-      className={`shrink-0 self-stretch rounded-lg border border-gray-200 bg-white transition-all dark:border-gray-700 dark:bg-gray-800 ${
+      className={`border-border bg-surface shrink-0 self-stretch rounded-lg border transition-all ${
         panelOnly ? "w-64" : isCollapsed ? "relative z-801 w-20" : "w-64"
       }`}
     >
@@ -1042,7 +1044,7 @@ export function AnalysisToolbar({
           <button
             type="button"
             onClick={() => setIsCollapsed(false)}
-            className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+            className="border-border bg-surface text-muted hover:bg-default absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg border transition-colors hover:text-foreground"
             aria-label="Expand toolbar"
           >
             <PanelLeftOpen className="h-5 w-5" />
@@ -1058,7 +1060,7 @@ export function AnalysisToolbar({
             </div>
           ) : (
             <>
-              <div className="mb-4 flex items-center justify-between gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
+              <div className="border-border mb-4 flex items-center justify-between gap-2 border-b pb-2">
                 <AnalysisToolbarStrip
                   selectedTool={selectedTool}
                   onToolSelect={setSelectedTool}
@@ -1066,7 +1068,7 @@ export function AnalysisToolbar({
                 <button
                   type="button"
                   onClick={() => setIsCollapsed(true)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                  className="border-border bg-surface text-muted hover:bg-default flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors hover:text-foreground"
                   aria-label="Collapse toolbar"
                 >
                   <PanelLeftClose className="h-5 w-5" />
@@ -1076,7 +1078,7 @@ export function AnalysisToolbar({
           ))}
 
         {panelOnly && (
-          <div className="mb-4 flex items-center gap-2 border-b border-gray-200 pb-2 dark:border-gray-700">
+          <div className="border-border mb-4 flex items-center gap-2 border-b pb-2">
             <AnalysisToolbarStrip
               selectedTool={selectedTool}
               onToolSelect={setSelectedTool}
@@ -1085,7 +1087,7 @@ export function AnalysisToolbar({
         )}
 
         {showNormalizeAlert && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+          <div className="border-warning/50 bg-warning/10 text-foreground mb-4 rounded-lg border p-3 text-xs">
             <div className="flex items-start gap-2">
               <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
@@ -1101,7 +1103,7 @@ export function AnalysisToolbar({
             {selectedTool === "config" && (
               <ScrollShadow hideScrollBar className="flex-1 overflow-y-auto">
                 <div className="space-y-4 pt-2">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  <h3 className="text-foreground text-sm font-semibold">
                     Configuration
                   </h3>
                   <div className="space-y-3">
@@ -1130,7 +1132,7 @@ export function AnalysisToolbar({
                           onToggleLock={onToggleMoleculeLock ?? noop}
                         />
                         {selectedMolecule && !edgeAtomMatches && edgeId && (
-                          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                          <div className="border-warning/50 bg-warning/10 text-foreground mt-3 rounded-lg border p-3 text-xs">
                             <div className="flex items-start gap-2">
                               <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
                               <div>
@@ -1152,13 +1154,14 @@ export function AnalysisToolbar({
                       </div>
                     )}
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Instrument <span className="text-red-500">*</span>
-                      </label>
+                      <Label className={FORM_LABEL_CLASS}>
+                        Instrument <span className="text-danger" aria-hidden>*</span>
+                      </Label>
                       <select
                         value={instrumentId ?? ""}
                         onChange={(e) => onInstrumentChange?.(e.target.value)}
-                        className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                        className={FORM_SELECT_CLASS}
+                        aria-required
                       >
                         <option value="">Select instrument...</option>
                         {instrumentOptions.map((opt) => (
@@ -1170,13 +1173,14 @@ export function AnalysisToolbar({
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Edge <span className="text-red-500">*</span>
-                      </label>
+                      <Label className={FORM_LABEL_CLASS}>
+                        Edge <span className="text-danger" aria-hidden>*</span>
+                      </Label>
                       <select
                         value={edgeId ?? ""}
                         onChange={(e) => onEdgeChange?.(e.target.value)}
-                        className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                        className={FORM_SELECT_CLASS}
+                        aria-required
                       >
                         <option value="">Select edge...</option>
                         {(availableEdgeOptions ?? edgeOptions).map((opt) => (
@@ -1187,15 +1191,15 @@ export function AnalysisToolbar({
                       </select>
                     </div>
                     {onAddFacility && (
-                      <Button
+                      <HeroButton
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
-                        onClick={onAddFacility}
+                        onPress={onAddFacility}
                         className="w-full text-xs"
                       >
                         Add Facility/Instrument
-                      </Button>
+                      </HeroButton>
                     )}
                   </div>
                 </div>
@@ -1203,14 +1207,13 @@ export function AnalysisToolbar({
             )}
             {selectedTool === "normalize" && (
               <div className="space-y-4 pt-2">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                <h3 className="text-foreground text-sm font-semibold">
                   Normalization
                 </h3>
-                {/* Normalization Type Selector */}
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <Label className={FORM_LABEL_CLASS}>
                     Normalization Method
-                  </label>
+                  </Label>
                   <select
                     value={normalizationType}
                     onChange={(e) =>
@@ -1219,18 +1222,19 @@ export function AnalysisToolbar({
                       )
                     }
                     disabled={normalizationLocked}
-                    className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                    className={`${FORM_SELECT_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                    aria-label="Normalization method"
                   >
                     <option value="bare-atom">Bare Atom</option>
                     <option value="zero-one">Absolute</option>
                   </select>
                   {normalizationType === "bare-atom" && (
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-muted mt-1 text-xs">
                       Normalizes using bare atom absorption reference
                     </p>
                   )}
                   {normalizationType === "zero-one" && (
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-muted mt-1 text-xs">
                       Maps pre-edge to 0 and post-edge to 1 (absolute
                       normalization)
                     </p>
@@ -1286,9 +1290,7 @@ export function AnalysisToolbar({
                 {isSelectingPreEdge && normalizationRegions.pre && (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Min (eV)
-                      </label>
+                      <Label className={FORM_LABEL_CLASS}>Min (eV)</Label>
                       <Input
                         type="number"
                         variant="secondary"
@@ -1304,12 +1306,11 @@ export function AnalysisToolbar({
                         step={0.01}
                         min={0}
                         className="w-full text-xs"
+                        aria-label="Pre-edge min eV"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Max (eV)
-                      </label>
+                      <Label className={FORM_LABEL_CLASS}>Max (eV)</Label>
                       <Input
                         type="number"
                         variant="secondary"
@@ -1325,6 +1326,7 @@ export function AnalysisToolbar({
                         step={0.01}
                         min={0}
                         className="w-full text-xs"
+                        aria-label="Pre-edge max eV"
                       />
                     </div>
                   </div>
@@ -1334,9 +1336,7 @@ export function AnalysisToolbar({
                 {isSelectingPostEdge && normalizationRegions.post && (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Min (eV)
-                      </label>
+                      <Label className={FORM_LABEL_CLASS}>Min (eV)</Label>
                       <Input
                         type="number"
                         variant="secondary"
@@ -1352,12 +1352,11 @@ export function AnalysisToolbar({
                         step={0.01}
                         min={0}
                         className="w-full text-xs"
+                        aria-label="Post-edge min eV"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                        Max (eV)
-                      </label>
+                      <Label className={FORM_LABEL_CLASS}>Max (eV)</Label>
                       <Input
                         type="number"
                         variant="secondary"
@@ -1373,6 +1372,7 @@ export function AnalysisToolbar({
                         step={0.01}
                         min={0}
                         className="w-full text-xs"
+                        aria-label="Post-edge max eV"
                       />
                     </div>
                   </div>
@@ -1382,10 +1382,10 @@ export function AnalysisToolbar({
 
             {selectedTool === "peaks" && (
               <div className="flex min-h-0 flex-1 flex-col gap-3 pt-2">
-                <h3 className="shrink-0 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                <h3 className="text-foreground shrink-0 text-sm font-semibold">
                   Peak Detection
                 </h3>
-                <div className="shrink-0 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                <div className="border-warning/50 bg-warning/10 text-foreground shrink-0 rounded-lg border p-3 text-xs">
                   <div className="flex items-start gap-2">
                     <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>Peak assignments are subjective.</span>
@@ -1433,9 +1433,9 @@ export function AnalysisToolbar({
                   if (geometryArray.length > 1) {
                     return (
                       <div className="shrink-0">
-                        <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <Label className={FORM_LABEL_CLASS}>
                           Geometry for Peak Fitting
-                        </label>
+                        </Label>
                         <select
                           value={
                             selectedGeometry
@@ -1462,7 +1462,8 @@ export function AnalysisToolbar({
                             }
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                          className={FORM_SELECT_CLASS}
+                          aria-label="Geometry for peak fitting"
                         >
                           <option value="none">Select geometry...</option>
                           {geometryArray.map((geo, idx) => {
@@ -1509,15 +1510,15 @@ export function AnalysisToolbar({
 
                   {/* Peak Detection Settings - shown only when auto-detect mode is active */}
                   {peakDetectionMode === "auto" && (
-                    <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+                    <div className="border-border bg-surface space-y-2 rounded-lg border p-3">
                       <Tooltip delay={0}>
-                        <label className="mb-2 block cursor-help text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <Label className="text-foreground mb-2 block cursor-help text-xs font-medium">
                           Prominence:{" "}
                           {(peakParams.minProminence ?? 0.05).toFixed(2)}
-                        </label>
+                        </Label>
                         <Tooltip.Content
                           placement="top"
-                          className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"
+                          className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
                         >
                           Minimum prominence as fraction of max intensity
                         </Tooltip.Content>
@@ -1830,7 +1831,7 @@ export function AnalysisToolbar({
                                               }}
                                               autoFocus
                                               placeholder="Enter bond type"
-                                              className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                              className={`${FORM_SELECT_CLASS} text-muted`}
                                               onClick={(e) =>
                                                 e.stopPropagation()
                                               }
@@ -1854,7 +1855,7 @@ export function AnalysisToolbar({
                                                 });
                                               }
                                             }}
-                                            className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                            className={`${FORM_SELECT_CLASS} text-muted`}
                                             onClick={(e) => e.stopPropagation()}
                                           >
                                             <option value="" disabled>
@@ -1923,7 +1924,7 @@ export function AnalysisToolbar({
                                               }}
                                               autoFocus
                                               placeholder="Enter transition type"
-                                              className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                              className={`${FORM_SELECT_CLASS} text-muted`}
                                               onClick={(e) =>
                                                 e.stopPropagation()
                                               }
@@ -1947,7 +1948,7 @@ export function AnalysisToolbar({
                                                 });
                                               }
                                             }}
-                                            className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                            className={`${FORM_SELECT_CLASS} text-muted`}
                                             onClick={(e) => e.stopPropagation()}
                                           >
                                             <option value="" disabled>
@@ -1987,7 +1988,7 @@ export function AnalysisToolbar({
                                           step={0.01}
                                           min={0}
                                           placeholder="Amp"
-                                          className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500! focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400!"
+                                          className="border-border bg-field-background text-field-foreground focus:border-accent focus:ring-accent-soft-hover h-7 max-h-7 min-h-7 w-full rounded-lg border px-2 py-1 text-xs focus:outline-none focus:ring-2"
                                           onClick={(e) => e.stopPropagation()}
                                         />
                                         <Input
@@ -2010,7 +2011,7 @@ export function AnalysisToolbar({
                                           step={0.1}
                                           min={0}
                                           placeholder="Width"
-                                          className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-500! focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400!"
+                                          className="border-border bg-field-background text-field-foreground focus:border-accent focus:ring-accent-soft-hover h-7 max-h-7 min-h-7 w-full rounded-lg border px-2 py-1 text-xs focus:outline-none focus:ring-2"
                                           onClick={(e) => e.stopPropagation()}
                                         />
                                       </div>
@@ -2026,14 +2027,14 @@ export function AnalysisToolbar({
                         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/40 dark:bg-blue-900/10">
                           <div className="space-y-2">
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                              <Label className={FORM_LABEL_CLASS}>
                                 Energy (eV){" "}
-                                <span className="text-red-500">*</span>
-                              </label>
+                                <span className="text-danger" aria-hidden>*</span>
+                              </Label>
                               <div className="flex flex-col gap-1">
-                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <Label className="text-foreground text-xs font-medium">
                                   Energy (eV)
-                                </label>
+                                </Label>
                                 <Input
                                   type="number"
                                   variant="secondary"
@@ -2051,9 +2052,9 @@ export function AnalysisToolbar({
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <Label className={FORM_LABEL_CLASS}>
                                   Bond
-                                </label>
+                                </Label>
                                 {addingCustomBondInForm ? (
                                   <input
                                     type="text"
@@ -2089,7 +2090,7 @@ export function AnalysisToolbar({
                                     }}
                                     autoFocus
                                     placeholder="Enter bond type"
-                                    className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                    className={FORM_SELECT_CLASS}
                                   />
                                 ) : (
                                   <select
@@ -2102,7 +2103,7 @@ export function AnalysisToolbar({
                                         setNewPeakBond(e.target.value);
                                       }
                                     }}
-                                    className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                    className={FORM_SELECT_CLASS}
                                   >
                                     <option value="">Select bond...</option>
                                     {getAllBondOptions().map((opt) => (
@@ -2114,9 +2115,9 @@ export function AnalysisToolbar({
                                 )}
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <Label className={FORM_LABEL_CLASS}>
                                   Transition
-                                </label>
+                                </Label>
                                 {addingCustomTransitionInForm ? (
                                   <input
                                     type="text"
@@ -2154,7 +2155,7 @@ export function AnalysisToolbar({
                                     }}
                                     autoFocus
                                     placeholder="Enter transition type"
-                                    className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                    className={FORM_SELECT_CLASS}
                                   />
                                 ) : (
                                   <select
@@ -2167,7 +2168,7 @@ export function AnalysisToolbar({
                                         setNewPeakTransition(e.target.value);
                                       }
                                     }}
-                                    className="focus:border-accent focus:ring-accent/20 w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                    className={FORM_SELECT_CLASS}
                                   >
                                     <option value="">
                                       Select transition...
@@ -2181,9 +2182,9 @@ export function AnalysisToolbar({
                                 )}
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <Label className={FORM_LABEL_CLASS}>
                                   Amp
-                                </label>
+                                </Label>
                                 <Input
                                   type="number"
                                   variant="secondary"
@@ -2200,13 +2201,13 @@ export function AnalysisToolbar({
                                   step={0.01}
                                   min={0}
                                   placeholder="Amp"
-                                  className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full text-xs text-gray-500! dark:text-gray-400!"
+                                  className="border-border bg-field-background text-field-foreground h-7 max-h-7 min-h-7 w-full rounded-lg border px-2 py-1 text-xs focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft-hover"
                                 />
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <Label className={FORM_LABEL_CLASS}>
                                   Width
-                                </label>
+                                </Label>
                                 <Input
                                   type="number"
                                   variant="secondary"
@@ -2223,7 +2224,7 @@ export function AnalysisToolbar({
                                   step={0.1}
                                   min={0}
                                   placeholder="Width"
-                                  className="focus:border-accent focus:ring-accent/20 h-7 max-h-7 min-h-7 w-full text-xs text-gray-500! dark:text-gray-400!"
+                                  className="border-border bg-field-background text-field-foreground h-7 max-h-7 min-h-7 w-full rounded-lg border px-2 py-1 text-xs focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft-hover"
                                 />
                               </div>
                             </div>
@@ -2273,7 +2274,7 @@ export function AnalysisToolbar({
 
             {selectedTool === "difference" && (
               <div className="space-y-3 pt-2">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                <h3 className="text-foreground text-sm font-semibold">
                   Difference Spectra
                 </h3>
                 <div className="shrink-0 space-y-3">
@@ -2331,7 +2332,7 @@ export function AnalysisToolbar({
                   <ScrollShadow hideScrollBar className="max-h-[300px]">
                     <div className="space-y-2">
                       {differenceSpectra.length === 0 && (
-                        <div className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                        <div className="text-muted py-4 text-center text-xs">
                           Click θ or φ to calculate difference spectra.
                         </div>
                       )}
@@ -2344,14 +2345,14 @@ export function AnalysisToolbar({
                                 key={index}
                                 className={`relative flex items-center gap-2 rounded-lg border p-2 ${
                                   spec.preferred
-                                    ? "border-accent bg-accent/5 dark:border-accent dark:bg-accent/10"
-                                    : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
+                                    ? "border-accent bg-accent/10"
+                                    : "border-border bg-surface"
                                 }`}
                               >
                                 <button
                                   type="button"
                                   onClick={() => handleTogglePreferred(index)}
-                                  className="shrink-0 text-gray-400 hover:text-yellow-500 dark:text-gray-500 dark:hover:text-yellow-400"
+                                  className="text-muted hover:text-warning shrink-0"
                                   title={
                                     spec.preferred
                                       ? "Remove preferred"
@@ -2361,12 +2362,12 @@ export function AnalysisToolbar({
                                   <StarIcon
                                     className={`h-4 w-4 ${
                                       spec.preferred
-                                        ? "fill-yellow-500 text-yellow-500 dark:fill-yellow-400 dark:text-yellow-400"
+                                        ? "fill-warning text-warning"
                                         : ""
                                     }`}
                                   />
                                 </button>
-                                <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
+                                <span className="text-foreground flex-1 text-xs">
                                   {spec.label}
                                 </span>
                               </div>
@@ -2390,27 +2391,25 @@ export function AnalysisToolbar({
         title="Confirm Peak Detection"
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-700 dark:text-gray-300">
+          <p className="text-foreground text-sm">
             Peak detection is slow and under development. It may crash your
             browser.
           </p>
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
+            <HeroButton
+              variant="secondary"
               size="sm"
-              onClick={() => setShowAutoDetectConfirm(false)}
+              onPress={() => setShowAutoDetectConfirm(false)}
             >
               No
-            </Button>
-            <Button
-              type="button"
+            </HeroButton>
+            <HeroButton
               variant="primary"
               size="sm"
-              onClick={handleConfirmAutoDetect}
+              onPress={handleConfirmAutoDetect}
             >
               Yes
-            </Button>
+            </HeroButton>
           </div>
         </div>
       </SimpleDialog>

@@ -22,15 +22,6 @@ A comprehensive design system for scientific data visualization and interactive 
 
 ### Color System
 
-#### Brand Colors (Logo Only)
-```css
---wsu-crimson-light: #a60f2d;
---wsu-crimson-dark: #ca1237;
---wsu-gray: #5e6a71;
-```
-
-**Usage:** Reserved for WSU logo icon only. Do not use for UI elements.
-
 #### Accent Colors
 ```css
 --accent: #6366f1;        /* Indigo 500 */
@@ -371,11 +362,11 @@ Always respect user preferences:
 |-------|------------------|
 | `default` | Base appearance |
 | `hover` | Subtle lift, color shift |
-| `focus` | Ring outline (2px crimson) |
+| `focus` | Ring outline (2px accent) |
 | `active/pressed` | Scale down (0.98), darker bg |
 | `disabled` | 50% opacity, no pointer events |
 | `loading` | Pulse animation, disabled interaction |
-| `selected` | Crimson accent, checkmark |
+| `selected` | Accent color, checkmark |
 | `error` | Red border, error icon |
 | `success` | Green border, check icon |
 | `dragging` | Elevated shadow, slight rotation |

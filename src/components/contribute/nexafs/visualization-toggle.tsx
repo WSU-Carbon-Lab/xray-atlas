@@ -1,12 +1,18 @@
 "use client";
 
-import { DefaultButton as Button } from "~/components/ui/button";
-import { TableCellsIcon, ChartBarIcon } from "@heroicons/react/24/outline";
+import { TableCellsIcon, ChartBarIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import { ChartLine, ChartArea, ChartScatter } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 
 export type VisualizationMode = "graph" | "table";
 export type GraphStyle = "line" | "scatter" | "area";
+
+const tooltipContentClass = "bg-foreground text-background rounded-lg px-3 py-2 shadow-lg";
+
+const inactiveButtonClass =
+  "border-border bg-surface text-foreground flex h-8 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-default";
+const activeButtonClass =
+  "border-accent bg-accent text-accent-foreground flex h-8 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors";
 
 interface VisualizationToggleProps {
   mode: VisualizationMode;
@@ -14,6 +20,9 @@ interface VisualizationToggleProps {
   onModeChange: (mode: VisualizationMode) => void;
   onGraphStyleChange?: (style: GraphStyle) => void;
   showGraphStyles?: boolean;
+  showEditButton?: boolean;
+  editMode?: boolean;
+  onEditModeChange?: (value: boolean) => void;
 }
 
 export function VisualizationToggle({
@@ -22,6 +31,9 @@ export function VisualizationToggle({
   onModeChange,
   onGraphStyleChange,
   showGraphStyles = true,
+  showEditButton = false,
+  editMode = false,
+  onEditModeChange,
 }: VisualizationToggleProps) {
   const graphStyles: GraphStyle[] = ["line", "scatter", "area"];
 
@@ -37,47 +49,31 @@ export function VisualizationToggle({
   };
 
   return (
-    <div className="flex items-center justify-between w-full gap-2">
+    <div className="flex w-full items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <Tooltip delay={0}>
-          <Button
+          <button
             type="button"
-            variant={mode === "graph" ? "primary" : "outline"}
-            size="sm"
             onClick={() => onModeChange("graph")}
-            className={`rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-all ${
-              mode === "graph"
-                ? "bg-blue-100 border-blue-300 text-blue-900 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-200 shadow-sm"
-                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-            }`}
+            className={mode === "graph" ? activeButtonClass : inactiveButtonClass}
           >
-            <div className="flex items-center gap-1.5">
-              <ChartBarIcon className="h-4 w-4" />
-              <span>Graph</span>
-            </div>
-          </Button>
-          <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+            <ChartBarIcon className="h-4 w-4" />
+            <span>Graph</span>
+          </button>
+          <Tooltip.Content className={tooltipContentClass}>
             View spectrum data as an interactive graph
           </Tooltip.Content>
         </Tooltip>
         <Tooltip delay={0}>
-          <Button
+          <button
             type="button"
-            variant={mode === "table" ? "primary" : "outline"}
-            size="sm"
             onClick={() => onModeChange("table")}
-            className={`rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-all ${
-              mode === "table"
-                ? "bg-purple-100 border-purple-300 text-purple-900 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-200 shadow-sm"
-                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-            }`}
+            className={mode === "table" ? activeButtonClass : inactiveButtonClass}
           >
-            <div className="flex items-center gap-1.5">
-              <TableCellsIcon className="h-4 w-4" />
-              <span>Table</span>
-            </div>
-          </Button>
-          <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+            <TableCellsIcon className="h-4 w-4" />
+            <span>Table</span>
+          </button>
+          <Tooltip.Content className={tooltipContentClass}>
             View spectrum data as a table with all data points
           </Tooltip.Content>
         </Tooltip>
@@ -87,27 +83,19 @@ export function VisualizationToggle({
         <div className="flex items-center gap-2">
           {graphStyles.map((style) => (
             <Tooltip key={style} delay={0}>
-              <Button
+              <button
                 type="button"
-                variant={graphStyle === style ? "primary" : "outline"}
-                size="sm"
                 onClick={() => onGraphStyleChange(style)}
-                className={`rounded-lg border-2 px-3 py-1.5 text-xs transition-all ${
-                  graphStyle === style
-                    ? "bg-orange-100 border-orange-300 text-orange-900 dark:bg-orange-900/30 dark:border-orange-700 dark:text-orange-200 shadow-sm"
-                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700"
-                }`}
+                className={graphStyle === style ? activeButtonClass : inactiveButtonClass}
               >
-                <div className="flex items-center gap-1.5">
-                  {getStyleIcon(style)}
-                  <span>
-                    {style === "line" && "Line"}
-                    {style === "scatter" && "Scatter"}
-                    {style === "area" && "Area"}
-                  </span>
-                </div>
-              </Button>
-              <Tooltip.Content className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg">
+                {getStyleIcon(style)}
+                <span>
+                  {style === "line" && "Line"}
+                  {style === "scatter" && "Scatter"}
+                  {style === "area" && "Area"}
+                </span>
+              </button>
+              <Tooltip.Content className={tooltipContentClass}>
                 {style === "line"
                   ? "Display spectrum as a continuous line"
                   : style === "scatter"
@@ -116,6 +104,23 @@ export function VisualizationToggle({
               </Tooltip.Content>
             </Tooltip>
           ))}
+        </div>
+      )}
+      {showEditButton && onEditModeChange && (
+        <div className="flex items-center gap-2">
+          <Tooltip delay={0}>
+            <button
+              type="button"
+              onClick={() => onEditModeChange(!editMode)}
+              className={editMode ? activeButtonClass : inactiveButtonClass}
+            >
+              <PencilSquareIcon className="h-4 w-4" />
+              <span>Edit</span>
+            </button>
+            <Tooltip.Content className={tooltipContentClass}>
+              {editMode ? "Exit edit mode" : "Edit values in the table"}
+            </Tooltip.Content>
+          </Tooltip>
         </div>
       )}
     </div>

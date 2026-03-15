@@ -27,7 +27,13 @@ import {
 } from "@heroicons/react/24/outline";
 import { FieldTooltip } from "@/components/ui/field-tooltip";
 import { SearchIcon } from "@/components/icons";
-import { Label, Input as HeroInput } from "@heroui/react";
+import {
+  Label,
+  Form,
+  TextField,
+  InputGroup,
+  Button as HeroButton,
+} from "@heroui/react";
 import { parseMoleculeJsonFile } from "~/app/contribute/molecule/utils/parseMoleculeJson";
 import { parseMoleculeCsvFile } from "~/app/contribute/molecule/utils/parseMoleculeCsv";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -40,9 +46,6 @@ type PubChemSearchResponse = RouterOutputs["external"]["searchPubchem"];
 type PubChemSearchData = NonNullable<PubChemSearchResponse["data"]>;
 type CasSearchResponse = RouterOutputs["external"]["searchCas"];
 type CreateMoleculeResponse = RouterOutputs["molecules"]["create"];
-
-const formInputClass =
-  "w-full rounded-xl border border-zinc-300 bg-zinc-50/80 px-4 py-2.5 text-zinc-900 placeholder:text-zinc-500 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20 focus-visible:ring-offset-0 dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-100 dark:placeholder:text-zinc-400";
 
 type MoleculeContributePageProps = {
   variant?: "page" | "modal";
@@ -105,7 +108,7 @@ export default function MoleculeContributePage({
   const updateMolecule = trpc.molecules.update.useMutation();
   const setTags = trpc.molecules.setTags.useMutation();
   const uploadImage = trpc.molecules.uploadImage.useMutation();
-  const handleInputChange = (
+  const _handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
@@ -863,98 +866,99 @@ export default function MoleculeContributePage({
           />
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-            {/* Upload Form */}
-            <div className="space-y-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Required Fields */}
+            <div className="min-w-0 space-y-6">
+              {/* Upload Form */}
+              <Form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-4">
-                  <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                  <h2 className="text-foreground text-xl font-semibold">
                     Required Information
                   </h2>
 
                   <div className="space-y-4">
-                    {/* Common Name and PubChem CID/CAS with Search Button */}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[2fr_1fr_1fr_auto]">
-                      <div>
-                        <Label
-                          htmlFor="commonName"
-                          className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-                        >
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                      <TextField
+                        name="commonName"
+                        value={formData.commonName}
+                        onChange={(value) => {
+                          setFormData((prev) => ({ ...prev, commonName: value }));
+                          setSearchError(null);
+                          setSearchSuccess(null);
+                          setSearchWarnings([]);
+                        }}
+                        isRequired
+                        variant="secondary"
+                        fullWidth
+                      >
+                        <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
                           Common Name{" "}
                           <span className="text-red-500" aria-hidden>
                             *
                           </span>
                           <FieldTooltip description="The common or trade name for the molecule, such as 'PC61BM' or 'aspirin'. This is different from the systematic IUPAC name." />
                         </Label>
-                        <HeroInput
-                          type="text"
-                          id="commonName"
-                          name="commonName"
-                          required
-                          value={formData.commonName}
-                          onChange={(e) => {
-                            handleInputChange(e);
-                            setSearchError(null);
-                            setSearchSuccess(null);
-                            setSearchWarnings([]);
-                          }}
-                          className={formInputClass}
-                          placeholder="e.g., PC61BM…"
-                          autoComplete="off"
-                        />
-                      </div>
+                        <InputGroup variant="secondary" fullWidth>
+                          <InputGroup.Input
+                            placeholder="e.g., PC61BM…"
+                            autoComplete="off"
+                          />
+                        </InputGroup>
+                      </TextField>
 
-                      <div>
-                        <Label
-                          htmlFor="pubChemCid"
-                          className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-                        >
+                      <TextField
+                        name="pubchemCid"
+                        value={formData.pubchemCid ?? ""}
+                        onChange={(value) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            pubchemCid: value || null,
+                          }));
+                          setSearchError(null);
+                          setSearchSuccess(null);
+                          setSearchWarnings([]);
+                        }}
+                        variant="secondary"
+                        fullWidth
+                      >
+                        <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
                           PubChem
                           <FieldTooltip description="PubChem Compound Identifier. A unique numeric identifier used to reference the compound in the PubChem database. Enter a CID to search PubChem and auto-populate fields." />
                         </Label>
-                        <HeroInput
-                          type="text"
-                          id="pubChemCid"
-                          name="pubchemCid"
-                          value={formData.pubchemCid ?? ""}
-                          onChange={(e) => {
-                            handleInputChange(e);
-                            setSearchError(null);
-                            setSearchSuccess(null);
-                            setSearchWarnings([]);
-                          }}
-                          className={formInputClass}
-                          placeholder="e.g., 205…"
-                          autoComplete="off"
-                        />
-                      </div>
+                        <InputGroup variant="secondary" fullWidth>
+                          <InputGroup.Input
+                            placeholder="e.g., 205…"
+                            autoComplete="off"
+                          />
+                        </InputGroup>
+                      </TextField>
 
-                      <div>
-                        <Label
-                          htmlFor="casNumber"
-                          className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-                        >
+                      <TextField
+                        name="casNumber"
+                        value={formData.casNumber ?? ""}
+                        onChange={(value) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            casNumber: value || null,
+                          }));
+                          setSearchError(null);
+                          setSearchSuccess(null);
+                          setSearchWarnings([]);
+                        }}
+                        variant="secondary"
+                        fullWidth
+                      >
+                        <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
                           CAS
                           <FieldTooltip description="Chemical Abstracts Service Registry Number. A unique numeric identifier (format: XXX-XX-X) assigned to chemical substances by CAS. Used for precise chemical identification and regulatory compliance." />
                         </Label>
-                        <HeroInput
-                          type="text"
-                          id="casNumber"
-                          name="casNumber"
-                          value={formData.casNumber ?? ""}
-                          onChange={(e) => {
-                            handleInputChange(e);
-                            setSearchError(null);
-                            setSearchSuccess(null);
-                            setSearchWarnings([]);
-                          }}
-                          className={formInputClass}
-                          placeholder="e.g., 50-5-5…"
-                          autoComplete="off"
-                        />
-                      </div>
+                        <InputGroup variant="secondary" fullWidth>
+                          <InputGroup.Input
+                            placeholder="e.g., 50-5-5…"
+                            autoComplete="off"
+                          />
+                        </InputGroup>
+                      </TextField>
 
-                      <div className="flex items-end">
+                      <div className="flex min-w-11 shrink-0 items-center">
                         <Button
                           onPress={handlePubChemSearch}
                           isDisabled={
@@ -1036,29 +1040,30 @@ export default function MoleculeContributePage({
                       </div>
                     ) : null}
 
-                    <div>
-                      <Label
-                        htmlFor="iupacName"
-                        className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-                      >
+                    <TextField
+                      name="iupacName"
+                      value={formData.iupacName}
+                      onChange={(value) =>
+                        setFormData((prev) => ({ ...prev, iupacName: value }))
+                      }
+                      isRequired
+                      variant="secondary"
+                      fullWidth
+                    >
+                      <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
                         IUPAC Name{" "}
                         <span className="text-red-500" aria-hidden>
                           *
                         </span>
                         <FieldTooltip description="The systematic IUPAC (International Union of Pure and Applied Chemistry) name. This is the standardized chemical nomenclature that uniquely identifies the molecular structure. Usually a long name with numbers and brackets." />
                       </Label>
-                      <HeroInput
-                        type="text"
-                        id="iupacName"
-                        name="iupacName"
-                        required
-                        value={formData.iupacName}
-                        onChange={handleInputChange}
-                        className={formInputClass}
-                        placeholder="e.g., 2,2'-[[6,6,12,12-tetrakis(4-hexylphenyl)-…]…"
-                        autoComplete="off"
-                      />
-                    </div>
+                      <InputGroup variant="secondary" fullWidth>
+                        <InputGroup.Input
+                          placeholder="e.g., 2,2'-[[6,6,12,12-tetrakis(4-hexylphenyl)-…]…"
+                          autoComplete="off"
+                        />
+                      </InputGroup>
+                    </TextField>
 
                     <SynonymTagGroupEditable
                       synonyms={formData.synonyms}
@@ -1084,77 +1089,85 @@ export default function MoleculeContributePage({
                       }
                     />
 
-                    <div>
-                      <Label
-                        htmlFor="smiles"
-                        className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-                      >
+                    <TextField
+                      name="smiles"
+                      value={formData.smiles}
+                      onChange={(value) =>
+                        setFormData((prev) => ({ ...prev, smiles: value }))
+                      }
+                      isRequired
+                      variant="secondary"
+                      fullWidth
+                    >
+                      <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
                         SMILES{" "}
                         <span className="text-red-500" aria-hidden>
                           *
                         </span>
                         <FieldTooltip description="Simplified Molecular-Input Line-Entry System. A line notation that uses ASCII characters to describe the molecular structure. Example: 'CCO' represents ethanol (C-C-O). Canonical SMILES is preferred when available." />
                       </Label>
-                      <HeroInput
-                        type="text"
-                        id="smiles"
-                        name="smiles"
-                        required
-                        value={formData.smiles}
-                        onChange={handleInputChange}
-                        className={`${formInputClass} font-mono text-sm`}
-                        placeholder="e.g., CC1=C(C2=C(S1)C=C3……"
-                        autoComplete="off"
-                      />
-                    </div>
+                      <InputGroup variant="secondary" fullWidth>
+                        <InputGroup.Input
+                          className="font-mono text-sm"
+                          placeholder="e.g., CC1=C(C2=C(S1)C=C3……"
+                          autoComplete="off"
+                        />
+                      </InputGroup>
+                    </TextField>
 
-                    <div>
-                      <Label
-                        htmlFor="inchi"
-                        className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-                      >
+                    <TextField
+                      name="inchi"
+                      value={formData.inchi}
+                      onChange={(value) =>
+                        setFormData((prev) => ({ ...prev, inchi: value }))
+                      }
+                      isRequired
+                      variant="secondary"
+                      fullWidth
+                    >
+                      <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
                         InChI{" "}
                         <span className="text-red-500" aria-hidden>
                           *
                         </span>
                         <FieldTooltip description="International Chemical Identifier. A standardized textual identifier for chemical substances that encodes molecular structure. Always starts with 'InChI=1S/' or 'InChI=1/' followed by layers of structural information." />
                       </Label>
-                      <HeroInput
-                        type="text"
-                        id="inchi"
-                        name="inchi"
-                        required
-                        value={formData.inchi}
-                        onChange={handleInputChange}
-                        className={`${formInputClass} font-mono text-sm`}
-                        placeholder="e.g., InChI=1S/C82H86F4N8O2S5/c1-15-…"
-                        autoComplete="off"
-                      />
-                    </div>
+                      <InputGroup variant="secondary" fullWidth>
+                        <InputGroup.Input
+                          className="font-mono text-sm"
+                          placeholder="e.g., InChI=1S/C82H86F4N8O2S5/c1-15-…"
+                          autoComplete="off"
+                        />
+                      </InputGroup>
+                    </TextField>
 
-                    <div>
-                      <Label
-                        htmlFor="chemicalFormula"
-                        className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-                      >
+                    <TextField
+                      name="chemicalFormula"
+                      value={formData.chemicalFormula}
+                      onChange={(value) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          chemicalFormula: value,
+                        }))
+                      }
+                      isRequired
+                      variant="secondary"
+                      fullWidth
+                    >
+                      <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
                         Chemical Formula{" "}
                         <span className="text-red-500" aria-hidden>
                           *
                         </span>
                         <FieldTooltip description="The molecular formula showing the number of atoms of each element in the molecule. Written with element symbols and subscripts, such as 'C82H86F4N8O2S5'. Elements are typically listed in Hill order (C, H, then others alphabetically)." />
                       </Label>
-                      <HeroInput
-                        type="text"
-                        id="chemicalFormula"
-                        name="chemicalFormula"
-                        required
-                        value={formData.chemicalFormula}
-                        onChange={handleInputChange}
-                        className={formInputClass}
-                        placeholder="e.g., C82H86F4N8O2S5…"
-                        autoComplete="off"
-                      />
-                    </div>
+                      <InputGroup variant="secondary" fullWidth>
+                        <InputGroup.Input
+                          placeholder="e.g., C82H86F4N8O2S5…"
+                          autoComplete="off"
+                        />
+                      </InputGroup>
+                    </TextField>
                   </div>
                 </div>
 
@@ -1172,7 +1185,7 @@ export default function MoleculeContributePage({
                   <div className="space-y-4">
                     {imagePreview ? (
                       <div className="relative">
-                        <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800/80">
+                        <div className="border-border bg-surface relative aspect-square w-full overflow-hidden rounded-xl border">
                           <Image
                             src={imagePreview}
                             alt="Molecule preview"
@@ -1185,26 +1198,26 @@ export default function MoleculeContributePage({
                         <button
                           type="button"
                           onClick={removeImage}
-                          className="absolute top-2 right-2 rounded-full bg-red-500 p-2 text-white transition-colors hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                          className="bg-danger text-danger-foreground hover:bg-danger/90 absolute top-2 right-2 rounded-full p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2"
                           aria-label="Remove molecule image"
                         >
                           <XMarkIcon className="h-5 w-5" aria-hidden />
                         </button>
                       </div>
                     ) : (
-                      <label className="group hover:border-accent relative flex w-full cursor-pointer items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/80 px-6 py-6 text-left transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-600 dark:bg-slate-800/50">
+                      <label className="border-border bg-surface group hover:border-accent relative flex min-h-40 w-full cursor-pointer items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed px-6 py-6 text-left transition-colors duration-200 hover:shadow-md">
                         <div className="flex flex-col gap-2">
-                          <span className="text-accent dark:text-accent-light text-sm font-semibold tracking-wide uppercase">
+                          <span className="text-accent text-sm font-semibold tracking-wide uppercase">
                             Upload Molecule Image
                           </span>
-                          <span className="text-base text-slate-700 transition-colors duration-200 group-hover:text-slate-900 dark:text-slate-300 dark:group-hover:text-slate-100">
+                          <span className="text-foreground text-base transition-colors duration-200 group-hover:text-foreground/90">
                             Click to upload molecule image
                           </span>
-                          <span className="text-sm text-slate-500 dark:text-slate-400">
+                          <span className="text-muted text-sm">
                             PNG, JPG, GIF up to 10MB
                           </span>
                         </div>
-                        <div className="group-hover:text-accent dark:text-accent-light hidden shrink-0 text-slate-400 transition-colors duration-200 md:block">
+                        <div className="text-muted group-hover:text-accent hidden shrink-0 transition-colors duration-200 md:block">
                           <PhotoIcon className="h-16 w-16" aria-hidden="true" />
                         </div>
                         <input
@@ -1218,12 +1231,12 @@ export default function MoleculeContributePage({
                   </div>
                 </div>
 
-                {/* Submit Button */}
-                <div className="flex justify-end border-t border-slate-200 pt-6 dark:border-slate-700">
-                  <Button
+                <div className="border-border flex justify-end border-t pt-6">
+                  <HeroButton
                     type="submit"
+                    variant="primary"
                     isDisabled={isSubmitting}
-                    className="flex items-center gap-2"
+                    className="gap-2 font-medium"
                     aria-label={isSubmitting ? "Uploading…" : "Upload molecule"}
                   >
                     {isSubmitting ? (
@@ -1257,7 +1270,7 @@ export default function MoleculeContributePage({
                         <span>Upload Molecule</span>
                       </>
                     )}
-                  </Button>
+                  </HeroButton>
                 </div>
 
                 {/* Status Messages */}
@@ -1272,22 +1285,21 @@ export default function MoleculeContributePage({
                     {submitStatus.message}
                   </div>
                 )}
-              </form>
+              </Form>
             </div>
 
-            {/* Preview */}
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               <div className="sticky top-8">
-                <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-slate-100">
+                <h2 className="text-foreground mb-4 text-xl font-semibold">
                   Preview
                 </h2>
                 {previewMolecule ? (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/80">
+                  <div className="border-border bg-surface rounded-2xl border p-4 shadow-sm">
                     <MoleculeDisplay molecule={previewMolecule} />
                   </div>
                 ) : (
-                  <div className="flex h-96 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/80 dark:border-slate-600 dark:bg-slate-800/50">
-                    <p className="text-slate-500 dark:text-slate-400">
+                  <div className="border-border bg-surface flex h-96 items-center justify-center rounded-2xl border-2 border-dashed">
+                    <p className="text-muted">
                       Fill in the form to see a preview
                     </p>
                   </div>

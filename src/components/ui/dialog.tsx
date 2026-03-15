@@ -22,7 +22,11 @@ export function SimpleDialog({
 }: SimpleDialogProps) {
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
+      <Dialog
+        as="div"
+        className="relative z-[var(--z-modal)]"
+        onClose={onClose}
+      >
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -47,19 +51,19 @@ export function SimpleDialog({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel
-                className={`w-full ${maxWidth} transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-800`}
+                className={`w-full ${maxWidth} transform overflow-hidden rounded-2xl bg-surface border border-border p-6 text-left align-middle text-foreground shadow-xl transition-all`}
               >
                 <div className="mb-4 flex items-center justify-between">
                   <Dialog.Title
                     as="h3"
-                    className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100"
+                    className="text-lg font-medium leading-6 text-foreground"
                   >
                     {title}
                   </Dialog.Title>
                   <button
                     type="button"
                     onClick={onClose}
-                    className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                    className="rounded-lg p-1 text-muted hover:bg-default hover:text-foreground"
                   >
                     <XMarkIcon className="h-5 w-5" />
                   </button>

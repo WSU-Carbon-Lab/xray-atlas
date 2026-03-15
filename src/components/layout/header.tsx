@@ -106,8 +106,9 @@ export default function Header() {
   const isLoaded = status !== "loading";
 
   return (
-    <header className="border-border bg-background/95 sticky top-0 z-[var(--z-fixed)] w-full border-b backdrop-blur supports-backdrop-filter:bg-background/60">
-      <Navbar isBordered={false} className="mx-auto h-20 max-w-7xl px-4">
+    <div className="sticky top-0 z-[400] w-full">
+      <header className="border-border bg-background/95 w-full border-b backdrop-blur supports-backdrop-filter:bg-background/60">
+        <Navbar isBordered={false} className="mx-auto h-20 max-w-7xl px-4">
         <NavbarBrand className="items-center justify-start">
           <Link
             href="/"
@@ -180,7 +181,8 @@ export default function Header() {
             )}
           </NavbarItem>
         </NavbarContent>
-      </Navbar>
-    </header>
+        </Navbar>
+      </header>
+    </div>
   );
 }

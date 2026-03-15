@@ -15,14 +15,19 @@ import { FieldTooltip } from "@/components/ui/field-tooltip";
 import { trpc } from "~/trpc/client";
 import {
   ArrowLeftIcon,
-  ExclamationTriangleIcon,
   XMarkIcon,
   CheckIcon,
   PlusIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { BrushCleaning } from "lucide-react";
-import { Tooltip, Label, Input } from "@heroui/react";
+import {
+  Tooltip,
+  Label,
+  Input,
+  Button as HeroButton,
+  Form,
+} from "@heroui/react";
 import { useToast, ToastContainer } from "@/components/ui/toast";
 import {
   FileUploadZone,
@@ -945,16 +950,20 @@ export default function NEXAFSContributePage() {
         <div className="mb-6 flex items-center justify-between">
           <Link
             href="/contribute"
-            className="text-muted hover:text-accent inline-flex items-center gap-2 text-sm transition-colors"
+            className="text-foreground hover:text-accent inline-flex items-center gap-2 text-sm font-medium transition-colors"
           >
             <ArrowLeftIcon className="h-4 w-4" /> Back to contribution options
           </Link>
           <Tooltip delay={0}>
-            <Button type="button" variant="outline" onClick={clearForm}>
+            <button
+              type="button"
+              onClick={clearForm}
+              className="border-border bg-surface text-foreground focus-visible:ring-accent flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            >
               <BrushCleaning className="h-4 w-4" />
               <span>Clear Form</span>
-            </Button>
-            <Tooltip.Content className="tooltip-content-panel">
+            </button>
+            <Tooltip.Content className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg">
               Clear all uploaded datasets and reset the form
             </Tooltip.Content>
           </Tooltip>
@@ -977,7 +986,7 @@ export default function NEXAFSContributePage() {
             fileName={draggedFileName}
           />
 
-          <form className="space-y-10" onSubmit={handleSubmit}>
+          <Form className="space-y-10" onSubmit={handleSubmit}>
             {/* File Upload Zone */}
             {datasets.length === 0 && (
               <div className="border-border bg-surface mb-8 rounded-xl border p-6 shadow-sm">
@@ -1027,18 +1036,6 @@ export default function NEXAFSContributePage() {
               </div>
             )}
 
-            {/* Warning */}
-            <div className="border-warning/40 bg-warning/10 text-warning-foreground flex items-center justify-between rounded-xl border p-4 text-sm">
-              <div className="flex items-center gap-2">
-                <ExclamationTriangleIcon className="h-5 w-5" />
-                <span>
-                  Please verify all information before submitting. Spectrum
-                  uploads are final and will require administrator review for
-                  changes.
-                </span>
-              </div>
-            </div>
-
             {/* Submit Status */}
             {submitStatus && (
               <div
@@ -1054,15 +1051,13 @@ export default function NEXAFSContributePage() {
 
             {/* Submit Button */}
             {datasets.length > 0 && (
-              <div className="flex items-center justify-between">
-                <div className="text-muted text-xs">
-                  Files remain private until reviewed and approved.
-                </div>
+              <div className="flex items-center justify-end">
                 <Tooltip delay={0}>
-                  <Button
+                  <HeroButton
                     type="submit"
+                    variant="primary"
                     isDisabled={createNexafsMutation.isPending}
-                    className="px-6"
+                    className="gap-2 px-6 font-medium"
                   >
                     {createNexafsMutation.isPending ? (
                       <>
@@ -1078,15 +1073,15 @@ export default function NEXAFSContributePage() {
                         </span>
                       </>
                     )}
-                  </Button>
-                  <Tooltip.Content className="tooltip-content-panel">
+                  </HeroButton>
+                  <Tooltip.Content className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg">
                     Submit all datasets for review. Files will remain private
                     until approved by an administrator.
                   </Tooltip.Content>
                 </Tooltip>
               </div>
             )}
-          </form>
+          </Form>
         </div>
       </div>
     );

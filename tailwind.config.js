@@ -11,12 +11,6 @@ const config = {
   theme: {
     extend: {
       colors: {
-        "wsu-crimson": {
-          DEFAULT: "#a60f2d",
-          light: "#a60f2d",
-          dark: "#ca1237",
-        },
-        "wsu-gray": "#5e6a71",
         success: {
           DEFAULT: "#10b981",
           light: "#34d399",
@@ -44,9 +38,9 @@ const config = {
         display: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        glow: "0 0 20px rgba(202, 18, 55, 0.3)",
-        "glow-sm": "0 0 10px rgba(202, 18, 55, 0.2)",
-        "glow-lg": "0 0 30px rgba(202, 18, 55, 0.4)",
+        glow: "0 0 20px rgba(99, 102, 241, 0.3)",
+        "glow-sm": "0 0 10px rgba(99, 102, 241, 0.2)",
+        "glow-lg": "0 0 30px rgba(99, 102, 241, 0.4)",
       },
       transitionTimingFunction: {
         spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",

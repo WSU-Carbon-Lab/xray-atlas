@@ -65,12 +65,12 @@ export function ToggleIconButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`rounded px-2 py-1.5 text-sm transition-colors ${
+      className={`rounded-lg border transition-colors ${
         disabled
-          ? "cursor-not-allowed opacity-50 text-gray-400 dark:text-gray-500"
+          ? "cursor-not-allowed opacity-50 border-border bg-surface text-muted"
           : isActive
-            ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-            : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+            ? "border-accent bg-accent text-accent-foreground"
+            : "border-border bg-surface text-foreground hover:bg-default"
       } ${className}`}
       aria-label={ariaLabel}
       aria-disabled={disabled}
@@ -86,7 +86,7 @@ export function ToggleIconButton({
       <Tooltip.Content
         placement={tooltip.placement ?? "top"}
         offset={tooltip.offset ?? 8}
-        className="bg-gray-900 text-white dark:bg-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg shadow-lg mb-2"
+        className="bg-foreground text-background mb-2 rounded-lg px-3 py-2 shadow-lg"
       >
         {tooltip.content}
       </Tooltip.Content>

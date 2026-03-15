@@ -22,15 +22,16 @@ import {
   ComboBox,
   Description,
   Fieldset,
+  Form,
   Input,
+  InputGroup,
   Label as HeroLabel,
   ListBox,
+  TextField,
 } from "@heroui/react";
 import { parseFacilityJsonFile } from "~/app/contribute/facility/utils/parse-facility-json";
 import { parseFacilityCsvFile } from "~/app/contribute/facility/utils/parse-facility-csv";
 
-const formInputClass =
-  "w-full rounded-xl border border-zinc-300 bg-zinc-50/80 px-4 py-2.5 text-zinc-900 placeholder:text-zinc-500 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20 focus-visible:ring-offset-0 dark:border-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-100 dark:placeholder:text-zinc-400";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
 
@@ -374,10 +375,10 @@ export default function FacilityContributePage({
   if (!isSignedIn) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="mb-4 text-4xl font-bold text-slate-900 dark:text-slate-100">
+        <h1 className="mb-4 text-4xl font-bold text-foreground">
           Contribute Facility
         </h1>
-        <p className="mb-8 text-slate-600 dark:text-slate-400">
+        <p className="mb-8 text-muted">
           Please sign in to contribute facilities to the X-ray Atlas database.
         </p>
       </div>
@@ -408,36 +409,36 @@ export default function FacilityContributePage({
             <div className="mb-6">
               <Link
                 href="/contribute"
-                className="hover:text-accent dark:hover:text-accent-light text-sm text-slate-600 dark:text-slate-400"
+                className="text-muted hover:text-accent text-sm"
               >
                 Back to contribution type selection
               </Link>
             </div>
           )}
-          <h1 className="mb-8 text-4xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="mb-8 text-4xl font-bold text-foreground">
             Contribute Facility & Instruments
           </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <Fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800/80">
-              <Fieldset.Legend className="flex items-center gap-2 text-xl font-semibold text-slate-900 dark:text-slate-100">
+          <Form onSubmit={handleSubmit} className="space-y-6">
+            <Fieldset className="border-border bg-surface space-y-4 rounded-2xl border p-6 shadow-sm">
+              <Fieldset.Legend className="text-foreground flex items-center gap-2 text-xl font-semibold">
                 <BuildingOfficeIcon className="h-6 w-6" />
                 Facility Information
               </Fieldset.Legend>
               <Fieldset.Group className="space-y-4">
                 {existingFacility && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 dark:border-amber-900/50 dark:bg-amber-950/40">
+                  <div className="border-warning/50 bg-warning/10 rounded-xl border p-4">
                     <div className="flex items-start gap-3">
-                      <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                      <ExclamationTriangleIcon className="text-warning-dark h-5 w-5 shrink-0" />
                       <div className="flex-1">
-                        <h3 className="mb-1 font-semibold text-amber-800 dark:text-amber-300">
+                        <h3 className="text-foreground mb-1 font-semibold">
                           Facility Already Exists
                         </h3>
-                        <p className="text-sm text-amber-700 dark:text-amber-400">
+                        <p className="text-muted text-sm">
                           A facility with this name and location already exists
                           in the database.
                         </p>
-                        <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                        <p className="text-muted mt-2 text-sm">
                           Existing instruments:{" "}
                           {existingFacility.instruments.length > 0
                             ? existingFacility.instruments
@@ -447,7 +448,7 @@ export default function FacilityContributePage({
                         </p>
                         <Link
                           href={`/facilities/${existingFacility.id}`}
-                          className="mt-2 inline-block text-sm font-medium text-amber-800 underline dark:text-amber-300"
+                          className="text-foreground mt-2 inline-block text-sm font-medium underline"
                         >
                           View existing facility
                         </Link>
@@ -485,20 +486,20 @@ export default function FacilityContributePage({
                   items={facilitiesList}
                   className="w-full"
                 >
-                  <HeroLabel className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <HeroLabel className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
                     Facility Name{" "}
-                    <span className="text-red-500" aria-hidden>
+                    <span className="text-danger" aria-hidden>
                       *
                     </span>
                   </HeroLabel>
-                  <ComboBox.InputGroup className={formInputClass}>
+                  <ComboBox.InputGroup className="w-full">
                     <Input
                       placeholder="e.g., Advanced Light Source"
                       className="bg-transparent! shadow-none!"
                     />
                     <ComboBox.Trigger />
                   </ComboBox.InputGroup>
-                  <Description className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <Description className="text-muted mt-1.5 text-xs">
                     Select an existing facility from the list or type a new name
                     to add one.
                   </Description>
@@ -521,49 +522,51 @@ export default function FacilityContributePage({
                 </ComboBox>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <HeroLabel
-                      htmlFor="city"
-                      className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                    >
+                  <TextField
+                    name="city"
+                    value={facilityData.city}
+                    onChange={(value) =>
+                      setFacilityData((prev) => ({ ...prev, city: value }))
+                    }
+                    variant="secondary"
+                    fullWidth
+                  >
+                    <HeroLabel className="mb-1.5 block text-sm font-medium text-foreground">
                       City
                     </HeroLabel>
-                    <input
-                      type="text"
-                      id="city"
-                      name="city"
-                      value={facilityData.city}
-                      onChange={handleInputChange}
-                      className={formInputClass}
-                      placeholder="e.g., Berkeley"
-                    />
-                  </div>
-                  <div>
-                    <HeroLabel
-                      htmlFor="country"
-                      className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                    >
+                    <InputGroup variant="secondary" fullWidth>
+                      <InputGroup.Input
+                        placeholder="e.g., Berkeley"
+                      />
+                    </InputGroup>
+                  </TextField>
+                  <TextField
+                    name="country"
+                    value={facilityData.country}
+                    onChange={(value) =>
+                      setFacilityData((prev) => ({ ...prev, country: value }))
+                    }
+                    variant="secondary"
+                    fullWidth
+                  >
+                    <HeroLabel className="mb-1.5 block text-sm font-medium text-foreground">
                       Country
                     </HeroLabel>
-                    <input
-                      type="text"
-                      id="country"
-                      name="country"
-                      value={facilityData.country}
-                      onChange={handleInputChange}
-                      className={formInputClass}
-                      placeholder="e.g., United States"
-                    />
-                  </div>
+                    <InputGroup variant="secondary" fullWidth>
+                      <InputGroup.Input
+                        placeholder="e.g., United States"
+                      />
+                    </InputGroup>
+                  </TextField>
                 </div>
 
                 <div>
                   <HeroLabel
                     htmlFor="facilityType"
-                    className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                    className="mb-1.5 block text-sm font-medium text-foreground"
                   >
                     Facility Type{" "}
-                    <span className="text-red-500" aria-hidden>
+                    <span className="text-danger" aria-hidden>
                       *
                     </span>
                   </HeroLabel>
@@ -573,7 +576,7 @@ export default function FacilityContributePage({
                     required
                     value={facilityData.facilityType}
                     onChange={handleInputChange}
-                    className={formInputClass}
+                    className="border-border bg-field-background text-field-foreground placeholder:text-field-placeholder focus:border-accent focus:ring-accent-soft-hover w-full rounded-xl border px-4 py-2.5 focus:outline-none focus:ring-2"
                   >
                     <option value="LAB_SOURCE">Lab Source</option>
                     <option value="SYNCHROTRON">Synchrotron</option>
@@ -585,9 +588,9 @@ export default function FacilityContributePage({
               </Fieldset.Group>
             </Fieldset>
 
-            <Fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800/80">
+            <Fieldset className="border-border bg-surface space-y-4 rounded-2xl border p-6 shadow-sm">
               <div className="flex items-center justify-between">
-                <Fieldset.Legend className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                <Fieldset.Legend className="text-foreground text-xl font-semibold">
                   Instruments
                 </Fieldset.Legend>
                 <Button
@@ -602,7 +605,7 @@ export default function FacilityContributePage({
               </div>
 
               {instruments.length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-muted text-sm">
                   No instruments added yet. Click &quot;Add Instrument&quot; to
                   add one.
                 </p>
@@ -623,7 +626,7 @@ export default function FacilityContributePage({
               )}
             </Fieldset>
 
-            <div className="flex justify-end border-t border-slate-200 pt-6 dark:border-slate-700">
+            <div className="border-border flex justify-end border-t pt-6">
               <Button
                 type="submit"
                 isDisabled={isSubmitting || !!existingFacility}
@@ -635,16 +638,16 @@ export default function FacilityContributePage({
 
             {submitStatus.type && (
               <div
-                className={`rounded-xl border p-4 ${
+                className={
                   submitStatus.type === "success"
-                    ? "border-emerald-200 bg-emerald-50/90 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300"
-                    : "border-red-200 bg-red-50/90 text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
-                }`}
+                    ? "border-success/50 bg-success/10 text-foreground rounded-xl border p-4"
+                    : "border-error/50 bg-error/10 text-foreground rounded-xl border p-4"
+                }
               >
                 {submitStatus.message}
               </div>
             )}
-          </form>
+          </Form>
         </div>
       </div>
     </>
@@ -678,15 +681,15 @@ function InstrumentForm({
   const instrumentExists = checkData?.exists ?? false;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+    <div className="border-border bg-surface rounded-xl border p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-medium text-slate-900 dark:text-slate-100">
+        <h3 className="text-foreground font-medium">
           Instrument {instrument.name.trim() ? instrument.name : "New"}
         </h3>
         <button
           type="button"
           onClick={onRemove}
-          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+          className="text-danger hover:opacity-90"
           aria-label="Remove instrument"
         >
           <XMarkIcon className="h-5 w-5" />
@@ -694,50 +697,61 @@ function InstrumentForm({
       </div>
 
       <div className="space-y-4">
-        <div>
-          <HeroLabel className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
-            Instrument Name{" "}
-            <span className="text-red-500" aria-hidden>
-              *
-            </span>
-          </HeroLabel>
-          <div className="relative">
-            <input
-              type="text"
-              required
-              value={instrument.name}
-              onChange={(e) => onChange("name", e.target.value)}
-              className={`${formInputClass} ${
+        <div className="relative">
+          <TextField
+            name={`instrument-name-${instrument.name}`}
+            value={instrument.name}
+            onChange={(value) => onChange("name", value)}
+            isRequired
+            variant="secondary"
+            fullWidth
+          >
+            <HeroLabel className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
+              Instrument Name{" "}
+              <span className="text-danger" aria-hidden>
+                *
+              </span>
+            </HeroLabel>
+            <InputGroup
+              variant="secondary"
+              fullWidth
+              className={
                 instrumentExists
-                  ? "border-amber-300 bg-amber-50/90 dark:border-amber-700 dark:bg-amber-950/40"
-                  : ""
-              }`}
-              placeholder="e.g., Beamline 7.3.3"
-            />
+                  ? "border-warning/50 bg-warning/10"
+                  : undefined
+              }
+            >
+              <InputGroup.Input placeholder="e.g., Beamline 7.3.3" />
+            </InputGroup>
+          </TextField>
             {instrumentExists && instrument.name.length > 0 && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
-                <ExclamationTriangleIcon className="h-4 w-4" />
-                <span>This instrument already exists at this facility</span>
-              </div>
-            )}
-          </div>
+            <div className="text-muted mt-2 flex items-center gap-2 text-sm">
+              <ExclamationTriangleIcon className="h-4 w-4" />
+              <span>This instrument already exists at this facility</span>
+            </div>
+          )}
         </div>
 
-        <div>
-          <HeroLabel className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+        <TextField
+          name={`instrument-link-${instrument.link}`}
+          value={instrument.link}
+          onChange={(value) => onChange("link", value)}
+          variant="secondary"
+          fullWidth
+        >
+          <HeroLabel className="mb-1.5 block text-sm font-medium text-foreground">
             Instrument Link (Optional)
           </HeroLabel>
-          <input
-            type="url"
-            value={instrument.link}
-            onChange={(e) => onChange("link", e.target.value)}
-            className={formInputClass}
-            placeholder="https://..."
-          />
-        </div>
+          <InputGroup variant="secondary" fullWidth>
+            <InputGroup.Input
+              type="url"
+              placeholder="https://..."
+            />
+          </InputGroup>
+        </TextField>
 
         <div>
-          <HeroLabel className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+          <HeroLabel className="mb-1.5 block text-sm font-medium text-foreground">
             Status
           </HeroLabel>
           <select
@@ -745,7 +759,7 @@ function InstrumentForm({
             onChange={(e) =>
               onChange("status", e.target.value as InstrumentFormData["status"])
             }
-            className={formInputClass}
+            className="border-border bg-field-background text-field-foreground placeholder:text-field-placeholder focus:border-accent focus:ring-accent-soft-hover w-full rounded-xl border px-4 py-2.5 focus:outline-none focus:ring-2"
           >
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
