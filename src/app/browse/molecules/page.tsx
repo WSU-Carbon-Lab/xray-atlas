@@ -128,11 +128,10 @@ function MoleculesBrowseContent() {
 
   const hasSearchQuery = debouncedQuery.trim().length > 0;
 
-  const searchData = trpc.molecules.searchAdvanced.useQuery(
+  const searchData = trpc.molecules.autosuggest.useQuery(
     {
       query: debouncedQuery,
       limit: itemsPerPage,
-      offset: (currentPage - 1) * itemsPerPage,
       tagIds: tagIdsArray,
     },
     {
@@ -171,8 +170,8 @@ function MoleculesBrowseContent() {
   const normalizedData = hasSearchQuery
     ? {
         molecules: (searchData.data?.results ?? []) as NormalizedMolecule[],
-        total: searchData.data?.total ?? searchData.data?.results?.length ?? 0,
-        hasMore: searchData.data?.hasMore ?? false,
+        total: searchData.data?.results?.length ?? 0,
+        hasMore: false,
       }
     : {
         molecules: (allData.data?.molecules ?? []) as NormalizedMolecule[],

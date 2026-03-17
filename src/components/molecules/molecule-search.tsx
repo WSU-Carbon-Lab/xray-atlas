@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { LoadingSkeleton } from "../feedback/loading-state";
 import Link from "next/link";
+import { toSimpleHeaderResult } from "~/lib/molecule-autosuggest";
 
 interface MoleculeSearchProps {
   onResultClick?: (moleculeId: string) => void;
@@ -36,16 +37,15 @@ export function MoleculeSearch({
   }, [query]);
 
   // Search query
-  const { data, isLoading, isError } = trpc.molecules.searchAdvanced.useQuery(
+  const { data, isLoading, isError } = trpc.molecules.autosuggest.useQuery(
     {
       query: debouncedQuery,
       limit: 5,
-      offset: 0,
     },
     {
-      enabled: debouncedQuery.length >= 1, // Enable search with just 1 character
-      staleTime: 60000, // Cache for 60 seconds
-      gcTime: 300000, // Keep in cache for 5 minutes
+      enabled: debouncedQuery.length >= 1,
+      staleTime: 60000,
+      gcTime: 300000,
     },
   );
 
@@ -144,13 +144,9 @@ export function MoleculeSearch({
 
           {!isLoading && !isError && hasResults && (
             <div className="max-h-96 overflow-y-auto">
-              {data.results.map(
-                (molecule: {
-                  id: string;
-                  commonName: string;
-                  iupacName: string;
-                  chemicalFormula: string;
-                }) => (
+              {data.results.map((rawItem) => {
+                const molecule = toSimpleHeaderResult(rawItem);
+                return (
                   <button
                     key={molecule.id}
                     onClick={() => handleResultClick(molecule.id)}
@@ -170,14 +166,14 @@ export function MoleculeSearch({
                       </span>
                     </div>
                   </button>
-                ),
-              )}
+                );
+              })}
               <Link
                 href={`/browse?q=${encodeURIComponent(debouncedQuery)}`}
                 className="border-border text-accent hover:bg-default block border-t px-4 py-3 text-center text-sm font-medium transition-colors"
                 onClick={() => setIsOpen(false)}
               >
-                View all results ({data.total})
+                View all results ({data.results.length})
               </Link>
             </div>
           )}

@@ -158,14 +158,6 @@ export const moleculesRouter = createTRPCRouter({
                     @@ plainto_tsquery('english', ${searchTerm})
               )
             )
-            AND (
-              cardinality(${input.tagIds}::uuid[]) = 0
-              OR EXISTS (
-                SELECT 1 FROM moleculetags mt
-                WHERE mt.moleculeid = m.id
-                AND mt.tagid = ANY(${input.tagIds}::uuid[])
-              )
-            )
           LIMIT ${input.limit * 3}
         ),
         scored AS (
@@ -236,8 +228,8 @@ export const moleculesRouter = createTRPCRouter({
           casnumber,
           pubchemcid,
           imageurl,
-          favoritecount,
-          viewcount,
+          favorite_count AS favoritecount,
+          view_count AS viewcount,
           relevance,
           matchtype
         FROM scored

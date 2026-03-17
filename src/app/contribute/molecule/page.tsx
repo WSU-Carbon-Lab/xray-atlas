@@ -151,36 +151,21 @@ export default function MoleculeContributePage({
     setSubmitStatus({ type: null, message: "" });
 
     try {
-      // First, search the database for common name matches
-      // Only search database if we have a common name (not CID-only searches)
       if (hasCommonName) {
         try {
-          const dbSearchData: MoleculeSearchResponse =
-            await utils.molecules.search.fetch({
-              query: formData.commonName.trim(),
-            });
+          const autosuggest = await utils.molecules.autosuggest.fetch({
+            query: formData.commonName.trim(),
+            limit: 1,
+          });
 
-          if (dbSearchData.ok && dbSearchData.data) {
-            // Found in database - populate form
-            const result: MoleculeSearchData = dbSearchData.data;
+          const top = autosuggest.results[0];
 
-            // Handle commonName - tRPC returns it as a string (first synonym or iupacname)
-            const commonNameValue =
-              typeof result.commonName === "string"
-                ? result.commonName
-                : (result.commonName ?? "");
+          if (top && (top.matchType === "name_exact" || top.matchType === "name_prefix")) {
+            const moleculeIdFromSearch = top.id ?? null;
+            const commonNameValue = top.commonName ?? "";
+            const chemicalFormulaValue = top.chemicalFormula ?? "";
+            const allSynonyms = Array.isArray(top.synonyms) ? top.synonyms : [];
 
-            // Handle chemicalFormula - may be string or array
-            const chemicalFormulaValue = Array.isArray(result.chemicalFormula)
-              ? result.chemicalFormula.join(", ")
-              : (result.chemicalFormula ?? "");
-
-            // Synonyms array is already provided by tRPC
-            const allSynonyms = Array.isArray(result.synonyms)
-              ? result.synonyms
-              : [];
-
-            const moleculeIdFromSearch = result.id ?? null;
             let tagIds: string[] = [];
             if (moleculeIdFromSearch) {
               try {
@@ -189,35 +174,31 @@ export default function MoleculeContributePage({
                 });
                 tagIds = tagsData.map((t) => t.id);
               } catch {
-                // leave tagIds empty if fetch fails
               }
             }
             setFormData({
-              iupacName: result.iupacName ?? "",
+              iupacName: top.iupacName ?? "",
               commonName: commonNameValue,
               synonyms: allSynonyms.filter(Boolean),
-              inchi: result.inchi ?? "",
-              smiles: result.smiles ?? "",
+              inchi: top.inchi ?? "",
+              smiles: top.smiles ?? "",
               chemicalFormula: chemicalFormulaValue,
-              casNumber: result.casNumber ?? null,
-              pubchemCid: result.pubChemCid ?? null,
+              casNumber: top.casNumber ?? null,
+              pubchemCid: top.pubChemCid ?? null,
               tagIds,
             });
 
             setEditingMoleculeId(moleculeIdFromSearch);
 
-            // Set image preview if available from database
-            if (result.imageUrl) {
-              setImagePreview(result.imageUrl);
-              // Note: We set the preview URL, but don't set imageFile since it's already uploaded
-              // The user can still upload a new image if they want to replace it
+            if (top.imageUrl) {
+              setImagePreview(top.imageUrl);
             }
 
             setSearchSuccess(
-              `Found molecule in database: ${result.iupacName}. You can now edit and update it.`,
+              `Found molecule in database: ${top.iupacName}. You can now edit and update it.`,
             );
             setIsSearching(false);
-            return; // Stop here - don't search PubChem
+            return;
           }
         } catch (dbError: unknown) {
           // Continue to PubChem search if database search fails

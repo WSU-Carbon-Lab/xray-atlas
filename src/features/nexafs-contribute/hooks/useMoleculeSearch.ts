@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "~/trpc/client";
 import type { MoleculeSearchResult } from "../types";
+import { toMoleculeSearchResult } from "~/lib/molecule-autosuggest";
 
 type UseMoleculeSearchParams = {
   onSelectionChange?: (molecule: MoleculeSearchResult | null) => void;
@@ -46,19 +47,17 @@ export function useMoleculeSearch(params: UseMoleculeSearchParams = {}) {
       suggestionRequestIdRef.current = requestId;
       setIsSuggesting(true);
 
-      void utils.molecules.searchAdvanced
+      void utils.molecules.autosuggest
         .fetch({
           query: term,
           limit: 5,
-          offset: 0,
-          searchCasNumber: true,
-          searchPubChemCid: true,
         })
         .then((response) => {
           if (suggestionRequestIdRef.current !== requestId) return;
-          setSuggestions(response.results ?? []);
+          const items = response.results ?? [];
+          setSuggestions(items.map(toMoleculeSearchResult));
           setSuggestionError(
-            response.results.length === 0
+            items.length === 0
               ? "No quick suggestions found."
               : null,
           );
@@ -98,18 +97,16 @@ export function useMoleculeSearch(params: UseMoleculeSearchParams = {}) {
     setManualError(null);
 
     try {
-      const response = await utils.molecules.searchAdvanced.fetch({
+      const response = await utils.molecules.autosuggest.fetch({
         query: term,
         limit: 12,
-        offset: 0,
-        searchCasNumber: true,
-        searchPubChemCid: true,
       });
 
       if (manualRequestIdRef.current !== requestId) return;
 
-      setManualResults(response.results ?? []);
-      if (response.results.length === 0) {
+      const items = response.results ?? [];
+      setManualResults(items.map(toMoleculeSearchResult));
+      if (items.length === 0) {
         setManualError("No molecules matched those keywords.");
       }
     } catch (error) {
