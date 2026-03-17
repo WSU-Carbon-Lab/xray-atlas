@@ -49,9 +49,12 @@ export type DifferenceSpectrum = {
   preferred?: boolean;
 };
 
+export type GraphStyle = "line" | "scatter" | "area";
+
 export type SpectrumPlotProps = {
   points: SpectrumPoint[];
   height?: number;
+  graphStyle?: GraphStyle;
   energyStats?: AxisStats;
   absorptionStats?: AxisStats;
   referenceCurves?: ReferenceCurve[];
@@ -95,6 +98,8 @@ export type TraceData = {
   showlegend?: boolean;
   xaxis?: string;
   yaxis?: string;
+  theta?: number;
+  phi?: number;
 };
 
 /**

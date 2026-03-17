@@ -156,6 +156,22 @@
     --cpk-i: #940094;
     --cpk-bonds: #000000;
     --cpk-default-atom: #000000;
+
+    --chart-background: var(--background);
+    --chart-paper: var(--surface-1);
+    --chart-plot: var(--background);
+    --chart-grid: rgba(148, 163, 184, 0.2);
+    --chart-grid-strong: rgba(148, 163, 184, 0.4);
+    --chart-axis: var(--text-secondary);
+    --chart-text: var(--foreground);
+    --chart-text-secondary: var(--text-tertiary);
+    --chart-hover-bg: var(--surface-1);
+    --chart-hover-text: var(--foreground);
+    --chart-legend-bg: rgba(255, 255, 255, 0.95);
+    --chart-legend-border: rgba(148, 163, 184, 0.3);
+    --chart-crosshair: rgba(71, 85, 105, 0.5);
+    --chart-selection: rgba(202, 18, 55, 0.18);
+    --chart-selection-border: rgba(202, 18, 55, 0.65);
   }
 
   .dark {
@@ -187,6 +203,22 @@
     --cpk-i: #d478d4;
     --cpk-bonds: #ffffff;
     --cpk-default-atom: #ffffff;
+
+    --chart-background: var(--background);
+    --chart-paper: var(--surface-1);
+    --chart-plot: var(--background);
+    --chart-grid: rgba(71, 85, 105, 0.3);
+    --chart-grid-strong: rgba(71, 85, 105, 0.5);
+    --chart-axis: var(--text-secondary);
+    --chart-text: var(--foreground);
+    --chart-text-secondary: var(--text-tertiary);
+    --chart-hover-bg: var(--surface-1);
+    --chart-hover-text: var(--foreground);
+    --chart-legend-bg: rgba(24, 24, 27, 0.95);
+    --chart-legend-border: rgba(39, 39, 42, 0.6);
+    --chart-crosshair: rgba(148, 163, 184, 0.5);
+    --chart-selection: rgba(202, 18, 55, 0.22);
+    --chart-selection-border: rgba(202, 18, 55, 0.7);
   }
 
   html {
@@ -209,6 +241,16 @@
   ::selection {
     background-color: color-mix(in oklab, var(--accent) 20%, transparent);
     color: inherit;
+  }
+}
+
+@layer components {
+  .scrollshadow-inline-legend {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollshadow-inline-legend::-webkit-scrollbar {
+    display: none;
   }
 }
 
@@ -473,4 +515,9 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+.spectrum-plot-pan-dragging,
+.spectrum-plot-pan-dragging * {
+  cursor: grabbing !important;
 }

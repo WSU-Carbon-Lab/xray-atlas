@@ -4,7 +4,10 @@
 
 import { useMemo } from "react";
 import type { TraceData, SpectrumPoint, DifferenceSpectrum } from "../types";
-import { COLORS } from "../constants";
+import {
+  SPECTRUM_TRACE_GRADIENT_DARK,
+  SPECTRUM_TRACE_GRADIENT_LIGHT,
+} from "../constants";
 import { groupPointsByGeometry } from "../utils/trace-utils";
 
 export type SpectrumDataResult = {
@@ -21,7 +24,9 @@ export function useSpectrumData(
   showThetaData: boolean,
   showPhiData: boolean,
   differenceSpectra: DifferenceSpectrum[],
+  isDark = true,
 ): SpectrumDataResult {
+  const palette = isDark ? SPECTRUM_TRACE_GRADIENT_DARK : SPECTRUM_TRACE_GRADIENT_LIGHT;
   return useMemo(() => {
     // Filter points based on showThetaData and showPhiData
     // If difference spectra are being shown, don't show original data
@@ -61,13 +66,16 @@ export function useSpectrumData(
     const traces: TraceData[] = [];
     let index = 0;
     groups.forEach((group, key) => {
-      const color = COLORS[index] ?? `hsl(${(index * 57) % 360} 65% 55%)`;
+      const color =
+        palette[index % palette.length] ?? palette[0];
       traces.push({
         type: "scattergl",
         mode: "lines+markers",
         name: group.label || key,
         x: group.energies,
         y: group.absorptions,
+        theta: group.theta,
+        phi: group.phi,
         marker: {
           color,
           size: 4,
@@ -86,5 +94,5 @@ export function useSpectrumData(
     });
 
     return { traces, keys: Array.from(groups.keys()), groups };
-  }, [points, showThetaData, showPhiData, differenceSpectra]);
+  }, [points, showThetaData, showPhiData, differenceSpectra, palette]);
 }

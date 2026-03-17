@@ -1,14 +1,13 @@
 /**
- * Brush-based zoom component using @visx/brush
- * Similar to visx.airbnb.tech/brush examples
+ * Custom marquee zoom: user drags a selection rect, zoom is applied on pointer release.
+ * Uses window pointerup so release always triggers zoom regardless of pointer position.
  */
 
-import { Brush } from "@visx/brush";
-import type { Bounds } from "@visx/brush/lib/types";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ScaleLinear } from "d3-scale";
 import type { PlotDimensions } from "../types";
 import { THEME_COLORS } from "../constants";
+import type { ChartThemeColors } from "../hooks/useChartTheme";
 
 export type ZoomMode = "horizontal" | "vertical" | "default";
 
@@ -17,22 +16,38 @@ type BrushZoomProps = {
   yScale: ScaleLinear<number, number>;
   dimensions: PlotDimensions;
   isDark: boolean;
+  themeColors?: ChartThemeColors;
   zoomMode: ZoomMode;
   onZoom: (xDomain: [number, number], yDomain: [number, number]) => void;
   onReset?: () => void;
 };
+
+function eventToPlotCoords(
+  event: PointerEvent,
+  svg: SVGSVGElement,
+  left: number,
+  top: number,
+): { x: number; y: number } | null {
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const pt = svg.createSVGPoint();
+  pt.x = event.clientX;
+  pt.y = event.clientY;
+  const svgPt = pt.matrixTransform(ctm.inverse());
+  return { x: svgPt.x - left, y: svgPt.y - top };
+}
 
 export function BrushZoom({
   xScale,
   yScale,
   dimensions,
   isDark,
+  themeColors: themeColorsProp,
   zoomMode,
   onZoom,
   onReset,
 }: BrushZoomProps) {
-  const [_brushBounds, setBrushBounds] = useState<Bounds | null>(null);
-  const themeColors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
+  const themeColors = themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
 
   const plotWidth =
     dimensions.width - dimensions.margins.left - dimensions.margins.right;
@@ -41,84 +56,128 @@ export function BrushZoom({
   const left = dimensions.margins.left;
   const top = dimensions.margins.top;
 
-  const handleBrushChange = useCallback(
-    (bounds: Bounds | null) => {
-      if (!bounds) {
-        // Reset zoom when brush is cleared
-        setBrushBounds(null);
-        onReset?.();
-        return;
-      }
+  const [marquee, setMarquee] = useState<{
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  } | null>(null);
+  const marqueeRef = useRef<typeof marquee>(null);
+  marqueeRef.current = marquee;
 
-      setBrushBounds(bounds);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const setSvgRef = useCallback((node: SVGGElement | null) => {
+    svgRef.current = node?.ownerSVGElement ?? null;
+  }, []);
 
-      const x0 = bounds.x0;
-      const x1 = bounds.x1;
-
-      if (typeof x0 !== "number" || typeof x1 !== "number") {
-        return;
-      }
-
-      // Convert pixel coordinates to data coordinates
+  const commitZoom = useCallback(
+    (extent: { x0: number; x1: number; y0: number; y1: number }) => {
+      const currentX = xScale.domain() as [number, number];
+      const currentY = yScale.domain() as [number, number];
       let xDomain: [number, number];
-      let yDomain: [number, number];
-
+      const yDomain: [number, number] = [currentY[0] ?? 0, currentY[1] ?? 1];
       if (zoomMode === "horizontal" || zoomMode === "default") {
-        const x0Data = xScale.invert(x0);
-        const x1Data = xScale.invert(x1);
-        xDomain = [Math.min(x0Data, x1Data), Math.max(x0Data, x1Data)];
+        const xMin = Math.min(extent.x0, extent.x1);
+        const xMax = Math.max(extent.x0, extent.x1);
+        const span = xMax - xMin;
+        if (span < 1e-6) return;
+        xDomain = [xMin, xMax];
       } else {
-        // Vertical only - keep full x domain
-        const currentDomain = xScale.domain();
-        xDomain = [currentDomain[0] ?? 0, currentDomain[1] ?? 1000];
+        xDomain = [currentX[0] ?? 0, currentX[1] ?? 1000];
       }
-
-      if (zoomMode === "vertical" || zoomMode === "default") {
-        const y0 = bounds.y0;
-        const y1 = bounds.y1;
-        if (typeof y0 === "number" && typeof y1 === "number") {
-          const y0Data = yScale.invert(y0);
-          const y1Data = yScale.invert(y1);
-          yDomain = [Math.min(y0Data, y1Data), Math.max(y0Data, y1Data)];
-        } else {
-          const currentDomain = yScale.domain();
-          yDomain = [currentDomain[0] ?? 0, currentDomain[1] ?? 1];
-        }
-      } else {
-        // Horizontal only - keep full y domain
-        const currentDomain = yScale.domain();
-        yDomain = [currentDomain[0] ?? 0, currentDomain[1] ?? 1];
-      }
-
       onZoom(xDomain, yDomain);
     },
-    [zoomMode, xScale, yScale, onZoom, onReset],
+    [zoomMode, xScale, yScale, onZoom],
   );
 
+  useEffect(() => {
+    if (!marquee) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const pt = eventToPlotCoords(e, svg, left, top);
+      if (!pt) return;
+      const x = Math.max(0, Math.min(plotWidth, pt.x));
+      setMarquee((prev) =>
+        prev ? { ...prev, end: { ...prev.end, x } } : null,
+      );
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      const current = marqueeRef.current;
+      if (!current) return;
+      const pt = eventToPlotCoords(e, svg, left, top);
+      const endX = pt
+        ? Math.max(0, Math.min(plotWidth, pt.x))
+        : current.end.x;
+      const x0 = Math.min(current.start.x, endX);
+      const x1 = Math.max(current.start.x, endX);
+      if (x1 - x0 >= 2) {
+        const extent = {
+          x0: xScale.invert(x0),
+          x1: xScale.invert(x1),
+          y0: 0,
+          y1: plotHeight,
+        };
+        commitZoom(extent);
+      }
+      setMarquee(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove, { capture: true });
+    window.addEventListener("pointerup", handlePointerUp, { capture: true });
+    window.addEventListener("pointercancel", handlePointerUp, { capture: true });
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove, { capture: true });
+      window.removeEventListener("pointerup", handlePointerUp, { capture: true });
+      window.removeEventListener("pointercancel", handlePointerUp, { capture: true });
+    };
+  }, [marquee, left, top, plotWidth, plotHeight, xScale, yScale, commitZoom]);
+
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const pt = eventToPlotCoords(
+        event.nativeEvent,
+        svg,
+        left,
+        top,
+      );
+      if (!pt) return;
+      const x = Math.max(0, Math.min(plotWidth, pt.x));
+      setMarquee({ start: { x, y: 0 }, end: { x, y: plotHeight } });
+    },
+    [left, top, plotWidth, plotHeight],
+  );
+
+  const selectionStyle = {
+    fill: themeColors.hoverBg,
+    fillOpacity: 0.15,
+    stroke: themeColors.text,
+    strokeWidth: 2,
+    strokeDasharray: "4 4",
+  };
+
   return (
-    <g transform={`translate(${left}, ${top})`}>
-      <Brush
-        xScale={xScale}
-        yScale={yScale}
+    <g ref={setSvgRef} transform={`translate(${left}, ${top})`}>
+      <rect
         width={plotWidth}
         height={plotHeight}
-        onChange={handleBrushChange}
-        brushDirection={
-          zoomMode === "horizontal"
-            ? "horizontal"
-            : zoomMode === "vertical"
-              ? "vertical"
-              : "both"
-        }
-        selectedBoxStyle={{
-          fill: themeColors.hoverBg,
-          fillOpacity: 0.15,
-          stroke: themeColors.text,
-          strokeWidth: 2,
-          strokeDasharray: "4 4",
-        }}
-        handleSize={8}
+        fill="transparent"
+        style={{ cursor: "crosshair" }}
+        onPointerDown={handlePointerDown}
       />
+      {marquee && (
+        <rect
+          x={Math.min(marquee.start.x, marquee.end.x)}
+          y={0}
+          width={Math.abs(marquee.end.x - marquee.start.x)}
+          height={plotHeight}
+          style={selectionStyle}
+          pointerEvents="none"
+        />
+      )}
     </g>
   );
 }

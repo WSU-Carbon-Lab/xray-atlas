@@ -93,6 +93,259 @@ async function ensureContributor(
 }
 
 export const moleculesRouter = createTRPCRouter({
+  autosuggest: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1, "Query is required"),
+        limit: z.number().min(1).max(50).default(10),
+        tagIds: z.array(z.string().uuid()).optional().default([]),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const searchTerm = input.query.trim();
+      if (!searchTerm) {
+        return {
+          query: input.query,
+          results: [],
+        };
+      }
+
+      const searchTermLower = searchTerm.toLowerCase();
+      const searchPattern = `${searchTermLower}%`;
+
+      const rawResults = await ctx.db.$queryRaw<
+        Array<{
+          id: string;
+          iupacname: string;
+          inchi: string;
+          smiles: string;
+          chemicalformula: string;
+          casnumber: string | null;
+          pubchemcid: string | null;
+          imageurl: string | null;
+          favoritecount: number;
+          viewcount: number | null;
+          relevance: number;
+          matchtype: string;
+        }>
+      >`
+        WITH candidate_molecules AS (
+          SELECT DISTINCT m.*
+          FROM "molecules" m
+          WHERE
+            LOWER(m.iupacname) LIKE ${searchPattern}
+            OR LOWER(COALESCE(m.chemicalformula, '')) LIKE ${searchPattern}
+            OR EXISTS (
+              SELECT 1 FROM "moleculesynonyms" ms
+              WHERE ms."moleculeid" = m."id"
+              AND LOWER(ms.synonym) LIKE ${searchPattern}
+            )
+            OR LOWER(COALESCE(m.casnumber, '')) = ${searchTermLower}
+            OR LOWER(COALESCE(m.pubchemcid, '')) = ${searchTermLower}
+            OR (
+              LENGTH(${searchTerm}) >= 3
+              AND to_tsvector(
+                    'english',
+                    m.iupacname || ' ' || COALESCE(m.chemicalformula, '')
+                  ) @@ plainto_tsquery('english', ${searchTerm})
+            )
+            OR (
+              LENGTH(${searchTerm}) >= 3
+              AND EXISTS (
+                SELECT 1 FROM "moleculesynonyms" ms
+                WHERE ms."moleculeid" = m."id"
+                AND to_tsvector('english', ms.synonym)
+                    @@ plainto_tsquery('english', ${searchTerm})
+              )
+            )
+            AND (
+              cardinality(${input.tagIds}::uuid[]) = 0
+              OR EXISTS (
+                SELECT 1 FROM moleculetags mt
+                WHERE mt.moleculeid = m.id
+                AND mt.tagid = ANY(${input.tagIds}::uuid[])
+              )
+            )
+          LIMIT ${input.limit * 3}
+        ),
+        scored AS (
+          SELECT
+            cm.*,
+            GREATEST(
+              CASE
+                WHEN LOWER(COALESCE(cm.casnumber, '')) = ${searchTermLower} THEN 12.0
+                WHEN LOWER(COALESCE(cm.pubchemcid, '')) = ${searchTermLower} THEN 11.0
+                WHEN LOWER(cm.iupacname) = ${searchTermLower} THEN 10.0
+                WHEN LOWER(cm.iupacname) LIKE ${searchPattern} THEN 8.0
+                ELSE 0
+              END,
+              COALESCE((
+                SELECT CASE
+                  WHEN LOWER(ms.synonym) = ${searchTermLower} THEN 10.0
+                  WHEN LOWER(ms.synonym) LIKE ${searchPattern} THEN 8.0
+                  ELSE 0
+                END
+                FROM "moleculesynonyms" ms
+                WHERE ms."moleculeid" = cm."id"
+                AND (
+                  LOWER(ms.synonym) = ${searchTermLower}
+                  OR LOWER(ms.synonym) LIKE ${searchPattern}
+                )
+                ORDER BY
+                  CASE
+                    WHEN LOWER(ms.synonym) = ${searchTermLower} THEN 0
+                    ELSE 1
+                  END,
+                  ms."order" ASC,
+                  LENGTH(ms.synonym) ASC
+                LIMIT 1
+              ), 0),
+              CASE
+                WHEN LENGTH(${searchTerm}) >= 3 THEN
+                  ts_rank(
+                    to_tsvector(
+                      'english',
+                      cm.iupacname || ' ' || COALESCE(cm.chemicalformula, '')
+                    ),
+                    plainto_tsquery('english', ${searchTerm})
+                  )
+                ELSE 0
+              END
+            ) AS relevance,
+            CASE
+              WHEN LOWER(COALESCE(cm.casnumber, '')) = ${searchTermLower} THEN 'cas_exact'
+              WHEN LOWER(COALESCE(cm.pubchemcid, '')) = ${searchTermLower} THEN 'pubchem_exact'
+              WHEN LOWER(cm.iupacname) = ${searchTermLower} THEN 'name_exact'
+              WHEN LOWER(cm.iupacname) LIKE ${searchPattern} THEN 'name_prefix'
+              WHEN LENGTH(${searchTerm}) >= 3
+                   AND to_tsvector(
+                         'english',
+                         cm.iupacname || ' ' || COALESCE(cm.chemicalformula, '')
+                       ) @@ plainto_tsquery('english', ${searchTerm})
+                   THEN 'molecule_fts'
+              ELSE 'synonym_fts'
+            END AS matchtype
+          FROM candidate_molecules cm
+        )
+        SELECT
+          id,
+          iupacname,
+          inchi,
+          smiles,
+          chemicalformula,
+          casnumber,
+          pubchemcid,
+          imageurl,
+          favoritecount,
+          viewcount,
+          relevance,
+          matchtype
+        FROM scored
+      `;
+
+      if (rawResults.length === 0) {
+        return {
+          query: input.query,
+          results: [],
+        };
+      }
+
+      const moleculeIds = rawResults.map((r) => r.id);
+      const allSynonyms = await ctx.db.moleculesynonyms.findMany({
+        where: { moleculeid: { in: moleculeIds } },
+        select: { moleculeid: true, synonym: true, order: true },
+        orderBy: [{ order: "asc" }, { synonym: "asc" }],
+      });
+
+      const synonymsByMolecule = allSynonyms.reduce(
+        (acc, syn) => {
+          acc[syn.moleculeid] ??= { primary: null as string | null, all: [] as string[] };
+          if (syn.order === 0 && !acc[syn.moleculeid]!.primary) {
+            acc[syn.moleculeid]!.primary = syn.synonym;
+          }
+          acc[syn.moleculeid]!.all.push(syn.synonym);
+          return acc;
+        },
+        {} as Record<string, { primary: string | null; all: string[] }>,
+      );
+
+      const scoreForMatchType = (matchType: string): number => {
+        switch (matchType) {
+          case "cas_exact":
+            return 1;
+          case "pubchem_exact":
+            return 0.98;
+          case "name_exact":
+            return 0.95;
+          case "name_prefix":
+            return 0.85;
+          case "molecule_fts":
+            return 0.6;
+          default:
+            return 0.5;
+        }
+      };
+
+      const popularityScore = (favoriteCount: number, viewCount: number | null): number => {
+        const raw = Math.max(favoriteCount * 3 + (viewCount ?? 0), 0);
+        if (raw <= 0) return 0;
+        const score = Math.log1p(raw) / 10;
+        return Math.min(0.2, score);
+      };
+
+      const items = rawResults.map((row) => {
+        const synData = synonymsByMolecule[row.id] ?? {
+          primary: null,
+          all: [] as string[],
+        };
+        const commonName = synData.primary ?? synData.all[0] ?? row.iupacname;
+        const textScoreBase = scoreForMatchType(row.matchtype);
+        const textScore = textScoreBase + Math.min(Math.max(row.relevance, 0), 1) * 0.05;
+        const popScore = popularityScore(row.favoritecount, row.viewcount);
+        const overallScore = textScore + popScore;
+
+        return {
+          id: row.id,
+          iupacName: row.iupacname,
+          commonName,
+          synonyms: synData.all,
+          inchi: row.inchi,
+          smiles: row.smiles,
+          chemicalFormula: row.chemicalformula,
+          casNumber: row.casnumber,
+          pubChemCid: row.pubchemcid,
+          imageUrl: row.imageurl ?? undefined,
+          favoriteCount: row.favoritecount,
+          viewCount: row.viewcount ?? 0,
+          matchType: row.matchtype,
+          textScore,
+          popularityScore: popScore,
+          overallScore,
+        };
+      });
+
+      items.sort((a, b) => {
+        if (b.overallScore !== a.overallScore) {
+          return b.overallScore - a.overallScore;
+        }
+        if (b.textScore !== a.textScore) {
+          return b.textScore - a.textScore;
+        }
+        if (b.favoriteCount !== a.favoriteCount) {
+          return b.favoriteCount - a.favoriteCount;
+        }
+        if (b.viewCount !== a.viewCount) {
+          return b.viewCount - a.viewCount;
+        }
+        return a.iupacName.localeCompare(b.iupacName);
+      });
+
+      return {
+        query: input.query,
+        results: items.slice(0, input.limit),
+      };
+    }),
+
   search: publicProcedure
     .input(
       z.object({

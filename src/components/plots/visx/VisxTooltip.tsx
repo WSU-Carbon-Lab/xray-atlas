@@ -5,6 +5,7 @@
 
 import { useTooltip, useTooltipInPortal } from "@visx/tooltip";
 import { THEME_COLORS } from "../constants";
+import type { ChartThemeColors } from "../hooks/useChartTheme";
 
 export type TooltipData = {
   energy: number;
@@ -36,6 +37,7 @@ export function VisxTooltip({
   tooltipX,
   tooltipY,
   isDark,
+  themeColors: themeColorsProp,
   TooltipInPortal,
   plotDimensions,
   scales,
@@ -46,6 +48,7 @@ export function VisxTooltip({
   tooltipX?: number;
   tooltipY?: number;
   isDark: boolean;
+  themeColors?: ChartThemeColors;
   TooltipInPortal: React.ComponentType<
     React.PropsWithChildren<{
       left: number;
@@ -67,7 +70,7 @@ export function VisxTooltip({
 }) {
   if (!tooltipData) return null;
 
-  const themeColors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
+  const themeColors = themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
 
   // Calculate crosshair position in plot coordinates
   const _crosshairX =
@@ -93,9 +96,9 @@ export function VisxTooltip({
           border: `1px solid ${themeColors.legendBorder}`,
           borderRadius: "8px",
           padding: "10px 14px",
-          fontSize: "12px",
-          fontFamily: "Inter, system-ui, sans-serif",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+          fontSize: "13px",
+          fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08)",
           pointerEvents: "none",
           zIndex: 1000,
           transition: "opacity 0.15s ease-in-out, transform 0.15s ease-in-out",
@@ -129,10 +132,17 @@ export function VisxTooltip({
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                gap: "12px",
               }}
             >
-              <span style={{ opacity: 0.8 }}>Energy:</span>
-              <span style={{ fontWeight: 600, fontFamily: "monospace" }}>
+              <span style={{ opacity: 0.85 }}>Energy</span>
+              <span
+                style={{
+                  fontWeight: 600,
+                  fontFamily: "var(--font-mono), monospace",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
                 {tooltipData.energy.toFixed(3)} eV
               </span>
             </div>
@@ -141,10 +151,17 @@ export function VisxTooltip({
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                gap: "12px",
               }}
             >
-              <span style={{ opacity: 0.8 }}>Intensity:</span>
-              <span style={{ fontWeight: 600, fontFamily: "monospace" }}>
+              <span style={{ opacity: 0.85 }}>Intensity</span>
+              <span
+                style={{
+                  fontWeight: 600,
+                  fontFamily: "var(--font-mono), monospace",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
                 {tooltipData.intensity.toFixed(4)}
               </span>
             </div>

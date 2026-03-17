@@ -1271,8 +1271,8 @@ export function DatasetContent({
   }, [plotPoints]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex w-full min-h-0 flex-1 flex-col gap-6">
+      <div className="flex w-full shrink-0 flex-col">
         <div className="flex items-center gap-2">
           <div className="flex shrink-0 items-center">
             <Tooltip delay={0}>
@@ -1305,7 +1305,7 @@ export function DatasetContent({
             />
           </div>
         </div>
-        <div className="mt-3 flex min-h-0 flex-1 items-stretch gap-6">
+        <div className="mt-3 flex w-full min-h-0 flex-1 items-stretch gap-6 overflow-hidden">
           {analysisPanelOpen && (
             <AnalysisToolbar
               panelOnly
@@ -1413,18 +1413,19 @@ export function DatasetContent({
             />
           )}
 
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex w-full min-h-0 min-w-0 flex-1 flex-col">
             <div
-              className={`border-border bg-surface rounded-lg border p-6 shadow-sm ${
+              className={`border-border bg-surface border p-6 shadow-sm w-full ${
                 visualizationMode === "table"
-                  ? "flex flex-col"
-                  : "min-h-[600px] flex-1"
+                  ? "flex flex-col rounded-lg"
+                  : "flex min-h-[840px] min-w-0 flex-1 flex-col rounded-xl"
               }`}
             >
               {visualizationMode === "graph" && plotPoints.length > 0 ? (
-                <SpectrumPlot
-                  points={plotPoints}
-                  height={600}
+                <div className="flex w-full min-h-0 min-w-0 flex-1 flex-col" style={{ minHeight: 0 }}>
+                  <SpectrumPlot
+                    points={plotPoints}
+                    graphStyle={graphStyle}
                   referenceCurves={referenceCurves}
                   normalizationRegions={normalizationRegions}
                   selectionTarget={normalizationSelectionTarget}
@@ -1504,7 +1505,8 @@ export function DatasetContent({
                   selectedGeometry={selectedGeometry}
                   cursorMode={cursorMode}
                   onCursorModeChange={setCursorMode}
-                />
+                  />
+                </div>
               ) : visualizationMode === "table" ? (
                 plotPoints.length > 0 ? (
                   <DatasetSpectrumTable

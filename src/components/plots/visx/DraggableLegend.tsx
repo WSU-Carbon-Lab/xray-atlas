@@ -8,6 +8,7 @@ import { LegendOrdinal, LegendItem, LegendLabel } from "@visx/legend";
 import { scaleOrdinal } from "@visx/scale";
 import type { TraceData, PlotDimensions } from "../types";
 import { THEME_COLORS } from "../constants";
+import type { ChartThemeColors } from "../hooks/useChartTheme";
 import type { CursorMode } from "./CursorModeSelector";
 import {
   HandRaisedIcon,
@@ -16,10 +17,12 @@ import {
 
 type LegendItemData = {
   label: string;
+  scaleKey: string;
   color: string;
   lineWidth: number;
   lineDash?: string;
   trace?: TraceData;
+  traceNameForHover?: string;
 };
 
 type DraggableLegendProps = {
@@ -27,7 +30,9 @@ type DraggableLegendProps = {
   referenceTraces: TraceData[];
   differenceTraces: TraceData[];
   dimensions: PlotDimensions;
+  totalWidth?: number;
   isDark: boolean;
+  themeColors?: ChartThemeColors;
   cursorMode: CursorMode;
   onCursorModeChange: (mode: CursorMode) => void;
   hoveredEnergy?: number | null;
@@ -35,70 +40,119 @@ type DraggableLegendProps = {
   yOffset?: number;
 };
 
+const LEGEND_WIDTH = 260;
+const LEGEND_MARGIN = 12;
+const LEGEND_ITEM_HEIGHT = 28;
+const LEGEND_HEADER_HEIGHT = 52;
+const LEGEND_TITLE_HEIGHT = 24;
+
 export function DraggableLegend({
   traces,
   referenceTraces,
   differenceTraces,
   dimensions,
+  totalWidth: totalWidthProp,
   isDark,
+  themeColors: themeColorsProp,
   cursorMode,
   onCursorModeChange,
   hoveredEnergy,
   hoveredValues,
   yOffset = 0,
 }: DraggableLegendProps) {
-  const themeColors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
+  const themeColors = themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
+  const totalWidth = totalWidthProp ?? dimensions.width;
+  const defaultX = Math.max(LEGEND_MARGIN, totalWidth - LEGEND_WIDTH - LEGEND_MARGIN);
   const [position, setPosition] = useState({
-    x: dimensions.width - 200,
+    x: defaultX,
     y: 10,
   });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Combine all traces into legend items with metadata
+  const uniquePhiCount = useMemo(() => {
+    const phis = new Set(
+      traces
+        .map((t) => t.phi)
+        .filter(
+          (p): p is number =>
+            typeof p === "number" && Number.isFinite(p),
+        ),
+    );
+    return phis.size;
+  }, [traces]);
+
+  const singlePhi = uniquePhiCount <= 1;
+
   const legendItems: LegendItemData[] = useMemo(() => {
     const items: LegendItemData[] = [];
 
-    // Add measurement traces
-    traces.forEach((trace) => {
-      const label = typeof trace.name === "string" ? trace.name : "Trace";
+    traces.forEach((trace, idx) => {
+      const name = typeof trace.name === "string" ? trace.name : `Trace ${idx}`;
+      const label =
+        singlePhi &&
+        typeof trace.theta === "number" &&
+        Number.isFinite(trace.theta)
+          ? `${trace.theta.toFixed(1)}°`
+          : name;
       const color =
         trace.marker?.color ??
         trace.line?.color ??
         "#666";
       const lineWidth =
         typeof trace.line?.width === "number" ? trace.line.width : 1.6;
-      items.push({ label, color, lineWidth, trace });
+      items.push({
+        label,
+        scaleKey: name,
+        color,
+        lineWidth,
+        trace,
+        traceNameForHover: name,
+      });
     });
 
-    // Add reference traces
-    referenceTraces.forEach((trace) => {
-      const label = typeof trace.name === "string" ? trace.name : "Reference";
+    referenceTraces.forEach((trace, idx) => {
+      const name =
+        typeof trace.name === "string" ? trace.name : `Reference ${idx}`;
       const color = trace.line?.color ?? "#111827";
       const lineWidth =
         typeof trace.line?.width === "number" ? trace.line.width : 2.5;
-      items.push({ label, color, lineWidth, trace });
+      items.push({
+        label: name,
+        scaleKey: name,
+        color,
+        lineWidth,
+        trace,
+        traceNameForHover: name,
+      });
     });
 
-    // Add difference traces
-    differenceTraces.forEach((trace) => {
-      const label = typeof trace.name === "string" ? trace.name : "Difference";
+    differenceTraces.forEach((trace, idx) => {
+      const name =
+        typeof trace.name === "string" ? trace.name : `Difference ${idx}`;
       const color = trace.line?.color ?? "#666";
       const lineWidth =
         typeof trace.line?.width === "number" ? trace.line.width : 2;
       const lineDash =
         typeof trace.line?.dash === "string" ? trace.line.dash : undefined;
-      items.push({ label, color, lineWidth, lineDash, trace });
+      items.push({
+        label: name,
+        scaleKey: name,
+        color,
+        lineWidth,
+        lineDash,
+        trace,
+        traceNameForHover: name,
+      });
     });
 
     return items;
-  }, [traces, referenceTraces, differenceTraces]);
+  }, [traces, referenceTraces, differenceTraces, singlePhi]);
 
-  // Create ordinal scale for legend
   const legendScale = useMemo(
     () =>
       scaleOrdinal({
-        domain: legendItems.map((item) => item.label),
+        domain: legendItems.map((item) => item.scaleKey),
         range: legendItems.map((item) => item.color),
       }),
     [legendItems],
@@ -106,14 +160,8 @@ export function DraggableLegend({
 
   const handleMouseDown = useCallback(
     (event: React.MouseEvent) => {
-      // Only start dragging if clicking on the header area (not on buttons or legend items)
       const target = event.target as HTMLElement;
-      if (
-        target.tagName === "BUTTON" ||
-        target.closest("button") ||
-        target.closest('[role="listitem"]') ||
-        target.closest('[role="list"]')
-      ) {
+      if (target.tagName === "BUTTON" || target.closest("button")) {
         return;
       }
       event.preventDefault();
@@ -127,21 +175,26 @@ export function DraggableLegend({
     [position],
   );
 
+  const legendContentHeight =
+    LEGEND_HEADER_HEIGHT +
+    (singlePhi ? LEGEND_TITLE_HEIGHT : 0) +
+    legendItems.length * LEGEND_ITEM_HEIGHT +
+    16;
+
   const handleMouseMove = useCallback(
     (event: MouseEvent) => {
       if (!isDragging || !dragStartRef.current) return;
       const newX = event.clientX - dragStartRef.current.x;
       const newY = event.clientY - dragStartRef.current.y;
-
-      // Constrain to plot bounds
-      const maxX = dimensions.width - 200;
-      const maxY = dimensions.height - (legendItems.length * 24 + 100);
+      const marginTop = 10;
+      const maxX = totalWidth - LEGEND_WIDTH - LEGEND_MARGIN;
+      const maxY = dimensions.height - legendContentHeight - marginTop;
       setPosition({
-        x: Math.max(10, Math.min(newX, maxX)),
-        y: Math.max(10, Math.min(newY, maxY)),
+        x: Math.max(LEGEND_MARGIN, Math.min(newX, maxX)),
+        y: Math.max(marginTop, Math.min(newY, maxY)),
       });
     },
-    [isDragging, dimensions, legendItems.length],
+    [isDragging, dimensions, totalWidth, legendContentHeight],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -168,8 +221,8 @@ export function DraggableLegend({
       <foreignObject
         x={position.x}
         y={position.y + yOffset}
-        width={200}
-        height={legendItems.length * 24 + 60}
+        width={LEGEND_WIDTH}
+        height={legendContentHeight}
         style={{ overflow: "visible" }}
       >
         <div
@@ -177,35 +230,33 @@ export function DraggableLegend({
           style={{
             display: "flex",
             flexDirection: "column",
-            padding: "8px 10px",
+            padding: "12px 14px",
             backgroundColor: themeColors.legendBg,
             border: `1px solid ${themeColors.legendBorder}`,
-            borderRadius: "8px",
-            fontFamily: "Inter, system-ui, sans-serif",
-            fontSize: "12px",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-            cursor: isDragging ? "grabbing" : "grab",
+            borderRadius: "var(--radius, 8px)",
+            fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
+            fontSize: "14px",
+            boxShadow: "var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1))",
+            cursor: isDragging ? "grabbing" : "move",
             userSelect: "none",
           }}
         >
-          {/* Drag Handle and Tool Selection */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: "8px",
-              paddingBottom: "8px",
+              marginBottom: "10px",
+              paddingBottom: "10px",
               borderBottom: `1px solid ${themeColors.legendBorder}`,
               pointerEvents: "auto",
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            {/* Drag Handle */}
             <div
               style={{
                 display: "flex",
-                gap: "2px",
+                gap: "3px",
                 cursor: "grab",
                 opacity: 0.5,
               }}
@@ -295,12 +346,26 @@ export function DraggableLegend({
             </div>
           </div>
 
-          {/* Legend Items */}
+          {singlePhi && (
+            <div
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: themeColors.text,
+                marginBottom: "6px",
+                pointerEvents: "auto",
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              Theta
+            </div>
+          )}
+
           <div
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: "6px",
+              gap: "8px",
               pointerEvents: "auto",
             }}
             onMouseDown={(e) => e.stopPropagation()}
@@ -321,7 +386,7 @@ export function DraggableLegend({
               {(labels) =>
                 labels.map((label, i) => {
                   const item = legendItems.find(
-                    (li) => li.label === label.text,
+                    (li) => li.scaleKey === label.text,
                   );
                   if (!item) return null;
 
@@ -329,9 +394,12 @@ export function DraggableLegend({
                     hoveredEnergy !== null &&
                     hoveredEnergy !== undefined &&
                     hoveredValues
-                      ? hoveredValues.get(item.label)
+                      ? hoveredValues.get(
+                          item.traceNameForHover ?? item.label,
+                        )
                       : undefined;
 
+                  const isHighlighted = hoveredValue !== undefined;
                   return (
                     <LegendItem
                       key={`legend-item-${i}`}
@@ -341,6 +409,15 @@ export function DraggableLegend({
                         alignItems: "center",
                         width: "100%",
                         justifyContent: "space-between",
+                        backgroundColor: isHighlighted
+                          ? themeColors.hoverBg
+                          : "transparent",
+                        borderRadius: "6px",
+                        padding: "4px 6px",
+                        marginLeft: "-6px",
+                        marginRight: "-6px",
+                        minHeight: LEGEND_ITEM_HEIGHT - 4,
+                        boxSizing: "border-box",
                       }}
                     >
                       <div
@@ -351,8 +428,8 @@ export function DraggableLegend({
                         }}
                       >
                         <svg
-                          width={20}
-                          height={10}
+                          width={24}
+                          height={12}
                           style={{
                             display: "block",
                             flexShrink: 0,
@@ -360,9 +437,9 @@ export function DraggableLegend({
                         >
                           <line
                             x1={0}
-                            y1={5}
-                            x2={20}
-                            y2={5}
+                            y1={6}
+                            x2={24}
+                            y2={6}
                             stroke={label.value}
                             strokeWidth={item.lineWidth}
                             strokeDasharray={
@@ -373,22 +450,21 @@ export function DraggableLegend({
                         </svg>
                         <LegendLabel
                           align="left"
-                          margin="0 0 0 6px"
+                          margin="0 0 0 8px"
                           style={{
                             color: themeColors.text,
-                            fontSize: "12px",
+                            fontSize: "14px",
                             fontWeight: 400,
                           }}
                         >
-                          {label.text}
+                          {item.label}
                         </LegendLabel>
                       </div>
-                      {/* Hovered value display */}
                       {hoveredValue !== undefined && (
                         <span
                           style={{
                             color: themeColors.text,
-                            fontSize: "11px",
+                            fontSize: "12px",
                             fontFamily: "monospace",
                             fontWeight: 600,
                             opacity: 0.8,
