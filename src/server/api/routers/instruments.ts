@@ -137,6 +137,7 @@ export const instrumentsRouter = createTRPCRouter({
       z.object({
         facilityId: z.string().uuid(),
         name: z.string().min(1),
+        excludeInstrumentId: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -144,6 +145,9 @@ export const instrumentsRouter = createTRPCRouter({
         where: {
           facilityid: input.facilityId,
           name: input.name,
+          ...(input.excludeInstrumentId
+            ? { id: { not: input.excludeInstrumentId } }
+            : {}),
         },
       });
 
@@ -187,13 +191,13 @@ export const instrumentsRouter = createTRPCRouter({
     .input(
       z.object({
         id: z.string(),
-        name: z.string().optional(),
-        link: z.string().url().optional().nullable(),
+        name: z.string().min(1).optional(),
+        link: z.union([z.string().url(), z.literal("")]).optional().nullable(),
         status: z.enum(["active", "inactive", "under_maintenance"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...updateData } = input;
+      const { id, name, link, status } = input;
 
       const instrument = await ctx.db.instruments.findUnique({
         where: { id },
@@ -206,9 +210,37 @@ export const instrumentsRouter = createTRPCRouter({
         });
       }
 
+      if (name !== undefined && name !== instrument.name) {
+        const duplicate = await ctx.db.instruments.findFirst({
+          where: {
+            facilityid: instrument.facilityid,
+            name,
+            id: { not: id },
+          },
+        });
+        if (duplicate) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "An instrument with this name already exists at this facility",
+          });
+        }
+      }
+
+      const data: { name?: string; link?: string | null; status?: string } = {};
+      if (name !== undefined) data.name = name;
+      if (link !== undefined) data.link = link === "" ? null : link;
+      if (status !== undefined) data.status = status;
+
+      if (Object.keys(data).length === 0) {
+        return ctx.db.instruments.findUniqueOrThrow({
+          where: { id },
+          include: { facilities: true },
+        });
+      }
+
       const updated = await ctx.db.instruments.update({
         where: { id },
-        data: updateData,
+        data,
         include: {
           facilities: true,
         },

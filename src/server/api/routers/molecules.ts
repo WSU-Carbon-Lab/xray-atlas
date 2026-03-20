@@ -35,7 +35,7 @@ import {
 import { uploadMoleculeImage, deleteMoleculeImage } from "~/server/storage";
 import type { db } from "~/server/db";
 import { isDevMockUser } from "~/lib/dev-mock-data";
-import { pickRandomTagColor } from "~/lib/tag-colors";
+import { pickRandomTagHex } from "~/lib/tag-colors";
 import { toMoleculeView } from "./molecules-view";
 
 function slugifyTagName(name: string): string {
@@ -1276,7 +1276,15 @@ export const moleculesRouter = createTRPCRouter({
   }),
 
   findOrCreateTag: protectedProcedure
-    .input(z.object({ name: z.string().min(1).max(200) }))
+    .input(
+      z.object({
+        name: z.string().min(1).max(200),
+        color: z
+          .string()
+          .regex(/^#[0-9A-Fa-f]{6}$/)
+          .optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const trimmed = input.name.trim();
       if (!trimmed) {
@@ -1294,6 +1302,7 @@ export const moleculesRouter = createTRPCRouter({
           name: existing.name,
           slug: existing.slug,
           color: existing.color,
+          wasCreated: false,
         };
       }
       let slug = slugifyTagName(trimmed);
@@ -1309,7 +1318,7 @@ export const moleculesRouter = createTRPCRouter({
         }
         suffix += 1;
       }
-      const color = pickRandomTagColor();
+      const color = input.color?.toLowerCase() ?? pickRandomTagHex();
       const canonicalName = normalizeTagNameForStorage(trimmed);
       const created = await ctx.db.tags.create({
         data: {
@@ -1323,7 +1332,26 @@ export const moleculesRouter = createTRPCRouter({
         name: created.name,
         slug: created.slug,
         color: created.color,
+        wasCreated: true,
       };
+    }),
+
+  updateTagColor: protectedProcedure
+    .input(
+      z.object({
+        tagId: z.string().uuid(),
+        color: z
+          .string()
+          .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a 6-digit hex value"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const normalized = input.color.toLowerCase();
+      await ctx.db.tags.update({
+        where: { id: input.tagId },
+        data: { color: normalized },
+      });
+      return { id: input.tagId, color: normalized };
     }),
 
   setTags: protectedProcedure

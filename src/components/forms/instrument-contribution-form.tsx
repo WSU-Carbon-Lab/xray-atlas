@@ -2,16 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import {
+  CheckCircleIcon,
+  CheckIcon,
+  ExclamationCircleIcon,
+  ExclamationTriangleIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import { Button, Input, Label, ListBox, Select } from "@heroui/react";
 import { trpc } from "~/trpc/client";
-import { DefaultButton as Button } from "~/components/ui/button";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
-import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/react/24/outline";
-import { Input, Label, ListBox, Select } from "@heroui/react";
-
-import { INSTRUMENT_STATUS_OPTIONS } from "./constants";
+import { InstrumentFieldsBlock } from "./instrument-fields-block";
+import { useInstrumentNameAvailability } from "./use-instrument-name-availability";
 import type {
   InstrumentContributionFormMessage,
   InstrumentContributionFormProps,
+  InstrumentFormData,
   InstrumentStatus,
 } from "./types";
 
@@ -52,8 +58,8 @@ export function InstrumentContributionForm({
       return facilities;
     }
     const lower = searchTerm.toLowerCase();
-    return facilities.filter((facility) =>
-      [facility.name, facility.city ?? "", facility.country ?? ""]
+    return facilities.filter((f) =>
+      [f.name, f.city ?? "", f.country ?? ""]
         .join(" ")
         .toLowerCase()
         .includes(lower),
@@ -61,6 +67,31 @@ export function InstrumentContributionForm({
   }, [facilitiesQuery.data?.facilities, searchTerm]);
 
   const createInstrument = trpc.instruments.create.useMutation();
+
+  const instrumentDraft: InstrumentFormData = {
+    name: instrumentName,
+    link: instrumentLink,
+    status,
+  };
+
+  const nameCheck = useInstrumentNameAvailability({
+    facilityId: selectedFacilityId || undefined,
+    name: instrumentName,
+    mode: "new-row",
+  });
+  const instrumentExists =
+    !!selectedFacilityId &&
+    instrumentName.length > 0 &&
+    (nameCheck.data?.exists ?? false);
+
+  const handleInstrumentChange = (
+    field: keyof InstrumentFormData,
+    value: InstrumentFormData[keyof InstrumentFormData],
+  ) => {
+    if (field === "name") setInstrumentName(String(value));
+    else if (field === "link") setInstrumentLink(String(value));
+    else setStatus(value as InstrumentStatus);
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -104,6 +135,14 @@ export function InstrumentContributionForm({
       });
     }
   };
+
+  const duplicateWarning =
+    instrumentExists ? (
+      <div className="text-muted mt-2 flex items-center gap-2 text-sm">
+        <ExclamationTriangleIcon className="h-4 w-4 shrink-0" aria-hidden />
+        <span>This instrument already exists at this facility</span>
+      </div>
+    ) : null;
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
@@ -149,15 +188,15 @@ export function InstrumentContributionForm({
               </Select.Trigger>
               <Select.Popover>
                 <ListBox aria-label="Facilities">
-                  {filteredFacilities.map((facility) => (
+                  {filteredFacilities.map((f) => (
                     <ListBox.Item
-                      key={facility.id}
-                      textValue={facility.name}
+                      key={f.id}
+                      textValue={f.name}
                       className="text-sm"
                     >
-                      {facility.name}
-                      {facility.city ? ` · ${facility.city}` : ""}
-                      {facility.country ? `, ${facility.country}` : ""}
+                      {f.name}
+                      {f.city ? ` · ${f.city}` : ""}
+                      {f.country ? `, ${f.country}` : ""}
                     </ListBox.Item>
                   ))}
                 </ListBox>
@@ -195,80 +234,20 @@ export function InstrumentContributionForm({
           </div>
         )}
 
-        <div className="space-y-2">
-          <label
-            htmlFor="instrument-name"
-            className="mb-1 flex items-center gap-1 text-sm font-medium text-foreground"
-          >
-            Instrument Name{" "}
-            <span className="text-error dark:text-error-light" aria-hidden="true">
-              *
-            </span>
-            <span className="sr-only">(required)</span>
-            <FieldTooltip description="Provide the instrument's commonly used name or designation." />
-          </label>
-          <Input
-            id="instrument-name"
-            type="text"
-            value={instrumentName}
-            onChange={(event) => setInstrumentName(event.target.value)}
-            placeholder="e.g., Beamline 5A, XPS Analyzer"
-            className="w-full min-h-[44px] text-sm"
-            required
-            aria-required="true"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="instrument-link"
-            className="mb-1 flex items-center gap-1 text-sm font-medium text-foreground"
-          >
-            Reference Link
-            <FieldTooltip description="Optional URL to the instrument's official documentation or facility page." />
-          </label>
-          <Input
-            id="instrument-link"
-            type="url"
-            value={instrumentLink}
-            onChange={(event) => setInstrumentLink(event.target.value)}
-            placeholder="https://..."
-            className="w-full min-h-[44px] text-sm"
-          />
-        </div>
-
-        <Select
-          className="w-full"
-          value={status}
-          onChange={(value) => {
-            if (value == null) return;
-            setStatus(
-              String(Array.isArray(value) ? value[0] : value) as InstrumentStatus,
-            );
-          }}
-        >
-          <Label className="flex items-center gap-1 text-sm font-medium text-foreground">
-            Status
-            <FieldTooltip description="Indicate whether the instrument is actively operating, inactive, or undergoing maintenance." />
-          </Label>
-          <Select.Trigger className="min-h-[44px]">
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox aria-label="Instrument status" className="w-full">
-              {INSTRUMENT_STATUS_OPTIONS.map((option) => (
-                <ListBox.Item
-                  key={option.value}
-                  textValue={option.label}
-                  className="text-sm"
-                >
-                  {option.label}
-                </ListBox.Item>
-              ))}
-            </ListBox>
-          </Select.Popover>
-        </Select>
+        <InstrumentFieldsBlock
+          instrument={instrumentDraft}
+          onChange={handleInstrumentChange}
+          nameFieldName="instrument-name"
+          linkFieldName="instrument-link"
+          nameLabel="Instrument Name"
+          linkLabel="Reference Link"
+          namePlaceholder="e.g., Beamline 5A, XPS Analyzer"
+          nameInputGroupClassName={
+            instrumentExists ? "border-warning/50 bg-warning/10" : undefined
+          }
+          duplicateWarning={duplicateWarning}
+          linkFieldTooltip="Optional URL to the instrument's official documentation or facility page."
+        />
       </section>
 
       {message && (
@@ -294,12 +273,24 @@ export function InstrumentContributionForm({
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <Button type="submit" variant="primary" isDisabled={createInstrument.isPending}>
-          {createInstrument.isPending ? "Saving..." : "Save Instrument"}
+      <div className="flex items-center justify-between gap-3">
+        <Button
+          type="submit"
+          variant="primary"
+          isDisabled={createInstrument.isPending}
+          className="inline-flex items-center gap-2"
+        >
+          <CheckIcon className="h-4 w-4 shrink-0" />
+          <span>{createInstrument.isPending ? "Saving..." : "Save Instrument"}</span>
         </Button>
-        <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
+        <Button
+          type="button"
+          variant="secondary"
+          onPress={onClose}
+          className="inline-flex items-center gap-2"
+        >
+          <XMarkIcon className="h-4 w-4 shrink-0" />
+          <span>Cancel</span>
         </Button>
       </div>
     </form>

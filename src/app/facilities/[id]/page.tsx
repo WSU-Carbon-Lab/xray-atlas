@@ -1,19 +1,21 @@
 "use client";
 
 import { use } from "react";
+import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { ErrorState } from "@/components/feedback/error-state";
 import { PageSkeleton } from "@/components/feedback/loading-state";
-import Link from "next/link";
 import {
   MapPinIcon,
   BeakerIcon,
   LinkIcon,
+  ArrowLeftIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
 import { AddInstrumentButton } from "@/components/contribute";
+import { Button, Card, Chip } from "@heroui/react";
 
 export default function FacilityDetailPage({
   params,
@@ -21,6 +23,7 @@ export default function FacilityDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const facilityQuery = trpc.facilities.getById.useQuery({ id });
   const { data: facility, isLoading, isError, error, refetch } = facilityQuery;
 
@@ -50,126 +53,131 @@ export default function FacilityDetailPage({
     LAB_SOURCE: "Lab Source",
   }[facility.facilitytype];
 
-  const statusBadge = (status: string) => {
-    const statusConfig = {
+  const statusChip = (status: string) => {
+    const map = {
       active: {
         label: "Active",
         icon: CheckCircleIcon,
-        className:
-          "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+        color: "success" as const,
       },
       inactive: {
         label: "Inactive",
         icon: XCircleIcon,
-        className:
-          "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+        color: "danger" as const,
       },
       under_maintenance: {
         label: "Under Maintenance",
         icon: ClockIcon,
-        className:
-          "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+        color: "warning" as const,
       },
     };
-
-    const config =
-      statusConfig[status as keyof typeof statusConfig] || statusConfig.active;
+    const config = map[status as keyof typeof map] ?? map.active;
     const Icon = config.icon;
-
     return (
-      <span
-        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${config.className}`}
+      <Chip
+        size="sm"
+        variant="soft"
+        color={config.color}
+        className="h-7 gap-1.5 px-2.5 text-xs font-medium"
       >
-        <Icon className="h-3.5 w-3.5" />
+        <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
         {config.label}
-      </span>
+      </Chip>
     );
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-6xl">
-        {/* Header */}
         <div className="mb-8">
-          <Link
-            href="/browse/facilities"
-            className="hover:text-accent dark:text-accent-light dark:hover:text-accent mb-4 inline-flex items-center text-sm text-gray-600"
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-muted hover:text-foreground mb-4 -ms-1 inline-flex h-auto min-h-10 items-center gap-2 px-2 py-2 text-sm font-medium"
+            onPress={() => router.push("/browse/facilities")}
           >
-            ← Back to Facilities
-          </Link>
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="mb-2 text-4xl font-bold text-gray-900 dark:text-gray-100">
+            <ArrowLeftIcon className="h-4 w-4 shrink-0" />
+            <span>Back to facilities</span>
+          </Button>
+
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-3">
+              <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
                 {facility.name}
               </h1>
-              <div className="flex flex-wrap items-center gap-4 text-gray-600 dark:text-gray-400">
-                <div className="flex items-center gap-2">
-                  <MapPinIcon className="h-5 w-5" />
+              <div className="text-muted flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                <span className="inline-flex items-center gap-2">
+                  <MapPinIcon className="text-foreground/70 h-5 w-5 shrink-0" />
                   <span>{location}</span>
-                </div>
-                <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                  {facilityTypeLabel}
                 </span>
+                <Chip
+                  size="sm"
+                  variant="soft"
+                  color="accent"
+                  className="h-7 px-2.5 text-xs font-semibold"
+                >
+                  {facilityTypeLabel}
+                </Chip>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Instruments Section */}
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
-                <BeakerIcon className="h-5 w-5" />
-                Instruments ({facility.instruments.length})
-              </h2>
-              <AddInstrumentButton
-                facilityId={facility.id}
-                facilityName={facility.name}
-                onCreated={() => {
-                  void refetch();
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="p-6">
+        <Card className="border-border bg-surface-1 overflow-hidden border shadow-sm">
+          <Card.Header className="border-border flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <Card.Title className="text-foreground flex items-center gap-2 text-lg font-semibold">
+              <BeakerIcon className="h-5 w-5 shrink-0" />
+              Instruments ({facility.instruments.length})
+            </Card.Title>
+            <AddInstrumentButton
+              facilityId={facility.id}
+              facilityName={facility.name}
+              onCreated={() => {
+                void refetch();
+              }}
+            />
+          </Card.Header>
+          <Card.Content className="p-5 sm:p-6">
             {facility.instruments.length === 0 ? (
-              <p className="text-center text-gray-500 dark:text-gray-400">
-                No instruments registered for this facility.
+              <p className="text-muted text-center text-sm">
+                No instruments registered for this facility yet.
               </p>
             ) : (
-              <div className="space-y-3">
+              <ul className="space-y-3" aria-label="Instruments at this facility">
                 {facility.instruments.map((instrument) => (
-                  <div
-                    key={instrument.id}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                          {instrument.name}
-                        </h3>
-                        {statusBadge(instrument.status)}
-                      </div>
-                      {instrument.link && (
-                        <a
-                          href={instrument.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent dark:text-accent-light mt-2 inline-flex items-center gap-1.5 text-sm hover:underline"
-                        >
-                          <LinkIcon className="h-4 w-4" />
-                          Visit Instrument Page
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                  <li key={instrument.id}>
+                    <Card
+                      variant="secondary"
+                      className="border-border bg-surface-2/80 border"
+                    >
+                      <Card.Content className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-foreground text-base font-semibold">
+                              {instrument.name}
+                            </h2>
+                            {statusChip(instrument.status)}
+                          </div>
+                          {instrument.link ? (
+                            <a
+                              href={instrument.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent hover:text-accent-dark inline-flex max-w-full items-center gap-1.5 text-sm font-medium underline-offset-2 hover:underline"
+                            >
+                              <LinkIcon className="h-4 w-4 shrink-0" />
+                              <span className="truncate">Visit instrument page</span>
+                            </a>
+                          ) : null}
+                        </div>
+                      </Card.Content>
+                    </Card>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
-          </div>
-        </div>
+          </Card.Content>
+        </Card>
       </div>
     </div>
   );

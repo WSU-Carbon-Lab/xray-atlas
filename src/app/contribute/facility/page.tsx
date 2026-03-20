@@ -1,50 +1,33 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DefaultButton as Button } from "@/components/ui/button";
 import {
   ContributionAgreementModal,
   ContributionFileDropOverlay,
 } from "@/components/contribute";
 import type { ContributionFileDropOverlayFileKind } from "@/components/contribute";
 import { trpc } from "~/trpc/client";
-import { FieldTooltip } from "~/components/ui/field-tooltip";
 import {
-  BuildingOfficeIcon,
-  PlusIcon,
-  XMarkIcon,
-  ExclamationTriangleIcon,
-} from "@heroicons/react/24/outline";
+  FacilityIdentitySection,
+  NewInstrumentsAccordion,
+  RegisteredInstrumentsAccordion,
+  type FacilityFormState,
+  type InstrumentFormData,
+} from "~/components/forms";
+import { BuildingOfficeIcon, PlusIcon, WrenchScrewdriverIcon } from "@heroicons/react/24/outline";
 import type { Key } from "@heroui/react";
-import {
-  ComboBox,
-  Breadcrumbs,
-  Description,
-  Form,
-  Input,
-  InputGroup,
-  Label as HeroLabel,
-  ListBox,
-  Select,
-  TextField,
-} from "@heroui/react";
+import { Breadcrumbs, Button, Card, Form, Separator, Tabs } from "@heroui/react";
 import { parseFacilityJsonFile } from "~/app/contribute/facility/utils/parse-facility-json";
 import { parseFacilityCsvFile } from "~/app/contribute/facility/utils/parse-facility-csv";
 
+import { skipToken } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type FacilityCreateResult = RouterOutputs["facilities"]["create"];
-
-interface InstrumentFormData {
-  name: string;
-  link: string;
-  status: "active" | "inactive" | "under_maintenance";
-}
 
 type FacilityContributePageProps = {
   variant?: "page" | "modal";
@@ -54,6 +37,8 @@ type FacilityContributePageProps = {
   }) => void;
   onClose?: () => void;
 };
+
+type ContributeStep = "facility" | "instruments";
 
 export default function FacilityContributePage({
   variant = "page",
@@ -69,16 +54,15 @@ export default function FacilityContributePage({
   const handleAgreementAccepted = () => {
     setShowAgreementModal(false);
   };
-  const [facilityData, setFacilityData] = useState({
+  const [facilityData, setFacilityData] = useState<FacilityFormState>({
     name: "",
     city: "",
     country: "",
-    facilityType: "LAB_SOURCE" as
-      | "SYNCHROTRON"
-      | "FREE_ELECTRON_LASER"
-      | "LAB_SOURCE",
+    facilityType: "LAB_SOURCE",
   });
   const [instruments, setInstruments] = useState<InstrumentFormData[]>([]);
+  const [contributeStep, setContributeStep] =
+    useState<ContributeStep>("facility");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
     type: "success" | "error" | null;
@@ -231,9 +215,21 @@ export default function FacilityContributePage({
     limit: 100,
     offset: 0,
   });
-  const facilitiesList = facilitiesListQuery.data?.facilities ?? [];
+  const facilitiesList = useMemo(
+    () => facilitiesListQuery.data?.facilities ?? [],
+    [facilitiesListQuery.data?.facilities],
+  );
   const [facilityNameSelectedKey, setFacilityNameSelectedKey] =
     useState<Key | null>(null);
+
+  const selectedListFacilityId = useMemo(() => {
+    if (facilityNameSelectedKey == null || typeof facilityNameSelectedKey !== "string") {
+      return null;
+    }
+    return facilitiesList.some((f) => f.id === facilityNameSelectedKey)
+      ? facilityNameSelectedKey
+      : null;
+  }, [facilityNameSelectedKey, facilitiesList]);
 
   const checkFacility = trpc.facilities.checkExists.useQuery(
     {
@@ -242,15 +238,45 @@ export default function FacilityContributePage({
       country: facilityData.country.trim() ? facilityData.country.trim() : null,
     },
     {
-      enabled: facilityData.name.length > 0,
+      enabled:
+        facilityData.name.trim().length > 0 && selectedListFacilityId == null,
     },
   );
 
   useEffect(() => {
+    if (selectedListFacilityId) {
+      const f = facilitiesList.find((x) => x.id === selectedListFacilityId);
+      if (!f) return;
+      setExistingFacility({
+        id: f.id,
+        name: f.name,
+        city: f.city,
+        country: f.country,
+        instruments: (f.instruments ?? []).map((i) => ({
+          id: i.id,
+          name: i.name,
+        })),
+      });
+      setFacilityData({
+        name: f.name,
+        city: f.city ?? "",
+        country: f.country ?? "",
+        facilityType: f.facilitytype,
+      });
+      return;
+    }
     const facility = checkFacility.data?.facility;
     if (checkFacility.data?.exists && facility) {
-      setExistingFacility(facility);
-      // Auto-fill form with existing facility data
+      setExistingFacility({
+        id: facility.id,
+        name: facility.name,
+        city: facility.city,
+        country: facility.country,
+        instruments: facility.instruments.map((i) => ({
+          id: i.id,
+          name: i.name,
+        })),
+      });
       setFacilityData((prev) => ({
         ...prev,
         name: facility.name,
@@ -261,9 +287,38 @@ export default function FacilityContributePage({
     } else {
       setExistingFacility(null);
     }
-  }, [checkFacility.data]);
+  }, [selectedListFacilityId, facilitiesList, checkFacility.data]);
+
+  const registeredFacilityId = existingFacility?.id;
+  useEffect(() => {
+    if (registeredFacilityId) {
+      queueMicrotask(() => setContributeStep("instruments"));
+    }
+  }, [registeredFacilityId]);
+
+  const handleStepChange = useCallback((key: Key) => {
+    const id = key == null ? null : String(key);
+    if (id === "facility" || id === "instruments") {
+      queueMicrotask(() => setContributeStep(id));
+    }
+  }, []);
 
   const createFacility = trpc.facilities.create.useMutation();
+  const createInstrument = trpc.instruments.create.useMutation();
+
+  const facilityDetailQuery = trpc.facilities.getById.useQuery(
+    existingFacility?.id ? { id: existingFacility.id } : skipToken,
+  );
+
+  const registeredInstruments = useMemo(() => {
+    if (facilityDetailQuery.data?.instruments != null) {
+      return [...facilityDetailQuery.data.instruments].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+    }
+    const fallback = existingFacility?.instruments ?? [];
+    return [...fallback].sort((a, b) => a.name.localeCompare(b.name));
+  }, [facilityDetailQuery.data?.instruments, existingFacility?.instruments]);
 
   const addInstrument = () => {
     setInstruments((prev) => [
@@ -301,10 +356,86 @@ export default function FacilityContributePage({
     }
 
     if (existingFacility) {
+      const toCreate = instruments.filter((inst) => inst.name.trim().length > 0);
+      if (toCreate.length === 0) {
+        setSubmitStatus({
+          type: "error",
+          message: "Add at least one instrument with a name.",
+        });
+        return;
+      }
+
+      setIsSubmitting(true);
+      setSubmitStatus({ type: null, message: "" });
+
+      const createdNames: string[] = [];
+      const failures: string[] = [];
+      let firstInstrumentId: string | undefined;
+
+      try {
+        for (const inst of toCreate) {
+          try {
+            const created = await createInstrument.mutateAsync({
+              facilityId: existingFacility.id,
+              name: inst.name.trim(),
+              link: inst.link.trim().length > 0 ? inst.link.trim() : null,
+              status: inst.status,
+            });
+            createdNames.push(created.name);
+            firstInstrumentId ??= created.id;
+          } catch (err: unknown) {
+            const derivedMessage =
+              err instanceof Error
+                ? err.message
+                : typeof err === "object" && err !== null
+                  ? (err as { data?: { message?: string } }).data?.message
+                  : null;
+            failures.push(
+              `${inst.name.trim()}: ${derivedMessage ?? "Failed to create"}`,
+            );
+          }
+        }
+
+        if (failures.length > 0 && createdNames.length === 0) {
+          setSubmitStatus({ type: "error", message: failures.join(" ") });
+        } else if (failures.length > 0) {
+          setSubmitStatus({
+            type: "success",
+            message: `Added ${createdNames.length} instrument(s). Some failed: ${failures.join(" ")}`,
+          });
+        } else {
+          setSubmitStatus({
+            type: "success",
+            message:
+              createdNames.length === 1
+                ? `Instrument "${createdNames[0]}" added successfully.`
+                : `Added ${createdNames.length} instruments successfully.`,
+          });
+        }
+
+        if (createdNames.length > 0) {
+          onCompleted?.({
+            facilityId: existingFacility.id,
+            instrumentId: firstInstrumentId,
+          });
+          if (isModal) {
+            onClose?.();
+          } else if (failures.length === 0) {
+            setTimeout(() => {
+              router.push(`/facilities/${existingFacility.id}`);
+            }, 1500);
+          }
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    if (!facilityData.name.trim()) {
       setSubmitStatus({
         type: "error",
-        message:
-          "This facility already exists. Please add instruments to the existing facility instead.",
+        message: "Facility name is required.",
       });
       return;
     }
@@ -328,7 +459,6 @@ export default function FacilityContributePage({
         message: `Facility "${result.name}" created successfully!`,
       });
 
-      // Type guard to safely access instruments
       const resultWithInstruments = result as FacilityCreateResult & {
         instruments?: Array<{ id: string; name: string }>;
       };
@@ -344,7 +474,6 @@ export default function FacilityContributePage({
       if (isModal) {
         onClose?.();
       } else {
-        // Redirect to facility detail page after a delay
         setTimeout(() => {
           router.push(`/facilities/${result.id}`);
         }, 2000);
@@ -366,6 +495,14 @@ export default function FacilityContributePage({
       setIsSubmitting(false);
     }
   };
+
+  const namedInstrumentRows = instruments.filter(
+    (i) => i.name.trim().length > 0,
+  ).length;
+  const canSubmit = existingFacility
+    ? namedInstrumentRows > 0
+    : facilityData.name.trim().length > 0;
+  const instrumentCountOnFile = registeredInstruments.length;
 
   if (!isSignedIn) {
     return (
@@ -410,248 +547,153 @@ export default function FacilityContributePage({
               </Breadcrumbs>
             </div>
           )}
-          <h1 className="text-foreground mb-8 text-4xl font-bold">
-            Contribute Facility & Instruments
+          <h1 className="text-foreground mb-2 text-3xl font-bold sm:text-4xl">
+            Facility and instruments
           </h1>
+          <p className="text-muted mb-8 max-w-xl text-sm">
+            Pick a site from the list or type a new one. If it is already in the
+            database, use the Instruments step to add rows, then submit once.
+          </p>
 
-          <Form onSubmit={handleSubmit} className="space-y-6">
-            <section className="space-y-4">
-              <h2 className="text-foreground flex items-center gap-2 text-xl font-semibold">
-                <BuildingOfficeIcon className="h-6 w-6" />
-                Facility Information
-              </h2>
-              <div className="space-y-4">
-                {existingFacility && (
-                  <div className="border-warning/50 bg-warning/10 rounded-xl border p-4">
-                    <div className="flex items-start gap-3">
-                      <ExclamationTriangleIcon className="text-warning-dark h-5 w-5 shrink-0" />
-                      <div className="flex-1">
-                        <h3 className="text-foreground mb-1 font-semibold">
-                          Facility Already Exists
-                        </h3>
-                        <p className="text-muted text-sm">
-                          A facility with this name and location already exists
-                          in the database.
-                        </p>
-                        <p className="text-muted mt-2 text-sm">
-                          Existing instruments:{" "}
-                          {existingFacility.instruments.length > 0
-                            ? existingFacility.instruments
-                                .map((inst) => inst.name)
-                                .join(", ")
-                            : "None"}
-                        </p>
-                        <Link
-                          href={`/facilities/${existingFacility.id}`}
-                          className="text-foreground mt-2 inline-block text-sm font-medium underline"
-                        >
-                          View existing facility
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                )}
+          <Form onSubmit={handleSubmit} className="space-y-8">
+            <Tabs
+              selectedKey={contributeStep}
+              onSelectionChange={handleStepChange}
+              variant="primary"
+              className="w-full"
+            >
+              <Tabs.ListContainer className="flex justify-center">
+                <Tabs.List
+                  aria-label="Contribution steps"
+                  className="border-border bg-surface-2 inline-flex h-11 items-center rounded-full border p-1 shadow-sm [&_.tabs__list]:flex [&_.tabs__list]:items-center [&_.tabs__list]:gap-0.5"
+                >
+                  <Tabs.Tab
+                    id="facility"
+                    className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground text-muted rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <BuildingOfficeIcon className="h-4 w-4 shrink-0" />
+                      Facility
+                    </span>
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                  <Tabs.Tab
+                    id="instruments"
+                    className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground text-muted rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <WrenchScrewdriverIcon className="h-4 w-4 shrink-0" />
+                      Instruments
+                    </span>
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                </Tabs.List>
+              </Tabs.ListContainer>
 
-                <ComboBox
-                  fullWidth
-                  allowsCustomValue
-                  isRequired
-                  aria-label="Facility Name"
-                  selectedKey={facilityNameSelectedKey}
-                  onSelectionChange={(key) => {
-                    setFacilityNameSelectedKey(key);
-                    if (key != null && typeof key === "string") {
-                      const f = facilitiesList.find((fac) => fac.id === key);
-                      if (f) {
-                        setFacilityData((prev) => ({
-                          ...prev,
+              <Tabs.Panel id="facility" className="mt-6 outline-none">
+                <Card className="border-border bg-surface-1 border shadow-sm">
+                  <Card.Content className="space-y-5 p-5 sm:p-6">
+                    <FacilityIdentitySection
+                      facilitiesList={facilitiesList}
+                      facilityNameSelectedKey={facilityNameSelectedKey}
+                      onFacilityNameSelectedKeyChange={setFacilityNameSelectedKey}
+                      onSelectExistingFacility={(f) => {
+                        setFacilityData({
                           name: f.name,
                           city: f.city ?? "",
                           country: f.country ?? "",
                           facilityType: f.facilitytype,
-                        }));
+                        });
+                      }}
+                      facilityData={facilityData}
+                      onFacilityDataChange={(patch) =>
+                        setFacilityData((prev) => ({ ...prev, ...patch }))
                       }
-                    }
-                  }}
-                  inputValue={facilityData.name}
-                  onInputChange={(value) => {
-                    setFacilityData((prev) => ({ ...prev, name: value }));
-                    setFacilityNameSelectedKey(null);
-                  }}
-                  items={facilitiesList}
-                  className="w-full"
-                >
-                  <HeroLabel className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
-                    Facility Name{" "}
-                    <span className="text-danger" aria-hidden>
-                      *
-                    </span>
-                    <FieldTooltip description="The official name of the facility" />
-                  </HeroLabel>
-                  <ComboBox.InputGroup className="w-full">
-                    <Input
-                      placeholder="e.g., Advanced Light Source"
-                      className="bg-field-background! shadow-none!"
+                      existingFacility={!!existingFacility}
+                      existingFacilityId={existingFacility?.id ?? null}
+                      instrumentCountOnFile={instrumentCountOnFile}
                     />
-                    <ComboBox.Trigger />
-                  </ComboBox.InputGroup>
-                  <Description className="text-muted mt-1.5 text-xs">
-                    Select an existing facility from the list or type a new name
-                    to add one.
-                  </Description>
-                  <ComboBox.Popover>
-                    <ListBox items={facilitiesList}>
-                      {(facility: (typeof facilitiesList)[number]) => (
-                        <ListBox.Item
-                          id={facility.id}
-                          textValue={facility.name}
-                          key={facility.id}
-                        >
-                          {facility.city || facility.country
-                            ? `${facility.name} (${[facility.city, facility.country].filter(Boolean).join(", ")})`
-                            : facility.name}
-                          <ListBox.ItemIndicator />
-                        </ListBox.Item>
-                      )}
-                    </ListBox>
-                  </ComboBox.Popover>
-                </ComboBox>
+                  </Card.Content>
+                </Card>
+              </Tabs.Panel>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <TextField
-                    name="city"
-                    value={facilityData.city}
-                    onChange={(value) =>
-                      setFacilityData((prev) => ({ ...prev, city: value }))
-                    }
-                    variant="secondary"
-                    fullWidth
-                  >
-                    <HeroLabel className="text-foreground mb-1.5 block text-sm font-medium">
-                      City
-                      <FieldTooltip description="Facility city or locality" />
-                    </HeroLabel>
-                    <InputGroup variant="secondary" fullWidth>
-                      <InputGroup.Input placeholder="e.g., Berkeley" />
-                    </InputGroup>
-                  </TextField>
-                  <TextField
-                    name="country"
-                    value={facilityData.country}
-                    onChange={(value) =>
-                      setFacilityData((prev) => ({ ...prev, country: value }))
-                    }
-                    variant="secondary"
-                    fullWidth
-                  >
-                    <HeroLabel className="text-foreground mb-1.5 block text-sm font-medium">
-                      Country
-                      <FieldTooltip description="Facility country" />
-                    </HeroLabel>
-                    <InputGroup variant="secondary" fullWidth>
-                      <InputGroup.Input placeholder="e.g., United States" />
-                    </InputGroup>
-                  </TextField>
-                </div>
+              <Tabs.Panel id="instruments" className="mt-6 outline-none">
+                <Card className="border-border bg-surface-1 border shadow-sm">
+                  <Card.Content className="space-y-5 p-5 sm:p-6">
+                    {existingFacility ? (
+                      <>
+                        <RegisteredInstrumentsAccordion
+                          items={registeredInstruments}
+                          facilityId={existingFacility.id}
+                          isListRefreshing={facilityDetailQuery.isFetching}
+                          onInstrumentUpdated={() => {
+                            void facilityDetailQuery.refetch();
+                          }}
+                        />
+                        <Separator className="bg-border" />
+                      </>
+                    ) : null}
 
-                <div>
-                  <HeroLabel className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
-                    Facility Type{" "}
-                    <span className="text-danger" aria-hidden>
-                      *
-                    </span>
-                    <span className="sr-only">(required)</span>
-                    <FieldTooltip description="Select the facility type" />
-                  </HeroLabel>
-                  <Select
-                    className="w-full"
-                    isRequired
-                    value={facilityData.facilityType}
-                    onChange={(value) => {
-                      if (value == null) return;
-                      const next = String(
-                        Array.isArray(value) ? value[0] : value,
-                      ) as "LAB_SOURCE" | "SYNCHROTRON" | "FREE_ELECTRON_LASER";
-                      setFacilityData((prev) => ({
-                        ...prev,
-                        facilityType: next,
-                      }));
-                    }}
-                  >
-                    <Select.Trigger className="min-h-[44px]">
-                      <Select.Value />
-                      <Select.Indicator />
-                    </Select.Trigger>
-                    <Select.Popover>
-                      <ListBox aria-label="Facility types" className="w-full">
-                        <ListBox.Item key="LAB_SOURCE" textValue="Lab Source">
-                          Lab Source
-                        </ListBox.Item>
-                        <ListBox.Item key="SYNCHROTRON" textValue="Synchrotron">
-                          Synchrotron
-                        </ListBox.Item>
-                        <ListBox.Item
-                          key="FREE_ELECTRON_LASER"
-                          textValue="Free Electron Laser"
-                        >
-                          Free Electron Laser
-                        </ListBox.Item>
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
-                </div>
-              </div>
-            </section>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-muted text-sm">
+                        {existingFacility
+                          ? "Add new instruments below."
+                          : "Optional: add instruments now, or create the site first and come back later."}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onPress={addInstrument}
+                        className="inline-flex shrink-0 items-center gap-2"
+                      >
+                        <PlusIcon className="h-4 w-4 shrink-0" />
+                        <span>Add instrument</span>
+                      </Button>
+                    </div>
 
-            <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-foreground text-xl font-semibold">
-                  Instruments
-                </h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addInstrument}
-                  className="flex items-center gap-2"
-                >
-                  <PlusIcon className="h-4 w-4" />
-                  Add Instrument
-                </Button>
-              </div>
-
-              {instruments.length === 0 ? (
-                <p className="text-muted text-sm">
-                  No instruments added yet. Click &quot;Add Instrument&quot; to
-                  add one.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {instruments.map((instrument, index) => (
-                    <InstrumentForm
-                      key={index}
-                      instrument={instrument}
+                    <NewInstrumentsAccordion
+                      instruments={instruments}
                       facilityId={existingFacility?.id}
-                      onChange={(field, value) =>
+                      onChange={(index, field, value) =>
                         updateInstrument(index, field, value)
                       }
-                      onRemove={() => removeInstrument(index)}
+                      onRemove={removeInstrument}
                     />
-                  ))}
-                </div>
-              )}
-            </section>
+                  </Card.Content>
+                </Card>
+              </Tabs.Panel>
+            </Tabs>
 
-            <div className="border-border flex justify-end border-t pt-6">
+            <Separator className="bg-border" />
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-muted text-xs sm:max-w-sm">
+                {existingFacility
+                  ? "Expand a registered row to edit; save changes there. Submit adds only new instruments below."
+                  : "Submit creates the facility and any named instrument rows."}
+              </p>
               <Button
                 type="submit"
-                isDisabled={isSubmitting || !!existingFacility}
-                className="flex items-center gap-2"
+                variant="primary"
+                isDisabled={isSubmitting || !canSubmit}
+                className="inline-flex items-center gap-2"
               >
-                {isSubmitting ? "Creating..." : "Create Facility"}
+                {existingFacility ? (
+                  <WrenchScrewdriverIcon className="h-4 w-4 shrink-0" />
+                ) : (
+                  <BuildingOfficeIcon className="h-4 w-4 shrink-0" />
+                )}
+                <span>
+                  {isSubmitting
+                    ? "Working..."
+                    : existingFacility
+                      ? "Submit instruments"
+                      : "Create facility"}
+                </span>
               </Button>
             </div>
 
-            {submitStatus.type && (
+            {submitStatus.type ? (
               <div
                 className={
                   submitStatus.type === "success"
@@ -661,150 +703,10 @@ export default function FacilityContributePage({
               >
                 {submitStatus.message}
               </div>
-            )}
+            ) : null}
           </Form>
         </div>
       </div>
     </>
-  );
-}
-
-function InstrumentForm({
-  instrument,
-  facilityId,
-  onChange,
-  onRemove,
-}: {
-  instrument: InstrumentFormData;
-  facilityId?: string;
-  onChange: (
-    field: keyof InstrumentFormData,
-    value: InstrumentFormData[keyof InstrumentFormData],
-  ) => void;
-  onRemove: () => void;
-}) {
-  const { data: checkData } = trpc.instruments.checkExists.useQuery(
-    {
-      facilityId: facilityId ?? "",
-      name: instrument.name,
-    },
-    {
-      enabled: !!facilityId && instrument.name.length > 0,
-    },
-  );
-
-  const instrumentExists = checkData?.exists ?? false;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-foreground font-medium">
-          Instrument {instrument.name.trim() ? instrument.name : "New"}
-        </h3>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="text-danger hover:opacity-90"
-          aria-label="Remove instrument"
-        >
-          <XMarkIcon className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="space-y-4">
-        <div className="relative">
-          <TextField
-            name={`instrument-name-${instrument.name}`}
-            value={instrument.name}
-            onChange={(value) => onChange("name", value)}
-            isRequired
-            variant="secondary"
-            fullWidth
-          >
-            <HeroLabel className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
-              Instrument Name{" "}
-              <span className="text-danger" aria-hidden>
-                *
-              </span>
-              <span className="sr-only">(required)</span>
-              <FieldTooltip description="Instrument commonly used name or designation" />
-            </HeroLabel>
-            <InputGroup
-              variant="secondary"
-              fullWidth
-              className={
-                instrumentExists ? "border-warning/50 bg-warning/10" : undefined
-              }
-            >
-              <InputGroup.Input placeholder="e.g., Beamline 7.3.3" />
-            </InputGroup>
-          </TextField>
-          {instrumentExists && instrument.name.length > 0 && (
-            <div className="text-muted mt-2 flex items-center gap-2 text-sm">
-              <ExclamationTriangleIcon className="h-4 w-4" />
-              <span>This instrument already exists at this facility</span>
-            </div>
-          )}
-        </div>
-
-        <TextField
-          name={`instrument-link-${instrument.link}`}
-          value={instrument.link}
-          onChange={(value) => onChange("link", value)}
-          variant="secondary"
-          fullWidth
-        >
-          <HeroLabel className="text-foreground mb-1.5 block text-sm font-medium">
-            Instrument Link (Optional)
-            <FieldTooltip description="Optional URL to the instrument documentation or facility page" />
-          </HeroLabel>
-          <InputGroup variant="secondary" fullWidth>
-            <InputGroup.Input type="url" placeholder="https://..." />
-          </InputGroup>
-        </TextField>
-
-        <Select
-          className="w-full"
-          value={instrument.status}
-          onChange={(value) => {
-            if (value == null) return;
-            const next = String(
-              Array.isArray(value) ? value[0] : value,
-            ) as InstrumentFormData["status"];
-            onChange("status", next);
-          }}
-        >
-          <HeroLabel className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
-            Status
-            <FieldTooltip description="Instrument operating status" />
-          </HeroLabel>
-          <Select.Trigger className="min-h-[44px]">
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox aria-label="Instrument status" className="w-full">
-              <ListBox.Item key="active" textValue="Active" className="text-sm">
-                Active
-              </ListBox.Item>
-              <ListBox.Item
-                key="inactive"
-                textValue="Inactive"
-                className="text-sm"
-              >
-                Inactive
-              </ListBox.Item>
-              <ListBox.Item
-                key="under_maintenance"
-                textValue="Under Maintenance"
-                className="text-sm"
-              >
-                Under Maintenance
-              </ListBox.Item>
-            </ListBox>
-          </Select.Popover>
-        </Select>
-      </div>
-    </div>
   );
 }

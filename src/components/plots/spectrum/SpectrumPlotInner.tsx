@@ -153,7 +153,7 @@ export function SpectrumPlotInner({
     [allTraceIds],
   );
 
-  const contentHeight = height - PLOT_CONFIG.overviewGap;
+  const contentHeight = height;
   const subplotLayout = useSubplotLayout(
     width,
     contentHeight,
@@ -555,10 +555,11 @@ export function SpectrumPlotInner({
 
   return (
     <div
-      className="flex w-full flex-col gap-2 overflow-hidden rounded-xl"
+      className="flex min-h-0 w-full flex-col gap-2 overflow-hidden rounded-xl"
+      style={{ width, height }}
       ref={containerRef}
     >
-      <div className="relative">
+      <div className="relative min-h-0 min-w-0 flex-1">
         <svg
           ref={svgRef}
           width={width}

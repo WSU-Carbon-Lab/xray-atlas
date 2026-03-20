@@ -252,6 +252,29 @@
   .scrollshadow-inline-legend::-webkit-scrollbar {
     display: none;
   }
+
+  .scrollshadow-tags-x {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 26%, transparent)
+      transparent;
+  }
+
+  .scrollshadow-tags-x::-webkit-scrollbar {
+    height: 5px;
+  }
+
+  .scrollshadow-tags-x::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollshadow-tags-x::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: color-mix(in oklab, var(--foreground) 30%, transparent);
+    box-shadow: 0 1px 4px
+      color-mix(in oklab, var(--foreground) 18%, transparent);
+  }
 }
 
 @layer components {

@@ -57,7 +57,7 @@ export function AddFacilityButton({
   return (
     <AddEntityModal
       title="Contribute Facility"
-      description="Register a new facility and optionally its instruments."
+      description="Pick or register a facility, then add instruments in the same form."
       triggerLabel="Add Facility"
       triggerDescription="Document a facility that hosts instrumentation."
       triggerIcon={BuildingOfficeIcon}

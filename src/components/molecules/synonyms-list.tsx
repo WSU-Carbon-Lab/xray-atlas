@@ -248,53 +248,55 @@ export function SynonymTagGroupEditable({
             {label}
           </Label>
         )}
-        <TagGroup.List
-          items={items}
-          className="mb-2 flex flex-wrap gap-1.5"
-          renderEmptyState={() => (
-            <EmptyState className="p-1">No synonyms</EmptyState>
-          )}
-        >
-          {(item) => (
-            <Tag
-              key={item.id}
-              id={item.id}
-              textValue={item.name}
-              className={`${SYNONYM_CHIP_CLASS} gap-1`}
+        <div className="flex flex-wrap items-center gap-2">
+          <TagGroup.List
+            items={items}
+            className="flex flex-wrap gap-1.5"
+            renderEmptyState={() => (
+              <EmptyState className="p-1">No synonyms</EmptyState>
+            )}
+          >
+            {(item) => (
+              <Tag
+                key={item.id}
+                id={item.id}
+                textValue={item.name}
+                className={`${SYNONYM_CHIP_CLASS} gap-1`}
+              >
+                <span className="min-w-0 truncate">{item.name}</span>
+                {allowRemove && (
+                  <Tag.RemoveButton
+                    className="text-muted hover:text-foreground focus-visible:ring-accent ml-1 rounded-md bg-surface-secondary p-0.5 transition-colors hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                    aria-label={`Remove ${item.name}`}
+                  >
+                    <X className="h-3 w-3" aria-hidden />
+                  </Tag.RemoveButton>
+                )}
+              </Tag>
+            )}
+          </TagGroup.List>
+          <div className="flex min-w-[min(100%,12rem)] flex-1 basis-56 items-center gap-2">
+            <Input
+              type="text"
+              value={newSynonym}
+              onChange={(e) => setNewSynonym(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={addPlaceholder}
+              aria-label="New synonym"
+              className={`${inputClass} min-w-0 flex-1`}
+            />
+            <Button
+              type="button"
+              onPress={addSynonym}
+              isDisabled={!newSynonym.trim()}
+              className="h-11 shrink-0 rounded-xl px-4 whitespace-nowrap"
+              aria-label="Add synonym"
             >
-              <span className="min-w-0 truncate">{item.name}</span>
-              {allowRemove && (
-                <Tag.RemoveButton
-                  className="text-muted hover:text-foreground focus-visible:ring-accent ml-1 rounded-md bg-surface-secondary p-0.5 transition-colors hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
-                  aria-label={`Remove ${item.name}`}
-                >
-                  <X className="h-3 w-3" aria-hidden />
-                </Tag.RemoveButton>
-              )}
-            </Tag>
-          )}
-        </TagGroup.List>
+              Add
+            </Button>
+          </div>
+        </div>
       </TagGroup>
-      <div className="flex items-center gap-2">
-        <Input
-          type="text"
-          value={newSynonym}
-          onChange={(e) => setNewSynonym(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={addPlaceholder}
-          aria-label="New synonym"
-          className={inputClass}
-        />
-        <Button
-          type="button"
-          onPress={addSynonym}
-          isDisabled={!newSynonym.trim()}
-          className="h-11 shrink-0 rounded-xl px-4 whitespace-nowrap"
-          aria-label="Add synonym"
-        >
-          Add
-        </Button>
-      </div>
     </div>
   );
 }
