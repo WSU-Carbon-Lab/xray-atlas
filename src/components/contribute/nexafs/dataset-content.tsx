@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { skipToken } from "@tanstack/react-query";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import {
@@ -8,8 +8,6 @@ import {
   ClipboardPaste,
   Columns3,
   Copy,
-  PanelLeftClose,
-  PanelLeftOpen,
   Trash2,
 } from "lucide-react";
 import {
@@ -20,7 +18,17 @@ import {
   TableRow,
   TableCell,
 } from "@heroui/table";
-import { Accordion, Button, Checkbox, Chip, Tooltip } from "@heroui/react";
+import {
+  Accordion,
+  Button,
+  Checkbox,
+  Chip,
+  Separator,
+  ToggleButton,
+  ToggleButtonGroup,
+  Toolbar,
+  Tooltip,
+} from "@heroui/react";
 import {
   Dropdown,
   DropdownTrigger,
@@ -30,8 +38,14 @@ import {
 } from "@heroui/dropdown";
 import { Pagination } from "@heroui/pagination";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
+import {
+  PlotSpectrumToolsToolbarSection,
+  plotToolbarAttachedShellClass,
+  plotToolbarBasisToggleClass,
+  plotToolbarDifferenceToggleClass,
+} from "~/components/plots/toolbars";
+import { defaultNormalizationRangesFromSpectrum } from "~/app/contribute/nexafs/utils/normalizationDefaults";
 import type { SpectrumSelection } from "~/components/plots/types";
-import { AnalysisToolbar, type AnalysisToolId } from "./analysis-toolbar";
 import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
 import { SampleInformationSection } from "./sample-information-section";
@@ -44,13 +58,22 @@ import { trpc } from "~/trpc/client";
 import { useMoleculeSearch } from "~/app/contribute/nexafs/hooks/useMoleculeSearch";
 import type { MoleculeSearchResult } from "~/app/contribute/nexafs/types";
 import { calculateBareAtomAbsorption } from "~/app/contribute/nexafs/utils/bareAtomCalculation";
+import { computeBetaIndex } from "~/app/contribute/nexafs/utils/betaIndex";
 import {
   computeNormalizationForExperiment,
   computeZeroOneNormalization,
   extractAtomsFromFormula,
 } from "~/app/contribute/nexafs/utils";
 import type { DatasetState, PeakData } from "~/app/contribute/nexafs/types";
-import type { DifferenceSpectrum } from "~/app/contribute/nexafs/utils/differenceSpectra";
+import {
+  calculateDifferenceSpectra,
+  type DifferenceSpectrum,
+} from "~/app/contribute/nexafs/utils/differenceSpectra";
+import {
+  buildAutoDetectedPeakList,
+  filterSpectrumPointsByGeometry,
+  mergePeaksPreservingManualAndSteps,
+} from "~/app/contribute/nexafs/utils/autoDetectPeaksFromSpectrum";
 import type { CursorMode } from "~/components/plots/visx/CursorModeSelector";
 import { showToast } from "~/components/ui/toast";
 import { SimpleDialog } from "~/components/ui/dialog";
@@ -256,7 +279,7 @@ function GeometrySpectrumTableBlock({
                     key={id}
                     textValue={label}
                     className="cursor-default py-1.5"
-                    onAction={() => {}}
+                    onAction={() => undefined}
                   >
                     <div
                       className="flex items-center gap-2"
@@ -526,8 +549,8 @@ function DatasetSpectrumTable({
   onPasteGeometries,
   onReplacePoint,
 }: DatasetSpectrumTableProps) {
-  const [sortColumn, setSortColumn] = useState<SortColumn>("energy");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [sortColumn, _setSortColumn] = useState<SortColumn>("energy");
+  const [sortDirection, _setSortDirection] = useState<SortDirection>("asc");
   const [groupPage, setGroupPage] = useState<Record<string, number>>({});
   const [visibleColumns, setVisibleColumns] = useState<
     Record<SpectrumTableColumnId, boolean>
@@ -812,8 +835,8 @@ interface DatasetContentProps {
 export function DatasetContent({
   dataset,
   onDatasetUpdate,
-  onReloadData,
-  instrumentOptions,
+  onReloadData: _onReloadData,
+  instrumentOptions: _instrumentOptions,
   edgeOptions,
   calibrationOptions: _calibrationOptions,
   vendors,
@@ -828,22 +851,20 @@ export function DatasetContent({
   const [bareAtomError, setBareAtomError] = useState<string | null>(null);
   const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
     useState<"pre" | "post" | null>(null);
+  const [isPlotNormalizationMode, setIsPlotNormalizationMode] = useState(false);
   const [isManualPeakMode, setIsManualPeakMode] = useState(false);
   const [differenceSpectra, setDifferenceSpectra] = useState<
     DifferenceSpectrum[]
   >([]);
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
-  const [selectedGeometry, setSelectedGeometry] = useState<{
+  const [selectedGeometry] = useState<{
     theta?: number;
     phi?: number;
   } | null>(null);
   const [visualizationMode, setVisualizationMode] =
     useState<VisualizationMode>("table");
   const [graphStyle, setGraphStyle] = useState<GraphStyle>("line");
-  const [analysisPanelOpen, setAnalysisPanelOpen] = useState(false);
-  const [selectedAnalysisTool, setSelectedAnalysisTool] =
-    useState<AnalysisToolId>("config");
   const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
   const [geometryEditMode, setGeometryEditMode] = useState(false);
   const [deleteConfirmGeometry, setDeleteConfirmGeometry] = useState<{
@@ -938,22 +959,7 @@ export function DatasetContent({
   );
 
   // Molecule search hook - per dataset
-  const {
-    searchTerm,
-    setSearchTerm,
-    suggestions,
-    manualResults,
-    suggestionError,
-    manualError,
-    isSuggesting,
-    isManualSearching,
-    runManualSearch,
-    selectedMolecule,
-    selectedPreferredName,
-    setSelectedPreferredName,
-    allMoleculeNames,
-    selectMolecule,
-  } = useMoleculeSearch({
+  const { selectedMolecule, selectMolecule } = useMoleculeSearch({
     onSelectionChange: (molecule) => {
       if (molecule?.id) {
         onDatasetUpdate(dataset.id, { moleculeId: molecule.id });
@@ -997,17 +1003,6 @@ export function DatasetContent({
       ? extractAtomsFromFormula(selectedMolecule.chemicalFormula)
       : new Set<string>();
   }, [selectedMolecule?.chemicalFormula]);
-
-  // Filter edge options to only show edges for atoms present in the molecule
-  const availableEdgeOptions = useMemo(() => {
-    if (moleculeAtoms.size === 0 || !dataset.moleculeLocked) {
-      return edgeOptions;
-    }
-
-    return edgeOptions.filter((edge) =>
-      moleculeAtoms.has(edge.targetatom.toUpperCase()),
-    );
-  }, [edgeOptions, moleculeAtoms, dataset.moleculeLocked]);
 
   // Check if current edge selection matches molecule atoms
   const selectedEdge = edgeOptions.find((e) => e.id === dataset.edgeId);
@@ -1082,96 +1077,115 @@ export function DatasetContent({
   const pre1 = dataset.normalizationRegions.pre?.[1];
   const post0 = dataset.normalizationRegions.post?.[0];
   const post1 = dataset.normalizationRegions.post?.[1];
-  const normalizationType = dataset.normalizationType;
   const datasetId = dataset.id;
+  const absorptionNormType = dataset.normalizationTypes.absorption;
+  const betaNormType = dataset.normalizationTypes.beta;
+
+  const zeroOneComputation = useMemo(() => {
+    if (
+      dataset.spectrumPoints.length === 0 ||
+      !dataset.normalizationRegions.pre ||
+      !dataset.normalizationRegions.post
+    ) {
+      return null;
+    }
+    return computeZeroOneNormalization(
+      dataset.spectrumPoints,
+      dataset.normalizationRegions.pre,
+      dataset.normalizationRegions.post,
+    );
+  }, [
+    dataset.spectrumPoints,
+    dataset.normalizationRegions.pre,
+    dataset.normalizationRegions.post,
+  ]);
+
+  const bareAtomComputation = useMemo(() => {
+    if (
+      dataset.spectrumPoints.length === 0 ||
+      !dataset.normalizationRegions.pre ||
+      !dataset.normalizationRegions.post ||
+      !dataset.bareAtomPoints ||
+      dataset.bareAtomPoints.length === 0
+    ) {
+      return null;
+    }
+    const preRange = dataset.normalizationRegions.pre;
+    const postRange = dataset.normalizationRegions.post;
+    const preCount = dataset.spectrumPoints.filter(
+      (p) => p.energy >= preRange[0] && p.energy <= preRange[1],
+    ).length;
+    const postCount = dataset.spectrumPoints.filter(
+      (p) => p.energy >= postRange[0] && p.energy <= postRange[1],
+    ).length;
+    if (preCount === 0 || postCount === 0) {
+      return null;
+    }
+    return computeNormalizationForExperiment(
+      dataset.spectrumPoints,
+      dataset.bareAtomPoints,
+      preCount,
+      postCount,
+    );
+  }, [
+    dataset.spectrumPoints,
+    dataset.normalizationRegions.pre,
+    dataset.normalizationRegions.post,
+    dataset.bareAtomPoints,
+  ]);
+
+  const absorptionComputation =
+    absorptionNormType === "bare-atom"
+      ? bareAtomComputation
+      : zeroOneComputation;
 
   useEffect(() => {
     if (
       dataset.spectrumPoints.length > 0 &&
       dataset.normalizationRegions.pre &&
-      dataset.normalizationRegions.post
+      dataset.normalizationRegions.post &&
+      absorptionComputation
     ) {
-      const preRange = dataset.normalizationRegions.pre;
-      const postRange = dataset.normalizationRegions.post;
+      const result = absorptionComputation;
+      const currentNormalization = dataset.normalization;
+      const needsUpdate =
+        currentNormalization?.scale !== result.scale ||
+        currentNormalization?.offset !== result.offset ||
+        currentNormalization.preRange?.[0] !== result.preRange?.[0] ||
+        currentNormalization.preRange?.[1] !== result.preRange?.[1] ||
+        currentNormalization.postRange?.[0] !== result.postRange?.[0] ||
+        currentNormalization.postRange?.[1] !== result.postRange?.[1];
 
-      let result: ReturnType<typeof computeNormalizationForExperiment> | null =
-        null;
-
-      if (dataset.normalizationType === "bare-atom") {
-        // Bare atom normalization requires bare atom points
-        if (dataset.bareAtomPoints && dataset.bareAtomPoints.length > 0) {
-          // Count points in each range
-          const preCount = dataset.spectrumPoints.filter(
-            (p) => p.energy >= preRange[0] && p.energy <= preRange[1],
-          ).length;
-          const postCount = dataset.spectrumPoints.filter(
-            (p) => p.energy >= postRange[0] && p.energy <= postRange[1],
-          ).length;
-
-          if (preCount > 0 && postCount > 0) {
-            result = computeNormalizationForExperiment(
-              dataset.spectrumPoints,
-              dataset.bareAtomPoints,
-              preCount,
-              postCount,
-            );
-          }
-        }
-      } else {
-        // Zero-one normalization
-        result = computeZeroOneNormalization(
-          dataset.spectrumPoints,
-          preRange,
-          postRange,
-        );
+      if (needsUpdate) {
+        onDatasetUpdate(dataset.id, {
+          normalizedPoints: result.normalizedPoints,
+          normalization: {
+            scale: result.scale,
+            offset: result.offset,
+            preRange: result.preRange,
+            postRange: result.postRange,
+          },
+        });
       }
-
-      if (result) {
-        // Only update if normalization actually changed
-        const currentNormalization = dataset.normalization;
-        const needsUpdate =
-          currentNormalization?.scale !== result.scale ||
-          currentNormalization?.offset !== result.offset ||
-          currentNormalization.preRange?.[0] !== result.preRange?.[0] ||
-          currentNormalization.preRange?.[1] !== result.preRange?.[1] ||
-          currentNormalization.postRange?.[0] !== result.postRange?.[0] ||
-          currentNormalization.postRange?.[1] !== result.postRange?.[1];
-
-        if (needsUpdate) {
-          onDatasetUpdate(dataset.id, {
-            normalizedPoints: result.normalizedPoints,
-            normalization: {
-              scale: result.scale,
-              offset: result.offset,
-              preRange: result.preRange,
-              postRange: result.postRange,
-            },
-          });
-        }
-      } else {
-        // Clear normalization if it cannot be computed
-        // This happens when switching to bare-atom without bare atom points,
-        // or when zero-one normalization fails
-        if (
-          dataset.normalizedPoints !== null ||
-          dataset.normalization !== null
-        ) {
-          onDatasetUpdate(dataset.id, {
-            normalizedPoints: null,
-            normalization: null,
-          });
-        }
-      }
+    } else if (
+      dataset.normalizedPoints !== null ||
+      dataset.normalization !== null
+    ) {
+      onDatasetUpdate(dataset.id, {
+        normalizedPoints: null,
+        normalization: null,
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- extracted deps; full deps would cause unnecessary reruns
   }, [
+    absorptionComputation,
     bareAtomPointsLength,
     spectrumPointsLength,
     pre0,
     pre1,
     post0,
     post1,
-    normalizationType,
+    absorptionNormType,
     datasetId,
   ]);
 
@@ -1211,33 +1225,464 @@ export function DatasetContent({
         },
       });
     }
-
-    setNormalizationSelectionTarget(null);
   };
 
-  const handleToggleLock = () => {
+  const handlePlotNormalizationMode = useCallback((enabled: boolean) => {
+    setIsPlotNormalizationMode(enabled);
+    if (!enabled) {
+      setNormalizationSelectionTarget(null);
+      setCursorMode("inspect");
+    } else {
+      setIsManualPeakMode(false);
+      setNormalizationSelectionTarget("pre");
+    }
+  }, []);
+
+  const handlePeakSetModeFromPlotRail = useCallback((enabled: boolean) => {
+    setIsManualPeakMode(enabled);
+    if (enabled) {
+      setIsPlotNormalizationMode(false);
+      setNormalizationSelectionTarget(null);
+    }
+  }, []);
+
+  const handleResetNormalizationRegions = useCallback(() => {
+    if (dataset.normalizationLocked) return;
+    const def = defaultNormalizationRangesFromSpectrum(dataset.spectrumPoints);
+    if (!def) return;
     onDatasetUpdate(dataset.id, {
-      normalizationLocked: !dataset.normalizationLocked,
+      normalizationRegions: { pre: def.pre, post: def.post },
     });
-  };
+    showToast(
+      "Pre and post regions reset to defaults (first and last 10 points when enough data).",
+      "success",
+    );
+  }, [
+    dataset.id,
+    dataset.normalizationLocked,
+    dataset.spectrumPoints,
+    onDatasetUpdate,
+  ]);
 
-  const handleToggleMoleculeLock = () => {
+  useEffect(() => {
+    if (dataset.normalizationLocked) return;
+    if (
+      dataset.normalizationRegions.pre != null ||
+      dataset.normalizationRegions.post != null
+    ) {
+      return;
+    }
+    if (dataset.spectrumPoints.length < 2) return;
+    const def = defaultNormalizationRangesFromSpectrum(dataset.spectrumPoints);
+    if (!def) return;
     onDatasetUpdate(dataset.id, {
-      moleculeLocked: !dataset.moleculeLocked,
+      normalizationRegions: { pre: def.pre, post: def.post },
     });
-  };
+  }, [
+    dataset.id,
+    dataset.normalizationLocked,
+    dataset.normalizationRegions.pre,
+    dataset.normalizationRegions.post,
+    dataset.spectrumPoints,
+    onDatasetUpdate,
+  ]);
+
+  type DataView = "od" | "absorption" | "bare-atom" | "beta";
+  const [dataView, setDataView] = useState<DataView>("od");
+  const gateToastTimestampsRef = useRef<Record<string, number>>({});
+
+  const showDataViewGateToast = useCallback(
+    (gateKey: string, message: string) => {
+      const last = gateToastTimestampsRef.current[gateKey] ?? 0;
+      const now = Date.now();
+      if (now - last < 5000) return;
+      gateToastTimestampsRef.current[gateKey] = now;
+      showToast(message, "info");
+    },
+    [],
+  );
+
+  const edgeZeroOnePoints = useMemo(() => {
+    return (
+      zeroOneComputation?.normalizedPoints ?? dataset.spectrumPoints
+    );
+  }, [zeroOneComputation, dataset.spectrumPoints]);
+
+  const absorptionPlotPoints =
+    absorptionComputation?.normalizedPoints ?? edgeZeroOnePoints;
+
+  const betaMuLike = useMemo(() => {
+    const primary =
+      betaNormType === "bare-atom"
+        ? bareAtomComputation?.normalizedPoints
+        : zeroOneComputation?.normalizedPoints;
+    if (primary && primary.length > 0) {
+      return primary;
+    }
+    return (
+      zeroOneComputation?.normalizedPoints ?? dataset.spectrumPoints
+    );
+  }, [
+    betaNormType,
+    bareAtomComputation,
+    zeroOneComputation,
+    dataset.spectrumPoints,
+  ]);
+
+  const betaPoints = useMemo(() => {
+    if (!dataset.bareAtomPoints?.length) return null;
+    if (betaMuLike.length === 0) return null;
+    return computeBetaIndex(
+      betaMuLike,
+      betaMuLike.map((p) => p.energy),
+      dataset.bareAtomPoints,
+    );
+  }, [betaMuLike, dataset.bareAtomPoints]);
+
+  const showThetaPhiBeforeDifferenceRef = useRef<{
+    showThetaData: boolean;
+    showPhiData: boolean;
+  } | null>(null);
+
+  const [differenceAngleMode, setDifferenceAngleMode] = useState<
+    "theta" | "phi"
+  >("theta");
+
+  const firstDifferenceLabel = differenceSpectra[0]?.label ?? "";
+
+  useEffect(() => {
+    if (differenceSpectra.length === 0) return;
+    if (firstDifferenceLabel.includes("Δφ")) {
+      setDifferenceAngleMode("phi");
+    } else if (firstDifferenceLabel.includes("Δθ")) {
+      setDifferenceAngleMode("theta");
+    }
+  }, [differenceSpectra.length, firstDifferenceLabel]);
+
+  type DifferenceRootView = "od" | "absorption" | "beta";
+
+  const differenceRootPoints = useMemo<{
+    mode: DifferenceRootView;
+    points: SpectrumPoint[] | null;
+  }>(() => {
+    if (dataView === "od") return { mode: "od", points: edgeZeroOnePoints };
+    if (dataView === "beta") return { mode: "beta", points: betaPoints };
+    if (dataView === "bare-atom") {
+      return { mode: "absorption", points: absorptionPlotPoints ?? null };
+    }
+    return {
+      mode: "absorption",
+      points: absorptionPlotPoints ?? null,
+    };
+  }, [dataView, edgeZeroOnePoints, absorptionPlotPoints, betaPoints]);
+
+  const computeDifferenceSpectraFromRoot = useCallback(
+    (angleMode: "theta" | "phi") => {
+      const pointsToAnalyze = differenceRootPoints.points;
+      if (!pointsToAnalyze || pointsToAnalyze.length === 0) {
+        if (differenceRootPoints.mode === "absorption") {
+          showDataViewGateToast(
+            "requires-normalization",
+            "Run normalization before switching to absorption, bare-atom, or beta views",
+          );
+        } else if (differenceRootPoints.mode === "beta") {
+          showDataViewGateToast(
+            "requires-bare-atom",
+            "Compute bare-atom absorption before switching to beta view",
+          );
+        }
+        return false;
+      }
+
+      const calculated = calculateDifferenceSpectra(pointsToAnalyze, angleMode);
+      setDifferenceSpectra(calculated);
+      return true;
+    },
+    [
+      differenceRootPoints.mode,
+      differenceRootPoints.points,
+      showDataViewGateToast,
+    ],
+  );
+
+  useEffect(() => {
+    if (differenceSpectra.length === 0) return;
+    void computeDifferenceSpectraFromRoot(differenceAngleMode);
+  }, [
+    dataView,
+    differenceAngleMode,
+    betaPoints,
+    differenceRootPoints.points,
+    differenceSpectra.length,
+    computeDifferenceSpectraFromRoot,
+  ]);
+
+  const trySetDataView = useCallback(
+    (next: DataView) => {
+      if (next === dataView) return;
+      if (next === "od") {
+        setDataView("od");
+        return;
+      }
+
+      const hasAbsorptionCurve =
+        (absorptionComputation?.normalizedPoints?.length ?? 0) > 0;
+      if (!hasAbsorptionCurve) {
+        showDataViewGateToast(
+          "requires-normalization",
+          "Run normalization before switching to absorption, bare-atom, or beta views",
+        );
+        return;
+      }
+
+      if (next === "bare-atom") {
+        setDataView("bare-atom");
+        return;
+      }
+
+      if (next === "beta") {
+        if (!dataset.bareAtomPoints) {
+          showDataViewGateToast(
+            "requires-bare-atom",
+            "Compute bare-atom absorption before switching to beta view",
+          );
+          return;
+        }
+        setDataView("beta");
+        return;
+      }
+
+      if (next === "absorption") {
+        setDataView("absorption");
+      }
+    },
+    [
+      dataView,
+      absorptionComputation,
+      dataset.bareAtomPoints,
+      showDataViewGateToast,
+    ],
+  );
 
   // Prepare plot data
-  const plotPoints = dataset.normalizedPoints ?? dataset.spectrumPoints;
-  const referenceCurves = dataset.bareAtomPoints
-    ? [
-        {
-          label: "Bare Atom Absorption",
-          points: dataset.bareAtomPoints,
-          color: "#6b7280",
-        },
-      ]
-    : [];
+  const plotPoints =
+    dataView === "od"
+      ? edgeZeroOnePoints
+      : dataView === "beta"
+        ? (betaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints)
+        : absorptionPlotPoints;
+
+  const handleResetAllPeaksFromPlotRail = useCallback(() => {
+    onDatasetUpdate(dataset.id, { peaks: [], selectedPeakId: null });
+    showToast("All peaks removed", "success");
+  }, [dataset.id, onDatasetUpdate]);
+
+  const handleAutoDetectPeaksFromPlotRail = useCallback(() => {
+    const filtered = filterSpectrumPointsByGeometry(
+      plotPoints,
+      selectedGeometry,
+    );
+    if (filtered.length === 0) {
+      showToast(
+        "No spectrum points for the current view or geometry",
+        "warning",
+      );
+      return;
+    }
+    const newAuto = buildAutoDetectedPeakList(filtered, {
+      minProminence: 0.05,
+    });
+    const merged = mergePeaksPreservingManualAndSteps(dataset.peaks, newAuto);
+    onDatasetUpdate(dataset.id, { peaks: merged, selectedPeakId: null });
+    showToast("Auto-detected peaks updated", "success");
+  }, [
+    plotPoints,
+    selectedGeometry,
+    dataset.peaks,
+    dataset.id,
+    onDatasetUpdate,
+  ]);
+
+  const referenceCurves =
+    dataView === "bare-atom" && dataset.bareAtomPoints
+      ? [
+          {
+            label: "Bare Atom Absorption",
+            points: dataset.bareAtomPoints,
+            color: "#6b7280",
+          },
+        ]
+      : [];
+
+  const absorptionAvailable =
+    (absorptionComputation?.normalizedPoints?.length ?? 0) > 0;
+  const betaAvailable =
+    !!dataset.bareAtomPoints &&
+    betaMuLike.length > 0 &&
+    (betaPoints?.length ?? 0) > 0;
+
+  type OverlayDataView = "od" | "absorption" | "beta";
+  const overlaySelectedKey: OverlayDataView =
+    dataView === "od" ? "od" : dataView === "beta" ? "beta" : "absorption";
+
+  const spectrumYAxisQuantity =
+    dataView === "od"
+      ? "optical-density"
+      : dataView === "beta"
+        ? "beta"
+        : dataView === "absorption" || dataView === "bare-atom"
+          ? "mass-absorption"
+          : "intensity";
+
+  const isDifferenceEnabled = differenceSpectra.length > 0;
+
+  const handleToggleDifferenceEnabled = useCallback(() => {
+    if (isDifferenceEnabled) {
+      setDifferenceSpectra([]);
+      const prev = showThetaPhiBeforeDifferenceRef.current;
+      showThetaPhiBeforeDifferenceRef.current = null;
+      if (prev) {
+        setShowThetaData(prev.showThetaData);
+        setShowPhiData(prev.showPhiData);
+      } else {
+        setShowThetaData(differenceAngleMode === "theta");
+        setShowPhiData(differenceAngleMode === "phi");
+      }
+      return;
+    }
+
+    showThetaPhiBeforeDifferenceRef.current = {
+      showThetaData,
+      showPhiData,
+    };
+
+    const inferredMode: "theta" | "phi" =
+      showThetaData && !showPhiData
+        ? "theta"
+        : showPhiData && !showThetaData
+          ? "phi"
+          : differenceAngleMode;
+
+    setDifferenceAngleMode(inferredMode);
+    setShowThetaData(false);
+    setShowPhiData(false);
+
+    const ok = computeDifferenceSpectraFromRoot(inferredMode);
+    if (!ok) {
+      const prev = showThetaPhiBeforeDifferenceRef.current;
+      showThetaPhiBeforeDifferenceRef.current = null;
+      if (prev) {
+        setShowThetaData(prev.showThetaData);
+        setShowPhiData(prev.showPhiData);
+      }
+    }
+  }, [
+    isDifferenceEnabled,
+    showThetaData,
+    showPhiData,
+    differenceAngleMode,
+    computeDifferenceSpectraFromRoot,
+  ]);
+
+  const plotDataViewRail = (
+    <Toolbar
+      isAttached
+      orientation="vertical"
+      aria-label="Plot data view"
+      className={`${plotToolbarAttachedShellClass} w-fit`}
+    >
+      <ToggleButton
+        isIconOnly
+        aria-label="Difference spectrum toggle"
+        id="difference"
+        isSelected={isDifferenceEnabled}
+        onChange={(next) => {
+          if (next !== isDifferenceEnabled) {
+            queueMicrotask(() => {
+              handleToggleDifferenceEnabled();
+            });
+          }
+        }}
+        className={plotToolbarDifferenceToggleClass}
+      >
+        <span className="text-xs font-semibold" aria-hidden>
+          &#x0394;
+        </span>
+      </ToggleButton>
+      <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
+      <ToggleButtonGroup
+        aria-label="Data view basis"
+        selectionMode="single"
+        orientation="vertical"
+        className="w-full overflow-hidden rounded-full"
+        selectedKeys={new Set([overlaySelectedKey])}
+        onSelectionChange={(keys) => {
+          const next = keys.values().next().value as
+            | OverlayDataView
+            | undefined;
+          if (!next) return;
+          if (next === "od") trySetDataView("od");
+          else if (next === "absorption") trySetDataView("absorption");
+          else trySetDataView("beta");
+        }}
+      >
+        <ToggleButton
+          isIconOnly
+          aria-label="Optical density"
+          id="od"
+          className={plotToolbarBasisToggleClass}
+        >
+          <span className="text-xs font-semibold">OD</span>
+        </ToggleButton>
+        <ToggleButton
+          isIconOnly
+          aria-label="Mass absorption coefficient"
+          id="absorption"
+          isDisabled={!absorptionAvailable}
+          className={plotToolbarBasisToggleClass}
+        >
+          <ToggleButtonGroup.Separator />
+          <span className="text-sm font-semibold" aria-hidden>
+            &#x00B5;
+          </span>
+        </ToggleButton>
+        <ToggleButton
+          isIconOnly
+          aria-label="Beta index of refraction"
+          id="beta"
+          isDisabled={!betaAvailable}
+          className={plotToolbarBasisToggleClass}
+        >
+          <ToggleButtonGroup.Separator />
+          <span className="text-sm font-semibold" aria-hidden>
+            &#x03B2;
+          </span>
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Toolbar>
+  );
+
+  const plotLeftPlotRail = (
+    <>
+      <div className="pointer-events-auto">{plotDataViewRail}</div>
+      <div className="pointer-events-auto">
+        <PlotSpectrumToolsToolbarSection
+          isNormalizationMode={isPlotNormalizationMode}
+          onNormalizationModeChange={handlePlotNormalizationMode}
+          activeEdge={normalizationSelectionTarget ?? "pre"}
+          onActiveEdgeChange={setNormalizationSelectionTarget}
+          onResetToDefaultRegions={handleResetNormalizationRegions}
+          normalizationLocked={dataset.normalizationLocked}
+          hasData={dataset.spectrumPoints.length > 0}
+          isPeakSetMode={isManualPeakMode}
+          onPeakSetModeChange={handlePeakSetModeFromPlotRail}
+          peakCount={dataset.peaks.length}
+          onAutoDetectPeaks={handleAutoDetectPeaksFromPlotRail}
+          onResetAllPeaks={handleResetAllPeaksFromPlotRail}
+        />
+      </div>
+    </>
+  );
 
   const normalizationRegions = dataset.normalizationLocked
     ? {
@@ -1265,150 +1710,16 @@ export function DatasetContent({
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
       <div className="flex w-full shrink-0 flex-col">
-        <div className="flex items-center gap-2">
-          <div className="flex shrink-0 items-center">
-            <Tooltip delay={0}>
-              <button
-                type="button"
-                onClick={() => setAnalysisPanelOpen(!analysisPanelOpen)}
-                className="border-border bg-surface text-foreground hover:bg-default flex h-8 items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
-                aria-label={
-                  analysisPanelOpen
-                    ? "Close analysis toolbar"
-                    : "Open analysis toolbar"
-                }
-              >
-                {analysisPanelOpen ? (
-                  <PanelLeftClose className="h-4 w-4" />
-                ) : (
-                  <PanelLeftOpen className="h-4 w-4" />
-                )}
-              </button>
-              <Tooltip.Content className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg">
-                Toggles the analysis toolbar
-              </Tooltip.Content>
-            </Tooltip>
-          </div>
-          <div className="min-w-0 flex-1">
-            <VisualizationToggle
-              mode={visualizationMode}
-              graphStyle={graphStyle}
-              onModeChange={setVisualizationMode}
-              onGraphStyleChange={setGraphStyle}
-              showEditButton={visualizationMode === "table"}
-              editMode={geometryEditMode}
-              onEditModeChange={setGeometryEditMode}
-            />
-          </div>
-        </div>
-        <div className="mt-3 flex min-h-0 w-full flex-1 items-stretch gap-6 overflow-hidden">
-          {analysisPanelOpen && (
-            <AnalysisToolbar
-              panelOnly
-              selectedTool={selectedAnalysisTool}
-              onSelectedToolChange={setSelectedAnalysisTool}
-              hasMolecule={!!dataset.moleculeId}
-              hasData={dataset.spectrumPoints.length > 0}
-              hasNormalization={!!dataset.normalization}
-              normalizationLocked={dataset.normalizationLocked}
-              normalizationType={dataset.normalizationType}
-              onNormalizationTypeChange={(type) => {
-                onDatasetUpdate(dataset.id, { normalizationType: type });
-              }}
-              onPreEdgeSelect={() => setNormalizationSelectionTarget("pre")}
-              onPostEdgeSelect={() => setNormalizationSelectionTarget("post")}
-              onToggleLock={handleToggleLock}
-              isSelectingPreEdge={normalizationSelectionTarget === "pre"}
-              isSelectingPostEdge={normalizationSelectionTarget === "post"}
-              normalizationRegions={dataset.normalizationRegions}
-              onNormalizationRegionChange={(type, range) => {
-                onDatasetUpdate(dataset.id, {
-                  normalizationRegions: {
-                    ...dataset.normalizationRegions,
-                    [type]: range,
-                  },
-                });
-              }}
-              peaks={dataset.peaks.map((peak, index) => ({
-                ...peak,
-                id: peak.id ?? `peak-${index}-${peak.energy}`,
-              }))}
-              spectrumPoints={dataset.spectrumPoints}
-              normalizedPoints={dataset.normalizedPoints}
-              selectedPeakId={dataset.selectedPeakId}
-              onPeaksChange={(peaks) => onDatasetUpdate(dataset.id, { peaks })}
-              onPeakSelect={(peakId) =>
-                onDatasetUpdate(dataset.id, { selectedPeakId: peakId })
-              }
-              onPeakUpdate={(peakId, energy) => {
-                const updatedPeaks = dataset.peaks.map((peak) => {
-                  const currentId =
-                    peak.id ??
-                    `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
-                  if (currentId === peakId) {
-                    return { ...peak, energy };
-                  }
-                  return peak;
-                });
-                onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
-              }}
-              onPeakAdd={(energy) => {
-                const newPeak = {
-                  energy: Math.round(energy * 100) / 100,
-                  id: `peak-manual-${Date.now()}`,
-                } as PeakData & { id: string };
-                onDatasetUpdate(dataset.id, {
-                  peaks: [...dataset.peaks, newPeak],
-                });
-              }}
-              isManualPeakMode={isManualPeakMode}
-              onManualPeakModeChange={setIsManualPeakMode}
-              differenceSpectra={differenceSpectra}
-              onDifferenceSpectraChange={setDifferenceSpectra}
-              showThetaData={showThetaData}
-              showPhiData={showPhiData}
-              onShowThetaDataChange={setShowThetaData}
-              onShowPhiDataChange={setShowPhiData}
-              selectedGeometry={selectedGeometry}
-              onSelectedGeometryChange={setSelectedGeometry}
-              onReloadData={onReloadData}
-              moleculeId={dataset.moleculeId}
-              instrumentId={dataset.instrumentId}
-              edgeId={dataset.edgeId}
-              onMoleculeChange={(moleculeId) =>
-                onDatasetUpdate(dataset.id, { moleculeId })
-              }
-              onInstrumentChange={(instrumentId) =>
-                onDatasetUpdate(dataset.id, { instrumentId })
-              }
-              onEdgeChange={(edgeId) => {
-                onDatasetUpdate(dataset.id, { edgeId });
-              }}
-              instrumentOptions={instrumentOptions}
-              edgeOptions={edgeOptions}
-              availableEdgeOptions={availableEdgeOptions}
-              onAddFacility={() => setShowAddFacilityModal(true)}
-              moleculeSearchTerm={searchTerm}
-              onMoleculeSearchTermChange={setSearchTerm}
-              moleculeSuggestions={suggestions}
-              moleculeManualResults={manualResults}
-              moleculeSuggestionError={suggestionError}
-              moleculeManualError={manualError}
-              isMoleculeSuggesting={isSuggesting}
-              isMoleculeManualSearching={isManualSearching}
-              selectedMolecule={selectedMolecule}
-              selectedMoleculePreferredName={selectedPreferredName}
-              onSelectedMoleculePreferredNameChange={setSelectedPreferredName}
-              allMoleculeNames={allMoleculeNames}
-              onUseMolecule={(result) => selectMolecule(result)}
-              onMoleculeManualSearch={runManualSearch}
-              moleculeLocked={dataset.moleculeLocked}
-              onToggleMoleculeLock={handleToggleMoleculeLock}
-              edgeAtomMatches={edgeAtomMatches}
-              selectedEdge={selectedEdge}
-            />
-          )}
-
+        <VisualizationToggle
+          mode={visualizationMode}
+          graphStyle={graphStyle}
+          onModeChange={setVisualizationMode}
+          onGraphStyleChange={setGraphStyle}
+          showEditButton={visualizationMode === "table"}
+          editMode={geometryEditMode}
+          onEditModeChange={setGeometryEditMode}
+        />
+        <div className="mt-3 flex min-h-0 w-full flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
             <div
               className={`border-border bg-surface w-full border p-6 shadow-sm ${
@@ -1425,12 +1736,23 @@ export function DatasetContent({
                   <SpectrumPlot
                     points={plotPoints}
                     graphStyle={graphStyle}
+                    yAxisQuantity={spectrumYAxisQuantity}
                     referenceCurves={referenceCurves}
                     normalizationRegions={normalizationRegions}
-                    selectionTarget={normalizationSelectionTarget}
                     onSelectionChange={handleNormalizationSelection}
+                    headerRight={plotLeftPlotRail}
+                    plotContext={
+                      isPlotNormalizationMode && normalizationSelectionTarget
+                        ? {
+                            kind: "normalize",
+                            target: normalizationSelectionTarget,
+                          }
+                        : isManualPeakMode
+                          ? { kind: "peak-edit" }
+                          : { kind: "explore" }
+                    }
                     peaks={dataset.peaks.map((peak, index) => ({
-                      energy: peak.energy,
+                      ...peak,
                       id: peak.id ?? `peak-${index}-${peak.energy}`,
                     }))}
                     selectedPeakId={dataset.selectedPeakId}
@@ -1439,10 +1761,9 @@ export function DatasetContent({
                     }
                     onPeakUpdate={(peakId, energy) => {
                       const roundedEnergy = Math.round(energy * 100) / 100;
-                      const updatedPeaks = dataset.peaks.map((peak) => {
+                      const updatedPeaks = dataset.peaks.map((peak, index) => {
                         const currentId =
-                          peak.id ??
-                          `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
+                          peak.id ?? `peak-${index}-${peak.energy}`;
                         if (currentId === peakId) {
                           return { ...peak, energy: roundedEnergy };
                         }
@@ -1450,13 +1771,28 @@ export function DatasetContent({
                       });
                       onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
                     }}
-                    onPeakDelete={(peakId) => {
-                      const updatedPeaks = dataset.peaks.filter((peak) => {
+                    onPeakPatch={(peakId, patch) => {
+                      const updatedPeaks = dataset.peaks.map((peak, index) => {
                         const currentId =
-                          peak.id ??
-                          `peak-${dataset.peaks.indexOf(peak)}-${peak.energy}`;
-                        return currentId !== peakId;
+                          peak.id ?? `peak-${index}-${peak.energy}`;
+                        if (currentId !== peakId) return peak;
+                        const next = { ...peak };
+                        if (patch.energy !== undefined) {
+                          next.energy = Math.round(patch.energy * 100) / 100;
+                        }
+                        if (patch.peakKind !== undefined) {
+                          next.peakKind = patch.peakKind;
+                        }
+                        return next;
                       });
+                      onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
+                    }}
+                    onPeakDelete={(peakId) => {
+                      const updatedPeaks = dataset.peaks.filter(
+                        (peak, index) =>
+                          (peak.id ?? `peak-${index}-${peak.energy}`) !==
+                          peakId,
+                      );
                       onDatasetUpdate(dataset.id, {
                         peaks: updatedPeaks,
                         selectedPeakId:
@@ -1469,8 +1805,7 @@ export function DatasetContent({
                       const roundedEnergy = Math.round(energy * 100) / 100;
 
                       // Estimate amplitude from spectrum at this energy
-                      const pointsToAnalyze =
-                        dataset.normalizedPoints ?? dataset.spectrumPoints;
+                      const pointsToAnalyze = plotPoints;
                       let amplitude: number | undefined;
                       if (pointsToAnalyze.length > 0) {
                         // Find closest point to estimate amplitude
@@ -1499,7 +1834,6 @@ export function DatasetContent({
                         peaks: [...dataset.peaks, newPeak],
                       });
                     }}
-                    isManualPeakMode={isManualPeakMode}
                     differenceSpectra={differenceSpectra}
                     showThetaData={showThetaData}
                     showPhiData={showPhiData}
@@ -1559,7 +1893,7 @@ export function DatasetContent({
             </div>
 
             {/* Selection Mode Toast */}
-            {normalizationSelectionTarget && (
+            {isPlotNormalizationMode && normalizationSelectionTarget && (
               <div
                 className={`rounded-lg border p-3 text-sm ${
                   normalizationSelectionTarget === "pre"

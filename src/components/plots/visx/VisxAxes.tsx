@@ -80,7 +80,7 @@ export const VisxAxes = memo(function VisxAxes({
         })}
         labelProps={{
           fill: tickLabelColor,
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: 500,
           textAnchor: "middle",
           fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
@@ -105,7 +105,7 @@ export const VisxAxes = memo(function VisxAxes({
         })}
         labelProps={{
           fill: tickLabelColor,
-          fontSize: 13,
+          fontSize: 14,
           textAnchor: "middle",
           fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
         }}

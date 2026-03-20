@@ -11,6 +11,7 @@ import {
 } from "@/components/contribute";
 import type { ContributionFileDropOverlayFileKind } from "@/components/contribute";
 import { trpc } from "~/trpc/client";
+import { FieldTooltip } from "~/components/ui/field-tooltip";
 import {
   BuildingOfficeIcon,
   PlusIcon,
@@ -20,13 +21,14 @@ import {
 import type { Key } from "@heroui/react";
 import {
   ComboBox,
+  Breadcrumbs,
   Description,
-  Fieldset,
   Form,
   Input,
   InputGroup,
   Label as HeroLabel,
   ListBox,
+  Select,
   TextField,
 } from "@heroui/react";
 import { parseFacilityJsonFile } from "~/app/contribute/facility/utils/parse-facility-json";
@@ -263,13 +265,6 @@ export default function FacilityContributePage({
 
   const createFacility = trpc.facilities.create.useMutation();
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFacilityData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const addInstrument = () => {
     setInstruments((prev) => [
       ...prev,
@@ -375,10 +370,10 @@ export default function FacilityContributePage({
   if (!isSignedIn) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="mb-4 text-4xl font-bold text-foreground">
+        <h1 className="text-foreground mb-4 text-4xl font-bold">
           Contribute Facility
         </h1>
-        <p className="mb-8 text-muted">
+        <p className="text-muted mb-8">
           Please sign in to contribute facilities to the X-ray Atlas database.
         </p>
       </div>
@@ -407,25 +402,25 @@ export default function FacilityContributePage({
         <div className="mx-auto max-w-4xl">
           {!isModal && (
             <div className="mb-6">
-              <Link
-                href="/contribute"
-                className="text-muted hover:text-accent text-sm"
-              >
-                Back to contribution type selection
-              </Link>
+              <Breadcrumbs className="text-sm font-medium">
+                <Breadcrumbs.Item href="/contribute">
+                  Contributions
+                </Breadcrumbs.Item>
+                <Breadcrumbs.Item>Facility</Breadcrumbs.Item>
+              </Breadcrumbs>
             </div>
           )}
-          <h1 className="mb-8 text-4xl font-bold text-foreground">
+          <h1 className="text-foreground mb-8 text-4xl font-bold">
             Contribute Facility & Instruments
           </h1>
 
           <Form onSubmit={handleSubmit} className="space-y-6">
-            <Fieldset className="border-border bg-surface space-y-4 rounded-2xl border p-6 shadow-sm">
-              <Fieldset.Legend className="text-foreground flex items-center gap-2 text-xl font-semibold">
+            <section className="space-y-4">
+              <h2 className="text-foreground flex items-center gap-2 text-xl font-semibold">
                 <BuildingOfficeIcon className="h-6 w-6" />
                 Facility Information
-              </Fieldset.Legend>
-              <Fieldset.Group className="space-y-4">
+              </h2>
+              <div className="space-y-4">
                 {existingFacility && (
                   <div className="border-warning/50 bg-warning/10 rounded-xl border p-4">
                     <div className="flex items-start gap-3">
@@ -491,11 +486,12 @@ export default function FacilityContributePage({
                     <span className="text-danger" aria-hidden>
                       *
                     </span>
+                    <FieldTooltip description="The official name of the facility" />
                   </HeroLabel>
                   <ComboBox.InputGroup className="w-full">
                     <Input
                       placeholder="e.g., Advanced Light Source"
-                      className="bg-transparent! shadow-none!"
+                      className="bg-field-background! shadow-none!"
                     />
                     <ComboBox.Trigger />
                   </ComboBox.InputGroup>
@@ -531,13 +527,12 @@ export default function FacilityContributePage({
                     variant="secondary"
                     fullWidth
                   >
-                    <HeroLabel className="mb-1.5 block text-sm font-medium text-foreground">
+                    <HeroLabel className="text-foreground mb-1.5 block text-sm font-medium">
                       City
+                      <FieldTooltip description="Facility city or locality" />
                     </HeroLabel>
                     <InputGroup variant="secondary" fullWidth>
-                      <InputGroup.Input
-                        placeholder="e.g., Berkeley"
-                      />
+                      <InputGroup.Input placeholder="e.g., Berkeley" />
                     </InputGroup>
                   </TextField>
                   <TextField
@@ -549,50 +544,70 @@ export default function FacilityContributePage({
                     variant="secondary"
                     fullWidth
                   >
-                    <HeroLabel className="mb-1.5 block text-sm font-medium text-foreground">
+                    <HeroLabel className="text-foreground mb-1.5 block text-sm font-medium">
                       Country
+                      <FieldTooltip description="Facility country" />
                     </HeroLabel>
                     <InputGroup variant="secondary" fullWidth>
-                      <InputGroup.Input
-                        placeholder="e.g., United States"
-                      />
+                      <InputGroup.Input placeholder="e.g., United States" />
                     </InputGroup>
                   </TextField>
                 </div>
 
                 <div>
-                  <HeroLabel
-                    htmlFor="facilityType"
-                    className="mb-1.5 block text-sm font-medium text-foreground"
-                  >
+                  <HeroLabel className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
                     Facility Type{" "}
                     <span className="text-danger" aria-hidden>
                       *
                     </span>
+                    <span className="sr-only">(required)</span>
+                    <FieldTooltip description="Select the facility type" />
                   </HeroLabel>
-                  <select
-                    id="facilityType"
-                    name="facilityType"
-                    required
+                  <Select
+                    className="w-full"
+                    isRequired
                     value={facilityData.facilityType}
-                    onChange={handleInputChange}
-                    className="border-border bg-field-background text-field-foreground placeholder:text-field-placeholder focus:border-accent focus:ring-accent-soft-hover w-full rounded-xl border px-4 py-2.5 focus:outline-none focus:ring-2"
+                    onChange={(value) => {
+                      if (value == null) return;
+                      const next = String(
+                        Array.isArray(value) ? value[0] : value,
+                      ) as "LAB_SOURCE" | "SYNCHROTRON" | "FREE_ELECTRON_LASER";
+                      setFacilityData((prev) => ({
+                        ...prev,
+                        facilityType: next,
+                      }));
+                    }}
                   >
-                    <option value="LAB_SOURCE">Lab Source</option>
-                    <option value="SYNCHROTRON">Synchrotron</option>
-                    <option value="FREE_ELECTRON_LASER">
-                      Free Electron Laser
-                    </option>
-                  </select>
+                    <Select.Trigger className="min-h-[44px]">
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox aria-label="Facility types" className="w-full">
+                        <ListBox.Item key="LAB_SOURCE" textValue="Lab Source">
+                          Lab Source
+                        </ListBox.Item>
+                        <ListBox.Item key="SYNCHROTRON" textValue="Synchrotron">
+                          Synchrotron
+                        </ListBox.Item>
+                        <ListBox.Item
+                          key="FREE_ELECTRON_LASER"
+                          textValue="Free Electron Laser"
+                        >
+                          Free Electron Laser
+                        </ListBox.Item>
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
                 </div>
-              </Fieldset.Group>
-            </Fieldset>
+              </div>
+            </section>
 
-            <Fieldset className="border-border bg-surface space-y-4 rounded-2xl border p-6 shadow-sm">
+            <section className="space-y-4">
               <div className="flex items-center justify-between">
-                <Fieldset.Legend className="text-foreground text-xl font-semibold">
+                <h2 className="text-foreground text-xl font-semibold">
                   Instruments
-                </Fieldset.Legend>
+                </h2>
                 <Button
                   type="button"
                   variant="outline"
@@ -624,7 +639,7 @@ export default function FacilityContributePage({
                   ))}
                 </div>
               )}
-            </Fieldset>
+            </section>
 
             <div className="border-border flex justify-end border-t pt-6">
               <Button
@@ -681,8 +696,8 @@ function InstrumentForm({
   const instrumentExists = checkData?.exists ?? false;
 
   return (
-    <div className="border-border bg-surface rounded-xl border p-4">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
         <h3 className="text-foreground font-medium">
           Instrument {instrument.name.trim() ? instrument.name : "New"}
         </h3>
@@ -706,25 +721,25 @@ function InstrumentForm({
             variant="secondary"
             fullWidth
           >
-            <HeroLabel className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
+            <HeroLabel className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
               Instrument Name{" "}
               <span className="text-danger" aria-hidden>
                 *
               </span>
+              <span className="sr-only">(required)</span>
+              <FieldTooltip description="Instrument commonly used name or designation" />
             </HeroLabel>
             <InputGroup
               variant="secondary"
               fullWidth
               className={
-                instrumentExists
-                  ? "border-warning/50 bg-warning/10"
-                  : undefined
+                instrumentExists ? "border-warning/50 bg-warning/10" : undefined
               }
             >
               <InputGroup.Input placeholder="e.g., Beamline 7.3.3" />
             </InputGroup>
           </TextField>
-            {instrumentExists && instrument.name.length > 0 && (
+          {instrumentExists && instrument.name.length > 0 && (
             <div className="text-muted mt-2 flex items-center gap-2 text-sm">
               <ExclamationTriangleIcon className="h-4 w-4" />
               <span>This instrument already exists at this facility</span>
@@ -739,33 +754,56 @@ function InstrumentForm({
           variant="secondary"
           fullWidth
         >
-          <HeroLabel className="mb-1.5 block text-sm font-medium text-foreground">
+          <HeroLabel className="text-foreground mb-1.5 block text-sm font-medium">
             Instrument Link (Optional)
+            <FieldTooltip description="Optional URL to the instrument documentation or facility page" />
           </HeroLabel>
           <InputGroup variant="secondary" fullWidth>
-            <InputGroup.Input
-              type="url"
-              placeholder="https://..."
-            />
+            <InputGroup.Input type="url" placeholder="https://..." />
           </InputGroup>
         </TextField>
 
-        <div>
-          <HeroLabel className="mb-1.5 block text-sm font-medium text-foreground">
+        <Select
+          className="w-full"
+          value={instrument.status}
+          onChange={(value) => {
+            if (value == null) return;
+            const next = String(
+              Array.isArray(value) ? value[0] : value,
+            ) as InstrumentFormData["status"];
+            onChange("status", next);
+          }}
+        >
+          <HeroLabel className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
             Status
+            <FieldTooltip description="Instrument operating status" />
           </HeroLabel>
-          <select
-            value={instrument.status}
-            onChange={(e) =>
-              onChange("status", e.target.value as InstrumentFormData["status"])
-            }
-            className="border-border bg-field-background text-field-foreground placeholder:text-field-placeholder focus:border-accent focus:ring-accent-soft-hover w-full rounded-xl border px-4 py-2.5 focus:outline-none focus:ring-2"
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="under_maintenance">Under Maintenance</option>
-          </select>
-        </div>
+          <Select.Trigger className="min-h-[44px]">
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox aria-label="Instrument status" className="w-full">
+              <ListBox.Item key="active" textValue="Active" className="text-sm">
+                Active
+              </ListBox.Item>
+              <ListBox.Item
+                key="inactive"
+                textValue="Inactive"
+                className="text-sm"
+              >
+                Inactive
+              </ListBox.Item>
+              <ListBox.Item
+                key="under_maintenance"
+                textValue="Under Maintenance"
+                className="text-sm"
+              >
+                Under Maintenance
+              </ListBox.Item>
+            </ListBox>
+          </Select.Popover>
+        </Select>
       </div>
     </div>
   );

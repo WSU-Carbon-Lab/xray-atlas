@@ -8,6 +8,7 @@ import { curveLinear } from "@visx/curve";
 import type { Peak } from "../types";
 import type { VisxScales } from "../hooks/useVisxScales";
 import { generateGaussianPeak } from "~/app/contribute/nexafs/utils";
+import { peakStableId } from "../utils/peakStableId";
 
 export const PeakCurves = memo(function PeakCurves({
   peaks,
@@ -22,13 +23,11 @@ export const PeakCurves = memo(function PeakCurves({
 }) {
   if (peaks.length === 0 || energyRange.length === 0) return null;
 
-  // Filter out step peaks
-  const nonStepPeaks = peaks.filter((peak) => !peak.isStep);
-
   return (
     <g>
-      {nonStepPeaks.map((peak, peakIndex) => {
-        const peakId = peak.id ?? `peak-${peakIndex}-${peak.energy}`;
+      {peaks.map((peak, peakIndex) => {
+        if (peak.isStep) return null;
+        const peakId = peakStableId(peak, peakIndex);
         const isSelected = selectedPeakId === peakId;
 
         const amplitude = peak.amplitude ?? 1;

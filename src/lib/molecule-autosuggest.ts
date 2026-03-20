@@ -21,7 +21,7 @@ export interface AutosuggestItem {
   imageUrl?: string;
   favoriteCount: number;
   viewCount: number;
-  matchType: AutosuggestMatchType;
+  matchType: AutosuggestMatchType | string;
   textScore: number;
   popularityScore: number;
   overallScore: number;

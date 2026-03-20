@@ -1,24 +1,33 @@
 "use client";
 
-import { useMemo, useCallback, useState, useRef, useEffect, useId } from "react";
+import {
+  useMemo,
+  useCallback,
+  useState,
+  useRef,
+  useEffect,
+  useId,
+} from "react";
 import { useTheme } from "next-themes";
 import { useTooltip, useTooltipInPortal } from "@visx/tooltip";
 import type { TraceData } from "../types";
-import type { SpectrumPlotProps, SpectrumSelection } from "../types";
+import type {
+  SpectrumPlotProps,
+  SpectrumSelection,
+  SpectrumYAxisQuantity,
+} from "../types";
+import { spectrumYAxisPresentation } from "../utils/yAxisScientific";
 import { useSpectrumData } from "../hooks/useSpectrumData";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { useDataExtents } from "../hooks/useDataExtents";
 import { usePeakVisualization } from "../hooks/usePeakVisualization";
-import { useVisxPeakInteractions } from "../hooks/useVisxPeakInteractions";
 import { findClosestPoint } from "../utils/find-closest-point";
 import { PLOT_CONFIG, useChartThemeFromCSS } from "../config";
 import { useSubplotLayout } from "./useSubplotLayout";
 import { ChartAxes } from "./ChartAxes";
 import { ChartGrid } from "./ChartGrid";
 import { ChartSpectrumLines } from "./ChartSpectrumLines";
-import { ModeBar } from "./ModeBar";
 import { PlotToolbar } from "./PlotToolbar";
-import { InlineLegend } from "./InlineLegend";
 import { PlotStaticLegend } from "./PlotStaticLegend";
 import { ExportPlotModal } from "./ExportPlotModal";
 import { ChartCrosshairAndDots } from "./ChartCrosshairAndDots";
@@ -27,23 +36,29 @@ import {
   getTraceLabel,
   getTraceColor,
 } from "./utils";
+import { PeakPlotAnnotations } from "./PeakPlotAnnotations";
 import { NormalizationBrush } from "../visx/NormalizationBrush";
 import { PeakIndicators } from "../visx/PeakIndicators";
 import { PeakCurves } from "../visx/PeakCurves";
-import { InteractivePeak } from "../visx/InteractivePeak";
+import { PeakOverlayLayer } from "../visx/PeakOverlayLayer";
 import { BrushZoom } from "../visx/BrushZoom";
 import type { ZoomMode } from "../visx/BrushZoom";
 import { NORMALIZATION_COLORS } from "../constants";
+import { PlotToolRail } from "./PlotToolRail";
 
 type SpectrumPlotInnerProps = SpectrumPlotProps & {
   width: number;
   height: number;
   cursorMode?: "pan" | "zoom" | "select" | "peak" | "inspect";
-  onCursorModeChange?: (mode: "pan" | "zoom" | "select" | "peak" | "inspect") => void;
+  onCursorModeChange?: (
+    mode: "pan" | "zoom" | "select" | "peak" | "inspect",
+  ) => void;
 };
 
 function buildTraceIds(traces: TraceData[]): string[] {
-  return traces.map((t, i) => (typeof t.name === "string" ? t.name : `trace-${i}`));
+  return traces.map((t, i) =>
+    typeof t.name === "string" ? t.name : `trace-${i}`,
+  );
 }
 
 export function SpectrumPlotInner({
@@ -53,21 +68,23 @@ export function SpectrumPlotInner({
   graphStyle = "line",
   energyStats,
   absorptionStats,
+  yAxisQuantity,
   referenceCurves = [],
   normalizationRegions,
-  selectionTarget,
+  plotContext,
   onSelectionChange,
   peaks = [],
   selectedPeakId,
   onPeakUpdate,
+  onPeakPatch,
   onPeakSelect,
   onPeakDelete,
   onPeakAdd,
-  isManualPeakMode = false,
   differenceSpectra = [],
   showThetaData = false,
   showPhiData = false,
   selectedGeometry = null,
+  headerRight,
   cursorMode: externalCursorMode,
   onCursorModeChange,
 }: SpectrumPlotInnerProps) {
@@ -83,7 +100,11 @@ export function SpectrumPlotInner({
     differenceSpectra,
     isDark,
   );
-  const referenceData = useReferenceData(referenceCurves, differenceSpectra);
+  const referenceData = useReferenceData(
+    referenceCurves,
+    differenceSpectra,
+    isDark,
+  );
   const peakViz = usePeakVisualization(
     points,
     peaks,
@@ -106,27 +127,33 @@ export function SpectrumPlotInner({
   );
 
   const allTraceIds = useMemo(() => buildTraceIds(allTraces), [allTraces]);
-  const [visibleTraceIds, setVisibleTraceIds] = useState<Set<string>>(() => new Set());
+  const [visibleTraceIds, setVisibleTraceIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const visibleTraces = useMemo(() => {
     if (visibleTraceIds.size === 0) return allTraces;
     return allTraces.filter((t, i) => {
       const id = typeof t.name === "string" ? t.name : `trace-${i}`;
+      if (typeof t.name === "string" && /bare\s*atom/i.test(t.name))
+        return true;
       return visibleTraceIds.has(id);
     });
   }, [allTraces, visibleTraceIds]);
 
-  const toggleTrace = useCallback((id: string) => {
-    setVisibleTraceIds((prev) => {
-      const next = new Set(prev.size === 0 ? allTraceIds : prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, [allTraceIds]);
+  const toggleTrace = useCallback(
+    (id: string) => {
+      setVisibleTraceIds((prev) => {
+        const next = new Set(prev.size === 0 ? allTraceIds : prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    },
+    [allTraceIds],
+  );
 
-  const contentHeight =
-    height - PLOT_CONFIG.toolbarHeight - PLOT_CONFIG.overviewGap;
+  const contentHeight = height - PLOT_CONFIG.overviewGap;
   const subplotLayout = useSubplotLayout(
     width,
     contentHeight,
@@ -147,16 +174,35 @@ export function SpectrumPlotInner({
     return [d[0] ?? 0, d[1] ?? 1000];
   }, [extents.energyExtent, mainPlot.xScale]);
 
-  const [zoomedXDomain, setZoomedXDomain] = useState<[number, number] | null>(null);
-  const [zoomedYDomain, setZoomedYDomain] = useState<[number, number] | null>(null);
+  const [zoomedXDomain, setZoomedXDomain] = useState<[number, number] | null>(
+    null,
+  );
+  const [zoomedYDomain, setZoomedYDomain] = useState<[number, number] | null>(
+    null,
+  );
+
+  const visibleYDomain = useMemo((): [number, number] => {
+    const raw =
+      zoomedYDomain ?? (mainPlot.yScale.domain() as [number, number]);
+    const a = raw[0] ?? 0;
+    const b = raw[1] ?? 0;
+    return [Math.min(a, b), Math.max(a, b)];
+  }, [zoomedYDomain, mainPlot.yScale]);
+
+  const yAxisPrimary = useMemo(() => {
+    const q: SpectrumYAxisQuantity = yAxisQuantity ?? "intensity";
+    return spectrumYAxisPresentation(q, visibleYDomain[0], visibleYDomain[1]);
+  }, [yAxisQuantity, visibleYDomain]);
 
   const zoomedXScale = useMemo(() => {
-    const domain = zoomedXDomain ?? (mainPlot.xScale.domain() as [number, number]);
+    const domain =
+      zoomedXDomain ?? (mainPlot.xScale.domain() as [number, number]);
     return mainPlot.xScale.copy().domain(domain);
   }, [mainPlot.xScale, zoomedXDomain]);
 
   const zoomedYScale = useMemo(() => {
-    const domain = zoomedYDomain ?? (mainPlot.yScale.domain() as [number, number]);
+    const domain =
+      zoomedYDomain ?? (mainPlot.yScale.domain() as [number, number]);
     return mainPlot.yScale.copy().domain(domain);
   }, [mainPlot.yScale, zoomedYDomain]);
 
@@ -225,27 +271,29 @@ export function SpectrumPlotInner({
     setZoomedYDomain(null);
   }, []);
 
-  const [internalCursorMode, setInternalCursorMode] =
-    useState<"pan" | "zoom" | "select" | "peak" | "inspect">("inspect");
-  const cursorMode = externalCursorMode ?? internalCursorMode;
+  const selectionTarget =
+    plotContext?.kind === "normalize" ? plotContext.target : null;
+  const isManualPeakMode = plotContext?.kind === "peak-edit";
+
+  const cursorMode = externalCursorMode ?? "inspect";
   const effectiveCursorMode =
     selectionTarget != null
       ? "select"
-      : isManualPeakMode
-        ? "peak"
-        : cursorMode === "pan" || cursorMode === "zoom"
-          ? cursorMode
-          : "inspect";
+      : cursorMode === "pan" && zoomedXDomain == null
+        ? "inspect"
+        : cursorMode;
 
   const handleCursorModeChange = useCallback(
     (mode: "pan" | "zoom" | "select" | "peak" | "inspect") => {
-      if (onCursorModeChange) onCursorModeChange(mode);
-      else setInternalCursorMode(mode);
+      onCursorModeChange?.(mode);
     },
     [onCursorModeChange],
   );
 
-  const tooltip = useTooltip<{ energy: number; rows: Array<{ label: string; value: number | null; color: string }> }>();
+  const tooltip = useTooltip<{
+    energy: number;
+    rows: Array<{ label: string; value: number | null; color: string }>;
+  }>();
   const { containerRef } = useTooltipInPortal({
     detectBounds: true,
     scroll: true,
@@ -273,6 +321,20 @@ export function SpectrumPlotInner({
       const domain = zoomedXScale.domain();
       const range = (domain[1] ?? 0) - (domain[0] ?? 0);
       const threshold = range * thresholdFraction;
+      if (isManualPeakMode) {
+        const rows = visibleTraces.map((trace, i) => {
+          const label = getTraceLabel(trace, i);
+          const value = getValueAtEnergy(trace, energy, threshold);
+          const color = getTraceColor(trace, themeColors.text);
+          return { label, value, color };
+        });
+        tooltip.showTooltip({
+          tooltipData: { energy, rows },
+          tooltipLeft: e.clientX,
+          tooltipTop: e.clientY,
+        });
+        return;
+      }
       const closest = findClosestPoint(energy, visibleTraces, threshold);
       const snapEnergy = closest?.energy ?? energy;
       const rows = visibleTraces.map((trace, i) => {
@@ -290,6 +352,7 @@ export function SpectrumPlotInner({
     [
       selectionTarget,
       effectiveCursorMode,
+      isManualPeakMode,
       visibleTraces,
       zoomedXScale,
       thresholdFraction,
@@ -305,35 +368,50 @@ export function SpectrumPlotInner({
     tooltip.hideTooltip();
   }, [tooltip]);
 
-  const { handleClick: handlePeakClick } = useVisxPeakInteractions({
-    peaks,
-    scales: mainPlotScales,
-    dimensions: mainPlot.dimensions,
-    selectedPeakId,
-    onPeakSelect,
-    onPeakAdd,
-    onPeakDelete,
-    onPeakUpdate,
-    isManualPeakMode,
-    plotRef: svgRef,
-  });
+  const getYValueAtEnergy = useCallback(
+    (energy: number): number => {
+      const trace = visibleTraces[0];
+      if (trace) {
+        const domain = zoomedXScale.domain() as [number, number];
+        const span = Math.abs((domain[1] ?? 1) - (domain[0] ?? 0)) || 1;
+        const v = getValueAtEnergy(trace, energy, span);
+        if (v != null && Number.isFinite(v)) return v;
+      }
+      let bestY = points[0]?.absorption ?? 0;
+      let bestD = Infinity;
+      for (const p of points) {
+        const d = Math.abs(p.energy - energy);
+        if (d < bestD) {
+          bestD = d;
+          bestY = p.absorption;
+        }
+      }
+      return bestY;
+    },
+    [visibleTraces, zoomedXScale, points],
+  );
 
   const handlePeakEnergyUpdate = useCallback(
     (peakId: string, energy: number) => {
-      onPeakUpdate?.(peakId, energy);
+      if (onPeakPatch) {
+        onPeakPatch(peakId, { energy });
+      } else {
+        onPeakUpdate?.(peakId, energy);
+      }
     },
-    [onPeakUpdate],
+    [onPeakPatch, onPeakUpdate],
   );
 
   const energyRange = useMemo(() => {
     if (!peakViz.selectedGeometryPoints?.length) return [];
-    const energies = peakViz.selectedGeometryPoints.map((p) => p.energy).sort((a, b) => a - b);
+    const energies = peakViz.selectedGeometryPoints
+      .map((p) => p.energy)
+      .sort((a, b) => a - b);
     const minE = energies[0] ?? 0;
     const maxE = energies[energies.length - 1] ?? 0;
     const n = Math.max(200, peakViz.selectedGeometryPoints.length);
     const out: number[] = [];
-    for (let i = 0; i < n; i++)
-      out.push(minE + (maxE - minE) * (i / (n - 1)));
+    for (let i = 0; i < n; i++) out.push(minE + (maxE - minE) * (i / (n - 1)));
     return out;
   }, [peakViz.selectedGeometryPoints]);
 
@@ -394,7 +472,8 @@ export function SpectrumPlotInner({
       const newXMax = startDomain[1] + dataDelta;
       const constrainedMin = Math.max(dataXBounds[0], newXMin);
       const constrainedMax = Math.min(dataXBounds[1], newXMax);
-      if (constrainedMin < constrainedMax) setZoomedXDomain([constrainedMin, constrainedMax]);
+      if (constrainedMin < constrainedMax)
+        setZoomedXDomain([constrainedMin, constrainedMax]);
     },
     [dataXBounds, mainPlotWidth],
   );
@@ -452,323 +531,356 @@ export function SpectrumPlotInner({
       window.removeEventListener("pointercancel", onUp, { capture: true });
       clearPanDragCursor();
     };
-  }, [isPanDragging, applyPanFromDelta, mainPlot.dimensions.margins.left, clearPanDragCursor]);
+  }, [
+    isPanDragging,
+    applyPanFromDelta,
+    mainPlot.dimensions.margins.left,
+    clearPanDragCursor,
+  ]);
 
   const tooltipData = tooltip.tooltipData;
   const crosshairDots = useMemo(() => {
     if (!tooltipData || effectiveCursorMode !== "inspect") return [];
     return tooltipData.rows
-      .filter((r): r is { label: string; value: number; color: string } => r.value !== null)
+      .filter(
+        (r): r is { label: string; value: number; color: string } =>
+          r.value !== null,
+      )
       .map((r) => ({ value: r.value, color: r.color }));
-  }, [tooltipData, effectiveCursorMode]);
-
-  const hoveredValuesMap = useMemo(() => {
-    if (!tooltipData || effectiveCursorMode !== "inspect") return null;
-    const m = new Map<string, number>();
-    tooltipData.rows.forEach((r) => {
-      if (r.value !== null) m.set(r.label, r.value);
-    });
-    return m;
   }, [tooltipData, effectiveCursorMode]);
 
   const zoomMode: ZoomMode = "horizontal";
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
-  const plotLeftMargin = mainPlot.dimensions.margins.left;
-  const plotRightMargin = mainPlot.dimensions.margins.right;
-
   return (
-    <div className="flex w-full flex-col gap-2 rounded-xl overflow-hidden" ref={containerRef}>
-      <div
-        className="flex w-full items-center justify-between gap-3"
-        style={{ paddingLeft: plotLeftMargin, paddingRight: plotRightMargin }}
-      >
-        <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
-          <InlineLegend
-            traces={allTraces}
-            visibleTraceIds={visibleTraceIds}
-            onToggleTrace={toggleTrace}
-            themeColors={themeColors}
-            horizontalScroll
-          />
-        </div>
-        <div className="ml-2 flex shrink-0 items-center gap-2 rounded-xl border border-(--border-default) bg-(--surface-1) px-2 py-1.5">
-          <ModeBar
-            currentMode={effectiveCursorMode}
-            onModeChange={handleCursorModeChange}
-            themeColors={themeColors}
-            onResetZoom={handleResetZoom}
-            onExportClick={() => setExportModalOpen(true)}
-          />
-        </div>
-      </div>
-      <svg
-        ref={svgRef}
-        width={width}
-        height={contentHeight}
-        className="overflow-visible"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-      >
-        <defs>
-          <clipPath id={plotClipId}>
-            <rect x={0} y={0} width={mainPlotWidth} height={mainPlotHeight} />
-          </clipPath>
-        </defs>
-        <g>
-          <rect
-            data-export-plot-background
-            x={mainPlot.dimensions.margins.left}
-            y={mainPlot.dimensions.margins.top}
-            width={
-              mainPlot.dimensions.width -
-              mainPlot.dimensions.margins.left -
-              mainPlot.dimensions.margins.right
-            }
-            height={mainPlotHeight}
-            fill={themeColors.plot}
-          />
-          <g transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}>
-            <ChartGrid
-              scales={mainPlotScales}
-              dimensions={mainPlot.dimensions}
-              themeColors={themeColors}
+    <div
+      className="flex w-full flex-col gap-2 overflow-hidden rounded-xl"
+      ref={containerRef}
+    >
+      <div className="relative">
+        <svg
+          ref={svgRef}
+          width={width}
+          height={contentHeight}
+          className="overflow-visible"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
+          <defs>
+            <clipPath id={plotClipId}>
+              <rect x={0} y={0} width={mainPlotWidth} height={mainPlotHeight} />
+            </clipPath>
+          </defs>
+          <g>
+            <rect
+              data-export-plot-background
+              x={mainPlot.dimensions.margins.left}
+              y={mainPlot.dimensions.margins.top}
+              width={
+                mainPlot.dimensions.width -
+                mainPlot.dimensions.margins.left -
+                mainPlot.dimensions.margins.right
+              }
+              height={mainPlotHeight}
+              fill={themeColors.plot}
             />
-          </g>
-          {normalizationRegions && selectionTarget && (
-            <>
-              {normalizationRegions.pre && (
-                <rect
-                  x={
-                    mainPlotScales.xScale(normalizationRegions.pre[0]) +
-                    mainPlot.dimensions.margins.left
-                  }
-                  y={mainPlot.dimensions.margins.top}
-                  width={
-                    mainPlotScales.xScale(normalizationRegions.pre[1]) -
-                    mainPlotScales.xScale(normalizationRegions.pre[0])
-                  }
-                  height={mainPlotHeight}
-                  fill={NORMALIZATION_COLORS.pre}
-                  opacity={0.12}
-                  pointerEvents="none"
-                />
-              )}
-              {normalizationRegions.post && (
-                <rect
-                  x={
-                    mainPlotScales.xScale(normalizationRegions.post[0]) +
-                    mainPlot.dimensions.margins.left
-                  }
-                  y={mainPlot.dimensions.margins.top}
-                  width={
-                    mainPlotScales.xScale(normalizationRegions.post[1]) -
-                    mainPlotScales.xScale(normalizationRegions.post[0])
-                  }
-                  height={mainPlotHeight}
-                  fill={NORMALIZATION_COLORS.post}
-                  opacity={0.12}
-                  pointerEvents="none"
-                />
-              )}
-            </>
-          )}
-          <g
-            ref={panGroupRef}
-            transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
-            style={{
-              cursor:
-                effectiveCursorMode === "peak"
-                  ? "crosshair"
-                  : effectiveCursorMode === "zoom"
-                    ? "crosshair"
-                    : effectiveCursorMode === "pan"
-                      ? "grab"
-                      : "default",
-            }}
-            onPointerDown={handlePanStart}
-            onPointerMove={handlePanMove}
-            onPointerUp={handlePanEnd}
-            onPointerLeave={handlePanEnd}
-            onClick={(e) => {
-              if (effectiveCursorMode === "peak")
-                handlePeakClick(e as React.MouseEvent<SVGSVGElement, MouseEvent>);
-            }}
-          >
-            <g clipPath={`url(#${plotClipId})`}>
-              <ChartSpectrumLines
-                traces={visibleTraces}
-                scales={mainPlotScales}
-                graphStyle={graphStyle}
-                idPrefix="main"
-              />
-              <PeakIndicators
-                peaks={peaks}
-                scales={mainPlotScales}
-                dimensions={mainPlot.dimensions}
-                selectedPeakId={selectedPeakId ?? null}
-              />
-              {peaks.map((peak, idx) => (
-                <InteractivePeak
-                  key={peak.id ?? `peak-${idx}-${peak.energy}`}
-                  peak={peak}
-                  peakIndex={idx}
-                  scales={mainPlotScales}
-                  dimensions={mainPlot.dimensions}
-                  isSelected={selectedPeakId === (peak.id ?? `peak-${idx}-${peak.energy}`)}
-                  onEnergyUpdate={handlePeakEnergyUpdate}
-                />
-              ))}
-            </g>
-          </g>
-          {selectionTarget && (
             <g
               transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
             >
-              <NormalizationBrush
+              <ChartGrid
                 scales={mainPlotScales}
                 dimensions={mainPlot.dimensions}
-                selectionTarget={selectionTarget}
-                onSelectionChange={onSelectionChange as (s: SpectrumSelection | null) => void}
-                isDark={isDark}
+                themeColors={themeColors}
               />
             </g>
-          )}
-          {effectiveCursorMode === "zoom" && !selectionTarget && (
-            <BrushZoom
-              xScale={mainPlotScales.xScale}
-              yScale={mainPlotScales.yScale}
-              dimensions={mainPlot.dimensions}
-              isDark={isDark}
-              themeColors={themeColors}
-              zoomMode={zoomMode}
-              onZoom={handleMarqueeZoom}
-              onReset={handleResetZoom}
-            />
-          )}
-          {effectiveCursorMode === "pan" && zoomedXDomain != null && (
+            {normalizationRegions && selectionTarget && (
+              <>
+                {normalizationRegions.pre && (
+                  <rect
+                    x={
+                      mainPlotScales.xScale(normalizationRegions.pre[0]) +
+                      mainPlot.dimensions.margins.left
+                    }
+                    y={mainPlot.dimensions.margins.top}
+                    width={
+                      mainPlotScales.xScale(normalizationRegions.pre[1]) -
+                      mainPlotScales.xScale(normalizationRegions.pre[0])
+                    }
+                    height={mainPlotHeight}
+                    fill={NORMALIZATION_COLORS.pre}
+                    opacity={0.12}
+                    pointerEvents="none"
+                  />
+                )}
+                {normalizationRegions.post && (
+                  <rect
+                    x={
+                      mainPlotScales.xScale(normalizationRegions.post[0]) +
+                      mainPlot.dimensions.margins.left
+                    }
+                    y={mainPlot.dimensions.margins.top}
+                    width={
+                      mainPlotScales.xScale(normalizationRegions.post[1]) -
+                      mainPlotScales.xScale(normalizationRegions.post[0])
+                    }
+                    height={mainPlotHeight}
+                    fill={NORMALIZATION_COLORS.post}
+                    opacity={0.12}
+                    pointerEvents="none"
+                  />
+                )}
+              </>
+            )}
             <g
-              ref={panOverlayRef}
+              ref={panGroupRef}
               transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
-              style={{ cursor: "grab" }}
+              style={{
+                cursor: isManualPeakMode
+                  ? "crosshair"
+                  : selectionTarget === "pre"
+                    ? "w-resize"
+                    : selectionTarget === "post"
+                      ? "e-resize"
+                      : effectiveCursorMode === "zoom"
+                        ? "crosshair"
+                        : effectiveCursorMode === "pan"
+                          ? "grab"
+                          : "default",
+              }}
               onPointerDown={handlePanStart}
               onPointerMove={handlePanMove}
               onPointerUp={handlePanEnd}
               onPointerLeave={handlePanEnd}
             >
-              <rect
-                width={mainPlotWidth}
-                height={mainPlotHeight}
-                fill="transparent"
-                pointerEvents="all"
+              <g clipPath={`url(#${plotClipId})`}>
+                <ChartSpectrumLines
+                  traces={visibleTraces}
+                  scales={mainPlotScales}
+                  graphStyle={graphStyle}
+                  idPrefix="main"
+                />
+                <PeakIndicators
+                  peaks={peaks}
+                  scales={mainPlotScales}
+                  dimensions={mainPlot.dimensions}
+                  selectedPeakId={selectedPeakId ?? null}
+                  variant={isManualPeakMode ? "peak-edit" : "default"}
+                />
+                {isManualPeakMode && (
+                  <PeakOverlayLayer
+                    isActive
+                    peaks={peaks}
+                    scales={mainPlotScales}
+                    dimensions={mainPlot.dimensions}
+                    selectedPeakId={selectedPeakId}
+                    isManualPeakMode
+                    onPeakSelect={onPeakSelect}
+                    onPeakAdd={onPeakAdd}
+                    onPeakDelete={onPeakDelete}
+                    onPeakUpdate={onPeakUpdate}
+                    onPeakEnergyUpdate={handlePeakEnergyUpdate}
+                    plotRef={svgRef}
+                    getYValueAtEnergy={getYValueAtEnergy}
+                  />
+                )}
+              </g>
+            </g>
+            {selectionTarget && (
+              <NormalizationBrush
+                xScale={mainPlotScales.xScale}
+                yScale={mainPlotScales.yScale}
+                dimensions={mainPlot.dimensions}
+                selectionTarget={selectionTarget}
+                onSelectionChange={
+                  onSelectionChange as (s: SpectrumSelection | null) => void
+                }
+                isDark={isDark}
+                themeColors={themeColors}
+              />
+            )}
+            {effectiveCursorMode === "zoom" && !selectionTarget && (
+              <BrushZoom
+                xScale={mainPlotScales.xScale}
+                yScale={mainPlotScales.yScale}
+                dimensions={mainPlot.dimensions}
+                isDark={isDark}
+                themeColors={themeColors}
+                zoomMode={zoomMode}
+                onZoom={handleMarqueeZoom}
+                onReset={handleResetZoom}
+              />
+            )}
+            {effectiveCursorMode === "pan" && zoomedXDomain != null && (
+              <g
+                ref={panOverlayRef}
+                transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
+                style={{ cursor: "grab" }}
+                onPointerDown={handlePanStart}
+                onPointerMove={handlePanMove}
+                onPointerUp={handlePanEnd}
+                onPointerLeave={handlePanEnd}
+              >
+                <rect
+                  width={mainPlotWidth}
+                  height={mainPlotHeight}
+                  fill="transparent"
+                  pointerEvents="all"
+                />
+              </g>
+            )}
+            <g
+              transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
+            >
+              <PlotStaticLegend
+                traces={allTraces}
+                visibleTraceIds={visibleTraceIds}
+                onToggleTrace={toggleTrace}
+                themeColors={themeColors}
+                plotWidth={mainPlotWidth}
+                plotHeight={mainPlotHeight}
               />
             </g>
-          )}
-          <g transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}>
-            <PlotStaticLegend
-              traces={visibleTraces}
-              themeColors={themeColors}
-              plotWidth={mainPlotWidth}
-              plotHeight={mainPlotHeight}
-            />
-          </g>
-          <ChartAxes
-            scales={mainPlotScales}
-            dimensions={mainPlot.dimensions}
-            themeColors={themeColors}
-            showXAxisLabel={!hasSubplot}
-          />
-          {tooltipData && effectiveCursorMode === "inspect" && (
-            <ChartCrosshairAndDots
-              energy={tooltipData.energy}
-              dots={crosshairDots}
-              xScale={mainPlotScales.xScale}
-              yScale={mainPlotScales.yScale}
+            <ChartAxes
+              scales={mainPlotScales}
               dimensions={mainPlot.dimensions}
               themeColors={themeColors}
+              showXAxisLabel={!hasSubplot}
+              yAxisLabel={yAxisPrimary.label}
+              yTickFormat={(v) => yAxisPrimary.tickFormat(Number(v))}
             />
-          )}
-        </g>
-
-        {hasSubplot && peakPlot && (
-          <g transform={`translate(0, ${mainPlot.dimensions.height})`}>
-            <rect
-              x={peakPlot.dimensions.margins.left}
-              y={peakPlot.dimensions.margins.top}
-              width={
-                peakPlot.dimensions.width -
-                peakPlot.dimensions.margins.left -
-                peakPlot.dimensions.margins.right
-              }
-              height={
-                peakPlot.dimensions.height -
-                peakPlot.dimensions.margins.top -
-                peakPlot.dimensions.margins.bottom
-              }
-              fill={themeColors.plot}
-            />
-            <ChartGrid
-              scales={{ xScale: peakPlot.xScale, yScale: peakPlot.yScale }}
-              dimensions={peakPlot.dimensions}
-              themeColors={themeColors}
-            />
-            <ChartAxes
-              scales={{ xScale: peakPlot.xScale, yScale: peakPlot.yScale }}
-              dimensions={peakPlot.dimensions}
-              themeColors={themeColors}
-              showXAxisLabel
-            />
-            {peakViz.selectedGeometryTrace && (
-              <g
-                transform={`translate(${peakPlot.dimensions.margins.left}, ${peakPlot.dimensions.margins.top})`}
-              >
-                <ChartSpectrumLines
-                  traces={[peakViz.selectedGeometryTrace]}
-                  scales={{ xScale: peakPlot.xScale, yScale: peakPlot.yScale }}
-                  graphStyle={graphStyle}
-                  idPrefix="peak"
-                />
-              </g>
-            )}
-            {peakViz.hasPeakVisualization && energyRange.length > 0 && (
-              <g
-                transform={`translate(${peakPlot.dimensions.margins.left}, ${peakPlot.dimensions.margins.top})`}
-              >
-                <PeakCurves
-                  peaks={peaks}
-                  scales={{
-                    xScale: peakPlot.xScale,
-                    yScale: peakPlot.yScale,
-                    xInvert: (p: number) => peakPlot.xScale.invert(p),
-                    yInvert: (p: number) => peakPlot.yScale.invert(p),
-                  }}
-                  selectedPeakId={selectedPeakId ?? null}
-                  energyRange={energyRange}
-                />
-              </g>
+            {tooltipData && effectiveCursorMode === "inspect" && (
+              <ChartCrosshairAndDots
+                energy={tooltipData.energy}
+                dots={crosshairDots}
+                xScale={mainPlotScales.xScale}
+                yScale={mainPlotScales.yScale}
+                dimensions={mainPlot.dimensions}
+                themeColors={themeColors}
+              />
             )}
           </g>
-        )}
-      </svg>
 
-      <PlotToolbar
-        currentMode={effectiveCursorMode}
-        onModeChange={handleCursorModeChange}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        themeColors={themeColors}
-      />
+          {hasSubplot && peakPlot && (
+            <g transform={`translate(0, ${mainPlot.dimensions.height})`}>
+              <rect
+                x={peakPlot.dimensions.margins.left}
+                y={peakPlot.dimensions.margins.top}
+                width={
+                  peakPlot.dimensions.width -
+                  peakPlot.dimensions.margins.left -
+                  peakPlot.dimensions.margins.right
+                }
+                height={
+                  peakPlot.dimensions.height -
+                  peakPlot.dimensions.margins.top -
+                  peakPlot.dimensions.margins.bottom
+                }
+                fill={themeColors.plot}
+              />
+              <ChartGrid
+                scales={{ xScale: peakPlot.xScale, yScale: peakPlot.yScale }}
+                dimensions={peakPlot.dimensions}
+                themeColors={themeColors}
+              />
+              <ChartAxes
+                scales={{ xScale: peakPlot.xScale, yScale: peakPlot.yScale }}
+                dimensions={peakPlot.dimensions}
+                themeColors={themeColors}
+                showXAxisLabel
+              />
+              {peakViz.selectedGeometryTrace && (
+                <g
+                  transform={`translate(${peakPlot.dimensions.margins.left}, ${peakPlot.dimensions.margins.top})`}
+                >
+                  <ChartSpectrumLines
+                    traces={[peakViz.selectedGeometryTrace]}
+                    scales={{
+                      xScale: peakPlot.xScale,
+                      yScale: peakPlot.yScale,
+                    }}
+                    graphStyle={graphStyle}
+                    idPrefix="peak"
+                  />
+                </g>
+              )}
+              {peakViz.hasPeakVisualization && energyRange.length > 0 && (
+                <g
+                  transform={`translate(${peakPlot.dimensions.margins.left}, ${peakPlot.dimensions.margins.top})`}
+                >
+                  <PeakCurves
+                    peaks={peaks}
+                    scales={{
+                      xScale: peakPlot.xScale,
+                      yScale: peakPlot.yScale,
+                      xInvert: (p: number) => peakPlot.xScale.invert(p),
+                      yInvert: (p: number) => peakPlot.yScale.invert(p),
+                    }}
+                    selectedPeakId={selectedPeakId ?? null}
+                    energyRange={energyRange}
+                  />
+                </g>
+              )}
+            </g>
+          )}
+        </svg>
+        <PeakPlotAnnotations
+          peaks={peaks}
+          selectedPeakId={selectedPeakId ?? null}
+          scales={mainPlotScales}
+          dimensions={mainPlot.dimensions}
+          getYValueAtEnergy={getYValueAtEnergy}
+          onPeakSelect={onPeakSelect}
+          onPeakPatch={onPeakPatch}
+          onPeakUpdate={onPeakUpdate}
+          visible={isManualPeakMode}
+          overlayWidth={width}
+          overlayHeight={contentHeight}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: mainPlot.dimensions.margins.left,
+            top: mainPlot.dimensions.margins.top,
+            zIndex: 10,
+            pointerEvents: "none",
+          }}
+        >
+          <PlotToolRail
+            plotWidth={mainPlotWidth}
+            plotHeight={mainPlotHeight}
+            currentMode={effectiveCursorMode}
+            isCursorDisabled={plotContext?.kind === "normalize"}
+            isPanDisabled={zoomedXDomain == null}
+            onCursorModeChange={handleCursorModeChange}
+            onResetZoom={handleResetZoom}
+            onExportClick={() => setExportModalOpen(true)}
+            dataViewTabs={headerRight}
+          />
+        </div>
+      </div>
+
+      <div className="hidden">
+        <PlotToolbar
+          currentMode={effectiveCursorMode}
+          onModeChange={handleCursorModeChange}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          themeColors={themeColors}
+        />
+      </div>
 
       {(zoomedXDomain != null || zoomedYDomain != null) && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleResetZoom}
-            className="rounded-md border border-[var(--border-default)] bg-[var(--surface-1)] px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-2)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
-          >
-            Reset Zoom
-          </button>
+        <div className="hidden">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleResetZoom}
+              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-1)] px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-2)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
+            >
+              Reset Zoom
+            </button>
+          </div>
         </div>
       )}
 

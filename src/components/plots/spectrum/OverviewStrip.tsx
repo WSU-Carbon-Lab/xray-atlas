@@ -100,7 +100,7 @@ export const OverviewStrip = memo(function OverviewStrip({
         numTicks={4}
         tickLabelProps={() => ({
           fill: tickLabelColor,
-          fontSize: 10,
+          fontSize: 11,
           textAnchor: "end",
           fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
           dx: -(PLOT_CONFIG.axis.tickPadding + 2),
@@ -116,7 +116,7 @@ export const OverviewStrip = memo(function OverviewStrip({
         numTicks={6}
         tickLabelProps={() => ({
           fill: tickLabelColor,
-          fontSize: 10,
+          fontSize: 11,
           textAnchor: "middle",
           fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
           dy: PLOT_CONFIG.axis.tickPadding,
@@ -125,7 +125,7 @@ export const OverviewStrip = memo(function OverviewStrip({
         labelOffset={10}
         labelProps={{
           fill: tickLabelColor,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: PLOT_CONFIG.axis.fontWeight,
           textAnchor: "middle",
           fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",

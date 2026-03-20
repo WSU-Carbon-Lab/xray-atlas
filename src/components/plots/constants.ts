@@ -129,8 +129,10 @@ export const NORMALIZATION_COLORS = {
   postHandle: "#10b981",
 } as const;
 
+export const PEAK_SELECTION_ACCENT = "var(--accent)";
+
 export const PEAK_COLORS = {
-  selected: "#6366f1",
+  selected: PEAK_SELECTION_ACCENT,
   unselected: "#94a3b8",
   hover: "#818cf8",
   fitted: "#8b5cf6",
@@ -144,11 +146,11 @@ export const FONT_CONFIG = {
   family: "Inter, system-ui, sans-serif",
   mono: "JetBrains Mono, Fira Code, monospace",
   size: {
-    axis: 12,
-    label: 13,
-    title: 14,
-    legend: 12,
-    tooltip: 13,
+    axis: 13,
+    label: 14,
+    title: 15,
+    legend: 13,
+    tooltip: 14,
   },
   weight: {
     normal: 400,
@@ -158,11 +160,11 @@ export const FONT_CONFIG = {
 } as const;
 
 export const AXIS_CONFIG = {
-  fontSize: 12,
+  fontSize: 13,
   fontWeight: 500,
   tickSize: 5,
   tickPadding: 8,
-  labelPadding: 40,
+  labelPadding: 42,
 } as const;
 
 export const LINE_CONFIG = {

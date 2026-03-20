@@ -14,29 +14,29 @@ export const PLOT_CONFIG = {
   overviewGap: 6,
   toolbarHeight: 48,
   margins: {
-    top: 16,
-    right: 24,
-    bottom: 52,
-    left: 64,
+    top: 12,
+    right: 20,
+    bottom: 44,
+    left: 56,
   },
   subplotMargins: {
-    top: 16,
-    right: 24,
-    bottom: 20,
-    left: 64,
+    top: 12,
+    right: 20,
+    bottom: 16,
+    left: 56,
   },
   overviewMargins: {
-    top: 6,
-    right: 24,
-    bottom: 32,
-    left: 52,
+    top: 4,
+    right: 20,
+    bottom: 28,
+    left: 44,
   },
   axis: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 500,
     tickSize: 5,
     tickPadding: 8,
-    labelPadding: 40,
+    labelPadding: 42,
   },
   grid: {
     strokeWidth: 1,
@@ -55,6 +55,12 @@ export const PLOT_CONFIG = {
     selectionMinSize: 10,
   },
 } as const;
+
+export const PLOT_MARGINS = PLOT_CONFIG.margins;
+export const PLOT_MARGIN_TOP = PLOT_CONFIG.margins.top;
+export const PLOT_MARGIN_RIGHT = PLOT_CONFIG.margins.right;
+export const PLOT_MARGIN_BOTTOM = PLOT_CONFIG.margins.bottom;
+export const PLOT_MARGIN_LEFT = PLOT_CONFIG.margins.left;
 
 export const CHART_CSS_VARS = {
   background: "--chart-background",

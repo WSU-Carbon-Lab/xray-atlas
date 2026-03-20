@@ -60,6 +60,7 @@ type ModeBarProps = {
   onExportClick?: () => void;
   showLabels?: boolean;
   className?: string;
+  disabled?: boolean;
 };
 
 export const ModeBar = memo(function ModeBar({
@@ -70,14 +71,16 @@ export const ModeBar = memo(function ModeBar({
   onExportClick,
   showLabels = false,
   className = "",
+  disabled = false,
 }: ModeBarProps) {
   const handleSelectionChange = useCallback(
     (key: React.Key) => {
+      if (disabled) return;
       queueMicrotask(() => {
         onModeChange(key as CursorMode);
       });
     },
-    [onModeChange],
+    [onModeChange, disabled],
   );
 
   const selectedKey =
@@ -97,7 +100,9 @@ export const ModeBar = memo(function ModeBar({
         <Tabs.ListContainer>
           <Tabs.List
             aria-label="Plot interaction mode"
-            className="bg-(--surface-2) flex h-10 gap-0.5 rounded-full p-1 [&_.tabs__list]:flex [&_.tabs__list]:gap-0.5 [&_.tabs__list]:rounded-full"
+            className={`bg-(--surface-2) flex h-10 gap-0.5 rounded-full p-1 [&_.tabs__list]:flex [&_.tabs__list]:gap-0.5 [&_.tabs__list]:rounded-full ${
+              disabled ? "opacity-40 pointer-events-none" : ""
+            }`}
           >
             {TOOLBAR_MODES.map((mode) => {
               const config = MODE_CONFIG[mode];

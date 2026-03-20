@@ -1,66 +1,114 @@
 "use client";
 
-import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import type { TraceData } from "../types";
 import type { ChartThemeColors } from "../config";
-import { getTraceLabel, getTraceColor } from "./utils";
+import { buildLegendCoreModel } from "./legend-core";
 
 const LEGEND_INSET = 12;
-const LEGEND_LINE_HEIGHT = 20;
-const LEGEND_SWATCH_WIDTH = 20;
-const LEGEND_SWATCH_HEIGHT = 2.5;
+const LEGEND_LINE_HEIGHT = 22;
 const LEGEND_GAP = 4;
-const LEGEND_FONT_SIZE = 12;
+const LEGEND_ENTRY_SWATCH_SIZE = 14;
+const LEGEND_ENTRY_TEXT_GAP = 6;
+const LEGEND_FONT_SIZE = 13;
 const LEGEND_FONT_FAMILY = "var(--font-sans), system-ui, sans-serif";
 const LEGEND_PADDING = 8;
 const TITLE_HEIGHT = 18;
-const BOX_WIDTH = 88;
 
-function uniquePhiCount(traces: TraceData[]): number {
-  const phis = new Set(
-    traces
-      .map((t) => t.phi)
-      .filter((p): p is number => typeof p === "number" && Number.isFinite(p)),
-  );
-  return phis.size;
-}
-
-function displayLabel(trace: TraceData, index: number, singlePhi: boolean): string {
-  if (singlePhi && typeof trace.theta === "number" && Number.isFinite(trace.theta)) {
-    return `${trace.theta.toFixed(1)}°`;
-  }
-  return getTraceLabel(trace, index);
+function isBareAtomTrace(trace: TraceData): boolean {
+  if (typeof trace.name !== "string") return false;
+  return /bare\s*atom/i.test(trace.name);
 }
 
 type PlotStaticLegendProps = {
   traces: TraceData[];
+  visibleTraceIds: Set<string>;
+  onToggleTrace: (id: string) => void;
   themeColors: ChartThemeColors;
   plotWidth: number;
   plotHeight: number;
+  legendBorderRadius?: number;
+  legendColumns?: number;
 };
 
 export const PlotStaticLegend = memo(function PlotStaticLegend({
   traces,
+  visibleTraceIds,
+  onToggleTrace,
   themeColors,
   plotWidth,
   plotHeight,
+  legendBorderRadius = 8,
+  legendColumns = 1,
 }: PlotStaticLegendProps) {
-  const singlePhi = uniquePhiCount(traces) <= 1;
+  const filteredTraces = traces.filter((t) => !isBareAtomTrace(t));
+
+  const { entries, singlePhi } = buildLegendCoreModel({
+    traces: filteredTraces,
+    themeColors,
+    columns: legendColumns,
+    padding: LEGEND_PADDING,
+    borderRadius: legendBorderRadius,
+  });
   const titleRowHeight = singlePhi ? TITLE_HEIGHT : 0;
   const boxHeight =
     LEGEND_PADDING * 2 +
     titleRowHeight +
-    traces.length * LEGEND_LINE_HEIGHT +
-    (traces.length > 0 ? (traces.length - 1) * LEGEND_GAP : 0);
+    entries.length * LEGEND_LINE_HEIGHT +
+    (entries.length > 0 ? (entries.length - 1) * LEGEND_GAP : 0);
 
-  const defaultX = plotWidth - BOX_WIDTH - LEGEND_INSET;
+  const availableWidth = Math.max(0, plotWidth - LEGEND_INSET * 2);
+
+  const legendLayout = useMemo(() => {
+    if (availableWidth <= 0) return { legendWidth: 0, columnWidths: [] as number[] };
+    if (entries.length === 0) return { legendWidth: 0, columnWidths: [] as number[] };
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const measure = (text: string) => {
+      if (!ctx) return 0;
+      ctx.font = `${LEGEND_FONT_SIZE}px system-ui`;
+      return ctx.measureText(text).width;
+    };
+
+    const columns = Math.max(1, legendColumns);
+    const colWidths = new Array<number>(columns).fill(0);
+
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]!;
+      const col = i % columns;
+      const textWidth = measure(entry.label);
+      const itemWidth = LEGEND_ENTRY_SWATCH_SIZE + LEGEND_ENTRY_TEXT_GAP + textWidth;
+      colWidths[col] = Math.max(colWidths[col] ?? 0, itemWidth);
+    }
+
+    const contentWidth =
+      LEGEND_PADDING * 2 +
+      colWidths.reduce((sum, w) => sum + w, 0) +
+      LEGEND_GAP * (columns - 1);
+
+    return {
+      legendWidth: Math.min(availableWidth, Math.max(0, Math.ceil(contentWidth))),
+      columnWidths: colWidths,
+    };
+  }, [availableWidth, entries, legendColumns]);
+
+  const legendWidth = legendLayout.legendWidth;
+  const columnWidths = legendLayout.columnWidths;
+
+  const defaultX = plotWidth - legendWidth - LEGEND_INSET;
   const defaultY = LEGEND_INSET;
+
+  const shouldRender = entries.length > 0 && legendWidth > 0;
+
   const [position, setPosition] = useState({ x: defaultX, y: defaultY });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.('[data-legend-toggle="true"]')) return;
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(true);
@@ -77,14 +125,14 @@ export const PlotStaticLegend = memo(function PlotStaticLegend({
       if (!isDragging || !dragStartRef.current) return;
       const newX = e.clientX - dragStartRef.current.x;
       const newY = e.clientY - dragStartRef.current.y;
-      const maxX = Math.max(0, plotWidth - BOX_WIDTH - LEGEND_INSET);
+      const maxX = Math.max(0, plotWidth - legendWidth - LEGEND_INSET);
       const maxY = Math.max(0, plotHeight - boxHeight - LEGEND_INSET);
       setPosition({
         x: Math.max(LEGEND_INSET, Math.min(newX, maxX)),
         y: Math.max(LEGEND_INSET, Math.min(newY, maxY)),
       });
     },
-    [isDragging, plotWidth, plotHeight, boxHeight],
+    [isDragging, plotWidth, plotHeight, boxHeight, legendWidth],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -93,13 +141,13 @@ export const PlotStaticLegend = memo(function PlotStaticLegend({
   }, []);
 
   useEffect(() => {
-    const maxX = Math.max(0, plotWidth - BOX_WIDTH - LEGEND_INSET);
+    const maxX = Math.max(0, plotWidth - legendWidth - LEGEND_INSET);
     const maxY = Math.max(0, plotHeight - boxHeight - LEGEND_INSET);
     setPosition((prev) => ({
       x: Math.max(LEGEND_INSET, Math.min(prev.x, maxX)),
       y: Math.max(LEGEND_INSET, Math.min(prev.y, maxY)),
     }));
-  }, [plotWidth, plotHeight, boxHeight]);
+  }, [plotWidth, plotHeight, boxHeight, legendWidth]);
 
   useEffect(() => {
     if (isDragging) {
@@ -112,14 +160,14 @@ export const PlotStaticLegend = memo(function PlotStaticLegend({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  if (traces.length === 0) return null;
+  if (!shouldRender) return null;
 
   return (
     <g pointerEvents="all">
       <foreignObject
         x={position.x}
         y={position.y}
-        width={BOX_WIDTH}
+        width={legendWidth}
         height={boxHeight}
         style={{ overflow: "visible" }}
       >
@@ -134,7 +182,7 @@ export const PlotStaticLegend = memo(function PlotStaticLegend({
             padding: LEGEND_PADDING,
             backgroundColor: themeColors.paper,
             border: `1px solid ${themeColors.axis}`,
-            borderRadius: 8,
+            borderRadius: legendBorderRadius,
             boxSizing: "border-box",
             width: "100%",
             height: "100%",
@@ -147,7 +195,7 @@ export const PlotStaticLegend = memo(function PlotStaticLegend({
             <div
               data-export-legend-title
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 600,
                 color: themeColors.text,
                 marginBottom: 4,
@@ -156,45 +204,73 @@ export const PlotStaticLegend = memo(function PlotStaticLegend({
               Theta
             </div>
           )}
-          <div data-export-legend-entries style={{ display: "flex", flexDirection: "column", gap: LEGEND_GAP }}>
-            {traces.map((trace, index) => {
-              const label = displayLabel(trace, index, singlePhi);
-              const color = getTraceColor(trace, themeColors.text);
+          <div
+            data-export-legend-entries
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                columnWidths.length > 0
+                  ? columnWidths.map((w) => `${Math.max(0, Math.ceil(w))}px`).join(" ")
+                  : `repeat(${legendColumns}, minmax(0, 1fr))`,
+              gap: LEGEND_GAP,
+              alignItems: "start",
+            }}
+          >
+            {entries.map((entry) => {
+              const isVisible =
+                visibleTraceIds.size === 0 || visibleTraceIds.has(entry.id);
+
               return (
-                <div
-                  key={index}
+                <button
+                  key={entry.id}
+                  type="button"
+                  data-legend-toggle="true"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => onToggleTrace(entry.id)}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
+                    minWidth: 0,
+                    padding: 0,
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    color: themeColors.text,
+                    fontFamily: LEGEND_FONT_FAMILY,
+                    fontSize: LEGEND_FONT_SIZE,
+                    textAlign: "left",
+                    outline: "none",
                   }}
                 >
-                  <svg
-                    width={LEGEND_SWATCH_WIDTH}
-                    height={10}
-                    style={{ flexShrink: 0 }}
-                  >
-                    <line
-                      x1={0}
-                      y1={5}
-                      x2={LEGEND_SWATCH_WIDTH}
-                      y2={5}
-                      stroke={color}
-                      strokeWidth={LEGEND_SWATCH_HEIGHT}
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: 3,
+                      border: `1px solid ${entry.color}`,
+                      backgroundColor: isVisible ? entry.color : "transparent",
+                      flexShrink: 0,
+                      opacity: isVisible ? 1 : 0.7,
+                    }}
+                  />
                   <span
                     data-export-legend-label
                     style={{
                       color: themeColors.text,
                       fontWeight: 500,
                       fontSize: LEGEND_FONT_SIZE,
+                      minWidth: 0,
+                      whiteSpace: "normal",
+                      overflowWrap: "anywhere",
+                      wordBreak: "break-word",
+                      opacity: isVisible ? 1 : 0.65,
                     }}
                   >
-                    {label}
+                    {entry.label}
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>

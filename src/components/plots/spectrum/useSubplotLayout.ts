@@ -10,6 +10,7 @@ import type {
   SpectrumPoint,
 } from "../types";
 import { PLOT_CONFIG } from "../config";
+import { linearYDomainWithPadding } from "../utils/linearYDomain";
 
 export type SubplotLayoutResult = {
   mainPlot: {
@@ -90,22 +91,15 @@ export function useSubplotLayout(
 
       let mainAbsorptionDomain: [number, number];
       if (extents.absorptionExtent) {
+        const minAbs = extents.absorptionExtent.min;
         const maxAbs = extents.absorptionExtent.max;
-        const padding = Math.max(
-          Math.abs(extents.absorptionExtent.max - extents.absorptionExtent.min) *
-            0.1,
+        mainAbsorptionDomain = linearYDomainWithPadding(minAbs, maxAbs, 0.1);
+      } else if (absorptionStats?.min != null && absorptionStats?.max != null) {
+        mainAbsorptionDomain = linearYDomainWithPadding(
+          absorptionStats.min,
+          absorptionStats.max,
           0.1,
         );
-        mainAbsorptionDomain = [0, maxAbs + padding];
-      } else if (
-        absorptionStats?.min != null &&
-        absorptionStats?.max != null
-      ) {
-        const padding = Math.max(
-          (absorptionStats.max - absorptionStats.min) * 0.1,
-          0.1,
-        );
-        mainAbsorptionDomain = [0, absorptionStats.max + padding];
       } else {
         mainAbsorptionDomain = [0, 1];
       }
@@ -142,9 +136,7 @@ export function useSubplotLayout(
         peakAbsorptions.length > 0 ? Math.max(...peakAbsorptions) : 1;
       const peakAbsorptionPadding = Math.max(
         peakAbsorptions.length > 0
-          ? Math.abs(
-              peakAbsorptionMax - Math.min(...peakAbsorptions),
-            ) * 0.1
+          ? Math.abs(peakAbsorptionMax - Math.min(...peakAbsorptions)) * 0.1
           : 0,
         0.1,
       );
@@ -202,22 +194,15 @@ export function useSubplotLayout(
 
     let mainAbsorptionDomain: [number, number];
     if (extents.absorptionExtent) {
+      const minAbs = extents.absorptionExtent.min;
       const maxAbs = extents.absorptionExtent.max;
-      const padding = Math.max(
-        Math.abs(extents.absorptionExtent.max - extents.absorptionExtent.min) *
-          0.1,
+      mainAbsorptionDomain = linearYDomainWithPadding(minAbs, maxAbs, 0.1);
+    } else if (absorptionStats?.min != null && absorptionStats?.max != null) {
+      mainAbsorptionDomain = linearYDomainWithPadding(
+        absorptionStats.min,
+        absorptionStats.max,
         0.1,
       );
-      mainAbsorptionDomain = [0, maxAbs + padding];
-    } else if (
-      absorptionStats?.min != null &&
-      absorptionStats?.max != null
-    ) {
-      const padding = Math.max(
-        (absorptionStats.max - absorptionStats.min) * 0.1,
-        0.1,
-      );
-      mainAbsorptionDomain = [0, absorptionStats.max + padding];
     } else {
       mainAbsorptionDomain = [0, 1];
     }

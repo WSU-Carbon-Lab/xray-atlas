@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import { DefaultButton as Button } from "@/components/ui/button";
 import {
   ContributionAgreementModal,
@@ -30,6 +29,7 @@ import { SearchIcon } from "@/components/icons";
 import {
   Label,
   Form,
+  Breadcrumbs,
   TextField,
   InputGroup,
   Button as HeroButton,
@@ -40,8 +40,6 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
-type MoleculeSearchResponse = RouterOutputs["molecules"]["search"];
-type MoleculeSearchData = NonNullable<MoleculeSearchResponse["data"]>;
 type PubChemSearchResponse = RouterOutputs["external"]["searchPubchem"];
 type PubChemSearchData = NonNullable<PubChemSearchResponse["data"]>;
 type CasSearchResponse = RouterOutputs["external"]["searchCas"];
@@ -160,7 +158,10 @@ export default function MoleculeContributePage({
 
           const top = autosuggest.results[0];
 
-          if (top && (top.matchType === "name_exact" || top.matchType === "name_prefix")) {
+          if (
+            top &&
+            (top.matchType === "name_exact" || top.matchType === "name_prefix")
+          ) {
             const moleculeIdFromSearch = top.id ?? null;
             const commonNameValue = top.commonName ?? "";
             const chemicalFormulaValue = top.chemicalFormula ?? "";
@@ -173,8 +174,7 @@ export default function MoleculeContributePage({
                   moleculeId: moleculeIdFromSearch,
                 });
                 tagIds = tagsData.map((t) => t.id);
-              } catch {
-              }
+              } catch {}
             }
             setFormData({
               iupacName: top.iupacName ?? "",
@@ -828,12 +828,12 @@ export default function MoleculeContributePage({
         <div className="mx-auto max-w-6xl">
           {!isModal && (
             <div className="mb-6">
-              <Link
-                href="/contribute"
-                className="hover:text-accent dark:hover:text-accent-light text-sm text-slate-600 dark:text-slate-400"
-              >
-                ← Back to contribution type selection
-              </Link>
+              <Breadcrumbs className="text-sm font-medium">
+                <Breadcrumbs.Item href="/contribute">
+                  Contributions
+                </Breadcrumbs.Item>
+                <Breadcrumbs.Item>Molecule</Breadcrumbs.Item>
+              </Breadcrumbs>
             </div>
           )}
           <h1 className="mb-8 text-4xl font-bold text-slate-900 dark:text-slate-100">
@@ -861,7 +861,10 @@ export default function MoleculeContributePage({
                         name="commonName"
                         value={formData.commonName}
                         onChange={(value) => {
-                          setFormData((prev) => ({ ...prev, commonName: value }));
+                          setFormData((prev) => ({
+                            ...prev,
+                            commonName: value,
+                          }));
                           setSearchError(null);
                           setSearchSuccess(null);
                           setSearchWarnings([]);
@@ -870,7 +873,7 @@ export default function MoleculeContributePage({
                         variant="secondary"
                         fullWidth
                       >
-                        <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
+                        <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
                           Common Name{" "}
                           <span className="text-red-500" aria-hidden>
                             *
@@ -900,7 +903,7 @@ export default function MoleculeContributePage({
                         variant="secondary"
                         fullWidth
                       >
-                        <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
+                        <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
                           PubChem
                           <FieldTooltip description="PubChem Compound Identifier. A unique numeric identifier used to reference the compound in the PubChem database. Enter a CID to search PubChem and auto-populate fields." />
                         </Label>
@@ -927,7 +930,7 @@ export default function MoleculeContributePage({
                         variant="secondary"
                         fullWidth
                       >
-                        <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
+                        <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
                           CAS
                           <FieldTooltip description="Chemical Abstracts Service Registry Number. A unique numeric identifier (format: XXX-XX-X) assigned to chemical substances by CAS. Used for precise chemical identification and regulatory compliance." />
                         </Label>
@@ -1031,7 +1034,7 @@ export default function MoleculeContributePage({
                       variant="secondary"
                       fullWidth
                     >
-                      <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
+                      <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
                         IUPAC Name{" "}
                         <span className="text-red-500" aria-hidden>
                           *
@@ -1080,7 +1083,7 @@ export default function MoleculeContributePage({
                       variant="secondary"
                       fullWidth
                     >
-                      <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
+                      <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
                         SMILES{" "}
                         <span className="text-red-500" aria-hidden>
                           *
@@ -1106,7 +1109,7 @@ export default function MoleculeContributePage({
                       variant="secondary"
                       fullWidth
                     >
-                      <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
+                      <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
                         InChI{" "}
                         <span className="text-red-500" aria-hidden>
                           *
@@ -1135,7 +1138,7 @@ export default function MoleculeContributePage({
                       variant="secondary"
                       fullWidth
                     >
-                      <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground">
+                      <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
                         Chemical Formula{" "}
                         <span className="text-red-500" aria-hidden>
                           *
@@ -1179,7 +1182,7 @@ export default function MoleculeContributePage({
                         <button
                           type="button"
                           onClick={removeImage}
-                          className="bg-danger text-danger-foreground hover:bg-danger/90 absolute top-2 right-2 rounded-full p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2"
+                          className="bg-danger text-danger-foreground hover:bg-danger/90 focus-visible:ring-danger absolute top-2 right-2 rounded-full p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                           aria-label="Remove molecule image"
                         >
                           <XMarkIcon className="h-5 w-5" aria-hidden />
@@ -1191,7 +1194,7 @@ export default function MoleculeContributePage({
                           <span className="text-accent text-sm font-semibold tracking-wide uppercase">
                             Upload Molecule Image
                           </span>
-                          <span className="text-foreground text-base transition-colors duration-200 group-hover:text-foreground/90">
+                          <span className="text-foreground group-hover:text-foreground/90 text-base transition-colors duration-200">
                             Click to upload molecule image
                           </span>
                           <span className="text-muted text-sm">

@@ -1,25 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { trpc } from "~/trpc/client";
 import { DefaultButton as Button } from "~/components/ui/button";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import { Input, Label, ListBox, Select } from "@heroui/react";
 
-type InstrumentContributionFormProps = {
-  facilityId?: string;
-  facilityName?: string;
-  onCompleted?: (payload: { instrumentId: string; facilityId: string }) => void;
-  onClose?: () => void;
-};
-
-type InstrumentStatus = "active" | "inactive" | "under_maintenance";
-
-const statusOptions: Array<{ value: InstrumentStatus; label: string }> = [
-  { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
-  { value: "under_maintenance", label: "Under Maintenance" },
-];
+import { INSTRUMENT_STATUS_OPTIONS } from "./constants";
+import type {
+  InstrumentContributionFormMessage,
+  InstrumentContributionFormProps,
+  InstrumentStatus,
+} from "./types";
 
 export function InstrumentContributionForm({
   facilityId,
@@ -31,7 +25,7 @@ export function InstrumentContributionForm({
   const [instrumentName, setInstrumentName] = useState("");
   const [instrumentLink, setInstrumentLink] = useState("");
   const [status, setStatus] = useState<InstrumentStatus>("active");
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<InstrumentContributionFormMessage | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const facilitiesQuery = trpc.facilities.list.useQuery(
@@ -68,7 +62,7 @@ export function InstrumentContributionForm({
 
   const createInstrument = trpc.instruments.create.useMutation();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
 
@@ -115,114 +109,186 @@ export function InstrumentContributionForm({
     <form className="space-y-6" onSubmit={handleSubmit}>
       <section className="space-y-4">
         <header>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h3 className="text-lg font-semibold text-foreground">
             Instrument Details
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-muted">
             Provide the instrument&apos;s identifying information and link it to the correct facility.
           </p>
         </header>
 
         {!facilityId && (
           <div className="space-y-3">
-            <label className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-              Facility <span className="text-red-500">*</span>
-              <FieldTooltip description="Choose the facility that hosts this instrument. Use the search box to filter by name, city, or country." />
-            </label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search facilities..."
-              className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-            />
-            <select
-              value={selectedFacilityId}
-              onChange={(event) => setSelectedFacilityId(event.target.value)}
-              className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            <Select
+              className="w-full"
+              placeholder="Select a facility"
+              isRequired
+              value={selectedFacilityId ? selectedFacilityId : null}
+              onChange={(value) => {
+                setSelectedFacilityId(
+                  value == null
+                    ? ""
+                    : String(Array.isArray(value) ? value[0] : value),
+                );
+              }}
             >
-              <option value="">Select a facility</option>
-              {filteredFacilities.map((facility) => (
-                <option key={facility.id} value={facility.id}>
-                  {facility.name}
-                  {facility.city ? ` · ${facility.city}` : ""}
-                  {facility.country ? `, ${facility.country}` : ""}
-                </option>
-              ))}
-            </select>
+              <Label className="flex items-center gap-1 text-sm font-medium text-foreground">
+                Facility{" "}
+                <span
+                  className="text-error dark:text-error-light"
+                  aria-hidden="true"
+                >
+                  *
+                </span>
+                <span className="sr-only">(required)</span>
+                <FieldTooltip description="Choose the facility that hosts this instrument. Use the search box to filter by name, city, or country." />
+              </Label>
+              <Select.Trigger className="min-h-[44px]">
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox aria-label="Facilities">
+                  {filteredFacilities.map((facility) => (
+                    <ListBox.Item
+                      key={facility.id}
+                      textValue={facility.name}
+                      className="text-sm"
+                    >
+                      {facility.name}
+                      {facility.city ? ` · ${facility.city}` : ""}
+                      {facility.country ? `, ${facility.country}` : ""}
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+
+            <div className="flex items-center gap-2">
+              <label htmlFor="facility-search" className="sr-only">
+                Search facilities
+              </label>
+              <Input
+                id="facility-search"
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search facilities..."
+                aria-label="Search facilities by name, city, or country"
+                className="flex-1 min-h-[44px] text-sm"
+              />
+              <FieldTooltip description="Filter facilities by name, city, or country" />
+            </div>
+
             {facilitiesQuery.isLoading && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">Loading facilities…</p>
+              <p className="text-sm text-muted" role="status" aria-live="polite">
+                Loading facilities…
+              </p>
             )}
           </div>
         )}
 
         {facilityId && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-            <p className="font-medium">Facility</p>
-            <p>{facilityName ?? "Selected facility"}</p>
+          <div className="rounded-lg border border-border bg-surface px-4 py-3 text-sm">
+            <p className="font-medium text-foreground">Facility</p>
+            <p className="text-muted">{facilityName ?? "Selected facility"}</p>
           </div>
         )}
 
         <div className="space-y-2">
-          <label className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-            Instrument Name <span className="text-red-500">*</span>
+          <label
+            htmlFor="instrument-name"
+            className="mb-1 flex items-center gap-1 text-sm font-medium text-foreground"
+          >
+            Instrument Name{" "}
+            <span className="text-error dark:text-error-light" aria-hidden="true">
+              *
+            </span>
+            <span className="sr-only">(required)</span>
             <FieldTooltip description="Provide the instrument's commonly used name or designation." />
           </label>
-          <input
+          <Input
+            id="instrument-name"
             type="text"
             value={instrumentName}
             onChange={(event) => setInstrumentName(event.target.value)}
             placeholder="e.g., Beamline 5A, XPS Analyzer"
-            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="w-full min-h-[44px] text-sm"
             required
+            aria-required="true"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label
+            htmlFor="instrument-link"
+            className="mb-1 flex items-center gap-1 text-sm font-medium text-foreground"
+          >
             Reference Link
             <FieldTooltip description="Optional URL to the instrument's official documentation or facility page." />
           </label>
-          <input
+          <Input
+            id="instrument-link"
             type="url"
             value={instrumentLink}
             onChange={(event) => setInstrumentLink(event.target.value)}
             placeholder="https://..."
-            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="w-full min-h-[44px] text-sm"
           />
         </div>
 
-        <div className="space-y-2">
-          <label className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+        <Select
+          className="w-full"
+          value={status}
+          onChange={(value) => {
+            if (value == null) return;
+            setStatus(
+              String(Array.isArray(value) ? value[0] : value) as InstrumentStatus,
+            );
+          }}
+        >
+          <Label className="flex items-center gap-1 text-sm font-medium text-foreground">
             Status
             <FieldTooltip description="Indicate whether the instrument is actively operating, inactive, or undergoing maintenance." />
-          </label>
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value as InstrumentStatus)}
-            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-          >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+          </Label>
+          <Select.Trigger className="min-h-[44px]">
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox aria-label="Instrument status" className="w-full">
+              {INSTRUMENT_STATUS_OPTIONS.map((option) => (
+                <ListBox.Item
+                  key={option.value}
+                  textValue={option.label}
+                  className="text-sm"
+                >
+                  {option.label}
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
       </section>
 
       {message && (
         <div
+          role={message.type === "error" ? "alert" : "status"}
+          aria-live={message.type === "error" ? "assertive" : "polite"}
+          aria-atomic="true"
           className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
             message.type === "success"
-              ? "border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/10 dark:text-green-200"
-              : "border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-200"
+              ? "border-success/30 bg-success/10 text-success dark:border-success-light/40 dark:bg-success-light/15 dark:text-success-light"
+              : "border-error/30 bg-error/10 text-error dark:border-error-light/40 dark:bg-error-light/15 dark:text-error-light"
           }`}
         >
           {message.type === "success" ? (
-            <CheckCircleIcon className="h-4 w-4 shrink-0" />
+            <CheckCircleIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
           ) : (
-            <ExclamationCircleIcon className="h-4 w-4 shrink-0" />
+            <ExclamationCircleIcon
+              className="h-4 w-4 shrink-0"
+              aria-hidden="true"
+            />
           )}
           <span>{message.text}</span>
         </div>

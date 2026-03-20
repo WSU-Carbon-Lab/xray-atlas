@@ -1,7 +1,4 @@
-export {
-  EXPERIMENT_TYPE_OPTIONS,
-  PROCESS_METHOD_OPTIONS,
-} from "./constants";
+export { EXPERIMENT_TYPE_OPTIONS, PROCESS_METHOD_OPTIONS } from "./constants";
 export type {
   ExperimentTypeOption,
   MoleculeSearchResult,
@@ -18,9 +15,13 @@ export type {
   BareAtomPoint,
   SampleInfo,
   NormalizationType,
+  DatasetViewNormalizationTypes,
   DatasetState,
 } from "./types";
-export { createEmptyDatasetState } from "./types";
+export {
+  createEmptyDatasetState,
+  defaultDatasetViewNormalizationTypes,
+} from "./types";
 export {
   useNexafsOptions,
   useNexafsSubmit,

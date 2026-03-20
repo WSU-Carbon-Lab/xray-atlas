@@ -19,5 +19,6 @@ export type {
   BareAtomPoint,
   SampleInfo,
   NormalizationType,
+  DatasetViewNormalizationTypes,
   DatasetState,
 } from "~/features/nexafs-contribute";

@@ -3,7 +3,7 @@ import type {
   SpectrumSelection,
 } from "~/components/plots/types";
 import type { ProcessMethod } from "@prisma/client";
-import { EXPERIMENT_TYPE_OPTIONS } from "./constants";
+import { type EXPERIMENT_TYPE_OPTIONS } from "./constants";
 
 export { EXPERIMENT_TYPE_OPTIONS, PROCESS_METHOD_OPTIONS } from "./constants";
 
@@ -108,6 +108,7 @@ export type PeakData = {
   width?: number;
   id?: string;
   isStep?: boolean;
+  peakKind?: string | null;
 };
 
 export type BareAtomPoint = {
@@ -129,6 +130,19 @@ export type SampleInfo = {
 
 export type NormalizationType = "bare-atom" | "zero-one";
 
+export type DatasetViewNormalizationTypes = {
+  od: NormalizationType;
+  absorption: NormalizationType;
+  beta: NormalizationType;
+};
+
+export const defaultDatasetViewNormalizationTypes =
+  (): DatasetViewNormalizationTypes => ({
+    od: "zero-one",
+    absorption: "bare-atom",
+    beta: "bare-atom",
+  });
+
 export type DatasetState = {
   id: string;
   file: File;
@@ -144,7 +158,7 @@ export type DatasetState = {
     post: [number, number] | null;
   };
   normalizationLocked: boolean;
-  normalizationType: NormalizationType;
+  normalizationTypes: DatasetViewNormalizationTypes;
   peaks: PeakData[];
   selectedPeakId: string | null;
   moleculeId: string | null;
@@ -177,7 +191,7 @@ export function createEmptyDatasetState(file: File): DatasetState {
     normalization: null,
     normalizationRegions: { pre: null, post: null },
     normalizationLocked: false,
-    normalizationType: "bare-atom",
+    normalizationTypes: defaultDatasetViewNormalizationTypes(),
     peaks: [],
     selectedPeakId: null,
     moleculeId: null,

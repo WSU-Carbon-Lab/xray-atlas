@@ -1,23 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { DefaultButton as Button } from "@/components/ui/button";
 import { SignInButton } from "@/components/auth/sign-in-button";
-import {
-  ContributionAgreementModal,
-} from "@/components/contribute";
+import { ContributionAgreementModal } from "@/components/contribute";
 import { SimpleDialog } from "@/components/ui/dialog";
 import { FieldTooltip } from "@/components/ui/field-tooltip";
 import { trpc } from "~/trpc/client";
 import {
-  ArrowLeftIcon,
   XMarkIcon,
   PlusIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { BrushCleaning } from "lucide-react";
-import { Label, Input } from "@heroui/react";
+import { Breadcrumbs, Label, Input } from "@heroui/react";
 import { Tooltip } from "@heroui/react";
 import { useToast, ToastContainer } from "@/components/ui/toast";
 import {
@@ -57,7 +53,6 @@ export default function NEXAFSContributePage() {
     handleNewDataset,
     handleDatasetSelect,
     handleDatasetRemove,
-    handleDatasetRename,
     clearDatasets,
     columnMappingFile,
     handleColumnMappingConfirm,
@@ -96,7 +91,8 @@ export default function NEXAFSContributePage() {
 
   const [showCalibrationDialog, setShowCalibrationDialog] = useState(false);
   const [newCalibrationName, setNewCalibrationName] = useState("");
-  const [newCalibrationDescription, setNewCalibrationDescription] = useState("");
+  const [newCalibrationDescription, setNewCalibrationDescription] =
+    useState("");
   const createCalibrationMutation =
     trpc.experiments.createCalibrationMethod.useMutation();
 
@@ -126,7 +122,7 @@ export default function NEXAFSContributePage() {
       <>
         <ContributionAgreementModal
           isOpen={showAgreementModal}
-          onClose={() => {}}
+          onClose={handleAgreementAccepted}
           onAgree={handleAgreementAccepted}
         />
         <div className="container mx-auto flex min-h-[calc(100vh-20rem)] items-center justify-center px-4 py-16">
@@ -150,24 +146,24 @@ export default function NEXAFSContributePage() {
     <>
       <ContributionAgreementModal
         isOpen={showAgreementModal}
-        onClose={() => {}}
+        onClose={handleAgreementAccepted}
         onAgree={handleAgreementAccepted}
       />
 
       <div className="container mx-auto flex min-h-[calc(100vh-4rem)] flex-col px-4 py-8">
-        <div className="mx-auto w-full max-w-7xl flex min-h-0 flex-1 flex-col">
+        <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
           <div className="mb-6 flex shrink-0 items-center justify-between">
-            <Link
-              href="/contribute"
-              className="text-foreground hover:text-accent inline-flex items-center gap-2 text-sm font-medium transition-colors"
-            >
-              <ArrowLeftIcon className="h-4 w-4" /> Back to contribution options
-            </Link>
+            <Breadcrumbs className="text-sm font-medium">
+              <Breadcrumbs.Item href="/contribute">
+                Contributions
+              </Breadcrumbs.Item>
+              <Breadcrumbs.Item>NEXAFS</Breadcrumbs.Item>
+            </Breadcrumbs>
             <Tooltip delay={0}>
               <button
                 type="button"
                 onClick={clearForm}
-                className="border-border bg-surface text-foreground focus-visible:ring-accent flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="border-border bg-surface text-foreground focus-visible:ring-accent hover:bg-default flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               >
                 <BrushCleaning className="h-4 w-4" />
                 <span>Clear Form</span>
@@ -188,7 +184,7 @@ export default function NEXAFSContributePage() {
             can upload multiple datasets and process them through tabs.
           </p>
 
-          <div className="flex w-full min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 w-full flex-1 flex-col">
             <NexafsContributeFlow
               datasets={datasets}
               activeDatasetId={activeDatasetId}
@@ -198,7 +194,6 @@ export default function NEXAFSContributePage() {
               handleNewDataset={handleNewDataset}
               handleDatasetSelect={handleDatasetSelect}
               handleDatasetRemove={handleDatasetRemove}
-              handleDatasetRename={handleDatasetRename}
               columnMappingFile={columnMappingFile}
               handleColumnMappingConfirm={handleColumnMappingConfirm}
               handleColumnMappingClose={handleColumnMappingClose}

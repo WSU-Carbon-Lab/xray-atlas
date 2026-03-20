@@ -5,6 +5,7 @@
 import { useMemo } from "react";
 import { scaleLinear } from "@visx/scale";
 import type { DataExtents, PlotDimensions } from "../types";
+import { linearYDomainWithPadding } from "../utils/linearYDomain";
 
 type ScaleLinear = ReturnType<typeof scaleLinear<number>>;
 
@@ -32,7 +33,6 @@ export function useVisxScales(
 
     const PAD_X_FRACTION = 0.032;
     const PAD_Y_FRACTION = 0.08;
-    const PAD_Y_ABS_MIN = 0.06;
 
     let energyDomain: [number, number];
     if (extents.energyExtent) {
@@ -64,13 +64,11 @@ export function useVisxScales(
     if (extents.absorptionExtent) {
       const minAbs = extents.absorptionExtent.min;
       const maxAbs = extents.absorptionExtent.max;
-      const spanAbs = Math.max(maxAbs - minAbs, 0.1);
-      const padTop = Math.max(spanAbs * PAD_Y_FRACTION, PAD_Y_ABS_MIN);
-      const padBottom = Math.min(minAbs * PAD_Y_FRACTION, PAD_Y_ABS_MIN);
-      absorptionDomain = [
-        Math.max(0, minAbs - padBottom),
-        maxAbs + padTop,
-      ];
+      absorptionDomain = linearYDomainWithPadding(
+        minAbs,
+        maxAbs,
+        PAD_Y_FRACTION,
+      );
     } else if (absorptionStats) {
       const min = absorptionStats.min;
       const max = absorptionStats.max;
@@ -80,10 +78,7 @@ export function useVisxScales(
         typeof min === "number" &&
         typeof max === "number"
       ) {
-        const span = Math.max(max - min, 0.1);
-        const padTop = Math.max(span * PAD_Y_FRACTION, PAD_Y_ABS_MIN);
-        const padBottom = Math.min(min * PAD_Y_FRACTION, PAD_Y_ABS_MIN);
-        absorptionDomain = [Math.max(0, min - padBottom), max + padTop];
+        absorptionDomain = linearYDomainWithPadding(min, max, PAD_Y_FRACTION);
       } else {
         absorptionDomain = [0, 1];
       }

@@ -9,7 +9,12 @@
 import { useMemo, useCallback, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { ParentSize } from "@visx/responsive";
-import type { SpectrumPlotProps, SpectrumSelection, TraceData } from "../types";
+import type {
+  PlotContext,
+  SpectrumPlotProps,
+  SpectrumSelection,
+  TraceData,
+} from "../types";
 import {
   DEFAULT_PLOT_HEIGHT,
   FILL_CONTAINER_MIN_HEIGHT,
@@ -18,10 +23,7 @@ import {
   OVERVIEW_HEIGHT,
   OVERVIEW_GAP,
 } from "../constants";
-import {
-  useChartTheme,
-  type ChartThemeColors,
-} from "../hooks/useChartTheme";
+import { useChartTheme, type ChartThemeColors } from "../hooks/useChartTheme";
 import { useSpectrumData } from "../hooks/useSpectrumData";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { useDataExtents } from "../hooks/useDataExtents";
@@ -30,7 +32,6 @@ import { VisxAxes } from "./VisxAxes";
 import { VisxGrid } from "./VisxGrid";
 import { SpectrumLines } from "./SpectrumLines";
 import { VisxTooltip, useSpectrumTooltip } from "./VisxTooltip";
-import { DraggableLegend } from "./DraggableLegend";
 import { PeakIndicators } from "./PeakIndicators";
 import { PeakCurves } from "./PeakCurves";
 import { InteractivePeak } from "./InteractivePeak";
@@ -40,6 +41,7 @@ import type { CursorMode } from "./CursorModeSelector";
 import { useVisxPeakInteractions } from "../hooks/useVisxPeakInteractions";
 import { usePeakVisualization } from "../hooks/usePeakVisualization";
 import { findClosestPoint } from "../utils/find-closest-point";
+import { peakStableId } from "../utils/peakStableId";
 
 /** @deprecated Use SpectrumPlot from spectrum-plot.tsx (new spectrum/ implementation) */
 export function VisxSpectrumPlot({
@@ -50,7 +52,7 @@ export function VisxSpectrumPlot({
   absorptionStats,
   referenceCurves = [],
   normalizationRegions,
-  selectionTarget,
+  plotContext,
   onSelectionChange,
   peaks = [],
   selectedPeakId,
@@ -58,7 +60,6 @@ export function VisxSpectrumPlot({
   onPeakSelect,
   onPeakDelete,
   onPeakAdd,
-  isManualPeakMode = false,
   differenceSpectra = [],
   showThetaData = false,
   showPhiData = false,
@@ -73,6 +74,10 @@ export function VisxSpectrumPlot({
   const isDark = resolvedTheme === "dark";
   const themeColors = useChartTheme();
 
+  const selectionTarget: "pre" | "post" | null =
+    plotContext?.kind === "normalize" ? plotContext.target : null;
+  const isManualPeakMode = plotContext?.kind === "peak-edit";
+
   // Process spectrum data
   const groupedTraces = useSpectrumData(
     points,
@@ -83,7 +88,7 @@ export function VisxSpectrumPlot({
   );
 
   // Process reference and difference data
-  const referenceData = useReferenceData(referenceCurves, differenceSpectra);
+  const referenceData = useReferenceData(referenceCurves, differenceSpectra, isDark);
 
   // Process peak visualization
   const peakViz = usePeakVisualization(
@@ -134,7 +139,9 @@ export function VisxSpectrumPlot({
         const rawHeight = sizeHeight ?? 0;
         const effectiveHeight =
           height ??
-          (rawHeight > 0 ? Math.max(rawHeight, FILL_CONTAINER_MIN_HEIGHT) : FILL_CONTAINER_MIN_HEIGHT);
+          (rawHeight > 0
+            ? Math.max(rawHeight, FILL_CONTAINER_MIN_HEIGHT)
+            : FILL_CONTAINER_MIN_HEIGHT);
         if (width === 0 || effectiveHeight === 0) return null;
         return (
           <VisxSpectrumPlotWithWidth
@@ -447,6 +454,28 @@ function VisxSpectrumPlotInner({
     [zoomedXScale, zoomedYScale],
   );
 
+  const getYValueAtEnergy = useCallback(
+    (energy: number) => {
+      const trace = groupedTraces[0];
+      if (!trace?.x?.length || !trace.y?.length) return 1;
+      const xs = trace.x;
+      const ys = trace.y;
+      let bestY = ys[0] ?? 1;
+      let bestD = Infinity;
+      for (let i = 0; i < xs.length; i++) {
+        const xi = xs[i];
+        if (xi === undefined) continue;
+        const d = Math.abs(xi - energy);
+        if (d < bestD) {
+          bestD = d;
+          bestY = ys[i] ?? bestY;
+        }
+      }
+      return bestY;
+    },
+    [groupedTraces],
+  );
+
   const isZoomed = zoomedXDomain !== null || zoomedYDomain !== null;
 
   // Convert peak plot scales if subplot exists
@@ -649,7 +678,8 @@ function VisxSpectrumPlotInner({
     mainPlot.dimensions.margins.bottom;
 
   const hoveredValuesMap = useMemo(() => {
-    if (!tooltipData || effectiveCursorMode !== "inspect") return new Map<string, number>();
+    if (!tooltipData || effectiveCursorMode !== "inspect")
+      return new Map<string, number>();
     const values = new Map<string, number>();
     const energy = tooltipData.energy;
     const domain = mainPlotScales.xScale.domain();
@@ -707,7 +737,13 @@ function VisxSpectrumPlotInner({
       points.push({ value, color });
     });
     return points;
-  }, [tooltipData, effectiveCursorMode, allTraces, hoveredValuesMap, themeColors.text]);
+  }, [
+    tooltipData,
+    effectiveCursorMode,
+    allTraces,
+    hoveredValuesMap,
+    themeColors.text,
+  ]);
 
   // Horizontal-only pan handler
   const handlePanStart = useCallback(
@@ -985,12 +1021,12 @@ function VisxSpectrumPlotInner({
                     scales={mainPlotScales}
                     dimensions={mainPlot.dimensions}
                     selectedPeakId={selectedPeakId}
+                    variant={isManualPeakMode ? "peak-edit" : "default"}
                   />
                 </g>
                 <g>
                   {peaks.map((peak, peakIndex) => {
-                    const peakId =
-                      peak.id ?? `peak-${peakIndex}-${peak.energy}`;
+                    const peakId = peakStableId(peak, peakIndex);
                     return (
                       <InteractivePeak
                         key={peakId}
@@ -1000,6 +1036,9 @@ function VisxSpectrumPlotInner({
                         dimensions={mainPlot.dimensions}
                         isSelected={selectedPeakId === peakId}
                         onEnergyUpdate={handlePeakEnergyUpdate}
+                        plotSvgRef={svgRef}
+                        getYValueAtEnergy={getYValueAtEnergy}
+                        handlesOnlyWhenSelected
                       />
                     );
                   })}
@@ -1139,28 +1178,6 @@ function VisxSpectrumPlotInner({
           brushKey={zoomedXDomain === null ? "full" : "zoomed"}
         />
 
-        {/* Draggable Legend with Tool Selection */}
-        <DraggableLegend
-          traces={groupedTraces}
-          referenceTraces={referenceTraces}
-          differenceTraces={differenceTraces}
-          dimensions={mainPlot.dimensions}
-          totalWidth={totalWidth}
-          isDark={isDark}
-          themeColors={themeColors}
-          cursorMode={effectiveCursorMode}
-          onCursorModeChange={handleCursorModeChange}
-          hoveredEnergy={
-            tooltipData && effectiveCursorMode === "inspect"
-              ? tooltipData.energy
-              : null
-          }
-          hoveredValues={hoveredValuesMap}
-          yOffset={
-            hasSubplot && peakPlot ? mainPlot.dimensions.height : undefined
-          }
-        />
-
         {/* Reset Zoom Button (top right, only when zoomed) */}
         {isZoomed && (
           <g>
@@ -1216,9 +1233,7 @@ function VisxSpectrumPlotInner({
                 mainPlotScales.xScale(tooltipData.energy) +
                 mainPlot.dimensions.margins.left
               }
-              y2={
-                mainPlot.dimensions.margins.top + mainPlotHeight
-              }
+              y2={mainPlot.dimensions.margins.top + mainPlotHeight}
               stroke={themeColors.crosshair ?? themeColors.text}
               strokeWidth={1.5}
               strokeDasharray="4,3"
@@ -1233,8 +1248,7 @@ function VisxSpectrumPlotInner({
                   mainPlot.dimensions.margins.left
                 }
                 cy={
-                  mainPlotScales.yScale(value) +
-                  mainPlot.dimensions.margins.top
+                  mainPlotScales.yScale(value) + mainPlot.dimensions.margins.top
                 }
                 r={5}
                 fill={color}

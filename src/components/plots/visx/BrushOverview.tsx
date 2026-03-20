@@ -205,7 +205,7 @@ export function BrushOverview({
         numTicks={4}
         tickLabelProps={() => ({
           fill: tickLabelColor,
-          fontSize: 10,
+          fontSize: 11,
           textAnchor: "end",
           fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
           dx: -(AXIS_CONFIG.tickPadding + 2),
@@ -221,7 +221,7 @@ export function BrushOverview({
         numTicks={6}
         tickLabelProps={() => ({
           fill: tickLabelColor,
-          fontSize: 10,
+          fontSize: 11,
           textAnchor: "middle",
           fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
           dy: AXIS_CONFIG.tickPadding,
@@ -230,7 +230,7 @@ export function BrushOverview({
         labelOffset={10}
         labelProps={{
           fill: tickLabelColor,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 500,
           textAnchor: "middle",
           fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",

@@ -32,7 +32,7 @@ export const MultiTraceTooltip = memo(function MultiTraceTooltip({
         border: `1px solid ${themeColors.legendBorder}`,
         borderRadius: 8,
         padding: "10px 14px",
-        fontSize: 13,
+        fontSize: 14,
         fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
         boxShadow:
           "0 4px 14px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08)",

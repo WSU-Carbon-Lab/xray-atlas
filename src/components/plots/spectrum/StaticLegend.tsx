@@ -3,6 +3,7 @@
 import { memo } from "react";
 import type { TraceData } from "../types";
 import type { ChartThemeColors } from "../config";
+import { buildLegendCoreModel } from "./legend-core";
 
 type StaticLegendProps = {
   traces: TraceData[];
@@ -14,11 +15,6 @@ type StaticLegendProps = {
   className?: string;
 };
 
-function traceId(trace: TraceData, index: number): string {
-  const name = typeof trace.name === "string" ? trace.name : "";
-  return name || `trace-${index}`;
-}
-
 export const StaticLegend = memo(function StaticLegend({
   traces,
   visibleTraceIds,
@@ -29,6 +25,15 @@ export const StaticLegend = memo(function StaticLegend({
   className = "",
 }: StaticLegendProps) {
   if (traces.length === 0) return null;
+
+  const { entries } = buildLegendCoreModel({
+    traces,
+    themeColors,
+    columns: 1,
+    padding: 0,
+    borderRadius: 0,
+    labelMode: "trace",
+  });
 
   return (
     <div
@@ -45,23 +50,22 @@ export const StaticLegend = memo(function StaticLegend({
         </div>
       )}
       <div className="flex flex-wrap items-center justify-center gap-2" role="list" aria-label="Spectrum traces">
-      {traces.map((trace, index) => {
-        const id = traceId(trace, index);
-        const label = typeof trace.name === "string" ? trace.name : `Trace ${index + 1}`;
-        const color =
-          trace.line?.color ?? trace.marker?.color ?? themeColors.text;
-        const isVisible = visibleTraceIds.size === 0 || visibleTraceIds.has(id);
+      {entries.map((entry) => {
+        const isVisible =
+          visibleTraceIds.size === 0 || visibleTraceIds.has(entry.id);
         const valueAtCrosshair =
-          hoveredValues && hoveredEnergy != null ? hoveredValues.get(label) : undefined;
+          hoveredValues && hoveredEnergy != null
+            ? hoveredValues.get(entry.label)
+            : undefined;
 
         return (
           <button
-            key={id}
+            key={entry.id}
             type="button"
             role="listitem"
-            onClick={() => onToggleTrace(id)}
+            onClick={() => onToggleTrace(entry.id)}
             aria-pressed={isVisible}
-            aria-label={`${isVisible ? "Hide" : "Show"} ${label}`}
+            aria-label={`${isVisible ? "Hide" : "Show"} ${entry.label}`}
             className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium tabular-nums transition-colors focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 ${
               isVisible
                 ? "border-accent bg-accent text-accent-foreground"
@@ -70,10 +74,10 @@ export const StaticLegend = memo(function StaticLegend({
           >
             <span
               className="h-3 w-3 shrink-0 rounded-sm"
-              style={{ backgroundColor: isVisible ? "currentColor" : color }}
+              style={{ backgroundColor: isVisible ? "currentColor" : entry.color }}
               aria-hidden
             />
-            <span>{label}</span>
+            <span>{entry.label}</span>
             {valueAtCrosshair !== undefined && (
               <span className="opacity-90">
                 {valueAtCrosshair.toFixed(4)}

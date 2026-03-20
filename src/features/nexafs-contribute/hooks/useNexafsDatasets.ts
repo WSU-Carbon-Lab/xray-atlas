@@ -23,7 +23,11 @@ type EdgeOption = { id: string; targetatom: string; corestate: string };
 type UseNexafsDatasetsOptions = {
   instrumentOptions: InstrumentOption[];
   edgeOptions: EdgeOption[];
-  showToast: (message: string, type: "success" | "error", duration?: number) => void;
+  showToast: (
+    message: string,
+    type: "success" | "error",
+    duration?: number,
+  ) => void;
 };
 
 export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
@@ -347,20 +351,22 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
               ? error.message
               : `Failed to parse ${isJson ? "JSON" : "CSV"} file.`;
 
-          updateDataset(dataset.id, { ...updates, spectrumError: errorMessage });
+          updateDataset(dataset.id, {
+            ...updates,
+            spectrumError: errorMessage,
+          });
           setColumnMappingFile((prev) =>
             prev?.datasetId === dataset.id ? null : prev,
           );
-          showToast(`Failed to process ${file.name}: ${errorMessage}`, "error", 10000);
+          showToast(
+            `Failed to process ${file.name}: ${errorMessage}`,
+            "error",
+            10000,
+          );
         }
       }
     },
-    [
-      updateDataset,
-      edgeOptions,
-      instrumentOptions,
-      showToast,
-    ],
+    [updateDataset, edgeOptions, instrumentOptions, showToast],
   );
 
   const handleColumnMappingConfirm = useCallback(
@@ -371,7 +377,8 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       if (!columnMappingFile) return;
 
       const updates: Partial<DatasetState> = { columnMappings: mappings };
-      if (fixedValues?.theta !== undefined) updates.fixedTheta = fixedValues.theta;
+      if (fixedValues?.theta !== undefined)
+        updates.fixedTheta = fixedValues.theta;
       if (fixedValues?.phi !== undefined) updates.fixedPhi = fixedValues.phi;
 
       const datasetId = columnMappingFile.datasetId;
@@ -427,15 +434,18 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
     input.click();
   }, [handleFilesSelected]);
 
-  const handleDatasetRemove = useCallback((datasetId: string) => {
-    const filtered = datasets.filter((d) => d.id !== datasetId);
-    setDatasets(filtered);
-    setActiveDatasetId(
-      activeDatasetId === datasetId
-        ? (filtered[filtered.length - 1]?.id ?? null)
-        : activeDatasetId,
-    );
-  }, [datasets, activeDatasetId]);
+  const handleDatasetRemove = useCallback(
+    (datasetId: string) => {
+      const filtered = datasets.filter((d) => d.id !== datasetId);
+      setDatasets(filtered);
+      setActiveDatasetId(
+        activeDatasetId === datasetId
+          ? (filtered[filtered.length - 1]?.id ?? null)
+          : activeDatasetId,
+      );
+    },
+    [datasets, activeDatasetId],
+  );
 
   const handleDatasetRename = useCallback(
     (datasetId: string, newName: string) => {

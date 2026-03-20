@@ -12,11 +12,15 @@ export const ChartAxes = memo(function ChartAxes({
   dimensions,
   themeColors,
   showXAxisLabel = true,
+  yAxisLabel = "Intensity (a.u.)",
+  yTickFormat,
 }: {
   scales: ChartScales;
   dimensions: PlotDimensions;
   themeColors: ChartThemeColors;
   showXAxisLabel?: boolean;
+  yAxisLabel?: string;
+  yTickFormat?: (value: number | { valueOf(): number }, index: number) => string;
 }) {
   if (!scales || !dimensions) return null;
 
@@ -80,7 +84,7 @@ export const ChartAxes = memo(function ChartAxes({
           x={left + plotWidth / 2}
           y={axisBandTop + axisBandHeight - 10}
           fill={tickLabelColor}
-          fontSize={13}
+          fontSize={14}
           fontWeight={PLOT_CONFIG.axis.fontWeight}
           textAnchor="middle"
           fontFamily="var(--font-sans), Inter, system-ui, sans-serif"
@@ -96,6 +100,7 @@ export const ChartAxes = memo(function ChartAxes({
         stroke={axisColor}
         tickStroke={axisColor}
         tickLength={-PLOT_CONFIG.axis.tickSize}
+        tickFormat={yTickFormat}
         tickLabelProps={() => ({
           fill: tickLabelColor,
           fontSize: tickFontSize,
@@ -106,11 +111,11 @@ export const ChartAxes = memo(function ChartAxes({
         })}
         labelProps={{
           fill: tickLabelColor,
-          fontSize: 13,
+          fontSize: 14,
           textAnchor: "middle",
           fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
         }}
-        label="Intensity (a.u.)"
+        label={yAxisLabel}
         labelOffset={PLOT_CONFIG.axis.labelPadding}
       />
       </g>

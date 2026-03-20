@@ -20,9 +20,7 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
 }) {
   if (!scales || traces.length === 0) return null;
 
-  const yDomain = scales.yScale.domain();
-  const yBaselineData = typeof yDomain[0] === "number" ? yDomain[0] : 0;
-  const yBaselinePixel = scales.yScale(yBaselineData);
+  const yZeroPixel = scales.yScale(0);
   const showAreaGradient = graphStyle === "area";
   const lineWidth = PLOT_CONFIG.line.strokeWidth;
 
@@ -97,14 +95,16 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
         const showMarkers = graphStyle === "scatter";
         const showArea = graphStyle === "area";
 
+        const areaPoints = showArea ? points : points;
+
         return (
           <g key={`trace-${index}`} data-trace-index={index}>
             {showArea && (
               <AreaClosed
-                data={points}
+                data={areaPoints}
                 x={(d) => scales.xScale(d.x)}
                 y={(d) => scales.yScale(d.y)}
-                y0={() => yBaselinePixel}
+                y0={() => yZeroPixel}
                 yScale={scales.yScale}
                 fill={
                   showAreaGradient
