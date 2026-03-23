@@ -11,32 +11,21 @@ import {
   Trash2,
 } from "lucide-react";
 import {
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-} from "@heroui/table";
-import {
   Accordion,
   Button,
   Checkbox,
   Chip,
+  Dropdown,
+  Header,
+  Pagination,
   Separator,
+  Table,
   ToggleButton,
   ToggleButtonGroup,
   Toolbar,
   Tooltip,
 } from "@heroui/react";
-import {
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-  DropdownSection,
-} from "@heroui/dropdown";
-import { Pagination } from "@heroui/pagination";
+import { buttonVariants, cn } from "@heroui/styles";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import {
   PlotSpectrumToolsToolbarSection,
@@ -44,36 +33,36 @@ import {
   plotToolbarBasisToggleClass,
   plotToolbarDifferenceToggleClass,
 } from "~/components/plots/toolbars";
-import { defaultNormalizationRangesFromSpectrum } from "~/app/contribute/nexafs/utils/normalizationDefaults";
+import { defaultNormalizationRangesFromSpectrum } from "~/features/process-nexafs/utils";
 import type { SpectrumSelection } from "~/components/plots/types";
 import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
-import { SampleInformationSection } from "./sample-information-section";
+import { NexafsSampleInformationSection } from "~/components/forms";
 import {
   VisualizationToggle,
   type VisualizationMode,
   type GraphStyle,
 } from "./visualization-toggle";
 import { trpc } from "~/trpc/client";
-import { useMoleculeSearch } from "~/app/contribute/nexafs/hooks/useMoleculeSearch";
-import type { MoleculeSearchResult } from "~/app/contribute/nexafs/types";
-import { calculateBareAtomAbsorption } from "~/app/contribute/nexafs/utils/bareAtomCalculation";
-import { computeBetaIndex } from "~/app/contribute/nexafs/utils/betaIndex";
+import { useMoleculeSearch } from "~/features/process-nexafs";
+import type { MoleculeSearchResult } from "~/features/process-nexafs";
+import { calculateBareAtomAbsorption } from "~/features/process-nexafs/utils";
+import { computeBetaIndex } from "~/features/process-nexafs/utils";
 import {
   computeNormalizationForExperiment,
   computeZeroOneNormalization,
   extractAtomsFromFormula,
-} from "~/app/contribute/nexafs/utils";
-import type { DatasetState, PeakData } from "~/app/contribute/nexafs/types";
+} from "~/features/process-nexafs/utils";
+import type { DatasetState, PeakData } from "~/features/process-nexafs";
 import {
   calculateDifferenceSpectra,
   type DifferenceSpectrum,
-} from "~/app/contribute/nexafs/utils/differenceSpectra";
+} from "~/features/process-nexafs/utils";
 import {
   buildAutoDetectedPeakList,
   filterSpectrumPointsByGeometry,
   mergePeaksPreservingManualAndSteps,
-} from "~/app/contribute/nexafs/utils/autoDetectPeaksFromSpectrum";
+} from "~/features/process-nexafs/utils";
 import type { CursorMode } from "~/components/plots/visx/CursorModeSelector";
 import { showToast } from "~/components/ui/toast";
 import { SimpleDialog } from "~/components/ui/dialog";
@@ -252,52 +241,62 @@ function GeometrySpectrumTableBlock({
     pageIndex * SPECTRUM_TABLE_PAGE_SIZE,
     (pageIndex + 1) * SPECTRUM_TABLE_PAGE_SIZE,
   );
+  const spectrumTableRowHeaderId =
+    visibleColumnList.find((c) => c.id === "energy")?.id ??
+    visibleColumnList[0]?.id;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Tooltip delay={0}>
           <Dropdown>
-            <DropdownTrigger>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
-              >
-                <Columns3 className="size-3.5" />
-                Columns
-              </Button>
-            </DropdownTrigger>
-            <DropdownMenu
-              aria-label="Toggle table columns"
-              closeOnSelect={false}
-              className="min-w-[180px]"
+            <Dropdown.Trigger
+              className={cn(
+                buttonVariants({ size: "sm", variant: "ghost" }),
+                "gap-1.5 text-xs font-medium text-[var(--text-secondary)]",
+              )}
             >
-              <DropdownSection title="Show columns">
-                {SPECTRUM_TABLE_COLUMNS.map(({ id, label }) => (
-                  <DropdownItem
-                    key={id}
-                    textValue={label}
-                    className="cursor-default py-1.5"
-                    onAction={() => undefined}
-                  >
-                    <div
-                      className="flex items-center gap-2"
-                      onClick={(e) => e.stopPropagation()}
-                      onPointerDown={(e) => e.stopPropagation()}
+              <Columns3 className="size-3.5" />
+              Columns
+            </Dropdown.Trigger>
+            <Dropdown.Popover className="min-w-[180px]">
+              <Dropdown.Menu
+                aria-label="Toggle table columns"
+                className="min-w-[180px]"
+                selectionMode="none"
+              >
+                <Dropdown.Section>
+                  <Header>Show columns</Header>
+                  {SPECTRUM_TABLE_COLUMNS.map(({ id, label }) => (
+                    <Dropdown.Item
+                      key={id}
+                      id={id}
+                      textValue={label}
+                      className="cursor-default py-1.5"
                     >
-                      <Checkbox
-                        isSelected={visibleColumns[id]}
-                        onChange={() => toggleColumn(id)}
-                        className="[&_[data-slot=checkbox-content]]:text-xs [&_[data-slot=checkbox-content]]:text-[var(--text-primary)]"
+                      <div
+                        className="flex items-center gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
                       >
-                        {label}
-                      </Checkbox>
-                    </div>
-                  </DropdownItem>
-                ))}
-              </DropdownSection>
-            </DropdownMenu>
+                        <Checkbox
+                          isSelected={visibleColumns[id]}
+                          onChange={() => toggleColumn(id)}
+                          className="[&_[data-slot=checkbox-content]]:text-xs [&_[data-slot=checkbox-content]]:text-[var(--text-primary)]"
+                        >
+                          {label}
+                        </Checkbox>
+                      </div>
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Section>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
           </Dropdown>
           <Tooltip.Content
             placement="top"
@@ -322,180 +321,201 @@ function GeometrySpectrumTableBlock({
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-[var(--border-default)] bg-[var(--surface-2)]">
-          <Table
-            aria-label={`Spectrum table theta ${theta ?? "—"} phi ${phi ?? "—"}`}
-            removeWrapper
-            classNames={tableClassNames}
-          >
-            <TableHeader>
-              {visibleColumnList.map((c) => (
-                <TableColumn key={c.id}>{c.label}</TableColumn>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {pageRows.map((point, index) => (
-                <TableRow
-                  key={`${point.energy}-${index}-${String(point.theta)}-${String(point.phi)}`}
-                >
-                  {visibleColumnList.map((col) => {
-                    const canEdit =
-                      editMode &&
-                      onReplacePoint &&
-                      (col.id === "energy" ||
-                        col.id === "mu" ||
-                        col.id === "theta" ||
-                        col.id === "phi");
-                    switch (col.id) {
-                      case "energy":
-                        return (
-                          <TableCell
-                            key={col.id}
-                            className="text-right text-[var(--text-primary)]"
-                          >
-                            {canEdit ? (
-                              <input
-                                type="number"
-                                step="0.01"
-                                defaultValue={point.energy}
-                                onBlur={(e) => {
-                                  const v = parseFloat(e.target.value);
-                                  if (Number.isFinite(v))
-                                    onReplacePoint(point, {
-                                      ...point,
-                                      energy: v,
-                                    });
-                                }}
-                                className="w-20 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
-                              />
-                            ) : (
-                              point.energy.toFixed(2)
-                            )}
-                          </TableCell>
-                        );
-                      case "mu":
-                        return (
-                          <TableCell
-                            key={col.id}
-                            className="text-right text-[var(--text-primary)]"
-                          >
-                            {canEdit ? (
-                              <input
-                                type="number"
-                                step="any"
-                                defaultValue={point.absorption}
-                                onBlur={(e) => {
-                                  const v = parseFloat(e.target.value);
-                                  if (Number.isFinite(v))
-                                    onReplacePoint(point, {
-                                      ...point,
-                                      absorption: v,
-                                    });
-                                }}
-                                className="w-24 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
-                              />
-                            ) : (
-                              point.absorption.toExponential(3)
-                            )}
-                          </TableCell>
-                        );
-                      case "theta":
-                        return (
-                          <TableCell key={col.id} className="text-right">
-                            {canEdit ? (
-                              <input
-                                type="number"
-                                step="0.1"
-                                defaultValue={
-                                  typeof point.theta === "number"
-                                    ? point.theta
-                                    : ""
-                                }
-                                onBlur={(e) => {
-                                  const s = e.target.value.trim();
-                                  const v =
-                                    s === "" ? undefined : parseFloat(s);
-                                  onReplacePoint(point, {
-                                    ...point,
-                                    theta:
-                                      v !== undefined && Number.isFinite(v)
-                                        ? v
-                                        : undefined,
-                                  });
-                                }}
-                                className="w-16 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
-                              />
-                            ) : (
-                              <span className="flex justify-end">
-                                {hasTheta && typeof point.theta === "number" ? (
-                                  <Chip
-                                    color={
-                                      thetaColorByValue.get(point.theta) ??
-                                      "accent"
-                                    }
-                                    size="sm"
-                                    variant="soft"
-                                  >
-                                    {point.theta.toFixed(1)}
-                                  </Chip>
+          <Table>
+            <Table.ScrollContainer>
+              <Table.Content
+                aria-label={`Spectrum table theta ${theta ?? "—"} phi ${phi ?? "—"}`}
+                className={tableClassNames.table}
+              >
+                <Table.Header>
+                  {visibleColumnList.map((c) => (
+                    <Table.Column
+                      key={c.id}
+                      id={c.id}
+                      isRowHeader={c.id === spectrumTableRowHeaderId}
+                    >
+                      {c.label}
+                    </Table.Column>
+                  ))}
+                </Table.Header>
+                <Table.Body items={pageRows}>
+                  {(point) => (
+                    <Table.Row
+                      id={`${point.energy}-${point.absorption}-${String(point.theta)}-${String(point.phi)}`}
+                    >
+                      {visibleColumnList.map((col) => {
+                        const canEdit =
+                          editMode &&
+                          onReplacePoint &&
+                          (col.id === "energy" ||
+                            col.id === "mu" ||
+                            col.id === "theta" ||
+                            col.id === "phi");
+                        switch (col.id) {
+                          case "energy":
+                            return (
+                              <Table.Cell
+                                key={col.id}
+                                className="text-right text-[var(--text-primary)]"
+                              >
+                                {canEdit ? (
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    defaultValue={point.energy}
+                                    aria-label={`Edit energy (eV) for mu ${point.absorption.toExponential(3)}; theta ${theta ?? "-"}; phi ${phi ?? "-"}`}
+                                    onBlur={(e) => {
+                                      const v = parseFloat(e.target.value);
+                                      if (Number.isFinite(v))
+                                        onReplacePoint(point, {
+                                          ...point,
+                                          energy: v,
+                                        });
+                                    }}
+                                    className="w-20 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
+                                  />
                                 ) : (
-                                  <span className="text-[var(--text-tertiary)]">
-                                    —
+                                  point.energy.toFixed(2)
+                                )}
+                              </Table.Cell>
+                            );
+                          case "mu":
+                            return (
+                              <Table.Cell
+                                key={col.id}
+                                className="text-right text-[var(--text-primary)]"
+                              >
+                                {canEdit ? (
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    defaultValue={point.absorption}
+                                    aria-label={`Edit mu (absorption) for energy ${point.energy.toFixed(2)}; theta ${theta ?? "-"}; phi ${phi ?? "-"}`}
+                                    onBlur={(e) => {
+                                      const v = parseFloat(e.target.value);
+                                      if (Number.isFinite(v))
+                                        onReplacePoint(point, {
+                                          ...point,
+                                          absorption: v,
+                                        });
+                                    }}
+                                    className="w-24 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
+                                  />
+                                ) : (
+                                  point.absorption.toExponential(3)
+                                )}
+                              </Table.Cell>
+                            );
+                          case "theta":
+                            return (
+                              <Table.Cell
+                                key={col.id}
+                                className="text-right"
+                              >
+                                {canEdit ? (
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    defaultValue={
+                                      typeof point.theta === "number"
+                                        ? point.theta
+                                        : ""
+                                    }
+                                    aria-label={`Edit theta (degrees) for energy ${point.energy.toFixed(2)}; phi ${phi ?? "-"}`}
+                                    onBlur={(e) => {
+                                      const s = e.target.value.trim();
+                                      const v =
+                                        s === "" ? undefined : parseFloat(s);
+                                      onReplacePoint(point, {
+                                        ...point,
+                                        theta:
+                                          v !== undefined && Number.isFinite(v)
+                                            ? v
+                                            : undefined,
+                                      });
+                                    }}
+                                    className="w-16 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
+                                  />
+                                ) : (
+                                  <span className="flex justify-end">
+                                    {hasTheta &&
+                                    typeof point.theta === "number" ? (
+                                      <Chip
+                                        color={
+                                          thetaColorByValue.get(point.theta) ??
+                                          "accent"
+                                        }
+                                        size="sm"
+                                        variant="soft"
+                                      >
+                                        {point.theta.toFixed(1)}
+                                      </Chip>
+                                    ) : (
+                                      <span className="text-[var(--text-tertiary)]">
+                                        —
+                                      </span>
+                                    )}
                                   </span>
                                 )}
-                              </span>
-                            )}
-                          </TableCell>
-                        );
-                      case "phi":
-                        return (
-                          <TableCell key={col.id} className="text-right">
-                            {canEdit ? (
-                              <input
-                                type="number"
-                                step="0.1"
-                                defaultValue={
-                                  typeof point.phi === "number" ? point.phi : ""
-                                }
-                                onBlur={(e) => {
-                                  const s = e.target.value.trim();
-                                  const v =
-                                    s === "" ? undefined : parseFloat(s);
-                                  onReplacePoint(point, {
-                                    ...point,
-                                    phi:
-                                      v !== undefined && Number.isFinite(v)
-                                        ? v
-                                        : undefined,
-                                  });
-                                }}
-                                className="w-16 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
-                              />
-                            ) : (
-                              <span className="flex justify-end">
-                                {hasPhi && typeof point.phi === "number" ? (
-                                  <Chip
-                                    color={
-                                      phiColorByValue.get(point.phi) ?? "accent"
+                              </Table.Cell>
+                            );
+                          case "phi":
+                            return (
+                              <Table.Cell
+                                key={col.id}
+                                className="text-right"
+                              >
+                                {canEdit ? (
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    defaultValue={
+                                      typeof point.phi === "number" ? point.phi : ""
                                     }
-                                    size="sm"
-                                    variant="soft"
-                                  >
-                                    {point.phi.toFixed(1)}
-                                  </Chip>
+                                    aria-label={`Edit phi (degrees) for energy ${point.energy.toFixed(2)}; theta ${theta ?? "-"}`}
+                                    onBlur={(e) => {
+                                      const s = e.target.value.trim();
+                                      const v =
+                                        s === "" ? undefined : parseFloat(s);
+                                      onReplacePoint(point, {
+                                        ...point,
+                                        phi:
+                                          v !== undefined && Number.isFinite(v)
+                                            ? v
+                                            : undefined,
+                                      });
+                                    }}
+                                    className="w-16 rounded border border-[var(--border-default)] bg-[var(--surface-1)] px-2 py-1 text-right text-sm tabular-nums"
+                                  />
                                 ) : (
-                                  <span className="text-[var(--text-tertiary)]">
-                                    —
+                                  <span className="flex justify-end">
+                                    {hasPhi &&
+                                    typeof point.phi === "number" ? (
+                                      <Chip
+                                        color={
+                                          phiColorByValue.get(point.phi) ?? "accent"
+                                        }
+                                        size="sm"
+                                        variant="soft"
+                                      >
+                                        {point.phi.toFixed(1)}
+                                      </Chip>
+                                    ) : (
+                                      <span className="text-[var(--text-tertiary)]">
+                                        —
+                                      </span>
+                                    )}
                                   </span>
                                 )}
-                              </span>
-                            )}
-                          </TableCell>
-                        );
-                    }
-                  })}
-                </TableRow>
-              ))}
-            </TableBody>
+                              </Table.Cell>
+                            );
+                        }
+                      })}
+                    </Table.Row>
+                  )}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
           </Table>
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-default)] bg-[var(--surface-2)] px-4 py-3">
             <span className="text-xs text-[var(--text-tertiary)]">
@@ -503,22 +523,57 @@ function GeometrySpectrumTableBlock({
                 ? "0 results"
                 : `${start} to ${end} of ${rows.length} results`}
             </span>
-            <Pagination
-              total={totalPages}
-              page={pageIndex + 1}
-              onChange={(p) =>
-                setGroupPage((prev) => ({ ...prev, [keyStr]: p - 1 }))
-              }
-              showControls
-              size="sm"
-              classNames={{
-                base: "gap-1",
-                item: "rounded-md border border-[var(--border-default)] bg-[var(--surface-1)] text-[var(--text-primary)]",
-                cursor: "bg-accent text-accent-foreground border-accent",
-                prev: "rounded-md border border-[var(--border-default)] bg-[var(--surface-1)]",
-                next: "rounded-md border border-[var(--border-default)] bg-[var(--surface-1)]",
-              }}
-            />
+            <Pagination size="sm" className="gap-1">
+              <Pagination.Content className="gap-1">
+                <Pagination.Item>
+                  <Pagination.Previous
+                    isDisabled={pageIndex === 0}
+                    aria-label="Previous page"
+                    onPress={() => {
+                      setGroupPage((prev) => ({
+                        ...prev,
+                        [keyStr]: pageIndex - 1,
+                      }));
+                    }}
+                    className="rounded-md border border-[var(--border-default)] bg-[var(--surface-1)]"
+                  >
+                    <Pagination.PreviousIcon />
+                  </Pagination.Previous>
+                </Pagination.Item>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <Pagination.Item key={p}>
+                    <Pagination.Link
+                      isActive={p === pageIndex + 1}
+                      onPress={() => {
+                        setGroupPage((prev) => ({ ...prev, [keyStr]: p - 1 }));
+                      }}
+                      className={`rounded-md border border-[var(--border-default)] bg-[var(--surface-1)] text-[var(--text-primary)] ${
+                        p === pageIndex + 1
+                          ? "bg-accent text-accent-foreground border-accent"
+                          : ""
+                      }`}
+                    >
+                      {p}
+                    </Pagination.Link>
+                  </Pagination.Item>
+                ))}
+                <Pagination.Item>
+                  <Pagination.Next
+                    isDisabled={pageIndex + 1 >= totalPages}
+                    aria-label="Next page"
+                    onPress={() => {
+                      setGroupPage((prev) => ({
+                        ...prev,
+                        [keyStr]: pageIndex + 1,
+                      }));
+                    }}
+                    className="rounded-md border border-[var(--border-default)] bg-[var(--surface-1)]"
+                  >
+                    <Pagination.NextIcon />
+                  </Pagination.Next>
+                </Pagination.Item>
+              </Pagination.Content>
+            </Pagination>
           </div>
         </div>
       )}
@@ -1929,7 +1984,7 @@ export function DatasetContent({
 
       {/* Sample Information */}
       <div>
-        <SampleInformationSection
+        <NexafsSampleInformationSection
           preparationDate={dataset.sampleInfo.preparationDate}
           setPreparationDate={(value) =>
             onDatasetUpdate(dataset.id, {

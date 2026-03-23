@@ -1,5 +1,18 @@
-import { describe, it, expect } from "bun:test";
+import {
+  describe as bunDescribe,
+  it as bunIt,
+  expect as bunExpect,
+} from "bun:test";
 import { computeBetaIndex } from "./betaIndex";
+
+type ExpectAssertions = {
+  toHaveLength: (length: number) => void;
+  toBeCloseTo: (expected: number, precision: number) => void;
+};
+
+const describe = bunDescribe as (name: string, fn: () => void) => void;
+const it = bunIt as (name: string, fn: () => void) => void;
+const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
 describe("computeBetaIndex", () => {
   it("converts mu-like absorption to beta using beta = mu*lambda/(4*pi)", () => {

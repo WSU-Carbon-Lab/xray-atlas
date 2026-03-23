@@ -14,4 +14,3 @@ export {
   AddFacilityButton,
   AddInstrumentButton,
 } from "./add-entity-buttons";
-export * from "./nexafs";

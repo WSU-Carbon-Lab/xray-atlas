@@ -3,21 +3,12 @@
 import { useState, useEffect } from "react";
 import {
   Dropdown,
-  DropdownTrigger,
-  DropdownItem,
   Input,
-} from "@heroui/react";
-import {
   Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-} from "@heroui/table";
+} from "@heroui/react";
 import type {
   CSVColumnMappings,
-} from "~/app/contribute/nexafs/types";
+} from "~/features/process-nexafs";
 
 interface InlineColumnMappingProps {
   columns: string[];
@@ -193,262 +184,287 @@ export function InlineColumnMapping({
       {previewRows.length > 0 && (
         <div className="flex flex-col">
           <div className="max-h-[600px] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-auto">
-            <Table
-              aria-label="CSV data preview with column mapping"
-            >
-            <TableHeader>
-              {columns.map((col) => {
-                const mappingType = getColumnMappingType(col);
-                const isMapped = mappingType !== null;
-                const isFixedThetaCol = thetaMode === "fixed" && fixedThetaColumn === col;
-                const isFixedPhiCol = phiMode === "fixed" && fixedPhiColumn === col;
-                const colorScheme = isFixedThetaCol
-                  ? COLUMN_COLORS.theta
-                  : isFixedPhiCol
-                    ? COLUMN_COLORS.phi
-                    : mappingType
-                      ? COLUMN_COLORS[mappingType]
-                      : null;
+            <Table>
+            <Table.ScrollContainer>
+              <Table.Content aria-label="CSV data preview with column mapping">
+                <Table.Header>
+                  {columns.map((col) => {
+                    const mappingType = getColumnMappingType(col);
+                    const isMapped = mappingType !== null;
+                    const isFixedThetaCol =
+                      thetaMode === "fixed" && fixedThetaColumn === col;
+                    const isFixedPhiCol =
+                      phiMode === "fixed" && fixedPhiColumn === col;
+                    const colorScheme = isFixedThetaCol
+                      ? COLUMN_COLORS.theta
+                      : isFixedPhiCol
+                        ? COLUMN_COLORS.phi
+                        : mappingType
+                          ? COLUMN_COLORS[mappingType]
+                          : null;
 
-                return (
-                  <TableColumn key={col}>
-                    <Dropdown>
-                      <DropdownTrigger>
-                        <div
-                          className={`flex flex-1 items-center justify-end rounded-lg border-2 px-3 py-2 cursor-pointer transition-all hover:shadow-md ${
-                            colorScheme
-                              ? `${colorScheme.bg} ${colorScheme.border} ${colorScheme.text}`
-                              : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
-                          } shadow-sm`}
-                        >
-                          <span className="text-sm font-semibold tabular-nums">{col}</span>
-                        </div>
-                      </DropdownTrigger>
-                      <Dropdown.Popover className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 shadow-2xl min-w-[200px]">
-                        <Dropdown.Menu
-                          aria-label="Column assignment"
-                          onAction={(key) => {
-                          if (key === "none") {
-                            handleAssignColumn(col, "none");
-                            if (fixedThetaColumn === col) {
-                              setFixedThetaColumn(null);
-                              setThetaMode("column");
-                            }
-                            if (fixedPhiColumn === col) {
-                              setFixedPhiColumn(null);
-                              setPhiMode("column");
-                            }
-                          } else if (key === "theta-fixed") {
-                            setFixedThetaColumn(col);
-                            setThetaMode("fixed");
-                            handleAssignColumn(col, "none");
-                          } else if (key === "phi-fixed") {
-                            setFixedPhiColumn(col);
-                            setPhiMode("fixed");
-                            handleAssignColumn(col, "none");
-                          } else {
-                            handleAssignColumn(
-                              col,
-                              key as "energy" | "absorption" | "theta" | "phi",
-                            );
-                            if (fixedThetaColumn === col) {
-                              setFixedThetaColumn(null);
-                              setThetaMode("column");
-                            }
-                            if (fixedPhiColumn === col) {
-                              setFixedPhiColumn(null);
-                              setPhiMode("column");
-                            }
-                          }
-                        }}
-                      >
-                        <DropdownItem
-                          key="energy"
-                          className={`rounded-lg ${
-                            mappingType === "energy"
-                              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200"
-                              : ""
-                          }`}
-                          textValue="Energy"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Energy</span>
-                            {mappingType === "energy" && (
-                              <span className="text-blue-600 dark:text-blue-400">✓</span>
-                            )}
-                          </div>
-                        </DropdownItem>
-                        <DropdownItem
-                          key="absorption"
-                          className={`rounded-lg ${
-                            mappingType === "absorption"
-                              ? "bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200"
-                              : ""
-                          }`}
-                          textValue="Absorption"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Absorption</span>
-                            {mappingType === "absorption" && (
-                              <span className="text-purple-600 dark:text-purple-400">✓</span>
-                            )}
-                          </div>
-                        </DropdownItem>
-                        <DropdownItem
-                          key="theta"
-                          className={`rounded-lg ${
-                            mappingType === "theta"
-                              ? "bg-orange-100 dark:bg-orange-900/30 text-orange-900 dark:text-orange-200"
-                              : ""
-                          }`}
-                          textValue="Theta"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Theta</span>
-                            {mappingType === "theta" && (
-                              <span className="text-orange-600 dark:text-orange-400">✓</span>
-                            )}
-                          </div>
-                        </DropdownItem>
-                        <DropdownItem
-                          key="theta-fixed"
-                          textValue="Theta (Fixed Value)"
-                          className="rounded-lg"
-                          onPress={() => {
-                            setThetaMode("fixed");
-                            setFixedThetaColumn(col);
-                            handleAssignColumn(col, "none");
-                          }}
-                        >
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-orange-900 dark:text-orange-200">
-                                Theta (Fixed)
-                              </span>
-                              {thetaMode === "fixed" && localFixedTheta && (
-                                <span className="text-orange-600 dark:text-orange-400 text-xs">✓</span>
-                              )}
-                            </div>
-                            <Input
-                              type="number"
-                              placeholder="Enter value (°)"
-                              value={localFixedTheta}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setLocalFixedTheta(value);
-                                handleFixedValueChange("theta", value);
-                              }}
-                              onFocus={() => {
-                                setThetaMode("fixed");
-                              }}
-                              className="w-full h-8 text-xs rounded-lg border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20"
-                            />
-                          </div>
-                        </DropdownItem>
-                        <DropdownItem
-                          key="phi"
-                          className={`rounded-lg ${
-                            mappingType === "phi"
-                              ? "bg-teal-100 dark:bg-teal-900/30 text-teal-900 dark:text-teal-200"
-                              : ""
-                          }`}
-                          textValue="Phi"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Phi</span>
-                            {mappingType === "phi" && (
-                              <span className="text-teal-600 dark:text-teal-400">✓</span>
-                            )}
-                          </div>
-                        </DropdownItem>
-                        <DropdownItem
-                          key="phi-fixed"
-                          textValue="Phi (Fixed Value)"
-                          className="rounded-lg"
-                          onPress={() => {
-                            setPhiMode("fixed");
-                            setFixedPhiColumn(col);
-                            handleAssignColumn(col, "none");
-                          }}
-                        >
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-teal-900 dark:text-teal-200">
-                                Phi (Fixed)
-                              </span>
-                              {phiMode === "fixed" && localFixedPhi && (
-                                <span className="text-teal-600 dark:text-teal-400 text-xs">✓</span>
-                              )}
-                            </div>
-                            <Input
-                              type="number"
-                              placeholder="Enter value (°)"
-                              value={localFixedPhi}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setLocalFixedPhi(value);
-                                handleFixedValueChange("phi", value);
-                              }}
-                              onFocus={() => {
-                                setPhiMode("fixed");
-                              }}
-                              className="w-full h-8 text-xs rounded-lg border-2 border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/20"
-                            />
-                          </div>
-                        </DropdownItem>
-                        {isMapped ? (
-                          <>
-                            <DropdownItem
-                              key="divider"
-                              className="h-0 p-0 my-1"
+                    return (
+                      <Table.Column key={col} id={col}>
+                        <Dropdown>
+                          <Dropdown.Trigger>
+                            <button
+                              type="button"
+                              aria-label={`Column mapping for ${col}`}
+                              className={`flex flex-1 items-center justify-end rounded-lg border-2 px-3 py-2 transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
+                                colorScheme
+                                  ? `${colorScheme.bg} ${colorScheme.border} ${colorScheme.text}`
+                                  : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
+                              } shadow-sm`}
                             >
-                              <div className="border-t border-gray-300 dark:border-gray-600" />
-                            </DropdownItem>
-                            <DropdownItem
-                              key="none"
-                              className="text-danger rounded-lg"
-                              textValue="Unassign"
+                              <span className="text-sm font-semibold tabular-nums">{col}</span>
+                            </button>
+                          </Dropdown.Trigger>
+                          <Dropdown.Popover className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 shadow-2xl min-w-[200px]">
+                            <Dropdown.Menu
+                              aria-label="Column assignment"
+                              selectionMode="none"
+                              onAction={(key) => {
+                                if (key === "none") {
+                                  handleAssignColumn(col, "none");
+                                  if (fixedThetaColumn === col) {
+                                    setFixedThetaColumn(null);
+                                    setThetaMode("column");
+                                  }
+                                  if (fixedPhiColumn === col) {
+                                    setFixedPhiColumn(null);
+                                    setPhiMode("column");
+                                  }
+                                } else if (key === "theta-fixed") {
+                                  setFixedThetaColumn(col);
+                                  setThetaMode("fixed");
+                                  handleAssignColumn(col, "none");
+                                } else if (key === "phi-fixed") {
+                                  setFixedPhiColumn(col);
+                                  setPhiMode("fixed");
+                                  handleAssignColumn(col, "none");
+                                } else {
+                                  handleAssignColumn(
+                                    col,
+                                    key as "energy" | "absorption" | "theta" | "phi",
+                                  );
+                                  if (fixedThetaColumn === col) {
+                                    setFixedThetaColumn(null);
+                                    setThetaMode("column");
+                                  }
+                                  if (fixedPhiColumn === col) {
+                                    setFixedPhiColumn(null);
+                                    setPhiMode("column");
+                                  }
+                                }
+                              }}
                             >
-                              <span className="text-sm font-medium">Unassign</span>
-                            </DropdownItem>
-                          </>
-                        ) : null}
-                        </Dropdown.Menu>
-                      </Dropdown.Popover>
-                    </Dropdown>
-                  </TableColumn>
-                );
-              })}
-            </TableHeader>
-            <TableBody items={previewRows}>
-              {(row) => {
-                const rowIndex = (row as typeof row & { __rowIndex: number }).__rowIndex ?? previewRows.indexOf(row);
-                return (
-                  <TableRow key={`row-${rowIndex}`}>
-                    {columns.map((col) => {
-                      const displayValue = getDisplayValue(row, col);
-                      const isFixedTheta = thetaMode === "fixed" && fixedThetaColumn === col && localFixedTheta;
-                      const isFixedPhi = phiMode === "fixed" && fixedPhiColumn === col && localFixedPhi;
+                              <Dropdown.Item
+                                id="energy"
+                                className={`rounded-lg ${
+                                  mappingType === "energy"
+                                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200"
+                                    : ""
+                                }`}
+                                textValue="Energy"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium">
+                                    Energy
+                                  </span>
+                                  {mappingType === "energy" && (
+                                    <span className="text-blue-600 dark:text-blue-400">✓</span>
+                                  )}
+                                </div>
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                id="absorption"
+                                className={`rounded-lg ${
+                                  mappingType === "absorption"
+                                    ? "bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200"
+                                    : ""
+                                }`}
+                                textValue="Absorption"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium">
+                                    Absorption
+                                  </span>
+                                  {mappingType === "absorption" && (
+                                    <span className="text-purple-600 dark:text-purple-400">✓</span>
+                                  )}
+                                </div>
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                id="theta"
+                                className={`rounded-lg ${
+                                  mappingType === "theta"
+                                    ? "bg-orange-100 dark:bg-orange-900/30 text-orange-900 dark:text-orange-200"
+                                    : ""
+                                }`}
+                                textValue="Theta"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium">
+                                    Theta
+                                  </span>
+                                  {mappingType === "theta" && (
+                                    <span className="text-orange-600 dark:text-orange-400">✓</span>
+                                  )}
+                                </div>
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                id="theta-fixed"
+                                textValue="Theta (Fixed Value)"
+                                className="rounded-lg"
+                                onPress={() => {
+                                  setThetaMode("fixed");
+                                  setFixedThetaColumn(col);
+                                  handleAssignColumn(col, "none");
+                                }}
+                              >
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-orange-900 dark:text-orange-200">
+                                      Theta (Fixed)
+                                    </span>
+                                    {thetaMode === "fixed" && localFixedTheta && (
+                                      <span className="text-orange-600 dark:text-orange-400 text-xs">✓</span>
+                                    )}
+                                  </div>
+                                  <Input
+                                    type="number"
+                                    placeholder="Enter value (°)"
+                                    aria-label={`Fixed theta value for ${col}`}
+                                    value={localFixedTheta}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      setLocalFixedTheta(value);
+                                      handleFixedValueChange("theta", value);
+                                    }}
+                                    onFocus={() => {
+                                      setThetaMode("fixed");
+                                    }}
+                                    className="w-full h-8 text-xs rounded-lg border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20"
+                                  />
+                                </div>
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                id="phi"
+                                className={`rounded-lg ${
+                                  mappingType === "phi"
+                                    ? "bg-teal-100 dark:bg-teal-900/30 text-teal-900 dark:text-teal-200"
+                                    : ""
+                                }`}
+                                textValue="Phi"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium">Phi</span>
+                                  {mappingType === "phi" && (
+                                    <span className="text-teal-600 dark:text-teal-400">✓</span>
+                                  )}
+                                </div>
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                id="phi-fixed"
+                                textValue="Phi (Fixed Value)"
+                                className="rounded-lg"
+                                onPress={() => {
+                                  setPhiMode("fixed");
+                                  setFixedPhiColumn(col);
+                                  handleAssignColumn(col, "none");
+                                }}
+                              >
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-teal-900 dark:text-teal-200">
+                                      Phi (Fixed)
+                                    </span>
+                                    {phiMode === "fixed" && localFixedPhi && (
+                                      <span className="text-teal-600 dark:text-teal-400 text-xs">✓</span>
+                                    )}
+                                  </div>
+                                  <Input
+                                    type="number"
+                                    placeholder="Enter value (°)"
+                                    aria-label={`Fixed phi value for ${col}`}
+                                    value={localFixedPhi}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      setLocalFixedPhi(value);
+                                      handleFixedValueChange("phi", value);
+                                    }}
+                                    onFocus={() => {
+                                      setPhiMode("fixed");
+                                    }}
+                                    className="w-full h-8 text-xs rounded-lg border-2 border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/20"
+                                  />
+                                </div>
+                              </Dropdown.Item>
+                              {isMapped ? (
+                                <>
+                                  <Dropdown.Item
+                                    id="divider"
+                                    className="h-0 p-0 my-1"
+                                  >
+                                    <div className="border-t border-gray-300 dark:border-gray-600" />
+                                  </Dropdown.Item>
+                                  <Dropdown.Item
+                                    id="none"
+                                    className="text-danger rounded-lg"
+                                    textValue="Unassign"
+                                  >
+                                    <span className="text-sm font-medium">
+                                      Unassign
+                                    </span>
+                                  </Dropdown.Item>
+                                </>
+                              ) : null}
+                            </Dropdown.Menu>
+                          </Dropdown.Popover>
+                        </Dropdown>
+                      </Table.Column>
+                    );
+                  })}
+                </Table.Header>
+                <Table.Body items={previewRows}>
+                  {(row) => {
+                    const rowIndex =
+                      (row as typeof row & { __rowIndex: number })
+                        .__rowIndex ?? previewRows.indexOf(row);
+                    return (
+                      <Table.Row id={`row-${rowIndex}`}>
+                        {columns.map((col) => {
+                          const displayValue = getDisplayValue(row, col);
+                          const isFixedTheta =
+                            thetaMode === "fixed" &&
+                            fixedThetaColumn === col &&
+                            localFixedTheta;
+                          const isFixedPhi =
+                            phiMode === "fixed" &&
+                            fixedPhiColumn === col &&
+                            localFixedPhi;
 
-                      return (
-                        <TableCell
-                          key={`${rowIndex}-${col}`}
-                          className={`text-right font-mono text-xs tabular-nums ${
-                            isFixedTheta
-                              ? `${COLUMN_COLORS.theta.bg} ${COLUMN_COLORS.theta.text} font-medium`
-                              : isFixedPhi
-                                ? `${COLUMN_COLORS.phi.bg} ${COLUMN_COLORS.phi.text} font-medium`
-                                : ""
-                          }`}
-                        >
-                          {displayValue}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                );
-              }}
-            </TableBody>
+                          return (
+                            <Table.Cell
+                              key={`${rowIndex}-${col}`}
+                              className={`text-right font-mono text-xs tabular-nums ${
+                                isFixedTheta
+                                  ? `${COLUMN_COLORS.theta.bg} ${COLUMN_COLORS.theta.text} font-medium`
+                                  : isFixedPhi
+                                    ? `${COLUMN_COLORS.phi.bg} ${COLUMN_COLORS.phi.text} font-medium`
+                                    : ""
+                              }`}
+                            >
+                              {displayValue}
+                            </Table.Cell>
+                          );
+                        })}
+                      </Table.Row>
+                    );
+                  }}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
           </Table>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import type { SpectrumPoint } from "~/components/plots/types";
-import type { BareAtomPoint } from "~/features/nexafs-contribute/types";
+import type { BareAtomPoint } from "../types";
 
 const HC_EV_CM = 1.23984193e-4;
 const FOUR_PI = 4 * Math.PI;

@@ -3,6 +3,9 @@ export { FacilityIdentitySection } from "./facility-identity-section";
 export { InstrumentFieldsBlock } from "./instrument-fields-block";
 export { InstrumentContributionForm } from "./instrument-contribution-form";
 export { MoleculeContributionForm } from "./molecule-contribution-form";
+export { NexafsCreateCalibrationDialog } from "./nexafs-create-calibration-dialog";
+export { NexafsCreateEdgeDialog } from "./nexafs-create-edge-dialog";
+export { NexafsSampleInformationSection } from "./nexafs-sample-information-section";
 export { InstrumentNewRowForm } from "./instrument-new-row-form";
 export { NewInstrumentsAccordion } from "./new-instruments-accordion";
 export {
@@ -18,6 +21,10 @@ export {
 export type {
   MoleculeContributionFormProps,
   MoleculeContributePageProps,
+  NexafsCreateCalibrationDialogProps,
+  NexafsCreateEdgeDialogProps,
+  NexafsSampleInformationSectionProps,
+  NexafsSampleVendorOption,
   FacilityFormState,
   FacilityIdentitySectionProps,
   FacilityListItemForIdentity,

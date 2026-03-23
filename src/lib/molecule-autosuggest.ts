@@ -1,4 +1,4 @@
-import type { MoleculeSearchResult } from "~/features/nexafs-contribute";
+import type { MoleculeSearchResult } from "~/features/process-nexafs";
 
 export type AutosuggestMatchType =
   | "cas_exact"
@@ -21,7 +21,7 @@ export interface AutosuggestItem {
   imageUrl?: string;
   favoriteCount: number;
   viewCount: number;
-  matchType: AutosuggestMatchType | string;
+  matchType: string;
   textScore: number;
   popularityScore: number;
   overallScore: number;

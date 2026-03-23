@@ -4,7 +4,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import type { DatasetState } from "~/app/contribute/nexafs/types";
+import type { DatasetState } from "~/features/process-nexafs";
 import { useDatasetStatus } from "./hooks/use-dataset-status";
 
 interface QuickConfigPanelItemProps {

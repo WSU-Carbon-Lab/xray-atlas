@@ -9,7 +9,6 @@ export {
   rangesApproximatelyEqual,
   countPointsWithinRange,
   buildSpectrumStats,
-  generateGaussianPeak,
 } from "./core";
 export type {
   NumericColumnReport,
@@ -33,3 +32,11 @@ export { calculateDifferenceSpectra } from "./differenceSpectra";
 export type { DifferenceSpectrum } from "./differenceSpectra";
 export { calculateBareAtomAbsorption } from "./bareAtomCalculation";
 export { parseCSVFile } from "./csv";
+export { computeBetaIndex } from "./betaIndex";
+export { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";
+export {
+  filterSpectrumPointsByGeometry,
+  buildAutoDetectedPeakList,
+  mergePeaksPreservingManualAndSteps,
+} from "./autoDetectPeaksFromSpectrum";
+export type { SelectedGeometry } from "./autoDetectPeaksFromSpectrum";

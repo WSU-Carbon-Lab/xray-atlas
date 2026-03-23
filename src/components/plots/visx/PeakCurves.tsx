@@ -7,8 +7,9 @@ import { LinePath } from "@visx/shape";
 import { curveLinear } from "@visx/curve";
 import type { Peak } from "../types";
 import type { VisxScales } from "../hooks/useVisxScales";
-import { generateGaussianPeak } from "~/app/contribute/nexafs/utils";
+import { generateGaussianPeak } from "../utils/generateGaussianPeak";
 import { peakStableId } from "../utils/peakStableId";
+import { PEAK_COLORS } from "../constants";
 
 export const PeakCurves = memo(function PeakCurves({
   peaks,
@@ -51,7 +52,7 @@ export const PeakCurves = memo(function PeakCurves({
             data={points}
             x={(d) => scales.xScale(d.x)}
             y={(d) => scales.yScale(d.y)}
-            stroke={isSelected ? "#a60f2d" : "#6b7280"}
+            stroke={isSelected ? PEAK_COLORS.selected : PEAK_COLORS.unselected}
             strokeWidth={isSelected ? 2 : 1.5}
             strokeDasharray={isSelected ? "none" : "4,4"}
             curve={curveLinear}

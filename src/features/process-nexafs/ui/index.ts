@@ -8,7 +8,7 @@ export { FileUploadZone } from "./file-upload-zone";
 export { InlineColumnMapping } from "./inline-column-mapping";
 export { MoleculeSelector } from "./molecule-selector";
 export { QuickConfigPanelItem } from "./quick-config-panel-item";
-export { SampleInformationSection } from "./sample-information-section";
+export { NexafsSampleInformationSection as SampleInformationSection } from "~/components/forms";
 export { SpectrumSummary, SelectionSummary } from "./spectrum-summary";
 export { SubToolButton } from "./sub-tool-button";
 export {

@@ -6,11 +6,8 @@ import { SimpleDialog } from "~/components/ui/dialog";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import { Chip, Slider } from "@heroui/react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
-import type {
-  CSVColumnMappings,
-  ColumnStats,
-} from "~/app/contribute/nexafs/types";
-import { analyzeNumericColumns } from "~/app/contribute/nexafs/utils";
+import type { CSVColumnMappings, ColumnStats } from "~/features/process-nexafs";
+import { analyzeNumericColumns } from "~/features/process-nexafs/utils";
 import type { SpectrumPoint } from "~/components/plots/types";
 
 interface ColumnMappingModalProps {

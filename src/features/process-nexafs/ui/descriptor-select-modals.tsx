@@ -5,7 +5,7 @@ import { MagnifyingGlassIcon, PlusIcon, XMarkIcon } from "@heroicons/react/24/ou
 import { SimpleDialog } from "~/components/ui/dialog";
 import { trpc } from "~/trpc/client";
 import { toMoleculeSearchResult } from "~/lib/molecule-autosuggest";
-import type { MoleculeSearchResult } from "~/features/nexafs-contribute/types";
+import type { MoleculeSearchResult } from "~/features/process-nexafs/types";
 import { AddEdgeModal } from "./add-edge-modal";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };

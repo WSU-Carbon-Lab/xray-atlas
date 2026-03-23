@@ -15,7 +15,7 @@ import {
   type DisplayMolecule,
 } from "~/components/molecules/molecule-display";
 import { FormField } from "~/components/ui/form-field";
-import type { MoleculeSearchResult } from "~/app/contribute/nexafs/types";
+import type { MoleculeSearchResult } from "~/features/process-nexafs";
 
 type MoleculeSelectorProps = {
   searchTerm: string;

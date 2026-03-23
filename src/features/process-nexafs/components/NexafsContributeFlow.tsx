@@ -14,7 +14,7 @@ import {
   DatasetTabs,
   DatasetContent,
   useDatasetStatus,
-} from "@/components/contribute/nexafs";
+} from "~/features/process-nexafs/ui";
 import { Tooltip, Label, Description, ErrorMessage } from "@heroui/react";
 import { Button as HeroButton } from "@heroui/react";
 import type { DatasetState, CSVColumnMappings } from "../types";

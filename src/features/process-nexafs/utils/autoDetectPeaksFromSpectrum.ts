@@ -1,5 +1,5 @@
 import type { SpectrumPoint } from "~/components/plots/types";
-import type { PeakData } from "~/app/contribute/nexafs/types";
+import type { PeakData } from "../types";
 import { detectPeaks, convertToPeakData } from "./peakDetection";
 
 export type SelectedGeometry = { theta?: number; phi?: number } | null;

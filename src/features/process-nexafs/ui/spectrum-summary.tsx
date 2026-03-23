@@ -1,8 +1,8 @@
 "use client";
 
 import type { SpectrumSelection } from "~/components/plots/types";
-import type { ColumnStats, SpectrumStats } from "~/app/contribute/nexafs/types";
-import { formatStatNumber } from "~/app/contribute/nexafs/utils";
+import type { ColumnStats, SpectrumStats } from "~/features/process-nexafs";
+import { formatStatNumber } from "~/features/process-nexafs/utils";
 
 export function SpectrumSummary({ stats }: { stats: SpectrumStats }) {
   const columns: Array<{

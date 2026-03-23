@@ -1,19 +1,11 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { DefaultButton as Button } from "@/components/ui/button";
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { ContributionAgreementModal } from "@/components/contribute";
-import { SimpleDialog } from "@/components/ui/dialog";
-import { FieldTooltip } from "@/components/ui/field-tooltip";
 import { trpc } from "~/trpc/client";
-import {
-  XMarkIcon,
-  PlusIcon,
-  ArrowPathIcon,
-} from "@heroicons/react/24/outline";
 import { BrushCleaning } from "lucide-react";
-import { Breadcrumbs, Label, Input } from "@heroui/react";
+import { Breadcrumbs } from "@heroui/react";
 import { Tooltip } from "@heroui/react";
 import { useToast, ToastContainer } from "@/components/ui/toast";
 import {
@@ -21,8 +13,12 @@ import {
   useNexafsDatasets,
   useNexafsSubmit,
   NexafsContributeFlow,
-} from "~/features/nexafs-contribute";
+} from "~/features/process-nexafs";
 import { useState } from "react";
+import {
+  NexafsCreateCalibrationDialog,
+  NexafsCreateEdgeDialog,
+} from "~/components/forms";
 
 export default function NEXAFSContributePage() {
   const { data: session } = useSession();
@@ -214,164 +210,27 @@ export default function NEXAFSContributePage() {
         </div>
       </div>
 
-      <SimpleDialog
+      <NexafsCreateEdgeDialog
         isOpen={showEdgeDialog}
         onClose={() => setShowEdgeDialog(false)}
-        title="Create New Edge"
-      >
-        <div className="space-y-4">
-          <div>
-            <Label className="text-foreground mb-2 flex items-center gap-1 text-sm font-medium">
-              Target Atom
-              <span className="text-red-500">*</span>
-              <FieldTooltip description="The target atom for the absorption edge (e.g., C for carbon K-edge)" />
-            </Label>
-            <Input
-              name="targetAtom"
-              value={newEdgeTargetAtom}
-              onChange={(e) => setNewEdgeTargetAtom(e.target.value)}
-              placeholder="e.g., C, N, O"
-              required
-              className="form-input"
-              aria-label="Target atom"
-            />
-          </div>
-          <div>
-            <Label className="text-foreground mb-2 flex items-center gap-1 text-sm font-medium">
-              Core State
-              <span className="text-red-500">*</span>
-              <FieldTooltip description="The core state of the electron (e.g., K for K-edge)" />
-            </Label>
-            <Input
-              name="coreState"
-              value={newEdgeCoreState}
-              onChange={(e) => setNewEdgeCoreState(e.target.value)}
-              placeholder="e.g., K, L1, L2, L3"
-              required
-              className="form-input"
-              aria-label="Core state"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Tooltip delay={0}>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowEdgeDialog(false)}
-              >
-                <XMarkIcon className="h-4 w-4" />
-                <span>Cancel</span>
-              </Button>
-              <Tooltip.Content className="tooltip-content-panel">
-                Cancel creating a new edge
-              </Tooltip.Content>
-            </Tooltip>
-            <Tooltip delay={0}>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleCreateEdge}
-                isDisabled={createEdgeMutation.isPending}
-              >
-                {createEdgeMutation.isPending ? (
-                  <>
-                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                    <span>Creating...</span>
-                  </>
-                ) : (
-                  <>
-                    <PlusIcon className="h-4 w-4" />
-                    <span>Create Edge</span>
-                  </>
-                )}
-              </Button>
-              <Tooltip.Content className="tooltip-content-panel">
-                Create a new absorption edge with the specified target atom and
-                core state
-              </Tooltip.Content>
-            </Tooltip>
-          </div>
-        </div>
-      </SimpleDialog>
+        targetAtom={newEdgeTargetAtom}
+        onTargetAtomChange={setNewEdgeTargetAtom}
+        coreState={newEdgeCoreState}
+        onCoreStateChange={setNewEdgeCoreState}
+        onCreate={() => void handleCreateEdge()}
+        isCreating={createEdgeMutation.isPending}
+      />
 
-      <SimpleDialog
+      <NexafsCreateCalibrationDialog
         isOpen={showCalibrationDialog}
         onClose={() => setShowCalibrationDialog(false)}
-        title="Create New Calibration Method"
-      >
-        <div className="space-y-4">
-          <div>
-            <Label className="text-foreground mb-2 flex items-center gap-1 text-sm font-medium">
-              Name
-              <span className="text-red-500">*</span>
-              <FieldTooltip description="The name of the calibration method" />
-            </Label>
-            <Input
-              name="calibrationName"
-              value={newCalibrationName}
-              onChange={(e) => setNewCalibrationName(e.target.value)}
-              placeholder="e.g., Carbon K-edge calibration"
-              required
-              className="form-input"
-              aria-label="Calibration method name"
-            />
-          </div>
-          <div>
-            <Label className="text-foreground mb-2 flex items-center gap-1 text-sm font-medium">
-              Description
-              <FieldTooltip description="Additional details about the calibration method" />
-            </Label>
-            <textarea
-              name="calibrationDescription"
-              value={newCalibrationDescription}
-              onChange={(e) => setNewCalibrationDescription(e.target.value)}
-              placeholder="Optional description of the calibration method"
-              rows={3}
-              className="form-input min-h-[80px] resize-y"
-              aria-label="Calibration method description"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Tooltip delay={0}>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowCalibrationDialog(false)}
-              >
-                <XMarkIcon className="h-4 w-4" />
-                <span>Cancel</span>
-              </Button>
-              <Tooltip.Content className="tooltip-content-panel">
-                Cancel creating a new calibration method
-              </Tooltip.Content>
-            </Tooltip>
-            <Tooltip delay={0}>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleCreateCalibration}
-                isDisabled={createCalibrationMutation.isPending}
-              >
-                {createCalibrationMutation.isPending ? (
-                  <>
-                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                    <span>Creating...</span>
-                  </>
-                ) : (
-                  <>
-                    <PlusIcon className="h-4 w-4" />
-                    <span>Create Method</span>
-                  </>
-                )}
-              </Button>
-              <Tooltip.Content className="tooltip-content-panel">
-                Create a new calibration method with the specified name and
-                description
-              </Tooltip.Content>
-            </Tooltip>
-          </div>
-        </div>
-      </SimpleDialog>
+        name={newCalibrationName}
+        onNameChange={setNewCalibrationName}
+        description={newCalibrationDescription}
+        onDescriptionChange={setNewCalibrationDescription}
+        onCreate={() => void handleCreateCalibration()}
+        isCreating={createCalibrationMutation.isPending}
+      />
     </>
   );
 }

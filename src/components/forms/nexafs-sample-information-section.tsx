@@ -3,7 +3,8 @@
 import type { ProcessMethod } from "@prisma/client";
 import { Label, TextField, InputGroup } from "@heroui/react";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
-import { PROCESS_METHOD_OPTIONS } from "~/app/contribute/nexafs/types";
+import { PROCESS_METHOD_OPTIONS } from "~/features/process-nexafs/constants";
+import type { NexafsSampleInformationSectionProps } from "./types";
 
 const formLabelClass =
   "mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground";
@@ -11,35 +12,7 @@ const formLabelClass =
 const selectClass =
   "border-border bg-field-background text-field-foreground placeholder:text-field-placeholder focus:border-accent focus:ring-accent/20 w-full rounded-xl border px-4 py-2.5 focus:outline-none focus:ring-2";
 
-type VendorOption = {
-  id: string;
-  name: string;
-};
-
-type SampleInformationSectionProps = {
-  preparationDate: string;
-  setPreparationDate: (value: string) => void;
-  processMethod: ProcessMethod | null;
-  setProcessMethod: (value: ProcessMethod | null) => void;
-  substrate: string;
-  setSubstrate: (value: string) => void;
-  solvent: string;
-  setSolvent: (value: string) => void;
-  thickness: number | null;
-  setThickness: (value: number | null) => void;
-  molecularWeight: number | null;
-  setMolecularWeight: (value: number | null) => void;
-  selectedVendorId: string;
-  setSelectedVendorId: (value: string) => void;
-  newVendorName: string;
-  setNewVendorName: (value: string) => void;
-  newVendorUrl: string;
-  setNewVendorUrl: (value: string) => void;
-  vendors: VendorOption[];
-  isLoadingVendors: boolean;
-};
-
-export function SampleInformationSection({
+export function NexafsSampleInformationSection({
   preparationDate,
   setPreparationDate,
   processMethod,
@@ -60,7 +33,7 @@ export function SampleInformationSection({
   setNewVendorUrl,
   vendors,
   isLoadingVendors,
-}: SampleInformationSectionProps) {
+}: NexafsSampleInformationSectionProps) {
   return (
     <section className="space-y-4">
       <div className="space-y-2">
@@ -101,9 +74,7 @@ export function SampleInformationSection({
               value={processMethod ?? ""}
               onChange={(e) => {
                 const v = e.target.value;
-                setProcessMethod(
-                  v.length > 0 ? (v as ProcessMethod) : null
-                );
+                setProcessMethod(v.length > 0 ? (v as ProcessMethod) : null);
               }}
               className={selectClass}
               aria-label="Process method"
@@ -222,7 +193,9 @@ export function SampleInformationSection({
         </div>
 
         <div className="space-y-3 pt-2">
-          <p className="text-foreground text-sm font-medium">Or create a new vendor</p>
+          <p className="text-foreground text-sm font-medium">
+            Or create a new vendor
+          </p>
           <div className="grid gap-3 md:grid-cols-2">
             <TextField
               name="newVendorName"

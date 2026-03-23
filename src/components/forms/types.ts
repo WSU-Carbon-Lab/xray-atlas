@@ -1,4 +1,5 @@
 import type { Key } from "@heroui/react";
+import type { ProcessMethod } from "@prisma/client";
 import type { ReactNode } from "react";
 
 export type InstrumentStatus = "active" | "inactive" | "under_maintenance";
@@ -123,6 +124,56 @@ export type MoleculeContributionFormProps = {
 };
 
 export type MoleculeContributePageProps = MoleculeContributionFormProps;
+
+export type NexafsSampleVendorOption = {
+  id: string;
+  name: string;
+};
+
+export type NexafsSampleInformationSectionProps = {
+  preparationDate: string;
+  setPreparationDate: (value: string) => void;
+  processMethod: ProcessMethod | null;
+  setProcessMethod: (value: ProcessMethod | null) => void;
+  substrate: string;
+  setSubstrate: (value: string) => void;
+  solvent: string;
+  setSolvent: (value: string) => void;
+  thickness: number | null;
+  setThickness: (value: number | null) => void;
+  molecularWeight: number | null;
+  setMolecularWeight: (value: number | null) => void;
+  selectedVendorId: string;
+  setSelectedVendorId: (value: string) => void;
+  newVendorName: string;
+  setNewVendorName: (value: string) => void;
+  newVendorUrl: string;
+  setNewVendorUrl: (value: string) => void;
+  vendors: NexafsSampleVendorOption[];
+  isLoadingVendors: boolean;
+};
+
+export type NexafsCreateEdgeDialogProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  targetAtom: string;
+  onTargetAtomChange: (value: string) => void;
+  coreState: string;
+  onCoreStateChange: (value: string) => void;
+  onCreate: () => void;
+  isCreating: boolean;
+};
+
+export type NexafsCreateCalibrationDialogProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  name: string;
+  onNameChange: (value: string) => void;
+  description: string;
+  onDescriptionChange: (value: string) => void;
+  onCreate: () => void;
+  isCreating: boolean;
+};
 
 export type InstrumentNewRowFormProps = {
   instrument: InstrumentFormData;

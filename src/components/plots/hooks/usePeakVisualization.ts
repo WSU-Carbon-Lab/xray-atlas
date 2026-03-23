@@ -5,7 +5,8 @@
 
 import { useMemo } from "react";
 import type { TraceData, SpectrumPoint, Peak } from "../types";
-import { generateGaussianPeak } from "~/app/contribute/nexafs/utils";
+import { generateGaussianPeak } from "../utils/generateGaussianPeak";
+import { PEAK_COLORS } from "../constants";
 import { filterPointsByGeometry, buildGeometryLabel } from "../utils/trace-utils";
 import { peakStableId } from "../utils/peakStableId";
 
@@ -78,9 +79,9 @@ export function usePeakVisualization(
         x: energyRange,
         y: intensities,
         line: {
-          color: isSelected ? "#a60f2d" : "#6b7280",
+          color: isSelected ? PEAK_COLORS.selected : PEAK_COLORS.unselected,
           width: isSelected ? 2 : 1.5,
-          dash: "dash",
+          dash: isSelected ? "solid" : "dash",
         },
         hovertemplate:
           `<b>Peak ${displayIndex}</b><br>` +
@@ -114,12 +115,12 @@ export function usePeakVisualization(
       x: energies,
       y: absorptions,
       marker: {
-        color: "#d7263d",
+        color: PEAK_COLORS.selected,
         size: 4,
         opacity: 0.7,
       },
       line: {
-        color: "#d7263d",
+        color: PEAK_COLORS.selected,
         width: 2,
       },
       hovertemplate:
