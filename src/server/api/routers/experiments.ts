@@ -126,6 +126,255 @@ export const experimentsRouter = createTRPCRouter({
       };
     }),
 
+  browseMoleculeOptions: publicProcedure
+    .input(
+      z.object({
+        query: z.string().optional(),
+        limit: z.number().min(1).max(200).default(50),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const base: Prisma.moleculesWhereInput = {
+        samples: {
+          some: {
+            experiments: {
+              some: {},
+            },
+          },
+        },
+      };
+      const q = input.query?.trim();
+      const where: Prisma.moleculesWhereInput = q
+        ? {
+            AND: [
+              base,
+              {
+                OR: [
+                  { iupacname: { contains: q, mode: "insensitive" } },
+                  { chemicalformula: { contains: q, mode: "insensitive" } },
+                ],
+              },
+            ],
+          }
+        : base;
+
+      return ctx.db.molecules.findMany({
+        where,
+        select: {
+          id: true,
+          iupacname: true,
+          chemicalformula: true,
+        },
+        orderBy: { iupacname: "asc" },
+        take: input.limit,
+      });
+    }),
+
+  browseMoleculeSummary: publicProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.molecules.findUnique({
+        where: { id: input.id },
+        select: {
+          id: true,
+          iupacname: true,
+          chemicalformula: true,
+        },
+      });
+    }),
+
+  browseList: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(12),
+        offset: z.number().min(0).default(0),
+        sortBy: z
+          .enum(["newest", "measurement", "molecule", "edge", "instrument"])
+          .default("newest"),
+        moleculeId: z.string().uuid().optional(),
+        edgeId: z.string().uuid().optional(),
+        instrumentId: z.string().optional(),
+        experimentType: z.nativeEnum(ExperimentType).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const filters: Prisma.experimentsWhereInput = {};
+      if (input.moleculeId) {
+        filters.samples = { moleculeid: input.moleculeId };
+      }
+      if (input.edgeId) {
+        filters.edgeid = input.edgeId;
+      }
+      if (input.instrumentId) {
+        filters.instrumentid = input.instrumentId;
+      }
+      if (input.experimentType) {
+        filters.experimenttype = input.experimentType;
+      }
+
+      const orderBy: Prisma.experimentsOrderByWithRelationInput[] =
+        input.sortBy === "newest"
+          ? [{ createdat: "desc" }]
+          : input.sortBy === "measurement"
+            ? [{ measurementdate: "desc" }, { createdat: "desc" }]
+            : input.sortBy === "molecule"
+              ? [{ samples: { molecules: { iupacname: "asc" } } }]
+              : input.sortBy === "edge"
+                ? [{ edges: { targetatom: "asc" } }, { edges: { corestate: "asc" } }]
+                : [{ instruments: { name: "asc" } }];
+
+      const include = {
+        samples: {
+          include: {
+            molecules: {
+              select: {
+                id: true,
+                iupacname: true,
+                chemicalformula: true,
+              },
+            },
+          },
+        },
+        edges: { select: { id: true, targetatom: true, corestate: true } },
+        instruments: {
+          select: {
+            id: true,
+            name: true,
+            facilities: { select: { id: true, name: true } },
+          },
+        },
+        _count: { select: { spectrumpoints: true } },
+      } satisfies Prisma.experimentsInclude;
+
+      const [rows, total] = await Promise.all([
+        ctx.db.experiments.findMany({
+          where: filters,
+          take: input.limit,
+          skip: input.offset,
+          orderBy,
+          include,
+        }),
+        ctx.db.experiments.count({ where: filters }),
+      ]);
+
+      return {
+        experiments: rows,
+        total,
+        hasMore: input.offset + rows.length < total,
+      };
+    }),
+
+  browseSearch: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1),
+        limit: z.number().min(1).max(50).default(12),
+        moleculeId: z.string().uuid().optional(),
+        edgeId: z.string().uuid().optional(),
+        instrumentId: z.string().optional(),
+        experimentType: z.nativeEnum(ExperimentType).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const q = input.query.trim();
+      const textClause: Prisma.experimentsWhereInput = {
+        OR: [
+          {
+            samples: {
+              molecules: {
+                iupacname: { contains: q, mode: "insensitive" },
+              },
+            },
+          },
+          {
+            samples: {
+              molecules: {
+                chemicalformula: { contains: q, mode: "insensitive" },
+              },
+            },
+          },
+          {
+            samples: {
+              identifier: { contains: q, mode: "insensitive" },
+            },
+          },
+          {
+            instruments: {
+              name: { contains: q, mode: "insensitive" },
+            },
+          },
+          {
+            instruments: {
+              facilities: {
+                name: { contains: q, mode: "insensitive" },
+              },
+            },
+          },
+          {
+            edges: {
+              targetatom: { contains: q, mode: "insensitive" },
+            },
+          },
+          {
+            edges: {
+              corestate: { contains: q, mode: "insensitive" },
+            },
+          },
+        ],
+      };
+
+      const refinements: Prisma.experimentsWhereInput[] = [];
+      if (input.moleculeId) {
+        refinements.push({ samples: { moleculeid: input.moleculeId } });
+      }
+      if (input.edgeId) {
+        refinements.push({ edgeid: input.edgeId });
+      }
+      if (input.instrumentId) {
+        refinements.push({ instrumentid: input.instrumentId });
+      }
+      if (input.experimentType) {
+        refinements.push({ experimenttype: input.experimentType });
+      }
+
+      const where: Prisma.experimentsWhereInput =
+        refinements.length > 0
+          ? { AND: [textClause, ...refinements] }
+          : textClause;
+
+      const include = {
+        samples: {
+          include: {
+            molecules: {
+              select: {
+                id: true,
+                iupacname: true,
+                chemicalformula: true,
+              },
+            },
+          },
+        },
+        edges: { select: { id: true, targetatom: true, corestate: true } },
+        instruments: {
+          select: {
+            id: true,
+            name: true,
+            facilities: { select: { id: true, name: true } },
+          },
+        },
+        _count: { select: { spectrumpoints: true } },
+      } satisfies Prisma.experimentsInclude;
+
+      const experiments = await ctx.db.experiments.findMany({
+        where,
+        take: input.limit,
+        orderBy: { createdat: "desc" },
+        include,
+      });
+
+      return { experiments };
+    }),
+
   findByPolarization: publicProcedure
     .input(
       z.object({
