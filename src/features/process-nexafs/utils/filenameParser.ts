@@ -90,3 +90,22 @@ export function normalizeExperimentMode(mode: string | null): string | null {
 
   return modeMap[normalized] ?? normalized;
 }
+
+export function normalizeFacilityToken(
+  facility: string | null,
+): string | null {
+  if (!facility) return null;
+  const t = facility.trim();
+  if (!t) return null;
+
+  const upperNoSpace = t.toUpperCase().replace(/\s+/g, "");
+
+  const facilityMap: Record<string, string> = {
+    ALS: "Advanced Light Source",
+    NSLSII: "National Synchrotron Light Source II",
+    ANSTO: "The Australian Synchrotron",
+    ANSTRO: "The Australian Synchrotron",
+  };
+
+  return facilityMap[upperNoSpace] ?? t;
+}

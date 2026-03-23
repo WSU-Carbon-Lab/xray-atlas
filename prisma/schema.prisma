@@ -87,6 +87,8 @@ model experiments {
   createdat              DateTime                 @default(now()) @db.Timestamptz(6)
   updatedat              DateTime                 @default(now()) @db.Timestamptz(6)
   experimenttype         ExperimentType?
+  nexafsexperimentkindid String?                 @db.Uuid
+  nexafsexperimentkind   nexafsexperimentkinds? @relation(fields: [nexafsexperimentkindid], references: [id], onUpdate: NoAction)
   experimentpublications experimentpublications[]
   experimentquality      experimentquality?
   calibrationmethods     calibrationmethods?      @relation(fields: [calibrationid], references: [id], onUpdate: NoAction)
@@ -104,6 +106,22 @@ model experiments {
   @@index([edgeid], map: "idx_experiments_edgeid")
   @@index([instrumentid], map: "idx_experiments_instrumentid")
   @@index([polarizationid], map: "idx_experiments_polarizationid")
+  @@index([nexafsexperimentkindid], map: "idx_experiments_nexafs_kindid")
+  @@schema("public")
+}
+
+model nexafsexperimentkinds {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  token         String                 @unique
+  label         String
+  experimenttype ExperimentType       @unique
+
+  createdat DateTime @default(now()) @db.Timestamptz(6)
+  updatedat DateTime @default(now()) @db.Timestamptz(6)
+
+  experiments experiments[]
+
   @@schema("public")
 }
 
@@ -180,6 +198,7 @@ model tags {
   name         String         @unique
   slug         String         @unique
   color        String?
+  tailwindColor String?      @map("tailwind_color")
   createdat    DateTime       @default(now()) @db.Timestamptz(6)
   moleculetags moleculetags[]
 

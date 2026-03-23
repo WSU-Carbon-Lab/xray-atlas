@@ -19,6 +19,7 @@ export {
   parseNexafsFilename,
   normalizeEdge,
   normalizeExperimentMode,
+  normalizeFacilityToken,
 } from "./filenameParser";
 export type { ParsedFilename } from "./filenameParser";
 export { parseNexafsJson } from "./jsonParser";

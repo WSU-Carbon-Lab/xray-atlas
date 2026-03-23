@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
+    "db:upsert:backlog-vendors": "bun run scripts/upsert-backlog-vendors.ts",
     "dev": "next dev --turbo",
     "dev:tunnel": "concurrently --kill-others \"next dev --turbo\" \"sleep 3 && ngrok http 3000\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",

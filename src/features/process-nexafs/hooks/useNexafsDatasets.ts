@@ -13,6 +13,7 @@ import {
   parseNexafsFilename,
   normalizeEdge,
   normalizeExperimentMode,
+  normalizeFacilityToken,
   parseNexafsJson,
   parseCSVFile,
 } from "../utils";
@@ -185,11 +186,14 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         }
 
         if (parsedFilename.facility) {
+          const normalizedFacility = normalizeFacilityToken(
+            parsedFilename.facility,
+          );
           const matchingInstrument = instrumentOptions.find((inst) => {
             const facilityName = inst.facilityName
               ?.toUpperCase()
               .replace(/\s+/g, "");
-            const parsedFacility = parsedFilename.facility
+            const parsedFacility = normalizedFacility
               ?.toUpperCase()
               .replace(/\s+/g, "");
             return (

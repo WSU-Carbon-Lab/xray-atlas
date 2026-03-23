@@ -552,11 +552,20 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const kind =
+        input.experimenttype != null
+          ? await ctx.db.nexafsexperimentkinds.findUnique({
+              where: { experimenttype: input.experimenttype },
+              select: { id: true },
+            })
+          : null;
+
       const experiment = await ctx.db.experiments.create({
         data: {
           ...input,
           createdby: ctx.userId ?? undefined,
           experimenttype: input.experimenttype ?? null,
+          nexafsexperimentkindid: kind?.id ?? null,
         },
         include: {
           samples: true,
@@ -672,6 +681,14 @@ export const experimentsRouter = createTRPCRouter({
       };
 
       const transactionResult = await ctx.db.$transaction(async (tx) => {
+        const kind =
+          experimentInput.experimentType != null
+            ? await tx.nexafsexperimentkinds.findUnique({
+                where: { experimenttype: experimentInput.experimentType },
+                select: { id: true },
+              })
+            : null;
+
         // Resolve vendor
         let vendorId: string | null = sampleInput.vendor.existingVendorId ?? null;
         const vendorNameTrimmed = sampleInput.vendor.name?.trim();
@@ -856,6 +873,7 @@ export const experimentsRouter = createTRPCRouter({
               measurementdate: measurementDate,
               createdby: ctx.userId ?? undefined,
               experimenttype: experimentInput.experimentType,
+              nexafsexperimentkindid: kind?.id ?? null,
             },
             include: {
               samples: true,
