@@ -10,19 +10,19 @@ export function BrowseTabs() {
   const isFacilities = pathname?.startsWith("/browse/facilities");
 
   return (
-    <div className="mb-8 border-b border-gray-200 dark:border-gray-700">
+    <div className="border-border mb-8 border-b">
       <nav className="-mb-px flex space-x-8">
         <Link
           href="/browse/molecules"
           className={`group inline-flex items-center border-b-2 px-1 py-4 text-sm font-medium transition-colors ${
             isMolecules
-              ? "border-accent text-accent dark:text-accent-light"
-              : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              ? "border-accent text-accent"
+              : "text-muted border-transparent hover:border-border-strong hover:text-foreground"
           }`}
         >
           <BeakerIcon
             className={`-ml-0.5 mr-2 h-5 w-5 ${
-              isMolecules ? "text-accent dark:text-accent-light" : "text-gray-400 group-hover:text-gray-500"
+              isMolecules ? "text-accent" : "text-muted group-hover:text-foreground"
             }`}
           />
           Molecules
@@ -31,13 +31,13 @@ export function BrowseTabs() {
           href="/browse/facilities"
           className={`group inline-flex items-center border-b-2 px-1 py-4 text-sm font-medium transition-colors ${
             isFacilities
-              ? "border-accent text-accent dark:text-accent-light"
-              : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              ? "border-accent text-accent"
+              : "text-muted border-transparent hover:border-border-strong hover:text-foreground"
           }`}
         >
           <BuildingOfficeIcon
             className={`-ml-0.5 mr-2 h-5 w-5 ${
-              isFacilities ? "text-accent dark:text-accent-light" : "text-gray-400 group-hover:text-gray-500"
+              isFacilities ? "text-accent" : "text-muted group-hover:text-foreground"
             }`}
           />
           Facilities

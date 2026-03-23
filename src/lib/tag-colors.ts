@@ -15,6 +15,53 @@ export function pickRandomTagColor(): string {
   return TAG_COLOR_NAMES[idx] ?? "gray";
 }
 
+export const TAG_COLOR_PRESET_HEX = [
+  "#ef4444",
+  "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#06b6d4",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#f43f5e",
+] as const;
+
+export function pickRandomTagHex(): string {
+  const arr = TAG_COLOR_PRESET_HEX;
+  const i = Math.floor(Math.random() * arr.length);
+  return arr[i] ?? arr[0];
+}
+
+const NAMED_TAG_FALLBACK_HEX: Record<string, string> = {
+  blue: "#3b82f6",
+  green: "#22c55e",
+  pink: "#ec4899",
+  red: "#ef4444",
+  orange: "#f97316",
+  purple: "#8b5cf6",
+  gray: "#64748b",
+  grey: "#64748b",
+  slate: "#64748b",
+  emerald: "#22c55e",
+  violet: "#8b5cf6",
+  amber: "#f59e0b",
+  rose: "#f43f5e",
+};
+
+export function resolveTagColorToHex(color: string | null | undefined): string {
+  if (color == null || color === "") {
+    return TAG_COLOR_PRESET_HEX[0];
+  }
+  const t = color.trim();
+  if (/^#[0-9A-Fa-f]{6}$/.test(t)) {
+    return t.toLowerCase();
+  }
+  const named = NAMED_TAG_FALLBACK_HEX[t.toLowerCase()];
+  if (named) return named;
+  return TAG_COLOR_PRESET_HEX[0];
+}
+
 export const TAG_COLOR_TO_CHIP: Record<string, string> = {
   blue: "bg-blue-500/20 text-blue-800 dark:bg-blue-500/30 dark:text-blue-200",
   green:

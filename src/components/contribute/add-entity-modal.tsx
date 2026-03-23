@@ -51,7 +51,7 @@ export function AddEntityModal({
   const isCompact = variant === "compact";
   const triggerBaseClasses = isCompact
     ? "group inline-flex items-center gap-3 rounded-xl border border-border-default bg-surface-1 px-4 py-3 text-left transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-md dark:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-    : "group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border border-border-default bg-zinc-50 px-6 py-6 text-left shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md dark:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2";
+    : "group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border border-border-default bg-surface-1 px-6 py-6 text-left shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2";
 
   return (
     <>
@@ -61,27 +61,27 @@ export function AddEntityModal({
         className={`${triggerBaseClasses} ${fullWidth ? "" : "md:w-auto"} ${triggerClassName}`}
       >
         <div className="flex flex-col gap-2">
-          <span className="text-accent dark:text-accent-light text-sm font-semibold tracking-wide uppercase">
+          <span className="text-accent text-sm font-semibold tracking-wide uppercase">
             {triggerLabel}
           </span>
           {description && (
-            <span className="text-base text-gray-700 transition-colors duration-200 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-gray-100">
+            <span className="text-foreground text-base transition-colors duration-200 group-hover:opacity-90">
               {description}
             </span>
           )}
           {triggerDescription && (
-            <span className="text-sm text-gray-500 dark:text-gray-400">
+            <span className="text-muted text-sm">
               {triggerDescription}
             </span>
           )}
         </div>
         {Icon && !isCompact && (
-          <div className="group-hover:text-accent dark:text-accent-light hidden shrink-0 text-gray-300 transition-colors duration-200 md:block">
+          <div className="text-muted group-hover:text-accent hidden shrink-0 transition-colors duration-200 md:block">
             <Icon className="h-16 w-16" aria-hidden="true" />
           </div>
         )}
         {Icon && isCompact && (
-          <div className="group-hover:text-accent dark:text-accent-light shrink-0 text-gray-300 transition-colors duration-200">
+          <div className="text-muted group-hover:text-accent shrink-0 transition-colors duration-200">
             <Icon className="h-6 w-6" aria-hidden="true" />
           </div>
         )}
@@ -113,15 +113,15 @@ export function AddEntityModal({
                 leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
               >
                 <Dialog.Panel
-                  className={`relative w-full ${sizeToPanelClass[size]} transform overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl transition-all dark:border-gray-700 dark:bg-gray-900`}
+                  className={`border-border bg-surface relative w-full ${sizeToPanelClass[size]} transform overflow-hidden rounded-3xl border shadow-2xl transition-all`}
                 >
-                  <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5 dark:border-gray-800">
+                  <div className="border-border flex items-start justify-between border-b px-6 py-5">
                     <div>
-                      <Dialog.Title className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                      <Dialog.Title className="text-foreground text-2xl font-semibold">
                         {title}
                       </Dialog.Title>
                       {description && (
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-muted mt-1 text-sm">
                           {description}
                         </p>
                       )}
@@ -129,7 +129,7 @@ export function AddEntityModal({
                     <button
                       type="button"
                       onClick={close}
-                      className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                      className="text-muted hover:bg-default hover:text-foreground rounded-full p-2 transition-colors"
                     >
                       <XMarkIcon className="h-5 w-5" />
                     </button>

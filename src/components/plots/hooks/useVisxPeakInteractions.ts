@@ -5,6 +5,7 @@
 import { useCallback, useEffect } from "react";
 import type { Peak, PlotDimensions } from "../types";
 import type { VisxScales } from "./useVisxScales";
+import { peakStableId } from "../utils/peakStableId";
 
 export function useVisxPeakInteractions({
   peaks,
@@ -36,7 +37,7 @@ export function useVisxPeakInteractions({
 
   // Find closest peak to a click position
   const findClosestPeak = useCallback(
-    (clickX: number, clickY: number): Peak | null => {
+    (clickX: number, clickY: number): { peak: Peak; index: number } | null => {
       if (peaks.length === 0) return null;
 
       const adjustedX = clickX - dimensions.margins.left;
@@ -67,17 +68,22 @@ export function useVisxPeakInteractions({
       const threshold = Math.min(energyRange * 0.02, 2.0); // 2% of range or 2 eV
 
       let closestPeak: Peak | null = null;
+      let closestIndex = -1;
       let minDistance = Infinity;
 
-      for (const peak of peaks) {
+      for (let i = 0; i < peaks.length; i++) {
+        const peak = peaks[i]!;
         const distance = Math.abs(peak.energy - clickEnergy);
         if (distance < minDistance && distance < threshold) {
           minDistance = distance;
           closestPeak = peak;
+          closestIndex = i;
         }
       }
 
-      return closestPeak;
+      return closestPeak && closestIndex >= 0
+        ? { peak: closestPeak, index: closestIndex }
+        : null;
     },
     [peaks, scales.xScale, dimensions.margins, plotWidth, plotHeight],
   );
@@ -101,24 +107,37 @@ export function useVisxPeakInteractions({
         return;
       }
 
-      // Manual peak mode: add peak at click position
-      if (isManualPeakMode && onPeakAdd) {
-        const adjustedX = clickX - dimensions.margins.left;
-        const energy = scales.xScale.invert(adjustedX);
-        onPeakAdd(Math.round(energy * 100) / 100);
+      const hit = findClosestPeak(clickX, clickY);
+
+      if (isManualPeakMode) {
+        if (hit) {
+          if (!onPeakSelect) return;
+          const peakId = peakStableId(hit.peak, hit.index);
+          const currentSelectedId = selectedPeakId;
+          onPeakSelect(currentSelectedId === peakId ? null : peakId);
+          return;
+        }
+
+        if (onPeakAdd) {
+          const adjustedX = clickX - dimensions.margins.left;
+          const energy = scales.xScale.invert(adjustedX);
+          onPeakAdd(Math.round(energy * 100) / 100);
+          return;
+        }
+
+        if (onPeakSelect) {
+          onPeakSelect(null);
+        }
         return;
       }
 
-      // Normal mode: select/deselect peak
+      // Explore mode: click selects/deselects peaks
       if (!onPeakSelect) return;
-
-      const closestPeak = findClosestPeak(clickX, clickY);
-      if (closestPeak) {
-        const peakId = closestPeak.id ?? `peak-${closestPeak.energy}`;
+      if (hit) {
+        const peakId = peakStableId(hit.peak, hit.index);
         const currentSelectedId = selectedPeakId;
         onPeakSelect(currentSelectedId === peakId ? null : peakId);
       } else {
-        // Click on empty space: deselect
         onPeakSelect(null);
       }
     },

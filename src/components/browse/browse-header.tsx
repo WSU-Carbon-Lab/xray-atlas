@@ -49,22 +49,25 @@ export function BrowseHeader({
           variant="secondary"
           className="w-full"
         >
-          <SearchField.Group className="flex h-12 min-h-12 w-full flex-row items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 dark:border-gray-600 dark:bg-gray-800">
-            <SearchField.SearchIcon className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+          <SearchField.Group className="border-border bg-surface flex h-12 min-h-12 w-full flex-row items-center gap-2 rounded-lg border px-4">
+            <SearchField.SearchIcon className="text-muted h-4 w-4 shrink-0" />
             <SearchField.Input
               ref={inputRef}
               placeholder={searchPlaceholder}
-              className="min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none outline-none placeholder:text-gray-500 dark:placeholder:text-gray-400"
+              className="text-foreground placeholder:text-muted min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none outline-none"
               aria-label="Search"
               aria-keyshortcuts="Meta+K"
             />
             {searchValue ? (
-              <SearchField.ClearButton className="h-6 w-6 shrink-0 rounded p-0.5 text-gray-500 dark:text-gray-400" />
+              <SearchField.ClearButton className="text-muted h-6 w-6 shrink-0 rounded p-0.5" />
             ) : (
-              <div className="flex shrink-0 items-center gap-0.5 rounded border border-gray-300/60 bg-gray-100/80 px-1.5 py-0.5 font-sans text-[10px] font-medium text-gray-600 dark:border-gray-500/60 dark:bg-gray-700/80 dark:text-gray-300">
-                <span aria-hidden>⌘</span>
+              <kbd
+                className="border-border-strong bg-default text-foreground flex shrink-0 items-center gap-0.5 rounded-md border px-2 py-1 font-sans text-[11px] font-medium tabular-nums shadow-sm"
+                aria-hidden
+              >
+                <span>⌘</span>
                 <span>{searchShortcutKey}</span>
-              </div>
+              </kbd>
             )}
           </SearchField.Group>
         </SearchField>
@@ -77,6 +80,6 @@ export function BrowseHeader({
 }
 
 const selectClasses =
-  "focus:border-accent focus:ring-accent min-w-[9rem] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100";
+  "border-border bg-surface text-foreground focus:border-accent focus:ring-accent min-w-[9rem] rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none";
 
 export { selectClasses };

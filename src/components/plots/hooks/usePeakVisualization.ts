@@ -5,8 +5,10 @@
 
 import { useMemo } from "react";
 import type { TraceData, SpectrumPoint, Peak } from "../types";
-import { generateGaussianPeak } from "~/app/contribute/nexafs/utils";
+import { generateGaussianPeak } from "../utils/generateGaussianPeak";
+import { PEAK_COLORS } from "../constants";
 import { filterPointsByGeometry, buildGeometryLabel } from "../utils/trace-utils";
+import { peakStableId } from "../utils/peakStableId";
 
 export type PeakVisualizationResult = {
   selectedGeometryPoints: SpectrumPoint[] | null;
@@ -36,55 +38,53 @@ export function usePeakVisualization(
       return [];
     }
 
-    // Filter out step peaks from visualization
-    const nonStepPeaks = peaks.filter((peak) => !peak.isStep);
-    if (nonStepPeaks.length === 0) {
+    const hasRenderable = peaks.some((p) => !p.isStep);
+    if (!hasRenderable) {
       return [];
     }
 
-    // Get energy range from selected geometry points
     if (selectedGeometryPoints.length === 0) return [];
 
     const energies = selectedGeometryPoints.map((p) => p.energy).sort((a, b) => a - b);
     const minEnergy = energies[0] ?? 0;
     const maxEnergy = energies[energies.length - 1] ?? 0;
 
-    // Create a fine energy grid for smooth Gaussian curves
     const numPoints = Math.max(200, selectedGeometryPoints.length);
     const energyRange: number[] = [];
     for (let i = 0; i < numPoints; i++) {
       energyRange.push(minEnergy + (maxEnergy - minEnergy) * (i / (numPoints - 1)));
     }
 
-    // Generate individual peak traces
-    return nonStepPeaks.map((peak, peakIndex) => {
-      const peakId =
-        peak.id ?? `peak-${peakIndex}-${peak.energy}`;
+    const out: TraceData[] = [];
+    let displayIndex = 0;
+    for (let peakIndex = 0; peakIndex < peaks.length; peakIndex++) {
+      const peak = peaks[peakIndex]!;
+      if (peak.isStep) continue;
+      const peakId = peakStableId(peak, peakIndex);
       const isSelected = selectedPeakId === peakId;
+      displayIndex += 1;
 
-      // Use default amplitude and width if not specified
       const amplitude = peak.amplitude ?? 1;
       const width = peak.width ?? 0.1;
 
-      // Generate Gaussian curve
       const intensities = generateGaussianPeak(
         { energy: peak.energy, amplitude, width },
         energyRange,
       );
 
-      return {
+      out.push({
         type: "scattergl",
         mode: "lines",
-        name: `Peak ${peakIndex + 1}`,
+        name: `Peak ${displayIndex}`,
         x: energyRange,
         y: intensities,
         line: {
-          color: isSelected ? "#a60f2d" : "#6b7280",
+          color: isSelected ? PEAK_COLORS.selected : PEAK_COLORS.unselected,
           width: isSelected ? 2 : 1.5,
-          dash: "dash",
+          dash: isSelected ? "solid" : "dash",
         },
         hovertemplate:
-          `<b>Peak ${peakIndex + 1}</b><br>` +
+          `<b>Peak ${displayIndex}</b><br>` +
           `Energy: ${peak.energy.toFixed(2)} eV<br>` +
           `Amplitude: ${amplitude.toFixed(3)}<br>` +
           `Width: ${width.toFixed(3)} eV` +
@@ -92,8 +92,9 @@ export function usePeakVisualization(
         showlegend: false,
         xaxis: "x2",
         yaxis: "y2",
-      };
-    });
+      });
+    }
+    return out;
   }, [selectedGeometry, selectedGeometryPoints, peaks, selectedPeakId]);
 
   // Generate trace for selected geometry spectrum
@@ -114,12 +115,12 @@ export function usePeakVisualization(
       x: energies,
       y: absorptions,
       marker: {
-        color: "#d7263d",
+        color: PEAK_COLORS.selected,
         size: 4,
         opacity: 0.7,
       },
       line: {
-        color: "#d7263d",
+        color: PEAK_COLORS.selected,
         width: 2,
       },
       hovertemplate:

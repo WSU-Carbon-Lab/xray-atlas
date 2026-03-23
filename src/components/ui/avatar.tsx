@@ -76,7 +76,7 @@ export function AvatarButton({
       <Button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="focus-visible:ring-accent flex h-10 w-10 items-center justify-center rounded-full transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        className="border-border bg-surface focus-visible:ring-accent flex h-10 w-10 items-center justify-center rounded-full border transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         aria-label="User menu"
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -91,14 +91,14 @@ export function AvatarButton({
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute top-full right-0 z-50 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-            <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+          <div className="border-border bg-surface absolute top-full right-0 z-50 mt-2 w-64 rounded-lg border shadow-lg">
+            <div className="border-border border-b px-4 py-3">
               <div className="flex items-center gap-3">
                 <CustomAvatar user={user} size="md" />
                 <div className="flex flex-col gap-0.5">
                   <a
                     href={`/users/${user.id}`}
-                    className="hover:text-accent dark:hover:text-accent-light text-sm font-medium text-gray-900 transition-colors dark:text-gray-100"
+                    className="text-foreground hover:text-accent text-sm font-medium transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleAction("profile");
@@ -111,7 +111,7 @@ export function AvatarButton({
                       href={`https://orcid.org/${user.orcid}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-accent dark:hover:text-accent-light flex items-center gap-1.5 text-xs text-gray-500 transition-colors dark:text-gray-400"
+                      className="text-muted hover:text-accent flex items-center gap-1.5 text-xs transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <ORCIDIcon className="h-3 w-3 shrink-0" authenticated />
@@ -121,7 +121,7 @@ export function AvatarButton({
                   {user.email && (
                     <a
                       href={`mailto:${user.email}`}
-                      className="hover:text-accent dark:hover:text-accent-light text-xs text-gray-500 transition-colors dark:text-gray-400"
+                      className="text-muted hover:text-accent text-xs transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {user.email}
@@ -133,14 +133,14 @@ export function AvatarButton({
             <div className="py-1">
               <button
                 onClick={() => handleAction("profile")}
-                className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
               >
                 <UserIcon className="h-4 w-4" />
                 Profile
               </button>
               <button
                 disabled
-                className="flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm text-gray-400 dark:text-gray-500"
+                className="text-muted flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm opacity-60"
                 title="Coming soon"
               >
                 <LayoutDashboard className="h-4 w-4" />
@@ -148,17 +148,17 @@ export function AvatarButton({
               </button>
               <button
                 disabled
-                className="flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm text-gray-400 dark:text-gray-500"
+                className="text-muted flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm opacity-60"
                 title="Coming soon"
               >
                 <Users className="h-4 w-4" />
                 Create Team
               </button>
             </div>
-            <div className="border-t border-gray-200 py-1 dark:border-gray-700">
+            <div className="border-border border-t py-1">
               <button
                 onClick={() => handleAction("logout")}
-                className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                className="text-danger hover:bg-danger/10 flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
               >
                 <LogOut className="h-4 w-4" />
                 Log Out
@@ -323,7 +323,7 @@ function AvatarWithTooltip({
             className="z-tooltip pointer-events-none fixed -translate-x-1/2 -translate-y-full"
             style={{ left: position.left, top: position.top }}
           >
-            <div className="rounded-full bg-slate-200 px-2.5 py-1 text-sm font-medium text-slate-900 shadow-lg dark:bg-slate-700 dark:text-slate-100">
+            <div className="bg-foreground text-background rounded-full px-2.5 py-1 text-sm font-medium shadow-lg">
               {userName}
             </div>
           </div>,

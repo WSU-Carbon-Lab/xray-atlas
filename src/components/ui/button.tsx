@@ -18,10 +18,15 @@ type DefaultButtonProps = React.ComponentProps<typeof HeroButton>;
 export function DefaultButton({
   children,
   className,
+  variant = "primary",
   ...props
 }: DefaultButtonProps) {
-  const baseClassName = "cursor-pointer border-default text-foreground flex h-8 items-center gap-2 rounded-lg border px-3 backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 hover:bg-white/90 dark:hover:bg-gray-800/90 transition-[background-color,box-shadow] shadow-sm hover:shadow-md [touch-action:manipulation]";
-  
+  const variantClasses =
+    variant === "outline"
+      ? "bg-surface hover:bg-default border-border"
+      : "bg-accent text-accent-foreground border-accent hover:opacity-90";
+  const baseClassName = `cursor-pointer flex h-8 items-center gap-2 rounded-lg border px-3 shadow-sm transition-[background-color,box-shadow] hover:shadow-md [touch-action:manipulation] border-border text-foreground ${variantClasses}`;
+
   const resolvedClassName = typeof className === "string" 
     ? `${baseClassName} ${className}` 
     : typeof className === "function"
@@ -34,7 +39,7 @@ export function DefaultButton({
   return (
     <HeroButton
       {...props}
-      variant={props.variant ?? "primary"}
+      variant={variant}
       size={props.size ?? "md"}
       className={resolvedClassName}
     >

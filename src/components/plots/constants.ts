@@ -11,6 +11,30 @@ export const CATEGORICAL_COLORS = [
 
 export const COLORS = CATEGORICAL_COLORS;
 
+export const SPECTRUM_TRACE_GRADIENT_DARK = [
+  "#94a3b8",
+  "#64748b",
+  "#475569",
+  "#78716c",
+  "#b91c1c",
+  "#dc2626",
+  "#ef4444",
+  "#f87171",
+] as const;
+
+export const SPECTRUM_TRACE_GRADIENT_LIGHT = [
+  "#64748b",
+  "#475569",
+  "#94a3b8",
+  "#cbd5e1",
+  "#b91c1c",
+  "#dc2626",
+  "#ef4444",
+  "#fca5a5",
+] as const;
+
+export const SPECTRUM_TRACE_GRADIENT = SPECTRUM_TRACE_GRADIENT_DARK;
+
 export const SEQUENTIAL_SCALES = {
   blue: ["#eff6ff", "#bfdbfe", "#60a5fa", "#2563eb", "#1e40af"],
   indigo: ["#eef2ff", "#c7d2fe", "#818cf8", "#4f46e5", "#3730a3"],
@@ -24,45 +48,56 @@ export const DIVERGING_SCALES = {
 
 export const DEFAULT_PLOT_HEIGHT = 360;
 
+export const FILL_CONTAINER_MIN_HEIGHT = 640;
+
 export const PLOT_HEIGHTS = {
-  compact: 240,
+  compact: 280,
   default: 360,
   expanded: 480,
 } as const;
 
 export const MARGINS = {
-  top: 16,
-  right: 24,
-  bottom: 120,
-  left: 78,
+  top: 24,
+  right: 28,
+  bottom: 88,
+  left: 52,
   pad: 0,
 } as const;
 
 export const SUBPLOT_MARGINS = {
-  top: 16,
-  right: 24,
-  bottom: 16,
-  left: 78,
+  top: 24,
+  right: 28,
+  bottom: 20,
+  left: 52,
   pad: 0,
 } as const;
+
+export const PLOT_FRAME_RADIUS = 8;
+
+export const OVERVIEW_HEIGHT = 100;
+export const OVERVIEW_GAP = 6;
+export const OVERVIEW_MARGINS = { top: 6, right: 28, bottom: 32, left: 52 } as const;
+
+export const BRUSH_SELECTION_COLOR = "rgba(202, 18, 55, 0.22)";
+export const BRUSH_SELECTION_BORDER_COLOR = "rgba(202, 18, 55, 0.75)";
 
 export const THEME_COLORS = {
   light: {
     background: "#ffffff",
     paper: "#f8fafc",
     plot: "#ffffff",
-    grid: "rgba(148, 163, 184, 0.2)",
-    gridStrong: "rgba(148, 163, 184, 0.4)",
-    axis: "#64748b",
-    text: "#475569",
+    grid: "rgba(148, 163, 184, 0.14)",
+    gridStrong: "rgba(148, 163, 184, 0.28)",
+    axis: "#94a3b8",
+    text: "#64748b",
     textSecondary: "#94a3b8",
     hoverBg: "#f8fafc",
     hoverText: "#111827",
     legendBg: "rgba(255, 255, 255, 0.95)",
     legendBorder: "rgba(148, 163, 184, 0.3)",
     crosshair: "rgba(71, 85, 105, 0.5)",
-    selection: "rgba(99, 102, 241, 0.1)",
-    selectionBorder: "rgba(99, 102, 241, 0.5)",
+    selection: "rgba(202, 18, 55, 0.18)",
+    selectionBorder: "rgba(202, 18, 55, 0.65)",
   },
   dark: {
     background: "#0f172a",
@@ -78,8 +113,8 @@ export const THEME_COLORS = {
     legendBg: "rgba(30, 41, 59, 0.95)",
     legendBorder: "rgba(71, 85, 105, 0.5)",
     crosshair: "rgba(148, 163, 184, 0.5)",
-    selection: "rgba(129, 140, 248, 0.15)",
-    selectionBorder: "rgba(129, 140, 248, 0.6)",
+    selection: "rgba(202, 18, 55, 0.22)",
+    selectionBorder: "rgba(202, 18, 55, 0.7)",
   },
 } as const;
 
@@ -94,8 +129,10 @@ export const NORMALIZATION_COLORS = {
   postHandle: "#10b981",
 } as const;
 
+export const PEAK_SELECTION_ACCENT = "var(--accent)";
+
 export const PEAK_COLORS = {
-  selected: "#6366f1",
+  selected: PEAK_SELECTION_ACCENT,
   unselected: "#94a3b8",
   hover: "#818cf8",
   fitted: "#8b5cf6",
@@ -109,11 +146,11 @@ export const FONT_CONFIG = {
   family: "Inter, system-ui, sans-serif",
   mono: "JetBrains Mono, Fira Code, monospace",
   size: {
-    axis: 12,
-    label: 13,
-    title: 14,
-    legend: 12,
-    tooltip: 13,
+    axis: 13,
+    label: 14,
+    title: 15,
+    legend: 13,
+    tooltip: 14,
   },
   weight: {
     normal: 400,
@@ -123,11 +160,11 @@ export const FONT_CONFIG = {
 } as const;
 
 export const AXIS_CONFIG = {
-  fontSize: 12,
+  fontSize: 13,
   fontWeight: 500,
   tickSize: 5,
   tickPadding: 8,
-  labelPadding: 40,
+  labelPadding: 42,
 } as const;
 
 export const LINE_CONFIG = {

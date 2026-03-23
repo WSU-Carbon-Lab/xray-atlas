@@ -2,6 +2,7 @@
  * Core type definitions for spectrum plotting
  * Extracted from SpectrumPlot.tsx for reuse across renderers
  */
+import type { ReactNode } from "react";
 
 export type SpectrumPoint = {
   energy: number;
@@ -35,12 +36,23 @@ export type NormalizationRegions = {
   post: [number, number] | null;
 };
 
+export type PlotContext =
+  | { kind: "explore" }
+  | { kind: "normalize"; target: "pre" | "post" }
+  | { kind: "peak-edit" };
+
 export type Peak = {
   energy: number;
   amplitude?: number;
   width?: number;
   id?: string;
   isStep?: boolean;
+  peakKind?: string | null;
+};
+
+export type PeakAnnotationPatch = {
+  energy?: number;
+  peakKind?: string | null;
 };
 
 export type DifferenceSpectrum = {
@@ -49,23 +61,34 @@ export type DifferenceSpectrum = {
   preferred?: boolean;
 };
 
+export type GraphStyle = "line" | "scatter" | "area";
+
+export type SpectrumYAxisQuantity =
+  | "optical-density"
+  | "mass-absorption"
+  | "beta"
+  | "intensity";
+
 export type SpectrumPlotProps = {
   points: SpectrumPoint[];
   height?: number;
+  graphStyle?: GraphStyle;
   energyStats?: AxisStats;
   absorptionStats?: AxisStats;
+  yAxisQuantity?: SpectrumYAxisQuantity;
   referenceCurves?: ReferenceCurve[];
   normalizationRegions?: NormalizationRegions;
-  selectionTarget?: "pre" | "post" | null;
+  plotContext?: PlotContext;
   onSelectionChange?: (selection: SpectrumSelection | null) => void;
   peaks?: Peak[];
   selectedPeakId?: string | null;
   onPeakUpdate?: (peakId: string, energy: number) => void;
+  onPeakPatch?: (peakId: string, patch: PeakAnnotationPatch) => void;
   onPeakSelect?: (peakId: string | null) => void;
   onPeakDelete?: (peakId: string) => void;
   onPeakAdd?: (energy: number) => void;
-  isManualPeakMode?: boolean;
   differenceSpectra?: DifferenceSpectrum[];
+  headerRight?: ReactNode;
   showThetaData?: boolean;
   showPhiData?: boolean;
   selectedGeometry?: { theta?: number; phi?: number } | null;
@@ -95,6 +118,8 @@ export type TraceData = {
   showlegend?: boolean;
   xaxis?: string;
   yaxis?: string;
+  theta?: number;
+  phi?: number;
 };
 
 /**

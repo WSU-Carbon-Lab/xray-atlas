@@ -18,16 +18,16 @@ export function FieldTooltip({ description }: FieldTooltipProps) {
         onMouseLeave={() => setShowTooltip(false)}
         onFocus={() => setShowTooltip(true)}
         onBlur={() => setShowTooltip(false)}
-        className="ml-1.5 text-gray-400 hover:text-accent dark:text-accent-light focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1 rounded-full transition-colors dark:text-gray-500 dark:hover:text-accent dark:text-accent-light"
+        className="ml-1.5 rounded-full text-muted transition-colors hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1"
         aria-label={`Tooltip: ${description}`}
       >
         <InformationCircleIcon className="h-4 w-4" />
       </button>
       {showTooltip && (
-        <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 transform">
-          <div className="rounded-lg bg-gray-900 px-3 py-2 text-sm text-white shadow-lg dark:bg-gray-700">
+        <div className="absolute left-1/2 top-full z-[var(--z-dropdown)] mt-2 w-64 -translate-x-1/2 transform">
+          <div className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground shadow-lg">
             <p className="whitespace-normal">{description}</p>
-            <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+            <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-surface" />
           </div>
         </div>
       )}

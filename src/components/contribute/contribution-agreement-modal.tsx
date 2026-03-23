@@ -91,7 +91,7 @@ export function ContributionAgreementModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/25 backdrop-blur-sm dark:bg-black/50" />
+          <div className="fixed inset-0 bg-black/25 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -105,18 +105,18 @@ export function ContributionAgreementModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-3xl transform overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 text-left align-middle shadow-xl transition-all dark:border-gray-700 dark:bg-gray-800">
+              <Dialog.Panel className="border-border bg-surface w-full max-w-3xl transform overflow-hidden rounded-2xl border p-6 text-left align-middle shadow-xl transition-all">
                 <div className="mb-6">
                   <Dialog.Title
                     as="h3"
-                    className="text-2xl leading-6 font-bold text-gray-900 dark:text-gray-100"
+                    className="text-foreground text-2xl font-bold leading-6"
                   >
                     Contribution Agreement
                   </Dialog.Title>
                 </div>
 
                 <div className="mb-6">
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <p className="text-muted">
                     Please answer the following questions before proceeding with
                     your contribution. Your agreement will be saved so you
                     won&rsquo;t need to answer these again.
@@ -127,13 +127,13 @@ export function ContributionAgreementModal({
                   {QUESTIONS.map((question) => (
                     <div
                       key={question.id}
-                      className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900"
+                      className="border-border bg-default rounded-lg border p-4"
                     >
                       <div className="mb-3">
-                        <label className="text-base font-medium text-gray-900 dark:text-gray-100">
+                        <label className="text-foreground text-base font-medium">
                           {question.question}
                           {question.required && (
-                            <span className="ml-2 text-red-500">*</span>
+                            <span className="text-danger ml-2">*</span>
                           )}
                         </label>
                       </div>
@@ -143,8 +143,8 @@ export function ContributionAgreementModal({
                           onClick={() => handleAnswer(question.id, true)}
                           className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                             answers[question.id] === true
-                              ? "border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
-                              : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                              ? "border-success bg-success/10 text-success-foreground"
+                              : "border-border bg-surface text-foreground hover:bg-default"
                           }`}
                         >
                           <CheckCircleIcon className="h-5 w-5" />
@@ -155,8 +155,8 @@ export function ContributionAgreementModal({
                           onClick={() => handleAnswer(question.id, false)}
                           className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                             answers[question.id] === false
-                              ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
-                              : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                              ? "border-danger bg-danger/10 text-danger-foreground"
+                              : "border-border bg-surface text-foreground hover:bg-default"
                           }`}
                         >
                           <XCircleIcon className="h-5 w-5" />
@@ -166,7 +166,7 @@ export function ContributionAgreementModal({
                       {question.required &&
                         answers[question.id] === false &&
                         answers[question.id] !== undefined && (
-                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                          <p className="text-danger mt-2 text-sm">
                             This question must be answered &quot;Yes&quot; to
                             proceed.
                           </p>
@@ -175,7 +175,7 @@ export function ContributionAgreementModal({
                   ))}
                 </div>
 
-                <div className="flex items-center justify-center border-t border-gray-200 pt-6 dark:border-gray-700">
+                <div className="border-border flex items-center justify-center border-t pt-6">
                   <Button
                     variant="primary"
                     onClick={handleAgree}

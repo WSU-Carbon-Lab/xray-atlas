@@ -1,36 +1,44 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DefaultButton as Button } from "@/components/ui/button";
-import { ContributionAgreementModal } from "@/components/contribute";
+import {
+  ContributionAgreementModal,
+  ContributionFileDropOverlay,
+} from "@/components/contribute";
+import type { ContributionFileDropOverlayFileKind } from "@/components/contribute";
 import { trpc } from "~/trpc/client";
 import {
-  BuildingOfficeIcon,
-  PlusIcon,
-  XMarkIcon,
-  ExclamationTriangleIcon,
-} from "@heroicons/react/24/outline";
+  FacilityIdentitySection,
+  NewInstrumentsAccordion,
+  RegisteredInstrumentsAccordion,
+  type FacilityFormState,
+  type InstrumentFormData,
+} from "~/components/forms";
+import { BuildingOfficeIcon, PlusIcon, WrenchScrewdriverIcon } from "@heroicons/react/24/outline";
+import type { Key } from "@heroui/react";
+import { Breadcrumbs, Button, Card, Form, Separator, Tabs } from "@heroui/react";
+import { parseFacilityJsonFile } from "~/app/contribute/facility/utils/parse-facility-json";
+import { parseFacilityCsvFile } from "~/app/contribute/facility/utils/parse-facility-csv";
+
+import { skipToken } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type FacilityCreateResult = RouterOutputs["facilities"]["create"];
 
-interface InstrumentFormData {
-  name: string;
-  link: string;
-  status: "active" | "inactive" | "under_maintenance";
-}
-
 type FacilityContributePageProps = {
   variant?: "page" | "modal";
-  onCompleted?: (payload: { facilityId: string; instrumentId?: string }) => void;
+  onCompleted?: (payload: {
+    facilityId: string;
+    instrumentId?: string;
+  }) => void;
   onClose?: () => void;
 };
 
+type ContributeStep = "facility" | "instruments";
 
 export default function FacilityContributePage({
   variant = "page",
@@ -43,17 +51,18 @@ export default function FacilityContributePage({
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const isModal = variant === "modal";
 
-
   const handleAgreementAccepted = () => {
     setShowAgreementModal(false);
   };
-  const [facilityData, setFacilityData] = useState({
+  const [facilityData, setFacilityData] = useState<FacilityFormState>({
     name: "",
     city: "",
     country: "",
-    facilityType: "LAB_SOURCE" as "SYNCHROTRON" | "FREE_ELECTRON_LASER" | "LAB_SOURCE",
+    facilityType: "LAB_SOURCE",
   });
   const [instruments, setInstruments] = useState<InstrumentFormData[]>([]);
+  const [contributeStep, setContributeStep] =
+    useState<ContributeStep>("facility");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
     type: "success" | "error" | null;
@@ -66,8 +75,162 @@ export default function FacilityContributePage({
     country: string | null;
     instruments: Array<{ id: string; name: string }>;
   } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedFileType, setDraggedFileType] =
+    useState<ContributionFileDropOverlayFileKind | null>(null);
+  const [draggedFileName, setDraggedFileName] = useState<string | null>(null);
+  const dragCounterRef = useRef(0);
 
-  // Check for existing facility
+  const handleJsonDropped = useCallback(async (file: File) => {
+    try {
+      const parsed = await parseFacilityJsonFile(file);
+      setSubmitStatus({ type: null, message: "" });
+      setFacilityData((prev) => ({
+        ...prev,
+        name: parsed.name || prev.name,
+        city: parsed.city ?? prev.city,
+        country: parsed.country ?? prev.country,
+        facilityType: parsed.facilityType,
+      }));
+      setInstruments(
+        parsed.instruments.length > 0
+          ? parsed.instruments.map((inst) => ({
+              name: inst.name,
+              link: inst.link ?? "",
+              status: inst.status,
+            }))
+          : [],
+      );
+    } catch (err) {
+      setSubmitStatus({
+        type: "error",
+        message:
+          err instanceof Error ? err.message : "Failed to parse JSON file",
+      });
+    }
+  }, []);
+
+  const handleCsvDropped = useCallback(async (file: File) => {
+    try {
+      const parsed = await parseFacilityCsvFile(file);
+      setSubmitStatus({ type: null, message: "" });
+      setFacilityData((prev) => ({
+        ...prev,
+        name: parsed.name || prev.name,
+        city: parsed.city ?? prev.city,
+        country: parsed.country ?? prev.country,
+        facilityType: parsed.facilityType,
+      }));
+      setInstruments(
+        parsed.instruments.length > 0
+          ? parsed.instruments.map((inst) => ({
+              name: inst.name,
+              link: inst.link ?? "",
+              status: inst.status,
+            }))
+          : [],
+      );
+    } catch (err) {
+      setSubmitStatus({
+        type: "error",
+        message:
+          err instanceof Error ? err.message : "Failed to parse CSV file",
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current++;
+      if (e.dataTransfer?.types.includes("Files")) {
+        const items = Array.from(e.dataTransfer?.items ?? []);
+        const fileTypes = items
+          .filter((item) => item.kind === "file")
+          .map((item) => {
+            const f = item.getAsFile();
+            const name = f?.name.toLowerCase() ?? "";
+            if (name.endsWith(".json")) return "json" as const;
+            if (name.endsWith(".csv")) return "csv" as const;
+            return null;
+          })
+          .filter((t): t is "csv" | "json" => t !== null);
+        if (fileTypes.length > 0) {
+          setIsDragging(true);
+          const unique = Array.from(new Set(fileTypes));
+          setDraggedFileType(unique.length === 1 ? unique[0]! : "mixed");
+          const first = items.find((item) => item.kind === "file")?.getAsFile();
+          if (first?.name) setDraggedFileName(first.name);
+        }
+      }
+    };
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current--;
+      if (dragCounterRef.current === 0) {
+        setIsDragging(false);
+        setDraggedFileType(null);
+        setDraggedFileName(null);
+      }
+    };
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current = 0;
+      setIsDragging(false);
+      setDraggedFileType(null);
+      setDraggedFileName(null);
+      const files = Array.from(e.dataTransfer?.files ?? []).filter(
+        (file) =>
+          file.name.toLowerCase().endsWith(".json") ||
+          file.name.toLowerCase().endsWith(".csv"),
+      );
+      const first = files[0];
+      if (!first) return;
+      if (first.name.toLowerCase().endsWith(".json")) {
+        void handleJsonDropped(first);
+      } else {
+        void handleCsvDropped(first);
+      }
+    };
+    window.addEventListener("dragenter", handleDragEnter);
+    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("drop", handleDrop);
+    return () => {
+      window.removeEventListener("dragenter", handleDragEnter);
+      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("dragleave", handleDragLeave);
+      window.removeEventListener("drop", handleDrop);
+    };
+  }, [handleJsonDropped, handleCsvDropped]);
+
+  const facilitiesListQuery = trpc.facilities.list.useQuery({
+    limit: 100,
+    offset: 0,
+  });
+  const facilitiesList = useMemo(
+    () => facilitiesListQuery.data?.facilities ?? [],
+    [facilitiesListQuery.data?.facilities],
+  );
+  const [facilityNameSelectedKey, setFacilityNameSelectedKey] =
+    useState<Key | null>(null);
+
+  const selectedListFacilityId = useMemo(() => {
+    if (facilityNameSelectedKey == null || typeof facilityNameSelectedKey !== "string") {
+      return null;
+    }
+    return facilitiesList.some((f) => f.id === facilityNameSelectedKey)
+      ? facilityNameSelectedKey
+      : null;
+  }, [facilityNameSelectedKey, facilitiesList]);
+
   const checkFacility = trpc.facilities.checkExists.useQuery(
     {
       name: facilityData.name,
@@ -75,15 +238,45 @@ export default function FacilityContributePage({
       country: facilityData.country.trim() ? facilityData.country.trim() : null,
     },
     {
-      enabled: facilityData.name.length > 0,
+      enabled:
+        facilityData.name.trim().length > 0 && selectedListFacilityId == null,
     },
   );
 
   useEffect(() => {
+    if (selectedListFacilityId) {
+      const f = facilitiesList.find((x) => x.id === selectedListFacilityId);
+      if (!f) return;
+      setExistingFacility({
+        id: f.id,
+        name: f.name,
+        city: f.city,
+        country: f.country,
+        instruments: (f.instruments ?? []).map((i) => ({
+          id: i.id,
+          name: i.name,
+        })),
+      });
+      setFacilityData({
+        name: f.name,
+        city: f.city ?? "",
+        country: f.country ?? "",
+        facilityType: f.facilitytype,
+      });
+      return;
+    }
     const facility = checkFacility.data?.facility;
     if (checkFacility.data?.exists && facility) {
-      setExistingFacility(facility);
-      // Auto-fill form with existing facility data
+      setExistingFacility({
+        id: facility.id,
+        name: facility.name,
+        city: facility.city,
+        country: facility.country,
+        instruments: facility.instruments.map((i) => ({
+          id: i.id,
+          name: i.name,
+        })),
+      });
       setFacilityData((prev) => ({
         ...prev,
         name: facility.name,
@@ -94,16 +287,38 @@ export default function FacilityContributePage({
     } else {
       setExistingFacility(null);
     }
-  }, [checkFacility.data]);
+  }, [selectedListFacilityId, facilitiesList, checkFacility.data]);
+
+  const registeredFacilityId = existingFacility?.id;
+  useEffect(() => {
+    if (registeredFacilityId) {
+      queueMicrotask(() => setContributeStep("instruments"));
+    }
+  }, [registeredFacilityId]);
+
+  const handleStepChange = useCallback((key: Key) => {
+    const id = key == null ? null : String(key);
+    if (id === "facility" || id === "instruments") {
+      queueMicrotask(() => setContributeStep(id));
+    }
+  }, []);
 
   const createFacility = trpc.facilities.create.useMutation();
+  const createInstrument = trpc.instruments.create.useMutation();
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFacilityData((prev) => ({ ...prev, [name]: value }));
-  };
+  const facilityDetailQuery = trpc.facilities.getById.useQuery(
+    existingFacility?.id ? { id: existingFacility.id } : skipToken,
+  );
+
+  const registeredInstruments = useMemo(() => {
+    if (facilityDetailQuery.data?.instruments != null) {
+      return [...facilityDetailQuery.data.instruments].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+    }
+    const fallback = existingFacility?.instruments ?? [];
+    return [...fallback].sort((a, b) => a.name.localeCompare(b.name));
+  }, [facilityDetailQuery.data?.instruments, existingFacility?.instruments]);
 
   const addInstrument = () => {
     setInstruments((prev) => [
@@ -126,9 +341,7 @@ export default function FacilityContributePage({
     value: InstrumentFormData[keyof InstrumentFormData],
   ) => {
     setInstruments((prev) =>
-      prev.map((inst, i) =>
-        i === index ? { ...inst, [field]: value } : inst,
-      ),
+      prev.map((inst, i) => (i === index ? { ...inst, [field]: value } : inst)),
     );
   };
 
@@ -143,10 +356,86 @@ export default function FacilityContributePage({
     }
 
     if (existingFacility) {
+      const toCreate = instruments.filter((inst) => inst.name.trim().length > 0);
+      if (toCreate.length === 0) {
+        setSubmitStatus({
+          type: "error",
+          message: "Add at least one instrument with a name.",
+        });
+        return;
+      }
+
+      setIsSubmitting(true);
+      setSubmitStatus({ type: null, message: "" });
+
+      const createdNames: string[] = [];
+      const failures: string[] = [];
+      let firstInstrumentId: string | undefined;
+
+      try {
+        for (const inst of toCreate) {
+          try {
+            const created = await createInstrument.mutateAsync({
+              facilityId: existingFacility.id,
+              name: inst.name.trim(),
+              link: inst.link.trim().length > 0 ? inst.link.trim() : null,
+              status: inst.status,
+            });
+            createdNames.push(created.name);
+            firstInstrumentId ??= created.id;
+          } catch (err: unknown) {
+            const derivedMessage =
+              err instanceof Error
+                ? err.message
+                : typeof err === "object" && err !== null
+                  ? (err as { data?: { message?: string } }).data?.message
+                  : null;
+            failures.push(
+              `${inst.name.trim()}: ${derivedMessage ?? "Failed to create"}`,
+            );
+          }
+        }
+
+        if (failures.length > 0 && createdNames.length === 0) {
+          setSubmitStatus({ type: "error", message: failures.join(" ") });
+        } else if (failures.length > 0) {
+          setSubmitStatus({
+            type: "success",
+            message: `Added ${createdNames.length} instrument(s). Some failed: ${failures.join(" ")}`,
+          });
+        } else {
+          setSubmitStatus({
+            type: "success",
+            message:
+              createdNames.length === 1
+                ? `Instrument "${createdNames[0]}" added successfully.`
+                : `Added ${createdNames.length} instruments successfully.`,
+          });
+        }
+
+        if (createdNames.length > 0) {
+          onCompleted?.({
+            facilityId: existingFacility.id,
+            instrumentId: firstInstrumentId,
+          });
+          if (isModal) {
+            onClose?.();
+          } else if (failures.length === 0) {
+            setTimeout(() => {
+              router.push(`/facilities/${existingFacility.id}`);
+            }, 1500);
+          }
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    if (!facilityData.name.trim()) {
       setSubmitStatus({
         type: "error",
-        message:
-          "This facility already exists. Please add instruments to the existing facility instead.",
+        message: "Facility name is required.",
       });
       return;
     }
@@ -158,7 +447,9 @@ export default function FacilityContributePage({
       const result: FacilityCreateResult = await createFacility.mutateAsync({
         name: facilityData.name,
         city: facilityData.city.trim() ? facilityData.city.trim() : null,
-        country: facilityData.country.trim() ? facilityData.country.trim() : null,
+        country: facilityData.country.trim()
+          ? facilityData.country.trim()
+          : null,
         facilityType: facilityData.facilityType,
         instruments: instruments.filter((inst) => inst.name.trim().length > 0),
       });
@@ -168,7 +459,6 @@ export default function FacilityContributePage({
         message: `Facility "${result.name}" created successfully!`,
       });
 
-      // Type guard to safely access instruments
       const resultWithInstruments = result as FacilityCreateResult & {
         instruments?: Array<{ id: string; name: string }>;
       };
@@ -184,7 +474,6 @@ export default function FacilityContributePage({
       if (isModal) {
         onClose?.();
       } else {
-        // Redirect to facility detail page after a delay
         setTimeout(() => {
           router.push(`/facilities/${result.id}`);
         }, 2000);
@@ -199,26 +488,34 @@ export default function FacilityContributePage({
             : null;
       setSubmitStatus({
         type: "error",
-        message: derivedMessage ?? "Failed to create facility. Please try again.",
+        message:
+          derivedMessage ?? "Failed to create facility. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const namedInstrumentRows = instruments.filter(
+    (i) => i.name.trim().length > 0,
+  ).length;
+  const canSubmit = existingFacility
+    ? namedInstrumentRows > 0
+    : facilityData.name.trim().length > 0;
+  const instrumentCountOnFile = registeredInstruments.length;
+
   if (!isSignedIn) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="mb-4 text-4xl font-bold text-gray-900 dark:text-gray-100">
+        <h1 className="text-foreground mb-4 text-4xl font-bold">
           Contribute Facility
         </h1>
-        <p className="mb-8 text-gray-600 dark:text-gray-400">
+        <p className="text-muted mb-8">
           Please sign in to contribute facilities to the X-ray Atlas database.
         </p>
       </div>
     );
   }
-
 
   return (
     <>
@@ -233,307 +530,183 @@ export default function FacilityContributePage({
         }}
         onAgree={handleAgreementAccepted}
       />
+      <ContributionFileDropOverlay
+        isDragging={isDragging}
+        fileKind={draggedFileType ?? "mixed"}
+        fileName={draggedFileName}
+      />
       <div className={`${isModal ? "" : "container mx-auto"} px-4 py-8`}>
         <div className="mx-auto max-w-4xl">
           {!isModal && (
             <div className="mb-6">
-              <Link
-                href="/contribute"
-                className="text-sm text-gray-600 hover:text-accent dark:text-accent-light dark:text-gray-400 dark:hover:text-accent dark:text-accent-light"
-              >
-                ← Back to contribution type selection
-              </Link>
+              <Breadcrumbs className="text-sm font-medium">
+                <Breadcrumbs.Item href="/contribute">
+                  Contributions
+                </Breadcrumbs.Item>
+                <Breadcrumbs.Item>Facility</Breadcrumbs.Item>
+              </Breadcrumbs>
             </div>
           )}
-        <h1 className="mb-8 text-4xl font-bold text-gray-900 dark:text-gray-100">
-          Contribute Facility & Instruments
-        </h1>
+          <h1 className="text-foreground mb-2 text-3xl font-bold sm:text-4xl">
+            Facility and instruments
+          </h1>
+          <p className="text-muted mb-8 max-w-xl text-sm">
+            Pick a site from the list or type a new one. If it is already in the
+            database, use the Instruments step to add rows, then submit once.
+          </p>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Facility Information */}
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
-              <BuildingOfficeIcon className="h-6 w-6" />
-              Facility Information
-            </h2>
+          <Form onSubmit={handleSubmit} className="space-y-8">
+            <Tabs
+              selectedKey={contributeStep}
+              onSelectionChange={handleStepChange}
+              variant="primary"
+              className="w-full"
+            >
+              <Tabs.ListContainer className="flex justify-center">
+                <Tabs.List
+                  aria-label="Contribution steps"
+                  className="border-border bg-surface-2 inline-flex h-11 items-center rounded-full border p-1 shadow-sm [&_.tabs__list]:flex [&_.tabs__list]:items-center [&_.tabs__list]:gap-0.5"
+                >
+                  <Tabs.Tab
+                    id="facility"
+                    className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground text-muted rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <BuildingOfficeIcon className="h-4 w-4 shrink-0" />
+                      Facility
+                    </span>
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                  <Tabs.Tab
+                    id="instruments"
+                    className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground text-muted rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <WrenchScrewdriverIcon className="h-4 w-4 shrink-0" />
+                      Instruments
+                    </span>
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                </Tabs.List>
+              </Tabs.ListContainer>
 
-            <div className="space-y-4">
-              {/* Existing Facility Warning */}
-              {existingFacility && (
-                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20">
-                  <div className="flex items-start gap-3">
-                    <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
-                    <div className="flex-1">
-                      <h3 className="mb-1 font-semibold text-yellow-800 dark:text-yellow-300">
-                        Facility Already Exists
-                      </h3>
-                      <p className="text-sm text-yellow-700 dark:text-yellow-400">
-                        A facility with this name and location already exists in the
-                        database.
+              <Tabs.Panel id="facility" className="mt-6 outline-none">
+                <Card className="border-border bg-surface-1 border shadow-sm">
+                  <Card.Content className="space-y-5 p-5 sm:p-6">
+                    <FacilityIdentitySection
+                      facilitiesList={facilitiesList}
+                      facilityNameSelectedKey={facilityNameSelectedKey}
+                      onFacilityNameSelectedKeyChange={setFacilityNameSelectedKey}
+                      onSelectExistingFacility={(f) => {
+                        setFacilityData({
+                          name: f.name,
+                          city: f.city ?? "",
+                          country: f.country ?? "",
+                          facilityType: f.facilitytype,
+                        });
+                      }}
+                      facilityData={facilityData}
+                      onFacilityDataChange={(patch) =>
+                        setFacilityData((prev) => ({ ...prev, ...patch }))
+                      }
+                      existingFacility={!!existingFacility}
+                      existingFacilityId={existingFacility?.id ?? null}
+                      instrumentCountOnFile={instrumentCountOnFile}
+                    />
+                  </Card.Content>
+                </Card>
+              </Tabs.Panel>
+
+              <Tabs.Panel id="instruments" className="mt-6 outline-none">
+                <Card className="border-border bg-surface-1 border shadow-sm">
+                  <Card.Content className="space-y-5 p-5 sm:p-6">
+                    {existingFacility ? (
+                      <>
+                        <RegisteredInstrumentsAccordion
+                          items={registeredInstruments}
+                          facilityId={existingFacility.id}
+                          isListRefreshing={facilityDetailQuery.isFetching}
+                          onInstrumentUpdated={() => {
+                            void facilityDetailQuery.refetch();
+                          }}
+                        />
+                        <Separator className="bg-border" />
+                      </>
+                    ) : null}
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-muted text-sm">
+                        {existingFacility
+                          ? "Add new instruments below."
+                          : "Optional: add instruments now, or create the site first and come back later."}
                       </p>
-                      <p className="mt-2 text-sm text-yellow-700 dark:text-yellow-400">
-                        Existing instruments:{" "}
-                        {existingFacility.instruments.length > 0
-                          ? existingFacility.instruments.map((inst) => inst.name).join(", ")
-                          : "None"}
-                      </p>
-                      <Link
-                        href={`/facilities/${existingFacility.id}`}
-                        className="mt-2 inline-block text-sm font-medium text-yellow-800 underline dark:text-yellow-300"
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onPress={addInstrument}
+                        className="inline-flex shrink-0 items-center gap-2"
                       >
-                        View existing facility →
-                      </Link>
+                        <PlusIcon className="h-4 w-4 shrink-0" />
+                        <span>Add instrument</span>
+                      </Button>
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Facility Name */}
-              <div>
-                <label
-                  htmlFor="name"
-                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Facility Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  required
-                  value={facilityData.name}
-                  onChange={handleInputChange}
-                  className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                  placeholder="e.g., Advanced Light Source"
-                />
-              </div>
+                    <NewInstrumentsAccordion
+                      instruments={instruments}
+                      facilityId={existingFacility?.id}
+                      onChange={(index, field, value) =>
+                        updateInstrument(index, field, value)
+                      }
+                      onRemove={removeInstrument}
+                    />
+                  </Card.Content>
+                </Card>
+              </Tabs.Panel>
+            </Tabs>
 
-              {/* City and Country */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="city"
-                    className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    id="city"
-                    name="city"
-                    value={facilityData.city}
-                    onChange={handleInputChange}
-                    className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    placeholder="e.g., Berkeley"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="country"
-                    className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Country
-                  </label>
-                  <input
-                    type="text"
-                    id="country"
-                    name="country"
-                    value={facilityData.country}
-                    onChange={handleInputChange}
-                    className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                    placeholder="e.g., United States"
-                  />
-                </div>
-              </div>
+            <Separator className="bg-border" />
 
-              {/* Facility Type */}
-              <div>
-                <label
-                  htmlFor="facilityType"
-                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Facility Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="facilityType"
-                  name="facilityType"
-                  required
-                  value={facilityData.facilityType}
-                  onChange={handleInputChange}
-                  className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                >
-                  <option value="LAB_SOURCE">Lab Source</option>
-                  <option value="SYNCHROTRON">Synchrotron</option>
-                  <option value="FREE_ELECTRON_LASER">Free Electron Laser</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Instruments */}
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Instruments
-              </h2>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-muted text-xs sm:max-w-sm">
+                {existingFacility
+                  ? "Expand a registered row to edit; save changes there. Submit adds only new instruments below."
+                  : "Submit creates the facility and any named instrument rows."}
+              </p>
               <Button
-                type="button"
-                variant="outline"
-                onClick={addInstrument}
-                className="flex items-center gap-2"
+                type="submit"
+                variant="primary"
+                isDisabled={isSubmitting || !canSubmit}
+                className="inline-flex items-center gap-2"
               >
-                <PlusIcon className="h-4 w-4" />
-                Add Instrument
+                {existingFacility ? (
+                  <WrenchScrewdriverIcon className="h-4 w-4 shrink-0" />
+                ) : (
+                  <BuildingOfficeIcon className="h-4 w-4 shrink-0" />
+                )}
+                <span>
+                  {isSubmitting
+                    ? "Working..."
+                    : existingFacility
+                      ? "Submit instruments"
+                      : "Create facility"}
+                </span>
               </Button>
             </div>
 
-            {instruments.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                No instruments added yet. Click &quot;Add Instrument&quot; to add one.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {instruments.map((instrument, index) => (
-                  <InstrumentForm
-                    key={index}
-                    instrument={instrument}
-                    facilityId={existingFacility?.id}
-                    onChange={(field, value) => updateInstrument(index, field, value)}
-                    onRemove={() => removeInstrument(index)}
-                  />
-                ))}
+            {submitStatus.type ? (
+              <div
+                className={
+                  submitStatus.type === "success"
+                    ? "border-success/50 bg-success/10 text-foreground rounded-xl border p-4"
+                    : "border-error/50 bg-error/10 text-foreground rounded-xl border p-4"
+                }
+              >
+                {submitStatus.message}
               </div>
-            )}
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex justify-end border-t border-gray-200 pt-6 dark:border-gray-700">
-            <Button
-              type="submit"
-              isDisabled={isSubmitting || !!existingFacility}
-              className="flex items-center gap-2"
-            >
-              {isSubmitting ? "Creating..." : "Create Facility"}
-            </Button>
-          </div>
-
-          {/* Status Messages */}
-          {submitStatus.type && (
-            <div
-              className={`rounded-lg p-4 ${
-                submitStatus.type === "success"
-                  ? "bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                  : "bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400"
-              }`}
-            >
-              {submitStatus.message}
-            </div>
-          )}
-        </form>
+            ) : null}
+          </Form>
+        </div>
       </div>
-    </div>
     </>
-  );
-}
-
-function InstrumentForm({
-  instrument,
-  facilityId,
-  onChange,
-  onRemove,
-}: {
-  instrument: InstrumentFormData;
-  facilityId?: string;
-  onChange: (
-    field: keyof InstrumentFormData,
-    value: InstrumentFormData[keyof InstrumentFormData],
-  ) => void;
-  onRemove: () => void;
-}) {
-  const { data: checkData } = trpc.instruments.checkExists.useQuery(
-    {
-      facilityId: facilityId ?? "",
-      name: instrument.name,
-    },
-    {
-      enabled: !!facilityId && instrument.name.length > 0,
-    },
-  );
-
-  const instrumentExists = checkData?.exists ?? false;
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-medium text-gray-900 dark:text-gray-100">
-          Instrument {instrument.name.trim() ? instrument.name : "New"}
-        </h3>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-        >
-          <XMarkIcon className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Instrument Name <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <input
-              type="text"
-              required
-              value={instrument.name}
-              onChange={(e) => onChange("name", e.target.value)}
-              className={`focus:border-accent focus:ring-accent/20 w-full rounded-lg border px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:bg-gray-800 dark:text-gray-100 ${
-                instrumentExists
-                  ? "border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/20"
-                  : "border-gray-300 bg-white dark:border-gray-600"
-              }`}
-              placeholder="e.g., Beamline 7.3.3"
-            />
-            {instrumentExists && instrument.name.length > 0 && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-yellow-700 dark:text-yellow-400">
-                <ExclamationTriangleIcon className="h-4 w-4" />
-                <span>This instrument already exists at this facility</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Instrument Link (Optional)
-          </label>
-          <input
-            type="url"
-            value={instrument.link}
-            onChange={(e) => onChange("link", e.target.value)}
-            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-            placeholder="https://..."
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Status
-          </label>
-          <select
-            value={instrument.status}
-            onChange={(e) =>
-              onChange("status", e.target.value as InstrumentFormData["status"])
-            }
-            className="focus:border-accent focus:ring-accent/20 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="under_maintenance">Under Maintenance</option>
-          </select>
-        </div>
-      </div>
-    </div>
   );
 }

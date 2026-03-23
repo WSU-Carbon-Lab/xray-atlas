@@ -1,16 +1,20 @@
 "use client";
 
 import React from "react";
-import { Label, ScrollShadow } from "@heroui/react";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { Label } from "@heroui/react";
 import { trpc } from "~/trpc/client";
 import {
   getTagChipClass,
   getTagGradient,
   getTagInlineStyle,
 } from "~/lib/tag-colors";
-import { TagsDropdown } from "~/components/browse/tags-dropdown";
+import {
+  CategoryTagsMultiSelect,
+  type MoleculePendingTag,
+} from "~/components/molecules/category-tag-picker";
 import type { MoleculeView } from "~/types/molecule";
+
+export type { MoleculePendingTag };
 
 export const PREVIEW_GRADIENTS = [
   "from-indigo-500/20 to-purple-500/20",
@@ -90,6 +94,9 @@ export interface CategoryTagGroupEditableProps {
   description?: React.ReactNode;
   className?: string;
   inlineLayout?: boolean;
+  deferNewTagPersistence?: boolean;
+  pendingTags?: MoleculePendingTag[];
+  onPendingTagsChange?: (pending: MoleculePendingTag[]) => void;
 }
 
 export function CategoryTagGroupEditable({
@@ -99,140 +106,61 @@ export function CategoryTagGroupEditable({
   description,
   className,
   inlineLayout = false,
+  deferNewTagPersistence = false,
+  pendingTags = [],
+  onPendingTagsChange,
 }: CategoryTagGroupEditableProps) {
   const { data: allTags = [], isLoading } = trpc.molecules.listTags.useQuery(
     undefined,
     { staleTime: 5 * 60 * 1000 },
   );
-  const tagById = new Map(allTags.map((t) => [t.id, t]));
-  const selectedTags = tagIds
-    .map((id) => tagById.get(id))
-    .filter((t): t is NonNullable<typeof t> => t != null)
-    .sort((a, b) => a.name.localeCompare(b.name));
 
   const selectedTagIdsSet = new Set(tagIds);
 
-  const handleSelectionChange = (keys: Set<string>) => {
+  const handleSelectedChange = (keys: Set<string>) => {
     onTagIdsChange([...keys]);
   };
-
-  const removeTagId = (tagId: string) => {
-    onTagIdsChange(tagIds.filter((id) => id !== tagId));
-  };
-
-  const utils = trpc.useUtils();
-  const findOrCreateTag = trpc.molecules.findOrCreateTag.useMutation();
-
-  const handleCreateTag = async (name: string): Promise<string> => {
-    const tag = await findOrCreateTag.mutateAsync({ name: name.trim() });
-    void utils.molecules.listTags.invalidate();
-    return tag.id;
-  };
-
-  const tagChips = (
-    <>
-      {selectedTags.length === 0 && !isLoading ? (
-        <span className="text-text-tertiary shrink-0 text-sm">
-          No category tags selected
-        </span>
-      ) : null}
-      {selectedTags.map((tag) => {
-        const chipClass = getTagChipClass(tag);
-        const inlineStyle = getTagInlineStyle(tag);
-        return (
-          <span
-            key={tag.id}
-            className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${chipClass}`}
-            style={inlineStyle}
-          >
-            {tag.name}
-            <button
-              type="button"
-              onClick={() => removeTagId(tag.id)}
-              aria-label={`Remove ${tag.name}`}
-              className="focus-visible:ring-accent -mr-0.5 rounded p-0.5 transition-colors hover:bg-black/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:hover:bg-white/10"
-            >
-              <XMarkIcon className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          </span>
-        );
-      })}
-    </>
-  );
-
-  if (inlineLayout) {
-    return (
-      <div className={className}>
-        {description ? (
-          <div className="mb-1 flex items-center gap-1">
-            <Label className="text-text-secondary text-sm font-medium">
-              {label}
-            </Label>
-            {description}
-          </div>
-        ) : (
-          <Label className="text-text-secondary mb-1 block text-sm font-medium">
-            {label}
-          </Label>
-        )}
-        <div
-          className="flex min-h-0 items-center gap-2 rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700/90"
-          role="region"
-          aria-label="Category tags"
-        >
-          <ScrollShadow
-            orientation="horizontal"
-            className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
-            hideScrollBar
-          >
-            <div className="flex w-max items-center gap-2 py-0.5">
-              {tagChips}
-            </div>
-          </ScrollShadow>
-          <div className="shrink-0 border-l border-zinc-200 pl-2 dark:border-zinc-600">
-            <TagsDropdown
-              selectedTagIds={selectedTagIdsSet}
-              onSelectionChange={handleSelectionChange}
-              ariaLabel="Add category tag"
-              allowCreateFromInput
-              onCreateTag={handleCreateTag}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={className}>
       {description ? (
-        <div className="mb-1.5 flex items-center gap-1">
-          <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <div
+          className={`flex items-center gap-1 ${inlineLayout ? "mb-1" : "mb-1.5"}`}
+        >
+          <Label
+            className={
+              inlineLayout
+                ? "text-text-secondary text-sm font-medium"
+                : "text-sm font-medium text-slate-700 dark:text-slate-300"
+            }
+          >
             {label}
           </Label>
           {description}
         </div>
       ) : (
-        <Label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+        <Label
+          className={
+            inlineLayout
+              ? "text-text-secondary mb-1 block text-sm font-medium"
+              : "mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          }
+        >
           {label}
         </Label>
       )}
-      <div
-        className="border-border-default bg-surface-1 dark:bg-surface-2 flex min-h-12 flex-wrap items-center gap-2 rounded-lg border px-4 py-3 shadow-sm"
-        role="region"
-        aria-label="Category tags"
-      >
-        {tagChips}
-      </div>
-      <div className="mt-2">
-        <TagsDropdown
-          selectedTagIds={selectedTagIdsSet}
-          onSelectionChange={handleSelectionChange}
-          ariaLabel="Add category tag"
-          allowCreateFromInput
-          onCreateTag={handleCreateTag}
-        />
-      </div>
+      <CategoryTagsMultiSelect
+        allTags={allTags}
+        selectedTagIds={selectedTagIdsSet}
+        onSelectedTagIdsChange={handleSelectedChange}
+        pendingTags={deferNewTagPersistence ? pendingTags : []}
+        onPendingTagsChange={
+          deferNewTagPersistence ? onPendingTagsChange : undefined
+        }
+        deferNewTagPersistence={deferNewTagPersistence}
+        isLoading={isLoading}
+        ariaLabel="Category tags"
+      />
     </div>
   );
 }

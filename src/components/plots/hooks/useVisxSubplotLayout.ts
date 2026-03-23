@@ -12,6 +12,7 @@ import type {
   SpectrumPoint,
 } from "../types";
 import { MARGINS, SUBPLOT_MARGINS } from "../constants";
+import { linearYDomainWithPadding } from "../utils/linearYDomain";
 
 export type SubplotLayout = {
   mainPlot: {
@@ -84,9 +85,14 @@ export function useVisxSubplotLayout(
         mainPlotDimensions.margins.top -
         mainPlotDimensions.margins.bottom;
 
+      const PAD_X_FRACTION = 0.032;
       let mainEnergyDomain: [number, number];
       if (extents.energyExtent) {
-        mainEnergyDomain = [extents.energyExtent.min, extents.energyExtent.max];
+        const minE = extents.energyExtent.min;
+        const maxE = extents.energyExtent.max;
+        const spanE = Math.max(maxE - minE, 1);
+        const padE = Math.max(spanE * PAD_X_FRACTION, 1);
+        mainEnergyDomain = [minE - padE, maxE + padE];
       } else if (energyStats) {
         const min = energyStats.min;
         const max = energyStats.max;
@@ -96,7 +102,9 @@ export function useVisxSubplotLayout(
           typeof min === "number" &&
           typeof max === "number"
         ) {
-          mainEnergyDomain = [min, max];
+          const spanE = Math.max(max - min, 1);
+          const padE = Math.max(spanE * PAD_X_FRACTION, 1);
+          mainEnergyDomain = [min - padE, max + padE];
         } else {
           mainEnergyDomain = [0, 1000];
         }
@@ -108,8 +116,7 @@ export function useVisxSubplotLayout(
       if (extents.absorptionExtent) {
         const minAbs = extents.absorptionExtent.min;
         const maxAbs = extents.absorptionExtent.max;
-        const padding = Math.max(Math.abs(maxAbs - minAbs) * 0.1, 0.1);
-        mainAbsorptionDomain = [0, maxAbs + padding];
+        mainAbsorptionDomain = linearYDomainWithPadding(minAbs, maxAbs, 0.1);
       } else if (absorptionStats) {
         const min = absorptionStats.min;
         const max = absorptionStats.max;
@@ -119,8 +126,7 @@ export function useVisxSubplotLayout(
           typeof min === "number" &&
           typeof max === "number"
         ) {
-          const padding = Math.max((max - min) * 0.1, 0.1);
-          mainAbsorptionDomain = [0, max + padding];
+          mainAbsorptionDomain = linearYDomainWithPadding(min, max, 0.1);
         } else {
           mainAbsorptionDomain = [0, 1];
         }
@@ -131,13 +137,11 @@ export function useVisxSubplotLayout(
       const mainXScale = scaleLinear<number>({
         domain: mainEnergyDomain,
         range: [0, mainPlotWidth],
-        nice: true,
       });
 
       const mainYScale = scaleLinear<number>({
         domain: mainAbsorptionDomain,
         range: [mainPlotPlotHeight, 0],
-        nice: true,
       });
 
       // Calculate peak plot scales
@@ -165,21 +169,20 @@ export function useVisxSubplotLayout(
         peakAbsorptions.length > 0 ? Math.min(...peakAbsorptions) : 0;
       const peakAbsorptionMax =
         peakAbsorptions.length > 0 ? Math.max(...peakAbsorptions) : 1;
-      const peakAbsorptionPadding = Math.max(
-        Math.abs(peakAbsorptionMax - peakAbsorptionMin) * 0.1,
+      const peakAbsorptionDomain = linearYDomainWithPadding(
+        peakAbsorptionMin,
+        peakAbsorptionMax,
         0.1,
       );
 
       const peakXScale = scaleLinear<number>({
         domain: [peakEnergyMin, peakEnergyMax],
         range: [0, peakPlotWidth],
-        nice: true,
       });
 
       const peakYScale = scaleLinear<number>({
-        domain: [0, peakAbsorptionMax + peakAbsorptionPadding],
+        domain: peakAbsorptionDomain,
         range: [peakPlotPlotHeight, 0],
-        nice: true,
       });
 
       return {
@@ -212,9 +215,14 @@ export function useVisxSubplotLayout(
         mainPlotDimensions.margins.top -
         mainPlotDimensions.margins.bottom;
 
+      const PAD_X_FRACTION = 0.032;
       let mainEnergyDomain: [number, number];
       if (extents.energyExtent) {
-        mainEnergyDomain = [extents.energyExtent.min, extents.energyExtent.max];
+        const minE = extents.energyExtent.min;
+        const maxE = extents.energyExtent.max;
+        const spanE = Math.max(maxE - minE, 1);
+        const padE = Math.max(spanE * PAD_X_FRACTION, 1);
+        mainEnergyDomain = [minE - padE, maxE + padE];
       } else if (energyStats) {
         const min = energyStats.min;
         const max = energyStats.max;
@@ -224,7 +232,9 @@ export function useVisxSubplotLayout(
           typeof min === "number" &&
           typeof max === "number"
         ) {
-          mainEnergyDomain = [min, max];
+          const spanE = Math.max(max - min, 1);
+          const padE = Math.max(spanE * PAD_X_FRACTION, 1);
+          mainEnergyDomain = [min - padE, max + padE];
         } else {
           mainEnergyDomain = [0, 1000];
         }
@@ -236,8 +246,7 @@ export function useVisxSubplotLayout(
       if (extents.absorptionExtent) {
         const minAbs = extents.absorptionExtent.min;
         const maxAbs = extents.absorptionExtent.max;
-        const padding = Math.max(Math.abs(maxAbs - minAbs) * 0.1, 0.1);
-        mainAbsorptionDomain = [0, maxAbs + padding];
+        mainAbsorptionDomain = linearYDomainWithPadding(minAbs, maxAbs, 0.1);
       } else if (absorptionStats) {
         const min = absorptionStats.min;
         const max = absorptionStats.max;
@@ -247,8 +256,7 @@ export function useVisxSubplotLayout(
           typeof min === "number" &&
           typeof max === "number"
         ) {
-          const padding = Math.max((max - min) * 0.1, 0.1);
-          mainAbsorptionDomain = [0, max + padding];
+          mainAbsorptionDomain = linearYDomainWithPadding(min, max, 0.1);
         } else {
           mainAbsorptionDomain = [0, 1];
         }
@@ -259,13 +267,11 @@ export function useVisxSubplotLayout(
       const mainXScale = scaleLinear<number>({
         domain: mainEnergyDomain,
         range: [0, mainPlotWidth],
-        nice: true,
       });
 
       const mainYScale = scaleLinear<number>({
         domain: mainAbsorptionDomain,
         range: [mainPlotPlotHeight, 0],
-        nice: true,
       });
 
       return {

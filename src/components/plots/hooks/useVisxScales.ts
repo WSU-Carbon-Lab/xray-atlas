@@ -5,6 +5,7 @@
 import { useMemo } from "react";
 import { scaleLinear } from "@visx/scale";
 import type { DataExtents, PlotDimensions } from "../types";
+import { linearYDomainWithPadding } from "../utils/linearYDomain";
 
 type ScaleLinear = ReturnType<typeof scaleLinear<number>>;
 
@@ -30,10 +31,16 @@ export function useVisxScales(
     const plotWidth = dimensions.width - dimensions.margins.left - dimensions.margins.right;
     const plotHeight = dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
 
-    // Calculate energy (x) range
+    const PAD_X_FRACTION = 0.032;
+    const PAD_Y_FRACTION = 0.08;
+
     let energyDomain: [number, number];
     if (extents.energyExtent) {
-      energyDomain = [extents.energyExtent.min, extents.energyExtent.max];
+      const minE = extents.energyExtent.min;
+      const maxE = extents.energyExtent.max;
+      const spanE = Math.max(maxE - minE, 1);
+      const padE = Math.max(spanE * PAD_X_FRACTION, 1);
+      energyDomain = [minE - padE, maxE + padE];
     } else if (energyStats) {
       const min = energyStats.min;
       const max = energyStats.max;
@@ -43,22 +50,25 @@ export function useVisxScales(
         typeof min === "number" &&
         typeof max === "number"
       ) {
-        energyDomain = [min, max];
+        const spanE = Math.max(max - min, 1);
+        const padE = Math.max(spanE * PAD_X_FRACTION, 1);
+        energyDomain = [min - padE, max + padE];
       } else {
         energyDomain = [0, 1000];
       }
     } else {
-      // Fallback domain if no data
       energyDomain = [0, 1000];
     }
 
-    // Calculate absorption (y) range
     let absorptionDomain: [number, number];
     if (extents.absorptionExtent) {
       const minAbs = extents.absorptionExtent.min;
       const maxAbs = extents.absorptionExtent.max;
-      const padding = Math.max(Math.abs(maxAbs - minAbs) * 0.1, 0.1);
-      absorptionDomain = [0, maxAbs + padding];
+      absorptionDomain = linearYDomainWithPadding(
+        minAbs,
+        maxAbs,
+        PAD_Y_FRACTION,
+      );
     } else if (absorptionStats) {
       const min = absorptionStats.min;
       const max = absorptionStats.max;
@@ -68,26 +78,22 @@ export function useVisxScales(
         typeof min === "number" &&
         typeof max === "number"
       ) {
-        const padding = Math.max((max - min) * 0.1, 0.1);
-        absorptionDomain = [0, max + padding];
+        absorptionDomain = linearYDomainWithPadding(min, max, PAD_Y_FRACTION);
       } else {
         absorptionDomain = [0, 1];
       }
     } else {
-      // Fallback domain if no data
       absorptionDomain = [0, 1];
     }
 
     const xScale = scaleLinear<number>({
       domain: energyDomain,
       range: [0, plotWidth],
-      nice: true,
     });
 
     const yScale = scaleLinear<number>({
       domain: absorptionDomain,
       range: [plotHeight, 0],
-      nice: true,
     });
 
     return {
