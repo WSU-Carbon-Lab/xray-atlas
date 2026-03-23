@@ -19,7 +19,7 @@ export function ItemsPerPageSelect({
   compact = false,
 }: ItemsPerPageSelectProps) {
   const control = (
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       <label
         htmlFor={labelId}
         className={compact ? "sr-only" : "text-muted text-sm font-medium"}
@@ -30,7 +30,7 @@ export function ItemsPerPageSelect({
         id={labelId}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={`${selectClasses} ${compact ? "min-w-[4.5rem]" : ""}`}
+        className={`${selectClasses} h-12 min-h-12 ${compact ? "min-w-[4.5rem]" : ""}`}
         aria-label="Items per page"
       >
         {OPTIONS.map((n) => (

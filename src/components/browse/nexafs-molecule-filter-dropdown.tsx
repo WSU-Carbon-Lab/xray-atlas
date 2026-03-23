@@ -50,7 +50,7 @@ export function NexafsMoleculeFilterDropdown({
       <DropdownTrigger>
         <button
           type="button"
-          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 max-w-[min(100%,220px)] min-h-12 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent/15 text-accent" : "text-muted"}`}
+          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 max-w-[min(100%,220px)] min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent/15 text-accent" : "text-muted"}`}
           aria-label="Filter by molecule"
           aria-pressed={hasSelection}
         >

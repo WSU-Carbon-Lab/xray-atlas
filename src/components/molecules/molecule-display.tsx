@@ -276,140 +276,142 @@ function MoleculeCardActions({
 }: MoleculeCardActionsProps) {
   const iconClass = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
   const textClass = size === "sm" ? "text-[10px]" : "text-xs";
+  const casRegistry = casUrl ? (
+    <Tooltip delay={0}>
+      <Tooltip.Trigger>
+        <Link
+          href={casUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open CAS Registry"
+          className="text-text-secondary focus-visible:ring-accent inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color] hover:bg-zinc-200 hover:text-zinc-900 focus-visible:ring-2 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Image
+            src={CAS_FAVICON_URL}
+            alt=""
+            width={20}
+            height={20}
+            className="h-5 w-5 object-contain"
+            unoptimized
+          />
+        </Link>
+      </Tooltip.Trigger>
+      <Tooltip.Content placement="top">Open in CAS Registry</Tooltip.Content>
+    </Tooltip>
+  ) : (
+    <Tooltip delay={0}>
+      <span
+        className="inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg opacity-50"
+        title="CAS not available"
+      >
+        <Image
+          src={CAS_FAVICON_URL}
+          alt=""
+          width={20}
+          height={20}
+          className="h-5 w-5 object-contain opacity-50"
+          unoptimized
+        />
+      </span>
+      <Tooltip.Content placement="top">CAS not available</Tooltip.Content>
+    </Tooltip>
+  );
+  const pubChemRegistry = pubChemUrl ? (
+    <Tooltip delay={0}>
+      <Tooltip.Trigger>
+        <Link
+          href={pubChemUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open PubChem"
+          className="text-text-secondary focus-visible:ring-accent inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color] hover:bg-zinc-200 hover:text-zinc-900 focus-visible:ring-2 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Image
+            src={PUBCHEM_FAVICON_URL}
+            alt=""
+            width={20}
+            height={20}
+            className="h-5 w-5 object-contain"
+            unoptimized
+          />
+        </Link>
+      </Tooltip.Trigger>
+      <Tooltip.Content placement="top">Open in PubChem</Tooltip.Content>
+    </Tooltip>
+  ) : (
+    <Tooltip delay={0}>
+      <span
+        className="inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg opacity-50"
+        title="PubChem not available"
+      >
+        <Image
+          src={PUBCHEM_FAVICON_URL}
+          alt=""
+          width={20}
+          height={20}
+          className="h-5 w-5 object-contain opacity-50"
+          unoptimized
+        />
+      </span>
+      <Tooltip.Content placement="top">PubChem not available</Tooltip.Content>
+    </Tooltip>
+  );
   return (
     <div
-      className="flex flex-wrap items-center gap-2"
+      className="flex w-full min-w-0 flex-row flex-wrap items-center gap-x-4 gap-y-2"
       onClick={(e) => e.stopPropagation()}
       role="group"
     >
-      {molecule.InChI ? (
-        <Tooltip delay={0}>
-          <Button
-            size={size}
-            variant="secondary"
-            aria-label="Copy InChI"
-            onPress={() => handleCopy(molecule.InChI, "InChI")}
-            className={`focus-visible:ring-accent inline-flex gap-1.5 ${
-              copiedText === "InChI"
-                ? "text-accent dark:text-accent-light"
-                : "text-text-tertiary"
-            }`}
-          >
-            <Copy className={iconClass} aria-hidden />
-            <span className={textClass}>InChI</span>
-          </Button>
-          <Tooltip.Content placement="top">
-            {copiedText === "InChI" ? "Copied!" : "Copy InChI"}
-          </Tooltip.Content>
-        </Tooltip>
-      ) : null}
-      {molecule.SMILES ? (
-        <Tooltip delay={0}>
-          <Button
-            size={size}
-            variant="secondary"
-            aria-label="Copy SMILES"
-            onPress={() => handleCopy(molecule.SMILES, "SMILES")}
-            className={`focus-visible:ring-accent inline-flex gap-1.5 ${
-              copiedText === "SMILES"
-                ? "text-accent dark:text-accent-light"
-                : "text-text-tertiary"
-            }`}
-          >
-            <Copy className={iconClass} aria-hidden />
-            <span className={textClass}>SMILES</span>
-          </Button>
-          <Tooltip.Content placement="top">
-            {copiedText === "SMILES" ? "Copied!" : "Copy SMILES"}
-          </Tooltip.Content>
-        </Tooltip>
-      ) : null}
-      {casUrl ? (
-        <Tooltip delay={0}>
-          <Tooltip.Trigger>
-            <Link
-              href={casUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Open CAS Registry"
-              className="text-text-secondary focus-visible:ring-accent inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color] hover:bg-zinc-200 hover:text-zinc-900 focus-visible:ring-2 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-              onClick={(e) => e.stopPropagation()}
+      <div className="flex min-w-0 flex-row flex-wrap items-center gap-2">
+        {molecule.InChI ? (
+          <Tooltip delay={0}>
+            <Button
+              size={size}
+              variant="secondary"
+              aria-label="Copy InChI"
+              onPress={() => handleCopy(molecule.InChI, "InChI")}
+              className={`focus-visible:ring-accent inline-flex shrink-0 gap-1.5 ${
+                copiedText === "InChI"
+                  ? "text-accent dark:text-accent-light"
+                  : "text-text-tertiary"
+              }`}
             >
-              <Image
-                src={CAS_FAVICON_URL}
-                alt=""
-                width={20}
-                height={20}
-                className="h-5 w-5 object-contain"
-                unoptimized
-              />
-            </Link>
-          </Tooltip.Trigger>
-          <Tooltip.Content placement="top">
-            Open in CAS Registry
-          </Tooltip.Content>
-        </Tooltip>
-      ) : (
-        <Tooltip delay={0}>
-          <span
-            className="inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg opacity-50"
-            title="CAS not available"
-          >
-            <Image
-              src={CAS_FAVICON_URL}
-              alt=""
-              width={20}
-              height={20}
-              className="h-5 w-5 object-contain opacity-50"
-              unoptimized
-            />
-          </span>
-          <Tooltip.Content placement="top">CAS not available</Tooltip.Content>
-        </Tooltip>
-      )}
-      {pubChemUrl ? (
-        <Tooltip delay={0}>
-          <Tooltip.Trigger>
-            <Link
-              href={pubChemUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Open PubChem"
-              className="text-text-secondary focus-visible:ring-accent inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color] hover:bg-zinc-200 hover:text-zinc-900 focus-visible:ring-2 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-              onClick={(e) => e.stopPropagation()}
+              <Copy className={iconClass} aria-hidden />
+              <span className={textClass}>InChI</span>
+            </Button>
+            <Tooltip.Content placement="top">
+              {copiedText === "InChI" ? "Copied!" : "Copy InChI"}
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
+        {molecule.SMILES ? (
+          <Tooltip delay={0}>
+            <Button
+              size={size}
+              variant="secondary"
+              aria-label="Copy SMILES"
+              onPress={() => handleCopy(molecule.SMILES, "SMILES")}
+              className={`focus-visible:ring-accent inline-flex shrink-0 gap-1.5 ${
+                copiedText === "SMILES"
+                  ? "text-accent dark:text-accent-light"
+                  : "text-text-tertiary"
+              }`}
             >
-              <Image
-                src={PUBCHEM_FAVICON_URL}
-                alt=""
-                width={20}
-                height={20}
-                className="h-5 w-5 object-contain"
-                unoptimized
-              />
-            </Link>
-          </Tooltip.Trigger>
-          <Tooltip.Content placement="top">Open in PubChem</Tooltip.Content>
-        </Tooltip>
-      ) : (
-        <Tooltip delay={0}>
-          <span
-            className="inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg opacity-50"
-            title="PubChem not available"
-          >
-            <Image
-              src={PUBCHEM_FAVICON_URL}
-              alt=""
-              width={20}
-              height={20}
-              className="h-5 w-5 object-contain opacity-50"
-              unoptimized
-            />
-          </span>
-          <Tooltip.Content placement="top">
-            PubChem not available
-          </Tooltip.Content>
-        </Tooltip>
-      )}
+              <Copy className={iconClass} aria-hidden />
+              <span className={textClass}>SMILES</span>
+            </Button>
+            <Tooltip.Content placement="top">
+              {copiedText === "SMILES" ? "Copied!" : "Copy SMILES"}
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
+      </div>
+      <div className="flex min-w-0 flex-row flex-wrap items-center gap-2">
+        {casRegistry}
+        {pubChemRegistry}
+      </div>
     </div>
   );
 }
@@ -791,9 +793,9 @@ export const FullCard = memo(function FullCard({
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
   return (
-    <Card className="group border-border-default hover:border-border-strong hover:border-accent/30 dark:border-border-default dark:hover:border-border-strong flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md sm:flex-row dark:bg-zinc-800">
+    <Card className="group border-border-default hover:border-border-strong hover:border-accent/30 dark:border-border-default dark:hover:border-border-strong flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md lg:flex-row dark:bg-zinc-800">
       <div
-        className="group/image relative flex h-40 w-full shrink-0 overflow-hidden rounded-lg bg-white sm:h-auto sm:min-h-[240px] sm:w-[45%] dark:bg-black"
+        className="group/image relative flex h-52 w-full shrink-0 overflow-hidden rounded-lg bg-white lg:h-auto lg:min-h-[260px] lg:w-[min(42%,320px)] lg:max-w-[360px] dark:bg-black"
         aria-hidden
       >
         <button
@@ -858,7 +860,7 @@ export const FullCard = memo(function FullCard({
         <div onClick={(e) => e.stopPropagation()}>
           <Link
             href={`/molecules/${props.molecule.id}`}
-            className="text-text-primary hover:text-accent dark:hover:text-accent-light line-clamp-1 text-lg leading-tight font-bold transition-colors"
+            className="text-text-primary hover:text-accent dark:hover:text-accent-light line-clamp-3 text-lg leading-tight font-bold wrap-break-word transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             {props.primaryName}
@@ -917,7 +919,7 @@ export const FullCard = memo(function FullCard({
             </ScrollShadow>
           </div>
         ) : null}
-        <div className="p-2" onClick={(e) => e.stopPropagation()}>
+        <div className="min-w-0 py-1" onClick={(e) => e.stopPropagation()}>
           <MoleculeCardActions
             molecule={props.molecule}
             pubChemUrl={props.pubChemUrl}

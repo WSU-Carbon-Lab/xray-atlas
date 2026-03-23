@@ -131,7 +131,7 @@ export function TagsDropdown({
       <DropdownTrigger>
         <button
           type="button"
-          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "bg-accent/15 text-accent border-accent/40" : ""} ${triggerClassName}`}
+          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "bg-accent/15 text-accent border-accent/40" : ""} ${triggerClassName}`}
           aria-label={ariaLabel}
           aria-pressed={hasSelection}
         >

@@ -434,10 +434,34 @@ export const experimentsRouter = createTRPCRouter({
     }),
 
   listEdges: publicProcedure.query(async ({ ctx }) => {
-    const edges = await ctx.db.edges.findMany({
-      orderBy: [{ targetatom: "asc" }, { corestate: "asc" }],
+    const edges = await ctx.db.edges.findMany();
+    const priorityRank = (e: { targetatom: string; corestate: string }) => {
+      const atom = e.targetatom.trim().toUpperCase();
+      const cs = e.corestate.trim().toUpperCase();
+      const isK = cs === "K";
+      const cEdge =
+        isK && (atom === "C" || atom === "CARBON");
+      const nEdge =
+        isK && (atom === "N" || atom === "NITROGEN");
+      const sEdge =
+        isK && (atom === "S" || atom === "SULFUR" || atom === "SULPHUR");
+      if (cEdge) return 0;
+      if (nEdge) return 1;
+      if (sEdge) return 2;
+      return 3;
+    };
+    edges.sort((a, b) => {
+      const pa = priorityRank(a);
+      const pb = priorityRank(b);
+      if (pa !== pb) return pa - pb;
+      const t = a.targetatom.localeCompare(b.targetatom, undefined, {
+        sensitivity: "base",
+      });
+      if (t !== 0) return t;
+      return a.corestate.localeCompare(b.corestate, undefined, {
+        sensitivity: "base",
+      });
     });
-
     return { edges };
   }),
 

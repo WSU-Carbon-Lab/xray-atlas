@@ -321,46 +321,52 @@ function NexafsBrowseContent() {
           onSearchChange={setQuery}
           searchPlaceholder="Search catalog…"
         >
-          <NexafsMoleculeFilterDropdown
-            moleculeId={moleculeId}
-            onMoleculeChange={setMoleculeId}
-          />
-          <NexafsEdgeFilterDropdown
-            edgeId={edgeId}
-            edges={edgeOptions}
-            onEdgeChange={setEdgeId}
-          />
+          <div className="shrink-0">
+            <NexafsMoleculeFilterDropdown
+              moleculeId={moleculeId}
+              onMoleculeChange={setMoleculeId}
+            />
+          </div>
+          <div className="shrink-0">
+            <NexafsEdgeFilterDropdown
+              edgeId={edgeId}
+              edges={edgeOptions}
+              onEdgeChange={setEdgeId}
+            />
+          </div>
           {!hasSearchQuery && (
             <>
-              <Dropdown>
-                <DropdownTrigger>
-                  <button
-                    type="button"
-                    className="border-border bg-surface text-muted focus-visible:ring-accent flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                    aria-label={`Sort datasets; current order is ${sortLabelCurrent}`}
-                  >
-                    <ArrowsUpDownIcon
-                      className="h-5 w-5 shrink-0 stroke-[1.5]"
-                      aria-hidden
-                    />
-                    <span className="text-sm font-medium">Sort</span>
-                  </button>
-                </DropdownTrigger>
-                <DropdownMenu
-                  aria-label="Sort order"
-                  className="border-border bg-default max-h-[min(320px,50vh)] w-[min(100vw-2rem,280px)] overflow-y-auto rounded-lg border"
-                >
-                  {SORT_OPTIONS.map((opt) => (
-                    <DropdownItem
-                      key={opt.key}
-                      textValue={opt.label}
-                      onPress={() => setSortBy(opt.key)}
+              <div className="shrink-0">
+                <Dropdown>
+                  <DropdownTrigger>
+                    <button
+                      type="button"
+                      className="border-border bg-surface text-muted focus-visible:ring-accent flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                      aria-label={`Sort datasets; current order is ${sortLabelCurrent}`}
                     >
-                      <Label>{opt.label}</Label>
-                    </DropdownItem>
-                  ))}
-                </DropdownMenu>
-              </Dropdown>
+                      <ArrowsUpDownIcon
+                        className="h-5 w-5 shrink-0 stroke-[1.5]"
+                        aria-hidden
+                      />
+                      <span className="text-sm font-medium">Sort</span>
+                    </button>
+                  </DropdownTrigger>
+                  <DropdownMenu
+                    aria-label="Sort order"
+                    className="border-border bg-default max-h-[min(320px,50vh)] w-[min(100vw-2rem,280px)] overflow-y-auto rounded-lg border"
+                  >
+                    {SORT_OPTIONS.map((opt) => (
+                      <DropdownItem
+                        key={opt.key}
+                        textValue={opt.label}
+                        onPress={() => setSortBy(opt.key)}
+                      >
+                        <Label>{opt.label}</Label>
+                      </DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </Dropdown>
+              </div>
               <Button
                 variant="secondary"
                 className="min-h-12 shrink-0"

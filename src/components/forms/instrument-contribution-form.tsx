@@ -38,7 +38,6 @@ export function InstrumentContributionForm({
     {
       limit: 200,
       offset: 0,
-      sortBy: "name",
     },
     {
       enabled: !facilityId,
