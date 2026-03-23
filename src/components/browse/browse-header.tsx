@@ -39,9 +39,17 @@ export function BrowseHeader({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [searchShortcutKey]);
 
+  const hasToolbar = children != null && children !== false;
+
   return (
     <div className="flex w-full flex-col gap-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-      <div className="flex min-h-12 w-full min-w-0 items-center sm:w-auto sm:max-w-md sm:shrink-0">
+      <div
+        className={
+          hasToolbar
+            ? "flex min-h-12 w-full min-w-0 items-center sm:w-auto sm:max-w-md sm:shrink-0"
+            : "flex min-h-12 w-full min-w-0 items-center"
+        }
+      >
         <SearchField
           name="browse-search"
           value={searchValue}
@@ -72,11 +80,11 @@ export function BrowseHeader({
           </SearchField.Group>
         </SearchField>
       </div>
-      {children != null && children !== false && (
+      {hasToolbar ? (
         <div className="flex min-h-12 min-w-0 w-full flex-wrap items-center gap-2 sm:min-w-[min(100%,17.5rem)] sm:flex-1 sm:justify-end sm:gap-3">
           {children}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

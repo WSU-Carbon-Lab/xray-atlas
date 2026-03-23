@@ -100,13 +100,7 @@ function FacilitiesBrowseContent() {
           searchValue={query}
           onSearchChange={setQuery}
           searchPlaceholder="Search facilities by name, city, or country..."
-        >
-          <ItemsPerPageSelect
-            value={itemsPerPage}
-            onChange={setItemsPerPage}
-            labelId="facilities-items-per-page"
-          />
-        </BrowseHeader>
+        />
 
         {/* Results */}
         <div>
@@ -173,8 +167,13 @@ function FacilitiesBrowseContent() {
                 </div>
               )}
 
-              {totalPages > 1 && (
-                <div className="mt-8 flex justify-center">
+              <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <ItemsPerPageSelect
+                  value={itemsPerPage}
+                  onChange={setItemsPerPage}
+                  labelId="facilities-items-per-page"
+                />
+                {totalPages > 1 ? (
                   <Pagination
                     total={totalPages}
                     page={currentPage}
@@ -189,8 +188,8 @@ function FacilitiesBrowseContent() {
                       next: "rounded-lg border border-border bg-surface",
                     }}
                   />
-                </div>
-              )}
+                ) : null}
+              </div>
             </>
           )}
         </div>
