@@ -3,7 +3,10 @@ export {
   ContributionFileDropOverlay,
   type ContributionFileDropOverlayFileKind,
 } from "./contribution-file-drop-overlay";
-export { ContributionCard } from "./contribution-card";
+export {
+  ContributionCard,
+  ContributionCard as BrowseContributeCard,
+} from "./contribution-card";
 export type { ContributionCardProps } from "./contribution-card";
 export { AddNexafsCard } from "./add-nexafs-card";
 export { AddMoleculeCard } from "./add-molecule-card";

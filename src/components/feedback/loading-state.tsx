@@ -154,7 +154,7 @@ export function ContributionCardSkeleton({
 }) {
   return (
     <div
-      className={`flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-white px-6 py-6 dark:border-gray-700 dark:bg-gray-800 ${className}`}
+      className={`border-border bg-surface flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border px-6 py-6 shadow-sm ${className}`}
     >
       <div className="flex flex-col gap-2">
         <LoadingSkeleton className="h-4 w-32 rounded" />

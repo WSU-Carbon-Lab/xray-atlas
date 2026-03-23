@@ -4,6 +4,7 @@ import { Dialog, Transition } from "@headlessui/react";
 import { Fragment, useState } from "react";
 import type { ReactNode, ComponentType, HTMLAttributes } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { ContributionCard } from "./contribution-card";
 
 type TriggerIcon = ComponentType<
   HTMLAttributes<SVGSVGElement> & { className?: string }
@@ -36,7 +37,7 @@ export function AddEntityModal({
   description,
   triggerLabel,
   triggerDescription,
-  triggerIcon: Icon,
+  triggerIcon,
   triggerClassName = "",
   size = "lg",
   fullWidth = false,
@@ -49,43 +50,19 @@ export function AddEntityModal({
   const open = () => setIsOpen(true);
 
   const isCompact = variant === "compact";
-  const triggerBaseClasses = isCompact
-    ? "group inline-flex items-center gap-3 rounded-xl border border-border-default bg-surface-1 px-4 py-3 text-left transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-md dark:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-    : "group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border border-border-default bg-surface-1 px-6 py-6 text-left shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2";
 
   return (
     <>
-      <button
-        type="button"
+      <ContributionCard
+        variant={isCompact ? "compact" : "default"}
+        label={triggerLabel}
+        description={description ?? ""}
+        subDescription={triggerDescription}
+        icon={triggerIcon}
         onClick={open}
-        className={`${triggerBaseClasses} ${fullWidth ? "" : "md:w-auto"} ${triggerClassName}`}
-      >
-        <div className="flex flex-col gap-2">
-          <span className="text-accent text-sm font-semibold tracking-wide uppercase">
-            {triggerLabel}
-          </span>
-          {description && (
-            <span className="text-foreground text-base transition-colors duration-200 group-hover:opacity-90">
-              {description}
-            </span>
-          )}
-          {triggerDescription && (
-            <span className="text-muted text-sm">
-              {triggerDescription}
-            </span>
-          )}
-        </div>
-        {Icon && !isCompact && (
-          <div className="text-muted group-hover:text-accent hidden shrink-0 transition-colors duration-200 md:block">
-            <Icon className="h-16 w-16" aria-hidden="true" />
-          </div>
-        )}
-        {Icon && isCompact && (
-          <div className="text-muted group-hover:text-accent shrink-0 transition-colors duration-200">
-            <Icon className="h-6 w-6" aria-hidden="true" />
-          </div>
-        )}
-      </button>
+        className={triggerClassName}
+        fullWidth={fullWidth}
+      />
 
       <Transition appear show={isOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50" onClose={close}>
@@ -130,8 +107,9 @@ export function AddEntityModal({
                       type="button"
                       onClick={close}
                       className="text-muted hover:bg-default hover:text-foreground rounded-full p-2 transition-colors"
+                      aria-label="Close dialog"
                     >
-                      <XMarkIcon className="h-5 w-5" />
+                      <XMarkIcon className="h-5 w-5" aria-hidden />
                     </button>
                   </div>
 

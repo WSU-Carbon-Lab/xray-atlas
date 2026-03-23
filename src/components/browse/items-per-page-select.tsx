@@ -1,6 +1,7 @@
 "use client";
 
 import { selectClasses } from "@/components/browse/browse-header";
+import { Tooltip } from "@heroui/react";
 
 const OPTIONS = [12, 24, 48, 96] as const;
 
@@ -8,26 +9,28 @@ type ItemsPerPageSelectProps = {
   value: number;
   onChange: (value: number) => void;
   labelId?: string;
+  compact?: boolean;
 };
 
 export function ItemsPerPageSelect({
   value,
   onChange,
   labelId = "items-per-page",
+  compact = false,
 }: ItemsPerPageSelectProps) {
-  return (
-    <div className="flex items-center gap-2">
+  const control = (
+    <div className="flex shrink-0 items-center gap-2">
       <label
         htmlFor={labelId}
-        className="text-muted text-sm font-medium"
+        className={compact ? "sr-only" : "text-muted text-sm font-medium"}
       >
-        Show:
+        {compact ? "Results per page" : "Show:"}
       </label>
       <select
         id={labelId}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={selectClasses}
+        className={`${selectClasses} h-12 min-h-12 ${compact ? "min-w-[4.5rem]" : ""}`}
         aria-label="Items per page"
       >
         {OPTIONS.map((n) => (
@@ -36,7 +39,24 @@ export function ItemsPerPageSelect({
           </option>
         ))}
       </select>
-      <span className="text-muted text-sm">per page</span>
+      <span className={compact ? "sr-only" : "text-muted text-sm"}>
+        per page
+      </span>
     </div>
+  );
+
+  if (!compact) return control;
+
+  return (
+    <Tooltip delay={0}>
+      {control}
+      <Tooltip.Content
+        placement="top"
+        className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-left shadow-lg"
+      >
+        Number of dataset rows per page when browsing the list (not used during
+        text search).
+      </Tooltip.Content>
+    </Tooltip>
   );
 }

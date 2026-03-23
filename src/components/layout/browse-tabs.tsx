@@ -2,47 +2,93 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BeakerIcon, BuildingOfficeIcon } from "@heroicons/react/24/outline";
+import { useMemo, type ComponentPropsWithoutRef } from "react";
+import { Tabs } from "@heroui/react";
+import {
+  BeakerIcon,
+  BoltIcon,
+  BuildingOfficeIcon,
+} from "@heroicons/react/24/outline";
+
+type BrowseTabId = "molecules" | "nexafs" | "facilities";
+
+function pathToSelectedKey(pathname: string | null): BrowseTabId {
+  if (!pathname || pathname === "/browse") return "molecules";
+  if (pathname.startsWith("/browse/nexafs")) return "nexafs";
+  if (pathname.startsWith("/browse/facilities")) return "facilities";
+  return "molecules";
+}
+
+const tabLinkClass =
+  "flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors";
 
 export function BrowseTabs() {
   const pathname = usePathname();
-  const isMolecules = pathname?.startsWith("/browse/molecules") || pathname === "/browse";
-  const isFacilities = pathname?.startsWith("/browse/facilities");
+  const selectedKey = useMemo(() => pathToSelectedKey(pathname), [pathname]);
 
   return (
-    <div className="border-border mb-8 border-b">
-      <nav className="-mb-px flex space-x-8">
-        <Link
-          href="/browse/molecules"
-          className={`group inline-flex items-center border-b-2 px-1 py-4 text-sm font-medium transition-colors ${
-            isMolecules
-              ? "border-accent text-accent"
-              : "text-muted border-transparent hover:border-border-strong hover:text-foreground"
-          }`}
+    <Tabs selectedKey={selectedKey} className="mb-8 w-full min-w-0">
+      <Tabs.ListContainer className="w-full min-w-0">
+        <Tabs.List
+          aria-label="Browse sections"
+          className="border-border bg-surface *:data-[selected=true]:text-accent-foreground flex min-h-12 w-full min-w-0 flex-wrap gap-0.5 rounded-xl border p-1 *:flex *:min-h-10 *:flex-1 *:items-center *:justify-center *:gap-2 *:rounded-lg *:px-3 *:text-sm *:font-medium *:text-muted *:transition-colors *:[&_svg]:block *:data-[selected=true]:bg-accent sm:flex-nowrap sm:*:min-w-0"
         >
-          <BeakerIcon
-            className={`-ml-0.5 mr-2 h-5 w-5 ${
-              isMolecules ? "text-accent" : "text-muted group-hover:text-foreground"
-            }`}
-          />
-          Molecules
-        </Link>
-        <Link
-          href="/browse/facilities"
-          className={`group inline-flex items-center border-b-2 px-1 py-4 text-sm font-medium transition-colors ${
-            isFacilities
-              ? "border-accent text-accent"
-              : "text-muted border-transparent hover:border-border-strong hover:text-foreground"
-          }`}
-        >
-          <BuildingOfficeIcon
-            className={`-ml-0.5 mr-2 h-5 w-5 ${
-              isFacilities ? "text-accent" : "text-muted group-hover:text-foreground"
-            }`}
-          />
-          Facilities
-        </Link>
-      </nav>
-    </div>
+          <Tabs.Tab
+            id="molecules"
+            href="/browse/molecules"
+            aria-label="Browse molecules"
+            className={tabLinkClass}
+            render={(domProps) => (
+              <Link
+                {...(domProps as ComponentPropsWithoutRef<typeof Link>)}
+                href="/browse/molecules"
+                scroll={false}
+              />
+            )}
+          >
+            <BeakerIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
+            <span className="truncate">Molecules</span>
+            <Tabs.Indicator className="bg-accent rounded-md" />
+          </Tabs.Tab>
+          <Tabs.Tab
+            id="nexafs"
+            href="/browse/nexafs"
+            aria-label="Browse NEXAFS datasets"
+            className={tabLinkClass}
+            render={(domProps) => (
+              <Link
+                {...(domProps as ComponentPropsWithoutRef<typeof Link>)}
+                href="/browse/nexafs"
+                scroll={false}
+              />
+            )}
+          >
+            <BoltIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
+            <span className="truncate">NEXAFS</span>
+            <Tabs.Indicator className="bg-accent rounded-md" />
+          </Tabs.Tab>
+          <Tabs.Tab
+            id="facilities"
+            href="/browse/facilities"
+            aria-label="Browse facilities"
+            className={tabLinkClass}
+            render={(domProps) => (
+              <Link
+                {...(domProps as ComponentPropsWithoutRef<typeof Link>)}
+                href="/browse/facilities"
+                scroll={false}
+              />
+            )}
+          >
+            <BuildingOfficeIcon
+              className="h-5 w-5 shrink-0 stroke-[1.5]"
+              aria-hidden
+            />
+            <span className="truncate">Facilities</span>
+            <Tabs.Indicator className="bg-accent rounded-md" />
+          </Tabs.Tab>
+        </Tabs.List>
+      </Tabs.ListContainer>
+    </Tabs>
   );
 }

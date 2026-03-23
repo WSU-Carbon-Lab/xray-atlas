@@ -1,6 +1,16 @@
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+
+const facilitiesListInclude = {
+  instruments: {
+    where: { status: "active" as const },
+  },
+  _count: {
+    select: { instruments: true },
+  },
+} as const;
 
 export const facilitiesRouter = createTRPCRouter({
   create: protectedProcedure
@@ -84,15 +94,23 @@ export const facilitiesRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const facilities = await ctx.db.facilities.findMany({
-        where: {
-          OR: [
-            { name: { contains: input.query, mode: "insensitive" } },
-            { city: { contains: input.query, mode: "insensitive" } },
-            { country: { contains: input.query, mode: "insensitive" } },
-          ],
-        },
-        take: input.limit,
+      const like = `%${input.query}%`;
+      const idRows = await ctx.db.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`
+          SELECT id FROM facilities
+          WHERE name ILIKE ${like}
+             OR city ILIKE ${like}
+             OR country ILIKE ${like}
+          ORDER BY name ASC
+          LIMIT ${input.limit}
+        `,
+      );
+      const idList = idRows.map((r) => r.id);
+      if (idList.length === 0) {
+        return { facilities: [] };
+      }
+      const unordered = await ctx.db.facilities.findMany({
+        where: { id: { in: idList } },
         include: {
           instruments: {
             where: {
@@ -100,11 +118,11 @@ export const facilitiesRouter = createTRPCRouter({
             },
           },
         },
-        orderBy: {
-          name: "asc",
-        },
       });
-
+      const byId = new Map(unordered.map((f) => [f.id, f]));
+      const facilities = idList
+        .map((id) => byId.get(id))
+        .filter((f): f is NonNullable<typeof f> => f != null);
       return { facilities };
     }),
 
@@ -165,46 +183,17 @@ export const facilitiesRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(12),
         offset: z.number().min(0).default(0),
-        sortBy: z.enum(["name", "city", "country"]).default("name"),
-        facilityType: z.enum(["SYNCHROTRON", "FREE_ELECTRON_LASER", "LAB_SOURCE"]).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const where: {
-        facilitytype?: "SYNCHROTRON" | "FREE_ELECTRON_LASER" | "LAB_SOURCE";
-      } = {};
-
-      if (input.facilityType) {
-        where.facilitytype = input.facilityType;
-      }
-
-      const orderBy =
-        input.sortBy === "city"
-          ? [{ city: "asc" as const }, { name: "asc" as const }]
-          : input.sortBy === "country"
-            ? [{ country: "asc" as const }, { name: "asc" as const }]
-            : [{ name: "asc" as const }];
-
       const [facilities, totalCount] = await Promise.all([
         ctx.db.facilities.findMany({
-          where,
           take: input.limit,
           skip: input.offset,
-          include: {
-            instruments: {
-              where: {
-                status: "active",
-              },
-            },
-            _count: {
-              select: {
-                instruments: true,
-              },
-            },
-          },
-          orderBy,
+          orderBy: { name: "asc" },
+          include: facilitiesListInclude,
         }),
-        ctx.db.facilities.count({ where }),
+        ctx.db.facilities.count(),
       ]);
 
       return {

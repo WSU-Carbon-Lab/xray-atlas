@@ -31,33 +31,30 @@ export function FacilityCardCompact({
   return (
     <Link
       href={`/facilities/${id}`}
-      className="group flex w-full items-center gap-4 overflow-hidden rounded-xl border border-gray-200/50 bg-white/80 p-4 shadow-lg backdrop-blur-xl transition-all hover:shadow-xl dark:border-gray-700/50 dark:bg-gray-800/80"
+      className="group border-border bg-surface flex w-full items-center gap-4 overflow-hidden rounded-xl border p-4 shadow-lg transition-all hover:shadow-xl"
     >
-      {/* Icon */}
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light">
-        <BuildingOfficeIcon className="h-6 w-6" />
+      <div className="bg-accent/10 text-accent dark:bg-accent-soft-hover flex h-12 w-12 shrink-0 items-center justify-center rounded-lg dark:text-accent">
+        <BuildingOfficeIcon className="h-6 w-6 stroke-[1.5]" aria-hidden />
       </div>
-
-      {/* Content */}
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-lg font-bold text-gray-900 dark:text-gray-100">
-              {name}
-            </h3>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                {location}
+            <h3 className="text-foreground truncate text-lg font-bold">{name}</h3>
+            <div className="text-muted mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span>{location}</span>
+              <span aria-hidden className="text-muted">
+                |
               </span>
-              <span className="text-gray-400 dark:text-gray-500">•</span>
-              <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+              <span className="border-border bg-default text-foreground rounded-full border px-2 py-0.5 text-xs font-medium">
                 {facilityTypeLabel}
               </span>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
-            <BeakerIcon className="h-4 w-4" />
-            <span className="font-semibold">{instrumentCount}</span>
+          <div className="text-muted flex shrink-0 items-center gap-1.5 text-sm">
+            <BeakerIcon className="h-4 w-4 shrink-0 stroke-[1.5]" aria-hidden />
+            <span className="text-foreground font-semibold tabular-nums">
+              {instrumentCount}
+            </span>
             <span className="text-xs">instruments</span>
           </div>
         </div>

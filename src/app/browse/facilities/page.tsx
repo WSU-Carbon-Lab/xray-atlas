@@ -7,12 +7,10 @@ import { FacilityCardCompact } from "@/components/facilities/facility-card";
 import { ErrorState } from "@/components/feedback/error-state";
 import { BrowseTabs } from "@/components/layout/browse-tabs";
 import { AddFacilityButton } from "@/components/contribute";
-import { BarsArrowDownIcon } from "@heroicons/react/24/outline";
-import { BrowseHeader, selectClasses } from "@/components/browse/browse-header";
+import { BrowseHeader } from "@/components/browse/browse-header";
 import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
-import { Tooltip } from "@heroui/react";
 import { Pagination } from "@heroui/pagination";
 
 function FacilitiesBrowseContent() {
@@ -20,10 +18,6 @@ function FacilitiesBrowseContent() {
   const router = useRouter();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [debouncedQuery, setDebouncedQuery] = useState(query);
-  const [sortBy, setSortBy] = useState<"name" | "city" | "country">("name");
-  const [facilityType, setFacilityType] = useState<
-    "SYNCHROTRON" | "FREE_ELECTRON_LASER" | "LAB_SOURCE" | undefined
-  >(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
@@ -37,7 +31,7 @@ function FacilitiesBrowseContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [sortBy, itemsPerPage, facilityType]);
+  }, [itemsPerPage]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -68,8 +62,6 @@ function FacilitiesBrowseContent() {
     {
       limit: itemsPerPage,
       offset: (currentPage - 1) * itemsPerPage,
-      sortBy,
-      facilityType,
     },
     {
       enabled: !hasSearchQuery,
@@ -108,76 +100,7 @@ function FacilitiesBrowseContent() {
           searchValue={query}
           onSearchChange={setQuery}
           searchPlaceholder="Search facilities by name, city, or country..."
-        >
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <ItemsPerPageSelect
-              value={itemsPerPage}
-              onChange={setItemsPerPage}
-              labelId="facilities-items-per-page"
-            />
-            {!hasSearchQuery && (
-              <>
-                <div className="flex items-center gap-2">
-                  <label
-                    htmlFor="facility-type"
-                    className="text-muted text-sm font-medium"
-                  >
-                    Type:
-                  </label>
-                  <select
-                    id="facility-type"
-                    value={facilityType ?? ""}
-                    onChange={(e) =>
-                      setFacilityType(
-                        e.target.value === ""
-                          ? undefined
-                          : (e.target.value as
-                              | "SYNCHROTRON"
-                              | "FREE_ELECTRON_LASER"
-                              | "LAB_SOURCE"),
-                      )
-                    }
-                    className={selectClasses}
-                  >
-                    <option value="">All Types</option>
-                    <option value="SYNCHROTRON">Synchrotron</option>
-                    <option value="FREE_ELECTRON_LASER">
-                      Free Electron Laser
-                    </option>
-                    <option value="LAB_SOURCE">Lab Source</option>
-                  </select>
-                </div>
-                <Tooltip delay={0}>
-                  <div className="flex items-center gap-2">
-                    <BarsArrowDownIcon
-                      className="text-muted h-4 w-4 shrink-0 stroke-[1.5]"
-                      aria-hidden
-                    />
-                    <select
-                      id="sort-select"
-                      value={sortBy}
-                      onChange={(e) =>
-                        setSortBy(e.target.value as "name" | "city" | "country")
-                      }
-                      className={`${selectClasses} cursor-pointer`}
-                      aria-label="Sort by"
-                    >
-                      <option value="name">Name (A-Z)</option>
-                      <option value="city">City</option>
-                      <option value="country">Country</option>
-                    </select>
-                  </div>
-                  <Tooltip.Content
-                    placement="top"
-                    className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
-                  >
-                    Sort facilities
-                  </Tooltip.Content>
-                </Tooltip>
-              </>
-            )}
-          </div>
-        </BrowseHeader>
+        />
 
         {/* Results */}
         <div>
@@ -244,8 +167,13 @@ function FacilitiesBrowseContent() {
                 </div>
               )}
 
-              {totalPages > 1 && (
-                <div className="mt-8 flex justify-center">
+              <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <ItemsPerPageSelect
+                  value={itemsPerPage}
+                  onChange={setItemsPerPage}
+                  labelId="facilities-items-per-page"
+                />
+                {totalPages > 1 ? (
                   <Pagination
                     total={totalPages}
                     page={currentPage}
@@ -260,8 +188,8 @@ function FacilitiesBrowseContent() {
                       next: "rounded-lg border border-border bg-surface",
                     }}
                   />
-                </div>
-              )}
+                ) : null}
+              </div>
             </>
           )}
         </div>
