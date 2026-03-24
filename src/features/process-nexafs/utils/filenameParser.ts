@@ -81,6 +81,7 @@ export function normalizeExperimentMode(mode: string | null): string | null {
     "TEY": "TOTAL_ELECTRON_YIELD",
     "PEY": "PARTIAL_ELECTRON_YIELD",
     "FY": "FLUORESCENT_YIELD",
+    "NSLSII": "FLUORESCENT_YIELD",
     "FLUORESCENT": "FLUORESCENT_YIELD",
     "TOTAL": "TOTAL_ELECTRON_YIELD",
     "PARTIAL": "PARTIAL_ELECTRON_YIELD",
@@ -108,4 +109,17 @@ export function normalizeFacilityToken(
   };
 
   return facilityMap[upperNoSpace] ?? t;
+}
+
+export function normalizeInstrumentName(
+  facilityDisplayName: string | null,
+  instrument: string | null,
+): string | null {
+  if (!instrument?.trim()) return null;
+  const inst = instrument.trim();
+  const fac = facilityDisplayName?.trim() ?? "";
+  if (fac === "Advanced Light Source" && inst === "5.3.2") {
+    return "Beamline 5.3.2.2";
+  }
+  return inst;
 }

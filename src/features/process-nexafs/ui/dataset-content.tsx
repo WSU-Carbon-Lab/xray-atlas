@@ -1985,12 +1985,6 @@ export function DatasetContent({
       {/* Sample Information */}
       <div>
         <NexafsSampleInformationSection
-          preparationDate={dataset.sampleInfo.preparationDate}
-          setPreparationDate={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, preparationDate: value },
-            })
-          }
           processMethod={dataset.sampleInfo.processMethod}
           setProcessMethod={(value) =>
             onDatasetUpdate(dataset.id, {

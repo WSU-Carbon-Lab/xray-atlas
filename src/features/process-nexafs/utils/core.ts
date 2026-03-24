@@ -120,7 +120,7 @@ export type NormalizationComputation = {
   postRange: [number, number] | null;
 };
 
-const interpolateBareMu = (
+export const interpolateBareMu = (
   barePoints: BareAtomPoint[],
   energy: number,
 ): number => {

@@ -7,7 +7,10 @@ import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import { Chip, Slider } from "@heroui/react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import type { CSVColumnMappings, ColumnStats } from "~/features/process-nexafs";
-import { analyzeNumericColumns } from "~/features/process-nexafs/utils";
+import {
+  analyzeNumericColumns,
+  detectAuxiliarySpectrumColumnNames,
+} from "~/features/process-nexafs/utils";
 import type { SpectrumPoint } from "~/components/plots/types";
 
 interface ColumnMappingModalProps {
@@ -95,6 +98,7 @@ export function ColumnMappingModal({
       absorption: absorptionCol ?? columns[1] ?? "",
       theta: thetaCol ?? undefined,
       phi: phiCol ?? undefined,
+      ...detectAuxiliarySpectrumColumnNames(columns),
     });
   }, [columns, isOpen]);
 
@@ -104,6 +108,10 @@ export function ColumnMappingModal({
     if (mappings.absorption) numericColumns.add(mappings.absorption);
     if (mappings.theta) numericColumns.add(mappings.theta);
     if (mappings.phi) numericColumns.add(mappings.phi);
+    if (mappings.i0) numericColumns.add(mappings.i0);
+    if (mappings.od) numericColumns.add(mappings.od);
+    if (mappings.massabsorption) numericColumns.add(mappings.massabsorption);
+    if (mappings.beta) numericColumns.add(mappings.beta);
 
     const reports = analyzeNumericColumns(rawData, numericColumns);
     const stats: Record<string, ColumnStats> = {};

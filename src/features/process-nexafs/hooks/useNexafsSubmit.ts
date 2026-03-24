@@ -133,18 +133,12 @@ export function useNexafsSubmit(
                 Number.isFinite(dataset.sampleInfo.molecularWeight)
                   ? dataset.sampleInfo.molecularWeight
                   : undefined,
-              preparationDate: dataset.sampleInfo.preparationDate
-                ? new Date(dataset.sampleInfo.preparationDate).toISOString()
-                : undefined,
               vendor: vendorPayload ?? {},
             },
             experiment: {
               instrumentId: dataset.instrumentId,
               edgeId: dataset.edgeId,
               experimentType: dataset.experimentType,
-              measurementDate: dataset.measurementDate
-                ? new Date(dataset.measurementDate).toISOString()
-                : undefined,
               calibrationId: dataset.calibrationId || undefined,
               referenceStandard: dataset.referenceStandard.trim() || undefined,
               isStandard: dataset.isStandard,

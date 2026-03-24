@@ -29,7 +29,6 @@ interface BaseMoleculeRow {
 type SampleRow = {
   id: string;
   identifier: string | null;
-  preparationdate: Date | null;
   _count?: { experiments: number };
 };
 
@@ -97,7 +96,6 @@ export function toMoleculeView(
     samples: row.samples?.map((s) => ({
       id: s.id,
       identifier: s.identifier,
-      preparationdate: s.preparationdate,
     })),
     createdAt: row.createdat,
     updatedAt: row.updatedat,

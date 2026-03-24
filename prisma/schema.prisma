@@ -82,12 +82,12 @@ model experiments {
   calibrationid          String?                  @db.Uuid
   isstandard             Boolean                  @default(false)
   referencestandard      String?
-  measurementdate        DateTime                 @db.Date
   createdby              String?
   createdat              DateTime                 @default(now()) @db.Timestamptz(6)
   updatedat              DateTime                 @default(now()) @db.Timestamptz(6)
   experimenttype         ExperimentType?
   nexafsexperimentkindid String?                 @db.Uuid
+  sourceJsonPath         String?                  @map("source_json_path")
   nexafsexperimentkind   nexafsexperimentkinds? @relation(fields: [nexafsexperimentkindid], references: [id], onUpdate: NoAction)
   experimentpublications experimentpublications[]
   experimentquality      experimentquality?
@@ -99,8 +99,7 @@ model experiments {
   peaksets               peaksets[]
   spectrumpoints         spectrumpoints[]
 
-  @@unique([sampleid, edgeid, instrumentid, measurementdate])
-  @@index([sampleid, edgeid, instrumentid, measurementdate], map: "idx_experiment_lookup")
+  @@index([sampleid, edgeid, instrumentid], map: "idx_experiment_lookup")
   @@index([calibrationid], map: "idx_experiments_calibrationid")
   @@index([createdby], map: "idx_experiments_createdby")
   @@index([edgeid], map: "idx_experiments_edgeid")
@@ -314,16 +313,16 @@ model samples {
   id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   moleculeid      String         @db.Uuid
   identifier      String         @unique
-  preparationdate DateTime?      @db.Date
   createdat       DateTime       @default(now()) @db.Timestamptz(6)
   updatedat       DateTime       @default(now()) @db.Timestamptz(6)
   vendorid        String?        @db.Uuid
   molecularweight Float?
   processmethod   ProcessMethod?
-  solvent         String?
-  substrate       String?
-  thickness       Float?
-  experiments     experiments[]
+  solvent                String?
+  substrate              String?
+  thickness              Float?
+  preparationfingerprint String?   @map("preparation_fingerprint")
+  experiments            experiments[]
   molecules       molecules      @relation(fields: [moleculeid], references: [id], onUpdate: NoAction)
   vendors         vendors?       @relation(fields: [vendorid], references: [id], onUpdate: NoAction)
 
@@ -338,7 +337,9 @@ model spectrumpoints {
   experimentid String      @db.Uuid
   energyev     Float
   rawabs       Float
-  processedabs Float?
+  od           Float?
+  massabsorption Float?
+  beta         Float?
   i0           Float?
   experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 

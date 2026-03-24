@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { ProcessMethod } from "@prisma/client";
-
+import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
 export const samplesRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -96,7 +96,6 @@ export const samplesRouter = createTRPCRouter({
         solvent: z.string().optional(),
         thickness: z.number().optional(),
         molecularWeight: z.number().optional(),
-        preparationdate: z.date().optional(),
         vendorid: z.string().uuid().optional(),
         vendorName: z.string().optional(), // For creating vendor on-the-fly
         vendorUrl: z.string().url().optional().or(z.literal("")),
@@ -165,11 +164,10 @@ export const samplesRouter = createTRPCRouter({
           moleculeid: input.moleculeid,
           identifier: sampleIdentifier,
           processmethod: input.processMethod ?? null,
-          substrate: input.substrate?.trim() ?? null,
+          substrate: normalizeSampleSubstrate(input.substrate),
           solvent: input.solvent?.trim() ?? null,
           thickness: input.thickness ?? null,
           molecularweight: input.molecularWeight ?? null,
-          preparationdate: input.preparationdate,
           vendorid: vendorId,
         },
         include: {

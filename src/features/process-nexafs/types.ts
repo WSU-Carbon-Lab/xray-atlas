@@ -55,6 +55,10 @@ export interface CSVColumnMappings {
   absorption: string;
   theta?: string;
   phi?: string;
+  i0?: string;
+  od?: string;
+  massabsorption?: string;
+  beta?: string;
 }
 
 export interface ExperimentNormalization {
@@ -69,7 +73,6 @@ export interface ExperimentConfig {
   instrumentId: string;
   edgeId: string;
   experimentType: ExperimentTypeOption;
-  measurementDate: string;
   calibrationId: string;
   referenceStandard: string;
   isStandard: boolean;
@@ -122,7 +125,6 @@ export type SampleInfo = {
   solvent: string;
   thickness: number | null;
   molecularWeight: number | null;
-  preparationDate: string;
   vendorId: string;
   newVendorName: string;
   newVendorUrl: string;
@@ -168,7 +170,6 @@ export type DatasetState = {
   instrumentId: string;
   edgeId: string;
   experimentType: ExperimentTypeOption;
-  measurementDate: string;
   calibrationId: string;
   referenceStandard: string;
   isStandard: boolean;
@@ -203,7 +204,6 @@ export function createEmptyDatasetState(file: File): DatasetState {
       solvent: "",
       thickness: null,
       molecularWeight: null,
-      preparationDate: "",
       vendorId: "",
       newVendorName: "",
       newVendorUrl: "",
@@ -211,7 +211,6 @@ export function createEmptyDatasetState(file: File): DatasetState {
     instrumentId: "",
     edgeId: "",
     experimentType: "TOTAL_ELECTRON_YIELD",
-    measurementDate: "",
     calibrationId: "",
     referenceStandard: "",
     isStandard: false,

@@ -16,6 +16,7 @@ import {
   normalizeFacilityToken,
   parseNexafsJson,
   parseCSVFile,
+  detectAuxiliarySpectrumColumnNames,
 } from "../utils";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
@@ -30,6 +31,23 @@ type UseNexafsDatasetsOptions = {
     duration?: number,
   ) => void;
 };
+
+function readOptionalFloat(
+  row: Record<string, unknown>,
+  column: string | undefined,
+): number | undefined {
+  if (!column) return undefined;
+  const raw = row[column];
+  if (raw === undefined || raw === null || raw === "") return undefined;
+  if (typeof raw === "number") {
+    return Number.isFinite(raw) ? raw : undefined;
+  }
+  if (typeof raw === "string") {
+    const n = parseFloat(raw.trim());
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
 
 export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
   const { instrumentOptions, edgeOptions, showToast } = options;
@@ -129,6 +147,16 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
             const fixedPhiValue = parseFloat(dataset.fixedPhi);
             if (!isNaN(fixedPhiValue)) point.phi = fixedPhiValue;
           }
+
+          const cm = dataset.columnMappings;
+          const i0v = readOptionalFloat(row, cm.i0);
+          if (i0v !== undefined) point.i0 = i0v;
+          const odv = readOptionalFloat(row, cm.od);
+          if (odv !== undefined) point.od = odv;
+          const massv = readOptionalFloat(row, cm.massabsorption);
+          if (massv !== undefined) point.massabsorption = massv;
+          const betav = readOptionalFloat(row, cm.beta);
+          if (betav !== undefined) point.beta = betav;
 
           spectrumPoints.push(point);
         }
@@ -261,6 +289,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
               absorption: absorptionCol,
               theta: thetaCol ?? undefined,
               phi: phiCol ?? undefined,
+              ...detectAuxiliarySpectrumColumnNames(columns),
             };
 
             updateDataset(dataset.id, {
@@ -316,6 +345,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 absorption: absorptionCol ?? columns[1] ?? "",
                 theta: thetaCol ?? undefined,
                 phi: phiCol ?? undefined,
+                ...detectAuxiliarySpectrumColumnNames(columns),
               };
 
               const missingColumns: string[] = [];
@@ -402,7 +432,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       datasets
         .map(
           (d) =>
-            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${Array.isArray(d.csvRawData) ? d.csvRawData.length : 0}`,
+            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.columnMappings.i0 ?? ""}:${d.columnMappings.od ?? ""}:${d.columnMappings.massabsorption ?? ""}:${d.columnMappings.beta ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${Array.isArray(d.csvRawData) ? d.csvRawData.length : 0}`,
         )
         .join(","),
     [datasets],

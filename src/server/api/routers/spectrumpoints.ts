@@ -74,7 +74,9 @@ export const spectrumpointsRouter = createTRPCRouter({
           z.object({
             energyev: z.number(),
             rawabs: z.number(),
-            processedabs: z.number().optional(),
+            od: z.number().optional(),
+            massabsorption: z.number().optional(),
+            beta: z.number().optional(),
             i0: z.number().optional(),
           }),
         ),
@@ -104,7 +106,9 @@ export const spectrumpointsRouter = createTRPCRouter({
           experimentid: input.experimentId,
           energyev: point.energyev,
           rawabs: point.rawabs,
-          processedabs: point.processedabs ?? null,
+          od: point.od ?? null,
+          massabsorption: point.massabsorption ?? null,
+          beta: point.beta ?? null,
           i0: point.i0 ?? null,
         })),
       });

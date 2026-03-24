@@ -35,6 +35,7 @@ export { calculateBareAtomAbsorption } from "./bareAtomCalculation";
 export { parseCSVFile } from "./csv";
 export { computeBetaIndex } from "./betaIndex";
 export { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";
+export { detectAuxiliarySpectrumColumnNames } from "./auxiliarySpectrumColumns";
 export {
   filterSpectrumPointsByGeometry,
   buildAutoDetectedPeakList,

@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import { useMoleculeDetail } from "@/components/browse/molecule-detail-context";
 import { AddNexafsCard } from "@/components/contribute";
 import { trpc } from "~/trpc/client";
-import { CalendarIcon } from "@heroicons/react/24/outline";
 
 const VIEW_SESSION_KEY = "xray-atlas-view-session";
 const VIEW_DEBOUNCE_KEY = "xray-atlas-view-debounce";
@@ -86,13 +85,6 @@ export default function MoleculeDetailPage() {
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                       {sample.identifier ?? "—"}
                     </h3>
-                    {sample.preparationdate && (
-                      <p className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400">
-                        <CalendarIcon className="mr-1 h-4 w-4" />
-                        Prepared:{" "}
-                        {new Date(sample.preparationdate).toLocaleDateString()}
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>

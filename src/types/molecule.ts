@@ -22,7 +22,6 @@ export interface MoleculeViewTag {
 export interface MoleculeViewSample {
   id: string;
   identifier: string | null;
-  preparationdate: Date | string | null;
 }
 
 export interface MoleculeView {
