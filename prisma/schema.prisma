@@ -86,14 +86,15 @@ model experiments {
   createdat              DateTime                 @default(now()) @db.Timestamptz(6)
   updatedat              DateTime                 @default(now()) @db.Timestamptz(6)
   experimenttype         ExperimentType?
-  nexafsexperimentkindid String?                 @db.Uuid
+  nexafsexperimentkindid String?                  @db.Uuid
   sourceJsonPath         String?                  @map("source_json_path")
-  nexafsexperimentkind   nexafsexperimentkinds? @relation(fields: [nexafsexperimentkindid], references: [id], onUpdate: NoAction)
+  collectedbyuserids     String[]                 @default([]) @map("collected_by_user_ids")
   experimentpublications experimentpublications[]
   experimentquality      experimentquality?
   calibrationmethods     calibrationmethods?      @relation(fields: [calibrationid], references: [id], onUpdate: NoAction)
   edges                  edges                    @relation(fields: [edgeid], references: [id], onUpdate: NoAction)
   instruments            instruments              @relation(fields: [instrumentid], references: [id], onUpdate: NoAction)
+  nexafsexperimentkind   nexafsexperimentkinds?   @relation(fields: [nexafsexperimentkindid], references: [id], onUpdate: NoAction)
   polarizations          polarizations            @relation(fields: [polarizationid], references: [id], onUpdate: NoAction)
   samples                samples                  @relation(fields: [sampleid], references: [id], onUpdate: NoAction)
   peaksets               peaksets[]
@@ -110,16 +111,13 @@ model experiments {
 }
 
 model nexafsexperimentkinds {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-
-  token         String                 @unique
-  label         String
-  experimenttype ExperimentType       @unique
-
-  createdat DateTime @default(now()) @db.Timestamptz(6)
-  updatedat DateTime @default(now()) @db.Timestamptz(6)
-
-  experiments experiments[]
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token          String         @unique
+  label          String
+  experimenttype ExperimentType @unique
+  createdat      DateTime       @default(now()) @db.Timestamptz(6)
+  updatedat      DateTime       @default(now()) @db.Timestamptz(6)
+  experiments    experiments[]
 
   @@schema("public")
 }
@@ -166,12 +164,12 @@ model molecules {
   createdby            String?
   favoritecount        Int                    @default(0) @map("favorite_count")
   viewcount            Int                    @default(0) @map("view_count")
-  moleculesynonyms     moleculesynonyms[]
-  samples              samples[]
   moleculecontributors moleculecontributors[]
   moleculefavorites    moleculefavorites[]
-  moleculeviews        moleculeviews[]
   moleculetags         moleculetags[]
+  moleculeviews        moleculeviews[]
+  moleculesynonyms     moleculesynonyms[]
+  samples              samples[]
 
   @@index([createdby], map: "idx_molecules_createdby")
   @@schema("public")
@@ -193,13 +191,13 @@ model moleculesynonyms {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model tags {
-  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name         String         @unique
-  slug         String         @unique
-  color        String?
-  tailwindColor String?      @map("tailwind_color")
-  createdat    DateTime       @default(now()) @db.Timestamptz(6)
-  moleculetags moleculetags[]
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String         @unique
+  slug          String         @unique
+  color         String?
+  createdat     DateTime       @default(now()) @db.Timestamptz(6)
+  tailwindColor String?        @map("tailwind_color")
+  moleculetags  moleculetags[]
 
   @@schema("public")
 }
@@ -245,7 +243,7 @@ model moleculeviews {
   viewedat   DateTime  @default(now()) @map("viewed_at") @db.Timestamptz(6)
   sessionid  String?   @map("session_id")
   molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user       user?     @relation(fields: [userid], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  user       user?     @relation(fields: [userid], references: [id], onUpdate: NoAction)
 
   @@index([moleculeid])
   @@index([userid])
@@ -310,21 +308,21 @@ model publications {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model samples {
-  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  moleculeid      String         @db.Uuid
-  identifier      String         @unique
-  createdat       DateTime       @default(now()) @db.Timestamptz(6)
-  updatedat       DateTime       @default(now()) @db.Timestamptz(6)
-  vendorid        String?        @db.Uuid
-  molecularweight Float?
-  processmethod   ProcessMethod?
+  id                     String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moleculeid             String         @db.Uuid
+  identifier             String         @unique
+  createdat              DateTime       @default(now()) @db.Timestamptz(6)
+  updatedat              DateTime       @default(now()) @db.Timestamptz(6)
+  vendorid               String?        @db.Uuid
+  molecularweight        Float?
+  processmethod          ProcessMethod?
   solvent                String?
   substrate              String?
   thickness              Float?
-  preparationfingerprint String?   @map("preparation_fingerprint")
+  preparationfingerprint String?        @map("preparation_fingerprint")
   experiments            experiments[]
-  molecules       molecules      @relation(fields: [moleculeid], references: [id], onUpdate: NoAction)
-  vendors         vendors?       @relation(fields: [vendorid], references: [id], onUpdate: NoAction)
+  molecules              molecules      @relation(fields: [moleculeid], references: [id], onUpdate: NoAction)
+  vendors                vendors?       @relation(fields: [vendorid], references: [id], onUpdate: NoAction)
 
   @@index([moleculeid], map: "idx_samples_moleculeid")
   @@index([vendorid], map: "idx_samples_vendorid")
@@ -333,15 +331,15 @@ model samples {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model spectrumpoints {
-  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  experimentid String      @db.Uuid
-  energyev     Float
-  rawabs       Float
-  od           Float?
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  experimentid   String      @db.Uuid
+  energyev       Float
+  rawabs         Float
+  i0             Float?
+  beta           Float?
   massabsorption Float?
-  beta         Float?
-  i0           Float?
-  experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  od             Float?
+  experiments    experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([experimentid, energyev])
   @@index([experimentid, energyev], map: "idx_spectrum_energy")
@@ -398,13 +396,13 @@ model user {
   email                         String?                @unique(map: "email_unique")
   emailVerified                 DateTime?              @db.Timestamptz(6)
   image                         String?
-  orcid                         String?
-  role                          String                 @default("contributor")
   contributionAgreementAccepted Boolean                @default(false)
   contributionAgreementDate     DateTime?              @db.Timestamptz(6)
+  orcid                         String?
+  role                          String                 @default("contributor")
+  authenticator                 Authenticator[]
   account                       account[]
   session                       session[]
-  authenticator                 Authenticator[]
   moleculecontributors          moleculecontributors[]
   moleculefavorites             moleculefavorites[]
   moleculeviews                 moleculeviews[]

@@ -17,5 +17,14 @@ export function normalizeSampleSubstrate(value: string | null | undefined): stri
   ) {
     return "Si";
   }
+  if (
+    lower === "si3n4" ||
+    lower === "si3n4 membrane" ||
+    lower === "silicon nitride" ||
+    lower === "silicon nitride membrane" ||
+    lower.includes("silicon nitride")
+  ) {
+    return "Silicon nitride";
+  }
   return trimmed;
 }

@@ -11,6 +11,7 @@
     "check": "next lint && tsc --noEmit",
     "db:generate": "prisma migrate dev",
     "db:migrate": "prisma migrate deploy",
+    "db:supabase-parity": "prisma db execute --schema prisma/schema.prisma --file scripts/supabase-parity.sql",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:upsert:backlog-vendors": "bun run scripts/upsert-backlog-vendors.ts",

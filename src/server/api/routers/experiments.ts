@@ -8,6 +8,31 @@ import {
   computeSpectrumDerivedScalarColumns,
 } from "~/server/nexafs/computeSpectrumDerivedColumns";
 
+const emptyDerivedScalars = (): {
+  od: Array<number | null>;
+  massabsorption: Array<number | null>;
+  beta: Array<number | null>;
+} => ({ od: [], massabsorption: [], beta: [] });
+
+function spectrumRowsHaveUploadedDerivedScalars(
+  points: ReadonlyArray<{
+    od?: number;
+    massabsorption?: number;
+    beta?: number;
+  }>,
+): boolean {
+  if (points.length === 0) return false;
+  return points.every(
+    (p) =>
+      typeof p.od === "number" &&
+      Number.isFinite(p.od) &&
+      typeof p.massabsorption === "number" &&
+      Number.isFinite(p.massabsorption) &&
+      typeof p.beta === "number" &&
+      Number.isFinite(p.beta),
+  );
+}
+
 export const experimentsRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -655,6 +680,7 @@ export const experimentsRouter = createTRPCRouter({
             }),
           )
           .optional(),
+        collectedByUserIds: z.array(z.string().uuid()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -663,9 +689,89 @@ export const experimentsRouter = createTRPCRouter({
         experiment: experimentInput,
         geometry: geometryInput,
         spectrum: spectrumInput,
+        collectedByUserIds,
       } = input;
 
-      const transactionResult = await ctx.db.$transaction(async (tx) => {
+      const moleculeRow = await ctx.db.molecules.findUnique({
+        where: { id: sampleInput.moleculeId },
+        select: { chemicalformula: true },
+      });
+      const chemicalFormula = moleculeRow?.chemicalformula ?? null;
+
+      type SpectrumPoint = (typeof spectrumInput.points)[number];
+
+      interface GeometryGroup {
+        theta: number;
+        phi: number;
+        points: SpectrumPoint[];
+      }
+
+      const geometryGroups: GeometryGroup[] = [];
+
+      if (geometryInput.mode === "fixed") {
+        const fixedGeometry = geometryInput.fixed!;
+        geometryGroups.push({
+          theta: fixedGeometry.theta,
+          phi: fixedGeometry.phi,
+          points: spectrumInput.points.map((point) => ({
+            ...point,
+            theta: fixedGeometry.theta,
+            phi: fixedGeometry.phi,
+          })),
+        });
+      } else {
+        const groupedByGeometry = new Map<string, GeometryGroup>();
+
+        for (const point of spectrumInput.points) {
+          if (point.theta === undefined || point.phi === undefined) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Spectrum CSV must include theta and phi columns when using CSV geometry mode.",
+            });
+          }
+
+          const key = `${point.theta}:${point.phi}`;
+          if (!groupedByGeometry.has(key)) {
+            groupedByGeometry.set(key, {
+              theta: point.theta,
+              phi: point.phi,
+              points: [],
+            });
+          }
+
+          groupedByGeometry.get(key)!.points.push(point);
+        }
+
+        if (groupedByGeometry.size === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "No spectrum points with geometry information were found.",
+          });
+        }
+
+        geometryGroups.push(...groupedByGeometry.values());
+      }
+
+      const derivedByGroup: Array<
+        Awaited<ReturnType<typeof computeSpectrumDerivedScalarColumns>>
+      > = [];
+
+      for (const group of geometryGroups) {
+        if (spectrumRowsHaveUploadedDerivedScalars(group.points)) {
+          derivedByGroup.push(emptyDerivedScalars());
+        } else {
+          derivedByGroup.push(
+            await computeSpectrumDerivedScalarColumns(
+              group.points,
+              chemicalFormula,
+            ),
+          );
+        }
+      }
+
+      const transactionResult = await ctx.db.$transaction(
+        async (tx) => {
         const kind =
           experimentInput.experimentType != null
             ? await tx.nexafsexperimentkinds.findUnique({
@@ -757,67 +863,6 @@ export const experimentsRouter = createTRPCRouter({
           }
         }
 
-        const moleculeRow = await tx.molecules.findUnique({
-          where: { id: sampleInput.moleculeId },
-          select: { chemicalformula: true },
-        });
-        const chemicalFormula = moleculeRow?.chemicalformula ?? null;
-
-        type SpectrumPoint = (typeof spectrumInput.points)[number];
-
-        interface GeometryGroup {
-          theta: number;
-          phi: number;
-          points: SpectrumPoint[];
-        }
-
-        const geometryGroups: GeometryGroup[] = [];
-
-        if (geometryInput.mode === "fixed") {
-          const fixedGeometry = geometryInput.fixed!;
-          geometryGroups.push({
-            theta: fixedGeometry.theta,
-            phi: fixedGeometry.phi,
-            points: spectrumInput.points.map((point) => ({
-              ...point,
-              theta: fixedGeometry.theta,
-              phi: fixedGeometry.phi,
-            })),
-          });
-        } else {
-          const groupedByGeometry = new Map<string, GeometryGroup>();
-
-          for (const point of spectrumInput.points) {
-            if (point.theta === undefined || point.phi === undefined) {
-              throw new TRPCError({
-                code: "BAD_REQUEST",
-                message:
-                  "Spectrum CSV must include theta and phi columns when using CSV geometry mode.",
-              });
-            }
-
-            const key = `${point.theta}:${point.phi}`;
-            if (!groupedByGeometry.has(key)) {
-              groupedByGeometry.set(key, {
-                theta: point.theta,
-                phi: point.phi,
-                points: [],
-              });
-            }
-
-            groupedByGeometry.get(key)!.points.push(point);
-          }
-
-          if (groupedByGeometry.size === 0) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "No spectrum points with geometry information were found.",
-            });
-          }
-
-          geometryGroups.push(...groupedByGeometry.values());
-        }
-
         const experimentsCreated = [] as Array<{
           experiment: Awaited<ReturnType<typeof tx.experiments.create>>;
           spectrumPointsCreated: number;
@@ -843,8 +888,10 @@ export const experimentsRouter = createTRPCRouter({
           });
         };
 
-        for (const group of geometryGroups) {
+        for (let groupIndex = 0; groupIndex < geometryGroups.length; groupIndex += 1) {
+          const group = geometryGroups[groupIndex]!;
           const polarization = await getOrCreatePolarization(group.theta, group.phi);
+          const derived = derivedByGroup[groupIndex]!;
 
           const experiment = await tx.experiments.create({
             data: {
@@ -858,6 +905,7 @@ export const experimentsRouter = createTRPCRouter({
               createdby: ctx.userId ?? undefined,
               experimenttype: experimentInput.experimentType,
               nexafsexperimentkindid: kind?.id ?? null,
+              collectedbyuserids: collectedByUserIds ?? [],
             },
             include: {
               samples: true,
@@ -865,11 +913,6 @@ export const experimentsRouter = createTRPCRouter({
               instruments: true,
             },
           });
-
-          const derived = await computeSpectrumDerivedScalarColumns(
-            group.points,
-            chemicalFormula,
-          );
 
           const spectrumData = group.points.map((point, i) => ({
             experimentid: experiment.id,
@@ -907,11 +950,13 @@ export const experimentsRouter = createTRPCRouter({
           });
         }
 
-        return {
-          sample,
-          experiments: experimentsCreated,
-        };
-      });
+          return {
+            sample,
+            experiments: experimentsCreated,
+          };
+        },
+        { timeout: 60000 },
+      );
 
       return transactionResult;
     }),

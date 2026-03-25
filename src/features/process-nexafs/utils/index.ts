@@ -20,10 +20,12 @@ export {
   normalizeEdge,
   normalizeExperimentMode,
   normalizeFacilityToken,
+  matchInstrumentIdFromParsedNexafsFilename,
 } from "./filenameParser";
-export type { ParsedFilename } from "./filenameParser";
+export type { ParsedFilename, InstrumentMatchOption } from "./filenameParser";
 export { parseNexafsJson } from "./jsonParser";
-export type { NEXAFSJsonData } from "./jsonParser";
+export type { NEXAFSJsonData, NexafsJsonDocumentMetadata } from "./jsonParser";
+export { buildNexafsUploadAutofill } from "./nexafsUploadAutofill";
 export { detectPeaks, convertToPeakData } from "./peakDetection";
 export type {
   PeakDetectionOptions,
@@ -35,6 +37,7 @@ export { calculateBareAtomAbsorption } from "./bareAtomCalculation";
 export { parseCSVFile } from "./csv";
 export { computeBetaIndex } from "./betaIndex";
 export { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";
+export { buildSpectrumPointsWithDerivedForUpload } from "./uploadDerivedSpectrum";
 export { detectAuxiliarySpectrumColumnNames } from "./auxiliarySpectrumColumns";
 export {
   filterSpectrumPointsByGeometry,

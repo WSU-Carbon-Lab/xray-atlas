@@ -3,10 +3,12 @@
 import { useState, useCallback } from "react";
 import { trpc } from "~/trpc/client";
 import type { DatasetState } from "../types";
-import { extractGeometryPairs } from "../utils";
+import {
+  buildSpectrumPointsWithDerivedForUpload,
+  extractGeometryPairs,
+} from "../utils";
 
 export type SubmitStatus =
-  | { type: "success"; message: string }
   | { type: "error"; message: string }
   | undefined;
 
@@ -145,16 +147,17 @@ export function useNexafsSubmit(
             },
             geometry: geometryInput,
             spectrum: {
-              points: dataset.spectrumPoints,
+              points: buildSpectrumPointsWithDerivedForUpload(dataset),
             },
             peaksets: dataset.peaks.length > 0 ? dataset.peaks : undefined,
+            collectedByUserIds:
+              dataset.collectedByUserIds.length > 0
+                ? dataset.collectedByUserIds
+                : undefined,
           });
         }
 
-        setSubmitStatus({
-          type: "success",
-          message: `Successfully uploaded ${datasets.length} dataset(s).`,
-        });
+        setSubmitStatus(undefined);
         options?.onSuccess?.();
       } catch (error) {
         console.error("Failed to submit NEXAFS data", error);

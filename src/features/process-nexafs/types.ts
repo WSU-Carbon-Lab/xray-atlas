@@ -177,6 +177,7 @@ export type DatasetState = {
   fixedPhi: string;
   spectrumError: string | null;
   spectrumStats: SpectrumStats | null;
+  collectedByUserIds: string[];
 };
 
 export function createEmptyDatasetState(file: File): DatasetState {
@@ -218,5 +219,6 @@ export function createEmptyDatasetState(file: File): DatasetState {
     fixedPhi: "",
     spectrumError: null,
     spectrumStats: null,
+    collectedByUserIds: [],
   };
 }

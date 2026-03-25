@@ -9,22 +9,27 @@ import {
   type CSVColumnMappings,
   type ExperimentTypeOption,
 } from "../types";
+import { findMatchingVendorId } from "~/lib/nexafsVendorLabel";
 import {
   parseNexafsFilename,
   normalizeEdge,
   normalizeExperimentMode,
-  normalizeFacilityToken,
   parseNexafsJson,
   parseCSVFile,
   detectAuxiliarySpectrumColumnNames,
+  matchInstrumentIdFromParsedNexafsFilename,
+  buildNexafsUploadAutofill,
 } from "../utils";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
 
+type VendorMatchRow = { id: string; name: string | null | undefined };
+
 type UseNexafsDatasetsOptions = {
   instrumentOptions: InstrumentOption[];
   edgeOptions: EdgeOption[];
+  vendors: VendorMatchRow[];
   showToast: (
     message: string,
     type: "success" | "error",
@@ -50,7 +55,7 @@ function readOptionalFloat(
 }
 
 export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
-  const { instrumentOptions, edgeOptions, showToast } = options;
+  const { instrumentOptions, edgeOptions, vendors, showToast } = options;
   const [datasets, setDatasets] = useState<DatasetState[]>([]);
   const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
   const [columnMappingFile, setColumnMappingFile] = useState<{
@@ -213,41 +218,12 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
           }
         }
 
-        if (parsedFilename.facility) {
-          const normalizedFacility = normalizeFacilityToken(
-            parsedFilename.facility,
-          );
-          const matchingInstrument = instrumentOptions.find((inst) => {
-            const facilityName = inst.facilityName
-              ?.toUpperCase()
-              .replace(/\s+/g, "");
-            const parsedFacility = normalizedFacility
-              ?.toUpperCase()
-              .replace(/\s+/g, "");
-            return (
-              facilityName === parsedFacility ||
-              (facilityName?.includes(parsedFacility ?? "") ?? false) ||
-              (parsedFacility?.includes(facilityName ?? "") ?? false)
-            );
-          });
-          if (matchingInstrument) updates.instrumentId = matchingInstrument.id;
-        }
-
-        if (parsedFilename.beamline) {
-          const matchingInstrument = instrumentOptions.find((inst) => {
-            const instrumentName = inst.name.toUpperCase().replace(/\s+/g, "");
-            const parsedBeamline = parsedFilename.beamline
-              ?.toUpperCase()
-              .replace(/\s+/g, "");
-            return (
-              instrumentName === parsedBeamline ||
-              instrumentName.includes(parsedBeamline ?? "") ||
-              parsedBeamline?.includes(instrumentName)
-            );
-          });
-          if (matchingInstrument && !updates.instrumentId) {
-            updates.instrumentId = matchingInstrument.id;
-          }
+        const matchedInstrumentId = matchInstrumentIdFromParsedNexafsFilename(
+          parsedFilename,
+          instrumentOptions,
+        );
+        if (matchedInstrumentId) {
+          updates.instrumentId = matchedInstrumentId;
         }
 
         setDatasets((prev) => [...prev, { ...dataset, ...updates }]);
@@ -257,8 +233,19 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
 
         try {
           if (isJson) {
-            const { spectrumPoints, columns, rawData } =
+            const { spectrumPoints, columns, rawData, documentMetadata } =
               await parseNexafsJson(file);
+
+            const baseSampleInfo = createEmptyDatasetState(file).sampleInfo;
+            const autofill = buildNexafsUploadAutofill({
+              parsedFilename,
+              documentMetadata,
+              instrumentOptions,
+              vendors,
+              experimentType: updates.experimentType,
+              instrumentId: updates.instrumentId,
+              baseSampleInfo,
+            });
 
             const detectedEnergyCol = columns.find(
               (col) =>
@@ -298,6 +285,8 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
               csvRawData: rawData,
               columnMappings,
               spectrumPoints,
+              sampleInfo: autofill.sampleInfo,
+              collectedByUserIds: autofill.collectedByUserIds,
             });
 
             if (spectrumPoints.length > 0) {
@@ -352,11 +341,24 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
               if (!columnMappings.energy) missingColumns.push("Energy");
               if (!columnMappings.absorption) missingColumns.push("Absorption");
 
+              const baseSampleInfo = createEmptyDatasetState(file).sampleInfo;
+              const autofill = buildNexafsUploadAutofill({
+                parsedFilename,
+                documentMetadata: null,
+                instrumentOptions,
+                vendors,
+                experimentType: updates.experimentType,
+                instrumentId: updates.instrumentId,
+                baseSampleInfo,
+              });
+
               updateDataset(dataset.id, {
                 ...updates,
                 csvColumns: columns,
                 csvRawData: Array.isArray(parsed.data) ? parsed.data : [],
                 columnMappings,
+                sampleInfo: autofill.sampleInfo,
+                collectedByUserIds: autofill.collectedByUserIds,
               });
 
               if (missingColumns.length > 0) {
@@ -400,8 +402,31 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         }
       }
     },
-    [updateDataset, edgeOptions, instrumentOptions, showToast],
+    [updateDataset, edgeOptions, instrumentOptions, vendors, showToast],
   );
+
+  useEffect(() => {
+    if (vendors.length === 0) return;
+    setDatasets((prev) => {
+      let changed = false;
+      const next = prev.map((d) => {
+        const { vendorId, newVendorName } = d.sampleInfo;
+        if (vendorId || !newVendorName.trim()) return d;
+        const matched = findMatchingVendorId(newVendorName.trim(), vendors);
+        if (!matched) return d;
+        changed = true;
+        return {
+          ...d,
+          sampleInfo: {
+            ...d.sampleInfo,
+            vendorId: matched,
+            newVendorName: "",
+          },
+        };
+      });
+      return changed ? next : prev;
+    });
+  }, [vendors]);
 
   const handleColumnMappingConfirm = useCallback(
     (

@@ -56,6 +56,7 @@ export default function NEXAFSContributePage() {
   } = useNexafsDatasets({
     instrumentOptions,
     edgeOptions,
+    vendors,
     showToast,
   });
 
@@ -146,8 +147,18 @@ export default function NEXAFSContributePage() {
         onAgree={handleAgreementAccepted}
       />
 
-      <div className="container mx-auto flex min-h-[calc(100vh-4rem)] flex-col px-4 py-8">
-        <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
+      <div
+        className={`container mx-auto flex flex-col px-4 py-8 ${
+          datasets.length > 0 ? "min-h-[calc(100vh-4rem)]" : ""
+        }`}
+      >
+        <div
+          className={
+            datasets.length > 0
+              ? "mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col"
+              : "mx-auto w-full max-w-7xl"
+          }
+        >
           <div className="mb-6 flex shrink-0 items-center justify-between">
             <Breadcrumbs className="text-sm font-medium">
               <Breadcrumbs.Item href="/contribute">
@@ -180,7 +191,13 @@ export default function NEXAFSContributePage() {
             can upload multiple datasets and process them through tabs.
           </p>
 
-          <div className="flex min-h-0 w-full flex-1 flex-col">
+          <div
+            className={
+              datasets.length > 0
+                ? "flex min-h-0 w-full flex-1 flex-col"
+                : "w-full shrink-0"
+            }
+          >
             <NexafsContributeFlow
               datasets={datasets}
               activeDatasetId={activeDatasetId}

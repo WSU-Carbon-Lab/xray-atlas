@@ -1,11 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { MagnifyingGlassIcon, PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { SimpleDialog } from "~/components/ui/dialog";
 import { trpc } from "~/trpc/client";
 import { toMoleculeSearchResult } from "~/lib/molecule-autosuggest";
 import type { MoleculeSearchResult } from "~/features/process-nexafs/types";
+import type { ExperimentTypeOption } from "~/features/process-nexafs/types";
+import { EXPERIMENT_TYPE_OPTIONS } from "~/features/process-nexafs/constants";
+import {
+  normalizeExperimentMode,
+  parseNexafsFilename,
+} from "~/features/process-nexafs/utils/filenameParser";
 import { AddEdgeModal } from "./add-edge-modal";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
@@ -194,6 +200,105 @@ export function InstrumentSelectModal({
           <PlusIcon className="h-4 w-4" />
           Add new instrument (opens in new tab)
         </button>
+      </div>
+    </SimpleDialog>
+  );
+}
+
+export type ExperimentSelectModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (experimentType: ExperimentTypeOption) => void;
+  fileName: string;
+  currentType: ExperimentTypeOption;
+};
+
+export function ExperimentSelectModal({
+  isOpen,
+  onClose,
+  onSelect,
+  fileName,
+  currentType,
+}: ExperimentSelectModalProps) {
+  const filenameParse = useMemo(() => {
+    const parsed = parseNexafsFilename(fileName);
+    const raw = parsed.experimentMode?.trim() ?? null;
+    const normalized = raw ? normalizeExperimentMode(raw) : null;
+    const mapped =
+      normalized &&
+      EXPERIMENT_TYPE_OPTIONS.some((o) => o.value === normalized)
+        ? (normalized as ExperimentTypeOption)
+        : null;
+    const mappedLabel = mapped
+      ? EXPERIMENT_TYPE_OPTIONS.find((o) => o.value === mapped)?.label
+      : null;
+    return { raw, normalized, mapped, mappedLabel };
+  }, [fileName]);
+
+  return (
+    <SimpleDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Experiment type (detection mode)"
+      maxWidth="max-w-md"
+    >
+      <div className="space-y-4">
+        <div className="border-border bg-surface-2/80 rounded-lg border px-3 py-2 text-sm">
+          <p className="text-muted-foreground font-medium">From filename</p>
+          <p className="text-foreground mt-1 font-mono text-xs break-all">
+            {fileName || "(no file name)"}
+          </p>
+          <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
+            <li>
+              Token 2 (after edge):{" "}
+              <span className="text-foreground font-mono">
+                {filenameParse.raw ?? "(missing)"}
+              </span>
+            </li>
+            <li>
+              Normalized to enum:{" "}
+              <span className="text-foreground font-mono">
+                {filenameParse.mapped ?? filenameParse.normalized ?? "—"}
+              </span>
+              {filenameParse.mapped && filenameParse.mappedLabel
+                ? ` (${filenameParse.mappedLabel})`
+                : filenameParse.raw && !filenameParse.mapped
+                  ? " (not in TEY / PEY / FY / TRANS set)"
+                  : ""}
+            </li>
+            <li>
+              Currently selected:{" "}
+              <span className="text-foreground font-medium">
+                {
+                  EXPERIMENT_TYPE_OPTIONS.find((o) => o.value === currentType)
+                    ?.label
+                }
+              </span>
+            </li>
+          </ul>
+        </div>
+        <p className="text-muted-foreground text-sm">
+          Choose the technique that matches this spectrum. This maps to
+          database NEXAFS experiment kinds (TEY, PEY, FY, TRANS).
+        </p>
+        <div className="border-border max-h-64 space-y-1 overflow-y-auto rounded-lg border p-2">
+          {EXPERIMENT_TYPE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                onSelect(opt.value);
+                onClose();
+              }}
+              className="hover:bg-surface-2 focus:bg-surface-2 focus-visible:ring-accent text-foreground flex w-full flex-col items-start rounded-md px-3 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2"
+            >
+              <span className="font-medium">{opt.label}</span>
+              <span className="text-muted-foreground font-mono text-xs">
+                {opt.value}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     </SimpleDialog>
   );

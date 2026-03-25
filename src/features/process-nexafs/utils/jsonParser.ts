@@ -1,5 +1,27 @@
 import type { SpectrumPoint } from "~/components/plots/types";
 
+export type NexafsJsonDocumentMetadata = {
+  user?: {
+    name?: string;
+    group?: string | null;
+    affiliation?: string | null;
+    email?: string | null;
+  };
+  instrument?: {
+    facility?: string;
+    instrument?: string;
+    edge?: string;
+    technique?: string;
+    normalization_method?: string;
+    technical_details?: string;
+  };
+  sample?: {
+    vendor?: string;
+    preparation_method?: { method?: string; details?: string | null };
+    mol_orientation_details?: string;
+  };
+};
+
 export interface NEXAFSJsonData {
   energy?: number[] | Array<{ energy: number }>;
   absorption?: number[] | Array<{ absorption: number }>;
@@ -37,10 +59,17 @@ export interface NEXAFSJsonData {
   }>;
 }
 
+type NexafsJsonRoot = NEXAFSJsonData & {
+  user?: NexafsJsonDocumentMetadata["user"];
+  instrument?: NexafsJsonDocumentMetadata["instrument"];
+  sample?: NexafsJsonDocumentMetadata["sample"];
+};
+
 export function parseNexafsJson(file: File): Promise<{
   spectrumPoints: SpectrumPoint[];
   columns: string[];
   rawData: Record<string, unknown>[];
+  documentMetadata: NexafsJsonDocumentMetadata | null;
 }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -53,7 +82,16 @@ export function parseNexafsJson(file: File): Promise<{
           return;
         }
 
-        const jsonData = JSON.parse(text) as NEXAFSJsonData;
+        const jsonData = JSON.parse(text) as NexafsJsonRoot;
+
+        const documentMetadata: NexafsJsonDocumentMetadata | null =
+          jsonData.user || jsonData.instrument || jsonData.sample
+            ? {
+                user: jsonData.user,
+                instrument: jsonData.instrument,
+                sample: jsonData.sample,
+              }
+            : null;
 
         const spectrumPoints: SpectrumPoint[] = [];
         const rawData: Record<string, unknown>[] = [];
@@ -215,6 +253,7 @@ export function parseNexafsJson(file: File): Promise<{
           spectrumPoints,
           columns,
           rawData,
+          documentMetadata,
         });
       } catch (error) {
         reject(error instanceof Error ? error : new Error("Failed to parse JSON file"));

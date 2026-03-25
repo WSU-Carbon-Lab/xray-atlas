@@ -31,7 +31,17 @@ export function useNexafsOptions() {
 
   const edgeOptions = useMemo(() => edgesData?.edges ?? [], [edgesData?.edges]);
   const calibrationOptions = calibrationMethodsData?.calibrationMethods ?? [];
-  const vendors = vendorsData?.vendors ?? [];
+  const vendors = useMemo(
+    () =>
+      (vendorsData?.vendors ?? []).map(
+        (v: { id: string; name: string | null; url?: string | null }) => ({
+          id: v.id,
+          name: v.name,
+          url: v.url ?? undefined,
+        }),
+      ),
+    [vendorsData?.vendors],
+  );
 
   return {
     instrumentOptions,
