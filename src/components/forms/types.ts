@@ -131,8 +131,6 @@ export type NexafsSampleVendorOption = {
 };
 
 export type NexafsSampleInformationSectionProps = {
-  preparationDate: string;
-  setPreparationDate: (value: string) => void;
   processMethod: ProcessMethod | null;
   setProcessMethod: (value: ProcessMethod | null) => void;
   substrate: string;

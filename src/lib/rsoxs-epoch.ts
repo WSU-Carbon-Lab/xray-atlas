@@ -1,0 +1,7 @@
+export const RSOXS_EPOCH_DATE_ISO = "1992-08-06";
+
+export const RSOXS_EPOCH_DATE = new Date("1992-08-06T00:00:00.000Z");
+
+export const NEXAFS_EPOCH_DATE_ISO = RSOXS_EPOCH_DATE_ISO;
+
+export const NEXAFS_EPOCH_DATE = RSOXS_EPOCH_DATE;

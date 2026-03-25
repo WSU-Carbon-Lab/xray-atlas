@@ -2,6 +2,36 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { Prisma, ExperimentType, ProcessMethod } from "@prisma/client";
+import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
+import {
+  coalesceUploadedOrDerived,
+  computeSpectrumDerivedScalarColumns,
+} from "~/server/nexafs/computeSpectrumDerivedColumns";
+
+const emptyDerivedScalars = (): {
+  od: Array<number | null>;
+  massabsorption: Array<number | null>;
+  beta: Array<number | null>;
+} => ({ od: [], massabsorption: [], beta: [] });
+
+function spectrumRowsHaveUploadedDerivedScalars(
+  points: ReadonlyArray<{
+    od?: number;
+    massabsorption?: number;
+    beta?: number;
+  }>,
+): boolean {
+  if (points.length === 0) return false;
+  return points.every(
+    (p) =>
+      typeof p.od === "number" &&
+      Number.isFinite(p.od) &&
+      typeof p.massabsorption === "number" &&
+      Number.isFinite(p.massabsorption) &&
+      typeof p.beta === "number" &&
+      Number.isFinite(p.beta),
+  );
+}
 
 export const experimentsRouter = createTRPCRouter({
   getById: publicProcedure
@@ -62,17 +92,13 @@ export const experimentsRouter = createTRPCRouter({
         sampleId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
-        measurementDate: z.date().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Build where clause to leverage idx_experiment_lookup composite index
-      // When multiple fields are provided, PostgreSQL will use the composite index efficiently
       const where: {
         sampleid?: string;
         edgeid?: string;
         instrumentid?: string;
-        measurementdate?: Date;
       } = {};
 
       if (input.sampleId) {
@@ -84,11 +110,6 @@ export const experimentsRouter = createTRPCRouter({
       if (input.instrumentId) {
         where.instrumentid = input.instrumentId;
       }
-      if (input.measurementDate) {
-        where.measurementdate = input.measurementDate;
-      }
-
-      // Prisma will automatically use idx_experiment_lookup when filtering by these fields
       const experiments = await ctx.db.experiments.findMany({
         where,
         take: input.limit + 1,
@@ -189,7 +210,7 @@ export const experimentsRouter = createTRPCRouter({
         limit: z.number().min(1).max(100).default(12),
         offset: z.number().min(0).default(0),
         sortBy: z
-          .enum(["newest", "measurement", "molecule", "edge", "instrument"])
+          .enum(["newest", "upload", "molecule", "edge", "instrument"])
           .default("newest"),
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
@@ -215,8 +236,8 @@ export const experimentsRouter = createTRPCRouter({
       const orderBy: Prisma.experimentsOrderByWithRelationInput[] =
         input.sortBy === "newest"
           ? [{ createdat: "desc" }]
-          : input.sortBy === "measurement"
-            ? [{ measurementdate: "desc" }, { createdat: "desc" }]
+          : input.sortBy === "upload"
+            ? [{ createdat: "desc" }]
             : input.sortBy === "molecule"
               ? [{ samples: { molecules: { iupacname: "asc" } } }]
               : input.sortBy === "edge"
@@ -547,16 +568,24 @@ export const experimentsRouter = createTRPCRouter({
         calibrationid: z.string().uuid().optional(),
         isstandard: z.boolean().default(false),
         referencestandard: z.string().optional(),
-        measurementdate: z.date(),
         experimenttype: z.nativeEnum(ExperimentType).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const kind =
+        input.experimenttype != null
+          ? await ctx.db.nexafsexperimentkinds.findUnique({
+              where: { experimenttype: input.experimenttype },
+              select: { id: true },
+            })
+          : null;
+
       const experiment = await ctx.db.experiments.create({
         data: {
           ...input,
           createdby: ctx.userId ?? undefined,
           experimenttype: input.experimenttype ?? null,
+          nexafsexperimentkindid: kind?.id ?? null,
         },
         include: {
           samples: true,
@@ -579,7 +608,6 @@ export const experimentsRouter = createTRPCRouter({
           solvent: z.string().optional(),
           thickness: z.number().optional(),
           molecularWeight: z.number().optional(),
-          preparationDate: z.string().datetime().optional(),
           vendor: z.object({
             existingVendorId: z.string().uuid().optional(),
             name: z.string().optional(),
@@ -590,7 +618,6 @@ export const experimentsRouter = createTRPCRouter({
           instrumentId: z.string(),
           edgeId: z.string().uuid(),
           experimentType: z.nativeEnum(ExperimentType),
-          measurementDate: z.string().datetime().optional(),
           calibrationId: z.string().uuid().optional(),
           referenceStandard: z.string().optional(),
           isStandard: z.boolean().optional(),
@@ -635,6 +662,10 @@ export const experimentsRouter = createTRPCRouter({
                 absorption: z.number(),
                 theta: z.number().optional(),
                 phi: z.number().optional(),
+                i0: z.number().optional(),
+                od: z.number().optional(),
+                massabsorption: z.number().optional(),
+                beta: z.number().optional(),
               }),
             )
             .min(1, "Spectrum CSV must contain at least one row"),
@@ -649,6 +680,7 @@ export const experimentsRouter = createTRPCRouter({
             }),
           )
           .optional(),
+        collectedByUserIds: z.array(z.string().uuid()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -657,21 +689,97 @@ export const experimentsRouter = createTRPCRouter({
         experiment: experimentInput,
         geometry: geometryInput,
         spectrum: spectrumInput,
+        collectedByUserIds,
       } = input;
 
-      const parseOptionalDate = (value?: string) => {
-        if (!value) return null;
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) {
+      const moleculeRow = await ctx.db.molecules.findUnique({
+        where: { id: sampleInput.moleculeId },
+        select: { chemicalformula: true },
+      });
+      const chemicalFormula = moleculeRow?.chemicalformula ?? null;
+
+      type SpectrumPoint = (typeof spectrumInput.points)[number];
+
+      interface GeometryGroup {
+        theta: number;
+        phi: number;
+        points: SpectrumPoint[];
+      }
+
+      const geometryGroups: GeometryGroup[] = [];
+
+      if (geometryInput.mode === "fixed") {
+        const fixedGeometry = geometryInput.fixed!;
+        geometryGroups.push({
+          theta: fixedGeometry.theta,
+          phi: fixedGeometry.phi,
+          points: spectrumInput.points.map((point) => ({
+            ...point,
+            theta: fixedGeometry.theta,
+            phi: fixedGeometry.phi,
+          })),
+        });
+      } else {
+        const groupedByGeometry = new Map<string, GeometryGroup>();
+
+        for (const point of spectrumInput.points) {
+          if (point.theta === undefined || point.phi === undefined) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Spectrum CSV must include theta and phi columns when using CSV geometry mode.",
+            });
+          }
+
+          const key = `${point.theta}:${point.phi}`;
+          if (!groupedByGeometry.has(key)) {
+            groupedByGeometry.set(key, {
+              theta: point.theta,
+              phi: point.phi,
+              points: [],
+            });
+          }
+
+          groupedByGeometry.get(key)!.points.push(point);
+        }
+
+        if (groupedByGeometry.size === 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Invalid date format. Please provide ISO date strings.",
+            message: "No spectrum points with geometry information were found.",
           });
         }
-        return date;
-      };
 
-      const transactionResult = await ctx.db.$transaction(async (tx) => {
+        geometryGroups.push(...groupedByGeometry.values());
+      }
+
+      const derivedByGroup: Array<
+        Awaited<ReturnType<typeof computeSpectrumDerivedScalarColumns>>
+      > = [];
+
+      for (const group of geometryGroups) {
+        if (spectrumRowsHaveUploadedDerivedScalars(group.points)) {
+          derivedByGroup.push(emptyDerivedScalars());
+        } else {
+          derivedByGroup.push(
+            await computeSpectrumDerivedScalarColumns(
+              group.points,
+              chemicalFormula,
+            ),
+          );
+        }
+      }
+
+      const transactionResult = await ctx.db.$transaction(
+        async (tx) => {
+        const kind =
+          experimentInput.experimentType != null
+            ? await tx.nexafsexperimentkinds.findUnique({
+                where: { experimenttype: experimentInput.experimentType },
+                select: { id: true },
+              })
+            : null;
+
         // Resolve vendor
         let vendorId: string | null = sampleInput.vendor.existingVendorId ?? null;
         const vendorNameTrimmed = sampleInput.vendor.name?.trim();
@@ -739,81 +847,20 @@ export const experimentsRouter = createTRPCRouter({
               moleculeid: sampleInput.moleculeId,
               identifier: sampleIdentifier,
               processmethod: sampleInput.processMethod ?? null,
-              substrate: sampleInput.substrate?.trim() ?? null,
+              substrate: normalizeSampleSubstrate(sampleInput.substrate),
               solvent: sampleInput.solvent?.trim() ?? null,
               thickness: sampleInput.thickness ?? null,
               molecularweight: sampleInput.molecularWeight ?? null,
-              preparationdate: parseOptionalDate(sampleInput.preparationDate),
               vendorid: vendorId,
             },
           });
         } else {
-          // Sample exists - verify it matches the molecule (and optionally update metadata)
           if (sample.moleculeid !== sampleInput.moleculeId) {
             throw new TRPCError({
               code: "CONFLICT",
               message: "A sample with this identifier already exists for a different molecule.",
             });
           }
-          // Optionally update sample metadata if provided (for consistency)
-          // For now, we'll just reuse the existing sample
-        }
-
-        const measurementDate = parseOptionalDate(experimentInput.measurementDate) ?? new Date();
-
-        type SpectrumPoint = (typeof spectrumInput.points)[number];
-
-        interface GeometryGroup {
-          theta: number;
-          phi: number;
-          points: SpectrumPoint[];
-        }
-
-        const geometryGroups: GeometryGroup[] = [];
-
-        if (geometryInput.mode === "fixed") {
-          const fixedGeometry = geometryInput.fixed!;
-          geometryGroups.push({
-            theta: fixedGeometry.theta,
-            phi: fixedGeometry.phi,
-            points: spectrumInput.points.map((point) => ({
-              ...point,
-              theta: fixedGeometry.theta,
-              phi: fixedGeometry.phi,
-            })),
-          });
-        } else {
-          const groupedByGeometry = new Map<string, GeometryGroup>();
-
-          for (const point of spectrumInput.points) {
-            if (point.theta === undefined || point.phi === undefined) {
-              throw new TRPCError({
-                code: "BAD_REQUEST",
-                message:
-                  "Spectrum CSV must include theta and phi columns when using CSV geometry mode.",
-              });
-            }
-
-            const key = `${point.theta}:${point.phi}`;
-            if (!groupedByGeometry.has(key)) {
-              groupedByGeometry.set(key, {
-                theta: point.theta,
-                phi: point.phi,
-                points: [],
-              });
-            }
-
-            groupedByGeometry.get(key)!.points.push(point);
-          }
-
-          if (groupedByGeometry.size === 0) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "No spectrum points with geometry information were found.",
-            });
-          }
-
-          geometryGroups.push(...groupedByGeometry.values());
         }
 
         const experimentsCreated = [] as Array<{
@@ -841,8 +888,10 @@ export const experimentsRouter = createTRPCRouter({
           });
         };
 
-        for (const group of geometryGroups) {
+        for (let groupIndex = 0; groupIndex < geometryGroups.length; groupIndex += 1) {
+          const group = geometryGroups[groupIndex]!;
           const polarization = await getOrCreatePolarization(group.theta, group.phi);
+          const derived = derivedByGroup[groupIndex]!;
 
           const experiment = await tx.experiments.create({
             data: {
@@ -853,9 +902,10 @@ export const experimentsRouter = createTRPCRouter({
               calibrationid: experimentInput.calibrationId ?? null,
               isstandard: experimentInput.isStandard ?? false,
               referencestandard: experimentInput.referenceStandard ?? null,
-              measurementdate: measurementDate,
               createdby: ctx.userId ?? undefined,
               experimenttype: experimentInput.experimentType,
+              nexafsexperimentkindid: kind?.id ?? null,
+              collectedbyuserids: collectedByUserIds ?? [],
             },
             include: {
               samples: true,
@@ -864,12 +914,17 @@ export const experimentsRouter = createTRPCRouter({
             },
           });
 
-          const spectrumData = group.points.map((point) => ({
+          const spectrumData = group.points.map((point, i) => ({
             experimentid: experiment.id,
             energyev: point.energy,
             rawabs: point.absorption,
-            processedabs: null,
-            i0: null,
+            od: coalesceUploadedOrDerived(point.od, derived.od[i] ?? null),
+            massabsorption: coalesceUploadedOrDerived(
+              point.massabsorption,
+              derived.massabsorption[i] ?? null,
+            ),
+            beta: coalesceUploadedOrDerived(point.beta, derived.beta[i] ?? null),
+            i0: coalesceUploadedOrDerived(point.i0, null),
           }));
 
           if (spectrumData.length > 0) {
@@ -895,11 +950,13 @@ export const experimentsRouter = createTRPCRouter({
           });
         }
 
-        return {
-          sample,
-          experiments: experimentsCreated,
-        };
-      });
+          return {
+            sample,
+            experiments: experimentsCreated,
+          };
+        },
+        { timeout: 60000 },
+      );
 
       return transactionResult;
     }),
@@ -911,7 +968,6 @@ export const experimentsRouter = createTRPCRouter({
         calibrationid: z.string().uuid().optional(),
         isstandard: z.boolean().optional(),
         referencestandard: z.string().optional(),
-        measurementdate: z.date().optional(),
         experimenttype: z.nativeEnum(ExperimentType).optional(),
       }),
     )

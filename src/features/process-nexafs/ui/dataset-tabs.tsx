@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Chip, Button, Tooltip, Tabs } from "@heroui/react";
 import {
   XMarkIcon,
@@ -9,13 +9,19 @@ import {
   PlusIcon,
 } from "@heroicons/react/24/outline";
 import { skipToken } from "@tanstack/react-query";
-import type { DatasetState } from "~/features/process-nexafs";
+import type { DatasetState, ExperimentTypeOption } from "~/features/process-nexafs";
+import { EXPERIMENT_TYPE_OPTIONS } from "~/features/process-nexafs/constants";
+import {
+  normalizeExperimentMode,
+  parseNexafsFilename,
+} from "~/features/process-nexafs/utils/filenameParser";
 import { useDatasetStatus } from "./hooks/use-dataset-status";
 import { trpc } from "~/trpc/client";
 import {
   MoleculeSelectModal,
   InstrumentSelectModal,
   EdgeSelectModal,
+  ExperimentSelectModal,
 } from "./descriptor-select-modals";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
@@ -32,7 +38,19 @@ interface DatasetTabsProps {
   updateDataset: (id: string, updates: Partial<DatasetState>) => void;
 }
 
-type DescriptorModalType = "molecule" | "instrument" | "edge" | null;
+type DescriptorModalType =
+  | "molecule"
+  | "instrument"
+  | "experiment"
+  | "edge"
+  | null;
+
+const EXPERIMENT_TYPE_TAB_SHORT: Record<ExperimentTypeOption, string> = {
+  TOTAL_ELECTRON_YIELD: "TEY",
+  PARTIAL_ELECTRON_YIELD: "PEY",
+  FLUORESCENT_YIELD: "FY",
+  TRANSMISSION: "TRANS",
+};
 
 interface DescriptorTabContentProps {
   dataset: DatasetState;
@@ -82,6 +100,42 @@ function DescriptorTabContent({
   const edge = dataset.edgeId
     ? edgeOptions.find((e) => e.id === dataset.edgeId)
     : null;
+
+  const filenameExperiment = useMemo(() => {
+    const parsed = parseNexafsFilename(dataset.fileName);
+    const raw = parsed.experimentMode?.trim() ?? null;
+    const normalized = raw ? normalizeExperimentMode(raw) : null;
+    const mapped =
+      normalized &&
+      EXPERIMENT_TYPE_OPTIONS.some((o) => o.value === normalized)
+        ? (normalized as ExperimentTypeOption)
+        : null;
+    const mappedLabel = mapped
+      ? EXPERIMENT_TYPE_OPTIONS.find((o) => o.value === mapped)?.label
+      : null;
+    return { raw, normalized, mapped, mappedLabel };
+  }, [dataset.fileName]);
+
+  const experimentTypeLabel = useMemo(
+    () =>
+      EXPERIMENT_TYPE_OPTIONS.find((o) => o.value === dataset.experimentType)
+        ?.label ?? dataset.experimentType,
+    [dataset.experimentType],
+  );
+
+  const experimentTooltipLines = [
+    `Filename token 2: ${filenameExperiment.raw ?? "(not parsed)"}`,
+    filenameExperiment.mapped
+      ? `Maps to: ${filenameExperiment.mappedLabel} (${filenameExperiment.mapped})`
+      : filenameExperiment.normalized
+        ? `Normalized string "${filenameExperiment.normalized}" is not a known technique`
+        : "No experiment-type token in filename (expected after edge, e.g. TEY, FY)",
+    `Selected: ${experimentTypeLabel}`,
+    filenameExperiment.mapped &&
+    filenameExperiment.mapped !== dataset.experimentType
+      ? `Selection differs from filename mapping; click to align or override`
+      : null,
+  ].filter(Boolean) as string[];
 
   const getStatusBadge = () => {
     if (statusInfo.status === "complete") {
@@ -179,6 +233,30 @@ function DescriptorTabContent({
           </span>
         )}
       </button>
+      <span className="text-muted-foreground shrink-0"> , </span>
+      <Tooltip delay={0}>
+        <button
+          type="button"
+          onClick={(e) => handleSegmentClick(e, "experiment")}
+          className={`focus-visible:ring-accent min-w-0 rounded px-0.5 text-left focus:outline-none focus-visible:ring-2 ${
+            isActive ? "whitespace-nowrap" : "max-w-[52px] truncate"
+          }`}
+          title={experimentTooltipLines.join(". ")}
+          aria-label={`Experiment type ${EXPERIMENT_TYPE_TAB_SHORT[dataset.experimentType]}, click to change`}
+        >
+          <span className="font-mono text-[11px] font-semibold tracking-tight sm:text-xs">
+            {EXPERIMENT_TYPE_TAB_SHORT[dataset.experimentType]}
+          </span>
+        </button>
+        <Tooltip.Content className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-left text-xs shadow-lg">
+          <p className="font-semibold">Experiment type</p>
+          <ul className="mt-1 list-inside list-disc space-y-0.5">
+            {experimentTooltipLines.map((line, i) => (
+              <li key={`${i}-${line.slice(0, 24)}`}>{line}</li>
+            ))}
+          </ul>
+        </Tooltip.Content>
+      </Tooltip>
       <span
         role="button"
         tabIndex={0}
@@ -259,6 +337,16 @@ export function DatasetTabs({
     [datasetIdForModal, updateDataset, closeModal],
   );
 
+  const handleExperimentSelect = useCallback(
+    (experimentType: ExperimentTypeOption) => {
+      if (datasetIdForModal) {
+        updateDataset(datasetIdForModal, { experimentType });
+      }
+      closeModal();
+    },
+    [datasetIdForModal, updateDataset, closeModal],
+  );
+
   const handleSelectionChange = useCallback(
     (key: React.Key) => {
       const id = key == null ? null : String(key);
@@ -298,6 +386,11 @@ export function DatasetTabs({
     ? activeKey
     : undefined;
 
+  const modalDataset =
+    datasetIdForModal != null
+      ? datasets.find((d) => d.id === datasetIdForModal)
+      : undefined;
+
   const shouldStretch = datasets.length === 1;
 
   return (
@@ -318,7 +411,7 @@ export function DatasetTabs({
                   <Tabs.Tab
                     key={dataset.id}
                     id={dataset.id}
-                    className={`text-secondary data-[selected=true]:bg-surface-3 data-[selected=true]:text-foreground data-[selected=true]:ring-accent/40 data-[hovered=true]:text-foreground data-[hovered=true]:data-[selected=false]:bg-surface-3/50 flex h-9 min-w-0 shrink-0 cursor-pointer items-center rounded-full px-4 transition-[width,max-width,background-color,color,box-shadow] duration-250 ease-out data-[selected=true]:ring-2 data-[selected=true]:ring-inset ${shouldStretch ? "flex-1" : "w-[220px] max-w-[220px] data-[selected=true]:w-auto data-[selected=true]:max-w-fit"}`}
+                    className={`text-secondary data-[selected=true]:bg-surface-3 data-[selected=true]:text-foreground data-[selected=true]:ring-accent/40 data-[hovered=true]:text-foreground data-[hovered=true]:data-[selected=false]:bg-surface-3/50 flex h-9 min-w-0 shrink-0 cursor-pointer items-center rounded-full px-4 transition-[width,max-width,background-color,color,box-shadow] duration-250 ease-out data-[selected=true]:ring-2 data-[selected=true]:ring-inset ${shouldStretch ? "flex-1" : "w-[280px] max-w-[280px] data-[selected=true]:w-auto data-[selected=true]:max-w-fit"}`}
                   >
                     <DescriptorTabContent
                       dataset={dataset}
@@ -380,6 +473,13 @@ export function DatasetTabs({
         onClose={closeModal}
         onSelect={handleEdgeSelect}
         edges={edgeOptions}
+      />
+      <ExperimentSelectModal
+        isOpen={modalType === "experiment"}
+        onClose={closeModal}
+        onSelect={handleExperimentSelect}
+        fileName={modalDataset?.fileName ?? ""}
+        currentType={modalDataset?.experimentType ?? "TOTAL_ELECTRON_YIELD"}
       />
     </>
   );

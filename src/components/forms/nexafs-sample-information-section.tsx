@@ -13,8 +13,6 @@ const selectClass =
   "border-border bg-field-background text-field-foreground placeholder:text-field-placeholder focus:border-accent focus:ring-accent/20 w-full rounded-xl border px-4 py-2.5 focus:outline-none focus:ring-2";
 
 export function NexafsSampleInformationSection({
-  preparationDate,
-  setPreparationDate,
   processMethod,
   setProcessMethod,
   substrate,
@@ -46,22 +44,6 @@ export function NexafsSampleInformationSection({
       </div>
 
       <div className="space-y-4">
-        <TextField
-          name="preparationDate"
-          value={preparationDate}
-          onChange={setPreparationDate}
-          variant="secondary"
-          fullWidth
-        >
-          <Label className={formLabelClass}>
-            Preparation Date
-            <FieldTooltip description="Date when the sample was prepared" />
-          </Label>
-          <InputGroup variant="secondary" fullWidth>
-            <InputGroup.Input type="date" />
-          </InputGroup>
-        </TextField>
-
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <Label htmlFor="processMethod" className={formLabelClass}>

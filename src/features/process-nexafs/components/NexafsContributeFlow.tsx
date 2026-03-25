@@ -219,7 +219,13 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
         fileName={columnMappingFile?.file.name ?? ""}
       />
 
-      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
+      <div
+        className={
+          datasets.length > 0
+            ? "mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col"
+            : "mx-auto flex w-full max-w-7xl flex-col"
+        }
+      >
         <ContributionFileDropOverlay
           isDragging={isDragging}
           fileKind={draggedFileType ?? "mixed"}
@@ -230,15 +236,12 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           className={
             datasets.length > 0
               ? "flex min-h-0 w-full flex-1 flex-col"
-              : "space-y-10"
+              : "h-auto w-full space-y-10"
           }
           onSubmit={submit}
         >
           {datasets.length === 0 && (
-            <div className="border-border bg-surface mb-8 rounded-xl border p-6 shadow-sm">
-              <h2 className="text-foreground mb-4 text-xl font-semibold">
-                Upload CSV or JSON Files
-              </h2>
+            <div className="border-border bg-surface mb-8 w-full shrink-0 rounded-xl border p-4 shadow-sm">
               <FileUploadZone
                 onFilesSelected={handleFilesSelected}
                 multiple={true}
@@ -288,13 +291,10 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
             </div>
           )}
 
-          {submitStatus && (
+          {submitStatus?.type === "error" && (
             <div
-              className={`rounded-lg border p-4 text-sm ${
-                submitStatus.type === "success"
-                  ? "border-success/40 bg-success/10 text-success-foreground"
-                  : "border-danger/40 bg-danger/10 text-danger-foreground"
-              }`}
+              role="alert"
+              className="border-danger/40 bg-danger/10 text-danger-foreground rounded-lg border p-4 text-sm"
             >
               {submitStatus.message}
             </div>

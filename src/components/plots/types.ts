@@ -9,6 +9,10 @@ export type SpectrumPoint = {
   absorption: number;
   theta?: number;
   phi?: number;
+  i0?: number;
+  od?: number;
+  massabsorption?: number;
+  beta?: number;
 };
 
 export type SpectrumSelection = {

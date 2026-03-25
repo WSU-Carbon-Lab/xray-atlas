@@ -34,11 +34,11 @@ const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
 };
 
 const SORT_OPTIONS: {
-  key: "newest" | "measurement" | "molecule" | "edge" | "instrument";
+  key: "newest" | "upload" | "molecule" | "edge" | "instrument";
   label: string;
 }[] = [
   { key: "newest", label: "Newest (upload)" },
-  { key: "measurement", label: "Measurement date" },
+  { key: "upload", label: "Upload date" },
   { key: "molecule", label: "Molecule name" },
   { key: "edge", label: "Edge (atom)" },
   { key: "instrument", label: "Instrument" },
@@ -53,9 +53,10 @@ function formatExperimentType(
 
 function parseSortParam(
   raw: string | null,
-): "newest" | "measurement" | "molecule" | "edge" | "instrument" {
+): "newest" | "upload" | "molecule" | "edge" | "instrument" {
+  if (raw === "measurement") return "upload";
   if (
-    raw === "measurement" ||
+    raw === "upload" ||
     raw === "molecule" ||
     raw === "edge" ||
     raw === "instrument"
@@ -75,7 +76,7 @@ function parseExperimentTypeParam(
 
 type BrowseExperiment = {
   id: string;
-  measurementdate: string;
+  createdat: string;
   experimenttype: ExperimentType | null;
   samples: {
     identifier: string | null;
@@ -96,9 +97,7 @@ type BrowseExperiment = {
 function mapExperimentToCard(exp: BrowseExperiment) {
   const molecule = exp.samples.molecules;
   const edgeLabel = `${exp.edges.targetatom} ${exp.edges.corestate}`;
-  const measurementDateLabel = new Date(
-    exp.measurementdate,
-  ).toLocaleDateString(undefined, {
+  const uploadedAtLabel = new Date(exp.createdat).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -114,7 +113,7 @@ function mapExperimentToCard(exp: BrowseExperiment) {
       edgeLabel,
       instrumentName: exp.instruments.name,
       facilityName: exp.instruments.facilities?.name ?? null,
-      measurementDateLabel,
+      uploadedAtLabel,
       pointCount: exp._count.spectrumpoints,
       experimentTypeLabel: formatExperimentType(exp.experimenttype),
     },

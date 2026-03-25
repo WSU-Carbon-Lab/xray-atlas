@@ -15,7 +15,7 @@ export type NexafsDatasetCardCompactProps = {
   edgeLabel: string;
   instrumentName: string;
   facilityName: string | null;
-  measurementDateLabel: string;
+  uploadedAtLabel: string;
   pointCount: number;
   experimentTypeLabel: string | null;
 };
@@ -28,7 +28,7 @@ export function NexafsDatasetCardCompact({
   edgeLabel,
   instrumentName,
   facilityName,
-  measurementDateLabel,
+  uploadedAtLabel,
   pointCount,
   experimentTypeLabel,
 }: NexafsDatasetCardCompactProps) {
@@ -74,7 +74,7 @@ export function NexafsDatasetCardCompact({
           <div className="flex shrink-0 flex-col items-end gap-1 text-sm text-muted">
             <span className="inline-flex items-center gap-1">
               <CalendarIcon className="h-4 w-4 shrink-0 stroke-[1.5]" aria-hidden />
-              <span className="tabular-nums">{measurementDateLabel}</span>
+              <span className="tabular-nums">{uploadedAtLabel}</span>
             </span>
             <span className="inline-flex items-center gap-1">
               <ChartBarIcon className="h-4 w-4 shrink-0 stroke-[1.5]" aria-hidden />

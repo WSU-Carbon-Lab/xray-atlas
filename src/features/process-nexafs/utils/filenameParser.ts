@@ -4,8 +4,15 @@ export interface ParsedFilename {
   facility: string | null;
   beamline: string | null;
   experimenter: string | null;
+  vendorSlug: string | null;
   extraInfo: string | null;
 }
+
+export type InstrumentMatchOption = {
+  id: string;
+  name: string;
+  facilityName?: string;
+};
 
 export function parseNexafsFilename(filename: string): ParsedFilename {
   const result: ParsedFilename = {
@@ -14,6 +21,7 @@ export function parseNexafsFilename(filename: string): ParsedFilename {
     facility: null,
     beamline: null,
     experimenter: null,
+    vendorSlug: null,
     extraInfo: null,
   };
 
@@ -42,11 +50,70 @@ export function parseNexafsFilename(filename: string): ParsedFilename {
     result.experimenter = parts[4] ?? null;
   }
 
+  if (parts.length > 5) {
+    result.vendorSlug = parts.slice(5).join("_");
+  }
+
   if (parts.length >= 6) {
     result.extraInfo = parts.slice(5).join("_") ?? null;
   }
 
   return result;
+}
+
+export function matchInstrumentIdFromParsedNexafsFilename(
+  parsed: ParsedFilename,
+  options: InstrumentMatchOption[],
+): string | undefined {
+  const beam = parsed.beamline?.trim();
+  const normalizedFacility = normalizeFacilityToken(parsed.facility);
+  const facNorm = normalizedFacility?.toUpperCase().replace(/\s+/g, "") ?? "";
+
+  if (beam && facNorm) {
+    const beamUpper = beam.toUpperCase().replace(/\s+/g, "");
+    const hit = options.find((inst) => {
+      const fn = inst.facilityName?.toUpperCase().replace(/\s+/g, "") ?? "";
+      const facilityOk =
+        fn === facNorm ||
+        fn.includes(facNorm) ||
+        facNorm.includes(fn);
+      const inUpper = inst.name.toUpperCase().replace(/\s+/g, "");
+      const beamOk =
+        inUpper === beamUpper ||
+        inUpper.includes(beamUpper) ||
+        beamUpper.includes(inUpper);
+      return facilityOk && beamOk;
+    });
+    if (hit) return hit.id;
+  }
+
+  if (beam) {
+    const beamUpper = beam.toUpperCase().replace(/\s+/g, "");
+    const byBeam = options.find((inst) => {
+      const inUpper = inst.name.toUpperCase().replace(/\s+/g, "");
+      return (
+        inUpper === beamUpper ||
+        inUpper.includes(beamUpper) ||
+        beamUpper.includes(inUpper)
+      );
+    });
+    if (byBeam) return byBeam.id;
+  }
+
+  if (normalizedFacility) {
+    const parsedFac = normalizedFacility.toUpperCase().replace(/\s+/g, "");
+    const byFac = options.find((inst) => {
+      const fn = inst.facilityName?.toUpperCase().replace(/\s+/g, "") ?? "";
+      return (
+        fn === parsedFac ||
+        fn.includes(parsedFac) ||
+        parsedFac.includes(fn)
+      );
+    });
+    if (byFac) return byFac.id;
+  }
+
+  return undefined;
 }
 
 export function normalizeEdge(edge: string | null): string | null {
@@ -89,4 +156,36 @@ export function normalizeExperimentMode(mode: string | null): string | null {
   };
 
   return modeMap[normalized] ?? normalized;
+}
+
+export function normalizeFacilityToken(
+  facility: string | null,
+): string | null {
+  if (!facility) return null;
+  const t = facility.trim();
+  if (!t) return null;
+
+  const upperNoSpace = t.toUpperCase().replace(/\s+/g, "");
+
+  const facilityMap: Record<string, string> = {
+    ALS: "Advanced Light Source",
+    NSLSII: "National Synchrotron Light Source II",
+    ANSTO: "The Australian Synchrotron",
+    ANSTRO: "The Australian Synchrotron",
+  };
+
+  return facilityMap[upperNoSpace] ?? t;
+}
+
+export function normalizeInstrumentName(
+  facilityDisplayName: string | null,
+  instrument: string | null,
+): string | null {
+  if (!instrument?.trim()) return null;
+  const inst = instrument.trim();
+  const fac = facilityDisplayName?.trim() ?? "";
+  if (fac === "Advanced Light Source" && inst === "5.3.2") {
+    return "Beamline 5.3.2.2";
+  }
+  return inst;
 }
