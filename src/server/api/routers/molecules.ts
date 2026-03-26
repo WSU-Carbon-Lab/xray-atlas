@@ -28,6 +28,7 @@ function checkTrackViewThrottle(key: string): boolean {
   return true;
 }
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "@prisma/client";
 import {
   moleculeUploadSchema,
   moleculeUploadDataToPrismaInput,
@@ -74,7 +75,7 @@ async function checkCanEdit(
 }
 
 async function ensureContributor(
-  prisma: typeof db,
+  prisma: Pick<typeof db, "moleculecontributors">,
   moleculeId: string,
   userId: string,
   contributionType: "creator" | "editor" | "contributor",
@@ -1475,6 +1476,20 @@ export const moleculesRouter = createTRPCRouter({
             moleculesynonyms: {
               orderBy: [{ order: "asc" }],
             },
+            moleculecontributors: {
+              include: {
+                user: {
+                  select: { id: true, name: true, image: true },
+                },
+              },
+              orderBy: { contributedat: "asc" },
+            },
+            moleculetags: {
+              include: { tags: true },
+            },
+            samples: {
+              include: { _count: { select: { experiments: true } } },
+            },
           },
           orderBy: {
             createdat: "desc",
@@ -1533,6 +1548,20 @@ export const moleculesRouter = createTRPCRouter({
         include: {
           moleculesynonyms: {
             orderBy: [{ order: "asc" }],
+          },
+          moleculecontributors: {
+            include: {
+              user: {
+                select: { id: true, name: true, image: true },
+                },
+              },
+            orderBy: { contributedat: "asc" },
+          },
+          moleculetags: {
+            include: { tags: true },
+          },
+          samples: {
+            include: { _count: { select: { experiments: true } } },
           },
         },
         orderBy: {
@@ -1748,5 +1777,168 @@ export const moleculesRouter = createTRPCRouter({
         success: true,
         molecule: updatedMolecule,
       };
+    }),
+
+  remove: protectedProcedure
+    .input(z.object({ moleculeId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+        select: { id: true, createdby: true, imageurl: true },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      if (!molecule.createdby || molecule.createdby !== ctx.userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the submitting user can remove this molecule",
+        });
+      }
+
+      try {
+        await ctx.db.molecules.delete({
+          where: { id: input.moleculeId },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2003"
+        ) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "This molecule is linked to existing sample or experiment data and cannot be removed",
+          });
+        }
+        throw error;
+      }
+
+      if (molecule.imageurl) {
+        try {
+          await deleteMoleculeImage(molecule.imageurl);
+        } catch (error) {
+          console.error("Failed to delete molecule image:", error);
+        }
+      }
+
+      return { success: true };
+    }),
+
+  transferOwnership: protectedProcedure
+    .input(
+      z.object({
+        moleculeId: z.string().uuid(),
+        newCreatorId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+        select: { id: true, createdby: true },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      if (!molecule.createdby || molecule.createdby !== ctx.userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the molecule owner can transfer ownership",
+        });
+      }
+
+      if (input.newCreatorId === ctx.userId) {
+        return { success: true };
+      }
+
+      const newUser = await ctx.db.user.findUnique({
+        where: { id: input.newCreatorId },
+        select: { id: true },
+      });
+
+      if (!newUser) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Selected recipient user not found",
+        });
+      }
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.molecules.update({
+          where: { id: input.moleculeId },
+          data: { createdby: input.newCreatorId },
+        });
+
+        await ensureContributor(tx, input.moleculeId, input.newCreatorId, "creator");
+        await ensureContributor(tx, input.moleculeId, ctx.userId, "editor");
+      });
+
+      return { success: true };
+    }),
+
+  getDeleteDataPointImpact: protectedProcedure
+    .input(z.object({ moleculeId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+        select: { createdby: true },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      if (!molecule.createdby || molecule.createdby !== ctx.userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the molecule owner can view delete impact",
+        });
+      }
+
+      const rows = await ctx.db.$queryRaw<
+        Array<{ data_points_removed: string }>
+      >`
+        SELECT COUNT(*)::text AS data_points_removed
+        FROM public.spectrumpoints sp
+        WHERE sp."experimentid" IN (
+          SELECT e.id
+          FROM public.experiments e
+          WHERE e."sampleid" IN (
+            SELECT s.id
+            FROM public.samples s
+            WHERE s."moleculeid" = ${input.moleculeId}
+          )
+        )
+      `;
+
+      const dataPointsRemoved = Number(rows[0]?.data_points_removed ?? "0");
+      return { dataPointsRemoved };
     }),
 });

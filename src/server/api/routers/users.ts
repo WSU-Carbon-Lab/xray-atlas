@@ -63,6 +63,29 @@ export const usersRouter = createTRPCRouter({
       return user;
     }),
 
+  getCoreMaintainers: publicProcedure.query(async ({ ctx }) => {
+    const maintainerNames = ["Harlan Heilma", "Biran Collins", "Obaid"];
+
+    const users = await ctx.db.user.findMany({
+      where: {
+        OR: maintainerNames.map((name) => ({
+          name: { equals: name, mode: "insensitive" },
+        })),
+      },
+      select: { id: true, name: true, image: true },
+    });
+
+    const byLowerName = new Map(
+      users
+        .filter((u) => u.name)
+        .map((u) => [u.name!.toLowerCase(), u]),
+    );
+
+    return maintainerNames
+      .map((n) => byLowerName.get(n.toLowerCase()))
+      .filter((u): u is { id: string; name: string | null; image: string | null } => !!u);
+  }),
+
   updateORCID: protectedProcedure
     .input(
       z.object({

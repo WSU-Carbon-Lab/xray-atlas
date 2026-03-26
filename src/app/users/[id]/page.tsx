@@ -1,16 +1,24 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
 import { PageSkeleton } from "@/components/feedback/loading-state";
 import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
-import { MoleculeDisplay } from "@/components/molecules/molecule-display";
+import { MoleculeDisplayCompact } from "@/components/molecules/molecule-display";
 import { ORCIDIcon, GitHubIcon, HuggingFaceIcon } from "@/components/icons";
 import { CustomAvatar } from "@/components/ui/avatar";
+import { SimpleDialog } from "@/components/ui/dialog";
 import Link from "next/link";
-import { Button, Card } from "@heroui/react";
-import { Key, Plus, Trash2, X } from "lucide-react";
+import {
+  Accordion,
+  Avatar,
+  Button,
+  ButtonGroup,
+  Card,
+  ListBox,
+} from "@heroui/react";
+import { AlertTriangle, ArrowLeftRight, ChevronDown, Key, Plus, Trash2, X } from "lucide-react";
 
 function base64urlDecode(str: string): Uint8Array {
   let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
@@ -637,6 +645,12 @@ export default function UserProfilePage({
 }
 
 function UserMoleculesList({ userId }: { userId: string }) {
+  const { data: session } = useSession();
+  const utils = trpc.useUtils();
+  const transferOwnership = trpc.molecules.transferOwnership.useMutation();
+  const removeMolecule = trpc.molecules.remove.useMutation();
+  const getDeleteDataPointImpact =
+    trpc.molecules.getDeleteDataPointImpact.useMutation();
   const { data, isLoading } = trpc.molecules.getByCreator.useInfiniteQuery(
     {
       creatorId: userId,
@@ -646,6 +660,75 @@ function UserMoleculesList({ userId }: { userId: string }) {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
     },
   );
+  const isOwnProfile = session?.user?.id === userId;
+  const molecules = data?.pages.flatMap((page) => page.molecules) ?? [];
+  const { data: coreMaintainers } = trpc.users.getCoreMaintainers.useQuery(
+    undefined,
+    { enabled: isOwnProfile },
+  );
+
+  const [isDangerZoneOpen, setIsDangerZoneOpen] = useState(false);
+  const [deleteDialogMoleculeId, setDeleteDialogMoleculeId] = useState<
+    string | null
+  >(null);
+  const [deleteDataPointsRemoved, setDeleteDataPointsRemoved] = useState<
+    number | null
+  >(null);
+  const deleteImpactRequestIdRef = useRef<string | null>(null);
+  const [transferDialogMoleculeId, setTransferDialogMoleculeId] = useState<
+    string | null
+  >(null);
+  const [transferRecipientUserId, setTransferRecipientUserId] = useState<
+    string | null
+  >(null);
+
+  const pendingDeleteMolecule =
+    deleteDialogMoleculeId !== null
+      ? molecules.find((m) => m.id === deleteDialogMoleculeId) ?? null
+      : null;
+
+  const pendingTransferMolecule =
+    transferDialogMoleculeId !== null
+      ? molecules.find((m) => m.id === transferDialogMoleculeId) ?? null
+      : null;
+
+  const openDelete = (moleculeId: string) => {
+    deleteImpactRequestIdRef.current = moleculeId;
+    setDeleteDataPointsRemoved(null);
+    setDeleteDialogMoleculeId(moleculeId);
+    void getDeleteDataPointImpact
+      .mutateAsync({ moleculeId })
+      .then((res) => {
+        if (deleteImpactRequestIdRef.current === moleculeId) {
+          setDeleteDataPointsRemoved(res.dataPointsRemoved);
+        }
+      })
+      .catch((error) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to calculate delete impact";
+        alert(message);
+        if (deleteImpactRequestIdRef.current === moleculeId) {
+          setDeleteDataPointsRemoved(-1);
+        }
+      });
+  };
+
+  const closeDelete = () => {
+    setDeleteDialogMoleculeId(null);
+    setDeleteDataPointsRemoved(null);
+  };
+
+  const openTransfer = (moleculeId: string) => {
+    setTransferDialogMoleculeId(moleculeId);
+    setTransferRecipientUserId(null);
+  };
+
+  const closeTransfer = () => {
+    setTransferDialogMoleculeId(null);
+    setTransferRecipientUserId(null);
+  };
 
   if (isLoading) {
     return (
@@ -657,8 +740,6 @@ function UserMoleculesList({ userId }: { userId: string }) {
     );
   }
 
-  const molecules = data?.pages.flatMap((page) => page.molecules) ?? [];
-
   if (molecules.length === 0) {
     return (
       <div className="border-border-default bg-surface-1 rounded-xl border p-6">
@@ -669,13 +750,332 @@ function UserMoleculesList({ userId }: { userId: string }) {
     );
   }
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteDialogMoleculeId) return;
+    try {
+      await removeMolecule.mutateAsync({ moleculeId: deleteDialogMoleculeId });
+      await utils.molecules.getByCreator.invalidate({
+        creatorId: userId,
+        limit: 12,
+      });
+      closeDelete();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to remove molecule from database";
+      alert(message);
+    }
+  };
+
+  const handleTransferConfirm = async () => {
+    if (!transferDialogMoleculeId || !transferRecipientUserId) return;
+    try {
+      await transferOwnership.mutateAsync({
+        moleculeId: transferDialogMoleculeId,
+        newCreatorId: transferRecipientUserId,
+      });
+      await utils.molecules.getByCreator.invalidate({
+        creatorId: userId,
+        limit: 12,
+      });
+      closeTransfer();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to transfer molecule ownership";
+      alert(message);
+    }
+  };
+
+  const recipientOptions = (() => {
+    if (!pendingTransferMolecule) return [];
+    const contributors =
+      pendingTransferMolecule.contributors?.map((c) => c.user) ?? [];
+    const core = coreMaintainers ?? [];
+
+    const byId = new Map<string, { id: string; name: string | null; image: string | null; kind: "core" | "contributor" }>();
+
+    for (const u of core) {
+      byId.set(u.id, {
+        id: u.id,
+        name: u.name,
+        image: u.image,
+        kind: "core",
+      });
+    }
+
+    for (const u of contributors) {
+      if (!byId.has(u.id)) {
+        byId.set(u.id, {
+          id: u.id,
+          name: u.name,
+          image: u.image,
+          kind: "contributor",
+        });
+      }
+    }
+
+    return Array.from(byId.values());
+  })();
+
+  const recipientAvatar = (user: {
+    name: string | null;
+    image: string | null;
+  }) => {
+    const initials =
+      user.name
+        ?.split(" ")
+        .map((n) => n[0])
+        .filter(Boolean)
+        .join("")
+        .toUpperCase() ?? "U";
+
+    const fallback = initials.length > 2 ? initials.slice(0, 2) : initials;
+
+    return (
+      <Avatar size="sm" className="shrink-0">
+        {user.image ? (
+          <Avatar.Image
+            alt={user.name ?? "User"}
+            src={user.image}
+            className="rounded-full"
+          />
+        ) : null}
+        <Avatar.Fallback className="text-xs">{fallback}</Avatar.Fallback>
+      </Avatar>
+    );
+  };
+
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      {molecules.map((molecule) => (
-        <div key={molecule.id}>
-          <MoleculeDisplay molecule={molecule} />
+    <div className="space-y-4">
+      {isOwnProfile && (
+        <Accordion
+          variant="surface"
+          className="border-border-default w-full rounded-lg border"
+          aria-label="Danger zone"
+        >
+          <Accordion.Item key="danger-zone" id="danger-zone">
+            <Accordion.Heading>
+              <Accordion.Trigger
+                onPress={() => setIsDangerZoneOpen((v) => !v)}
+                className="flex w-full items-center gap-2 px-4 py-3 text-left"
+              >
+                <AlertTriangle className="h-4 w-4 shrink-0 text-error" />
+                <span className="text-sm font-semibold text-text-primary">
+                  Danger Zone
+                </span>
+                <span className="text-xs text-text-tertiary">
+                  Delete / transfer ownership
+                </span>
+                <Accordion.Indicator className="ml-auto text-muted shrink-0 [&>svg]:size-4">
+                  <ChevronDown className="h-4 w-4" />
+                </Accordion.Indicator>
+              </Accordion.Trigger>
+            </Accordion.Heading>
+            <Accordion.Panel>
+              <Accordion.Body className="pt-0 pb-4 px-4 text-sm text-text-secondary">
+                Expand to reveal destructive actions. Deleting removes the molecule and
+                all related records. Transferring ownership keeps the molecule.
+              </Accordion.Body>
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
+      )}
+
+      <div className="w-full space-y-3">
+        {molecules.map((molecule) => (
+          <div
+            key={molecule.id}
+            className="flex items-start gap-3 [&>div]:[contain-intrinsic-size:0_120px]"
+          >
+            {isOwnProfile && isDangerZoneOpen ? (
+              <div className="pt-1">
+                <ButtonGroup
+                  orientation="vertical"
+                  size="sm"
+                  variant="ghost"
+                  className="w-[44px]"
+                >
+                  <Button
+                    isIconOnly
+                    aria-label={`Delete molecule ${molecule.name}`}
+                    onPress={() => openDelete(molecule.id)}
+                    isDisabled={
+                      removeMolecule.isPending &&
+                      deleteDialogMoleculeId === molecule.id
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-error" />
+                  </Button>
+                  <ButtonGroup.Separator />
+                  <Button
+                    isIconOnly
+                    aria-label={`Transfer ownership of molecule ${molecule.name}`}
+                    onPress={() => openTransfer(molecule.id)}
+                    isDisabled={
+                      transferOwnership.isPending &&
+                      transferDialogMoleculeId === molecule.id
+                    }
+                  >
+                    <ArrowLeftRight className="h-4 w-4" />
+                  </Button>
+                </ButtonGroup>
+              </div>
+            ) : null}
+
+            <div className="min-w-0 flex-1">
+              <MoleculeDisplayCompact molecule={molecule} enableRealtime={false} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <SimpleDialog
+        isOpen={deleteDialogMoleculeId !== null}
+        onClose={closeDelete}
+        title="Delete molecule permanently?"
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-100/40 p-3 dark:border-amber-500/40 dark:bg-amber-900/20">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="space-y-2">
+              <p className="text-sm text-text-secondary">
+                You are about to permanently delete{" "}
+                <span className="font-semibold text-text-primary">
+                  {pendingDeleteMolecule?.name ?? "this molecule"}
+                </span>{" "}
+                from the database. This action cannot be undone.
+              </p>
+              <p className="text-sm text-text-secondary">
+                This will remove{" "}
+                <span className="font-semibold text-text-primary tabular-nums">
+                  {deleteDataPointsRemoved === null
+                    ? "calculating..."
+                    : deleteDataPointsRemoved < 0
+                      ? "unknown"
+                      : deleteDataPointsRemoved.toLocaleString()}
+                </span>{" "}
+                data points.
+              </p>
+              <p className="text-sm text-text-secondary">
+                Safer alternative: transfer ownership to a core maintainer instead.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onPress={closeDelete}
+            >
+              <X className="h-4 w-4" />
+              <span>Cancel</span>
+            </Button>
+            <Button
+              variant="secondary"
+              onPress={() => {
+                const id = deleteDialogMoleculeId;
+                closeDelete();
+                if (id) openTransfer(id);
+              }}
+              isDisabled={!deleteDialogMoleculeId}
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+              <span>Transfer instead</span>
+            </Button>
+            <Button
+              variant="primary"
+              onPress={handleDeleteConfirm}
+              isPending={removeMolecule.isPending}
+              isDisabled={!deleteDialogMoleculeId}
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Delete Molecule</span>
+            </Button>
+          </div>
         </div>
-      ))}
+      </SimpleDialog>
+
+      <SimpleDialog
+        isOpen={transferDialogMoleculeId !== null}
+        onClose={closeTransfer}
+        title="Transfer molecule ownership"
+        maxWidth="max-w-xl"
+      >
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-sm text-text-secondary">
+              Transfer the owner of{" "}
+              <span className="font-semibold text-text-primary">
+                {pendingTransferMolecule?.name ?? "this molecule"}
+              </span>
+              . This will not delete the molecule.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-text-primary mb-2">
+              Choose a new owner
+            </p>
+            <ListBox
+              aria-label="Choose new owner"
+              selectionMode="single"
+              disallowEmptySelection
+              selectedKeys={
+                transferRecipientUserId
+                  ? new Set([transferRecipientUserId])
+                  : new Set()
+              }
+              onSelectionChange={(keys) => {
+                const first = Array.from(keys)[0];
+                setTransferRecipientUserId(first ? String(first) : null);
+              }}
+            >
+              {recipientOptions.length === 0 ? (
+                <ListBox.Item key="none" textValue="No recipients available">
+                  <span className="text-sm text-text-tertiary">
+                    No recipients available
+                  </span>
+                </ListBox.Item>
+              ) : (
+                recipientOptions.map((u) => (
+                  <ListBox.Item key={u.id} textValue={u.name ?? u.id}>
+                    <div className="flex items-center gap-3">
+                      {recipientAvatar({ name: u.name, image: u.image })}
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-text-primary">
+                          {u.name ?? "User"}
+                        </div>
+                        <div className="truncate text-xs text-text-tertiary">
+                          {u.kind === "core" ? "Core maintainer" : "Contributor"}
+                        </div>
+                      </div>
+                    </div>
+                  </ListBox.Item>
+                ))
+              )}
+            </ListBox>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onPress={closeTransfer}>
+              <X className="h-4 w-4" />
+              <span>Cancel</span>
+            </Button>
+            <Button
+              variant="primary"
+              onPress={handleTransferConfirm}
+              isDisabled={!transferRecipientUserId || recipientOptions.length === 0}
+              isPending={transferOwnership.isPending}
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+              <span>Transfer ownership</span>
+            </Button>
+          </div>
+        </div>
+      </SimpleDialog>
     </div>
   );
 }
