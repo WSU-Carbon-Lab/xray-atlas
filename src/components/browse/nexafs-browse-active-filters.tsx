@@ -26,8 +26,9 @@ export function NexafsBrowseActiveFilters({
   onRemoveAcquisition,
   onClearAll,
 }: NexafsBrowseActiveFiltersProps) {
-  const hasAny =
-    moleculeLabel || edgeLabel || instrumentLabel || acquisitionLabel;
+  const hasAny = [moleculeLabel, edgeLabel, instrumentLabel, acquisitionLabel].some(
+    (v) => (v?.length ?? 0) > 0,
+  );
   if (!hasAny) return null;
 
   return (

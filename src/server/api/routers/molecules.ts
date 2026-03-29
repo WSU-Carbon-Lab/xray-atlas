@@ -37,6 +37,7 @@ import { uploadMoleculeImage, deleteMoleculeImage } from "~/server/storage";
 import type { db } from "~/server/db";
 import { isDevMockUser } from "~/lib/dev-mock-data";
 import { pickRandomTagHex } from "~/lib/tag-colors";
+import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { toMoleculeView } from "./molecules-view";
 
 function slugifyTagName(name: string): string {
@@ -457,6 +458,26 @@ export const moleculesRouter = createTRPCRouter({
 
       // Convert to Prisma input format
       const prismaInput = moleculeUploadDataToPrismaInput(input);
+      if (
+        prismaInput.moleculesynonyms &&
+        Array.isArray(prismaInput.moleculesynonyms.create)
+      ) {
+        const withSlugs = prismaInput.moleculesynonyms.create
+          .map((syn) => {
+            const synonym = syn.synonym.trim();
+            return synonym.length > 0
+              ? { ...syn, synonym, slug: slugifyMoleculeSynonym(synonym) }
+              : null;
+          })
+          .filter((v): v is NonNullable<typeof v> => v != null);
+        if (withSlugs.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "At least one synonym (common name) is required",
+          });
+        }
+        prismaInput.moleculesynonyms.create = withSlugs;
+      }
 
       // Validate required fields
       if (!prismaInput.iupacname?.trim()) {
@@ -675,6 +696,115 @@ export const moleculesRouter = createTRPCRouter({
         { ...molecule, viewcount: molecule.viewcount },
         { userHasFavorited },
       );
+    }),
+
+  getBySlug: publicProcedure
+    .input(z.object({ slug: z.string().min(1).max(200) }))
+    .query(async ({ ctx, input }) => {
+      const COLLISION_CANDIDATE_LIMIT = 200;
+      const normalizedSlug = slugifyMoleculeSynonym(input.slug);
+      const matches = await ctx.db.moleculesynonyms.findMany({
+        where: { slug: normalizedSlug },
+        select: { moleculeid: true },
+        distinct: ["moleculeid"],
+        orderBy: { moleculeid: "asc" },
+        take: COLLISION_CANDIDATE_LIMIT + 1,
+      });
+      const moleculeIds = matches
+        .slice(0, COLLISION_CANDIDATE_LIMIT)
+        .map((m) => m.moleculeid);
+
+      if (moleculeIds.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      if (moleculeIds.length === 1) {
+        const molecule = await ctx.db.molecules.findUnique({
+          where: { id: moleculeIds[0] },
+          include: {
+            moleculesynonyms: {
+              orderBy: [{ order: "asc" }, { synonym: "asc" }],
+            },
+            samples: true,
+            moleculecontributors: {
+              include: {
+                user: {
+                  select: { id: true, name: true, image: true },
+                },
+              },
+              orderBy: { contributedat: "asc" },
+            },
+            moleculetags: {
+              include: { tags: true },
+            },
+          },
+        });
+
+        if (!molecule) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Molecule not found",
+          });
+        }
+
+        let userHasFavorited = false;
+        if (ctx.userId) {
+          const favorite = await ctx.db.moleculefavorites.findUnique({
+            where: {
+              moleculeid_userid: {
+                moleculeid: molecule.id,
+                userid: ctx.userId,
+              },
+            },
+          });
+          userHasFavorited = !!favorite;
+        }
+
+        return toMoleculeView(
+          { ...molecule, viewcount: molecule.viewcount },
+          { userHasFavorited },
+        );
+      }
+
+      const molecules = await ctx.db.molecules.findMany({
+        where: { id: { in: moleculeIds } },
+        select: {
+          id: true,
+          iupacname: true,
+          moleculesynonyms: {
+            where: { order: 0 },
+            orderBy: [{ order: "asc" }, { synonym: "asc" }],
+            take: 1,
+            select: { synonym: true },
+          },
+        },
+      });
+
+      const candidates = molecules
+        .map((m) => {
+          const primary = m.moleculesynonyms[0]?.synonym ?? null;
+          const name = primary ?? m.iupacname;
+          return {
+            id: m.id,
+            name,
+            iupacName: m.iupacname,
+            slug: slugifyMoleculeSynonym(primary ?? m.iupacname),
+          };
+        })
+        .sort((a, b) => {
+          const bySlug = a.slug.localeCompare(b.slug);
+          if (bySlug !== 0) return bySlug;
+          return a.id.localeCompare(b.id);
+        });
+
+      return {
+        kind: "slug_collision" as const,
+        slug: normalizedSlug,
+        candidates,
+      };
     }),
 
   list: publicProcedure
@@ -1732,7 +1862,7 @@ export const moleculesRouter = createTRPCRouter({
         pubchemcid?: string | null;
         moleculesynonyms?: {
           deleteMany: Record<string, never>;
-          create: Array<{ synonym: string; order: number }>;
+          create: Array<{ synonym: string; slug: string; order: number }>;
         };
       } = {};
 
@@ -1749,12 +1879,20 @@ export const moleculesRouter = createTRPCRouter({
 
       // Update synonyms if provided
       if (updateData.commonNames && updateData.commonNames.length > 0) {
-        const commonNameTrimmed = updateData.commonNames[0]?.trim() ?? "";
+        const nonEmpty = updateData.commonNames.map((s) => s.trim()).filter((s) => s.length > 0);
+        if (nonEmpty.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "At least one synonym (common name) is required",
+          });
+        }
+        const commonNameTrimmed = nonEmpty[0] ?? "";
         prismaUpdateData.moleculesynonyms = {
           deleteMany: {},
-          create: updateData.commonNames.map((synonym, idx) => ({
-            synonym: synonym.trim(),
-            order: idx === 0 || synonym.trim() === commonNameTrimmed ? 0 : idx,
+          create: nonEmpty.map((synonym, idx) => ({
+            synonym,
+            slug: slugifyMoleculeSynonym(synonym),
+            order: idx === 0 || synonym === commonNameTrimmed ? 0 : idx,
           })),
         };
       }

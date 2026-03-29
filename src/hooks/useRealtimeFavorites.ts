@@ -28,6 +28,7 @@ export function useRealtimeFavorites({
   const [userHasFavorited, setUserHasFavorited] = useState(
     initialUserHasFavorited,
   );
+  const [fallbackActive, setFallbackActive] = useState(false);
 
   useEffect(() => {
     if (!moleculeId) return;
@@ -38,9 +39,10 @@ export function useRealtimeFavorites({
   useEffect(() => {
     if (!moleculeId || !enabled) return;
 
-    const channel = supabaseClient
-      .channel(`molecule-favorites:${moleculeId}`)
-      .on(
+    const baseChannel = supabaseClient.channel(`molecule-favorites:${moleculeId}`);
+
+    if (!fallbackActive) {
+      baseChannel.on(
         "postgres_changes",
         {
           event: "*",
@@ -57,56 +59,53 @@ export function useRealtimeFavorites({
           if (payload.eventType === "INSERT") {
             setFavoriteCount((prev) => prev + 1);
             const newData = payload.new as { user_id?: string } | null;
-            if (newData?.user_id === userId) {
-              setUserHasFavorited(true);
-            }
+            if (newData?.user_id === userId) setUserHasFavorited(true);
           } else if (payload.eventType === "DELETE") {
             setFavoriteCount((prev) => Math.max(0, prev - 1));
             const oldData = payload.old as { user_id?: string } | null;
-            if (oldData?.user_id === userId) {
-              setUserHasFavorited(false);
-            }
+            if (oldData?.user_id === userId) setUserHasFavorited(false);
           }
         },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "molecules",
-          filter: `id=eq.${moleculeId}`,
-        },
-        (
-          payload: RealtimePostgresChangesPayload<{
-            favorite_count?: number;
-          }>,
-        ) => {
-          const newData = payload.new as { favorite_count?: number } | null;
-          if (
-            newData?.favorite_count !== undefined &&
-            typeof newData.favorite_count === "number"
-          ) {
-            setFavoriteCount(newData.favorite_count);
-          }
-        },
-      )
-      .subscribe((status) => {
-        if (String(status) === "SUBSCRIBED") {
-          console.log(
-            `Subscribed to real-time favorites for molecule ${moleculeId}`,
-          );
-        } else if (String(status) === "CHANNEL_ERROR") {
+      );
+    }
+
+    baseChannel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "molecules",
+        filter: `id=eq.${moleculeId}`,
+      },
+      (
+        payload: RealtimePostgresChangesPayload<{
+          favorite_count?: number;
+        }>,
+      ) => {
+        const newData = payload.new as { favorite_count?: number } | null;
+        if (typeof newData?.favorite_count === "number") {
+          setFavoriteCount(newData.favorite_count);
+        }
+      },
+    );
+
+    const channel = baseChannel.subscribe((status) => {
+      if (String(status) === "CHANNEL_ERROR") {
+        if (!fallbackActive) {
+          setFallbackActive(true);
+          void supabaseClient.removeChannel(baseChannel);
+        } else {
           console.error(
             `Error subscribing to molecule ${moleculeId} favorites updates`,
           );
         }
-      });
+      }
+    });
 
     return () => {
       void supabaseClient.removeChannel(channel);
     };
-  }, [moleculeId, userId, enabled]);
+  }, [moleculeId, userId, enabled, fallbackActive]);
 
   return { favoriteCount, userHasFavorited };
 }

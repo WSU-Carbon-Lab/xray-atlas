@@ -23,6 +23,7 @@ import { MoleculeImageSVG } from "./molecule-image-svg";
 import { useRealtimeUpvotes } from "~/hooks/useRealtimeUpvotes";
 import type { MoleculeView } from "~/types/molecule";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
+import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
 import {
   CategoryTagGroupEditable,
   MoleculeTags,
@@ -266,7 +267,7 @@ interface MoleculeCardActionsProps {
   size?: "sm" | "md";
 }
 
-function MoleculeCardActions({
+export function MoleculeCardActions({
   molecule,
   pubChemUrl,
   casUrl,
@@ -461,7 +462,7 @@ interface MoleculeImageModalProps {
   previewGradient: string;
 }
 
-function MoleculeImageModal({
+export function MoleculeImageModal({
   isOpen,
   onClose,
   hasImage,
@@ -585,7 +586,7 @@ export const CompactCard = memo(function CompactCard({
             <div className="flex min-w-0 items-end gap-2 overflow-hidden">
               <div className="flex h-5 shrink-0 items-end">
                 <Link
-                  href={`/molecules/${props.molecule.id}`}
+                  href={`/molecules/${canonicalMoleculeSlugFromView(props.molecule)}`}
                   className="text-text-primary motion-safe:group-hover:text-accent block truncate text-sm leading-tight font-bold hover:underline motion-safe:transition-colors"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -859,7 +860,7 @@ export const FullCard = memo(function FullCard({
       <Card.Content className="flex min-w-0 flex-1 flex-col gap-3 p-4">
         <div onClick={(e) => e.stopPropagation()}>
           <Link
-            href={`/molecules/${props.molecule.id}`}
+            href={`/molecules/${canonicalMoleculeSlugFromView(props.molecule)}`}
             className="text-text-primary hover:text-accent dark:hover:text-accent-light line-clamp-3 text-lg leading-tight font-bold wrap-break-word transition-colors"
             onClick={(e) => e.stopPropagation()}
           >

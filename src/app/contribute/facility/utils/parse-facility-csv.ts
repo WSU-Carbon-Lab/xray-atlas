@@ -25,9 +25,12 @@ const VALID_FACILITY_TYPES: FacilityTypeValue[] = [
   "LAB_SOURCE",
 ];
 
-function findColumnKey(headers: string[], targetKey: string): string | null {
+function findColumnKey(
+  headers: string[],
+  targetKey: keyof typeof COLUMN_ALIASES,
+): string | null {
   const normalized = targetKey.toLowerCase().trim();
-  const aliases = COLUMN_ALIASES[targetKey as keyof typeof COLUMN_ALIASES];
+  const aliases = COLUMN_ALIASES[targetKey];
   if (!aliases) return null;
   for (const header of headers) {
     const h = header.toLowerCase().trim();
@@ -75,12 +78,12 @@ export function parseFacilityCsvFile(file: File): Promise<ParsedFacilityData> {
           const rows = results.data;
           const headers =
             results.meta.fields ??
-            (rows[0] ? Object.keys(rows[0] as Record<string, unknown>) : []);
+            (rows[0] ? Object.keys(rows[0]) : []);
           if (!rows.length) {
             reject(new Error("CSV has no data rows"));
             return;
           }
-          const firstRow = rows[0] as Record<string, unknown>;
+          const firstRow = rows[0]!;
           const nameKey = findColumnKey(headers, "name");
           const cityKey = findColumnKey(headers, "city");
           const countryKey = findColumnKey(headers, "country");
@@ -93,7 +96,7 @@ export function parseFacilityCsvFile(file: File): Promise<ParsedFacilityData> {
           const facilityTypeRaw = getCell(firstRow, facilityTypeKey);
           const facilityType = facilityTypeRaw
             ? parseFacilityType(facilityTypeRaw)
-            : ("LAB_SOURCE" as FacilityTypeValue);
+            : "LAB_SOURCE";
           const instrumentsCell = getCell(firstRow, instrumentsKey);
           const instruments = instrumentsCell
             ? parseInstrumentsFromCell(instrumentsCell)

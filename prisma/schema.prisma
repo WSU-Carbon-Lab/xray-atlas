@@ -181,11 +181,14 @@ model moleculesynonyms {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   moleculeid String    @db.Uuid
   synonym    String
+  slug       String
   order      Int       @default(0)
   molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([moleculeid, synonym])
   @@index([moleculeid, order])
+  @@index([slug])
+  @@index([slug, moleculeid])
   @@schema("public")
 }
 
@@ -287,6 +290,7 @@ model polarizations {
   azimuthdeg  Decimal       @db.Decimal
   polardeg    Decimal       @db.Decimal
   experiments experiments[]
+  spectrumpoints spectrumpoints[]
 
   @@index([azimuthdeg, polardeg], map: "idx_polarization_geom")
   @@schema("public")
@@ -333,6 +337,7 @@ model samples {
 model spectrumpoints {
   id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   experimentid   String      @db.Uuid
+  polarizationid String?     @db.Uuid
   energyev       Float
   rawabs         Float
   i0             Float?
@@ -340,9 +345,11 @@ model spectrumpoints {
   massabsorption Float?
   od             Float?
   experiments    experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  polarizations  polarizations? @relation(fields: [polarizationid], references: [id], onUpdate: NoAction)
 
-  @@unique([experimentid, energyev])
   @@index([experimentid, energyev], map: "idx_spectrum_energy")
+  @@index([experimentid, polarizationid, energyev], map: "idx_spectrum_experiment_polarization_energy")
+  @@index([polarizationid, experimentid], map: "idx_spectrum_polarization_experiment")
   @@schema("public")
 }
 

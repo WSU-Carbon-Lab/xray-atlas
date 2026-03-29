@@ -7,6 +7,7 @@ import {
   coalesceUploadedOrDerived,
   computeSpectrumDerivedScalarColumns,
 } from "~/server/nexafs/computeSpectrumDerivedColumns";
+import { fetchNexafsBrowseGrouped } from "~/server/nexafs/nexafsBrowseGroups";
 
 const emptyDerivedScalars = (): {
   od: Array<number | null>;
@@ -31,6 +32,27 @@ function spectrumRowsHaveUploadedDerivedScalars(
       typeof p.beta === "number" &&
       Number.isFinite(p.beta),
   );
+}
+
+const PRIVILEGED_ROLES = new Set(["admin", "maintainer"]);
+
+async function hasPrivilegedRole(
+  db: {
+    user: {
+      findUnique: (args: {
+        where: { id: string };
+        select: { role: true };
+      }) => Promise<{ role: string } | null>;
+    };
+  },
+  userId: string | null,
+): Promise<boolean> {
+  if (!userId) return false;
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  return user?.role != null && PRIVILEGED_ROLES.has(user.role);
 }
 
 export const experimentsRouter = createTRPCRouter({
@@ -219,69 +241,23 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const filters: Prisma.experimentsWhereInput = {};
-      if (input.moleculeId) {
-        filters.samples = { moleculeid: input.moleculeId };
-      }
-      if (input.edgeId) {
-        filters.edgeid = input.edgeId;
-      }
-      if (input.instrumentId) {
-        filters.instrumentid = input.instrumentId;
-      }
-      if (input.experimentType) {
-        filters.experimenttype = input.experimentType;
-      }
-
-      const orderBy: Prisma.experimentsOrderByWithRelationInput[] =
-        input.sortBy === "newest"
-          ? [{ createdat: "desc" }]
-          : input.sortBy === "upload"
-            ? [{ createdat: "desc" }]
-            : input.sortBy === "molecule"
-              ? [{ samples: { molecules: { iupacname: "asc" } } }]
-              : input.sortBy === "edge"
-                ? [{ edges: { targetatom: "asc" } }, { edges: { corestate: "asc" } }]
-                : [{ instruments: { name: "asc" } }];
-
-      const include = {
-        samples: {
-          include: {
-            molecules: {
-              select: {
-                id: true,
-                iupacname: true,
-                chemicalformula: true,
-              },
-            },
-          },
+      const { groups, total } = await fetchNexafsBrowseGrouped(ctx.db, {
+        filters: {
+          moleculeId: input.moleculeId,
+          edgeId: input.edgeId,
+          instrumentId: input.instrumentId,
+          experimentType: input.experimentType,
         },
-        edges: { select: { id: true, targetatom: true, corestate: true } },
-        instruments: {
-          select: {
-            id: true,
-            name: true,
-            facilities: { select: { id: true, name: true } },
-          },
-        },
-        _count: { select: { spectrumpoints: true } },
-      } satisfies Prisma.experimentsInclude;
-
-      const [rows, total] = await Promise.all([
-        ctx.db.experiments.findMany({
-          where: filters,
-          take: input.limit,
-          skip: input.offset,
-          orderBy,
-          include,
-        }),
-        ctx.db.experiments.count({ where: filters }),
-      ]);
+        searchQuery: null,
+        sortBy: input.sortBy,
+        limit: input.limit,
+        offset: input.offset,
+      });
 
       return {
-        experiments: rows,
+        groups,
         total,
-        hasMore: input.offset + rows.length < total,
+        hasMore: input.offset + groups.length < total,
       };
     }),
 
@@ -290,6 +266,10 @@ export const experimentsRouter = createTRPCRouter({
       z.object({
         query: z.string().min(1),
         limit: z.number().min(1).max(50).default(12),
+        offset: z.number().min(0).default(0),
+        sortBy: z
+          .enum(["newest", "upload", "molecule", "edge", "instrument"])
+          .default("newest"),
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
@@ -297,103 +277,20 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const q = input.query.trim();
-      const textClause: Prisma.experimentsWhereInput = {
-        OR: [
-          {
-            samples: {
-              molecules: {
-                iupacname: { contains: q, mode: "insensitive" },
-              },
-            },
-          },
-          {
-            samples: {
-              molecules: {
-                chemicalformula: { contains: q, mode: "insensitive" },
-              },
-            },
-          },
-          {
-            samples: {
-              identifier: { contains: q, mode: "insensitive" },
-            },
-          },
-          {
-            instruments: {
-              name: { contains: q, mode: "insensitive" },
-            },
-          },
-          {
-            instruments: {
-              facilities: {
-                name: { contains: q, mode: "insensitive" },
-              },
-            },
-          },
-          {
-            edges: {
-              targetatom: { contains: q, mode: "insensitive" },
-            },
-          },
-          {
-            edges: {
-              corestate: { contains: q, mode: "insensitive" },
-            },
-          },
-        ],
-      };
-
-      const refinements: Prisma.experimentsWhereInput[] = [];
-      if (input.moleculeId) {
-        refinements.push({ samples: { moleculeid: input.moleculeId } });
-      }
-      if (input.edgeId) {
-        refinements.push({ edgeid: input.edgeId });
-      }
-      if (input.instrumentId) {
-        refinements.push({ instrumentid: input.instrumentId });
-      }
-      if (input.experimentType) {
-        refinements.push({ experimenttype: input.experimentType });
-      }
-
-      const where: Prisma.experimentsWhereInput =
-        refinements.length > 0
-          ? { AND: [textClause, ...refinements] }
-          : textClause;
-
-      const include = {
-        samples: {
-          include: {
-            molecules: {
-              select: {
-                id: true,
-                iupacname: true,
-                chemicalformula: true,
-              },
-            },
-          },
+      const { groups, total } = await fetchNexafsBrowseGrouped(ctx.db, {
+        filters: {
+          moleculeId: input.moleculeId,
+          edgeId: input.edgeId,
+          instrumentId: input.instrumentId,
+          experimentType: input.experimentType,
         },
-        edges: { select: { id: true, targetatom: true, corestate: true } },
-        instruments: {
-          select: {
-            id: true,
-            name: true,
-            facilities: { select: { id: true, name: true } },
-          },
-        },
-        _count: { select: { spectrumpoints: true } },
-      } satisfies Prisma.experimentsInclude;
-
-      const experiments = await ctx.db.experiments.findMany({
-        where,
-        take: input.limit,
-        orderBy: { createdat: "desc" },
-        include,
+        searchQuery: input.query.trim(),
+        sortBy: input.sortBy,
+        limit: input.limit,
+        offset: input.offset,
       });
 
-      return { experiments };
+      return { groups, total };
     }),
 
   findByPolarization: publicProcedure
@@ -502,6 +399,13 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only maintainers can create new edges",
+        });
+      }
       // Check if edge already exists
       const existingEdge = await ctx.db.edges.findUnique({
         where: {
@@ -535,6 +439,13 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only maintainers can create calibration methods",
+        });
+      }
       // Check if calibration method already exists
       const existingMethod = await ctx.db.calibrationmethods.findUnique({
         where: { name: input.name.trim() },
@@ -580,8 +491,11 @@ export const experimentsRouter = createTRPCRouter({
             })
           : null;
 
+      const experimentId = crypto.randomUUID();
+
       const experiment = await ctx.db.experiments.create({
         data: {
+          id: experimentId,
           ...input,
           createdby: ctx.userId ?? undefined,
           experimenttype: input.experimenttype ?? null,
@@ -691,6 +605,17 @@ export const experimentsRouter = createTRPCRouter({
         spectrum: spectrumInput,
         collectedByUserIds,
       } = input;
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      const requestedCollectedBy = [...new Set(collectedByUserIds ?? [])];
+      if (
+        !isPrivilegedUser &&
+        requestedCollectedBy.some((userId) => userId !== ctx.userId)
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only attribute collection to your own user account",
+        });
+      }
 
       const moleculeRow = await ctx.db.molecules.findUnique({
         where: { id: sampleInput.moleculeId },
@@ -779,6 +704,24 @@ export const experimentsRouter = createTRPCRouter({
                 select: { id: true },
               })
             : null;
+        const normalizedCollectedBy =
+          requestedCollectedBy.length > 0
+            ? requestedCollectedBy
+            : ctx.userId != null
+              ? [ctx.userId]
+              : [];
+        if (normalizedCollectedBy.length > 0) {
+          const existingUsers = await tx.user.findMany({
+            where: { id: { in: normalizedCollectedBy } },
+            select: { id: true },
+          });
+          if (existingUsers.length !== normalizedCollectedBy.length) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "One or more collected-by users do not exist",
+            });
+          }
+        }
 
         // Resolve vendor
         let vendorId: string | null = sampleInput.vendor.existingVendorId ?? null;
@@ -863,59 +806,82 @@ export const experimentsRouter = createTRPCRouter({
           }
         }
 
-        const experimentsCreated = [] as Array<{
-          experiment: Awaited<ReturnType<typeof tx.experiments.create>>;
-          spectrumPointsCreated: number;
-        }>;
+        const polarizationIdByGeometry = new Map<string, string>();
 
-        const getOrCreatePolarization = async (theta: number, phi: number) => {
+        const getOrCreatePolarizationId = async (theta: number, phi: number) => {
+          const key = `${theta}:${phi}`;
+          const cached = polarizationIdByGeometry.get(key);
+          if (cached) return cached;
+
           const existingPolarization = await tx.polarizations.findFirst({
             where: {
               polardeg: new Prisma.Decimal(theta),
               azimuthdeg: new Prisma.Decimal(phi),
             },
+            select: { id: true },
           });
 
           if (existingPolarization) {
-            return existingPolarization;
+            polarizationIdByGeometry.set(key, existingPolarization.id);
+            return existingPolarization.id;
           }
 
-          return tx.polarizations.create({
+          const createdPolarization = await tx.polarizations.create({
             data: {
               polardeg: new Prisma.Decimal(theta),
               azimuthdeg: new Prisma.Decimal(phi),
             },
+            select: { id: true },
           });
+          polarizationIdByGeometry.set(key, createdPolarization.id);
+          return createdPolarization.id;
         };
 
+        const firstGeometry = geometryGroups[0];
+        if (!firstGeometry) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "No geometry groups were resolved from the uploaded spectrum.",
+          });
+        }
+
+        const defaultPolarizationId = await getOrCreatePolarizationId(
+          firstGeometry.theta,
+          firstGeometry.phi,
+        );
+
+        const experimentId = crypto.randomUUID();
+        const experiment = await tx.experiments.create({
+          data: {
+            id: experimentId,
+            sampleid: sample.id,
+            instrumentid: experimentInput.instrumentId,
+            edgeid: experimentInput.edgeId,
+            polarizationid: defaultPolarizationId,
+            calibrationid: experimentInput.calibrationId ?? null,
+            isstandard: experimentInput.isStandard ?? false,
+            referencestandard: experimentInput.referenceStandard ?? null,
+            createdby: ctx.userId ?? undefined,
+            experimenttype: experimentInput.experimentType,
+            nexafsexperimentkindid: kind?.id ?? null,
+            collectedbyuserids: normalizedCollectedBy,
+          },
+          include: {
+            samples: true,
+            edges: true,
+            instruments: true,
+          },
+        });
+
+        let spectrumPointsCreated = 0;
         for (let groupIndex = 0; groupIndex < geometryGroups.length; groupIndex += 1) {
           const group = geometryGroups[groupIndex]!;
-          const polarization = await getOrCreatePolarization(group.theta, group.phi);
           const derived = derivedByGroup[groupIndex]!;
-
-          const experiment = await tx.experiments.create({
-            data: {
-              sampleid: sample.id,
-              instrumentid: experimentInput.instrumentId,
-              edgeid: experimentInput.edgeId,
-              polarizationid: polarization.id,
-              calibrationid: experimentInput.calibrationId ?? null,
-              isstandard: experimentInput.isStandard ?? false,
-              referencestandard: experimentInput.referenceStandard ?? null,
-              createdby: ctx.userId ?? undefined,
-              experimenttype: experimentInput.experimentType,
-              nexafsexperimentkindid: kind?.id ?? null,
-              collectedbyuserids: collectedByUserIds ?? [],
-            },
-            include: {
-              samples: true,
-              edges: true,
-              instruments: true,
-            },
-          });
+          const polarizationId = await getOrCreatePolarizationId(group.theta, group.phi);
 
           const spectrumData = group.points.map((point, i) => ({
             experimentid: experiment.id,
+            polarizationid: polarizationId,
             energyev: point.energy,
             rawabs: point.absorption,
             od: coalesceUploadedOrDerived(point.od, derived.od[i] ?? null),
@@ -928,31 +894,30 @@ export const experimentsRouter = createTRPCRouter({
           }));
 
           if (spectrumData.length > 0) {
-            await tx.spectrumpoints.createMany({ data: spectrumData });
+            const created = await tx.spectrumpoints.createMany({ data: spectrumData });
+            spectrumPointsCreated += created.count;
           }
+        }
 
-          // Create peaksets if provided
-          if (input.peaksets && input.peaksets.length > 0) {
-            const peaksetsData = input.peaksets.map((peak) => ({
-              experimentid: experiment.id,
-              energyev: peak.energy,
-              intensity: peak.intensity ?? null,
-              bond: peak.bond ?? null,
-              transition: peak.transition ?? null,
-            }));
-
-            await tx.peaksets.createMany({ data: peaksetsData });
-          }
-
-          experimentsCreated.push({
-            experiment,
-            spectrumPointsCreated: spectrumData.length,
-          });
+        if (input.peaksets && input.peaksets.length > 0) {
+          const peaksetsData = input.peaksets.map((peak) => ({
+            experimentid: experiment.id,
+            energyev: peak.energy,
+            intensity: peak.intensity ?? null,
+            bond: peak.bond ?? null,
+            transition: peak.transition ?? null,
+          }));
+          await tx.peaksets.createMany({ data: peaksetsData });
         }
 
           return {
             sample,
-            experiments: experimentsCreated,
+            experiments: [
+              {
+                experiment,
+                spectrumPointsCreated,
+              },
+            ],
           };
         },
         { timeout: 60000 },
@@ -973,6 +938,27 @@ export const experimentsRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...updateData } = input;
+      const existingExperiment = await ctx.db.experiments.findUnique({
+        where: { id },
+        select: { createdby: true },
+      });
+      if (!existingExperiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+      const canMutate =
+        existingExperiment.createdby != null &&
+        ctx.userId != null &&
+        existingExperiment.createdby === ctx.userId;
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!canMutate && !isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to update this experiment",
+        });
+      }
 
       const experiment = await ctx.db.experiments.update({
         where: { id },

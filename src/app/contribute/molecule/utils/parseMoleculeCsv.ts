@@ -17,9 +17,12 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   pubchemCid: ["pubchemcid", "pubchem_cid", "pubchem", "cid", "pubchem id"],
 };
 
-function findColumnKey(headers: string[], targetKey: string): string | null {
+function findColumnKey(
+  headers: string[],
+  targetKey: keyof typeof COLUMN_ALIASES,
+): string | null {
   const normalized = targetKey.toLowerCase().trim();
-  const aliases = COLUMN_ALIASES[targetKey as keyof typeof COLUMN_ALIASES];
+  const aliases = COLUMN_ALIASES[targetKey];
   if (!aliases) return null;
   for (const header of headers) {
     const h = header.toLowerCase().trim();
@@ -112,12 +115,12 @@ export function parseMoleculeCsvFile(file: File): Promise<ParsedMoleculeData> {
           const rows = results.data;
           const headers =
             results.meta.fields ??
-            (rows[0] ? Object.keys(rows[0] as Record<string, unknown>) : []);
+            (rows[0] ? Object.keys(rows[0]) : []);
           if (!rows.length) {
             reject(new Error("CSV has no data rows"));
             return;
           }
-          const firstRow = rows[0] as Record<string, unknown>;
+          const firstRow = rows[0]!;
           resolve(parseFirstRow(firstRow, headers));
         } catch (err) {
           reject(

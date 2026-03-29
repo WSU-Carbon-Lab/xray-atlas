@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 
 export interface MoleculeUploadData {
   commonName: string;
@@ -46,6 +47,7 @@ export function moleculeUploadDataToPrismaInput(
     moleculesynonyms: {
       create: uniqueSynonyms.map((synonym, index) => ({
         synonym: synonym.trim(),
+        slug: slugifyMoleculeSynonym(synonym),
         order: index,
       })),
     },

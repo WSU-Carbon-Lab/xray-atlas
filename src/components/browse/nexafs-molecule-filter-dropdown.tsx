@@ -23,6 +23,7 @@ export function NexafsMoleculeFilterDropdown({
   moleculeId,
   onMoleculeChange,
 }: NexafsMoleculeFilterDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [debounced, setDebounced] = useState("");
 
@@ -34,7 +35,7 @@ export function NexafsMoleculeFilterDropdown({
   const { data: options = [], isLoading } =
     trpc.experiments.browseMoleculeOptions.useQuery(
       { query: debounced || undefined, limit: 60 },
-      { staleTime: 30_000 },
+      { staleTime: 30_000, enabled: isOpen },
     );
 
   const { data: summary } = trpc.experiments.browseMoleculeSummary.useQuery(
@@ -46,7 +47,7 @@ export function NexafsMoleculeFilterDropdown({
   const displayName = summary?.iupacname ?? (hasSelection ? "Molecule" : null);
 
   return (
-    <Dropdown closeOnSelect={true}>
+    <Dropdown closeOnSelect={true} onOpenChange={setIsOpen}>
       <DropdownTrigger>
         <button
           type="button"
