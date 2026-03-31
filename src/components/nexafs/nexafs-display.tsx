@@ -442,29 +442,54 @@ export function NexafsExperimentCompactCard({
         </div>
         <div className="relative z-40 flex min-w-[64px] shrink-0 flex-col items-end gap-0.5">
           {isSignedIn ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleFavorite();
-              }}
-              disabled={favoriteMutation.isPending}
-              aria-label={displayUserHasUpvoted ? "Unfavorite" : "Favorite"}
-              className={`grid h-6 w-[42px] grid-cols-[16px_18px] items-center justify-items-start gap-x-1 rounded-md px-0.5 text-[11px] leading-none font-semibold tabular-nums transition-colors hover:bg-zinc-700/30 hover:opacity-80 disabled:opacity-50 ${
-                displayUserHasUpvoted ? "text-pink-500" : "text-text-secondary"
-              }`}
-            >
-              <span className="inline-flex w-[16px] justify-center" aria-hidden>
-                <Heart
-                  className={`h-3.5 w-3.5 shrink-0 ${
-                    displayUserHasUpvoted ? "fill-pink-500 text-pink-500" : ""
-                  }`}
-                  aria-hidden
-                />
-              </span>
-              <span className="text-left">{displayUpvoteCount}</span>
-            </button>
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <span
+                  tabIndex={favoriteMutation.isPending ? 0 : undefined}
+                  className="inline-flex"
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleFavorite();
+                    }}
+                    disabled={favoriteMutation.isPending}
+                    aria-label={
+                      displayUserHasUpvoted ? "Unfavorite" : "Favorite"
+                    }
+                    className={`grid h-6 w-[42px] grid-cols-[16px_18px] items-center justify-items-start gap-x-1 rounded-md px-0.5 text-[11px] leading-none font-semibold tabular-nums transition-colors hover:bg-zinc-700/30 hover:opacity-80 disabled:opacity-50 ${
+                      displayUserHasUpvoted
+                        ? "text-pink-500"
+                        : "text-text-secondary"
+                    }`}
+                  >
+                    <span
+                      className="inline-flex w-[16px] justify-center"
+                      aria-hidden
+                    >
+                      <Heart
+                        className={`h-3.5 w-3.5 shrink-0 ${
+                          displayUserHasUpvoted
+                            ? "fill-pink-500 text-pink-500"
+                            : ""
+                        }`}
+                        aria-hidden
+                      />
+                    </span>
+                    <span className="text-left">{displayUpvoteCount}</span>
+                  </button>
+                </span>
+              </Tooltip.Trigger>
+              <Tooltip.Content placement="left">
+                {favoriteMutation.isPending
+                  ? "Favorite is updating"
+                  : displayUserHasUpvoted
+                    ? "Remove favorite"
+                    : "Add favorite"}
+              </Tooltip.Content>
+            </Tooltip>
           ) : (
             <span
               className={`grid h-6 w-[42px] grid-cols-[16px_18px] items-center justify-items-start gap-x-1 rounded-md px-0.5 text-[11px] leading-none font-semibold tabular-nums ${

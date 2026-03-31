@@ -14,9 +14,9 @@ import {
   Accordion,
   Avatar,
   Button,
-  ButtonGroup,
   Card,
   ListBox,
+  Tooltip,
 } from "@heroui/react";
 import {
   AlertTriangle,
@@ -921,40 +921,81 @@ function UserMoleculesList({ userId }: { userId: string }) {
         {molecules.map((molecule) => (
           <div
             key={molecule.id}
-            className="flex items-start gap-3 [&>div]:[contain-intrinsic-size:0_120px]"
+            className="flex items-stretch gap-3 [&>div]:[contain-intrinsic-size:0_120px]"
           >
             {isOwnProfile && isDangerZoneOpen ? (
-              <div className="pt-1">
-                <ButtonGroup
-                  orientation="vertical"
-                  size="sm"
-                  variant="ghost"
-                  className="w-[44px]"
-                >
-                  <Button
-                    isIconOnly
-                    aria-label={`Delete molecule ${molecule.name}`}
-                    onPress={() => openDelete(molecule.id)}
-                    isDisabled={
-                      removeMolecule.isPending &&
+              <div className="self-stretch">
+                <div className="border-border-default bg-surface-2 flex h-full w-[44px] flex-col overflow-hidden rounded-lg border">
+                  <Tooltip delay={0}>
+                    <Tooltip.Trigger>
+                      <span
+                        tabIndex={
+                          removeMolecule.isPending &&
+                          deleteDialogMoleculeId === molecule.id
+                            ? 0
+                            : undefined
+                        }
+                        className="inline-flex h-11 w-11 flex-none"
+                      >
+                        <Button
+                          isIconOnly
+                          aria-label={`Danger action: permanently delete molecule ${molecule.name}`}
+                          onPress={() => openDelete(molecule.id)}
+                          size="sm"
+                          variant="danger"
+                          className="h-11 max-h-11 min-h-11 w-11 max-w-11 min-w-11 flex-none rounded-none rounded-t-lg px-0"
+                          isDisabled={
+                            removeMolecule.isPending &&
+                            deleteDialogMoleculeId === molecule.id
+                          }
+                        >
+                          <Trash2 className="text-error h-4 w-4" />
+                        </Button>
+                      </span>
+                    </Tooltip.Trigger>
+                    <Tooltip.Content placement="right top">
+                      {removeMolecule.isPending &&
                       deleteDialogMoleculeId === molecule.id
-                    }
-                  >
-                    <Trash2 className="text-error h-4 w-4" />
-                  </Button>
-                  <ButtonGroup.Separator />
-                  <Button
-                    isIconOnly
-                    aria-label={`Transfer ownership of molecule ${molecule.name}`}
-                    onPress={() => openTransfer(molecule.id)}
-                    isDisabled={
-                      transferOwnership.isPending &&
+                        ? "Destructive delete is in progress"
+                        : `Danger: delete ${molecule.name}`}
+                    </Tooltip.Content>
+                  </Tooltip>
+                  <div className="border-border-default h-px w-full border-t" />
+                  <Tooltip delay={0}>
+                    <Tooltip.Trigger>
+                      <span
+                        tabIndex={
+                          transferOwnership.isPending &&
+                          transferDialogMoleculeId === molecule.id
+                            ? 0
+                            : undefined
+                        }
+                        className="inline-flex h-11 w-11 flex-none"
+                      >
+                        <Button
+                          isIconOnly
+                          aria-label={`Danger action: transfer ownership of molecule ${molecule.name}`}
+                          onPress={() => openTransfer(molecule.id)}
+                          size="sm"
+                          variant="ghost"
+                          className="text-warning h-11 max-h-11 min-h-11 w-11 max-w-11 min-w-11 flex-none rounded-none rounded-b-lg px-0"
+                          isDisabled={
+                            transferOwnership.isPending &&
+                            transferDialogMoleculeId === molecule.id
+                          }
+                        >
+                          <ArrowLeftRight className="h-4 w-4" />
+                        </Button>
+                      </span>
+                    </Tooltip.Trigger>
+                    <Tooltip.Content placement="right top">
+                      {transferOwnership.isPending &&
                       transferDialogMoleculeId === molecule.id
-                    }
-                  >
-                    <ArrowLeftRight className="h-4 w-4" />
-                  </Button>
-                </ButtonGroup>
+                        ? "Ownership transfer is in progress"
+                        : `Caution: transfer ${molecule.name}`}
+                    </Tooltip.Content>
+                  </Tooltip>
+                </div>
               </div>
             ) : null}
 
@@ -1020,7 +1061,7 @@ function UserMoleculesList({ userId }: { userId: string }) {
               <span>Transfer instead</span>
             </Button>
             <Button
-              variant="primary"
+              variant="danger"
               onPress={handleDeleteConfirm}
               isPending={removeMolecule.isPending}
               isDisabled={!deleteDialogMoleculeId}
