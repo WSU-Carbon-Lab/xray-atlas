@@ -10,8 +10,7 @@ import {
   DEV_MOCK_PASSKEYS,
   isDevMockUser,
 } from "~/lib/dev-mock-data";
-
-const PRIVILEGED_ROLES = new Set(["admin", "maintainer"]);
+import { PRIVILEGED_ROLES } from "~/server/auth/privileged-role";
 
 const orcidIdSchema = z
   .string()
@@ -67,7 +66,7 @@ export const usersRouter = createTRPCRouter({
 
   getCoreMaintainers: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.user.findMany({
-      where: { role: { in: Array.from(PRIVILEGED_ROLES) } },
+      where: { role: { in: [...PRIVILEGED_ROLES] } },
       orderBy: [{ role: "asc" }, { name: "asc" }],
       select: { id: true, name: true, image: true },
     });

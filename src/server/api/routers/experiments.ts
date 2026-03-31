@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { Prisma, ExperimentType, ProcessMethod } from "@prisma/client";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
@@ -8,6 +12,7 @@ import {
   computeSpectrumDerivedScalarColumns,
 } from "~/server/nexafs/computeSpectrumDerivedColumns";
 import { fetchNexafsBrowseGrouped } from "~/server/nexafs/nexafsBrowseGroups";
+import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 
 const emptyDerivedScalars = (): {
   od: Array<number | null>;
@@ -32,27 +37,6 @@ function spectrumRowsHaveUploadedDerivedScalars(
       typeof p.beta === "number" &&
       Number.isFinite(p.beta),
   );
-}
-
-const PRIVILEGED_ROLES = new Set(["admin", "maintainer"]);
-
-async function hasPrivilegedRole(
-  db: {
-    user: {
-      findUnique: (args: {
-        where: { id: string };
-        select: { role: true };
-      }) => Promise<{ role: string } | null>;
-    };
-  },
-  userId: string | null,
-): Promise<boolean> {
-  if (!userId) return false;
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-  return user?.role != null && PRIVILEGED_ROLES.has(user.role);
 }
 
 export const experimentsRouter = createTRPCRouter({
@@ -320,18 +304,18 @@ export const experimentsRouter = createTRPCRouter({
           experiments: {
             take: input.limit,
             include: {
-          samples: {
-            include: {
-              molecules: {
+              samples: {
                 include: {
-                  moleculesynonyms: {
-                    orderBy: [{ order: "asc" }],
-                    take: 1,
+                  molecules: {
+                    include: {
+                      moleculesynonyms: {
+                        orderBy: [{ order: "asc" }],
+                        take: 1,
+                      },
+                    },
                   },
                 },
               },
-            },
-          },
               edges: true,
               instruments: true,
             },
@@ -357,10 +341,8 @@ export const experimentsRouter = createTRPCRouter({
       const atom = e.targetatom.trim().toUpperCase();
       const cs = e.corestate.trim().toUpperCase();
       const isK = cs === "K";
-      const cEdge =
-        isK && (atom === "C" || atom === "CARBON");
-      const nEdge =
-        isK && (atom === "N" || atom === "NITROGEN");
+      const cEdge = isK && (atom === "C" || atom === "CARBON");
+      const nEdge = isK && (atom === "N" || atom === "NITROGEN");
       const sEdge =
         isK && (atom === "S" || atom === "SULFUR" || atom === "SULPHUR");
       if (cEdge) return 0;
@@ -561,10 +543,14 @@ export const experimentsRouter = createTRPCRouter({
                 message: "Fixed geometry requires theta and phi values",
               });
             }
-            if (value.mode === "csv" && (!value.csvGeometries || value.csvGeometries.length === 0)) {
+            if (
+              value.mode === "csv" &&
+              (!value.csvGeometries || value.csvGeometries.length === 0)
+            ) {
               ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: "CSV geometry mode requires at least one geometry entry",
+                message:
+                  "CSV geometry mode requires at least one geometry entry",
               });
             }
           }),
@@ -697,218 +683,243 @@ export const experimentsRouter = createTRPCRouter({
 
       const transactionResult = await ctx.db.$transaction(
         async (tx) => {
-        const kind =
-          experimentInput.experimentType != null
-            ? await tx.nexafsexperimentkinds.findUnique({
-                where: { experimenttype: experimentInput.experimentType },
-                select: { id: true },
-              })
-            : null;
-        const normalizedCollectedBy =
-          requestedCollectedBy.length > 0
-            ? requestedCollectedBy
-            : ctx.userId != null
-              ? [ctx.userId]
-              : [];
-        if (normalizedCollectedBy.length > 0) {
-          const existingUsers = await tx.user.findMany({
-            where: { id: { in: normalizedCollectedBy } },
-            select: { id: true },
-          });
-          if (existingUsers.length !== normalizedCollectedBy.length) {
+          const kind =
+            experimentInput.experimentType != null
+              ? await tx.nexafsexperimentkinds.findUnique({
+                  where: { experimenttype: experimentInput.experimentType },
+                  select: { id: true },
+                })
+              : null;
+          const normalizedCollectedBy =
+            requestedCollectedBy.length > 0
+              ? requestedCollectedBy
+              : ctx.userId != null
+                ? [ctx.userId]
+                : [];
+          if (normalizedCollectedBy.length > 0) {
+            const existingUsers = await tx.user.findMany({
+              where: { id: { in: normalizedCollectedBy } },
+              select: { id: true },
+            });
+            if (existingUsers.length !== normalizedCollectedBy.length) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "One or more collected-by users do not exist",
+              });
+            }
+          }
+
+          // Resolve vendor
+          let vendorId: string | null =
+            sampleInput.vendor.existingVendorId ?? null;
+          const vendorNameTrimmed = sampleInput.vendor.name?.trim();
+
+          if (!vendorId && vendorNameTrimmed) {
+            const existingVendor = await tx.vendors.findUnique({
+              where: { name: vendorNameTrimmed },
+            });
+
+            if (existingVendor) {
+              vendorId = existingVendor.id;
+            } else {
+              const newVendor = await tx.vendors.create({
+                data: {
+                  name: vendorNameTrimmed,
+                  url: sampleInput.vendor.url?.trim() ?? null,
+                },
+              });
+              vendorId = newVendor.id;
+            }
+          }
+
+          if (!vendorId && !vendorNameTrimmed) {
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: "One or more collected-by users do not exist",
+              message:
+                "Please select an existing vendor or provide a new vendor name.",
             });
           }
-        }
 
-        // Resolve vendor
-        let vendorId: string | null = sampleInput.vendor.existingVendorId ?? null;
-        const vendorNameTrimmed = sampleInput.vendor.name?.trim();
+          // Generate identifier if not provided, or ensure it's unique if provided
+          let sampleIdentifier = sampleInput.identifier?.trim();
 
-        if (!vendorId && vendorNameTrimmed) {
-          const existingVendor = await tx.vendors.findUnique({
-            where: { name: vendorNameTrimmed },
+          if (!sampleIdentifier) {
+            // Generate a unique identifier if not provided
+            // Format: SAMPLE-{timestamp}-{random}
+            const timestamp = Date.now();
+            const random = Math.random()
+              .toString(36)
+              .substring(2, 8)
+              .toUpperCase();
+            sampleIdentifier = `SAMPLE-${timestamp}-${random}`;
+
+            // Ensure uniqueness (very unlikely but check anyway)
+            let counter = 0;
+            while (counter < 10) {
+              const existingSample = await tx.samples.findUnique({
+                where: { identifier: sampleIdentifier },
+              });
+
+              if (!existingSample) break;
+
+              // Regenerate if collision
+              const newRandom = Math.random()
+                .toString(36)
+                .substring(2, 8)
+                .toUpperCase();
+              sampleIdentifier = `SAMPLE-${timestamp}-${newRandom}`;
+              counter++;
+            }
+          }
+
+          // Check if sample with this identifier already exists
+          let sample = await tx.samples.findUnique({
+            where: { identifier: sampleIdentifier },
           });
 
-          if (existingVendor) {
-            vendorId = existingVendor.id;
-          } else {
-            const newVendor = await tx.vendors.create({
+          if (!sample) {
+            // Create new sample if it doesn't exist
+            sample = await tx.samples.create({
               data: {
-                name: vendorNameTrimmed,
-                url: sampleInput.vendor.url?.trim() ?? null,
+                moleculeid: sampleInput.moleculeId,
+                identifier: sampleIdentifier,
+                processmethod: sampleInput.processMethod ?? null,
+                substrate: normalizeSampleSubstrate(sampleInput.substrate),
+                solvent: sampleInput.solvent?.trim() ?? null,
+                thickness: sampleInput.thickness ?? null,
+                molecularweight: sampleInput.molecularWeight ?? null,
+                vendorid: vendorId,
               },
             });
-            vendorId = newVendor.id;
+          } else {
+            if (sample.moleculeid !== sampleInput.moleculeId) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message:
+                  "A sample with this identifier already exists for a different molecule.",
+              });
+            }
           }
-        }
 
-        if (!vendorId && !vendorNameTrimmed) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Please select an existing vendor or provide a new vendor name.",
-          });
-        }
+          const polarizationIdByGeometry = new Map<string, string>();
 
-        // Generate identifier if not provided, or ensure it's unique if provided
-        let sampleIdentifier = sampleInput.identifier?.trim();
+          const getOrCreatePolarizationId = async (
+            theta: number,
+            phi: number,
+          ) => {
+            const key = `${theta}:${phi}`;
+            const cached = polarizationIdByGeometry.get(key);
+            if (cached) return cached;
 
-        if (!sampleIdentifier) {
-          // Generate a unique identifier if not provided
-          // Format: SAMPLE-{timestamp}-{random}
-          const timestamp = Date.now();
-          const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-          sampleIdentifier = `SAMPLE-${timestamp}-${random}`;
-
-          // Ensure uniqueness (very unlikely but check anyway)
-          let counter = 0;
-          while (counter < 10) {
-            const existingSample = await tx.samples.findUnique({
-              where: { identifier: sampleIdentifier },
+            const existingPolarization = await tx.polarizations.findFirst({
+              where: {
+                polardeg: new Prisma.Decimal(theta),
+                azimuthdeg: new Prisma.Decimal(phi),
+              },
+              select: { id: true },
             });
 
-            if (!existingSample) break;
+            if (existingPolarization) {
+              polarizationIdByGeometry.set(key, existingPolarization.id);
+              return existingPolarization.id;
+            }
 
-            // Regenerate if collision
-            const newRandom = Math.random().toString(36).substring(2, 8).toUpperCase();
-            sampleIdentifier = `SAMPLE-${timestamp}-${newRandom}`;
-            counter++;
-          }
-        }
+            const createdPolarization = await tx.polarizations.create({
+              data: {
+                polardeg: new Prisma.Decimal(theta),
+                azimuthdeg: new Prisma.Decimal(phi),
+              },
+              select: { id: true },
+            });
+            polarizationIdByGeometry.set(key, createdPolarization.id);
+            return createdPolarization.id;
+          };
 
-        // Check if sample with this identifier already exists
-        let sample = await tx.samples.findUnique({
-          where: { identifier: sampleIdentifier },
-        });
-
-        if (!sample) {
-          // Create new sample if it doesn't exist
-          sample = await tx.samples.create({
-            data: {
-              moleculeid: sampleInput.moleculeId,
-              identifier: sampleIdentifier,
-              processmethod: sampleInput.processMethod ?? null,
-              substrate: normalizeSampleSubstrate(sampleInput.substrate),
-              solvent: sampleInput.solvent?.trim() ?? null,
-              thickness: sampleInput.thickness ?? null,
-              molecularweight: sampleInput.molecularWeight ?? null,
-              vendorid: vendorId,
-            },
-          });
-        } else {
-          if (sample.moleculeid !== sampleInput.moleculeId) {
+          const firstGeometry = geometryGroups[0];
+          if (!firstGeometry) {
             throw new TRPCError({
-              code: "CONFLICT",
-              message: "A sample with this identifier already exists for a different molecule.",
+              code: "BAD_REQUEST",
+              message:
+                "No geometry groups were resolved from the uploaded spectrum.",
             });
           }
-        }
 
-        const polarizationIdByGeometry = new Map<string, string>();
+          const defaultPolarizationId = await getOrCreatePolarizationId(
+            firstGeometry.theta,
+            firstGeometry.phi,
+          );
 
-        const getOrCreatePolarizationId = async (theta: number, phi: number) => {
-          const key = `${theta}:${phi}`;
-          const cached = polarizationIdByGeometry.get(key);
-          if (cached) return cached;
-
-          const existingPolarization = await tx.polarizations.findFirst({
-            where: {
-              polardeg: new Prisma.Decimal(theta),
-              azimuthdeg: new Prisma.Decimal(phi),
-            },
-            select: { id: true },
-          });
-
-          if (existingPolarization) {
-            polarizationIdByGeometry.set(key, existingPolarization.id);
-            return existingPolarization.id;
-          }
-
-          const createdPolarization = await tx.polarizations.create({
+          const experimentId = crypto.randomUUID();
+          const experiment = await tx.experiments.create({
             data: {
-              polardeg: new Prisma.Decimal(theta),
-              azimuthdeg: new Prisma.Decimal(phi),
+              id: experimentId,
+              sampleid: sample.id,
+              instrumentid: experimentInput.instrumentId,
+              edgeid: experimentInput.edgeId,
+              polarizationid: defaultPolarizationId,
+              calibrationid: experimentInput.calibrationId ?? null,
+              isstandard: experimentInput.isStandard ?? false,
+              referencestandard: experimentInput.referenceStandard ?? null,
+              createdby: ctx.userId ?? undefined,
+              experimenttype: experimentInput.experimentType,
+              nexafsexperimentkindid: kind?.id ?? null,
+              collectedbyuserids: normalizedCollectedBy,
             },
-            select: { id: true },
+            include: {
+              samples: true,
+              edges: true,
+              instruments: true,
+            },
           });
-          polarizationIdByGeometry.set(key, createdPolarization.id);
-          return createdPolarization.id;
-        };
 
-        const firstGeometry = geometryGroups[0];
-        if (!firstGeometry) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "No geometry groups were resolved from the uploaded spectrum.",
-          });
-        }
+          let spectrumPointsCreated = 0;
+          for (
+            let groupIndex = 0;
+            groupIndex < geometryGroups.length;
+            groupIndex += 1
+          ) {
+            const group = geometryGroups[groupIndex]!;
+            const derived = derivedByGroup[groupIndex]!;
+            const polarizationId = await getOrCreatePolarizationId(
+              group.theta,
+              group.phi,
+            );
 
-        const defaultPolarizationId = await getOrCreatePolarizationId(
-          firstGeometry.theta,
-          firstGeometry.phi,
-        );
+            const spectrumData = group.points.map((point, i) => ({
+              experimentid: experiment.id,
+              polarizationid: polarizationId,
+              energyev: point.energy,
+              rawabs: point.absorption,
+              od: coalesceUploadedOrDerived(point.od, derived.od[i] ?? null),
+              massabsorption: coalesceUploadedOrDerived(
+                point.massabsorption,
+                derived.massabsorption[i] ?? null,
+              ),
+              beta: coalesceUploadedOrDerived(
+                point.beta,
+                derived.beta[i] ?? null,
+              ),
+              i0: coalesceUploadedOrDerived(point.i0, null),
+            }));
 
-        const experimentId = crypto.randomUUID();
-        const experiment = await tx.experiments.create({
-          data: {
-            id: experimentId,
-            sampleid: sample.id,
-            instrumentid: experimentInput.instrumentId,
-            edgeid: experimentInput.edgeId,
-            polarizationid: defaultPolarizationId,
-            calibrationid: experimentInput.calibrationId ?? null,
-            isstandard: experimentInput.isStandard ?? false,
-            referencestandard: experimentInput.referenceStandard ?? null,
-            createdby: ctx.userId ?? undefined,
-            experimenttype: experimentInput.experimentType,
-            nexafsexperimentkindid: kind?.id ?? null,
-            collectedbyuserids: normalizedCollectedBy,
-          },
-          include: {
-            samples: true,
-            edges: true,
-            instruments: true,
-          },
-        });
-
-        let spectrumPointsCreated = 0;
-        for (let groupIndex = 0; groupIndex < geometryGroups.length; groupIndex += 1) {
-          const group = geometryGroups[groupIndex]!;
-          const derived = derivedByGroup[groupIndex]!;
-          const polarizationId = await getOrCreatePolarizationId(group.theta, group.phi);
-
-          const spectrumData = group.points.map((point, i) => ({
-            experimentid: experiment.id,
-            polarizationid: polarizationId,
-            energyev: point.energy,
-            rawabs: point.absorption,
-            od: coalesceUploadedOrDerived(point.od, derived.od[i] ?? null),
-            massabsorption: coalesceUploadedOrDerived(
-              point.massabsorption,
-              derived.massabsorption[i] ?? null,
-            ),
-            beta: coalesceUploadedOrDerived(point.beta, derived.beta[i] ?? null),
-            i0: coalesceUploadedOrDerived(point.i0, null),
-          }));
-
-          if (spectrumData.length > 0) {
-            const created = await tx.spectrumpoints.createMany({ data: spectrumData });
-            spectrumPointsCreated += created.count;
+            if (spectrumData.length > 0) {
+              const created = await tx.spectrumpoints.createMany({
+                data: spectrumData,
+              });
+              spectrumPointsCreated += created.count;
+            }
           }
-        }
 
-        if (input.peaksets && input.peaksets.length > 0) {
-          const peaksetsData = input.peaksets.map((peak) => ({
-            experimentid: experiment.id,
-            energyev: peak.energy,
-            intensity: peak.intensity ?? null,
-            bond: peak.bond ?? null,
-            transition: peak.transition ?? null,
-          }));
-          await tx.peaksets.createMany({ data: peaksetsData });
-        }
+          if (input.peaksets && input.peaksets.length > 0) {
+            const peaksetsData = input.peaksets.map((peak) => ({
+              experimentid: experiment.id,
+              energyev: peak.energy,
+              intensity: peak.intensity ?? null,
+              bond: peak.bond ?? null,
+              transition: peak.transition ?? null,
+            }));
+            await tx.peaksets.createMany({ data: peaksetsData });
+          }
 
           return {
             sample,

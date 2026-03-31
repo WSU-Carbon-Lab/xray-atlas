@@ -1,27 +1,11 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-
-const PRIVILEGED_ROLES = new Set(["admin", "maintainer"]);
-
-async function hasPrivilegedRole(
-  db: {
-    user: {
-      findUnique: (args: {
-        where: { id: string };
-        select: { role: true };
-      }) => Promise<{ role: string } | null>;
-    };
-  },
-  userId: string | null,
-): Promise<boolean> {
-  if (!userId) return false;
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-  return user?.role != null && PRIVILEGED_ROLES.has(user.role);
-}
+import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 
 export const spectrumpointsRouter = createTRPCRouter({
   getByExperiment: publicProcedure
@@ -137,7 +121,9 @@ export const spectrumpointsRouter = createTRPCRouter({
           data: input.points.map((point) => ({
             experimentid: input.experimentId,
             polarizationid:
-              point.polarizationId ?? input.polarizationId ?? experiment.polarizationid,
+              point.polarizationId ??
+              input.polarizationId ??
+              experiment.polarizationid,
             energyev: point.energyev,
             rawabs: point.rawabs,
             od: point.od ?? null,
