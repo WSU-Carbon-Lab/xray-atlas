@@ -100,6 +100,7 @@ function mapGroupToCard(group: NexafsBrowseGroup) {
     key: group.experimentId,
     props: {
       href: `/molecules/${moleculePath}?nexafsExperiment=${encodeURIComponent(group.experimentId)}`,
+      experimentId: group.experimentId,
       moleculeId: molecule.id,
       displayName: molecule.displayName,
       iupacname: molecule.iupacname,
@@ -109,7 +110,8 @@ function mapGroupToCard(group: NexafsBrowseGroup) {
       smiles: molecule.smiles,
       casNumber: molecule.casNumber,
       pubChemCid: molecule.pubChemCid,
-      favoriteCount: molecule.favoriteCount,
+      favoriteCount: group.favoriteCount,
+      userHasFavorited: group.userHasFavorited,
       edgeLabel,
       instrumentName: group.instrument.name,
       facilityName: group.instrument.facilityName,
@@ -425,7 +427,7 @@ function NexafsBrowseContent() {
               title="Failed to load results"
               message={
                 error?.message ??
-                "An error occurred while loading search results."
+                "Oh no! Our beam must have dumped... Please try again in a moment or submit a support ticket."
               }
               onRetry={() => window.location.reload()}
             />

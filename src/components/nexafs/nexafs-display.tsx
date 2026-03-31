@@ -14,7 +14,7 @@ import {
 } from "~/components/molecules/molecule-display";
 import { getPreviewGradient } from "~/components/molecules/category-tags";
 import { AvatarGroup, type UserWithOrcid } from "~/components/ui/avatar";
-import { useRealtimeUpvotes } from "~/hooks/useRealtimeUpvotes";
+import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
 import type { MoleculeView } from "~/types/molecule";
 
 const pubChemCompoundUrl = (cid: string) =>
@@ -154,6 +154,7 @@ function PolarizationValuesDropdown({
 
 export type NexafsExperimentCompactCardProps = {
   href: string;
+  experimentId: string;
   moleculeId: string;
   displayName: string;
   iupacname: string;
@@ -164,6 +165,7 @@ export type NexafsExperimentCompactCardProps = {
   casNumber: string | null;
   pubChemCid: string | null;
   favoriteCount: number;
+  userHasFavorited: boolean;
   edgeLabel: string;
   instrumentName: string;
   facilityName: string | null;
@@ -184,6 +186,7 @@ export type NexafsExperimentCompactCardProps = {
 
 export function NexafsExperimentCompactCard({
   href,
+  experimentId,
   moleculeId,
   displayName,
   iupacname,
@@ -194,6 +197,7 @@ export function NexafsExperimentCompactCard({
   casNumber,
   pubChemCid,
   favoriteCount,
+  userHasFavorited,
   edgeLabel,
   instrumentName,
   facilityName,
@@ -218,23 +222,24 @@ export function NexafsExperimentCompactCard({
   >(null);
 
   const {
-    upvoteCount: realtimeUpvoteCount,
-    userHasUpvoted: realtimeUserHasUpvoted,
-  } = useRealtimeUpvotes({
-    moleculeId,
-    initialUpvoteCount: favoriteCount,
-    initialUserHasUpvoted: false,
+    favoriteCount: realtimeFavoriteCount,
+    userHasFavorited: realtimeUserHasFavorited,
+  } = useRealtimeExperimentFavorites({
+    experimentId,
+    initialFavoriteCount: favoriteCount,
+    initialUserHasFavorited: userHasFavorited,
     userId: user?.id,
     enabled: true,
   });
 
-  const favoriteMutation = trpc.molecules.toggleFavorite.useMutation({
+  const favoriteMutation = trpc.experiments.toggleFavorite.useMutation({
     onMutate: () => {
-      setOptimisticUserFavorited(realtimeUserHasUpvoted ? false : true);
-      setOptimisticFavoriteDelta(realtimeUserHasUpvoted ? -1 : 1);
+      setOptimisticUserFavorited(realtimeUserHasFavorited ? false : true);
+      setOptimisticFavoriteDelta(realtimeUserHasFavorited ? -1 : 1);
     },
     onSuccess: () => {
-      void utils.molecules.getById.invalidate({ id: moleculeId });
+      void utils.experiments.browseList.invalidate();
+      void utils.experiments.browseSearch.invalidate();
     },
     onSettled: () => {
       setOptimisticFavoriteDelta(0);
@@ -242,14 +247,13 @@ export function NexafsExperimentCompactCard({
     },
   });
 
-  const displayUpvoteCount = realtimeUpvoteCount + optimisticFavoriteDelta;
-  const displayUserHasUpvoted =
-    optimisticUserFavorited ?? realtimeUserHasUpvoted;
+  const displayUpvoteCount = realtimeFavoriteCount + optimisticFavoriteDelta;
+  const displayUserHasUpvoted = optimisticUserFavorited ?? realtimeUserHasFavorited;
 
   const handleFavorite = useCallback(() => {
-    if (!isSignedIn || !moleculeId) return;
-    void favoriteMutation.mutateAsync({ moleculeId });
-  }, [isSignedIn, moleculeId, favoriteMutation]);
+    if (!isSignedIn || !experimentId) return;
+    void favoriteMutation.mutateAsync({ experimentId });
+  }, [isSignedIn, experimentId, favoriteMutation]);
 
   const handleCopy = useCallback((text: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {

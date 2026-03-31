@@ -60,14 +60,11 @@ model experimentpublications {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model experimentquality {
-  experimentid  String      @id @db.Uuid
-  signaltonoise Decimal?    @db.Decimal
-  userrating    Int?
-  upvotes       Int         @default(0)
-  downvotes     Int         @default(0)
-  comments      Json?
-  lastchecked   DateTime?   @db.Timestamptz(6)
-  experiments   experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  experimentid String      @id @db.Uuid
+  favorites    Int         @default(0)
+  comments     Json?
+  lastchecked  DateTime?   @db.Timestamptz(6)
+  experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("public")
 }
@@ -87,8 +84,8 @@ model experiments {
   updatedat              DateTime                 @default(now()) @db.Timestamptz(6)
   experimenttype         ExperimentType?
   nexafsexperimentkindid String?                  @db.Uuid
-  sourceJsonPath         String?                  @map("source_json_path")
   collectedbyuserids     String[]                 @default([]) @map("collected_by_user_ids")
+  experimentfavorites    experimentfavorites[]
   experimentpublications experimentpublications[]
   experimentquality      experimentquality?
   calibrationmethods     calibrationmethods?      @relation(fields: [calibrationid], references: [id], onUpdate: NoAction)
@@ -256,6 +253,22 @@ model moleculeviews {
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model experimentfavorites {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  experimentid String      @map("experiment_id") @db.Uuid
+  userid       String      @map("user_id") @db.Uuid
+  createdat    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user         user        @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([experimentid, userid])
+  @@index([experimentid])
+  @@index([userid])
+  @@map("experiment_favorites")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model moleculetags {
   moleculeid String    @map("molecule_id") @db.Uuid
   tagid      String    @map("tag_id") @db.Uuid
@@ -286,10 +299,10 @@ model peaksets {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model polarizations {
-  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  azimuthdeg  Decimal       @db.Decimal
-  polardeg    Decimal       @db.Decimal
-  experiments experiments[]
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  azimuthdeg     Decimal          @db.Decimal
+  polardeg       Decimal          @db.Decimal
+  experiments    experiments[]
   spectrumpoints spectrumpoints[]
 
   @@index([azimuthdeg, polardeg], map: "idx_polarization_geom")
@@ -335,16 +348,16 @@ model samples {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model spectrumpoints {
-  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  experimentid   String      @db.Uuid
-  polarizationid String?     @db.Uuid
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  experimentid   String         @db.Uuid
+  polarizationid String?        @db.Uuid
   energyev       Float
   rawabs         Float
   i0             Float?
   beta           Float?
   massabsorption Float?
   od             Float?
-  experiments    experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  experiments    experiments    @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
   polarizations  polarizations? @relation(fields: [polarizationid], references: [id], onUpdate: NoAction)
 
   @@index([experimentid, energyev], map: "idx_spectrum_energy")
@@ -410,6 +423,7 @@ model user {
   authenticator                 Authenticator[]
   account                       account[]
   session                       session[]
+  experimentfavorites           experimentfavorites[]
   moleculecontributors          moleculecontributors[]
   moleculefavorites             moleculefavorites[]
   moleculeviews                 moleculeviews[]

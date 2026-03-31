@@ -31,17 +31,17 @@ export default function AboutPage() {
         <div className="space-y-12">
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <InformationCircleIcon className="h-6 w-6 text-accent dark:text-accent-light" />
+              <InformationCircleIcon className="text-accent dark:text-accent-light h-6 w-6" />
               What is X-ray Atlas?
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
               <p>
                 X-ray Atlas is an open-access database and web platform designed
                 to make Near-Edge X-ray Absorption Fine Structure (NEXAFS)
-                spectroscopy data discoverable and usable by the wider scientific
-                community. Our mission is to accelerate material research by
-                providing researchers with easy access to high-quality,
-                well-documented experimental data.
+                spectroscopy data discoverable and usable by the wider
+                scientific community. Our mission is to accelerate material
+                research by providing researchers with easy access to
+                high-quality, well-documented experimental data.
               </p>
               <p>
                 The platform enables researchers to browse, search, and download
@@ -54,14 +54,14 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <BookOpenIcon className="h-6 w-6 text-accent dark:text-accent-light" />
+              <BookOpenIcon className="text-accent dark:text-accent-light h-6 w-6" />
               Understanding NEXAFS Spectroscopy
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
               <p>
                 Near-Edge X-ray Absorption Fine Structure (NEXAFS) spectroscopy,
-                also known as X-ray Absorption Near-Edge Structure (XANES), is
-                a powerful analytical technique used to study the electronic
+                also known as X-ray Absorption Near-Edge Structure (XANES), is a
+                powerful analytical technique used to study the electronic
                 structure and chemical bonding of materials.
               </p>
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -100,7 +100,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <CircleStackIcon className="h-6 w-6 text-accent dark:text-accent-light" />
+              <CircleStackIcon className="text-accent dark:text-accent-light h-6 w-6" />
               Data Representation and Structure
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
@@ -131,8 +131,8 @@ export default function AboutPage() {
                     All experiments include detailed metadata: measurement date,
                     instrument and facility information, edge type (K, L, M),
                     polarization geometry (polar and azimuthal angles), and
-                    detection mode (total electron yield, partial electron yield,
-                    fluorescence yield, or transmission).
+                    detection mode (total electron yield, partial electron
+                    yield, fluorescence yield, or transmission).
                   </p>
                 </div>
 
@@ -155,7 +155,8 @@ export default function AboutPage() {
                   <p className="text-sm">
                     Each experiment includes quality indicators such as
                     signal-to-noise ratios, user ratings, and community
-                    upvotes to help researchers identify high-quality datasets.
+                    favorites to help researchers identify high-quality
+                    datasets.
                   </p>
                 </div>
               </div>
@@ -164,7 +165,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <ChartBarIcon className="h-6 w-6 text-accent dark:text-accent-light" />
+              <ChartBarIcon className="text-accent dark:text-accent-light h-6 w-6" />
               Platform Features
             </h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -237,14 +238,14 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <LinkIcon className="h-6 w-6 text-accent dark:text-accent-light" />
+              <LinkIcon className="text-accent dark:text-accent-light h-6 w-6" />
               Contributing Data
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
               <p>
-                We welcome contributions from researchers worldwide. Contributing
-                your data helps build a comprehensive resource for the materials
-                science community.
+                We welcome contributions from researchers worldwide.
+                Contributing your data helps build a comprehensive resource for
+                the materials science community.
               </p>
               <div className="rounded-lg border border-gray-200 bg-blue-50 p-4 dark:border-gray-700 dark:bg-blue-900/20">
                 <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
@@ -260,12 +261,12 @@ export default function AboutPage() {
                     </Link>
                   </li>
                   <li>
-                    Choose your contribution type: NEXAFS experiments, molecules,
-                    or facilities
+                    Choose your contribution type: NEXAFS experiments,
+                    molecules, or facilities
                   </li>
                   <li>
-                    Upload your data using our guided upload forms with
-                    built-in validation
+                    Upload your data using our guided upload forms with built-in
+                    validation
                   </li>
                   <li>
                     Add metadata including experimental conditions, sample
@@ -279,14 +280,14 @@ export default function AboutPage() {
               </div>
               <p>
                 All contributions are made available under an open data license,
-                ensuring maximum utility for the research community. Contributors
-                receive proper attribution, and experiments can be linked to
-                publications.
+                ensuring maximum utility for the research community.
+                Contributors receive proper attribution, and experiments can be
+                linked to publications.
               </p>
               <div className="flex justify-center">
                 <Link
                   href="/contribute"
-                  className="rounded-lg bg-accent px-6 py-3 text-white transition-colors hover:bg-accent-dark"
+                  className="bg-accent hover:bg-accent-dark rounded-lg px-6 py-3 text-white transition-colors"
                 >
                   Start Contributing
                 </Link>
@@ -296,7 +297,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <AcademicCapIcon className="h-6 w-6 text-accent dark:text-accent-light" />
+              <AcademicCapIcon className="text-accent dark:text-accent-light h-6 w-6" />
               Core Contributors
             </h2>
             <div className="space-y-6">
@@ -379,7 +380,7 @@ export default function AboutPage() {
 
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <BeakerIcon className="h-6 w-6 text-accent dark:text-accent-light" />
+              <BeakerIcon className="text-accent dark:text-accent-light h-6 w-6" />
               Getting Started
             </h2>
             <div className="space-y-4 text-gray-700 dark:text-gray-300">
@@ -390,7 +391,7 @@ export default function AboutPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <Link
                   href="/browse"
-                  className="rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:border-accent hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+                  className="hover:border-accent rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                 >
                   <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
                     Browse Molecules
@@ -402,7 +403,7 @@ export default function AboutPage() {
 
                 <Link
                   href="/browse/facilities"
-                  className="rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:border-accent hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+                  className="hover:border-accent rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                 >
                   <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
                     Browse Facilities

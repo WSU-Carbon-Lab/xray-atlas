@@ -82,6 +82,8 @@ export function buildNexafsBrowseOrderBySql(
 export type NexafsBrowseGroupRow = {
   experiment_id: string;
   canonical_polarization_id: string | null;
+  experiment_favorite_count: bigint;
+  user_has_favorited: boolean;
   createdat: Date;
   createdby: string | null;
   experimenttype: ExperimentType | null;
@@ -114,6 +116,8 @@ export type NexafsBrowseContributorUser = {
 
 export type NexafsBrowseGroupDto = {
   experimentId: string;
+  favoriteCount: number;
+  userHasFavorited: boolean;
   createdat: Date;
   experimenttype: ExperimentType | null;
   polarizations: Array<{ polarDeg: number; azimuthDeg: number }>;
@@ -206,6 +210,8 @@ export function mapNexafsBrowseGroupRow(
       : row.molecule_favorite_count;
   return {
     experimentId: row.experiment_id,
+    favoriteCount: Number(row.experiment_favorite_count),
+    userHasFavorited: row.user_has_favorited,
     createdat: row.createdat,
     experimenttype: row.experimenttype,
     polarizations,
@@ -237,6 +243,7 @@ export function mapNexafsBrowseGroupRow(
 export async function fetchNexafsBrowseGrouped(
   db: PrismaClient,
   args: {
+    viewerUserId?: string | null;
     filters: NexafsBrowseGroupFilters;
     searchQuery: string | null;
     sortBy: NexafsBrowseSortKey;
@@ -246,6 +253,7 @@ export async function fetchNexafsBrowseGrouped(
 ): Promise<{ groups: NexafsBrowseGroupDto[]; total: number }> {
   const whereSql = buildNexafsBrowseWhereSql(args.filters, args.searchQuery);
   const orderBySql = buildNexafsBrowseOrderBySql(args.sortBy);
+  const viewerUserId = args.viewerUserId ?? null;
   const polarizationsSql = Prisma.sql`(
         SELECT COALESCE(
           json_agg(
@@ -283,6 +291,17 @@ export async function fetchNexafsBrowseGrouped(
       SELECT
         e.id AS experiment_id,
         e.polarizationid AS canonical_polarization_id,
+        COALESCE(
+          NULLIF(to_jsonb(eq) ->> 'favorites', '')::bigint,
+          NULLIF(to_jsonb(eq) ->> 'upvotes', '')::bigint,
+          0
+        ) AS experiment_favorite_count,
+        EXISTS (
+          SELECT 1
+          FROM experiment_favorites ef
+          WHERE ef.experiment_id = e.id
+            AND ef.user_id = ${viewerUserId}::uuid
+        ) AS user_has_favorited,
         e.createdat,
         e.createdby,
         e.experimenttype,
@@ -313,12 +332,15 @@ export async function fetchNexafsBrowseGrouped(
       INNER JOIN edges ed ON ed.id = e.edgeid
       INNER JOIN instruments i ON i.id = e.instrumentid
       LEFT JOIN facilities f ON f.id = i.facilityid
+      LEFT JOIN experimentquality eq ON eq.experimentid = e.id
       WHERE ${whereSql}
     ),
     enriched AS (
       SELECT
         b.experiment_id,
         b.canonical_polarization_id,
+        b.experiment_favorite_count,
+        b.user_has_favorited,
         b.createdat,
         b.createdby,
         b.experimenttype,

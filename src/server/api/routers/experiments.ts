@@ -20,6 +20,18 @@ const emptyDerivedScalars = (): {
   beta: Array<number | null>;
 } => ({ od: [], massabsorption: [], beta: [] });
 
+const experimentCommentInputSchema = z.object({
+  text: z.string().trim().min(1).max(2000),
+});
+
+type ExperimentQualityComment = {
+  id: string;
+  userId: string;
+  userName: string | null;
+  text: string;
+  createdAt: string;
+};
+
 function spectrumRowsHaveUploadedDerivedScalars(
   points: ReadonlyArray<{
     od?: number;
@@ -226,6 +238,7 @@ export const experimentsRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { groups, total } = await fetchNexafsBrowseGrouped(ctx.db, {
+        viewerUserId: ctx.userId,
         filters: {
           moleculeId: input.moleculeId,
           edgeId: input.edgeId,
@@ -262,6 +275,7 @@ export const experimentsRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { groups, total } = await fetchNexafsBrowseGrouped(ctx.db, {
+        viewerUserId: ctx.userId,
         filters: {
           moleculeId: input.moleculeId,
           edgeId: input.edgeId,
@@ -333,6 +347,188 @@ export const experimentsRouter = createTRPCRouter({
         experiments: experiments.slice(0, input.limit),
         count: experiments.length,
       };
+    }),
+
+  toggleFavorite: protectedProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      const existing = await ctx.db.experimentfavorites.findUnique({
+        where: {
+          experimentid_userid: {
+            experimentid: input.experimentId,
+            userid: ctx.userId,
+          },
+        },
+      });
+
+      if (existing) {
+        await ctx.db.$transaction(async (tx) => {
+          await tx.experimentfavorites.delete({
+            where: {
+              experimentid_userid: {
+                experimentid: input.experimentId,
+                userid: ctx.userId,
+              },
+            },
+          });
+          await tx.experimentquality.upsert({
+            where: { experimentid: input.experimentId },
+            create: { experimentid: input.experimentId, favorites: 0 },
+            update: {
+              favorites: {
+                decrement: 1,
+              },
+            },
+          });
+          await tx.$executeRaw`
+            UPDATE experimentquality
+            SET favorites = GREATEST(favorites, 0)
+            WHERE experimentid = ${input.experimentId}::uuid
+          `;
+        });
+        const quality = await ctx.db.experimentquality.findUnique({
+          where: { experimentid: input.experimentId },
+          select: { favorites: true },
+        });
+        return { favorited: false, favoriteCount: quality?.favorites ?? 0 };
+      }
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.experimentfavorites.create({
+          data: {
+            experimentid: input.experimentId,
+            userid: ctx.userId,
+          },
+        });
+        await tx.experimentquality.upsert({
+          where: { experimentid: input.experimentId },
+          create: { experimentid: input.experimentId, favorites: 1 },
+          update: {
+            favorites: {
+              increment: 1,
+            },
+          },
+        });
+      });
+
+      const quality = await ctx.db.experimentquality.findUnique({
+        where: { experimentid: input.experimentId },
+        select: { favorites: true },
+      });
+      return { favorited: true, favoriteCount: quality?.favorites ?? 1 };
+    }),
+
+  getQuality: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const quality = await ctx.db.experimentquality.findUnique({
+        where: { experimentid: input.experimentId },
+        select: {
+          favorites: true,
+          comments: true,
+        },
+      });
+      const comments = Array.isArray(quality?.comments)
+        ? (quality.comments as ExperimentQualityComment[])
+        : [];
+      return {
+        favorites: quality?.favorites ?? 0,
+        comments,
+      };
+    }),
+
+  addQualityComment: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        comment: experimentCommentInputSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const author = await ctx.db.user.findUnique({
+        where: { id: ctx.userId },
+        select: { name: true },
+      });
+      const existing = await ctx.db.experimentquality.findUnique({
+        where: { experimentid: input.experimentId },
+        select: { comments: true, favorites: true },
+      });
+      const currentComments = Array.isArray(existing?.comments)
+        ? (existing.comments as ExperimentQualityComment[])
+        : [];
+      const nextComment: ExperimentQualityComment = {
+        id: crypto.randomUUID(),
+        userId: ctx.userId,
+        userName: author?.name ?? null,
+        text: input.comment.text,
+        createdAt: new Date().toISOString(),
+      };
+      const comments = [...currentComments, nextComment];
+      await ctx.db.experimentquality.upsert({
+        where: { experimentid: input.experimentId },
+        create: {
+          experimentid: input.experimentId,
+          favorites: existing?.favorites ?? 0,
+          comments,
+        },
+        update: {
+          comments,
+        },
+      });
+      return { comments };
+    }),
+
+  removeQualityComment: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        commentId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.experimentquality.findUnique({
+        where: { experimentid: input.experimentId },
+        select: { comments: true },
+      });
+      const currentComments = Array.isArray(existing?.comments)
+        ? (existing.comments as ExperimentQualityComment[])
+        : [];
+      const target = currentComments.find(
+        (comment) => comment.id === input.commentId,
+      );
+      if (!target) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Comment not found",
+        });
+      }
+      const isAuthor = target.userId === ctx.userId;
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!isAuthor && !isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to remove this comment",
+        });
+      }
+      const comments = currentComments.filter(
+        (comment) => comment.id !== input.commentId,
+      );
+      await ctx.db.experimentquality.update({
+        where: { experimentid: input.experimentId },
+        data: { comments },
+      });
+      return { comments };
     }),
 
   listEdges: publicProcedure.query(async ({ ctx }) => {
