@@ -97,9 +97,9 @@ function mapGroupToCard(group: NexafsBrowseGroup) {
   });
 
   return {
-    key: group.experimentGroupId,
+    key: group.experimentId,
     props: {
-      href: `/molecules/${moleculePath}?nexafsExperiment=${encodeURIComponent(group.experimentGroupSlug)}`,
+      href: `/molecules/${moleculePath}?nexafsExperiment=${encodeURIComponent(group.experimentId)}`,
       moleculeId: molecule.id,
       displayName: molecule.displayName,
       iupacname: molecule.iupacname,
@@ -162,14 +162,7 @@ function NexafsBrowseContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [
-    sortBy,
-    itemsPerPage,
-    moleculeId,
-    edgeId,
-    instrumentId,
-    experimentType,
-  ]);
+  }, [sortBy, itemsPerPage, moleculeId, edgeId, instrumentId, experimentType]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -256,10 +249,7 @@ function NexafsBrowseContent() {
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil((data.total ?? 0) / itemsPerPage),
-  );
+  const totalPages = Math.max(1, Math.ceil((data.total ?? 0) / itemsPerPage));
 
   const edgeOptions = useMemo(
     () => edgesQuery.data?.edges ?? [],
@@ -306,8 +296,7 @@ function NexafsBrowseContent() {
     [experimentType],
   );
 
-  const activeRefineCount =
-    (instrumentId ? 1 : 0) + (experimentType ? 1 : 0);
+  const activeRefineCount = (instrumentId ? 1 : 0) + (experimentType ? 1 : 0);
 
   const sortLabelCurrent =
     SORT_OPTIONS.find((o) => o.key === sortBy)?.label ?? sortBy;
@@ -346,7 +335,7 @@ function NexafsBrowseContent() {
                   <DropdownTrigger>
                     <button
                       type="button"
-                      className="border-border bg-surface text-muted focus-visible:ring-accent flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                      className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                       aria-label={`Sort datasets; current order is ${sortLabelCurrent}`}
                     >
                       <ArrowsUpDownIcon
@@ -471,9 +460,7 @@ function NexafsBrowseContent() {
                   />
                   {data.groups.map((group) => {
                     const { key, props } = mapGroupToCard(group);
-                    return (
-                      <NexafsExperimentCompactCard key={key} {...props} />
-                    );
+                    return <NexafsExperimentCompactCard key={key} {...props} />;
                   })}
                 </div>
               )}
@@ -513,10 +500,7 @@ export default function NexafsBrowsePage() {
   return (
     <Suspense
       fallback={
-        <BrowsePageLayout
-          title="Browse NEXAFS experiments"
-          subtitle="Loading…"
-        >
+        <BrowsePageLayout title="Browse NEXAFS experiments" subtitle="Loading…">
           <BrowseTabs />
         </BrowsePageLayout>
       }

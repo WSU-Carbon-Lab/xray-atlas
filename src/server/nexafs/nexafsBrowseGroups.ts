@@ -24,7 +24,9 @@ export function buildNexafsBrowseWhereSql(
     parts.push(Prisma.sql`e.instrumentid = ${filters.instrumentId}`);
   }
   if (filters.experimentType) {
-    parts.push(Prisma.sql`e.experimenttype = ${filters.experimentType}::"ExperimentType"`);
+    parts.push(
+      Prisma.sql`e.experimenttype = ${filters.experimentType}::"ExperimentType"`,
+    );
   }
 
   const q = searchQuery?.trim();
@@ -79,8 +81,7 @@ export function buildNexafsBrowseOrderBySql(
 
 export type NexafsBrowseGroupRow = {
   experiment_id: string;
-  experiment_slug: string;
-  canonical_experiment_id: string;
+  canonical_polarization_id: string | null;
   createdat: Date;
   createdby: string | null;
   experimenttype: ExperimentType | null;
@@ -112,9 +113,7 @@ export type NexafsBrowseContributorUser = {
 };
 
 export type NexafsBrowseGroupDto = {
-  experimentGroupId: string;
-  experimentGroupSlug: string;
-  canonicalExperimentId: string;
+  experimentId: string;
   createdat: Date;
   experimenttype: ExperimentType | null;
   polarizations: Array<{ polarDeg: number; azimuthDeg: number }>;
@@ -195,7 +194,9 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
   return out;
 }
 
-export function mapNexafsBrowseGroupRow(row: NexafsBrowseGroupRow): NexafsBrowseGroupDto {
+export function mapNexafsBrowseGroupRow(
+  row: NexafsBrowseGroupRow,
+): NexafsBrowseGroupDto {
   const polarizations = mapPolarizations(row.polarizations);
   const uniqueTheta = new Set(polarizations.map((p) => p.polarDeg)).size;
   const uniquePhi = new Set(polarizations.map((p) => p.azimuthDeg)).size;
@@ -204,9 +205,7 @@ export function mapNexafsBrowseGroupRow(row: NexafsBrowseGroupRow): NexafsBrowse
       ? Number(row.molecule_favorite_count)
       : row.molecule_favorite_count;
   return {
-    experimentGroupId: row.experiment_id,
-    experimentGroupSlug: row.experiment_slug,
-    canonicalExperimentId: row.canonical_experiment_id,
+    experimentId: row.experiment_id,
     createdat: row.createdat,
     experimenttype: row.experimenttype,
     polarizations,
@@ -259,7 +258,7 @@ export async function fetchNexafsBrowseGrouped(
           SELECT DISTINCT p.polardeg, p.azimuthdeg
           FROM spectrumpoints sp
           INNER JOIN polarizations p ON p.id = sp.polarizationid
-          WHERE sp.experimentid = b.canonical_experiment_id
+          WHERE sp.experimentid = b.experiment_id
             AND sp.polarizationid IS NOT NULL
           UNION
           SELECT p.polardeg, p.azimuthdeg
@@ -283,8 +282,6 @@ export async function fetchNexafsBrowseGrouped(
     WITH base AS (
       SELECT
         e.id AS experiment_id,
-        e.id::text AS experiment_slug,
-        e.id AS canonical_experiment_id,
         e.polarizationid AS canonical_polarization_id,
         e.createdat,
         e.createdby,
@@ -321,8 +318,6 @@ export async function fetchNexafsBrowseGrouped(
     enriched AS (
       SELECT
         b.experiment_id,
-        b.experiment_slug,
-        b.canonical_experiment_id,
         b.canonical_polarization_id,
         b.createdat,
         b.createdby,
@@ -349,11 +344,11 @@ export async function fetchNexafsBrowseGrouped(
               SELECT DISTINCT trim(uu.uid) AS uid
               FROM experiments e2
               LEFT JOIN LATERAL unnest(COALESCE(e2.collected_by_user_ids, ARRAY[]::text[])) AS uu(uid) ON TRUE
-              WHERE e2.id = b.canonical_experiment_id
+              WHERE e2.id = b.experiment_id
               UNION
               SELECT e2.createdby::text AS uid
               FROM experiments e2
-              WHERE e2.id = b.canonical_experiment_id
+              WHERE e2.id = b.experiment_id
                 AND e2.createdby IS NOT NULL
             ) t
             INNER JOIN "next_auth"."user" u
@@ -384,11 +379,11 @@ export async function fetchNexafsBrowseGrouped(
               SELECT trim(uu.uid) AS uid
               FROM experiments e2
               LEFT JOIN LATERAL unnest(COALESCE(e2.collected_by_user_ids, ARRAY[]::text[])) AS uu(uid) ON TRUE
-              WHERE e2.id = b.canonical_experiment_id
+              WHERE e2.id = b.experiment_id
               UNION
               SELECT e2.createdby::text AS uid
               FROM experiments e2
-              WHERE e2.id = b.canonical_experiment_id
+              WHERE e2.id = b.experiment_id
                 AND e2.createdby IS NOT NULL
             ) t
             INNER JOIN "next_auth"."user" u
