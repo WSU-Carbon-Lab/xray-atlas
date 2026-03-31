@@ -1947,10 +1947,10 @@ export const MoleculeCard = memo(function MoleculeCard({
   const isSignedIn = isSignedInProp ?? !!session?.user;
   const canEdit = canEditProp ?? isSignedIn;
   const utils = trpc.useUtils();
-  const [optimisticFavoriteDelta, setOptimisticFavoriteDelta] = useState(0);
-  const [optimisticUserFavorited, setOptimisticUserFavorited] = useState<
-    boolean | null
-  >(null);
+  const [localFavoriteState, setLocalFavoriteState] = useState<{
+    favoriteCount: number;
+    favorited: boolean;
+  } | null>(null);
   const {
     upvoteCount: realtimeUpvoteCount,
     userHasUpvoted: realtimeUserHasUpvoted,
@@ -1967,23 +1967,49 @@ export const MoleculeCard = memo(function MoleculeCard({
   const baseUserHasUpvoted = enableRealtime
     ? realtimeUserHasUpvoted
     : (molecule.userHasFavorited ?? false);
+  useEffect(() => {
+    setLocalFavoriteState(null);
+  }, [molecule.id]);
+
+  useEffect(() => {
+    if (
+      localFavoriteState?.favoriteCount === baseUpvoteCount &&
+      localFavoriteState?.favorited === baseUserHasUpvoted
+    ) {
+      setLocalFavoriteState(null);
+    }
+  }, [baseUpvoteCount, baseUserHasUpvoted, localFavoriteState]);
+
   const favoriteMutation = trpc.molecules.toggleFavorite.useMutation({
     onMutate: () => {
-      setOptimisticUserFavorited(baseUserHasUpvoted ? false : true);
-      setOptimisticFavoriteDelta(baseUserHasUpvoted ? -1 : 1);
+      const sourceCount = localFavoriteState
+        ? localFavoriteState.favoriteCount
+        : baseUpvoteCount;
+      const sourceFavorited = localFavoriteState
+        ? localFavoriteState.favorited
+        : baseUserHasUpvoted;
+      setLocalFavoriteState({
+        favoriteCount: Math.max(0, sourceCount + (sourceFavorited ? -1 : 1)),
+        favorited: !sourceFavorited,
+      });
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      setLocalFavoriteState({
+        favoriteCount: result.favoriteCount,
+        favorited: result.favorited,
+      });
       if (molecule.id) {
         void utils.molecules.getById.invalidate({ id: molecule.id });
       }
     },
-    onSettled: () => {
-      setOptimisticFavoriteDelta(0);
-      setOptimisticUserFavorited(null);
+    onError: () => {
+      setLocalFavoriteState(null);
     },
   });
-  const displayUpvoteCount = baseUpvoteCount + optimisticFavoriteDelta;
-  const displayUserHasUpvoted = optimisticUserFavorited ?? baseUserHasUpvoted;
+  const displayUpvoteCount =
+    localFavoriteState?.favoriteCount ?? baseUpvoteCount;
+  const displayUserHasUpvoted =
+    localFavoriteState?.favorited ?? baseUserHasUpvoted;
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const handleFavorite = () => {
     if (!isSignedIn || !molecule.id) return;
