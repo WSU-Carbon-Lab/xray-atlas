@@ -18,7 +18,22 @@ import {
   Card,
   ListBox,
 } from "@heroui/react";
-import { AlertTriangle, ArrowLeftRight, ChevronDown, Key, Plus, Trash2, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  ChevronDown,
+  Key,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import { ToastContainer, useToast } from "@/components/ui/toast";
+
+function getErrorMessage(error: unknown, fallbackMessage: string): string {
+  return error instanceof Error && error.message
+    ? error.message
+    : fallbackMessage;
+}
 
 function base64urlDecode(str: string): Uint8Array {
   let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
@@ -49,6 +64,7 @@ export default function UserProfilePage({
   const unlinkAccount = trpc.users.unlinkAccount.useMutation();
   const deletePasskey = trpc.users.deletePasskey.useMutation();
   const utils = trpc.useUtils();
+  const { toasts, removeToast, showToast } = useToast();
 
   const [_orcidInput, setOrcidInput] = useState("");
   const [isEditingOrcid, setIsEditingOrcid] = useState(false);
@@ -77,6 +93,7 @@ export default function UserProfilePage({
       setOrcidInput("");
     } catch (err) {
       console.error("Failed to remove ORCID:", err);
+      showToast(getErrorMessage(err, "Failed to remove ORCID iD"), "error", 0);
     }
   };
 
@@ -105,8 +122,12 @@ export default function UserProfilePage({
         attestation?: "none" | "indirect" | "direct";
       };
 
-      const credentialIdToBufferSource = (id: string | { type: "Buffer"; data: number[] }): BufferSource =>
-        (typeof id === "string" ? base64urlDecode(id) : new Uint8Array(id.data)) as BufferSource;
+      const credentialIdToBufferSource = (
+        id: string | { type: "Buffer"; data: number[] },
+      ): BufferSource =>
+        (typeof id === "string"
+          ? base64urlDecode(id)
+          : new Uint8Array(id.data)) as BufferSource;
 
       const publicKeyOptions: PublicKeyCredentialCreationOptions = {
         challenge: Uint8Array.from(atob(options.challenge), (c) =>
@@ -185,8 +206,10 @@ export default function UserProfilePage({
       await utils.users.getPasskeys.invalidate();
     } catch (error) {
       console.error("Failed to register passkey:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to register passkey",
+      showToast(
+        getErrorMessage(error, "Failed to register passkey"),
+        "error",
+        0,
       );
     } finally {
       setIsRegisteringPasskey(false);
@@ -202,9 +225,7 @@ export default function UserProfilePage({
       await utils.users.getPasskeys.invalidate();
     } catch (error) {
       console.error("Failed to delete passkey:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to delete passkey",
-      );
+      showToast(getErrorMessage(error, "Failed to delete passkey"), "error", 0);
     }
   };
 
@@ -253,6 +274,7 @@ export default function UserProfilePage({
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       <div className="mb-6">
         <Link
           href="/"
@@ -647,6 +669,7 @@ export default function UserProfilePage({
 function UserMoleculesList({ userId }: { userId: string }) {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
+  const { toasts, removeToast, showToast } = useToast();
   const transferOwnership = trpc.molecules.transferOwnership.useMutation();
   const removeMolecule = trpc.molecules.remove.useMutation();
   const getDeleteDataPointImpact =
@@ -684,12 +707,12 @@ function UserMoleculesList({ userId }: { userId: string }) {
 
   const pendingDeleteMolecule =
     deleteDialogMoleculeId !== null
-      ? molecules.find((m) => m.id === deleteDialogMoleculeId) ?? null
+      ? (molecules.find((m) => m.id === deleteDialogMoleculeId) ?? null)
       : null;
 
   const pendingTransferMolecule =
     transferDialogMoleculeId !== null
-      ? molecules.find((m) => m.id === transferDialogMoleculeId) ?? null
+      ? (molecules.find((m) => m.id === transferDialogMoleculeId) ?? null)
       : null;
 
   const openDelete = (moleculeId: string) => {
@@ -704,11 +727,11 @@ function UserMoleculesList({ userId }: { userId: string }) {
         }
       })
       .catch((error) => {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Failed to calculate delete impact";
-        alert(message);
+        showToast(
+          getErrorMessage(error, "Failed to calculate delete impact"),
+          "error",
+          0,
+        );
         if (deleteImpactRequestIdRef.current === moleculeId) {
           setDeleteDataPointsRemoved(-1);
         }
@@ -760,11 +783,11 @@ function UserMoleculesList({ userId }: { userId: string }) {
       });
       closeDelete();
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to remove molecule from database";
-      alert(message);
+      showToast(
+        getErrorMessage(error, "Failed to remove molecule from database"),
+        "error",
+        0,
+      );
     }
   };
 
@@ -781,11 +804,11 @@ function UserMoleculesList({ userId }: { userId: string }) {
       });
       closeTransfer();
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to transfer molecule ownership";
-      alert(message);
+      showToast(
+        getErrorMessage(error, "Failed to transfer molecule ownership"),
+        "error",
+        0,
+      );
     }
   };
 
@@ -795,7 +818,15 @@ function UserMoleculesList({ userId }: { userId: string }) {
       pendingTransferMolecule.contributors?.map((c) => c.user) ?? [];
     const core = coreMaintainers ?? [];
 
-    const byId = new Map<string, { id: string; name: string | null; image: string | null; kind: "core" | "contributor" }>();
+    const byId = new Map<
+      string,
+      {
+        id: string;
+        name: string | null;
+        image: string | null;
+        kind: "core" | "contributor";
+      }
+    >();
 
     for (const u of core) {
       byId.set(u.id, {
@@ -850,6 +881,7 @@ function UserMoleculesList({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-4">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       {isOwnProfile && (
         <Accordion
           variant="surface"
@@ -862,22 +894,23 @@ function UserMoleculesList({ userId }: { userId: string }) {
                 onPress={() => setIsDangerZoneOpen((v) => !v)}
                 className="flex w-full items-center gap-2 px-4 py-3 text-left"
               >
-                <AlertTriangle className="h-4 w-4 shrink-0 text-error" />
-                <span className="text-sm font-semibold text-text-primary">
+                <AlertTriangle className="text-error h-4 w-4 shrink-0" />
+                <span className="text-text-primary text-sm font-semibold">
                   Danger Zone
                 </span>
-                <span className="text-xs text-text-tertiary">
+                <span className="text-text-tertiary text-xs">
                   Delete / transfer ownership
                 </span>
-                <Accordion.Indicator className="ml-auto text-muted shrink-0 [&>svg]:size-4">
+                <Accordion.Indicator className="text-muted ml-auto shrink-0 [&>svg]:size-4">
                   <ChevronDown className="h-4 w-4" />
                 </Accordion.Indicator>
               </Accordion.Trigger>
             </Accordion.Heading>
             <Accordion.Panel>
-              <Accordion.Body className="pt-0 pb-4 px-4 text-sm text-text-secondary">
-                Expand to reveal destructive actions. Deleting removes the molecule and
-                all related records. Transferring ownership keeps the molecule.
+              <Accordion.Body className="text-text-secondary px-4 pt-0 pb-4 text-sm">
+                Expand to reveal destructive actions. Deleting removes the
+                molecule and all related records. Transferring ownership keeps
+                the molecule.
               </Accordion.Body>
             </Accordion.Panel>
           </Accordion.Item>
@@ -907,7 +940,7 @@ function UserMoleculesList({ userId }: { userId: string }) {
                       deleteDialogMoleculeId === molecule.id
                     }
                   >
-                    <Trash2 className="h-4 w-4 text-error" />
+                    <Trash2 className="text-error h-4 w-4" />
                   </Button>
                   <ButtonGroup.Separator />
                   <Button
@@ -926,7 +959,10 @@ function UserMoleculesList({ userId }: { userId: string }) {
             ) : null}
 
             <div className="min-w-0 flex-1">
-              <MoleculeDisplayCompact molecule={molecule} enableRealtime={false} />
+              <MoleculeDisplayCompact
+                molecule={molecule}
+                enableRealtime={false}
+              />
             </div>
           </div>
         ))}
@@ -942,16 +978,16 @@ function UserMoleculesList({ userId }: { userId: string }) {
           <div className="flex items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-100/40 p-3 dark:border-amber-500/40 dark:bg-amber-900/20">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
             <div className="space-y-2">
-              <p className="text-sm text-text-secondary">
+              <p className="text-text-secondary text-sm">
                 You are about to permanently delete{" "}
-                <span className="font-semibold text-text-primary">
+                <span className="text-text-primary font-semibold">
                   {pendingDeleteMolecule?.name ?? "this molecule"}
                 </span>{" "}
                 from the database. This action cannot be undone.
               </p>
-              <p className="text-sm text-text-secondary">
+              <p className="text-text-secondary text-sm">
                 This will remove{" "}
-                <span className="font-semibold text-text-primary tabular-nums">
+                <span className="text-text-primary font-semibold tabular-nums">
                   {deleteDataPointsRemoved === null
                     ? "calculating..."
                     : deleteDataPointsRemoved < 0
@@ -960,16 +996,14 @@ function UserMoleculesList({ userId }: { userId: string }) {
                 </span>{" "}
                 data points.
               </p>
-              <p className="text-sm text-text-secondary">
-                Safer alternative: transfer ownership to a core maintainer instead.
+              <p className="text-text-secondary text-sm">
+                Safer alternative: transfer ownership to a core maintainer
+                instead.
               </p>
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              onPress={closeDelete}
-            >
+            <Button variant="ghost" onPress={closeDelete}>
               <X className="h-4 w-4" />
               <span>Cancel</span>
             </Button>
@@ -1006,9 +1040,9 @@ function UserMoleculesList({ userId }: { userId: string }) {
       >
         <div className="space-y-4">
           <div className="space-y-1">
-            <p className="text-sm text-text-secondary">
+            <p className="text-text-secondary text-sm">
               Transfer the owner of{" "}
-              <span className="font-semibold text-text-primary">
+              <span className="text-text-primary font-semibold">
                 {pendingTransferMolecule?.name ?? "this molecule"}
               </span>
               . This will not delete the molecule.
@@ -1016,7 +1050,7 @@ function UserMoleculesList({ userId }: { userId: string }) {
           </div>
 
           <div>
-            <p className="text-sm font-medium text-text-primary mb-2">
+            <p className="text-text-primary mb-2 text-sm font-medium">
               Choose a new owner
             </p>
             <ListBox
@@ -1035,7 +1069,7 @@ function UserMoleculesList({ userId }: { userId: string }) {
             >
               {recipientOptions.length === 0 ? (
                 <ListBox.Item key="none" textValue="No recipients available">
-                  <span className="text-sm text-text-tertiary">
+                  <span className="text-text-tertiary text-sm">
                     No recipients available
                   </span>
                 </ListBox.Item>
@@ -1045,11 +1079,13 @@ function UserMoleculesList({ userId }: { userId: string }) {
                     <div className="flex items-center gap-3">
                       {recipientAvatar({ name: u.name, image: u.image })}
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-text-primary">
+                        <div className="text-text-primary truncate text-sm font-medium">
                           {u.name ?? "User"}
                         </div>
-                        <div className="truncate text-xs text-text-tertiary">
-                          {u.kind === "core" ? "Core maintainer" : "Contributor"}
+                        <div className="text-text-tertiary truncate text-xs">
+                          {u.kind === "core"
+                            ? "Core maintainer"
+                            : "Contributor"}
                         </div>
                       </div>
                     </div>
@@ -1067,7 +1103,9 @@ function UserMoleculesList({ userId }: { userId: string }) {
             <Button
               variant="primary"
               onPress={handleTransferConfirm}
-              isDisabled={!transferRecipientUserId || recipientOptions.length === 0}
+              isDisabled={
+                !transferRecipientUserId || recipientOptions.length === 0
+              }
               isPending={transferOwnership.isPending}
             >
               <ArrowLeftRight className="h-4 w-4" />

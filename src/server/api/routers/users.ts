@@ -11,6 +11,8 @@ import {
   isDevMockUser,
 } from "~/lib/dev-mock-data";
 
+const PRIVILEGED_ROLES = new Set(["admin", "maintainer"]);
+
 const orcidIdSchema = z
   .string()
   .regex(
@@ -64,26 +66,11 @@ export const usersRouter = createTRPCRouter({
     }),
 
   getCoreMaintainers: publicProcedure.query(async ({ ctx }) => {
-    const maintainerNames = ["Harlan Heilma", "Biran Collins", "Obaid"];
-
-    const users = await ctx.db.user.findMany({
-      where: {
-        OR: maintainerNames.map((name) => ({
-          name: { equals: name, mode: "insensitive" },
-        })),
-      },
+    return ctx.db.user.findMany({
+      where: { role: { in: Array.from(PRIVILEGED_ROLES) } },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
       select: { id: true, name: true, image: true },
     });
-
-    const byLowerName = new Map(
-      users
-        .filter((u) => u.name)
-        .map((u) => [u.name!.toLowerCase(), u]),
-    );
-
-    return maintainerNames
-      .map((n) => byLowerName.get(n.toLowerCase()))
-      .filter((u): u is { id: string; name: string | null; image: string | null } => !!u);
   }),
 
   updateORCID: protectedProcedure

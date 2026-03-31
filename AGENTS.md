@@ -4,7 +4,6 @@
 
 - Prefer Tailwind component classes or `@layer components` patterns for reusable styling instead of constants that store classname strings.
 - Prefer compact, visible inline validation using HeroUI `ErrorMessage` (and related field primitives) over heavy bordered warning panels when surfacing missing required fields near forms or tabs.
-- For the `s3/MOLECULES` NEXAFS backlog, produce mapping or validation artifacts and wait for explicit approval before inserting or updating database rows (molecules, vendors, samples, experiments, points).
 - For substantial Prisma migrations, schema changes, and tRPC backend work, delegate to the project `backend-manager` subagent when the user requests it.
 
 ## Learned Workspace Facts
