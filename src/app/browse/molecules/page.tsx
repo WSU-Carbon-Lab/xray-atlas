@@ -31,9 +31,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { AddMoleculeButton } from "@/components/contribute";
 import { BrowseHeader } from "@/components/browse/browse-header";
-import {
-  BrowsePageLayout,
-} from "@/components/browse/browse-page-layout";
+import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { TagFilterBar } from "@/components/browse/tag-filter-bar";
@@ -61,7 +59,7 @@ function MoleculesBrowseContent() {
   >("favorites");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
-  const [viewMode, setViewMode] = useState<"compact" | "spacious">("spacious");
+  const [viewMode, setViewMode] = useState<"compact" | "spacious">("compact");
 
   const tagIdsArray = useMemo(
     () =>
@@ -77,9 +75,10 @@ function MoleculesBrowseContent() {
 
   const tagIdsKey = useMemo(() => tagIdsArray.join(","), [tagIdsArray]);
 
-  const selectedTagIds = useMemo(() => new Set<string>(tagIdsArray), [
-    tagIdsArray,
-  ]);
+  const selectedTagIds = useMemo(
+    () => new Set<string>(tagIdsArray),
+    [tagIdsArray],
+  );
 
   const updateTagsInUrl = useCallback(
     (newTagIds: Set<string>) => {
@@ -153,14 +152,7 @@ function MoleculesBrowseContent() {
     lastSyncedUrlRef.current = desiredUrl;
 
     router.replace(desiredUrl, { scroll: false });
-  }, [
-    debouncedQuery,
-    currentPage,
-    tagIdsKey,
-    qParamRaw,
-    pageParamRaw,
-    router,
-  ]);
+  }, [debouncedQuery, currentPage, tagIdsKey, qParamRaw, pageParamRaw, router]);
 
   const hasSearchQuery = debouncedQuery.trim().length > 0;
 
@@ -349,23 +341,23 @@ function MoleculesBrowseContent() {
                 <Tabs.ListContainer>
                   <Tabs.List
                     aria-label="View mode"
-                    className="*:text-muted *:data-[selected=true]:bg-accent *:data-[selected=true]:text-accent-foreground border-border bg-surface flex h-12 min-h-12 w-fit flex-row gap-0.5 rounded-lg border p-0.5 *:flex *:h-10 *:min-h-10 *:w-9 *:min-w-9 *:items-center *:justify-center *:p-0 *:text-sm *:leading-none *:font-normal *:transition-colors *:[&_svg]:block"
+                    className="border-border bg-surface text-muted !flex !w-fit min-w-[5.25rem] flex-row items-center gap-1 rounded-lg border p-1"
                   >
                     <Tabs.Tab
                       id="compact"
                       aria-label="Compact list view"
-                      className="rounded-md"
+                      className="text-muted data-[selected=true]:text-accent-foreground relative z-10 flex h-9 min-h-9 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
                     >
-                      <ListBulletIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
-                      <Tabs.Indicator className="bg-accent rounded" />
+                      <ListBulletIcon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5]" />
+                      <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
                     </Tabs.Tab>
                     <Tabs.Tab
                       id="spacious"
                       aria-label="Spacious grid view"
-                      className="rounded-md"
+                      className="text-muted data-[selected=true]:text-accent-foreground relative z-10 flex h-9 min-h-9 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
                     >
-                      <Squares2X2Icon className="h-5 w-5 shrink-0 stroke-[1.5]" />
-                      <Tabs.Indicator className="bg-accent rounded" />
+                      <Squares2X2Icon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5]" />
+                      <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
                     </Tabs.Tab>
                   </Tabs.List>
                 </Tabs.ListContainer>
