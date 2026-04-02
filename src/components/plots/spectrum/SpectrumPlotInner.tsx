@@ -85,6 +85,9 @@ export function SpectrumPlotInner({
   showPhiData = false,
   selectedGeometry = null,
   headerRight,
+  headerAnalysis,
+  plotTopRailDataActions,
+  showNormalizationShading = false,
   cursorMode: externalCursorMode,
   onCursorModeChange,
 }: SpectrumPlotInnerProps) {
@@ -595,7 +598,8 @@ export function SpectrumPlotInner({
                 themeColors={themeColors}
               />
             </g>
-            {normalizationRegions && selectionTarget && (
+            {normalizationRegions &&
+              (selectionTarget !== null || showNormalizationShading) && (
               <>
                 {normalizationRegions.pre && (
                   <rect
@@ -855,8 +859,14 @@ export function SpectrumPlotInner({
             isPanDisabled={zoomedXDomain == null}
             onCursorModeChange={handleCursorModeChange}
             onResetZoom={handleResetZoom}
-            onExportClick={() => setExportModalOpen(true)}
+            onExportClick={
+              plotTopRailDataActions
+                ? undefined
+                : () => setExportModalOpen(true)
+            }
+            topRailLeadingExtras={plotTopRailDataActions}
             dataViewTabs={headerRight}
+            analysisTools={headerAnalysis}
           />
         </div>
       </div>

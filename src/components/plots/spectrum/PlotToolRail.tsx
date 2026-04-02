@@ -13,7 +13,9 @@ type PlotToolRailProps = {
   onCursorModeChange: (mode: CursorMode) => void;
   onResetZoom: () => void;
   onExportClick?: () => void;
+  topRailLeadingExtras?: ReactNode;
   dataViewTabs: ReactNode;
+  analysisTools?: ReactNode;
 };
 
 export const PlotToolRail = memo(function PlotToolRail({
@@ -25,7 +27,9 @@ export const PlotToolRail = memo(function PlotToolRail({
   onCursorModeChange,
   onResetZoom,
   onExportClick,
+  topRailLeadingExtras,
   dataViewTabs,
+  analysisTools,
 }: PlotToolRailProps) {
   return (
     <PlotToolRailsDeck
@@ -37,7 +41,9 @@ export const PlotToolRail = memo(function PlotToolRail({
       onCursorModeChange={onCursorModeChange}
       onResetZoom={onResetZoom}
       onExportClick={onExportClick}
+      topRailLeadingExtras={topRailLeadingExtras}
       displayTools={dataViewTabs}
+      analysisTools={analysisTools}
     />
   );
 });

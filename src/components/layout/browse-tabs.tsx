@@ -20,7 +20,7 @@ function pathToSelectedKey(pathname: string | null): BrowseTabId {
 }
 
 const tabLinkClass =
-  "flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors";
+  "relative flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[selected=true]:shadow-sm";
 
 export function BrowseTabs() {
   const pathname = usePathname();
@@ -31,7 +31,7 @@ export function BrowseTabs() {
       <Tabs.ListContainer className="w-full min-w-0">
         <Tabs.List
           aria-label="Browse sections"
-          className="border-border bg-surface *:data-[selected=true]:text-accent-foreground flex min-h-12 w-full min-w-0 flex-wrap gap-0.5 rounded-xl border p-1 *:flex *:min-h-10 *:flex-1 *:items-center *:justify-center *:gap-2 *:rounded-lg *:px-3 *:text-sm *:font-medium *:text-muted *:transition-colors *:[&_svg]:block *:data-[selected=true]:bg-accent sm:flex-nowrap sm:*:min-w-0"
+          className="border-border bg-surface flex min-h-12 w-full min-w-0 flex-wrap gap-0.5 rounded-xl border p-1 *:flex *:min-h-10 *:flex-1 *:items-center *:justify-center *:gap-2 *:rounded-lg *:px-3 *:text-sm *:font-medium *:text-muted *:transition-colors *:[&_svg]:block sm:flex-nowrap sm:*:min-w-0"
         >
           <Tabs.Tab
             id="molecules"
@@ -48,7 +48,6 @@ export function BrowseTabs() {
           >
             <BeakerIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
             <span className="truncate">Molecules</span>
-            <Tabs.Indicator className="bg-accent rounded-md" />
           </Tabs.Tab>
           <Tabs.Tab
             id="nexafs"
@@ -65,7 +64,6 @@ export function BrowseTabs() {
           >
             <BoltIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
             <span className="truncate">NEXAFS</span>
-            <Tabs.Indicator className="bg-accent rounded-md" />
           </Tabs.Tab>
           <Tabs.Tab
             id="facilities"
@@ -85,7 +83,6 @@ export function BrowseTabs() {
               aria-hidden
             />
             <span className="truncate">Facilities</span>
-            <Tabs.Indicator className="bg-accent rounded-md" />
           </Tabs.Tab>
         </Tabs.List>
       </Tabs.ListContainer>

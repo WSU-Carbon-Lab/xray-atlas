@@ -665,7 +665,9 @@ export const moleculesRouter = createTRPCRouter({
           moleculesynonyms: {
             orderBy: [{ order: "asc" }, { synonym: "asc" }],
           },
-          samples: true,
+          samples: {
+            include: { _count: { select: { experiments: true } } },
+          },
           moleculecontributors: {
             include: {
               user: {
@@ -736,7 +738,9 @@ export const moleculesRouter = createTRPCRouter({
             moleculesynonyms: {
               orderBy: [{ order: "asc" }, { synonym: "asc" }],
             },
-            samples: true,
+            samples: {
+              include: { _count: { select: { experiments: true } } },
+            },
             moleculecontributors: {
               include: {
                 user: {

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { TableCellsIcon, ChartBarIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import { ChartLine, ChartArea, ChartScatter } from "lucide-react";
 import { Tooltip } from "@heroui/react";
@@ -23,6 +24,10 @@ interface VisualizationToggleProps {
   showEditButton?: boolean;
   editMode?: boolean;
   onEditModeChange?: (value: boolean) => void;
+  /**
+   * Renders in the right-aligned cluster with graph-style toggles (for example CSV actions).
+   */
+  trailingSlot?: ReactNode;
 }
 
 export function VisualizationToggle({
@@ -34,6 +39,7 @@ export function VisualizationToggle({
   showEditButton = false,
   editMode = false,
   onEditModeChange,
+  trailingSlot,
 }: VisualizationToggleProps) {
   const graphStyles: GraphStyle[] = ["line", "scatter", "area"];
 
@@ -49,8 +55,8 @@ export function VisualizationToggle({
   };
 
   return (
-    <div className="flex w-full items-center justify-between gap-2">
-      <div className="flex items-center gap-2">
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <Tooltip delay={0}>
           <button
             type="button"
@@ -79,50 +85,61 @@ export function VisualizationToggle({
         </Tooltip>
       </div>
 
-      {mode === "graph" && showGraphStyles && onGraphStyleChange && (
-        <div className="flex items-center gap-2">
-          {graphStyles.map((style) => (
-            <Tooltip key={style} delay={0}>
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+        {mode === "graph" && showGraphStyles && onGraphStyleChange ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {graphStyles.map((style) => (
+              <Tooltip key={style} delay={0}>
+                <button
+                  type="button"
+                  onClick={() => onGraphStyleChange(style)}
+                  className={
+                    graphStyle === style ? activeButtonClass : inactiveButtonClass
+                  }
+                >
+                  {getStyleIcon(style)}
+                  <span>
+                    {style === "line" && "Line"}
+                    {style === "scatter" && "Scatter"}
+                    {style === "area" && "Area"}
+                  </span>
+                </button>
+                <Tooltip.Content className={tooltipContentClass}>
+                  {style === "line"
+                    ? "Display spectrum as a continuous line"
+                    : style === "scatter"
+                      ? "Display spectrum as individual data points"
+                      : "Display spectrum as a filled area under the curve"}
+                </Tooltip.Content>
+              </Tooltip>
+            ))}
+          </div>
+        ) : null}
+
+        {trailingSlot ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {trailingSlot}
+          </div>
+        ) : null}
+
+        {showEditButton && onEditModeChange ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Tooltip delay={0}>
               <button
                 type="button"
-                onClick={() => onGraphStyleChange(style)}
-                className={graphStyle === style ? activeButtonClass : inactiveButtonClass}
+                onClick={() => onEditModeChange(!editMode)}
+                className={editMode ? activeButtonClass : inactiveButtonClass}
               >
-                {getStyleIcon(style)}
-                <span>
-                  {style === "line" && "Line"}
-                  {style === "scatter" && "Scatter"}
-                  {style === "area" && "Area"}
-                </span>
+                <PencilSquareIcon className="h-4 w-4" />
+                <span>Edit</span>
               </button>
               <Tooltip.Content className={tooltipContentClass}>
-                {style === "line"
-                  ? "Display spectrum as a continuous line"
-                  : style === "scatter"
-                    ? "Display spectrum as individual data points"
-                    : "Display spectrum as a filled area under the curve"}
+                {editMode ? "Exit edit mode" : "Edit values in the table"}
               </Tooltip.Content>
             </Tooltip>
-          ))}
-        </div>
-      )}
-      {showEditButton && onEditModeChange && (
-        <div className="flex items-center gap-2">
-          <Tooltip delay={0}>
-            <button
-              type="button"
-              onClick={() => onEditModeChange(!editMode)}
-              className={editMode ? activeButtonClass : inactiveButtonClass}
-            >
-              <PencilSquareIcon className="h-4 w-4" />
-              <span>Edit</span>
-            </button>
-            <Tooltip.Content className={tooltipContentClass}>
-              {editMode ? "Exit edit mode" : "Edit values in the table"}
-            </Tooltip.Content>
-          </Tooltip>
-        </div>
-      )}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

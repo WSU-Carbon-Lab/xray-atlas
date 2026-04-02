@@ -33,6 +33,10 @@ export type ReferenceCurve = {
   label: string;
   points: Array<{ energy: number; absorption: number }>;
   color?: string;
+  /**
+   * When false, the trace is drawn but omitted from the static legend (for example bare-atom overlays).
+   */
+  showInLegend?: boolean;
 };
 
 export type NormalizationRegions = {
@@ -63,6 +67,9 @@ export type DifferenceSpectrum = {
   label: string;
   points: SpectrumPoint[];
   preferred?: boolean;
+  lowerAngle?: number;
+  higherAngle?: number;
+  mode?: "theta" | "phi";
 };
 
 export type GraphStyle = "line" | "scatter" | "area";
@@ -93,9 +100,25 @@ export type SpectrumPlotProps = {
   onPeakAdd?: (energy: number) => void;
   differenceSpectra?: DifferenceSpectrum[];
   headerRight?: ReactNode;
+  /**
+   * Optional controls for the right-hand analysis tool rail (for example bare-atom overlay toggles).
+   */
+  headerAnalysis?: ReactNode;
+  /**
+   * Optional icon actions rendered in the top plot rail after Home (for example spectrum CSV download/copy menus). Fragments and arrays are flattened so each control is a direct sibling inside the same `ButtonGroup` as Home (continuous segment styling). When set, the default top-rail plot export shortcut is omitted; callers that still need export UI should include it inside this node or elsewhere.
+   */
+  plotTopRailDataActions?: ReactNode;
   showThetaData?: boolean;
   showPhiData?: boolean;
   selectedGeometry?: { theta?: number; phi?: number } | null;
+  /**
+   * When true, renders pre/post normalization band shading from `normalizationRegions` without enabling the interactive normalization brush (no `plotContext.kind === "normalize"` required).
+   */
+  showNormalizationShading?: boolean;
+  /**
+   * Replaces the default empty-state copy when `points` is empty (for example browse/preview surfaces that do not upload CSV here).
+   */
+  emptyStateMessage?: string;
 };
 
 /**

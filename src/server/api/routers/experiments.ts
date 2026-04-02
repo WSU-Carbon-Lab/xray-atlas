@@ -102,6 +102,26 @@ export const experimentsRouter = createTRPCRouter({
       return experiment;
     }),
 
+  moleculeFormulaForExperiment: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const row = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: {
+          samples: {
+            select: {
+              molecules: { select: { chemicalformula: true } },
+            },
+          },
+        },
+      });
+      const raw =
+        row?.samples?.molecules?.chemicalformula?.trim() ?? "";
+      return {
+        chemicalFormula: raw.length > 0 ? raw : null,
+      };
+    }),
+
   list: publicProcedure
     .input(
       z.object({

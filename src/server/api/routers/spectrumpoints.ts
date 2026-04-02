@@ -17,7 +17,6 @@ export const spectrumpointsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Uses idx_spectrum_energy (experimentId, energyEv) for efficient filtering and ordering
       const points = await ctx.db.spectrumpoints.findMany({
         where: {
           experimentid: input.experimentId,
@@ -27,9 +26,23 @@ export const spectrumpointsRouter = createTRPCRouter({
         },
         take: input.limit,
         skip: input.offset,
+        include: {
+          polarizations: {
+            select: { polardeg: true, azimuthdeg: true },
+          },
+        },
       });
 
       return points;
+    }),
+
+  peaksForExperiment: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.peaksets.findMany({
+        where: { experimentid: input.experimentId },
+        orderBy: { energyev: "asc" },
+      });
     }),
 
   getByEnergyRange: publicProcedure

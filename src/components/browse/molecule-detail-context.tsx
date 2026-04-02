@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { MoleculeView } from "~/types/molecule";
 
 export type MoleculeDetailMolecule = MoleculeView;
@@ -17,10 +10,6 @@ export type MoleculeDetailContextValue = {
   moleculeId: string;
   isSignedIn: boolean;
   canEdit: boolean;
-  query: string;
-  setQuery: (value: string) => void;
-  sortBy: "created" | "name" | "views" | "favorites";
-  setSortBy: (value: "created" | "name" | "views" | "favorites") => void;
 };
 
 const MoleculeDetailContext = createContext<MoleculeDetailContextValue | null>(
@@ -40,27 +29,14 @@ export function MoleculeDetailProvider({
   canEdit: boolean;
   children: ReactNode;
 }) {
-  const [query, setQueryState] = useState("");
-  const [sortBy, setSortBy] = useState<
-    "created" | "name" | "views" | "favorites"
-  >("created");
-
-  const setQuery = useCallback((value: string) => {
-    setQueryState(value);
-  }, []);
-
   const value = useMemo<MoleculeDetailContextValue>(
     () => ({
       molecule,
       moleculeId,
       isSignedIn,
       canEdit,
-      query,
-      setQuery,
-      sortBy,
-      setSortBy,
     }),
-    [molecule, moleculeId, isSignedIn, canEdit, query, setQuery, sortBy],
+    [molecule, moleculeId, isSignedIn, canEdit],
   );
 
   return (

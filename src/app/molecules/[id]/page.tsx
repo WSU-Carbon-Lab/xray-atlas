@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useMoleculeDetail } from "@/components/browse/molecule-detail-context";
-import { AddNexafsCard } from "@/components/contribute";
+import { NexafsBrowseExperimentSection } from "@/components/browse/nexafs-browse-experiment-section";
 import { trpc } from "~/trpc/client";
 
 const VIEW_SESSION_KEY = "xray-atlas-view-session";
@@ -32,8 +33,51 @@ function markTrackViewSent(): void {
   sessionStorage.setItem(VIEW_DEBOUNCE_KEY, Date.now().toString());
 }
 
+function MoleculeNexafsBrowse() {
+  const pathname = usePathname();
+  const { moleculeId } = useMoleculeDetail();
+  const contributeHref = `/contribute/nexafs?moleculeId=${moleculeId}`;
+
+  return (
+    <NexafsBrowseExperimentSection
+      variant="embedded"
+      basePath={pathname}
+      contributeNexafsHref={contributeHref}
+      showMoleculeFilter={false}
+      lockedMoleculeId={moleculeId}
+      emptyStateBrowseAllHref={`/browse/nexafs?molecule=${encodeURIComponent(moleculeId)}`}
+      emptyListMessage="No NEXAFS datasets for this molecule yet."
+      itemsPerPageLabelId="molecule-nexafs-items-per-page"
+    />
+  );
+}
+
+function MoleculeNexafsBrowseFallback() {
+  return (
+    <div className="space-y-3" aria-hidden>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="border-border bg-surface h-32 animate-pulse rounded-xl border shadow-lg"
+        />
+      ))}
+    </div>
+  );
+}
+
+function MoleculeNexafsBrowseAfterMount() {
+  const [mounted, setMounted] = useState(false);
+  useLayoutEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) {
+    return <MoleculeNexafsBrowseFallback />;
+  }
+  return <MoleculeNexafsBrowse />;
+}
+
 export default function MoleculeDetailPage() {
-  const { molecule, moleculeId } = useMoleculeDetail();
+  const { molecule } = useMoleculeDetail();
   const trackViewSent = useRef(false);
 
   const trackView = trpc.molecules.trackView.useMutation();
@@ -58,40 +102,16 @@ export default function MoleculeDetailPage() {
     );
   }, [molecule?.id]);
 
-  const contributeHref = `/contribute/nexafs?moleculeId=${moleculeId}`;
-
   return (
-    <section className="space-y-6" aria-labelledby="nexafs-heading">
-      <h2 id="nexafs-heading" className="sr-only">
+    <section
+      className="space-y-6"
+      aria-labelledby="nexafs-heading"
+      suppressHydrationWarning
+    >
+      <h2 id="nexafs-heading" className="sr-only" suppressHydrationWarning>
         NEXAFS spectra for this molecule
       </h2>
-      <div className="space-y-3 [&>a]:block">
-        <AddNexafsCard href={contributeHref} className="min-h-[140px] w-full" />
-      </div>
-
-      {molecule.samples && molecule.samples.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
-            Samples ({molecule.samples.length})
-          </h2>
-          <div className="space-y-4">
-            {molecule.samples.map((sample) => (
-              <div
-                key={sample.id}
-                className="rounded-lg border border-gray-200 p-4 dark:border-gray-700"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                      {sample.identifier ?? "—"}
-                    </h3>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <MoleculeNexafsBrowseAfterMount />
     </section>
   );
 }
