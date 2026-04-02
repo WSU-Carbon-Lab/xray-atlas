@@ -67,8 +67,6 @@ export interface NexafsBrowseGroupedSpectrumTableProps {
 
 interface BrowseGeometrySection {
   key: string;
-  polarizationLabel: string;
-  showPolarizationBadge: boolean;
   theta: number | null;
   phi: number | null;
   energySubtitle: string;
@@ -112,14 +110,11 @@ function flattenSpectrumTreeForBrowseTable(
   tree: SpectrumPolarizationNode[],
 ): BrowseGeometrySection[] {
   const out: BrowseGeometrySection[] = [];
-  const showPolarizationBadge = tree.length > 1;
   for (const pol of tree) {
     for (const tn of pol.thetaNodes) {
       for (const leaf of tn.phiLeaves) {
         out.push({
           key: `${pol.polarizationKey}|${tn.thetaKey}|${leaf.phiKey}`,
-          polarizationLabel: pol.label,
-          showPolarizationBadge,
           theta: tn.theta,
           phi: leaf.phi,
           energySubtitle: phiLeafEnergySubtitle(leaf),
@@ -555,14 +550,6 @@ export function NexafsBrowseGroupedSpectrumTable({
               <Accordion.Heading>
                 <Accordion.Trigger className="flex min-h-[52px] w-full items-center justify-between gap-2 rounded-lg px-4 py-3 text-left">
                   <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                    {s.showPolarizationBadge ? (
-                      <span
-                        className="max-w-[140px] truncate text-[10px] font-medium tracking-wide text-[var(--text-tertiary)] uppercase"
-                        title={s.polarizationLabel}
-                      >
-                        {s.polarizationLabel}
-                      </span>
-                    ) : null}
                     {typeof s.theta === "number" ? (
                       <Chip
                         color={thetaChipColor}

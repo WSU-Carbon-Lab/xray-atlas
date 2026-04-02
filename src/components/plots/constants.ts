@@ -35,6 +35,75 @@ export const SPECTRUM_TRACE_GRADIENT_LIGHT = [
 
 export const SPECTRUM_TRACE_GRADIENT = SPECTRUM_TRACE_GRADIENT_DARK;
 
+function parseHexColor(hex: string): { r: number; g: number; b: number } {
+  const h = hex.trim().replace("#", "");
+  if (h.length === 3) {
+    const r = parseInt(h[0]! + h[0]!, 16);
+    const g = parseInt(h[1]! + h[1]!, 16);
+    const b = parseInt(h[2]! + h[2]!, 16);
+    return { r, g, b };
+  }
+  const n = parseInt(h.slice(0, 6), 16);
+  if (!Number.isFinite(n)) return { r: 136, g: 136, b: 136 };
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const clamp = (v: number) =>
+    Math.max(0, Math.min(255, Math.round(v)));
+  return `#${[clamp(r), clamp(g), clamp(b)]
+    .map((x) => x.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function lerpHex(a: string, b: string, t: number): string {
+  const A = parseHexColor(a);
+  const B = parseHexColor(b);
+  const u = Math.max(0, Math.min(1, t));
+  return rgbToHex(
+    A.r + (B.r - A.r) * u,
+    A.g + (B.g - A.g) * u,
+    A.b + (B.b - A.b) * u,
+  );
+}
+
+function colorAlongPaletteStops(
+  palette: readonly string[],
+  frac01: number,
+): string {
+  const n = palette.length;
+  if (n === 0) return "#888888";
+  if (n === 1) return palette[0]!;
+  const f = Math.max(0, Math.min(1, frac01));
+  const x = f * (n - 1);
+  const i0 = Math.floor(x);
+  const i1 = Math.min(n - 1, i0 + 1);
+  const t = x - i0;
+  return lerpHex(palette[i0]!, palette[i1]!, t);
+}
+
+/**
+ * Picks a color for trace `traceIndex` out of `traceCount` traces by sampling the grey-to-red spectrum gradient at evenly spaced positions from palette start (low angle) through palette end (high angle).
+ *
+ * @param palette Ordered stop list (for example `SPECTRUM_TRACE_GRADIENT_DARK`); must be non-empty for a non-gray fallback.
+ * @param traceIndex Zero-based index of the trace after geometries are sorted by ascending theta then phi.
+ * @param traceCount Total number of traces sharing this palette pass; must be at least 1. When `traceCount === 1`, uses the midpoint of the palette path.
+ * @returns CSS `#rrggbb` color string; never throws.
+ */
+export function spectrumTraceColorAlongGradient(
+  palette: readonly string[],
+  traceIndex: number,
+  traceCount: number,
+): string {
+  const n = palette.length;
+  if (n === 0) return "#888888";
+  if (traceCount <= 0) return palette[0]!;
+  if (traceCount === 1) return colorAlongPaletteStops(palette, 0.5);
+  const clamped = Math.max(0, Math.min(traceCount - 1, traceIndex));
+  const frac = clamped / (traceCount - 1);
+  return colorAlongPaletteStops(palette, frac);
+}
+
 export const SEQUENTIAL_SCALES = {
   blue: ["#eff6ff", "#bfdbfe", "#60a5fa", "#2563eb", "#1e40af"],
   indigo: ["#eef2ff", "#c7d2fe", "#818cf8", "#4f46e5", "#3730a3"],

@@ -7,8 +7,12 @@ import type { TraceData, SpectrumPoint, DifferenceSpectrum } from "../types";
 import {
   SPECTRUM_TRACE_GRADIENT_DARK,
   SPECTRUM_TRACE_GRADIENT_LIGHT,
+  spectrumTraceColorAlongGradient,
 } from "../constants";
-import { groupPointsByGeometry } from "../utils/trace-utils";
+import {
+  groupPointsByGeometry,
+  sortedGeometryGroupEntries,
+} from "../utils/trace-utils";
 
 export type SpectrumDataResult = {
   traces: TraceData[];
@@ -62,15 +66,18 @@ export function useSpectrumData(
       : [];
 
     const groups = groupPointsByGeometry(filteredPoints);
+    const ordered = sortedGeometryGroupEntries(groups);
+    const traceCount = ordered.length;
 
-    const traces: TraceData[] = [];
-    let index = 0;
-    groups.forEach((group, key) => {
-      const color =
-        palette[index % palette.length] ?? palette[0];
-      traces.push({
-        type: "scattergl",
-        mode: "lines+markers",
+    const traces: TraceData[] = ordered.map(([key, group], index) => {
+      const color = spectrumTraceColorAlongGradient(
+        palette,
+        index,
+        traceCount,
+      );
+      return {
+        type: "scattergl" as const,
+        mode: "lines+markers" as const,
         name: group.label || key,
         x: group.energies,
         y: group.absorptions,
@@ -89,10 +96,13 @@ export function useSpectrumData(
           `<b>${group.label || key}</b><br>` +
           "Energy: %{x:.3f} eV<br>Intensity: %{y:.4f}" +
           "<extra></extra>",
-      });
-      index += 1;
+      };
     });
 
-    return { traces, keys: Array.from(groups.keys()), groups };
+    return {
+      traces,
+      keys: ordered.map(([k]) => k),
+      groups,
+    };
   }, [points, showThetaData, showPhiData, differenceSpectra, palette]);
 }

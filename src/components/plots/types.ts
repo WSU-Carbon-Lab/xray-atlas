@@ -33,6 +33,10 @@ export type ReferenceCurve = {
   label: string;
   points: Array<{ energy: number; absorption: number }>;
   color?: string;
+  /**
+   * When false, the trace is drawn but omitted from the static legend (for example bare-atom overlays).
+   */
+  showInLegend?: boolean;
 };
 
 export type NormalizationRegions = {
@@ -63,6 +67,9 @@ export type DifferenceSpectrum = {
   label: string;
   points: SpectrumPoint[];
   preferred?: boolean;
+  lowerAngle?: number;
+  higherAngle?: number;
+  mode?: "theta" | "phi";
 };
 
 export type GraphStyle = "line" | "scatter" | "area";
@@ -93,6 +100,10 @@ export type SpectrumPlotProps = {
   onPeakAdd?: (energy: number) => void;
   differenceSpectra?: DifferenceSpectrum[];
   headerRight?: ReactNode;
+  /**
+   * Optional controls for the right-hand analysis tool rail (for example bare-atom overlay toggles).
+   */
+  headerAnalysis?: ReactNode;
   showThetaData?: boolean;
   showPhiData?: boolean;
   selectedGeometry?: { theta?: number; phi?: number } | null;

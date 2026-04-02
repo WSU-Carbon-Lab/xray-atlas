@@ -6,9 +6,9 @@ import { useMemo } from "react";
 import type { TraceData, ReferenceCurve, DifferenceSpectrum } from "../types";
 import type { SpectrumPoint } from "../types";
 import {
-  COLORS,
   SPECTRUM_TRACE_GRADIENT_DARK,
   SPECTRUM_TRACE_GRADIENT_LIGHT,
+  spectrumTraceColorAlongGradient,
 } from "../constants";
 
 export type ReferenceDataResult = {
@@ -37,9 +37,9 @@ export function useReferenceData(
       },
       hovertemplate:
         `<b>${curve.label}</b><br>` +
-        "Energy: %{x:.3f} eV<br>Bare μ: %{y:.3f}" +
+        "Energy: %{x:.3f} eV<br>Value: %{y:.4f}" +
         "<extra></extra>",
-      showlegend: true,
+      showlegend: curve.showInLegend !== false,
     }));
   }, [referenceCurves]);
 
@@ -51,7 +51,18 @@ export function useReferenceData(
     const inferDiffMode = (label: string): "theta" | "phi" =>
       /Δ[φΦ]/u.test(label) ? "phi" : "theta";
 
-    const thetaModeDiffs = differenceSpectra.filter(
+    const sortedDiffs = [...differenceSpectra].sort((a, b) => {
+      const la = typeof a.lowerAngle === "number" ? a.lowerAngle : 0;
+      const lb = typeof b.lowerAngle === "number" ? b.lowerAngle : 0;
+      if (la !== lb) return la - lb;
+      const ha =
+        typeof a.higherAngle === "number" ? a.higherAngle : 0;
+      const hb =
+        typeof b.higherAngle === "number" ? b.higherAngle : 0;
+      return ha - hb;
+    });
+
+    const thetaModeDiffs = sortedDiffs.filter(
       (d) => inferDiffMode(d.label) === "theta",
     );
     const phiValues = thetaModeDiffs
@@ -63,7 +74,7 @@ export function useReferenceData(
     const uniquePhi = new Set(phiValues);
     const singlePhi = phiValues.length > 0 && uniquePhi.size <= 1;
 
-    const phiModeDiffs = differenceSpectra.filter(
+    const phiModeDiffs = sortedDiffs.filter(
       (d) => inferDiffMode(d.label) === "phi",
     );
     const thetaValues = phiModeDiffs
@@ -88,11 +99,17 @@ export function useReferenceData(
       return diffLabel;
     };
 
-    return differenceSpectra.map((diff, index) => {
+    const nonPreferred = sortedDiffs.filter((d) => !d.preferred);
+
+    return sortedDiffs.map((diff) => {
       const isPreferred = diff.preferred ?? false;
       const color = isPreferred
         ? "#dc2626"
-        : palette[Math.min(index, palette.length - 1)] ?? COLORS[0];
+        : spectrumTraceColorAlongGradient(
+            palette,
+            nonPreferred.indexOf(diff),
+            Math.max(1, nonPreferred.length),
+          );
       const diffMode = inferDiffMode(diff.label);
       const label = formatLabel(diff.label, diffMode);
       return {

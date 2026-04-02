@@ -20,6 +20,12 @@ function isBareAtomTrace(trace: TraceData): boolean {
   return /bare\s*atom/i.test(trace.name);
 }
 
+function isLegendTrace(trace: TraceData): boolean {
+  if (trace.showlegend === false) return false;
+  if (isBareAtomTrace(trace)) return false;
+  return true;
+}
+
 type PlotStaticLegendProps = {
   traces: TraceData[];
   visibleTraceIds: Set<string>;
@@ -41,7 +47,7 @@ export const PlotStaticLegend = memo(function PlotStaticLegend({
   legendBorderRadius = 8,
   legendColumns = 1,
 }: PlotStaticLegendProps) {
-  const filteredTraces = traces.filter((t) => !isBareAtomTrace(t));
+  const filteredTraces = traces.filter(isLegendTrace);
 
   const { entries, singlePhi } = buildLegendCoreModel({
     traces: filteredTraces,

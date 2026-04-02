@@ -63,6 +63,35 @@ export function groupPointsByGeometry(
   return groups;
 }
 
+function geometrySortKey(group: GeometryGroup): [number, number] {
+  const t =
+    typeof group.theta === "number" && Number.isFinite(group.theta)
+      ? group.theta
+      : Number.POSITIVE_INFINITY;
+  const p =
+    typeof group.phi === "number" && Number.isFinite(group.phi)
+      ? group.phi
+      : Number.POSITIVE_INFINITY;
+  return [t, p];
+}
+
+/**
+ * Returns geometry groups in stable order: ascending theta, then ascending phi; groups without finite angles sort after all finite-angle groups.
+ */
+export function sortedGeometryGroupEntries(
+  groups: Map<string, GeometryGroup>,
+): [string, GeometryGroup][] {
+  const entries = Array.from(groups.entries());
+  entries.sort(([, a], [, b]) => {
+    const [ta, pa] = geometrySortKey(a);
+    const [tb, pb] = geometrySortKey(b);
+    if (ta !== tb) return ta - tb;
+    if (pa !== pb) return pa - pb;
+    return 0;
+  });
+  return entries;
+}
+
 /**
  * Filter points by geometry (theta/phi match)
  */

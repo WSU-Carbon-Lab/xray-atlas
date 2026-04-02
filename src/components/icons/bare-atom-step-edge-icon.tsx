@@ -23,7 +23,7 @@ export function BareAtomStepEdgeIcon({
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={10}
+        strokeWidth={5}
         vectorEffect="nonScalingStroke"
       >
         <path d="M10 70.56 L36.55 74.38" />

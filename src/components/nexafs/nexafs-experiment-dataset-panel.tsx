@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Copy } from "lucide-react";
+import { BareAtomStepEdgeIcon } from "~/components/icons";
 import {
   Button,
   Separator,
@@ -12,6 +13,7 @@ import {
 } from "@heroui/react";
 import type {
   DifferenceSpectrum,
+  ReferenceCurve,
   SpectrumPoint,
 } from "~/components/plots/types";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
@@ -22,7 +24,9 @@ import {
 } from "~/components/plots/toolbars";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
 import {
+  calculateBareAtomAbsorption,
   calculateDifferenceSpectra,
+  computeBetaIndex,
   groupSpectrumByPolarizationThetaPhi,
   mapDbSpectrumRowsToAnnotated,
   mapDbSpectrumRowsToPoints,
@@ -68,6 +72,9 @@ export function NexafsExperimentDatasetPanel({
   >("theta");
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
+  const [showBareAtomOverlay, setShowBareAtomOverlay] = useState(false);
+  const [bareAtomReference, setBareAtomReference] =
+    useState<ReferenceCurve | null>(null);
   const showThetaPhiBeforeDiffRef = useRef<{
     showTheta: boolean;
     showPhi: boolean;
@@ -77,6 +84,12 @@ export function NexafsExperimentDatasetPanel({
     { experimentId, limit: 10000, offset: 0 },
     { enabled: enabled && Boolean(experimentId) },
   );
+
+  const moleculeFormulaQuery =
+    trpc.experiments.moleculeFormulaForExperiment.useQuery(
+      { experimentId },
+      { enabled: enabled && Boolean(experimentId) },
+    );
 
   const peaksQuery = trpc.spectrumpoints.peaksForExperiment.useQuery(
     { experimentId },
@@ -104,6 +117,89 @@ export function NexafsExperimentDatasetPanel({
   const model = useNexafsSpectrumBrowseModel({
     spectrumPoints,
   });
+
+  const chemicalFormula =
+    moleculeFormulaQuery.data?.chemicalFormula ?? null;
+
+  useEffect(() => {
+    if (model.dataView === "od" && showBareAtomOverlay) {
+      setShowBareAtomOverlay(false);
+    }
+  }, [model.dataView, showBareAtomOverlay]);
+
+  useEffect(() => {
+    if (
+      !showBareAtomOverlay ||
+      !chemicalFormula?.trim() ||
+      model.dataView === "od"
+    ) {
+      setBareAtomReference(null);
+      return;
+    }
+
+    const absorptionBasis = model.absorptionPlotPoints;
+    if (absorptionBasis.length === 0) {
+      setBareAtomReference(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const bareMu = await calculateBareAtomAbsorption(
+          chemicalFormula,
+          absorptionBasis,
+        );
+        if (cancelled) return;
+
+        if (model.dataView === "beta") {
+          const muLike: SpectrumPoint[] = bareMu.map((p) => ({
+            energy: p.energy,
+            absorption: p.absorption,
+          }));
+          const betaLike = computeBetaIndex(
+            muLike,
+            muLike.map((p) => p.energy),
+            bareMu,
+          );
+          setBareAtomReference({
+            label: "Bare atom beta",
+            points: betaLike.map((p) => ({
+              energy: p.energy,
+              absorption: p.absorption,
+            })),
+            color: "#6b7280",
+            showInLegend: false,
+          });
+        } else {
+          setBareAtomReference({
+            label: "Bare atom absorption",
+            points: bareMu.map((p) => ({
+              energy: p.energy,
+              absorption: p.absorption,
+            })),
+            color: "#6b7280",
+            showInLegend: false,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setBareAtomReference(null);
+          showToast("Could not compute bare atom reference curve", "error");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showBareAtomOverlay,
+    chemicalFormula,
+    model.dataView,
+    model.absorptionPlotPoints,
+  ]);
 
   const plotPeaks = useMemo(
     () => mapPeaksetsToPlotPeaks(peaksQuery.data ?? []),
@@ -247,6 +343,10 @@ export function NexafsExperimentDatasetPanel({
     });
   }, [sortedAllPoints]);
 
+  const referenceCurves = useMemo((): ReferenceCurve[] => {
+    return bareAtomReference ? [bareAtomReference] : [];
+  }, [bareAtomReference]);
+
   const overlaySelectedKey =
     model.dataView === "od"
       ? "od"
@@ -344,6 +444,51 @@ export function NexafsExperimentDatasetPanel({
     </div>
   );
 
+  const plotAnalysisRail = (
+    <div className="pointer-events-auto flex flex-col gap-2">
+      <Toolbar
+        isAttached
+        orientation="vertical"
+        aria-label="Spectrum analysis tools"
+        className={`${plotToolbarAttachedShellClass} w-fit`}
+      >
+        <Tooltip delay={0}>
+          <Tooltip.Trigger>
+            <ToggleButton
+              isIconOnly
+              aria-label="Toggle bare atom reference curve"
+              id="bare-atom-overlay"
+              isSelected={showBareAtomOverlay}
+              isDisabled={
+                !chemicalFormula ||
+                model.dataView === "od" ||
+                moleculeFormulaQuery.isLoading
+              }
+              onChange={(next) => {
+                if (next !== showBareAtomOverlay) {
+                  queueMicrotask(() => setShowBareAtomOverlay(next));
+                }
+              }}
+              className={plotToolbarBasisToggleClass}
+            >
+              <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
+            </ToggleButton>
+          </Tooltip.Trigger>
+          <Tooltip.Content
+            placement="left"
+            className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
+          >
+            {model.dataView === "od"
+              ? "Bare atom overlay is not available in optical density view."
+              : chemicalFormula
+                ? "Show computed bare atom curve on this energy grid."
+                : "No chemical formula on the linked molecule for this experiment."}
+          </Tooltip.Content>
+        </Tooltip>
+      </Toolbar>
+    </div>
+  );
+
   if (!enabled) return null;
 
   if (pointsQuery.isLoading) {
@@ -411,7 +556,7 @@ export function NexafsExperimentDatasetPanel({
             points={model.plotPoints}
             graphStyle={graphStyle}
             yAxisQuantity={model.spectrumYAxisQuantity}
-            referenceCurves={model.referenceCurves}
+            referenceCurves={referenceCurves}
             normalizationRegions={undefined}
             showNormalizationShading={false}
             plotContext={{ kind: "explore" }}
@@ -420,6 +565,7 @@ export function NexafsExperimentDatasetPanel({
             showThetaData={showThetaData}
             showPhiData={showPhiData}
             headerRight={plotLeftRail}
+            headerAnalysis={plotAnalysisRail}
             cursorMode={cursorMode}
             onCursorModeChange={setCursorMode}
             emptyStateMessage="No points in this view."

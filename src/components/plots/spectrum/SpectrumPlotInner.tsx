@@ -85,6 +85,7 @@ export function SpectrumPlotInner({
   showPhiData = false,
   selectedGeometry = null,
   headerRight,
+  headerAnalysis,
   showNormalizationShading = false,
   cursorMode: externalCursorMode,
   onCursorModeChange,
@@ -859,6 +860,7 @@ export function SpectrumPlotInner({
             onResetZoom={handleResetZoom}
             onExportClick={() => setExportModalOpen(true)}
             dataViewTabs={headerRight}
+            analysisTools={headerAnalysis}
           />
         </div>
       </div>
