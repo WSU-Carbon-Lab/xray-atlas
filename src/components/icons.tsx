@@ -91,6 +91,8 @@ export function AnchorIcon(props: IconProps) {
 
 export { MagnifyingGlassIcon as SearchIcon } from "@heroicons/react/24/outline";
 
+export { BareAtomStepEdgeIcon } from "~/components/icons/bare-atom-step-edge-icon";
+
 export function NoResultsIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}>

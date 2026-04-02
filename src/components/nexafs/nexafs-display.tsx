@@ -4,8 +4,16 @@ import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Atom, Copy, Heart, MessageCircle, TriangleRight } from "lucide-react";
-import { Tooltip } from "@heroui/react";
+import {
+  Atom,
+  ChevronDown,
+  Copy,
+  Download,
+  Heart,
+  MessageCircle,
+  TriangleRight,
+} from "lucide-react";
+import { Button, Tooltip } from "@heroui/react";
 import { trpc } from "~/trpc/client";
 import {
   CompactCardMetricsColumn,
@@ -21,6 +29,12 @@ import { getPreviewGradient } from "~/components/molecules/category-tags";
 import { AvatarGroup, type UserWithOrcid } from "~/components/ui/avatar";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
 import type { MoleculeView } from "~/types/molecule";
+import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
+import { showToast } from "~/components/ui/toast";
+import {
+  mapDbSpectrumRowsToPoints,
+  spectrumPointsToDetailedCsv,
+} from "~/features/process-nexafs/utils";
 
 const pubChemCompoundUrl = (cid: string) =>
   `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}`;
@@ -207,8 +221,10 @@ export function NexafsExperimentCompactCard({
   const user = session?.user;
   const isSignedIn = !!user;
   const queryClient = useQueryClient();
+  const trpcUtils = trpc.useUtils();
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [spectrumExpanded, setSpectrumExpanded] = useState(false);
   const [optimisticFavoriteDelta, setOptimisticFavoriteDelta] = useState(0);
   const [optimisticUserFavorited, setOptimisticUserFavorited] = useState<
     boolean | null
@@ -264,6 +280,52 @@ export function NexafsExperimentCompactCard({
     }
   }, []);
 
+  const handleSpectrumDownloadCsv = useCallback(async () => {
+    try {
+      const rows = await trpcUtils.spectrumpoints.getByExperiment.fetch({
+        experimentId,
+        limit: 10000,
+        offset: 0,
+      });
+      if (!rows.length) {
+        showToast("No spectrum rows for this experiment", "info");
+        return;
+      }
+      const pts = mapDbSpectrumRowsToPoints(rows);
+      const csv = spectrumPointsToDetailedCsv(pts);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nexafs-experiment-${experimentId.slice(0, 8)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("CSV download started", "success");
+    } catch {
+      showToast("Could not load spectrum data", "error");
+    }
+  }, [experimentId, trpcUtils]);
+
+  const handleSpectrumCopyCsv = useCallback(async () => {
+    try {
+      const rows = await trpcUtils.spectrumpoints.getByExperiment.fetch({
+        experimentId,
+        limit: 10000,
+        offset: 0,
+      });
+      if (!rows.length) {
+        showToast("No spectrum rows for this experiment", "info");
+        return;
+      }
+      const pts = mapDbSpectrumRowsToPoints(rows);
+      const csv = spectrumPointsToDetailedCsv(pts);
+      await navigator.clipboard.writeText(csv);
+      showToast(`Copied ${pts.length} rows as CSV`, "success");
+    } catch {
+      showToast("Could not copy spectrum data", "error");
+    }
+  }, [experimentId, trpcUtils]);
+
   const previewMolecule: MoleculeView = {
     id: moleculeId,
     name: displayName,
@@ -309,7 +371,8 @@ export function NexafsExperimentCompactCard({
   const experimentTypeClass = experimentTypeChipClass(experimentTypeLabel);
   const instrumentFacilityLabel = `${instrumentName} | ${facilityLine}`;
   return (
-    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 pointer-events-none flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md md:flex-row md:items-center md:gap-4 dark:bg-zinc-800">
+    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 pointer-events-none flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md dark:bg-zinc-800">
+      <div className="flex w-full flex-col md:flex-row md:items-center md:gap-4">
       <div
         role="link"
         tabIndex={0}
@@ -429,6 +492,75 @@ export function NexafsExperimentCompactCard({
         className="pointer-events-auto relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 md:ml-auto md:gap-x-3 md:gap-y-0 md:border-t-0 md:pt-0 md:pl-4 dark:border-zinc-600"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <Tooltip delay={0}>
+            <Tooltip.Trigger className="inline-flex shrink-0">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onPress={() => {
+                  void handleSpectrumDownloadCsv();
+                }}
+                aria-label="Download experiment spectrum as CSV"
+                className="text-text-secondary hover:text-text-primary h-8 min-w-0 gap-1 px-2 text-xs font-medium"
+              >
+                <Download className="size-3.5 shrink-0" aria-hidden />
+                <span className="hidden sm:inline">Download</span>
+              </Button>
+            </Tooltip.Trigger>
+            <Tooltip.Content placement="top" className="max-w-xs">
+              Download all spectrum points for this experiment as CSV
+            </Tooltip.Content>
+          </Tooltip>
+          <Tooltip delay={0}>
+            <Tooltip.Trigger className="inline-flex shrink-0">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onPress={() => {
+                  void handleSpectrumCopyCsv();
+                }}
+                aria-label="Copy experiment spectrum as CSV"
+                className="text-text-secondary hover:text-text-primary h-8 min-w-0 gap-1 px-2 text-xs font-medium"
+              >
+                <Copy className="size-3.5 shrink-0" aria-hidden />
+                <span className="hidden sm:inline">Copy CSV</span>
+              </Button>
+            </Tooltip.Trigger>
+            <Tooltip.Content placement="top" className="max-w-xs">
+              Copy all spectrum points for this experiment as CSV
+            </Tooltip.Content>
+          </Tooltip>
+          <Tooltip delay={0}>
+            <Tooltip.Trigger className="inline-flex shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSpectrumExpanded((open) => !open);
+                }}
+                aria-expanded={spectrumExpanded}
+                aria-label={
+                  spectrumExpanded
+                    ? "Collapse spectrum plot and table"
+                    : "Expand spectrum plot and table"
+                }
+                className="text-text-tertiary hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 transition-colors dark:border-zinc-600"
+              >
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${spectrumExpanded ? "rotate-180" : ""}`}
+                  aria-hidden
+                />
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Content placement="left">
+              {spectrumExpanded ? "Hide spectrum" : "Show spectrum"}
+            </Tooltip.Content>
+          </Tooltip>
+        </div>
         <div>
           <MoleculeCardActions
             molecule={actionsMolecule}
@@ -520,6 +652,16 @@ export function NexafsExperimentCompactCard({
           />
         </CompactCardMetricsColumn>
       </div>
+      </div>
+      {spectrumExpanded ? (
+        <div className="pointer-events-auto mt-3 w-full min-w-0 border-t border-zinc-200 pt-3 dark:border-zinc-600">
+          <NexafsExperimentDatasetPanel
+            experimentId={experimentId}
+            chemicalFormula={chemicalformula}
+            enabled={spectrumExpanded}
+          />
+        </div>
+      ) : null}
       <MoleculeImageModal
         isOpen={imageModalOpen}
         onClose={() => setImageModalOpen(false)}

@@ -96,6 +96,14 @@ export type SpectrumPlotProps = {
   showThetaData?: boolean;
   showPhiData?: boolean;
   selectedGeometry?: { theta?: number; phi?: number } | null;
+  /**
+   * When true, renders pre/post normalization band shading from `normalizationRegions` without enabling the interactive normalization brush (no `plotContext.kind === "normalize"` required).
+   */
+  showNormalizationShading?: boolean;
+  /**
+   * Replaces the default empty-state copy when `points` is empty (for example browse/preview surfaces that do not upload CSV here).
+   */
+  emptyStateMessage?: string;
 };
 
 /**

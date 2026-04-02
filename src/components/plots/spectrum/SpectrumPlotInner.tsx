@@ -85,6 +85,7 @@ export function SpectrumPlotInner({
   showPhiData = false,
   selectedGeometry = null,
   headerRight,
+  showNormalizationShading = false,
   cursorMode: externalCursorMode,
   onCursorModeChange,
 }: SpectrumPlotInnerProps) {
@@ -595,7 +596,8 @@ export function SpectrumPlotInner({
                 themeColors={themeColors}
               />
             </g>
-            {normalizationRegions && selectionTarget && (
+            {normalizationRegions &&
+              (selectionTarget !== null || showNormalizationShading) && (
               <>
                 {normalizationRegions.pre && (
                   <rect

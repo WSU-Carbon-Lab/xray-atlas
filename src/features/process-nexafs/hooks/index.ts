@@ -7,3 +7,10 @@ export {
   type DatasetStatus,
   type DatasetStatusInfo,
 } from "./use-dataset-status";
+export {
+  useNexafsSpectrumBrowseModel,
+  mapPeaksetsToPlotPeaks,
+  type NexafsBrowseDataView,
+  type UseNexafsSpectrumBrowseModelArgs,
+  type UseNexafsSpectrumBrowseModelResult,
+} from "./useNexafsSpectrumBrowseModel";

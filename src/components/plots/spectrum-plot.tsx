@@ -7,6 +7,9 @@ import type { CursorMode } from "./spectrum/ModeBar";
 
 export type { SpectrumPoint, SpectrumSelection } from "./types";
 
+/**
+ * Renders an interactive NEXAFS spectrum with optional normalization shading, peaks, reference curves, and tool rails; shows `emptyStateMessage` when `points` is empty.
+ */
 export function SpectrumPlot(
   props: SpectrumPlotProps & {
     cursorMode?: CursorMode;
@@ -16,7 +19,7 @@ export function SpectrumPlot(
   if (props.points.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-1)] p-6 text-sm text-[var(--text-secondary)]">
-        Upload a spectrum CSV to preview data.
+        {props.emptyStateMessage ?? "Upload a spectrum CSV to preview data."}
       </div>
     );
   }

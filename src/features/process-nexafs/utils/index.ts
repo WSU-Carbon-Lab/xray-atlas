@@ -37,6 +37,20 @@ export { calculateBareAtomAbsorption } from "./bareAtomCalculation";
 export { parseCSVFile } from "./csv";
 export { computeBetaIndex } from "./betaIndex";
 export { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";
+export {
+  mapDbSpectrumRowsToPoints,
+  mapDbSpectrumRowsToAnnotated,
+  type DbSpectrumRowWithPolarization,
+  type AnnotatedSpectrumRow,
+} from "./mapDbSpectrumRowsToPoints";
+export {
+  groupSpectrumByPolarizationThetaPhi,
+  phiLeafEnergySubtitle,
+  type SpectrumPolarizationNode,
+  type SpectrumThetaNode,
+  type SpectrumPhiLeaf,
+} from "./groupSpectrumByPolarizationThetaPhi";
+export { spectrumPointsToDetailedCsv } from "./spectrumCsv";
 export { buildSpectrumPointsWithDerivedForUpload } from "./uploadDerivedSpectrum";
 export { detectAuxiliarySpectrumColumnNames } from "./auxiliarySpectrumColumns";
 export {

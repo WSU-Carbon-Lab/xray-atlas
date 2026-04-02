@@ -1656,7 +1656,7 @@ export const HeaderCard = memo(function HeaderCard({
             ) : null}
           </div>
           <div
-            className="absolute inset-x-0 bottom-0 flex justify-end bg-white/60 px-3 py-3 text-slate-900 backdrop-blur-md dark:bg-black/60 dark:text-slate-100"
+            className="rounded-b-lg absolute inset-x-0 bottom-0 flex justify-end bg-white/60 px-3 py-3 text-slate-900 backdrop-blur-md dark:bg-black/60 dark:text-slate-100"
             onClick={(e) => e.stopPropagation()}
             aria-hidden
           >
