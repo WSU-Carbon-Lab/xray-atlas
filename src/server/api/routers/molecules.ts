@@ -253,7 +253,10 @@ export const moleculesRouter = createTRPCRouter({
 
       const synonymsByMolecule = allSynonyms.reduce(
         (acc, syn) => {
-          acc[syn.moleculeid] ??= { primary: null as string | null, all: [] as string[] };
+          acc[syn.moleculeid] ??= {
+            primary: null as string | null,
+            all: [] as string[],
+          };
           if (syn.order === 0 && !acc[syn.moleculeid]!.primary) {
             acc[syn.moleculeid]!.primary = syn.synonym;
           }
@@ -280,7 +283,10 @@ export const moleculesRouter = createTRPCRouter({
         }
       };
 
-      const popularityScore = (favoriteCount: number, viewCount: number | null): number => {
+      const popularityScore = (
+        favoriteCount: number,
+        viewCount: number | null,
+      ): number => {
         const raw = Math.max(favoriteCount * 3 + (viewCount ?? 0), 0);
         if (raw <= 0) return 0;
         const score = Math.log1p(raw) / 10;
@@ -294,7 +300,8 @@ export const moleculesRouter = createTRPCRouter({
         };
         const commonName = synData.primary ?? synData.all[0] ?? row.iupacname;
         const textScoreBase = scoreForMatchType(row.matchtype);
-        const textScore = textScoreBase + Math.min(Math.max(row.relevance, 0), 1) * 0.05;
+        const textScore =
+          textScoreBase + Math.min(Math.max(row.relevance, 0), 1) * 0.05;
         const popScore = popularityScore(row.favoritecount, row.viewcount);
         const overallScore = textScore + popScore;
 
@@ -1104,6 +1111,10 @@ export const moleculesRouter = createTRPCRouter({
             },
             orderBy: { contributedat: "asc" },
           },
+          moleculetags: { include: { tags: true } },
+          samples: {
+            include: { _count: { select: { experiments: true } } },
+          },
         },
         orderBy: [{ favoritecount: "desc" }, { createdat: "desc" }],
       });
@@ -1683,8 +1694,8 @@ export const moleculesRouter = createTRPCRouter({
             include: {
               user: {
                 select: { id: true, name: true, image: true },
-                },
               },
+            },
             orderBy: { contributedat: "asc" },
           },
           moleculetags: {
@@ -1879,7 +1890,9 @@ export const moleculesRouter = createTRPCRouter({
 
       // Update synonyms if provided
       if (updateData.commonNames && updateData.commonNames.length > 0) {
-        const nonEmpty = updateData.commonNames.map((s) => s.trim()).filter((s) => s.length > 0);
+        const nonEmpty = updateData.commonNames
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
         if (nonEmpty.length === 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -2024,7 +2037,12 @@ export const moleculesRouter = createTRPCRouter({
           data: { createdby: input.newCreatorId },
         });
 
-        await ensureContributor(tx, input.moleculeId, input.newCreatorId, "creator");
+        await ensureContributor(
+          tx,
+          input.moleculeId,
+          input.newCreatorId,
+          "creator",
+        );
         await ensureContributor(tx, input.moleculeId, ctx.userId, "editor");
       });
 
