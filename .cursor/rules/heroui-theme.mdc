@@ -1,0 +1,13 @@
+---
+author: dotagents
+description: HeroUI-only UI; theme tokens from globals.css; Tailwind composition
+globs:
+  - "**/*.tsx"
+alwaysApply: false
+---
+
+- Use **HeroUI** as the **only** component library for app UI primitives (buttons, inputs, dialogs, selects, etc.). Do not add **MUI**, **Chakra**, **Radix** as a parallel kit, or **styled-components** for new UI.
+- Prefer **HeroUI v3** imports from **`@heroui/react`** when the project uses v3; use legacy **`@heroui/*`** subpackages only when documented as required.
+- **`globals.css`** (and HeroUI theme variables defined there) are the **source of truth** for color, radius, typography tokens, and dark mode. Add **tokens** instead of **arbitrary** Tailwind colors (`bg-[#...]`) or inline styles for recurring semantics.
+- Compose with **Tailwind** for **layout** (flex, grid, gap, responsive breakpoints). Avoid **className** overrides that **fight** HeroUI **variants** or break dark mode; prefer **theme** and **component props**.
+- Load **`heroui-components`** skill for import migration, compound-component patterns, and theme alignment.

@@ -1,0 +1,12 @@
+---
+author: dotagents
+description: Documentation requirements for public library APIs and module intent across languages
+alwaysApply: true
+---
+
+- Document every **public** function, method, and exported type using the project’s standard documentation mechanism (Python docstrings, Rust `///` on public items, TSDoc/JSDoc on exports, etc.).
+- Use **prescriptive** language: state what the symbol does for callers, not a vague “returns” summary. Example preference: “Computes the weighted mean using `weights` normalized to sum to one; raises `ValueError` when `values` and `weights` differ in length.” over “Returns weighted mean.”
+- For each public callable, cover: purpose; each parameter’s name, type, and constraints; return or result type and semantics; errors or failure modes that are part of the contract; and, when relevant for science or performance, stability or complexity notes.
+- Explain **how** only when algorithmic or numerical choices affect correctness, reproducibility, or performance contracts. Explain **why** when the rationale prevents misuse or guides maintenance.
+- Keep **internal** helpers lightly documented. Keep **private** helpers to a single short line or omit extended docs unless complexity demands otherwise.
+- At **module** scope, document what the module owns, what problems it solves, what it deliberately excludes, and invariants collaborators must preserve.

@@ -1,0 +1,11 @@
+---
+author: dotagents
+description: Baseline agent conduct, change discipline, and anti-laziness expectations for all projects
+alwaysApply: true
+---
+
+- Make the smallest set of edits that fully satisfies the user’s specification; avoid unrelated refactors and broad formatting-only diffs.
+- Deliver complete implementations in code. Never leave placeholder lines such as ellipses, “rest of implementation here”, “fill in”, or “TODO” bodies unless the user explicitly requests a stub or skeleton.
+- If a command or tool call fails, diagnose the failure, adjust, and retry with a different approach when practical. Do not abandon the task after a single transient error without explanation.
+- Do not use emoji in code, identifiers, comments, docstrings, log messages, or documentation unless the user explicitly asks for emoji.
+- Avoid creating new markdown documentation files or long prose guides unless the user requests them or the repository already follows that pattern for the same information.

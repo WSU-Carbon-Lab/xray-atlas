@@ -1,0 +1,15 @@
+---
+author: dotagents
+description: Baseline accessibility for interactive TSX (focus, labels, keyboard, motion)
+globs:
+  - "**/*.tsx"
+alwaysApply: false
+---
+
+- Every **form control** has a **visible label** or **`aria-label`** when design uses icon-only controls; **`htmlFor` / `id`** pairs for standard inputs.
+- **Keyboard**: interactive elements are **focusable** and **operable** without a pointer; preserve **visible focus** styles (do not `outline-none` without a replacement).
+- **Icon-only** buttons require **`aria-label`** (and tooltips when the product uses them for discoverability).
+- **Dynamic errors** use **`role="alert"`** or live region patterns appropriate to the framework; associate errors with fields via **`aria-describedby`** when possible.
+- **Contrast** and **color**: do not rely on **color alone** for state; meet **WCAG AA** intent for text and interactive elements using **theme** tokens.
+- **Motion**: respect **`prefers-reduced-motion`** for non-essential animation; avoid seizure-inducing flashing.
+- For **full** design-system accessibility review, use **`web-ui-reviewer`** subagent and extend with project-specific HIG rules if available.

@@ -1,0 +1,16 @@
+---
+author: dotagents
+description: tRPC routers, Zod inputs, auth context, Prisma on server; REST route handlers
+globs:
+  - "**/server/**/*.ts"
+  - "**/app/api/**/route.ts"
+alwaysApply: false
+---
+
+- Implement **tRPC** routers and procedures under **`server/`** (or the repo’s documented API folder). Use **`.input(zodSchema)`** on every procedure; use **`.output`** when the team enforces response shapes.
+- Build **context** with **session** and **db**; enforce **authentication** and **resource-level authorization** inside procedures—never trust client-supplied user or tenant ids alone.
+- Use **queries** for **reads** (idempotent, no lasting writes) and **mutations** for **writes**. Name procedures clearly (`list`, `getById`, `create`, `update`, `delete`).
+- Use **Prisma** only on the **server**; avoid N+1 and over-fetching; use **transactions** for multi-step writes.
+- Map errors to **tRPC codes** (`UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_REQUEST`, `CONFLICT`); do not leak secrets or stack traces to clients.
+- For **`app/api/**/route.ts`**: use correct **HTTP methods** (GET read, POST create, PATCH/PUT update, DELETE delete), **Zod**-validate body and query, reuse **shared** domain logic with tRPC where both exist.
+- Load **`web-trpc-api`** skill for patterns and REST bridge details.

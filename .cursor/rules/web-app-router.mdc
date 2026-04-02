@@ -1,0 +1,19 @@
+---
+author: dotagents
+description: Next.js App Router pages, layouts, Server vs Client, searchParams
+globs:
+  - "**/app/**/page.tsx"
+  - "**/app/**/layout.tsx"
+  - "**/app/**/loading.tsx"
+  - "**/app/**/error.tsx"
+  - "**/app/**/not-found.tsx"
+  - "**/app/**/template.tsx"
+alwaysApply: false
+---
+
+- Use **App Router** conventions: **`page.tsx`**, **`layout.tsx`**, **`loading.tsx`**, **`error.tsx`**, **`not-found.tsx`**, **`template.tsx`** as appropriate per segment.
+- Default to **Server Components**. Add **`"use client"`** only for **leaves** that need hooks, events, or browser APIs (typical HeroUI-heavy widgets).
+- Define **metadata** with **`metadata` / `generateMetadata`** on server segments when SEO or share cards matter.
+- Treat **search params** as **shareable state** for lists and filters: parse with **Zod**, keep **keys stable**, and sync client navigation with the same shape the server reads. Load **`web-url-search-state`** skill.
+- Keep **data fetching** for initial render on the **server** (RSC or server-side tRPC callers); avoid redundant **`useEffect`** fetches for the same data.
+- Load **`typescript-web`** skill for **`src/`** folder placement and stack overview.

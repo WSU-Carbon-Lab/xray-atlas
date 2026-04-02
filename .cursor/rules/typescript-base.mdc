@@ -1,0 +1,20 @@
+---
+author: dotagents
+description: TypeScript defaults for Bun, strict typing, modules, async, and tests
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/*.mts"
+  - "**/*.cts"
+alwaysApply: false
+---
+
+- Prefer **Bun** for installs, scripts, and tests when this repository is Bun-based (`bun.lock`, documented Bun usage). Use **`bun add`**, **`bun remove`**, and **`bun install`**; do not hand-edit version ranges in **`package.json`** for routine dependency changes. Run **`bun run`** for scripts; use **`bunx`** for one-off CLIs when appropriate.
+- Treat **`tsconfig.json`** as authoritative for **strictness** and **module** settings; do not relax compiler options to silence errors without team agreement. Run the project’s **typecheck** (`tsc --noEmit` or equivalent) on touched code.
+- **Never use `any`.** Use concrete types, generics with bounds, discriminated unions, or Zod (or similar) at boundaries. **`unknown`** is allowed **only** when the **user explicitly approves** it for that API or the repo policy already allows it; narrow before use. Use **exhaustive** handling for unions (**`never`** in `switch` default or **`assertNever`** helper).
+- Prefer **`interface`** for object-shaped public contracts and **`type`** for unions, mapped/conditional types, and tuple shapes; prefer **`as const` + union** over numeric **`enum`** unless the project standard says otherwise (see **`general-typescript`** reference on interfaces/types/enums).
+- Keep **static imports at the top**; fix **circular dependencies** and **barrel** re-export graphs instead of relying on dynamic imports for structure.
+- Catch **floating promises**; **`async`** functions should **`await`** or **return** promises intentionally.
+- Match the project’s **test runner** (**`bun test`**, **Vitest**, etc.); do not introduce a second default runner.
+- Document **public exports** with **JSDoc** or **TSDoc** when the repo already does; keep implementation comments minimal—prefer clear names and small functions.
+- Expanded patterns live in the **`general-typescript`** skill; load **`typescript-types`** for deep generics, unions, and **`tsc`** fixes. Delegate focused passes to **`typescript-reviewer`**, **`typescript-types`**, and **`typescript-refactor`** subagents when helpful.
