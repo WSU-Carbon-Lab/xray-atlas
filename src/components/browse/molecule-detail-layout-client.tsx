@@ -124,12 +124,49 @@ export function MoleculeDetailLayoutClient({
     >
       <div className="py-8">
         <div className="mb-6">
-          <Link
-            href="/"
-            className="hover:text-accent dark:hover:text-accent-light text-sm text-gray-600 dark:text-gray-400"
-          >
-            Back to Home
-          </Link>
+          <nav aria-label="Breadcrumb" className="text-sm text-gray-600 dark:text-gray-400">
+            <ol className="flex flex-wrap items-center gap-2">
+              <li>
+                <Link
+                  href="/"
+                  className="hover:text-accent dark:hover:text-accent-light"
+                >
+                  Home
+                </Link>
+              </li>
+              <li aria-hidden className="text-gray-400 dark:text-gray-600">
+                /
+              </li>
+              <li>
+                <Link
+                  href="/browse"
+                  className="hover:text-accent dark:hover:text-accent-light"
+                >
+                  Browse
+                </Link>
+              </li>
+              <li aria-hidden className="text-gray-400 dark:text-gray-600">
+                /
+              </li>
+              <li>
+                <Link
+                  href="/browse/molecules"
+                  className="hover:text-accent dark:hover:text-accent-light"
+                >
+                  Molecules
+                </Link>
+              </li>
+              <li aria-hidden className="text-gray-400 dark:text-gray-600">
+                /
+              </li>
+              <li
+                className="text-gray-900 dark:text-gray-100"
+                aria-current="page"
+              >
+                {molecule.name}
+              </li>
+            </ol>
+          </nav>
         </div>
         <div className="mb-8">
           <MoleculeDisplay

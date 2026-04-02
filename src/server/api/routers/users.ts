@@ -10,6 +10,7 @@ import {
   DEV_MOCK_PASSKEYS,
   isDevMockUser,
 } from "~/lib/dev-mock-data";
+import { PRIVILEGED_ROLES } from "~/server/auth/privileged-role";
 
 const orcidIdSchema = z
   .string()
@@ -62,6 +63,14 @@ export const usersRouter = createTRPCRouter({
 
       return user;
     }),
+
+  getCoreMaintainers: publicProcedure.query(async ({ ctx }) => {
+    return ctx.db.user.findMany({
+      where: { role: { in: [...PRIVILEGED_ROLES] } },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, image: true },
+    });
+  }),
 
   updateORCID: protectedProcedure
     .input(

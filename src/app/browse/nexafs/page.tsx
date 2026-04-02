@@ -11,13 +11,14 @@ import { BrowseHeader } from "@/components/browse/browse-header";
 import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
-import { NexafsDatasetCardCompact } from "@/components/browse/nexafs-dataset-card";
+import { NexafsExperimentCompactCard } from "@/components/nexafs/nexafs-display";
 import { NexafsBrowseActiveFilters } from "@/components/browse/nexafs-browse-active-filters";
 import { NexafsBrowseRefineDialog } from "@/components/browse/nexafs-browse-refine-dialog";
 import { NexafsMoleculeFilterDropdown } from "@/components/browse/nexafs-molecule-filter-dropdown";
 import { NexafsEdgeFilterDropdown } from "@/components/browse/nexafs-edge-filter-dropdown";
 import { AddNexafsCard } from "@/components/contribute";
 import { Button, Label } from "@heroui/react";
+import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
 import {
   Dropdown,
   DropdownTrigger,
@@ -25,6 +26,8 @@ import {
   DropdownItem,
 } from "@heroui/dropdown";
 import { Pagination } from "@heroui/pagination";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "~/server/api/root";
 
 const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
   TOTAL_ELECTRON_YIELD: "Total electron yield",
@@ -74,48 +77,42 @@ function parseExperimentTypeParam(
   return values.includes(raw) ? (raw as ExperimentType) : undefined;
 }
 
-type BrowseExperiment = {
-  id: string;
-  createdat: string;
-  experimenttype: ExperimentType | null;
-  samples: {
-    identifier: string | null;
-    molecules: {
-      id: string;
-      iupacname: string;
-      chemicalformula: string;
-    };
-  };
-  edges: { targetatom: string; corestate: string };
-  instruments: {
-    name: string;
-    facilities: { name: string } | null;
-  };
-  _count: { spectrumpoints: number };
-};
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type NexafsBrowseGroup =
+  RouterOutputs["experiments"]["browseList"]["groups"][number];
 
-function mapExperimentToCard(exp: BrowseExperiment) {
-  const molecule = exp.samples.molecules;
-  const edgeLabel = `${exp.edges.targetatom} ${exp.edges.corestate}`;
-  const uploadedAtLabel = new Date(exp.createdat).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
+function mapGroupToCard(group: NexafsBrowseGroup) {
+  const molecule = group.molecule;
+  const edgeLabel = `${group.edge.targetatom} ${group.edge.corestate}`;
+
+  const moleculePath = canonicalMoleculeSlugFromView({
+    name: molecule.displayName,
+    iupacName: molecule.iupacname,
   });
 
   return {
-    key: exp.id,
+    key: group.experimentId,
     props: {
-      href: `/molecules/${molecule.id}`,
-      moleculeName: molecule.iupacname,
-      moleculeFormula: molecule.chemicalformula,
-      sampleIdentifier: exp.samples.identifier,
+      href: `/molecules/${moleculePath}?nexafsExperiment=${encodeURIComponent(group.experimentId)}`,
+      experimentId: group.experimentId,
+      moleculeId: molecule.id,
+      displayName: molecule.displayName,
+      iupacname: molecule.iupacname,
+      chemicalformula: molecule.chemicalformula,
+      imageurl: molecule.imageurl,
+      inchi: molecule.inchi,
+      smiles: molecule.smiles,
+      casNumber: molecule.casNumber,
+      pubChemCid: molecule.pubChemCid,
+      favoriteCount: group.favoriteCount,
+      userHasFavorited: group.userHasFavorited,
       edgeLabel,
-      instrumentName: exp.instruments.name,
-      facilityName: exp.instruments.facilities?.name ?? null,
-      uploadedAtLabel,
-      pointCount: exp._count.spectrumpoints,
-      experimentTypeLabel: formatExperimentType(exp.experimenttype),
+      instrumentName: group.instrument.name,
+      facilityName: group.instrument.facilityName,
+      experimentTypeLabel: formatExperimentType(group.experimenttype),
+      experimentContributorUsers: group.contributorUsers,
+      polarizationCount: group.polarizationCount,
+      commentCount: group.commentCount,
     },
   };
 }
@@ -158,14 +155,7 @@ function NexafsBrowseContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [
-    sortBy,
-    itemsPerPage,
-    moleculeId,
-    edgeId,
-    instrumentId,
-    experimentType,
-  ]);
+  }, [sortBy, itemsPerPage, moleculeId, edgeId, instrumentId, experimentType]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -195,6 +185,8 @@ function NexafsBrowseContent() {
     {
       query: debouncedQuery.trim(),
       limit: itemsPerPage,
+      offset: (currentPage - 1) * itemsPerPage,
+      sortBy,
       moleculeId,
       edgeId,
       instrumentId,
@@ -238,11 +230,11 @@ function NexafsBrowseContent() {
 
   const data = hasSearchQuery
     ? {
-        experiments: (searchData.data?.experiments ?? []) as BrowseExperiment[],
-        total: searchData.data?.experiments.length ?? 0,
+        groups: searchData.data?.groups ?? [],
+        total: searchData.data?.total ?? 0,
       }
     : {
-        experiments: (allData.data?.experiments ?? []) as BrowseExperiment[],
+        groups: allData.data?.groups ?? [],
         total: allData.data?.total ?? 0,
       };
 
@@ -250,10 +242,7 @@ function NexafsBrowseContent() {
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil((data.total ?? 0) / itemsPerPage),
-  );
+  const totalPages = Math.max(1, Math.ceil((data.total ?? 0) / itemsPerPage));
 
   const edgeOptions = useMemo(
     () => edgesQuery.data?.edges ?? [],
@@ -300,8 +289,7 @@ function NexafsBrowseContent() {
     [experimentType],
   );
 
-  const activeRefineCount =
-    (instrumentId ? 1 : 0) + (experimentType ? 1 : 0);
+  const activeRefineCount = (instrumentId ? 1 : 0) + (experimentType ? 1 : 0);
 
   const sortLabelCurrent =
     SORT_OPTIONS.find((o) => o.key === sortBy)?.label ?? sortBy;
@@ -311,7 +299,7 @@ function NexafsBrowseContent() {
     : "Pick a molecule and edge in the header, search the catalog, or open More filters for instrument and acquisition mode.";
 
   return (
-    <BrowsePageLayout title="Browse NEXAFS datasets" subtitle={subtitle}>
+    <BrowsePageLayout title="Browse NEXAFS experiments" subtitle={subtitle}>
       <BrowseTabs />
 
       <div className="space-y-6">
@@ -340,7 +328,7 @@ function NexafsBrowseContent() {
                   <DropdownTrigger>
                     <button
                       type="button"
-                      className="border-border bg-surface text-muted focus-visible:ring-accent flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                      className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                       aria-label={`Sort datasets; current order is ${sortLabelCurrent}`}
                     >
                       <ArrowsUpDownIcon
@@ -430,7 +418,7 @@ function NexafsBrowseContent() {
               title="Failed to load results"
               message={
                 error?.message ??
-                "An error occurred while loading search results."
+                "Oh no! Our beam must have dumped... Please try again in a moment or submit a support ticket."
               }
               onRetry={() => window.location.reload()}
             />
@@ -438,12 +426,12 @@ function NexafsBrowseContent() {
 
           {!isLoading && !isError && (
             <>
-              {data.experiments.length === 0 ? (
+              {data.groups.length === 0 ? (
                 <BrowseEmptyState
                   message={
                     hasSearchQuery
-                      ? `No NEXAFS datasets found for "${debouncedQuery}".`
-                      : "No NEXAFS datasets in the database yet."
+                      ? `No NEXAFS experiments found for "${debouncedQuery}".`
+                      : "No NEXAFS experiments in the database yet."
                   }
                   hasSearchQuery={hasSearchQuery}
                   browseAllHref="/browse/nexafs"
@@ -463,11 +451,9 @@ function NexafsBrowseContent() {
                     href="/contribute/nexafs"
                     className="min-h-[140px] w-full"
                   />
-                  {data.experiments.map((exp) => {
-                    const { key, props } = mapExperimentToCard(exp);
-                    return (
-                      <NexafsDatasetCardCompact key={key} {...props} />
-                    );
+                  {data.groups.map((group) => {
+                    const { key, props } = mapGroupToCard(group);
+                    return <NexafsExperimentCompactCard key={key} {...props} />;
                   })}
                 </div>
               )}
@@ -478,7 +464,7 @@ function NexafsBrowseContent() {
                   onChange={setItemsPerPage}
                   labelId="nexafs-items-per-page"
                 />
-                {!hasSearchQuery && totalPages > 1 ? (
+                {totalPages > 1 ? (
                   <Pagination
                     total={totalPages}
                     page={currentPage}
@@ -507,10 +493,7 @@ export default function NexafsBrowsePage() {
   return (
     <Suspense
       fallback={
-        <BrowsePageLayout
-          title="Browse NEXAFS datasets"
-          subtitle="Loading…"
-        >
+        <BrowsePageLayout title="Browse NEXAFS experiments" subtitle="Loading…">
           <BrowseTabs />
         </BrowsePageLayout>
       }

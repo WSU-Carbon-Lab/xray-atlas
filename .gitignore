@@ -25,6 +25,9 @@ next-env.d.ts
 .DS_Store
 *.pem
 
+# superpowers
+docs/superpowers
+
 # debug
 npm-debug.log*
 yarn-debug.log*

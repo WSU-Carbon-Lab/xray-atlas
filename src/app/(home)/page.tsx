@@ -8,6 +8,7 @@ import { MoleculeGridSkeleton } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { trpc } from "~/trpc/client";
 import { useRouter } from "next/navigation";
+import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
 
 function TopUpvotedMolecules() {
   const router = useRouter();
@@ -45,7 +46,9 @@ function TopUpvotedMolecules() {
       {data.molecules.map((molecule) => (
         <div
           key={molecule.id}
-          onClick={() => router.push(`/molecules/${molecule.id}`)}
+          onClick={() =>
+            router.push(`/molecules/${canonicalMoleculeSlugFromView(molecule)}`)
+          }
           className="cursor-pointer transition-transform hover:scale-[1.02]"
         >
           <MoleculeCard molecule={molecule} variant="full" />

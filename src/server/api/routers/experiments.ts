@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { Prisma, ExperimentType, ProcessMethod } from "@prisma/client";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
@@ -7,12 +11,26 @@ import {
   coalesceUploadedOrDerived,
   computeSpectrumDerivedScalarColumns,
 } from "~/server/nexafs/computeSpectrumDerivedColumns";
+import { fetchNexafsBrowseGrouped } from "~/server/nexafs/nexafsBrowseGroups";
+import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 
 const emptyDerivedScalars = (): {
   od: Array<number | null>;
   massabsorption: Array<number | null>;
   beta: Array<number | null>;
 } => ({ od: [], massabsorption: [], beta: [] });
+
+const experimentCommentInputSchema = z.object({
+  text: z.string().trim().min(1).max(2000),
+});
+
+type ExperimentQualityComment = {
+  id: string;
+  userId: string;
+  userName: string | null;
+  text: string;
+  createdAt: string;
+};
 
 function spectrumRowsHaveUploadedDerivedScalars(
   points: ReadonlyArray<{
@@ -219,69 +237,24 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const filters: Prisma.experimentsWhereInput = {};
-      if (input.moleculeId) {
-        filters.samples = { moleculeid: input.moleculeId };
-      }
-      if (input.edgeId) {
-        filters.edgeid = input.edgeId;
-      }
-      if (input.instrumentId) {
-        filters.instrumentid = input.instrumentId;
-      }
-      if (input.experimentType) {
-        filters.experimenttype = input.experimentType;
-      }
-
-      const orderBy: Prisma.experimentsOrderByWithRelationInput[] =
-        input.sortBy === "newest"
-          ? [{ createdat: "desc" }]
-          : input.sortBy === "upload"
-            ? [{ createdat: "desc" }]
-            : input.sortBy === "molecule"
-              ? [{ samples: { molecules: { iupacname: "asc" } } }]
-              : input.sortBy === "edge"
-                ? [{ edges: { targetatom: "asc" } }, { edges: { corestate: "asc" } }]
-                : [{ instruments: { name: "asc" } }];
-
-      const include = {
-        samples: {
-          include: {
-            molecules: {
-              select: {
-                id: true,
-                iupacname: true,
-                chemicalformula: true,
-              },
-            },
-          },
+      const { groups, total } = await fetchNexafsBrowseGrouped(ctx.db, {
+        viewerUserId: ctx.userId,
+        filters: {
+          moleculeId: input.moleculeId,
+          edgeId: input.edgeId,
+          instrumentId: input.instrumentId,
+          experimentType: input.experimentType,
         },
-        edges: { select: { id: true, targetatom: true, corestate: true } },
-        instruments: {
-          select: {
-            id: true,
-            name: true,
-            facilities: { select: { id: true, name: true } },
-          },
-        },
-        _count: { select: { spectrumpoints: true } },
-      } satisfies Prisma.experimentsInclude;
-
-      const [rows, total] = await Promise.all([
-        ctx.db.experiments.findMany({
-          where: filters,
-          take: input.limit,
-          skip: input.offset,
-          orderBy,
-          include,
-        }),
-        ctx.db.experiments.count({ where: filters }),
-      ]);
+        searchQuery: null,
+        sortBy: input.sortBy,
+        limit: input.limit,
+        offset: input.offset,
+      });
 
       return {
-        experiments: rows,
+        groups,
         total,
-        hasMore: input.offset + rows.length < total,
+        hasMore: input.offset + groups.length < total,
       };
     }),
 
@@ -290,6 +263,10 @@ export const experimentsRouter = createTRPCRouter({
       z.object({
         query: z.string().min(1),
         limit: z.number().min(1).max(50).default(12),
+        offset: z.number().min(0).default(0),
+        sortBy: z
+          .enum(["newest", "upload", "molecule", "edge", "instrument"])
+          .default("newest"),
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
@@ -297,103 +274,21 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const q = input.query.trim();
-      const textClause: Prisma.experimentsWhereInput = {
-        OR: [
-          {
-            samples: {
-              molecules: {
-                iupacname: { contains: q, mode: "insensitive" },
-              },
-            },
-          },
-          {
-            samples: {
-              molecules: {
-                chemicalformula: { contains: q, mode: "insensitive" },
-              },
-            },
-          },
-          {
-            samples: {
-              identifier: { contains: q, mode: "insensitive" },
-            },
-          },
-          {
-            instruments: {
-              name: { contains: q, mode: "insensitive" },
-            },
-          },
-          {
-            instruments: {
-              facilities: {
-                name: { contains: q, mode: "insensitive" },
-              },
-            },
-          },
-          {
-            edges: {
-              targetatom: { contains: q, mode: "insensitive" },
-            },
-          },
-          {
-            edges: {
-              corestate: { contains: q, mode: "insensitive" },
-            },
-          },
-        ],
-      };
-
-      const refinements: Prisma.experimentsWhereInput[] = [];
-      if (input.moleculeId) {
-        refinements.push({ samples: { moleculeid: input.moleculeId } });
-      }
-      if (input.edgeId) {
-        refinements.push({ edgeid: input.edgeId });
-      }
-      if (input.instrumentId) {
-        refinements.push({ instrumentid: input.instrumentId });
-      }
-      if (input.experimentType) {
-        refinements.push({ experimenttype: input.experimentType });
-      }
-
-      const where: Prisma.experimentsWhereInput =
-        refinements.length > 0
-          ? { AND: [textClause, ...refinements] }
-          : textClause;
-
-      const include = {
-        samples: {
-          include: {
-            molecules: {
-              select: {
-                id: true,
-                iupacname: true,
-                chemicalformula: true,
-              },
-            },
-          },
+      const { groups, total } = await fetchNexafsBrowseGrouped(ctx.db, {
+        viewerUserId: ctx.userId,
+        filters: {
+          moleculeId: input.moleculeId,
+          edgeId: input.edgeId,
+          instrumentId: input.instrumentId,
+          experimentType: input.experimentType,
         },
-        edges: { select: { id: true, targetatom: true, corestate: true } },
-        instruments: {
-          select: {
-            id: true,
-            name: true,
-            facilities: { select: { id: true, name: true } },
-          },
-        },
-        _count: { select: { spectrumpoints: true } },
-      } satisfies Prisma.experimentsInclude;
-
-      const experiments = await ctx.db.experiments.findMany({
-        where,
-        take: input.limit,
-        orderBy: { createdat: "desc" },
-        include,
+        searchQuery: input.query.trim(),
+        sortBy: input.sortBy,
+        limit: input.limit,
+        offset: input.offset,
       });
 
-      return { experiments };
+      return { groups, total };
     }),
 
   findByPolarization: publicProcedure
@@ -423,18 +318,18 @@ export const experimentsRouter = createTRPCRouter({
           experiments: {
             take: input.limit,
             include: {
-          samples: {
-            include: {
-              molecules: {
+              samples: {
                 include: {
-                  moleculesynonyms: {
-                    orderBy: [{ order: "asc" }],
-                    take: 1,
+                  molecules: {
+                    include: {
+                      moleculesynonyms: {
+                        orderBy: [{ order: "asc" }],
+                        take: 1,
+                      },
+                    },
                   },
                 },
               },
-            },
-          },
               edges: true,
               instruments: true,
             },
@@ -454,16 +349,196 @@ export const experimentsRouter = createTRPCRouter({
       };
     }),
 
+  toggleFavorite: protectedProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      const existing = await ctx.db.experimentfavorites.findUnique({
+        where: {
+          experimentid_userid: {
+            experimentid: input.experimentId,
+            userid: ctx.userId,
+          },
+        },
+      });
+
+      if (existing) {
+        await ctx.db.$transaction(async (tx) => {
+          await tx.experimentfavorites.delete({
+            where: {
+              experimentid_userid: {
+                experimentid: input.experimentId,
+                userid: ctx.userId,
+              },
+            },
+          });
+          await tx.experimentquality.upsert({
+            where: { experimentid: input.experimentId },
+            create: { experimentid: input.experimentId, favorites: 0 },
+            update: {
+              favorites: {
+                decrement: 1,
+              },
+            },
+          });
+          await tx.$executeRaw`
+            UPDATE experimentquality
+            SET favorites = GREATEST(favorites, 0)
+            WHERE experimentid = ${input.experimentId}::uuid
+          `;
+        });
+        const quality = await ctx.db.experimentquality.findUnique({
+          where: { experimentid: input.experimentId },
+          select: { favorites: true },
+        });
+        return { favorited: false, favoriteCount: quality?.favorites ?? 0 };
+      }
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.experimentfavorites.create({
+          data: {
+            experimentid: input.experimentId,
+            userid: ctx.userId,
+          },
+        });
+        await tx.experimentquality.upsert({
+          where: { experimentid: input.experimentId },
+          create: { experimentid: input.experimentId, favorites: 1 },
+          update: {
+            favorites: {
+              increment: 1,
+            },
+          },
+        });
+      });
+
+      const quality = await ctx.db.experimentquality.findUnique({
+        where: { experimentid: input.experimentId },
+        select: { favorites: true },
+      });
+      return { favorited: true, favoriteCount: quality?.favorites ?? 1 };
+    }),
+
+  getQuality: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const quality = await ctx.db.experimentquality.findUnique({
+        where: { experimentid: input.experimentId },
+        select: {
+          favorites: true,
+          comments: true,
+        },
+      });
+      const comments = Array.isArray(quality?.comments)
+        ? (quality.comments as ExperimentQualityComment[])
+        : [];
+      return {
+        favorites: quality?.favorites ?? 0,
+        comments,
+      };
+    }),
+
+  addQualityComment: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        comment: experimentCommentInputSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const author = await ctx.db.user.findUnique({
+        where: { id: ctx.userId },
+        select: { name: true },
+      });
+      const existing = await ctx.db.experimentquality.findUnique({
+        where: { experimentid: input.experimentId },
+        select: { comments: true, favorites: true },
+      });
+      const currentComments = Array.isArray(existing?.comments)
+        ? (existing.comments as ExperimentQualityComment[])
+        : [];
+      const nextComment: ExperimentQualityComment = {
+        id: crypto.randomUUID(),
+        userId: ctx.userId,
+        userName: author?.name ?? null,
+        text: input.comment.text,
+        createdAt: new Date().toISOString(),
+      };
+      const comments = [...currentComments, nextComment];
+      await ctx.db.experimentquality.upsert({
+        where: { experimentid: input.experimentId },
+        create: {
+          experimentid: input.experimentId,
+          favorites: existing?.favorites ?? 0,
+          comments,
+        },
+        update: {
+          comments,
+        },
+      });
+      return { comments };
+    }),
+
+  removeQualityComment: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        commentId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.experimentquality.findUnique({
+        where: { experimentid: input.experimentId },
+        select: { comments: true },
+      });
+      const currentComments = Array.isArray(existing?.comments)
+        ? (existing.comments as ExperimentQualityComment[])
+        : [];
+      const target = currentComments.find(
+        (comment) => comment.id === input.commentId,
+      );
+      if (!target) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Comment not found",
+        });
+      }
+      const isAuthor = target.userId === ctx.userId;
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!isAuthor && !isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to remove this comment",
+        });
+      }
+      const comments = currentComments.filter(
+        (comment) => comment.id !== input.commentId,
+      );
+      await ctx.db.experimentquality.update({
+        where: { experimentid: input.experimentId },
+        data: { comments },
+      });
+      return { comments };
+    }),
+
   listEdges: publicProcedure.query(async ({ ctx }) => {
     const edges = await ctx.db.edges.findMany();
     const priorityRank = (e: { targetatom: string; corestate: string }) => {
       const atom = e.targetatom.trim().toUpperCase();
       const cs = e.corestate.trim().toUpperCase();
       const isK = cs === "K";
-      const cEdge =
-        isK && (atom === "C" || atom === "CARBON");
-      const nEdge =
-        isK && (atom === "N" || atom === "NITROGEN");
+      const cEdge = isK && (atom === "C" || atom === "CARBON");
+      const nEdge = isK && (atom === "N" || atom === "NITROGEN");
       const sEdge =
         isK && (atom === "S" || atom === "SULFUR" || atom === "SULPHUR");
       if (cEdge) return 0;
@@ -502,6 +577,13 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only maintainers can create new edges",
+        });
+      }
       // Check if edge already exists
       const existingEdge = await ctx.db.edges.findUnique({
         where: {
@@ -535,6 +617,13 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only maintainers can create calibration methods",
+        });
+      }
       // Check if calibration method already exists
       const existingMethod = await ctx.db.calibrationmethods.findUnique({
         where: { name: input.name.trim() },
@@ -580,8 +669,11 @@ export const experimentsRouter = createTRPCRouter({
             })
           : null;
 
+      const experimentId = crypto.randomUUID();
+
       const experiment = await ctx.db.experiments.create({
         data: {
+          id: experimentId,
           ...input,
           createdby: ctx.userId ?? undefined,
           experimenttype: input.experimenttype ?? null,
@@ -647,10 +739,14 @@ export const experimentsRouter = createTRPCRouter({
                 message: "Fixed geometry requires theta and phi values",
               });
             }
-            if (value.mode === "csv" && (!value.csvGeometries || value.csvGeometries.length === 0)) {
+            if (
+              value.mode === "csv" &&
+              (!value.csvGeometries || value.csvGeometries.length === 0)
+            ) {
               ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: "CSV geometry mode requires at least one geometry entry",
+                message:
+                  "CSV geometry mode requires at least one geometry entry",
               });
             }
           }),
@@ -691,6 +787,17 @@ export const experimentsRouter = createTRPCRouter({
         spectrum: spectrumInput,
         collectedByUserIds,
       } = input;
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      const requestedCollectedBy = [...new Set(collectedByUserIds ?? [])];
+      if (
+        !isPrivilegedUser &&
+        requestedCollectedBy.some((userId) => userId !== ctx.userId)
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only attribute collection to your own user account",
+        });
+      }
 
       const moleculeRow = await ctx.db.molecules.findUnique({
         where: { id: sampleInput.moleculeId },
@@ -772,140 +879,187 @@ export const experimentsRouter = createTRPCRouter({
 
       const transactionResult = await ctx.db.$transaction(
         async (tx) => {
-        const kind =
-          experimentInput.experimentType != null
-            ? await tx.nexafsexperimentkinds.findUnique({
-                where: { experimenttype: experimentInput.experimentType },
-                select: { id: true },
-              })
-            : null;
+          const kind =
+            experimentInput.experimentType != null
+              ? await tx.nexafsexperimentkinds.findUnique({
+                  where: { experimenttype: experimentInput.experimentType },
+                  select: { id: true },
+                })
+              : null;
+          const normalizedCollectedBy =
+            requestedCollectedBy.length > 0
+              ? requestedCollectedBy
+              : ctx.userId != null
+                ? [ctx.userId]
+                : [];
+          if (normalizedCollectedBy.length > 0) {
+            const existingUsers = await tx.user.findMany({
+              where: { id: { in: normalizedCollectedBy } },
+              select: { id: true },
+            });
+            if (existingUsers.length !== normalizedCollectedBy.length) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "One or more collected-by users do not exist",
+              });
+            }
+          }
 
-        // Resolve vendor
-        let vendorId: string | null = sampleInput.vendor.existingVendorId ?? null;
-        const vendorNameTrimmed = sampleInput.vendor.name?.trim();
+          // Resolve vendor
+          let vendorId: string | null =
+            sampleInput.vendor.existingVendorId ?? null;
+          const vendorNameTrimmed = sampleInput.vendor.name?.trim();
 
-        if (!vendorId && vendorNameTrimmed) {
-          const existingVendor = await tx.vendors.findUnique({
-            where: { name: vendorNameTrimmed },
+          if (!vendorId && vendorNameTrimmed) {
+            const existingVendor = await tx.vendors.findUnique({
+              where: { name: vendorNameTrimmed },
+            });
+
+            if (existingVendor) {
+              vendorId = existingVendor.id;
+            } else {
+              const newVendor = await tx.vendors.create({
+                data: {
+                  name: vendorNameTrimmed,
+                  url: sampleInput.vendor.url?.trim() ?? null,
+                },
+              });
+              vendorId = newVendor.id;
+            }
+          }
+
+          if (!vendorId && !vendorNameTrimmed) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Please select an existing vendor or provide a new vendor name.",
+            });
+          }
+
+          // Generate identifier if not provided, or ensure it's unique if provided
+          let sampleIdentifier = sampleInput.identifier?.trim();
+
+          if (!sampleIdentifier) {
+            // Generate a unique identifier if not provided
+            // Format: SAMPLE-{timestamp}-{random}
+            const timestamp = Date.now();
+            const random = Math.random()
+              .toString(36)
+              .substring(2, 8)
+              .toUpperCase();
+            sampleIdentifier = `SAMPLE-${timestamp}-${random}`;
+
+            // Ensure uniqueness (very unlikely but check anyway)
+            let counter = 0;
+            while (counter < 10) {
+              const existingSample = await tx.samples.findUnique({
+                where: { identifier: sampleIdentifier },
+              });
+
+              if (!existingSample) break;
+
+              // Regenerate if collision
+              const newRandom = Math.random()
+                .toString(36)
+                .substring(2, 8)
+                .toUpperCase();
+              sampleIdentifier = `SAMPLE-${timestamp}-${newRandom}`;
+              counter++;
+            }
+          }
+
+          // Check if sample with this identifier already exists
+          let sample = await tx.samples.findUnique({
+            where: { identifier: sampleIdentifier },
           });
 
-          if (existingVendor) {
-            vendorId = existingVendor.id;
-          } else {
-            const newVendor = await tx.vendors.create({
+          if (!sample) {
+            // Create new sample if it doesn't exist
+            sample = await tx.samples.create({
               data: {
-                name: vendorNameTrimmed,
-                url: sampleInput.vendor.url?.trim() ?? null,
+                moleculeid: sampleInput.moleculeId,
+                identifier: sampleIdentifier,
+                processmethod: sampleInput.processMethod ?? null,
+                substrate: normalizeSampleSubstrate(sampleInput.substrate),
+                solvent: sampleInput.solvent?.trim() ?? null,
+                thickness: sampleInput.thickness ?? null,
+                molecularweight: sampleInput.molecularWeight ?? null,
+                vendorid: vendorId,
               },
             });
-            vendorId = newVendor.id;
+          } else {
+            if (sample.moleculeid !== sampleInput.moleculeId) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message:
+                  "A sample with this identifier already exists for a different molecule.",
+              });
+            }
           }
-        }
 
-        if (!vendorId && !vendorNameTrimmed) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Please select an existing vendor or provide a new vendor name.",
-          });
-        }
+          const polarizationIdByGeometry = new Map<string, string>();
 
-        // Generate identifier if not provided, or ensure it's unique if provided
-        let sampleIdentifier = sampleInput.identifier?.trim();
+          const getOrCreatePolarizationId = async (
+            theta: number,
+            phi: number,
+          ) => {
+            const key = `${theta}:${phi}`;
+            const cached = polarizationIdByGeometry.get(key);
+            if (cached) return cached;
 
-        if (!sampleIdentifier) {
-          // Generate a unique identifier if not provided
-          // Format: SAMPLE-{timestamp}-{random}
-          const timestamp = Date.now();
-          const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-          sampleIdentifier = `SAMPLE-${timestamp}-${random}`;
-
-          // Ensure uniqueness (very unlikely but check anyway)
-          let counter = 0;
-          while (counter < 10) {
-            const existingSample = await tx.samples.findUnique({
-              where: { identifier: sampleIdentifier },
+            const existingPolarization = await tx.polarizations.findFirst({
+              where: {
+                polardeg: new Prisma.Decimal(theta),
+                azimuthdeg: new Prisma.Decimal(phi),
+              },
+              select: { id: true },
             });
 
-            if (!existingSample) break;
+            if (existingPolarization) {
+              polarizationIdByGeometry.set(key, existingPolarization.id);
+              return existingPolarization.id;
+            }
 
-            // Regenerate if collision
-            const newRandom = Math.random().toString(36).substring(2, 8).toUpperCase();
-            sampleIdentifier = `SAMPLE-${timestamp}-${newRandom}`;
-            counter++;
-          }
-        }
+            const createdPolarization = await tx.polarizations.create({
+              data: {
+                polardeg: new Prisma.Decimal(theta),
+                azimuthdeg: new Prisma.Decimal(phi),
+              },
+              select: { id: true },
+            });
+            polarizationIdByGeometry.set(key, createdPolarization.id);
+            return createdPolarization.id;
+          };
 
-        // Check if sample with this identifier already exists
-        let sample = await tx.samples.findUnique({
-          where: { identifier: sampleIdentifier },
-        });
-
-        if (!sample) {
-          // Create new sample if it doesn't exist
-          sample = await tx.samples.create({
-            data: {
-              moleculeid: sampleInput.moleculeId,
-              identifier: sampleIdentifier,
-              processmethod: sampleInput.processMethod ?? null,
-              substrate: normalizeSampleSubstrate(sampleInput.substrate),
-              solvent: sampleInput.solvent?.trim() ?? null,
-              thickness: sampleInput.thickness ?? null,
-              molecularweight: sampleInput.molecularWeight ?? null,
-              vendorid: vendorId,
-            },
-          });
-        } else {
-          if (sample.moleculeid !== sampleInput.moleculeId) {
+          const firstGeometry = geometryGroups[0];
+          if (!firstGeometry) {
             throw new TRPCError({
-              code: "CONFLICT",
-              message: "A sample with this identifier already exists for a different molecule.",
+              code: "BAD_REQUEST",
+              message:
+                "No geometry groups were resolved from the uploaded spectrum.",
             });
           }
-        }
 
-        const experimentsCreated = [] as Array<{
-          experiment: Awaited<ReturnType<typeof tx.experiments.create>>;
-          spectrumPointsCreated: number;
-        }>;
+          const defaultPolarizationId = await getOrCreatePolarizationId(
+            firstGeometry.theta,
+            firstGeometry.phi,
+          );
 
-        const getOrCreatePolarization = async (theta: number, phi: number) => {
-          const existingPolarization = await tx.polarizations.findFirst({
-            where: {
-              polardeg: new Prisma.Decimal(theta),
-              azimuthdeg: new Prisma.Decimal(phi),
-            },
-          });
-
-          if (existingPolarization) {
-            return existingPolarization;
-          }
-
-          return tx.polarizations.create({
-            data: {
-              polardeg: new Prisma.Decimal(theta),
-              azimuthdeg: new Prisma.Decimal(phi),
-            },
-          });
-        };
-
-        for (let groupIndex = 0; groupIndex < geometryGroups.length; groupIndex += 1) {
-          const group = geometryGroups[groupIndex]!;
-          const polarization = await getOrCreatePolarization(group.theta, group.phi);
-          const derived = derivedByGroup[groupIndex]!;
-
+          const experimentId = crypto.randomUUID();
           const experiment = await tx.experiments.create({
             data: {
+              id: experimentId,
               sampleid: sample.id,
               instrumentid: experimentInput.instrumentId,
               edgeid: experimentInput.edgeId,
-              polarizationid: polarization.id,
+              polarizationid: defaultPolarizationId,
               calibrationid: experimentInput.calibrationId ?? null,
               isstandard: experimentInput.isStandard ?? false,
               referencestandard: experimentInput.referenceStandard ?? null,
               createdby: ctx.userId ?? undefined,
               experimenttype: experimentInput.experimentType,
               nexafsexperimentkindid: kind?.id ?? null,
-              collectedbyuserids: collectedByUserIds ?? [],
+              collectedbyuserids: normalizedCollectedBy,
             },
             include: {
               samples: true,
@@ -914,24 +1068,44 @@ export const experimentsRouter = createTRPCRouter({
             },
           });
 
-          const spectrumData = group.points.map((point, i) => ({
-            experimentid: experiment.id,
-            energyev: point.energy,
-            rawabs: point.absorption,
-            od: coalesceUploadedOrDerived(point.od, derived.od[i] ?? null),
-            massabsorption: coalesceUploadedOrDerived(
-              point.massabsorption,
-              derived.massabsorption[i] ?? null,
-            ),
-            beta: coalesceUploadedOrDerived(point.beta, derived.beta[i] ?? null),
-            i0: coalesceUploadedOrDerived(point.i0, null),
-          }));
+          let spectrumPointsCreated = 0;
+          for (
+            let groupIndex = 0;
+            groupIndex < geometryGroups.length;
+            groupIndex += 1
+          ) {
+            const group = geometryGroups[groupIndex]!;
+            const derived = derivedByGroup[groupIndex]!;
+            const polarizationId = await getOrCreatePolarizationId(
+              group.theta,
+              group.phi,
+            );
 
-          if (spectrumData.length > 0) {
-            await tx.spectrumpoints.createMany({ data: spectrumData });
+            const spectrumData = group.points.map((point, i) => ({
+              experimentid: experiment.id,
+              polarizationid: polarizationId,
+              energyev: point.energy,
+              rawabs: point.absorption,
+              od: coalesceUploadedOrDerived(point.od, derived.od[i] ?? null),
+              massabsorption: coalesceUploadedOrDerived(
+                point.massabsorption,
+                derived.massabsorption[i] ?? null,
+              ),
+              beta: coalesceUploadedOrDerived(
+                point.beta,
+                derived.beta[i] ?? null,
+              ),
+              i0: coalesceUploadedOrDerived(point.i0, null),
+            }));
+
+            if (spectrumData.length > 0) {
+              const created = await tx.spectrumpoints.createMany({
+                data: spectrumData,
+              });
+              spectrumPointsCreated += created.count;
+            }
           }
 
-          // Create peaksets if provided
           if (input.peaksets && input.peaksets.length > 0) {
             const peaksetsData = input.peaksets.map((peak) => ({
               experimentid: experiment.id,
@@ -940,19 +1114,17 @@ export const experimentsRouter = createTRPCRouter({
               bond: peak.bond ?? null,
               transition: peak.transition ?? null,
             }));
-
             await tx.peaksets.createMany({ data: peaksetsData });
           }
 
-          experimentsCreated.push({
-            experiment,
-            spectrumPointsCreated: spectrumData.length,
-          });
-        }
-
           return {
             sample,
-            experiments: experimentsCreated,
+            experiments: [
+              {
+                experiment,
+                spectrumPointsCreated,
+              },
+            ],
           };
         },
         { timeout: 60000 },
@@ -973,6 +1145,27 @@ export const experimentsRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...updateData } = input;
+      const existingExperiment = await ctx.db.experiments.findUnique({
+        where: { id },
+        select: { createdby: true },
+      });
+      if (!existingExperiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+      const canMutate =
+        existingExperiment.createdby != null &&
+        ctx.userId != null &&
+        existingExperiment.createdby === ctx.userId;
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!canMutate && !isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to update this experiment",
+        });
+      }
 
       const experiment = await ctx.db.experiments.update({
         where: { id },

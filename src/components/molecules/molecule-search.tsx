@@ -7,6 +7,7 @@ import { trpc } from "~/trpc/client";
 import { LoadingSkeleton } from "../feedback/loading-state";
 import Link from "next/link";
 import { toSimpleHeaderResult } from "~/lib/molecule-autosuggest";
+import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
 
 interface MoleculeSearchProps {
   onResultClick?: (moleculeId: string) => void;
@@ -71,11 +72,11 @@ export function MoleculeSearch({
     setIsOpen(true);
   };
 
-  const handleResultClick = (moleculeId: string) => {
+  const handleResultClick = (slug: string, moleculeId: string) => {
     if (onResultClick) {
       onResultClick(moleculeId);
     } else {
-      router.push(`/molecules/${moleculeId}`);
+      router.push(`/molecules/${slug}`);
     }
     setIsOpen(false);
     setQuery("");
@@ -146,10 +147,14 @@ export function MoleculeSearch({
             <div className="max-h-96 overflow-y-auto">
               {data.results.map((rawItem) => {
                 const molecule = toSimpleHeaderResult(rawItem);
+                const slug = canonicalMoleculeSlugFromView({
+                  name: molecule.commonName ?? molecule.iupacName,
+                  iupacName: molecule.iupacName,
+                });
                 return (
                   <button
                     key={molecule.id}
-                    onClick={() => handleResultClick(molecule.id)}
+                    onClick={() => handleResultClick(slug, molecule.id)}
                     className="border-border text-foreground hover:bg-default w-full border-b px-4 py-3 text-left transition-colors"
                   >
                     <div className="flex flex-col gap-1">

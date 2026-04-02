@@ -32,7 +32,7 @@ export const instrumentsRouter = createTRPCRouter({
   list: publicProcedure
     .input(
       z.object({
-        limit: z.number().min(1).max(100).default(10),
+        limit: z.number().min(1).max(200).default(10),
         cursor: z.string().optional(),
         facilityId: z.string().uuid().optional(),
         status: z.string().optional(),

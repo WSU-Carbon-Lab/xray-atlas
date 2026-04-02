@@ -39,8 +39,7 @@ export function TagsDropdown({
     { staleTime: 5 * 60 * 1000 },
   );
 
-  const selectedKeys =
-    selectedTagIds.size > 0 ? selectedTagIds : new Set<Key>();
+  const selectedKeys = selectedTagIds as unknown as Set<Key>;
   const hasSelection = selectedTagIds.size > 0;
 
   const trimmedSearch = searchInput.trim();
@@ -76,7 +75,7 @@ export function TagsDropdown({
     [onSelectionChange, tags],
   );
 
-  const emptyContent = isLoading ? "Loading…" : "No tags yet";
+  const emptyContent = isLoading ? "Loading..." : "No tags yet";
 
   const topContentNodes: React.ReactNode[] = [];
   if (hasSelection) {
@@ -104,7 +103,7 @@ export function TagsDropdown({
           type="text"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="Search or type new tag…"
+          placeholder="Search or type new tag..."
           aria-label="Search or create tag"
           className={searchInputClass}
         />
@@ -131,7 +130,7 @@ export function TagsDropdown({
       <DropdownTrigger>
         <button
           type="button"
-          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "bg-accent/15 text-accent border-accent/40" : ""} ${triggerClassName}`}
+          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "bg-accent-soft text-accent border-accent/40" : ""} ${triggerClassName}`}
           aria-label={ariaLabel}
           aria-pressed={hasSelection}
         >
@@ -158,8 +157,8 @@ export function TagsDropdown({
           ) : null
         }
         className="border-border bg-surface max-h-[min(240px,50vh)] w-[256px] overflow-y-auto rounded-2xl border py-0.5 shadow-xl"
-        itemClasses={{
-          base: "min-h-0 py-1 data-[selected=true]:bg-accent/15 data-[selected=true]:ring-1 data-[selected=true]:ring-accent/50 dark:data-[selected=true]:bg-accent/25 dark:data-[selected=true]:ring-accent/40",
+          itemClasses={{
+          base: "min-h-0 py-1 data-[selected=true]:bg-accent-soft data-[selected=true]:ring-1 data-[selected=true]:ring-accent/50 dark:data-[selected=true]:bg-accent/25 dark:data-[selected=true]:ring-accent/40",
           wrapper: "py-0.5",
           selectedIcon: "text-accent dark:text-accent-light",
         }}

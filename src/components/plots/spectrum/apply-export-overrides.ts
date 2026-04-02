@@ -8,6 +8,8 @@ export function applyExportOverrides(
   config: ExportConfig,
   visibleTraceExportInfo: VisibleTraceExportInfo,
 ): void {
+  const axisLabelRe =
+    /^(Energy \(|Optical density|Mass absorption|Intensity \(a\.u\.\)|β)/;
   const {
     background,
     fontAxisLabel,
@@ -36,9 +38,7 @@ export function applyExportOverrides(
     const parent = el.closest("g");
     const isAxisLabel =
       parent?.getAttribute("class")?.includes("axis") &&
-      (el.textContent?.match(
-        /^(Energy \(|Optical density|Mass absorption|Intensity \(a\.u\.\)|β)/,
-      ) ??
+      (axisLabelRe.exec(el.textContent ?? "") != null ||
         el.getAttribute("style")?.includes("fontWeight"));
     if (isAxisLabel) el.setAttribute("font-size", String(fontAxisLabel));
     else el.setAttribute("font-size", String(fontTick));

@@ -1,6 +1,11 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 
 export const spectrumpointsRouter = createTRPCRouter({
   getByExperiment: publicProcedure
@@ -70,10 +75,12 @@ export const spectrumpointsRouter = createTRPCRouter({
     .input(
       z.object({
         experimentId: z.string().uuid(),
+        polarizationId: z.string().uuid().optional(),
         points: z.array(
           z.object({
             energyev: z.number(),
             rawabs: z.number(),
+            polarizationId: z.string().uuid().optional(),
             od: z.number().optional(),
             massabsorption: z.number().optional(),
             beta: z.number().optional(),
@@ -94,23 +101,37 @@ export const spectrumpointsRouter = createTRPCRouter({
           message: "Experiment not found",
         });
       }
+      const canMutate =
+        experiment.createdby != null &&
+        ctx.userId != null &&
+        experiment.createdby === ctx.userId;
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!canMutate && !isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to modify this experiment",
+        });
+      }
 
-      // Delete existing points for this experiment
-      await ctx.db.spectrumpoints.deleteMany({
-        where: { experimentid: input.experimentId },
-      });
-
-      // Create new points
-      const createdPoints = await ctx.db.spectrumpoints.createMany({
-        data: input.points.map((point) => ({
-          experimentid: input.experimentId,
-          energyev: point.energyev,
-          rawabs: point.rawabs,
-          od: point.od ?? null,
-          massabsorption: point.massabsorption ?? null,
-          beta: point.beta ?? null,
-          i0: point.i0 ?? null,
-        })),
+      const createdPoints = await ctx.db.$transaction(async (tx) => {
+        await tx.spectrumpoints.deleteMany({
+          where: { experimentid: input.experimentId },
+        });
+        return tx.spectrumpoints.createMany({
+          data: input.points.map((point) => ({
+            experimentid: input.experimentId,
+            polarizationid:
+              point.polarizationId ??
+              input.polarizationId ??
+              experiment.polarizationid,
+            energyev: point.energyev,
+            rawabs: point.rawabs,
+            od: point.od ?? null,
+            massabsorption: point.massabsorption ?? null,
+            beta: point.beta ?? null,
+            i0: point.i0 ?? null,
+          })),
+        });
       });
 
       return {
@@ -122,6 +143,27 @@ export const spectrumpointsRouter = createTRPCRouter({
   deleteByExperiment: protectedProcedure
     .input(z.object({ experimentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { createdby: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+      const canMutate =
+        experiment.createdby != null &&
+        ctx.userId != null &&
+        experiment.createdby === ctx.userId;
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!canMutate && !isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to modify this experiment",
+        });
+      }
       const result = await ctx.db.spectrumpoints.deleteMany({
         where: { experimentid: input.experimentId },
       });

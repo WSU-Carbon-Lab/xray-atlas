@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useMemo,
   useCallback,
+  useRef,
   Suspense,
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -29,8 +30,8 @@ import {
   EyeIcon,
 } from "@heroicons/react/24/outline";
 import { AddMoleculeButton } from "@/components/contribute";
-import { BrowseHeader, selectClasses } from "@/components/browse/browse-header";
-import { BrowsePageLayout, BROWSE_CONTENT_CLASS } from "@/components/browse/browse-page-layout";
+import { BrowseHeader } from "@/components/browse/browse-header";
+import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { TagFilterBar } from "@/components/browse/tag-filter-bar";
@@ -47,37 +48,51 @@ import { Pagination } from "@heroui/pagination";
 function MoleculesBrowseContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const qParamRaw = searchParams.get("q") ?? "";
+  const pageParamRaw = searchParams.get("page") ?? "";
+  const tagsParamRaw = searchParams.get("tags") ?? "";
+  const lastSyncedUrlRef = useRef<string | null>(null);
+  const [query, setQuery] = useState(qParamRaw);
   const [debouncedQuery, setDebouncedQuery] = useState(query);
   const [sortBy, setSortBy] = useState<
     "favorites" | "created" | "name" | "views"
   >("favorites");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
-  const [viewMode, setViewMode] = useState<"compact" | "spacious">("spacious");
-
-  const selectedTagIds = useMemo(() => {
-    const tagsParam = searchParams.get("tags");
-    if (!tagsParam) return new Set<string>();
-    return new Set(tagsParam.split(",").filter(Boolean));
-  }, [searchParams]);
+  const [viewMode, setViewMode] = useState<"compact" | "spacious">("compact");
 
   const tagIdsArray = useMemo(
-    () => (selectedTagIds.size > 0 ? [...selectedTagIds] : []),
-    [selectedTagIds],
+    () =>
+      tagsParamRaw
+        ? tagsParamRaw
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .sort()
+        : [],
+    [tagsParamRaw],
+  );
+
+  const tagIdsKey = useMemo(() => tagIdsArray.join(","), [tagIdsArray]);
+
+  const selectedTagIds = useMemo(
+    () => new Set<string>(tagIdsArray),
+    [tagIdsArray],
   );
 
   const updateTagsInUrl = useCallback(
     (newTagIds: Set<string>) => {
-      setCurrentPage(1);
+      setCurrentPage((prev) => (prev === 1 ? prev : 1));
       const params = new URLSearchParams();
       if (debouncedQuery) {
         params.set("q", debouncedQuery);
       }
       if (newTagIds.size > 0) {
-        params.set("tags", [...newTagIds].join(","));
+        params.set("tags", [...newTagIds].sort().join(","));
       }
       const newUrl = `/browse/molecules${params.toString() ? `?${params.toString()}` : ""}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      if (currentUrl === newUrl) return;
       router.replace(newUrl, { scroll: false });
     },
     [debouncedQuery, router],
@@ -87,7 +102,7 @@ function MoleculesBrowseContent() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query);
-      setCurrentPage(1);
+      setCurrentPage((prev) => (prev === 1 ? prev : 1));
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);
@@ -106,8 +121,8 @@ function MoleculesBrowseContent() {
 
   // Reset to first page when sort, items per page, or tag selection changes
   useEffect(() => {
-    setCurrentPage(1);
-  }, [sortBy, itemsPerPage, selectedTagIds]);
+    setCurrentPage((prev) => (prev === 1 ? prev : 1));
+  }, [sortBy, itemsPerPage, tagIdsKey]);
 
   // Update URL when query or page changes; preserve tags from URL
   useEffect(() => {
@@ -118,13 +133,26 @@ function MoleculesBrowseContent() {
     if (currentPage > 1) {
       params.set("page", currentPage.toString());
     }
-    const tagsFromUrl = searchParams.get("tags");
-    if (tagsFromUrl) {
-      params.set("tags", tagsFromUrl);
+    if (tagIdsKey) {
+      params.set("tags", tagIdsKey);
     }
-    const newUrl = `/browse/molecules${params.toString() ? `?${params.toString()}` : ""}`;
-    router.replace(newUrl, { scroll: false });
-  }, [debouncedQuery, currentPage, searchParams, router]);
+
+    const desiredUrl = `/browse/molecules${params.toString() ? `?${params.toString()}` : ""}`;
+
+    const currentParams = new URLSearchParams();
+    if (qParamRaw) currentParams.set("q", qParamRaw);
+    if (pageParamRaw && pageParamRaw !== "1") {
+      currentParams.set("page", pageParamRaw);
+    }
+    if (tagIdsKey) currentParams.set("tags", tagIdsKey);
+
+    const currentUrl = `/browse/molecules${currentParams.toString() ? `?${currentParams.toString()}` : ""}`;
+    if (currentUrl === desiredUrl) return;
+    if (lastSyncedUrlRef.current === desiredUrl) return;
+    lastSyncedUrlRef.current = desiredUrl;
+
+    router.replace(desiredUrl, { scroll: false });
+  }, [debouncedQuery, currentPage, tagIdsKey, qParamRaw, pageParamRaw, router]);
 
   const hasSearchQuery = debouncedQuery.trim().length > 0;
 
@@ -138,6 +166,8 @@ function MoleculesBrowseContent() {
       enabled: hasSearchQuery,
       staleTime: 30000,
       placeholderData: (previousData) => previousData,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   );
 
@@ -152,6 +182,8 @@ function MoleculesBrowseContent() {
       enabled: !hasSearchQuery,
       staleTime: 30000,
       placeholderData: (previousData) => previousData,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   );
 
@@ -232,7 +264,7 @@ function MoleculesBrowseContent() {
         <BrowseHeader
           searchValue={query}
           onSearchChange={setQuery}
-          searchPlaceholder="Search molecules…"
+          searchPlaceholder="Search molecules..."
         >
           <TagsDropdown
             selectedTagIds={selectedTagIds}
@@ -243,7 +275,7 @@ function MoleculesBrowseContent() {
               <DropdownTrigger>
                 <button
                   type="button"
-                  className="border-border bg-surface text-muted focus-visible:ring-accent flex h-12 min-h-12 items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                  className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default flex h-12 min-h-12 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                   aria-label="Sort molecules"
                 >
                   <ArrowsUpDownIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
@@ -309,23 +341,23 @@ function MoleculesBrowseContent() {
                 <Tabs.ListContainer>
                   <Tabs.List
                     aria-label="View mode"
-                    className="*:flex *:h-10 *:min-h-10 *:w-9 *:min-w-9 *:items-center *:justify-center *:p-0 *:text-sm *:leading-none *:font-normal *:transition-colors *:[&_svg]:block *:text-muted *:data-[selected=true]:bg-accent *:data-[selected=true]:text-accent-foreground flex h-12 min-h-12 w-fit flex-row gap-0.5 rounded-lg border border-border bg-surface p-0.5"
+                    className="border-border bg-surface text-muted !flex !w-fit min-w-[5.25rem] flex-row items-center gap-1 rounded-lg border p-1"
                   >
                     <Tabs.Tab
                       id="compact"
                       aria-label="Compact list view"
-                      className="rounded-md"
+                      className="text-muted data-[selected=true]:text-accent-foreground relative z-10 flex h-9 min-h-9 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
                     >
-                      <ListBulletIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
-                      <Tabs.Indicator className="bg-accent rounded" />
+                      <ListBulletIcon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5]" />
+                      <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
                     </Tabs.Tab>
                     <Tabs.Tab
                       id="spacious"
                       aria-label="Spacious grid view"
-                      className="rounded-md"
+                      className="text-muted data-[selected=true]:text-accent-foreground relative z-10 flex h-9 min-h-9 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
                     >
-                      <Squares2X2Icon className="h-5 w-5 shrink-0 stroke-[1.5]" />
-                      <Tabs.Indicator className="bg-accent rounded" />
+                      <Squares2X2Icon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5]" />
+                      <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
                     </Tabs.Tab>
                   </Tabs.List>
                 </Tabs.ListContainer>
@@ -481,10 +513,7 @@ export default function MoleculesBrowsePage() {
   return (
     <Suspense
       fallback={
-        <BrowsePageLayout
-          title="Browse Molecules"
-          subtitle="Loading…"
-        >
+        <BrowsePageLayout title="Browse Molecules" subtitle="Loading...">
           <BrowseTabs />
         </BrowsePageLayout>
       }

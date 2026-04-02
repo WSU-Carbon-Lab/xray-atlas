@@ -28,6 +28,7 @@ function checkTrackViewThrottle(key: string): boolean {
   return true;
 }
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "@prisma/client";
 import {
   moleculeUploadSchema,
   moleculeUploadDataToPrismaInput,
@@ -36,6 +37,7 @@ import { uploadMoleculeImage, deleteMoleculeImage } from "~/server/storage";
 import type { db } from "~/server/db";
 import { isDevMockUser } from "~/lib/dev-mock-data";
 import { pickRandomTagHex } from "~/lib/tag-colors";
+import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { toMoleculeView } from "./molecules-view";
 
 function slugifyTagName(name: string): string {
@@ -74,7 +76,7 @@ async function checkCanEdit(
 }
 
 async function ensureContributor(
-  prisma: typeof db,
+  prisma: Pick<typeof db, "moleculecontributors">,
   moleculeId: string,
   userId: string,
   contributionType: "creator" | "editor" | "contributor",
@@ -456,6 +458,26 @@ export const moleculesRouter = createTRPCRouter({
 
       // Convert to Prisma input format
       const prismaInput = moleculeUploadDataToPrismaInput(input);
+      if (
+        prismaInput.moleculesynonyms &&
+        Array.isArray(prismaInput.moleculesynonyms.create)
+      ) {
+        const withSlugs = prismaInput.moleculesynonyms.create
+          .map((syn) => {
+            const synonym = syn.synonym.trim();
+            return synonym.length > 0
+              ? { ...syn, synonym, slug: slugifyMoleculeSynonym(synonym) }
+              : null;
+          })
+          .filter((v): v is NonNullable<typeof v> => v != null);
+        if (withSlugs.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "At least one synonym (common name) is required",
+          });
+        }
+        prismaInput.moleculesynonyms.create = withSlugs;
+      }
 
       // Validate required fields
       if (!prismaInput.iupacname?.trim()) {
@@ -674,6 +696,115 @@ export const moleculesRouter = createTRPCRouter({
         { ...molecule, viewcount: molecule.viewcount },
         { userHasFavorited },
       );
+    }),
+
+  getBySlug: publicProcedure
+    .input(z.object({ slug: z.string().min(1).max(200) }))
+    .query(async ({ ctx, input }) => {
+      const COLLISION_CANDIDATE_LIMIT = 200;
+      const normalizedSlug = slugifyMoleculeSynonym(input.slug);
+      const matches = await ctx.db.moleculesynonyms.findMany({
+        where: { slug: normalizedSlug },
+        select: { moleculeid: true },
+        distinct: ["moleculeid"],
+        orderBy: { moleculeid: "asc" },
+        take: COLLISION_CANDIDATE_LIMIT + 1,
+      });
+      const moleculeIds = matches
+        .slice(0, COLLISION_CANDIDATE_LIMIT)
+        .map((m) => m.moleculeid);
+
+      if (moleculeIds.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      if (moleculeIds.length === 1) {
+        const molecule = await ctx.db.molecules.findUnique({
+          where: { id: moleculeIds[0] },
+          include: {
+            moleculesynonyms: {
+              orderBy: [{ order: "asc" }, { synonym: "asc" }],
+            },
+            samples: true,
+            moleculecontributors: {
+              include: {
+                user: {
+                  select: { id: true, name: true, image: true },
+                },
+              },
+              orderBy: { contributedat: "asc" },
+            },
+            moleculetags: {
+              include: { tags: true },
+            },
+          },
+        });
+
+        if (!molecule) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Molecule not found",
+          });
+        }
+
+        let userHasFavorited = false;
+        if (ctx.userId) {
+          const favorite = await ctx.db.moleculefavorites.findUnique({
+            where: {
+              moleculeid_userid: {
+                moleculeid: molecule.id,
+                userid: ctx.userId,
+              },
+            },
+          });
+          userHasFavorited = !!favorite;
+        }
+
+        return toMoleculeView(
+          { ...molecule, viewcount: molecule.viewcount },
+          { userHasFavorited },
+        );
+      }
+
+      const molecules = await ctx.db.molecules.findMany({
+        where: { id: { in: moleculeIds } },
+        select: {
+          id: true,
+          iupacname: true,
+          moleculesynonyms: {
+            where: { order: 0 },
+            orderBy: [{ order: "asc" }, { synonym: "asc" }],
+            take: 1,
+            select: { synonym: true },
+          },
+        },
+      });
+
+      const candidates = molecules
+        .map((m) => {
+          const primary = m.moleculesynonyms[0]?.synonym ?? null;
+          const name = primary ?? m.iupacname;
+          return {
+            id: m.id,
+            name,
+            iupacName: m.iupacname,
+            slug: slugifyMoleculeSynonym(primary ?? m.iupacname),
+          };
+        })
+        .sort((a, b) => {
+          const bySlug = a.slug.localeCompare(b.slug);
+          if (bySlug !== 0) return bySlug;
+          return a.id.localeCompare(b.id);
+        });
+
+      return {
+        kind: "slug_collision" as const,
+        slug: normalizedSlug,
+        candidates,
+      };
     }),
 
   list: publicProcedure
@@ -1475,6 +1606,20 @@ export const moleculesRouter = createTRPCRouter({
             moleculesynonyms: {
               orderBy: [{ order: "asc" }],
             },
+            moleculecontributors: {
+              include: {
+                user: {
+                  select: { id: true, name: true, image: true },
+                },
+              },
+              orderBy: { contributedat: "asc" },
+            },
+            moleculetags: {
+              include: { tags: true },
+            },
+            samples: {
+              include: { _count: { select: { experiments: true } } },
+            },
           },
           orderBy: {
             createdat: "desc",
@@ -1533,6 +1678,20 @@ export const moleculesRouter = createTRPCRouter({
         include: {
           moleculesynonyms: {
             orderBy: [{ order: "asc" }],
+          },
+          moleculecontributors: {
+            include: {
+              user: {
+                select: { id: true, name: true, image: true },
+                },
+              },
+            orderBy: { contributedat: "asc" },
+          },
+          moleculetags: {
+            include: { tags: true },
+          },
+          samples: {
+            include: { _count: { select: { experiments: true } } },
           },
         },
         orderBy: {
@@ -1703,7 +1862,7 @@ export const moleculesRouter = createTRPCRouter({
         pubchemcid?: string | null;
         moleculesynonyms?: {
           deleteMany: Record<string, never>;
-          create: Array<{ synonym: string; order: number }>;
+          create: Array<{ synonym: string; slug: string; order: number }>;
         };
       } = {};
 
@@ -1720,12 +1879,20 @@ export const moleculesRouter = createTRPCRouter({
 
       // Update synonyms if provided
       if (updateData.commonNames && updateData.commonNames.length > 0) {
-        const commonNameTrimmed = updateData.commonNames[0]?.trim() ?? "";
+        const nonEmpty = updateData.commonNames.map((s) => s.trim()).filter((s) => s.length > 0);
+        if (nonEmpty.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "At least one synonym (common name) is required",
+          });
+        }
+        const commonNameTrimmed = nonEmpty[0] ?? "";
         prismaUpdateData.moleculesynonyms = {
           deleteMany: {},
-          create: updateData.commonNames.map((synonym, idx) => ({
-            synonym: synonym.trim(),
-            order: idx === 0 || synonym.trim() === commonNameTrimmed ? 0 : idx,
+          create: nonEmpty.map((synonym, idx) => ({
+            synonym,
+            slug: slugifyMoleculeSynonym(synonym),
+            order: idx === 0 || synonym === commonNameTrimmed ? 0 : idx,
           })),
         };
       }
@@ -1748,5 +1915,168 @@ export const moleculesRouter = createTRPCRouter({
         success: true,
         molecule: updatedMolecule,
       };
+    }),
+
+  remove: protectedProcedure
+    .input(z.object({ moleculeId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+        select: { id: true, createdby: true, imageurl: true },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      if (!molecule.createdby || molecule.createdby !== ctx.userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the submitting user can remove this molecule",
+        });
+      }
+
+      try {
+        await ctx.db.molecules.delete({
+          where: { id: input.moleculeId },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2003"
+        ) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "This molecule is linked to existing sample or experiment data and cannot be removed",
+          });
+        }
+        throw error;
+      }
+
+      if (molecule.imageurl) {
+        try {
+          await deleteMoleculeImage(molecule.imageurl);
+        } catch (error) {
+          console.error("Failed to delete molecule image:", error);
+        }
+      }
+
+      return { success: true };
+    }),
+
+  transferOwnership: protectedProcedure
+    .input(
+      z.object({
+        moleculeId: z.string().uuid(),
+        newCreatorId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+        select: { id: true, createdby: true },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      if (!molecule.createdby || molecule.createdby !== ctx.userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the molecule owner can transfer ownership",
+        });
+      }
+
+      if (input.newCreatorId === ctx.userId) {
+        return { success: true };
+      }
+
+      const newUser = await ctx.db.user.findUnique({
+        where: { id: input.newCreatorId },
+        select: { id: true },
+      });
+
+      if (!newUser) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Selected recipient user not found",
+        });
+      }
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.molecules.update({
+          where: { id: input.moleculeId },
+          data: { createdby: input.newCreatorId },
+        });
+
+        await ensureContributor(tx, input.moleculeId, input.newCreatorId, "creator");
+        await ensureContributor(tx, input.moleculeId, ctx.userId, "editor");
+      });
+
+      return { success: true };
+    }),
+
+  getDeleteDataPointImpact: protectedProcedure
+    .input(z.object({ moleculeId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+
+      const molecule = await ctx.db.molecules.findUnique({
+        where: { id: input.moleculeId },
+        select: { createdby: true },
+      });
+
+      if (!molecule) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Molecule not found",
+        });
+      }
+
+      if (!molecule.createdby || molecule.createdby !== ctx.userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the molecule owner can view delete impact",
+        });
+      }
+
+      const rows = await ctx.db.$queryRaw<
+        Array<{ data_points_removed: string }>
+      >`
+        SELECT COUNT(*)::text AS data_points_removed
+        FROM public.spectrumpoints sp
+        WHERE sp."experimentid" IN (
+          SELECT e.id
+          FROM public.experiments e
+          WHERE e."sampleid" IN (
+            SELECT s.id
+            FROM public.samples s
+            WHERE s."moleculeid" = ${input.moleculeId}
+          )
+        )
+      `;
+
+      const dataPointsRemoved = Number(rows[0]?.data_points_removed ?? "0");
+      return { dataPointsRemoved };
     }),
 });

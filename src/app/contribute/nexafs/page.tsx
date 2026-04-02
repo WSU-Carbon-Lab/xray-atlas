@@ -83,6 +83,10 @@ export default function NEXAFSContributePage() {
       setNewEdgeCoreState("");
     } catch (error) {
       console.error("Failed to create edge", error);
+      showToast(
+        error instanceof Error ? error.message : "Failed to create edge.",
+        "error",
+      );
     }
   };
 
@@ -106,6 +110,12 @@ export default function NEXAFSContributePage() {
       setNewCalibrationDescription("");
     } catch (error) {
       console.error("Failed to create calibration method", error);
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "Failed to create calibration method.",
+        "error",
+      );
     }
   };
 
