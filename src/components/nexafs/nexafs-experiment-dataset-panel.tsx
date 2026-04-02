@@ -4,16 +4,17 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type Key as SelectionKey,
 } from "react";
+import { createPortal } from "react-dom";
 import { Copy, Download } from "lucide-react";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import {
-  Dropdown,
-  Header,
+  BUTTON_GROUP_CHILD,
   Separator,
   ToggleButton,
   ToggleButtonGroup,
@@ -88,22 +89,59 @@ function NexafsExperimentPlotSkeleton() {
   );
 }
 
-function spectrumPointsForPolarizationNode(
-  node: SpectrumPolarizationNode,
-): SpectrumPoint[] {
-  const out: SpectrumPoint[] = [];
-  for (const t of node.thetaNodes) {
-    for (const leaf of t.phiLeaves) {
-      out.push(...leaf.points);
-    }
-  }
-  out.sort((a, b) => a.energy - b.energy);
-  return out;
+function formatThetaPhiLabel(theta: number | null, phi: number | null): string {
+  const t =
+    theta != null && Number.isFinite(theta) ? `${theta.toFixed(1)}` : "—";
+  const p = phi != null && Number.isFinite(phi) ? `${phi.toFixed(1)}` : "—";
+  return `θ ${t}°, φ ${p}°`;
 }
 
-function filenameSuffixFromPolarizationKey(polKey: string): string {
-  if (polKey === "__none__") return "unspecified-pol";
-  return polKey.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 12);
+function fileSuffixForGeometryLeaf(
+  polKey: string,
+  thetaKey: string,
+  phiKey: string,
+): string {
+  const pol =
+    polKey === "__none__"
+      ? "pol-none"
+      : `pol-${polKey.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8)}`;
+  const t =
+    thetaKey === "none" ? "th-x" : `th${thetaKey.replace(/[^0-9.-]/g, "x")}`;
+  const p =
+    phiKey === "none" ? "ph-x" : `ph${phiKey.replace(/[^0-9.-]/g, "x")}`;
+  return `${pol}-${t}-${p}`;
+}
+
+interface SpectrumGeometryCsvRow {
+  id: string;
+  label: string;
+  rowCount: number;
+  points: SpectrumPoint[];
+  fileSuffix: string;
+}
+
+function spectrumGeometryCsvRowsFromTree(
+  tree: SpectrumPolarizationNode[],
+): SpectrumGeometryCsvRow[] {
+  const rows: SpectrumGeometryCsvRow[] = [];
+  for (const node of tree) {
+    for (const t of node.thetaNodes) {
+      for (const leaf of t.phiLeaves) {
+        rows.push({
+          id: `${node.polarizationKey}|${t.thetaKey}|${leaf.phiKey}`,
+          label: formatThetaPhiLabel(t.theta, leaf.phi),
+          rowCount: leaf.points.length,
+          points: leaf.points,
+          fileSuffix: fileSuffixForGeometryLeaf(
+            node.polarizationKey,
+            t.thetaKey,
+            leaf.phiKey,
+          ),
+        });
+      }
+    }
+  }
+  return rows;
 }
 
 const ExperimentSpectrumRailCsvDropdown = memo(
@@ -113,23 +151,24 @@ const ExperimentSpectrumRailCsvDropdown = memo(
     experimentId,
     sortedAllPoints,
     groupedTree,
+    [BUTTON_GROUP_CHILD]: _buttonGroupChild,
   }: {
     kind: "download" | "copy";
     disabled: boolean;
     experimentId: string;
     sortedAllPoints: SpectrumPoint[];
     groupedTree: SpectrumPolarizationNode[];
+    [BUTTON_GROUP_CHILD]?: boolean;
   }) {
-    const pointsByPolKey = useMemo(() => {
-      const m = new Map<string, SpectrumPoint[]>();
-      for (const node of groupedTree) {
-        m.set(
-          node.polarizationKey,
-          spectrumPointsForPolarizationNode(node),
-        );
-      }
-      return m;
-    }, [groupedTree]);
+    const [open, setOpen] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+
+    const geometryCsvRows = useMemo(
+      () => spectrumGeometryCsvRowsFromTree(groupedTree),
+      [groupedTree],
+    );
 
     const downloadCsv = useCallback(
       (points: SpectrumPoint[], filenameBase: string) => {
@@ -160,47 +199,67 @@ const ExperimentSpectrumRailCsvDropdown = memo(
       );
     }, []);
 
-    const onMenuAction = useCallback(
-      (rawKey: SelectionKey) => {
-        const key = String(rawKey);
-        if (key === "png") return;
-        if (disabled) return;
-        const exp = `nexafs-experiment-${experimentId.slice(0, 8)}`;
-        if (key === "csv-all") {
-          if (kind === "download") {
-            downloadCsv(sortedAllPoints, exp);
-          } else {
-            copyCsv(sortedAllPoints);
-          }
+    const expBase = useMemo(
+      () => `nexafs-experiment-${experimentId.slice(0, 8)}`,
+      [experimentId],
+    );
+
+    const updateMenuPosition = useCallback(() => {
+      const el = triggerRef.current;
+      if (!el || typeof window === "undefined") return;
+      const r = el.getBoundingClientRect();
+      const margin = 8;
+      const menuWidth = Math.min(352, window.innerWidth - margin * 2);
+      let left = r.left;
+      if (left + menuWidth > window.innerWidth - margin) {
+        left = Math.max(margin, window.innerWidth - menuWidth - margin);
+      }
+      setMenuPos({ top: r.bottom + margin, left });
+    }, []);
+
+    useLayoutEffect(() => {
+      if (!open) return;
+      updateMenuPosition();
+    }, [open, updateMenuPosition]);
+
+    useEffect(() => {
+      if (!open) return;
+      const onResize = () => updateMenuPosition();
+      window.addEventListener("resize", onResize);
+      return () => window.removeEventListener("resize", onResize);
+    }, [open, updateMenuPosition]);
+
+    useEffect(() => {
+      if (!open) return;
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setOpen(false);
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [open]);
+
+    useEffect(() => {
+      if (!open) return;
+      const onDoc = (e: MouseEvent) => {
+        const t = e.target as Node;
+        if (triggerRef.current?.contains(t) || menuRef.current?.contains(t)) {
           return;
         }
-        const prefix = "csv-pol:";
-        if (key.startsWith(prefix)) {
-          const polKey = key.slice(prefix.length);
-          const pts = pointsByPolKey.get(polKey) ?? [];
-          const suffix = filenameSuffixFromPolarizationKey(polKey);
-          if (kind === "download") {
-            downloadCsv(pts, `${exp}-${suffix}`);
-          } else {
-            copyCsv(pts);
-          }
-        }
-      },
-      [
-        copyCsv,
-        disabled,
-        downloadCsv,
-        experimentId,
-        kind,
-        pointsByPolKey,
-        sortedAllPoints,
-      ],
-    );
+        setOpen(false);
+      };
+      document.addEventListener("mousedown", onDoc);
+      return () => document.removeEventListener("mousedown", onDoc);
+    }, [open]);
 
     const ariaLabel =
       kind === "download"
         ? "Download spectrum data"
         : "Copy spectrum data to clipboard";
+
+    const menuAriaLabel =
+      kind === "download"
+        ? "Choose what to download"
+        : "Choose what to copy";
 
     const triggerClass = cn(
       buttonVariants({ variant: "tertiary" }),
@@ -210,109 +269,145 @@ const ExperimentSpectrumRailCsvDropdown = memo(
         : "!rounded-s-none !rounded-e-3xl",
     );
 
-    return (
-      <Dropdown>
-        <Dropdown.Trigger
-          isDisabled={disabled}
-          aria-label={ariaLabel}
-          className={triggerClass}
-        >
-          <span
-            className="inline-flex"
-            title={kind === "download" ? "Download" : "Copy"}
+    const runCsvAll = useCallback(() => {
+      if (disabled) return;
+      if (kind === "download") {
+        downloadCsv(sortedAllPoints, expBase);
+      } else {
+        copyCsv(sortedAllPoints);
+      }
+      setOpen(false);
+    }, [copyCsv, disabled, downloadCsv, expBase, kind, sortedAllPoints]);
+
+    const runCsvGeometryLeaf = useCallback(
+      (points: SpectrumPoint[], fileSuffix: string) => {
+        if (disabled || points.length === 0) return;
+        if (kind === "download") {
+          downloadCsv(points, `${expBase}-${fileSuffix}`);
+        } else {
+          copyCsv(points);
+        }
+        setOpen(false);
+      },
+      [copyCsv, disabled, downloadCsv, expBase, kind],
+    );
+
+    const menuShellClass =
+      "border-border bg-surface fixed z-50 max-h-[min(26rem,calc(100vh-2rem))] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border p-2 shadow-2xl ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)] scrollbar-thin";
+
+    const sectionLabelClass =
+      "px-2.5 pb-1.5 pt-2 text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-[var(--text-tertiary)] first:pt-0.5";
+
+    const menuItemClass =
+      "text-foreground hover:bg-default/90 focus-visible:ring-accent flex w-full flex-col items-start gap-0.5 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-45";
+
+    const menuPortal =
+      open &&
+      typeof document !== "undefined" &&
+      createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            aria-hidden
+            onClick={() => setOpen(false)}
+          />
+          <div
+            ref={menuRef}
+            role="menu"
+            aria-label={menuAriaLabel}
+            className={menuShellClass}
+            style={{ top: menuPos.top, left: menuPos.left }}
           >
-            {kind === "download" ? (
-              <Download className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
-            ) : (
-              <Copy className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
-            )}
-          </span>
-        </Dropdown.Trigger>
-        <Dropdown.Popover className="border-border bg-surface min-w-[min(20rem,calc(100vw-2rem))] rounded-xl border p-1 shadow-lg">
-            <Dropdown.Menu
-              aria-label={
-                kind === "download"
-                  ? "Choose what to download"
-                  : "Choose what to copy"
-              }
-              selectionMode="none"
-              onAction={onMenuAction}
+            <div className={sectionLabelClass}>Plot image (PNG)</div>
+            <button
+              type="button"
+              disabled
+              role="menuitem"
+              title="Coming soon"
+              className="text-muted bg-[color-mix(in_oklab,var(--surface-2)_55%,transparent)] flex w-full cursor-not-allowed flex-col items-start gap-0.5 rounded-xl border border-[color-mix(in_oklab,var(--border-default)_70%,transparent)] px-3 py-2.5 text-left opacity-75"
             >
-              <Dropdown.Section>
-                <Header className="px-2 py-1.5 text-xs font-semibold text-[var(--text-secondary)]">
-                  Plot image (PNG)
-                </Header>
-                <Dropdown.Item
-                  id="png"
-                  isDisabled
-                  textValue={
-                    kind === "download"
-                      ? "Download plot as PNG"
-                      : "Copy plot as PNG"
+              <span className="text-sm font-medium">
+                {kind === "download"
+                  ? "Download plot as PNG"
+                  : "Copy plot as PNG"}
+              </span>
+              <span className="text-xs text-[var(--text-tertiary)]">
+                Coming soon
+              </span>
+            </button>
+            <div
+              className="my-2 h-px bg-[color-mix(in_oklab,var(--border-default)_85%,transparent)]"
+              role="separator"
+            />
+            <div className={sectionLabelClass}>All</div>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={disabled}
+              onClick={runCsvAll}
+              className={menuItemClass}
+            >
+              <span className="text-sm font-medium">All polarizations</span>
+              <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+                {sortedAllPoints.length}{" "}
+                {sortedAllPoints.length === 1 ? "row" : "rows"}
+              </span>
+            </button>
+            <div
+              className="my-2 h-px bg-[color-mix(in_oklab,var(--border-default)_85%,transparent)]"
+              role="separator"
+            />
+            <div className={sectionLabelClass}>By geometry</div>
+            <div className="flex flex-col gap-0.5">
+              {geometryCsvRows.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  role="menuitem"
+                  disabled={disabled}
+                  onClick={() =>
+                    runCsvGeometryLeaf(row.points, row.fileSuffix)
                   }
+                  className={menuItemClass}
                 >
-                  <div className="flex flex-col gap-0.5 py-0.5">
-                    <span className="text-sm text-[var(--text-tertiary)]">
-                      {kind === "download"
-                        ? "Download plot as PNG"
-                        : "Copy plot as PNG"}
-                    </span>
-                    <span className="text-xs text-[var(--text-tertiary)] opacity-80">
-                      Coming soon
-                    </span>
-                  </div>
-                </Dropdown.Item>
-              </Dropdown.Section>
-              <Separator
-                orientation="horizontal"
-                className="my-1 bg-[var(--border-default)]"
-              />
-              <Dropdown.Section>
-                <Header className="px-2 py-1.5 text-xs font-semibold text-[var(--text-secondary)]">
-                  Long table (CSV)
-                </Header>
-                <Dropdown.Item
-                  id="csv-all"
-                  isDisabled={disabled}
-                  textValue={`All polarizations, ${sortedAllPoints.length} rows`}
-                >
-                  <span className="text-sm">
-                    All polarizations
-                    <span className="text-[var(--text-secondary)]">
-                      {" "}
-                      ({sortedAllPoints.length}{" "}
-                      {sortedAllPoints.length === 1 ? "row" : "rows"})
-                    </span>
+                  <span className="font-mono text-sm font-medium tracking-tight">
+                    {row.label}
                   </span>
-                </Dropdown.Item>
-              </Dropdown.Section>
-              <Dropdown.Section>
-                <Header className="px-2 py-1.5 text-xs font-semibold text-[var(--text-secondary)]">
-                  One polarization (CSV)
-                </Header>
-                {groupedTree.map((node) => {
-                  const n = pointsByPolKey.get(node.polarizationKey)?.length ?? 0;
-                  return (
-                    <Dropdown.Item
-                      key={node.polarizationKey}
-                      id={`csv-pol:${node.polarizationKey}`}
-                      isDisabled={disabled}
-                      textValue={`${node.label}, ${n} rows`}
-                    >
-                      <span className="text-sm">
-                        {node.label}
-                        <span className="text-[var(--text-secondary)]">
-                          {" "}
-                          ({n} {n === 1 ? "row" : "rows"})
-                        </span>
-                      </span>
-                    </Dropdown.Item>
-                  );
-                })}
-              </Dropdown.Section>
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-      </Dropdown>
+                  <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+                    {row.rowCount} {row.rowCount === 1 ? "row" : "rows"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>,
+        document.body,
+      );
+
+    return (
+      <div className="relative inline-flex">
+        <button
+          ref={triggerRef}
+          type="button"
+          disabled={disabled}
+          aria-label={ariaLabel}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          title={kind === "download" ? "Download" : "Copy"}
+          className={triggerClass}
+          onClick={() => {
+            if (disabled) return;
+            setOpen((v) => !v);
+          }}
+        >
+          {kind === "download" ? (
+            <Download className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+          ) : (
+            <Copy className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+          )}
+        </button>
+        {menuPortal}
+      </div>
     );
   },
 );

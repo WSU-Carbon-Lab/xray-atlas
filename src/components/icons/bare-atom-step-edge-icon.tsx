@@ -10,6 +10,10 @@ export function BareAtomStepEdgeIcon({
   "aria-hidden": ariaHidden = true,
   ...rest
 }: BareAtomStepEdgeIconProps) {
+  const cx = 67.41;
+  const cy = 44.02;
+  const squeezeX = 0.72;
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -20,15 +24,19 @@ export function BareAtomStepEdgeIcon({
       {...rest}
     >
       <g
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={5}
-        vectorEffect="nonScalingStroke"
+        transform={`translate(${cx}, ${cy}) scale(${squeezeX}, 1) translate(${-cx}, ${-cy})`}
       >
-        <path d="M10 70.56 L36.55 74.38" />
-        <path d="M36.86 78.03 L37.16 10" />
-        <path d="M38.81 10.67 L124.81 69.8" />
+        <g
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={12}
+          vectorEffect="nonScalingStroke"
+        >
+          <path d="M10 70.56 L36.55 74.38" />
+          <path d="M36.86 78.03 L37.16 10" />
+          <path d="M38.81 10.67 L124.81 69.8" />
+        </g>
       </g>
     </svg>
   );
