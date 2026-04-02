@@ -39,6 +39,7 @@ import { isDevMockUser } from "~/lib/dev-mock-data";
 import { pickRandomTagHex } from "~/lib/tag-colors";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { toMoleculeView } from "./molecules-view";
+import { queryMoleculeIdsByPopularityRank } from "./molecules-popularity-ranking";
 
 function slugifyTagName(name: string): string {
   const base = name
@@ -1097,27 +1098,37 @@ export const moleculesRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const molecules = await ctx.db.molecules.findMany({
-        take: input.limit,
-        include: {
-          moleculesynonyms: {
-            orderBy: [{ order: "asc" }],
-          },
-          moleculecontributors: {
-            include: {
-              user: {
-                select: { id: true, name: true, image: true },
+      const orderedIds = await queryMoleculeIdsByPopularityRank(
+        ctx.db,
+        input.limit,
+      );
+      const molecules =
+        orderedIds.length === 0
+          ? []
+          : await ctx.db.molecules.findMany({
+              where: { id: { in: orderedIds } },
+              include: {
+                moleculesynonyms: {
+                  orderBy: [{ order: "asc" }],
+                },
+                moleculecontributors: {
+                  include: {
+                    user: {
+                      select: { id: true, name: true, image: true },
+                    },
+                  },
+                  orderBy: { contributedat: "asc" },
+                },
+                moleculetags: { include: { tags: true } },
+                samples: {
+                  include: { _count: { select: { experiments: true } } },
+                },
               },
-            },
-            orderBy: { contributedat: "asc" },
-          },
-          moleculetags: { include: { tags: true } },
-          samples: {
-            include: { _count: { select: { experiments: true } } },
-          },
-        },
-        orderBy: [{ favoritecount: "desc" }, { createdat: "desc" }],
-      });
+            });
+      const idOrder = new Map(orderedIds.map((id, i) => [id, i]));
+      molecules.sort(
+        (a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0),
+      );
 
       const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
         ...molecule,
