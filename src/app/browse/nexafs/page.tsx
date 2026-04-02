@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ExperimentType } from "@prisma/client";
 import { trpc } from "~/trpc/client";
@@ -37,11 +37,11 @@ const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
 };
 
 const SORT_OPTIONS: {
-  key: "newest" | "upload" | "molecule" | "edge" | "instrument";
+  key: "engagement" | "newest" | "molecule" | "edge" | "instrument";
   label: string;
 }[] = [
-  { key: "newest", label: "Newest (upload)" },
-  { key: "upload", label: "Upload date" },
+  { key: "engagement", label: "Configurations & engagement" },
+  { key: "newest", label: "Newest" },
   { key: "molecule", label: "Molecule name" },
   { key: "edge", label: "Edge (atom)" },
   { key: "instrument", label: "Instrument" },
@@ -56,17 +56,18 @@ function formatExperimentType(
 
 function parseSortParam(
   raw: string | null,
-): "newest" | "upload" | "molecule" | "edge" | "instrument" {
-  if (raw === "measurement") return "upload";
+): "engagement" | "newest" | "molecule" | "edge" | "instrument" {
+  if (raw === "measurement" || raw === "upload") return "newest";
   if (
-    raw === "upload" ||
+    raw === "engagement" ||
+    raw === "newest" ||
     raw === "molecule" ||
     raw === "edge" ||
     raw === "instrument"
   ) {
     return raw;
   }
-  return "newest";
+  return "engagement";
 }
 
 function parseExperimentTypeParam(
@@ -120,30 +121,40 @@ function mapGroupToCard(group: NexafsBrowseGroup) {
 function NexafsBrowseContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [query, setQuery] = useState(searchParams.get("q") ?? "");
-  const [debouncedQuery, setDebouncedQuery] = useState(query);
-  const [sortBy, setSortBy] = useState(() =>
-    parseSortParam(searchParams.get("sort")),
-  );
-  const [moleculeId, setMoleculeId] = useState<string | undefined>(
-    searchParams.get("molecule") ?? undefined,
-  );
-  const [edgeId, setEdgeId] = useState<string | undefined>(
-    searchParams.get("edge") ?? undefined,
-  );
+  const [urlSynced, setUrlSynced] = useState(false);
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [sortBy, setSortBy] = useState<
+    "engagement" | "newest" | "molecule" | "edge" | "instrument"
+  >("engagement");
+  const [moleculeId, setMoleculeId] = useState<string | undefined>(undefined);
+  const [edgeId, setEdgeId] = useState<string | undefined>(undefined);
   const [instrumentId, setInstrumentId] = useState<string | undefined>(
-    searchParams.get("instrument") ?? undefined,
+    undefined,
   );
   const [experimentType, setExperimentType] = useState<
     ExperimentType | undefined
-  >(() => parseExperimentTypeParam(searchParams.get("type")));
-  const [currentPage, setCurrentPage] = useState(() => {
-    const p = searchParams.get("page");
-    const n = p ? parseInt(p, 10) : 1;
-    return Number.isFinite(n) && n > 0 ? n : 1;
-  });
+  >(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [refineOpen, setRefineOpen] = useState(false);
+  const urlKey = searchParams.toString();
+
+  useLayoutEffect(() => {
+    const sp = new URLSearchParams(urlKey);
+    const q = sp.get("q") ?? "";
+    setQuery(q);
+    setDebouncedQuery(q);
+    setSortBy(parseSortParam(sp.get("sort")));
+    setMoleculeId(sp.get("molecule") ?? undefined);
+    setEdgeId(sp.get("edge") ?? undefined);
+    setInstrumentId(sp.get("instrument") ?? undefined);
+    setExperimentType(parseExperimentTypeParam(sp.get("type")));
+    const p = sp.get("page");
+    const n = p ? parseInt(p, 10) : 1;
+    setCurrentPage(Number.isFinite(n) && n > 0 ? n : 1);
+    setUrlSynced(true);
+  }, [urlKey]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -158,10 +169,11 @@ function NexafsBrowseContent() {
   }, [sortBy, itemsPerPage, moleculeId, edgeId, instrumentId, experimentType]);
 
   useEffect(() => {
+    if (!urlSynced) return;
     const params = new URLSearchParams();
     if (debouncedQuery) params.set("q", debouncedQuery);
     if (currentPage > 1) params.set("page", currentPage.toString());
-    if (sortBy !== "newest") params.set("sort", sortBy);
+    if (sortBy !== "engagement") params.set("sort", sortBy);
     if (moleculeId) params.set("molecule", moleculeId);
     if (edgeId) params.set("edge", edgeId);
     if (instrumentId) params.set("instrument", instrumentId);
@@ -169,6 +181,7 @@ function NexafsBrowseContent() {
     const qs = params.toString();
     router.replace(`/browse/nexafs${qs ? `?${qs}` : ""}`, { scroll: false });
   }, [
+    urlSynced,
     debouncedQuery,
     currentPage,
     sortBy,
@@ -193,7 +206,7 @@ function NexafsBrowseContent() {
       experimentType,
     },
     {
-      enabled: hasSearchQuery,
+      enabled: urlSynced && hasSearchQuery,
       staleTime: 30000,
     },
   );
@@ -209,7 +222,7 @@ function NexafsBrowseContent() {
       experimentType,
     },
     {
-      enabled: !hasSearchQuery,
+      enabled: urlSynced && !hasSearchQuery,
       staleTime: 30000,
     },
   );
@@ -238,7 +251,8 @@ function NexafsBrowseContent() {
         total: allData.data?.total ?? 0,
       };
 
-  const isLoading = hasSearchQuery ? searchData.isLoading : allData.isLoading;
+  const isLoading =
+    !urlSynced || (hasSearchQuery ? searchData.isLoading : allData.isLoading);
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;
 
