@@ -842,7 +842,7 @@ export const FullCard = memo(function FullCard({
           </span>
         </div>
         <div
-          className="absolute inset-x-0 bottom-0 flex justify-end bg-white/60 px-2 py-2 text-slate-900 backdrop-blur-md dark:bg-black/60 dark:text-slate-100"
+          className="absolute inset-x-0 bottom-0 flex justify-end rounded-b-lg bg-white/90 px-2 py-2 text-slate-900 backdrop-blur-md dark:bg-black/60 dark:text-slate-100"
           onClick={(e) => e.stopPropagation()}
           aria-hidden
         >

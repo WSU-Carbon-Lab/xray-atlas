@@ -54,9 +54,18 @@ export function buildNexafsBrowseWhereSql(
   return Prisma.join(parts, " AND ");
 }
 
+/**
+ * Controls SQL `ORDER BY` for grouped NEXAFS browse rows (`enriched` aliased as `g`).
+ *
+ * `engagement` ranks by distinct polarization/geometry configurations first (spectrum
+ * points plus canonical experiment polarization), then experiment favorite aggregate,
+ * then JSON-array quality comment count, then recency.
+ *
+ * `newest` orders by experiment `createdat` descending (upload / creation time only).
+ */
 export type NexafsBrowseSortKey =
+  | "engagement"
   | "newest"
-  | "upload"
   | "molecule"
   | "edge"
   | "instrument";
@@ -65,8 +74,9 @@ export function buildNexafsBrowseOrderBySql(
   sortBy: NexafsBrowseSortKey,
 ): Prisma.Sql {
   switch (sortBy) {
+    case "engagement":
+      return Prisma.sql`ORDER BY g.polarization_geometry_count DESC, g.experiment_favorite_count DESC, g.quality_comment_count DESC, g.createdat DESC`;
     case "newest":
-    case "upload":
       return Prisma.sql`ORDER BY g.createdat DESC`;
     case "molecule":
       return Prisma.sql`ORDER BY g.molecule_display_name ASC`;
@@ -74,8 +84,10 @@ export function buildNexafsBrowseOrderBySql(
       return Prisma.sql`ORDER BY g.targetatom ASC, g.corestate ASC`;
     case "instrument":
       return Prisma.sql`ORDER BY g.instrument_name ASC`;
-    default:
+    default: {
+      const _exhaustive: never = sortBy;
       return Prisma.sql`ORDER BY g.createdat DESC`;
+    }
   }
 }
 

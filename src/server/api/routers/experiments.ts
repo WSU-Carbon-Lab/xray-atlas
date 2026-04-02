@@ -228,8 +228,8 @@ export const experimentsRouter = createTRPCRouter({
         limit: z.number().min(1).max(100).default(12),
         offset: z.number().min(0).default(0),
         sortBy: z
-          .enum(["newest", "upload", "molecule", "edge", "instrument"])
-          .default("newest"),
+          .enum(["engagement", "newest", "molecule", "edge", "instrument"])
+          .default("engagement"),
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
@@ -265,8 +265,8 @@ export const experimentsRouter = createTRPCRouter({
         limit: z.number().min(1).max(50).default(12),
         offset: z.number().min(0).default(0),
         sortBy: z
-          .enum(["newest", "upload", "molecule", "edge", "instrument"])
-          .default("newest"),
+          .enum(["engagement", "newest", "molecule", "edge", "instrument"])
+          .default("engagement"),
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
