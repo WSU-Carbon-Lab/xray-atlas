@@ -1,0 +1,11 @@
+---
+author: dotagents
+description: Use of skills, documentation lookup, scoped commands, and task clarity across stacks
+alwaysApply: true
+---
+
+- Read and apply relevant Cursor project rules and agent skills when they match the task. Invoke MCP documentation tools for library, CLI, or framework behavior instead of guessing version-specific details.
+- Prefer the repository’s documented commands for build, test, lint, and typecheck. When available, use file- or package-scoped invocations to shorten feedback loops.
+- Structure work with explicit **goal**, **context** (files and modules), **constraints** (compatibility, numerics, style), and **done when** criteria (tests, behavior, interfaces).
+- Call out permission-sensitive operations (package installs, deletions, network use, secret handling) and follow the user’s expectations for approval and safety.
+- Treat stale instructions as suspect: when project files contradict older prose, trust the code and configuration that actually run in CI.

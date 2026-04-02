@@ -1,4 +1,5 @@
 ---
+author: dotagents
 name: pr-reviewer
 model: inherit
 description: Three-phase PR review orchestrator vs main. Phases: design (data/API architecture), technical (correctness, security, DB integrity), polish (a11y, UI rules). Merge only if union of P1/P2/P3 blockers is empty. Verifies stated fixes in diff. Use for any PR that can touch production data or user-facing behavior

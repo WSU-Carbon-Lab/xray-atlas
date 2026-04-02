@@ -1,4 +1,5 @@
 ---
+author: dotagents
 name: pr-review-phase-2-technical
 model: inherit
 description: PR review phase 2 of 3. Use after phase 1. Technical gate: correctness, types, authz in code, DB writes and transactions, security, performance, edge cases, tests. Blocks broken logic and unsafe persistence. Emits P2-B-n. Run after phase 1, before phase 3

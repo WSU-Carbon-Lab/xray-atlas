@@ -1,4 +1,5 @@
 ---
+author: dotagents
 name: pr-review-phase-1-design
 model: inherit
 description: PR review phase 1 of 3. Use after git diff vs main. Design gate: architecture, data and API contracts, migrations and persistence shape, naming, boundaries, extensibility. Blocks wrong-layer and irreversible mistakes. Emits P1-B-n. Run before phases 2 and 3

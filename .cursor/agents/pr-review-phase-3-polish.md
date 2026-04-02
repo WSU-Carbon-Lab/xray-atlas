@@ -1,4 +1,5 @@
 ---
+author: dotagents
 name: pr-review-phase-3-polish
 model: inherit
 description: PR review phase 3 of 3. Use after phase 2. Polish gate: usability, WCAG-oriented accessibility, project UI rules (buttons, tooltips, confirmations, empty states). Blocks shipping inaccessible or rule-breaking UX. Emits P3-B-n
