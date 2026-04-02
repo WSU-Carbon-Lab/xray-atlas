@@ -1,5 +1,5 @@
 /**
- * Maps persisted spectrum rows (with optional polarization geometry) into `SpectrumPoint` values used by plotting and normalization helpers.
+ * Maps persisted spectrum rows (with optional polarization geometry) into `SpectrumPoint` values for plotting and tables. Browse views use these fields as stored at upload time (`od`, `massabsorption`, `rawabs`, `beta`, `i0`) without recomputing normalization.
  */
 import type { SpectrumPoint } from "~/components/plots/types";
 
@@ -20,7 +20,7 @@ export type AnnotatedSpectrumRow = {
 };
 
 /**
- * Converts database spectrum rows into plot-ready points: `absorption` prefers `massabsorption` when finite, otherwise `rawabs`, matching upload merge semantics used in browse views.
+ * Converts database spectrum rows into plot-ready points: `absorption` is the stored mass absorption when finite, otherwise stored raw absorption, matching what was persisted for the experiment.
  *
  * @param rows Ordered spectrum rows from Prisma (ascending energy). Each row may include joined `polarizations` for theta/phi.
  * @returns The same length as `rows`; theta/phi are omitted when polarization is missing or non-finite.

@@ -19,7 +19,6 @@ import {
   plotToolbarAttachedShellClass,
   plotToolbarBasisToggleClass,
   plotToolbarDifferenceToggleClass,
-  plotToolbarGlyphToggleStandaloneClass,
 } from "~/components/plots/toolbars";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
 import {
@@ -40,25 +39,21 @@ import type {
 } from "~/features/process-nexafs/ui/visualization-toggle";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
-import { BareAtomStepEdgeIcon } from "~/components/icons/bare-atom-step-edge-icon";
 import { NexafsBrowseGroupedSpectrumTable } from "~/components/nexafs/nexafs-browse-grouped-spectrum-table";
 
 export interface NexafsExperimentDatasetPanelProps {
   experimentId: string;
-  chemicalFormula: string;
   enabled: boolean;
 }
 
 /**
- * Fetches spectrum rows and peaks for one experiment and renders a read-only graph/table workspace with CSV export, matching contribute plot semantics without peak editing or normalization brushes.
+ * Fetches spectrum rows and peaks for one experiment and renders a read-only graph/table workspace with CSV export. Plot traces use stored column values (OD, mu, beta) from the database without recomputing normalization.
  *
  * @param experimentId Primary key for `spectrumpoints` / `peaksets` lookups.
- * @param chemicalFormula Molecule formula used for optional bare-atom overlay and beta; may be empty when unknown.
  * @param enabled When false, skips network queries until the parent expands the panel.
  */
 export function NexafsExperimentDatasetPanel({
   experimentId,
-  chemicalFormula,
   enabled,
 }: NexafsExperimentDatasetPanelProps) {
   const [visualizationMode, setVisualizationMode] =
@@ -108,7 +103,6 @@ export function NexafsExperimentDatasetPanel({
 
   const model = useNexafsSpectrumBrowseModel({
     spectrumPoints,
-    chemicalFormula: chemicalFormula?.trim() ? chemicalFormula : null,
   });
 
   const plotPeaks = useMemo(
@@ -260,55 +254,14 @@ export function NexafsExperimentDatasetPanel({
         ? "beta"
         : "absorption";
 
-  const bareAtomRailDisabled =
-    model.bareAtomLoading ||
-    (model.dataView !== "absorption" && model.dataView !== "beta") ||
-    (!model.showBareAtomOverlay &&
-      (!model.bareAtomReady || Boolean(model.bareAtomError)));
-
   const plotLeftRail = (
     <div className="pointer-events-auto flex flex-col gap-2">
       <Toolbar
         isAttached
         orientation="vertical"
-        aria-label="Spectrum display and overlays"
+        aria-label="Spectrum display tools"
         className={`${plotToolbarAttachedShellClass} w-fit`}
       >
-        <Tooltip delay={0}>
-          <Tooltip.Trigger>
-            <ToggleButton
-              isIconOnly
-              aria-label="Toggle bare-atom reference overlay"
-              id="bare-atom-overlay"
-              isSelected={model.showBareAtomOverlay}
-              onChange={(next) => {
-                if (next !== model.showBareAtomOverlay) {
-                  queueMicrotask(() => {
-                    model.setShowBareAtomOverlay(next);
-                  });
-                }
-              }}
-              isDisabled={bareAtomRailDisabled}
-              className={plotToolbarGlyphToggleStandaloneClass}
-            >
-              <BareAtomStepEdgeIcon className="h-5 w-5" aria-hidden />
-            </ToggleButton>
-          </Tooltip.Trigger>
-          <Tooltip.Content
-            placement="right"
-            className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
-          >
-            {model.dataView !== "absorption" && model.dataView !== "beta"
-              ? "Switch to mu or beta to show bare-atom reference"
-              : model.dataView === "beta"
-                ? (model.bareAtomError ??
-                  "Bare-atom beta from bare-atom mass absorption (mu)")
-                : (model.bareAtomError ?? "Bare-atom mass absorption (mu)")}
-          </Tooltip.Content>
-        </Tooltip>
-
-        <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
-
         <Tooltip delay={0}>
           <Tooltip.Trigger>
             <ToggleButton
@@ -357,6 +310,7 @@ export function NexafsExperimentDatasetPanel({
             isIconOnly
             aria-label="Optical density"
             id="od"
+            isDisabled={!model.odAvailable}
             className={plotToolbarBasisToggleClass}
           >
             <span className="text-xs font-semibold">OD</span>
@@ -451,10 +405,6 @@ export function NexafsExperimentDatasetPanel({
         </div>
       </div>
 
-      {model.bareAtomLoading ? (
-        <p className="text-text-tertiary text-xs">Computing bare-atom curve</p>
-      ) : null}
-
       {visualizationMode === "graph" ? (
         <div className="flex min-h-[420px] min-w-0 flex-1 flex-col rounded-xl border border-[var(--border-default)] p-4">
           <SpectrumPlot
@@ -462,15 +412,8 @@ export function NexafsExperimentDatasetPanel({
             graphStyle={graphStyle}
             yAxisQuantity={model.spectrumYAxisQuantity}
             referenceCurves={model.referenceCurves}
-            normalizationRegions={
-              model.showNormalizationShading
-                ? {
-                    pre: model.normalizationRegions.pre,
-                    post: model.normalizationRegions.post,
-                  }
-                : undefined
-            }
-            showNormalizationShading={model.showNormalizationShading}
+            normalizationRegions={undefined}
+            showNormalizationShading={false}
             plotContext={{ kind: "explore" }}
             peaks={plotPeaks}
             differenceSpectra={differenceSpectra}

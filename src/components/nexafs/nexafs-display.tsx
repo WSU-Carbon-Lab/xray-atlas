@@ -657,7 +657,6 @@ export function NexafsExperimentCompactCard({
         <div className="pointer-events-auto mt-3 w-full min-w-0 border-t border-zinc-200 pt-3 dark:border-zinc-600">
           <NexafsExperimentDatasetPanel
             experimentId={experimentId}
-            chemicalFormula={chemicalformula}
             enabled={spectrumExpanded}
           />
         </div>
