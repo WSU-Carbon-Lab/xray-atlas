@@ -17,6 +17,7 @@ Thank you for your interest in contributing to X-ray Atlas. This guide covers de
 - [Code Style](#code-style)
 - [Git Workflow](#git-workflow)
 - [Pull Request Guidelines](#pull-request-guidelines)
+  - [AI Usage in PRs](#ai-usage-in-prs)
 
 ---
 
@@ -499,6 +500,14 @@ git rebase origin/main
 
 4. **Ensure commits follow conventional commit format**
 
+### Vibe Coding Policy
+
+This repository uses a Cursor-first workflow ("vibe coding") for code creation and refactors.
+
+1. `cursor` is the only allowable tool for editing code in this repo. Do not use other AI/code assistants to generate or refactor code in your working tree.
+2. The `.cursor/` directory is maintained by core maintainers. Do not edit `.cursor/` as part of other contributors' PRs. If you believe `.cursor/` guardrails need to change, open an issue or ask a maintainer first.
+3. Contributions are allowed only when the vibe coding workflow is preserved. If you used any tool other than Cursor to author code, you must disclose it in your AI Role section and expect a maintainer to request a rework.
+
 ### PR Template
 
 ```markdown
@@ -518,12 +527,30 @@ Brief description of changes.
 - [ ] Tested OAuth flow (if auth changes)
 - [ ] Tested on mobile (if UI changes)
 
+## AI Role (required)
+
+Choose one of the following and briefly justify it:
+
+- [ ] Level 1: Mostly suggestions, tab completion, and minimal code generation
+- [ ] Level 2: Extensive code generation, but heavily managed; business and scientific logic was dictated by the contributor
+- [ ] Level 3: Fully vibe coded; PRs using this level will likely be thrown away, but may contain nuggets a maintainer chooses to review
+
+If you selected Level 2 or Level 3, include at least one sentence describing how you validated correctness (tests, types, manual verification, scientific sanity checks).
+
 ## Screenshots (if UI changes)
 
 Before | After
 --- | ---
 img | img
 ```
+
+### AI Usage in PRs
+
+All PRs must include an `AI Role (required)` section in the PR description using the 3-level scale above.
+
+This policy helps maintainers ensure that the contributor controls the scientific and business logic, even when AI-assisted generation is used.
+
+If you did not use Cursor for code editing or you used any additional AI/code assistants beyond Cursor, disclose that in your AI Role justification so maintainers can decide whether the PR needs rework.
 
 ### Review Process
 

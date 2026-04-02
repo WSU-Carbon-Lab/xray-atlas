@@ -166,6 +166,7 @@ Global styling and Tailwind entry CSS.
 - Prefer compact, visible inline validation using HeroUI `ErrorMessage` (and related field primitives) over heavy bordered warning panels when surfacing missing required fields near forms or tabs.
 - For substantial Prisma migrations, schema changes, and tRPC backend work, delegate to the project `backend-manager` subagent when the user requests it.
 - Prefer app toast patterns over `alert()` for user-visible errors in interactive flows (profile, mutations, and similar).
+- Vibe coding policy: Cursor is the only approved tool for code edits/generation; `.cursor/` is maintained by core maintainers and should not be modified in other PRs; PRs must include an `AI Role` section with levels 1-3 describing how AI was used (suggestions/minimal generation, extensive but managed generation, fully vibe-coded/disposable).
 
 ## Learned Workspace Facts
 

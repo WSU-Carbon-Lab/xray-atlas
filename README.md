@@ -36,6 +36,12 @@ X-ray Atlas is open source and we welcome contributions from the community.
 5. Run `bun run check` before opening a pull request
 6. Open a pull request with a clear description of the change
 
+## AI usage
+
+We allow AI-assisted development, but contributors must follow the policy in `CONTRIBUTING.md`, including the required `AI Role` section in pull requests (3 levels) and the Cursor-first editing workflow.
+
+Cursor is the intended tool for editing/vibe coding in this repo; do not edit maintainer-owned `.cursor/` configuration in your PR.
+
 ## License
 
 Application code is licensed under the [MIT License](LICENSE). Contributed datasets are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
