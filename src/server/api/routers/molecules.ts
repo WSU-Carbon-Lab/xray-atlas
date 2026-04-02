@@ -1093,7 +1093,7 @@ export const moleculesRouter = createTRPCRouter({
   getTopFavorited: publicProcedure
     .input(
       z.object({
-        limit: z.number().min(1).max(100).default(10),
+        limit: z.number().min(1).max(100).default(4),
       }),
     )
     .query(async ({ ctx, input }) => {
