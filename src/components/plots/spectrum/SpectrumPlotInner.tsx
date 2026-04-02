@@ -86,6 +86,7 @@ export function SpectrumPlotInner({
   selectedGeometry = null,
   headerRight,
   headerAnalysis,
+  plotTopRailDataActions,
   showNormalizationShading = false,
   cursorMode: externalCursorMode,
   onCursorModeChange,
@@ -858,7 +859,12 @@ export function SpectrumPlotInner({
             isPanDisabled={zoomedXDomain == null}
             onCursorModeChange={handleCursorModeChange}
             onResetZoom={handleResetZoom}
-            onExportClick={() => setExportModalOpen(true)}
+            onExportClick={
+              plotTopRailDataActions
+                ? undefined
+                : () => setExportModalOpen(true)
+            }
+            topRailLeadingExtras={plotTopRailDataActions}
             dataViewTabs={headerRight}
             analysisTools={headerAnalysis}
           />

@@ -8,12 +8,11 @@ import {
   Atom,
   ChevronDown,
   Copy,
-  Download,
   Heart,
   MessageCircle,
   TriangleRight,
 } from "lucide-react";
-import { Button, Tooltip } from "@heroui/react";
+import { Tooltip } from "@heroui/react";
 import { trpc } from "~/trpc/client";
 import {
   CompactCardMetricsColumn,
@@ -30,11 +29,6 @@ import { AvatarGroup, type UserWithOrcid } from "~/components/ui/avatar";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
-import { showToast } from "~/components/ui/toast";
-import {
-  mapDbSpectrumRowsToPoints,
-  spectrumPointsToDetailedCsv,
-} from "~/features/process-nexafs/utils";
 
 const pubChemCompoundUrl = (cid: string) =>
   `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}`;
@@ -221,7 +215,6 @@ export function NexafsExperimentCompactCard({
   const user = session?.user;
   const isSignedIn = !!user;
   const queryClient = useQueryClient();
-  const trpcUtils = trpc.useUtils();
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [spectrumExpanded, setSpectrumExpanded] = useState(false);
@@ -279,52 +272,6 @@ export function NexafsExperimentCompactCard({
       });
     }
   }, []);
-
-  const handleSpectrumDownloadCsv = useCallback(async () => {
-    try {
-      const rows = await trpcUtils.spectrumpoints.getByExperiment.fetch({
-        experimentId,
-        limit: 10000,
-        offset: 0,
-      });
-      if (!rows.length) {
-        showToast("No spectrum rows for this experiment", "info");
-        return;
-      }
-      const pts = mapDbSpectrumRowsToPoints(rows);
-      const csv = spectrumPointsToDetailedCsv(pts);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `nexafs-experiment-${experimentId.slice(0, 8)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast("CSV download started", "success");
-    } catch {
-      showToast("Could not load spectrum data", "error");
-    }
-  }, [experimentId, trpcUtils]);
-
-  const handleSpectrumCopyCsv = useCallback(async () => {
-    try {
-      const rows = await trpcUtils.spectrumpoints.getByExperiment.fetch({
-        experimentId,
-        limit: 10000,
-        offset: 0,
-      });
-      if (!rows.length) {
-        showToast("No spectrum rows for this experiment", "info");
-        return;
-      }
-      const pts = mapDbSpectrumRowsToPoints(rows);
-      const csv = spectrumPointsToDetailedCsv(pts);
-      await navigator.clipboard.writeText(csv);
-      showToast(`Copied ${pts.length} rows as CSV`, "success");
-    } catch {
-      showToast("Could not copy spectrum data", "error");
-    }
-  }, [experimentId, trpcUtils]);
 
   const previewMolecule: MoleculeView = {
     id: moleculeId,
@@ -493,46 +440,6 @@ export function NexafsExperimentCompactCard({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-wrap items-center justify-end gap-1.5">
-          <Tooltip delay={0}>
-            <Tooltip.Trigger className="inline-flex shrink-0">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onPress={() => {
-                  void handleSpectrumDownloadCsv();
-                }}
-                aria-label="Download experiment spectrum as CSV"
-                className="text-text-secondary hover:text-text-primary h-8 min-w-0 gap-1 px-2 text-xs font-medium"
-              >
-                <Download className="size-3.5 shrink-0" aria-hidden />
-                <span className="hidden sm:inline">Download</span>
-              </Button>
-            </Tooltip.Trigger>
-            <Tooltip.Content placement="top" className="max-w-xs">
-              Download all spectrum points for this experiment as CSV
-            </Tooltip.Content>
-          </Tooltip>
-          <Tooltip delay={0}>
-            <Tooltip.Trigger className="inline-flex shrink-0">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onPress={() => {
-                  void handleSpectrumCopyCsv();
-                }}
-                aria-label="Copy experiment spectrum as CSV"
-                className="text-text-secondary hover:text-text-primary h-8 min-w-0 gap-1 px-2 text-xs font-medium"
-              >
-                <Copy className="size-3.5 shrink-0" aria-hidden />
-                <span className="hidden sm:inline">Copy CSV</span>
-              </Button>
-            </Tooltip.Trigger>
-            <Tooltip.Content placement="top" className="max-w-xs">
-              Copy all spectrum points for this experiment as CSV
-            </Tooltip.Content>
-          </Tooltip>
           <Tooltip delay={0}>
             <Tooltip.Trigger className="inline-flex shrink-0">
               <button

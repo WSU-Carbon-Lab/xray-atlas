@@ -1,6 +1,12 @@
 "use client";
 
-import { memo, useMemo, useState, type ReactNode } from "react";
+import {
+  Children,
+  memo,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Button,
   ButtonGroup,
@@ -34,6 +40,7 @@ type PlotToolRailsDeckProps = {
   onCursorModeChange: (mode: CursorMode) => void;
   onResetZoom: () => void;
   onExportClick?: () => void;
+  topRailLeadingExtras?: ReactNode;
   displayTools?: ReactNode;
   analysisTools?: ReactNode;
   bottomTools?: ReactNode;
@@ -53,6 +60,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
   onCursorModeChange,
   onResetZoom,
   onExportClick,
+  topRailLeadingExtras,
   displayTools,
   analysisTools,
   bottomTools,
@@ -77,12 +85,12 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           isAttached
           orientation="horizontal"
           aria-label="Plot navigation and cursor"
-          className={plotToolbarAttachedShellClass}
+          className={`${plotToolbarAttachedShellClass} items-stretch gap-2`}
         >
           <ButtonGroup
             orientation="horizontal"
             variant="tertiary"
-            aria-label="Reset and export"
+            aria-label="Reset zoom, data export, and plot export"
           >
             <Button
               type="button"
@@ -93,7 +101,10 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
             >
               <HomeIcon className="h-5 w-5" aria-hidden />
             </Button>
-            {onExportClick ? (
+            {topRailLeadingExtras != null
+              ? Children.toArray(topRailLeadingExtras)
+              : null}
+            {!topRailLeadingExtras && onExportClick ? (
               <Button
                 type="button"
                 isIconOnly
@@ -106,7 +117,10 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               </Button>
             ) : null}
           </ButtonGroup>
-          <Separator orientation="vertical" className="h-8" />
+          <Separator
+            orientation="vertical"
+            className="mx-1 h-6 min-h-6 w-px shrink-0 self-center bg-(--border-default)"
+          />
           <ToggleButtonGroup
             aria-label="Cursor interaction mode"
             selectionMode="single"
@@ -208,6 +222,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
     onCursorModeChange,
     onExportClick,
     onResetZoom,
+    topRailLeadingExtras,
   ]);
 
   const leftRail = rails[0];

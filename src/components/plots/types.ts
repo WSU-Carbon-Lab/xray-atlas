@@ -104,6 +104,10 @@ export type SpectrumPlotProps = {
    * Optional controls for the right-hand analysis tool rail (for example bare-atom overlay toggles).
    */
   headerAnalysis?: ReactNode;
+  /**
+   * Optional icon actions rendered in the top plot rail after Home (for example spectrum CSV download/copy menus). Fragments and arrays are flattened so each control is a direct sibling inside the same `ButtonGroup` as Home (continuous segment styling). When set, the default top-rail plot export shortcut is omitted; callers that still need export UI should include it inside this node or elsewhere.
+   */
+  plotTopRailDataActions?: ReactNode;
   showThetaData?: boolean;
   showPhiData?: boolean;
   selectedGeometry?: { theta?: number; phi?: number } | null;
