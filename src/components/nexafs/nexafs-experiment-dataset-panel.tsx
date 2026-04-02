@@ -609,24 +609,24 @@ export function NexafsExperimentDatasetPanel({
     pointsQuery.isLoading || sortedAllPoints.length === 0;
 
   const plotTopRailDataActions = useMemo(
-    () => (
-      <>
-        <ExperimentSpectrumRailCsvDropdown
-          kind="download"
-          disabled={spectrumRailCsvMenusDisabled}
-          experimentId={experimentId}
-          sortedAllPoints={sortedAllPoints}
-          groupedTree={groupedTree}
-        />
-        <ExperimentSpectrumRailCsvDropdown
-          kind="copy"
-          disabled={spectrumRailCsvMenusDisabled}
-          experimentId={experimentId}
-          sortedAllPoints={sortedAllPoints}
-          groupedTree={groupedTree}
-        />
-      </>
-    ),
+    () => [
+      <ExperimentSpectrumRailCsvDropdown
+        key="spectrum-rail-download"
+        kind="download"
+        disabled={spectrumRailCsvMenusDisabled}
+        experimentId={experimentId}
+        sortedAllPoints={sortedAllPoints}
+        groupedTree={groupedTree}
+      />,
+      <ExperimentSpectrumRailCsvDropdown
+        key="spectrum-rail-copy"
+        kind="copy"
+        disabled={spectrumRailCsvMenusDisabled}
+        experimentId={experimentId}
+        sortedAllPoints={sortedAllPoints}
+        groupedTree={groupedTree}
+      />,
+    ],
     [
       spectrumRailCsvMenusDisabled,
       experimentId,
