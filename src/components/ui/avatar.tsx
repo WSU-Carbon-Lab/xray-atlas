@@ -76,7 +76,7 @@ export function AvatarButton({
       <Button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="border-border bg-surface focus-visible:ring-accent flex h-10 w-10 items-center justify-center rounded-full border transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        className="border-border bg-surface focus-visible:ring-accent hover:bg-default flex h-10 w-10 items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         aria-label="User menu"
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -249,7 +249,7 @@ interface AvatarGroupProps extends React.ComponentProps<typeof Avatar> {
 }
 
 const avatarSizeClasses = {
-  sm: "h-7 w-7",
+  sm: "h-8 w-8",
   md: "h-9 w-9",
   lg: "h-10 w-10",
 } as const;
@@ -375,7 +375,7 @@ export function AvatarGroup({
       {remaining > 0 ? (
         <span
           className={`bg-surface-2 text-text-primary relative z-10 flex shrink-0 items-center justify-center rounded-full font-bold shadow-sm ${
-            size === "sm" ? "h-7 w-7 text-[10px]" : "h-9 w-9 text-xs"
+            size === "sm" ? "h-8 w-8 text-[10px]" : "h-9 w-9 text-xs"
           }`}
           title={`${remaining} more`}
         >

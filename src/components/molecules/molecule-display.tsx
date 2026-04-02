@@ -41,6 +41,11 @@ import {
   User,
   X,
 } from "lucide-react";
+import {
+  CompactCardMetricsColumn,
+  CompactCardMetricStat,
+  formatCompactMetricCount,
+} from "~/components/browse/compact-card-metrics";
 
 const EDIT_FIELD_CLASS =
   "rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-zinc-600 dark:bg-zinc-700/90";
@@ -373,7 +378,7 @@ export function MoleculeCardActions({
               variant="secondary"
               aria-label="Copy InChI"
               onPress={() => handleCopy(molecule.InChI, "InChI")}
-              className={`focus-visible:ring-accent inline-flex shrink-0 gap-1.5 ${
+              className={`focus-visible:ring-accent inline-flex shrink-0 items-center gap-1.5 ${
                 copiedText === "InChI"
                   ? "text-accent dark:text-accent-light"
                   : "text-text-tertiary"
@@ -394,7 +399,7 @@ export function MoleculeCardActions({
               variant="secondary"
               aria-label="Copy SMILES"
               onPress={() => handleCopy(molecule.SMILES, "SMILES")}
-              className={`focus-visible:ring-accent inline-flex shrink-0 gap-1.5 ${
+              className={`focus-visible:ring-accent inline-flex shrink-0 items-center gap-1.5 ${
                 copiedText === "SMILES"
                   ? "text-accent dark:text-accent-light"
                   : "text-text-tertiary"
@@ -544,8 +549,8 @@ export const CompactCard = memo(function CompactCard({
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
   return (
-    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md md:flex-row md:items-start md:gap-4 dark:bg-zinc-800">
-      <div className="flex min-w-0 flex-1 items-start gap-2 border-r border-zinc-200 pr-2 md:flex-row md:gap-4 md:pr-4 dark:border-zinc-600">
+    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md md:flex-row md:items-center md:gap-4 dark:bg-zinc-800">
+      <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 md:flex-row md:gap-4 md:pr-4 dark:border-zinc-600">
         <button
           type="button"
           onClick={(e) => {
@@ -672,13 +677,12 @@ export const CompactCard = memo(function CompactCard({
         <div>
           <AvatarGroup users={avatarUsers} size="sm" />
         </div>
-        <div className="flex min-w-[56px] shrink-0 flex-col items-end gap-0.5">
-          <span className="flex items-center gap-1 text-[10px] text-sky-500 tabular-nums">
-            <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            {viewCount >= 1000
-              ? `${(viewCount / 1000).toFixed(1)}k`
-              : viewCount}
-          </span>
+        <CompactCardMetricsColumn>
+          <CompactCardMetricStat
+            icon={<Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+            value={formatCompactMetricCount(viewCount)}
+            textClassName="text-[10px] text-sky-500"
+          />
           {props.molecule.id && props.isSignedIn ? (
             <button
               type="button"
@@ -690,7 +694,7 @@ export const CompactCard = memo(function CompactCard({
               aria-label={
                 props.realtimeUserHasUpvoted ? "Unfavorite" : "Favorite"
               }
-              className={`flex items-center gap-1 text-xs font-medium tabular-nums transition-colors hover:opacity-80 disabled:opacity-50 ${
+              className={`flex items-center gap-1 text-xs leading-none font-medium tabular-nums transition-colors hover:opacity-80 disabled:opacity-50 ${
                 props.realtimeUserHasUpvoted
                   ? "text-pink-500"
                   : "text-text-tertiary"
@@ -708,7 +712,7 @@ export const CompactCard = memo(function CompactCard({
             </button>
           ) : (
             <span
-              className={`flex items-center gap-1 text-xs font-medium tabular-nums ${
+              className={`flex items-center gap-1 text-xs leading-none font-medium tabular-nums ${
                 props.realtimeUserHasUpvoted
                   ? "text-pink-500"
                   : "text-text-tertiary"
@@ -725,16 +729,13 @@ export const CompactCard = memo(function CompactCard({
               {props.realtimeUpvoteCount}
             </span>
           )}
-          <span
-            className="flex items-center gap-1 text-[10px] text-amber-500 tabular-nums"
+          <CompactCardMetricStat
+            icon={<Database className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+            value={formatCompactMetricCount(experimentCount)}
+            textClassName="text-[10px] text-amber-500"
             title="Datasets"
-          >
-            <Database className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            {experimentCount >= 1000
-              ? `${(experimentCount / 1000).toFixed(1)}k`
-              : experimentCount}
-          </span>
-        </div>
+          />
+        </CompactCardMetricsColumn>
       </div>
       <MoleculeImageModal
         isOpen={imageModalOpen}

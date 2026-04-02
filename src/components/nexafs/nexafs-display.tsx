@@ -1,12 +1,17 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Atom, Copy, Heart } from "lucide-react";
-import { Dropdown, Tooltip } from "@heroui/react";
-import { buttonVariants, cn } from "@heroui/styles";
+import { Atom, Copy, Heart, MessageCircle, TriangleRight } from "lucide-react";
+import { Tooltip } from "@heroui/react";
 import { trpc } from "~/trpc/client";
+import {
+  CompactCardMetricsColumn,
+  CompactCardMetricStat,
+  formatCompactMetricCount,
+} from "~/components/browse/compact-card-metrics";
 import { MoleculeImageSVG } from "~/components/molecules/molecule-image-svg";
 import {
   MoleculeCardActions,
@@ -21,6 +26,63 @@ const pubChemCompoundUrl = (cid: string) =>
   `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}`;
 const casRegistryUrl = (casNumber: string) =>
   `https://commonchemistry.cas.org/detail?cas_rn=${casNumber}&search=${casNumber}`;
+
+function trpcKeyMatchesExperimentsProcedure(
+  queryKey: readonly unknown[],
+  procedure: "browseList" | "browseSearch",
+): boolean {
+  const head = queryKey[0];
+  if (!Array.isArray(head) || head.length < 2) return false;
+  return head[0] === "experiments" && head[1] === procedure;
+}
+
+function patchExperimentFavoriteInBrowsePayload(
+  old: unknown,
+  targetExperimentId: string,
+  nextFavoriteCount: number,
+  nextUserHasFavorited: boolean,
+): unknown {
+  if (old === undefined || typeof old !== "object") return old;
+  const record = old as { groups?: unknown };
+  if (!Array.isArray(record.groups)) return old;
+  const rawGroups = record.groups as unknown[];
+  let changed = false;
+  const groups = rawGroups.map((g: unknown) => {
+    if (!g || typeof g !== "object") return g;
+    const row = g as { experimentId?: string };
+    if (row.experimentId !== targetExperimentId) return g;
+    changed = true;
+    return {
+      ...row,
+      favoriteCount: nextFavoriteCount,
+      userHasFavorited: nextUserHasFavorited,
+    };
+  });
+  return changed ? { ...record, groups } : old;
+}
+
+function patchAllNexafsBrowseCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  experimentId: string,
+  nextFavoriteCount: number,
+  nextUserHasFavorited: boolean,
+) {
+  for (const procedure of ["browseList", "browseSearch"] as const) {
+    queryClient.setQueriesData(
+      {
+        predicate: (q) =>
+          trpcKeyMatchesExperimentsProcedure(q.queryKey, procedure),
+      },
+      (old) =>
+        patchExperimentFavoriteInBrowsePayload(
+          old,
+          experimentId,
+          nextFavoriteCount,
+          nextUserHasFavorited,
+        ),
+    );
+  }
+}
 
 function edgeChipClass(edgeLabel: string): string {
   const atom = edgeLabel.trim().split(/\s+/)[0]?.toUpperCase() ?? "";
@@ -89,69 +151,6 @@ function experimentTypeChipClass(experimentTypeLabel: string | null): string {
   return "border-zinc-500/35 bg-zinc-500/12 text-zinc-300";
 }
 
-function PolarizationValuesDropdown({
-  title,
-  values,
-  symbol,
-  count,
-  metricClassName,
-  ariaLabel,
-}: {
-  title: string;
-  values: number[];
-  symbol: string;
-  count: number;
-  metricClassName: string;
-  ariaLabel: string;
-}) {
-  const listText = values.length > 0 ? values.join(", ") : "No values";
-  const itemId = useId();
-  return (
-    <Dropdown>
-      <Dropdown.Trigger
-        aria-label={ariaLabel}
-        className={cn(
-          buttonVariants({ variant: "tertiary", size: "sm" }),
-          metricClassName,
-          "focus-visible:ring-accent relative z-10 inline-grid h-9 min-h-9 min-w-[44px] place-items-center rounded-md px-1 py-0 text-[11px] leading-none font-semibold tabular-nums hover:bg-zinc-700/30 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900",
-        )}
-      >
-        <span className="inline-grid w-full min-w-0 grid-cols-[16px_1fr] items-center justify-items-start gap-x-1">
-          <span
-            className="inline-flex w-[16px] justify-center font-serif text-base leading-none"
-            aria-hidden
-          >
-            {symbol}
-          </span>
-          <span className="text-left">{count}</span>
-        </span>
-      </Dropdown.Trigger>
-      <Dropdown.Popover
-        placement="left"
-        offset={8}
-        className="border-border bg-surface max-w-xs rounded-xl border p-0 shadow-lg outline-none"
-      >
-        <Dropdown.Menu selectionMode="none" aria-label={title}>
-          <Dropdown.Item
-            id={itemId}
-            textValue={`${title} ${listText}`}
-            className="text-muted cursor-default py-2 font-mono text-xs leading-relaxed tabular-nums"
-          >
-            <div className="px-2 py-2">
-              <div className="text-foreground text-sm font-semibold">
-                {title}
-              </div>
-              <div className="text-muted mt-1 font-mono text-xs leading-relaxed tabular-nums">
-                {listText}
-              </div>
-            </div>
-          </Dropdown.Item>
-        </Dropdown.Menu>
-      </Dropdown.Popover>
-    </Dropdown>
-  );
-}
-
 export type NexafsExperimentCompactCardProps = {
   href: string;
   experimentId: string;
@@ -178,10 +177,7 @@ export type NexafsExperimentCompactCardProps = {
     orcid: string | null;
   }>;
   polarizationCount: number;
-  uniqueThetaCount: number;
-  uniquePhiCount: number;
-  thetaValues: number[];
-  phiValues: number[];
+  commentCount: number;
 };
 
 export function NexafsExperimentCompactCard({
@@ -203,17 +199,14 @@ export function NexafsExperimentCompactCard({
   facilityName,
   experimentTypeLabel,
   experimentContributorUsers,
-  polarizationCount: _polarizationCount,
-  uniqueThetaCount,
-  uniquePhiCount,
-  thetaValues,
-  phiValues,
+  polarizationCount,
+  commentCount,
 }: NexafsExperimentCompactCardProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const user = session?.user;
   const isSignedIn = !!user;
-  const utils = trpc.useUtils();
+  const queryClient = useQueryClient();
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [optimisticFavoriteDelta, setOptimisticFavoriteDelta] = useState(0);
@@ -237,18 +230,25 @@ export function NexafsExperimentCompactCard({
       setOptimisticUserFavorited(realtimeUserHasFavorited ? false : true);
       setOptimisticFavoriteDelta(realtimeUserHasFavorited ? -1 : 1);
     },
-    onSuccess: () => {
-      void utils.experiments.browseList.invalidate();
-      void utils.experiments.browseSearch.invalidate();
+    onSuccess: (data) => {
+      patchAllNexafsBrowseCaches(
+        queryClient,
+        experimentId,
+        data.favoriteCount,
+        data.favorited,
+      );
+      setOptimisticFavoriteDelta(0);
+      setOptimisticUserFavorited(null);
     },
-    onSettled: () => {
+    onError: () => {
       setOptimisticFavoriteDelta(0);
       setOptimisticUserFavorited(null);
     },
   });
 
   const displayUpvoteCount = realtimeFavoriteCount + optimisticFavoriteDelta;
-  const displayUserHasUpvoted = optimisticUserFavorited ?? realtimeUserHasFavorited;
+  const displayUserHasUpvoted =
+    optimisticUserFavorited ?? realtimeUserHasFavorited;
 
   const handleFavorite = useCallback(() => {
     if (!isSignedIn || !experimentId) return;
@@ -307,15 +307,13 @@ export function NexafsExperimentCompactCard({
   const edgeClass = edgeChipClass(edgeLabel);
   const instrumentClass = instrumentChipClass(instrumentName, facilityName);
   const experimentTypeClass = experimentTypeChipClass(experimentTypeLabel);
-  const thetaDisplayCount = uniqueThetaCount;
-  const phiDisplayCount = uniquePhiCount;
   const instrumentFacilityLabel = `${instrumentName} | ${facilityLine}`;
   return (
-    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 pointer-events-none flex w-full flex-col overflow-visible rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md md:flex-row md:items-center md:gap-4 dark:bg-zinc-800">
+    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 pointer-events-none flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md md:flex-row md:items-center md:gap-4 dark:bg-zinc-800">
       <div
         role="link"
         tabIndex={0}
-        className="focus-visible:ring-accent pointer-events-auto flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-r border-zinc-200 pr-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 md:flex-row md:gap-4 md:pr-4 dark:border-zinc-600"
+        className="focus-visible:ring-accent pointer-events-auto flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-r border-zinc-200 pr-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 md:gap-4 md:pr-4 dark:border-zinc-600"
         onClick={() => router.push(href)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -360,7 +358,7 @@ export function NexafsExperimentCompactCard({
             />
           ) : null}
         </button>
-        <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5">
           <div className="flex min-w-0 items-center gap-2 overflow-hidden">
             <div className="min-w-0 shrink">
               <span className="text-text-primary motion-safe:group-hover:text-accent block truncate text-sm leading-tight font-bold motion-safe:transition-colors">
@@ -404,7 +402,7 @@ export function NexafsExperimentCompactCard({
               </Tooltip>
             ) : null}
           </div>
-          <div className="mt-1 inline-flex h-5 max-w-full min-w-0 items-center justify-start gap-x-1.5 overflow-hidden text-left text-[10px] leading-none whitespace-nowrap sm:text-[11px]">
+          <div className="inline-flex h-5 max-w-full min-w-0 items-center justify-start gap-x-1.5 overflow-hidden text-left text-[10px] leading-none whitespace-nowrap sm:text-[11px]">
             <span
               className={`inline-flex h-4.5 shrink-0 items-center rounded-full border px-1.5 font-semibold ${edgeClass}`}
             >
@@ -428,7 +426,7 @@ export function NexafsExperimentCompactCard({
         </div>
       </div>
       <div
-        className="pointer-events-auto relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 md:ml-auto md:flex-nowrap md:gap-x-3 md:gap-y-0 md:border-t-0 md:pt-0 md:pl-4 dark:border-zinc-600"
+        className="pointer-events-auto relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 md:ml-auto md:gap-x-3 md:gap-y-0 md:border-t-0 md:pt-0 md:pl-4 dark:border-zinc-600"
         onClick={(e) => e.stopPropagation()}
       >
         <div>
@@ -444,10 +442,10 @@ export function NexafsExperimentCompactCard({
         <div onClick={(e) => e.stopPropagation()}>
           <AvatarGroup users={avatarUsers} size="sm" />
         </div>
-        <div className="relative z-40 flex min-w-[64px] shrink-0 flex-col items-end gap-0.5">
+        <CompactCardMetricsColumn className="relative z-40">
           {isSignedIn ? (
             <Tooltip delay={0}>
-              <Tooltip.Trigger>
+              <Tooltip.Trigger className="inline-flex shrink-0 justify-end">
                 <span
                   tabIndex={favoriteMutation.isPending ? 0 : undefined}
                   className="inline-flex"
@@ -463,26 +461,21 @@ export function NexafsExperimentCompactCard({
                     aria-label={
                       displayUserHasUpvoted ? "Unfavorite" : "Favorite"
                     }
-                    className={`grid h-6 w-[42px] grid-cols-[16px_18px] items-center justify-items-start gap-x-1 rounded-md px-0.5 text-[11px] leading-none font-semibold tabular-nums transition-colors hover:bg-zinc-700/30 hover:opacity-80 disabled:opacity-50 ${
+                    className={`flex items-center gap-1 text-xs leading-none font-medium tabular-nums transition-colors hover:opacity-80 disabled:opacity-50 ${
                       displayUserHasUpvoted
                         ? "text-pink-500"
-                        : "text-text-secondary"
+                        : "text-text-tertiary"
                     }`}
                   >
-                    <span
-                      className="inline-flex w-[16px] justify-center"
+                    <Heart
+                      className={`h-3.5 w-3.5 shrink-0 ${
+                        displayUserHasUpvoted
+                          ? "fill-pink-500 text-pink-500"
+                          : ""
+                      }`}
                       aria-hidden
-                    >
-                      <Heart
-                        className={`h-3.5 w-3.5 shrink-0 ${
-                          displayUserHasUpvoted
-                            ? "fill-pink-500 text-pink-500"
-                            : ""
-                        }`}
-                        aria-hidden
-                      />
-                    </span>
-                    <span className="text-left">{displayUpvoteCount}</span>
+                    />
+                    {displayUpvoteCount}
                   </button>
                 </span>
               </Tooltip.Trigger>
@@ -496,38 +489,36 @@ export function NexafsExperimentCompactCard({
             </Tooltip>
           ) : (
             <span
-              className={`grid h-6 w-[42px] grid-cols-[16px_18px] items-center justify-items-start gap-x-1 rounded-md px-0.5 text-[11px] leading-none font-semibold tabular-nums ${
-                displayUserHasUpvoted ? "text-pink-500" : "text-text-secondary"
+              className={`inline-flex shrink-0 items-center gap-1 text-xs leading-none font-medium tabular-nums ${
+                displayUserHasUpvoted ? "text-pink-500" : "text-text-tertiary"
               }`}
             >
-              <span className="inline-flex w-[16px] justify-center" aria-hidden>
-                <Heart
-                  className={`h-3.5 w-3.5 shrink-0 ${
-                    displayUserHasUpvoted ? "fill-pink-500 text-pink-500" : ""
-                  }`}
-                  aria-hidden
-                />
-              </span>
-              <span className="text-left">{displayUpvoteCount}</span>
+              <Heart
+                className={`h-3.5 w-3.5 shrink-0 ${
+                  displayUserHasUpvoted ? "fill-pink-500 text-pink-500" : ""
+                }`}
+                aria-hidden
+              />
+              {displayUpvoteCount}
             </span>
           )}
-          <PolarizationValuesDropdown
-            title="Theta values"
-            values={thetaValues}
-            symbol="θ"
-            count={thetaDisplayCount}
-            metricClassName="text-info"
-            ariaLabel="Open theta polarization values"
+          <CompactCardMetricStat
+            icon={
+              <TriangleRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            }
+            value={formatCompactMetricCount(polarizationCount)}
+            textClassName="text-[10px] text-cyan-500"
+            title="Geometries"
           />
-          <PolarizationValuesDropdown
-            title="Phi values"
-            values={phiValues}
-            symbol="φ"
-            count={phiDisplayCount}
-            metricClassName="text-warning"
-            ariaLabel="Open phi polarization values"
+          <CompactCardMetricStat
+            icon={
+              <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            }
+            value={formatCompactMetricCount(commentCount)}
+            textClassName="text-[10px] text-teal-400"
+            title="Comments"
           />
-        </div>
+        </CompactCardMetricsColumn>
       </div>
       <MoleculeImageModal
         isOpen={imageModalOpen}

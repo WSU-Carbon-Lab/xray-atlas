@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { supabaseClient } from "~/lib/supabase-client";
 
@@ -43,7 +43,7 @@ export function useRealtimeFavoriteEntity({
     null,
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!entityId) return;
     setFavoriteCount(initialFavoriteCount);
     setUserHasFavorited(initialUserHasFavorited);

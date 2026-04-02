@@ -103,7 +103,8 @@ export type NexafsBrowseGroupRow = {
   facility_name: string | null;
   contributor_labels: string | null;
   contributor_users: unknown;
-  polarizations: Array<{ polarDeg: unknown; azimuthDeg: unknown }> | null;
+  polarization_geometry_count: bigint;
+  quality_comment_count: bigint;
 };
 
 export type NexafsBrowseContributorUser = {
@@ -120,10 +121,8 @@ export type NexafsBrowseGroupDto = {
   userHasFavorited: boolean;
   createdat: Date;
   experimenttype: ExperimentType | null;
-  polarizations: Array<{ polarDeg: number; azimuthDeg: number }>;
   polarizationCount: number;
-  uniqueThetaCount: number;
-  uniquePhiCount: number;
+  commentCount: number;
   contributorLabels: string | null;
   contributorUsers: NexafsBrowseContributorUser[];
   molecule: {
@@ -141,43 +140,6 @@ export type NexafsBrowseGroupDto = {
   edge: { targetatom: string; corestate: string };
   instrument: { name: string; facilityName: string | null };
 };
-
-function toNumber(v: unknown): number {
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string") {
-    const n = Number(v);
-    if (Number.isFinite(n)) return n;
-  }
-  return Number.NaN;
-}
-
-function mapPolarizations(
-  raw: NexafsBrowseGroupRow["polarizations"],
-): Array<{ polarDeg: number; azimuthDeg: number }> {
-  if (!raw || !Array.isArray(raw)) return [];
-  const seen = new Set<string>();
-  const out: Array<{ polarDeg: number; azimuthDeg: number }> = [];
-  for (const p of raw) {
-    if (!p || typeof p !== "object") continue;
-    const polarDeg = toNumber(
-      "polarDeg" in p ? (p as { polarDeg: unknown }).polarDeg : undefined,
-    );
-    const azimuthDeg = toNumber(
-      "azimuthDeg" in p ? (p as { azimuthDeg: unknown }).azimuthDeg : undefined,
-    );
-    if (!Number.isFinite(polarDeg) || !Number.isFinite(azimuthDeg)) continue;
-    const key = `${polarDeg}:${azimuthDeg}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push({ polarDeg, azimuthDeg });
-  }
-  out.sort((a, b) =>
-    a.polarDeg !== b.polarDeg
-      ? a.polarDeg - b.polarDeg
-      : a.azimuthDeg - b.azimuthDeg,
-  );
-  return out;
-}
 
 function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
   if (!raw || !Array.isArray(raw)) return [];
@@ -201,9 +163,6 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
 export function mapNexafsBrowseGroupRow(
   row: NexafsBrowseGroupRow,
 ): NexafsBrowseGroupDto {
-  const polarizations = mapPolarizations(row.polarizations);
-  const uniqueTheta = new Set(polarizations.map((p) => p.polarDeg)).size;
-  const uniquePhi = new Set(polarizations.map((p) => p.azimuthDeg)).size;
   const fav =
     typeof row.molecule_favorite_count === "bigint"
       ? Number(row.molecule_favorite_count)
@@ -214,10 +173,8 @@ export function mapNexafsBrowseGroupRow(
     userHasFavorited: row.user_has_favorited,
     createdat: row.createdat,
     experimenttype: row.experimenttype,
-    polarizations,
-    polarizationCount: polarizations.length,
-    uniqueThetaCount: uniqueTheta,
-    uniquePhiCount: uniquePhi,
+    polarizationCount: Number(row.polarization_geometry_count),
+    commentCount: Number(row.quality_comment_count),
     contributorLabels: row.contributor_labels,
     contributorUsers: parseContributorUsers(row.contributor_users),
     molecule: {
@@ -254,26 +211,23 @@ export async function fetchNexafsBrowseGrouped(
   const whereSql = buildNexafsBrowseWhereSql(args.filters, args.searchQuery);
   const orderBySql = buildNexafsBrowseOrderBySql(args.sortBy);
   const viewerUserId = args.viewerUserId ?? null;
-  const polarizationsSql = Prisma.sql`(
-        SELECT COALESCE(
-          json_agg(
-            json_build_object('polarDeg', x.polardeg, 'azimuthDeg', x.azimuthdeg)
-            ORDER BY x.polardeg, x.azimuthdeg
-          ),
-          '[]'::json
-        )
+  const polarizationGeometryCountSql = Prisma.sql`(
+        SELECT COUNT(*)::bigint
         FROM (
-          SELECT DISTINCT p.polardeg, p.azimuthdeg
-          FROM spectrumpoints sp
-          INNER JOIN polarizations p ON p.id = sp.polarizationid
-          WHERE sp.experimentid = b.experiment_id
-            AND sp.polarizationid IS NOT NULL
-          UNION
-          SELECT p.polardeg, p.azimuthdeg
-          FROM polarizations p
-          WHERE p.id = b.canonical_polarization_id
-        ) x
-      ) AS polarizations`;
+          SELECT DISTINCT t.polardeg, t.azimuthdeg
+          FROM (
+            SELECT p.polardeg, p.azimuthdeg
+            FROM spectrumpoints sp
+            INNER JOIN polarizations p ON p.id = sp.polarizationid
+            WHERE sp.experimentid = b.experiment_id
+              AND sp.polarizationid IS NOT NULL
+            UNION
+            SELECT p.polardeg, p.azimuthdeg
+            FROM polarizations p
+            WHERE p.id = b.canonical_polarization_id
+          ) t
+        ) u
+      ) AS polarization_geometry_count`;
 
   const countRows = await db.$queryRaw<Array<{ cnt: bigint }>>`
     SELECT COUNT(*)::bigint AS cnt
@@ -318,7 +272,12 @@ export async function fetchNexafsBrowseGrouped(
         ed.targetatom,
         ed.corestate,
         i.name AS instrument_name,
-        f.name AS facility_name
+        f.name AS facility_name,
+        CASE
+          WHEN eq.comments IS NULL THEN 0::bigint
+          WHEN jsonb_typeof(eq.comments) = 'array' THEN jsonb_array_length(eq.comments)::bigint
+          ELSE 0::bigint
+        END AS quality_comment_count
       FROM experiments e
       INNER JOIN samples s ON s.id = e.sampleid
       INNER JOIN molecules m ON m.id = s.moleculeid
@@ -358,6 +317,7 @@ export async function fetchNexafsBrowseGrouped(
         b.corestate,
         b.instrument_name,
         b.facility_name,
+        b.quality_comment_count,
         (
           SELECT string_agg(sub.n, ' | ' ORDER BY sub.n)
           FROM (
@@ -416,7 +376,7 @@ export async function fetchNexafsBrowseGrouped(
               END
           ) u
         ) AS contributor_users,
-        ${polarizationsSql}
+        ${polarizationGeometryCountSql}
       FROM base b
     )
     SELECT * FROM enriched g

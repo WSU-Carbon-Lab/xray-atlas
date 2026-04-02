@@ -84,12 +84,6 @@ type NexafsBrowseGroup =
 function mapGroupToCard(group: NexafsBrowseGroup) {
   const molecule = group.molecule;
   const edgeLabel = `${group.edge.targetatom} ${group.edge.corestate}`;
-  const thetaValues = Array.from(
-    new Set(group.polarizations.map((p) => p.polarDeg)),
-  ).sort((a, b) => a - b);
-  const phiValues = Array.from(
-    new Set(group.polarizations.map((p) => p.azimuthDeg)),
-  ).sort((a, b) => a - b);
 
   const moleculePath = canonicalMoleculeSlugFromView({
     name: molecule.displayName,
@@ -118,10 +112,7 @@ function mapGroupToCard(group: NexafsBrowseGroup) {
       experimentTypeLabel: formatExperimentType(group.experimenttype),
       experimentContributorUsers: group.contributorUsers,
       polarizationCount: group.polarizationCount,
-      uniqueThetaCount: group.uniqueThetaCount,
-      uniquePhiCount: group.uniquePhiCount,
-      thetaValues,
-      phiValues,
+      commentCount: group.commentCount,
     },
   };
 }
