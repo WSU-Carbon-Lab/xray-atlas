@@ -15,6 +15,7 @@ Thank you for your interest in contributing to X-ray Atlas. This guide covers de
   - [Local OAuth Testing with ngrok](#local-oauth-testing-with-ngrok)
 - [Development Workflow](#development-workflow)
 - [Code Style](#code-style)
+- [HeroUI v3 and UI components](#heroui-v3-and-ui-components)
 - [Git Workflow](#git-workflow)
 - [Pull Request Guidelines](#pull-request-guidelines)
   - [AI Usage in PRs](#ai-usage-in-prs)
@@ -127,6 +128,7 @@ Required environment variables:
 # Database (Supabase PostgreSQL)
 DATABASE_URL="postgresql://user:password@host:6543/postgres?pgbouncer=true"
 DIRECT_URL="postgresql://user:password@host:5432/postgres"
+# Prisma 7: `prisma.config.ts` loads `.env` then `.env.local` for CLI commands; runtime uses `DATABASE_URL` via `@prisma/adapter-pg`.
 
 # Supabase
 SUPABASE_URL="https://your-project.supabase.co"
@@ -415,6 +417,43 @@ fix(auth): resolve ORCID callback cookie issue
 docs(contributing): add ngrok setup guide
 refactor(plots): extract axis components
 ```
+
+---
+
+## HeroUI v3 and UI components
+
+X-ray Atlas standardizes on **HeroUI v3** (`@heroui/react`, `@heroui/styles`) for interactive and styled primitives. It builds on **Tailwind CSS v4** and **React Aria**. The points below align with our in-repo HeroUI skill (`.agents/skills/heroui-react`) and project architecture rules.
+
+### Adding or upgrading UI dependencies
+
+- Use **`bun add`** for package changes; keep **`@heroui/react`** and **`@heroui/styles`** on supported v3 lines aligned with the repo.
+- **Do not** add a second general-purpose component kit for the same jobs (buttons, forms, overlays, modals). If you need a specialized library (e.g. charts, icons), choose one purpose-built dependency and keep surface area small.
+- **Do not** pull in **HeroUI v2** packages or patterns (`@heroui/theme`, `@heroui/system`, `HeroUIProvider`, framer-motion-based v2 animations, or flat prop-only APIs like `<Card title="…">` as the primary pattern).
+
+### Building components from HeroUI primitives
+
+- Prefer **compound components** and composition: e.g. `Card` with `Card.Header` / `Card.Content`, `Tabs` with `Tabs.List` / `Tabs.Tab` / `Tabs.Panel`, `Modal`/`Dialog` parts as documented for v3. Avoid flattening everything onto a single component’s props when the library exposes subcomponents. Prefer **semantic variants** (`primary`, `secondary`, `ghost`, `danger`, …) on HeroUI components instead of one-off color utilities when the API exposes them.
+- **v3 does not use `HeroUIProvider`.** Wrap pages in the app shell only as the root layout already does; do not reintroduce a provider wrapper for HeroUI.
+- For interactive controls, follow HeroUI/React Aria guidance: prefer **`onPress`** (and related APIs) where the component docs specify it instead of ad-hoc `onClick` on wrappers that are not plain DOM elements.
+- Style with **semantic tokens** from the global theme (`text-foreground`, `border-border`, `bg-surface`, `var(--accent)`, etc.). Avoid arbitrary hex/rgb in new UI unless you add a matching variable in `src/styles/globals.css` first.
+- **Tooltips and triggers:** use the documented v3 structure (e.g. `Tooltip` with `Tooltip.Trigger` and `Tooltip.Content`). Do not wrap non-pressable fragments in ways that trigger React Aria `PressResponder` warnings in dev.
+
+### Layout of new UI in the repo
+
+- Reusable pieces go under **`src/components`** (domain-specific NEXAFS UI often under `src/components/nexafs`). Feature workflows go under **`src/features`**, still composing HeroUI primitives.
+- Export stable types from shared modules when multiple routes or packages need the same contract.
+
+### Documentation and reference scripts
+
+HeroUI v3 APIs change; **read current v3 docs** on [heroui.com](https://www.heroui.com) (React / v3) before implementing unfamiliar components.
+
+This repository includes helper scripts (mirroring the upstream skill) under **`.agents/skills/heroui-react/scripts/`**, runnable with `node` from that directory, for example:
+
+- `list_components.mjs` — list v3 components
+- `get_component_docs.mjs <Name>` — fetch MDX-oriented documentation for one or more components
+- `get_theme.mjs` — inspect theme variables
+
+For **v2 to v3 migration** questions, use **`.agents/skills/heroui-migration`** and the official migration materials rather than outdated v2 examples.
 
 ---
 

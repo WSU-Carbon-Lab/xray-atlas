@@ -1,4 +1,4 @@
-import type { ExperimentType, ProcessMethod } from "@prisma/client";
+import type { ExperimentType, ProcessMethod } from "~/prisma/browser";
 import {
   canonicalizeNexafsVendorName,
   findMatchingVendorId,

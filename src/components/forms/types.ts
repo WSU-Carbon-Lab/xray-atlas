@@ -1,5 +1,5 @@
 import type { Key } from "@heroui/react";
-import type { ProcessMethod } from "@prisma/client";
+import type { ProcessMethod } from "~/prisma/browser";
 import type { ReactNode } from "react";
 
 export type InstrumentStatus = "active" | "inactive" | "under_maintenance";

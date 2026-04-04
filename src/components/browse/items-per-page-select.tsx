@@ -49,7 +49,12 @@ export function ItemsPerPageSelect({
 
   return (
     <Tooltip delay={0}>
-      {control}
+      <Tooltip.Trigger
+        className="inline-flex"
+        aria-label="Items per page; hover for help"
+      >
+        {control}
+      </Tooltip.Trigger>
       <Tooltip.Content
         placement="top"
         className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-left shadow-lg"

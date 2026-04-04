@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExperimentType } from "@prisma/client";
+import type { ExperimentType } from "~/prisma/browser";
 import { Label, ListBox, Select, Button, Tooltip } from "@heroui/react";
 import { SimpleDialog } from "~/components/ui/dialog";
 import {
@@ -78,45 +78,50 @@ export function NexafsBrowseRefineDialog({
       </p>
       <div className="space-y-5">
         <Tooltip delay={0}>
-          <div className="space-y-1">
-            <Select
-              placeholder="Any instrument"
-              value={draftInstrument === ALL ? null : draftInstrument}
-              onChange={(value) => {
-                const v =
-                  value == null
-                    ? ALL
-                    : String(Array.isArray(value) ? value[0] : value);
-                setDraftInstrument(v || ALL);
-              }}
-            >
-              <Label htmlFor="refine-instrument-select">Instrument</Label>
-              <Select.Trigger
-                id="refine-instrument-select"
-                className="min-h-[44px]"
+          <Tooltip.Trigger
+            className="block w-full"
+            aria-label="Instrument filter; hover for help"
+          >
+            <div className="space-y-1">
+              <Select
+                placeholder="Any instrument"
+                value={draftInstrument === ALL ? null : draftInstrument}
+                onChange={(value) => {
+                  const v =
+                    value == null
+                      ? ALL
+                      : String(Array.isArray(value) ? value[0] : value);
+                  setDraftInstrument(v || ALL);
+                }}
               >
-                <Select.Value />
-                <Select.Indicator />
-              </Select.Trigger>
-              <Select.Popover className="max-h-72">
-                <ListBox aria-label="Instruments">
-                  <ListBox.Item key={ALL} textValue="Any instrument">
-                    Any instrument
-                  </ListBox.Item>
-                  {instruments.map((inst) => {
-                    const label = inst.facilityName
-                      ? `${inst.name} (${inst.facilityName})`
-                      : inst.name;
-                    return (
-                      <ListBox.Item key={inst.id} textValue={label}>
-                        {label}
-                      </ListBox.Item>
-                    );
-                  })}
-                </ListBox>
-              </Select.Popover>
-            </Select>
-          </div>
+                <Label htmlFor="refine-instrument-select">Instrument</Label>
+                <Select.Trigger
+                  id="refine-instrument-select"
+                  className="min-h-[44px]"
+                >
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover className="max-h-72">
+                  <ListBox aria-label="Instruments">
+                    <ListBox.Item key={ALL} textValue="Any instrument">
+                      Any instrument
+                    </ListBox.Item>
+                    {instruments.map((inst) => {
+                      const label = inst.facilityName
+                        ? `${inst.name} (${inst.facilityName})`
+                        : inst.name;
+                      return (
+                        <ListBox.Item key={inst.id} textValue={label}>
+                          {label}
+                        </ListBox.Item>
+                      );
+                    })}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+            </div>
+          </Tooltip.Trigger>
           <Tooltip.Content
             placement="right"
             className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-left shadow-lg"
@@ -127,37 +132,42 @@ export function NexafsBrowseRefineDialog({
         </Tooltip>
 
         <Tooltip delay={0}>
-          <div className="space-y-1">
-            <Select
-              placeholder="Any mode"
-              value={draftType === ALL ? null : draftType}
-              onChange={(value) => {
-                const v =
-                  value == null
-                    ? ALL
-                    : String(Array.isArray(value) ? value[0] : value);
-                setDraftType(v || ALL);
-              }}
-            >
-              <Label htmlFor="refine-type-select">Acquisition mode</Label>
-              <Select.Trigger id="refine-type-select" className="min-h-[44px]">
-                <Select.Value />
-                <Select.Indicator />
-              </Select.Trigger>
-              <Select.Popover>
-                <ListBox aria-label="Acquisition modes">
-                  <ListBox.Item key={ALL} textValue="Any mode">
-                    Any mode
-                  </ListBox.Item>
-                  {experimentTypes.map((t) => (
-                    <ListBox.Item key={t} textValue={experimentTypeLabels[t]}>
-                      {experimentTypeLabels[t]}
+          <Tooltip.Trigger
+            className="block w-full"
+            aria-label="Acquisition mode filter; hover for help"
+          >
+            <div className="space-y-1">
+              <Select
+                placeholder="Any mode"
+                value={draftType === ALL ? null : draftType}
+                onChange={(value) => {
+                  const v =
+                    value == null
+                      ? ALL
+                      : String(Array.isArray(value) ? value[0] : value);
+                  setDraftType(v || ALL);
+                }}
+              >
+                <Label htmlFor="refine-type-select">Acquisition mode</Label>
+                <Select.Trigger id="refine-type-select" className="min-h-[44px]">
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox aria-label="Acquisition modes">
+                    <ListBox.Item key={ALL} textValue="Any mode">
+                      Any mode
                     </ListBox.Item>
-                  ))}
-                </ListBox>
-              </Select.Popover>
-            </Select>
-          </div>
+                    {experimentTypes.map((t) => (
+                      <ListBox.Item key={t} textValue={experimentTypeLabels[t]}>
+                        {experimentTypeLabels[t]}
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+            </div>
+          </Tooltip.Trigger>
           <Tooltip.Content
             placement="right"
             className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-left shadow-lg"

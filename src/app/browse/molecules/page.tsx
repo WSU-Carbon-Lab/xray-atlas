@@ -36,14 +36,7 @@ import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { TagFilterBar } from "@/components/browse/tag-filter-bar";
 import { TagsDropdown } from "@/components/browse/tags-dropdown";
-import {
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-} from "@heroui/dropdown";
-import { Label, Tabs, Tooltip } from "@heroui/react";
-import { Pagination } from "@heroui/pagination";
+import { Dropdown, Label, Pagination, Tabs, Tooltip } from "@heroui/react";
 
 function MoleculesBrowseContent() {
   const searchParams = useSearchParams();
@@ -270,65 +263,53 @@ function MoleculesBrowseContent() {
             selectedTagIds={selectedTagIds}
             onSelectionChange={updateTagsInUrl}
           />
-          {!hasSearchQuery && (
+          {!hasSearchQuery ? (
             <Dropdown>
-              <DropdownTrigger>
-                <button
-                  type="button"
-                  className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default flex h-12 min-h-12 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                  aria-label="Sort molecules"
-                >
-                  <ArrowsUpDownIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
-                  <span className="text-sm font-medium">Sort</span>
-                </button>
-              </DropdownTrigger>
-              <DropdownMenu
+              <Dropdown.Trigger
                 aria-label="Sort molecules"
-                className="border-border bg-default rounded-lg border"
+                className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default flex h-12 min-h-12 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               >
-                <DropdownItem
-                  key="name"
-                  textValue="Name"
-                  onPress={() => setSortBy("name")}
+                <ArrowsUpDownIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
+                <span className="text-sm font-medium">Sort</span>
+              </Dropdown.Trigger>
+              <Dropdown.Popover className="border-border bg-default rounded-lg border">
+                <Dropdown.Menu
+                  aria-label="Sort molecules"
+                  selectionMode="none"
+                  onAction={(key) => {
+                    setSortBy(
+                      key as "favorites" | "created" | "name" | "views",
+                    );
+                  }}
                 >
-                  <span className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-semibold">A</span>
-                    <Label>Name (A-Z)</Label>
-                  </span>
-                </DropdownItem>
-                <DropdownItem
-                  key="favorites"
-                  textValue="Favorites"
-                  onPress={() => setSortBy("favorites")}
-                >
-                  <span className="flex items-center gap-2">
-                    <HeartIcon className="h-4 w-4 shrink-0" />
-                    <Label>Most Favorited</Label>
-                  </span>
-                </DropdownItem>
-                <DropdownItem
-                  key="views"
-                  textValue="Views"
-                  onPress={() => setSortBy("views")}
-                >
-                  <span className="flex items-center gap-2">
-                    <EyeIcon className="h-4 w-4 shrink-0" />
-                    <Label>Most Viewed</Label>
-                  </span>
-                </DropdownItem>
-                <DropdownItem
-                  key="created"
-                  textValue="Newest"
-                  onPress={() => setSortBy("created")}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="text-xs">New</span>
-                    <Label>Newest First</Label>
-                  </span>
-                </DropdownItem>
-              </DropdownMenu>
+                  <Dropdown.Item id="name" textValue="Name (A-Z)">
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-semibold">A</span>
+                      <Label>Name (A-Z)</Label>
+                    </span>
+                  </Dropdown.Item>
+                  <Dropdown.Item id="favorites" textValue="Most Favorited">
+                    <span className="flex items-center gap-2">
+                      <HeartIcon className="h-4 w-4 shrink-0" />
+                      <Label>Most Favorited</Label>
+                    </span>
+                  </Dropdown.Item>
+                  <Dropdown.Item id="views" textValue="Most Viewed">
+                    <span className="flex items-center gap-2">
+                      <EyeIcon className="h-4 w-4 shrink-0" />
+                      <Label>Most Viewed</Label>
+                    </span>
+                  </Dropdown.Item>
+                  <Dropdown.Item id="created" textValue="Newest First">
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs">New</span>
+                      <Label>Newest First</Label>
+                    </span>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
             </Dropdown>
-          )}
+          ) : null}
           <Tooltip delay={0}>
             <div>
               <Tabs
@@ -484,22 +465,65 @@ function MoleculesBrowseContent() {
                   value={itemsPerPage}
                   onChange={setItemsPerPage}
                 />
-                {totalPages > 1 && (
-                  <Pagination
-                    total={totalPages}
-                    page={currentPage}
-                    onChange={setCurrentPage}
-                    showControls
-                    size="sm"
-                    classNames={{
-                      base: "gap-2",
-                      item: "rounded-lg border border-border bg-surface text-foreground",
-                      cursor: "bg-accent text-accent-foreground border-accent",
-                      prev: "rounded-lg border border-border bg-surface",
-                      next: "rounded-lg border border-border bg-surface",
-                    }}
-                  />
-                )}
+                {totalPages > 1 ? (
+                  <Pagination size="sm" className="gap-2">
+                    <Pagination.Content className="gap-2">
+                      <Pagination.Item>
+                        <Pagination.Previous
+                          isDisabled={currentPage <= 1}
+                          aria-label="Previous page"
+                          onPress={() =>
+                            setCurrentPage((p) => Math.max(1, p - 1))
+                          }
+                          className="rounded-lg border border-border bg-surface"
+                        >
+                          <Pagination.PreviousIcon />
+                        </Pagination.Previous>
+                      </Pagination.Item>
+                      {totalPages <= 20
+                        ? Array.from(
+                            { length: totalPages },
+                            (_, i) => i + 1,
+                          ).map((p) => (
+                            <Pagination.Item key={p}>
+                              <Pagination.Link
+                                isActive={p === currentPage}
+                                onPress={() => setCurrentPage(p)}
+                                className={`rounded-lg border border-border bg-surface text-foreground ${
+                                  p === currentPage
+                                    ? "border-accent bg-accent text-accent-foreground"
+                                    : ""
+                                }`}
+                              >
+                                {p}
+                              </Pagination.Link>
+                            </Pagination.Item>
+                          ))
+                        : null}
+                      {totalPages > 20 ? (
+                        <Pagination.Item>
+                          <span className="text-muted px-2 text-xs tabular-nums">
+                            {currentPage} / {totalPages}
+                          </span>
+                        </Pagination.Item>
+                      ) : null}
+                      <Pagination.Item>
+                        <Pagination.Next
+                          isDisabled={currentPage >= totalPages}
+                          aria-label="Next page"
+                          onPress={() =>
+                            setCurrentPage((p) =>
+                              Math.min(totalPages, p + 1),
+                            )
+                          }
+                          className="rounded-lg border border-border bg-surface"
+                        >
+                          <Pagination.NextIcon />
+                        </Pagination.Next>
+                      </Pagination.Item>
+                    </Pagination.Content>
+                  </Pagination>
+                ) : null}
               </div>
             </>
           )}

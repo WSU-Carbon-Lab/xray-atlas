@@ -1,14 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { TagGroup, Tag, Label, Button, EmptyState, Input } from "@heroui/react";
 import {
+  TagGroup,
+  Tag,
+  Label,
+  Button,
+  EmptyState,
+  Input,
   Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownSection,
-  DropdownItem,
-} from "@heroui/dropdown";
+  Header,
+} from "@heroui/react";
+import { buttonVariants, cn } from "@heroui/styles";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { X } from "lucide-react";
 
@@ -32,41 +35,39 @@ function SynonymsPopup({
 }) {
   const displayLabel = label ?? `+${remaining}`;
   return (
-    <span className="inline-flex shrink-0" onClick={(e) => e.stopPropagation()}>
+    <div className="inline-flex shrink-0" onClick={(e) => e.stopPropagation()}>
       <Dropdown>
-        <DropdownTrigger>
-          <button
-            type="button"
-            className="bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
-            aria-label={`Show all ${synonyms.length} synonyms`}
-          >
-            {displayLabel}
-          </button>
-        </DropdownTrigger>
-        <DropdownMenu
-          aria-label="All synonyms"
-          className="max-w-[320px] min-w-[200px] rounded-lg border border-zinc-200 bg-zinc-100 shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
-          closeOnSelect={false}
+        <Dropdown.Trigger
+          aria-label={`Show all ${synonyms.length} synonyms`}
+          className="bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
         >
-          <DropdownSection
-            title="All synonyms"
-            showDivider={false}
+          {displayLabel}
+        </Dropdown.Trigger>
+        <Dropdown.Popover className="max-w-[320px] min-w-[200px] rounded-lg border border-zinc-200 bg-zinc-100 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          <Dropdown.Menu
+            aria-label="All synonyms"
+            selectionMode="none"
             className="max-h-[200px] overflow-y-auto overscroll-contain"
           >
-            {synonyms.map((syn) => (
-              <DropdownItem
-                key={syn}
-                textValue={syn}
-                className="cursor-default text-sm text-zinc-900 dark:text-zinc-100"
-                closeOnSelect={false}
-              >
-                {syn}
-              </DropdownItem>
-            ))}
-          </DropdownSection>
-        </DropdownMenu>
+            <Dropdown.Section>
+              <Header className="px-2 py-1 text-xs font-medium">
+                All synonyms
+              </Header>
+              {synonyms.map((syn, i) => (
+                <Dropdown.Item
+                  key={`${syn}-${i}`}
+                  id={`syn-${i}`}
+                  textValue={syn}
+                  className="cursor-default text-sm text-zinc-900 dark:text-zinc-100"
+                >
+                  {syn}
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Section>
+          </Dropdown.Menu>
+        </Dropdown.Popover>
       </Dropdown>
-    </span>
+    </div>
   );
 }
 
@@ -148,31 +149,30 @@ export const SynonymTagGroup = ({
         ))}
         {truncatedSynonyms.length < synonyms.length && (
           <Dropdown>
-            <DropdownTrigger>
-              <Button variant="ghost" size="sm" aria-label="Show all synonyms">
-                <PlusIcon className="h-4 w-4" />
-                <span>+{synonyms.length - truncatedSynonyms.length}</span>
-              </Button>
-            </DropdownTrigger>
-            <DropdownMenu
-              aria-label="All Synonyms"
-              className="max-w-sm min-w-[220px]"
-              closeOnSelect={false}
+            <Dropdown.Trigger
+              aria-label="Show all synonyms"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "inline-flex items-center gap-1",
+              )}
             >
-              <DropdownSection
-                title="All Synonyms"
-                showDivider={false}
-                className="px-2"
-              >
-                <div className="mt-2 flex flex-wrap gap-1">
+              <PlusIcon className="h-4 w-4" />
+              <span>+{synonyms.length - truncatedSynonyms.length}</span>
+            </Dropdown.Trigger>
+            <Dropdown.Popover className="max-w-sm min-w-[220px]">
+              <div className="border-border bg-surface rounded-lg border p-3 shadow-lg">
+                <p className="text-muted mb-2 text-xs font-medium">
+                  All Synonyms
+                </p>
+                <div className="flex flex-wrap gap-1">
                   {synonyms.map((synonym) => (
                     <Tag key={synonym} id={synonym} textValue={synonym}>
                       {synonym}
                     </Tag>
                   ))}
                 </div>
-              </DropdownSection>
-            </DropdownMenu>
+              </div>
+            </Dropdown.Popover>
           </Dropdown>
         )}
       </TagGroup.List>

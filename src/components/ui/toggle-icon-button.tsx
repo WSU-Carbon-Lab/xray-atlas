@@ -1,42 +1,34 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Tooltip } from "@heroui/react";
-import { Badge } from "@heroui/badge";
-import type { BadgeProps } from "@heroui/badge";
+import type { ComponentProps, ReactNode } from "react";
+import { Badge, Tooltip } from "@heroui/react";
+
+type BadgeOverlayProps = Pick<
+  ComponentProps<typeof Badge>,
+  "color" | "size" | "placement" | "className"
+> & {
+  content: ReactNode;
+};
 
 interface ToggleIconButtonProps {
   icon?: ReactNode;
   text?: string;
-  label?: string; // Text label to show alongside icon
+  label?: string;
   isActive: boolean;
   onClick: () => void;
   ariaLabel: string;
   className?: string;
-  disabled?: boolean; // Disabled state for greyed out buttons
-  // Tooltip props
+  disabled?: boolean;
   tooltip?: {
     content: string;
     placement?: "top" | "bottom" | "left" | "right";
     offset?: number;
   };
-  // Badge props
-  badge?: {
-    content: ReactNode;
-    color?: BadgeProps["color"];
-    size?: BadgeProps["size"];
-    placement?: BadgeProps["placement"];
-    shape?: BadgeProps["shape"];
-    showOutline?: boolean;
-    isInvisible?: boolean;
-    className?: string;
-  };
+  badge?: BadgeOverlayProps;
 }
 
 /**
- * Toggle icon button component with consistent styling matching browse page toggle buttons.
- * Shows gray background when active, transparent with hover when inactive.
- * Supports optional tooltip and badge.
+ * Toggle icon button with optional HeroUI Tooltip and Badge (v3 `Badge.Anchor`).
  */
 export function ToggleIconButton({
   icon,
@@ -63,11 +55,12 @@ export function ToggleIconButton({
 
   const button = (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       className={`rounded-lg border transition-colors ${
         disabled
-          ? "cursor-not-allowed opacity-50 border-border bg-surface text-muted"
+          ? "cursor-not-allowed border-border bg-surface text-muted opacity-50"
           : isActive
             ? "border-accent bg-accent text-accent-foreground"
             : "border-border bg-surface text-foreground hover:bg-default"
@@ -79,10 +72,9 @@ export function ToggleIconButton({
     </button>
   );
 
-  // If tooltip is provided, wrap button with tooltip first
   const buttonWithTooltip = tooltip ? (
     <Tooltip delay={0}>
-      {button}
+      <Tooltip.Trigger className="inline-flex">{button}</Tooltip.Trigger>
       <Tooltip.Content
         placement={tooltip.placement ?? "top"}
         offset={tooltip.offset ?? 8}
@@ -95,22 +87,19 @@ export function ToggleIconButton({
     button
   );
 
-  // If badge is provided, wrap buttonWithTooltip with badge
-  // Badge should not intercept pointer events so tooltip works correctly
   if (badge) {
     return (
-      <Badge
-        content={badge.content}
-        color={badge.color ?? "primary"}
-        size={badge.size ?? "sm"}
-        placement={badge.placement ?? "top-right"}
-        shape={badge.shape ?? "rectangle"}
-        showOutline={badge.showOutline ?? true}
-        isInvisible={badge.isInvisible ?? false}
-        className={badge.className}
-      >
+      <Badge.Anchor>
         {buttonWithTooltip}
-      </Badge>
+        <Badge
+          color={badge.color ?? "accent"}
+          size={badge.size ?? "sm"}
+          placement={badge.placement ?? "top-right"}
+          className={badge.className}
+        >
+          {badge.content}
+        </Badge>
+      </Badge.Anchor>
     );
   }
 

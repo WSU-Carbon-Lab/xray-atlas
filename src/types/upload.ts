@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "~/prisma/browser";
 import { z } from "zod";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 

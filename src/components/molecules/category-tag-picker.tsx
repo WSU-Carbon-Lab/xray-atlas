@@ -2,23 +2,18 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { parseColor, type Color } from "react-aria-components";
-import type { Key } from "@heroui/react";
+import type { Key, Selection } from "@heroui/react";
 import {
   ColorArea,
   ColorPicker,
   ColorSlider,
   ColorSwatch,
   ColorSwatchPicker,
+  Dropdown,
   Input,
   Label,
   Tooltip,
 } from "@heroui/react";
-import {
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownTrigger,
-} from "@heroui/dropdown";
 import {
   ChevronDownIcon,
   PlusIcon,
@@ -192,7 +187,7 @@ export function CategoryTagsMultiSelect({
   const totalCount = selectedTagIds.size + pendingTagsProp.length;
 
   const handleMenuSelectionChange = useCallback(
-    (keys: "all" | Set<Key>) => {
+    (keys: Selection) => {
       if (keys === "all") {
         onSelectedTagIdsChange(new Set(allTags.map((t) => t.id)));
       } else {
@@ -391,62 +386,65 @@ export function CategoryTagsMultiSelect({
       <div className="flex w-full min-w-0 flex-nowrap items-stretch gap-2">
         <Tooltip delay={0}>
           <div className="max-w-xs shrink-0">
-            <Dropdown closeOnSelect={false}>
-              <DropdownTrigger>
-                <button
-                  type="button"
-                  className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-10 min-w-[10rem] cursor-pointer items-center gap-2 rounded-xl border px-3 text-left transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${totalCount > 0 ? "border-accent/30 bg-accent/5" : ""}`}
-                  aria-label={ariaLabel}
-                >
-                  <TagIcon
-                    className="text-muted h-5 w-5 shrink-0"
-                    aria-hidden
-                  />
-                  <span className="text-sm font-medium">Tags</span>
-                  {totalCount > 0 ? (
-                    <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
-                      {totalCount}
-                    </span>
-                  ) : null}
-                  <ChevronDownIcon className="text-muted ml-auto h-4 w-4 shrink-0" />
-                </button>
-              </DropdownTrigger>
-              <DropdownMenu
+            <Dropdown>
+              <Dropdown.Trigger
                 aria-label={ariaLabel}
-                selectionMode="multiple"
-                selectedKeys={selectedKeys}
-                onSelectionChange={handleMenuSelectionChange}
-                disabledKeys={isLoading ? allTags.map((t) => t.id) : []}
-                hideSelectedIcon={false}
-                topContent={topBlock}
-                className="border-border bg-surface max-h-44 w-[min(100vw-2rem,20rem)] overflow-y-auto rounded-xl border py-1 shadow-xl"
-                itemClasses={{
-                  base: "min-h-0 py-1 data-[selected=true]:bg-accent/15 data-[selected=true]:ring-1 data-[selected=true]:ring-accent/40",
-                  wrapper: "py-0.5",
-                  selectedIcon: "text-accent",
-                }}
-                emptyContent={isLoading ? "Loading…" : "No tags"}
+                className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-10 min-w-[10rem] cursor-pointer items-center gap-2 rounded-xl border px-3 text-left transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${totalCount > 0 ? "border-accent/30 bg-accent/5" : ""}`}
               >
-                {filteredMenuTags.map((tag) => {
-                  const chipClass = getTagChipClass(tag);
-                  const inlineStyle = getTagInlineStyle(tag);
-                  return (
-                    <DropdownItem
-                      key={tag.id}
-                      id={tag.id}
-                      textValue={tag.name}
-                      className="min-h-0 rounded-md py-0.5"
-                    >
-                      <span
-                        className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
-                        style={inlineStyle}
-                      >
-                        {tag.name}
-                      </span>
-                    </DropdownItem>
-                  );
-                })}
-              </DropdownMenu>
+                <TagIcon
+                  className="text-muted h-5 w-5 shrink-0"
+                  aria-hidden
+                />
+                <span className="text-sm font-medium">Tags</span>
+                {totalCount > 0 ? (
+                  <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
+                    {totalCount}
+                  </span>
+                ) : null}
+                <ChevronDownIcon className="text-muted ml-auto h-4 w-4 shrink-0" />
+              </Dropdown.Trigger>
+              <Dropdown.Popover className="border-border bg-surface max-h-44 w-[min(100vw-2rem,20rem)] overflow-hidden rounded-xl border py-1 shadow-xl">
+                {topBlock ? (
+                  <div className="border-border border-b px-1 py-1">{topBlock}</div>
+                ) : null}
+                <Dropdown.Menu
+                  aria-label={ariaLabel}
+                  selectionMode="multiple"
+                  selectedKeys={selectedKeys}
+                  onSelectionChange={handleMenuSelectionChange}
+                  disabledKeys={
+                    isLoading ? new Set(allTags.map((t) => t.id)) : undefined
+                  }
+                  className="max-h-[min(176px,40vh)] overflow-y-auto py-0.5 outline-none"
+                >
+                  {filteredMenuTags.length === 0 ? (
+                    <div className="text-muted px-3 py-2 text-sm">
+                      {isLoading ? "Loading…" : "No tags"}
+                    </div>
+                  ) : (
+                    filteredMenuTags.map((tag) => {
+                      const chipClass = getTagChipClass(tag);
+                      const inlineStyle = getTagInlineStyle(tag);
+                      return (
+                        <Dropdown.Item
+                          key={tag.id}
+                          id={tag.id}
+                          textValue={tag.name}
+                          className="data-[selected=true]:bg-accent/15 data-[selected=true]:ring-accent/40 min-h-0 rounded-md py-0.5 data-[selected=true]:ring-1"
+                        >
+                          <Dropdown.ItemIndicator type="checkmark" />
+                          <span
+                            className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
+                            style={inlineStyle}
+                          >
+                            {tag.name}
+                          </span>
+                        </Dropdown.Item>
+                      );
+                    })
+                  )}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
             </Dropdown>
           </div>
           <Tooltip.Content

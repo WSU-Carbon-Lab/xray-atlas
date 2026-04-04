@@ -1,6 +1,10 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+/**
+ * Next.js runtime env validation. Keep `DATABASE_URL` and `DIRECT_URL` in sync with names used in
+ * `prisma.config.ts` so Prisma CLI commands and the app resolve the same Supabase URLs.
+ */
 export const env = createEnv({
   /**
    * Specify your server-side environment variables schema here. This way you can ensure the app

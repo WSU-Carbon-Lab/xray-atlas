@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { ProcessMethod } from "@prisma/client";
+import { ProcessMethod } from "~/prisma/client";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
 export const samplesRouter = createTRPCRouter({
   getById: publicProcedure

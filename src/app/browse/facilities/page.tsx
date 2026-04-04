@@ -11,7 +11,7 @@ import { BrowseHeader } from "@/components/browse/browse-header";
 import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
-import { Pagination } from "@heroui/pagination";
+import { Pagination } from "@heroui/react";
 
 function FacilitiesBrowseContent() {
   const searchParams = useSearchParams();
@@ -174,20 +174,63 @@ function FacilitiesBrowseContent() {
                   labelId="facilities-items-per-page"
                 />
                 {totalPages > 1 ? (
-                  <Pagination
-                    total={totalPages}
-                    page={currentPage}
-                    onChange={setCurrentPage}
-                    showControls
-                    size="sm"
-                    classNames={{
-                      base: "gap-2",
-                      item: "rounded-lg border border-border bg-surface text-foreground",
-                      cursor: "bg-accent text-accent-foreground border-accent",
-                      prev: "rounded-lg border border-border bg-surface",
-                      next: "rounded-lg border border-border bg-surface",
-                    }}
-                  />
+                  <Pagination size="sm" className="gap-2">
+                    <Pagination.Content className="gap-2">
+                      <Pagination.Item>
+                        <Pagination.Previous
+                          isDisabled={currentPage <= 1}
+                          aria-label="Previous page"
+                          onPress={() =>
+                            setCurrentPage((p) => Math.max(1, p - 1))
+                          }
+                          className="rounded-lg border border-border bg-surface"
+                        >
+                          <Pagination.PreviousIcon />
+                        </Pagination.Previous>
+                      </Pagination.Item>
+                      {totalPages <= 20
+                        ? Array.from(
+                            { length: totalPages },
+                            (_, i) => i + 1,
+                          ).map((p) => (
+                            <Pagination.Item key={p}>
+                              <Pagination.Link
+                                isActive={p === currentPage}
+                                onPress={() => setCurrentPage(p)}
+                                className={`rounded-lg border border-border bg-surface text-foreground ${
+                                  p === currentPage
+                                    ? "border-accent bg-accent text-accent-foreground"
+                                    : ""
+                                }`}
+                              >
+                                {p}
+                              </Pagination.Link>
+                            </Pagination.Item>
+                          ))
+                        : null}
+                      {totalPages > 20 ? (
+                        <Pagination.Item>
+                          <span className="text-muted px-2 text-xs tabular-nums">
+                            {currentPage} / {totalPages}
+                          </span>
+                        </Pagination.Item>
+                      ) : null}
+                      <Pagination.Item>
+                        <Pagination.Next
+                          isDisabled={currentPage >= totalPages}
+                          aria-label="Next page"
+                          onPress={() =>
+                            setCurrentPage((p) =>
+                              Math.min(totalPages, p + 1),
+                            )
+                          }
+                          className="rounded-lg border border-border bg-surface"
+                        >
+                          <Pagination.NextIcon />
+                        </Pagination.Next>
+                      </Pagination.Item>
+                    </Pagination.Content>
+                  </Pagination>
                 ) : null}
               </div>
             </>

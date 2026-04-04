@@ -2,7 +2,7 @@ import type {
   SpectrumPoint,
   SpectrumSelection,
 } from "~/components/plots/types";
-import type { ProcessMethod } from "@prisma/client";
+import type { ProcessMethod } from "~/prisma/browser";
 import { type EXPERIMENT_TYPE_OPTIONS } from "./constants";
 
 export { EXPERIMENT_TYPE_OPTIONS, PROCESS_METHOD_OPTIONS } from "./constants";

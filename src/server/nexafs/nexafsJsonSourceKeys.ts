@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { PrismaClient, ExperimentType, ProcessMethod } from "@prisma/client";
+import type { PrismaClient, ExperimentType, ProcessMethod } from "~/prisma/client";
 import {
   backlogPreparationCanonicalString,
   backlogPreparationSlugFromCanonical,

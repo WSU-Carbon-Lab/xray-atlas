@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { ProcessMethod } from "@prisma/client";
+import type { ProcessMethod } from "~/prisma/browser";
 
 export function normalizeBacklogPrepSegment(value: string | null | undefined) {
   return (value ?? "")
