@@ -4,7 +4,7 @@
  * `experiments.browseList` / `browseSearch` Zod inputs.
  */
 
-import { ExperimentType } from "@prisma/client";
+import { ExperimentType } from "~/prisma/browser";
 
 export const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
   TOTAL_ELECTRON_YIELD: "Total electron yield",

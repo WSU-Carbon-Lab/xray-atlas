@@ -28,7 +28,7 @@ function checkTrackViewThrottle(key: string): boolean {
   return true;
 }
 import { TRPCError } from "@trpc/server";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "~/prisma/client";
 import {
   moleculeUploadSchema,
   moleculeUploadDataToPrismaInput,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExperimentType } from "@prisma/client";
+import type { ExperimentType } from "~/prisma/browser";
 import { Label, ListBox, Select, Button, Tooltip } from "@heroui/react";
 import { SimpleDialog } from "~/components/ui/dialog";
 import {

@@ -1,4 +1,4 @@
-import type { ExperimentType } from "@prisma/client";
+import type { ExperimentType } from "~/prisma/browser";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
 
 function isBeamline5322(instrumentName: string): boolean {

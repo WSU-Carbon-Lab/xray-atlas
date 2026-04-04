@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "~/prisma/client";
 
 /**
  * Defines how molecules are ordered for compact “popular” surfaces (e.g. home).

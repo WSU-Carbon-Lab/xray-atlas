@@ -1,5 +1,5 @@
-import { Prisma } from "@prisma/client";
-import type { ExperimentType, PrismaClient } from "@prisma/client";
+import { Prisma } from "~/prisma/client";
+import type { ExperimentType, PrismaClient } from "~/prisma/client";
 
 export type NexafsBrowseGroupFilters = {
   moleculeId?: string;

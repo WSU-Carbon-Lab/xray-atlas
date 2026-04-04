@@ -127,6 +127,7 @@ Required environment variables:
 # Database (Supabase PostgreSQL)
 DATABASE_URL="postgresql://user:password@host:6543/postgres?pgbouncer=true"
 DIRECT_URL="postgresql://user:password@host:5432/postgres"
+# Prisma 7: `prisma.config.ts` loads `.env` then `.env.local` for CLI commands; runtime uses `DATABASE_URL` via `@prisma/adapter-pg`.
 
 # Supabase
 SUPABASE_URL="https://your-project.supabase.co"

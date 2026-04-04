@@ -5,7 +5,7 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { Prisma, ExperimentType, ProcessMethod } from "@prisma/client";
+import { Prisma, ExperimentType, ProcessMethod } from "~/prisma/client";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
 import {
   coalesceUploadedOrDerived,

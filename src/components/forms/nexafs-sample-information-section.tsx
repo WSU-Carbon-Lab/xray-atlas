@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProcessMethod } from "@prisma/client";
+import type { ProcessMethod } from "~/prisma/browser";
 import { Label, TextField, InputGroup } from "@heroui/react";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import { PROCESS_METHOD_OPTIONS } from "~/features/process-nexafs/constants";

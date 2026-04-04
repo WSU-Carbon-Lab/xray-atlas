@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# prisma v7 generated client (see prisma/schema.prisma generator output)
+/generated
+
 # dependencies
 /node_modules
 /.pnp

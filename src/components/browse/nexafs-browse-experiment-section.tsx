@@ -7,7 +7,7 @@ import {
   useMemo,
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import type { ExperimentType } from "@prisma/client";
+import type { ExperimentType } from "~/prisma/browser";
 import { trpc } from "~/trpc/client";
 import { ErrorState } from "@/components/feedback/error-state";
 import { ArrowsUpDownIcon, FunnelIcon } from "@heroicons/react/24/outline";

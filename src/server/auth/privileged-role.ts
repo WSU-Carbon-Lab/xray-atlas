@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "~/prisma/client";
 
 export const PRIVILEGED_ROLES = ["admin", "maintainer"] as const;
 
