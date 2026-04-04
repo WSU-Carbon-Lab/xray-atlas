@@ -25,8 +25,9 @@ export function NexafsEdgeFilterDropdown({
 
   return (
     <Tooltip delay={0}>
-      <div
-        className={`border-border bg-surface focus-within:ring-accent flex h-12 max-w-[min(100%,200px)] min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus-within:ring-2 focus-within:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent/15" : ""}`}
+      <Tooltip.Trigger
+        className={`border-border bg-surface focus-within:ring-accent inline-flex h-12 max-w-[min(100%,200px)] min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus-within:ring-2 focus-within:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent/15" : ""}`}
+        aria-label="X-ray absorption edge filter; hover for help"
       >
         <BoltIcon
           className={`h-5 w-5 shrink-0 stroke-[1.5] ${hasSelection ? "text-accent" : "text-muted"}`}
@@ -51,7 +52,7 @@ export function NexafsEdgeFilterDropdown({
             );
           })}
         </select>
-      </div>
+      </Tooltip.Trigger>
       <Tooltip.Content
         placement="top"
         className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-left shadow-lg"

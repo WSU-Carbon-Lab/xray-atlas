@@ -1,14 +1,8 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import type { Key } from "@heroui/react";
-import { Input } from "@heroui/react";
-import {
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-} from "@heroui/dropdown";
+import type { Key, Selection } from "@heroui/react";
+import { Dropdown, Input } from "@heroui/react";
 import { TagIcon, XMarkIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { trpc } from "~/trpc/client";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
@@ -39,7 +33,10 @@ export function TagsDropdown({
     { staleTime: 5 * 60 * 1000 },
   );
 
-  const selectedKeys = selectedTagIds as unknown as Set<Key>;
+  const selectedKeys =
+    selectedTagIds.size > 0
+      ? (selectedTagIds as unknown as Set<Key>)
+      : new Set<Key>();
   const hasSelection = selectedTagIds.size > 0;
 
   const trimmedSearch = searchInput.trim();
@@ -65,7 +62,7 @@ export function TagsDropdown({
   }, [trimmedSearch, onCreateTag, onSelectionChange, selectedTagIds]);
 
   const handleSelectionChange = useCallback(
-    (keys: "all" | Set<Key>) => {
+    (keys: Selection) => {
       if (keys === "all") {
         onSelectionChange(new Set(tags.map((t) => t.id)));
       } else {
@@ -98,6 +95,7 @@ export function TagsDropdown({
         key="search"
         className="space-y-1.5 px-2 py-1.5"
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         <Input
           type="text"
@@ -126,63 +124,62 @@ export function TagsDropdown({
   }
 
   return (
-    <Dropdown closeOnSelect={false}>
-      <DropdownTrigger>
-        <button
-          type="button"
-          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "bg-accent-soft text-accent border-accent/40" : ""} ${triggerClassName}`}
-          aria-label={ariaLabel}
-          aria-pressed={hasSelection}
-        >
-          <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
-          <span className="text-sm font-medium">Tags</span>
-          {hasSelection ? (
-            <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
-              {selectedTagIds.size}
-            </span>
-          ) : null}
-        </button>
-      </DropdownTrigger>
-      <DropdownMenu
+    <Dropdown>
+      <Dropdown.Trigger
         aria-label={ariaLabel}
-        selectionMode="multiple"
-        selectedKeys={selectedKeys}
-        onSelectionChange={handleSelectionChange}
-        disabledKeys={isLoading ? tags.map((t) => t.id) : []}
-        emptyContent={emptyContent}
-        hideSelectedIcon={false}
-        topContent={
-          topContentNodes.length > 0 ? (
-            <div className="space-y-0.5">{topContentNodes}</div>
-          ) : null
-        }
-        className="border-border bg-surface max-h-[min(240px,50vh)] w-[256px] overflow-y-auto rounded-2xl border py-0.5 shadow-xl"
-          itemClasses={{
-          base: "min-h-0 py-1 data-[selected=true]:bg-accent-soft data-[selected=true]:ring-1 data-[selected=true]:ring-accent/50 dark:data-[selected=true]:bg-accent/25 dark:data-[selected=true]:ring-accent/40",
-          wrapper: "py-0.5",
-          selectedIcon: "text-accent dark:text-accent-light",
-        }}
+        aria-pressed={hasSelection}
+        className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent-soft text-accent" : ""} ${triggerClassName}`}
       >
-        {filteredTags.map((tag) => {
-          const chipClass = getTagChipClass(tag);
-          const inlineStyle = getTagInlineStyle(tag);
-          return (
-            <DropdownItem
-              key={tag.id}
-              id={tag.id}
-              textValue={tag.name}
-              className="min-h-0 rounded-md py-0.5"
-            >
-              <span
-                className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
-                style={inlineStyle}
-              >
-                {tag.name}
-              </span>
-            </DropdownItem>
-          );
-        })}
-      </DropdownMenu>
+        <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
+        <span className="text-sm font-medium">Tags</span>
+        {hasSelection ? (
+          <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
+            {selectedTagIds.size}
+          </span>
+        ) : null}
+      </Dropdown.Trigger>
+      <Dropdown.Popover className="border-border bg-surface max-h-[min(240px,50vh)] w-[256px] overflow-hidden rounded-2xl border py-0.5 shadow-xl">
+        {topContentNodes.length > 0 ? (
+          <div className="border-border space-y-0.5 border-b px-0.5 py-1">
+            {topContentNodes}
+          </div>
+        ) : null}
+        <Dropdown.Menu
+          aria-label={ariaLabel}
+          selectionMode="multiple"
+          selectedKeys={selectedKeys}
+          onSelectionChange={handleSelectionChange}
+          disabledKeys={
+            isLoading ? new Set(tags.map((t) => t.id)) : undefined
+          }
+          className="max-h-[min(200px,40vh)] overflow-y-auto py-0.5 outline-none"
+        >
+          {filteredTags.length === 0 ? (
+            <div className="text-muted px-3 py-2 text-sm">{emptyContent}</div>
+          ) : (
+            filteredTags.map((tag) => {
+              const chipClass = getTagChipClass(tag);
+              const inlineStyle = getTagInlineStyle(tag);
+              return (
+                <Dropdown.Item
+                  key={tag.id}
+                  id={tag.id}
+                  textValue={tag.name}
+                  className="data-[selected=true]:bg-accent-soft data-[selected=true]:ring-accent/50 dark:data-[selected=true]:bg-accent/25 min-h-0 rounded-md py-0.5 data-[selected=true]:ring-1 dark:data-[selected=true]:ring-accent/40"
+                >
+                  <Dropdown.ItemIndicator type="checkmark" />
+                  <span
+                    className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
+                    style={inlineStyle}
+                  >
+                    {tag.name}
+                  </span>
+                </Dropdown.Item>
+              );
+            })
+          )}
+        </Dropdown.Menu>
+      </Dropdown.Popover>
     </Dropdown>
   );
 }

@@ -217,55 +217,60 @@ function SpectrumLeafTable({
     <div className="flex flex-col gap-3 pt-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Tooltip delay={0}>
-          <Dropdown>
-            <Dropdown.Trigger
-              className={cn(
-                buttonVariants({ size: "sm", variant: "ghost" }),
-                "gap-1.5 text-xs font-medium text-[var(--text-secondary)]",
-              )}
-            >
-              <Columns3 className="size-3.5" />
-              Columns
-            </Dropdown.Trigger>
-            <Dropdown.Popover className="min-w-[180px]">
-              <Dropdown.Menu
-                aria-label="Toggle table columns"
-                className="min-w-[180px]"
-                selectionMode="none"
+          <Tooltip.Trigger
+            className="inline-flex"
+            aria-label="Table columns; hover for help"
+          >
+            <Dropdown>
+              <Dropdown.Trigger
+                className={cn(
+                  buttonVariants({ size: "sm", variant: "ghost" }),
+                  "gap-1.5 text-xs font-medium text-[var(--text-secondary)]",
+                )}
               >
-                <Dropdown.Section>
-                  <Header>Show columns</Header>
-                  {SPECTRUM_TABLE_COLUMNS.map(({ id, label }) => (
-                    <Dropdown.Item
-                      key={id}
-                      id={id}
-                      textValue={label}
-                      className="cursor-default py-1.5"
-                    >
-                      <div
-                        className="flex items-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
+                <Columns3 className="size-3.5" />
+                Columns
+              </Dropdown.Trigger>
+              <Dropdown.Popover className="min-w-[180px]">
+                <Dropdown.Menu
+                  aria-label="Toggle table columns"
+                  className="min-w-[180px]"
+                  selectionMode="none"
+                >
+                  <Dropdown.Section>
+                    <Header>Show columns</Header>
+                    {SPECTRUM_TABLE_COLUMNS.map(({ id, label }) => (
+                      <Dropdown.Item
+                        key={id}
+                        id={id}
+                        textValue={label}
+                        className="cursor-default py-1.5"
                       >
-                        <Checkbox
-                          isSelected={visibleColumns[id]}
-                          onChange={() => toggleColumn(id)}
-                          className="[&_[data-slot=checkbox-content]]:text-xs [&_[data-slot=checkbox-content]]:text-[var(--text-primary)]"
+                        <div
+                          className="flex items-center gap-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
+                          onPointerDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
                         >
-                          {label}
-                        </Checkbox>
-                      </div>
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Section>
-              </Dropdown.Menu>
-            </Dropdown.Popover>
-          </Dropdown>
+                          <Checkbox
+                            isSelected={visibleColumns[id]}
+                            onChange={() => toggleColumn(id)}
+                            className="[&_[data-slot=checkbox-content]]:text-xs [&_[data-slot=checkbox-content]]:text-[var(--text-primary)]"
+                          >
+                            {label}
+                          </Checkbox>
+                        </div>
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Section>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </Tooltip.Trigger>
           <Tooltip.Content
             placement="top"
             className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"

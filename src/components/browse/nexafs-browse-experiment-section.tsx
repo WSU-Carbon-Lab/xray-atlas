@@ -22,14 +22,7 @@ import { NexafsBrowseRefineDialog } from "@/components/browse/nexafs-browse-refi
 import { NexafsMoleculeFilterDropdown } from "@/components/browse/nexafs-molecule-filter-dropdown";
 import { NexafsEdgeFilterDropdown } from "@/components/browse/nexafs-edge-filter-dropdown";
 import { AddNexafsCard } from "@/components/contribute";
-import { Button, Label } from "@heroui/react";
-import {
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-} from "@heroui/dropdown";
-import { Pagination } from "@heroui/pagination";
+import { Button, Dropdown, Label, Pagination } from "@heroui/react";
 import {
   EXPERIMENT_TYPE_LABELS,
   SORT_OPTIONS,
@@ -308,33 +301,35 @@ export function NexafsBrowseExperimentSection({
           <>
             <div className="shrink-0">
               <Dropdown>
-                <DropdownTrigger>
-                  <button
-                    type="button"
-                    className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                    aria-label={`Sort datasets; current order is ${sortLabelCurrent}`}
-                  >
-                    <ArrowsUpDownIcon
-                      className="h-5 w-5 shrink-0 stroke-[1.5]"
-                      aria-hidden
-                    />
-                    <span className="text-sm font-medium">Sort</span>
-                  </button>
-                </DropdownTrigger>
-                <DropdownMenu
-                  aria-label="Sort order"
-                  className="border-border bg-default max-h-[min(320px,50vh)] w-[min(100vw-2rem,280px)] overflow-y-auto rounded-lg border"
+                <Dropdown.Trigger
+                  aria-label={`Sort datasets; current order is ${sortLabelCurrent}`}
+                  className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 >
-                  {SORT_OPTIONS.map((opt) => (
-                    <DropdownItem
-                      key={opt.key}
-                      textValue={opt.label}
-                      onPress={() => setSortBy(opt.key)}
-                    >
-                      <Label>{opt.label}</Label>
-                    </DropdownItem>
-                  ))}
-                </DropdownMenu>
+                  <ArrowsUpDownIcon
+                    className="h-5 w-5 shrink-0 stroke-[1.5]"
+                    aria-hidden
+                  />
+                  <span className="text-sm font-medium">Sort</span>
+                </Dropdown.Trigger>
+                <Dropdown.Popover className="border-border bg-default max-h-[min(320px,50vh)] w-[min(100vw-2rem,280px)] overflow-y-auto rounded-lg border">
+                  <Dropdown.Menu
+                    aria-label="Sort order"
+                    selectionMode="none"
+                    onAction={(key) => {
+                      setSortBy(key as NexafsBrowseSortKey);
+                    }}
+                  >
+                    {SORT_OPTIONS.map((opt) => (
+                      <Dropdown.Item
+                        key={opt.key}
+                        id={opt.key}
+                        textValue={opt.label}
+                      >
+                        <Label>{opt.label}</Label>
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
               </Dropdown>
             </div>
             <Button
@@ -444,20 +439,63 @@ export function NexafsBrowseExperimentSection({
                 labelId={itemsPerPageLabelId}
               />
               {totalPages > 1 ? (
-                <Pagination
-                  total={totalPages}
-                  page={currentPage}
-                  onChange={setCurrentPage}
-                  showControls
-                  size="sm"
-                  classNames={{
-                    base: "gap-2",
-                    item: "rounded-lg border border-border bg-surface text-foreground",
-                    cursor: "bg-accent text-accent-foreground border-accent",
-                    prev: "rounded-lg border border-border bg-surface",
-                    next: "rounded-lg border border-border bg-surface",
-                  }}
-                />
+                <Pagination size="sm" className="gap-2">
+                  <Pagination.Content className="gap-2">
+                    <Pagination.Item>
+                      <Pagination.Previous
+                        isDisabled={currentPage <= 1}
+                        aria-label="Previous page"
+                        onPress={() =>
+                          setCurrentPage((p) => Math.max(1, p - 1))
+                        }
+                        className="rounded-lg border border-border bg-surface"
+                      >
+                        <Pagination.PreviousIcon />
+                      </Pagination.Previous>
+                    </Pagination.Item>
+                    {totalPages <= 20
+                      ? Array.from(
+                          { length: totalPages },
+                          (_, i) => i + 1,
+                        ).map((p) => (
+                          <Pagination.Item key={p}>
+                            <Pagination.Link
+                              isActive={p === currentPage}
+                              onPress={() => setCurrentPage(p)}
+                              className={`rounded-lg border border-border bg-surface text-foreground ${
+                                p === currentPage
+                                  ? "border-accent bg-accent text-accent-foreground"
+                                  : ""
+                              }`}
+                            >
+                              {p}
+                            </Pagination.Link>
+                          </Pagination.Item>
+                        ))
+                      : null}
+                    {totalPages > 20 ? (
+                      <Pagination.Item>
+                        <span className="text-muted px-2 text-xs tabular-nums">
+                          {currentPage} / {totalPages}
+                        </span>
+                      </Pagination.Item>
+                    ) : null}
+                    <Pagination.Item>
+                      <Pagination.Next
+                        isDisabled={currentPage >= totalPages}
+                        aria-label="Next page"
+                        onPress={() =>
+                          setCurrentPage((p) =>
+                            Math.min(totalPages, p + 1),
+                          )
+                        }
+                        className="rounded-lg border border-border bg-surface"
+                      >
+                        <Pagination.NextIcon />
+                      </Pagination.Next>
+                    </Pagination.Item>
+                  </Pagination.Content>
+                </Pagination>
               ) : null}
             </div>
           </>

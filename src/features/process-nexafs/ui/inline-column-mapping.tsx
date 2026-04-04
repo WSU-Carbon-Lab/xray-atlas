@@ -206,18 +206,15 @@ export function InlineColumnMapping({
                     return (
                       <Table.Column key={col} id={col}>
                         <Dropdown>
-                          <Dropdown.Trigger>
-                            <button
-                              type="button"
-                              aria-label={`Column mapping for ${col}`}
-                              className={`flex flex-1 items-center justify-end rounded-lg border-2 px-3 py-2 transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
-                                colorScheme
-                                  ? `${colorScheme.bg} ${colorScheme.border} ${colorScheme.text}`
-                                  : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
-                              } shadow-sm`}
-                            >
-                              <span className="text-sm font-semibold tabular-nums">{col}</span>
-                            </button>
+                          <Dropdown.Trigger
+                            aria-label={`Column mapping for ${col}`}
+                            className={`flex flex-1 items-center justify-end rounded-lg border-2 px-3 py-2 transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
+                              colorScheme
+                                ? `${colorScheme.bg} ${colorScheme.border} ${colorScheme.text}`
+                                : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
+                            } shadow-sm`}
+                          >
+                            <span className="text-sm font-semibold tabular-nums">{col}</span>
                           </Dropdown.Trigger>
                           <Dropdown.Popover className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 shadow-2xl min-w-[200px]">
                             <Dropdown.Menu

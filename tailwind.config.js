@@ -3,10 +3,6 @@ const config = {
   content: [
     "./src/**/*.{js,ts,jsx,tsx,mdx}",
     "./node_modules/@heroui/react/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/@heroui/table/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/@heroui/pagination/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/@heroui/dropdown/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/@heroui/navbar/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
