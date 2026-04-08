@@ -682,24 +682,33 @@ export default function AdminUsersPage() {
             ? `Edit ${editUserTarget.name ?? editUserTarget.email ?? "user"}`
             : "Edit user"
         }
-        maxWidth="max-w-lg"
+        maxWidth="max-w-xl"
       >
         {editUserTarget && listRoles.data ? (
-          <div className="flex flex-col gap-4">
-            <div>
+          <div className="flex min-w-0 flex-col gap-4">
+            <div className="min-w-0">
               <Label htmlFor="admin-edit-display-name">Display name</Label>
+              <p className="text-muted mt-1 mb-2 text-xs leading-relaxed wrap-break-word">
+                Shown in the app and directory listings.
+              </p>
               <Input
                 id="admin-edit-display-name"
                 value={editUserDisplayName}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setEditUserDisplayName(e.target.value)
                 }
-                placeholder="Shown in the app"
-                className="mt-1"
+                placeholder="Display name"
+                className="mt-0 w-full min-w-0"
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <Label htmlFor="admin-edit-email">Email</Label>
+              <p className="text-muted mt-1 mb-2 text-xs leading-relaxed wrap-break-word">
+                Directory contact email for profiles and search. This is not
+                authentication: sign-in uses linked accounts (for example OAuth
+                or passkeys). Leave empty to clear. Must be unique in the
+                database if set.
+              </p>
               <Input
                 id="admin-edit-email"
                 type="email"
@@ -707,27 +716,24 @@ export default function AdminUsersPage() {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setEditUserEmail(e.target.value)
                 }
-                placeholder="Optional; used as sign-in identifier when set"
-                className="mt-1"
+                placeholder="name@institution.org"
+                className="mt-0 w-full min-w-0"
               />
-              <p className="text-muted mt-1 text-xs">
-                Leave empty to clear. Must be unique if set.
-              </p>
             </div>
-            <div>
+            <div className="min-w-0">
               <Label htmlFor="admin-edit-orcid">ORCID</Label>
+              <p className="text-muted mt-1 mb-2 text-xs leading-relaxed wrap-break-word">
+                Leave empty to clear. Format is validated on save.
+              </p>
               <Input
                 id="admin-edit-orcid"
                 value={editUserOrcid}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setEditUserOrcid(e.target.value)
                 }
-                placeholder="0000-0001-2345-6789 or ORCID URL"
-                className="mt-1"
+                placeholder="0000-0001-2345-6789"
+                className="mt-0 w-full min-w-0"
               />
-              <p className="text-muted mt-1 text-xs">
-                Leave empty to clear. Format is validated on save.
-              </p>
             </div>
             <div className="border-border border-t pt-2">
               <p className="text-foreground mb-2 text-sm font-medium">Roles</p>

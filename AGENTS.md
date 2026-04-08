@@ -161,7 +161,7 @@ Global styling and Tailwind entry CSS.
 
 Users who hold an `AppRole` with `canManageUsers` open **User administration** from the account menu. The console supports:
 
-- **Edit user** (pencil on a row): update **display name** (`user.name`), **email** (optional unique sign-in identifier on `user.email`), **ORCID** (`user.orcid`, validated), and **role assignments** in one save. **View profile** (eye) opens the public user page.
+- **Edit user** (pencil on a row): update **display name** (`user.name`), **directory email** (`user.email`, optional and unique when set; shown in listings and search, not the authentication mechanism), **ORCID** (`user.orcid`, validated), and **role assignments** in one save. **View profile** (eye) opens the public user page.
 - **Role rules:** A user may have **multiple roles** overall, but **at most one** of the built-in lineage roles: **Administrator**, **Maintainer**, or **Contributor** (slugs `administrator`, `maintainer`, `contributor`). Any number of **custom** roles can be added on top. The UI enforces the lineage rule by replacing the previous lineage role when another is selected; `admin.updateUser` and `admin.setUserRoles` reject invalid combinations on the server.
 - **Roles card:** Create, edit, or delete **custom** roles; system roles cannot be deleted, and capability flags for system roles are fixed (display name and description remain editable where exposed).
 - **Delete user** removes the account and content they created (molecules and experiments they authored), consistent with self-service deletion; deleting your own account from this table is disabled.

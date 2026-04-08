@@ -5,7 +5,7 @@
  * mutations that could remove the last management-capable account.
  *
  * **Editing users:** `updateUser` updates `user.name` (display name), `user.email`
- * (sign-in identifier when set), `user.orcid`, and replaces all `user_app_role` rows in one
+ * (optional directory contact email when set; unique in DB), `user.orcid`, and replaces all `user_app_role` rows in one
  * transaction. `setUserRoles` only replaces roles. Both enforce at most one lineage role among
  * `administrator`, `maintainer`, and `contributor` (any number of custom roles may be added).
  */
