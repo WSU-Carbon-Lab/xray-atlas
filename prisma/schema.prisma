@@ -418,7 +418,6 @@ model user {
   contributionAgreementAccepted Boolean                @default(false)
   contributionAgreementDate     DateTime?              @db.Timestamptz(6)
   orcid                         String?
-  role                          String                 @default("contributor")
   authenticator                 Authenticator[]
   account                       account[]
   session                       session[]
@@ -426,8 +425,42 @@ model user {
   moleculecontributors          moleculecontributors[]
   moleculefavorites             moleculefavorites[]
   moleculeviews                 moleculeviews[]
+  userAppRoles                  UserAppRole[]
 
   @@index([orcid], map: "users_orcid_idx")
+  @@schema("next_auth")
+}
+
+/// Application-defined roles with capability flags. Stored in `next_auth.app_role`; assignments in `next_auth.user_app_role` join `next_auth.user`.
+model AppRole {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug           String   @unique
+  displayName    String   @map("display_name")
+  description    String?
+  isSystem       Boolean  @default(false) @map("is_system")
+  canAccessLabs  Boolean  @default(false) @map("can_access_labs")
+  canManageUsers Boolean  @default(false) @map("can_manage_users")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  userAppRoles UserAppRole[]
+
+  @@map("app_role")
+  @@schema("next_auth")
+}
+
+/// Many-to-many link between NextAuth users and application roles.
+model UserAppRole {
+  userId String @map("user_id") @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+
+  user user    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role AppRole @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([userId, roleId])
+  @@index([userId], map: "user_app_role_user_id_idx")
+  @@index([roleId], map: "user_app_role_role_id_idx")
+  @@map("user_app_role")
   @@schema("next_auth")
 }
 

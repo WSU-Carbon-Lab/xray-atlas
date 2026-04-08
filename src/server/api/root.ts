@@ -11,9 +11,11 @@ import { externalRouter } from "~/server/api/routers/external";
 import { vendorsRouter } from "~/server/api/routers/vendors";
 import { physicsRouter } from "~/server/api/routers/physics";
 import { collaboratorsRouter } from "~/server/api/routers/collaborators";
+import { adminRouter } from "~/server/api/routers/admin";
 
 export const appRouter = createTRPCRouter({
   molecules: moleculesRouter,
+  admin: adminRouter,
   users: usersRouter,
   experiments: experimentsRouter,
   samples: samplesRouter,

@@ -3,6 +3,7 @@ import { auth } from "~/server/auth";
 import { db } from "~/server/db";
 import { cookies } from "next/headers";
 import { DEV_MOCK_USER_ID } from "~/lib/dev-mock-data";
+import { hasManageUsersCapability } from "~/server/auth/privileged-role";
 
 function getClientIpFromRequest(req: Request | undefined): string | null {
   if (!req) return null;
@@ -99,3 +100,24 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
 });
 
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
+
+const enforceManageUsers = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.userId) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  const allowed = await hasManageUsersCapability(ctx.db, ctx.userId);
+  if (!allowed) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Administrator access is required for this action.",
+    });
+  }
+  return next({
+    ctx: {
+      userId: ctx.userId,
+      isDevMock: ctx.isDevMock,
+    },
+  });
+});
+
+export const adminProcedure = protectedProcedure.use(enforceManageUsers);

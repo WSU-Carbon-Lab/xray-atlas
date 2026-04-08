@@ -10,20 +10,7 @@ import {
   DEV_MOCK_PASSKEYS,
   isDevMockUser,
 } from "~/lib/dev-mock-data";
-import { PRIVILEGED_ROLES } from "~/server/auth/privileged-role";
-
-const orcidIdSchema = z
-  .string()
-  .regex(
-    /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/,
-    "Invalid ORCID iD format. Expected format: XXXX-XXXX-XXXX-XXXX",
-  )
-  .or(
-    z
-      .string()
-      .url()
-      .refine((url) => url.includes("orcid.org"), "Must be a valid ORCID URL"),
-  );
+import { normalizeOrcidUserInput, orcidIdSchema } from "~/lib/orcid";
 
 export const usersRouter = createTRPCRouter({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
@@ -66,8 +53,16 @@ export const usersRouter = createTRPCRouter({
 
   getCoreMaintainers: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.user.findMany({
-      where: { role: { in: [...PRIVILEGED_ROLES] } },
-      orderBy: [{ role: "asc" }, { name: "asc" }],
+      where: {
+        userAppRoles: {
+          some: {
+            role: {
+              slug: { in: ["maintainer", "administrator"] },
+            },
+          },
+        },
+      },
+      orderBy: [{ name: "asc" }],
       select: { id: true, name: true, image: true },
     });
   }),
@@ -87,17 +82,7 @@ export const usersRouter = createTRPCRouter({
         return { ...DEV_MOCK_USER, orcid: input.orcid };
       }
 
-      let orcidId = input.orcid;
-      if (orcidId.startsWith("https://")) {
-        orcidId = orcidId
-          .replace("https://orcid.org/", "")
-          .replace("https://sandbox.orcid.org/", "");
-      }
-      if (orcidId.startsWith("http://")) {
-        orcidId = orcidId
-          .replace("http://orcid.org/", "")
-          .replace("http://sandbox.orcid.org/", "");
-      }
+      const orcidId = normalizeOrcidUserInput(input.orcid);
 
       const user = await ctx.db.user.update({
         where: { id: ctx.userId },

@@ -7,6 +7,17 @@ import HuggingFace from "next-auth/providers/huggingface";
 import Passkey from "next-auth/providers/passkey";
 import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers";
 import { cookies } from "next/headers";
+import {
+  getUserSessionCapabilities,
+  type UserSessionCapabilities,
+} from "~/server/auth/privileged-role";
+import { DEV_MOCK_USER_ID } from "~/lib/dev-mock-data";
+
+const emptySessionCapabilities: UserSessionCapabilities = {
+  canAccessLabs: false,
+  canManageUsers: false,
+  roleSlugs: [],
+};
 
 const githubClientId = env.GITHUB_CLIENT_ID;
 const githubClientSecret = env.GITHUB_CLIENT_SECRET;
@@ -321,16 +332,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (process.env.NODE_ENV === "development") {
         const cookieStore = await cookies();
         const devSession = cookieStore.get("dev-auth-session");
-        if (devSession?.value === "00000000-0000-0000-0000-000000000000") {
+        if (devSession?.value === DEV_MOCK_USER_ID) {
           return {
             ...session,
             user: {
-              id: "00000000-0000-0000-0000-000000000000",
+              id: DEV_MOCK_USER_ID,
               name: "Dr. Jane Smith",
               email: "jane.smith@example.edu",
               image:
                 "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
               orcid: "0000-0001-2345-6789",
+              ...emptySessionCapabilities,
             },
           };
         }
@@ -340,35 +352,57 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (process.env.NODE_ENV === "development") {
           const cookieStore = await cookies();
           const devSession = cookieStore.get("dev-auth-session");
-          if (
-            devSession?.value === "00000000-0000-0000-0000-000000000000" &&
-            user.id !== "00000000-0000-0000-0000-000000000000"
-          ) {
+          if (devSession?.value === DEV_MOCK_USER_ID && user.id !== DEV_MOCK_USER_ID) {
             return {
               ...session,
               user: {
-                id: "00000000-0000-0000-0000-000000000000",
+                id: DEV_MOCK_USER_ID,
                 name: "Dr. Jane Smith",
                 email: "jane.smith@example.edu",
                 image:
                   "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
                 orcid: "0000-0001-2345-6789",
+                ...emptySessionCapabilities,
               },
             };
           }
         }
 
-        const userWithOrcid = await db.user.findUnique({
-          where: { id: user.id },
-          select: { orcid: true },
-        });
+        let orcid: string | null = null;
+        let caps: UserSessionCapabilities = { ...emptySessionCapabilities };
+        try {
+          const [userWithOrcid, loaded] = await Promise.all([
+            db.user.findUnique({
+              where: { id: user.id },
+              select: { orcid: true },
+            }),
+            getUserSessionCapabilities(db, user.id),
+          ]);
+          orcid = userWithOrcid?.orcid ?? null;
+          caps = loaded;
+        } catch (err) {
+          console.error(
+            "[NextAuth] Session role enrichment failed; continuing with minimal session. Apply prisma migrations if tables are missing.",
+            err,
+          );
+          try {
+            const row = await db.user.findUnique({
+              where: { id: user.id },
+              select: { orcid: true },
+            });
+            orcid = row?.orcid ?? null;
+          } catch (inner) {
+            console.error("[NextAuth] Session ORCID fallback failed:", inner);
+          }
+        }
 
         return {
           ...session,
           user: {
             ...session.user,
             id: user.id,
-            orcid: userWithOrcid?.orcid ?? null,
+            orcid,
+            ...caps,
           },
         };
       }
