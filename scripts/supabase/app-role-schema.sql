@@ -82,3 +82,8 @@ END
 $backfill$;
 
 ALTER TABLE "next_auth"."user" DROP COLUMN IF EXISTS "role";
+
+-- Role visuals and granular permissions live in Prisma migration
+-- `20260408183000_app_role_visuals_permissions` (columns color, favicon_url,
+-- is_emailable, permissions JSONB). Apply that migration after this script when
+-- provisioning greenfield databases.

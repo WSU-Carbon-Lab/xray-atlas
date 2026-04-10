@@ -10,6 +10,12 @@ export const APP_LINEAGE_ROLE_SLUGS = [
 
 export type AppLineageRoleSlug = (typeof APP_LINEAGE_ROLE_SLUGS)[number];
 
+/**
+ * Slug for the top lineage tier. Management-capability checks treat this role as granting
+ * admin-console access even when legacy `can_manage_users` columns drift after migrations.
+ */
+export const APP_ADMINISTRATOR_SLUG: AppLineageRoleSlug = "administrator";
+
 const LINEAGE_SLUG_SET = new Set<string>(APP_LINEAGE_ROLE_SLUGS);
 
 /**

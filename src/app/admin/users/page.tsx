@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+  useId,
+} from "react";
 import { z } from "zod";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import type { inferRouterOutputs } from "@trpc/server";
 import {
   Button,
   Table,
@@ -15,23 +21,262 @@ import {
   Card,
   Kbd,
   SearchField,
+  Separator,
 } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { ChevronUp, Copy, Eye, Pencil, Trash2 } from "lucide-react";
+import { ChevronUp, Copy, Eye, Pencil, Trash2, X } from "lucide-react";
 import { trpc } from "~/trpc/client";
-import type { AppRouter } from "~/server/api/root";
 import { CustomAvatar } from "~/components/ui/avatar";
 import { ORCIDIcon } from "~/components/icons";
 import { SimpleDialog } from "~/components/ui/dialog";
+import { HexColorSelector } from "~/components/ui/hex-color-selector";
 import { showToast } from "~/components/ui/toast";
-import { isLineageRoleSlug } from "~/lib/app-role-lineage";
+import {
+  APP_LINEAGE_ROLE_SLUGS,
+  isLineageRoleSlug,
+} from "~/lib/app-role-lineage";
+import {
+  APP_PERMISSION_GROUPS,
+  type AppPermissionKey,
+  parseRolePermissions,
+} from "~/lib/app-role-permissions";
+import {
+  DEFAULT_ROLE_COLOR,
+  ROLE_COLOR_PRESETS,
+  roleHexColorSchema,
+} from "~/lib/app-role-colors";
+import { normalizeRoleSlugInput } from "~/lib/app-role-slug";
 
 const PAGE_SIZE = 20;
 
-type RouterOutputs = inferRouterOutputs<AppRouter>;
-type AdminUserRow = RouterOutputs["admin"]["listUsers"]["rows"][number];
+function RoleFaviconUrlPreview({
+  imageUrl,
+  onClear,
+}: {
+  imageUrl: string;
+  onClear: () => void;
+}) {
+  const t = imageUrl.trim();
+  if (!t) return null;
+  return (
+    <div className="relative mt-2 inline-block">
+      <img
+        key={t}
+        src={t}
+        alt=""
+        className="border-border size-10 rounded-lg border object-cover"
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+      <Button
+        isIconOnly
+        size="sm"
+        variant="secondary"
+        aria-label="Remove favicon and clear URL"
+        className="border-border bg-surface text-foreground absolute -top-1 -right-1 z-[1] size-6 min-w-6 rounded-full border shadow-md"
+        onPress={onClear}
+      >
+        <X className="size-3.5" aria-hidden />
+      </Button>
+    </div>
+  );
+}
+
+function AdminQueryError({
+  title,
+  message,
+  onRetry,
+}: {
+  title: string;
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="border-danger/25 bg-danger/5 rounded-xl border p-4">
+      <p className="text-danger text-sm font-semibold">{title}</p>
+      <p className="text-muted mt-2 text-xs leading-relaxed wrap-break-word">
+        {message}
+      </p>
+      <p className="text-muted mt-2 text-xs leading-relaxed">
+        If you recently changed auth roles in the schema, run migrations for the
+        database used by this app&apos;s{" "}
+        <code className="text-foreground/90 bg-surface-2/80 rounded px-1 py-0.5 text-[0.7rem]">
+          DATABASE_URL
+        </code>{" "}
+        (local and Supabase MCP targets can differ).
+      </p>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="mt-3"
+        onPress={onRetry}
+      >
+        Retry
+      </Button>
+    </div>
+  );
+}
+
+interface AdminUserRow {
+  id: string;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+  orcid: string | null;
+  userAppRoles: {
+    role: {
+      id: string;
+      displayName: string;
+      slug: string;
+      color: string;
+      faviconUrl: string | null;
+      isSystem: boolean;
+    };
+  }[];
+}
 
 type UserSortColumn = "member" | "orcid" | "roles";
+
+const ADMIN_ROLE_TABLE_CHIP_CLASS = "border-l-[3px] max-w-[11rem]";
+
+function lineageRoleSortRank(slugs: readonly string[]): number {
+  const set = new Set(slugs);
+  const idx = APP_LINEAGE_ROLE_SLUGS.findIndex((slug) => set.has(slug));
+  return idx === -1 ? APP_LINEAGE_ROLE_SLUGS.length : idx;
+}
+
+function AdminRoleChipContent({
+  displayName,
+  faviconUrl,
+}: {
+  displayName: string;
+  faviconUrl: string | null;
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-1">
+      {faviconUrl ? (
+        <img
+          src={faviconUrl}
+          alt=""
+          className="size-3 shrink-0 rounded-sm object-cover"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
+      <span className="truncate">{displayName}</span>
+    </span>
+  );
+}
+
+interface AdminDirectoryRoleChip {
+  readonly id: string;
+  readonly displayName: string;
+  readonly faviconUrl: string | null;
+  readonly color: string;
+}
+
+function AdminRolesDirectoryList({
+  roles,
+  onEditRole,
+  ariaLabel,
+}: {
+  roles: readonly AdminDirectoryRoleChip[];
+  onEditRole: (roleId: string) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <ul
+      className="m-0 flex list-none flex-wrap gap-1 p-0"
+      aria-label={ariaLabel}
+    >
+      {roles.map((role) => (
+        <li key={role.id}>
+          <button
+            type="button"
+            onClick={() => onEditRole(role.id)}
+            className="focus-visible:ring-accent/50 rounded-md p-0 focus-visible:ring-2 focus-visible:outline-none"
+            aria-label={`Edit role ${role.displayName}`}
+          >
+            <Chip
+              size="sm"
+              variant="soft"
+              className={cn(ADMIN_ROLE_TABLE_CHIP_CLASS, "pointer-events-none")}
+              style={{ borderLeftColor: role.color }}
+            >
+              <span className="flex min-w-0 items-center gap-1">
+                <AdminRoleChipContent
+                  displayName={role.displayName}
+                  faviconUrl={role.faviconUrl}
+                />
+                <Pencil
+                  className="text-muted size-3 shrink-0 opacity-70"
+                  aria-hidden
+                />
+              </span>
+            </Chip>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function RolePermissionEditor({
+  selected,
+  onToggle,
+  disabled,
+}: {
+  selected: Set<AppPermissionKey>;
+  onToggle: (key: AppPermissionKey) => void;
+  disabled?: boolean;
+}) {
+  const reactId = useId();
+  return (
+    <div className="flex flex-col gap-4">
+      {APP_PERMISSION_GROUPS.map((group) => (
+        <div
+          key={group.id}
+          className="border-border bg-surface-2/20 rounded-xl border p-3"
+        >
+          <p className="text-foreground text-sm font-semibold">{group.title}</p>
+          <p className="text-muted mt-0.5 mb-2 text-xs leading-relaxed">
+            {group.description}
+          </p>
+          <div className="flex flex-col gap-3">
+            {group.items.map((item) => {
+              const fieldId = `${reactId}-${group.id}-${item.key}`;
+              return (
+                <Checkbox
+                  key={item.key}
+                  id={fieldId}
+                  variant="secondary"
+                  className="items-start gap-3"
+                  isSelected={selected.has(item.key)}
+                  isDisabled={disabled}
+                  onChange={() => onToggle(item.key)}
+                >
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Checkbox.Content>
+                    <Label
+                      htmlFor={fieldId}
+                      className="text-foreground cursor-pointer text-sm font-normal leading-snug"
+                    >
+                      {item.label}
+                    </Label>
+                  </Checkbox.Content>
+                </Checkbox>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function SortableColumnHeader({
   label,
@@ -81,7 +326,14 @@ export default function AdminUsersPage() {
     email: string | null;
     orcid: string | null;
     userAppRoles: {
-      role: { id: string; displayName: string; slug: string };
+      role: {
+        id: string;
+        displayName: string;
+        slug: string;
+        color: string;
+        faviconUrl: string | null;
+        isSystem: boolean;
+      };
     }[];
   } | null>(null);
   const [editUserDisplayName, setEditUserDisplayName] = useState("");
@@ -94,22 +346,33 @@ export default function AdminUsersPage() {
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
 
   const [createRoleOpen, setCreateRoleOpen] = useState(false);
-  const [newSlug, setNewSlug] = useState("");
-  const [newDisplayName, setNewDisplayName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newLabs, setNewLabs] = useState(false);
-  const [newManage, setNewManage] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleSlug, setNewRoleSlug] = useState("");
+  const [newRoleDescription, setNewRoleDescription] = useState("");
+  const [newRoleColor, setNewRoleColor] = useState(DEFAULT_ROLE_COLOR);
+  const [newRoleFaviconUrl, setNewRoleFaviconUrl] = useState("");
+  const [newRoleEmailable, setNewRoleEmailable] = useState(false);
+  const [newRolePermissions, setNewRolePermissions] = useState<
+    Set<AppPermissionKey>
+  >(() => new Set());
+
+  const newRoleSlugAutoSyncRef = useRef(true);
+  const prevCreateRoleOpenRef = useRef(false);
 
   const [editRoleId, setEditRoleId] = useState<string | null>(null);
-  const [editDisplayName, setEditDisplayName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editLabs, setEditLabs] = useState(false);
-  const [editManage, setEditManage] = useState(false);
+  const [editRoleName, setEditRoleName] = useState("");
+  const [editRoleDescription, setEditRoleDescription] = useState("");
+  const [editRoleColor, setEditRoleColor] = useState(DEFAULT_ROLE_COLOR);
+  const [editRoleFaviconUrl, setEditRoleFaviconUrl] = useState("");
+  const [editRoleEmailable, setEditRoleEmailable] = useState(false);
+  const [editRolePermissions, setEditRolePermissions] = useState<
+    Set<AppPermissionKey>
+  >(() => new Set());
 
   const [userSort, setUserSort] = useState<{
     column: UserSortColumn;
     direction: "asc" | "desc";
-  }>({ column: "member", direction: "asc" });
+  }>({ column: "roles", direction: "asc" });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -140,15 +403,29 @@ export default function AdminUsersPage() {
     onError: (e) => showToast(e.message, "error"),
   });
 
+  useEffect(() => {
+    const nowOpen = createRoleOpen;
+    const wasOpen = prevCreateRoleOpenRef.current;
+    prevCreateRoleOpenRef.current = nowOpen;
+    if (nowOpen && !wasOpen) {
+      newRoleSlugAutoSyncRef.current = true;
+      setNewRoleSlug(normalizeRoleSlugInput(newRoleName));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `newRoleName` is read only when the dialog opens; live name typing syncs in the name field handler
+  }, [createRoleOpen]);
+
   const createRole = trpc.admin.createRole.useMutation({
     onSuccess: async () => {
       showToast("Role created.", "success");
       setCreateRoleOpen(false);
-      setNewSlug("");
-      setNewDisplayName("");
-      setNewDescription("");
-      setNewLabs(false);
-      setNewManage(false);
+      setNewRoleName("");
+      setNewRoleSlug("");
+      newRoleSlugAutoSyncRef.current = true;
+      setNewRoleDescription("");
+      setNewRoleColor(DEFAULT_ROLE_COLOR);
+      setNewRoleFaviconUrl("");
+      setNewRoleEmailable(false);
+      setNewRolePermissions(new Set());
       await utils.admin.listRoles.invalidate();
     },
     onError: (e) => showToast(e.message, "error"),
@@ -216,11 +493,81 @@ export default function AdminUsersPage() {
     if (!editingRole) {
       return;
     }
-    setEditDisplayName(editingRole.displayName);
-    setEditDescription(editingRole.description ?? "");
-    setEditLabs(editingRole.canAccessLabs);
-    setEditManage(editingRole.canManageUsers);
+    setEditRoleName(editingRole.displayName);
+    setEditRoleDescription(editingRole.description ?? "");
+    setEditRoleColor(editingRole.color);
+    setEditRoleFaviconUrl(editingRole.faviconUrl ?? "");
+    setEditRoleEmailable(editingRole.isEmailable);
+    setEditRolePermissions(
+      new Set(parseRolePermissions(editingRole.permissions)),
+    );
   }, [editingRole]);
+
+  const skipNewFaviconColorSampleRef = useRef(false);
+  useEffect(() => {
+    if (createRoleOpen) {
+      skipNewFaviconColorSampleRef.current = true;
+    }
+  }, [createRoleOpen]);
+
+  useEffect(() => {
+    if (!createRoleOpen) return;
+    if (skipNewFaviconColorSampleRef.current) {
+      skipNewFaviconColorSampleRef.current = false;
+      return;
+    }
+    const t = newRoleFaviconUrl.trim();
+    if (!t || !z.string().url().safeParse(t).success) return;
+    const handle = setTimeout(() => {
+      void utils.admin.sampleIconPrimaryHex.fetch({ url: t }).then((d) => {
+        if (d.hex) setNewRoleColor(d.hex);
+      });
+    }, 480);
+    return () => clearTimeout(handle);
+  }, [createRoleOpen, newRoleFaviconUrl, utils]);
+
+  const skipEditFaviconColorSampleRef = useRef(false);
+  useEffect(() => {
+    if (editRoleId) {
+      skipEditFaviconColorSampleRef.current = true;
+    }
+  }, [editRoleId]);
+
+  useEffect(() => {
+    if (!editRoleId || !editingRole) return;
+    if (skipEditFaviconColorSampleRef.current) {
+      skipEditFaviconColorSampleRef.current = false;
+      return;
+    }
+    const t = editRoleFaviconUrl.trim();
+    const hydrated = (editingRole.faviconUrl ?? "").trim();
+    if (t === hydrated) return;
+    if (!t || !z.string().url().safeParse(t).success) return;
+    const handle = setTimeout(() => {
+      void utils.admin.sampleIconPrimaryHex.fetch({ url: t }).then((d) => {
+        if (d.hex) setEditRoleColor(d.hex);
+      });
+    }, 480);
+    return () => clearTimeout(handle);
+  }, [editRoleFaviconUrl, editRoleId, editingRole, utils]);
+
+  const toggleNewPermission = useCallback((key: AppPermissionKey) => {
+    setNewRolePermissions((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const toggleEditPermission = useCallback((key: AppPermissionKey) => {
+    setEditRolePermissions((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   const totalPages = Math.max(
     1,
@@ -283,6 +630,10 @@ export default function AdminUsersPage() {
           cmp = (a.orcid ?? "").localeCompare(b.orcid ?? "");
           break;
         case "roles": {
+          const slugsA = a.userAppRoles.map((x) => x.role.slug);
+          const slugsB = b.userAppRoles.map((x) => x.role.slug);
+          cmp = lineageRoleSortRank(slugsA) - lineageRoleSortRank(slugsB);
+          if (cmp !== 0) break;
           const ar = [...a.userAppRoles.map((x) => x.role.displayName)]
             .sort()
             .join(", ");
@@ -290,6 +641,10 @@ export default function AdminUsersPage() {
             .sort()
             .join(", ");
           cmp = ar.localeCompare(br);
+          if (cmp !== 0) break;
+          const an = (a.name ?? a.email ?? "").toLocaleLowerCase();
+          const bn = (b.name ?? b.email ?? "").toLocaleLowerCase();
+          cmp = an.localeCompare(bn);
           break;
         }
         default:
@@ -298,6 +653,19 @@ export default function AdminUsersPage() {
       return cmp * mul;
     });
   }, [listUsers.data?.rows, userSort]);
+
+  const { systemRoles, customRoles } = useMemo(() => {
+    const data = listRoles.data ?? [];
+    const system = data
+      .filter((r) => r.isSystem)
+      .slice()
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    const custom = data
+      .filter((r) => !r.isSystem)
+      .slice()
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return { systemRoles: system, customRoles: custom };
+  }, [listRoles.data]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -338,67 +706,81 @@ export default function AdminUsersPage() {
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
-        <Card className="border-border bg-surface-1 order-2 overflow-hidden border shadow-sm lg:order-none lg:col-span-4 xl:col-span-4">
+        <Card className="border-border bg-surface-1 order-1 overflow-hidden border shadow-sm lg:order-none lg:col-span-4 xl:col-span-4">
           <Card.Header className="border-border flex flex-row flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-            <div>
+            <div className="min-w-0 flex-1 pr-2">
               <Card.Title className="text-foreground text-base font-semibold">
                 Roles
               </Card.Title>
-              <Card.Description className="text-muted mt-0.5 text-xs">
-                System and custom capabilities
+              <Card.Description className="text-muted mt-1 text-xs leading-relaxed">
+                Lowercase labels, colors, optional favicons, and grouped
+                permissions. Emailable is reserved for future team email.
               </Card.Description>
             </div>
             <Button
               size="sm"
               variant="primary"
+              className="shrink-0"
               onPress={() => setCreateRoleOpen(true)}
             >
               Create role
             </Button>
           </Card.Header>
-          <Card.Content className="border-border bg-surface-2/10 border-t p-5">
+          <Card.Content className="bg-surface-2/10 px-5 py-5">
             {listRoles.isLoading ? (
               <p className="text-muted text-sm">Loading roles…</p>
+            ) : listRoles.isError ? (
+              <AdminQueryError
+                title="Could not load roles"
+                message={listRoles.error.message}
+                onRetry={() => void listRoles.refetch()}
+              />
             ) : (listRoles.data?.length ?? 0) === 0 ? (
               <p className="text-muted text-sm">No roles defined.</p>
             ) : (
-              <ul
-                className="m-0 flex list-none flex-wrap gap-2 p-0"
-                aria-label="Application roles"
-              >
-                {(listRoles.data ?? []).map((role) => (
-                  <li key={role.id}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onPress={() => openEditRole(role.id)}
-                      aria-label={`Edit role ${role.displayName}`}
-                      className={cn(
-                        "border-border hover:bg-default data-[hovered]:bg-default h-auto rounded-full border py-2 pr-2.5 pl-3.5 transition-colors",
-                        role.isSystem
-                          ? "bg-surface-2/50"
-                          : "bg-surface-2/80 hover:border-accent/30",
-                      )}
+              <div className="flex flex-col gap-4">
+                {systemRoles.length > 0 ? (
+                  <section aria-labelledby="admin-directory-system-roles">
+                    <h3
+                      id="admin-directory-system-roles"
+                      className="text-muted mb-2 text-[11px] font-semibold tracking-wide uppercase"
                     >
-                      <span className="text-foreground flex items-center gap-2 text-sm font-medium">
-                        {role.displayName}
-                        {role.isSystem ? (
-                          <span className="text-muted font-normal">(system)</span>
-                        ) : null}
-                        <Pencil
-                          className="text-muted size-3.5 shrink-0 opacity-80"
-                          aria-hidden
-                        />
-                      </span>
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+                      System roles
+                    </h3>
+                    <AdminRolesDirectoryList
+                      roles={systemRoles}
+                      onEditRole={openEditRole}
+                      ariaLabel="System application roles"
+                    />
+                  </section>
+                ) : null}
+                {systemRoles.length > 0 && customRoles.length > 0 ? (
+                  <Separator
+                    orientation="horizontal"
+                    className="bg-border my-0 w-full shrink-0"
+                  />
+                ) : null}
+                {customRoles.length > 0 ? (
+                  <section aria-labelledby="admin-directory-custom-roles">
+                    <h3
+                      id="admin-directory-custom-roles"
+                      className="text-muted mb-2 text-[11px] font-semibold tracking-wide uppercase"
+                    >
+                      Custom roles
+                    </h3>
+                    <AdminRolesDirectoryList
+                      roles={customRoles}
+                      onEditRole={openEditRole}
+                      ariaLabel="Custom application roles"
+                    />
+                  </section>
+                ) : null}
+              </div>
             )}
           </Card.Content>
         </Card>
 
-        <Card className="border-border bg-surface-1 order-1 overflow-hidden border shadow-sm lg:order-none lg:col-span-8 xl:col-span-8">
+        <Card className="border-border bg-surface-1 order-2 overflow-hidden border shadow-sm lg:order-none lg:col-span-8 xl:col-span-8">
           <Card.Header className="border-border border-b px-5 py-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
               <div className="min-w-0 lg:max-w-sm">
@@ -434,7 +816,10 @@ export default function AdminUsersPage() {
                       }}
                     />
                     {searchDraft ? (
-                      <SearchField.ClearButton className="text-muted h-7 w-7 shrink-0 rounded-md p-0.5" />
+                      <SearchField.ClearButton
+                        aria-label="Clear user search"
+                        className="text-muted h-7 w-7 shrink-0 rounded-md p-0.5"
+                      />
                     ) : (
                       <Kbd
                         className="border-border-strong bg-default text-foreground shrink-0 gap-0.5 rounded-md border px-2 py-1 font-sans text-[11px] font-medium tabular-nums shadow-sm"
@@ -450,6 +835,15 @@ export default function AdminUsersPage() {
             </div>
           </Card.Header>
           <Card.Content className="bg-surface-2/15 p-0">
+            {listUsers.isError ? (
+              <div className="p-5">
+                <AdminQueryError
+                  title="Could not load users"
+                  message={listUsers.error.message}
+                  onRetry={() => void listUsers.refetch()}
+                />
+              </div>
+            ) : (
             <Table.ScrollContainer>
               <Table.Content
                 aria-label="Users"
@@ -555,8 +949,19 @@ export default function AdminUsersPage() {
                         <Table.Cell className="align-middle px-2 py-2.5">
                           <div className="flex flex-wrap gap-1">
                             {u.userAppRoles.map((ur) => (
-                              <Chip key={ur.role.id} size="sm" variant="soft">
-                                {ur.role.displayName}
+                              <Chip
+                                key={ur.role.id}
+                                size="sm"
+                                variant="soft"
+                                className={ADMIN_ROLE_TABLE_CHIP_CLASS}
+                                style={{
+                                  borderLeftColor: ur.role.color,
+                                }}
+                              >
+                                <AdminRoleChipContent
+                                  displayName={ur.role.displayName}
+                                  faviconUrl={ur.role.faviconUrl}
+                                />
                               </Chip>
                             ))}
                           </div>
@@ -643,17 +1048,24 @@ export default function AdminUsersPage() {
                 </Table.Body>
               </Table.Content>
             </Table.ScrollContainer>
+            )}
           </Card.Content>
           <Card.Footer className="border-border bg-surface-1 text-muted flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-sm">
+            {listUsers.isError ? (
+              <span className="text-danger text-sm font-medium">
+                User list unavailable until the request succeeds.
+              </span>
+            ) : (
             <span>
               Page {currentPage} of {totalPages} (
               {listUsers.data?.total ?? 0} users)
             </span>
+            )}
             <div className="flex gap-2">
               <Button
                 size="sm"
                 variant="ghost"
-                isDisabled={skip <= 0}
+                isDisabled={skip <= 0 || listUsers.isError}
                 onPress={() => setSkip((s) => Math.max(0, s - PAGE_SIZE))}
               >
                 Previous
@@ -662,6 +1074,7 @@ export default function AdminUsersPage() {
                 size="sm"
                 variant="ghost"
                 isDisabled={
+                  listUsers.isError ||
                   !listUsers.data ||
                   skip + PAGE_SIZE >= listUsers.data.total
                 }
@@ -743,18 +1156,31 @@ export default function AdminUsersPage() {
                 one. At least one role is required.
               </p>
               <div className="flex max-h-56 flex-col gap-2 overflow-y-auto">
-                {listRoles.data.map((role) => (
-                  <Checkbox
-                    key={role.id}
-                    isSelected={selectedRoleIds.has(role.id)}
-                    onChange={() => toggleRoleSelection(role.id, role.slug)}
-                  >
-                    <span className="text-sm">
-                      {role.displayName}{" "}
-                      <span className="text-muted">({role.slug})</span>
-                    </span>
-                  </Checkbox>
-                ))}
+                {listRoles.data.map((role) => {
+                  const rid = `admin-edit-user-role-${role.id}`;
+                  return (
+                    <Checkbox
+                      key={role.id}
+                      id={rid}
+                      className="items-start gap-3"
+                      isSelected={selectedRoleIds.has(role.id)}
+                      onChange={() => toggleRoleSelection(role.id, role.slug)}
+                    >
+                      <Checkbox.Control>
+                        <Checkbox.Indicator />
+                      </Checkbox.Control>
+                      <Checkbox.Content>
+                        <Label
+                          htmlFor={rid}
+                          className="text-foreground cursor-pointer text-sm font-normal"
+                        >
+                          {role.displayName}{" "}
+                          <span className="text-muted">({role.slug})</span>
+                        </Label>
+                      </Checkbox.Content>
+                    </Checkbox>
+                  );
+                })}
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
@@ -827,70 +1253,164 @@ export default function AdminUsersPage() {
         isOpen={createRoleOpen}
         onClose={() => setCreateRoleOpen(false)}
         title="Create role"
-        maxWidth="max-w-lg"
+        maxWidth="max-w-2xl"
       >
-        <div className="flex flex-col gap-3">
-          <div>
-            <Label htmlFor="new-role-slug">Slug</Label>
-            <Input
-              id="new-role-slug"
-              value={newSlug}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setNewSlug(e.target.value)
-              }
-              placeholder="e.g. trusted-reviewer"
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="new-role-name">Display name</Label>
+        <div className="flex min-w-0 flex-col gap-4 pr-1">
+          <div className="min-w-0">
+            <Label htmlFor="new-role-name">Name</Label>
+            <p className="text-muted mt-1 mb-2 text-xs leading-relaxed">
+              Stored as entered for display. Slug auto-fills from the name
+              (lowercase; spaces, hyphens, and slashes become underscores) and
+              stays editable—for example{" "}
+              <code className="text-foreground/90">WSU Carbon Lab</code> becomes{" "}
+              <code className="text-foreground/90">wsu_carbon_lab</code>.
+            </p>
             <Input
               id="new-role-name"
-              value={newDisplayName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setNewDisplayName(e.target.value)
-              }
-              className="mt-1"
+              value={newRoleName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const v = e.target.value;
+                setNewRoleName(v);
+                if (newRoleSlugAutoSyncRef.current) {
+                  setNewRoleSlug(normalizeRoleSlugInput(v));
+                }
+              }}
+              placeholder="WSU Carbon Lab"
+              className="w-full min-w-0"
             />
           </div>
-          <div>
-            <Label htmlFor="new-role-desc">Description (optional)</Label>
+          <div className="min-w-0">
+            <Label htmlFor="new-role-slug">Slug (optional)</Label>
+            <p className="text-muted mt-1 mb-2 text-xs leading-relaxed">
+              Fills from the name until you edit here; typing applies the same
+              normalization.
+            </p>
             <Input
-              id="new-role-desc"
-              value={newDescription}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setNewDescription(e.target.value)
-              }
-              className="mt-1"
+              id="new-role-slug"
+              value={newRoleSlug}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                newRoleSlugAutoSyncRef.current = false;
+                setNewRoleSlug(normalizeRoleSlugInput(e.target.value));
+              }}
+              placeholder="wsu_carbon_lab"
+              className="w-full min-w-0 font-mono text-xs"
             />
           </div>
-          <Checkbox isSelected={newLabs} onChange={() => setNewLabs((v) => !v)}>
-            Can access Labs
-          </Checkbox>
+          <div className="min-w-0">
+            <Label htmlFor="new-role-desc">Description</Label>
+            <textarea
+              id="new-role-desc"
+              value={newRoleDescription}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setNewRoleDescription(e.target.value)
+              }
+              rows={3}
+              className="border-border bg-surface text-foreground mt-1 w-full min-w-0 resize-y rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
+            />
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor="new-role-favicon">Favicon URL</Label>
+            <p className="text-muted mt-1 mb-2 text-xs leading-relaxed">
+              External image URL (for example a site favicon). Shown beside the
+              role in lists. After a valid URL is entered, the server samples the
+              image and sets the role accent color automatically (you can still
+              change it below).
+            </p>
+            <Input
+              id="new-role-favicon"
+              value={newRoleFaviconUrl}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setNewRoleFaviconUrl(e.target.value)
+              }
+              placeholder="https://example.com/favicon.ico"
+              className="w-full min-w-0"
+            />
+            <RoleFaviconUrlPreview
+              imageUrl={newRoleFaviconUrl}
+              onClear={() => setNewRoleFaviconUrl("")}
+            />
+          </div>
+          <div className="min-w-0">
+            <Label>Color</Label>
+            <p className="text-muted mt-1 mb-2 text-xs leading-relaxed">
+              Adjust after the favicon suggestion, or use the system picker and
+              preset carousel; past the last preset page, next loads more random
+              swatches.
+            </p>
+            <HexColorSelector
+              idPrefix="create-role"
+              value={newRoleColor}
+              onChange={setNewRoleColor}
+              presets={ROLE_COLOR_PRESETS}
+              fallbackHex={DEFAULT_ROLE_COLOR}
+              nativePickerAriaLabel="Open role color system picker"
+              presetsAriaLabel="Role color presets"
+            />
+          </div>
           <Checkbox
-            isSelected={newManage}
-            onChange={() => setNewManage((v) => !v)}
+            id="admin-create-role-emailable"
+            className="items-start gap-3"
+            isSelected={newRoleEmailable}
+            onChange={setNewRoleEmailable}
           >
-            Can manage users
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            <Checkbox.Content>
+              <Label
+                htmlFor="admin-create-role-emailable"
+                className="text-foreground cursor-pointer text-sm font-normal"
+              >
+                Emailable (for future team and notification routing)
+              </Label>
+            </Checkbox.Content>
           </Checkbox>
+          <div className="border-border border-t pt-2">
+            <p className="text-foreground text-sm font-semibold">Permissions</p>
+            <p className="text-muted mt-1 mb-3 text-xs leading-relaxed">
+              Fine-grained capabilities; admin console access requires at least
+              one user-management permission on a role you assign yourself.
+            </p>
+            <RolePermissionEditor
+              selected={newRolePermissions}
+              onToggle={toggleNewPermission}
+            />
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onPress={() => setCreateRoleOpen(false)}>
               Cancel
             </Button>
             <Button
               variant="primary"
-              isDisabled={
-                createRole.isPending ||
-                !newSlug.trim() ||
-                !newDisplayName.trim()
-              }
+              isDisabled={createRole.isPending || !newRoleName.trim()}
               onPress={() => {
+                if (!newRoleName.trim()) return;
+                const hex = roleHexColorSchema.safeParse(
+                  newRoleColor.trim(),
+                );
+                if (!hex.success) {
+                  showToast(
+                    hex.error.issues[0]?.message ?? "Invalid color.",
+                    "error",
+                  );
+                  return;
+                }
+                const fav = newRoleFaviconUrl.trim();
+                if (fav && !z.string().url().safeParse(fav).success) {
+                  showToast(
+                    "Enter a valid favicon URL or leave empty.",
+                    "error",
+                  );
+                  return;
+                }
                 createRole.mutate({
-                  slug: newSlug.trim(),
-                  displayName: newDisplayName.trim(),
-                  description: newDescription.trim() || undefined,
-                  canAccessLabs: newLabs,
-                  canManageUsers: newManage,
+                  name: newRoleName.trim(),
+                  slug: newRoleSlug.trim() || undefined,
+                  description: newRoleDescription.trim() || undefined,
+                  color: hex.data,
+                  faviconUrl: fav === "" ? undefined : fav,
+                  permissions: Array.from(newRolePermissions),
+                  isEmailable: newRoleEmailable,
                 });
               }}
             >
@@ -904,55 +1424,102 @@ export default function AdminUsersPage() {
         isOpen={Boolean(editRoleId && editingRole)}
         onClose={() => setEditRoleId(null)}
         title={editingRole ? `Edit ${editingRole.displayName}` : "Edit role"}
-        maxWidth="max-w-lg"
+        maxWidth="max-w-2xl"
       >
         {editingRole ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-4 pr-1">
             <p className="text-muted text-xs">
-              Slug: <code>{editingRole.slug}</code>
+              Slug: <code className="text-foreground">{editingRole.slug}</code>
             </p>
-            <div>
-              <Label htmlFor="edit-role-name">Display name</Label>
+            <div className="min-w-0">
+              <Label htmlFor="edit-role-name">Name</Label>
               <Input
                 id="edit-role-name"
-                value={editDisplayName}
+                value={editRoleName}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setEditDisplayName(e.target.value)
+                  setEditRoleName(e.target.value)
                 }
-                className="mt-1"
+                className="mt-1 w-full min-w-0"
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <Label htmlFor="edit-role-desc">Description</Label>
-              <Input
+              <textarea
                 id="edit-role-desc"
-                value={editDescription}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setEditDescription(e.target.value)
+                value={editRoleDescription}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setEditRoleDescription(e.target.value)
                 }
-                className="mt-1"
+                rows={3}
+                className="border-border bg-surface text-foreground mt-1 w-full min-w-0 resize-y rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
               />
             </div>
-            {!editingRole.isSystem ? (
-              <>
-                <Checkbox
-                  isSelected={editLabs}
-                  onChange={() => setEditLabs((v) => !v)}
-                >
-                  Can access Labs
-                </Checkbox>
-                <Checkbox
-                  isSelected={editManage}
-                  onChange={() => setEditManage((v) => !v)}
-                >
-                  Can manage users
-                </Checkbox>
-              </>
-            ) : (
-              <p className="text-muted text-sm">
-                System role capabilities are fixed; you can edit the display
-                name and description only.
+            <div className="min-w-0">
+              <Label htmlFor="edit-role-favicon">Favicon URL</Label>
+              <p className="text-muted mt-1 mb-2 text-xs leading-relaxed">
+                Changing the URL re-samples the icon on the server and updates
+                the accent color when a dominant hue is found.
               </p>
+              <Input
+                id="edit-role-favicon"
+                value={editRoleFaviconUrl}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setEditRoleFaviconUrl(e.target.value)
+                }
+                placeholder="https://…"
+                className="mt-1 w-full min-w-0"
+              />
+              <RoleFaviconUrlPreview
+                imageUrl={editRoleFaviconUrl}
+                onClear={() => setEditRoleFaviconUrl("")}
+              />
+            </div>
+            <div className="min-w-0">
+              <Label>Color</Label>
+              <HexColorSelector
+                idPrefix="edit-role"
+                value={editRoleColor}
+                onChange={setEditRoleColor}
+                presets={ROLE_COLOR_PRESETS}
+                fallbackHex={DEFAULT_ROLE_COLOR}
+                nativePickerAriaLabel="Open role color system picker"
+                presetsAriaLabel="Role color presets"
+              />
+            </div>
+            <Checkbox
+              id="admin-edit-role-emailable"
+              className="items-start gap-3"
+              isSelected={editRoleEmailable}
+              onChange={setEditRoleEmailable}
+            >
+              <Checkbox.Control>
+                <Checkbox.Indicator />
+              </Checkbox.Control>
+              <Checkbox.Content>
+                <Label
+                  htmlFor="admin-edit-role-emailable"
+                  className="text-foreground cursor-pointer text-sm font-normal"
+                >
+                  Emailable (for future team and notification routing)
+                </Label>
+              </Checkbox.Content>
+            </Checkbox>
+            {editingRole.isSystem ? (
+              <p className="text-muted text-sm leading-relaxed">
+                System role permission set is fixed. You can still adjust name,
+                description, color, favicon, and emailable flag for how the role
+                appears in the directory.
+              </p>
+            ) : (
+              <div className="border-border border-t pt-2">
+                <p className="text-foreground text-sm font-semibold">
+                  Permissions
+                </p>
+                <RolePermissionEditor
+                  selected={editRolePermissions}
+                  onToggle={toggleEditPermission}
+                />
+              </div>
             )}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
               <div className="min-w-0">
@@ -990,17 +1557,35 @@ export default function AdminUsersPage() {
                 </Button>
                 <Button
                   variant="primary"
-                  isDisabled={updateRole.isPending || !editDisplayName.trim()}
+                  isDisabled={updateRole.isPending || !editRoleName.trim()}
                   onPress={() => {
+                    const hex = roleHexColorSchema.safeParse(
+                      editRoleColor.trim(),
+                    );
+                    if (!hex.success) {
+                      showToast(
+                        hex.error.issues[0]?.message ?? "Invalid color.",
+                        "error",
+                      );
+                      return;
+                    }
+                    const fav = editRoleFaviconUrl.trim();
+                    if (fav && !z.string().url().safeParse(fav).success) {
+                      showToast(
+                        "Enter a valid favicon URL or leave empty.",
+                        "error",
+                      );
+                      return;
+                    }
                     updateRole.mutate({
                       id: editingRole.id,
-                      displayName: editDisplayName.trim(),
-                      description: editDescription.trim() || null,
+                      name: editRoleName.trim(),
+                      description: editRoleDescription.trim() || null,
+                      color: hex.data,
+                      faviconUrl: fav === "" ? null : fav,
+                      isEmailable: editRoleEmailable,
                       ...(!editingRole.isSystem
-                        ? {
-                            canAccessLabs: editLabs,
-                            canManageUsers: editManage,
-                          }
+                        ? { permissions: Array.from(editRolePermissions) }
                         : {}),
                     });
                   }}

@@ -440,6 +440,10 @@ model AppRole {
   isSystem       Boolean  @default(false) @map("is_system")
   canAccessLabs  Boolean  @default(false) @map("can_access_labs")
   canManageUsers Boolean  @default(false) @map("can_manage_users")
+  color          String   @default("#5865F2") @db.VarChar(16)
+  faviconUrl     String?  @map("favicon_url") @db.VarChar(2048)
+  isEmailable    Boolean  @default(false) @map("is_emailable")
+  permissions    Json     @default("[]")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

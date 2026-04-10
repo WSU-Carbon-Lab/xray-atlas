@@ -1,4 +1,23 @@
-import type { PrismaClient } from "~/prisma/client";
+import { APP_ADMINISTRATOR_SLUG } from "~/lib/app-role-lineage";
+import type { Prisma, PrismaClient } from "~/prisma/client";
+
+const manageUsersRoleWhere: Prisma.AppRoleWhereInput = {
+  OR: [{ canManageUsers: true }, { slug: APP_ADMINISTRATOR_SLUG }],
+};
+
+/**
+ * Reports whether an `AppRole` assignment grants access to the admin user-management surface,
+ * including the built-in {@link APP_ADMINISTRATOR_SLUG} tier when `can_manage_users` is false.
+ *
+ * @param slug - `AppRole.slug` for the assignment.
+ * @param canManageUsers - `AppRole.can_manage_users` for the assignment.
+ */
+export function roleAssignmentGrantsManageUsers(
+  slug: string,
+  canManageUsers: boolean,
+): boolean {
+  return canManageUsers || slug === APP_ADMINISTRATOR_SLUG;
+}
 
 /**
  * Resolves whether the user may access maintainer-only dataset operations and Labs
@@ -30,7 +49,7 @@ export async function hasManageUsersCapability(
   const row = await db.userAppRole.findFirst({
     where: {
       userId,
-      role: { canManageUsers: true },
+      role: manageUsersRoleWhere,
     },
     select: { userId: true },
   });
@@ -60,27 +79,31 @@ export async function getUserSessionCapabilities(
   for (const link of links) {
     roleSlugs.push(link.role.slug);
     if (link.role.canAccessLabs) canAccessLabs = true;
-    if (link.role.canManageUsers) canManageUsers = true;
+    if (roleAssignmentGrantsManageUsers(link.role.slug, link.role.canManageUsers)) {
+      canManageUsers = true;
+    }
   }
   roleSlugs.sort();
   return { canAccessLabs, canManageUsers, roleSlugs };
 }
 
 /**
- * Counts users who have at least one role with `canManageUsers` (used for last-admin guards).
+ * Counts users who have at least one role that grants admin-console access (`can_manage_users`
+ * or slug {@link APP_ADMINISTRATOR_SLUG}), used for last-admin guards.
  */
 export async function countUsersWithManageUsersCapability(
   db: PrismaClient,
 ): Promise<number> {
   const rows = await db.userAppRole.groupBy({
     by: ["userId"],
-    where: { role: { canManageUsers: true } },
+    where: { role: manageUsersRoleWhere },
   });
   return rows.length;
 }
 
 /**
- * Counts distinct users (other than `excludeUserId`) who have a role with `canManageUsers`.
+ * Counts distinct users (other than `excludeUserId`) who have a role that grants admin-console
+ * access (`can_manage_users` or slug {@link APP_ADMINISTRATOR_SLUG}).
  */
 export async function countUsersWithManageCapabilityExcluding(
   db: PrismaClient,
@@ -90,7 +113,7 @@ export async function countUsersWithManageCapabilityExcluding(
     by: ["userId"],
     where: {
       userId: { not: excludeUserId },
-      role: { canManageUsers: true },
+      role: manageUsersRoleWhere,
     },
   });
   return rows.length;

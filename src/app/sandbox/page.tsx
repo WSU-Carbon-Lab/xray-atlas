@@ -18,11 +18,18 @@ export default function SandboxPage() {
         </p>
       </div>
       <div className="border-border bg-surface rounded-lg border p-6">
-        <p className="text-muted text-sm">
-          No sandbox modules are mounted yet. Link new tools from this page as
-          you add them.
-        </p>
-        <div className="mt-4">
+        <p className="text-foreground text-sm font-medium">Tools</p>
+        <ul className="text-muted mt-3 list-disc space-y-2 pl-5 text-sm">
+          <li>
+            <Link
+              href="/sandbox/color-selector"
+              className="text-accent hover:underline"
+            >
+              Hex color selector
+            </Link>
+          </li>
+        </ul>
+        <div className="mt-6">
           <Link
             href="/"
             className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}

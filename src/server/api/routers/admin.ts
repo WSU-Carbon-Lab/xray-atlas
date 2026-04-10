@@ -11,24 +11,82 @@
  */
 import { z, ZodError } from "zod";
 import { TRPCError } from "@trpc/server";
+import sharp from "sharp";
 import { createTRPCRouter, adminProcedure } from "~/server/api/trpc";
 import {
   countUsersWithManageCapabilityExcluding,
   hasManageUsersCapability,
+  roleAssignmentGrantsManageUsers,
 } from "~/server/auth/privileged-role";
 import { isDevMockUser } from "~/lib/dev-mock-data";
 import { countLineageRolesInSlugs } from "~/lib/app-role-lineage";
+import {
+  legacyCapabilitiesFromPermissions,
+  normalizePermissionList,
+  normalizeRoleDisplayName,
+  parseRolePermissions,
+  permissionsArraySchema,
+  roleSlugSchema,
+  slugFromRoleDisplayName,
+} from "~/lib/app-role-permissions";
+import { roleHexColorSchema } from "~/lib/app-role-colors";
+import { primaryHexFromRgbaBuffer } from "~/lib/extract-image-primary-hex";
 import { parseOrcidForStorage } from "~/lib/orcid";
+import { assertSafeRemoteImageUrl } from "~/server/utils/safe-remote-image-url";
 import { Prisma, type PrismaClient } from "~/prisma/client";
 
-const slugSchema = z
-  .string()
-  .min(2)
-  .max(64)
-  .regex(
-    /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-    "Use lowercase letters, digits, and single hyphens between segments (e.g. custom-reviewer).",
-  );
+const optionalFaviconUrlSchema = z.union([
+  z.literal(""),
+  z.string().url().max(2048),
+]);
+
+const appRoleAdminDtoSchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  displayName: z.string(),
+  description: z.string().nullable(),
+  isSystem: z.boolean(),
+  canAccessLabs: z.boolean(),
+  canManageUsers: z.boolean(),
+  color: z.string(),
+  faviconUrl: z.string().nullable(),
+  isEmailable: z.boolean(),
+  permissions: z.array(z.string()),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+function toAppRoleAdminDto(r: {
+  id: string;
+  slug: string;
+  displayName: string;
+  description: string | null;
+  isSystem: boolean;
+  canAccessLabs: boolean;
+  canManageUsers: boolean;
+  color: string;
+  faviconUrl: string | null;
+  isEmailable: boolean;
+  permissions: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+}): z.infer<typeof appRoleAdminDtoSchema> {
+  return {
+    id: r.id,
+    slug: r.slug,
+    displayName: r.displayName,
+    description: r.description,
+    isSystem: r.isSystem,
+    canAccessLabs: r.canAccessLabs,
+    canManageUsers: r.canManageUsers,
+    color: r.color,
+    faviconUrl: r.faviconUrl,
+    isEmailable: r.isEmailable,
+    permissions: normalizePermissionList(parseRolePermissions(r.permissions)),
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  };
+}
 
 async function loadAndValidateRoleAssignment(
   db: PrismaClient,
@@ -53,7 +111,9 @@ async function loadAndValidateRoleAssignment(
     });
   }
   const hadManage = await hasManageUsersCapability(db, userId);
-  const willHaveManage = roles.some((r) => r.canManageUsers);
+  const willHaveManage = roles.some((r) =>
+    roleAssignmentGrantsManageUsers(r.slug, r.canManageUsers),
+  );
   if (hadManage && !willHaveManage) {
     const others = await countUsersWithManageCapabilityExcluding(db, userId);
     if (others === 0) {
@@ -85,12 +145,87 @@ function parseAdminOrcidField(raw: string): string | null {
   }
 }
 
+const ICON_FETCH_MAX_BYTES = 2 * 1024 * 1024;
+
 export const adminRouter = createTRPCRouter({
-  listRoles: adminProcedure.query(async ({ ctx }) => {
-    return ctx.db.appRole.findMany({
-      orderBy: [{ isSystem: "desc" }, { displayName: "asc" }],
-    });
-  }),
+  /**
+   * Fetches a remote icon (http/https), decodes it server-side, and returns a dominant opaque `#RRGGBB`
+   * suitable for role accent color. Used when admins paste a favicon URL; URL is SSRF-filtered.
+   * Exposed as a query (read-only, idempotent) for correct HTTP/tRPC semantics.
+   */
+  sampleIconPrimaryHex: adminProcedure
+    .input(z.object({ url: z.string().url().max(2048) }))
+    .output(z.object({ hex: z.string().nullable() }))
+    .query(async ({ input }) => {
+      let remote: URL;
+      try {
+        remote = assertSafeRemoteImageUrl(input.url);
+      } catch (e) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: e instanceof Error ? e.message : "Invalid URL.",
+        });
+      }
+      const res = await fetch(remote.toString(), {
+        headers: { Accept: "image/*,*/*;q=0.8" },
+        redirect: "follow",
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!res.ok) {
+        return { hex: null };
+      }
+      const ct = (res.headers.get("content-type") ?? "").toLowerCase();
+      if (!ct.startsWith("image/")) {
+        return { hex: null };
+      }
+      const cl = res.headers.get("content-length");
+      if (cl !== null && Number(cl) > ICON_FETCH_MAX_BYTES) {
+        return { hex: null };
+      }
+      const ab = await res.arrayBuffer();
+      if (ab.byteLength > ICON_FETCH_MAX_BYTES) {
+        return { hex: null };
+      }
+      const buf = Buffer.from(ab);
+      let raw: Buffer;
+      let width: number;
+      let height: number;
+      try {
+        const out = await sharp(buf)
+          .rotate()
+          .resize(64, 64, { fit: "inside" })
+          .ensureAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true });
+        raw = out.data;
+        width = out.info.width;
+        height = out.info.height;
+        if (out.info.channels !== 4) {
+          return { hex: null };
+        }
+      } catch {
+        return { hex: null };
+      }
+      const hex = primaryHexFromRgbaBuffer(
+        new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength),
+        width,
+        height,
+      );
+      if (!hex) {
+        return { hex: null };
+      }
+      const parsed = roleHexColorSchema.safeParse(hex);
+      return { hex: parsed.success ? parsed.data.toUpperCase() : null };
+    }),
+
+  listRoles: adminProcedure
+    .output(z.array(appRoleAdminDtoSchema))
+    .query(async ({ ctx }) => {
+      const rows = await ctx.db.appRole.findMany({
+        orderBy: [{ isSystem: "desc" }, { displayName: "asc" }],
+      });
+      return rows.map(toAppRoleAdminDto);
+    }),
 
   listUsers: adminProcedure
     .input(
@@ -125,7 +260,18 @@ export const adminRouter = createTRPCRouter({
             image: true,
             orcid: true,
             userAppRoles: {
-              include: { role: true },
+              include: {
+                role: {
+                  select: {
+                    id: true,
+                    displayName: true,
+                    slug: true,
+                    color: true,
+                    faviconUrl: true,
+                    isSystem: true,
+                  },
+                },
+              },
             },
           },
         }),
@@ -249,16 +395,29 @@ export const adminRouter = createTRPCRouter({
   createRole: adminProcedure
     .input(
       z.object({
-        slug: slugSchema,
-        displayName: z.string().min(1).max(120),
-        description: z.string().max(500).optional(),
-        canAccessLabs: z.boolean(),
-        canManageUsers: z.boolean(),
+        name: z.string().min(1).max(120),
+        slug: roleSlugSchema.optional(),
+        description: z.string().max(2000).optional(),
+        color: roleHexColorSchema,
+        faviconUrl: optionalFaviconUrlSchema.optional(),
+        permissions: permissionsArraySchema,
+        isEmailable: z.boolean(),
       }),
     )
+    .output(appRoleAdminDtoSchema)
     .mutation(async ({ ctx, input }) => {
+      const displayName = normalizeRoleDisplayName(input.name);
+      const slug =
+        input.slug ?? slugFromRoleDisplayName(displayName);
+      if (slug.length < 2) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Could not derive a valid slug from the name; use at least two letters or digits.",
+        });
+      }
       const existing = await ctx.db.appRole.findUnique({
-        where: { slug: input.slug },
+        where: { slug },
       });
       if (existing) {
         throw new TRPCError({
@@ -266,60 +425,95 @@ export const adminRouter = createTRPCRouter({
           message: "A role with this slug already exists.",
         });
       }
-      return ctx.db.appRole.create({
+      const perms = normalizePermissionList(input.permissions);
+      const legacy = legacyCapabilitiesFromPermissions(perms);
+      const favicon =
+        input.faviconUrl === undefined || input.faviconUrl === ""
+          ? null
+          : input.faviconUrl;
+      const row = await ctx.db.appRole.create({
         data: {
-          slug: input.slug,
-          displayName: input.displayName,
-          description: input.description ?? null,
+          slug,
+          displayName,
+          description: input.description?.trim()
+            ? input.description.trim()
+            : null,
+          color: input.color,
+          faviconUrl: favicon,
+          isEmailable: input.isEmailable,
+          permissions: perms as unknown as Prisma.InputJsonValue,
           isSystem: false,
-          canAccessLabs: input.canAccessLabs,
-          canManageUsers: input.canManageUsers,
+          canAccessLabs: legacy.canAccessLabs,
+          canManageUsers: legacy.canManageUsers,
         },
       });
+      return toAppRoleAdminDto(row);
     }),
 
   updateRole: adminProcedure
     .input(
       z.object({
         id: z.string().uuid(),
-        displayName: z.string().min(1).max(120).optional(),
-        description: z.string().max(500).nullable().optional(),
-        canAccessLabs: z.boolean().optional(),
-        canManageUsers: z.boolean().optional(),
+        name: z.string().min(1).max(120).optional(),
+        description: z.string().max(2000).nullable().optional(),
+        color: roleHexColorSchema.optional(),
+        faviconUrl: optionalFaviconUrlSchema.nullable().optional(),
+        permissions: permissionsArraySchema.optional(),
+        isEmailable: z.boolean().optional(),
       }),
     )
+    .output(appRoleAdminDtoSchema)
     .mutation(async ({ ctx, input }) => {
       const role = await ctx.db.appRole.findUnique({ where: { id: input.id } });
       if (!role) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Role not found." });
       }
-      if (
-        role.isSystem &&
-        (input.canAccessLabs !== undefined || input.canManageUsers !== undefined)
-      ) {
+      if (role.isSystem && input.permissions !== undefined) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "System role capabilities cannot be changed from the admin UI.",
+          message: "System role permissions cannot be changed.",
         });
       }
       const data: {
         displayName?: string;
         description?: string | null;
+        color?: string;
+        faviconUrl?: string | null;
+        isEmailable?: boolean;
+        permissions?: Prisma.InputJsonValue;
         canAccessLabs?: boolean;
         canManageUsers?: boolean;
       } = {};
-      if (input.displayName !== undefined) data.displayName = input.displayName;
-      if (input.description !== undefined) data.description = input.description;
-      if (!role.isSystem) {
-        if (input.canAccessLabs !== undefined)
-          data.canAccessLabs = input.canAccessLabs;
-        if (input.canManageUsers !== undefined)
-          data.canManageUsers = input.canManageUsers;
+      if (input.name !== undefined) {
+        data.displayName = normalizeRoleDisplayName(input.name);
       }
-      return ctx.db.appRole.update({
+      if (input.description !== undefined) {
+        data.description = input.description;
+      }
+      if (input.color !== undefined) {
+        data.color = input.color;
+      }
+      if (input.faviconUrl !== undefined) {
+        data.faviconUrl =
+          input.faviconUrl === "" || input.faviconUrl === null
+            ? null
+            : input.faviconUrl;
+      }
+      if (input.isEmailable !== undefined) {
+        data.isEmailable = input.isEmailable;
+      }
+      if (!role.isSystem && input.permissions !== undefined) {
+        const perms = normalizePermissionList(input.permissions);
+        data.permissions = perms as unknown as Prisma.InputJsonValue;
+        const legacy = legacyCapabilitiesFromPermissions(perms);
+        data.canAccessLabs = legacy.canAccessLabs;
+        data.canManageUsers = legacy.canManageUsers;
+      }
+      const row = await ctx.db.appRole.update({
         where: { id: input.id },
         data,
       });
+      return toAppRoleAdminDto(row);
     }),
 
   deleteRole: adminProcedure
