@@ -32,7 +32,7 @@ import {
 import { roleHexColorSchema } from "~/lib/app-role-colors";
 import { primaryHexFromRgbaBuffer } from "~/lib/extract-image-primary-hex";
 import { parseOrcidForStorage } from "~/lib/orcid";
-import { assertSafeRemoteImageUrl } from "~/server/utils/safe-remote-image-url";
+import { fetchRemoteImageBytesForSampling } from "~/server/utils/safe-remote-image-url";
 import { Prisma, type PrismaClient } from "~/prisma/client";
 
 const optionalFaviconUrlSchema = z.union([
@@ -54,6 +54,26 @@ const appRoleAdminDtoSchema = z.object({
   permissions: z.array(z.string()),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
+});
+
+const adminListUserRowSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  email: z.string().nullable(),
+  image: z.string().nullable(),
+  orcid: z.string().nullable(),
+  userAppRoles: z.array(
+    z.object({
+      role: z.object({
+        id: z.string().uuid(),
+        displayName: z.string(),
+        slug: z.string(),
+        color: z.string(),
+        faviconUrl: z.string().nullable(),
+        isSystem: z.boolean(),
+      }),
+    }),
+  ),
 });
 
 function toAppRoleAdminDto(r: {
@@ -158,33 +178,20 @@ export const adminRouter = createTRPCRouter({
     .input(z.object({ url: z.string().url().max(2048) }))
     .output(z.object({ hex: z.string().nullable() }))
     .query(async ({ input }) => {
-      let remote: URL;
+      let ab: ArrayBuffer | null;
       try {
-        remote = assertSafeRemoteImageUrl(input.url);
+        ab = await fetchRemoteImageBytesForSampling(
+          input.url,
+          ICON_FETCH_MAX_BYTES,
+          12_000,
+        );
       } catch (e) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: e instanceof Error ? e.message : "Invalid URL.",
         });
       }
-      const res = await fetch(remote.toString(), {
-        headers: { Accept: "image/*,*/*;q=0.8" },
-        redirect: "follow",
-        signal: AbortSignal.timeout(12_000),
-      });
-      if (!res.ok) {
-        return { hex: null };
-      }
-      const ct = (res.headers.get("content-type") ?? "").toLowerCase();
-      if (!ct.startsWith("image/")) {
-        return { hex: null };
-      }
-      const cl = res.headers.get("content-length");
-      if (cl !== null && Number(cl) > ICON_FETCH_MAX_BYTES) {
-        return { hex: null };
-      }
-      const ab = await res.arrayBuffer();
-      if (ab.byteLength > ICON_FETCH_MAX_BYTES) {
+      if (!ab) {
         return { hex: null };
       }
       const buf = Buffer.from(ab);
@@ -234,6 +241,12 @@ export const adminRouter = createTRPCRouter({
         skip: z.number().min(0).default(0),
         take: z.number().min(1).max(100).default(50),
         q: z.string().trim().max(200).optional(),
+      }),
+    )
+    .output(
+      z.object({
+        rows: z.array(adminListUserRowSchema),
+        total: z.number(),
       }),
     )
     .query(async ({ ctx, input }) => {

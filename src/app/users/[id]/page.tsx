@@ -292,7 +292,7 @@ export default function UserProfilePage({
             <h1 className="text-text-primary mb-2 text-3xl font-bold">
               {user.name}
             </h1>
-            {user.email && (
+            {isOwnProfile && user.email && (
               <p className="text-text-secondary mb-2">{user.email}</p>
             )}
             {user.orcid && !isEditingOrcid && (

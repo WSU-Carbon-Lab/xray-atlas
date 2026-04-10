@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -11,6 +12,14 @@ import {
   isDevMockUser,
 } from "~/lib/dev-mock-data";
 import { normalizeOrcidUserInput, orcidIdSchema } from "~/lib/orcid";
+
+const userPublicProfileSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  image: z.string().nullable(),
+  orcid: z.string().nullable(),
+  email: z.string().nullable(),
+});
 
 export const usersRouter = createTRPCRouter({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
@@ -34,21 +43,60 @@ export const usersRouter = createTRPCRouter({
   }),
 
   getById: publicProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().uuid() }))
+    .output(userPublicProfileSchema)
     .query(async ({ ctx, input }) => {
+      const isSelf = ctx.userId === input.id;
+
       if (isDevMockUser(input.id)) {
-        return DEV_MOCK_USER;
+        if (!isSelf) {
+          return {
+            id: DEV_MOCK_USER.id,
+            name: DEV_MOCK_USER.name,
+            image: DEV_MOCK_USER.image,
+            orcid: DEV_MOCK_USER.orcid,
+            email: null,
+          };
+        }
+        return {
+          id: DEV_MOCK_USER.id,
+          name: DEV_MOCK_USER.name,
+          image: DEV_MOCK_USER.image,
+          orcid: DEV_MOCK_USER.orcid,
+          email: DEV_MOCK_USER.email,
+        };
+      }
+
+      if (isSelf) {
+        const user = await ctx.db.user.findUnique({
+          where: { id: input.id },
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            orcid: true,
+            email: true,
+          },
+        });
+        if (!user) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+        return user;
       }
 
       const user = await ctx.db.user.findUnique({
         where: { id: input.id },
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          orcid: true,
+        },
       });
-
       if (!user) {
-        throw new Error("User not found");
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
       }
-
-      return user;
+      return { ...user, email: null };
     }),
 
   getCoreMaintainers: publicProcedure.query(async ({ ctx }) => {
