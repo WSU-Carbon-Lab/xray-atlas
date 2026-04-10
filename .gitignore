@@ -51,5 +51,5 @@ yarn-error.log*
 # idea files
 .idea
 
-# keep the github version free of agent contamination
+# Machine-local Cursor hook state (e.g. continual-learning counters/index); not shared across clones.
 .cursor/hooks/state
