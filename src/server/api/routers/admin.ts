@@ -1,7 +1,7 @@
 /**
  * tRPC procedures for user and role administration. Every procedure is gated by
  * {@link adminProcedure}, which requires an authenticated user with at least one
- * `AppRole` where `canManageUsers` is true. Authorization is enforced again inside
+ * role whose `permissions` grant user administration. Authorization is enforced again inside
  * mutations that could remove the last management-capable account.
  *
  * **Editing users:** `updateUser` updates `user.name` (display name), `user.email`
@@ -16,17 +16,17 @@ import { createTRPCRouter, adminProcedure } from "~/server/api/trpc";
 import {
   countUsersWithManageCapabilityExcluding,
   hasManageUsersCapability,
-  roleAssignmentGrantsManageUsers,
 } from "~/server/auth/privileged-role";
 import { isDevMockUser } from "~/lib/dev-mock-data";
 import { countLineageRolesInSlugs } from "~/lib/app-role-lineage";
 import {
-  legacyCapabilitiesFromPermissions,
   normalizePermissionList,
   normalizeRoleDisplayName,
   parseRolePermissions,
   permissionsArraySchema,
+  permissionsGrantManageUsers,
   roleSlugSchema,
+  sessionProjectionFromPermissions,
   slugFromRoleDisplayName,
 } from "~/lib/app-role-permissions";
 import { roleHexColorSchema } from "~/lib/app-role-colors";
@@ -77,8 +77,9 @@ function toAppRoleAdminDto(r: {
     displayName: r.displayName,
     description: r.description,
     isSystem: r.isSystem,
-    canAccessLabs: r.canAccessLabs,
-    canManageUsers: r.canManageUsers,
+    ...sessionProjectionFromPermissions(
+      normalizePermissionList(parseRolePermissions(r.permissions)),
+    ),
     color: r.color,
     faviconUrl: r.faviconUrl,
     isEmailable: r.isEmailable,
@@ -95,7 +96,7 @@ async function loadAndValidateRoleAssignment(
 ): Promise<void> {
   const roles = await db.appRole.findMany({
     where: { id: { in: roleIds } },
-    select: { id: true, slug: true, canManageUsers: true },
+    select: { id: true, slug: true, permissions: true },
   });
   if (roles.length !== roleIds.length) {
     throw new TRPCError({
@@ -112,7 +113,7 @@ async function loadAndValidateRoleAssignment(
   }
   const hadManage = await hasManageUsersCapability(db, userId);
   const willHaveManage = roles.some((r) =>
-    roleAssignmentGrantsManageUsers(r.slug, r.canManageUsers),
+    permissionsGrantManageUsers(parseRolePermissions(r.permissions)),
   );
   if (hadManage && !willHaveManage) {
     const others = await countUsersWithManageCapabilityExcluding(db, userId);
@@ -426,7 +427,7 @@ export const adminRouter = createTRPCRouter({
         });
       }
       const perms = normalizePermissionList(input.permissions);
-      const legacy = legacyCapabilitiesFromPermissions(perms);
+      const projection = sessionProjectionFromPermissions(perms);
       const favicon =
         input.faviconUrl === undefined || input.faviconUrl === ""
           ? null
@@ -443,8 +444,8 @@ export const adminRouter = createTRPCRouter({
           isEmailable: input.isEmailable,
           permissions: perms as unknown as Prisma.InputJsonValue,
           isSystem: false,
-          canAccessLabs: legacy.canAccessLabs,
-          canManageUsers: legacy.canManageUsers,
+          canAccessLabs: projection.canAccessLabs,
+          canManageUsers: projection.canManageUsers,
         },
       });
       return toAppRoleAdminDto(row);
@@ -505,9 +506,9 @@ export const adminRouter = createTRPCRouter({
       if (!role.isSystem && input.permissions !== undefined) {
         const perms = normalizePermissionList(input.permissions);
         data.permissions = perms as unknown as Prisma.InputJsonValue;
-        const legacy = legacyCapabilitiesFromPermissions(perms);
-        data.canAccessLabs = legacy.canAccessLabs;
-        data.canManageUsers = legacy.canManageUsers;
+        const projection = sessionProjectionFromPermissions(perms);
+        data.canAccessLabs = projection.canAccessLabs;
+        data.canManageUsers = projection.canManageUsers;
       }
       const row = await ctx.db.appRole.update({
         where: { id: input.id },

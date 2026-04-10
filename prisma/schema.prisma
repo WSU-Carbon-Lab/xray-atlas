@@ -431,7 +431,8 @@ model user {
   @@schema("next_auth")
 }
 
-/// Application-defined roles with capability flags. Stored in `next_auth.app_role`; assignments in `next_auth.user_app_role` join `next_auth.user`.
+/// Application-defined roles. Authorization uses `permissions` (JSON); `can_access_labs` and
+/// `can_manage_users` mirror that list on write for reporting only.
 model AppRole {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   slug           String   @unique

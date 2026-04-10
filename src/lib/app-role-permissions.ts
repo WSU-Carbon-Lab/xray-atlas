@@ -1,7 +1,8 @@
 /**
  * Granular application permissions stored on `AppRole.permissions` (JSON string array).
- * Session gates (`canAccessLabs`, `canManageUsers`) are derived when roles are saved so
- * existing middleware and layout checks keep working until callers migrate to explicit checks.
+ * That array is the single authority for authorization: labs access and user-administration
+ * gates are projections from these keys. `can_access_labs` / `can_manage_users` on `AppRole`
+ * are denormalized mirrors written on role create/update for external reporting only.
  */
 import { z } from "zod";
 
@@ -142,17 +143,42 @@ export function normalizePermissionList(keys: string[]): AppPermissionKey[] {
 }
 
 /**
- * Maps stored permissions to legacy `can_access_labs` / `can_manage_users` columns so
- * `hasManageUsersCapability`, sandbox layout, and the avatar menu stay consistent.
+ * True when the permission set grants access to Labs / maintainer-tier tooling.
+ *
+ * @param permissions - Normalized `AppRole.permissions` keys for one role.
  */
-export function legacyCapabilitiesFromPermissions(
+export function permissionsGrantLabsAccess(
+  permissions: readonly AppPermissionKey[],
+): boolean {
+  return new Set(permissions).has("labs_access");
+}
+
+/**
+ * True when the permission set grants the user administration console and related tRPC.
+ *
+ * @param permissions - Normalized `AppRole.permissions` keys for one role.
+ */
+export function permissionsGrantManageUsers(
+  permissions: readonly AppPermissionKey[],
+): boolean {
+  const s = new Set(permissions);
+  return (
+    s.has("user_directory") || s.has("user_roles") || s.has("user_delete")
+  );
+}
+
+/**
+ * Projects `AppRole.permissions` to session and API booleans (`canAccessLabs`, `canManageUsers`).
+ * Used for JWT/session fields, admin DTOs, and denormalized DB columns on write.
+ *
+ * @param permissions - Normalized `AppRole.permissions` keys for one role.
+ */
+export function sessionProjectionFromPermissions(
   permissions: readonly AppPermissionKey[],
 ): { canAccessLabs: boolean; canManageUsers: boolean } {
-  const s = new Set(permissions);
   return {
-    canManageUsers:
-      s.has("user_directory") || s.has("user_roles") || s.has("user_delete"),
-    canAccessLabs: s.has("labs_access"),
+    canAccessLabs: permissionsGrantLabsAccess(permissions),
+    canManageUsers: permissionsGrantManageUsers(permissions),
   };
 }
 
