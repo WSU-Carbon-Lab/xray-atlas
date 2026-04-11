@@ -5,7 +5,14 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User as UserIcon, LayoutDashboard, Users } from "lucide-react";
+import {
+  LogOut,
+  User as UserIcon,
+  LayoutDashboard,
+  Users,
+  UserCog,
+  FlaskConical,
+} from "lucide-react";
 import type { User as NextAuthUser } from "next-auth";
 import { trpc } from "~/trpc/client";
 import { ORCIDIcon } from "~/components/icons";
@@ -13,6 +20,8 @@ import { Button, Avatar } from "@heroui/react";
 
 export type UserWithOrcid = NextAuthUser & {
   orcid?: string | null;
+  canManageUsers?: boolean;
+  canAccessLabs?: boolean;
 };
 
 const profileImage = (user: UserWithOrcid) => {
@@ -30,6 +39,8 @@ interface AvatarButtonProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   handleAction: (action: string) => void;
+  showManageUsers?: boolean;
+  showSandbox?: boolean;
 }
 
 interface CustomAvatarProps extends React.ComponentProps<typeof Avatar> {
@@ -70,6 +81,8 @@ export function AvatarButton({
   isOpen,
   setIsOpen,
   handleAction,
+  showManageUsers = false,
+  showSandbox = false,
 }: AvatarButtonProps) {
   return (
     <div className="relative">
@@ -132,6 +145,7 @@ export function AvatarButton({
             </div>
             <div className="py-1">
               <button
+                type="button"
                 onClick={() => handleAction("profile")}
                 className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
               >
@@ -139,6 +153,7 @@ export function AvatarButton({
                 Profile
               </button>
               <button
+                type="button"
                 disabled
                 className="text-muted flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm opacity-60"
                 title="Coming soon"
@@ -147,6 +162,7 @@ export function AvatarButton({
                 Dashboard
               </button>
               <button
+                type="button"
                 disabled
                 className="text-muted flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm opacity-60"
                 title="Coming soon"
@@ -155,6 +171,30 @@ export function AvatarButton({
                 Create Team
               </button>
             </div>
+            {showManageUsers || showSandbox ? (
+              <div className="border-border border-t py-1">
+                {showManageUsers ? (
+                  <button
+                    type="button"
+                    onClick={() => handleAction("admin-users")}
+                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+                  >
+                    <UserCog className="h-4 w-4" />
+                    Manage users
+                  </button>
+                ) : null}
+                {showSandbox ? (
+                  <button
+                    type="button"
+                    onClick={() => handleAction("sandbox")}
+                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+                  >
+                    <FlaskConical className="h-4 w-4" />
+                    Sandbox
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             <div className="border-border border-t py-1">
               <button
                 onClick={() => handleAction("logout")}
@@ -224,6 +264,12 @@ export function CustomUserButton() {
       case "profile":
         router.push(`/users/${user.id}`);
         break;
+      case "admin-users":
+        router.push("/admin/users");
+        break;
+      case "sandbox":
+        router.push("/sandbox");
+        break;
       default:
         break;
     }
@@ -233,12 +279,19 @@ export function CustomUserButton() {
     await signOut({ callbackUrl: "/" });
   };
 
+  const showSandbox =
+    process.env.NODE_ENV === "development" ||
+    Boolean(user.canAccessLabs) ||
+    Boolean(user.canManageUsers);
+
   return (
     <AvatarButton
       user={user}
       isOpen={isOpen}
       setIsOpen={setIsOpen}
       handleAction={handleAction}
+      showManageUsers={Boolean(user.canManageUsers)}
+      showSandbox={showSandbox}
     />
   );
 }

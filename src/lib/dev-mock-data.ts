@@ -7,7 +7,6 @@ export const DEV_MOCK_USER = {
   emailVerified: new Date("2024-01-15T10:30:00Z"),
   image: "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
   orcid: "0000-0001-2345-6789",
-  role: "contributor" as const,
   contributionAgreementAccepted: true,
   contributionAgreementDate: new Date("2024-01-10T08:00:00Z"),
 };

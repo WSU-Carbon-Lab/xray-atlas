@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -10,20 +11,15 @@ import {
   DEV_MOCK_PASSKEYS,
   isDevMockUser,
 } from "~/lib/dev-mock-data";
-import { PRIVILEGED_ROLES } from "~/server/auth/privileged-role";
+import { normalizeOrcidUserInput, orcidIdSchema } from "~/lib/orcid";
 
-const orcidIdSchema = z
-  .string()
-  .regex(
-    /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/,
-    "Invalid ORCID iD format. Expected format: XXXX-XXXX-XXXX-XXXX",
-  )
-  .or(
-    z
-      .string()
-      .url()
-      .refine((url) => url.includes("orcid.org"), "Must be a valid ORCID URL"),
-  );
+const userPublicProfileSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  image: z.string().nullable(),
+  orcid: z.string().nullable(),
+  email: z.string().nullable(),
+});
 
 export const usersRouter = createTRPCRouter({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
@@ -47,27 +43,79 @@ export const usersRouter = createTRPCRouter({
   }),
 
   getById: publicProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().uuid() }))
+    .output(userPublicProfileSchema)
     .query(async ({ ctx, input }) => {
+      const isSelf = ctx.userId === input.id;
+
       if (isDevMockUser(input.id)) {
-        return DEV_MOCK_USER;
+        if (!isSelf) {
+          return {
+            id: DEV_MOCK_USER.id,
+            name: DEV_MOCK_USER.name,
+            image: DEV_MOCK_USER.image,
+            orcid: DEV_MOCK_USER.orcid,
+            email: null,
+          };
+        }
+        return {
+          id: DEV_MOCK_USER.id,
+          name: DEV_MOCK_USER.name,
+          image: DEV_MOCK_USER.image,
+          orcid: DEV_MOCK_USER.orcid,
+          email: DEV_MOCK_USER.email,
+        };
+      }
+
+      if (isSelf) {
+        const user = await ctx.db.user.findUnique({
+          where: { id: input.id },
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            orcid: true,
+            email: true,
+          },
+        });
+        if (!user) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+        return user;
       }
 
       const user = await ctx.db.user.findUnique({
         where: { id: input.id },
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          orcid: true,
+        },
       });
-
       if (!user) {
-        throw new Error("User not found");
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
       }
-
-      return user;
+      return { ...user, email: null };
     }),
 
+  /**
+   * Lists users who hold a **lineage** system role (`maintainer` or `administrator` slug), for
+   * public UI (e.g. transfer ownership). Intentionally slug-based to match fixed `AppRole` tiers in
+   * `app-role-lineage`, not a generic permission query.
+   */
   getCoreMaintainers: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.user.findMany({
-      where: { role: { in: [...PRIVILEGED_ROLES] } },
-      orderBy: [{ role: "asc" }, { name: "asc" }],
+      where: {
+        userAppRoles: {
+          some: {
+            role: {
+              slug: { in: ["maintainer", "administrator"] },
+            },
+          },
+        },
+      },
+      orderBy: [{ name: "asc" }],
       select: { id: true, name: true, image: true },
     });
   }),
@@ -87,17 +135,7 @@ export const usersRouter = createTRPCRouter({
         return { ...DEV_MOCK_USER, orcid: input.orcid };
       }
 
-      let orcidId = input.orcid;
-      if (orcidId.startsWith("https://")) {
-        orcidId = orcidId
-          .replace("https://orcid.org/", "")
-          .replace("https://sandbox.orcid.org/", "");
-      }
-      if (orcidId.startsWith("http://")) {
-        orcidId = orcidId
-          .replace("http://orcid.org/", "")
-          .replace("http://sandbox.orcid.org/", "");
-      }
+      const orcidId = normalizeOrcidUserInput(input.orcid);
 
       const user = await ctx.db.user.update({
         where: { id: ctx.userId },
@@ -368,6 +406,11 @@ export const usersRouter = createTRPCRouter({
 
       await tx.molecules.deleteMany({
         where: { createdby: ctx.userId },
+      });
+
+      await tx.moleculeviews.updateMany({
+        where: { userid: ctx.userId },
+        data: { userid: null },
       });
 
       await tx.authenticator.deleteMany({

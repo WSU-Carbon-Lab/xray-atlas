@@ -173,12 +173,17 @@ X-ray Atlas uses PostgreSQL via Supabase with Prisma ORM.
 2. **Run Migrations**
 
    ```bash
-   # Apply existing migrations
+   # Apply existing migrations (validates DIRECT_URL, then prisma migrate deploy)
+   bun run db:migrate:run
+
+   # Or call Prisma directly
    bun run db:migrate
 
    # Or push schema changes directly (development only)
    bun run db:push
    ```
+
+   **App roles without Prisma migrate (Supabase-first):** Role tables live in the `next_auth` schema (`app_role`, `user_app_role`). When `prisma migrate deploy` is slow or blocked on the pooler, run `scripts/supabase/app-role-schema.sql` in the Supabase SQL Editor or via the Supabase MCP `apply_migration` tool against the **direct** database host. Then align Prisma history with the matching migration rows and checksums, or use `prisma migrate resolve` when the CLI can connect on `DIRECT_URL`.
 
 3. **Explore Data with Prisma Studio**
 
@@ -331,6 +336,9 @@ bun dev:tunnel
 | `bun typecheck` | Run TypeScript type checking |
 | `bun db:generate` | Create Prisma migration |
 | `bun db:migrate` | Apply Prisma migrations |
+| `bun db:migrate:run` | Check DIRECT_URL, then apply migrations (Supabase-friendly) |
+| `bun db:migrate:check` | Validate DIRECT_URL only |
+| `bun db:bootstrap:admins` | Grant administrator role from ADMIN_BOOTSTRAP_EMAILS / ORCIDS |
 | `bun db:push` | Push schema changes (dev only) |
 | `bun db:studio` | Open Prisma Studio |
 
