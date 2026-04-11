@@ -4,6 +4,10 @@
  * role whose `permissions` grant user administration. Authorization is enforced again inside
  * mutations that could remove the last management-capable account.
  *
+ * **Last admin:** Role-stripping checks are not run under a serializable transaction; concurrent
+ * admins could theoretically both pass counts in a narrow race. Recovery is operational: core
+ * maintainers can fix `next_auth.user_app_role` / `AppRole` assignments in Supabase or Postgres.
+ *
  * **Editing users:** `updateUser` updates `user.name` (display name), `user.email`
  * (optional directory contact email when set; unique in DB), `user.orcid`, and replaces all `user_app_role` rows in one
  * transaction. `setUserRoles` only replaces roles. Both enforce at most one lineage role among
@@ -601,6 +605,10 @@ export const adminRouter = createTRPCRouter({
         });
         await tx.molecules.deleteMany({
           where: { createdby: input.userId },
+        });
+        await tx.moleculeviews.updateMany({
+          where: { userid: input.userId },
+          data: { userid: null },
         });
         await tx.authenticator.deleteMany({
           where: { userId: input.userId },

@@ -1231,7 +1231,9 @@ export default function AdminUsersPage() {
         <p className="text-muted text-sm">
           This removes the account and content they created (experiments and
           molecules they authored), the same as self-service account deletion.
-          This cannot be undone.
+          Their favorites are removed with the account; anonymous molecule-view
+          rows are kept without a user id. Engagement and favorite-related metrics
+          may no longer match historical totals. This cannot be undone.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="ghost" onPress={() => setDeleteUserId(null)}>

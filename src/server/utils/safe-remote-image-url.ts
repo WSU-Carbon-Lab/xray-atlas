@@ -1,5 +1,6 @@
 /**
  * Validates `http`/`https` URLs before the server fetches them (SSRF mitigation for icon sampling).
+ * Used only from admin-only tRPC; residual DNS timing gaps are an accepted trade-off at that boundary.
  * Rejects non-http(s) schemes, credentials, obvious loopback and private hosts in the URL string,
  * then resolves hostnames and rejects addresses in private/link-local/metadata space (DNS rebinding).
  * Fetches use manual redirects with the same checks on each hop.

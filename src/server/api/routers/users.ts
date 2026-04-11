@@ -99,6 +99,11 @@ export const usersRouter = createTRPCRouter({
       return { ...user, email: null };
     }),
 
+  /**
+   * Lists users who hold a **lineage** system role (`maintainer` or `administrator` slug), for
+   * public UI (e.g. transfer ownership). Intentionally slug-based to match fixed `AppRole` tiers in
+   * `app-role-lineage`, not a generic permission query.
+   */
   getCoreMaintainers: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.user.findMany({
       where: {
@@ -401,6 +406,11 @@ export const usersRouter = createTRPCRouter({
 
       await tx.molecules.deleteMany({
         where: { createdby: ctx.userId },
+      });
+
+      await tx.moleculeviews.updateMany({
+        where: { userid: ctx.userId },
+        data: { userid: null },
       });
 
       await tx.authenticator.deleteMany({
