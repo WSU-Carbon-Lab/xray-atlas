@@ -344,6 +344,10 @@ export default function AdminUsersPage() {
   );
 
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [deleteRolePending, setDeleteRolePending] = useState<{
+    id: string;
+    displayName: string;
+  } | null>(null);
 
   const [createRoleOpen, setCreateRoleOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
@@ -843,6 +847,14 @@ export default function AdminUsersPage() {
                   onRetry={() => void listUsers.refetch()}
                 />
               </div>
+            ) : listUsers.isLoading ? (
+              <div
+                className="text-muted flex min-h-[12rem] items-center justify-center px-5 py-10 text-sm"
+                aria-busy="true"
+                aria-live="polite"
+              >
+                Loading users…
+              </div>
             ) : (
             <Table.ScrollContainer>
               <Table.Content
@@ -1055,6 +1067,10 @@ export default function AdminUsersPage() {
               <span className="text-danger text-sm font-medium">
                 User list unavailable until the request succeeds.
               </span>
+            ) : listUsers.isLoading ? (
+              <span aria-busy="true" aria-live="polite">
+                Loading user list…
+              </span>
             ) : (
             <span>
               Page {currentPage} of {totalPages} (
@@ -1065,7 +1081,9 @@ export default function AdminUsersPage() {
               <Button
                 size="sm"
                 variant="ghost"
-                isDisabled={skip <= 0 || listUsers.isError}
+                isDisabled={
+                  skip <= 0 || listUsers.isError || listUsers.isLoading
+                }
                 onPress={() => setSkip((s) => Math.max(0, s - PAGE_SIZE))}
               >
                 Previous
@@ -1075,6 +1093,7 @@ export default function AdminUsersPage() {
                 variant="ghost"
                 isDisabled={
                   listUsers.isError ||
+                  listUsers.isLoading ||
                   !listUsers.data ||
                   skip + PAGE_SIZE >= listUsers.data.total
                 }
@@ -1097,7 +1116,22 @@ export default function AdminUsersPage() {
         }
         maxWidth="max-w-xl"
       >
-        {editUserTarget && listRoles.data ? (
+        {editUserTarget ? (
+          listRoles.isLoading ? (
+            <div
+              className="text-muted py-6 text-sm"
+              aria-busy="true"
+              aria-live="polite"
+            >
+              Loading roles…
+            </div>
+          ) : listRoles.isError ? (
+            <AdminQueryError
+              title="Could not load roles"
+              message={listRoles.error.message}
+              onRetry={() => void listRoles.refetch()}
+            />
+          ) : listRoles.data ? (
           <div className="flex min-w-0 flex-col gap-4">
             <div className="min-w-0">
               <Label htmlFor="admin-edit-display-name">Display name</Label>
@@ -1220,6 +1254,9 @@ export default function AdminUsersPage() {
               </Button>
             </div>
           </div>
+          ) : (
+            <p className="text-muted py-4 text-sm">No roles are defined yet.</p>
+          )
         ) : null}
       </SimpleDialog>
 
@@ -1247,6 +1284,40 @@ export default function AdminUsersPage() {
             }}
           >
             Delete user
+          </Button>
+        </div>
+      </SimpleDialog>
+
+      <SimpleDialog
+        isOpen={Boolean(deleteRolePending)}
+        onClose={() => setDeleteRolePending(null)}
+        title="Delete role"
+      >
+        <p className="text-muted text-sm">
+          Delete role &quot;{deleteRolePending?.displayName ?? ""}&quot;? This
+          only succeeds when no users are assigned this role.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onPress={() => setDeleteRolePending(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            isDisabled={deleteRole.isPending}
+            onPress={() => {
+              if (!deleteRolePending) return;
+              deleteRole.mutate(
+                { id: deleteRolePending.id },
+                {
+                  onSuccess: () => {
+                    setDeleteRolePending(null);
+                    setEditRoleId(null);
+                  },
+                },
+              );
+            }}
+          >
+            Delete role
           </Button>
         </div>
       </SimpleDialog>
@@ -1532,22 +1603,12 @@ export default function AdminUsersPage() {
                     isDisabled={
                       deleteRole.isPending || updateRole.isPending
                     }
-                    onPress={() => {
-                      if (
-                        confirm(
-                          `Delete role "${editingRole.displayName}"? This only succeeds when no users are assigned this role.`,
-                        )
-                      ) {
-                        deleteRole.mutate(
-                          { id: editingRole.id },
-                          {
-                            onSuccess: () => {
-                              setEditRoleId(null);
-                            },
-                          },
-                        );
-                      }
-                    }}
+                    onPress={() =>
+                      setDeleteRolePending({
+                        id: editingRole.id,
+                        displayName: editingRole.displayName,
+                      })
+                    }
                   >
                     Delete role
                   </Button>
