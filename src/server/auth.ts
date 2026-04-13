@@ -12,6 +12,7 @@ import {
   type UserSessionCapabilities,
 } from "~/server/auth/privileged-role";
 import { DEV_MOCK_USER_ID } from "~/lib/dev-mock-data";
+import { parseOrcidForStorage } from "~/lib/orcid";
 
 const emptySessionCapabilities: UserSessionCapabilities = {
   canAccessLabs: false,
@@ -28,6 +29,17 @@ interface ORCIDProfile {
   given_name?: string;
   family_name?: string;
   email?: string;
+}
+
+function getPersistableOrcid(provider: string, providerAccountId: string): string | null {
+  if (provider !== "orcid") {
+    return null;
+  }
+  try {
+    return parseOrcidForStorage(providerAccountId);
+  } catch {
+    return null;
+  }
 }
 
 function ORCID(
@@ -191,12 +203,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 data: { userId: currentUserId },
               });
 
-              if (account.provider === "orcid" && account.providerAccountId) {
-                let orcidId = account.providerAccountId;
-                if (orcidId.startsWith("https://orcid.org/")) {
-                  orcidId = orcidId.replace("https://orcid.org/", "");
-                }
-                orcidId = orcidId.replace(/\/$/, "");
+              const orcidId = getPersistableOrcid(
+                account.provider,
+                account.providerAccountId,
+              );
+              if (orcidId) {
                 await db.user.update({
                   where: { id: currentUserId },
                   data: { orcid: orcidId },
@@ -212,12 +223,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               data: { userId: currentUserId },
             });
 
-            if (account.provider === "orcid" && account.providerAccountId) {
-              let orcidId = account.providerAccountId;
-              if (orcidId.startsWith("https://orcid.org/")) {
-                orcidId = orcidId.replace("https://orcid.org/", "");
-              }
-              orcidId = orcidId.replace(/\/$/, "");
+            const orcidId = getPersistableOrcid(
+              account.provider,
+              account.providerAccountId,
+            );
+            if (orcidId) {
               await db.user.update({
                 where: { id: currentUserId },
                 data: { orcid: orcidId },
@@ -278,13 +288,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           account.providerAccountId &&
           user.id
         ) {
-          let orcidId = account.providerAccountId;
-
-          if (orcidId.startsWith("https://orcid.org/")) {
-            orcidId = orcidId.replace("https://orcid.org/", "");
+          const orcidId = getPersistableOrcid(
+            account.provider,
+            account.providerAccountId,
+          );
+          if (!orcidId) {
+            cookieStore.delete("linkAccountUserId");
+            cookieStore.delete("linkAccountProvider");
+            return true;
           }
-
-          orcidId = orcidId.replace(/\/$/, "");
 
           try {
             const existingUser = await db.user.findUnique({
@@ -407,6 +419,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       }
       return session;
+    },
+  },
+  events: {
+    async linkAccount({ user, account }) {
+      const orcidId = getPersistableOrcid(
+        account.provider,
+        account.providerAccountId,
+      );
+      if (!orcidId) {
+        return;
+      }
+
+      try {
+        await db.user.update({
+          where: { id: user.id },
+          data: { orcid: orcidId },
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("[NextAuth] Error persisting ORCID on linkAccount:", errorMessage, {
+          userId: user.id,
+          orcidId,
+          providerAccountId: account.providerAccountId,
+        });
+      }
     },
   },
   pages: {

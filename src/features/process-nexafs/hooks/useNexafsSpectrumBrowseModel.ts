@@ -40,8 +40,7 @@ export interface UseNexafsSpectrumBrowseModelResult {
 export function useNexafsSpectrumBrowseModel({
   spectrumPoints,
 }: UseNexafsSpectrumBrowseModelArgs): UseNexafsSpectrumBrowseModelResult {
-  const [dataView, setDataViewState] =
-    useState<NexafsBrowseDataView>("absorption");
+  const [dataView, setDataViewState] = useState<NexafsBrowseDataView>("od");
   const gateToastRef = useRef<Record<string, number>>({});
 
   const showGateToast = useCallback((key: string, message: string) => {
