@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   ReferenceCurve,
   SpectrumPoint,
@@ -41,7 +41,7 @@ export function useNexafsSpectrumBrowseModel({
   spectrumPoints,
 }: UseNexafsSpectrumBrowseModelArgs): UseNexafsSpectrumBrowseModelResult {
   const [dataView, setDataViewState] =
-    useState<NexafsBrowseDataView>("absorption");
+    useState<NexafsBrowseDataView>("od");
   const gateToastRef = useRef<Record<string, number>>({});
 
   const showGateToast = useCallback((key: string, message: string) => {
@@ -78,6 +78,25 @@ export function useNexafsSpectrumBrowseModel({
   );
   const betaAvailable =
     storedBetaPoints !== null && storedBetaPoints.length > 0;
+
+  useEffect(() => {
+    const currentAvailable =
+      (dataView === "od" && odAvailable) ||
+      (dataView === "absorption" && absorptionAvailable) ||
+      (dataView === "beta" && betaAvailable);
+    if (currentAvailable) return;
+
+    const nextView = odAvailable
+      ? "od"
+      : absorptionAvailable
+        ? "absorption"
+        : betaAvailable
+          ? "beta"
+          : null;
+    if (nextView && nextView !== dataView) {
+      setDataViewState(nextView);
+    }
+  }, [dataView, odAvailable, absorptionAvailable, betaAvailable]);
 
   const absorptionPlotPoints = storedMuPoints;
   const edgeZeroOnePoints = storedOdPoints;

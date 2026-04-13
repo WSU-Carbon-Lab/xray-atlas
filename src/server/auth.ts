@@ -12,6 +12,7 @@ import {
   type UserSessionCapabilities,
 } from "~/server/auth/privileged-role";
 import { DEV_MOCK_USER_ID } from "~/lib/dev-mock-data";
+import { parseOrcidForStorage } from "~/lib/orcid";
 
 const emptySessionCapabilities: UserSessionCapabilities = {
   canAccessLabs: false,
@@ -112,6 +113,37 @@ const useSecureCookies = env.AUTH_URL?.startsWith("https://") ?? false;
 const cookiePrefix = useSecureCookies ? "__Secure-" : "";
 const sameSite = useSecureCookies ? ("none" as const) : ("lax" as const);
 
+function getNormalizedOrcid(providerAccountId: string): string | null {
+  try {
+    return parseOrcidForStorage(providerAccountId);
+  } catch {
+    return null;
+  }
+}
+
+async function persistOrcidForUser(
+  userId: string,
+  providerAccountId: string,
+): Promise<void> {
+  const orcidId = getNormalizedOrcid(providerAccountId);
+  if (!orcidId) {
+    return;
+  }
+  try {
+    await db.user.update({
+      where: { id: userId },
+      data: { orcid: orcidId },
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("[NextAuth] Error updating ORCID:", errorMessage, {
+      userId,
+      orcidId,
+      providerAccountId,
+    });
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   providers,
@@ -192,15 +224,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               });
 
               if (account.provider === "orcid" && account.providerAccountId) {
-                let orcidId = account.providerAccountId;
-                if (orcidId.startsWith("https://orcid.org/")) {
-                  orcidId = orcidId.replace("https://orcid.org/", "");
-                }
-                orcidId = orcidId.replace(/\/$/, "");
-                await db.user.update({
-                  where: { id: currentUserId },
-                  data: { orcid: orcidId },
-                });
+                await persistOrcidForUser(
+                  currentUserId,
+                  account.providerAccountId,
+                );
               }
               cookieStore.delete("linkAccountUserId");
               cookieStore.delete("linkAccountProvider");
@@ -213,15 +240,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             });
 
             if (account.provider === "orcid" && account.providerAccountId) {
-              let orcidId = account.providerAccountId;
-              if (orcidId.startsWith("https://orcid.org/")) {
-                orcidId = orcidId.replace("https://orcid.org/", "");
-              }
-              orcidId = orcidId.replace(/\/$/, "");
-              await db.user.update({
-                where: { id: currentUserId },
-                data: { orcid: orcidId },
-              });
+              await persistOrcidForUser(currentUserId, account.providerAccountId);
             }
 
             const orphanedAccounts = await db.account.findMany({
@@ -278,35 +297,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           account.providerAccountId &&
           user.id
         ) {
-          let orcidId = account.providerAccountId;
-
-          if (orcidId.startsWith("https://orcid.org/")) {
-            orcidId = orcidId.replace("https://orcid.org/", "");
-          }
-
-          orcidId = orcidId.replace(/\/$/, "");
-
-          try {
-            const existingUser = await db.user.findUnique({
-              where: { id: user.id },
-              select: { id: true },
-            });
-
-            if (existingUser) {
-              await db.user.update({
-                where: { id: user.id },
-                data: { orcid: orcidId },
-              });
-            }
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : "Unknown error";
-            console.error("[NextAuth] Error updating ORCID:", errorMessage, {
-              userId: user.id,
-              orcidId,
-              providerAccountId: account.providerAccountId,
-            });
-          }
+          await persistOrcidForUser(user.id, account.providerAccountId);
         }
         cookieStore.delete("linkAccountUserId");
         cookieStore.delete("linkAccountProvider");
@@ -407,6 +398,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       }
       return session;
+    },
+  },
+  events: {
+    async linkAccount({ user, account }) {
+      const providerAccountId = account.providerAccountId;
+      if (
+        account.provider !== "orcid" ||
+        typeof providerAccountId !== "string" ||
+        typeof user.id !== "string"
+      ) {
+        return;
+      }
+      await persistOrcidForUser(user.id, providerAccountId);
     },
   },
   pages: {

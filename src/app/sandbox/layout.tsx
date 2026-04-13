@@ -7,9 +7,9 @@ export const metadata = {
 };
 
 /**
- * Restricts the sandbox route to signed-in users who may preview internal tools:
- * any signed-in user in development, or anyone with Labs or user-management
- * capability in production.
+ * Restricts the sandbox (experimental) route to signed-in users who may preview
+ * internal tools: any signed-in user in development, or anyone with Labs or
+ * user-management capability in production.
  */
 export default async function SandboxLayout({
   children,

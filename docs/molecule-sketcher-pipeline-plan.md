@@ -31,7 +31,7 @@ The sketcher must deliver **four** integrated capabilities. Everything else in t
 1. **Lower the barrier to contribution** so users are not required to produce ChemDraw-quality SVG/PNG offline before submitting.
 2. **Preserve current UX contracts** for **SVG:** public URL on `molecules.imageurl`, theme-aware recoloring via `MoleculeImageSVG`. **Raster** is out of scope for structures (§14.2).
 3. **Ground truth remains connectivity + identifiers:** align **SMILES**, **BigSMILES**, **InChI**, **chemical formula**, **CAS**, **PubChem CID** where applicable; surface mismatches instead of silent divergence.
-4. **Isolate experimentation:** **Labs** route for **maintainers and administrators** (see §8, §15) to prototype drawing without blocking production contribute flows.
+4. **Isolate experimentation:** **Sandbox** route (`/sandbox`) for **maintainers and administrators** (see §8, §15) to prototype drawing without blocking production contribute flows.
 5. **Plan for hard cases:** salts, coordination complexes, ionic assemblies, ambiguous disconnections in source databases, and consistent 2D layout.
 
 ## 3. Non-goals (initial phases)
@@ -142,11 +142,11 @@ Proposed package (name TBD, e.g. `molecule-structure` or `molecule-sketcher`):
 
 ---
 
-## 8. Labs route (`/labs` or similar)
+## 8. Sandbox route (`/sandbox`)
 
-**Purpose:** load a **real molecule** from the DB (by id or search), show **current stored SVG** via `MoleculeImageSVG`, and mount the **prototype editor** seeded from SMILES/Molfile import when available.
+**Purpose:** load a **real molecule** from the DB (by id or search), show **current stored SVG** via `MoleculeImageSVG`, and mount the **prototype editor** seeded from SMILES/Molfile import when available. The molecule structure lab lives at `**/sandbox/molecule-structure`** (linked from the Sandbox tools index at `/sandbox`); the legacy `/labs` URL redirects to `/sandbox`.
 
-**Access control (resolved):** **Administrators** and **maintainers** only—not all authenticated users. Both roles see a **Labs** entry in the **user profile dropdown** (same surface as Profile, Dashboard, Log out). See **§15** for the prerequisite **Stage 0** work (roles + route guard + menu item).
+**Access control (resolved):** **Administrators** and **maintainers** only—not all authenticated users. Both roles see a **Sandbox** entry in the **user profile dropdown** (same surface as Profile, Dashboard, Log out). See **§15** for the prerequisite **Stage 0** work (roles + route guard + menu item).
 
 **Requirements:**
 
@@ -169,11 +169,11 @@ Proposed package (name TBD, e.g. `molecule-structure` or `molecule-sketcher`):
 
 | Field (conceptual)              | Purpose                                                                                                                                                                                                                                               |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `**molecule_kind`** (enum)      | Values such as `**small_molecule**`, `**homopolymer**`, `**block_copolymer**`, `**statistical_copolymer**` (or statistical as a flag under block copolymer—see §14.3). Drives which forms are required in the upload portal and how formulas display. |
+| `**molecule_kind`** (enum)      | Values such as `**small_molecule`**, `**homopolymer`**, `**block_copolymer**`, `**statistical_copolymer**` (or statistical as a flag under block copolymer—see §14.3). Drives which forms are required in the upload portal and how formulas display. |
 | `**canonical_smiles**`          | **Chosen** line notation for small-molecule connectivity (see §14.1): either PubChem-derived or drawer-computed; **canonical** form from the toolchain when applicable.                                                                               |
 | `**bigsmiles`** (nullable)      | **Core 4** string for polymers and block copolymers; null for pure small molecules without macromolecular description.                                                                                                                                |
 | `**inchi`**                     | Retained where meaningful; polymers may have partial or absent InChI—product rules should not hard-fail on empty InChI for polymer kinds if industry practice supports it.                                                                            |
-| `**chemical_formula**`          | Support **display-oriented** strings for polymers: e.g. `(C8H8)n`, `(C2H4)n(C3H4O2)m`, and more complex Hill-ordered repeat patterns as required. Validation differs by `molecule_kind`.                                                              |
+| `**chemical_formula`**          | Support **display-oriented** strings for polymers: e.g. `(C8H8)n`, `(C2H4)n(C3H4O2)m`, and more complex Hill-ordered repeat patterns as required. Validation differs by `molecule_kind`.                                                              |
 | `**pubchem_cid` / `casnumber`** | Unchanged; **reference** identifiers, not the sole source of truth for SMILES after user override.                                                                                                                                                    |
 
 
@@ -183,7 +183,7 @@ Proposed package (name TBD, e.g. `molecule-structure` or `molecule-sketcher`):
 
 Prefer a child table, e.g. `**molecule_blocks`**, with:
 
-- `molecule_id` (FK), `block_index` (0–3 for **up to four blocks**), `**label`** (`A`, `B`, …), `**fragment_smiles**` (canonical SMILES for that repeat or block fragment), optional `**repeat_formula**` or link to repeat unit id.
+- `molecule_id` (FK), `block_index` (0–3 for **up to four blocks**), `**label`** (`A`, `B`, …), `**fragment_smiles`** (canonical SMILES for that repeat or block fragment), optional `**repeat_formula`** or link to repeat unit id.
 - **Statistical copolymers:** either a row flag or a sibling table `**molecule_copolymer_stochastic`** holding the **statistical description string** (e.g. notation along the lines of `A-b-(B r C)`—exact syntax is a product/parser contract) and linkage to the parent block-copolymer molecule.
 
 This keeps **block copolymers first-class** without encoding four blocks in flat columns on `molecules`.
@@ -215,16 +215,16 @@ Phases map to the **core functionalities** in §1: **(1)** cached SVG, **(2)** p
 
 **Covers core 1 and the start of core 3.** Also includes **prerequisite work on a separate Git branch** for **user roles and Labs access**—see **§15** (implement and merge before or in parallel with the sketcher spike, as the team prefers).
 
-- **§15 — Roles branch:** `administrator` / `maintainer` on `user`, seed **core maintainers** as administrators, remaining users as maintainers, route guard + **Labs** link in profile dropdown for both roles; administrators can promote users to maintainer (details in §15).
-- Bundle size and load: Ketcher React vs iframe vs lazy RDKit WASM.
-- **Core 1:** Export **SVG string** → `uploadMoleculeImage` (`image/svg+xml`) → `molecules.imageurl`; confirm `MoleculeImageSVG` accepts exported structure (paths, text).
-- **Core 3 (partial):** Server parses Molfile or SMILES with RDKit/Indigo; returns **canonical SMILES** for a single connected small molecule; define validation errors for the client.
+- **§15 — Roles branch:** `administrator` / `maintainer` on `user`, seed **core maintainers** as administrators, remaining users as maintainers, route guard + **Sandbox** link in profile dropdown for both roles; administrators can promote users to maintainer (details in §15).
+- Bundle size and load: Ketcher React vs iframe vs lazy RDKit WASM. **Phase 0 lab ships** `react-ocl` (`MolfileSvgEditor`) + **OpenChemLib** in the sandbox molecule lab; Ketcher remains a candidate for later if polymer tooling or UX requires it.
+- **Core 1:** Export **SVG string** (`Molecule.toSVG` dry run in lab) → future `uploadMoleculeImage` (`image/svg+xml`) → `molecules.imageurl`; confirm `MoleculeImageSVG` accepts exported structure (paths, text).
+- **Core 3 (partial):** Server parses molfile with **OpenChemLib** (`moleculeStructure.canonicalizeMolfile` → isomeric SMILES + idcode); RDKit/Indigo optional for cross-checks later. Define validation errors for the client.
 - Document gaps where SMILES is **not** sufficient (salts, metals) for later multi-field handling.
 
-### Phase 1 — Lab page
+### Phase 1 — Sandbox molecule lab
 
-- New route under `src/app/...` with minimal layout.
-- Side-by-side: DB `MoleculeImageSVG` + editor.
+- Implemented at `**/sandbox/molecule-structure`** with the shared sandbox layout guard.
+- Side-by-side: DB `MoleculeImageSVG` + **OpenChemLib** editor on `/sandbox/molecule-structure` (Phase 0 lab).
 - Molecule picker (search by name or paste UUID); optional dry-run export of **SVG + SMILES** for comparison.
 
 ### Phase 2 — Contribute integration
@@ -329,8 +329,8 @@ These supersede the former “open questions” list.
 
 ### 14.4 Storage shape (summary)
 
-- Prefer `**canonical_smiles`** + `**bigsmiles**` (nullable) + `**molecule_kind**` over overloading a single `smiles` column for all chemistry.
-- Use `**molecule_blocks**` (and optional stochastic metadata) rather than four parallel SMILES columns on `molecules`—see **§9**.
+- Prefer `**canonical_smiles`** + `**bigsmiles`** (nullable) + `**molecule_kind`** over overloading a single `smiles` column for all chemistry.
+- Use `**molecule_blocks`** (and optional stochastic metadata) rather than four parallel SMILES columns on `molecules`—see **§9**.
 - **Polymer formulas** in display and storage can use **repeat notation** (e.g. `(C8H8)n`, `(C2H4)n(C3H4O2)m`); validation rules depend on `molecule_kind`.
 
 ### 14.5 Extensibility (peptides and future types)
@@ -340,13 +340,13 @@ These supersede the former “open questions” list.
 
 ---
 
-## 15. Stage 0 — User roles, seed data, and Labs access (separate branch)
+## 15. Stage 0 — User roles, seed data, and Sandbox access (separate branch)
 
-**Intent:** Ship **authorization** and **navigation** for Labs **before** or **alongside** the sketcher spike, on a **dedicated Git branch** (e.g. `feature/user-roles-and-labs-access`) so reviews stay focused.
+**Intent:** Ship **authorization** and **navigation** for **Sandbox** **before** or **alongside** the sketcher spike, on a **dedicated Git branch** (e.g. `feature/user-roles-and-labs-access`) so reviews stay focused.
 
 ### 15.1 Schema (`next_auth.user` today)
 
-- Extend the existing `**role`** field (currently `String` default `"contributor"`) to a constrained set, e.g. `**contributor` | `maintainer` | `administrator**`, or add an enum / check constraint in migration.
+- Extend the existing `**role`** field (currently `String` default `"contributor"`) to a constrained set, e.g. `**contributor` | `maintainer` | `administrator`**, or add an enum / check constraint in migration.
 - **Administrators** can **assign** or **revoke** **maintainer** (exact UX: admin UI vs migration-only—TBD; **product decision:** administrators add maintainers).
 
 ### 15.2 Seed / initial assignment (bootstrap)
@@ -354,15 +354,15 @@ These supersede the former “open questions” list.
 - **Administrators (core maintainers):** **Harlan Heilman**, **Brian Collins**, **Obaid** (match users by **email** or **ORCID** once accounts exist—implementation details in migration/seed script).
 - **Maintainers:** **all other existing users** at cutover time, unless individually excluded (policy TBD).
 
-### 15.3 Labs route and profile menu
+### 15.3 Sandbox route and profile menu
 
-- Add a `**Labs`** link to the **user profile dropdown** (same component as Profile, Log out, etc.) for users with `**maintainer` or `administrator`**.
-- **Route guard:** deny **contributors** (and unauthenticated users) with **403** or redirect.
-- **Administrators** retain full access to Labs; **no** separate “admin-only” Labs unless product later requires it.
+- Add a `**Sandbox`** link to the **user profile dropdown** (same component as Profile, Log out, etc.) for users with the **Labs** permission (`labs_access` / `canAccessLabs`) or **user administration** (`canManageUsers`), matching the runtime guard on `/sandbox`.
+- **Route guard:** deny users without those capabilities (and unauthenticated users) with **redirect** off `/sandbox` in production; development may allow all signed-in users for local iteration.
+- **Administrators** retain full access to Sandbox; **no** separate “admin-only” Sandbox unless product later requires it.
 
 ### 15.4 Auth in tRPC / middleware
 
-- Add a small helper (e.g. `requireMaintainerOrAdmin`) used by Labs-related procedures and server components for the Labs layout.
+- Add a small helper (e.g. `requireMaintainerOrAdmin`) used by Sandbox-related procedures and server components for the Sandbox layout when stricter checks are needed beyond the session flags above.
 
 ---
 
@@ -377,7 +377,7 @@ These supersede the former “open questions” list.
 
 ## 17. Checklist before merge to `main`
 
-- **Labs** route restricted to **maintainer** and **administrator**; link visible only for those roles (§15).
+- **Sandbox** route restricted per **§15**; profile link visible only when the session grants Labs or user-admin capability (§15).
 - No regression to `molecules.create` / `uploadImage` contracts **unless** intentionally removing raster per §14.2 (document in PR).
 - **Core 1:** **SVG-only** for structure depictions; browse/detail use **cached** `imageurl`.
 - **Core 2:** polymer **caps/brackets** documented and visually verified for at least one reference repeat unit.
