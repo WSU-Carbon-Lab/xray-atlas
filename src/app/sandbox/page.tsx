@@ -2,8 +2,7 @@ import Link from "next/link";
 import { buttonVariants, cn } from "@heroui/styles";
 
 /**
- * Landing surface for in-app preview and experimental tooling. Add sandbox-only
- * routes or widgets here as they are implemented.
+ * Sandbox index: links to experimental tools on dedicated sub-routes.
  */
 export default function SandboxPage() {
   return (
@@ -12,13 +11,23 @@ export default function SandboxPage() {
         <h1 className="text-foreground text-2xl font-semibold tracking-tight">
           Sandbox
         </h1>
-        <p className="text-muted mt-2 text-sm">
-          Use this area to try UI and workflows before they ship to the main app.
-          Nothing here is guaranteed to be stable.
+        <p className="text-muted mt-2 max-w-2xl text-sm">
+          Try in-progress UI and workflows in one place. Access is limited to
+          development sessions and accounts with Labs or user administration
+          capability in production. Nothing here is guaranteed to be stable.
         </p>
       </div>
-      <div className="border-border bg-surface rounded-lg border p-6">
-        <p className="text-foreground text-sm font-medium">Tools</p>
+
+      <section
+        className="border-border bg-surface rounded-lg border p-6"
+        aria-labelledby="sandbox-tools-heading"
+      >
+        <h2
+          id="sandbox-tools-heading"
+          className="text-foreground text-sm font-medium"
+        >
+          Tools
+        </h2>
         <ul className="text-muted mt-3 list-disc space-y-2 pl-5 text-sm">
           <li>
             <Link
@@ -26,6 +35,14 @@ export default function SandboxPage() {
               className="text-accent hover:underline"
             >
               Hex color selector
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/sandbox/molecule-structure"
+              className="text-accent hover:underline"
+            >
+              Molecule structure lab
             </Link>
           </li>
         </ul>
@@ -37,7 +54,7 @@ export default function SandboxPage() {
             Back to home
           </Link>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -18,9 +18,11 @@ import { experimentFileRouter } from "~/server/api/routers/experimentFile";
 import { attributionTeamsRouter } from "~/server/api/routers/attributionTeams";
 import { datasetAttributionsRouter } from "~/server/api/routers/datasetAttributions";
 import { dashboardSessionsRouter } from "~/server/api/routers/dashboardSessions";
+import { moleculeStructureRouter } from "~/server/api/routers/molecule-structure";
 
 export const appRouter = createTRPCRouter({
   molecules: moleculesRouter,
+  moleculeStructure: moleculeStructureRouter,
   admin: adminRouter,
   users: usersRouter,
   experiments: experimentsRouter,
