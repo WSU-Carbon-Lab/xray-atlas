@@ -16,7 +16,7 @@ import { PlusIcon } from "@heroicons/react/24/outline";
 import { X } from "lucide-react";
 
 export const SYNONYM_CHIP_CLASS =
-  "inline-flex items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light";
+  "inline-flex items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase bg-accent/10 text-accent dark:bg-accent-soft-hover dark:text-accent";
 
 interface SynonymTagGroupProps extends React.ComponentProps<typeof TagGroup> {
   synonyms: string[];
@@ -33,13 +33,20 @@ function SynonymsPopup({
   remaining: number;
   label?: string;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const displayLabel = label ?? `+${remaining}`;
   return (
-    <div className="inline-flex shrink-0" onClick={(e) => e.stopPropagation()}>
-      <Dropdown>
+    <div
+      className="inline-flex shrink-0"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <Dropdown isOpen={isOpen} onOpenChange={setIsOpen}>
         <Dropdown.Trigger
           aria-label={`Show all ${synonyms.length} synonyms`}
-          className="bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          className="bg-accent/10 text-accent dark:bg-accent-soft-hover dark:text-accent focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
         >
           {displayLabel}
         </Dropdown.Trigger>
@@ -104,7 +111,7 @@ export const SynonymChips = ({
   const remaining = synonyms.length - truncated.length;
   const chipClass =
     size === "compact"
-      ? "bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light inline-flex max-w-[4.5rem] min-w-0 shrink truncate rounded border-0 px-1.5 py-0.5 text-[9px] font-medium tracking-wider uppercase"
+      ? "bg-accent/10 text-accent dark:bg-accent-soft-hover dark:text-accent inline-flex max-w-[4.5rem] min-w-0 shrink truncate rounded border-0 px-1.5 py-0.5 text-[9px] font-medium tracking-wider uppercase"
       : `${SYNONYM_CHIP_CLASS} min-w-0 max-w-[6rem] shrink truncate`;
   return (
     <div

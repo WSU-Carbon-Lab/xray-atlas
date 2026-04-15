@@ -27,6 +27,7 @@ export function TagsDropdown({
   allowCreateFromInput = false,
   onCreateTag,
 }: TagsDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const { data: tags = [], isLoading } = trpc.molecules.listTags.useQuery(
     undefined,
@@ -124,10 +125,11 @@ export function TagsDropdown({
   }
 
   return (
-    <Dropdown>
+    <Dropdown isOpen={isOpen} onOpenChange={setIsOpen}>
       <Dropdown.Trigger
         aria-label={ariaLabel}
         aria-pressed={hasSelection}
+        aria-expanded={isOpen}
         className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent-soft text-accent" : ""} ${triggerClassName}`}
       >
         <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />

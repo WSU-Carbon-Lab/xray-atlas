@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useId } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,7 +37,7 @@ const profileImage = (user: UserWithOrcid) => {
 interface AvatarButtonProps {
   user: UserWithOrcid;
   isOpen: boolean;
-  setIsOpen: (open: boolean) => void;
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   handleAction: (action: string) => void;
   showManageUsers?: boolean;
   showSandbox?: boolean;
@@ -84,128 +84,159 @@ export function AvatarButton({
   showManageUsers = false,
   showSandbox = false,
 }: AvatarButtonProps) {
+  const menuContainerRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (menuContainerRef.current?.contains(target)) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, setIsOpen]);
+
   return (
-    <div className="relative">
+    <div ref={menuContainerRef} className="relative">
       <Button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen((open) => !open)}
         className="border-border bg-surface focus-visible:ring-accent hover:bg-default flex h-10 w-10 items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         aria-label="User menu"
         aria-expanded={isOpen}
         aria-haspopup="true"
+        aria-controls={isOpen ? menuId : undefined}
       >
         <CustomAvatar user={user} size="md" />
       </Button>
 
       {isOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setIsOpen(false)}
-            aria-hidden="true"
-          />
-          <div className="border-border bg-surface absolute top-full right-0 z-50 mt-2 w-64 rounded-lg border shadow-lg">
-            <div className="border-border border-b px-4 py-3">
-              <div className="flex items-center gap-3">
-                <CustomAvatar user={user} size="md" />
-                <div className="flex flex-col gap-0.5">
+        <div
+          id={menuId}
+          className="border-border bg-surface absolute top-full right-0 z-50 mt-2 w-64 rounded-lg border shadow-lg"
+        >
+          <div className="border-border border-b px-4 py-3">
+            <div className="flex items-center gap-3">
+              <CustomAvatar user={user} size="md" />
+              <div className="flex flex-col gap-0.5">
+                <a
+                  href={`/users/${user.id}`}
+                  className="text-foreground hover:text-accent text-sm font-medium transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAction("profile");
+                  }}
+                >
+                  {user.name ?? "User"}
+                </a>
+                {user.orcid && (
                   <a
-                    href={`/users/${user.id}`}
-                    className="text-foreground hover:text-accent text-sm font-medium transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAction("profile");
-                    }}
+                    href={`https://orcid.org/${user.orcid}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted hover:text-accent flex items-center gap-1.5 text-xs transition-colors"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {user.name ?? "User"}
+                    <ORCIDIcon className="h-3 w-3 shrink-0" authenticated />
+                    <span className="tabular-nums">{user.orcid}</span>
                   </a>
-                  {user.orcid && (
-                    <a
-                      href={`https://orcid.org/${user.orcid}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted hover:text-accent flex items-center gap-1.5 text-xs transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <ORCIDIcon className="h-3 w-3 shrink-0" authenticated />
-                      <span className="tabular-nums">{user.orcid}</span>
-                    </a>
-                  )}
-                  {user.email && (
-                    <a
-                      href={`mailto:${user.email}`}
-                      className="text-muted hover:text-accent text-xs transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {user.email}
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="py-1">
-              <button
-                type="button"
-                onClick={() => handleAction("profile")}
-                className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
-              >
-                <UserIcon className="h-4 w-4" />
-                Profile
-              </button>
-              <button
-                type="button"
-                disabled
-                className="text-muted flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm opacity-60"
-                title="Coming soon"
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Dashboard
-              </button>
-              <button
-                type="button"
-                disabled
-                className="text-muted flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm opacity-60"
-                title="Coming soon"
-              >
-                <Users className="h-4 w-4" />
-                Create Team
-              </button>
-            </div>
-            {showManageUsers || showSandbox ? (
-              <div className="border-border border-t py-1">
-                {showManageUsers ? (
-                  <button
-                    type="button"
-                    onClick={() => handleAction("admin-users")}
-                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+                )}
+                {user.email && (
+                  <a
+                    href={`mailto:${user.email}`}
+                    className="text-muted hover:text-accent text-xs transition-colors"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <UserCog className="h-4 w-4" />
-                    Manage users
-                  </button>
-                ) : null}
-                {showSandbox ? (
-                  <button
-                    type="button"
-                    onClick={() => handleAction("sandbox")}
-                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
-                  >
-                    <FlaskConical className="h-4 w-4" />
-                    Sandbox
-                  </button>
-                ) : null}
+                    {user.email}
+                  </a>
+                )}
               </div>
-            ) : null}
-            <div className="border-border border-t py-1">
-              <button
-                onClick={() => handleAction("logout")}
-                className="text-danger hover:bg-danger/10 flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                Log Out
-              </button>
             </div>
           </div>
-        </>
+          <div className="py-1">
+            <button
+              type="button"
+              onClick={() => handleAction("profile")}
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+            >
+              <UserIcon className="h-4 w-4" />
+              Profile
+            </button>
+            <button
+              type="button"
+              disabled
+              className="text-muted flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm opacity-60"
+              title="Coming soon"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </button>
+            <button
+              type="button"
+              disabled
+              className="text-muted flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm opacity-60"
+              title="Coming soon"
+            >
+              <Users className="h-4 w-4" />
+              Create Team
+            </button>
+          </div>
+          {showManageUsers || showSandbox ? (
+            <div className="border-border border-t py-1">
+              {showManageUsers ? (
+                <button
+                  type="button"
+                  onClick={() => handleAction("admin-users")}
+                  className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+                >
+                  <UserCog className="h-4 w-4" />
+                  Manage users
+                </button>
+              ) : null}
+              {showSandbox ? (
+                <button
+                  type="button"
+                  onClick={() => handleAction("sandbox")}
+                  className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+                >
+                  <FlaskConical className="h-4 w-4" />
+                  Sandbox
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="border-border border-t py-1">
+            <button
+              onClick={() => handleAction("logout")}
+              className="text-danger hover:bg-danger/10 flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Log Out
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
