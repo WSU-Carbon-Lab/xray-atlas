@@ -330,14 +330,97 @@ export function CustomUserButton() {
 interface AvatarGroupProps extends React.ComponentProps<typeof Avatar> {
   users?: UserWithOrcid[];
   max?: number;
-  tooltipVariant?: "name" | "name-orcid";
+  tooltipVariant?: AvatarTooltipVariant;
+  tooltipMode?: AvatarTooltipMode;
 }
+
+export type AvatarTooltipVariant = "name" | "name-orcid";
+export type AvatarTooltipMode = "individual" | "shared";
 
 const avatarSizeClasses = {
   sm: "h-8 w-8",
   md: "h-9 w-9",
   lg: "h-10 w-10",
 } as const;
+
+const TOOLTIP_CLOSE_DELAY_MS = 100;
+const TOOLTIP_VERTICAL_OFFSET_PX = 8;
+const SHARED_TOOLTIP_MAX_ARROW_OFFSET_PX = 104;
+
+function userDisplayName(user: UserWithOrcid): string {
+  return user.name ?? "User";
+}
+
+function userOrcid(user: UserWithOrcid): string | null {
+  const value = user.orcid?.trim();
+  return value && value.length > 0 ? value : null;
+}
+
+function AvatarIdentityTooltipContent({
+  user,
+  arrowOffsetPx = 0,
+  showArrow = true,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  user: UserWithOrcid;
+  arrowOffsetPx?: number;
+  showArrow?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+}) {
+  const name = userDisplayName(user);
+  const orcidValue = userOrcid(user);
+
+  return (
+    <div
+      className="relative w-[min(15rem,calc(100vw-1rem))] rounded-2xl border border-zinc-700/80 bg-zinc-900/95 px-2.5 py-2 shadow-2xl backdrop-blur-sm"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="flex min-w-0 flex-col gap-0.5">
+        {user.id ? (
+          <Link
+            href={`/users/${user.id}`}
+            className="focus-visible:ring-accent block truncate rounded-sm text-sm font-semibold text-zinc-100 transition-colors hover:text-accent dark:hover:text-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
+            aria-label={`View ${name}'s profile`}
+            title={name}
+          >
+            {name}
+          </Link>
+        ) : (
+          <p className="truncate text-sm font-semibold text-zinc-100" title={name}>
+            {name}
+          </p>
+        )}
+        {orcidValue ? (
+          <a
+            href={`https://orcid.org/${orcidValue}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="focus-visible:ring-accent inline-flex min-w-0 items-center gap-1.5 rounded-sm font-mono text-sm text-zinc-300 tabular-nums transition-colors hover:text-accent dark:hover:text-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
+            aria-label={`Open ORCID profile ${orcidValue}`}
+            title={orcidValue}
+          >
+            <ORCIDIcon className="h-3.5 w-3.5 shrink-0" authenticated />
+            <span className="min-w-0 truncate">{orcidValue}</span>
+          </a>
+        ) : (
+          <p className="inline-flex min-w-0 items-center gap-1.5 font-mono text-sm text-zinc-400 tabular-nums">
+            <ORCIDIcon className="h-3.5 w-3.5 shrink-0 opacity-70" authenticated />
+            <span className="min-w-0 truncate">Not linked</span>
+          </p>
+        )}
+      </div>
+      {showArrow ? (
+        <div
+          className="absolute top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b border-zinc-700/80 bg-zinc-900/95 transition-[left] duration-150 ease-out"
+          style={{ left: `calc(50% + ${arrowOffsetPx}px)` }}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 function AvatarWithTooltip({
   user,
@@ -350,7 +433,7 @@ function AvatarWithTooltip({
   avatarWrapperClass: string;
   constrainedClass: string;
   size: "sm" | "md" | "lg";
-  tooltipVariant: "name" | "name-orcid";
+  tooltipVariant: AvatarTooltipVariant;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -363,7 +446,7 @@ function AvatarWithTooltip({
     const rect = el.getBoundingClientRect();
     setPosition({
       left: rect.left + rect.width / 2,
-      top: rect.top - 8,
+      top: rect.top - TOOLTIP_VERTICAL_OFFSET_PX,
     });
   };
 
@@ -385,7 +468,7 @@ function AvatarWithTooltip({
     closeTimerRef.current = setTimeout(() => {
       setIsOpen(false);
       closeTimerRef.current = null;
-    }, 90);
+    }, TOOLTIP_CLOSE_DELAY_MS);
   };
 
   useEffect(() => {
@@ -394,9 +477,7 @@ function AvatarWithTooltip({
     };
   }, []);
 
-  const userName = user.name ?? "User";
-  const orcidValue = user.orcid?.trim();
-  const orcidLabel = orcidValue ?? "Not linked";
+  const userName = userDisplayName(user);
   const avatarElement = (
     <span className={avatarWrapperClass}>
       <CustomAvatar size={size} user={user} className={constrainedClass} />
@@ -436,47 +517,11 @@ function AvatarWithTooltip({
             style={{ left: position.left, top: position.top }}
           >
             {tooltipVariant === "name-orcid" ? (
-              <div
-                className="relative w-[min(15rem,calc(100vw-1rem))] rounded-2xl border border-zinc-700/80 bg-zinc-900/95 px-2.5 py-2 shadow-2xl backdrop-blur-sm"
+              <AvatarIdentityTooltipContent
+                user={user}
                 onMouseEnter={openTooltip}
                 onMouseLeave={scheduleCloseTooltip}
-              >
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  {user.id ? (
-                    <Link
-                      href={`/users/${user.id}`}
-                      className="focus-visible:ring-accent block truncate rounded-sm text-sm font-semibold text-zinc-100 transition-colors hover:text-accent dark:hover:text-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
-                      aria-label={`View ${userName}'s profile`}
-                      title={userName}
-                    >
-                      {userName}
-                    </Link>
-                  ) : (
-                    <p className="truncate text-sm font-semibold text-zinc-100" title={userName}>
-                      {userName}
-                    </p>
-                  )}
-                  {orcidValue ? (
-                    <a
-                      href={`https://orcid.org/${orcidValue}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="focus-visible:ring-accent inline-flex min-w-0 items-center gap-1.5 rounded-sm font-mono text-sm text-zinc-300 tabular-nums transition-colors hover:text-accent dark:hover:text-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
-                      aria-label={`Open ORCID profile ${orcidValue}`}
-                      title={orcidValue}
-                    >
-                      <ORCIDIcon className="h-3.5 w-3.5 shrink-0" authenticated />
-                      <span className="min-w-0 truncate">{orcidValue}</span>
-                    </a>
-                  ) : (
-                    <p className="inline-flex min-w-0 items-center gap-1.5 font-mono text-sm text-zinc-400 tabular-nums">
-                      <ORCIDIcon className="h-3.5 w-3.5 shrink-0 opacity-70" authenticated />
-                      <span className="min-w-0 truncate">{orcidLabel}</span>
-                    </p>
-                  )}
-                </div>
-                <div className="absolute top-full left-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b border-zinc-700/80 bg-zinc-900/95" />
-              </div>
+              />
             ) : (
               <div className="bg-foreground text-background rounded-full px-2.5 py-1 text-sm font-medium shadow-lg">
                 {userName}
@@ -504,7 +549,7 @@ function AvatarTrigger({
   onActivate: (user: UserWithOrcid, triggerEl: HTMLSpanElement) => void;
   onDeactivate: () => void;
 }) {
-  const userName = user.name ?? "User";
+  const userName = userDisplayName(user);
   const avatarElement = (
     <span className={avatarWrapperClass}>
       <CustomAvatar size={size} user={user} className={constrainedClass} />
@@ -540,6 +585,7 @@ export function AvatarGroup({
   max = 5,
   size = "md",
   tooltipVariant = "name",
+  tooltipMode = "individual",
 }: AvatarGroupProps) {
   const sizeClass = avatarSizeClasses[size] ?? avatarSizeClasses.md;
   const constrainedClass = `${sizeClass} min-h-0 min-w-0 shrink-0`;
@@ -555,6 +601,7 @@ export function AvatarGroup({
     arrowOffset: 0,
   });
 
+  const useSharedTooltip = tooltipVariant === "name-orcid" && tooltipMode === "shared";
   const displayUsers = users.slice(0, max);
   const remaining = users.length - max;
 
@@ -573,12 +620,12 @@ export function AvatarGroup({
     const triggerRect = triggerRef.current.getBoundingClientRect();
     const left = groupRect.left + groupRect.width / 2;
     const triggerCenter = triggerRect.left + triggerRect.width / 2;
-    const maxArrowOffset = 104;
+    const maxArrowOffset = SHARED_TOOLTIP_MAX_ARROW_OFFSET_PX;
     const rawOffset = triggerCenter - left;
     const arrowOffset = Math.max(-maxArrowOffset, Math.min(maxArrowOffset, rawOffset));
     setSharedTooltipPosition({
       left,
-      top: triggerRect.top - 8,
+      top: triggerRect.top - TOOLTIP_VERTICAL_OFFSET_PX,
       arrowOffset,
     });
   };
@@ -598,7 +645,7 @@ export function AvatarGroup({
     closeTimerRef.current = setTimeout(() => {
       setIsSharedTooltipOpen(false);
       closeTimerRef.current = null;
-    }, 100);
+    }, TOOLTIP_CLOSE_DELAY_MS);
   };
 
   useEffect(() => {
@@ -608,7 +655,7 @@ export function AvatarGroup({
   }, []);
 
   useEffect(() => {
-    if (!isSharedTooltipOpen || tooltipVariant !== "name-orcid") {
+    if (!isSharedTooltipOpen || !useSharedTooltip) {
       return;
     }
     const handleViewportChange = () => {
@@ -620,7 +667,7 @@ export function AvatarGroup({
       window.removeEventListener("resize", handleViewportChange);
       window.removeEventListener("scroll", handleViewportChange, true);
     };
-  }, [isSharedTooltipOpen, tooltipVariant]);
+  }, [isSharedTooltipOpen, useSharedTooltip]);
 
   if (!users || users.length === 0) {
     return (
@@ -648,7 +695,7 @@ export function AvatarGroup({
         onMouseLeave={scheduleSharedTooltipClose}
       >
         {displayUsers.map((user) =>
-          tooltipVariant === "name-orcid" ? (
+          useSharedTooltip ? (
             <AvatarTrigger
               key={user.id ?? user.name ?? "user"}
               user={user}
@@ -680,10 +727,7 @@ export function AvatarGroup({
           </span>
         ) : null}
       </div>
-      {tooltipVariant === "name-orcid" &&
-      isSharedTooltipOpen &&
-      activeUser &&
-      typeof document !== "undefined"
+      {useSharedTooltip && isSharedTooltipOpen && activeUser && typeof document !== "undefined"
         ? createPortal(
             <div
               className="z-tooltip pointer-events-auto fixed -translate-x-1/2 -translate-y-full"
@@ -692,55 +736,12 @@ export function AvatarGroup({
                 top: sharedTooltipPosition.top,
               }}
             >
-              <div
-                className="relative w-[min(15rem,calc(100vw-1rem))] rounded-2xl border border-zinc-700/80 bg-zinc-900/95 px-2.5 py-2 shadow-2xl backdrop-blur-sm"
+              <AvatarIdentityTooltipContent
+                user={activeUser}
+                arrowOffsetPx={sharedTooltipPosition.arrowOffset}
                 onMouseEnter={clearCloseTimer}
                 onMouseLeave={scheduleSharedTooltipClose}
-              >
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  {activeUser.id ? (
-                    <Link
-                      href={`/users/${activeUser.id}`}
-                      className="focus-visible:ring-accent block truncate rounded-sm text-sm font-semibold text-zinc-100 transition-colors hover:text-accent dark:hover:text-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
-                      aria-label={`View ${(activeUser.name ?? "User")}'s profile`}
-                      title={activeUser.name ?? "User"}
-                    >
-                      {activeUser.name ?? "User"}
-                    </Link>
-                  ) : (
-                    <p
-                      className="truncate text-sm font-semibold text-zinc-100"
-                      title={activeUser.name ?? "User"}
-                    >
-                      {activeUser.name ?? "User"}
-                    </p>
-                  )}
-                  {activeUser.orcid?.trim() ? (
-                    <a
-                      href={`https://orcid.org/${activeUser.orcid.trim()}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="focus-visible:ring-accent inline-flex min-w-0 items-center gap-1.5 rounded-sm font-mono text-sm text-zinc-300 tabular-nums transition-colors hover:text-accent dark:hover:text-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
-                      aria-label={`Open ORCID profile ${activeUser.orcid.trim()}`}
-                      title={activeUser.orcid.trim()}
-                    >
-                      <ORCIDIcon className="h-3.5 w-3.5 shrink-0" authenticated />
-                      <span className="min-w-0 truncate">{activeUser.orcid.trim()}</span>
-                    </a>
-                  ) : (
-                    <p className="inline-flex min-w-0 items-center gap-1.5 font-mono text-sm text-zinc-400 tabular-nums">
-                      <ORCIDIcon className="h-3.5 w-3.5 shrink-0 opacity-70" authenticated />
-                      <span className="min-w-0 truncate">Not linked</span>
-                    </p>
-                  )}
-                </div>
-                <div
-                  className="absolute top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b border-zinc-700/80 bg-zinc-900/95 transition-[left] duration-150 ease-out"
-                  style={{
-                    left: `calc(50% + ${sharedTooltipPosition.arrowOffset}px)`,
-                  }}
-                />
-              </div>
+              />
             </div>,
             document.body,
           )

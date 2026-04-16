@@ -675,7 +675,12 @@ export const CompactCard = memo(function CompactCard({
           />
         </div>
         <div>
-          <AvatarGroup users={avatarUsers} size="sm" tooltipVariant="name-orcid" />
+          <AvatarGroup
+            users={avatarUsers}
+            size="sm"
+            tooltipVariant="name-orcid"
+            tooltipMode="shared"
+          />
         </div>
         <CompactCardMetricsColumn>
           <CompactCardMetricStat
@@ -758,7 +763,14 @@ function ContributorsOrEmpty({
   overlay?: boolean;
 }) {
   if (users.length > 0) {
-    return <AvatarGroup users={users} size="sm" tooltipVariant="name-orcid" />;
+    return (
+      <AvatarGroup
+        users={users}
+        size="sm"
+        tooltipVariant="name-orcid"
+        tooltipMode="shared"
+      />
+    );
   }
   return (
     <span
