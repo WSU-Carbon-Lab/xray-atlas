@@ -675,7 +675,7 @@ export const CompactCard = memo(function CompactCard({
           />
         </div>
         <div>
-          <AvatarGroup users={avatarUsers} size="sm" />
+          <AvatarGroup users={avatarUsers} size="sm" tooltipVariant="name-orcid" />
         </div>
         <CompactCardMetricsColumn>
           <CompactCardMetricStat
@@ -758,7 +758,7 @@ function ContributorsOrEmpty({
   overlay?: boolean;
 }) {
   if (users.length > 0) {
-    return <AvatarGroup users={users} size="sm" />;
+    return <AvatarGroup users={users} size="sm" tooltipVariant="name-orcid" />;
   }
   return (
     <span

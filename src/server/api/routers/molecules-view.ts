@@ -6,7 +6,7 @@ type ContributorRow = {
   userid: string;
   contributiontype: string;
   contributedat: Date;
-  user: { id: string; name: string | null; image: string | null };
+  user: { id: string; name: string | null; image: string | null; orcid: string | null };
 };
 type TagRow = { id: string; name: string; slug: string; color: string | null };
 
@@ -114,5 +114,6 @@ function creatorFromContributors(
     id: creator.user.id,
     name: creator.user.name,
     image: creator.user.image,
+    orcid: creator.user.orcid,
   };
 }

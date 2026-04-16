@@ -671,7 +671,7 @@ export const moleculesRouter = createTRPCRouter({
           moleculecontributors: {
             include: {
               user: {
-                select: { id: true, name: true, image: true },
+                select: { id: true, name: true, image: true, orcid: true },
               },
             },
             orderBy: { contributedat: "asc" },
@@ -744,7 +744,7 @@ export const moleculesRouter = createTRPCRouter({
             moleculecontributors: {
               include: {
                 user: {
-                  select: { id: true, name: true, image: true },
+                  select: { id: true, name: true, image: true, orcid: true },
                 },
               },
               orderBy: { contributedat: "asc" },
@@ -1118,7 +1118,7 @@ export const moleculesRouter = createTRPCRouter({
                 moleculecontributors: {
                   include: {
                     user: {
-                      select: { id: true, name: true, image: true },
+                      select: { id: true, name: true, image: true, orcid: true },
                     },
                   },
                   orderBy: { contributedat: "asc" },
@@ -1189,7 +1189,7 @@ export const moleculesRouter = createTRPCRouter({
               moleculesynonyms: { orderBy: { order: "asc" }[] };
               moleculecontributors: {
                 include: {
-                  user: { select: { id: true; name: true; image: true } };
+                  user: { select: { id: true; name: true; image: true; orcid: true } };
                 };
                 orderBy: { contributedat: "asc" }[];
               };
@@ -1235,7 +1235,7 @@ export const moleculesRouter = createTRPCRouter({
               moleculesynonyms: { orderBy: [{ order: "asc" }] },
               moleculecontributors: {
                 include: {
-                  user: { select: { id: true, name: true, image: true } },
+                  user: { select: { id: true, name: true, image: true, orcid: true } },
                 },
                 orderBy: [{ contributedat: "asc" }],
               },
@@ -1269,7 +1269,7 @@ export const moleculesRouter = createTRPCRouter({
             moleculesynonyms: { orderBy: [{ order: "asc" }] },
             moleculecontributors: {
               include: {
-                user: { select: { id: true, name: true, image: true } },
+                user: { select: { id: true, name: true, image: true, orcid: true } },
               },
               orderBy: [{ contributedat: "asc" }],
             },
@@ -1348,7 +1348,7 @@ export const moleculesRouter = createTRPCRouter({
         where: { moleculeid: input.moleculeId },
         include: {
           user: {
-            select: { id: true, name: true, image: true },
+            select: { id: true, name: true, image: true, orcid: true },
           },
         },
         orderBy: [{ contributiontype: "asc" }, { contributedat: "asc" }],
@@ -1635,7 +1635,7 @@ export const moleculesRouter = createTRPCRouter({
             moleculecontributors: {
               include: {
                 user: {
-                  select: { id: true, name: true, image: true },
+                  select: { id: true, name: true, image: true, orcid: true },
                 },
               },
               orderBy: { contributedat: "asc" },
@@ -1708,7 +1708,7 @@ export const moleculesRouter = createTRPCRouter({
           moleculecontributors: {
             include: {
               user: {
-                select: { id: true, name: true, image: true },
+                select: { id: true, name: true, image: true, orcid: true },
               },
             },
             orderBy: { contributedat: "asc" },

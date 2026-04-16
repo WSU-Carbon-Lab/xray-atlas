@@ -330,6 +330,7 @@ export function CustomUserButton() {
 interface AvatarGroupProps extends React.ComponentProps<typeof Avatar> {
   users?: UserWithOrcid[];
   max?: number;
+  tooltipVariant?: "name" | "name-orcid";
 }
 
 const avatarSizeClasses = {
@@ -343,15 +344,18 @@ function AvatarWithTooltip({
   avatarWrapperClass,
   constrainedClass,
   size,
+  tooltipVariant,
 }: {
   user: UserWithOrcid;
   avatarWrapperClass: string;
   constrainedClass: string;
   size: "sm" | "md" | "lg";
+  tooltipVariant: "name" | "name-orcid";
 }) {
-  const [isHovered, setIsHovered] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLSpanElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updatePosition = () => {
     const el = triggerRef.current;
@@ -359,20 +363,40 @@ function AvatarWithTooltip({
     const rect = el.getBoundingClientRect();
     setPosition({
       left: rect.left + rect.width / 2,
-      top: rect.top - 4,
+      top: rect.top - 8,
     });
   };
 
-  const handleMouseEnter = () => {
-    updatePosition();
-    setIsHovered(true);
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
   };
 
-  const handleMouseLeave = () => {
-    setIsHovered(false);
+  const openTooltip = () => {
+    updatePosition();
+    clearCloseTimer();
+    setIsOpen(true);
   };
+
+  const scheduleCloseTooltip = () => {
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      setIsOpen(false);
+      closeTimerRef.current = null;
+    }, 90);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearCloseTimer();
+    };
+  }, []);
 
   const userName = user.name ?? "User";
+  const orcidValue = user.orcid?.trim();
+  const orcidLabel = orcidValue ?? "Not linked";
   const avatarElement = (
     <span className={avatarWrapperClass}>
       <CustomAvatar size={size} user={user} className={constrainedClass} />
@@ -395,21 +419,69 @@ function AvatarWithTooltip({
       <span
         ref={triggerRef}
         className="inline-flex shrink-0"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={openTooltip}
+        onMouseLeave={scheduleCloseTooltip}
+        onFocus={openTooltip}
+        onBlur={scheduleCloseTooltip}
       >
         {triggerElement}
       </span>
-      {isHovered &&
+      {isOpen &&
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className="z-tooltip pointer-events-none fixed -translate-x-1/2 -translate-y-full"
+            className={`z-tooltip fixed -translate-x-1/2 -translate-y-full ${
+              tooltipVariant === "name-orcid" ? "pointer-events-auto" : "pointer-events-none"
+            }`}
             style={{ left: position.left, top: position.top }}
           >
-            <div className="bg-foreground text-background rounded-full px-2.5 py-1 text-sm font-medium shadow-lg">
-              {userName}
-            </div>
+            {tooltipVariant === "name-orcid" ? (
+              <div
+                className="relative w-[min(15rem,calc(100vw-1rem))] rounded-2xl border border-zinc-700/80 bg-zinc-900/95 px-2.5 py-2 shadow-2xl backdrop-blur-sm"
+                onMouseEnter={openTooltip}
+                onMouseLeave={scheduleCloseTooltip}
+              >
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  {user.id ? (
+                    <Link
+                      href={`/users/${user.id}`}
+                      className="focus-visible:ring-accent block truncate rounded-sm text-sm font-semibold text-zinc-100 transition-colors hover:text-accent dark:hover:text-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
+                      aria-label={`View ${userName}'s profile`}
+                      title={userName}
+                    >
+                      {userName}
+                    </Link>
+                  ) : (
+                    <p className="truncate text-sm font-semibold text-zinc-100" title={userName}>
+                      {userName}
+                    </p>
+                  )}
+                  {orcidValue ? (
+                    <a
+                      href={`https://orcid.org/${orcidValue}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="focus-visible:ring-accent inline-flex min-w-0 items-center gap-1.5 rounded-sm font-mono text-sm text-zinc-300 tabular-nums transition-colors hover:text-accent dark:hover:text-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
+                      aria-label={`Open ORCID profile ${orcidValue}`}
+                      title={orcidValue}
+                    >
+                      <ORCIDIcon className="h-3.5 w-3.5 shrink-0" authenticated />
+                      <span className="min-w-0 truncate">{orcidValue}</span>
+                    </a>
+                  ) : (
+                    <p className="inline-flex min-w-0 items-center gap-1.5 font-mono text-sm text-zinc-400 tabular-nums">
+                      <ORCIDIcon className="h-3.5 w-3.5 shrink-0 opacity-70" authenticated />
+                      <span className="min-w-0 truncate">{orcidLabel}</span>
+                    </p>
+                  )}
+                </div>
+                <div className="absolute top-full left-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b border-zinc-700/80 bg-zinc-900/95" />
+              </div>
+            ) : (
+              <div className="bg-foreground text-background rounded-full px-2.5 py-1 text-sm font-medium shadow-lg">
+                {userName}
+              </div>
+            )}
           </div>,
           document.body,
         )}
@@ -421,6 +493,7 @@ export function AvatarGroup({
   users = [],
   max = 5,
   size = "md",
+  tooltipVariant = "name",
 }: AvatarGroupProps) {
   const sizeClass = avatarSizeClasses[size] ?? avatarSizeClasses.md;
   const constrainedClass = `${sizeClass} min-h-0 min-w-0 shrink-0`;
@@ -454,6 +527,7 @@ export function AvatarGroup({
           avatarWrapperClass={avatarWrapperClass}
           constrainedClass={constrainedClass}
           size={size}
+          tooltipVariant={tooltipVariant}
         />
       ))}
       {remaining > 0 ? (

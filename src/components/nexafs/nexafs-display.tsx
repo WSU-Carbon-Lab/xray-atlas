@@ -479,7 +479,7 @@ export function NexafsExperimentCompactCard({
           />
         </div>
         <div onClick={(e) => e.stopPropagation()}>
-          <AvatarGroup users={avatarUsers} size="sm" />
+          <AvatarGroup users={avatarUsers} size="sm" tooltipVariant="name-orcid" />
         </div>
         <CompactCardMetricsColumn className="relative z-40">
           {isSignedIn ? (

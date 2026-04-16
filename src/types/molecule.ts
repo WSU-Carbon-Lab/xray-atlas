@@ -2,6 +2,7 @@ export interface MoleculeViewCreatedBy {
   id: string;
   name: string | null;
   image: string | null;
+  orcid?: string | null;
 }
 
 export interface MoleculeViewContributor {
@@ -9,7 +10,7 @@ export interface MoleculeViewContributor {
   userId: string;
   contributionType: string;
   contributedAt: Date | string;
-  user: { id: string; name: string | null; image: string | null };
+  user: { id: string; name: string | null; image: string | null; orcid?: string | null };
 }
 
 export interface MoleculeViewTag {
