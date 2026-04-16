@@ -1,74 +1,69 @@
 "use client";
 
-import { useMemo } from "react";
-import { BoltIcon } from "@heroicons/react/24/outline";
+import type { ExperimentType } from "~/prisma/browser";
+import { RectangleStackIcon } from "@heroicons/react/24/outline";
 import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import { Tooltip } from "@heroui/react";
+import { EXPERIMENT_TYPE_LABELS } from "./nexafs-browse-experiment-utils";
 
-export type NexafsEdgeOption = {
-  id: string;
-  targetatom: string;
-  corestate: string;
-};
-
-export type NexafsEdgeFilterDropdownProps = {
-  edgeId: string | undefined;
-  edges: NexafsEdgeOption[];
-  onEdgeChange: (id: string | undefined) => void;
+export type NexafsAcquisitionFilterDropdownProps = {
+  experimentType: ExperimentType | undefined;
+  onExperimentTypeChange: (value: ExperimentType | undefined) => void;
 };
 
 const triggerBase =
-  "border-border bg-surface text-muted focus-visible:ring-accent flex h-12 max-w-[min(100%,200px)] min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+  "border-border bg-surface text-muted focus-visible:ring-accent flex h-12 max-w-[min(100%,220px)] min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
 
-export function NexafsEdgeFilterDropdown({
-  edgeId,
-  edges,
-  onEdgeChange,
-}: NexafsEdgeFilterDropdownProps) {
-  const hasSelection = !!edgeId;
+const MODES = Object.entries(EXPERIMENT_TYPE_LABELS) as Array<
+  [ExperimentType, string]
+>;
 
-  const summaryLabel = useMemo(() => {
-    if (!edgeId) return null;
-    const e = edges.find((x) => x.id === edgeId);
-    return e ? `${e.targetatom} ${e.corestate}` : "Edge";
-  }, [edgeId, edges]);
+export function NexafsAcquisitionFilterDropdown({
+  experimentType,
+  onExperimentTypeChange,
+}: NexafsAcquisitionFilterDropdownProps) {
+  const hasSelection = !!experimentType;
+  const label =
+    experimentType != null
+      ? (EXPERIMENT_TYPE_LABELS[experimentType] ?? "Acquisition")
+      : "Acquisition";
 
   return (
     <Tooltip delay={0}>
       <Tooltip.Trigger className="inline-flex shrink-0">
         <PopoverMenu
           align="end"
-          contentClassName="w-[260px]"
+          contentClassName="w-[280px]"
           renderTrigger={({ triggerProps, isOpen }) => (
             <button
               {...triggerProps}
               type="button"
-              aria-label="Filter by absorption edge"
+              aria-label="Filter by acquisition mode"
               aria-pressed={hasSelection}
               className={`${triggerBase} ${hasSelection ? "border-accent/40 bg-accent-soft text-accent hover:text-accent" : ""}`}
             >
-              <BoltIcon
+              <RectangleStackIcon
                 className="h-5 w-5 shrink-0 stroke-[1.5] text-current"
                 aria-hidden
               />
               <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">
-                {hasSelection && summaryLabel ? summaryLabel : "Edge"}
+                {label}
               </span>
               <span className="sr-only">
-                {isOpen ? "Close edge filter" : "Open edge filter"}
+                {isOpen ? "Close acquisition filter" : "Open acquisition filter"}
               </span>
             </button>
           )}
           renderContent={({ contentPositionClassName, contentProps, close }) => (
             <PopoverMenuContent
               {...contentProps}
-              className={`${contentPositionClassName} max-h-[min(280px,50vh)] overflow-y-auto rounded-xl py-1`}
+              className={`${contentPositionClassName} max-h-[min(320px,50vh)] overflow-y-auto rounded-xl py-1`}
             >
-              <div className="space-y-0.5 p-1" role="listbox" aria-label="Absorption edge">
+              <div className="space-y-0.5 p-1" role="listbox" aria-label="Acquisition mode">
                 <button
                   type="button"
                   onClick={() => {
-                    onEdgeChange(undefined);
+                    onExperimentTypeChange(undefined);
                     close();
                   }}
                   className={`focus-visible:ring-accent flex w-full rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
@@ -77,19 +72,18 @@ export function NexafsEdgeFilterDropdown({
                       : "text-muted hover:bg-default hover:text-foreground"
                   }`}
                 >
-                  Any edge
+                  Any mode
                 </button>
-                {edges.map((e) => {
-                  const label = `${e.targetatom} ${e.corestate}`;
-                  const selected = e.id === edgeId;
+                {MODES.map(([value, text]) => {
+                  const selected = value === experimentType;
                   return (
                     <button
-                      key={e.id}
+                      key={value}
                       type="button"
                       role="option"
                       aria-selected={selected}
                       onClick={() => {
-                        onEdgeChange(e.id);
+                        onExperimentTypeChange(value);
                         close();
                       }}
                       className={`focus-visible:ring-accent flex w-full rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
@@ -98,7 +92,7 @@ export function NexafsEdgeFilterDropdown({
                           : "text-muted hover:bg-default hover:text-foreground"
                       }`}
                     >
-                      {label}
+                      {text}
                     </button>
                   );
                 })}
@@ -111,7 +105,7 @@ export function NexafsEdgeFilterDropdown({
         placement="top"
         className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-left shadow-lg"
       >
-        Limit results to a specific X-ray absorption edge (element and core level).
+        Filter by how the spectrum was acquired (e.g. TEY, PEY, transmission).
       </Tooltip.Content>
     </Tooltip>
   );

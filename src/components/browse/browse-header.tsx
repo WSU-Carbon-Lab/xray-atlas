@@ -70,7 +70,7 @@ export function BrowseHeader({
               <SearchField.ClearButton className="text-muted h-6 w-6 shrink-0 rounded p-0.5" />
             ) : (
               <kbd
-                className="border-border-strong bg-default text-foreground flex shrink-0 items-center gap-0.5 rounded-md border px-2 py-1 font-sans text-[11px] font-medium tabular-nums shadow-sm"
+                className="border-border bg-default text-muted flex shrink-0 items-center gap-0.5 rounded-md border px-2 py-1 font-sans text-[11px] font-medium tabular-nums shadow-sm"
                 aria-hidden
               >
                 <span>⌘</span>

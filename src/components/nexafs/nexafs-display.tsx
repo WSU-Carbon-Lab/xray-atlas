@@ -97,21 +97,21 @@ function edgeChipClass(edgeLabel: string): string {
   switch (atom) {
     case "C":
     case "CARBON":
-      return "border-cyan-500/35 bg-cyan-500/12 text-cyan-300";
+      return "border-cyan-300 bg-cyan-100 text-cyan-900 dark:border-cyan-500/35 dark:bg-cyan-500/12 dark:text-cyan-300";
     case "N":
     case "NITROGEN":
-      return "border-indigo-500/35 bg-indigo-500/12 text-indigo-300";
+      return "border-indigo-300 bg-indigo-100 text-indigo-900 dark:border-indigo-500/35 dark:bg-indigo-500/12 dark:text-indigo-300";
     case "O":
     case "OXYGEN":
-      return "border-emerald-500/35 bg-emerald-500/12 text-emerald-300";
+      return "border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-500/35 dark:bg-emerald-500/12 dark:text-emerald-300";
     case "S":
     case "SULFUR":
     case "SULPHUR":
-      return "border-amber-500/35 bg-amber-500/12 text-amber-300";
+      return "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/35 dark:bg-amber-500/12 dark:text-amber-300";
     case "F":
-      return "border-sky-500/35 bg-sky-500/12 text-sky-300";
+      return "border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-500/35 dark:bg-sky-500/12 dark:text-sky-300";
     default:
-      return "border-zinc-500/35 bg-zinc-500/12 text-zinc-300";
+      return "border-zinc-300 bg-zinc-100 text-zinc-900 dark:border-zinc-500/35 dark:bg-zinc-500/12 dark:text-zinc-300";
   }
 }
 
@@ -128,12 +128,12 @@ function instrumentChipClass(
   facilityName: string | null,
 ): string {
   const palettes = [
-    "border-violet-500/35 bg-violet-500/12 text-violet-300",
-    "border-rose-500/35 bg-rose-500/12 text-rose-300",
-    "border-cyan-500/35 bg-cyan-500/12 text-cyan-300",
-    "border-teal-500/35 bg-teal-500/12 text-teal-300",
-    "border-blue-500/35 bg-blue-500/12 text-blue-300",
-    "border-fuchsia-500/35 bg-fuchsia-500/12 text-fuchsia-300",
+    "border-violet-300 bg-violet-100 text-violet-900 dark:border-violet-500/35 dark:bg-violet-500/12 dark:text-violet-300",
+    "border-rose-300 bg-rose-100 text-rose-900 dark:border-rose-500/35 dark:bg-rose-500/12 dark:text-rose-300",
+    "border-cyan-300 bg-cyan-100 text-cyan-900 dark:border-cyan-500/35 dark:bg-cyan-500/12 dark:text-cyan-300",
+    "border-teal-300 bg-teal-100 text-teal-900 dark:border-teal-500/35 dark:bg-teal-500/12 dark:text-teal-300",
+    "border-blue-300 bg-blue-100 text-blue-900 dark:border-blue-500/35 dark:bg-blue-500/12 dark:text-blue-300",
+    "border-fuchsia-300 bg-fuchsia-100 text-fuchsia-900 dark:border-fuchsia-500/35 dark:bg-fuchsia-500/12 dark:text-fuchsia-300",
   ] as const;
   const key = `${instrumentName}|${facilityName ?? ""}`;
   return palettes[hashIndex(key, palettes.length)] ?? palettes[0];
@@ -141,22 +141,22 @@ function instrumentChipClass(
 
 function experimentTypeChipClass(experimentTypeLabel: string | null): string {
   if (!experimentTypeLabel) {
-    return "border-zinc-500/35 bg-zinc-500/12 text-zinc-300";
+    return "border-zinc-300 bg-zinc-100 text-zinc-900 dark:border-zinc-500/35 dark:bg-zinc-500/12 dark:text-zinc-300";
   }
   const label = experimentTypeLabel.toLowerCase();
   if (label.includes("fluorescence")) {
-    return "border-pink-500/35 bg-pink-500/12 text-pink-300";
+    return "border-pink-300 bg-pink-100 text-pink-900 dark:border-pink-500/35 dark:bg-pink-500/12 dark:text-pink-300";
   }
   if (label.includes("partial electron")) {
-    return "border-orange-500/35 bg-orange-500/12 text-orange-300";
+    return "border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-500/35 dark:bg-orange-500/12 dark:text-orange-300";
   }
   if (label.includes("total electron")) {
-    return "border-green-500/35 bg-green-500/12 text-green-300";
+    return "border-green-300 bg-green-100 text-green-900 dark:border-green-500/35 dark:bg-green-500/12 dark:text-green-300";
   }
   if (label.includes("transmission")) {
-    return "border-blue-500/35 bg-blue-500/12 text-blue-300";
+    return "border-blue-300 bg-blue-100 text-blue-900 dark:border-blue-500/35 dark:bg-blue-500/12 dark:text-blue-300";
   }
-  return "border-zinc-500/35 bg-zinc-500/12 text-zinc-300";
+  return "border-zinc-300 bg-zinc-100 text-zinc-900 dark:border-zinc-500/35 dark:bg-zinc-500/12 dark:text-zinc-300";
 }
 
 export type NexafsExperimentCompactCardProps = {
@@ -479,7 +479,12 @@ export function NexafsExperimentCompactCard({
           />
         </div>
         <div onClick={(e) => e.stopPropagation()}>
-          <AvatarGroup users={avatarUsers} size="sm" />
+          <AvatarGroup
+            users={avatarUsers}
+            size="sm"
+            tooltipVariant="name-orcid"
+            tooltipMode="shared"
+          />
         </div>
         <CompactCardMetricsColumn className="relative z-40">
           {isSignedIn ? (

@@ -1,74 +1,80 @@
 "use client";
 
 import { useMemo } from "react";
-import { BoltIcon } from "@heroicons/react/24/outline";
+import { CpuChipIcon } from "@heroicons/react/24/outline";
 import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import { Tooltip } from "@heroui/react";
 
-export type NexafsEdgeOption = {
+export type NexafsInstrumentOption = {
   id: string;
-  targetatom: string;
-  corestate: string;
+  name: string;
+  facilityName: string | null;
 };
 
-export type NexafsEdgeFilterDropdownProps = {
-  edgeId: string | undefined;
-  edges: NexafsEdgeOption[];
-  onEdgeChange: (id: string | undefined) => void;
+export type NexafsInstrumentFilterDropdownProps = {
+  instrumentId: string | undefined;
+  instruments: NexafsInstrumentOption[];
+  onInstrumentChange: (id: string | undefined) => void;
 };
 
 const triggerBase =
   "border-border bg-surface text-muted focus-visible:ring-accent flex h-12 max-w-[min(100%,200px)] min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
 
-export function NexafsEdgeFilterDropdown({
-  edgeId,
-  edges,
-  onEdgeChange,
-}: NexafsEdgeFilterDropdownProps) {
-  const hasSelection = !!edgeId;
+function formatInstrumentLabel(inst: NexafsInstrumentOption): string {
+  return inst.facilityName ? `${inst.name} (${inst.facilityName})` : inst.name;
+}
 
-  const summaryLabel = useMemo(() => {
-    if (!edgeId) return null;
-    const e = edges.find((x) => x.id === edgeId);
-    return e ? `${e.targetatom} ${e.corestate}` : "Edge";
-  }, [edgeId, edges]);
+export function NexafsInstrumentFilterDropdown({
+  instrumentId,
+  instruments,
+  onInstrumentChange,
+}: NexafsInstrumentFilterDropdownProps) {
+  const hasSelection = !!instrumentId;
+
+  const selectedDescription = useMemo(() => {
+    if (!instrumentId) return null;
+    const inst = instruments.find((i) => i.id === instrumentId);
+    return inst ? formatInstrumentLabel(inst) : null;
+  }, [instrumentId, instruments]);
 
   return (
     <Tooltip delay={0}>
       <Tooltip.Trigger className="inline-flex shrink-0">
         <PopoverMenu
           align="end"
-          contentClassName="w-[260px]"
+          contentClassName="w-[min(100vw-2rem,320px)]"
           renderTrigger={({ triggerProps, isOpen }) => (
             <button
               {...triggerProps}
               type="button"
-              aria-label="Filter by absorption edge"
+              aria-label={
+                selectedDescription
+                  ? `Instrument filter, ${selectedDescription} selected`
+                  : "Filter by instrument"
+              }
               aria-pressed={hasSelection}
               className={`${triggerBase} ${hasSelection ? "border-accent/40 bg-accent-soft text-accent hover:text-accent" : ""}`}
             >
-              <BoltIcon
+              <CpuChipIcon
                 className="h-5 w-5 shrink-0 stroke-[1.5] text-current"
                 aria-hidden
               />
-              <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">
-                {hasSelection && summaryLabel ? summaryLabel : "Edge"}
-              </span>
+              <span className="text-sm font-medium">Instrument</span>
               <span className="sr-only">
-                {isOpen ? "Close edge filter" : "Open edge filter"}
+                {isOpen ? "Close instrument filter" : "Open instrument filter"}
               </span>
             </button>
           )}
           renderContent={({ contentPositionClassName, contentProps, close }) => (
             <PopoverMenuContent
               {...contentProps}
-              className={`${contentPositionClassName} max-h-[min(280px,50vh)] overflow-y-auto rounded-xl py-1`}
+              className={`${contentPositionClassName} max-h-[min(320px,50vh)] overflow-y-auto rounded-xl py-1`}
             >
-              <div className="space-y-0.5 p-1" role="listbox" aria-label="Absorption edge">
+              <div className="space-y-0.5 p-1" role="listbox" aria-label="Instrument">
                 <button
                   type="button"
                   onClick={() => {
-                    onEdgeChange(undefined);
+                    onInstrumentChange(undefined);
                     close();
                   }}
                   className={`focus-visible:ring-accent flex w-full rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
@@ -77,19 +83,18 @@ export function NexafsEdgeFilterDropdown({
                       : "text-muted hover:bg-default hover:text-foreground"
                   }`}
                 >
-                  Any edge
+                  Any instrument
                 </button>
-                {edges.map((e) => {
-                  const label = `${e.targetatom} ${e.corestate}`;
-                  const selected = e.id === edgeId;
+                {instruments.map((inst) => {
+                  const selected = inst.id === instrumentId;
                   return (
                     <button
-                      key={e.id}
+                      key={inst.id}
                       type="button"
                       role="option"
                       aria-selected={selected}
                       onClick={() => {
-                        onEdgeChange(e.id);
+                        onInstrumentChange(inst.id);
                         close();
                       }}
                       className={`focus-visible:ring-accent flex w-full rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
@@ -98,7 +103,7 @@ export function NexafsEdgeFilterDropdown({
                           : "text-muted hover:bg-default hover:text-foreground"
                       }`}
                     >
-                      {label}
+                      {formatInstrumentLabel(inst)}
                     </button>
                   );
                 })}
@@ -111,7 +116,7 @@ export function NexafsEdgeFilterDropdown({
         placement="top"
         className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-left shadow-lg"
       >
-        Limit results to a specific X-ray absorption edge (element and core level).
+        Limit results to spectra collected on a specific beamline or instrument.
       </Tooltip.Content>
     </Tooltip>
   );

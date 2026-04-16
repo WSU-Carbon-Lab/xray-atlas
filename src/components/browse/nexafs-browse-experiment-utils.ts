@@ -1,9 +1,3 @@
-/**
- * Shared URL parsers and labels for NEXAFS experiment browse (global catalog and
- * molecule-scoped views). Keeps sort and experiment-type handling aligned with
- * `experiments.browseList` / `browseSearch` Zod inputs.
- */
-
 import { ExperimentType } from "~/prisma/browser";
 
 export const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
@@ -13,19 +7,25 @@ export const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
   TRANSMISSION: "Transmission",
 };
 
-export const SORT_OPTIONS: {
-  key: "engagement" | "newest" | "molecule" | "edge" | "instrument";
-  label: string;
-}[] = [
-  { key: "engagement", label: "Configurations & engagement" },
-  { key: "newest", label: "Newest" },
-  { key: "molecule", label: "Molecule name" },
-  { key: "edge", label: "Edge (atom)" },
-  { key: "instrument", label: "Instrument" },
-];
+export const NEXAFS_SORT_OPTION_KEYS = [
+  "favorites",
+  "views",
+  "geometries",
+  "comments",
+  "name",
+  "newest",
+] as const;
 
-export type NexafsBrowseSortKey =
-  (typeof SORT_OPTIONS)[number]["key"];
+export type NexafsBrowseSortKey = (typeof NEXAFS_SORT_OPTION_KEYS)[number];
+
+export const NEXAFS_SORT_LABELS: Record<NexafsBrowseSortKey, string> = {
+  favorites: "Most Favorited (molecule)",
+  views: "Most Viewed (molecule)",
+  geometries: "Most Geometries",
+  comments: "Most Comments",
+  name: "Name (A-Z)",
+  newest: "Newest First",
+};
 
 export function formatExperimentType(
   value: ExperimentType | null | undefined,
@@ -35,17 +35,21 @@ export function formatExperimentType(
 }
 
 export function parseSortParam(raw: string | null): NexafsBrowseSortKey {
-  if (raw === "measurement" || raw === "upload") return "newest";
   if (
-    raw === "engagement" ||
-    raw === "newest" ||
-    raw === "molecule" ||
-    raw === "edge" ||
-    raw === "instrument"
+    raw === "favorites" ||
+    raw === "views" ||
+    raw === "geometries" ||
+    raw === "comments" ||
+    raw === "name" ||
+    raw === "newest"
   ) {
     return raw;
   }
-  return "engagement";
+  if (raw === "engagement") return "favorites";
+  if (raw === "molecule") return "name";
+  if (raw === "edge" || raw === "instrument") return "name";
+  if (raw === "measurement" || raw === "upload") return "newest";
+  return "favorites";
 }
 
 export function parseExperimentTypeParam(

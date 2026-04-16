@@ -675,7 +675,12 @@ export const CompactCard = memo(function CompactCard({
           />
         </div>
         <div>
-          <AvatarGroup users={avatarUsers} size="sm" />
+          <AvatarGroup
+            users={avatarUsers}
+            size="sm"
+            tooltipVariant="name-orcid"
+            tooltipMode="shared"
+          />
         </div>
         <CompactCardMetricsColumn>
           <CompactCardMetricStat
@@ -758,7 +763,14 @@ function ContributorsOrEmpty({
   overlay?: boolean;
 }) {
   if (users.length > 0) {
-    return <AvatarGroup users={users} size="sm" />;
+    return (
+      <AvatarGroup
+        users={users}
+        size="sm"
+        tooltipVariant="name-orcid"
+        tooltipMode="shared"
+      />
+    );
   }
   return (
     <span
@@ -1598,7 +1610,11 @@ export const HeaderCard = memo(function HeaderCard({
 
   return (
     <>
-      <Card className="group border-border-default hover:border-border-strong dark:border-border-default dark:hover:border-border-strong flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md sm:flex-row dark:bg-zinc-800">
+      <Card
+        className={`group border-border-default hover:border-border-strong dark:border-border-default dark:hover:border-border-strong flex w-full flex-col rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md sm:flex-row dark:bg-zinc-800 ${
+          isEditMode ? "overflow-visible" : "overflow-hidden"
+        }`}
+      >
         <div
           className="group/image relative flex h-32 w-full shrink-0 overflow-hidden rounded-lg bg-white sm:h-auto sm:min-h-[100px] sm:w-[32%] dark:bg-black"
           aria-hidden

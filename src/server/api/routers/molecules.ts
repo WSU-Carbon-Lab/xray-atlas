@@ -671,7 +671,7 @@ export const moleculesRouter = createTRPCRouter({
           moleculecontributors: {
             include: {
               user: {
-                select: { id: true, name: true, image: true },
+                select: { id: true, name: true, image: true, orcid: true },
               },
             },
             orderBy: { contributedat: "asc" },
@@ -744,7 +744,7 @@ export const moleculesRouter = createTRPCRouter({
             moleculecontributors: {
               include: {
                 user: {
-                  select: { id: true, name: true, image: true },
+                  select: { id: true, name: true, image: true, orcid: true },
                 },
               },
               orderBy: { contributedat: "asc" },
@@ -957,9 +957,9 @@ export const moleculesRouter = createTRPCRouter({
           AND (
             cardinality(${input.tagIds}::uuid[]) = 0
             OR EXISTS (
-              SELECT 1 FROM moleculetags mt
-              WHERE mt.moleculeid = m.id
-              AND mt.tagid = ANY(${input.tagIds}::uuid[])
+              SELECT 1 FROM public.molecule_tags mt
+              WHERE mt.molecule_id = m.id
+              AND mt.tag_id = ANY(${input.tagIds}::uuid[])
             )
           )
           LIMIT ${input.limit * 5}
@@ -1118,7 +1118,7 @@ export const moleculesRouter = createTRPCRouter({
                 moleculecontributors: {
                   include: {
                     user: {
-                      select: { id: true, name: true, image: true },
+                      select: { id: true, name: true, image: true, orcid: true },
                     },
                   },
                   orderBy: { contributedat: "asc" },
@@ -1176,7 +1176,7 @@ export const moleculesRouter = createTRPCRouter({
         limit: z.number().min(1).max(100).default(12),
         offset: z.number().min(0).default(0),
         sortBy: z
-          .enum(["favorites", "created", "name", "views"])
+          .enum(["favorites", "created", "name", "views", "datasets"])
           .default("favorites"),
         tagIds: z.array(z.string().uuid()).optional().default([]),
       }),
@@ -1189,7 +1189,7 @@ export const moleculesRouter = createTRPCRouter({
               moleculesynonyms: { orderBy: { order: "asc" }[] };
               moleculecontributors: {
                 include: {
-                  user: { select: { id: true; name: true; image: true } };
+                  user: { select: { id: true; name: true; image: true; orcid: true } };
                 };
                 orderBy: { contributedat: "asc" }[];
               };
@@ -1207,21 +1207,23 @@ export const moleculesRouter = createTRPCRouter({
           ? { moleculetags: { some: { tagid: { in: input.tagIds } } } }
           : {};
 
-      if (input.sortBy === "name") {
+      if (input.sortBy === "datasets") {
         const orderedIds = await ctx.db.$queryRaw<Array<{ id: string }>>`
           SELECT m.id
           FROM public.molecules m
-          LEFT JOIN public.moleculesynonyms ms ON ms.moleculeid = m.id AND ms."order" = 0
+          LEFT JOIN public.samples s ON s.moleculeid = m.id
+          LEFT JOIN public.experiments e ON e.sampleid = s.id
           WHERE
             (
               cardinality(${input.tagIds}::uuid[]) = 0
               OR EXISTS (
-                SELECT 1 FROM moleculetags mt
-                WHERE mt.moleculeid = m.id
-                AND mt.tagid = ANY(${input.tagIds}::uuid[])
+                SELECT 1 FROM public.molecule_tags mt
+                WHERE mt.molecule_id = m.id
+                AND mt.tag_id = ANY(${input.tagIds}::uuid[])
               )
             )
-          ORDER BY LOWER(COALESCE(ms.synonym, m.iupacname)) ASC
+          GROUP BY m.id
+          ORDER BY COUNT(DISTINCT e.id) DESC, m.createdat DESC
           LIMIT ${input.limit}
           OFFSET ${input.offset}
         `;
@@ -1235,7 +1237,60 @@ export const moleculesRouter = createTRPCRouter({
               moleculesynonyms: { orderBy: [{ order: "asc" }] },
               moleculecontributors: {
                 include: {
-                  user: { select: { id: true, name: true, image: true } },
+                  user: { select: { id: true, name: true, image: true, orcid: true } },
+                },
+                orderBy: [{ contributedat: "asc" }],
+              },
+              moleculetags: { include: { tags: true } },
+              samples: {
+                include: { _count: { select: { experiments: true } } },
+              },
+            },
+          });
+          const idToIndex = new Map(ids.map((id, i) => [id, i]));
+          molecules = found.sort(
+            (a, b) => (idToIndex.get(a.id) ?? 0) - (idToIndex.get(b.id) ?? 0),
+          );
+        }
+      } else if (input.sortBy === "name") {
+        const orderedIds = await ctx.db.$queryRaw<Array<{ id: string }>>`
+          SELECT m.id
+          FROM public.molecules m
+          WHERE
+            (
+              cardinality(${input.tagIds}::uuid[]) = 0
+              OR EXISTS (
+                SELECT 1 FROM public.molecule_tags mt
+                WHERE mt.molecule_id = m.id
+                AND mt.tag_id = ANY(${input.tagIds}::uuid[])
+              )
+            )
+          ORDER BY LOWER(
+            COALESCE(
+              (
+                SELECT ms.synonym
+                FROM public.moleculesynonyms ms
+                WHERE ms.moleculeid = m.id AND ms."order" = 0
+                ORDER BY LENGTH(ms.synonym) ASC, ms.synonym ASC
+                LIMIT 1
+              ),
+              m.iupacname
+            )
+          ) ASC
+          LIMIT ${input.limit}
+          OFFSET ${input.offset}
+        `;
+        const ids = orderedIds.map((r) => r.id);
+        if (ids.length === 0) {
+          molecules = [];
+        } else {
+          const found = await ctx.db.molecules.findMany({
+            where: { id: { in: ids } },
+            include: {
+              moleculesynonyms: { orderBy: [{ order: "asc" }] },
+              moleculecontributors: {
+                include: {
+                  user: { select: { id: true, name: true, image: true, orcid: true } },
                 },
                 orderBy: [{ contributedat: "asc" }],
               },
@@ -1256,10 +1311,15 @@ export const moleculesRouter = createTRPCRouter({
             ? [
                 { favoritecount: "desc" as const },
                 { createdat: "desc" as const },
+                { id: "desc" as const },
               ]
             : input.sortBy === "views"
-              ? [{ viewcount: "desc" as const }, { createdat: "desc" as const }]
-              : [{ createdat: "desc" as const }];
+              ? [
+                  { viewcount: "desc" as const },
+                  { createdat: "desc" as const },
+                  { id: "desc" as const },
+                ]
+              : [{ createdat: "desc" as const }, { id: "desc" as const }];
 
         molecules = await ctx.db.molecules.findMany({
           where: tagFilter,
@@ -1269,7 +1329,7 @@ export const moleculesRouter = createTRPCRouter({
             moleculesynonyms: { orderBy: [{ order: "asc" }] },
             moleculecontributors: {
               include: {
-                user: { select: { id: true, name: true, image: true } },
+                user: { select: { id: true, name: true, image: true, orcid: true } },
               },
               orderBy: [{ contributedat: "asc" }],
             },
@@ -1348,7 +1408,7 @@ export const moleculesRouter = createTRPCRouter({
         where: { moleculeid: input.moleculeId },
         include: {
           user: {
-            select: { id: true, name: true, image: true },
+            select: { id: true, name: true, image: true, orcid: true },
           },
         },
         orderBy: [{ contributiontype: "asc" }, { contributedat: "asc" }],
@@ -1635,7 +1695,7 @@ export const moleculesRouter = createTRPCRouter({
             moleculecontributors: {
               include: {
                 user: {
-                  select: { id: true, name: true, image: true },
+                  select: { id: true, name: true, image: true, orcid: true },
                 },
               },
               orderBy: { contributedat: "asc" },
@@ -1708,7 +1768,7 @@ export const moleculesRouter = createTRPCRouter({
           moleculecontributors: {
             include: {
               user: {
-                select: { id: true, name: true, image: true },
+                select: { id: true, name: true, image: true, orcid: true },
               },
             },
             orderBy: { contributedat: "asc" },

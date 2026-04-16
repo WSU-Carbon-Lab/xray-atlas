@@ -8,6 +8,7 @@ import {
   useCallback,
   useRef,
   Suspense,
+  type ReactNode,
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
@@ -28,6 +29,9 @@ import {
   ArrowsUpDownIcon,
   HeartIcon,
   EyeIcon,
+  CalendarDaysIcon,
+  CircleStackIcon,
+  CheckIcon,
 } from "@heroicons/react/24/outline";
 import { AddMoleculeButton } from "@/components/contribute";
 import { BrowseHeader } from "@/components/browse/browse-header";
@@ -36,7 +40,42 @@ import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { TagFilterBar } from "@/components/browse/tag-filter-bar";
 import { TagsDropdown } from "@/components/browse/tags-dropdown";
-import { Dropdown, Label, Pagination, Tabs, Tooltip } from "@heroui/react";
+import { Pagination, Tabs, Tooltip } from "@heroui/react";
+import { PopoverMenu, PopoverMenuContent } from "@/components/ui/popover-menu";
+
+type MoleculeSortKey = "favorites" | "created" | "name" | "views" | "datasets";
+
+const MOLECULE_SORT_OPTIONS: Array<{
+  key: MoleculeSortKey;
+  label: string;
+  icon: ReactNode;
+}> = [
+  {
+    key: "favorites",
+    label: "Most Favorited",
+    icon: <HeartIcon className="h-4 w-4 shrink-0" />,
+  },
+  {
+    key: "views",
+    label: "Most Viewed",
+    icon: <EyeIcon className="h-4 w-4 shrink-0" />,
+  },
+  {
+    key: "datasets",
+    label: "Most Datasets",
+    icon: <CircleStackIcon className="h-4 w-4 shrink-0" />,
+  },
+  {
+    key: "name",
+    label: "Name (A-Z)",
+    icon: <span className="font-mono text-sm font-semibold leading-none">A</span>,
+  },
+  {
+    key: "created",
+    label: "Newest First",
+    icon: <CalendarDaysIcon className="h-4 w-4 shrink-0" />,
+  },
+];
 
 function MoleculesBrowseContent() {
   const searchParams = useSearchParams();
@@ -47,9 +86,7 @@ function MoleculesBrowseContent() {
   const lastSyncedUrlRef = useRef<string | null>(null);
   const [query, setQuery] = useState(qParamRaw);
   const [debouncedQuery, setDebouncedQuery] = useState(query);
-  const [sortBy, setSortBy] = useState<
-    "favorites" | "created" | "name" | "views"
-  >("favorites");
+  const [sortBy, setSortBy] = useState<MoleculeSortKey>("favorites");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [viewMode, setViewMode] = useState<"compact" | "spacious">("compact");
@@ -264,54 +301,64 @@ function MoleculesBrowseContent() {
             onSelectionChange={updateTagsInUrl}
           />
           {!hasSearchQuery ? (
-            <Dropdown>
-              <Dropdown.Trigger
-                aria-label="Sort molecules"
-                className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default flex h-12 min-h-12 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              >
-                <ArrowsUpDownIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
-                <span className="text-sm font-medium">Sort</span>
-              </Dropdown.Trigger>
-              <Dropdown.Popover className="border-border bg-default rounded-lg border">
-                <Dropdown.Menu
+            <PopoverMenu
+              contentClassName="w-[220px]"
+              renderTrigger={({ triggerProps, isOpen }) => (
+                <button
+                  {...triggerProps}
                   aria-label="Sort molecules"
-                  selectionMode="none"
-                  onAction={(key) => {
-                    setSortBy(
-                      key as "favorites" | "created" | "name" | "views",
-                    );
-                  }}
+                  className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 >
-                  <Dropdown.Item id="name" textValue="Name (A-Z)">
-                    <span className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-semibold">A</span>
-                      <Label>Name (A-Z)</Label>
-                    </span>
-                  </Dropdown.Item>
-                  <Dropdown.Item id="favorites" textValue="Most Favorited">
-                    <span className="flex items-center gap-2">
-                      <HeartIcon className="h-4 w-4 shrink-0" />
-                      <Label>Most Favorited</Label>
-                    </span>
-                  </Dropdown.Item>
-                  <Dropdown.Item id="views" textValue="Most Viewed">
-                    <span className="flex items-center gap-2">
-                      <EyeIcon className="h-4 w-4 shrink-0" />
-                      <Label>Most Viewed</Label>
-                    </span>
-                  </Dropdown.Item>
-                  <Dropdown.Item id="created" textValue="Newest First">
-                    <span className="flex items-center gap-2">
-                      <span className="text-xs">New</span>
-                      <Label>Newest First</Label>
-                    </span>
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
+                  <ArrowsUpDownIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
+                  <span className="text-sm font-medium">Sort</span>
+                  <span className="sr-only">
+                    {isOpen ? "Close sort options" : "Open sort options"}
+                  </span>
+                </button>
+              )}
+              renderContent={({ contentPositionClassName, contentProps, close }) => (
+                <PopoverMenuContent
+                  {...contentProps}
+                  className={`${contentPositionClassName} w-[220px] rounded-xl py-1`}
+                >
+                  <div className="space-y-0.5 p-1">
+                    {MOLECULE_SORT_OPTIONS.map((option) => {
+                      const isSelected = option.key === sortBy;
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => {
+                            setSortBy(option.key);
+                            close();
+                          }}
+                          className={`focus-visible:ring-accent flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
+                            isSelected
+                              ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
+                              : "text-muted hover:bg-default hover:text-foreground"
+                          }`}
+                          aria-label={`Sort by ${option.label}`}
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            {option.icon}
+                            <span className="truncate">{option.label}</span>
+                          </span>
+                          {isSelected ? (
+                            <CheckIcon
+                              className="text-accent h-4 w-4 shrink-0"
+                              aria-hidden
+                            />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </PopoverMenuContent>
+              )}
+            />
           ) : null}
           <Tooltip delay={0}>
-            <div>
+            <div className="h-12 min-h-12">
               <Tabs
                 selectedKey={viewMode}
                 onSelectionChange={(key) =>
@@ -322,22 +369,22 @@ function MoleculesBrowseContent() {
                 <Tabs.ListContainer>
                   <Tabs.List
                     aria-label="View mode"
-                    className="border-border bg-surface text-muted !flex !w-fit min-w-[5.25rem] flex-row items-center gap-1 rounded-lg border p-1"
+                    className="border-border bg-surface text-muted !flex !h-12 !min-h-12 !w-fit min-w-[5.25rem] flex-row items-center gap-1 rounded-lg border p-1"
                   >
                     <Tabs.Tab
                       id="compact"
                       aria-label="Compact list view"
-                      className="text-muted data-[selected=true]:text-accent-foreground relative z-10 flex h-9 min-h-9 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
+                      className="text-muted hover:text-foreground data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground relative z-10 flex h-10 min-h-10 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
                     >
-                      <ListBulletIcon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5]" />
+                      <ListBulletIcon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5] text-current" />
                       <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
                     </Tabs.Tab>
                     <Tabs.Tab
                       id="spacious"
                       aria-label="Spacious grid view"
-                      className="text-muted data-[selected=true]:text-accent-foreground relative z-10 flex h-9 min-h-9 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
+                      className="text-muted hover:text-foreground data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground relative z-10 flex h-10 min-h-10 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
                     >
-                      <Squares2X2Icon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5]" />
+                      <Squares2X2Icon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5] text-current" />
                       <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
                     </Tabs.Tab>
                   </Tabs.List>

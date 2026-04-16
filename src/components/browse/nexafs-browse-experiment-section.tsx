@@ -5,12 +5,21 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  type ReactNode,
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { ExperimentType } from "~/prisma/browser";
 import { trpc } from "~/trpc/client";
 import { ErrorState } from "@/components/feedback/error-state";
-import { ArrowsUpDownIcon, FunnelIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowsUpDownIcon,
+  CalendarDaysIcon,
+  ChatBubbleBottomCenterTextIcon,
+  CheckIcon,
+  CircleStackIcon,
+  EyeIcon,
+  HeartIcon,
+} from "@heroicons/react/24/outline";
 import { BrowseTabs } from "@/components/layout/browse-tabs";
 import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseHeader } from "@/components/browse/browse-header";
@@ -18,19 +27,60 @@ import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { NexafsExperimentCompactCard } from "@/components/nexafs/nexafs-display";
 import { NexafsBrowseActiveFilters } from "@/components/browse/nexafs-browse-active-filters";
-import { NexafsBrowseRefineDialog } from "@/components/browse/nexafs-browse-refine-dialog";
 import { NexafsMoleculeFilterDropdown } from "@/components/browse/nexafs-molecule-filter-dropdown";
 import { NexafsEdgeFilterDropdown } from "@/components/browse/nexafs-edge-filter-dropdown";
+import { NexafsInstrumentFilterDropdown } from "@/components/browse/nexafs-instrument-filter-dropdown";
+import { NexafsAcquisitionFilterDropdown } from "@/components/browse/nexafs-acquisition-filter-dropdown";
 import { AddNexafsCard } from "@/components/contribute";
-import { Button, Dropdown, Label, Pagination } from "@heroui/react";
+import { Pagination } from "@heroui/react";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import {
   EXPERIMENT_TYPE_LABELS,
-  SORT_OPTIONS,
+  NEXAFS_SORT_LABELS,
   parseSortParam,
   parseExperimentTypeParam,
   type NexafsBrowseSortKey,
 } from "./nexafs-browse-experiment-utils";
 import { mapNexafsBrowseGroupToCard } from "./nexafs-browse-map-group";
+
+const NEXAFS_SORT_OPTIONS: Array<{
+  key: NexafsBrowseSortKey;
+  label: string;
+  icon: ReactNode;
+}> = [
+  {
+    key: "favorites",
+    label: NEXAFS_SORT_LABELS.favorites,
+    icon: <HeartIcon className="h-4 w-4 shrink-0" />,
+  },
+  {
+    key: "views",
+    label: NEXAFS_SORT_LABELS.views,
+    icon: <EyeIcon className="h-4 w-4 shrink-0" />,
+  },
+  {
+    key: "geometries",
+    label: NEXAFS_SORT_LABELS.geometries,
+    icon: <CircleStackIcon className="h-4 w-4 shrink-0" />,
+  },
+  {
+    key: "comments",
+    label: NEXAFS_SORT_LABELS.comments,
+    icon: <ChatBubbleBottomCenterTextIcon className="h-4 w-4 shrink-0" />,
+  },
+  {
+    key: "name",
+    label: NEXAFS_SORT_LABELS.name,
+    icon: (
+      <span className="font-mono text-sm font-semibold leading-none">A</span>
+    ),
+  },
+  {
+    key: "newest",
+    label: NEXAFS_SORT_LABELS.newest,
+    icon: <CalendarDaysIcon className="h-4 w-4 shrink-0" />,
+  },
+];
 
 export interface NexafsBrowseExperimentSectionProps {
   basePath: string;
@@ -63,7 +113,7 @@ export function NexafsBrowseExperimentSection({
   const [urlSynced, setUrlSynced] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [sortBy, setSortBy] = useState<NexafsBrowseSortKey>("engagement");
+  const [sortBy, setSortBy] = useState<NexafsBrowseSortKey>("favorites");
   const [moleculeId, setMoleculeId] = useState<string | undefined>(undefined);
   const [edgeId, setEdgeId] = useState<string | undefined>(undefined);
   const [instrumentId, setInstrumentId] = useState<string | undefined>(
@@ -74,7 +124,6 @@ export function NexafsBrowseExperimentSection({
   >(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
-  const [refineOpen, setRefineOpen] = useState(false);
   const urlKey = searchParams.toString();
 
   const effectiveMoleculeId = lockedMoleculeId ?? moleculeId;
@@ -122,7 +171,7 @@ export function NexafsBrowseExperimentSection({
     const params = new URLSearchParams();
     if (debouncedQuery) params.set("q", debouncedQuery);
     if (currentPage > 1) params.set("page", currentPage.toString());
-    if (sortBy !== "engagement") params.set("sort", sortBy);
+    if (sortBy !== "favorites") params.set("sort", sortBy);
     if (!lockedMoleculeId && moleculeId) params.set("molecule", moleculeId);
     if (edgeId) params.set("edge", edgeId);
     if (instrumentId) params.set("instrument", instrumentId);
@@ -223,7 +272,7 @@ export function NexafsBrowseExperimentSection({
     [instrumentsQuery.data?.instruments],
   );
 
-  const refineInstruments = useMemo(
+  const instrumentFilterOptions = useMemo(
     () =>
       instrumentOptions.map((inst) => ({
         id: inst.id,
@@ -259,10 +308,7 @@ export function NexafsBrowseExperimentSection({
     [experimentType],
   );
 
-  const activeRefineCount = (instrumentId ? 1 : 0) + (experimentType ? 1 : 0);
-
-  const sortLabelCurrent =
-    SORT_OPTIONS.find((o) => o.key === sortBy)?.label ?? sortBy;
+  const sortLabelCurrent = NEXAFS_SORT_LABELS[sortBy];
 
   const handleClearFilters = () => {
     if (!lockedMoleculeId) setMoleculeId(undefined);
@@ -273,7 +319,7 @@ export function NexafsBrowseExperimentSection({
 
   const pageSubtitle = hasSearchQuery
     ? `Search results for "${debouncedQuery}"`
-    : "Pick a molecule and edge in the header, search the catalog, or open More filters for instrument and acquisition mode.";
+    : "Filter by molecule, edge, instrument, or acquisition mode, search the catalog, or change sort order.";
 
   const inner = (
     <div className="space-y-6">
@@ -297,56 +343,80 @@ export function NexafsBrowseExperimentSection({
             onEdgeChange={setEdgeId}
           />
         </div>
-        {!hasSearchQuery && (
-          <>
-            <div className="shrink-0">
-              <Dropdown>
-                <Dropdown.Trigger
-                  aria-label={`Sort datasets; current order is ${sortLabelCurrent}`}
-                  className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                >
-                  <ArrowsUpDownIcon
-                    className="h-5 w-5 shrink-0 stroke-[1.5]"
-                    aria-hidden
-                  />
-                  <span className="text-sm font-medium">Sort</span>
-                </Dropdown.Trigger>
-                <Dropdown.Popover className="border-border bg-default max-h-[min(320px,50vh)] w-[min(100vw-2rem,280px)] overflow-y-auto rounded-lg border">
-                  <Dropdown.Menu
-                    aria-label="Sort order"
-                    selectionMode="none"
-                    onAction={(key) => {
-                      setSortBy(key as NexafsBrowseSortKey);
-                    }}
-                  >
-                    {SORT_OPTIONS.map((opt) => (
-                      <Dropdown.Item
-                        key={opt.key}
-                        id={opt.key}
-                        textValue={opt.label}
-                      >
-                        <Label>{opt.label}</Label>
-                      </Dropdown.Item>
-                    ))}
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
-            </div>
-            <Button
-              variant="secondary"
-              className="min-h-12 shrink-0"
-              onPress={() => setRefineOpen(true)}
-            >
-              <FunnelIcon className="h-4 w-4 shrink-0" aria-hidden />
-              <span>More filters</span>
-              {activeRefineCount > 0 ? (
-                <span className="bg-accent text-accent-foreground ml-1 inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums">
-                  {activeRefineCount}
+        <div className="shrink-0">
+          <NexafsInstrumentFilterDropdown
+            instrumentId={instrumentId}
+            instruments={instrumentFilterOptions}
+            onInstrumentChange={setInstrumentId}
+          />
+        </div>
+        <div className="shrink-0">
+          <NexafsAcquisitionFilterDropdown
+            experimentType={experimentType}
+            onExperimentTypeChange={setExperimentType}
+          />
+        </div>
+        {!hasSearchQuery ? (
+          <PopoverMenu
+            contentClassName="w-[min(100vw-2rem,300px)]"
+            renderTrigger={({ triggerProps, isOpen }) => (
+              <button
+                {...triggerProps}
+                type="button"
+                aria-label={`Sort experiments; current order is ${sortLabelCurrent}`}
+                className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              >
+                <ArrowsUpDownIcon
+                  className="h-5 w-5 shrink-0 stroke-[1.5]"
+                  aria-hidden
+                />
+                <span className="text-sm font-medium">Sort</span>
+                <span className="sr-only">
+                  {isOpen ? "Close sort options" : "Open sort options"}
                 </span>
-              ) : null}
-            </Button>
-          </>
-        )}
+              </button>
+            )}
+            renderContent={({ contentPositionClassName, contentProps, close }) => (
+              <PopoverMenuContent
+                {...contentProps}
+                className={`${contentPositionClassName} w-[min(100vw-2rem,300px)] rounded-xl py-1`}
+              >
+                <div className="space-y-0.5 p-1">
+                  {NEXAFS_SORT_OPTIONS.map((option) => {
+                    const isSelected = option.key === sortBy;
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => {
+                          setSortBy(option.key);
+                          close();
+                        }}
+                        className={`focus-visible:ring-accent flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
+                          isSelected
+                            ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
+                            : "text-muted hover:bg-default hover:text-foreground"
+                        }`}
+                        aria-label={`Sort by ${option.label}`}
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          {option.icon}
+                          <span className="truncate">{option.label}</span>
+                        </span>
+                        {isSelected ? (
+                          <CheckIcon
+                            className="text-accent h-4 w-4 shrink-0"
+                            aria-hidden
+                          />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverMenuContent>
+            )}
+          />
+        ) : null}
       </BrowseHeader>
 
       <NexafsBrowseActiveFilters
@@ -359,19 +429,6 @@ export function NexafsBrowseExperimentSection({
         onRemoveInstrument={() => setInstrumentId(undefined)}
         onRemoveAcquisition={() => setExperimentType(undefined)}
         onClearAll={handleClearFilters}
-      />
-
-      <NexafsBrowseRefineDialog
-        isOpen={refineOpen}
-        onClose={() => setRefineOpen(false)}
-        instrumentId={instrumentId}
-        experimentType={experimentType}
-        experimentTypeLabels={EXPERIMENT_TYPE_LABELS}
-        instruments={refineInstruments}
-        onApply={(next) => {
-          setInstrumentId(next.instrumentId);
-          setExperimentType(next.experimentType);
-        }}
       />
 
       <div>

@@ -63,26 +63,26 @@ export function resolveTagColorToHex(color: string | null | undefined): string {
 }
 
 export const TAG_COLOR_TO_CHIP: Record<string, string> = {
-  blue: "bg-blue-500/20 text-blue-800 dark:bg-blue-500/30 dark:text-blue-200",
+  blue: "bg-blue-100 text-blue-900 dark:bg-blue-500/30 dark:text-blue-200",
   green:
-    "bg-emerald-500/20 text-emerald-800 dark:bg-emerald-500/30 dark:text-emerald-200",
-  pink: "bg-rose-500/20 text-rose-800 dark:bg-rose-500/30 dark:text-rose-200",
-  red: "bg-red-500/20 text-red-800 dark:bg-red-500/30 dark:text-red-200",
+    "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-200",
+  pink: "bg-rose-100 text-rose-900 dark:bg-rose-500/30 dark:text-rose-200",
+  red: "bg-red-100 text-red-900 dark:bg-red-500/30 dark:text-red-200",
   orange:
-    "bg-amber-500/20 text-amber-800 dark:bg-amber-500/30 dark:text-amber-200",
+    "bg-amber-100 text-amber-900 dark:bg-amber-500/30 dark:text-amber-200",
   purple:
-    "bg-violet-500/20 text-violet-800 dark:bg-violet-500/30 dark:text-violet-200",
-  gray: "bg-slate-500/20 text-slate-800 dark:bg-slate-500/30 dark:text-slate-200",
-  grey: "bg-slate-500/20 text-slate-800 dark:bg-slate-500/30 dark:text-slate-200",
+    "bg-violet-100 text-violet-900 dark:bg-violet-500/30 dark:text-violet-200",
+  gray: "bg-slate-200 text-slate-900 dark:bg-slate-500/30 dark:text-slate-200",
+  grey: "bg-slate-200 text-slate-900 dark:bg-slate-500/30 dark:text-slate-200",
   slate:
-    "bg-slate-500/20 text-slate-800 dark:bg-slate-500/30 dark:text-slate-200",
+    "bg-slate-200 text-slate-900 dark:bg-slate-500/30 dark:text-slate-200",
   emerald:
-    "bg-emerald-500/20 text-emerald-800 dark:bg-emerald-500/30 dark:text-emerald-200",
+    "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-200",
   violet:
-    "bg-violet-500/20 text-violet-800 dark:bg-violet-500/30 dark:text-violet-200",
+    "bg-violet-100 text-violet-900 dark:bg-violet-500/30 dark:text-violet-200",
   amber:
-    "bg-amber-500/20 text-amber-800 dark:bg-amber-500/30 dark:text-amber-200",
-  rose: "bg-rose-500/20 text-rose-800 dark:bg-rose-500/30 dark:text-rose-200",
+    "bg-amber-100 text-amber-900 dark:bg-amber-500/30 dark:text-amber-200",
+  rose: "bg-rose-100 text-rose-900 dark:bg-rose-500/30 dark:text-rose-200",
 };
 
 const SLUG_TO_COLOR: Record<string, string> = {
@@ -94,7 +94,7 @@ const SLUG_TO_COLOR: Record<string, string> = {
 };
 
 export const DEFAULT_TAG_CHIP =
-  "bg-slate-500/20 text-slate-800 dark:bg-slate-500/30 dark:text-slate-200";
+  "bg-slate-200 text-slate-900 dark:bg-slate-500/30 dark:text-slate-200";
 
 const TAG_COLOR_TO_GRADIENT: Record<string, string> = {
   blue: "from-blue-500/20 to-cyan-500/20",

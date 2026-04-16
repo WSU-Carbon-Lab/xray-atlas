@@ -2,17 +2,14 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { parseColor, type Color } from "react-aria-components";
-import type { Key, Selection } from "@heroui/react";
 import {
   ColorArea,
   ColorPicker,
   ColorSlider,
   ColorSwatch,
   ColorSwatchPicker,
-  Dropdown,
   Input,
   Label,
-  Tooltip,
 } from "@heroui/react";
 import {
   ChevronDownIcon,
@@ -21,6 +18,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { trpc } from "~/trpc/client";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import {
   getTagChipClass,
   getTagInlineStyle,
@@ -181,21 +179,7 @@ export function CategoryTagsMultiSelect({
     !pendingLower.has(qLower) &&
     !findOrCreateTag.isPending;
 
-  const selectedKeys =
-    selectedTagIds.size > 0 ? selectedTagIds : new Set<Key>();
-
   const totalCount = selectedTagIds.size + pendingTagsProp.length;
-
-  const handleMenuSelectionChange = useCallback(
-    (keys: Selection) => {
-      if (keys === "all") {
-        onSelectedTagIdsChange(new Set(allTags.map((t) => t.id)));
-      } else {
-        onSelectedTagIdsChange(new Set([...keys].map(String)));
-      }
-    },
-    [allTags, onSelectedTagIdsChange],
-  );
 
   const removeServer = (id: string) => {
     onSelectedTagIdsChange(
@@ -384,10 +368,13 @@ export function CategoryTagsMultiSelect({
   return (
     <div className={className}>
       <div className="flex w-full min-w-0 flex-nowrap items-stretch gap-2">
-        <Tooltip delay={0}>
-          <div className="max-w-xs shrink-0">
-            <Dropdown>
-              <Dropdown.Trigger
+        <div className="max-w-xs shrink-0">
+          <PopoverMenu
+            align="start"
+            contentClassName="w-[min(100vw-2rem,20rem)]"
+            renderTrigger={({ triggerProps, isOpen }) => (
+              <button
+                {...triggerProps}
                 aria-label={ariaLabel}
                 className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-10 min-w-[10rem] cursor-pointer items-center gap-2 rounded-xl border px-3 text-left transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${totalCount > 0 ? "border-accent/30 bg-accent/5" : ""}`}
               >
@@ -395,67 +382,85 @@ export function CategoryTagsMultiSelect({
                   className="text-muted h-5 w-5 shrink-0"
                   aria-hidden
                 />
-                <span className="text-sm font-medium">Tags</span>
+                <span
+                  className="text-sm font-medium"
+                  title={
+                    deferNewTagPersistence
+                      ? "Search and select tags. New names stay local until you upload the molecule."
+                      : "Search and select tags. New names create a tag in the database when added."
+                  }
+                >
+                  Tags
+                </span>
                 {totalCount > 0 ? (
                   <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
                     {totalCount}
                   </span>
                 ) : null}
                 <ChevronDownIcon className="text-muted ml-auto h-4 w-4 shrink-0" />
-              </Dropdown.Trigger>
-              <Dropdown.Popover className="border-border bg-surface max-h-44 w-[min(100vw-2rem,20rem)] overflow-hidden rounded-xl border py-1 shadow-xl">
+                <span className="sr-only">
+                  {isOpen ? "Close category tag menu" : "Open category tag menu"}
+                </span>
+              </button>
+            )}
+            renderContent={({ contentPositionClassName, contentProps }) => (
+              <PopoverMenuContent
+                {...contentProps}
+                className={`${contentPositionClassName} max-h-[min(320px,60vh)] w-[min(100vw-2rem,20rem)] py-1`}
+              >
                 {topBlock ? (
                   <div className="border-border border-b px-1 py-1">{topBlock}</div>
                 ) : null}
-                <Dropdown.Menu
+                <div
                   aria-label={ariaLabel}
-                  selectionMode="multiple"
-                  selectedKeys={selectedKeys}
-                  onSelectionChange={handleMenuSelectionChange}
-                  disabledKeys={
-                    isLoading ? new Set(allTags.map((t) => t.id)) : undefined
-                  }
-                  className="max-h-[min(176px,40vh)] overflow-y-auto py-0.5 outline-none"
+                  className="max-h-[min(220px,45vh)] overflow-y-auto py-0.5"
                 >
                   {filteredMenuTags.length === 0 ? (
-                    <div className="text-muted px-3 py-2 text-sm">
+                    <div className="text-muted min-h-0 cursor-default px-3 py-2 text-sm">
                       {isLoading ? "Loading…" : "No tags"}
                     </div>
                   ) : (
                     filteredMenuTags.map((tag) => {
                       const chipClass = getTagChipClass(tag);
                       const inlineStyle = getTagInlineStyle(tag);
+                      const selected = selectedTagIds.has(tag.id);
                       return (
-                        <Dropdown.Item
+                        <button
                           key={tag.id}
-                          id={tag.id}
-                          textValue={tag.name}
-                          className="data-[selected=true]:bg-accent/15 data-[selected=true]:ring-accent/40 min-h-0 rounded-md py-0.5 data-[selected=true]:ring-1"
+                          type="button"
+                          onClick={() => {
+                            const next = new Set(selectedTagIds);
+                            if (next.has(tag.id)) {
+                              next.delete(tag.id);
+                            } else {
+                              next.add(tag.id);
+                            }
+                            onSelectedTagIdsChange(next);
+                          }}
+                          className={`min-h-0 w-full rounded-md px-3 py-1 text-left ${
+                            selected
+                              ? "bg-accent/15 ring-accent/40 ring-1"
+                              : "hover:bg-default"
+                          }`}
                         >
-                          <Dropdown.ItemIndicator type="checkmark" />
+                          <span className="mr-2 inline-block w-3 text-xs">
+                            {selected ? "✓" : ""}
+                          </span>
                           <span
                             className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
                             style={inlineStyle}
                           >
                             {tag.name}
                           </span>
-                        </Dropdown.Item>
+                        </button>
                       );
                     })
                   )}
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
-          </div>
-          <Tooltip.Content
-            placement="top"
-            className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-sm shadow-lg"
-          >
-            {deferNewTagPersistence
-              ? "Search and select tags. New names stay local until you upload the molecule."
-              : "Search and select tags. New names create a tag in the database when added."}
-          </Tooltip.Content>
-        </Tooltip>
+                </div>
+              </PopoverMenuContent>
+            )}
+          />
+        </div>
         {tagStrip}
       </div>
     </div>

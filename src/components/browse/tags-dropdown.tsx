@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import type { Key, Selection } from "@heroui/react";
-import { Dropdown, Input } from "@heroui/react";
+import { Input } from "@heroui/react";
 import { TagIcon, XMarkIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { trpc } from "~/trpc/client";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 
 export interface TagsDropdownProps {
   selectedTagIds: Set<string>;
@@ -33,10 +33,6 @@ export function TagsDropdown({
     { staleTime: 5 * 60 * 1000 },
   );
 
-  const selectedKeys =
-    selectedTagIds.size > 0
-      ? (selectedTagIds as unknown as Set<Key>)
-      : new Set<Key>();
   const hasSelection = selectedTagIds.size > 0;
 
   const trimmedSearch = searchInput.trim();
@@ -61,15 +57,17 @@ export function TagsDropdown({
     });
   }, [trimmedSearch, onCreateTag, onSelectionChange, selectedTagIds]);
 
-  const handleSelectionChange = useCallback(
-    (keys: Selection) => {
-      if (keys === "all") {
-        onSelectionChange(new Set(tags.map((t) => t.id)));
+  const handleTagToggle = useCallback(
+    (tagId: string) => {
+      const next = new Set(selectedTagIds);
+      if (next.has(tagId)) {
+        next.delete(tagId);
       } else {
-        onSelectionChange(new Set([...keys].map(String)));
+        next.add(tagId);
       }
+      onSelectionChange(next);
     },
-    [onSelectionChange, tags],
+    [onSelectionChange, selectedTagIds],
   );
 
   const emptyContent = isLoading ? "Loading..." : "No tags yet";
@@ -124,62 +122,75 @@ export function TagsDropdown({
   }
 
   return (
-    <Dropdown>
-      <Dropdown.Trigger
-        aria-label={ariaLabel}
-        aria-pressed={hasSelection}
-        className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent-soft text-accent" : ""} ${triggerClassName}`}
-      >
-        <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
-        <span className="text-sm font-medium">Tags</span>
-        {hasSelection ? (
-          <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
-            {selectedTagIds.size}
-          </span>
-        ) : null}
-      </Dropdown.Trigger>
-      <Dropdown.Popover className="border-border bg-surface max-h-[min(240px,50vh)] w-[256px] overflow-hidden rounded-2xl border py-0.5 shadow-xl">
-        {topContentNodes.length > 0 ? (
-          <div className="border-border space-y-0.5 border-b px-0.5 py-1">
-            {topContentNodes}
-          </div>
-        ) : null}
-        <Dropdown.Menu
+    <PopoverMenu
+      contentClassName="w-[256px]"
+      renderTrigger={({ triggerProps, isOpen }) => (
+        <button
+          {...triggerProps}
           aria-label={ariaLabel}
-          selectionMode="multiple"
-          selectedKeys={selectedKeys}
-          onSelectionChange={handleSelectionChange}
-          disabledKeys={
-            isLoading ? new Set(tags.map((t) => t.id)) : undefined
-          }
-          className="max-h-[min(200px,40vh)] overflow-y-auto py-0.5 outline-none"
+          aria-pressed={hasSelection}
+          className={`border-border bg-surface text-muted focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent-soft text-accent hover:text-accent" : ""} ${triggerClassName}`}
         >
-          {filteredTags.length === 0 ? (
-            <div className="text-muted px-3 py-2 text-sm">{emptyContent}</div>
-          ) : (
-            filteredTags.map((tag) => {
-              const chipClass = getTagChipClass(tag);
-              const inlineStyle = getTagInlineStyle(tag);
-              return (
-                <Dropdown.Item
-                  key={tag.id}
-                  id={tag.id}
-                  textValue={tag.name}
-                  className="data-[selected=true]:bg-accent-soft data-[selected=true]:ring-accent/50 dark:data-[selected=true]:bg-accent/25 min-h-0 rounded-md py-0.5 data-[selected=true]:ring-1 dark:data-[selected=true]:ring-accent/40"
-                >
-                  <Dropdown.ItemIndicator type="checkmark" />
-                  <span
-                    className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
-                    style={inlineStyle}
+          <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5] text-current" aria-hidden />
+          <span className="text-sm font-medium">Tags</span>
+          {hasSelection ? (
+            <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
+              {selectedTagIds.size}
+            </span>
+          ) : null}
+          <span className="sr-only">{isOpen ? "Close tag menu" : "Open tag menu"}</span>
+        </button>
+      )}
+      renderContent={({ contentPositionClassName, contentProps }) => (
+        <PopoverMenuContent
+          {...contentProps}
+          className={`${contentPositionClassName} max-h-[min(240px,50vh)] w-[256px] rounded-2xl py-0.5`}
+        >
+          {topContentNodes.length > 0 ? (
+            <div className="border-border space-y-0.5 border-b px-0.5 py-1">
+              {topContentNodes}
+            </div>
+          ) : null}
+          <div
+            aria-label={ariaLabel}
+            className="max-h-[min(200px,40vh)] overflow-y-auto py-0.5"
+          >
+            {filteredTags.length === 0 ? (
+              <div className="text-muted min-h-0 cursor-default px-3 py-2 text-sm">
+                {emptyContent}
+              </div>
+            ) : (
+              filteredTags.map((tag) => {
+                const chipClass = getTagChipClass(tag);
+                const inlineStyle = getTagInlineStyle(tag);
+                const selected = selectedTagIds.has(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => handleTagToggle(tag.id)}
+                    className={`min-h-0 w-full rounded-md px-3 py-1 text-left ${
+                      selected
+                        ? "bg-accent-soft ring-accent/50 dark:bg-accent/25 dark:ring-accent/40 ring-1"
+                        : "hover:bg-default"
+                    }`}
                   >
-                    {tag.name}
-                  </span>
-                </Dropdown.Item>
-              );
-            })
-          )}
-        </Dropdown.Menu>
-      </Dropdown.Popover>
-    </Dropdown>
+                    <span className="mr-2 inline-block w-3 text-xs">
+                      {selected ? "✓" : ""}
+                    </span>
+                    <span
+                      className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
+                      style={inlineStyle}
+                    >
+                      {tag.name}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </PopoverMenuContent>
+      )}
+    />
   );
 }
