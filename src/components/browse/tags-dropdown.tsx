@@ -129,9 +129,9 @@ export function TagsDropdown({
           {...triggerProps}
           aria-label={ariaLabel}
           aria-pressed={hasSelection}
-          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent-soft text-accent" : ""} ${triggerClassName}`}
+          className={`border-border bg-surface text-muted focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent-soft text-accent hover:text-accent" : ""} ${triggerClassName}`}
         >
-          <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
+          <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5] text-current" aria-hidden />
           <span className="text-sm font-medium">Tags</span>
           {hasSelection ? (
             <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
