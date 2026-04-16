@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
-import type { Key } from "@heroui/react";
+import React, { useState, useCallback } from "react";
 import { Input } from "@heroui/react";
 import { TagIcon, XMarkIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { trpc } from "~/trpc/client";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 
 export interface TagsDropdownProps {
   selectedTagIds: Set<string>;
@@ -27,18 +27,12 @@ export function TagsDropdown({
   allowCreateFromInput = false,
   onCreateTag,
 }: TagsDropdownProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const { data: tags = [], isLoading } = trpc.molecules.listTags.useQuery(
     undefined,
     { staleTime: 5 * 60 * 1000 },
   );
 
-  const selectedKeys =
-    selectedTagIds.size > 0
-      ? (selectedTagIds as unknown as Set<Key>)
-      : new Set<Key>();
   const hasSelection = selectedTagIds.size > 0;
 
   const trimmedSearch = searchInput.trim();
@@ -75,27 +69,6 @@ export function TagsDropdown({
     },
     [onSelectionChange, selectedTagIds],
   );
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (containerRef.current?.contains(target)) return;
-      setIsOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
 
   const emptyContent = isLoading ? "Loading..." : "No tags yet";
 
@@ -149,25 +122,30 @@ export function TagsDropdown({
   }
 
   return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        aria-label={ariaLabel}
-        aria-pressed={hasSelection}
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
-        className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent-soft text-accent" : ""} ${triggerClassName}`}
-      >
-        <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
-        <span className="text-sm font-medium">Tags</span>
-        {hasSelection ? (
-          <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
-            {selectedTagIds.size}
-          </span>
-        ) : null}
-      </button>
-      {isOpen ? (
-        <div className="border-border bg-surface absolute top-full right-0 z-[650] mt-2 max-h-[min(240px,50vh)] w-[256px] overflow-hidden rounded-2xl border py-0.5 shadow-xl">
+    <PopoverMenu
+      contentClassName="w-[256px]"
+      renderTrigger={({ triggerProps, isOpen }) => (
+        <button
+          {...triggerProps}
+          aria-label={ariaLabel}
+          aria-pressed={hasSelection}
+          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${hasSelection ? "border-accent/40 bg-accent-soft text-accent" : ""} ${triggerClassName}`}
+        >
+          <TagIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
+          <span className="text-sm font-medium">Tags</span>
+          {hasSelection ? (
+            <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
+              {selectedTagIds.size}
+            </span>
+          ) : null}
+          <span className="sr-only">{isOpen ? "Close tag menu" : "Open tag menu"}</span>
+        </button>
+      )}
+      renderContent={({ contentPositionClassName, contentProps }) => (
+        <PopoverMenuContent
+          {...contentProps}
+          className={`${contentPositionClassName} max-h-[min(240px,50vh)] w-[256px] rounded-2xl py-0.5`}
+        >
           {topContentNodes.length > 0 ? (
             <div className="border-border space-y-0.5 border-b px-0.5 py-1">
               {topContentNodes}
@@ -185,7 +163,7 @@ export function TagsDropdown({
               filteredTags.map((tag) => {
                 const chipClass = getTagChipClass(tag);
                 const inlineStyle = getTagInlineStyle(tag);
-                const selected = selectedKeys.has(tag.id as Key);
+                const selected = selectedTagIds.has(tag.id);
                 return (
                   <button
                     key={tag.id}
@@ -211,8 +189,8 @@ export function TagsDropdown({
               })
             )}
           </div>
-        </div>
-      ) : null}
-    </div>
+        </PopoverMenuContent>
+      )}
+    />
   );
 }

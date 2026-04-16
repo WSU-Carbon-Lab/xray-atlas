@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   TagGroup,
   Tag,
@@ -30,25 +31,67 @@ function SynonymsPopup({
   remaining: number;
   label?: string;
 }) {
-  const popupRef = React.useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 0, top: 0 });
   const displayLabel = label ?? `+${remaining}`;
 
-  React.useEffect(() => {
-    if (!isOpen) return;
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const updatePosition = () => {
+      const trigger = triggerRef.current;
+      if (!trigger) {
+        return;
+      }
+      const rect = trigger.getBoundingClientRect();
+      setPosition({
+        left: rect.left,
+        top: rect.bottom + 4,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (popupRef.current?.contains(target)) return;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (triggerRef.current?.contains(target)) {
+        return;
+      }
+      if (panelRef.current?.contains(target)) {
+        return;
+      }
       setIsOpen(false);
     };
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsOpen(false);
       }
     };
+
     document.addEventListener("pointerdown", handlePointerDown, true);
     document.addEventListener("keydown", handleKeyDown);
+
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown);
@@ -56,38 +99,59 @@ function SynonymsPopup({
   }, [isOpen]);
 
   return (
-    <div
-      ref={popupRef}
-      className="relative inline-flex shrink-0"
-      onClick={(e) => e.stopPropagation()}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
+    <>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={`Show all ${synonyms.length} synonyms`}
-        aria-haspopup="menu"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
+        aria-haspopup="dialog"
+        onClick={(event) => {
+          event.stopPropagation();
+          setIsOpen((open) => !open);
+        }}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
         className="focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border border-rose-300/70 bg-rose-100 px-2 py-0.5 text-[10px] font-medium tracking-wider text-rose-900 uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:border-rose-500/40 dark:bg-rose-500/35 dark:text-rose-100"
       >
         {displayLabel}
+        <span className="sr-only">
+          {isOpen ? "Close synonyms list" : "Open synonyms list"}
+        </span>
       </button>
-      {isOpen ? (
-        <div className="absolute z-[650] mt-7 max-w-[320px] min-w-[200px] rounded-lg border border-zinc-200 bg-zinc-100 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-          <div className="max-h-[200px] overflow-y-auto overscroll-contain p-1.5">
-            <Header className="px-2 py-1 text-xs font-medium">All synonyms</Header>
-            {synonyms.map((syn, i) => (
-              <div
-                key={`${syn}-${i}`}
-                className="cursor-default rounded-md px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
-              >
-                {syn}
+      {isOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={panelRef}
+              style={{
+                left: position.left,
+                position: "fixed",
+                top: position.top,
+                zIndex: 650,
+              }}
+              className="min-w-[200px] max-w-[320px] rounded-lg border border-zinc-200 bg-zinc-100 shadow-xl dark:border-zinc-700 dark:bg-zinc-800"
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <div className="max-h-[200px] overflow-y-auto overscroll-contain p-1.5">
+                <Header className="px-2 py-1 text-xs font-medium">
+                  All synonyms
+                </Header>
+                {synonyms.map((syn, i) => (
+                  <div
+                    key={`${syn}-${i}`}
+                    className="cursor-default rounded-md px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
+                  >
+                    {syn}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
