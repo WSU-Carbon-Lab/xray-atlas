@@ -32,13 +32,27 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/*"],
-      "~/prisma/client": ["./generated/prisma/client"],
-      "~/prisma/browser": ["./generated/prisma/browser"],
-      "@/*": ["./src/*"],
-      "@/components/*": ["./src/components/*"],
-      "@/lib/*": ["./src/lib/*"],
-      "@/types/*": ["./src/types/*"]
+      "~/*": [
+        "./src/*"
+      ],
+      "~/prisma/client": [
+        "./generated/prisma/client"
+      ],
+      "~/prisma/browser": [
+        "./generated/prisma/browser"
+      ],
+      "@/*": [
+        "./src/*"
+      ],
+      "@/components/*": [
+        "./src/components/*"
+      ],
+      "@/lib/*": [
+        "./src/lib/*"
+      ],
+      "@/types/*": [
+        "./src/types/*"
+      ]
     }
   },
   "include": [
@@ -48,7 +62,8 @@
     "**/*.cjs",
     "**/*.js",
     "**/*.d.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

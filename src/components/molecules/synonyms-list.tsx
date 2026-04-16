@@ -8,15 +8,12 @@ import {
   Button,
   EmptyState,
   Input,
-  Dropdown,
   Header,
 } from "@heroui/react";
-import { buttonVariants, cn } from "@heroui/styles";
-import { PlusIcon } from "@heroicons/react/24/outline";
 import { X } from "lucide-react";
 
 export const SYNONYM_CHIP_CLASS =
-  "inline-flex items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase bg-accent/10 text-accent dark:bg-accent-soft-hover dark:text-accent";
+  "inline-flex items-center rounded-md border border-rose-300/70 bg-rose-100 px-2 py-0.5 text-[10px] font-medium tracking-wider text-rose-900 uppercase dark:border-rose-500/40 dark:bg-rose-500/35 dark:text-rose-100";
 
 interface SynonymTagGroupProps extends React.ComponentProps<typeof TagGroup> {
   synonyms: string[];
@@ -33,47 +30,63 @@ function SynonymsPopup({
   remaining: number;
   label?: string;
 }) {
+  const popupRef = React.useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const displayLabel = label ?? `+${remaining}`;
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (popupRef.current?.contains(target)) return;
+      setIsOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
   return (
     <div
-      className="inline-flex shrink-0"
+      ref={popupRef}
+      className="relative inline-flex shrink-0"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <Dropdown isOpen={isOpen} onOpenChange={setIsOpen}>
-        <Dropdown.Trigger
-          aria-label={`Show all ${synonyms.length} synonyms`}
-          aria-haspopup="menu"
-          aria-expanded={isOpen}
-          className="bg-accent/10 text-accent dark:bg-accent-soft-hover dark:text-accent focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border-0 px-2 py-0.5 text-[10px] font-medium tracking-wider uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
-        >
-          {displayLabel}
-        </Dropdown.Trigger>
-        <Dropdown.Popover className="max-w-[320px] min-w-[200px] rounded-lg border border-zinc-200 bg-zinc-100 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-          <Dropdown.Menu
-            aria-label="All synonyms"
-            selectionMode="none"
-            className="max-h-[200px] overflow-y-auto overscroll-contain"
-          >
-            <Dropdown.Section>
-              <Header className="px-2 py-1 text-xs font-medium">
-                All synonyms
-              </Header>
-              {synonyms.map((syn, i) => (
-                <Dropdown.Item
-                  key={`${syn}-${i}`}
-                  id={`syn-${i}`}
-                  textValue={syn}
-                  className="cursor-default text-sm text-zinc-900 dark:text-zinc-100"
-                >
-                  {syn}
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Section>
-          </Dropdown.Menu>
-        </Dropdown.Popover>
-      </Dropdown>
+      <button
+        type="button"
+        aria-label={`Show all ${synonyms.length} synonyms`}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+        className="focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border border-rose-300/70 bg-rose-100 px-2 py-0.5 text-[10px] font-medium tracking-wider text-rose-900 uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:border-rose-500/40 dark:bg-rose-500/35 dark:text-rose-100"
+      >
+        {displayLabel}
+      </button>
+      {isOpen ? (
+        <div className="absolute z-[650] mt-7 max-w-[320px] min-w-[200px] rounded-lg border border-zinc-200 bg-zinc-100 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="max-h-[200px] overflow-y-auto overscroll-contain p-1.5">
+            <Header className="px-2 py-1 text-xs font-medium">All synonyms</Header>
+            {synonyms.map((syn, i) => (
+              <div
+                key={`${syn}-${i}`}
+                className="cursor-default rounded-md px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
+              >
+                {syn}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -111,7 +124,7 @@ export const SynonymChips = ({
   const remaining = synonyms.length - truncated.length;
   const chipClass =
     size === "compact"
-      ? "bg-accent/10 text-accent dark:bg-accent-soft-hover dark:text-accent inline-flex max-w-[4.5rem] min-w-0 shrink truncate rounded border-0 px-1.5 py-0.5 text-[9px] font-medium tracking-wider uppercase"
+      ? "inline-flex max-w-[4.5rem] min-w-0 shrink truncate rounded border border-rose-300/70 bg-rose-100 px-1.5 py-0.5 text-[9px] font-medium tracking-wider text-rose-900 uppercase dark:border-rose-500/40 dark:bg-rose-500/35 dark:text-rose-100"
       : `${SYNONYM_CHIP_CLASS} min-w-0 max-w-[6rem] shrink truncate`;
   return (
     <div
@@ -155,32 +168,10 @@ export const SynonymTagGroup = ({
           </Tag>
         ))}
         {truncatedSynonyms.length < synonyms.length && (
-          <Dropdown>
-            <Dropdown.Trigger
-              aria-label="Show all synonyms"
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "sm" }),
-                "inline-flex items-center gap-1",
-              )}
-            >
-              <PlusIcon className="h-4 w-4" />
-              <span>+{synonyms.length - truncatedSynonyms.length}</span>
-            </Dropdown.Trigger>
-            <Dropdown.Popover className="max-w-sm min-w-[220px]">
-              <div className="border-border bg-surface rounded-lg border p-3 shadow-lg">
-                <p className="text-muted mb-2 text-xs font-medium">
-                  All Synonyms
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {synonyms.map((synonym) => (
-                    <Tag key={synonym} id={synonym} textValue={synonym}>
-                      {synonym}
-                    </Tag>
-                  ))}
-                </div>
-              </div>
-            </Dropdown.Popover>
-          </Dropdown>
+          <SynonymsPopup
+            synonyms={synonyms}
+            remaining={synonyms.length - truncatedSynonyms.length}
+          />
         )}
       </TagGroup.List>
     </TagGroup>
