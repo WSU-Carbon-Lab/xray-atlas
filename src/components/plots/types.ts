@@ -63,6 +63,22 @@ export type PeakAnnotationPatch = {
   peakKind?: string | null;
 };
 
+/**
+ * Transient, client-only marker produced when a user clicks the plot while the
+ * inspect tool is active. Pinned points are intentionally not persisted; they
+ * exist only inside the plot component state to support ad-hoc comparison of
+ * energy values and per-trace intensities across the currently visible spectra.
+ *
+ * Only the stable `id` and axis `energy` are stored. Trace values shown in the
+ * associated popover are derived from the live visible traces each render so
+ * that normalization toggles, legend changes, and y-axis quantity switches stay
+ * reflected without having to refresh pins.
+ */
+export type PinnedInspectPoint = {
+  id: string;
+  energy: number;
+};
+
 export type DifferenceSpectrum = {
   label: string;
   points: SpectrumPoint[];

@@ -22,6 +22,7 @@ import { useReferenceData } from "../hooks/useReferenceData";
 import { useDataExtents } from "../hooks/useDataExtents";
 import { usePeakVisualization } from "../hooks/usePeakVisualization";
 import { findClosestPoint } from "../utils/find-closest-point";
+import { eventToPlotCoords } from "../utils/svgPlotPointer";
 import { PLOT_CONFIG, useChartThemeFromCSS } from "../config";
 import { useSubplotLayout } from "./useSubplotLayout";
 import { ChartAxes } from "./ChartAxes";
@@ -37,6 +38,8 @@ import {
   getTraceColor,
 } from "./utils";
 import { PeakPlotAnnotations } from "./PeakPlotAnnotations";
+import { InspectPinLayer } from "./InspectPinLayer";
+import { useInspectPins } from "../hooks/useInspectPins";
 import { NormalizationBrush } from "../visx/NormalizationBrush";
 import { PeakIndicators } from "../visx/PeakIndicators";
 import { PeakCurves } from "../visx/PeakCurves";
@@ -293,6 +296,15 @@ export function SpectrumPlotInner({
     [onCursorModeChange],
   );
 
+  const {
+    pins: inspectPins,
+    selectedPinId: selectedInspectPinId,
+    addPin: addInspectPin,
+    removePin: removeInspectPin,
+    updatePinEnergy: updateInspectPinEnergy,
+    selectPin: selectInspectPin,
+  } = useInspectPins();
+
   const tooltip = useTooltip<{
     energy: number;
     rows: Array<{ label: string; value: number | null; color: string }>;
@@ -404,6 +416,47 @@ export function SpectrumPlotInner({
     },
     [onPeakPatch, onPeakUpdate],
   );
+
+  const handlePlotAreaClick = useCallback(
+    (event: React.MouseEvent<SVGGElement>) => {
+      if (effectiveCursorMode !== "inspect") return;
+      if (isManualPeakMode) return;
+      if (selectionTarget != null) return;
+      const svg = svgRef.current;
+      if (!svg) return;
+      const pt = eventToPlotCoords(
+        event.nativeEvent,
+        svg,
+        mainPlot.dimensions.margins.left,
+        mainPlot.dimensions.margins.top,
+      );
+      if (!pt) return;
+      const localX = pt.x;
+      const plotInnerWidth =
+        mainPlot.dimensions.width -
+        mainPlot.dimensions.margins.left -
+        mainPlot.dimensions.margins.right;
+      if (localX < 0 || localX > plotInnerWidth) return;
+      const rawEnergy = zoomedXScale.invert(localX);
+      const rounded = Math.round(rawEnergy * 1000) / 1000;
+      addInspectPin(rounded);
+      tooltip.hideTooltip();
+    },
+    [
+      effectiveCursorMode,
+      isManualPeakMode,
+      selectionTarget,
+      mainPlot.dimensions,
+      zoomedXScale,
+      addInspectPin,
+      tooltip,
+    ],
+  );
+
+  const inspectPlotHitSurfaceActive =
+    effectiveCursorMode === "inspect" &&
+    !isManualPeakMode &&
+    selectionTarget == null;
 
   const energyRange = useMemo(() => {
     if (!peakViz.selectedGeometryPoints?.length) return [];
@@ -657,8 +710,17 @@ export function SpectrumPlotInner({
               onPointerMove={handlePanMove}
               onPointerUp={handlePanEnd}
               onPointerLeave={handlePanEnd}
+              onClick={handlePlotAreaClick}
             >
               <g clipPath={`url(#${plotClipId})`}>
+                <rect
+                  width={mainPlotWidth}
+                  height={mainPlotHeight}
+                  fill="transparent"
+                  style={{
+                    pointerEvents: inspectPlotHitSurfaceActive ? "all" : "none",
+                  }}
+                />
                 <ChartSpectrumLines
                   traces={visibleTraces}
                   scales={mainPlotScales}
@@ -689,6 +751,21 @@ export function SpectrumPlotInner({
                     getYValueAtEnergy={getYValueAtEnergy}
                   />
                 )}
+                <InspectPinLayer
+                  slot="svg"
+                  pins={inspectPins}
+                  selectedPinId={selectedInspectPinId}
+                  visibleTraces={visibleTraces}
+                  scales={mainPlotScales}
+                  dimensions={mainPlot.dimensions}
+                  themeColors={themeColors}
+                  plotSvgRef={svgRef}
+                  onSelectPin={selectInspectPin}
+                  onRemovePin={removeInspectPin}
+                  onUpdatePinEnergy={updateInspectPinEnergy}
+                  overlayWidth={width}
+                  overlayHeight={contentHeight}
+                />
               </g>
             </g>
             {selectionTarget && (
@@ -714,6 +791,7 @@ export function SpectrumPlotInner({
                 zoomMode={zoomMode}
                 onZoom={handleMarqueeZoom}
                 onReset={handleResetZoom}
+                allowPlotInteractionsBelow={zoomedXDomain != null}
               />
             )}
             {effectiveCursorMode === "pan" && zoomedXDomain != null && (
@@ -839,6 +917,21 @@ export function SpectrumPlotInner({
           onPeakPatch={onPeakPatch}
           onPeakUpdate={onPeakUpdate}
           visible={isManualPeakMode}
+          overlayWidth={width}
+          overlayHeight={contentHeight}
+        />
+        <InspectPinLayer
+          slot="overlay"
+          pins={inspectPins}
+          selectedPinId={selectedInspectPinId}
+          visibleTraces={visibleTraces}
+          scales={mainPlotScales}
+          dimensions={mainPlot.dimensions}
+          themeColors={themeColors}
+          plotSvgRef={svgRef}
+          onSelectPin={selectInspectPin}
+          onRemovePin={removeInspectPin}
+          onUpdatePinEnergy={updateInspectPinEnergy}
           overlayWidth={width}
           overlayHeight={contentHeight}
         />

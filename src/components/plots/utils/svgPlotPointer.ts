@@ -1,5 +1,5 @@
 export function eventToPlotCoords(
-  event: PointerEvent,
+  event: Pick<MouseEvent, "clientX" | "clientY">,
   svg: SVGSVGElement,
   left: number,
   top: number,
