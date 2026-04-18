@@ -1,3 +1,5 @@
+import { applyChemFormulaTypographyToSvgRoot } from "~/lib/molecule-svg-formula-typography";
+
 /**
  * Shared CPK-style atom and bond coloring for molecule SVG markup, matching
  * `MoleculeImageSVG` / browse depictions: light vs dark bond and label colors.
@@ -41,6 +43,7 @@ export function applyMoleculeSvgCpkThemeToElement(
   svgRoot: Element,
   isDark: boolean,
 ): void {
+  applyChemFormulaTypographyToSvgRoot(svgRoot);
   const CPK_COLORS = isDark ? CPK_COLORS_DARK : CPK_COLORS_LIGHT;
   const BOND_COLOR = isDark ? "#ffffff" : "#000000";
   const DEFAULT_ATOM_COLOR = isDark ? "#ffffff" : "#000000";
