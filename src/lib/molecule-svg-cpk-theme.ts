@@ -31,6 +31,16 @@ const CPK_COLORS_DARK: Record<string, string> = {
   I: "#d478d4",
 };
 
+export function cpkHexForElementSymbol(symbol: string, isDark: boolean): string {
+  const map = isDark ? CPK_COLORS_DARK : CPK_COLORS_LIGHT;
+  const fallback = isDark ? "#ffffff" : "#000000";
+  return map[symbol] ?? fallback;
+}
+
+export function bondStrokeHexForMoleculeSvgTheme(isDark: boolean): string {
+  return isDark ? "#ffffff" : "#000000";
+}
+
 /**
  * Mutates the given SVG root in place: applies CPK atom label colors and bond
  * stroke/fill colors for light or dark UI, consistent with the catalog image

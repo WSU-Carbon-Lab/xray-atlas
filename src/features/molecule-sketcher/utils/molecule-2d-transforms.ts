@@ -114,6 +114,85 @@ export function cleanupMolecule2DSpacing(mol: Molecule): void {
   scaleCoordsAboutCentroid(mol, 1.06);
 }
 
+export function findLargestCarbonOnlyFragment(mol: Molecule): Set<number> | null {
+  ensureMolHelpers(mol);
+  const n = mol.getAtoms();
+  const adj: number[][] = Array.from({ length: n }, () => []);
+  const bonds = mol.getBonds();
+  for (let b = 0; b < bonds; b += 1) {
+    const a0 = mol.getBondAtom(0, b);
+    const a1 = mol.getBondAtom(1, b);
+    adj[a0]!.push(a1);
+    adj[a1]!.push(a0);
+  }
+  const carbon = new Set<number>();
+  for (let a = 0; a < n; a += 1) {
+    if (mol.getAtomicNo(a) === 6) carbon.add(a);
+  }
+  let best: Set<number> | null = null;
+  let bestSize = 0;
+  const seen = new Set<number>();
+  for (const start of carbon) {
+    if (seen.has(start)) continue;
+    const comp = new Set<number>();
+    const st: number[] = [start];
+    while (st.length > 0) {
+      const a = st.pop()!;
+      if (seen.has(a)) continue;
+      if (!carbon.has(a)) continue;
+      seen.add(a);
+      comp.add(a);
+      for (const nb of adj[a]!) {
+        if (carbon.has(nb) && !seen.has(nb)) st.push(nb);
+      }
+    }
+    if (comp.size > bestSize) {
+      bestSize = comp.size;
+      best = comp;
+    }
+  }
+  if (!best || best.size < 20) return null;
+  return best;
+}
+
+function scaleCoordsAboutCentroidForAtoms(
+  mol: Molecule,
+  factor: number,
+  atoms: Set<number>,
+): void {
+  if (atoms.size === 0) return;
+  let sx = 0;
+  let sy = 0;
+  for (const a of atoms) {
+    sx += mol.getAtomX(a);
+    sy += mol.getAtomY(a);
+  }
+  const cx = sx / atoms.size;
+  const cy = sy / atoms.size;
+  for (const a of atoms) {
+    const x = mol.getAtomX(a);
+    const y = mol.getAtomY(a);
+    mol.setAtomX(a, cx + (x - cx) * factor);
+    mol.setAtomY(a, cy + (y - cy) * factor);
+  }
+}
+
+export function cleanupMolecule2DSpacingSubstituentOnly(mol: Molecule): void {
+  ensureMolHelpers(mol);
+  const cage = findLargestCarbonOnlyFragment(mol);
+  if (!cage) {
+    cleanupMolecule2DSpacing(mol);
+    return;
+  }
+  const movable = new Set<number>();
+  const n = mol.getAtoms();
+  for (let a = 0; a < n; a += 1) {
+    if (!cage.has(a)) movable.add(a);
+  }
+  if (movable.size === 0) return;
+  scaleCoordsAboutCentroidForAtoms(mol, 1.06, movable);
+}
+
 export function alignBondVectorToAxis(
   mol: Molecule,
   atomA: number,
