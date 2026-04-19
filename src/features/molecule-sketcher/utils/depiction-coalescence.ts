@@ -11,6 +11,14 @@ import { standardizeDepictionStereo } from "./molfile-depiction-standardize";
 const N = 7;
 const C = 6;
 
+export function abbreviateNitrileGroups(mol: Molecule): number {
+  const n = coalesceNitrileTripleBonds(mol);
+  if (n > 0) {
+    mol.inventCoordinates({});
+  }
+  return n;
+}
+
 export function coalesceNitrileTripleBonds(mol: Molecule): number {
   let count = 0;
   let changed = true;

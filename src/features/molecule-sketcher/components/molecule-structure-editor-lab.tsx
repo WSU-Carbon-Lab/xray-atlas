@@ -1,23 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Button, ErrorMessage, Label } from "@heroui/react";
 import { MolfileSvgEditor } from "react-ocl";
 import { Molecule, Resources } from "openchemlib";
-import { trpc } from "~/trpc/client";
-import {
-  applyMoleculeSvgCpkTheme,
-  applyMoleculeSvgCpkThemeToElement,
-} from "~/lib/molecule-svg-cpk-theme";
+import { applyMoleculeSvgCpkThemeToElement } from "~/lib/molecule-svg-cpk-theme";
 import { getBaseUrl } from "~/utils/getBaseUrl";
 import {
   expandAllAbbreviatedAlkylLabels,
   scrubMolfileCustomLabels,
 } from "../utils/alkyl-label-expand";
 import { abbreviateTerminalAlkylChains } from "../utils/carbon-chain-abbr";
-import { applyDepictionCoalescence } from "../utils/depiction-coalescence";
+import { abbreviateNitrileGroups } from "../utils/depiction-coalescence";
 import {
   findBondIndex,
   flipSmallerFragmentAcrossBond,
@@ -32,17 +28,16 @@ import {
   translateAllCoords,
 } from "../utils/molecule-2d-transforms";
 import { LAB_STRUCTURE_PANE_HEIGHT_PX } from "../constants";
+import type { ViewTool } from "../molecule-structure-editor-types";
+import { useMolfileHistory } from "../hooks/use-molfile-history";
+import { useMolecule3dPreview } from "../hooks/use-molecule-3d-preview";
+import { MoleculeStructureEditorToolbar } from "./molecule-structure-editor-toolbar";
 
 const EDITOR_WIDTH = 480;
 const EDITOR_HEIGHT = LAB_STRUCTURE_PANE_HEIGHT_PX;
+const SPLIT_PANEL_WIDTH = Math.floor(EDITOR_WIDTH / 2);
 
 const TRANSLATE_SCALE = 0.045;
-
-const HISTORY_MAX = 5;
-
-type ViewTool = "draw" | "translate" | "rotate" | "align" | "pivot";
-
-const PIVOT_ROTATE_STEP_DEG = 15;
 
 function defaultMolfileV3(): string {
   return scrubMolfileCustomLabels(Molecule.fromSmiles("C").toMolfileV3());
@@ -61,125 +56,49 @@ export function MoleculeStructureEditorLab({
 }: MoleculeStructureEditorLabProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const wire3dSvgId = useId().replace(/:/g, "");
+  const toolHintId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
-  const molfileRef = useRef<string>(defaultMolfileV3());
-  const displayedMolRef = useRef<string>(defaultMolfileV3());
-  const burstStartRef = useRef<string | null>(null);
-  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const historyMuteRef = useRef(false);
   const viewDragSnapshotRef = useRef<string | null>(null);
 
-  const [molfile, setMolfile] = useState(defaultMolfileV3);
-  const [undoStack, setUndoStack] = useState<string[]>([]);
-  const [redoStack, setRedoStack] = useState<string[]>([]);
+  const [stableInitialMolfile] = useState(() => defaultMolfileV3());
+  const {
+    molfile,
+    setMolfile,
+    molfileRef,
+    displayedMolRef,
+    commitHistoryPoint,
+    onEditorChange,
+    undo,
+    redo,
+    undoStack,
+    redoStack,
+  } = useMolfileHistory(stableInitialMolfile);
 
-  const commitHistoryPoint = useCallback((snapshot: string) => {
-    clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = undefined;
-    burstStartRef.current = null;
-    setUndoStack((u) => [...u, snapshot].slice(-HISTORY_MAX));
-    setRedoStack([]);
-  }, []);
+  const preview3d = useMolecule3dPreview({
+    molfile,
+    molfileRef,
+    isDark,
+    wire3dSvgId,
+    panelWidth: SPLIT_PANEL_WIDTH,
+    panelHeight: EDITOR_HEIGHT,
+  });
 
-  const onEditorChange = useCallback(
-    (raw: string) => {
-      if (historyMuteRef.current) {
-        historyMuteRef.current = false;
-        const scrubbed = scrubMolfileCustomLabels(raw);
-        molfileRef.current = scrubbed;
-        displayedMolRef.current = scrubbed;
-        setMolfile(scrubbed);
-        burstStartRef.current = null;
-        clearTimeout(idleTimerRef.current);
-        idleTimerRef.current = undefined;
-        return;
-      }
-      const scrubbed = scrubMolfileCustomLabels(raw);
-      if (scrubbed === displayedMolRef.current) return;
-      burstStartRef.current ??= displayedMolRef.current;
-      molfileRef.current = scrubbed;
-      displayedMolRef.current = scrubbed;
-      setMolfile(scrubbed);
-      clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = setTimeout(() => {
-        idleTimerRef.current = undefined;
-        const start = burstStartRef.current;
-        burstStartRef.current = null;
-        if (start !== null && start !== scrubbed) {
-          setUndoStack((u) => [...u, start].slice(-HISTORY_MAX));
-          setRedoStack([]);
-        }
-      }, 420);
-    },
-    [],
-  );
-
-  const undo = useCallback(() => {
-    setUndoStack((u) => {
-      if (u.length === 0) return u;
-      const prev = u[u.length - 1]!;
-      clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = undefined;
-      burstStartRef.current = null;
-      historyMuteRef.current = true;
-      const cur = molfileRef.current;
-      setRedoStack((r) => [cur, ...r].slice(0, HISTORY_MAX));
-      molfileRef.current = prev;
-      displayedMolRef.current = prev;
-      setMolfile(prev);
-      return u.slice(0, -1);
-    });
-  }, []);
-
-  const redo = useCallback(() => {
-    setRedoStack((r) => {
-      if (r.length === 0) return r;
-      const next = r[0]!;
-      historyMuteRef.current = true;
-      const cur = molfileRef.current;
-      setUndoStack((u) => [...u, cur].slice(-HISTORY_MAX));
-      molfileRef.current = next;
-      displayedMolRef.current = next;
-      setMolfile(next);
-      return r.slice(1);
-    });
-  }, []);
   const [resourcesError, setResourcesError] = useState<string | null>(null);
   const [seedError, setSeedError] = useState<string | null>(null);
-  const [svgExportRaw, setSvgExportRaw] = useState<string | null>(null);
-  const [svgExportError, setSvgExportError] = useState<string | null>(null);
-  const [canonicalResult, setCanonicalResult] = useState<{
-    isomericSmiles: string;
-    idCode: string;
-  } | null>(null);
-
   const [viewTool, setViewTool] = useState<ViewTool>("draw");
   const [alignAtoms, setAlignAtoms] = useState<number[]>([]);
   const [pivotAtoms, setPivotAtoms] = useState<number[]>([]);
   const [viewError, setViewError] = useState<string | null>(null);
   const [abbrDone, setAbbrDone] = useState<number | null>(null);
   const [expandDone, setExpandDone] = useState<number | null>(null);
-  const [coalesceNote, setCoalesceNote] = useState<string | null>(null);
+  const [nitrileDone, setNitrileDone] = useState<number | null>(null);
   const [layoutNote, setLayoutNote] = useState<string | null>(null);
 
   const dragRef = useRef<{
     lastAngle: number;
     pointerId: number;
   } | null>(null);
-
-  const themedExportSvg = useMemo(() => {
-    if (!svgExportRaw) return null;
-    return applyMoleculeSvgCpkTheme(svgExportRaw, isDark);
-  }, [svgExportRaw, isDark]);
-
-  const canonicalize = trpc.moleculeStructure.canonicalizeMolfile.useMutation({
-    onSuccess: (data) => {
-      setCanonicalResult(data);
-    },
-    onError: () => {
-      setCanonicalResult(null);
-    },
-  });
 
   useEffect(() => {
     let cancelled = false;
@@ -221,7 +140,7 @@ export function MoleculeStructureEditorLab({
         "Catalog SMILES could not be parsed into the editor. Draw or paste a molfile instead.",
       );
     }
-  }, [seedSmiles, commitHistoryPoint]);
+  }, [seedSmiles, commitHistoryPoint, molfileRef, displayedMolRef, setMolfile]);
 
   useEffect(() => {
     if (viewTool !== "align") {
@@ -251,32 +170,13 @@ export function MoleculeStructureEditorLab({
     });
     obs.observe(host, { childList: true, subtree: true });
     return () => obs.disconnect();
-  }, [molfile, recolorEditorSvg]);
-
-  const runCanonicalize = useCallback(() => {
-    setCanonicalResult(null);
-    canonicalize.mutate({ molfile });
-  }, [canonicalize, molfile]);
-
-  const runSvgExport = useCallback(() => {
-    setSvgExportRaw(null);
-    setSvgExportError(null);
-    try {
-      const mol = Molecule.fromMolfile(molfile);
-      const svg = mol.toSVG(EDITOR_WIDTH, EDITOR_HEIGHT, "lab-structure-svg", {
-        autoCrop: true,
-        autoCropMargin: 12,
-        suppressChiralText: true,
-        suppressCIPParity: true,
-        suppressESR: true,
-        noStereoProblem: true,
-      });
-      setSvgExportRaw(svg);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "SVG export failed.";
-      setSvgExportError(msg);
-    }
-  }, [molfile]);
+  }, [
+    molfile,
+    recolorEditorSvg,
+    preview3d.session3d,
+    preview3d.wire3dBusy,
+    preview3d.wire3dError,
+  ]);
 
   const mutateMolFromRef = useCallback(
     (mutate: (m: Molecule) => void, options?: { skipHistory?: boolean }) => {
@@ -295,7 +195,7 @@ export function MoleculeStructureEditorLab({
         setViewError(e instanceof Error ? e.message : "Structure update failed.");
       }
     },
-    [commitHistoryPoint],
+    [commitHistoryPoint, molfileRef, displayedMolRef, setMolfile],
   );
 
   const onAtomClickLab = useCallback(
@@ -396,7 +296,7 @@ export function MoleculeStructureEditorLab({
       const a0 = Math.atan2(e.clientY - cy, e.clientX - cx);
       dragRef.current = { lastAngle: a0, pointerId: e.pointerId };
     },
-    [viewTool],
+    [viewTool, molfileRef],
   );
 
   const onViewOverlayPointerMove = useCallback(
@@ -445,45 +345,15 @@ export function MoleculeStructureEditorLab({
       }
       endViewDrag();
     },
-    [commitHistoryPoint, endViewDrag, viewTool],
+    [commitHistoryPoint, endViewDrag, viewTool, molfileRef],
   );
-
-  const runDepictionCoalescence = useCallback(() => {
-    setViewError(null);
-    setLayoutNote(null);
-    setAbbrDone(null);
-    setExpandDone(null);
-    setCoalesceNote(null);
-    try {
-      commitHistoryPoint(molfileRef.current);
-      const mol = Molecule.fromMolfile(molfileRef.current);
-      const { nitrileGroupsCoalesced, terminalMethylLabelsApplied } =
-        applyDepictionCoalescence(mol);
-      const next = molfileV3FromMolecule(mol);
-      molfileRef.current = next;
-      displayedMolRef.current = next;
-      setMolfile(next);
-      const parts: string[] = [
-        "Stereochemistry cleared (including cis/trans and chiral bond cues).",
-        nitrileGroupsCoalesced > 0
-          ? `Coalesced ${nitrileGroupsCoalesced} C≡N group(s) to CN/NC labels.`
-          : "No nitrile triple bonds to coalesce.",
-        terminalMethylLabelsApplied
-          ? "Labeled terminal methyl groups (CH₃) where implicit."
-          : "No new terminal methyl labels added.",
-      ];
-      setCoalesceNote(parts.join(" "));
-    } catch (e) {
-      setViewError(e instanceof Error ? e.message : "Depiction coalescence failed.");
-    }
-  }, [commitHistoryPoint]);
 
   const abbreviateChains = useCallback(() => {
     setViewError(null);
     setLayoutNote(null);
     setAbbrDone(null);
     setExpandDone(null);
-    setCoalesceNote(null);
+    setNitrileDone(null);
     try {
       commitHistoryPoint(molfileRef.current);
       const mol = Molecule.fromMolfile(molfileRef.current);
@@ -496,14 +366,14 @@ export function MoleculeStructureEditorLab({
     } catch (e) {
       setViewError(e instanceof Error ? e.message : "Abbreviation failed.");
     }
-  }, [commitHistoryPoint]);
+  }, [commitHistoryPoint, molfileRef, displayedMolRef, setMolfile]);
 
   const expandAbbreviatedChains = useCallback(() => {
     setViewError(null);
     setLayoutNote(null);
     setAbbrDone(null);
     setExpandDone(null);
-    setCoalesceNote(null);
+    setNitrileDone(null);
     try {
       commitHistoryPoint(molfileRef.current);
       const mol = Molecule.fromMolfile(molfileRef.current);
@@ -516,7 +386,27 @@ export function MoleculeStructureEditorLab({
     } catch (e) {
       setViewError(e instanceof Error ? e.message : "Expand failed.");
     }
-  }, [commitHistoryPoint]);
+  }, [commitHistoryPoint, molfileRef, displayedMolRef, setMolfile]);
+
+  const abbreviateNitriles = useCallback(() => {
+    setViewError(null);
+    setLayoutNote(null);
+    setAbbrDone(null);
+    setExpandDone(null);
+    setNitrileDone(null);
+    try {
+      commitHistoryPoint(molfileRef.current);
+      const mol = Molecule.fromMolfile(molfileRef.current);
+      const n = abbreviateNitrileGroups(mol);
+      setNitrileDone(n);
+      const next = molfileV3FromMolecule(mol);
+      molfileRef.current = next;
+      displayedMolRef.current = next;
+      setMolfile(next);
+    } catch (e) {
+      setViewError(e instanceof Error ? e.message : "Nitrile abbreviation failed.");
+    }
+  }, [commitHistoryPoint, molfileRef, displayedMolRef, setMolfile]);
 
   const runPivotFlip = useCallback(() => {
     if (pivotAtoms.length !== 2) return;
@@ -551,7 +441,7 @@ export function MoleculeStructureEditorLab({
     setLayoutNote(null);
     setAbbrDone(null);
     setExpandDone(null);
-    setCoalesceNote(null);
+    setNitrileDone(null);
     try {
       commitHistoryPoint(molfileRef.current);
       const mol = Molecule.fromMolfile(molfileRef.current);
@@ -564,7 +454,7 @@ export function MoleculeStructureEditorLab({
     } catch (e) {
       setViewError(e instanceof Error ? e.message : "Spacing cleanup failed.");
     }
-  }, [commitHistoryPoint]);
+  }, [commitHistoryPoint, molfileRef, displayedMolRef, setMolfile]);
 
   const resetFromOriginalSmiles = useCallback(() => {
     const trimmed = seedSmiles?.trim();
@@ -573,7 +463,7 @@ export function MoleculeStructureEditorLab({
     setLayoutNote(null);
     setAbbrDone(null);
     setExpandDone(null);
-    setCoalesceNote(null);
+    setNitrileDone(null);
     try {
       commitHistoryPoint(molfileRef.current);
       const mol = Molecule.fromSmiles(trimmed);
@@ -584,7 +474,7 @@ export function MoleculeStructureEditorLab({
     } catch (e) {
       setViewError(e instanceof Error ? e.message : "Could not reset from SMILES.");
     }
-  }, [commitHistoryPoint, seedSmiles]);
+  }, [commitHistoryPoint, seedSmiles, molfileRef, displayedMolRef, setMolfile]);
 
   const editorAtomHighlight = useMemo(() => {
     if (viewTool === "align" && alignAtoms.length > 0) return alignAtoms;
@@ -604,6 +494,9 @@ export function MoleculeStructureEditorLab({
   }, [viewTool, pivotAtoms, molfile]);
 
   const toolHint = useMemo(() => {
+    if (preview3d.session3d) {
+      return "2D molfile is canonical. The 3D panel is a preview: drag to orbit only.";
+    }
     switch (viewTool) {
       case "draw":
         return "Draw and edit bonds and atoms. Click an abbreviated alkyl label to type a formula (e.g. C4H9); valid CnH2n+1 labels render with true subscripts in the SVG; a leading bracket from the editor is removed automatically.";
@@ -626,7 +519,7 @@ export function MoleculeStructureEditorLab({
       default:
         return "";
     }
-  }, [alignAtoms.length, pivotAtoms.length, viewTool]);
+  }, [alignAtoms.length, pivotAtoms.length, preview3d.session3d, viewTool]);
 
   const editorDerived = useMemo(() => {
     try {
@@ -644,6 +537,8 @@ export function MoleculeStructureEditorLab({
   }, [molfile]);
 
   const showViewOverlay = viewTool === "translate" || viewTool === "rotate";
+
+  const editorCanvasWidth = preview3d.session3d ? SPLIT_PANEL_WIDTH : EDITOR_WIDTH;
 
   return (
     <div className="space-y-4">
@@ -686,147 +581,42 @@ export function MoleculeStructureEditorLab({
         </div>
       </div>
 
-      <div className="border-border flex flex-wrap items-center gap-2 rounded-lg border p-3">
-        <span className="text-muted text-xs font-medium">Tool</span>
-        <Button
-          type="button"
-          size="sm"
-          variant={viewTool === "draw" ? "primary" : "secondary"}
-          onPress={() => setViewTool("draw")}
-        >
-          Draw
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={viewTool === "translate" ? "primary" : "secondary"}
-          onPress={() => setViewTool("translate")}
-        >
-          Move
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={viewTool === "rotate" ? "primary" : "secondary"}
-          onPress={() => setViewTool("rotate")}
-        >
-          Rotate
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={viewTool === "align" ? "primary" : "secondary"}
-          onPress={() => setViewTool("align")}
-        >
-          Align
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={viewTool === "pivot" ? "primary" : "secondary"}
-          onPress={() => setViewTool("pivot")}
-        >
-          Pivot bond
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onPress={() => runAlignAxis("x")}
-          isDisabled={alignAtoms.length !== 2}
-        >
-          Along X
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onPress={() => runAlignAxis("y")}
-          isDisabled={alignAtoms.length !== 2}
-        >
-          Along Y
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onPress={() => setAlignAtoms([])}
-          isDisabled={viewTool !== "align" || alignAtoms.length === 0}
-        >
-          Clear picks
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onPress={() => setPivotAtoms([])}
-          isDisabled={viewTool !== "pivot" || pivotAtoms.length === 0}
-        >
-          Clear pivot
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onPress={runPivotFlip}
-          isDisabled={viewTool !== "pivot" || pivotAtoms.length !== 2}
-        >
-          Flip across bond
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onPress={() => runPivotRotate(-PIVOT_ROTATE_STEP_DEG)}
-          isDisabled={viewTool !== "pivot" || pivotAtoms.length !== 2}
-        >
-          Rotate -{PIVOT_ROTATE_STEP_DEG}°
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onPress={() => runPivotRotate(PIVOT_ROTATE_STEP_DEG)}
-          isDisabled={viewTool !== "pivot" || pivotAtoms.length !== 2}
-        >
-          Rotate +{PIVOT_ROTATE_STEP_DEG}°
-        </Button>
-        <Button type="button" size="sm" variant="secondary" onPress={abbreviateChains}>
-          Abbreviate alkyl tails
-        </Button>
-        <Button type="button" size="sm" variant="secondary" onPress={expandAbbreviatedChains}>
-          Expand abbreviated tails
-        </Button>
-        <Button type="button" size="sm" variant="secondary" onPress={runDepictionCoalescence}>
-          Coalesce depiction
-        </Button>
-        <Button type="button" size="sm" variant="secondary" onPress={cleanupSpacing}>
-          Clean up spacing
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onPress={undo}
-          isDisabled={undoStack.length === 0}
-        >
-          Undo
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onPress={redo}
-          isDisabled={redoStack.length === 0}
-        >
-          Redo
-        </Button>
-      </div>
-      <p className="text-muted text-xs" aria-live="polite">
+      <MoleculeStructureEditorToolbar
+        editorDerivedOk={editorDerived.ok}
+        viewTool={viewTool}
+        onViewTool={setViewTool}
+        alignAtomCount={alignAtoms.length}
+        pivotAtomCount={pivotAtoms.length}
+        onRunAlignAxis={runAlignAxis}
+        onClearAlignPicks={() => setAlignAtoms([])}
+        onClearPivotPicks={() => setPivotAtoms([])}
+        onRunPivotFlip={runPivotFlip}
+        onRunPivotRotate={runPivotRotate}
+        onAbbreviateAlkyl={abbreviateChains}
+        onExpandAlkyl={expandAbbreviatedChains}
+        onAbbreviateNitrile={abbreviateNitriles}
+        onCleanupSpacing={cleanupSpacing}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={undoStack.length > 0}
+        canRedo={redoStack.length > 0}
+        threeD={{
+          busy: preview3d.wire3dBusy,
+          error: preview3d.wire3dError,
+          hasSession: preview3d.session3d !== null,
+          onCompute: preview3d.runCompute3dConformer,
+          onClear: preview3d.clear3dConformer,
+          onResetView: preview3d.resetView3d,
+        }}
+      />
+
+      <p id={toolHintId} className="text-muted text-xs" aria-live="polite">
         {toolHint}
         {abbrDone !== null && abbrDone > 0 ? ` Abbreviated ${abbrDone} tail(s).` : null}
         {expandDone !== null && expandDone > 0 ? ` Expanded ${expandDone} tail(s).` : null}
-        {coalesceNote ? ` ${coalesceNote}` : null}
+        {nitrileDone !== null && nitrileDone > 0
+          ? ` Abbreviated ${nitrileDone} nitrile group(s) as CN.`
+          : null}
         {layoutNote ? ` ${layoutNote}` : null}
       </p>
       {viewError ? (
@@ -836,114 +626,80 @@ export function MoleculeStructureEditorLab({
       ) : null}
 
       <div
-        ref={containerRef}
-        className="border-border bg-surface-2/10 relative flex w-full max-w-full items-center justify-center overflow-hidden rounded-lg border"
+        className="border-border bg-surface-2/10 flex w-full max-w-full flex-col overflow-hidden rounded-lg border"
         style={{
           height: LAB_STRUCTURE_PANE_HEIGHT_PX,
           minHeight: LAB_STRUCTURE_PANE_HEIGHT_PX,
         }}
+        aria-describedby={toolHintId}
       >
-        {showViewOverlay ? (
+        <div className="flex min-h-0 w-full max-w-full flex-1 items-stretch justify-center overflow-hidden">
           <div
-            className="touch-none absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
-            style={{ touchAction: "none" }}
-            onPointerDown={onViewOverlayPointerDown}
-            onPointerMove={onViewOverlayPointerMove}
-            onPointerUp={onViewOverlayPointerUp}
-            onPointerCancel={onViewOverlayPointerUp}
-            aria-hidden
-          />
-        ) : null}
-        <div className="flex max-h-full max-w-full items-center justify-center overflow-auto">
-          <MolfileSvgEditor
-            molfile={molfile}
-            width={EDITOR_WIDTH}
-            height={EDITOR_HEIGHT}
-            onChange={onEditorChange}
-            mdlFormat="V3000"
-            suppressChiralText
-            suppressCIPParity
-            suppressESR
-            noStereoProblem
-            onAtomClick={onAtomClickLab}
-            onBondClick={onBondClickLab}
-            atomHighlight={editorAtomHighlight}
-            bondHighlight={pivotBondHighlight}
-            atomHighlightStrategy="merge"
-          />
+            ref={containerRef}
+            className={`relative flex min-h-0 items-center justify-center overflow-auto ${
+              preview3d.session3d
+                ? "border-border min-w-0 flex-1 flex-col border-r"
+                : "h-full w-full max-w-full flex-col"
+            }`}
+          >
+            {showViewOverlay ? (
+              <div
+                className="touch-none absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
+                style={{ touchAction: "none" }}
+                onPointerDown={onViewOverlayPointerDown}
+                onPointerMove={onViewOverlayPointerMove}
+                onPointerUp={onViewOverlayPointerUp}
+                onPointerCancel={onViewOverlayPointerUp}
+                aria-hidden
+              />
+            ) : null}
+            <MolfileSvgEditor
+              molfile={molfile}
+              width={editorCanvasWidth}
+              height={EDITOR_HEIGHT}
+              onChange={onEditorChange}
+              mdlFormat="V3000"
+              suppressChiralText
+              suppressCIPParity
+              suppressESR
+              noStereoProblem
+              onAtomClick={onAtomClickLab}
+              onBondClick={onBondClickLab}
+              atomHighlight={editorAtomHighlight}
+              bondHighlight={pivotBondHighlight}
+              atomHighlightStrategy="merge"
+            />
+          </div>
+          {preview3d.session3d && preview3d.wire3dSvgRendered ? (
+            <div
+              role="application"
+              aria-label="3D structure preview. Drag to orbit."
+              className="relative flex min-h-0 min-w-0 flex-1 touch-none flex-col items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing [&_svg]:max-h-full [&_svg]:max-w-full"
+              style={{ touchAction: "none" }}
+              onPointerDown={preview3d.on3dPointerDown}
+              onPointerMove={preview3d.on3dPointerMove}
+              onPointerUp={preview3d.on3dPointerUp}
+              onPointerCancel={preview3d.on3dPointerUp}
+            >
+              <div
+                className="flex max-h-full max-w-full items-center justify-center"
+                dangerouslySetInnerHTML={{ __html: preview3d.wire3dSvgRendered }}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="secondary" size="sm" onPress={runCanonicalize}>
-          {canonicalize.isPending ? "Canonicalizing…" : "Canonicalize (server)"}
-        </Button>
-        <Button type="button" variant="secondary" size="sm" onPress={runSvgExport}>
-          Export SVG (dry run)
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onPress={() => {
-            commitHistoryPoint(molfileRef.current);
-            const next = defaultMolfileV3();
-            molfileRef.current = next;
-            displayedMolRef.current = next;
-            setMolfile(next);
-          }}
-        >
-          Reset to methane
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onPress={resetFromOriginalSmiles}
-          isDisabled={!seedSmiles?.trim()}
-        >
-          Reset from loaded SMILES
-        </Button>
-      </div>
-
-      {canonicalize.error ? (
-        <ErrorMessage className="text-sm font-medium" role="alert">
-          {canonicalize.error.message}
-        </ErrorMessage>
-      ) : null}
-
-      {canonicalResult ? (
-        <div className="space-y-1 text-sm">
-          <Label className="text-foreground text-xs font-medium">
-            Server isomeric SMILES
-          </Label>
-          <p className="text-foreground font-mono text-xs break-all">
-            {canonicalResult.isomericSmiles}
-          </p>
-          <Label className="text-muted mt-2 block text-xs font-medium">
-            OCL idcode
-          </Label>
-          <p className="text-muted font-mono text-xs break-all">
-            {canonicalResult.idCode}
-          </p>
-        </div>
-      ) : null}
-
-      {svgExportError ? (
-        <ErrorMessage className="text-sm font-medium" role="alert">
-          {svgExportError}
-        </ErrorMessage>
-      ) : null}
-
-      {themedExportSvg ? (
-        <div className="space-y-2">
-          <Label className="text-foreground text-xs font-medium">
-            SVG preview (CPK-themed, not uploaded)
-          </Label>
-          <div
-            className={`border-border bg-background max-h-80 overflow-auto rounded border p-3 [&_svg]:mx-auto [&_svg]:max-w-full ${isDark ? "dark" : ""}`}
-            dangerouslySetInnerHTML={{ __html: themedExportSvg }}
-          />
+      {seedSmiles?.trim() ? (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onPress={resetFromOriginalSmiles}
+          >
+            Reset from loaded SMILES
+          </Button>
         </div>
       ) : null}
     </div>
