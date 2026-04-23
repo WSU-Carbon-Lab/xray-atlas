@@ -15,6 +15,11 @@ export { MultiTraceTooltip } from "./MultiTraceTooltip";
 export type { TraceTooltipRow } from "./MultiTraceTooltip";
 export { ChartCrosshairAndDots } from "./ChartCrosshairAndDots";
 export type { CrosshairDot } from "./ChartCrosshairAndDots";
+export { PinnedAxisMarker } from "./PinnedAxisMarker";
+export { DraggablePlotPopover } from "./DraggablePlotPopover";
+export type { PopoverOffset } from "./DraggablePlotPopover";
+export { InspectPinLayer } from "./InspectPinLayer";
+export type { InspectPinLayerSlot } from "./InspectPinLayer";
 export {
   getValueAtEnergy,
   getTraceLabel,

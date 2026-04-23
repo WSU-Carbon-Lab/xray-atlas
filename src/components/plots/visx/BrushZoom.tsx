@@ -21,6 +21,13 @@ type BrushZoomProps = {
   zoomMode: ZoomMode;
   onZoom: (xDomain: [number, number], yDomain: [number, number]) => void;
   onReset?: () => void;
+  /**
+   * When true, the brush hit-target does not capture pointer events so clicks
+   * reach the plot below (inspect pins, tooltips, etc.). Use once a horizontal
+   * zoom is already applied; further zoom-in uses the toolbar buttons until
+   * the view is reset.
+   */
+  allowPlotInteractionsBelow?: boolean;
 };
 
 export function BrushZoom({
@@ -32,6 +39,7 @@ export function BrushZoom({
   zoomMode,
   onZoom,
   onReset,
+  allowPlotInteractionsBelow = false,
 }: BrushZoomProps) {
   const themeColors = themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
 
@@ -151,8 +159,11 @@ export function BrushZoom({
         width={plotWidth}
         height={plotHeight}
         fill="transparent"
-        style={{ cursor: "crosshair" }}
-        onPointerDown={handlePointerDown}
+        style={{
+          cursor: allowPlotInteractionsBelow ? "default" : "crosshair",
+          pointerEvents: allowPlotInteractionsBelow ? "none" : "auto",
+        }}
+        onPointerDown={allowPlotInteractionsBelow ? undefined : handlePointerDown}
       />
       {marquee && (
         <rect
