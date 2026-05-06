@@ -107,7 +107,9 @@ export default function NexafsWikiPage() {
               metadata are read consistently across molecules, instruments, and
               facilities.
             </p>
-            <NexafsCoreAbsorptionSchematic className="border-border bg-background/70 mt-2 rounded-xl border bg-gradient-to-b from-transparent to-default/30 px-2 py-4 sm:px-4" />
+            <div className="relative mt-6 overflow-hidden rounded-xl">
+              <NexafsCoreAbsorptionSchematic className="bg-default/15 px-2 py-3 sm:px-4 sm:py-4" />
+            </div>
             <div className="flex flex-wrap gap-3 pt-2">
               <Link
                 href="/browse/nexafs"
