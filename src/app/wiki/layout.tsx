@@ -1,10 +1,9 @@
 /**
- * Next.js App Router layout for the `about/(wiki)` route group.
+ * Next.js App Router layout for `/wiki/*` documentation routes.
  *
- * Applies wiki chrome to grouped documentation routes at full viewport width: the inner
- * wrapper uses a horizontal breakout (`calc(-50vw + 50%)` margins and `w-screen`) so
- * content is not capped by the root `main` `max-w-7xl` constraint. The `/about`
- * landing page remains outside this group.
+ * Applies wiki chrome at full viewport width: the inner wrapper uses a horizontal breakout
+ * (`calc(-50vw + 50%)` margins and `w-screen`) so content is not capped by the root
+ * `main` `max-w-7xl` constraint. The `/about` landing page is separate from this tree.
  *
  * Layout methodology aligns structurally with the HeroUI v3 docs notebook shell (see
  * `heroui` `apps/docs/src/app/docs/layout.tsx`): left documentation rail, central article,

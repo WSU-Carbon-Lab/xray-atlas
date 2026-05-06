@@ -607,7 +607,7 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
       <div className="border-border mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between lg:mb-6">
         <Breadcrumbs className="text-sm font-medium min-w-0">
           <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
-          <Breadcrumbs.Item href="/about">About</Breadcrumbs.Item>
+          <Breadcrumbs.Item href="/wiki/home">Wiki</Breadcrumbs.Item>
           <Breadcrumbs.Item>
             {current?.breadcrumbLabel ?? "Wiki"}
           </Breadcrumbs.Item>

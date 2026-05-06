@@ -25,28 +25,28 @@ export const metadata: Metadata = {
 
 const aboutResourceCards = [
   {
-    href: "/about/home",
+    href: "/wiki/home",
     title: "Wiki home",
     description:
       "Living reference for NEXAFS concepts, terminology, and spectroscopy workflows used throughout the platform.",
     icon: BookOpenIcon,
   },
   {
-    href: "/about/data-representation",
+    href: "/wiki/data-representation",
     title: "Data representation and structure",
     description:
       "How molecules, samples, spectra, provenance fields, and quality signals are represented in the database.",
     icon: RectangleStackIcon,
   },
   {
-    href: "/about/platform-features",
+    href: "/wiki/platform-features",
     title: "Platform features",
     description:
       "Search, browse, filtering, visualization, and analysis capabilities for NEXAFS and related X-ray datasets.",
     icon: SparklesIcon,
   },
   {
-    href: "/about/contributions",
+    href: "/wiki/contributions",
     title: "Database contributions",
     description:
       "Guidance for dataset contributors, metadata expectations, attribution, and scientific reproducibility practices.",
@@ -69,8 +69,8 @@ function initialsFromName(name: string | null): string {
 
 function ProfileCard({ user }: { user: CoreMaintainerRow }) {
   const name = user.name ?? "User";
-  const imageSrc = user.image?.trim() || null;
-  const orcid = user.orcid?.trim() || null;
+  const imageSrc = user.image?.trim() ? user.image.trim() : null;
+  const orcid = user.orcid?.trim() ? user.orcid.trim() : null;
 
   return (
     <div className="border-border bg-surface rounded-xl border p-4">

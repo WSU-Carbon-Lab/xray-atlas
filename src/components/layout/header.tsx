@@ -13,8 +13,173 @@ import { ThemeToggle } from "../theme/theme-toggle";
 import {
   BoltIcon,
   BeakerIcon,
+  BookOpenIcon,
   BuildingOfficeIcon,
+  InformationCircleIcon,
+  ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
+
+function AboutDropdown() {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleItemClick = (path: string) => {
+    router.push(path);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-foreground hover:text-foreground flex items-center text-sm"
+        aria-expanded={isOpen}
+        aria-haspopup="true"
+      >
+        <Info className="mr-2 h-4 w-4" />
+        About
+        <ChevronDown
+          className={`ml-1 h-3 w-3 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen ? (
+        <div className="border-border bg-surface absolute top-full left-0 z-50 mt-2 w-48 rounded-lg border shadow-lg">
+          <div className="py-1">
+            <button
+              type="button"
+              onClick={() => handleItemClick("/about")}
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+            >
+              <InformationCircleIcon className="text-accent h-4 w-4" />
+              <span>About X-ray Atlas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleItemClick("/wiki/home")}
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+            >
+              <BookOpenIcon className="text-accent h-4 w-4" />
+              <span>Wiki</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleItemClick("/privacy")}
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+            >
+              <ShieldCheckIcon className="text-accent h-4 w-4" />
+              <span>Privacy</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function BrowseDropdown() {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleItemClick = (path: string) => {
+    router.push(path);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-foreground hover:text-foreground flex items-center text-sm"
+        aria-expanded={isOpen}
+        aria-haspopup="true"
+      >
+        <Search className="mr-2 h-4 w-4" />
+        Browse
+        <ChevronDown
+          className={`ml-1 h-3 w-3 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen ? (
+        <div className="border-border bg-surface absolute top-full left-0 z-50 mt-2 w-48 rounded-lg border shadow-lg">
+          <div className="py-1">
+            <button
+              type="button"
+              onClick={() => handleItemClick("/browse/nexafs")}
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+            >
+              <BoltIcon className="text-accent h-4 w-4" />
+              <span>NEXAFS</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleItemClick("/browse/molecules")}
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+            >
+              <BeakerIcon className="text-accent h-4 w-4" />
+              <span>Molecule</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleItemClick("/browse/facilities")}
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+            >
+              <BuildingOfficeIcon className="text-accent h-4 w-4" />
+              <span>Facility</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function ContributeDropdown() {
   const [isOpen, setIsOpen] = useState(false);
@@ -138,22 +303,10 @@ export default function Header() {
               </Link>
             </li>
             <li className="hidden sm:flex">
-              <Link
-                href="/about"
-                className="text-foreground hover:text-foreground flex items-center text-sm"
-              >
-                <Info className="mr-2 h-4 w-4" />
-                About
-              </Link>
+              <BrowseDropdown />
             </li>
             <li className="hidden sm:flex">
-              <Link
-                href="/browse"
-                className="text-foreground hover:text-foreground flex items-center text-sm"
-              >
-                <Search className="mr-2 h-4 w-4" />
-                Browse
-              </Link>
+              <AboutDropdown />
             </li>
             <li className="hidden sm:flex">
               <ContributeDropdown />

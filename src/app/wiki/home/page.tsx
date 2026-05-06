@@ -117,7 +117,7 @@ export default function NexafsWikiPage() {
                 Browse NEXAFS data
               </Link>
               <Link
-                href="/about/data-representation"
+                href="/wiki/data-representation"
                 className="border-border bg-background text-foreground hover:bg-default rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
               >
                 Data representation
@@ -262,7 +262,7 @@ export default function NexafsWikiPage() {
               Browse NEXAFS
             </Link>
             <Link
-              href="/about/contributions"
+              href="/wiki/contributions"
               className="border-border bg-background text-foreground rounded-lg border px-4 py-2 text-sm font-medium"
             >
               Contribution guide

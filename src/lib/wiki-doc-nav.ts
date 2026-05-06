@@ -1,5 +1,5 @@
 /**
- * Canonical navigation entries for `/about/*` wiki-style documentation routes.
+ * Canonical navigation entries for `/wiki/*` documentation routes.
  *
  * Owns per-page section anchors for the Overview accordion (`href` + hash links).
  * Next.js routing remains authoritative; section `id`s must match headings in page TSX.
@@ -26,7 +26,7 @@ export interface WikiDocTopic {
 
 export const wikiDocTopics: readonly WikiDocTopic[] = [
   {
-    href: "/about/home",
+    href: "/wiki/home",
     label: "Wiki home",
     breadcrumbLabel: "Wiki home",
     overviewNavIcon: "wiki-home",
@@ -38,7 +38,7 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
     ],
   },
   {
-    href: "/about/data-representation",
+    href: "/wiki/data-representation",
     label: "Data representation",
     breadcrumbLabel: "Data representation",
     overviewNavIcon: "data-representation",
@@ -50,7 +50,7 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
     ],
   },
   {
-    href: "/about/platform-features",
+    href: "/wiki/platform-features",
     label: "Platform features",
     breadcrumbLabel: "Platform features",
     overviewNavIcon: "platform-features",
@@ -62,7 +62,7 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
     ],
   },
   {
-    href: "/about/contributions",
+    href: "/wiki/contributions",
     label: "Contributions",
     breadcrumbLabel: "Contributions",
     overviewNavIcon: "contributions",
@@ -76,7 +76,7 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
 /**
  * Resolves the wiki topic metadata whose `href` exactly matches `pathname`, when present.
  *
- * @param pathname - Next.js pathname such as `/about/home` (no query or hash).
+ * @param pathname - Next.js pathname such as `/wiki/home` (no query or hash).
  * @returns The matching topic, or `undefined` when `pathname` is not a configured wiki entry.
  */
 export function wikiDocTopicForPathname(pathname: string): WikiDocTopic | undefined {
