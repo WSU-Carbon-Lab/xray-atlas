@@ -2413,25 +2413,3 @@ export function MoleculeDisplayCompact({
     />
   );
 }
-
-/**
- * Renders the home carousel molecule tile layout (`fullCarousel`); use `MoleculeDisplay` / default `MoleculeCard` on browse grids.
- *
- * @param molecule - Same `MoleculeView` contract as other molecule cards.
- * @param enableRealtime - Passed through to `MoleculeCard`; disables realtime hooks when false (for example static previews).
- */
-export function MoleculeDisplayCarouselTile({
-  molecule,
-  enableRealtime = true,
-}: {
-  molecule: MoleculeView;
-  enableRealtime?: boolean;
-}) {
-  return (
-    <MoleculeCard
-      molecule={molecule}
-      variant="fullCarousel"
-      enableRealtime={enableRealtime}
-    />
-  );
-}
