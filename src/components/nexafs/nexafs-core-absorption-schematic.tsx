@@ -10,6 +10,10 @@ type NexafsCoreAbsorptionSchematicProps = {
    * Optional Tailwind classes merged onto the responsive SVG wrapper (`className` replaces defaults where overlapping specificity applies via cn upstream).
    */
   className?: string;
+  /**
+   * `hero` expands the SVG beyond `max-w-xl`, omits the staged vignette plate so the diagram sits on the page background, and reserves vertical space for forthcoming motion on wiki-style landing surfaces. Responsive `@sm`/`@lg` tiers assume a nearest Tailwind `@container` ancestor (the wiki home header provides one).
+   */
+  presentation?: "standard" | "hero";
 };
 
 /**
@@ -17,6 +21,7 @@ type NexafsCoreAbsorptionSchematicProps = {
  * aimed upward and slightly rightward to suggest photoelectron-style ejection away from the nucleus.
  *
  * @param props.className - Extra layout tokens around the intrinsic-ratio SVG viewport (`width`/`height` scale uniformly via CSS).
+ * @param props.presentation - `hero` uses larger bounded height, no `max-w-xl`, and no vignette stage rect so content blends with the host background; defaults to `standard`.
  *
  * **Semantics:** Compresses multi-electron structure into labeled shells (1s solid, 2s solid, 2p dashed).
  * Decorative gradients and glow are non-quantitative cues only.
@@ -25,6 +30,7 @@ type NexafsCoreAbsorptionSchematicProps = {
  */
 export function NexafsCoreAbsorptionSchematic({
   className,
+  presentation = "standard",
 }: NexafsCoreAbsorptionSchematicProps) {
   const cx = 260;
   const cy = 218;
@@ -64,12 +70,24 @@ export function NexafsCoreAbsorptionSchematic({
   const vbH = 412;
 
   return (
-    <figure className={cn("w-full overflow-hidden", className)}>
+    <figure
+      className={cn(
+        "w-full overflow-hidden",
+        presentation === "hero" &&
+          "flex min-h-[min(260px,40svh)] items-center justify-center @sm:min-h-[min(300px,44svh)] @lg:min-h-[min(340px,50svh)]",
+        className,
+      )}
+    >
       <svg
         role="img"
         aria-labelledby="nexafs-absorption-schematic-title"
         viewBox={`0 ${vbY} 520 ${vbH}`}
-        className="text-border mx-auto block h-auto w-full max-w-xl"
+        className={cn(
+          "text-border mx-auto block h-auto w-full",
+          presentation === "hero"
+            ? "max-h-[min(640px,68svh)] max-w-none w-full @sm:max-h-[min(700px,72svh)] @lg:max-h-[min(760px,76svh)]"
+            : "max-w-xl",
+        )}
         xmlns="http://www.w3.org/2000/svg"
       >
         <title id="nexafs-absorption-schematic-title">
@@ -219,15 +237,17 @@ export function NexafsCoreAbsorptionSchematic({
           </marker>
         </defs>
 
-        <rect
-          x="0"
-          y={vbY}
-          width="520"
-          height={vbH}
-          rx="24"
-          fill="url(#nexafs-stage-vignette)"
-          aria-hidden
-        />
+        {presentation === "standard" ? (
+          <rect
+            x="0"
+            y={vbY}
+            width="520"
+            height={vbH}
+            rx="24"
+            fill="url(#nexafs-stage-vignette)"
+            aria-hidden
+          />
+        ) : null}
 
         <g aria-hidden className="opacity-[0.35]">
           <circle cx={cx} cy={cy} r={r2p + 18} fill="none" stroke="oklch(70% 0.06 280)" strokeWidth="1" />

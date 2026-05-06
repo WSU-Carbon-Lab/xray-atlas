@@ -4,7 +4,6 @@
 
 import type { ComponentType } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { NexafsCoreAbsorptionSchematic } from "~/components/nexafs/nexafs-core-absorption-schematic";
 import {
   BeakerIcon,
@@ -82,7 +81,10 @@ function SectionHeader({
 export default function NexafsWikiPage() {
   return (
     <div className="w-full min-w-0 space-y-10">
-        <header className="border-border bg-surface/80 relative overflow-hidden rounded-2xl border px-6 py-8 sm:px-8">
+        <header className="@container border-border bg-surface/80 relative overflow-hidden rounded-2xl border px-6 py-8 sm:px-8 lg:py-10">
+          <h1 className="text-foreground text-3xl font-bold sm:text-4xl">
+            Home
+          </h1>
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.07]"
             aria-hidden
@@ -90,38 +92,20 @@ export default function NexafsWikiPage() {
             <div className="from-accent/40 absolute -right-24 -top-24 h-64 w-64 rounded-full bg-gradient-to-br to-transparent blur-3xl" />
             <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-gradient-to-tr from-violet-500/30 to-transparent blur-3xl" />
           </div>
-          <div className="relative space-y-4">
-            <p className="text-accent text-xs font-semibold uppercase tracking-wider">
-              Reference
-            </p>
-            <h1 className="text-foreground text-3xl font-bold sm:text-4xl">
-              Wiki home
-            </h1>
-            <p className="text-muted max-w-none text-base leading-relaxed sm:text-lg">
-              Near-edge X-ray absorption fine structure (NEXAFS) is an
-              element-specific method that probes transitions from core electronic
-              states into unoccupied bound and quasi-bound states near an
-              absorption edge (for example carbon, nitrogen, or sulfur K-edges).
-              This page anchors terminology for Xray Atlas so spectra and
-              metadata are read consistently across molecules, instruments, and
-              facilities.
-            </p>
-            <div className="relative mt-6 overflow-hidden rounded-xl">
-              <NexafsCoreAbsorptionSchematic className="bg-default/15 px-2 py-3 sm:px-4 sm:py-4" />
+          <div className="relative flex w-full min-w-0 flex-col gap-6 @lg:flex-row @lg:items-center @lg:gap-8">
+            <div className="min-w-0 space-y-4 @lg:min-w-0 @lg:flex-[1.05_1_0]">
+              <p className="text-muted max-w-[65ch] text-base leading-relaxed sm:text-lg @lg:max-w-none">
+                Near-edge X-ray absorption fine structure (NEXAFS) is an
+                element-specific method that probes transitions from core electronic
+                states into unoccupied bound and quasi-bound states near an
+                absorption edge (for example carbon, nitrogen, or sulfur K-edges).
+                This page anchors terminology for Xray Atlas so spectra and
+                metadata are read consistently across molecules, instruments, and
+                facilities.
+              </p>
             </div>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Link
-                href="/browse/nexafs"
-                className="bg-accent text-accent-foreground rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90"
-              >
-                Browse NEXAFS data
-              </Link>
-              <Link
-                href="/wiki/data-representation"
-                className="border-border bg-background text-foreground hover:bg-default rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
-              >
-                Data representation
-              </Link>
+            <div className="min-w-0 w-full @lg:flex-[1.22_1_0]">
+              <NexafsCoreAbsorptionSchematic presentation="hero" className="min-h-0" />
             </div>
           </div>
         </header>
@@ -248,27 +232,6 @@ export default function NexafsWikiPage() {
             </li>
           </ul>
         </section>
-
-        <footer className="border-border bg-default/30 flex flex-col gap-4 rounded-2xl border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-muted text-sm">
-            Explore live datasets or contribute new experiments with the guided
-            workflows.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/browse/nexafs"
-              className="bg-accent text-accent-foreground rounded-lg px-4 py-2 text-sm font-medium"
-            >
-              Browse NEXAFS
-            </Link>
-            <Link
-              href="/wiki/contributions"
-              className="border-border bg-background text-foreground rounded-lg border px-4 py-2 text-sm font-medium"
-            >
-              Contribution guide
-            </Link>
-          </div>
-        </footer>
     </div>
   );
 }
