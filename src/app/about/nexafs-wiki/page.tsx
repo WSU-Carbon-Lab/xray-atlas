@@ -5,6 +5,7 @@
 import type { ComponentType } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { NexafsCoreAbsorptionSchematic } from "~/components/nexafs/nexafs-core-absorption-schematic";
 import {
   BeakerIcon,
   BookOpenIcon,
@@ -106,6 +107,7 @@ export default function NexafsWikiPage() {
               metadata are read consistently across molecules, instruments, and
               facilities.
             </p>
+            <NexafsCoreAbsorptionSchematic className="border-border bg-background/70 mt-2 rounded-xl border bg-gradient-to-b from-transparent to-default/30 px-2 py-4 sm:px-4" />
             <div className="flex flex-wrap gap-3 pt-2">
               <Link
                 href="/browse/nexafs"
