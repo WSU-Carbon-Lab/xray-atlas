@@ -7,6 +7,30 @@ import "./src/env.js";
 /** @type {import("next").NextConfig} */
 const config = {
   serverExternalPackages: ["pg", "@prisma/adapter-pg"],
+  async redirects() {
+    return [
+      {
+        source: "/about/home",
+        destination: "/wiki/home",
+        permanent: true,
+      },
+      {
+        source: "/about/data-representation",
+        destination: "/wiki/data-representation",
+        permanent: true,
+      },
+      {
+        source: "/about/platform-features",
+        destination: "/wiki/platform-features",
+        permanent: true,
+      },
+      {
+        source: "/about/contributions",
+        destination: "/wiki/contributions",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

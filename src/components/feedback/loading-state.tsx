@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { cn } from "@heroui/styles";
 
 export function LoadingSkeleton({ className = "" }: { className?: string }) {
   return (
@@ -75,28 +76,48 @@ export function MoleculeCompactSkeleton() {
   );
 }
 
+/**
+ * Renders placeholder skeletons for molecule list UIs while data loads.
+ *
+ * @param count - How many skeleton cards to render (default 8).
+ * @param className - Extra Tailwind classes merged onto the outer container.
+ * @param variant - `full` matches molecule detail cards; `compact` matches browse row placeholders.
+ * @param layout - `grid` uses a responsive two-column grid for `full`. `carousel` uses one horizontal row with fixed minimum card width for scroll regions (ignored when `variant` is `compact`).
+ */
 export function MoleculeGridSkeleton({
   count = 8,
   className = "",
   variant = "full",
+  layout = "grid",
 }: {
   count?: number;
   className?: string;
   variant?: "full" | "compact";
+  layout?: "grid" | "carousel";
 }) {
   const Skeleton =
     variant === "compact" ? MoleculeCompactSkeleton : MoleculeCardSkeleton;
+  const carouselWrap =
+    variant === "full" && layout === "carousel"
+      ? ("w-[min(88vw,28rem)] shrink-0" as const)
+      : null;
+  const containerClass =
+    variant === "compact"
+      ? "w-full space-y-3"
+      : layout === "carousel"
+        ? "flex w-max max-w-none flex-nowrap items-stretch gap-4 sm:gap-5"
+        : "grid w-full grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-7";
   return (
-    <div
-      className={
-        variant === "compact"
-          ? `w-full space-y-3 ${className}`
-          : `grid w-full grid-cols-1 gap-6 lg:grid-cols-2 ${className}`
-      }
-    >
-      {Array.from({ length: count }).map((_, i) => (
-        <Skeleton key={i} />
-      ))}
+    <div className={cn(containerClass, className)}>
+      {Array.from({ length: count }).map((_, i) =>
+        carouselWrap ? (
+          <div key={i} className={carouselWrap}>
+            <Skeleton />
+          </div>
+        ) : (
+          <Skeleton key={i} />
+        ),
+      )}
     </div>
   );
 }

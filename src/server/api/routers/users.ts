@@ -101,23 +101,57 @@ export const usersRouter = createTRPCRouter({
 
   /**
    * Lists users who hold a **lineage** system role (`maintainer` or `administrator` slug), for
-   * public UI (e.g. transfer ownership). Intentionally slug-based to match fixed `AppRole` tiers in
-   * `app-role-lineage`, not a generic permission query.
+   * public UI (e.g. transfer ownership, About listings). Intentionally slug-based to match fixed
+   * `AppRole` tiers in `app-role-lineage`, not a generic permission query.
+   *
+   * Each row includes `lineageRoleSlug` identifying which lineage assignment matched (`maintainer`
+   * or `administrator`), when deterministically linked via `userAppRoles`; yields `null` only when
+   * no lineage assignment resolves unexpectedly given Prisma constraints.
    */
   getCoreMaintainers: publicProcedure.query(async ({ ctx }) => {
-    return ctx.db.user.findMany({
+    const lineageSlugs = ["maintainer", "administrator"] as const;
+
+    const rows = await ctx.db.user.findMany({
       where: {
         userAppRoles: {
           some: {
             role: {
-              slug: { in: ["maintainer", "administrator"] },
+              slug: { in: [...lineageSlugs] },
             },
           },
         },
       },
       orderBy: [{ name: "asc" }],
-      select: { id: true, name: true, image: true },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        orcid: true,
+        userAppRoles: {
+          where: {
+            role: {
+              slug: { in: [...lineageSlugs] },
+            },
+          },
+          take: 1,
+          select: {
+            role: {
+              select: {
+                slug: true,
+              },
+            },
+          },
+        },
+      },
     });
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      image: row.image,
+      orcid: row.orcid,
+      lineageRoleSlug: row.userAppRoles[0]?.role.slug ?? null,
+    }));
   }),
 
   updateORCID: protectedProcedure

@@ -1,419 +1,388 @@
-"use client";
+/**
+ * About landing route presenting the database mission, documentation entry points,
+ * stewardship listings, and collaboration calls-to-action.
+ */
 
+import type { Metadata } from "next";
 import Link from "next/link";
-import { trpc } from "~/trpc/client";
+import { api } from "~/trpc/server";
+import { ORCIDIcon } from "~/components/icons";
 import {
-  BeakerIcon,
-  ChartBarIcon,
-  CircleStackIcon,
+  ArrowTopRightOnSquareIcon,
   AcademicCapIcon,
-  LinkIcon,
   BookOpenIcon,
   InformationCircleIcon,
+  RectangleStackIcon,
+  SparklesIcon,
+  UserGroupIcon,
 } from "@heroicons/react/24/outline";
 
-export default function AboutPage() {
-  const { data: collaboratorsData, isLoading: isLoadingCollaborators } =
-    trpc.collaborators.getAll.useQuery();
+export const metadata: Metadata = {
+  title: "About Xray Atlas",
+  description:
+    "Learn the mission, data scope, and scientific workflows supported by the Xray Atlas NEXAFS and X-ray spectroscopy database.",
+};
+
+const aboutResourceCards = [
+  {
+    href: "/wiki/home",
+    title: "Wiki home",
+    description:
+      "Living reference for NEXAFS concepts, terminology, and spectroscopy workflows used throughout the platform.",
+    icon: BookOpenIcon,
+  },
+  {
+    href: "/wiki/data-representation",
+    title: "Data representation and structure",
+    description:
+      "How molecules, samples, spectra, provenance fields, and quality signals are represented in the database.",
+    icon: RectangleStackIcon,
+  },
+  {
+    href: "/wiki/platform-features",
+    title: "Platform features",
+    description:
+      "Search, browse, filtering, visualization, and analysis capabilities for NEXAFS and related X-ray datasets.",
+    icon: SparklesIcon,
+  },
+  {
+    href: "/wiki/contributions",
+    title: "Database contributions",
+    description:
+      "Guidance for dataset contributors, metadata expectations, attribution, and scientific reproducibility practices.",
+    icon: ArrowTopRightOnSquareIcon,
+  },
+] as const;
+
+type CoreMaintainerRow = Awaited<
+  ReturnType<typeof api.users.getCoreMaintainers>
+>[number];
+
+function initialsFromName(name: string | null): string {
+  return (name ?? "User")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function ProfileCard({ user }: { user: CoreMaintainerRow }) {
+  const name = user.name ?? "User";
+  const imageSrc = user.image?.trim() ? user.image.trim() : null;
+  const orcid = user.orcid?.trim() ? user.orcid.trim() : null;
+
+  return (
+    <div className="border-border bg-surface rounded-xl border p-4">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <Link
+          href={`/users/${user.id}`}
+          className="ring-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          aria-label={`Open profile for ${name}`}
+        >
+          {imageSrc ? (
+            <span
+              role="img"
+              aria-label={name}
+              className="border-border inline-flex h-16 w-16 rounded-full border bg-cover bg-center"
+              style={{ backgroundImage: `url("${imageSrc}")` }}
+            />
+          ) : (
+            <span className="border-border bg-default text-foreground inline-flex h-16 w-16 items-center justify-center rounded-full border text-lg font-semibold">
+              {initialsFromName(name)}
+            </span>
+          )}
+        </Link>
+        <div className="inline-flex items-center gap-1.5">
+          <Link
+            href={`/users/${user.id}`}
+            className="text-foreground hover:text-accent text-sm font-medium"
+          >
+            {name}
+          </Link>
+          {orcid ? (
+            <a
+              href={`https://orcid.org/${orcid}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted hover:text-accent inline-flex items-center"
+              aria-label={`Open ORCID profile for ${name}`}
+              title={`ORCID profile for ${name}`}
+            >
+              <ORCIDIcon className="h-4 w-4" authenticated />
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default async function AboutPage() {
+  const [collaboratorsData, coreMaintainers] = await Promise.all([
+    api.collaborators.getAll(),
+    api.users.getCoreMaintainers(),
+  ]);
+
+  const administrators = coreMaintainers.filter(
+    (user) => user.lineageRoleSlug === "administrator",
+  );
+  const maintainers = coreMaintainers.filter(
+    (user) => user.lineageRoleSlug === "maintainer",
+  );
+  const lineageUnassigned = coreMaintainers.filter(
+    (user) => user.lineageRoleSlug === null,
+  );
+  const maintainersForDisplay = [...maintainers, ...lineageUnassigned];
 
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-12 text-center">
-          <h1 className="mb-4 text-4xl font-bold text-gray-900 dark:text-gray-100">
+        <div className="mb-12 space-y-4 text-center">
+          <h1 className="text-foreground mb-2 text-4xl font-bold sm:text-5xl">
             About X-ray Atlas
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">
-            Advancing material research through collaborative data
+          <p className="text-muted mx-auto max-w-3xl text-lg">
+            X-ray Atlas is an open NEXAFS and X-ray spectroscopy database that
+            helps researchers discover, compare, and reuse molecule-resolved
+            spectra with rich experimental metadata, facility provenance, and
+            reproducible contribution workflows.
+          </p>
+          <p className="text-muted mx-auto max-w-3xl text-base">
+            Our mission is to accelerate materials, chemistry, and soft-matter
+            research by connecting high-quality spectroscopy datasets with the
+            context needed for scientific interpretation and citation.
           </p>
         </div>
 
         <div className="space-y-12">
           <section>
-            <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <InformationCircleIcon className="text-accent dark:text-accent-light h-6 w-6" />
-              What is X-ray Atlas?
+            <h2 className="text-foreground mb-4 flex items-center gap-2 text-2xl font-semibold">
+              <InformationCircleIcon className="text-accent h-6 w-6" />
+              What the database includes
             </h2>
-            <div className="space-y-4 text-gray-700 dark:text-gray-300">
+            <div className="text-muted space-y-4">
               <p>
-                X-ray Atlas is an open-access database and web platform designed
-                to make Near-Edge X-ray Absorption Fine Structure (NEXAFS)
-                spectroscopy data discoverable and usable by the wider
-                scientific community. Our mission is to accelerate material
-                research by providing researchers with easy access to
-                high-quality, well-documented experimental data.
+                X-ray Atlas includes molecule records, sample descriptors, and
+                spectrum traces with linked experimental conditions such as edge
+                selection, geometry, instrument, facility, and detection mode.
               </p>
               <p>
-                The platform enables researchers to browse, search, and download
-                NEXAFS spectra, explore experimental conditions, and contribute
-                their own data to build a comprehensive resource for the
-                materials science community.
+                The platform is optimized for query-driven scientific use cases:
+                finding comparable NEXAFS datasets, validating assignments
+                across sources, and tracing data provenance from uploaded
+                experiments to reusable, citable records.
               </p>
-            </div>
-          </section>
-
-          <section>
-            <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <BookOpenIcon className="text-accent dark:text-accent-light h-6 w-6" />
-              Understanding NEXAFS Spectroscopy
-            </h2>
-            <div className="space-y-4 text-gray-700 dark:text-gray-300">
               <p>
-                Near-Edge X-ray Absorption Fine Structure (NEXAFS) spectroscopy,
-                also known as X-ray Absorption Near-Edge Structure (XANES), is a
-                powerful analytical technique used to study the electronic
-                structure and chemical bonding of materials.
+                X-ray Atlas also provides an interactive visual platform for
+                parsing, comparing, and distinguishing datasets directly in the
+                browser, alongside API access for programmatic integration into
+                individual analysis workflows, experimental software, and other
+                research tooling.
               </p>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
-                <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                  Key Principles:
+              <div className="border-border bg-surface rounded-xl border p-4">
+                <h3 className="text-foreground mb-3 text-lg font-semibold">
+                  Hosted by
                 </h3>
-                <ul className="ml-6 list-disc space-y-1">
-                  <li>
-                    NEXAFS measures the absorption of X-rays by core electrons
-                    in atoms, providing element-specific information
-                  </li>
-                  <li>
-                    The technique is sensitive to the local chemical
-                    environment, bonding geometry, and electronic structure
-                  </li>
-                  <li>
-                    It is particularly powerful for studying organic materials,
-                    polymers, and surfaces
-                  </li>
-                  <li>
-                    Polarization-dependent measurements reveal molecular
-                    orientation and alignment
-                  </li>
-                </ul>
-              </div>
-              <p>
-                NEXAFS spectroscopy is widely used in materials science,
-                chemistry, physics, and engineering to characterize thin films,
-                interfaces, and bulk materials. The technique provides unique
-                insights into molecular structure, chemical composition, and
-                electronic properties that are difficult to obtain through other
-                methods.
-              </p>
-            </div>
-          </section>
-
-          <section>
-            <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <CircleStackIcon className="text-accent dark:text-accent-light h-6 w-6" />
-              Data Representation and Structure
-            </h2>
-            <div className="space-y-4 text-gray-700 dark:text-gray-300">
-              <p>
-                X-ray Atlas organizes experimental data using a structured
-                approach that captures the full context of each measurement:
-              </p>
-
-              <div className="space-y-4">
-                <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                  <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                    Molecules and Samples
-                  </h3>
-                  <p className="text-sm">
-                    Each entry includes comprehensive molecular information:
-                    IUPAC names, chemical formulas, SMILES notation, InChI
-                    identifiers, and common synonyms. Sample preparation details
-                    such as processing methods, substrates, solvents, and
-                    thickness are recorded to provide full experimental context.
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                  <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                    Experimental Conditions
-                  </h3>
-                  <p className="text-sm">
-                    All experiments include detailed metadata: measurement date,
-                    instrument and facility information, edge type (K, L, M),
-                    polarization geometry (polar and azimuthal angles), and
-                    detection mode (total electron yield, partial electron
-                    yield, fluorescence yield, or transmission).
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                  <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                    Spectral Data
-                  </h3>
-                  <p className="text-sm">
-                    Spectra are stored with both raw and processed absorption
-                    values, energy calibration information, and reference
-                    standards when applicable. Peak assignments and analysis
-                    results can be associated with each spectrum.
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                  <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                    Quality Metrics
-                  </h3>
-                  <p className="text-sm">
-                    Each experiment includes quality indicators such as
-                    signal-to-noise ratios, user ratings, and community
-                    favorites to help researchers identify high-quality
-                    datasets.
-                  </p>
-                </div>
+                {collaboratorsData.hosts.length > 0 ? (
+                  <ul className="space-y-2 text-sm">
+                    {collaboratorsData.hosts.map((host) => (
+                      <li
+                        key={host.id}
+                        className="border-border bg-default rounded-lg border px-3 py-2"
+                      >
+                        {host.url ? (
+                          <Link
+                            href={host.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-foreground hover:text-accent underline-offset-2 hover:underline"
+                          >
+                            {host.name}
+                          </Link>
+                        ) : (
+                          <span className="text-foreground">{host.name}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted text-sm">No hosts listed yet.</p>
+                )}
               </div>
             </div>
           </section>
 
           <section>
-            <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <ChartBarIcon className="text-accent dark:text-accent-light h-6 w-6" />
-              Platform Features
+            <h2 className="text-foreground mb-4 flex items-center gap-2 text-2xl font-semibold">
+              <BookOpenIcon className="text-accent h-6 w-6" />
+              Explore the documentation pages
             </h2>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                  Advanced Search and Browse
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Search by molecule name, chemical formula, CAS number, or
-                  browse by facility. Filter results by edge type, detection
-                  mode, and experimental conditions.
-                </p>
+              {aboutResourceCards.map((card) => (
+                <Link
+                  key={card.href}
+                  href={card.href}
+                  className="border-border bg-surface hover:bg-default rounded-lg border p-4 transition-colors"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <card.icon className="text-accent h-5 w-5" />
+                    <h3 className="text-foreground font-semibold">{card.title}</h3>
+                  </div>
+                  <p className="text-muted text-sm">{card.description}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-6">
+            <h2 className="text-foreground mb-4 flex items-center gap-2 text-2xl font-semibold">
+              <AcademicCapIcon className="text-accent h-6 w-6" />
+              Maintainers and collaborators
+            </h2>
+            <div className="space-y-8">
+              <div className="border-border bg-surface/50 space-y-6 rounded-2xl border p-6">
+                <div className="space-y-4">
+                  <h3 className="text-foreground text-lg font-semibold">
+                    Administrators
+                  </h3>
+                  <p className="text-muted text-sm">
+                    Users assigned the administrator lineage role steward platform
+                    operations alongside dataset publishing workflows.
+                  </p>
+                  {administrators.length > 0 ? (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {administrators.map((user) => (
+                        <ProfileCard key={user.id} user={user} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted text-sm">
+                      No administrators are listed yet.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-foreground text-lg font-semibold">
+                    Core maintainers
+                  </h3>
+                  <p className="text-muted text-sm">
+                    Maintainers guide scientific direction, review contributions,
+                    and coordinate releases for the open spectroscopy catalog.
+                  </p>
+                  {maintainersForDisplay.length > 0 ? (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {maintainersForDisplay.map((user) => (
+                        <ProfileCard key={user.id} user={user} />
+                      ))}
+                      {lineageUnassigned.length > 0 ? (
+                        <p className="text-muted col-span-full text-xs">
+                          Some stewardship profiles are shown here while lineage role
+                          metadata finishes syncing.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-muted text-sm">
+                      Maintainer profiles will appear here as lineage roles are
+                      assigned.
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                  Interactive Data Visualization
+              <div className="space-y-4">
+                <h3 className="text-foreground text-lg font-semibold">
+                  Collaborating institutions
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  View and compare spectra with interactive plots. Overlay
-                  multiple datasets, zoom, and export data in various formats.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                  Data Contribution Tools
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Easy-to-use upload interfaces for molecules, facilities, and
-                  NEXAFS experiments. Built-in validation and data quality
-                  checks ensure consistency.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                  Community Features
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Upvote high-quality datasets, add comments, and contribute
-                  peak assignments. Link experiments to publications for proper
-                  attribution.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                  Peak Analysis Tools
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Automated peak detection and assignment tools help identify
-                  characteristic absorption features and transitions in your
-                  spectra.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                  Export and Integration
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Download spectra in CSV, JSON, or other standard formats.
-                  Access data programmatically through our API for integration
-                  with analysis workflows.
-                </p>
+                <div className="border-border bg-surface rounded-xl border p-4">
+                  {collaboratorsData.collaborators.length > 0 ? (
+                    <ul className="space-y-2 text-sm">
+                      {collaboratorsData.collaborators.map((collaborator) => (
+                        <li
+                          key={collaborator.id}
+                          className="border-border bg-default rounded-lg border px-3 py-2"
+                        >
+                          {collaborator.url ? (
+                            <Link
+                              href={collaborator.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-foreground hover:text-accent underline-offset-2 hover:underline"
+                            >
+                              {collaborator.name}
+                            </Link>
+                          ) : (
+                            <span className="text-foreground">{collaborator.name}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted text-sm">
+                      No collaborating institutions listed yet.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </section>
 
           <section>
-            <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <LinkIcon className="text-accent dark:text-accent-light h-6 w-6" />
-              Contributing Data
+            <h2 className="text-foreground mb-4 flex items-center gap-2 text-2xl font-semibold">
+              <UserGroupIcon className="text-accent h-6 w-6" />
+              Join the project
             </h2>
-            <div className="space-y-4 text-gray-700 dark:text-gray-300">
-              <p>
-                We welcome contributions from researchers worldwide.
-                Contributing your data helps build a comprehensive resource for
-                the materials science community.
+            <div className="space-y-4">
+              <p className="text-muted">
+                You can contribute datasets immediately, and you can also reach
+                out if you want to take on a sustained maintainer or
+                collaborator role in data stewardship and platform development.
               </p>
-              <div className="rounded-lg border border-gray-200 bg-blue-50 p-4 dark:border-gray-700 dark:bg-blue-900/20">
-                <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                  How to Contribute:
-                </h3>
-                <ol className="ml-6 list-decimal space-y-2">
-                  <li>
-                    <Link
-                      href="/contribute"
-                      className="text-accent dark:text-accent-light hover:underline"
-                    >
-                      Sign in and review the contribution agreement
-                    </Link>
-                  </li>
-                  <li>
-                    Choose your contribution type: NEXAFS experiments,
-                    molecules, or facilities
-                  </li>
-                  <li>
-                    Upload your data using our guided upload forms with built-in
-                    validation
-                  </li>
-                  <li>
-                    Add metadata including experimental conditions, sample
-                    preparation details, and references
-                  </li>
-                  <li>
-                    Review and submit your contribution for inclusion in the
-                    database
-                  </li>
-                </ol>
-              </div>
-              <p>
-                All contributions are made available under an open data license,
-                ensuring maximum utility for the research community.
-                Contributors receive proper attribution, and experiments can be
-                linked to publications.
-              </p>
-              <div className="flex justify-center">
+              <div className="flex flex-wrap gap-3">
                 <Link
                   href="/contribute"
-                  className="bg-accent hover:bg-accent-dark rounded-lg px-6 py-3 text-white transition-colors"
+                  className="bg-accent text-accent-foreground rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90"
                 >
-                  Start Contributing
+                  Contribute data
+                </Link>
+                <Link
+                  href="mailto:brian.collins@wsu.edu?subject=Maintainership%20Request%20for%20X-ray%20Atlas"
+                  className="border-border bg-surface text-foreground hover:bg-default rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+                >
+                  Become a maintainer
+                </Link>
+                <Link
+                  href="mailto:brian.collins@wsu.edu?subject=Collaboration%20Request%20for%20X-ray%20Atlas"
+                  className="border-border bg-surface text-foreground hover:bg-default rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+                >
+                  Become a collaborator
                 </Link>
               </div>
             </div>
           </section>
 
           <section>
-            <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <AcademicCapIcon className="text-accent dark:text-accent-light h-6 w-6" />
-              Core Contributors
+            <h2 className="text-foreground mb-4 text-2xl font-semibold">
+              Query-oriented summary
             </h2>
-            <div className="space-y-6">
-              {isLoadingCollaborators ? (
-                <div className="text-center text-gray-600 dark:text-gray-400">
-                  Loading contributors...
-                </div>
-              ) : (
-                <>
-                  {collaboratorsData?.hosts &&
-                    collaboratorsData.hosts.length > 0 && (
-                      <div>
-                        <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                          Hosted By
-                        </h3>
-                        <ul className="space-y-2">
-                          {collaboratorsData.hosts.map((host) => (
-                            <li key={host.id}>
-                              {host.url ? (
-                                <Link
-                                  href={host.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-accent dark:text-accent-light hover:underline"
-                                >
-                                  {host.name}
-                                </Link>
-                              ) : (
-                                <span className="text-gray-700 dark:text-gray-300">
-                                  {host.name}
-                                </span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                  {collaboratorsData?.collaborators &&
-                    collaboratorsData.collaborators.length > 0 && (
-                      <div>
-                        <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                          Collaborators
-                        </h3>
-                        <ul className="space-y-2">
-                          {collaboratorsData.collaborators.map((collab) => (
-                            <li key={collab.id}>
-                              {collab.url ? (
-                                <Link
-                                  href={collab.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-accent dark:text-accent-light hover:underline"
-                                >
-                                  {collab.name}
-                                </Link>
-                              ) : (
-                                <span className="text-gray-700 dark:text-gray-300">
-                                  {collab.name}
-                                </span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                  {(!collaboratorsData?.hosts ||
-                    collaboratorsData.hosts.length === 0) &&
-                    (!collaboratorsData?.collaborators ||
-                      collaboratorsData.collaborators.length === 0) && (
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Contributor information will be displayed here.
-                      </p>
-                    )}
-                </>
-              )}
-            </div>
-          </section>
-
-          <section>
-            <h2 className="mb-4 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              <BeakerIcon className="text-accent dark:text-accent-light h-6 w-6" />
-              Getting Started
-            </h2>
-            <div className="space-y-4 text-gray-700 dark:text-gray-300">
+            <div className="text-muted space-y-3">
               <p>
-                Ready to explore the database? Here are some ways to get
-                started:
+                X-ray Atlas is designed for search and discovery of NEXAFS and
+                related X-ray spectroscopy datasets by molecule, edge,
+                instrument, facility, and data quality signals.
               </p>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Link
-                  href="/browse"
-                  className="hover:border-accent rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
-                >
-                  <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                    Browse Molecules
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Explore our collection of molecules and their NEXAFS spectra
-                  </p>
-                </Link>
-
-                <Link
-                  href="/browse/facilities"
-                  className="hover:border-accent rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
-                >
-                  <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-                    Browse Facilities
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Discover synchrotron facilities and instruments in our
-                    database
-                  </p>
-                </Link>
-              </div>
+              <p>
+                It supports queryable links between molecular identifiers,
+                spectrum traces, experimental conditions, and contribution
+                provenance so researchers can evaluate context before reuse.
+              </p>
+              <p>
+                The mission is practical and scientific: make high-quality
+                spectroscopy data easier to find, easier to trust, and easier to
+                cite.
+              </p>
             </div>
           </section>
         </div>
