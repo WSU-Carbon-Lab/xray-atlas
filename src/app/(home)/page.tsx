@@ -202,7 +202,7 @@ function TopUpvotedMolecules() {
               }
               className="flex h-full min-h-0 w-full flex-1 cursor-pointer rounded-xl transition-[opacity,box-shadow] hover:opacity-[0.98]"
             >
-              <MoleculeCard molecule={molecule} variant="full" />
+              <MoleculeCard molecule={molecule} variant="fullCarousel" />
             </div>
           </div>
         ))}
