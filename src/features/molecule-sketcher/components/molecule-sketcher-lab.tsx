@@ -7,6 +7,7 @@ import { Button, Card, Input, Label } from "@heroui/react";
 import { trpc } from "~/trpc/client";
 import { MoleculeImageSVG } from "~/components/molecules/molecule-image-svg";
 import { LAB_STRUCTURE_PANE_HEIGHT_PX } from "../constants";
+import { MoleculeFragmentationLab } from "./molecule-fragmentation-lab";
 
 const MoleculeStructureEditorLab = dynamic(
   () =>
@@ -277,6 +278,8 @@ export function MoleculeSketcherLab() {
             </div>
           </section>
         </div>
+
+        <MoleculeFragmentationLab />
       </Card.Content>
     </Card>
   );
