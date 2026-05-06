@@ -6,7 +6,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { api } from "~/trpc/server";
-import { AvatarGroup } from "~/components/ui/avatar";
+import { ORCIDIcon } from "~/components/icons";
 import {
   ArrowTopRightOnSquareIcon,
   AcademicCapIcon,
@@ -54,6 +54,70 @@ const aboutResourceCards = [
   },
 ] as const;
 
+type CoreMaintainerRow = Awaited<
+  ReturnType<typeof api.users.getCoreMaintainers>
+>[number];
+
+function initialsFromName(name: string | null): string {
+  return (name ?? "User")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function ProfileCard({ user }: { user: CoreMaintainerRow }) {
+  const name = user.name ?? "User";
+  const imageSrc = user.image?.trim() || null;
+  const orcid = user.orcid?.trim() || null;
+
+  return (
+    <div className="border-border bg-surface rounded-xl border p-4">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <Link
+          href={`/users/${user.id}`}
+          className="ring-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          aria-label={`Open profile for ${name}`}
+        >
+          {imageSrc ? (
+            <span
+              role="img"
+              aria-label={name}
+              className="border-border inline-flex h-16 w-16 rounded-full border bg-cover bg-center"
+              style={{ backgroundImage: `url("${imageSrc}")` }}
+            />
+          ) : (
+            <span className="border-border bg-default text-foreground inline-flex h-16 w-16 items-center justify-center rounded-full border text-lg font-semibold">
+              {initialsFromName(name)}
+            </span>
+          )}
+        </Link>
+        <div className="inline-flex items-center gap-1.5">
+          <Link
+            href={`/users/${user.id}`}
+            className="text-foreground hover:text-accent text-sm font-medium"
+          >
+            {name}
+          </Link>
+          {orcid ? (
+            <a
+              href={`https://orcid.org/${orcid}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted hover:text-accent inline-flex items-center"
+              aria-label={`Open ORCID profile for ${name}`}
+              title={`ORCID profile for ${name}`}
+            >
+              <ORCIDIcon className="h-4 w-4" authenticated />
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function AboutPage() {
   const [collaboratorsData, coreMaintainers] = await Promise.all([
     api.collaborators.getAll(),
@@ -69,6 +133,7 @@ export default async function AboutPage() {
   const lineageUnassigned = coreMaintainers.filter(
     (user) => user.lineageRoleSlug === null,
   );
+  const maintainersForDisplay = [...maintainers, ...lineageUnassigned];
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -108,6 +173,43 @@ export default async function AboutPage() {
                 across sources, and tracing data provenance from uploaded
                 experiments to reusable, citable records.
               </p>
+              <p>
+                X-ray Atlas also provides an interactive visual platform for
+                parsing, comparing, and distinguishing datasets directly in the
+                browser, alongside API access for programmatic integration into
+                individual analysis workflows, experimental software, and other
+                research tooling.
+              </p>
+              <div className="border-border bg-surface rounded-xl border p-4">
+                <h3 className="text-foreground mb-3 text-lg font-semibold">
+                  Hosted by
+                </h3>
+                {collaboratorsData.hosts.length > 0 ? (
+                  <ul className="space-y-2 text-sm">
+                    {collaboratorsData.hosts.map((host) => (
+                      <li
+                        key={host.id}
+                        className="border-border bg-default rounded-lg border px-3 py-2"
+                      >
+                        {host.url ? (
+                          <Link
+                            href={host.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-foreground hover:text-accent underline-offset-2 hover:underline"
+                          >
+                            {host.name}
+                          </Link>
+                        ) : (
+                          <span className="text-foreground">{host.name}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted text-sm">No hosts listed yet.</p>
+                )}
+              </div>
             </div>
           </section>
 
@@ -133,14 +235,14 @@ export default async function AboutPage() {
             </div>
           </section>
 
-          <section>
+          <section className="space-y-6">
             <h2 className="text-foreground mb-4 flex items-center gap-2 text-2xl font-semibold">
               <AcademicCapIcon className="text-accent h-6 w-6" />
               Maintainers and collaborators
             </h2>
-            <div className="space-y-6">
-              <div className="space-y-6">
-                <div className="space-y-3">
+            <div className="space-y-8">
+              <div className="border-border bg-surface/50 space-y-6 rounded-2xl border p-6">
+                <div className="space-y-4">
                   <h3 className="text-foreground text-lg font-semibold">
                     Administrators
                   </h3>
@@ -149,29 +251,10 @@ export default async function AboutPage() {
                     operations alongside dataset publishing workflows.
                   </p>
                   {administrators.length > 0 ? (
-                    <div className="space-y-3">
-                      <AvatarGroup
-                        users={administrators.map((user) => ({
-                          id: user.id,
-                          name: user.name ?? "User",
-                          image: user.image,
-                        }))}
-                        size="md"
-                        max={12}
-                        tooltipVariant="name"
-                      />
-                      <ul className="text-muted grid gap-1 text-sm sm:grid-cols-2">
-                        {administrators.map((user) => (
-                          <li key={user.id}>
-                            <Link
-                              href={`/users/${user.id}`}
-                              className="text-accent hover:underline"
-                            >
-                              {user.name ?? "User"}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {administrators.map((user) => (
+                        <ProfileCard key={user.id} user={user} />
+                      ))}
                     </div>
                   ) : (
                     <p className="text-muted text-sm">
@@ -180,7 +263,7 @@ export default async function AboutPage() {
                   )}
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <h3 className="text-foreground text-lg font-semibold">
                     Core maintainers
                   </h3>
@@ -188,32 +271,13 @@ export default async function AboutPage() {
                     Maintainers guide scientific direction, review contributions,
                     and coordinate releases for the open spectroscopy catalog.
                   </p>
-                  {maintainers.length > 0 || lineageUnassigned.length > 0 ? (
-                    <div className="space-y-3">
-                      <AvatarGroup
-                        users={[...maintainers, ...lineageUnassigned].map((user) => ({
-                          id: user.id,
-                          name: user.name ?? "User",
-                          image: user.image,
-                        }))}
-                        size="md"
-                        max={12}
-                        tooltipVariant="name"
-                      />
-                      <ul className="text-muted grid gap-1 text-sm sm:grid-cols-2">
-                        {[...maintainers, ...lineageUnassigned].map((user) => (
-                          <li key={user.id}>
-                            <Link
-                              href={`/users/${user.id}`}
-                              className="text-accent hover:underline"
-                            >
-                              {user.name ?? "User"}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
+                  {maintainersForDisplay.length > 0 ? (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {maintainersForDisplay.map((user) => (
+                        <ProfileCard key={user.id} user={user} />
+                      ))}
                       {lineageUnassigned.length > 0 ? (
-                        <p className="text-muted text-xs">
+                        <p className="text-muted col-span-full text-xs">
                           Some stewardship profiles are shown here while lineage role
                           metadata finishes syncing.
                         </p>
@@ -228,63 +292,38 @@ export default async function AboutPage() {
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <h3 className="text-foreground text-lg font-semibold">
-                  Project hosts and collaborators
+                  Collaborating institutions
                 </h3>
-                <div className="text-muted grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <h4 className="text-foreground mb-2 font-medium">Hosted by</h4>
-                    {collaboratorsData.hosts.length > 0 ? (
-                      <ul className="space-y-1 text-sm">
-                        {collaboratorsData.hosts.map((host) => (
-                          <li key={host.id}>
-                            {host.url ? (
-                              <Link
-                                href={host.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-accent hover:underline"
-                              >
-                                {host.name}
-                              </Link>
-                            ) : (
-                              <span>{host.name}</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm">No hosts listed yet.</p>
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="text-foreground mb-2 font-medium">
-                      Collaborators
-                    </h4>
-                    {collaboratorsData.collaborators.length > 0 ? (
-                      <ul className="space-y-1 text-sm">
-                        {collaboratorsData.collaborators.map((collaborator) => (
-                          <li key={collaborator.id}>
-                            {collaborator.url ? (
-                              <Link
-                                href={collaborator.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-accent hover:underline"
-                              >
-                                {collaborator.name}
-                              </Link>
-                            ) : (
-                              <span>{collaborator.name}</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm">No collaborators listed yet.</p>
-                    )}
-                  </div>
+                <div className="border-border bg-surface rounded-xl border p-4">
+                  {collaboratorsData.collaborators.length > 0 ? (
+                    <ul className="space-y-2 text-sm">
+                      {collaboratorsData.collaborators.map((collaborator) => (
+                        <li
+                          key={collaborator.id}
+                          className="border-border bg-default rounded-lg border px-3 py-2"
+                        >
+                          {collaborator.url ? (
+                            <Link
+                              href={collaborator.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-foreground hover:text-accent underline-offset-2 hover:underline"
+                            >
+                              {collaborator.name}
+                            </Link>
+                          ) : (
+                            <span className="text-foreground">{collaborator.name}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted text-sm">
+                      No collaborating institutions listed yet.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

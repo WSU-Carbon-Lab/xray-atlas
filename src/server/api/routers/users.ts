@@ -126,6 +126,7 @@ export const usersRouter = createTRPCRouter({
         id: true,
         name: true,
         image: true,
+        orcid: true,
         userAppRoles: {
           where: {
             role: {
@@ -148,6 +149,7 @@ export const usersRouter = createTRPCRouter({
       id: row.id,
       name: row.name,
       image: row.image,
+      orcid: row.orcid,
       lineageRoleSlug: row.userAppRoles[0]?.role.slug ?? null,
     }));
   }),
