@@ -1,9 +1,39 @@
 /**
  * NEXAFS-focused illustration primitives for education surfaces such as the NEXAFS wiki.
- * Animations may extend these diagrams later without changing copy-heavy routes directly.
+ * Optional SMIL motion layers pause off-screen or when the tab is hidden; honors reduced-motion preferences.
  */
 
+"use client";
+
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { cn } from "@heroui/styles";
+
+function subscribeReducedMotion(onStoreChange: () => void): () => void {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", onStoreChange);
+  return () => mq.removeEventListener("change", onStoreChange);
+}
+
+function getReducedMotionSnapshot(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getReducedMotionServerSnapshot(): boolean {
+  return false;
+}
+
+function useReducedMotionPreference(): boolean {
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot,
+  );
+}
 
 type NexafsCoreAbsorptionSchematicProps = {
   /**
@@ -14,11 +44,16 @@ type NexafsCoreAbsorptionSchematicProps = {
    * `hero` expands the SVG beyond `max-w-xl`, omits the staged vignette plate so the diagram sits on the page background, and reserves vertical space for forthcoming motion on wiki-style landing surfaces. Responsive `@sm`/`@lg` tiers assume a nearest Tailwind `@container` ancestor (the wiki home header provides one).
    */
   presentation?: "standard" | "hero";
+  /**
+   * When true (default for `presentation="hero"`), runs the looping photon and ejected-electron SMIL animation while the figure intersects the viewport and the document tab is visible.
+   */
+  animated?: boolean;
 };
 
 /**
- * Draws a Bohr-style schematic of tunable photon absorption at a core site with a straight dashed ray
- * aimed upward and slightly rightward to suggest photoelectron-style ejection away from the nucleus.
+ * Draws a Bohr-style schematic of tunable photon absorption at a core site. With motion enabled, a compact
+ * purple wave packet (phase-animated) travels inward, a calm core electron sits at the 1s site until impact,
+ * then an excited electron carries bloom outward; static fallback keeps stroked ray guides for reduced-motion viewers.
  *
  * @param props.className - Extra layout tokens around the intrinsic-ratio SVG viewport (`width`/`height` scale uniformly via CSS).
  * @param props.presentation - `hero` uses larger bounded height, no `max-w-xl`, and no vignette stage rect so content blends with the host background; defaults to `standard`.
@@ -27,11 +62,96 @@ type NexafsCoreAbsorptionSchematicProps = {
  * Decorative gradients and glow are non-quantitative cues only.
  *
  * **Accessibility:** Exposes an SVG `<title>` summarizing the schematic for assistive technologies.
+ *
+ * @param props.animated - Overrides auto-enable (`hero` defaults to animated).
  */
 export function NexafsCoreAbsorptionSchematic({
   className,
   presentation = "standard",
+  animated: animatedProp,
 }: NexafsCoreAbsorptionSchematicProps) {
+  const animated = animatedProp ?? presentation === "hero";
+  const reducedMotion = useReducedMotionPreference();
+  const [motionLayerMounted, setMotionLayerMounted] = useState(false);
+  useEffect(() => {
+    setMotionLayerMounted(true);
+  }, []);
+  const runMotion = animated && !reducedMotion && motionLayerMounted;
+  const motionSvgRef = useRef<SVGSVGElement>(null);
+  const figureRef = useRef<HTMLElement | null>(null);
+  const intersectingRef = useRef(false);
+  const wavePhaseRef = useRef(0);
+  const [, setWaveFrame] = useState(0);
+
+  useEffect(() => {
+    const svg = motionSvgRef.current;
+    const fig = figureRef.current;
+    if (!svg || !fig || !runMotion) {
+      return;
+    }
+
+    const syncPlayback = (): void => {
+      if (
+        document.visibilityState === "hidden" ||
+        !intersectingRef.current
+      ) {
+        svg.pauseAnimations();
+      } else {
+        svg.unpauseAnimations();
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        intersectingRef.current = entries.some((e) => e.isIntersecting);
+        syncPlayback();
+      },
+      { root: null, rootMargin: "48px 0px", threshold: 0.08 },
+    );
+    observer.observe(fig);
+
+    const onVisibility = (): void => {
+      syncPlayback();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+
+    intersectingRef.current = false;
+    svg.pauseAnimations();
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [runMotion]);
+
+  useEffect(() => {
+    if (!runMotion) {
+      return;
+    }
+    let frameId = 0;
+    let alive = true;
+    const tick = (): void => {
+      if (!alive) {
+        return;
+      }
+      if (
+        document.visibilityState === "visible" &&
+        intersectingRef.current
+      ) {
+        wavePhaseRef.current =
+          (performance.now() * 0.021) % (2 * Math.PI);
+        setWaveFrame((n) => (n + 1) % 1_000_000);
+      }
+      frameId = requestAnimationFrame(tick);
+    };
+    frameId = requestAnimationFrame(tick);
+    return () => {
+      alive = false;
+      cancelAnimationFrame(frameId);
+    };
+  }, [runMotion]);
+
   const cx = 260;
   const cy = 218;
   const r1s = 46;
@@ -54,6 +174,28 @@ export function NexafsCoreAbsorptionSchematic({
     6.5,
   );
 
+  const beamDx = hx - photonStart.x;
+  const beamDy = hy - photonStart.y;
+  const beamLen = Math.hypot(beamDx, beamDy);
+  const beamUx = beamLen > 1e-6 ? beamDx / beamLen : 1;
+  const beamUy = beamLen > 1e-6 ? beamDy / beamLen : 0;
+  const packetLeadIn = 56;
+  const packetStartCx = photonStart.x - beamUx * packetLeadIn;
+  const packetStartCy = photonStart.y - beamUy * packetLeadIn;
+  const beamAngleDeg = (Math.atan2(beamDy, beamDx) * 180) / Math.PI;
+  const wavePacketPathLocal = runMotion
+    ? buildEnvelopeWavePacketPath({
+        halfLength: 24,
+        sigma: 8.5,
+        amplitude: 14.5,
+        k: 1.08,
+        phase: wavePhaseRef.current,
+        envelopePower: 3.35,
+        envelopeCutoff: 0.042,
+        steps: 96,
+      })
+    : "";
+
   const ejectElevationDeg = 59;
   const ejectPlaneRad = (ejectElevationDeg * Math.PI) / 180;
   const ejDx = Math.cos(ejectPlaneRad);
@@ -69,8 +211,13 @@ export function NexafsCoreAbsorptionSchematic({
   const vbY = 6;
   const vbH = 412;
 
+  const ejTravelX = ejDx * ejChordLen * 0.92;
+  const ejTravelY = ejDy * ejChordLen * 0.92;
+  const motionDur = "5s";
+
   return (
     <figure
+      ref={figureRef}
       className={cn(
         "w-full overflow-hidden",
         presentation === "hero" &&
@@ -79,6 +226,7 @@ export function NexafsCoreAbsorptionSchematic({
       )}
     >
       <svg
+        ref={motionSvgRef}
         role="img"
         aria-labelledby="nexafs-absorption-schematic-title"
         viewBox={`0 ${vbY} 520 ${vbH}`}
@@ -91,8 +239,8 @@ export function NexafsCoreAbsorptionSchematic({
         xmlns="http://www.w3.org/2000/svg"
       >
         <title id="nexafs-absorption-schematic-title">
-          Tunable photon absorption at a core 1s site with a straight photoelectron-style ray directed
-          upward and rightward away from the nucleus in a simplified shell schematic
+          Tunable photon absorption at a core 1s site: an inbound wave packet intersects the core shell
+          and a photoelectron leaves along an outward trajectory in this simplified shell schematic
         </title>
         <defs>
           <linearGradient
@@ -331,43 +479,146 @@ export function NexafsCoreAbsorptionSchematic({
           filledFill="url(#nexafs-electron-core)"
           emptyFill="url(#nexafs-unoccupied-slot)"
           emptyStrokeColor="oklch(72% 0.14 264)"
+          omitAngles={runMotion ? [hitAngleDeg] : undefined}
         />
 
-        <path
-          d={photonPath}
-          fill="none"
-          stroke="oklch(72% 0.24 300)"
-          strokeOpacity={0.35}
-          strokeWidth={9}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          filter="url(#nexafs-bloom-wide)"
-          aria-hidden
-        />
-        <path
-          d={photonPath}
-          fill="none"
-          stroke="url(#nexafs-photon-beam)"
-          strokeWidth={2.85}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          markerEnd="url(#nexafs-photon-arrow)"
-        />
+        {!runMotion ? (
+          <>
+            <path
+              d={photonPath}
+              fill="none"
+              stroke="oklch(72% 0.24 300)"
+              strokeOpacity={0.35}
+              strokeWidth={9}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              filter="url(#nexafs-bloom-wide)"
+              aria-hidden
+            />
+            <path
+              d={photonPath}
+              fill="none"
+              stroke="url(#nexafs-photon-beam)"
+              strokeWidth={2.85}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              markerEnd="url(#nexafs-photon-arrow)"
+            />
 
-        <line
-          x1={hx}
-          y1={hy}
-          x2={ejBx}
-          y2={ejBy}
-          stroke="url(#nexafs-promotion-beam)"
-          strokeWidth={2.35}
-          strokeDasharray="8 7"
-          strokeLinecap="round"
-          opacity={0.94}
-          markerEnd="url(#nexafs-promotion-arrow)"
-          filter="url(#nexafs-glow-tight)"
-          aria-hidden
-        />
+            <line
+              x1={hx}
+              y1={hy}
+              x2={ejBx}
+              y2={ejBy}
+              stroke="url(#nexafs-promotion-beam)"
+              strokeWidth={2.35}
+              strokeDasharray="8 7"
+              strokeLinecap="round"
+              opacity={0.94}
+              markerEnd="url(#nexafs-promotion-arrow)"
+              filter="url(#nexafs-glow-tight)"
+              aria-hidden
+            />
+          </>
+        ) : null}
+
+        {runMotion ? (
+          <g aria-hidden>
+            <g>
+              <animate
+                attributeName="opacity"
+                attributeType="XML"
+                values="1;1;1;0;0;0"
+                keyTimes="0;0.66;0.71;0.745;0.76;1"
+                dur={motionDur}
+                repeatCount="indefinite"
+              />
+              <circle
+                cx={hx}
+                cy={hy}
+                r={7}
+                fill="oklch(48% 0.14 268)"
+                stroke="oklch(38% 0.1 270)"
+                strokeWidth={1.1}
+              />
+            </g>
+            <g>
+              <animateTransform
+                attributeName="transform"
+                attributeType="XML"
+                type="translate"
+                values={`${packetStartCx},${packetStartCy}; ${hx},${hy}; ${hx},${hy}; ${packetStartCx},${packetStartCy}`}
+                keyTimes="0;0.72;0.78;1"
+                dur={motionDur}
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="opacity"
+                attributeType="XML"
+                values="0;1;1;1;0;0"
+                keyTimes="0;0.03;0.05;0.67;0.76;1"
+                dur={motionDur}
+                repeatCount="indefinite"
+              />
+              <g transform={`rotate(${beamAngleDeg})`}>
+                {wavePacketPathLocal.length > 8 ? (
+                  <>
+                    <path
+                      d={wavePacketPathLocal}
+                      fill="none"
+                      stroke="oklch(58% 0.3 305)"
+                      strokeOpacity={0.42}
+                      strokeWidth={12}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      filter="url(#nexafs-bloom-wide)"
+                    />
+                    <path
+                      d={wavePacketPathLocal}
+                      fill="none"
+                      stroke="oklch(84% 0.14 300)"
+                      strokeWidth={2.85}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </>
+                ) : null}
+              </g>
+            </g>
+            <g transform={`translate(${hx}, ${hy})`}>
+              <animate
+                attributeName="opacity"
+                attributeType="XML"
+                values="0;0;0;1;1;0;0"
+                keyTimes="0;0.73;0.746;0.758;0.92;0.96;1"
+                dur={motionDur}
+                repeatCount="indefinite"
+              />
+              <g>
+                <animateTransform
+                  attributeName="transform"
+                  attributeType="XML"
+                  type="translate"
+                  values={`0,0; ${ejTravelX},${ejTravelY}; ${ejTravelX},${ejTravelY}; 0,0`}
+                  keyTimes="0;0.755;0.93;1"
+                  dur={motionDur}
+                  repeatCount="indefinite"
+                />
+                <circle cx={0} cy={0} r={13} fill="oklch(64% 0.2 298)" filter="url(#nexafs-bloom-wide)" opacity={0}>
+                  <animate
+                    attributeName="opacity"
+                    attributeType="XML"
+                    values="0;0;0;0;0.45;0.5;0.35;0;0"
+                    keyTimes="0;0.73;0.745;0.755;0.775;0.85;0.93;1"
+                    dur={motionDur}
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle cx={0} cy={0} r={7.5} fill="url(#nexafs-electron-core)" />
+              </g>
+            </g>
+          </g>
+        ) : null}
 
         <ShellLabels cx={cx} cy={cy} r1s={r1s} r2s={r2s} r2p={r2p} />
       </svg>
@@ -407,6 +658,52 @@ function buildWavyPath(
   return d;
 }
 
+/** Local beam-axis polyline: compact super-Gaussian envelope times sin(k u + phase); drops samples below cutoff so tails stay off-axis. */
+function buildEnvelopeWavePacketPath(opts: {
+  halfLength: number;
+  sigma: number;
+  amplitude: number;
+  k: number;
+  phase: number;
+  envelopePower?: number;
+  envelopeCutoff?: number;
+  steps?: number;
+}): string {
+  const {
+    halfLength,
+    sigma,
+    amplitude,
+    k,
+    phase,
+    envelopePower = 3.2,
+    envelopeCutoff = 0.035,
+    steps = 96,
+  } = opts;
+  const pts: { lx: number; ly: number }[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const u = -halfLength + (2 * halfLength * i) / steps;
+    const t = Math.abs(u / sigma);
+    const env = Math.exp(-Math.pow(t, envelopePower));
+    if (env < envelopeCutoff) {
+      continue;
+    }
+    const transverse = amplitude * env * Math.sin(k * u + phase);
+    pts.push({ lx: u, ly: -transverse });
+  }
+  const first = pts[0];
+  if (pts.length < 2 || first === undefined) {
+    return "";
+  }
+  let d = `M ${first.lx} ${first.ly}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i];
+    if (p !== undefined) {
+      d += ` L ${p.lx} ${p.ly}`;
+    }
+  }
+  return d;
+}
+
 function ShellElectrons({
   cx,
   cy,
@@ -416,6 +713,7 @@ function ShellElectrons({
   filledFill,
   emptyFill,
   emptyStrokeColor,
+  omitAngles,
 }: {
   cx: number;
   cy: number;
@@ -425,11 +723,15 @@ function ShellElectrons({
   filledFill: string;
   emptyFill: string;
   emptyStrokeColor: string;
+  omitAngles?: readonly number[];
 }) {
   const filled = new Set(filledAngles);
+  const omit = omitAngles ? new Set(omitAngles) : null;
+  const visibleAngles = omit ? angles.filter((deg) => !omit.has(deg)) : angles;
+
   return (
     <g aria-hidden>
-      {angles.map((deg) => {
+      {visibleAngles.map((deg) => {
         const rad = (deg * Math.PI) / 180;
         const x = cx + r * Math.cos(rad);
         const y = cy + r * Math.sin(rad);
