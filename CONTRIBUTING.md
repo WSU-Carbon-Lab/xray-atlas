@@ -14,6 +14,7 @@ Thank you for your interest in contributing to X-ray Atlas. This guide covers de
   - [GitHub OAuth](#github-oauth)
   - [Local OAuth Testing with ngrok](#local-oauth-testing-with-ngrok)
 - [Development Workflow](#development-workflow)
+- [Wiki contributions](#wiki-contributions)
 - [Code Style](#code-style)
 - [HeroUI v3 and UI components](#heroui-v3-and-ui-components)
 - [Git Workflow](#git-workflow)
@@ -426,6 +427,8 @@ docs(contributing): add ngrok setup guide
 refactor(plots): extract axis components
 ```
 
+Wiki-only work belongs on **`wiki/...` branches** with **`(wiki)` scope on every commit**; see [Wiki contributions](#wiki-contributions).
+
 ---
 
 ## HeroUI v3 and UI components
@@ -481,6 +484,8 @@ fix/36-passkey-invalid-character
 refactor/32-colocation-migration
 ```
 
+Wiki work uses the **`wiki/`** prefix and **`(wiki)`** commit scope throughout; see [Wiki contributions](#wiki-contributions).
+
 ### Using Graphite (Recommended)
 
 We use [Graphite](https://graphite.dev/) for stacked PRs and branch management.
@@ -527,6 +532,48 @@ gt restack
 # Using Git
 git fetch origin
 git rebase origin/main
+```
+
+---
+
+## Wiki contributions
+
+Educational and editorial work for the **Wiki** (`/wiki` routes under `src/app/wiki`, shared chrome such as `src/components/about/wiki-doc-shell.tsx`, and wiki-linked navigation) should stay easy to find in Git history and on Git hosting filters.
+
+### Branches
+
+Use the **`wiki/`** branch prefix for every wiki-focused PR:
+
+```
+wiki/<short-kebab-description>
+```
+
+Examples:
+
+```
+wiki/clarify-data-representation-page
+wiki/hero-schematic-caption
+wiki/contributions-guidance-copy
+```
+
+### Commits
+
+Use **Conventional Commits with scope `(wiki)`** for **every commit** on these branches (even chores and refactors touching only wiki surfaces):
+
+```
+<type>(wiki): description
+```
+
+Allowed types match the rest of the project (`feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`). Prefer the type that best matches the change; scope stays `wiki`.
+
+Examples:
+
+```bash
+feat(wiki): add platform-features section on instrumentation limits
+fix(wiki): correct NEXAFS schematic caption timing note
+docs(wiki): expand contributions page prerequisites
+refactor(wiki): extract wiki home hero layout fragment
+chore(wiki): align wiki nav labels with shell TOC
 ```
 
 ---
