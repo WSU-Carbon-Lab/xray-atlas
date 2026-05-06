@@ -47,7 +47,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.75,
     },
     {
-      url: "https://xrayatlas.wsu.edu/about/nexafs-wiki",
+      url: "https://xrayatlas.wsu.edu/about/home",
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.65,

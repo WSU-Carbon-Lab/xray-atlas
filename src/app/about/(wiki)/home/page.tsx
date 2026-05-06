@@ -1,5 +1,5 @@
 /**
- * About segment serving as the canonical NEXAFS terminology and interpretation primer for Xray Atlas.
+ * Wiki home route: canonical NEXAFS terminology and interpretation primer for Xray Atlas.
  */
 
 import type { ComponentType } from "react";
@@ -14,7 +14,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 export const metadata: Metadata = {
-  title: "NEXAFS Wiki",
+  title: "Wiki home",
   description:
     "NEXAFS reference for terminology, scientific targets, and interpretation context used across the Xray Atlas spectroscopy database.",
 };
@@ -81,8 +81,7 @@ function SectionHeader({
 
 export default function NexafsWikiPage() {
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="mx-auto max-w-4xl space-y-10">
+    <div className="w-full min-w-0 space-y-10">
         <header className="border-border bg-surface/80 relative overflow-hidden rounded-2xl border px-6 py-8 sm:px-8">
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.07]"
@@ -96,9 +95,9 @@ export default function NexafsWikiPage() {
               Reference
             </p>
             <h1 className="text-foreground text-3xl font-bold sm:text-4xl">
-              NEXAFS wiki
+              Wiki home
             </h1>
-            <p className="text-muted max-w-3xl text-base leading-relaxed sm:text-lg">
+            <p className="text-muted max-w-none text-base leading-relaxed sm:text-lg">
               Near-edge X-ray absorption fine structure (NEXAFS) is an
               element-specific method that probes transitions from core electronic
               states into unoccupied bound and quasi-bound states near an
@@ -136,7 +135,7 @@ export default function NexafsWikiPage() {
             title="The zoo of names for the same idea"
             id="terminology-heading"
           />
-          <p className="text-muted mb-6 max-w-3xl">
+          <p className="text-muted mb-6 max-w-none">
             X-ray spectroscopy communities use several labels for closely related
             near-edge measurements. Below is how Xray Atlas uses each term when
             indexing and describing datasets.
@@ -160,7 +159,7 @@ export default function NexafsWikiPage() {
         </section>
 
         <section className="border-border bg-surface rounded-2xl border p-6 sm:p-8">
-          <SectionHeader icon={BeakerIcon} title="What NEXAFS probes" />
+          <SectionHeader icon={BeakerIcon} title="What NEXAFS probes" id="nexafs-probes" />
           <ul className="text-muted ml-6 list-disc space-y-2 marker:text-accent">
             <li>
               Electronic structure at a chosen core edge (K, L, M edges and
@@ -185,8 +184,9 @@ export default function NexafsWikiPage() {
           <SectionHeader
             icon={CubeTransparentIcon}
             title="Representations stored in Xray Atlas"
+            id="representations-stored"
           />
-          <p className="text-muted mb-6 max-w-3xl">
+          <p className="text-muted mb-6 max-w-none">
             NEXAFS measures X-ray absorption versus incident energy (and often
             versus geometry). The catalog exposes comparable traces using the
             conventions below.
@@ -229,7 +229,7 @@ export default function NexafsWikiPage() {
         </section>
 
         <section className="border-border bg-surface rounded-2xl border p-6 sm:p-8">
-          <SectionHeader icon={ScaleIcon} title="Coordinates and units" />
+          <SectionHeader icon={ScaleIcon} title="Coordinates and units" id="coordinates-and-units" />
           <ul className="text-muted ml-6 list-disc space-y-2 marker:text-accent">
             <li>
               <span className="text-foreground font-medium">Energy:</span>{" "}
@@ -269,7 +269,6 @@ export default function NexafsWikiPage() {
             </Link>
           </div>
         </footer>
-      </div>
     </div>
   );
 }

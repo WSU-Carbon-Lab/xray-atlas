@@ -25,8 +25,8 @@ export const metadata: Metadata = {
 
 const aboutResourceCards = [
   {
-    href: "/about/nexafs-wiki",
-    title: "NEXAFS wiki (work in progress)",
+    href: "/about/home",
+    title: "Wiki home",
     description:
       "Living reference for NEXAFS concepts, terminology, and spectroscopy workflows used throughout the platform.",
     icon: BookOpenIcon,
