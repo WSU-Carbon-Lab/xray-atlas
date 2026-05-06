@@ -1,4 +1,4 @@
-import { MoleculeGridSkeleton } from "@/components/feedback/loading-state";
+import { MoleculeCardSkeleton } from "@/components/feedback/loading-state";
 import { MoleculeSearch } from "@/components/molecules/molecule-search";
 import { DefaultButton as Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -42,15 +42,24 @@ export default function HomeLoading() {
         </div>
       </section>
       <section className={`mx-auto w-full ${CONTENT_MAX_WIDTH} px-4 py-12`}>
-        <div className="mb-8">
+        <div className="mb-8 text-center">
           <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-gray-100">
-            Popular Molecules
+            Popular molecules
           </h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Explore our most popular molecules.
+          <p className="mx-auto mt-2 max-w-lg text-gray-600 dark:text-gray-400">
+            Highly favorited entries—paginated carousel when loaded.
           </p>
         </div>
-        <MoleculeGridSkeleton count={4} variant="full" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <MoleculeCardSkeleton key={i} />
+          ))}
+        </div>
+        <div className="border-border mt-6 flex justify-center gap-3 border-t border-gray-200 pt-6 dark:border-gray-700">
+          <div className="bg-muted h-9 w-9 animate-pulse rounded-lg dark:bg-gray-700" />
+          <div className="bg-muted h-4 w-14 animate-pulse self-center rounded dark:bg-gray-700" />
+          <div className="bg-muted h-9 w-9 animate-pulse rounded-lg dark:bg-gray-700" />
+        </div>
       </section>
     </div>
   );

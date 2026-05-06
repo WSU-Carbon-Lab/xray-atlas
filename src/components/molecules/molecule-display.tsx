@@ -15,6 +15,7 @@ import {
   Tooltip,
   ScrollShadow,
 } from "@heroui/react";
+import { cn } from "@heroui/styles";
 import { useSession } from "next-auth/react";
 import { showToast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
@@ -263,6 +264,110 @@ export const MoleculeDecriptionTags = ({
   );
 };
 
+/**
+ * Renders CAS Registry and PubChem favicon links; shows disabled placeholders when the corresponding URL is null.
+ */
+function MoleculeRegistryFaviconLinks({
+  casUrl,
+  pubChemUrl,
+  className,
+}: {
+  casUrl: string | null;
+  pubChemUrl: string | null;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn("flex shrink-0 items-center gap-1", className)}
+      role="group"
+      aria-label="External registry links"
+    >
+      {casUrl ? (
+        <Tooltip delay={0}>
+          <Tooltip.Trigger>
+            <Link
+              href={casUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open CAS Registry"
+              className="text-text-secondary focus-visible:ring-accent inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color] hover:bg-zinc-200 hover:text-zinc-900 focus-visible:ring-2 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Image
+                src={CAS_FAVICON_URL}
+                alt=""
+                width={20}
+                height={20}
+                className="h-5 w-5 object-contain"
+                unoptimized
+              />
+            </Link>
+          </Tooltip.Trigger>
+          <Tooltip.Content placement="top">Open in CAS Registry</Tooltip.Content>
+        </Tooltip>
+      ) : (
+        <Tooltip delay={0}>
+          <span
+            className="inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg opacity-50"
+            title="CAS not available"
+          >
+            <Image
+              src={CAS_FAVICON_URL}
+              alt=""
+              width={20}
+              height={20}
+              className="h-5 w-5 object-contain opacity-50"
+              unoptimized
+            />
+          </span>
+          <Tooltip.Content placement="top">CAS not available</Tooltip.Content>
+        </Tooltip>
+      )}
+      {pubChemUrl ? (
+        <Tooltip delay={0}>
+          <Tooltip.Trigger>
+            <Link
+              href={pubChemUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open PubChem"
+              className="text-text-secondary focus-visible:ring-accent inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color] hover:bg-zinc-200 hover:text-zinc-900 focus-visible:ring-2 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Image
+                src={PUBCHEM_FAVICON_URL}
+                alt=""
+                width={20}
+                height={20}
+                className="h-5 w-5 object-contain"
+                unoptimized
+              />
+            </Link>
+          </Tooltip.Trigger>
+          <Tooltip.Content placement="top">Open in PubChem</Tooltip.Content>
+        </Tooltip>
+      ) : (
+        <Tooltip delay={0}>
+          <span
+            className="inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg opacity-50"
+            title="PubChem not available"
+          >
+            <Image
+              src={PUBCHEM_FAVICON_URL}
+              alt=""
+              width={20}
+              height={20}
+              className="h-5 w-5 object-contain opacity-50"
+              unoptimized
+            />
+          </span>
+          <Tooltip.Content placement="top">PubChem not available</Tooltip.Content>
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
 interface MoleculeCardActionsProps {
   molecule: MoleculeView;
   pubChemUrl: string | null;
@@ -270,6 +375,10 @@ interface MoleculeCardActionsProps {
   copiedText: string | null;
   handleCopy: (text: string, label: string) => void;
   size?: "sm" | "md";
+  /**
+   * When true, registry icons show only when the card container is at least `lg`; use with inline registry links beside the title below that breakpoint.
+   */
+  registryIconsUseCardContainerBreakpoint?: boolean;
 }
 
 export function MoleculeCardActions({
@@ -279,98 +388,17 @@ export function MoleculeCardActions({
   copiedText,
   handleCopy,
   size = "sm",
+  registryIconsUseCardContainerBreakpoint = false,
 }: MoleculeCardActionsProps) {
   const iconClass = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
   const textClass = size === "sm" ? "text-[10px]" : "text-xs";
-  const casRegistry = casUrl ? (
-    <Tooltip delay={0}>
-      <Tooltip.Trigger>
-        <Link
-          href={casUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open CAS Registry"
-          className="text-text-secondary focus-visible:ring-accent inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color] hover:bg-zinc-200 hover:text-zinc-900 focus-visible:ring-2 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Image
-            src={CAS_FAVICON_URL}
-            alt=""
-            width={20}
-            height={20}
-            className="h-5 w-5 object-contain"
-            unoptimized
-          />
-        </Link>
-      </Tooltip.Trigger>
-      <Tooltip.Content placement="top">Open in CAS Registry</Tooltip.Content>
-    </Tooltip>
-  ) : (
-    <Tooltip delay={0}>
-      <span
-        className="inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg opacity-50"
-        title="CAS not available"
-      >
-        <Image
-          src={CAS_FAVICON_URL}
-          alt=""
-          width={20}
-          height={20}
-          className="h-5 w-5 object-contain opacity-50"
-          unoptimized
-        />
-      </span>
-      <Tooltip.Content placement="top">CAS not available</Tooltip.Content>
-    </Tooltip>
-  );
-  const pubChemRegistry = pubChemUrl ? (
-    <Tooltip delay={0}>
-      <Tooltip.Trigger>
-        <Link
-          href={pubChemUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open PubChem"
-          className="text-text-secondary focus-visible:ring-accent inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color] hover:bg-zinc-200 hover:text-zinc-900 focus-visible:ring-2 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Image
-            src={PUBCHEM_FAVICON_URL}
-            alt=""
-            width={20}
-            height={20}
-            className="h-5 w-5 object-contain"
-            unoptimized
-          />
-        </Link>
-      </Tooltip.Trigger>
-      <Tooltip.Content placement="top">Open in PubChem</Tooltip.Content>
-    </Tooltip>
-  ) : (
-    <Tooltip delay={0}>
-      <span
-        className="inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg opacity-50"
-        title="PubChem not available"
-      >
-        <Image
-          src={PUBCHEM_FAVICON_URL}
-          alt=""
-          width={20}
-          height={20}
-          className="h-5 w-5 object-contain opacity-50"
-          unoptimized
-        />
-      </span>
-      <Tooltip.Content placement="top">PubChem not available</Tooltip.Content>
-    </Tooltip>
-  );
   return (
     <div
       className="flex w-full min-w-0 flex-row flex-wrap items-center gap-x-4 gap-y-2"
       onClick={(e) => e.stopPropagation()}
       role="group"
     >
-      <div className="flex min-w-0 flex-row flex-wrap items-center gap-2">
+      <div className="hidden min-w-0 flex-row flex-wrap items-center gap-2 @lg:flex">
         {molecule.InChI ? (
           <Tooltip delay={0}>
             <Button
@@ -414,9 +442,13 @@ export function MoleculeCardActions({
           </Tooltip>
         ) : null}
       </div>
-      <div className="flex min-w-0 flex-row flex-wrap items-center gap-2">
-        {casRegistry}
-        {pubChemRegistry}
+      <div
+        className={cn(
+          "min-w-0 flex-row flex-wrap items-center gap-2",
+          registryIconsUseCardContainerBreakpoint ? "hidden @lg:flex" : "flex",
+        )}
+      >
+        <MoleculeRegistryFaviconLinks casUrl={casUrl} pubChemUrl={pubChemUrl} />
       </div>
     </div>
   );
@@ -807,9 +839,9 @@ export const FullCard = memo(function FullCard({
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
   return (
-    <Card className="group border-border-default hover:border-border-strong hover:border-accent/30 dark:border-border-default dark:hover:border-border-strong flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md lg:flex-row dark:bg-zinc-800">
+    <Card className="group border-border-default hover:border-border-strong hover:border-accent/30 dark:border-border-default dark:hover:border-border-strong @container flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md @lg:flex-row dark:bg-zinc-800">
       <div
-        className="group/image relative flex h-52 w-full shrink-0 overflow-hidden rounded-lg bg-white lg:h-auto lg:min-h-[260px] lg:w-[min(42%,320px)] lg:max-w-[360px] dark:bg-black"
+        className="group/image relative flex h-52 w-full shrink-0 overflow-hidden rounded-lg bg-white @lg:h-auto @lg:min-h-[260px] @lg:w-[min(42%,320px)] @lg:max-w-[360px] dark:bg-black"
         aria-hidden
       >
         <button
@@ -871,14 +903,22 @@ export const FullCard = memo(function FullCard({
         previewGradient={previewGradient}
       />
       <Card.Content className="flex min-w-0 flex-1 flex-col gap-3 p-4">
-        <div onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex min-w-0 items-start gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Link
             href={`/molecules/${canonicalMoleculeSlugFromView(props.molecule)}`}
-            className="text-text-primary hover:text-accent dark:hover:text-accent-light line-clamp-3 text-lg leading-tight font-bold wrap-break-word transition-colors"
+            className="text-text-primary hover:text-accent dark:hover:text-accent-light min-w-0 flex-1 line-clamp-3 text-lg leading-tight font-bold wrap-break-word transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             {props.primaryName}
           </Link>
+          <MoleculeRegistryFaviconLinks
+            casUrl={props.casUrl}
+            pubChemUrl={props.pubChemUrl}
+            className="pt-0.5 @lg:hidden"
+          />
         </div>
         {props.orderedSynonyms.length > 0 ? (
           <div
@@ -891,8 +931,11 @@ export const FullCard = memo(function FullCard({
             />
           </div>
         ) : null}
-        {props.molecule.casNumber ? (
-          <div className="min-w-0" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="hidden min-h-0 min-w-0 shrink-0 items-center @lg:flex @lg:min-h-[2.5rem]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {props.molecule.casNumber ? (
             <Tooltip delay={0}>
               <Tooltip.Trigger>
                 <button
@@ -916,11 +959,11 @@ export const FullCard = memo(function FullCard({
                 {props.copiedText === "CAS" ? "Copied!" : "Copy CAS number"}
               </Tooltip.Content>
             </Tooltip>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
         {props.molecule.iupacName ? (
           <div
-            className="min-w-0 flex-1 text-xs leading-relaxed"
+            className="hidden min-w-0 flex-1 text-xs leading-relaxed @lg:block"
             onClick={(e) => e.stopPropagation()}
           >
             <ScrollShadow
@@ -933,7 +976,10 @@ export const FullCard = memo(function FullCard({
             </ScrollShadow>
           </div>
         ) : null}
-        <div className="min-w-0 py-1" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="hidden min-w-0 py-1 @lg:block"
+          onClick={(e) => e.stopPropagation()}
+        >
           <MoleculeCardActions
             molecule={props.molecule}
             pubChemUrl={props.pubChemUrl}
@@ -941,6 +987,7 @@ export const FullCard = memo(function FullCard({
             copiedText={props.copiedText}
             handleCopy={props.handleCopy}
             size="sm"
+            registryIconsUseCardContainerBreakpoint
           />
         </div>
         {(props.molecule.moleculeTags?.length ?? 0) > 0 ? (
