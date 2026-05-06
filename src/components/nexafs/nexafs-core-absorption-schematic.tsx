@@ -13,6 +13,43 @@ import {
 } from "react";
 import { cn } from "@heroui/styles";
 
+import {
+  beamFrameFromIngressToImpact,
+  DEFAULT_NEXAFS_CORE_ABSORPTION_SCENARIO,
+  electronSiteCartesian,
+  promotionBeamEndpoints,
+  requireElectronSite,
+  resolveExitTrajectoryForShot,
+  shellOrbitalGlyphsForRadius,
+  type NexafsCoreAbsorptionScenario,
+  type ShellOrbitalGlyphSlot,
+} from "~/components/nexafs/nexafs-core-absorption-scenario";
+
+export type {
+  ElectronExcitationState,
+  ElectronExitTrajectoryScenario,
+  ElectronSiteScenario,
+  NexafsCoreAbsorptionScenario,
+  NexafsCoreAbsorptionLayoutScenario,
+  NexafsCoreAbsorptionTimingScenario,
+  NexafsWavePacketShapeScenario,
+  PhotonIngressTrajectoryScenario,
+  PhotonShotScenario,
+  ShellOrbitalGlyphSlot,
+} from "~/components/nexafs/nexafs-core-absorption-scenario";
+
+export {
+  DEFAULT_NEXAFS_CORE_ABSORPTION_SCENARIO,
+  beamFrameFromIngressToImpact,
+  electronSiteCartesian,
+  NexafsCoreDemoElectronIds,
+  NexafsCoreDemoPhotonIds,
+  promotionBeamEndpoints,
+  requireElectronSite,
+  resolveExitTrajectoryForShot,
+  shellOrbitalGlyphsForRadius,
+} from "~/components/nexafs/nexafs-core-absorption-scenario";
+
 function subscribeReducedMotion(onStoreChange: () => void): () => void {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
   mq.addEventListener("change", onStoreChange);
@@ -48,6 +85,11 @@ type NexafsCoreAbsorptionSchematicProps = {
    * When true (default for `presentation="hero"`), runs the looping photon and ejected-electron SMIL animation while the figure intersects the viewport and the document tab is visible.
    */
   animated?: boolean;
+  /**
+   * Overrides electron catalog, photon ingress trajectory (`PhotonIngressTrajectoryScenario`), per-electron exit directions (`ElectronExitTrajectoryScenario`),
+   * and SMIL timing fractions (`NexafsCoreAbsorptionTimingScenario`). Defaults to `DEFAULT_NEXAFS_CORE_ABSORPTION_SCENARIO`.
+   */
+  scenario?: NexafsCoreAbsorptionScenario;
 };
 
 /**
@@ -64,11 +106,13 @@ type NexafsCoreAbsorptionSchematicProps = {
  * **Accessibility:** Exposes an SVG `<title>` summarizing the schematic for assistive technologies.
  *
  * @param props.animated - Overrides auto-enable (`hero` defaults to animated).
+ * @param props.scenario - Authoritative electron catalog, photon shot (`primaryPhoton`), exit vectors (`exitTrajectoriesByElectronId`), and timing; defaults to `DEFAULT_NEXAFS_CORE_ABSORPTION_SCENARIO`.
  */
 export function NexafsCoreAbsorptionSchematic({
   className,
   presentation = "standard",
   animated: animatedProp,
+  scenario: scenarioProp,
 }: NexafsCoreAbsorptionSchematicProps) {
   const animated = animatedProp ?? presentation === "hero";
   const reducedMotion = useReducedMotionPreference();
@@ -152,74 +196,97 @@ export function NexafsCoreAbsorptionSchematic({
     };
   }, [runMotion]);
 
-  const cx = 260;
-  const cy = 218;
-  const r1s = 46;
-  const r2s = 88;
-  const r2p = 132;
+  const scenario = scenarioProp ?? DEFAULT_NEXAFS_CORE_ABSORPTION_SCENARIO;
+  const { layout, timing, primaryPhoton: shot } = scenario;
+  const cx = layout.nucleusCx;
+  const cy = layout.nucleusCy;
+  const r1s = layout.r1s;
+  const r2s = layout.r2s;
+  const r2p = layout.r2p;
 
-  const hitAngleDeg = 218;
-  const paired1sAngleDeg = (hitAngleDeg + 180) % 360;
-  const hitRad = (hitAngleDeg * Math.PI) / 180;
-  const hx = cx + r1s * Math.cos(hitRad);
-  const hy = cy + r1s * Math.sin(hitRad);
+  const targetSite = requireElectronSite(scenario, shot.targetElectronId);
+  const impact = electronSiteCartesian(layout, targetSite);
+  const hx = impact.x;
+  const hy = impact.y;
 
-  const photonStart = { x: 52, y: 52 };
+  const exitTrajectory = resolveExitTrajectoryForShot(scenario, shot);
+  const promo = promotionBeamEndpoints(impact, exitTrajectory);
+
+  const photonStart = shot.ingress.ingressAnchor;
   const photonPath = buildWavyPath(
     photonStart.x,
     photonStart.y,
     hx,
     hy,
-    24,
-    6.5,
+    shot.ingress.wavyGuide.wavelength,
+    shot.ingress.wavyGuide.amplitude,
   );
 
-  const beamDx = hx - photonStart.x;
-  const beamDy = hy - photonStart.y;
-  const beamLen = Math.hypot(beamDx, beamDy);
-  const beamUx = beamLen > 1e-6 ? beamDx / beamLen : 1;
-  const beamUy = beamLen > 1e-6 ? beamDy / beamLen : 0;
-  const packetLeadIn = 56;
-  const packetStartCx = photonStart.x - beamUx * packetLeadIn;
-  const packetStartCy = photonStart.y - beamUy * packetLeadIn;
-  const beamAngleDeg = (Math.atan2(beamDy, beamDx) * 180) / Math.PI;
+  const { beamAngleDeg, packetStartCx, packetStartCy } =
+    beamFrameFromIngressToImpact(
+      photonStart,
+      impact,
+      shot.ingress.packetLeadIn,
+    );
+
   const wavePacketPathLocal = runMotion
     ? buildEnvelopeWavePacketPath({
-        halfLength: 24,
-        sigma: 8.5,
-        amplitude: 14.5,
-        k: 1.08,
+        halfLength: shot.wavePacket.halfLength,
+        sigma: shot.wavePacket.sigma,
+        amplitude: shot.wavePacket.amplitude,
+        k: shot.wavePacket.k,
         phase: wavePhaseRef.current,
-        envelopePower: 3.35,
-        envelopeCutoff: 0.042,
-        steps: 96,
+        envelopePower: shot.wavePacket.envelopePower,
+        envelopeCutoff: shot.wavePacket.envelopeCutoff,
+        steps: shot.wavePacket.steps,
       })
     : "";
 
-  const ejectElevationDeg = 59;
-  const ejectPlaneRad = (ejectElevationDeg * Math.PI) / 180;
-  const ejDx = Math.cos(ejectPlaneRad);
-  const ejDy = -Math.sin(ejectPlaneRad);
-
-  const ejChordLen = 178;
-  const ejArrowInset = 14;
-  const ejEndX = hx + ejDx * ejChordLen;
-  const ejEndY = hy + ejDy * ejChordLen;
-  const ejBx = ejEndX - ejDx * ejArrowInset;
-  const ejBy = ejEndY - ejDy * ejArrowInset;
+  const ejBx = promo.arrowBaseX;
+  const ejBy = promo.arrowBaseY;
 
   const vbY = 6;
   const vbH = 412;
 
-  const ejTravelX = ejDx * ejChordLen * 0.92;
-  const ejTravelY = ejDy * ejChordLen * 0.92;
-  const motionDur = "5s";
+  const ejTravelX = promo.travelX;
+  const ejTravelY = promo.travelY;
+  const motionDur = `${timing.motionDurSeconds}s`;
 
-  const tPhotonHit = 0.46;
-  const tPhotonHoldEnd = 0.52;
-  const tEjStart = 0.455;
-  const tEjEnd = 0.942;
-  const tEjReset = 0.965;
+  const tPhotonHit = timing.photonHitNormalized;
+  const tPhotonHoldEnd = timing.photonHoldEndNormalized;
+  const tEjStart = tPhotonHit + timing.photonToEjectionLagNormalized;
+  const tEjEnd = timing.ejectionEndNormalized;
+  const tEjReset = timing.ejectionResetNormalized;
+
+  const tImpactElectronFadeStart =
+    tPhotonHit - timing.impactElectronFadeLeadBeforeHit;
+  const tImpactElectronGone =
+    tPhotonHit + timing.impactElectronFadeTrailAfterHit;
+  const tAbsorbGlowStart =
+    tPhotonHit - timing.absorbGlowStartLeadBeforeHit;
+  const tAbsorbGlowRampEnd =
+    tPhotonHit - timing.absorbGlowRampEndLeadBeforeHit;
+
+  const photonTargetId = shot.targetElectronId;
+
+  const shellGlyphs2p = shellOrbitalGlyphsForRadius(
+    scenario,
+    r2p,
+    runMotion,
+    photonTargetId,
+  );
+  const shellGlyphs2s = shellOrbitalGlyphsForRadius(
+    scenario,
+    r2s,
+    runMotion,
+    photonTargetId,
+  );
+  const shellGlyphs1s = shellOrbitalGlyphsForRadius(
+    scenario,
+    r1s,
+    runMotion,
+    photonTargetId,
+  );
 
   return (
     <figure
@@ -452,26 +519,8 @@ export function NexafsCoreAbsorptionSchematic({
           <circle cx={cx + 2} cy={cy + 11} r={7.5} fill="url(#nexafs-nucleus-c)" opacity={0.92} />
         </g>
 
-        <ShellElectrons
-          cx={cx}
-          cy={cy}
-          r={r2p}
-          angles={[15, 55, 115, 165, 265, 325]}
-          filledAngles={[115, 325]}
-          filledFill="url(#nexafs-electron-covalent)"
-          emptyFill="url(#nexafs-unoccupied-slot)"
-          emptyStrokeColor="oklch(72% 0.12 290)"
-        />
-        <ShellElectrons
-          cx={cx}
-          cy={cy}
-          r={r2s}
-          angles={[320, 155]}
-          filledAngles={[320, 155]}
-          filledFill="url(#nexafs-electron-valence)"
-          emptyFill="url(#nexafs-unoccupied-slot)"
-          emptyStrokeColor="oklch(68% 0.08 160)"
-        />
+        <ShellOrbitalGlyphs cx={cx} cy={cy} r={r2p} slots={shellGlyphs2p} />
+        <ShellOrbitalGlyphs cx={cx} cy={cy} r={r2s} slots={shellGlyphs2s} />
 
         {!runMotion ? (
           <>
@@ -480,17 +529,7 @@ export function NexafsCoreAbsorptionSchematic({
           </>
         ) : null}
 
-        <ShellElectrons
-          cx={cx}
-          cy={cy}
-          r={r1s}
-          angles={[hitAngleDeg, paired1sAngleDeg]}
-          filledAngles={[paired1sAngleDeg]}
-          filledFill="url(#nexafs-electron-core)"
-          emptyFill="url(#nexafs-unoccupied-slot)"
-          emptyStrokeColor="oklch(72% 0.14 264)"
-          omitAngles={runMotion ? [hitAngleDeg] : undefined}
-        />
+        <ShellOrbitalGlyphs cx={cx} cy={cy} r={r1s} slots={shellGlyphs1s} />
 
         {!runMotion ? (
           <>
@@ -540,7 +579,7 @@ export function NexafsCoreAbsorptionSchematic({
                   attributeName="opacity"
                   attributeType="XML"
                   values="0;0;0;0.58;0.48;0.18;0;0"
-                  keyTimes={`0;0.38;0.408;0.428;${tPhotonHit};0.505;0.56;1`}
+                  keyTimes={`0;0.38;${tAbsorbGlowStart};${tAbsorbGlowRampEnd};${tPhotonHit};0.505;0.56;1`}
                   dur={motionDur}
                   repeatCount="indefinite"
                   calcMode="linear"
@@ -551,7 +590,7 @@ export function NexafsCoreAbsorptionSchematic({
                   attributeName="opacity"
                   attributeType="XML"
                   values="0;0;0;0.95;0.72;0.2;0;0"
-                  keyTimes={`0;0.38;0.408;0.428;${tPhotonHit};0.505;0.56;1`}
+                  keyTimes={`0;0.38;${tAbsorbGlowStart};${tAbsorbGlowRampEnd};${tPhotonHit};0.505;0.56;1`}
                   dur={motionDur}
                   repeatCount="indefinite"
                   calcMode="linear"
@@ -562,8 +601,8 @@ export function NexafsCoreAbsorptionSchematic({
               <animate
                 attributeName="opacity"
                 attributeType="XML"
-                values="1;1;1;0;0;0"
-                keyTimes="0;0.28;0.34;0.38;0.43;1"
+                values="1;1;1;1;0;0;0"
+                keyTimes={`0;0.28;0.34;0.38;${tImpactElectronFadeStart};${tImpactElectronGone};1`}
                 dur={motionDur}
                 repeatCount="indefinite"
                 calcMode="linear"
@@ -809,55 +848,40 @@ function buildEnvelopeWavePacketPath(opts: {
   return d;
 }
 
-function ShellElectrons({
+function ShellOrbitalGlyphs({
   cx,
   cy,
   r,
-  angles,
-  filledAngles,
-  filledFill,
-  emptyFill,
-  emptyStrokeColor,
-  omitAngles,
+  slots,
 }: {
   cx: number;
   cy: number;
   r: number;
-  angles: readonly number[];
-  filledAngles: readonly number[];
-  filledFill: string;
-  emptyFill: string;
-  emptyStrokeColor: string;
-  omitAngles?: readonly number[];
+  slots: readonly ShellOrbitalGlyphSlot[];
 }) {
-  const filled = new Set(filledAngles);
-  const omit = omitAngles ? new Set(omitAngles) : null;
-  const visibleAngles = omit ? angles.filter((deg) => !omit.has(deg)) : angles;
-
   return (
     <g aria-hidden>
-      {visibleAngles.map((deg) => {
-        const rad = (deg * Math.PI) / 180;
+      {slots.map((slot) => {
+        const rad = (slot.angleDeg * Math.PI) / 180;
         const x = cx + r * Math.cos(rad);
         const y = cy + r * Math.sin(rad);
-        const isFilled = filled.has(deg);
-        if (isFilled) {
+        if (slot.variant === "bound-electron") {
           return (
-            <g key={`f-${deg}`}>
-              <circle cx={x} cy={y} r={9} fill={filledFill} opacity={0.22} />
-              <circle cx={x - 1} cy={y - 1} r={7} fill={filledFill} filter="url(#nexafs-glow-tight)" />
+            <g key={`${slot.angleDeg}-bound`}>
+              <circle cx={x} cy={y} r={9} fill={slot.filledFill} opacity={0.22} />
+              <circle cx={x - 1} cy={y - 1} r={7} fill={slot.filledFill} filter="url(#nexafs-glow-tight)" />
             </g>
           );
         }
         return (
-          <g key={`e-${deg}`}>
-            <circle cx={x} cy={y} r={8.5} fill={emptyFill} opacity={0.9} />
+          <g key={`${slot.angleDeg}-slot`}>
+            <circle cx={x} cy={y} r={8.5} fill={slot.emptyFill} opacity={0.9} />
             <circle
               cx={x}
               cy={y}
               r={7}
               fill="none"
-              stroke={emptyStrokeColor}
+              stroke={slot.emptyStrokeColor}
               strokeWidth={1.35}
               strokeDasharray="3.5 3"
               strokeOpacity={0.85}
