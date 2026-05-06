@@ -215,6 +215,12 @@ export function NexafsCoreAbsorptionSchematic({
   const ejTravelY = ejDy * ejChordLen * 0.92;
   const motionDur = "5s";
 
+  const tPhotonHit = 0.46;
+  const tPhotonHoldEnd = 0.52;
+  const tEjStart = 0.455;
+  const tEjEnd = 0.942;
+  const tEjReset = 0.965;
+
   return (
     <figure
       ref={figureRef}
@@ -467,8 +473,12 @@ export function NexafsCoreAbsorptionSchematic({
           emptyStrokeColor="oklch(68% 0.08 160)"
         />
 
-        <circle cx={hx} cy={hy} r={34} fill="url(#nexafs-absorption-halo)" opacity={0.52} aria-hidden />
-        <circle cx={hx} cy={hy} r={22} fill="url(#nexafs-absorption-core)" aria-hidden />
+        {!runMotion ? (
+          <>
+            <circle cx={hx} cy={hy} r={34} fill="url(#nexafs-absorption-halo)" opacity={0.52} aria-hidden />
+            <circle cx={hx} cy={hy} r={22} fill="url(#nexafs-absorption-core)" aria-hidden />
+          </>
+        ) : null}
 
         <ShellElectrons
           cx={cx}
@@ -525,13 +535,38 @@ export function NexafsCoreAbsorptionSchematic({
         {runMotion ? (
           <g aria-hidden>
             <g>
+              <circle cx={hx} cy={hy} r={34} fill="url(#nexafs-absorption-halo)" opacity={0}>
+                <animate
+                  attributeName="opacity"
+                  attributeType="XML"
+                  values="0;0;0;0.58;0.48;0.18;0;0"
+                  keyTimes={`0;0.38;0.408;0.428;${tPhotonHit};0.505;0.56;1`}
+                  dur={motionDur}
+                  repeatCount="indefinite"
+                  calcMode="linear"
+                />
+              </circle>
+              <circle cx={hx} cy={hy} r={22} fill="url(#nexafs-absorption-core)" opacity={0}>
+                <animate
+                  attributeName="opacity"
+                  attributeType="XML"
+                  values="0;0;0;0.95;0.72;0.2;0;0"
+                  keyTimes={`0;0.38;0.408;0.428;${tPhotonHit};0.505;0.56;1`}
+                  dur={motionDur}
+                  repeatCount="indefinite"
+                  calcMode="linear"
+                />
+              </circle>
+            </g>
+            <g>
               <animate
                 attributeName="opacity"
                 attributeType="XML"
                 values="1;1;1;0;0;0"
-                keyTimes="0;0.66;0.71;0.745;0.76;1"
+                keyTimes="0;0.28;0.34;0.38;0.43;1"
                 dur={motionDur}
                 repeatCount="indefinite"
+                calcMode="linear"
               />
               <circle
                 cx={hx}
@@ -548,17 +583,19 @@ export function NexafsCoreAbsorptionSchematic({
                 attributeType="XML"
                 type="translate"
                 values={`${packetStartCx},${packetStartCy}; ${hx},${hy}; ${hx},${hy}; ${packetStartCx},${packetStartCy}`}
-                keyTimes="0;0.72;0.78;1"
+                keyTimes={`0;${tPhotonHit};${tPhotonHoldEnd};1`}
                 dur={motionDur}
                 repeatCount="indefinite"
+                calcMode="linear"
               />
               <animate
                 attributeName="opacity"
                 attributeType="XML"
                 values="0;1;1;1;0;0"
-                keyTimes="0;0.03;0.05;0.67;0.76;1"
+                keyTimes={`0;0.03;0.05;0.34;${tPhotonHoldEnd};1`}
                 dur={motionDur}
                 repeatCount="indefinite"
+                calcMode="linear"
               />
               <g transform={`rotate(${beamAngleDeg})`}>
                 {wavePacketPathLocal.length > 8 ? (
@@ -589,29 +626,97 @@ export function NexafsCoreAbsorptionSchematic({
               <animate
                 attributeName="opacity"
                 attributeType="XML"
-                values="0;0;0;1;1;0;0"
-                keyTimes="0;0.73;0.746;0.758;0.92;0.96;1"
+                values="0;0;1;1;0;0"
+                keyTimes={`0;${tEjStart - 0.012};${tEjStart};${tEjEnd};${tEjReset};1`}
                 dur={motionDur}
                 repeatCount="indefinite"
+                calcMode="linear"
               />
+              <path
+                d={`M 0 0 L ${ejTravelX} ${ejTravelY}`}
+                pathLength={100}
+                fill="none"
+                stroke="oklch(68% 0.16 240)"
+                strokeWidth={9}
+                strokeLinecap="round"
+                strokeOpacity={0.22}
+                strokeDasharray="100"
+                strokeDashoffset={100}
+                filter="url(#nexafs-bloom-wide)"
+              >
+                <animate
+                  attributeName="stroke-dashoffset"
+                  attributeType="XML"
+                  values="100;100;0;0;100"
+                  keyTimes={`0;${tEjStart};${tEjEnd};${tEjReset};1`}
+                  dur={motionDur}
+                  repeatCount="indefinite"
+                  calcMode="linear"
+                />
+              </path>
+              <path
+                d={`M 0 0 L ${ejTravelX} ${ejTravelY}`}
+                pathLength={100}
+                fill="none"
+                stroke="oklch(82% 0.1 220)"
+                strokeWidth={2.4}
+                strokeLinecap="round"
+                strokeOpacity={0.55}
+                strokeDasharray="100"
+                strokeDashoffset={100}
+              >
+                <animate
+                  attributeName="stroke-dashoffset"
+                  attributeType="XML"
+                  values="100;100;0;0;100"
+                  keyTimes={`0;${tEjStart};${tEjEnd};${tEjReset};1`}
+                  dur={motionDur}
+                  repeatCount="indefinite"
+                  calcMode="linear"
+                />
+              </path>
+              <path
+                d={`M 0 0 L ${ejTravelX} ${ejTravelY}`}
+                pathLength={100}
+                fill="none"
+                stroke="oklch(78% 0.12 230)"
+                strokeWidth={1.15}
+                strokeLinecap="round"
+                strokeOpacity={0.35}
+                strokeDasharray="6 14"
+                strokeDashoffset={0}
+              >
+                <animate
+                  attributeName="stroke-dashoffset"
+                  attributeType="XML"
+                  values="0;-140;-280;-280;0"
+                  keyTimes={`0;${tEjStart};${tEjEnd};${tEjReset};1`}
+                  dur={motionDur}
+                  repeatCount="indefinite"
+                  calcMode="linear"
+                />
+              </path>
               <g>
                 <animateTransform
                   attributeName="transform"
                   attributeType="XML"
                   type="translate"
-                  values={`0,0; ${ejTravelX},${ejTravelY}; ${ejTravelX},${ejTravelY}; 0,0`}
-                  keyTimes="0;0.755;0.93;1"
+                  additive="replace"
+                  values={`0,0; 0,0; ${ejTravelX},${ejTravelY}; ${ejTravelX},${ejTravelY}; 0,0`}
+                  keyTimes={`0;${tEjStart};${tEjEnd};${tEjReset};1`}
                   dur={motionDur}
                   repeatCount="indefinite"
+                  calcMode="linear"
                 />
                 <circle cx={0} cy={0} r={13} fill="oklch(64% 0.2 298)" filter="url(#nexafs-bloom-wide)" opacity={0}>
                   <animate
                     attributeName="opacity"
                     attributeType="XML"
-                    values="0;0;0;0;0.45;0.5;0.35;0;0"
-                    keyTimes="0;0.73;0.745;0.755;0.775;0.85;0.93;1"
+                    values="0;0;0.42;0.48;0.38;0.15;0;0"
+                    keyTimes={`0;${tEjStart};${tEjStart + 0.018};${tEjStart + 0.12};${tEjEnd - 0.05};${tEjEnd};${tEjReset};1`}
                     dur={motionDur}
                     repeatCount="indefinite"
+                    calcMode="linear"
                   />
                 </circle>
                 <circle cx={0} cy={0} r={7.5} fill="url(#nexafs-electron-core)" />
