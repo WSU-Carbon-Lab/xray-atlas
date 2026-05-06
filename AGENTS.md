@@ -157,6 +157,19 @@ Global styling and Tailwind entry CSS.
 - `src/lib` and `src/utils` hold shared helpers; use `src/lib` when broader/purer, and `src/utils` for small widely reused helpers.
 - `src/styles` contains global styling only; avoid component-specific styling leakage into `globals.css`.
 
+## Contributor conventions (Git)
+
+Environment setup, PR checklist, and the full conventional-commit table live in **`CONTRIBUTING.md`**. Agents and contributors must still honor these **project conventions**:
+
+### Wiki-only work
+
+Wiki URLs under **`src/app/wiki`** (layouts and topic pages); shared doc chrome includes **`src/components/about/wiki-doc-shell.tsx`** and **`src/lib/wiki-doc-nav.ts`**.
+
+- **Branches:** use the **`wiki/`** prefix (`wiki/<short-kebab-description>`). Examples: `wiki/home-copy-edit`, `wiki/platform-features-clarity`.
+- **Commits:** on wiki-focused branches, every commit uses **`type(wiki): description`** per Conventional Commits (`feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`). Examples: `feat(wiki): add glossary anchor links`, `fix(wiki): correct schematic caption`.
+
+Duplicate prose and examples live under **`CONTRIBUTING.md`** — Wiki contributions; update both documents together when changing those rules.
+
 ## User administration (`/admin/users`)
 
 Users who hold an `AppRole` with `canManageUsers` open **User administration** from the account menu. The console supports:
