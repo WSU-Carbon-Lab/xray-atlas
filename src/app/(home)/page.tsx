@@ -15,7 +15,7 @@ import {
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { MoleculeSearch } from "@/components/molecules/molecule-search";
-import { MoleculeCard } from "@/components/molecules/molecule-display";
+import { MoleculeDisplayCarouselTile } from "@/components/molecules/molecule-display";
 import { MoleculeCardSkeleton } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { trpc } from "~/trpc/client";
@@ -202,7 +202,7 @@ function TopUpvotedMolecules() {
               }
               className="flex h-full min-h-0 w-full flex-1 cursor-pointer rounded-xl transition-[opacity,box-shadow] hover:opacity-[0.98]"
             >
-              <MoleculeCard molecule={molecule} variant="full" />
+              <MoleculeDisplayCarouselTile molecule={molecule} />
             </div>
           </div>
         ))}
