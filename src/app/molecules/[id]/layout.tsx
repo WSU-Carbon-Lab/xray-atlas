@@ -4,6 +4,11 @@ import { api } from "~/trpc/server";
 import { MoleculeDetailLayoutClient } from "@/components/browse/molecule-detail-layout-client";
 import Link from "next/link";
 import { canonicalMoleculeSlugFromView, slugifyMoleculeSynonym } from "~/lib/molecule-slug";
+import {
+  buildMoleculeChemicalSubstanceJsonLd,
+  buildMoleculeDetailSeoText,
+  serializeMoleculeJsonLdScriptContent,
+} from "~/lib/molecule-schema-org";
 
 function isSlugCollision(
   v: Awaited<ReturnType<typeof api.molecules.getBySlug>>,
@@ -46,32 +51,24 @@ export async function generateMetadata({
     }
 
     const canonicalSlug = canonicalMoleculeSlugFromView(resolved);
+    const { title, description } = buildMoleculeDetailSeoText(resolved);
     const moleculeName = resolved.name.trim();
-    const datasetCount = resolved.experimentCount ?? 0;
 
     return {
-      title: `${moleculeName} NEXAFS datasets`,
-      description:
-        datasetCount > 0
-          ? `${moleculeName} in X-ray Atlas with ${datasetCount} NEXAFS dataset${datasetCount === 1 ? "" : "s"}, molecular identifiers, and linked spectroscopy metadata.`
-          : `${moleculeName} in X-ray Atlas with molecular identifiers and spectroscopy metadata.`,
+      title,
+      description,
       alternates: {
         canonical: `/molecules/${canonicalSlug}`,
       },
       openGraph: {
         title: `${moleculeName} | X-ray Atlas`,
-        description:
-          datasetCount > 0
-            ? `Explore ${datasetCount} NEXAFS dataset${datasetCount === 1 ? "" : "s"} for ${moleculeName}.`
-            : `Explore molecular data and linked spectroscopy context for ${moleculeName}.`,
+        description,
         url: `/molecules/${canonicalSlug}`,
       },
       twitter: {
+        card: "summary_large_image",
         title: `${moleculeName} | X-ray Atlas`,
-        description:
-          datasetCount > 0
-            ? `Explore ${datasetCount} NEXAFS dataset${datasetCount === 1 ? "" : "s"} for ${moleculeName}.`
-            : `Explore molecular data and linked spectroscopy context for ${moleculeName}.`,
+        description,
       },
     };
   } catch {
@@ -159,9 +156,19 @@ export default async function MoleculeDetailLayout({
     redirect(`/molecules/${canonicalSlug}`);
   }
 
+  const moleculeJsonLd = serializeMoleculeJsonLdScriptContent(
+    buildMoleculeChemicalSubstanceJsonLd(molecule, canonicalSlug),
+  );
+
   return (
-    <MoleculeDetailLayoutClient molecule={molecule} moleculeId={molecule.id}>
-      {children}
-    </MoleculeDetailLayoutClient>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: moleculeJsonLd }}
+      />
+      <MoleculeDetailLayoutClient molecule={molecule} moleculeId={molecule.id}>
+        {children}
+      </MoleculeDetailLayoutClient>
+    </>
   );
 }

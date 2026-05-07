@@ -22,11 +22,32 @@ export async function generateMetadata({
 
   const displayName = user.name?.trim() ?? "User";
 
+  const moleculesAuthored = await db.molecules.count({
+    where: { createdby: user.id },
+  });
+
+  const countPhrase =
+    moleculesAuthored > 0
+      ? ` ${moleculesAuthored} molecule record${moleculesAuthored === 1 ? "" : "s"} contributed.`
+      : "";
+
+  const description = `Public contributor profile for ${displayName} on X-ray Atlas.${countPhrase}`.replace(/\s+/g, " ").trim();
+
   return {
     title: `${displayName} profile`,
-    description: `Profile and contributed molecule records for ${displayName} on X-ray Atlas.`,
+    description,
     alternates: {
       canonical: `/users/${user.id}`,
+    },
+    openGraph: {
+      title: `${displayName} | X-ray Atlas`,
+      description,
+      url: `/users/${user.id}`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${displayName} | X-ray Atlas`,
+      description,
     },
   };
 }

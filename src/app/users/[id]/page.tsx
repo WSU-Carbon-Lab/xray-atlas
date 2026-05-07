@@ -284,6 +284,41 @@ export default function UserProfilePage({
         </Link>
       </div>
 
+      <nav
+        aria-label="Explore X-ray Atlas"
+        className="border-border-default mb-6 rounded-lg border px-4 py-3"
+      >
+        <p className="text-text-secondary mb-2 text-xs font-medium tracking-wide uppercase">
+          Explore
+        </p>
+        <ul className="text-text-secondary flex flex-wrap gap-x-4 gap-y-2 text-sm">
+          <li>
+            <Link
+              href="/browse/molecules"
+              className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
+            >
+              Browse molecules
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/browse/nexafs"
+              className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
+            >
+              Browse NEXAFS
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/wiki/contributions"
+              className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
+            >
+              Contributing data
+            </Link>
+          </li>
+        </ul>
+      </nav>
+
       <div className="border-border-default bg-surface-1 rounded-xl border p-8">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
           <CustomAvatar user={user} size="lg" />

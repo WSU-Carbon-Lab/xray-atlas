@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -122,6 +123,61 @@ export default function FacilityDetailPage({
             </div>
           </div>
         </div>
+
+        <nav
+          aria-label="Explore related catalogs"
+          className="border-border mt-8 border-t pt-6"
+        >
+          <p className="text-muted mb-3 text-xs font-medium tracking-wide uppercase">
+            Explore
+          </p>
+          <ul className="text-muted flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            {facility.instruments.slice(0, 2).map((instrument) => (
+              <li key={instrument.id}>
+                <Link
+                  href={`/browse/nexafs?instrument=${encodeURIComponent(instrument.id)}`}
+                  className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
+                >
+                  NEXAFS: {instrument.name}
+                </Link>
+              </li>
+            ))}
+            {facility.instruments.length === 0 ? (
+              <li>
+                <Link
+                  href="/browse/nexafs"
+                  className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
+                >
+                  Browse NEXAFS experiments
+                </Link>
+              </li>
+            ) : null}
+            <li>
+              <Link
+                href="/browse/facilities"
+                className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
+              >
+                All facilities
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/wiki/home"
+                className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
+              >
+                NEXAFS wiki
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/wiki/platform-features"
+                className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
+              >
+                Platform features
+              </Link>
+            </li>
+          </ul>
+        </nav>
 
         <Card className="border-border bg-surface-1 overflow-hidden border shadow-sm">
           <Card.Header className="border-border flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
