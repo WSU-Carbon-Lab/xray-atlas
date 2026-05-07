@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { site } from "~/app/brand";
 
 export const metadata: Metadata = {
   title: "Privacy and Data Use",
   description:
-    "Privacy, account data handling, and citation guidance for open datasets on X-ray Atlas.",
+    `Privacy, account data handling, and citation guidance for open datasets on ${site.name}.`,
 };
 
 /**
@@ -22,7 +23,7 @@ export default function PrivacyPage() {
             Privacy and Data Use
           </h1>
           <p className="text-muted text-lg">
-            X-ray Atlas publishes open spectroscopy metadata and spectra for
+            {site.name} publishes open spectroscopy metadata and spectra for
             research use. This page explains what information is public, what is
             used for accounts and platform operations, and how to cite datasets
             to preserve contributor attribution.
@@ -40,7 +41,7 @@ export default function PrivacyPage() {
           </p>
           <p className="text-muted">
             If your workflow requires non-public data, do not upload it to
-            X-ray Atlas unless and until your team is ready for public release.
+            {site.name} unless and until your team is ready for public release.
           </p>
           <p className="text-muted">
             If you need a non-public workflow, contact the core maintainers to
@@ -83,20 +84,20 @@ export default function PrivacyPage() {
             . Citation is required when reusing hosted datasets.
           </p>
           <p className="text-muted">
-            Each dataset has a minted DOI. When using X-ray Atlas data, cite:
+            Each dataset has a minted DOI. When using {site.name} data, cite:
           </p>
           <div className="border-border bg-surface space-y-3 rounded-lg border p-4">
             <div>
               <h3 className="text-foreground font-semibold">Individual dataset</h3>
               <p className="text-muted font-mono text-sm">
                 [Dataset Name] [DOI]. Adapted from [Original Publication].
-                Hosted by X-Ray Atlas.
+                Hosted by {site.name}.
               </p>
             </div>
             <div>
               <h3 className="text-foreground font-semibold">Entire collection</h3>
               <p className="text-muted font-mono text-sm">
-                X-Ray Atlas [Collection DOI]. Accessed [Date].
+                {site.name} [Collection DOI]. Accessed [Date].
               </p>
             </div>
           </div>

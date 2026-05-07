@@ -3,6 +3,7 @@ import Link from "next/link";
 import { WSULogoIcon } from "../icons";
 import GitHubStarsLink from "./github-stars-link";
 import { trpc } from "~/trpc/client";
+import { attribution, mission, site } from "~/app/brand";
 
 export function Footer() {
   const { data: collaboratorsData, isLoading: isLoadingCollaborators } =
@@ -15,7 +16,7 @@ export function Footer() {
           <div className="flex items-center gap-2">
             <WSULogoIcon className="h-6 w-6" />
             <span className="font-sans text-xl font-semibold text-foreground">
-              X-ray Atlas
+              {site.name}
             </span>
           </div>
           <div className="flex items-center gap-3 text-2xl">
@@ -25,10 +26,10 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-8">
           <div className="col-span-3 space-y-4">
             <h3 className="font-sans text-lg text-foreground">
-              X-ray Atlas
+              {site.name}
             </h3>
             <p className="text-muted flex-wrap text-sm">
-              Advancing material research through collaborative data.
+              {mission.heroShort}
             </p>
             {isLoadingCollaborators ? (
               <div className="text-muted text-sm">Loading...</div>
@@ -38,7 +39,7 @@ export function Footer() {
                   collaboratorsData.hosts.length > 0 && (
                     <div>
                       <h4 className="mb-2 text-sm font-semibold text-foreground">
-                        Hosted By
+                        Hosted by {attribution.lab}
                       </h4>
                       <div className="space-y-1">
                         {collaboratorsData.hosts.map((host) => (
@@ -133,7 +134,7 @@ export function Footer() {
         </div>
         <div className="border-border mt-8 flex flex-col justify-between border-t pt-4 md:flex-row">
           <div className="text-muted text-center text-sm md:text-left">
-            © {new Date().getFullYear()} X-ray Atlas. All rights reserved.
+            © {new Date().getFullYear()} {site.name}. All rights reserved.
           </div>
           <div className="mt-4 flex justify-center gap-4 text-sm md:mt-0 md:justify-end">
             <Link

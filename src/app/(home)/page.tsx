@@ -21,6 +21,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { trpc } from "~/trpc/client";
 import { useRouter } from "next/navigation";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
+import { mission, site } from "~/app/brand";
 
 /**
  * Maps viewport width to how many full molecule cards render per carousel page.
@@ -341,11 +342,10 @@ export default function HomePage() {
               <WikiQuickStartChip />
             </div>
             <h1 className="text-foreground mb-4 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-              X-ray Atlas
+              {site.name}
             </h1>
             <p className="text-muted mx-auto mb-8 max-w-lg text-base leading-relaxed sm:text-lg">
-              Open NEXAFS and X-ray spectroscopy data—search molecules, compare
-              spectra, cite with confidence.
+              {mission.heroShort}
             </p>
             <div className="mb-7 flex justify-center">
               <MoleculeSearch

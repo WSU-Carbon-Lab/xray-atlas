@@ -8,6 +8,9 @@
 /.pnp
 .pnp.js
 
+# temporary files
+/tmp
+
 # testing
 /coverage
 

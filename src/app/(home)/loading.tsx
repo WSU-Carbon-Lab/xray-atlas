@@ -3,6 +3,7 @@ import { MoleculeSearch } from "@/components/molecules/molecule-search";
 import { DefaultButton as Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Search, Upload } from "lucide-react";
+import { mission, site } from "~/app/brand";
 
 const CONTENT_MAX_WIDTH = "max-w-7xl";
 
@@ -13,10 +14,10 @@ export default function HomeLoading() {
         <div className={`mx-auto w-full ${CONTENT_MAX_WIDTH} px-4`}>
           <div className="mx-auto max-w-4xl text-center">
             <h1 className="mb-4 text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl dark:text-gray-100">
-              X-ray Atlas
+              {site.name}
             </h1>
             <p className="mb-8 text-lg text-gray-600 sm:text-xl dark:text-gray-400">
-              Advancing material research through collaborative data.
+              {mission.heroShort}
             </p>
             <div className="mb-8 flex justify-center">
               <MoleculeSearch

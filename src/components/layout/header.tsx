@@ -18,6 +18,7 @@ import {
   InformationCircleIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
+import { site } from "~/app/brand";
 
 function AboutDropdown() {
   const [isOpen, setIsOpen] = useState(false);
@@ -75,7 +76,7 @@ function AboutDropdown() {
               className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
             >
               <InformationCircleIcon className="text-accent h-4 w-4" />
-              <span>About X-ray Atlas</span>
+              <span>About</span>
             </button>
             <button
               type="button"
@@ -287,7 +288,7 @@ export default function Header() {
             >
               <WSULogoIcon className="block h-10 w-10 justify-start align-middle" />
               <span className="align-middle font-sans text-3xl leading-none font-bold">
-                X-ray Atlas
+                {site.name}
               </span>
             </Link>
           </div>

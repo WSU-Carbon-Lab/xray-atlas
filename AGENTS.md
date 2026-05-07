@@ -157,6 +157,13 @@ Global styling and Tailwind entry CSS.
 - `src/lib` and `src/utils` hold shared helpers; use `src/lib` when broader/purer, and `src/utils` for small widely reused helpers.
 - `src/styles` contains global styling only; avoid component-specific styling leakage into `globals.css`.
 
+## Branding source of truth
+
+- `src/app/brand.ts` is the canonical source of truth for site identity, mission language, and attribution metadata.
+- Reuse exported values from `brand.ts` in metadata, page copy, OpenGraph/Twitter tags, and shared UI surfaces instead of duplicating branding strings.
+- Use `site.name` for reader-facing UI copy and `site.applicationName` only for machine-oriented labels that intentionally require that variant.
+- Keep host and institutional attribution aligned to `attribution.*` values, and prefer mission variants in `mission.*` based on context (`heroShort`, `canonical`, `technical`, `stewardship`, `seoDescription`, `ogTitle`).
+
 ## Contributor conventions (Git)
 
 Environment setup, PR checklist, and the full conventional-commit table live in **`CONTRIBUTING.md`**. Agents and contributors must still honor these **project conventions**:
@@ -199,10 +206,10 @@ Implementation reference: `src/server/api/routers/admin.ts` (`updateUser`, `setU
 - For substantive UI changes, use the project's browser verification tooling when available instead of relying only on static code review.
 - For HeroUI upgrades or broad component migrations, use the HeroUI migration MCP and migration guide during planning and implementation; browser-verify interactive flows; after navigation, wait for content to settle on slow pages before screenshots; use subagents for parallel tasks when that reduces context load.
 - Prefer `bun run lint` (ESLint via `bunx eslint .`) together with `bun run typecheck` when validating changes; `bun run check` runs `next lint` plus `tsc`, which can diverge from the ESLint-only `lint` script.
-- For the account profile dropdown, separate developer-oriented items from standard user actions with a visual divider; group profile, dashboard, and create-team together, and place admin-only entries such as **User administration** in their own section.
-- For admin consoles such as `/admin/users`, prefer a multi-surface layout over a single dense panel; when search is central, show Command+K using HeroUI `Kbd` with `Kbd.Abbr` for the modifier and `Kbd.Content` for the key.
-- When a destructive control is not allowed (for example deleting a protected user), keep the control visible in a disabled or muted state rather than removing it so users see a consistent action strip.
-- On `/admin/users`, size table columns for readability without excess width; hide raw id in the default view and offer copy-id; keep per-row action icons aligned with their column.
+- For the account profile dropdown, separate developer-oriented items from standard user actions with a visual divider; group profile, dashboard, and create-team together, and place admin-only entries such as **User administration** in their own section. For admin consoles such as `/admin/users`, prefer a multi-surface layout over a single dense panel; when search is central, show Command+K using HeroUI `Kbd` with `Kbd.Abbr` for the modifier and `Kbd.Content` for the key.
+- When a destructive control is not allowed (for example deleting a protected user), keep the control visible in a disabled or muted state rather than removing it so users see a consistent action strip. On `/admin/users`, size table columns for readability without excess width; hide raw id in the default view and offer copy-id; keep per-row action icons aligned with their column.
+- When the user asks whether something already exists without pointing at this repository, interpret the question as whether an adoptable framework, product, or library exists, not only whether the current codebase already implements it.
+- Keep `google-site-verification` and similar search-indexing ownership tokens in validated environment configuration rather than committing secret values into source files.
 
 ## Learned Workspace Facts
 

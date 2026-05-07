@@ -5,11 +5,12 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { site } from "~/app/brand";
 
 export const metadata: Metadata = {
   title: "Data Representation and Structure",
   description:
-    "How Xray Atlas represents molecules, samples, experiments, and spectroscopy traces for robust querying and scientific reuse.",
+    `How ${site.name} represents molecules, samples, experiments, and spectroscopy traces for robust querying and scientific reuse.`,
 };
 
 export default function DataRepresentationPage() {
@@ -19,7 +20,7 @@ export default function DataRepresentationPage() {
         Data representation and structure
       </h1>
       <p className="text-muted">
-        Xray Atlas stores spectroscopy records so users can query both
+        {site.name} stores spectroscopy records so users can query both
         scientific content and experimental provenance. Dataset pages combine
         molecules, spectrum traces, and metadata in one navigable model.
       </p>

@@ -4,11 +4,12 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { site } from "~/app/brand";
 
 export const metadata: Metadata = {
   title: "Database Contributions",
   description:
-    "How to contribute NEXAFS datasets to Xray Atlas with metadata quality, reproducibility, and citation-ready attribution.",
+    `How to contribute NEXAFS datasets to ${site.name} with metadata quality, reproducibility, and citation-ready attribution.`,
 };
 
 export default function ContributionsPage() {
@@ -18,7 +19,7 @@ export default function ContributionsPage() {
         Database contributions
       </h1>
       <p className="text-muted">
-        Contributions keep Xray Atlas scientifically useful. The goal is to pair
+        Contributions keep {site.name} scientifically useful. The goal is to pair
         each spectrum with enough context for interpretation, comparison, and
         citation.
       </p>

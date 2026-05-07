@@ -4,11 +4,12 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { site } from "~/app/brand";
 
 export const metadata: Metadata = {
   title: "Platform Features",
   description:
-    "Core Xray Atlas features for searching, filtering, visualizing, and contributing NEXAFS and X-ray spectroscopy datasets.",
+    `Core ${site.name} features for searching, filtering, visualizing, and contributing NEXAFS and X-ray spectroscopy datasets.`,
 };
 
 const featureItems = [
@@ -43,7 +44,7 @@ export default function PlatformFeaturesPage() {
     <div className="w-full min-w-0 space-y-6">
       <h1 className="text-foreground text-4xl font-bold">Platform features</h1>
       <p className="text-muted">
-        Xray Atlas is built for day-to-day spectroscopy workflows: finding
+        {site.name} is built for day-to-day spectroscopy workflows: finding
         relevant NEXAFS data quickly, validating context, and contributing new
         measurements in a reusable format.
       </p>
