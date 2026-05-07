@@ -235,7 +235,7 @@ export const MoleculeDecriptionTags = ({
         >
           <Image
             src={PUBCHEM_FAVICON_URL}
-            alt=""
+            alt="PubChem registry icon"
             width={16}
             height={16}
             className="h-4 w-4 object-contain"
@@ -251,7 +251,7 @@ export const MoleculeDecriptionTags = ({
         >
           <Image
             src={CAS_FAVICON_URL}
-            alt=""
+            alt="CAS registry icon"
             width={16}
             height={16}
             className="h-4 w-4 object-contain"
@@ -295,7 +295,7 @@ function MoleculeRegistryFaviconLinks({
             >
               <Image
                 src={CAS_FAVICON_URL}
-                alt=""
+                alt="CAS registry icon"
                 width={20}
                 height={20}
                 className="h-5 w-5 object-contain"
@@ -313,7 +313,7 @@ function MoleculeRegistryFaviconLinks({
           >
             <Image
               src={CAS_FAVICON_URL}
-              alt=""
+              alt="CAS registry icon unavailable"
               width={20}
               height={20}
               className="h-5 w-5 object-contain opacity-50"
@@ -336,7 +336,7 @@ function MoleculeRegistryFaviconLinks({
             >
               <Image
                 src={PUBCHEM_FAVICON_URL}
-                alt=""
+                alt="PubChem registry icon"
                 width={20}
                 height={20}
                 className="h-5 w-5 object-contain"
@@ -354,7 +354,7 @@ function MoleculeRegistryFaviconLinks({
           >
             <Image
               src={PUBCHEM_FAVICON_URL}
-              alt=""
+              alt="PubChem registry icon unavailable"
               width={20}
               height={20}
               className="h-5 w-5 object-contain opacity-50"
@@ -1436,7 +1436,7 @@ function HeaderCardIdentifierRow({
       >
         <Image
           src={CAS_FAVICON_URL}
-          alt=""
+          alt="CAS registry icon"
           width={16}
           height={16}
           className="h-4 w-4 shrink-0 object-contain"
@@ -1503,7 +1503,7 @@ function HeaderCardIdentifierRow({
       >
         <Image
           src={PUBCHEM_FAVICON_URL}
-          alt=""
+          alt="PubChem registry icon"
           width={16}
           height={16}
           className="h-4 w-4 shrink-0 object-contain"

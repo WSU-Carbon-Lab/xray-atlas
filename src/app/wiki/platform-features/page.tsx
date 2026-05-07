@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: "Platform Features",
   description:
     `Core ${site.name} features for searching, filtering, visualizing, and contributing NEXAFS and X-ray spectroscopy datasets.`,
+  alternates: {
+    canonical: "/wiki/platform-features",
+  },
 };
 
 const featureItems = [
@@ -76,6 +79,12 @@ export default function PlatformFeaturesPage() {
           className="border-border bg-surface text-foreground rounded-lg border px-4 py-2 text-sm font-medium"
         >
           Contribute datasets
+        </Link>
+        <Link
+          href="/wiki/data-representation"
+          className="border-border bg-surface text-foreground rounded-lg border px-4 py-2 text-sm font-medium"
+        >
+          Data representation guide
         </Link>
       </div>
     </div>

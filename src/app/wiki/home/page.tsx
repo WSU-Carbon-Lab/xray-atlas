@@ -4,6 +4,7 @@
 
 import type { ComponentType } from "react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { NexafsCoreAbsorptionSchematic } from "~/components/nexafs/nexafs-core-absorption-schematic";
 import { site } from "~/app/brand";
 import {
@@ -14,9 +15,12 @@ import {
 } from "@heroicons/react/24/outline";
 
 export const metadata: Metadata = {
-  title: "Wiki home",
+  title: "NEXAFS wiki home",
   description:
     `NEXAFS reference for terminology, scientific targets, and interpretation context used across the ${site.name} spectroscopy database.`,
+  alternates: {
+    canonical: "/wiki/home",
+  },
 };
 
 const terminologyCards = [
@@ -83,8 +87,8 @@ export default function NexafsWikiPage() {
   return (
     <div className="w-full min-w-0 space-y-10">
         <header className="@container border-border bg-surface/80 relative overflow-hidden rounded-2xl border px-6 py-8 sm:px-8 lg:py-10">
-          <h1 className="text-foreground text-3xl font-bold sm:text-4xl">
-            Home
+            <h1 className="text-foreground text-3xl font-bold sm:text-4xl">
+            NEXAFS wiki home
           </h1>
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.07]"
@@ -232,6 +236,29 @@ export default function NexafsWikiPage() {
               comparable traces collected under different instrumental coupling.
             </li>
           </ul>
+        </section>
+        <section className="border-border bg-surface rounded-2xl border p-6 sm:p-8">
+          <SectionHeader
+            icon={BookOpenIcon}
+            title="Apply this in the catalog"
+            id="catalog-links"
+          />
+          <p className="text-muted max-w-none text-sm leading-relaxed">
+            Use these definitions while browsing and comparing records:
+            {" "}
+            <Link href="/browse/nexafs" className="text-accent hover:underline">
+              browse NEXAFS datasets
+            </Link>
+            ,{" "}
+            <Link href="/browse/molecules" className="text-accent hover:underline">
+              browse molecules
+            </Link>
+            , and{" "}
+            <Link href="/wiki/data-representation" className="text-accent hover:underline">
+              review data representation details
+            </Link>
+            .
+          </p>
         </section>
     </div>
   );

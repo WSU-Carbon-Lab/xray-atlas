@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: "Database Contributions",
   description:
     `How to contribute NEXAFS datasets to ${site.name} with metadata quality, reproducibility, and citation-ready attribution.`,
+  alternates: {
+    canonical: "/wiki/contributions",
+  },
 };
 
 export default function ContributionsPage() {
@@ -57,6 +60,13 @@ export default function ContributionsPage() {
             Open contribution flow
           </Link>
         </div>
+        <p className="text-muted mt-4 text-sm">
+          Before submitting, review{" "}
+          <Link href="/wiki/data-representation" className="text-accent hover:underline">
+            data representation and structure
+          </Link>
+          {" "}to keep uploaded fields aligned with browse filters and analysis views.
+        </p>
       </section>
     </div>
   );

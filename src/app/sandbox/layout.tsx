@@ -4,6 +4,10 @@ import { auth } from "~/server/auth";
 
 export const metadata = {
   title: "Sandbox",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 /**

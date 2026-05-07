@@ -70,16 +70,28 @@ export function Footer() {
             </h4>
             <div className="flex flex-col space-y-2">
               <Link
-                href="/browse"
+                href="/browse/molecules"
                 className="text-muted text-sm transition-colors hover:text-accent hover:underline"
               >
-                Browse
+                Browse molecules
+              </Link>
+              <Link
+                href="/browse/nexafs"
+                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
+              >
+                Browse NEXAFS
               </Link>
               <Link
                 href="/contribute"
                 className="text-muted text-sm transition-colors hover:text-accent hover:underline"
               >
                 Contribute
+              </Link>
+              <Link
+                href="/wiki/home"
+                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
+              >
+                NEXAFS wiki
               </Link>
               <Link
                 href="/about"

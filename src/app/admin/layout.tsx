@@ -6,6 +6,10 @@ import { db } from "~/server/db";
 
 export const metadata = {
   title: "Administration",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default async function AdminLayout({
