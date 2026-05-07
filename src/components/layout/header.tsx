@@ -76,7 +76,7 @@ function AboutDropdown() {
               className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
             >
               <InformationCircleIcon className="text-accent h-4 w-4" />
-              <span>About {site.name}</span>
+              <span>About</span>
             </button>
             <button
               type="button"

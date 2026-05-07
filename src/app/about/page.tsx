@@ -13,6 +13,10 @@ import {
   AcademicCapIcon,
   BookOpenIcon,
   InformationCircleIcon,
+  MagnifyingGlassIcon,
+  LockOpenIcon,
+  ArrowsRightLeftIcon,
+  ArrowPathIcon,
   RectangleStackIcon,
   SparklesIcon,
   UserGroupIcon,
@@ -52,6 +56,33 @@ const aboutResourceCards = [
     description:
       "Guidance for dataset contributors, metadata expectations, attribution, and scientific reproducibility practices.",
     icon: ArrowTopRightOnSquareIcon,
+  },
+] as const;
+
+const fairPrinciples = [
+  {
+    title: "Findable",
+    description:
+      "Molecule records, spectra, and experimental metadata are indexed for search by identifiers, chemical context, edge, instrument, facility, and quality-oriented filters.",
+    icon: MagnifyingGlassIcon,
+  },
+  {
+    title: "Accessible",
+    description:
+      "Datasets are available through the web interface and API-based workflows so researchers can retrieve records and associated context across computational environments.",
+    icon: LockOpenIcon,
+  },
+  {
+    title: "Interoperable",
+    description:
+      "Records preserve structured molecular, experimental, and provenance metadata designed for integration with analysis pipelines and external research tooling.",
+    icon: ArrowsRightLeftIcon,
+  },
+  {
+    title: "Reusable",
+    description:
+      "Contribution workflows emphasize attribution, provenance, and citable context so data can be interpreted and reused with clear scientific traceability.",
+    icon: ArrowPathIcon,
   },
 ] as const;
 
@@ -143,12 +174,52 @@ export default async function AboutPage() {
           <h1 className="text-foreground mb-2 text-4xl font-bold sm:text-5xl">
             About {site.name}
           </h1>
-          <p className="text-muted mx-auto max-w-3xl text-lg">
+          <p className="text-muted mx-auto max-w-4xl text-left text-base leading-relaxed sm:text-lg">
             {mission.canonical}
           </p>
         </div>
 
         <div className="space-y-12">
+          <section>
+            <h2 className="text-foreground mb-4 text-2xl font-semibold">
+              FAIR data alignment
+            </h2>
+            <div className="space-y-4">
+              <p className="text-muted">
+                {site.name} aligns with the FAIR guiding principles for
+                scientific data stewardship.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {fairPrinciples.map((principle) => (
+                  <article
+                    key={principle.title}
+                    className="border-border bg-surface rounded-xl border p-4"
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <principle.icon className="text-accent h-5 w-5" />
+                      <h3 className="text-foreground text-lg font-semibold">
+                        {principle.title}
+                      </h3>
+                    </div>
+                    <p className="text-muted text-sm">{principle.description}</p>
+                  </article>
+                ))}
+              </div>
+              <p className="text-muted">
+                FAIR reference:{" "}
+                <Link
+                  href="https://www.nature.com/articles/sdata201618"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground hover:text-accent underline-offset-2 hover:underline"
+                >
+                  Wilkinson et al., The FAIR Guiding Principles for scientific
+                  data management and stewardship (Scientific Data, 2016)
+                </Link>
+              </p>
+            </div>
+          </section>
+
           <section>
             <h2 className="text-foreground mb-4 flex items-center gap-2 text-2xl font-semibold">
               <InformationCircleIcon className="text-accent h-6 w-6" />
@@ -379,60 +450,6 @@ export default async function AboutPage() {
             </div>
           </section>
 
-          <section>
-            <h2 className="text-foreground mb-4 text-2xl font-semibold">
-              FAIR data alignment
-            </h2>
-            <div className="text-muted space-y-4">
-              <p>
-                X-ray Atlas aligns with the FAIR guiding principles for
-                scientific data stewardship: findability, accessibility,
-                interoperability, and reusability.
-              </p>
-              <p>
-                <span className="text-foreground font-semibold">Findable:</span>{" "}
-                molecule records, spectra, and experimental metadata are indexed
-                for search by identifiers, chemical context, edge, instrument,
-                facility, and quality-oriented filters.
-              </p>
-              <p>
-                <span className="text-foreground font-semibold">
-                  Accessible:
-                </span>{" "}
-                datasets are available through the web interface and API-based
-                workflows so researchers can retrieve records and associated
-                context across computational environments.
-              </p>
-              <p>
-                <span className="text-foreground font-semibold">
-                  Interoperable:
-                </span>{" "}
-                records preserve structured molecular, experimental, and
-                provenance metadata designed for integration with analysis
-                pipelines and external research tooling.
-              </p>
-              <p>
-                <span className="text-foreground font-semibold">
-                  Reusable:
-                </span>{" "}
-                contribution workflows emphasize attribution, provenance, and
-                citable context so data can be interpreted and reused with clear
-                scientific traceability.
-              </p>
-              <p>
-                FAIR reference:{" "}
-                <Link
-                  href="https://www.nature.com/articles/sdata201618"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-foreground hover:text-accent underline-offset-2 hover:underline"
-                >
-                  Wilkinson et al., The FAIR Guiding Principles for scientific
-                  data management and stewardship (Scientific Data, 2016)
-                </Link>
-              </p>
-            </div>
-          </section>
         </div>
       </div>
     </div>
