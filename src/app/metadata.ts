@@ -1,83 +1,83 @@
 import { type Metadata } from "next";
+import { attribution, mission, site } from "~/app/brand";
 
 export const siteMetadata: Metadata = {
-  metadataBase: new URL("https://xrayatlas.wsu.edu"),
+  metadataBase: new URL(site.url),
   alternates: {
     canonical: "/",
   },
   title: {
-    template: "%s | Xray Atlas",
-    default: "Xray Atlas",
+    template: `%s | ${site.name}`,
+    default: site.name,
   },
-  description:
-    "Comprehensive database for X-ray spectroscopy data collected by the WSU Collins Lab",
+  description: mission.seoDescription,
   icons: [{ rel: "icon", url: "https://repo.wsu.edu/favicon/icon.svg" }],
   openGraph: {
     type: "website",
-    url: "https://xrayatlas.wsu.edu",
-    title: "Xray Atlas | WSU Collins Research Group",
-    description:
-      "Comprehensive database for X-ray spectroscopy data collected by the WSU Collins Lab",
-    siteName: "Xray Atlas",
+    url: site.url,
+    title: mission.ogTitle,
+    description: mission.seoDescription,
+    siteName: site.name,
     images: [
       {
         url: "https://wpcdn.web.wsu.edu/wp-labs/uploads/sites/945/2017/11/Scattxrayering-Rendering.jpg",
         width: 1200,
         height: 630,
-        alt: "Xray Atlas Preview Image",
+        alt: "X-ray Atlas — open NEXAFS spectroscopy database",
       },
     ],
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Xray Atlas | WSU Collins Research Group",
-    description:
-      "Comprehensive database for X-ray spectroscopy data collected by the WSU Collins Lab",
+    title: mission.ogTitle,
+    description: mission.seoDescription,
     images: ["https://wpcdn.web.wsu.edu/wp-labs/uploads/sites/945/2017/11/Scattxrayering-Rendering.jpg"],
   },
-  applicationName: "Xray Atlas",
+  applicationName: site.applicationName,
   keywords: [
-    // Research Group Keywords
+    // Hosting lab
     "WSU",
     "Washington State University",
+    "WSU Carbon Lab",
     "WSU Physics",
     "Brian Collins",
-    "WSU Collins Research Group",
-    // Open Data Keywords
+    "Collins Research Group",
+    // Open / FAIR data
     "Open Data",
+    "FAIR Data",
     "Data Repository",
     "Data Archive",
-    // Research Concept Keywords
+    "Open Science",
+    // Research domains
     "Materials science",
     "Materials physics",
     "Atomic Molecular and Optical Physics",
     "Soft Matter Physics",
-    "Material Engineering",
+    "Materials Engineering",
     "Advanced Functional Materials",
-    // Spectroscopy Keywords
-    "X-ray science",
-    "X-ray spectroscopy",
+    "Organic Semiconductors",
+    "Polymer Physics",
+    // Spectroscopy — primary
     "NEXAFS",
+    "Near-Edge X-ray Absorption Fine Structure",
     "X-ray absorption fine structure",
     "X-ray absorption spectroscopy",
     "EXAFS",
     "XAS",
-    "X-ray near edge absorption fine structure",
-    // Other X-ray Science Keywords
+    "X-ray spectroscopy",
+    "X-ray science",
+    // Spectroscopy — related techniques
     "X-ray diffraction",
     "X-ray scattering",
-    "X-ray crystallography",
-    "X-ray imaging",
-    "X-ray computed tomography",
-    "X-ray microtomography",
-    "Resonant Scattering",
-    "Polarized Scattering",
+    "Resonant Soft X-ray Scattering",
     "RSoXS",
     "PRSoXS",
     "RSoXR",
     "PRSoXR",
-    // Instrument / Facility Keywords
+    "X-ray crystallography",
+    "X-ray imaging",
+    // Facilities
     "Advanced Light Source",
     "ALS",
     "National Synchrotron Light Source",
@@ -95,9 +95,18 @@ export const siteMetadata: Metadata = {
     "Lawrence Berkeley National Laboratory",
     "LBNL",
     "Berkeley Lab",
+    // Discovery and attribution
+    "spectroscopy provenance",
+    "citable spectra",
+    "DOI data citation",
+    "synchrotron data",
+    "open spectroscopy database",
   ],
   authors: [
-    { name: "WSU Collins Research Group", url: "https://labs.wsu.edu/carbon/" },
+    {
+      name: attribution.lab,
+      url: attribution.labUrl,
+    },
   ],
   robots: {
     index: true,

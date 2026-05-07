@@ -1,3 +1,5 @@
+import { site } from "~/app/brand";
+
 function xmlEscape(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -8,8 +10,8 @@ function xmlEscape(value: string): string {
 }
 
 function buildOpenSearchXml(origin: string): string {
-  const shortName = "Xray Atlas";
-  const description = "Search molecules in Xray Atlas by name, synonym, and identifiers.";
+  const shortName = site.applicationName;
+  const description = `Search molecules in ${site.name} by name, synonym, and identifiers.`;
   const searchTemplate = `${origin}/api/molecules/search?q={searchTerms}`;
   const selfTemplate = `${origin}/opensearch.xml`;
   const iconUrl = "https://repo.wsu.edu/favicon/icon.svg";
@@ -27,7 +29,7 @@ function buildOpenSearchXml(origin: string): string {
 }
 
 /**
- * Serves an OpenSearch descriptor so browsers can install Xray Atlas molecule search.
+ * Serves an OpenSearch descriptor so browsers can install X-ray Atlas molecule search.
  *
  * The descriptor points search requests to `/api/molecules/search?q={searchTerms}`,
  * which supports unified matching and redirect behavior for molecule discovery.

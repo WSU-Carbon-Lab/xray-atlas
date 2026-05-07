@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { api } from "~/trpc/server";
 import { ORCIDIcon } from "~/components/icons";
+import { attribution, mission, site } from "~/app/brand";
 import {
   ArrowTopRightOnSquareIcon,
   AcademicCapIcon,
@@ -18,9 +19,9 @@ import {
 } from "@heroicons/react/24/outline";
 
 export const metadata: Metadata = {
-  title: "About Xray Atlas",
+  title: `About ${site.name}`,
   description:
-    "Learn the mission, data scope, and scientific workflows supported by the Xray Atlas NEXAFS and X-ray spectroscopy database.",
+    `Learn how ${site.name} supports FAIR-aligned spectroscopy discovery, attribution, and reuse across the synchrotron community.`,
 };
 
 const aboutResourceCards = [
@@ -140,18 +141,10 @@ export default async function AboutPage() {
       <div className="mx-auto max-w-4xl">
         <div className="mb-12 space-y-4 text-center">
           <h1 className="text-foreground mb-2 text-4xl font-bold sm:text-5xl">
-            About X-ray Atlas
+            About {site.name}
           </h1>
           <p className="text-muted mx-auto max-w-3xl text-lg">
-            X-ray Atlas is an open NEXAFS and X-ray spectroscopy database that
-            helps researchers discover, compare, and reuse molecule-resolved
-            spectra with rich experimental metadata, facility provenance, and
-            reproducible contribution workflows.
-          </p>
-          <p className="text-muted mx-auto max-w-3xl text-base">
-            Our mission is to accelerate materials, chemistry, and soft-matter
-            research by connecting high-quality spectroscopy datasets with the
-            context needed for scientific interpretation and citation.
+            {mission.canonical}
           </p>
         </div>
 
@@ -182,7 +175,7 @@ export default async function AboutPage() {
               </p>
               <div className="border-border bg-surface rounded-xl border p-4">
                 <h3 className="text-foreground mb-3 text-lg font-semibold">
-                  Hosted by
+                  Hosted by {attribution.lab}
                 </h3>
                 {collaboratorsData.hosts.length > 0 ? (
                   <ul className="space-y-2 text-sm">
@@ -382,6 +375,61 @@ export default async function AboutPage() {
                 The mission is practical and scientific: make high-quality
                 spectroscopy data easier to find, easier to trust, and easier to
                 cite.
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-foreground mb-4 text-2xl font-semibold">
+              FAIR data alignment
+            </h2>
+            <div className="text-muted space-y-4">
+              <p>
+                X-ray Atlas aligns with the FAIR guiding principles for
+                scientific data stewardship: findability, accessibility,
+                interoperability, and reusability.
+              </p>
+              <p>
+                <span className="text-foreground font-semibold">Findable:</span>{" "}
+                molecule records, spectra, and experimental metadata are indexed
+                for search by identifiers, chemical context, edge, instrument,
+                facility, and quality-oriented filters.
+              </p>
+              <p>
+                <span className="text-foreground font-semibold">
+                  Accessible:
+                </span>{" "}
+                datasets are available through the web interface and API-based
+                workflows so researchers can retrieve records and associated
+                context across computational environments.
+              </p>
+              <p>
+                <span className="text-foreground font-semibold">
+                  Interoperable:
+                </span>{" "}
+                records preserve structured molecular, experimental, and
+                provenance metadata designed for integration with analysis
+                pipelines and external research tooling.
+              </p>
+              <p>
+                <span className="text-foreground font-semibold">
+                  Reusable:
+                </span>{" "}
+                contribution workflows emphasize attribution, provenance, and
+                citable context so data can be interpreted and reused with clear
+                scientific traceability.
+              </p>
+              <p>
+                FAIR reference:{" "}
+                <Link
+                  href="https://www.nature.com/articles/sdata201618"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground hover:text-accent underline-offset-2 hover:underline"
+                >
+                  Wilkinson et al., The FAIR Guiding Principles for scientific
+                  data management and stewardship (Scientific Data, 2016)
+                </Link>
               </p>
             </div>
           </section>

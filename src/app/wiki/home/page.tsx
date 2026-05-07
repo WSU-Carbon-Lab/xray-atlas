@@ -1,10 +1,11 @@
 /**
- * Wiki home route: canonical NEXAFS terminology and interpretation primer for Xray Atlas.
+ * Wiki home route: canonical NEXAFS terminology and interpretation primer for X-ray Atlas.
  */
 
 import type { ComponentType } from "react";
 import type { Metadata } from "next";
 import { NexafsCoreAbsorptionSchematic } from "~/components/nexafs/nexafs-core-absorption-schematic";
+import { site } from "~/app/brand";
 import {
   BeakerIcon,
   BookOpenIcon,
@@ -15,7 +16,7 @@ import {
 export const metadata: Metadata = {
   title: "Wiki home",
   description:
-    "NEXAFS reference for terminology, scientific targets, and interpretation context used across the Xray Atlas spectroscopy database.",
+    `NEXAFS reference for terminology, scientific targets, and interpretation context used across the ${site.name} spectroscopy database.`,
 };
 
 const terminologyCards = [
@@ -23,7 +24,7 @@ const terminologyCards = [
     short: "NEXAFS",
     full: "Near-Edge X-ray Absorption Fine Structure",
     body:
-      "Preferred term on Xray Atlas. Emphasizes fine structure in the near-edge region arising from local bonding and electronic structure.",
+      `Preferred term on ${site.name}. Emphasizes fine structure in the near-edge region arising from local bonding and electronic structure.`,
   },
   {
     short: "XANES",
@@ -99,7 +100,7 @@ export default function NexafsWikiPage() {
                 element-specific method that probes transitions from core electronic
                 states into unoccupied bound and quasi-bound states near an
                 absorption edge (for example carbon, nitrogen, or sulfur K-edges).
-                This page anchors terminology for Xray Atlas so spectra and
+                This page anchors terminology for {site.name} so spectra and
                 metadata are read consistently across molecules, instruments, and
                 facilities.
               </p>
@@ -121,7 +122,7 @@ export default function NexafsWikiPage() {
           />
           <p className="text-muted mb-6 max-w-none">
             X-ray spectroscopy communities use several labels for closely related
-            near-edge measurements. Below is how Xray Atlas uses each term when
+            near-edge measurements. Below is how {site.name} uses each term when
             indexing and describing datasets.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -167,7 +168,7 @@ export default function NexafsWikiPage() {
         <section className="border-border bg-surface rounded-2xl border p-6 sm:p-8">
           <SectionHeader
             icon={CubeTransparentIcon}
-            title="Representations stored in Xray Atlas"
+            title={`Representations stored in ${site.name}`}
             id="representations-stored"
           />
           <p className="text-muted mb-6 max-w-none">
@@ -193,7 +194,7 @@ export default function NexafsWikiPage() {
               <strong className="text-foreground">Optical density (OD)</strong>
               <p className="text-muted mt-2 text-sm leading-relaxed">
                 Proportional to mass absorption up to experimental factors. In
-                Xray Atlas, OD naming denotes traces scaled so the pre-edge trends
+                {site.name}, OD naming denotes traces scaled so the pre-edge trends
                 toward zero and the post-edge trends toward one after the chosen
                 normalization workflow.
               </p>

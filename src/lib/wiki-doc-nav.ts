@@ -33,7 +33,7 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
     sections: [
       { id: "terminology-heading", label: "The zoo of names for the same idea" },
       { id: "nexafs-probes", label: "What NEXAFS probes" },
-      { id: "representations-stored", label: "Representations stored in Xray Atlas" },
+      { id: "representations-stored", label: "Representations stored in X-ray Atlas" },
       { id: "coordinates-and-units", label: "Coordinates and units" },
     ],
   },
