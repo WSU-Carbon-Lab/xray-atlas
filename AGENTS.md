@@ -157,6 +157,13 @@ Global styling and Tailwind entry CSS.
 - `src/lib` and `src/utils` hold shared helpers; use `src/lib` when broader/purer, and `src/utils` for small widely reused helpers.
 - `src/styles` contains global styling only; avoid component-specific styling leakage into `globals.css`.
 
+## Branding source of truth
+
+- `src/app/brand.ts` is the canonical source of truth for site identity, mission language, and attribution metadata.
+- Reuse exported values from `brand.ts` in metadata, page copy, OpenGraph/Twitter tags, and shared UI surfaces instead of duplicating branding strings.
+- Use `site.name` for reader-facing UI copy and `site.applicationName` only for machine-oriented labels that intentionally require that variant.
+- Keep host and institutional attribution aligned to `attribution.*` values, and prefer mission variants in `mission.*` based on context (`heroShort`, `canonical`, `technical`, `stewardship`, `seoDescription`, `ogTitle`).
+
 ## Contributor conventions (Git)
 
 Environment setup, PR checklist, and the full conventional-commit table live in **`CONTRIBUTING.md`**. Agents and contributors must still honor these **project conventions**:
