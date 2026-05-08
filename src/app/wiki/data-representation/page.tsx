@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   title: "Data Representation and Structure",
   description:
     `How ${site.name} represents molecules, samples, experiments, and spectroscopy traces for robust querying and scientific reuse.`,
+  alternates: {
+    canonical: "/wiki/data-representation",
+  },
 };
 
 export default function DataRepresentationPage() {
@@ -76,10 +79,18 @@ export default function DataRepresentationPage() {
       </div>
       <p className="text-muted">
         To query these fields directly, start with{" "}
-        <Link href="/browse" className="text-accent hover:underline">
-          the browse interface
+        <Link href="/browse/molecules" className="text-accent hover:underline">
+          molecule browse
         </Link>
-        .
+        {" "}for identity and composition filters,{" "}
+        <Link href="/browse/nexafs" className="text-accent hover:underline">
+          NEXAFS browse
+        </Link>
+        {" "}for edge and geometry comparisons, and{" "}
+        <Link href="/wiki/contributions" className="text-accent hover:underline">
+          contribution guidelines
+        </Link>
+        {" "}for metadata completeness before upload.
       </p>
     </div>
   );

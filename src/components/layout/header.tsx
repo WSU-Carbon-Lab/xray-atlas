@@ -22,6 +22,7 @@ import { site } from "~/app/brand";
 
 function AboutDropdown() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isWikiOpen, setIsWikiOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -32,6 +33,7 @@ function AboutDropdown() {
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setIsWikiOpen(false);
       }
     }
 
@@ -47,6 +49,7 @@ function AboutDropdown() {
   const handleItemClick = (path: string) => {
     router.push(path);
     setIsOpen(false);
+    setIsWikiOpen(false);
   };
 
   return (
@@ -68,7 +71,7 @@ function AboutDropdown() {
       </button>
 
       {isOpen ? (
-        <div className="border-border bg-surface absolute top-full left-0 z-50 mt-2 w-48 rounded-lg border shadow-lg">
+        <div className="border-border bg-surface absolute top-full left-0 z-50 mt-2 w-60 rounded-lg border shadow-lg">
           <div className="py-1">
             <button
               type="button"
@@ -78,14 +81,59 @@ function AboutDropdown() {
               <InformationCircleIcon className="text-accent h-4 w-4" />
               <span>About</span>
             </button>
-            <button
-              type="button"
-              onClick={() => handleItemClick("/wiki/home")}
-              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
-            >
-              <BookOpenIcon className="text-accent h-4 w-4" />
-              <span>Wiki</span>
-            </button>
+            <div className="border-border mx-2 my-1 rounded-md border bg-default/30 py-1">
+              <button
+                type="button"
+                onClick={() => setIsWikiOpen((prev) => !prev)}
+                className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 text-left text-sm font-medium transition-colors"
+                aria-expanded={isWikiOpen}
+                aria-controls="about-wiki-accordion"
+              >
+                <BookOpenIcon className="text-accent h-4 w-4" />
+                <span>Wiki</span>
+                <ChevronDown
+                  className={`ml-auto h-3.5 w-3.5 transition-transform ${
+                    isWikiOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+              {isWikiOpen ? (
+                <div id="about-wiki-accordion" className="mt-1 space-y-0.5 pb-1">
+                  <button
+                    type="button"
+                    onClick={() => handleItemClick("/wiki/home")}
+                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                  >
+                    <BookOpenIcon className="text-accent h-4 w-4" />
+                    <span>Wiki home</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleItemClick("/wiki/data-representation")}
+                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                  >
+                    <BookOpenIcon className="text-accent h-4 w-4" />
+                    <span>Data representation</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleItemClick("/wiki/platform-features")}
+                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                  >
+                    <BookOpenIcon className="text-accent h-4 w-4" />
+                    <span>Platform features</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleItemClick("/wiki/contributions")}
+                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                  >
+                    <BookOpenIcon className="text-accent h-4 w-4" />
+                    <span>Contribution guide</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               onClick={() => handleItemClick("/privacy")}

@@ -44,8 +44,9 @@ import {
 const STORAGE_LEFT = "xray-atlas-wiki-aside-left";
 const STORAGE_RIGHT = "xray-atlas-wiki-aside-right";
 
-const WIKI_DOCS_TOP_OFFSET = "5.5rem";
-const WIKI_DOCS_PANEL_HEIGHT = `calc(100dvh - ${WIKI_DOCS_TOP_OFFSET} - 1.5rem)`;
+const WIKI_DOCS_TOP_OFFSET = "5rem";
+const WIKI_DOCS_PANEL_BOTTOM_GAP = "1rem";
+const WIKI_DOCS_PANEL_HEIGHT = `calc(100dvh - ${WIKI_DOCS_TOP_OFFSET} - ${WIKI_DOCS_PANEL_BOTTOM_GAP})`;
 
 const wikiRailTooltipClass =
   "bg-foreground text-background rounded-lg px-3 py-2 text-sm shadow-lg";
@@ -622,7 +623,13 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
 
       <Drawer.Backdrop isOpen={navDrawerOpen} onOpenChange={setNavDrawerOpen}>
         <Drawer.Content placement="left">
-          <Drawer.Dialog className="border-border bg-background flex h-full max-w-[min(100vw-2rem,22rem)] flex-col border-r">
+          <Drawer.Dialog
+            className="border-border bg-background flex max-w-[min(100vw-2rem,22rem)] flex-col border-r"
+            style={{
+              marginTop: WIKI_DOCS_TOP_OFFSET,
+              height: WIKI_DOCS_PANEL_HEIGHT,
+            }}
+          >
             <Drawer.CloseTrigger />
             <Drawer.Header>
               <Drawer.Heading className="text-base">Overview</Drawer.Heading>
@@ -639,7 +646,13 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
 
       <Drawer.Backdrop isOpen={tocDrawerOpen} onOpenChange={setTocDrawerOpen}>
         <Drawer.Content placement="right">
-          <Drawer.Dialog className="border-border bg-background flex h-full max-w-[min(100vw-2rem,22rem)] flex-col border-l">
+          <Drawer.Dialog
+            className="border-border bg-background flex max-w-[min(100vw-2rem,22rem)] flex-col border-l"
+            style={{
+              marginTop: WIKI_DOCS_TOP_OFFSET,
+              height: WIKI_DOCS_PANEL_HEIGHT,
+            }}
+          >
             <Drawer.CloseTrigger />
             <Drawer.Header>
               <Drawer.Heading className="text-base">On this page</Drawer.Heading>

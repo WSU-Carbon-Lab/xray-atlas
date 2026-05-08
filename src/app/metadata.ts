@@ -3,9 +3,6 @@ import { attribution, mission, site } from "~/app/brand";
 
 export const siteMetadata: Metadata = {
   metadataBase: new URL(site.url),
-  alternates: {
-    canonical: "/",
-  },
   title: {
     template: `%s | ${site.name}`,
     default: site.name,

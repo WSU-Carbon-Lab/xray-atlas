@@ -1,8 +1,14 @@
-import { notFound } from "next/navigation";
+import { type Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
 import { api } from "~/trpc/server";
 import { MoleculeDetailLayoutClient } from "@/components/browse/molecule-detail-layout-client";
 import Link from "next/link";
 import { canonicalMoleculeSlugFromView, slugifyMoleculeSynonym } from "~/lib/molecule-slug";
+import {
+  buildMoleculeChemicalSubstanceJsonLd,
+  buildMoleculeDetailSeoText,
+  serializeMoleculeJsonLdScriptContent,
+} from "~/lib/molecule-schema-org";
 
 function isSlugCollision(
   v: Awaited<ReturnType<typeof api.molecules.getBySlug>>,
@@ -12,6 +18,65 @@ function isSlugCollision(
   candidates: Array<{ id: string; name: string; iupacName: string; slug: string }>;
 } {
   return typeof v === "object" && v != null && "kind" in v;
+}
+
+async function resolveMoleculeByRouteId(routeId: string) {
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      routeId,
+    );
+
+  if (isUuid) {
+    return await api.molecules.getById({ id: routeId });
+  }
+
+  const normalizedSlug = slugifyMoleculeSynonym(routeId);
+  return await api.molecules.getBySlug({ slug: normalizedSlug });
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id: routeId } = await params;
+
+  try {
+    const resolved = await resolveMoleculeByRouteId(routeId);
+    if (!resolved || isSlugCollision(resolved)) {
+      return {
+        title: "Molecule not found",
+        robots: { index: false, follow: false },
+      };
+    }
+
+    const canonicalSlug = canonicalMoleculeSlugFromView(resolved);
+    const { title, description } = buildMoleculeDetailSeoText(resolved);
+    const moleculeName = resolved.name.trim();
+
+    return {
+      title,
+      description,
+      alternates: {
+        canonical: `/molecules/${canonicalSlug}`,
+      },
+      openGraph: {
+        title: `${moleculeName} | X-ray Atlas`,
+        description,
+        url: `/molecules/${canonicalSlug}`,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${moleculeName} | X-ray Atlas`,
+        description,
+      },
+    };
+  } catch {
+    return {
+      title: "Molecule not found",
+      robots: { index: false, follow: false },
+    };
+  }
 }
 
 export default async function MoleculeDetailLayout({
@@ -29,19 +94,10 @@ export default async function MoleculeDetailLayout({
 
   let molecule: Awaited<ReturnType<typeof api.molecules.getById>> | null = null;
 
-  if (isUuid) {
-    try {
-      molecule = await api.molecules.getById({ id: routeId });
-    } catch (err: unknown) {
-      const code = (err as { data?: { code?: string } })?.data?.code;
-      if (code === "NOT_FOUND") notFound();
-      throw err;
-    }
-  } else {
-    const normalizedSlug = slugifyMoleculeSynonym(routeId);
-    const result = await api.molecules.getBySlug({ slug: normalizedSlug });
-    if (isSlugCollision(result)) {
-      const collision = result;
+  try {
+    const resolved = await resolveMoleculeByRouteId(routeId);
+    if (isSlugCollision(resolved)) {
+      const collision = resolved;
       return (
         <div className="py-8">
           <div className="mx-auto max-w-3xl space-y-6">
@@ -86,20 +142,33 @@ export default async function MoleculeDetailLayout({
         </div>
       );
     }
-    molecule = result;
+    molecule = resolved;
+  } catch (err: unknown) {
+    const code = (err as { data?: { code?: string } })?.data?.code;
+    if (code === "NOT_FOUND") notFound();
+    throw err;
   }
 
   if (!molecule) notFound();
 
   const canonicalSlug = canonicalMoleculeSlugFromView(molecule);
-  if (!isUuid && routeId !== canonicalSlug) {
-    // Intentionally not redirecting yet; we keep behavior stable until we decide
-    // whether canonical redirects are desired in this route.
+  if (isUuid || routeId !== canonicalSlug) {
+    redirect(`/molecules/${canonicalSlug}`);
   }
 
+  const moleculeJsonLd = serializeMoleculeJsonLdScriptContent(
+    buildMoleculeChemicalSubstanceJsonLd(molecule, canonicalSlug),
+  );
+
   return (
-    <MoleculeDetailLayoutClient molecule={molecule} moleculeId={molecule.id}>
-      {children}
-    </MoleculeDetailLayoutClient>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: moleculeJsonLd }}
+      />
+      <MoleculeDetailLayoutClient molecule={molecule} moleculeId={molecule.id}>
+        {children}
+      </MoleculeDetailLayoutClient>
+    </>
   );
 }

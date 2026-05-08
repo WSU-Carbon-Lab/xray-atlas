@@ -63,7 +63,7 @@ function RoleFaviconUrlPreview({
       <img
         key={t}
         src={t}
-        alt=""
+        alt="Role favicon preview"
         className="border-border size-10 rounded-lg border object-cover"
         onError={(e) => {
           e.currentTarget.style.display = "none";
@@ -158,7 +158,7 @@ function AdminRoleChipContent({
       {faviconUrl ? (
         <img
           src={faviconUrl}
-          alt=""
+          alt={`${displayName} role favicon`}
           className="size-3 shrink-0 rounded-sm object-cover"
           onError={(e) => {
             e.currentTarget.style.display = "none";

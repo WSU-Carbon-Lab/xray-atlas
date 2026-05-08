@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "~/server/db";
+import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 
 const SEARCH_PARAM_KEYS = ["q", "query", "search", "s"] as const;
 const SEARCH_TERM_SCHEMA = z.string().trim().min(1).max(256);
@@ -97,8 +98,16 @@ function buildBrowseUrl(origin: string, searchTerm: string): URL {
   return url;
 }
 
-function buildMoleculeUrl(origin: string, moleculeId: string): URL {
-  return new URL(`/molecules/${moleculeId}`, origin);
+function canonicalMoleculeSlug(molecule: SearchableMolecule): string {
+  const synonym = molecule.moleculesynonyms[0]?.synonym?.trim();
+  if (synonym) {
+    return slugifyMoleculeSynonym(synonym);
+  }
+  return slugifyMoleculeSynonym(molecule.iupacname);
+}
+
+function buildMoleculeUrl(origin: string, molecule: SearchableMolecule): URL {
+  return new URL(`/molecules/${canonicalMoleculeSlug(molecule)}`, origin);
 }
 
 /**
@@ -168,11 +177,17 @@ export async function GET(request: Request): Promise<NextResponse> {
   const ranked = molecules
     .map((molecule) => rankMolecule(molecule, normalizedQuery))
     .sort((a, b) => b.score - a.score);
+  const moleculeById = new Map(molecules.map((molecule) => [molecule.id, molecule]));
 
   const exactMatches = ranked.filter((entry) => entry.hasExactMatch);
 
   if (exactMatches.length === 1) {
-    const destination = buildMoleculeUrl(requestUrl.origin, exactMatches[0]!.moleculeId);
+    const bestMatch = moleculeById.get(exactMatches[0]!.moleculeId);
+    if (!bestMatch) {
+      const browseUrl = buildBrowseUrl(requestUrl.origin, searchTerm);
+      return NextResponse.redirect(browseUrl, { status: 307 });
+    }
+    const destination = buildMoleculeUrl(requestUrl.origin, bestMatch);
     return NextResponse.redirect(destination, { status: 307 });
   }
 
@@ -182,14 +197,24 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   if (ranked.length === 1) {
-    const destination = buildMoleculeUrl(requestUrl.origin, ranked[0]!.moleculeId);
+    const bestMatch = moleculeById.get(ranked[0]!.moleculeId);
+    if (!bestMatch) {
+      const browseUrl = buildBrowseUrl(requestUrl.origin, searchTerm);
+      return NextResponse.redirect(browseUrl, { status: 307 });
+    }
+    const destination = buildMoleculeUrl(requestUrl.origin, bestMatch);
     return NextResponse.redirect(destination, { status: 307 });
   }
 
   const best = ranked[0]!;
   const secondBest = ranked[1]!;
   if (best.score - secondBest.score >= 35) {
-    const destination = buildMoleculeUrl(requestUrl.origin, best.moleculeId);
+    const bestMatch = moleculeById.get(best.moleculeId);
+    if (!bestMatch) {
+      const browseUrl = buildBrowseUrl(requestUrl.origin, searchTerm);
+      return NextResponse.redirect(browseUrl, { status: 307 });
+    }
+    const destination = buildMoleculeUrl(requestUrl.origin, bestMatch);
     return NextResponse.redirect(destination, { status: 307 });
   }
 
