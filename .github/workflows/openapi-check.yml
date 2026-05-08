@@ -2,10 +2,11 @@ name: OpenAPI Check
 
 on:
   pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
-      - feat/**
 
 jobs:
   openapi-check:
@@ -23,7 +24,7 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Run OpenAPI checks
         run: bun run openapi:check
