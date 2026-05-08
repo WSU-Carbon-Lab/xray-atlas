@@ -20,10 +20,10 @@
     "postinstall": "prisma generate",
     "lint": "bunx eslint .",
     "lint:fix": "bunx eslint . --fix",
-    "openapi:lint": "node scripts/openapi-lint.mjs",
-    "openapi:validate": "node scripts/openapi-validate.mjs",
+    "openapi:lint": "bun scripts/openapi-lint.mjs",
+    "openapi:validate": "bun scripts/openapi-validate.mjs",
     "openapi:check": "bun run openapi:lint && bun run openapi:validate",
-    "api:v1:y6-smoke": "node scripts/api-v1-y6-smoke.mjs",
+    "api:v1:y6-smoke": "bun scripts/api-v1-y6-smoke.mjs",
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit"
