@@ -14,7 +14,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import {
   ArrowsUpDownIcon,
   CalendarDaysIcon,
-  ChatBubbleBottomCenterTextIcon,
+  CheckBadgeIcon,
   CheckIcon,
   CircleStackIcon,
   EyeIcon,
@@ -64,9 +64,9 @@ const NEXAFS_SORT_OPTIONS: Array<{
     icon: <CircleStackIcon className="h-4 w-4 shrink-0" />,
   },
   {
-    key: "comments",
-    label: NEXAFS_SORT_LABELS.comments,
-    icon: <ChatBubbleBottomCenterTextIcon className="h-4 w-4 shrink-0" />,
+    key: "publications",
+    label: NEXAFS_SORT_LABELS.publications,
+    icon: <CheckBadgeIcon className="h-4 w-4 shrink-0" />,
   },
   {
     key: "name",

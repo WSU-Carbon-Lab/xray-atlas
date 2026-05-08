@@ -11,7 +11,7 @@ export const NEXAFS_SORT_OPTION_KEYS = [
   "favorites",
   "views",
   "geometries",
-  "comments",
+  "publications",
   "name",
   "newest",
 ] as const;
@@ -22,7 +22,7 @@ export const NEXAFS_SORT_LABELS: Record<NexafsBrowseSortKey, string> = {
   favorites: "Most Favorited (molecule)",
   views: "Most Viewed (molecule)",
   geometries: "Most Geometries",
-  comments: "Most Comments",
+  publications: "Most Linked Publications",
   name: "Name (A-Z)",
   newest: "Newest First",
 };
@@ -35,11 +35,12 @@ export function formatExperimentType(
 }
 
 export function parseSortParam(raw: string | null): NexafsBrowseSortKey {
+  if (raw === "comments") return "publications";
   if (
     raw === "favorites" ||
     raw === "views" ||
     raw === "geometries" ||
-    raw === "comments" ||
+    raw === "publications" ||
     raw === "name" ||
     raw === "newest"
   ) {

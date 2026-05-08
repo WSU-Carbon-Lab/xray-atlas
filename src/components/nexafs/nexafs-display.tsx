@@ -4,14 +4,7 @@ import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import {
-  Atom,
-  ChevronDown,
-  Copy,
-  Heart,
-  MessageCircle,
-  TriangleRight,
-} from "lucide-react";
+import { Atom, ChevronDown, Heart, TriangleRight } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { trpc } from "~/trpc/client";
 import {
@@ -29,6 +22,8 @@ import { AvatarGroup, type UserWithOrcid } from "~/components/ui/avatar";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
+import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
+import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
 
 const pubChemCompoundUrl = (cid: string) =>
   `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}`;
@@ -185,7 +180,7 @@ export type NexafsExperimentCompactCardProps = {
     orcid: string | null;
   }>;
   polarizationCount: number;
-  commentCount: number;
+  linkedPublications: NexafsBrowseLinkedPublication[];
 };
 
 export function NexafsExperimentCompactCard({
@@ -208,7 +203,7 @@ export function NexafsExperimentCompactCard({
   experimentTypeLabel,
   experimentContributorUsers,
   polarizationCount,
-  commentCount,
+  linkedPublications,
 }: NexafsExperimentCompactCardProps) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -369,48 +364,21 @@ export function NexafsExperimentCompactCard({
           ) : null}
         </button>
         <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5">
-          <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-            <div className="min-w-0 shrink">
-              <span className="text-text-primary motion-safe:group-hover:text-accent block truncate text-sm leading-tight font-bold motion-safe:transition-colors">
-                {displayName}
-              </span>
-            </div>
+          <div className="flex min-w-0 items-center gap-x-2 gap-y-1 overflow-hidden">
+            <span className="text-text-primary motion-safe:group-hover:text-accent min-w-0 shrink truncate text-sm leading-tight font-bold motion-safe:transition-colors">
+              {displayName}
+            </span>
+            <span
+              className="inline-flex shrink-0 items-center self-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <NexafsPublicationVerificationControl
+                linkedPublications={linkedPublications}
+              />
+            </span>
             <span className="text-text-tertiary border-border-default inline-flex h-5 shrink-0 items-center rounded border bg-zinc-100 px-1.5 font-mono text-[9px] tabular-nums sm:text-[10px] dark:bg-zinc-700">
               {chemicalformula || "N/A"}
             </span>
-          </div>
-          <div className="flex min-w-0 shrink items-center gap-2 overflow-hidden">
-            {casNumber ? (
-              <Tooltip delay={0}>
-                <Tooltip.Trigger>
-                  <button
-                    type="button"
-                    aria-label="Copy CAS number"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleCopy(casNumber, "CAS");
-                    }}
-                    className={`focus-visible:ring-accent inline-flex h-5 max-w-full shrink items-center gap-1 rounded px-1.5 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 sm:px-2 ${
-                      copiedText === "CAS"
-                        ? "bg-info/30 text-info dark:bg-info/40 dark:text-info-light"
-                        : "bg-info/20 text-info dark:bg-info/30 dark:text-info-light"
-                    }`}
-                  >
-                    <Copy
-                      className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5"
-                      aria-hidden
-                    />
-                    <span className="truncate font-mono text-[9px] tabular-nums sm:text-[10px]">
-                      CAS {casNumber}
-                    </span>
-                  </button>
-                </Tooltip.Trigger>
-                <Tooltip.Content placement="top">
-                  {copiedText === "CAS" ? "Copied!" : "Copy CAS number"}
-                </Tooltip.Content>
-              </Tooltip>
-            ) : null}
           </div>
           <div className="inline-flex h-5 max-w-full min-w-0 items-center justify-start gap-x-1.5 overflow-hidden text-left text-[10px] leading-none whitespace-nowrap sm:text-[11px]">
             <span
@@ -553,14 +521,6 @@ export function NexafsExperimentCompactCard({
             value={formatCompactMetricCount(polarizationCount)}
             textClassName="text-[10px] text-cyan-500"
             title="Geometries"
-          />
-          <CompactCardMetricStat
-            icon={
-              <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            }
-            value={formatCompactMetricCount(commentCount)}
-            textClassName="text-[10px] text-teal-400"
-            title="Comments"
           />
         </CompactCardMetricsColumn>
       </div>

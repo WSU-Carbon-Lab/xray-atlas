@@ -1,5 +1,6 @@
 import { Prisma } from "~/prisma/client";
 import type { ExperimentType, PrismaClient } from "~/prisma/client";
+import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
 
 export type NexafsBrowseGroupFilters = {
   moleculeId?: string;
@@ -57,14 +58,14 @@ export function buildNexafsBrowseWhereSql(
 /**
  * Controls SQL `ORDER BY` for grouped NEXAFS browse rows (`enriched` aliased as `g`).
  *
- * Sort keys mirror the molecule browse toolbar: molecule favorites/views, geometry and
- * comment counts on the experiment row, name, and recency.
+ * Sort keys mirror the molecule browse toolbar: molecule favorites/views, geometry count,
+ * linked publication count on the experiment row, name, and recency.
  */
 export type NexafsBrowseSortKey =
   | "favorites"
   | "views"
   | "geometries"
-  | "comments"
+  | "publications"
   | "name"
   | "newest";
 
@@ -78,8 +79,8 @@ export function buildNexafsBrowseOrderBySql(
       return Prisma.sql`ORDER BY g.molecule_view_count DESC, g.createdat DESC, g.experiment_id DESC`;
     case "geometries":
       return Prisma.sql`ORDER BY g.polarization_geometry_count DESC, g.createdat DESC, g.experiment_id DESC`;
-    case "comments":
-      return Prisma.sql`ORDER BY g.quality_comment_count DESC, g.createdat DESC, g.experiment_id DESC`;
+    case "publications":
+      return Prisma.sql`ORDER BY g.publication_link_count DESC, g.createdat DESC, g.experiment_id DESC`;
     case "name":
       return Prisma.sql`ORDER BY LOWER(g.molecule_display_name) ASC, g.experiment_id DESC`;
     case "newest":
@@ -117,7 +118,8 @@ export type NexafsBrowseGroupRow = {
   contributor_labels: string | null;
   contributor_users: unknown;
   polarization_geometry_count: bigint;
-  quality_comment_count: bigint;
+  publication_link_count: bigint;
+  linked_publications_json: unknown;
 };
 
 export type NexafsBrowseContributorUser = {
@@ -135,7 +137,7 @@ export type NexafsBrowseGroupDto = {
   createdat: Date;
   experimenttype: ExperimentType | null;
   polarizationCount: number;
-  commentCount: number;
+  linkedPublications: NexafsBrowseLinkedPublication[];
   contributorLabels: string | null;
   contributorUsers: NexafsBrowseContributorUser[];
   molecule: {
@@ -173,6 +175,27 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
   return out;
 }
 
+function parseLinkedPublicationsJson(
+  raw: unknown,
+): NexafsBrowseLinkedPublication[] {
+  if (!Array.isArray(raw)) return [];
+  const out: NexafsBrowseLinkedPublication[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const doi = typeof o.doi === "string" ? o.doi.trim() : "";
+    if (!doi) continue;
+    out.push({
+      doi,
+      title: typeof o.title === "string" ? o.title : "",
+      journal: typeof o.journal === "string" ? o.journal : null,
+      year: typeof o.year === "number" && Number.isFinite(o.year) ? o.year : null,
+      authors: o.authors ?? null,
+    });
+  }
+  return out;
+}
+
 export function mapNexafsBrowseGroupRow(
   row: NexafsBrowseGroupRow,
 ): NexafsBrowseGroupDto {
@@ -187,7 +210,7 @@ export function mapNexafsBrowseGroupRow(
     createdat: row.createdat,
     experimenttype: row.experimenttype,
     polarizationCount: Number(row.polarization_geometry_count),
-    commentCount: Number(row.quality_comment_count),
+    linkedPublications: parseLinkedPublicationsJson(row.linked_publications_json),
     contributorLabels: row.contributor_labels,
     contributorUsers: parseContributorUsers(row.contributor_users),
     molecule: {
@@ -286,12 +309,7 @@ export async function fetchNexafsBrowseGrouped(
         ed.targetatom,
         ed.corestate,
         i.name AS instrument_name,
-        f.name AS facility_name,
-        CASE
-          WHEN eq.comments IS NULL THEN 0::bigint
-          WHEN jsonb_typeof(eq.comments) = 'array' THEN jsonb_array_length(eq.comments)::bigint
-          ELSE 0::bigint
-        END AS quality_comment_count
+        f.name AS facility_name
       FROM experiments e
       INNER JOIN samples s ON s.id = e.sampleid
       INNER JOIN molecules m ON m.id = s.moleculeid
@@ -332,7 +350,29 @@ export async function fetchNexafsBrowseGrouped(
         b.corestate,
         b.instrument_name,
         b.facility_name,
-        b.quality_comment_count,
+        (
+          SELECT COUNT(*)::bigint
+          FROM experimentpublications ep
+          WHERE ep.experimentid = b.experiment_id
+        ) AS publication_link_count,
+        (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'doi', pub.doi,
+                'title', pub.title,
+                'journal', pub.journal,
+                'year', pub.year,
+                'authors', pub.authors
+              )
+              ORDER BY pub.year DESC NULLS LAST, pub.title ASC
+            ),
+            '[]'::json
+          )
+          FROM experimentpublications ep
+          INNER JOIN publications pub ON pub.id = ep.publicationid
+          WHERE ep.experimentid = b.experiment_id
+        ) AS linked_publications_json,
         (
           SELECT string_agg(sub.n, ' | ' ORDER BY sub.n)
           FROM (

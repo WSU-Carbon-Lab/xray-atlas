@@ -19,7 +19,25 @@ import {
   type NormalizationScope,
   type UploadedChannel,
 } from "~/server/nexafs/normalizationMetadata";
-import { fetchNexafsBrowseGrouped } from "~/server/nexafs/nexafsBrowseGroups";
+import {
+  fetchNexafsBrowseGrouped,
+  type NexafsBrowseSortKey,
+} from "~/server/nexafs/nexafsBrowseGroups";
+
+const nexafsBrowseSortBySchema = z
+  .enum([
+    "favorites",
+    "views",
+    "geometries",
+    "publications",
+    "comments",
+    "name",
+    "newest",
+  ])
+  .default("favorites")
+  .transform(
+    (v): NexafsBrowseSortKey => (v === "comments" ? "publications" : v),
+  );
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 
 const emptyDerivedScalars = (): {
@@ -265,16 +283,7 @@ export const experimentsRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(12),
         offset: z.number().min(0).default(0),
-        sortBy: z
-          .enum([
-            "favorites",
-            "views",
-            "geometries",
-            "comments",
-            "name",
-            "newest",
-          ])
-          .default("favorites"),
+        sortBy: nexafsBrowseSortBySchema,
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
@@ -309,16 +318,7 @@ export const experimentsRouter = createTRPCRouter({
         query: z.string().min(1),
         limit: z.number().min(1).max(50).default(12),
         offset: z.number().min(0).default(0),
-        sortBy: z
-          .enum([
-            "favorites",
-            "views",
-            "geometries",
-            "comments",
-            "name",
-            "newest",
-          ])
-          .default("favorites"),
+        sortBy: nexafsBrowseSortBySchema,
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
