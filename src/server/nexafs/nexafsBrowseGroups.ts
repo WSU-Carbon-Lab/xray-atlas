@@ -120,6 +120,7 @@ export type NexafsBrowseGroupRow = {
   polarization_geometry_count: bigint;
   publication_link_count: bigint;
   linked_publications_json: unknown;
+  ingest_verified: boolean;
 };
 
 export type NexafsBrowseContributorUser = {
@@ -138,6 +139,7 @@ export type NexafsBrowseGroupDto = {
   experimenttype: ExperimentType | null;
   polarizationCount: number;
   linkedPublications: NexafsBrowseLinkedPublication[];
+  ingestVerified: boolean;
   contributorLabels: string | null;
   contributorUsers: NexafsBrowseContributorUser[];
   molecule: {
@@ -211,6 +213,7 @@ export function mapNexafsBrowseGroupRow(
     experimenttype: row.experimenttype,
     polarizationCount: Number(row.polarization_geometry_count),
     linkedPublications: parseLinkedPublicationsJson(row.linked_publications_json),
+    ingestVerified: Boolean(row.ingest_verified),
     contributorLabels: row.contributor_labels,
     contributorUsers: parseContributorUsers(row.contributor_users),
     molecule: {
@@ -309,7 +312,8 @@ export async function fetchNexafsBrowseGrouped(
         ed.targetatom,
         ed.corestate,
         i.name AS instrument_name,
-        f.name AS facility_name
+        f.name AS facility_name,
+        (e.validation_summary IS NOT NULL) AS ingest_verified
       FROM experiments e
       INNER JOIN samples s ON s.id = e.sampleid
       INNER JOIN molecules m ON m.id = s.moleculeid
@@ -350,6 +354,7 @@ export async function fetchNexafsBrowseGrouped(
         b.corestate,
         b.instrument_name,
         b.facility_name,
+        b.ingest_verified,
         (
           SELECT COUNT(*)::bigint
           FROM experimentpublications ep

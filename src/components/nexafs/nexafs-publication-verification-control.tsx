@@ -1,11 +1,27 @@
 "use client";
 
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import { createPortal } from "react-dom";
 import { BadgeCheck } from "lucide-react";
-import { Modal, Tooltip } from "@heroui/react";
+import { site } from "~/app/brand";
 import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
 
-const badgeBase =
-  "inline-flex shrink-0 items-center gap-0.5 rounded-full border px-1 py-0.5 text-[10px] font-semibold leading-none tracking-wide uppercase transition-colors";
+const TOOLTIP_CLOSE_DELAY_MS = 100;
+const TOOLTIP_VERTICAL_OFFSET_PX = 8;
+
+const tooltipShellClassName =
+  "relative w-[min(18rem,calc(100vw-1rem))] max-w-[min(18rem,calc(100vw-1rem))] rounded-2xl border border-zinc-700/80 bg-zinc-900/95 px-3 py-2.5 text-left text-xs leading-snug text-zinc-100 shadow-2xl backdrop-blur-sm";
+
+const badgeRing =
+  "inline-flex shrink-0 rounded-full bg-zinc-50 p-px ring-2 ring-zinc-50 dark:bg-zinc-800 dark:ring-zinc-800";
 
 function normalizeDoiForHref(doi: string): string {
   return doi.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
@@ -69,113 +85,339 @@ export function formatNexafsBrowseMinimalCitation(
 
 export interface NexafsPublicationVerificationControlProps {
   linkedPublications: NexafsBrowseLinkedPublication[];
+  /**
+   * When true and there are no linked publication DOIs, shows ingest-time verification (stored validation summary on the experiment).
+   */
+  ingestVerified?: boolean;
+}
+
+function VerificationBadgeStack({
+  hasAtlas,
+  hasDoi,
+}: {
+  hasAtlas: boolean;
+  hasDoi: boolean;
+}) {
+  if (!hasAtlas && !hasDoi) {
+    return (
+      <BadgeCheck
+        className="h-4 w-4 shrink-0 text-text-tertiary opacity-75"
+        strokeWidth={1.75}
+        aria-hidden
+      />
+    );
+  }
+  if (hasAtlas && hasDoi) {
+    return (
+      <span className="inline-flex items-center pr-0.5" aria-hidden>
+        <span className={`relative z-0 ${badgeRing}`}>
+          <BadgeCheck
+            className="h-3 w-3 shrink-0 text-[var(--accent)]"
+            strokeWidth={2}
+            aria-hidden
+          />
+        </span>
+        <span className={`relative z-[1] -ml-1.5 ${badgeRing}`}>
+          <BadgeCheck
+            className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400"
+            strokeWidth={2}
+            aria-hidden
+          />
+        </span>
+      </span>
+    );
+  }
+  if (hasAtlas) {
+    return (
+      <BadgeCheck
+        className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+        strokeWidth={1.75}
+        aria-hidden
+      />
+    );
+  }
+  return (
+    <BadgeCheck
+      className="h-4 w-4 shrink-0 text-[var(--accent)]"
+      strokeWidth={1.75}
+      aria-hidden
+    />
+  );
+}
+
+function verificationAriaLabel(hasAtlas: boolean, hasDoi: boolean): string {
+  if (!hasAtlas && !hasDoi) {
+    return "No publication DOI linked";
+  }
+  const parts: string[] = [];
+  if (hasAtlas) parts.push("Atlas ingest verification");
+  if (hasDoi) parts.push("linked publication DOI");
+  return `Dataset verification: ${parts.join("; ")}`;
+}
+
+function SectionTitle({ children }: { children: string }) {
+  return <p className="text-sm font-semibold text-zinc-100">{children}</p>;
+}
+
+function DoiResolverLink({ doi }: { doi: string }) {
+  const href = nexafsPublicationDoiHref(doi);
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="focus-visible:ring-accent mt-1 inline-block font-mono text-[11px] text-emerald-400 break-all hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {doi}
+    </a>
+  );
+}
+
+function VerificationTooltipSurface({
+  arrowOffsetPx,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}: {
+  arrowOffsetPx: number;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`pointer-events-auto ${tooltipShellClassName}`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {children}
+      <div
+        className="absolute top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b border-zinc-700/80 bg-zinc-900/95 transition-[left] duration-150 ease-out"
+        style={{ left: `calc(50% + ${arrowOffsetPx}px)` }}
+        aria-hidden
+      />
+    </div>
+  );
+}
+
+function useVerificationTooltipPosition(triggerRef: RefObject<HTMLElement | null>) {
+  const [position, setPosition] = useState({ left: 0, top: 0 });
+
+  const updatePosition = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el || typeof document === "undefined") return;
+    const rect = el.getBoundingClientRect();
+    setPosition({
+      left: rect.left + rect.width / 2,
+      top: rect.top - TOOLTIP_VERTICAL_OFFSET_PX,
+    });
+  }, [triggerRef]);
+
+  return { position, updatePosition };
 }
 
 /**
- * Renders the browse-card verification affordance: muted when no linked DOIs; accent badge when verified.
- * One DOI opens the resolver in a new tab; several open a HeroUI modal listing minimal citations with outbound links.
+ * Renders stacked verification badges on browse cards (Atlas ingest first when present, publication DOI behind when both).
+ * Hover or focus opens a portaled panel matching contributor avatar tooltips (`document.body`, `z-tooltip`, fixed layout).
  */
 export function NexafsPublicationVerificationControl({
   linkedPublications,
+  ingestVerified = false,
 }: NexafsPublicationVerificationControlProps) {
   const n = linkedPublications.length;
-  const verified = n > 0;
+  const hasDoi = n > 0;
+  const hasAtlas = ingestVerified;
 
-  const iconVerified =
-    "h-3 w-3 shrink-0 text-[var(--accent)] sm:h-3.5 sm:w-3.5";
-  const iconMuted =
-    "h-3 w-3 shrink-0 text-text-tertiary opacity-70 sm:h-3.5 sm:w-3.5";
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const { position, updatePosition } = useVerificationTooltipPosition(triggerRef);
 
-  if (!verified) {
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const openTooltip = useCallback(() => {
+    updatePosition();
+    clearCloseTimer();
+    setIsOpen(true);
+  }, [clearCloseTimer, updatePosition]);
+
+  const scheduleCloseTooltip = useCallback(() => {
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      setIsOpen(false);
+      closeTimerRef.current = null;
+    }, TOOLTIP_CLOSE_DELAY_MS);
+  }, [clearCloseTimer]);
+
+  useEffect(() => {
+    return () => {
+      clearCloseTimer();
+    };
+  }, [clearCloseTimer]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = () => {
+      updatePosition();
+    };
+    window.addEventListener("resize", handler);
+    window.addEventListener("scroll", handler, true);
+    return () => {
+      window.removeEventListener("resize", handler);
+      window.removeEventListener("scroll", handler, true);
+    };
+  }, [isOpen, updatePosition]);
+
+  const tooltipInner = useMemo(() => {
+    if (!hasAtlas && !hasDoi) {
+      return (
+        <>
+          <SectionTitle>Publication status</SectionTitle>
+          <p className="mt-1 text-zinc-300">
+            No publication DOI linked on Atlas yet.
+          </p>
+        </>
+      );
+    }
+
+    if (hasAtlas && !hasDoi) {
+      return (
+        <>
+          <SectionTitle>Atlas verification</SectionTitle>
+          <p className="mt-1 text-zinc-300">
+            Verified by the {site.name} team, highest-trust verification flag.
+          </p>
+        </>
+      );
+    }
+
+    if (!hasAtlas && hasDoi && n === 1) {
+      const pub = linkedPublications[0]!;
+      const cite = formatNexafsBrowseMinimalCitation(pub);
+      return (
+        <>
+          <SectionTitle>Publication DOI</SectionTitle>
+          <p className="mt-1 text-zinc-300">
+            Linked publication reference (peer-reviewed literature).
+          </p>
+          <p className="mt-1 text-sm leading-snug text-zinc-200">{cite}</p>
+          <DoiResolverLink doi={pub.doi} />
+        </>
+      );
+    }
+
+    if (!hasAtlas && hasDoi && n > 1) {
+      return (
+        <>
+          <SectionTitle>Linked publications</SectionTitle>
+          <p className="mt-1 text-zinc-300">{n} DOIs linked to this dataset.</p>
+          <ul className="mt-2 space-y-2 border-t border-zinc-700/70 pt-2">
+            {linkedPublications.map((p) => {
+              const cite = formatNexafsBrowseMinimalCitation(p);
+              return (
+                <li key={p.doi}>
+                  <p className="text-sm leading-snug text-zinc-200">{cite}</p>
+                  <DoiResolverLink doi={p.doi} />
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      );
+    }
+
+    if (hasAtlas && hasDoi && n === 1) {
+      const pub = linkedPublications[0]!;
+      const cite = formatNexafsBrowseMinimalCitation(pub);
+      return (
+        <div className="flex flex-col gap-3">
+          <div>
+            <SectionTitle>Atlas verification</SectionTitle>
+            <p className="mt-1 text-zinc-300">
+              Verified by the {site.name} team, highest-trust verification flag.
+            </p>
+          </div>
+          <div className="border-t border-zinc-700/70 pt-3">
+            <SectionTitle>Publication DOI</SectionTitle>
+            <p className="mt-1 text-zinc-300">
+              Also linked to peer-reviewed literature.
+            </p>
+            <p className="mt-1 text-sm leading-snug text-zinc-200">{cite}</p>
+            <DoiResolverLink doi={pub.doi} />
+          </div>
+        </div>
+      );
+    }
+
+    const pubs = linkedPublications;
     return (
-      <Tooltip delay={0}>
-        <Tooltip.Trigger
-          className="inline-flex shrink-0 cursor-default"
-          aria-label="No linked publication DOI"
-        >
-          <span
-            className={`${badgeBase} border-dashed border-zinc-400/55 bg-zinc-100/80 text-text-tertiary opacity-90 dark:border-zinc-500/55 dark:bg-zinc-700/40`}
-          >
-            <BadgeCheck className={iconMuted} aria-hidden />
-            <span aria-hidden className="max-[380px]:hidden">
-              No DOI
-            </span>
-          </span>
-        </Tooltip.Trigger>
-        <Tooltip.Content placement="top">
-          Dataset has no linked publication DOI
-        </Tooltip.Content>
-      </Tooltip>
+      <div className="flex flex-col gap-3">
+        <div>
+          <SectionTitle>Atlas verification</SectionTitle>
+          <p className="mt-1 text-zinc-300">
+            Verified by the {site.name} team, highest-trust verification flag.
+          </p>
+        </div>
+        <div className="border-t border-zinc-700/70 pt-3">
+          <SectionTitle>Linked publications</SectionTitle>
+          <p className="mt-1 text-zinc-300">{n} DOIs linked.</p>
+          <ul className="mt-2 space-y-2">
+            {pubs.map((p) => {
+              const cite = formatNexafsBrowseMinimalCitation(p);
+              return (
+                <li key={p.doi}>
+                  <p className="text-sm leading-snug text-zinc-200">{cite}</p>
+                  <DoiResolverLink doi={p.doi} />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
     );
-  }
+  }, [hasAtlas, hasDoi, n, linkedPublications]);
 
-  const verifiedBadgeClass = `${badgeBase} border-[color-mix(in_oklab,var(--accent)_45%,transparent)] bg-[color-mix(in_oklab,var(--accent)_14%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_oklab,var(--accent)_22%,transparent)]`;
-
-  if (n === 1) {
-    const pub = linkedPublications[0]!;
-    const href = nexafsPublicationDoiHref(pub.doi);
-    return (
-      <button
-        type="button"
-        className={`focus-visible:ring-accent cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${verifiedBadgeClass}`}
-        aria-label="Open linked publication DOI in a new tab"
-        title="Open publication DOI"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          window.open(href, "_blank", "noopener,noreferrer");
-        }}
-      >
-        <BadgeCheck className={iconVerified} aria-hidden />
-        <span className="max-[380px]:sr-only">DOI</span>
-      </button>
-    );
-  }
+  const ariaLabel = verificationAriaLabel(hasAtlas, hasDoi);
 
   return (
-    <Modal>
-      <Modal.Trigger
-        className={`focus-visible:ring-accent cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${verifiedBadgeClass}`}
-        aria-label={`Show ${n} linked publication DOIs`}
-        title="Linked publications"
+    <>
+      <span
+        ref={triggerRef}
+        tabIndex={0}
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        className="focus-visible:ring-accent inline-flex shrink-0 cursor-default items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        onMouseEnter={openTooltip}
+        onMouseLeave={scheduleCloseTooltip}
+        onFocus={openTooltip}
+        onBlur={scheduleCloseTooltip}
+        onClick={(e) => e.stopPropagation()}
       >
-        <BadgeCheck className={iconVerified} aria-hidden />
-        <span className="tabular-nums">{n}</span>
-        <span className="max-[420px]:sr-only">DOIs</span>
-      </Modal.Trigger>
-      <Modal.Backdrop isDismissable>
-        <Modal.Container placement="center" size="md" scroll="inside">
-          <Modal.Dialog>
-            <Modal.CloseTrigger aria-label="Close linked publications" />
-            <Modal.Header>
-              <Modal.Heading>Linked publications</Modal.Heading>
-            </Modal.Header>
-            <Modal.Body>
-              <ul className="space-y-3 text-left text-sm">
-                {linkedPublications.map((p) => {
-                  const href = nexafsPublicationDoiHref(p.doi);
-                  const cite = formatNexafsBrowseMinimalCitation(p);
-                  return (
-                    <li key={p.doi}>
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent hover:underline"
-                      >
-                        {cite}
-                      </a>
-                      <div className="text-text-tertiary mt-0.5 font-mono text-xs">
-                        {p.doi}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Modal.Body>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+        <VerificationBadgeStack hasAtlas={hasAtlas} hasDoi={hasDoi} />
+      </span>
+      {isOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="z-tooltip pointer-events-none fixed -translate-x-1/2 -translate-y-full"
+              style={{ left: position.left, top: position.top }}
+            >
+              <VerificationTooltipSurface
+                arrowOffsetPx={0}
+                onMouseEnter={openTooltip}
+                onMouseLeave={scheduleCloseTooltip}
+              >
+                {tooltipInner}
+              </VerificationTooltipSurface>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }

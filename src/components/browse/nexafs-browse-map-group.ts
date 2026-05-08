@@ -44,6 +44,7 @@ export function mapNexafsBrowseGroupToCard(group: NexafsBrowseGroup) {
       experimentContributorUsers: group.contributorUsers,
       polarizationCount: group.polarizationCount,
       linkedPublications: group.linkedPublications,
+      ingestVerified: group.ingestVerified,
     },
   };
 }
