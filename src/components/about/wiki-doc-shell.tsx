@@ -17,13 +17,7 @@ import {
   ListBulletIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
-import {
-  Accordion,
-  Breadcrumbs,
-  Button,
-  Drawer,
-  Tooltip,
-} from "@heroui/react";
+import { Accordion, Breadcrumbs, Button, Drawer, Tooltip } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -37,10 +31,11 @@ import {
   type ReactNode,
 } from "react";
 import {
-  wikiDocTopicForPathname,
+  wikiDocBreadcrumbTrail,
   wikiDocTopics,
   type WikiOverviewNavIcon,
 } from "~/lib/wiki-doc-nav";
+import { WikiDocPageNav } from "./wiki-doc-page-nav";
 
 const STORAGE_LEFT = "xray-atlas-wiki-aside-left";
 const STORAGE_RIGHT = "xray-atlas-wiki-aside-right";
@@ -63,7 +58,11 @@ interface WikiDocShellProps {
   children: ReactNode;
 }
 
-function OverviewNavIcon({ kind }: { kind: WikiOverviewNavIcon }): ReactElement {
+function OverviewNavIcon({
+  kind,
+}: {
+  kind: WikiOverviewNavIcon;
+}): ReactElement {
   const cls = "text-accent size-4 shrink-0";
   switch (kind) {
     case "wiki-home":
@@ -124,7 +123,7 @@ function WikiOverviewAccordion({
             <Accordion.Heading>
               <Accordion.Trigger
                 className={cn(
-                  "text-sm flex w-full items-center gap-3",
+                  "flex w-full items-center gap-3 text-sm",
                   isActivePage && "text-accent font-medium",
                 )}
               >
@@ -148,7 +147,8 @@ function WikiOverviewAccordion({
                   const sectionActive = section.href
                     ? pathname === section.href
                     : isActivePage && hashId === section.id;
-                  const sectionHref = section.href ?? `${topic.href}#${section.id}`;
+                  const sectionHref =
+                    section.href ?? `${topic.href}#${section.id}`;
                   return (
                     <Link
                       key={section.id}
@@ -237,8 +237,11 @@ function OnThisPageAccordion({
     <Accordion className="w-full rounded-lg" variant="surface">
       <Accordion.Item defaultExpanded id="wiki-on-this-page">
         <Accordion.Heading>
-          <Accordion.Trigger className="text-sm font-semibold flex w-full items-center gap-3">
-            <ListBulletIcon className="text-accent size-5 shrink-0" aria-hidden />
+          <Accordion.Trigger className="flex w-full items-center gap-3 text-sm font-semibold">
+            <ListBulletIcon
+              className="text-accent size-5 shrink-0"
+              aria-hidden
+            />
             <span className="min-w-0 flex-1 text-left">On this page</span>
             <Accordion.Indicator>
               <ChevronDownIcon className="size-4 shrink-0" aria-hidden />
@@ -307,14 +310,10 @@ function WikiRailDock({
           <Button
             isIconOnly
             aria-expanded={panelOpen}
-            aria-label={
-              panelOpen ? `Collapse ${label}` : `Expand ${label}`
-            }
+            aria-label={panelOpen ? `Collapse ${label}` : `Expand ${label}`}
             className={cn(
               "border-border bg-background text-foreground hover:bg-default shrink-0 border",
-              minimized
-                ? "size-8 rounded-full"
-                : "size-9 rounded-lg",
+              minimized ? "size-8 rounded-full" : "size-9 rounded-lg",
               panelOpen &&
                 "border-accent bg-accent/15 text-accent ring-accent/25 ring-2",
             )}
@@ -342,7 +341,7 @@ function WikiRailDock({
         ) : null}
       </div>
       {panelOpen ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-2 pb-3 pt-2 [scrollbar-gutter:stable]">
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-2 pt-2 pb-3 [scrollbar-gutter:stable]">
           {children}
         </div>
       ) : null}
@@ -415,7 +414,7 @@ function OnThisPageOutlinePanel({
   onNavigate?: () => void;
 }): ReactElement {
   return (
-    <div className="rounded-lg border border-border/60 bg-surface/40 px-2 py-2">
+    <div className="border-border/60 bg-surface/40 rounded-lg border px-2 py-2">
       <WikiOnPageOutline
         entries={toc}
         activeId={activeHeadingId}
@@ -442,13 +441,16 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
   const [showLeft, setShowLeft] = useState(true);
   const [showRight, setShowRight] = useState(true);
   const [hydrated, setHydrated] = useState(false);
-  const [overviewExpandedKeys, setOverviewExpandedKeys] = useState<
-    Set<string>
-  >(() => new Set());
+  const [overviewExpandedKeys, setOverviewExpandedKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [hashId, setHashId] = useState("");
   const [isLgViewport, setIsLgViewport] = useState(false);
 
-  const current = useMemo(() => wikiDocTopicForPathname(pathname), [pathname]);
+  const breadcrumbTrail = useMemo(
+    () => wikiDocBreadcrumbTrail(pathname),
+    [pathname],
+  );
 
   const rescanToc = useCallback(() => {
     const root = mainRef.current?.querySelector("[data-wiki-main]");
@@ -535,7 +537,8 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
   }, [pathname, rescanToc]);
 
   useEffect(() => {
-    const hash = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
+    const hash =
+      typeof window !== "undefined" ? window.location.hash.slice(1) : "";
     if (hash && toc.some((e) => e.id === hash)) {
       setActiveHeadingId(hash);
       return;
@@ -612,19 +615,34 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
   return (
     <div className="wiki-doc-shell text-foreground w-full min-w-0">
       <div className="border-border mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between lg:mb-6">
-        <Breadcrumbs className="text-sm font-medium min-w-0">
+        <Breadcrumbs className="min-w-0 text-sm font-medium">
           <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
           <Breadcrumbs.Item href="/wiki/home">Wiki</Breadcrumbs.Item>
-          <Breadcrumbs.Item>
-            {current?.breadcrumbLabel ?? "Wiki"}
-          </Breadcrumbs.Item>
+          {breadcrumbTrail.length === 0 ? (
+            <Breadcrumbs.Item>Wiki</Breadcrumbs.Item>
+          ) : (
+            breadcrumbTrail.map((item, index) => {
+              const isTerminal = index === breadcrumbTrail.length - 1;
+              return (
+                <Breadcrumbs.Item
+                  key={`${item.label}-${item.href ?? "terminal"}`}
+                  href={!isTerminal && item.href ? item.href : undefined}
+                >
+                  {item.label}
+                </Breadcrumbs.Item>
+              );
+            })
+          )}
         </Breadcrumbs>
-        <WikiMobileRailTriggers
-          outlineOpen={tocDrawerOpen}
-          overviewOpen={navDrawerOpen}
-          onOutlinePress={handleOutlineToggle}
-          onOverviewPress={handleOverviewToggle}
-        />
+        <div className="flex shrink-0 items-center gap-2">
+          <WikiDocPageNav pathname={pathname} />
+          <WikiMobileRailTriggers
+            outlineOpen={tocDrawerOpen}
+            overviewOpen={navDrawerOpen}
+            onOutlinePress={handleOutlineToggle}
+            onOverviewPress={handleOverviewToggle}
+          />
+        </div>
       </div>
 
       <Drawer.Backdrop isOpen={navDrawerOpen} onOpenChange={setNavDrawerOpen}>
@@ -661,7 +679,9 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
           >
             <Drawer.CloseTrigger />
             <Drawer.Header>
-              <Drawer.Heading className="text-base">On this page</Drawer.Heading>
+              <Drawer.Heading className="text-base">
+                On this page
+              </Drawer.Heading>
             </Drawer.Header>
             <Drawer.Body className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
               <OnThisPageAccordion
@@ -689,7 +709,7 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
         <div ref={mainRef} className="min-w-0 flex-1 lg:px-8">
           <div
             data-wiki-main
-            className="wiki-doc-main [&_h2[id]]:scroll-mt-28 [&_h3[id]]:scroll-mt-28 max-w-none"
+            className="wiki-doc-main max-w-none [&_h2[id]]:scroll-mt-28 [&_h3[id]]:scroll-mt-28"
           >
             {children}
           </div>

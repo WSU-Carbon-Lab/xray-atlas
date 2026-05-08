@@ -15,7 +15,7 @@ export function Footer() {
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <WSULogoIcon className="h-6 w-6" />
-            <span className="font-sans text-xl font-semibold text-foreground">
+            <span className="text-foreground font-sans text-xl font-semibold">
               {site.name}
             </span>
           </div>
@@ -25,12 +25,8 @@ export function Footer() {
         </div>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-8">
           <div className="col-span-3 space-y-4">
-            <h3 className="font-sans text-lg text-foreground">
-              {site.name}
-            </h3>
-            <p className="text-muted flex-wrap text-sm">
-              {mission.heroShort}
-            </p>
+            <h3 className="text-foreground font-sans text-lg">{site.name}</h3>
+            <p className="text-muted flex-wrap text-sm">{mission.heroShort}</p>
             {isLoadingCollaborators ? (
               <div className="text-muted text-sm">Loading...</div>
             ) : (
@@ -38,7 +34,7 @@ export function Footer() {
                 {collaboratorsData?.hosts &&
                   collaboratorsData.hosts.length > 0 && (
                     <div>
-                      <h4 className="mb-2 text-sm font-semibold text-foreground">
+                      <h4 className="text-foreground mb-2 text-sm font-semibold">
                         Hosted by {attribution.lab}
                       </h4>
                       <div className="space-y-1">
@@ -49,7 +45,7 @@ export function Footer() {
                                 href={host.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-muted transition-colors hover:text-accent hover:underline"
+                                className="text-muted hover:text-accent transition-colors hover:underline"
                               >
                                 {host.name}
                               </Link>
@@ -64,61 +60,35 @@ export function Footer() {
               </>
             )}
           </div>
-          <div className="col-span-1 space-y-4">
-            <h4 className="text-sm font-semibold text-foreground">
-              Quick Links
-            </h4>
+          <div className="col-span-2 space-y-4">
+            <h4 className="text-foreground text-sm font-semibold">Resources</h4>
             <div className="flex flex-col space-y-2">
               <Link
-                href="/browse/molecules"
-                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
-              >
-                Browse molecules
-              </Link>
-              <Link
-                href="/browse/nexafs"
-                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
-              >
-                Browse NEXAFS
-              </Link>
-              <Link
-                href="/contribute"
-                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
-              >
-                Contribute
-              </Link>
-              <Link
                 href="/wiki/home"
-                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
+                className="text-muted hover:text-accent text-sm transition-colors hover:underline"
               >
-                NEXAFS wiki
+                Wiki
               </Link>
               <Link
                 href="/wiki/api"
-                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
+                className="text-muted hover:text-accent text-sm transition-colors hover:underline"
               >
-                API reference
-              </Link>
-              <Link
-                href="/about"
-                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
-              >
-                About
+                API
               </Link>
               <Link
                 href="mailto:brian.collins@wsu.edu"
-                className="text-muted text-sm transition-colors hover:text-accent hover:underline"
+                className="text-muted hover:text-accent text-sm transition-colors hover:underline"
               >
                 Contact
               </Link>
             </div>
           </div>
-          <div className="col-span-4 space-y-4">
-            <h4 className="text-sm font-semibold text-foreground">
+          <div className="col-span-3 space-y-4">
+            <h4 className="text-foreground text-sm font-semibold">
               Collaborators
             </h4>
             {isLoadingCollaborators ? (
-              <div className="text-sm text-foreground-500">Loading...</div>
+              <div className="text-foreground-500 text-sm">Loading...</div>
             ) : (
               <>
                 {collaboratorsData?.collaborators &&
@@ -131,7 +101,7 @@ export function Footer() {
                             href={collab.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-muted transition-colors hover:text-accent hover:underline"
+                            className="text-muted hover:text-accent transition-colors hover:underline"
                           >
                             {collab.name}
                           </Link>
@@ -157,7 +127,7 @@ export function Footer() {
           <div className="mt-4 flex justify-center gap-4 text-sm md:mt-0 md:justify-end">
             <Link
               href="/privacy"
-              className="text-muted text-sm transition-colors hover:text-accent hover:underline"
+              className="text-muted hover:text-accent text-sm transition-colors hover:underline"
             >
               Privacy
             </Link>
@@ -165,7 +135,7 @@ export function Footer() {
               href="https://github.com/WSU-Carbon-Lab/xray-atlas"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted text-sm transition-colors hover:text-accent hover:underline"
+              className="text-muted hover:text-accent text-sm transition-colors hover:underline"
             >
               GitHub
             </Link>
@@ -173,7 +143,7 @@ export function Footer() {
               href="https://wsu.edu/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted text-sm transition-colors hover:text-accent hover:underline"
+              className="text-muted hover:text-accent text-sm transition-colors hover:underline"
             >
               WSU
             </Link>
