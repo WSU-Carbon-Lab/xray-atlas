@@ -23,6 +23,7 @@ import { site } from "~/app/brand";
 function AboutDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [isWikiOpen, setIsWikiOpen] = useState(false);
+  const [isApiOpen, setIsApiOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -34,6 +35,7 @@ function AboutDropdown() {
       ) {
         setIsOpen(false);
         setIsWikiOpen(false);
+        setIsApiOpen(false);
       }
     }
 
@@ -50,6 +52,7 @@ function AboutDropdown() {
     router.push(path);
     setIsOpen(false);
     setIsWikiOpen(false);
+    setIsApiOpen(false);
   };
 
   return (
@@ -131,14 +134,51 @@ function AboutDropdown() {
                     <BookOpenIcon className="text-accent h-4 w-4" />
                     <span>Contribution guide</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick("/wiki/api-reference")}
-                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
-                  >
-                    <BookOpenIcon className="text-accent h-4 w-4" />
-                    <span>API reference</span>
-                  </button>
+                  <div className="mx-3 mt-1 mb-1 rounded border border-border bg-default/40">
+                    <button
+                      type="button"
+                      onClick={() => setIsApiOpen((prev) => !prev)}
+                      className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 text-left text-sm font-medium transition-colors"
+                      aria-expanded={isApiOpen}
+                      aria-controls="about-api-accordion"
+                    >
+                      <BookOpenIcon className="text-accent h-4 w-4" />
+                      <span>API</span>
+                      <ChevronDown
+                        className={`ml-auto h-3.5 w-3.5 transition-transform ${
+                          isApiOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {isApiOpen ? (
+                      <div id="about-api-accordion" className="space-y-0.5 pb-1">
+                        <button
+                          type="button"
+                          onClick={() => handleItemClick("/wiki/api")}
+                          className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                        >
+                          <BookOpenIcon className="text-accent h-4 w-4" />
+                          <span>Overview</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleItemClick("/wiki/api/openapi")}
+                          className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                        >
+                          <BookOpenIcon className="text-accent h-4 w-4" />
+                          <span>OpenAPI</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleItemClick("/wiki/api/v1")}
+                          className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                        >
+                          <BookOpenIcon className="text-accent h-4 w-4" />
+                          <span>v1</span>
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
             </div>

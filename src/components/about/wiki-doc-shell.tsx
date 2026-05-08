@@ -74,7 +74,7 @@ function OverviewNavIcon({ kind }: { kind: WikiOverviewNavIcon }): ReactElement 
       return <SparklesIcon className={cls} aria-hidden />;
     case "contributions":
       return <ArrowUpTrayIcon className={cls} aria-hidden />;
-    case "api-reference":
+    case "api":
       return <CodeBracketIcon className={cls} aria-hidden />;
     default:
       return <BookOpenIcon className={cls} aria-hidden />;
@@ -117,7 +117,8 @@ function WikiOverviewAccordion({
       }}
     >
       {wikiDocTopics.map((topic) => {
-        const isActivePage = pathname === topic.href;
+        const isActivePage =
+          pathname === topic.href || pathname.startsWith(`${topic.href}/`);
         return (
           <Accordion.Item key={topic.href} id={topic.href}>
             <Accordion.Heading>
@@ -144,12 +145,14 @@ function WikiOverviewAccordion({
                   Top of page
                 </Link>
                 {topic.sections.map((section) => {
-                  const sectionActive =
-                    isActivePage && hashId === section.id;
+                  const sectionActive = section.href
+                    ? pathname === section.href
+                    : isActivePage && hashId === section.id;
+                  const sectionHref = section.href ?? `${topic.href}#${section.id}`;
                   return (
                     <Link
                       key={section.id}
-                      href={`${topic.href}#${section.id}`}
+                      href={sectionHref}
                       className={navLinkClass(sectionActive, true)}
                       onClick={onNavigate}
                     >

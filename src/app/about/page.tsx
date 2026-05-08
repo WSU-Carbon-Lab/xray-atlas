@@ -59,7 +59,7 @@ const aboutResourceCards = [
     icon: ArrowTopRightOnSquareIcon,
   },
   {
-    href: "/wiki/api-reference",
+    href: "/wiki/api",
     title: "API reference",
     description:
       "Versioned REST API documentation for researcher workflows, DOI-driven discovery, and pandas-ready dataset export.",

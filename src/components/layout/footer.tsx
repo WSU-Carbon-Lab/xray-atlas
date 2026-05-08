@@ -94,7 +94,7 @@ export function Footer() {
                 NEXAFS wiki
               </Link>
               <Link
-                href="/wiki/api-reference"
+                href="/wiki/api"
                 className="text-muted text-sm transition-colors hover:text-accent hover:underline"
               >
                 API reference
