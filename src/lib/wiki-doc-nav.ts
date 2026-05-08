@@ -33,9 +33,15 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
     breadcrumbLabel: "Wiki home",
     overviewNavIcon: "wiki-home",
     sections: [
-      { id: "terminology-heading", label: "The zoo of names for the same idea" },
+      {
+        id: "terminology-heading",
+        label: "The zoo of names for the same idea",
+      },
       { id: "nexafs-probes", label: "What NEXAFS probes" },
-      { id: "representations-stored", label: "Representations stored in X-ray Atlas" },
+      {
+        id: "representations-stored",
+        label: "Representations stored in X-ray Atlas",
+      },
       { id: "coordinates-and-units", label: "Coordinates and units" },
     ],
   },
@@ -48,7 +54,10 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
       { id: "molecule-and-sample-layer", label: "Molecule and sample layer" },
       { id: "experiment-metadata-layer", label: "Experiment metadata layer" },
       { id: "spectrum-trace-layer", label: "Spectrum trace layer" },
-      { id: "provenance-and-attribution-layer", label: "Provenance and attribution layer" },
+      {
+        id: "provenance-and-attribution-layer",
+        label: "Provenance and attribution layer",
+      },
     ],
   },
   {
@@ -100,13 +109,107 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
  * @param pathname - Next.js pathname such as `/wiki/home` (no query or hash).
  * @returns The matching topic, or `undefined` when `pathname` is not a configured wiki entry.
  */
-export function wikiDocTopicForPathname(pathname: string): WikiDocTopic | undefined {
+export function wikiDocTopicForPathname(
+  pathname: string,
+): WikiDocTopic | undefined {
   const exact = wikiDocTopics.find((topic) => topic.href === pathname);
   if (exact) {
     return exact;
   }
   const prefixMatches = wikiDocTopics.filter(
-    (topic) => pathname.startsWith(`${topic.href}/`) || pathname.startsWith(topic.href),
+    (topic) =>
+      pathname.startsWith(`${topic.href}/`) || pathname.startsWith(topic.href),
   );
   return prefixMatches.sort((a, b) => b.href.length - a.href.length)[0];
+}
+
+/**
+ * Linear, reading-order entry that powers `Previous` / `Next` page controls.
+ *
+ * Each entry corresponds to a distinct rendered URL under `/wiki/*`. Sub-pages declared
+ * via section `href`s are inlined immediately after their parent topic.
+ */
+export interface WikiDocPage {
+  readonly href: string;
+  readonly label: string;
+}
+
+function buildWikiDocPages(): readonly WikiDocPage[] {
+  const pages: WikiDocPage[] = [];
+  const seen = new Set<string>();
+  const push = (href: string, label: string): void => {
+    if (seen.has(href)) {
+      return;
+    }
+    seen.add(href);
+    pages.push({ href, label });
+  };
+
+  for (const topic of wikiDocTopics) {
+    push(topic.href, topic.breadcrumbLabel);
+    for (const section of topic.sections) {
+      if (section.href && section.href !== topic.href) {
+        push(section.href, section.label);
+      }
+    }
+  }
+  return pages;
+}
+
+/**
+ * Reading-order list of wiki pages used to drive prev/next navigation controls.
+ *
+ * Order follows {@link wikiDocTopics} top-to-bottom, with each topic's section-level
+ * sub-pages (entries that declare their own `href`) inlined immediately after the topic.
+ */
+export const wikiDocPages: readonly WikiDocPage[] = buildWikiDocPages();
+
+/**
+ * Locates the wiki page entry whose `href` exactly matches `pathname`.
+ *
+ * Trailing slashes on `pathname` are tolerated; query strings and hashes must already be
+ * stripped by the caller.
+ *
+ * @param pathname - Next.js pathname such as `/wiki/api/v1`.
+ * @returns The matching page entry, or `undefined` when `pathname` is not a wiki page.
+ */
+export function wikiDocPageForPathname(
+  pathname: string,
+): WikiDocPage | undefined {
+  const normalized =
+    pathname.length > 1 && pathname.endsWith("/")
+      ? pathname.slice(0, -1)
+      : pathname;
+  return wikiDocPages.find((page) => page.href === normalized);
+}
+
+/**
+ * Reading-order neighbors for a given wiki pathname.
+ *
+ * `current` is the matched page entry, and `previous` / `next` are the adjacent entries
+ * in {@link wikiDocPages}. The first page has no `previous`; the last page has no `next`.
+ * When `pathname` is outside the wiki page list, all three fields are `undefined` so
+ * callers can render disabled controls without throwing.
+ *
+ * @param pathname - Next.js pathname such as `/wiki/home` (no query or hash).
+ * @returns `{ current, previous, next }` neighbor entries.
+ */
+export function wikiDocPageNeighbors(pathname: string): {
+  readonly current: WikiDocPage | undefined;
+  readonly previous: WikiDocPage | undefined;
+  readonly next: WikiDocPage | undefined;
+} {
+  const current = wikiDocPageForPathname(pathname);
+  if (!current) {
+    return { current: undefined, previous: undefined, next: undefined };
+  }
+  const index = wikiDocPages.indexOf(current);
+  return {
+    current,
+    previous: index > 0 ? wikiDocPages[index - 1] : undefined,
+    next:
+      index >= 0 && index < wikiDocPages.length - 1
+        ? wikiDocPages[index + 1]
+        : undefined,
+  };
 }
