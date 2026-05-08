@@ -1,0 +1,13 @@
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model collaborators {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  url          String?
+  ishost       Boolean  @default(false)
+  displayorder Int      @default(0)
+  createdat    DateTime @default(now()) @db.Timestamptz(6)
+  updatedat    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([ishost, displayorder])
+  @@schema("public")
+}

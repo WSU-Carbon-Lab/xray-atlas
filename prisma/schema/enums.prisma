@@ -1,0 +1,36 @@
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum CoreLevel {
+  K
+  L1
+  L2
+  L3
+  M1
+  M2
+  M3
+
+  @@schema("public")
+}
+
+enum ExperimentType {
+  TOTAL_ELECTRON_YIELD
+  PARTIAL_ELECTRON_YIELD
+  FLUORESCENT_YIELD
+  TRANSMISSION
+
+  @@schema("public")
+}
+
+enum FacilityType {
+  SYNCHROTRON
+  FREE_ELECTRON_LASER
+  LAB_SOURCE
+
+  @@schema("public")
+}
+
+enum ProcessMethod {
+  DRY
+  SOLVENT
+
+  @@schema("public")
+}

@@ -1,0 +1,25 @@
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model facilities {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String        @unique
+  city         String?
+  country      String?
+  facilitytype FacilityType
+  instruments  instruments[]
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model instruments {
+  id          String        @id
+  name        String
+  facilityid  String        @db.Uuid
+  link        String?
+  status      String        @default("active")
+  experiments experiments[]
+  facilities  facilities    @relation(fields: [facilityid], references: [id], onUpdate: NoAction)
+
+  @@index([facilityid], map: "idx_instruments_facilityid")
+  @@schema("public")
+}

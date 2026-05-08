@@ -14,7 +14,7 @@ loadEnv({ path: path.join(rootDir, ".env") });
 loadEnv({ path: path.join(rootDir, ".env.local") });
 
 export default defineConfig({
-  schema: "prisma/schema.prisma",
+  schema: "prisma/schema",
   migrations: {
     path: "prisma/migrations",
   },

@@ -1,0 +1,128 @@
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model calibrationmethods {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String        @unique
+  description String?
+  experiments experiments[]
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model edges {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  targetatom  String
+  corestate   String
+  experiments experiments[]
+
+  @@unique([targetatom, corestate])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model experiments {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sampleid               String                   @db.Uuid
+  instrumentid           String
+  edgeid                 String                   @db.Uuid
+  polarizationid         String                   @db.Uuid
+  calibrationid          String?                  @db.Uuid
+  isstandard             Boolean                  @default(false)
+  referencestandard      String?
+  createdby              String?
+  createdat              DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedat              DateTime                 @default(now()) @db.Timestamptz(6)
+  experimenttype         ExperimentType?
+  nexafsexperimentkindid String?                  @db.Uuid
+  collectedbyuserids     String[]                 @default([]) @map("collected_by_user_ids")
+  normalizationscope     String?                  @map("normalization_scope")
+  normalizationranges    Json?                    @map("normalization_ranges")
+  uploadedchannels       Json?                    @map("uploaded_channels")
+  channelprovenance      Json?                    @map("channel_provenance")
+  validationsummary      Json?                    @map("validation_summary")
+  qualityscores          Json?                    @map("quality_scores")
+  experimentfavorites    experimentfavorites[]
+  experimentpublications experimentpublications[]
+  experimentquality      experimentquality?
+  calibrationmethods     calibrationmethods?      @relation(fields: [calibrationid], references: [id], onUpdate: NoAction)
+  edges                  edges                    @relation(fields: [edgeid], references: [id], onUpdate: NoAction)
+  instruments            instruments              @relation(fields: [instrumentid], references: [id], onUpdate: NoAction)
+  nexafsexperimentkind   nexafsexperimentkinds?   @relation(fields: [nexafsexperimentkindid], references: [id], onUpdate: NoAction)
+  polarizations          polarizations            @relation(fields: [polarizationid], references: [id], onUpdate: NoAction)
+  samples                samples                  @relation(fields: [sampleid], references: [id], onUpdate: NoAction)
+  peaksets               peaksets[]
+  spectrumpoints         spectrumpoints[]
+
+  @@index([sampleid, edgeid, instrumentid], map: "idx_experiment_lookup")
+  @@index([calibrationid], map: "idx_experiments_calibrationid")
+  @@index([createdby], map: "idx_experiments_createdby")
+  @@index([edgeid], map: "idx_experiments_edgeid")
+  @@index([instrumentid], map: "idx_experiments_instrumentid")
+  @@index([polarizationid], map: "idx_experiments_polarizationid")
+  @@index([nexafsexperimentkindid], map: "idx_experiments_nexafs_kindid")
+  @@schema("public")
+}
+
+model nexafsexperimentkinds {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token          String         @unique
+  label          String
+  experimenttype ExperimentType @unique
+  createdat      DateTime       @default(now()) @db.Timestamptz(6)
+  updatedat      DateTime       @default(now()) @db.Timestamptz(6)
+  experiments    experiments[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model polarizations {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  azimuthdeg     Decimal          @db.Decimal
+  polardeg       Decimal          @db.Decimal
+  experiments    experiments[]
+  spectrumpoints spectrumpoints[]
+
+  @@index([azimuthdeg, polardeg], map: "idx_polarization_geom")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model peaksets {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  experimentid String      @db.Uuid
+  energyev     Float
+  intensity    Float?
+  bond         String?
+  transition   String?
+  createdat    DateTime    @default(now()) @db.Timestamptz(6)
+  experiments  experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([experimentid])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model spectrumpoints {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  experimentid   String         @db.Uuid
+  polarizationid String?        @db.Uuid
+  energyev       Float
+  rawabs         Float
+  rawabserr      Float?
+  i0             Float?
+  beta           Float?
+  betaerr        Float?
+  massabsorption Float?
+  massabsorptionerr Float?
+  od             Float?
+  oderr          Float?
+  experiments    experiments    @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  polarizations  polarizations? @relation(fields: [polarizationid], references: [id], onUpdate: NoAction)
+
+  @@index([experimentid, energyev], map: "idx_spectrum_energy")
+  @@index([experimentid, polarizationid, energyev], map: "idx_spectrum_experiment_polarization_energy")
+  @@index([polarizationid, experimentid], map: "idx_spectrum_polarization_experiment")
+  @@schema("public")
+}
