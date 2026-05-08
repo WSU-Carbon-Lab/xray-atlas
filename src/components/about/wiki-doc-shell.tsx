@@ -11,8 +11,9 @@
 import {
   ArrowUpTrayIcon,
   BookOpenIcon,
-  ChevronDownIcon,
   CircleStackIcon,
+  ChevronDownIcon,
+  CodeBracketIcon,
   ListBulletIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
@@ -73,6 +74,8 @@ function OverviewNavIcon({ kind }: { kind: WikiOverviewNavIcon }): ReactElement 
       return <SparklesIcon className={cls} aria-hidden />;
     case "contributions":
       return <ArrowUpTrayIcon className={cls} aria-hidden />;
+    case "api-reference":
+      return <CodeBracketIcon className={cls} aria-hidden />;
     default:
       return <BookOpenIcon className={cls} aria-hidden />;
   }

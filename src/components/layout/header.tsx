@@ -131,6 +131,14 @@ function AboutDropdown() {
                     <BookOpenIcon className="text-accent h-4 w-4" />
                     <span>Contribution guide</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleItemClick("/wiki/api-reference")}
+                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                  >
+                    <BookOpenIcon className="text-accent h-4 w-4" />
+                    <span>API reference</span>
+                  </button>
                 </div>
               ) : null}
             </div>

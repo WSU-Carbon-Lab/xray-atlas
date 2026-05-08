@@ -9,7 +9,8 @@ export type WikiOverviewNavIcon =
   | "wiki-home"
   | "data-representation"
   | "platform-features"
-  | "contributions";
+  | "contributions"
+  | "api-reference";
 
 export interface WikiDocNavSection {
   readonly id: string;
@@ -69,6 +70,22 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
     sections: [
       { id: "contribution-expectations", label: "Contribution expectations" },
       { id: "next-step", label: "Next step" },
+    ],
+  },
+  {
+    href: "/wiki/api-reference",
+    label: "API reference",
+    breadcrumbLabel: "API reference",
+    overviewNavIcon: "api-reference",
+    sections: [
+      { id: "overview", label: "Overview" },
+      { id: "molecule-catalog", label: "Molecule catalog endpoint" },
+      { id: "edge-summary", label: "Molecule edge summary endpoint" },
+      { id: "dataset-summaries", label: "Dataset summaries endpoint" },
+      { id: "doi-discovery", label: "DOI-first discovery endpoint" },
+      { id: "dataset-export", label: "Dataset export endpoint" },
+      { id: "compatibility", label: "Compatibility and transition" },
+      { id: "errors", label: "Status codes and errors" },
     ],
   },
 ] satisfies readonly WikiDocTopic[];
