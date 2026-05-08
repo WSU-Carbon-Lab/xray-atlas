@@ -9,11 +9,13 @@ export type WikiOverviewNavIcon =
   | "wiki-home"
   | "data-representation"
   | "platform-features"
-  | "contributions";
+  | "contributions"
+  | "api";
 
 export interface WikiDocNavSection {
   readonly id: string;
   readonly label: string;
+  readonly href?: string;
 }
 
 export interface WikiDocTopic {
@@ -71,6 +73,25 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
       { id: "next-step", label: "Next step" },
     ],
   },
+  {
+    href: "/wiki/api",
+    label: "API",
+    breadcrumbLabel: "API",
+    overviewNavIcon: "api",
+    sections: [
+      { id: "overview", label: "API overview", href: "/wiki/api" },
+      {
+        id: "openapi",
+        label: "OpenAPI",
+        href: "/wiki/api/openapi",
+      },
+      {
+        id: "v1",
+        label: "v1",
+        href: "/wiki/api/v1",
+      },
+    ],
+  },
 ] satisfies readonly WikiDocTopic[];
 
 /**
@@ -80,5 +101,12 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
  * @returns The matching topic, or `undefined` when `pathname` is not a configured wiki entry.
  */
 export function wikiDocTopicForPathname(pathname: string): WikiDocTopic | undefined {
-  return wikiDocTopics.find((topic) => topic.href === pathname);
+  const exact = wikiDocTopics.find((topic) => topic.href === pathname);
+  if (exact) {
+    return exact;
+  }
+  const prefixMatches = wikiDocTopics.filter(
+    (topic) => pathname.startsWith(`${topic.href}/`) || pathname.startsWith(topic.href),
+  );
+  return prefixMatches.sort((a, b) => b.href.length - a.href.length)[0];
 }

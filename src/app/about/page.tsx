@@ -20,6 +20,7 @@ import {
   RectangleStackIcon,
   SparklesIcon,
   UserGroupIcon,
+  CodeBracketIcon,
 } from "@heroicons/react/24/outline";
 
 export const metadata: Metadata = {
@@ -56,6 +57,13 @@ const aboutResourceCards = [
     description:
       "Guidance for dataset contributors, metadata expectations, attribution, and scientific reproducibility practices.",
     icon: ArrowTopRightOnSquareIcon,
+  },
+  {
+    href: "/wiki/api",
+    title: "API reference",
+    description:
+      "Versioned REST API documentation for researcher workflows, DOI-driven discovery, and pandas-ready dataset export.",
+    icon: CodeBracketIcon,
   },
 ] as const;
 
