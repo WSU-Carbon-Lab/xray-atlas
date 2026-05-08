@@ -41,9 +41,11 @@ model experiments {
   channelprovenance      Json?                    @map("channel_provenance")
   validationsummary      Json?                    @map("validation_summary")
   qualityscores          Json?                    @map("quality_scores")
-  experimentfavorites    experimentfavorites[]
-  experimentpublications experimentpublications[]
-  experimentquality      experimentquality?
+  experimentfavorites         experimentfavorites[]
+  experimentmetrics           experimentmetrics?
+  experimentmetricschannels   experimentmetricschannel[] @relation("ExperimentMetricsChannelExperiment")
+  experimentpublications      experimentpublications[]
+  experimentquality           experimentquality?
   calibrationmethods     calibrationmethods?      @relation(fields: [calibrationid], references: [id], onUpdate: NoAction)
   edges                  edges                    @relation(fields: [edgeid], references: [id], onUpdate: NoAction)
   instruments            instruments              @relation(fields: [instrumentid], references: [id], onUpdate: NoAction)

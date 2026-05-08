@@ -1,0 +1,40 @@
+/// Experiment-level aggregate metrics and provenance for normalization / quality signals.
+/// Channel rows store per-channel spacing, SNR, and normalization diagnostics keyed by experiment.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model experimentmetrics {
+  experimentid               String                     @id @map("experiment_id") @db.Uuid
+  favoritecount              Int                        @default(0) @map("favorite_count")
+  viewcount                  Int                        @default(0) @map("view_count")
+  hasoriginaldatadoi         Boolean                    @default(false) @map("has_original_data_doi")
+  originaldatadoi            String?                    @map("original_data_doi") @db.VarChar(256)
+  qualityaggregatescore      Float?                     @map("quality_aggregate_score")
+  normalizationrangespresent Boolean                    @default(false) @map("normalization_ranges_present")
+  metricscomputedat          DateTime?                  @map("metrics_computed_at") @db.Timestamptz(6)
+  metricsschemaversion       Int                        @default(1) @map("metrics_schema_version")
+  experiments                experiments                @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  experimentmetricschannels  experimentmetricschannel[] @relation("ExperimentMetricsChannelHeader")
+
+  @@map("experiment_metrics")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model experimentmetricschannel {
+  experimentid                String            @map("experiment_id") @db.Uuid
+  channel                     String            @db.VarChar(32)
+  pointspacingev              Float?            @map("point_spacing_ev")
+  snr                         Float?
+  normalizationtargetdistance Float?            @map("normalization_target_distance")
+  channelcontributionscore    Float?            @map("channel_contribution_score")
+  normprestartev              Float?            @map("norm_pre_start_ev")
+  normpreendev                Float?            @map("norm_pre_end_ev")
+  normpoststartev             Float?            @map("norm_post_start_ev")
+  normpostendev               Float?            @map("norm_post_end_ev")
+  experiments                 experiments       @relation("ExperimentMetricsChannelExperiment", fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "experiment_metrics_channel_experiment_id_experiments_fkey")
+  experimentmetrics           experimentmetrics @relation("ExperimentMetricsChannelHeader", fields: [experimentid], references: [experimentid], onDelete: Cascade, onUpdate: NoAction, map: "experiment_metrics_channel_experiment_id_metrics_fkey")
+
+  @@id([experimentid, channel])
+  @@index([experimentid], map: "idx_experiment_metrics_channel_experiment")
+  @@map("experiment_metrics_channel")
+  @@schema("public")
+}
