@@ -7,12 +7,16 @@ import type { ReactNode } from "react";
 export type SpectrumPoint = {
   energy: number;
   absorption: number;
+  rawabsError?: number;
   theta?: number;
   phi?: number;
   i0?: number;
   od?: number;
+  odError?: number;
   massabsorption?: number;
+  massabsorptionError?: number;
   beta?: number;
+  betaError?: number;
 };
 
 export type SpectrumSelection = {

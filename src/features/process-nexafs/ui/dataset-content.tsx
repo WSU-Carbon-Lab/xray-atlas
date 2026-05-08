@@ -17,6 +17,7 @@ import {
   Chip,
   Dropdown,
   Header,
+  Input,
   Pagination,
   Separator,
   Table,
@@ -2036,6 +2037,60 @@ export function DatasetContent({
           vendors={vendors}
           isLoadingVendors={isLoadingVendors}
         />
+      </div>
+      <div className="border-border bg-surface rounded-lg border p-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="flex flex-col gap-2 text-sm">
+            <span className="text-foreground font-medium">
+              Normalization validation mode
+            </span>
+            <select
+              value={dataset.normalizationScope}
+              onChange={(event) =>
+                onDatasetUpdate(dataset.id, {
+                  normalizationScope: event.target.value as
+                    | "none"
+                    | "unified"
+                    | "per_channel",
+                })
+              }
+              className="border-border bg-field-background text-field-foreground rounded-md border px-3 py-2"
+            >
+              <option value="unified">Unified ranges</option>
+              <option value="none">No ranges</option>
+              <option value="per_channel">Per-channel ranges</option>
+            </select>
+          </label>
+          <div className="flex flex-col gap-2">
+            <Checkbox
+              isSelected={dataset.validationOverride.bypass}
+              onChange={(checked) =>
+                onDatasetUpdate(dataset.id, {
+                  validationOverride: {
+                    ...dataset.validationOverride,
+                    bypass: checked,
+                  },
+                })
+              }
+            >
+              Bypass validation warnings
+            </Checkbox>
+            <Input
+              value={dataset.validationOverride.reason}
+              onChange={(event) =>
+                onDatasetUpdate(dataset.id, {
+                  validationOverride: {
+                    ...dataset.validationOverride,
+                    reason: event.target.value,
+                  },
+                })
+              }
+              placeholder="Optional bypass reason"
+              aria-label="Validation bypass reason"
+              disabled={!dataset.validationOverride.bypass}
+            />
+          </div>
+        </div>
       </div>
       <AddMoleculeModal
         isOpen={showAddMoleculeModal}

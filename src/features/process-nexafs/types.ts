@@ -57,8 +57,79 @@ export interface CSVColumnMappings {
   phi?: string;
   i0?: string;
   od?: string;
+  rawabsError?: string;
+  odError?: string;
   massabsorption?: string;
+  massabsorptionError?: string;
   beta?: string;
+  betaError?: string;
+}
+
+export type NormalizationScope = "none" | "unified" | "per_channel";
+
+export type NormalizationRange = [number, number] | null;
+
+export interface UnifiedNormalizationRanges {
+  pre: NormalizationRange;
+  post: NormalizationRange;
+}
+
+export interface PerChannelNormalizationRanges {
+  od: UnifiedNormalizationRanges;
+  massabsorption: UnifiedNormalizationRanges;
+  beta: UnifiedNormalizationRanges;
+}
+
+export type NormalizationRanges =
+  | UnifiedNormalizationRanges
+  | PerChannelNormalizationRanges
+  | null;
+
+export type UploadedChannel = "rawabs" | "od" | "massabsorption" | "beta";
+
+export type ChannelProvenanceStatus =
+  | "uploaded_authoritative"
+  | "derived"
+  | "derived_with_assumptions"
+  | "missing";
+
+export type ChannelProvenance = Record<UploadedChannel, ChannelProvenanceStatus>;
+
+export interface ValidationOverrideState {
+  bypass: boolean;
+  reason: string;
+}
+
+export interface DatasetValidationSummary {
+  mode: "ranges" | "single_point";
+  passed: boolean;
+  warnings: string[];
+  checks: {
+    od: "pass" | "warn" | "skip";
+    massabsorption: "pass" | "warn" | "skip";
+    betaCrossCheck: "pass" | "warn" | "skip";
+  };
+  bypass: ValidationOverrideState;
+}
+
+export interface QualityScoreComponent {
+  pointSpacing: number | null;
+  snr: number | null;
+  normalizationTargetDistance: number | null;
+}
+
+export interface ChannelQualityScores {
+  rawabs: QualityScoreComponent;
+  od: QualityScoreComponent;
+  massabsorption: QualityScoreComponent;
+  beta: QualityScoreComponent;
+}
+
+export interface ExperimentQualityScores {
+  perChannel: ChannelQualityScores;
+  doiPresent: boolean;
+  normalizationRangesPresent: boolean;
+  aggregateScore: number | null;
 }
 
 export interface ExperimentNormalization {
@@ -155,10 +226,12 @@ export type DatasetState = {
   spectrumPoints: SpectrumPoint[];
   normalizedPoints: SpectrumPoint[] | null;
   normalization: ExperimentNormalization | null;
+  normalizationScope: NormalizationScope;
   normalizationRegions: {
     pre: [number, number] | null;
     post: [number, number] | null;
   };
+  validationOverride: ValidationOverrideState;
   normalizationLocked: boolean;
   normalizationTypes: DatasetViewNormalizationTypes;
   peaks: PeakData[];
@@ -191,7 +264,9 @@ export function createEmptyDatasetState(file: File): DatasetState {
     spectrumPoints: [],
     normalizedPoints: null,
     normalization: null,
+    normalizationScope: "unified",
     normalizationRegions: { pre: null, post: null },
+    validationOverride: { bypass: false, reason: "" },
     normalizationLocked: false,
     normalizationTypes: defaultDatasetViewNormalizationTypes(),
     peaks: [],

@@ -1,8 +1,12 @@
 export function detectAuxiliarySpectrumColumnNames(columns: string[]): {
   i0?: string;
   od?: string;
+  rawabsError?: string;
+  odError?: string;
   massabsorption?: string;
+  massabsorptionError?: string;
   beta?: string;
+  betaError?: string;
 } {
   const norm = (raw: string) =>
     raw
@@ -27,7 +31,20 @@ export function detectAuxiliarySpectrumColumnNames(columns: string[]): {
 
   const i0 = pick((n) => n === "i0" || n === "i_0");
   const od = pick((n) => n === "od" || n.includes("opticaldensity"));
+  const rawabsError = pick(
+    (n) =>
+      n === "muerr" ||
+      n === "muerror" ||
+      n === "abserr" ||
+      n === "abserror" ||
+      n.includes("rawabserr") ||
+      n.includes("rawabserror"),
+  );
+  const odError = pick(
+    (n) => n === "oderr" || n === "oderror" || n.includes("opticaldensityerr"),
+  );
   const beta = pick((n) => n === "beta");
+  const betaError = pick((n) => n === "betaerr" || n === "betaerror");
   const massabsorption = pick(
     (n) =>
       n.includes("massabsorption") ||
@@ -36,11 +53,22 @@ export function detectAuxiliarySpectrumColumnNames(columns: string[]): {
       n === "mua" ||
       n.includes("mac"),
   );
+  const massabsorptionError = pick(
+    (n) =>
+      n.includes("massabsorptionerr") ||
+      n.includes("massabsorptionerror") ||
+      n.includes("mu_aerr") ||
+      n.includes("muaerr"),
+  );
 
   return {
     ...(i0 ? { i0 } : {}),
     ...(od ? { od } : {}),
+    ...(rawabsError ? { rawabsError } : {}),
+    ...(odError ? { odError } : {}),
     ...(beta ? { beta } : {}),
+    ...(betaError ? { betaError } : {}),
     ...(massabsorption ? { massabsorption } : {}),
+    ...(massabsorptionError ? { massabsorptionError } : {}),
   };
 }

@@ -158,10 +158,18 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
           if (i0v !== undefined) point.i0 = i0v;
           const odv = readOptionalFloat(row, cm.od);
           if (odv !== undefined) point.od = odv;
+          const rawabsErr = readOptionalFloat(row, cm.rawabsError);
+          if (rawabsErr !== undefined) point.rawabsError = rawabsErr;
+          const odErr = readOptionalFloat(row, cm.odError);
+          if (odErr !== undefined) point.odError = odErr;
           const massv = readOptionalFloat(row, cm.massabsorption);
           if (massv !== undefined) point.massabsorption = massv;
+          const massErr = readOptionalFloat(row, cm.massabsorptionError);
+          if (massErr !== undefined) point.massabsorptionError = massErr;
           const betav = readOptionalFloat(row, cm.beta);
           if (betav !== undefined) point.beta = betav;
+          const betaErr = readOptionalFloat(row, cm.betaError);
+          if (betaErr !== undefined) point.betaError = betaErr;
 
           spectrumPoints.push(point);
         }
@@ -457,7 +465,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       datasets
         .map(
           (d) =>
-            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.columnMappings.i0 ?? ""}:${d.columnMappings.od ?? ""}:${d.columnMappings.massabsorption ?? ""}:${d.columnMappings.beta ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${Array.isArray(d.csvRawData) ? d.csvRawData.length : 0}`,
+            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.columnMappings.i0 ?? ""}:${d.columnMappings.od ?? ""}:${d.columnMappings.massabsorption ?? ""}:${d.columnMappings.beta ?? ""}:${d.columnMappings.rawabsError ?? ""}:${d.columnMappings.odError ?? ""}:${d.columnMappings.massabsorptionError ?? ""}:${d.columnMappings.betaError ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${Array.isArray(d.csvRawData) ? d.csvRawData.length : 0}`,
         )
         .join(","),
     [datasets],
