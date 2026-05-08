@@ -184,6 +184,55 @@ export function wikiDocPageForPathname(
 }
 
 /**
+ * Breadcrumb trail entry for a wiki pathname.
+ *
+ * Each entry represents one breadcrumb after the static `Home > Wiki` prefix. Entries
+ * with an `href` should render as links; entries without `href` are the terminal current
+ * page and should render as inert text.
+ */
+export interface WikiBreadcrumbItem {
+  readonly label: string;
+  readonly href?: string;
+}
+
+/**
+ * Resolves the breadcrumb trail beneath the static `Home > Wiki` prefix for a given
+ * wiki pathname.
+ *
+ * For top-level topic pages the trail is a single inert entry naming the topic. For
+ * sub-pages declared via section `href`s that differ from the topic `href`, the trail
+ * begins with a link to the parent topic and ends with an inert entry for the active
+ * sub-page (for example `/wiki/api/v1` returns
+ * `[{ label: "API", href: "/wiki/api" }, { label: "v1" }]`). When `pathname` is outside
+ * the wiki tree the trail is empty so the caller can render a default `Wiki` placeholder.
+ *
+ * @param pathname - Next.js pathname such as `/wiki/api/v1` (no query or hash).
+ * @returns Ordered breadcrumb entries beneath `Home > Wiki`.
+ */
+export function wikiDocBreadcrumbTrail(
+  pathname: string,
+): readonly WikiBreadcrumbItem[] {
+  const topic = wikiDocTopicForPathname(pathname);
+  if (!topic) {
+    return [];
+  }
+
+  const subPage = topic.sections.find(
+    (section) =>
+      section.href && section.href !== topic.href && section.href === pathname,
+  );
+
+  if (!subPage) {
+    return [{ label: topic.breadcrumbLabel }];
+  }
+
+  return [
+    { label: topic.breadcrumbLabel, href: topic.href },
+    { label: subPage.label },
+  ];
+}
+
+/**
  * Reading-order neighbors for a given wiki pathname.
  *
  * `current` is the matched page entry, and `previous` / `next` are the adjacent entries

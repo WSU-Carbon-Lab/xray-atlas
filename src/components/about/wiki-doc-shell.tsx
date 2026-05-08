@@ -31,7 +31,7 @@ import {
   type ReactNode,
 } from "react";
 import {
-  wikiDocTopicForPathname,
+  wikiDocBreadcrumbTrail,
   wikiDocTopics,
   type WikiOverviewNavIcon,
 } from "~/lib/wiki-doc-nav";
@@ -447,7 +447,10 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
   const [hashId, setHashId] = useState("");
   const [isLgViewport, setIsLgViewport] = useState(false);
 
-  const current = useMemo(() => wikiDocTopicForPathname(pathname), [pathname]);
+  const breadcrumbTrail = useMemo(
+    () => wikiDocBreadcrumbTrail(pathname),
+    [pathname],
+  );
 
   const rescanToc = useCallback(() => {
     const root = mainRef.current?.querySelector("[data-wiki-main]");
@@ -615,9 +618,21 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
         <Breadcrumbs className="min-w-0 text-sm font-medium">
           <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
           <Breadcrumbs.Item href="/wiki/home">Wiki</Breadcrumbs.Item>
-          <Breadcrumbs.Item>
-            {current?.breadcrumbLabel ?? "Wiki"}
-          </Breadcrumbs.Item>
+          {breadcrumbTrail.length === 0 ? (
+            <Breadcrumbs.Item>Wiki</Breadcrumbs.Item>
+          ) : (
+            breadcrumbTrail.map((item, index) => {
+              const isTerminal = index === breadcrumbTrail.length - 1;
+              return (
+                <Breadcrumbs.Item
+                  key={`${item.label}-${item.href ?? "terminal"}`}
+                  href={!isTerminal && item.href ? item.href : undefined}
+                >
+                  {item.label}
+                </Breadcrumbs.Item>
+              );
+            })
+          )}
         </Breadcrumbs>
         <div className="flex shrink-0 items-center gap-2">
           <WikiDocPageNav pathname={pathname} />
