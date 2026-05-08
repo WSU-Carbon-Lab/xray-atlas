@@ -135,6 +135,39 @@ function averageSpacing(points: SpectrumPoint[]): number | null {
   return mean(diffs);
 }
 
+function averageSpacingForChannel(
+  points: SpectrumPoint[],
+  key: UploadedChannel,
+): number | null {
+  const filtered = points.filter((point) => {
+    const value =
+      key === "rawabs"
+        ? point.absorption
+        : key === "od"
+          ? point.od
+          : key === "massabsorption"
+            ? point.massabsorption
+            : point.beta;
+    return typeof value === "number" && Number.isFinite(value);
+  });
+  return averageSpacing(filtered);
+}
+
+function normalizationMeanDeviationForChannel(
+  points: SpectrumPoint[],
+  ranges: NormalizationRanges,
+  key: UploadedChannel,
+): number | null {
+  if (!ranges) return null;
+  const prePts = pointsInRange(points, ranges.pre);
+  const postPts = pointsInRange(points, ranges.post);
+  const pooled = [
+    ...finiteTargetPoints(prePts, key, 0),
+    ...finiteTargetPoints(postPts, key, 1),
+  ];
+  return mean(pooled);
+}
+
 function snr(values: number[]): number | null {
   const m = mean(values);
   const sigma = standardDeviation(values);
@@ -252,26 +285,15 @@ export function buildQualityScores(args: {
   ranges: NormalizationRanges;
   doiPresent: boolean;
 }): ExperimentQualityScores {
-  const spacing = averageSpacing(args.points);
   const channelComponent = (key: UploadedChannel): QualityScoreComponent => {
     const values = finiteValues(args.points, key);
-    const normDistance =
-      key === "od" && args.ranges
-        ? mean([
-            ...(finiteTargetPoints(
-              pointsInRange(args.points, args.ranges.pre),
-              "od",
-              0,
-            ) ?? []),
-            ...(finiteTargetPoints(
-              pointsInRange(args.points, args.ranges.post),
-              "od",
-              1,
-            ) ?? []),
-          ])
-        : null;
+    const normDistance = normalizationMeanDeviationForChannel(
+      args.points,
+      args.ranges,
+      key,
+    );
     return {
-      pointSpacing: spacing,
+      pointSpacing: averageSpacingForChannel(args.points, key),
       snr: snr(values),
       normalizationTargetDistance: normDistance,
     };
@@ -284,7 +306,15 @@ export function buildQualityScores(args: {
     beta: channelComponent("beta"),
   };
 
-  const spacingNorm = spacing == null ? null : 1 / (1 + spacing);
+  const spacingSamples = Object.values(perChannel)
+    .map((entry) => entry.pointSpacing)
+    .filter((value): value is number => value != null && Number.isFinite(value))
+    .map((spacing) => 1 / (1 + spacing));
+  const spacingNorm =
+    spacingSamples.length === 0
+      ? null
+      : spacingSamples.reduce((sum, value) => sum + value, 0) /
+        spacingSamples.length;
   const snrValues = Object.values(perChannel)
     .map((entry) => entry.snr)
     .filter((value): value is number => value != null && Number.isFinite(value));
@@ -293,8 +323,15 @@ export function buildQualityScores(args: {
       ? null
       : snrValues.reduce((sum, value) => sum + value / (1 + value), 0) /
         snrValues.length;
-  const distance = perChannel.od.normalizationTargetDistance;
-  const distanceNorm = distance == null ? null : 1 / (1 + distance);
+  const distanceSamples = Object.values(perChannel)
+    .map((entry) => entry.normalizationTargetDistance)
+    .filter((value): value is number => value != null && Number.isFinite(value))
+    .map((distance) => 1 / (1 + distance));
+  const distanceNorm =
+    distanceSamples.length === 0
+      ? null
+      : distanceSamples.reduce((sum, value) => sum + value, 0) /
+        distanceSamples.length;
   const normalizationRangesPresent = args.ranges != null;
 
   const aggregateParts = [spacingNorm, snrNorm, distanceNorm].filter(

@@ -25,6 +25,7 @@
     "openapi:validate": "bun scripts/openapi-validate.mjs",
     "openapi:check": "bun run openapi:lint && bun run openapi:validate",
     "api:v1:y6-smoke": "bun scripts/api-v1-y6-smoke.mjs",
+    "metrics:y6": "bun scripts/compute-y6-experiment-metrics.ts",
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit"

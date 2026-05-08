@@ -111,4 +111,36 @@ describe("buildQualityScores", () => {
         (lowSnr.perChannel.rawabs.snr ?? 0),
     ).toBe(true);
   });
+
+  it("computes normalization anchor distance for every channel when ranges exist", () => {
+    const qs = buildQualityScores({
+      points: [
+        { energy: 280, absorption: 5, od: 0.05, massabsorption: 0.06 },
+        { energy: 281, absorption: 6, od: 0.02, massabsorption: 0.01 },
+        { energy: 300, absorption: 7, od: 0.97, massabsorption: 0.98 },
+      ],
+      ranges: { pre: [279.5, 281.5], post: [299.5, 300.5] },
+      doiPresent: false,
+    });
+    expect(qs.perChannel.od.normalizationTargetDistance != null).toBe(true);
+    expect(qs.perChannel.massabsorption.normalizationTargetDistance != null).toBe(
+      true,
+    );
+    expect(qs.perChannel.rawabs.normalizationTargetDistance != null).toBe(true);
+  });
+
+  it("uses channel-local energy grids for spacing when finite samples differ", () => {
+    const qs = buildQualityScores({
+      points: [
+        { energy: 280, absorption: 1, od: 0.1 },
+        { energy: 285, absorption: 2 },
+        { energy: 290, absorption: 3, od: 0.2 },
+      ],
+      ranges: null,
+      doiPresent: false,
+    });
+    expect(qs.perChannel.rawabs.pointSpacing).toBeLessThan(
+      qs.perChannel.od.pointSpacing ?? Number.POSITIVE_INFINITY,
+    );
+  });
 });

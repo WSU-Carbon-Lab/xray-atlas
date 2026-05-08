@@ -1,5 +1,9 @@
 import { Prisma } from "~/prisma/client";
 import type { ExperimentType, PrismaClient } from "~/prisma/client";
+import {
+  buildNexafsBrowseDatasetMetricsCardModel,
+  type NexafsBrowseDatasetMetricsCardModel,
+} from "~/lib/nexafs-dataset-metric-display-model";
 import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
 
 export type NexafsBrowseGroupFilters = {
@@ -121,6 +125,8 @@ export type NexafsBrowseGroupRow = {
   publication_link_count: bigint;
   linked_publications_json: unknown;
   ingest_verified: boolean;
+  experiment_metrics_header_json: unknown;
+  experiment_metrics_channels_json: unknown;
 };
 
 export type NexafsBrowseContributorUser = {
@@ -156,6 +162,7 @@ export type NexafsBrowseGroupDto = {
   };
   edge: { targetatom: string; corestate: string };
   instrument: { name: string; facilityName: string | null };
+  datasetMetrics: NexafsBrowseDatasetMetricsCardModel;
 };
 
 function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
@@ -233,6 +240,10 @@ export function mapNexafsBrowseGroupRow(
       name: row.instrument_name,
       facilityName: row.facility_name,
     },
+    datasetMetrics: buildNexafsBrowseDatasetMetricsCardModel(
+      row.experiment_metrics_header_json,
+      row.experiment_metrics_channels_json,
+    ),
   };
 }
 
@@ -436,6 +447,39 @@ export async function fetchNexafsBrowseGrouped(
               END
           ) u
         ) AS contributor_users,
+        (
+          SELECT json_build_object(
+            'quality_aggregate_score', em.quality_aggregate_score,
+            'normalization_ranges_present', em.normalization_ranges_present
+          )
+          FROM experiment_metrics em
+          WHERE em.experiment_id = b.experiment_id
+        ) AS experiment_metrics_header_json,
+        (
+          SELECT COALESCE(
+            json_agg(t.row_json ORDER BY t.ord),
+            '[]'::json
+          )
+          FROM (
+            SELECT
+              CASE emc.channel
+                WHEN 'rawabs' THEN 1
+                WHEN 'od' THEN 2
+                WHEN 'massabsorption' THEN 3
+                WHEN 'beta' THEN 4
+                ELSE 99
+              END AS ord,
+              json_build_object(
+                'channel', emc.channel,
+                'point_spacing_ev', emc.point_spacing_ev,
+                'snr', emc.snr,
+                'normalization_target_distance', emc.normalization_target_distance,
+                'channel_contribution_score', emc.channel_contribution_score
+              ) AS row_json
+            FROM experiment_metrics_channel emc
+            WHERE emc.experiment_id = b.experiment_id
+          ) t
+        ) AS experiment_metrics_channels_json,
         ${polarizationGeometryCountSql}
       FROM base b
     )

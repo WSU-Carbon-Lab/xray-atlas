@@ -23,6 +23,8 @@ import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFav
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
 import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
+import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
+import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
 import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
 
 const pubChemCompoundUrl = (cid: string) =>
@@ -182,6 +184,7 @@ export type NexafsExperimentCompactCardProps = {
   polarizationCount: number;
   linkedPublications: NexafsBrowseLinkedPublication[];
   ingestVerified: boolean;
+  datasetMetrics: NexafsBrowseDatasetMetricsCardModel;
 };
 
 export function NexafsExperimentCompactCard({
@@ -206,6 +209,7 @@ export function NexafsExperimentCompactCard({
   polarizationCount,
   linkedPublications,
   ingestVerified,
+  datasetMetrics,
 }: NexafsExperimentCompactCardProps) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -450,6 +454,10 @@ export function NexafsExperimentCompactCard({
             size="sm"
           />
         </div>
+        <NexafsDatasetMetricsRail
+          metrics={datasetMetrics}
+          className="relative z-50"
+        />
         <div onClick={(e) => e.stopPropagation()}>
           <AvatarGroup
             users={avatarUsers}
