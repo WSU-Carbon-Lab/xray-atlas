@@ -23,6 +23,7 @@ import { site } from "~/app/brand";
 function AboutDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [isWikiOpen, setIsWikiOpen] = useState(false);
+  const [isPlatformFeaturesOpen, setIsPlatformFeaturesOpen] = useState(false);
   const [isApiOpen, setIsApiOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -35,6 +36,7 @@ function AboutDropdown() {
       ) {
         setIsOpen(false);
         setIsWikiOpen(false);
+        setIsPlatformFeaturesOpen(false);
         setIsApiOpen(false);
       }
     }
@@ -52,6 +54,7 @@ function AboutDropdown() {
     router.push(path);
     setIsOpen(false);
     setIsWikiOpen(false);
+    setIsPlatformFeaturesOpen(false);
     setIsApiOpen(false);
   };
 
@@ -118,14 +121,52 @@ function AboutDropdown() {
                     <BookOpenIcon className="text-accent h-4 w-4" />
                     <span>Data representation</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick("/wiki/platform-features")}
-                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
-                  >
-                    <BookOpenIcon className="text-accent h-4 w-4" />
-                    <span>Platform features</span>
-                  </button>
+                  <div className="mx-3 mt-1 mb-1 rounded border border-border bg-default/40">
+                    <button
+                      type="button"
+                      onClick={() => setIsPlatformFeaturesOpen((prev) => !prev)}
+                      className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 text-left text-sm font-medium transition-colors"
+                      aria-expanded={isPlatformFeaturesOpen}
+                      aria-controls="about-platform-features-accordion"
+                    >
+                      <BookOpenIcon className="text-accent h-4 w-4" />
+                      <span>Platform features</span>
+                      <ChevronDown
+                        className={`ml-auto h-3.5 w-3.5 transition-transform ${
+                          isPlatformFeaturesOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {isPlatformFeaturesOpen ? (
+                      <div
+                        id="about-platform-features-accordion"
+                        className="space-y-0.5 pb-1"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleItemClick("/wiki/platform-features")
+                          }
+                          className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                        >
+                          <BookOpenIcon className="text-accent h-4 w-4" />
+                          <span>Overview</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleItemClick(
+                              "/wiki/platform-features/dataset-quality-metrics",
+                            )
+                          }
+                          className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                        >
+                          <BookOpenIcon className="text-accent h-4 w-4" />
+                          <span>Dataset quality metrics</span>
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleItemClick("/wiki/contributions")}
@@ -133,6 +174,14 @@ function AboutDropdown() {
                   >
                     <BookOpenIcon className="text-accent h-4 w-4" />
                     <span>Contribution guide</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleItemClick("/wiki/data-insights")}
+                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                  >
+                    <BookOpenIcon className="text-accent h-4 w-4" />
+                    <span>Data Insights</span>
                   </button>
                   <div className="mx-3 mt-1 mb-1 rounded border border-border bg-default/40">
                     <button

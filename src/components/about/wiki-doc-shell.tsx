@@ -11,6 +11,7 @@
 import {
   ArrowUpTrayIcon,
   BookOpenIcon,
+  ChartBarIcon,
   CircleStackIcon,
   ChevronDownIcon,
   CodeBracketIcon,
@@ -73,6 +74,8 @@ function OverviewNavIcon({
       return <SparklesIcon className={cls} aria-hidden />;
     case "contributions":
       return <ArrowUpTrayIcon className={cls} aria-hidden />;
+    case "data-insights":
+      return <ChartBarIcon className={cls} aria-hidden />;
     case "api":
       return <CodeBracketIcon className={cls} aria-hidden />;
     default:

@@ -9,8 +9,11 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { AlertCircle } from "lucide-react";
+import { Chip } from "@heroui/react";
 import { cn } from "@heroui/styles";
+import { BookOpenIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import type {
   NexafsBrowseDatasetMetricBarModel,
   NexafsBrowseDatasetMetricsCardModel,
@@ -523,6 +526,43 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
   );
 }
 
+function DatasetQualityWikiChip() {
+  return (
+    <Link
+      href="/wiki/platform-features/dataset-quality-metrics"
+      className="focus-visible:ring-accent mt-2 inline-flex max-w-full rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Chip
+        variant="soft"
+        color="accent"
+        size="sm"
+        className={cn(
+          "max-w-full cursor-pointer shadow-sm backdrop-blur-sm transition-opacity hover:opacity-90",
+          "dark:border dark:border-accent/55 dark:bg-accent/28 dark:shadow-md dark:backdrop-blur-none",
+        )}
+      >
+        <BookOpenIcon
+          className="size-3.5 shrink-0 text-accent dark:text-accent-foreground"
+          aria-hidden
+        />
+        <Chip.Label
+          className={cn(
+            "min-w-0 text-balance text-[11px] font-medium leading-tight",
+            "text-accent dark:text-accent-foreground",
+          )}
+        >
+          Dataset quality metrics guide
+        </Chip.Label>
+        <ChevronRightIcon
+          className="size-3.5 shrink-0 text-accent opacity-75 dark:text-accent-foreground dark:opacity-90"
+          aria-hidden
+        />
+      </Chip>
+    </Link>
+  );
+}
+
 function ChannelDatasetMetricBreakdownBody({
   metrics,
 }: {
@@ -532,10 +572,7 @@ function ChannelDatasetMetricBreakdownBody({
     <div className="flex flex-col gap-3">
       <div className="border-b border-zinc-700/70 pb-3">
         <h3 className="text-sm font-semibold text-zinc-100">Dataset quality</h3>
-        <p className="mt-1.5 text-[11px] leading-snug text-zinc-400">
-          Energy resolution uses the distribution trace and P75 marker. SNR, OD normalization fit, and mass-absorption
-          normalization fit each contribute when scored; each missing statistic reduces the headline score by five points.
-        </p>
+        <DatasetQualityWikiChip />
       </div>
       <div className="space-y-2">
         {metrics.bars.map((bar) => (

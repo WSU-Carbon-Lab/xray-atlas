@@ -15,7 +15,14 @@ export const metadata: Metadata = {
   },
 };
 
-const featureItems = [
+interface PlatformFeatureItem {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly wikiGuideHref?: string;
+}
+
+const featureItems: readonly PlatformFeatureItem[] = [
   {
     id: "search-and-filter",
     title: "Search and filter",
@@ -29,6 +36,13 @@ const featureItems = [
       "Inspect and compare spectrum traces with tools designed for angle and mode-aware analysis.",
   },
   {
+    id: "dataset-quality-metrics",
+    title: "Dataset quality metrics",
+    description:
+      "Browse and molecule-detail NEXAFS cards show a compact ring summarizing spacing distribution (including a P75 ΔE marker), optional SNR when error bars exist, and separate OD versus mass-absorption normalization anchor distances.",
+    wikiGuideHref: "/wiki/platform-features/dataset-quality-metrics",
+  },
+  {
     id: "contribution-workflows",
     title: "Contribution workflows",
     description:
@@ -40,7 +54,7 @@ const featureItems = [
     description:
       "Dataset provenance, contributor records, and citation metadata make reuse auditable and citable.",
   },
-] as const;
+];
 
 export default function PlatformFeaturesPage() {
   return (
@@ -64,6 +78,14 @@ export default function PlatformFeaturesPage() {
               {item.title}
             </h2>
             <p className="text-muted text-sm">{item.description}</p>
+            {item.wikiGuideHref ? (
+              <Link
+                href={item.wikiGuideHref}
+                className="text-accent mt-2 inline-block text-sm font-medium hover:underline"
+              >
+                Read the dataset quality guide
+              </Link>
+            ) : null}
           </section>
         ))}
       </div>

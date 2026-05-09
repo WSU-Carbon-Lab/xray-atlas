@@ -10,6 +10,7 @@ export type WikiOverviewNavIcon =
   | "data-representation"
   | "platform-features"
   | "contributions"
+  | "data-insights"
   | "api";
 
 export interface WikiDocNavSection {
@@ -68,6 +69,11 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
     sections: [
       { id: "search-and-filter", label: "Search and filter" },
       { id: "interactive-visualization", label: "Interactive visualization" },
+      {
+        id: "dataset-quality-metrics",
+        label: "Dataset quality metrics",
+        href: "/wiki/platform-features/dataset-quality-metrics",
+      },
       { id: "contribution-workflows", label: "Contribution workflows" },
       { id: "attribution-signals", label: "Attribution signals" },
     ],
@@ -80,6 +86,35 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
     sections: [
       { id: "contribution-expectations", label: "Contribution expectations" },
       { id: "next-step", label: "Next step" },
+    ],
+  },
+  {
+    href: "/wiki/data-insights",
+    label: "Data Insights",
+    breadcrumbLabel: "Data Insights",
+    overviewNavIcon: "data-insights",
+    sections: [
+      { id: "live-metrics-preview", label: "Live metrics preview" },
+      {
+        id: "speed-insights-overview",
+        label: "Speed Insights overview",
+      },
+      {
+        id: "real-experience-score",
+        label: "Real Experience Score",
+      },
+      { id: "core-web-vitals", label: "Core Web Vitals" },
+      { id: "other-metrics", label: "Additional metrics" },
+      { id: "how-scores-work", label: "How scores are determined" },
+      {
+        id: "data-points-percentiles",
+        label: "Data points and percentiles",
+      },
+      { id: "interpreting-scores", label: "Interpreting scores" },
+      {
+        id: "official-documentation",
+        label: "Official documentation",
+      },
     ],
   },
   {
