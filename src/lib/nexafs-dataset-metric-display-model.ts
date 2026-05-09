@@ -2,7 +2,8 @@
  * Serializes persisted experiment metric payloads into compact browse-card UI models.
  *
  * Owns JSON parsing for grouped browse SQL aggregates and applies `nexafs-dataset-metric-policy` breakpoints
- * consistently with metric persistence.
+ * consistently with metric persistence. Browse-card resolution subscores use a decade-relative ΔE mapping via
+ * {@link resolutionSpacingDecadeScorePercent} rather than `(0.1/ΔE)×100`.
  */
 
 import type { DatasetMetricTier } from "~/lib/nexafs-dataset-metric-policy";
@@ -10,22 +11,16 @@ import {
   combinePercentsMean,
   normalizationMeanDeviationToPercent,
   snrToPercent,
-  spacingEvToPercent,
   tierFromPercent,
 } from "~/lib/nexafs-dataset-metric-policy";
 
-export const NEXAFS_DATASET_METRIC_CHANNEL_ORDER = [
-  "rawabs",
-  "od",
-  "massabsorption",
-  "beta",
-] as const;
+export const NEXAFS_DATASET_METRIC_CHANNEL_ORDER = ["rawabs", "od", "massabsorption", "beta"] as const;
 
 export type NexafsDatasetMetricChannelKey =
   (typeof NEXAFS_DATASET_METRIC_CHANNEL_ORDER)[number];
 
 export type NexafsBrowseDatasetMetricBarModel = {
-  key: "spacing" | "snr" | "norm_distance";
+  key: "resolution_distribution" | "snr" | "norm_distance";
   label: string;
   percent: number | null;
   tier: DatasetMetricTier | "unknown";
@@ -35,32 +30,27 @@ export type NexafsBrowseDatasetMetricBarModel = {
   quantityUnit: string;
   /** Caption below the gauge (context, raw detail, or unavailable reason). */
   summary: string;
-};
-
-export type NexafsBrowseDatasetMetricChannelModel = {
-  key: NexafsDatasetMetricChannelKey;
-  label: string;
-  aggregatePercent: number | null;
-  aggregateTier: DatasetMetricTier | "unknown";
-  missing: boolean;
-  bars: NexafsBrowseDatasetMetricBarModel[];
+  distribution?: {
+    hyperfinePercent: number;
+    goodPercent: number;
+    fairPercent: number;
+    poorPercent: number;
+    p75MarkerPercent: number | null;
+    p75MarkerLabel: string;
+    averageMarkerPercent: number | null;
+    averageMarkerLabel: string;
+    p75DeltaEv: number | null;
+    averageDeltaEv: number | null;
+  };
 };
 
 export type NexafsBrowseDatasetMetricsCardModel = {
-  /**
-   * Arithmetic mean of finite channel aggregates; null when every channel lacks usable percents.
-   */
-  experimentAggregatePercent: number | null;
-  experimentAggregateTier: DatasetMetricTier | "unknown";
+  aggregatePercent: number | null;
+  aggregateTier: DatasetMetricTier | "unknown";
+  missing: boolean;
   normalizationRangesPresent: boolean;
-  channels: NexafsBrowseDatasetMetricChannelModel[];
-};
-
-const CHANNEL_LABELS: Record<NexafsDatasetMetricChannelKey, string> = {
-  rawabs: "Raw μ",
-  od: "OD",
-  massabsorption: "μ",
-  beta: "β",
+  hasErrorBars: boolean;
+  bars: NexafsBrowseDatasetMetricBarModel[];
 };
 
 function isChannelKey(value: string): value is NexafsDatasetMetricChannelKey {
@@ -81,9 +71,101 @@ function finiteNumber(value: unknown): number | null {
   return value;
 }
 
+function densityContributionPercent(pointDensityPercent: number | null): number | null {
+  if (pointDensityPercent == null || !Number.isFinite(pointDensityPercent)) return null;
+  if (pointDensityPercent <= 100) return pointDensityPercent;
+  const surplus = pointDensityPercent - 100;
+  const maxBonus = 18;
+  const decayScale = 40;
+  const bonus = maxBonus * (1 - Math.exp(-surplus / decayScale));
+  return 100 + bonus;
+}
+
+/** Reference ΔE (eV): score is 100 at this spacing on the decade scale. */
+const RESOLUTION_SCORE_REF_EV = 0.1;
+/** Score drop per factor-of-10 coarser spacing (larger ΔE); finer than {@link RESOLUTION_SCORE_REF_EV} can exceed 100. */
+const RESOLUTION_SCORE_POINTS_PER_DECADE = 50;
+
+/**
+ * Maps finite adjacent-spacing ΔE (in eV) to a percent-like score from decade distance to {@link RESOLUTION_SCORE_REF_EV}.
+ * Coarser spacing (larger ΔE) lowers the score by {@link RESOLUTION_SCORE_POINTS_PER_DECADE} per factor-of-10 step; finer spacing can exceed 100 until callers apply diminishing returns.
+ *
+ * @param deltaEv Strictly positive finite spacing in eV; non-finite or non-positive values yield null.
+ * @returns Score in `[0, ∞)`, anchored at 100 when `deltaEv` equals `RESOLUTION_SCORE_REF_EV`; null when unusable.
+ */
+export function resolutionSpacingDecadeScorePercent(deltaEv: number | null): number | null {
+  if (deltaEv == null || !Number.isFinite(deltaEv) || deltaEv <= 0) return null;
+  const decadesFromRef = Math.log10(deltaEv / RESOLUTION_SCORE_REF_EV);
+  const raw = 100 - RESOLUTION_SCORE_POINTS_PER_DECADE * decadesFromRef;
+  return Math.max(0, raw);
+}
+
+function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+}
+
+function p75MarkerFromDistribution(
+  p75DeltaEv: number | null,
+  p75BucketProgressPct: number | null,
+  distribution: {
+    hyperfinePercent: number;
+    goodPercent: number;
+    fairPercent: number;
+    poorPercent: number;
+  },
+): number | null {
+  if (p75DeltaEv == null || !Number.isFinite(p75DeltaEv) || p75DeltaEv <= 0) {
+    return null;
+  }
+  const h = clampPercent(distribution.hyperfinePercent);
+  const g = clampPercent(distribution.goodPercent);
+  const f = clampPercent(distribution.fairPercent);
+  const p = clampPercent(distribution.poorPercent);
+  const total = h + g + f + p;
+  if (total <= 0) return null;
+  const hn = (h / total) * 100;
+  const gn = (g / total) * 100;
+  const fn = (f / total) * 100;
+  const pn = (p / total) * 100;
+  const progressFraction =
+    p75BucketProgressPct != null && Number.isFinite(p75BucketProgressPct)
+      ? clampPercent(p75BucketProgressPct) / 100
+      : null;
+
+  if (p75DeltaEv < 0.1) {
+    const frac =
+      progressFraction ?? clampPercent((p75DeltaEv / 0.1) * 100) / 100;
+    return hn * frac;
+  }
+  if (p75DeltaEv < 1) {
+    const frac =
+      progressFraction ??
+      clampPercent(((p75DeltaEv - 0.1) / 0.9) * 100) / 100;
+    return hn + gn * frac;
+  }
+  if (p75DeltaEv <= 5) {
+    const frac =
+      progressFraction ??
+      clampPercent(((p75DeltaEv - 1) / 4) * 100) / 100;
+    return hn + gn + fn * frac;
+  }
+  const tailFrac = progressFraction ?? Math.min(1, (p75DeltaEv - 5) / 20);
+  return hn + gn + fn + pn * tailFrac;
+}
+
 export type NexafsBrowseExperimentMetricHeaderPayload = {
   quality_aggregate_score?: unknown;
   normalization_ranges_present?: unknown;
+  has_error_bars?: unknown;
+  minimum_spacing_ev?: unknown;
+  spacing_distribution_hyperfine_pct?: unknown;
+  spacing_distribution_good_pct?: unknown;
+  spacing_distribution_fair_pct?: unknown;
+  spacing_distribution_poor_pct?: unknown;
+  spacing_distribution_mean_ev?: unknown;
+  spacing_distribution_p75_ev?: unknown;
+  spacing_distribution_p75_bucket_progress_pct?: unknown;
 };
 
 export type NexafsBrowseExperimentMetricChannelPayload = {
@@ -95,7 +177,11 @@ export type NexafsBrowseExperimentMetricChannelPayload = {
 };
 
 /**
- * Parses grouped-browse JSON aggregates into a stable channel-major UI model with four ordered traces.
+ * Parses grouped-browse JSON aggregates into a single dataset score plus detailed hover breakdown.
+ *
+ * Uses the uploaded channel (`rawabs`) as the canonical source for mean spacing, SNR, and normalization fit.
+ * Dataset-level energy resolution scoring prefers the persisted P75 adjacent-spacing quantile when the spacing
+ * distribution is available; the aggregate ring mean uses that resolution score once together with SNR and normalization.
  *
  * @param headerPayload Experiment-level metrics header row or null when no `experiment_metrics` row exists.
  * @param channelsPayload JSON array from `experiment_metrics_channel` or empty array when uncomputed.
@@ -112,6 +198,25 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
     typeof header?.normalization_ranges_present === "boolean"
       ? header.normalization_ranges_present
       : false;
+  const hasErrorBars =
+    typeof header?.has_error_bars === "boolean" ? header.has_error_bars : false;
+  const meanSpacingEv = finiteNumber(header?.spacing_distribution_mean_ev);
+  const p75SpacingEv = finiteNumber(header?.spacing_distribution_p75_ev);
+  const p75BucketProgressPct = finiteNumber(
+    header?.spacing_distribution_p75_bucket_progress_pct,
+  );
+  const hyperfinePct = clampPercent(
+    finiteNumber(header?.spacing_distribution_hyperfine_pct) ?? 0,
+  );
+  const goodPct = clampPercent(
+    finiteNumber(header?.spacing_distribution_good_pct) ?? 0,
+  );
+  const fairPct = clampPercent(
+    finiteNumber(header?.spacing_distribution_fair_pct) ?? 0,
+  );
+  const poorPct = clampPercent(
+    finiteNumber(header?.spacing_distribution_poor_pct) ?? 0,
+  );
 
   const rowsRaw = Array.isArray(channelsPayload) ? channelsPayload : [];
   const byChannel = new Map<NexafsDatasetMetricChannelKey, NexafsBrowseExperimentMetricChannelPayload>();
@@ -123,136 +228,126 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
     byChannel.set(ch, r);
   }
 
-  const channels: NexafsBrowseDatasetMetricChannelModel[] =
-    NEXAFS_DATASET_METRIC_CHANNEL_ORDER.map((key) => {
-      const row = byChannel.get(key);
-      if (!row) {
-        return {
-          key,
-          label: CHANNEL_LABELS[key],
-          aggregatePercent: null,
-          aggregateTier: "unknown",
-          missing: true,
-          bars: [
-            {
-              key: "spacing",
-              label: "Point spacing",
-              percent: null,
-              tier: "unknown",
-              quantityValue: "—",
-              quantityUnit: "",
-              summary: "No persisted metrics",
-            },
-            {
-              key: "snr",
-              label: "Signal-to-noise ratio",
-              percent: null,
-              tier: "unknown",
-              quantityValue: "—",
-              quantityUnit: "",
-              summary: "No persisted metrics",
-            },
-            {
-              key: "norm_distance",
-              label: "Normalization fit",
-              percent: null,
-              tier: "unknown",
-              quantityValue: "—",
-              quantityUnit: "",
-              summary: "No persisted metrics",
-            },
-          ],
-        };
-      }
+  const rawChannel = byChannel.get("rawabs");
+  const spacingEv = finiteNumber(rawChannel?.point_spacing_ev);
+  const snr = hasErrorBars ? finiteNumber(rawChannel?.snr) : null;
+  const normDist = normalizationRangesPresent
+    ? finiteNumber(rawChannel?.normalization_target_distance)
+    : null;
+  const spacingPct = resolutionSpacingDecadeScorePercent(spacingEv);
+  const snrPct = snr != null ? snrToPercent(snr) : null;
+  const normPct =
+    normDist != null ? normalizationMeanDeviationToPercent(normDist) : null;
+  const weightedResolutionPopulationScore =
+    hyperfinePct * 1.2 + goodPct + fairPct * 0.65 + poorPct * 0.25;
+  const hasDistribution = hyperfinePct + goodPct + fairPct + poorPct > 0;
+  const p75ResolutionPct = resolutionSpacingDecadeScorePercent(p75SpacingEv);
+  const resolutionDistributionFallback = hasDistribution
+    ? weightedResolutionPopulationScore
+    : spacingPct;
+  const resolvedResolutionPercent =
+    p75ResolutionPct ?? resolutionDistributionFallback;
+  const averageResolutionPercent =
+    meanSpacingEv != null
+      ? resolutionSpacingDecadeScorePercent(meanSpacingEv)
+      : spacingPct;
 
-      const spacingEv = finiteNumber(row.point_spacing_ev);
-      const snr = finiteNumber(row.snr);
-      const normDist = finiteNumber(row.normalization_target_distance);
+  const bars: NexafsBrowseDatasetMetricBarModel[] = [
+    {
+      key: "resolution_distribution",
+      label: "Energy resolution distribution",
+      percent: hasDistribution ? resolvedResolutionPercent : null,
+      tier: tierFromPercentOrUnknown(
+        hasDistribution ? resolvedResolutionPercent : null,
+      ),
+      quantityValue:
+        p75SpacingEv != null
+          ? p75SpacingEv.toFixed(3)
+          : spacingEv != null
+            ? spacingEv.toFixed(3)
+            : "—",
+      quantityUnit:
+        p75SpacingEv != null || spacingEv != null ? "eV P75 ΔE" : "",
+      summary:
+        hasDistribution
+          ? "Population share by spacing tier: great (< 0.1 eV), good (0.1-1 eV), ok (1-5 eV), and bad (> 5 eV)."
+          : "Need enough uploaded points to resolve adjacent-spacing distribution.",
+      distribution: {
+        hyperfinePercent: hyperfinePct,
+        goodPercent: goodPct,
+        fairPercent: fairPct,
+        poorPercent: poorPct,
+        p75MarkerPercent: p75MarkerFromDistribution(
+          p75SpacingEv,
+          p75BucketProgressPct,
+          {
+            hyperfinePercent: hyperfinePct,
+            goodPercent: goodPct,
+            fairPercent: fairPct,
+            poorPercent: poorPct,
+          },
+        ),
+        p75MarkerLabel:
+          p75SpacingEv != null
+            ? `P75 ΔE ${p75SpacingEv.toFixed(3)} eV`
+            : "P75 ΔE unavailable",
+        averageMarkerPercent:
+          averageResolutionPercent != null
+            ? clampPercent((averageResolutionPercent / 120) * 100)
+            : null,
+        averageMarkerLabel:
+          meanSpacingEv != null
+            ? `avg ΔE ${meanSpacingEv.toFixed(3)} eV`
+            : spacingEv != null
+              ? `avg ΔE ${spacingEv.toFixed(3)} eV`
+              : "avg ΔE unavailable",
+        p75DeltaEv: p75SpacingEv,
+        averageDeltaEv: meanSpacingEv ?? spacingEv,
+      },
+    },
+    {
+      key: "snr",
+      label: "Signal-to-noise ratio",
+      percent: snrPct,
+      tier: tierFromPercentOrUnknown(snrPct),
+      quantityValue: snr != null ? snr.toFixed(2) : "—",
+      quantityUnit: "",
+      summary: hasErrorBars
+        ? snr != null
+          ? "Computed from uploaded absorption and uploaded error bars."
+          : "Error bars exist but no finite SNR could be computed."
+        : "Uploaded data has no error bars, so SNR is intentionally not scored.",
+    },
+    {
+      key: "norm_distance",
+      label: "Normalization fit",
+      percent: normPct,
+      tier: tierFromPercentOrUnknown(normPct),
+      quantityValue: normDist != null ? normDist.toFixed(4) : "—",
+      quantityUnit: "",
+      summary: normalizationRangesPresent
+        ? normDist != null
+          ? "Deviation from declared pre-edge (0) and post-edge (1) anchors."
+          : "Normalization ranges are set, but fit could not be computed from uploaded samples."
+        : "Normalization ranges are missing for this dataset.",
+    },
+  ];
 
-      const spacingPct =
-        spacingEv != null ? spacingEvToPercent(spacingEv) : null;
-      const snrPct = snr != null ? snrToPercent(snr) : null;
-      const normPct =
-        normDist != null ? normalizationMeanDeviationToPercent(normDist) : null;
-
-      const storedContrib = finiteNumber(row.channel_contribution_score);
-      const aggregatePercent =
-        storedContrib != null && storedContrib >= 0 && storedContrib <= 100
-          ? storedContrib
-          : combinePercentsMean([spacingPct, snrPct, normPct]);
-
-      const spacingSummary =
-        spacingEv != null
-          ? "Mean ΔE between consecutive energies where this channel has finite samples."
-          : "Need at least two finite samples on distinct energies for this channel.";
-      const snrSummary =
-        snr != null
-          ? "Mean(|y|) / σ(y) over finite samples for this channel."
-          : "No finite amplitude samples for this channel.";
-      const normSummary =
-        normDist != null
-          ? "Mean absolute deviation from pre-edge target 0 and post-edge target 1 inside declared ranges."
-          : normalizationRangesPresent
-            ? "No finite samples in declared ranges for this channel."
-            : "Declare normalization ranges to score edge-anchor consistency.";
-
-      const bars: NexafsBrowseDatasetMetricBarModel[] = [
-        {
-          key: "spacing",
-          label: "Point spacing",
-          percent: spacingPct,
-          tier: tierFromPercentOrUnknown(spacingPct),
-          quantityValue:
-            spacingEv != null ? spacingEv.toFixed(3) : "—",
-          quantityUnit: spacingEv != null ? "eV" : "",
-          summary: spacingSummary,
-        },
-        {
-          key: "snr",
-          label: "Signal-to-noise ratio",
-          percent: snrPct,
-          tier: tierFromPercentOrUnknown(snrPct),
-          quantityValue: snr != null ? snr.toFixed(2) : "—",
-          quantityUnit: "",
-          summary: snrSummary,
-        },
-        {
-          key: "norm_distance",
-          label: "Normalization fit",
-          percent: normPct,
-          tier: tierFromPercentOrUnknown(normPct),
-          quantityValue: normDist != null ? normDist.toFixed(4) : "—",
-          quantityUnit: "",
-          summary: normSummary,
-        },
-      ];
-
-      const usableParts = [spacingPct, snrPct, normPct];
-      const missing =
-        combinePercentsMean(usableParts) == null &&
-        (storedContrib == null ||
-          !Number.isFinite(storedContrib));
-
-      return {
-        key,
-        label: CHANNEL_LABELS[key],
-        aggregatePercent,
-        aggregateTier: tierFromPercentOrUnknown(aggregatePercent),
-        missing,
-        bars,
-      };
-    });
-
-  const experimentAggregatePercent = combinePercentsMean(
-    channels.map((c) => c.aggregatePercent),
-  );
+  const aggregatePercent = combinePercentsMean([
+    densityContributionPercent(
+      resolvedResolutionPercent ?? spacingPct,
+    ),
+    snrPct,
+    normPct,
+  ]);
+  const missing = aggregatePercent == null;
 
   return {
-    experimentAggregatePercent,
-    experimentAggregateTier: tierFromPercentOrUnknown(
-      experimentAggregatePercent,
-    ),
+    aggregatePercent,
+    aggregateTier: tierFromPercentOrUnknown(aggregatePercent),
+    missing,
     normalizationRangesPresent,
-    channels,
+    hasErrorBars,
+    bars,
   };
 }

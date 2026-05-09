@@ -90,18 +90,18 @@ describe("buildQualityScores", () => {
   it("scores higher snr better", () => {
     const highSnr = buildQualityScores({
       points: [
-        { energy: 280, absorption: 10 },
-        { energy: 281, absorption: 10.1 },
-        { energy: 282, absorption: 9.9 },
+        { energy: 280, absorption: 10, rawabsError: 0.2 },
+        { energy: 281, absorption: 10.1, rawabsError: 0.2 },
+        { energy: 282, absorption: 9.9, rawabsError: 0.2 },
       ],
       ranges: null,
       doiPresent: false,
     });
     const lowSnr = buildQualityScores({
       points: [
-        { energy: 280, absorption: 10 },
-        { energy: 281, absorption: 12 },
-        { energy: 282, absorption: 8 },
+        { energy: 280, absorption: 10, rawabsError: 0.2 },
+        { energy: 281, absorption: 12, rawabsError: 0.2 },
+        { energy: 282, absorption: 8, rawabsError: 0.2 },
       ],
       ranges: null,
       doiPresent: false,
@@ -127,6 +127,19 @@ describe("buildQualityScores", () => {
       true,
     );
     expect(qs.perChannel.rawabs.normalizationTargetDistance != null).toBe(true);
+  });
+
+  it("suppresses snr when uploaded points lack error bars", () => {
+    const qs = buildQualityScores({
+      points: [
+        { energy: 280, absorption: 10 },
+        { energy: 281, absorption: 10.5 },
+        { energy: 282, absorption: 9.7 },
+      ],
+      ranges: null,
+      doiPresent: false,
+    });
+    expect(qs.perChannel.rawabs.snr).toBe(null);
   });
 
   it("uses channel-local energy grids for spacing when finite samples differ", () => {

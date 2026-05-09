@@ -101,6 +101,23 @@ function finiteValues(points: SpectrumPoint[], key: UploadedChannel): number[] {
   return values;
 }
 
+function hasFiniteErrors(points: SpectrumPoint[], key: UploadedChannel): boolean {
+  for (const point of points) {
+    const error =
+      key === "rawabs"
+        ? point.rawabsError
+        : key === "od"
+          ? point.odError
+          : key === "massabsorption"
+            ? point.massabsorptionError
+            : point.betaError;
+    if (typeof error === "number" && Number.isFinite(error) && error > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function finiteTargetPoints(
   points: SpectrumPoint[],
   key: UploadedChannel,
@@ -294,7 +311,7 @@ export function buildQualityScores(args: {
     );
     return {
       pointSpacing: averageSpacingForChannel(args.points, key),
-      snr: snr(values),
+      snr: hasFiniteErrors(args.points, key) ? snr(values) : null,
       normalizationTargetDistance: normDistance,
     };
   };

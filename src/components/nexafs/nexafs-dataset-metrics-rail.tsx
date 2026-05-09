@@ -13,9 +13,7 @@ import { AlertCircle } from "lucide-react";
 import { cn } from "@heroui/styles";
 import type {
   NexafsBrowseDatasetMetricBarModel,
-  NexafsBrowseDatasetMetricChannelModel,
   NexafsBrowseDatasetMetricsCardModel,
-  NexafsDatasetMetricChannelKey,
 } from "~/lib/nexafs-dataset-metric-display-model";
 import type { DatasetMetricTier } from "~/lib/nexafs-dataset-metric-policy";
 import {
@@ -31,18 +29,6 @@ const METRIC_TOOLTIP_VERTICAL_OFFSET_PX = 8;
 const TICK_FAIR = DATASET_METRIC_TIER_PERCENT_CUTOFFS.fairMinPercent;
 const TICK_GOOD = DATASET_METRIC_TIER_PERCENT_CUTOFFS.goodMinPercent;
 const TICK_EXCELLENT = DATASET_METRIC_TIER_PERCENT_CUTOFFS.excellentMinPercent;
-
-const METRIC_BREAKDOWN_CHANNEL_INTRO: Record<NexafsDatasetMetricChannelKey, string> =
-  {
-    rawabs:
-      "Uploaded absorption mu(E). Spacing uses energies where this trace is finite; SNR uses this amplitude; normalization fit compares values in declared pre/post windows to anchors 0 and 1 when ranges exist.",
-    od:
-      "Optical depth from monitor-normalized intensity. Same per-channel spacing, SNR, and edge-anchor fit semantics as other traces on this polarization.",
-    massabsorption:
-      "Mass absorption coefficient when stored. Each subscore is evaluated on this channel's finite samples and declared normalization windows.",
-    beta:
-      "Beta contrast when supplied alongside mu. Subscores use only points where beta is finite; edge-anchor fit applies when normalization ranges are stored.",
-  };
 
 const metricBreakdownTooltipOuterClassName =
   "relative flex max-h-[min(70vh,28rem)] w-[min(19rem,calc(100vw-2rem))] max-w-[min(19rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-zinc-700/80 bg-zinc-950 shadow-2xl ring-1 ring-black/25 backdrop-blur-sm";
@@ -260,56 +246,253 @@ function TierSegmentedBar({
   );
 }
 
+function ResolutionDistributionTrace({
+  distribution,
+}: {
+  distribution: NonNullable<NexafsBrowseDatasetMetricBarModel["distribution"]>;
+}) {
+  const [activeBucket, setActiveBucket] = useState<
+    "hyperfine" | "good" | "fair" | "poor" | null
+  >(null);
+  const total =
+    distribution.hyperfinePercent +
+    distribution.goodPercent +
+    distribution.fairPercent +
+    distribution.poorPercent;
+  const norm =
+    total > 0
+      ? {
+          hyperfine: (distribution.hyperfinePercent / total) * 100,
+          good: (distribution.goodPercent / total) * 100,
+          fair: (distribution.fairPercent / total) * 100,
+          poor: (distribution.poorPercent / total) * 100,
+        }
+      : null;
+
+  const bucketDetails: Record<
+    "hyperfine" | "good" | "fair" | "poor",
+    { label: string; percent: number; description: string }
+  > = {
+    hyperfine: {
+      label: "Great",
+      percent: distribution.hyperfinePercent,
+      description: "Spacing below 0.1 eV.",
+    },
+    good: {
+      label: "Good",
+      percent: distribution.goodPercent,
+      description: "Spacing from 0.1 to 1 eV.",
+    },
+    fair: {
+      label: "OK",
+      percent: distribution.fairPercent,
+      description: "Spacing from 1 to 5 eV.",
+    },
+    poor: {
+      label: "Bad",
+      percent: distribution.poorPercent,
+      description: "Spacing above 5 eV.",
+    },
+  };
+
+  const p75Bucket: "hyperfine" | "good" | "fair" | "poor" | null =
+    distribution.p75DeltaEv == null
+      ? null
+      : distribution.p75DeltaEv < 0.1
+        ? "hyperfine"
+        : distribution.p75DeltaEv < 1
+          ? "good"
+          : distribution.p75DeltaEv <= 5
+            ? "fair"
+            : "poor";
+  const focusBucket = activeBucket ?? p75Bucket;
+  const heroColorClass =
+    p75Bucket === "hyperfine"
+      ? "text-sky-300"
+      : p75Bucket === "good"
+        ? "text-emerald-300"
+        : p75Bucket === "fair"
+          ? "text-amber-300"
+          : p75Bucket === "poor"
+            ? "text-zinc-200"
+            : "text-zinc-100";
+  const p75MarkerColorClass =
+    p75Bucket === "hyperfine"
+      ? "border-sky-300"
+      : p75Bucket === "good"
+        ? "border-emerald-300"
+        : p75Bucket === "fair"
+          ? "border-amber-300"
+          : p75Bucket === "poor"
+            ? "border-rose-400"
+            : "border-zinc-300";
+
+  if (!norm) {
+    return (
+      <div className="mt-2 h-2 w-full rounded-full border border-zinc-700/80 bg-zinc-900/80" />
+    );
+  }
+
+  return (
+    <div className="relative mt-2">
+      <div className="mb-1.5 flex items-center justify-start">
+        <span className={cn("text-xl leading-none font-semibold tabular-nums", heroColorClass)}>
+          {distribution.p75DeltaEv != null
+            ? `${distribution.p75DeltaEv.toFixed(3)} eV`
+            : "—"}
+        </span>
+      </div>
+      <div className="relative h-2 w-full">
+        <div className="absolute inset-0 overflow-hidden rounded-full border border-zinc-700/80 bg-zinc-900/80">
+          <div className="absolute inset-0 flex">
+            <button
+              type="button"
+              className={cn(
+                "h-full transition-colors",
+                focusBucket === "hyperfine"
+                  ? "bg-sky-400/90"
+                  : "bg-zinc-700/35",
+              )}
+              style={{ width: `${norm.hyperfine}%` }}
+              onMouseEnter={() => setActiveBucket("hyperfine")}
+              onMouseLeave={() => setActiveBucket(null)}
+              onFocus={() => setActiveBucket("hyperfine")}
+              onBlur={() => setActiveBucket(null)}
+              aria-label={`Hyperfine resolution ${distribution.hyperfinePercent.toFixed(1)} percent`}
+            />
+            <button
+              type="button"
+              className={cn(
+                "h-full transition-colors",
+                focusBucket === "good"
+                  ? "bg-emerald-400/85"
+                  : "bg-zinc-700/35",
+              )}
+              style={{ width: `${norm.good}%` }}
+              onMouseEnter={() => setActiveBucket("good")}
+              onMouseLeave={() => setActiveBucket(null)}
+              onFocus={() => setActiveBucket("good")}
+              onBlur={() => setActiveBucket(null)}
+              aria-label={`Good resolution ${distribution.goodPercent.toFixed(1)} percent`}
+            />
+            <button
+              type="button"
+              className={cn(
+                "h-full transition-colors",
+                focusBucket === "fair"
+                  ? "bg-amber-400/90"
+                  : "bg-zinc-700/35",
+              )}
+              style={{ width: `${norm.fair}%` }}
+              onMouseEnter={() => setActiveBucket("fair")}
+              onMouseLeave={() => setActiveBucket(null)}
+              onFocus={() => setActiveBucket("fair")}
+              onBlur={() => setActiveBucket(null)}
+              aria-label={`Fair resolution ${distribution.fairPercent.toFixed(1)} percent`}
+            />
+            <button
+              type="button"
+              className={cn(
+                "h-full transition-colors",
+                focusBucket === "poor"
+                  ? "bg-rose-500/90"
+                  : "bg-zinc-800/45",
+              )}
+              style={{ width: `${norm.poor}%` }}
+              onMouseEnter={() => setActiveBucket("poor")}
+              onMouseLeave={() => setActiveBucket(null)}
+              onFocus={() => setActiveBucket("poor")}
+              onBlur={() => setActiveBucket(null)}
+              aria-label={`Poor resolution ${distribution.poorPercent.toFixed(1)} percent`}
+            />
+          </div>
+        </div>
+        {distribution.p75MarkerPercent != null ? (
+          <div
+            className={cn(
+              "pointer-events-none absolute top-1/2 z-[3] h-5 w-[2px] -translate-x-1/2 -translate-y-1/2 border-l shadow-[0_0_0_1px_rgba(0,0,0,0.35)]",
+              p75MarkerColorClass,
+            )}
+            style={{ left: `${clampPercent(distribution.p75MarkerPercent)}%` }}
+            title={distribution.p75MarkerLabel}
+            aria-label={distribution.p75MarkerLabel}
+          />
+        ) : null}
+      </div>
+      {activeBucket ? (
+        <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-56 -translate-x-1/2 rounded-lg border border-zinc-700/80 bg-zinc-950/95 px-2.5 py-2 text-[10px] leading-snug text-zinc-200 shadow-2xl">
+          <div className="font-semibold text-zinc-100">
+            {bucketDetails[activeBucket].percent.toFixed(1)}% of points are in{" "}
+            {bucketDetails[activeBucket].label.toLowerCase()} resolution
+          </div>
+          <div className="mt-1 text-zinc-400">
+            {bucketDetails[activeBucket].description}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarModel }) {
   const scoreVal = bar.percent;
   const hasScore = typeof scoreVal === "number" && Number.isFinite(scoreVal);
   const scoreRounded = hasScore ? Math.round(scoreVal) : null;
+  const isResolutionDistribution = bar.key === "resolution_distribution";
 
   return (
     <div className="space-y-1 rounded-lg border border-zinc-700/60 bg-zinc-950/55 px-3 py-2.5">
       <div className="text-[11px] leading-tight font-medium text-zinc-400">
         {bar.label}
       </div>
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span
-          className={cn(
-            "text-xl leading-none font-semibold tabular-nums tracking-tight text-zinc-100 sm:text-2xl",
-            hasScore ? tierValueTextClass(bar.tier) : "text-zinc-500",
-          )}
-        >
-          {scoreRounded ?? "—"}
-        </span>
-        <span className="text-xs tabular-nums text-zinc-500">/ 100</span>
-        {bar.quantityValue !== "—" ? (
-          <span className="ml-auto text-[11px] tabular-nums text-zinc-500">
-            <span className="font-medium text-zinc-300">{bar.quantityValue}</span>
-            {bar.quantityUnit ? (
-              <span className="text-zinc-500"> {bar.quantityUnit}</span>
-            ) : null}
+      {!isResolutionDistribution ? (
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span
+            className={cn(
+              "text-xl leading-none font-semibold tabular-nums tracking-tight text-zinc-100 sm:text-2xl",
+              hasScore ? tierValueTextClass(bar.tier) : "text-zinc-500",
+            )}
+          >
+            {scoreRounded ?? "—"}
           </span>
-        ) : null}
-      </div>
-      <TierSegmentedBar percent={bar.percent} tier={bar.tier} />
-      <p className="pt-1 text-[10px] leading-snug text-zinc-400">{bar.summary}</p>
+          <span className="text-xs tabular-nums text-zinc-500">/ 100</span>
+          {bar.quantityValue !== "—" ? (
+            <span className="ml-auto text-[11px] tabular-nums text-zinc-500">
+              <span className="font-medium text-zinc-300">{bar.quantityValue}</span>
+              {bar.quantityUnit ? (
+                <span className="text-zinc-500"> {bar.quantityUnit}</span>
+              ) : null}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      {bar.distribution ? (
+        <ResolutionDistributionTrace distribution={bar.distribution} />
+      ) : (
+        <TierSegmentedBar percent={bar.percent} tier={bar.tier} />
+      )}
+      {!isResolutionDistribution ? (
+        <p className="pt-1 text-[10px] leading-snug text-zinc-400">{bar.summary}</p>
+      ) : null}
     </div>
   );
 }
 
 function ChannelDatasetMetricBreakdownBody({
-  channel,
+  metrics,
 }: {
-  channel: NexafsBrowseDatasetMetricChannelModel;
+  metrics: NexafsBrowseDatasetMetricsCardModel;
 }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="border-b border-zinc-700/70 pb-3">
-        <h3 className="text-sm font-semibold text-zinc-100">{channel.label}</h3>
+        <h3 className="text-sm font-semibold text-zinc-100">Dataset quality</h3>
         <p className="mt-1.5 text-[11px] leading-snug text-zinc-400">
-          {METRIC_BREAKDOWN_CHANNEL_INTRO[channel.key]}
+          Energy resolution is shown as a compact distribution trace with marker annotations for average and P75 spacing.
         </p>
       </div>
       <div className="space-y-2">
-        {channel.bars.map((bar) => (
+        {metrics.bars.map((bar) => (
           <VercelStyleMetricBlock key={bar.key} bar={bar} />
         ))}
       </div>
@@ -318,9 +501,9 @@ function ChannelDatasetMetricBreakdownBody({
 }
 
 function ChannelMetricHoverTrigger({
-  channel,
+  metrics,
 }: {
-  channel: NexafsBrowseDatasetMetricChannelModel;
+  metrics: NexafsBrowseDatasetMetricsCardModel;
 }) {
   const triggerRef = useRef<HTMLSpanElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -368,8 +551,8 @@ function ChannelMetricHoverTrigger({
   }, [isOpen, updatePosition]);
 
   const scoreHint =
-    channel.aggregatePercent != null
-      ? `${Math.round(channel.aggregatePercent)} / 100`
+    metrics.aggregatePercent != null
+      ? `${Math.round(metrics.aggregatePercent)} / 100`
       : "metrics unavailable";
 
   return (
@@ -378,16 +561,16 @@ function ChannelMetricHoverTrigger({
         ref={triggerRef}
         tabIndex={0}
         role="button"
-        aria-label={`${channel.label} dataset metrics: ${scoreHint}`}
+        aria-label={`Dataset metrics: ${scoreHint}`}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         className={cn(
           "focus-visible:ring-accent inline-flex h-9 w-9 shrink-0 cursor-default items-center justify-center rounded-full border outline-none transition-transform hover:scale-[1.03] focus-visible:ring-2 focus-visible:ring-offset-2",
-          channel.missing
+          metrics.missing
             ? "border-zinc-500/45 bg-zinc-950/70"
             : "border-white/12 bg-zinc-950/55",
         )}
-        title={`${channel.label}: ${scoreHint}`}
+        title={`Dataset quality: ${scoreHint}`}
         onMouseEnter={openTooltip}
         onMouseLeave={scheduleCloseTooltip}
         onFocus={openTooltip}
@@ -401,9 +584,9 @@ function ChannelMetricHoverTrigger({
         }}
       >
         <DatasetMetricScoreRing
-          percent={channel.aggregatePercent}
-          tier={channel.aggregateTier}
-          missing={channel.missing}
+          percent={metrics.aggregatePercent}
+          tier={metrics.aggregateTier}
+          missing={metrics.missing}
           sizePx={30}
           strokePx={2.75}
         />
@@ -419,7 +602,7 @@ function ChannelMetricHoverTrigger({
                 onMouseEnter={openTooltip}
                 onMouseLeave={scheduleCloseTooltip}
               >
-                <ChannelDatasetMetricBreakdownBody channel={channel} />
+                <ChannelDatasetMetricBreakdownBody metrics={metrics} />
               </DatasetMetricTooltipSurface>
             </div>,
             document.body,
@@ -430,9 +613,9 @@ function ChannelMetricHoverTrigger({
 }
 
 /**
- * Compact channel rail with portaled hover/focus tooltips (verification-badge pattern): full Speed Insights–style breakdown per channel.
+ * Single-score dataset ring with portaled hover/focus tooltip for detailed metric subscores.
  *
- * @param metrics Parsed browse payload including ordered channels and experiment aggregate percents.
+ * @param metrics Parsed browse payload including consolidated aggregate and detailed metric bars.
  */
 export function NexafsDatasetMetricsRail({
   metrics,
@@ -445,11 +628,9 @@ export function NexafsDatasetMetricsRail({
     <div
       className={cn("flex shrink-0 items-center gap-1", className)}
       onClick={(e) => e.stopPropagation()}
-      aria-label="Dataset metrics by channel"
+      aria-label="Dataset quality metrics"
     >
-      {metrics.channels.map((channel) => (
-        <ChannelMetricHoverTrigger key={channel.key} channel={channel} />
-      ))}
+      <ChannelMetricHoverTrigger metrics={metrics} />
     </div>
   );
 }

@@ -26,6 +26,7 @@ import {
 
 const nexafsBrowseSortBySchema = z
   .enum([
+    "quality",
     "favorites",
     "views",
     "geometries",
@@ -34,10 +35,14 @@ const nexafsBrowseSortBySchema = z
     "name",
     "newest",
   ])
-  .default("favorites")
+  .default("quality")
   .transform(
     (v): NexafsBrowseSortKey => (v === "comments" ? "publications" : v),
   );
+
+const nexafsVerificationSourceSchema = z
+  .enum(["either", "publication", "atlas"])
+  .default("either");
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 
 const emptyDerivedScalars = (): {
@@ -288,6 +293,8 @@ export const experimentsRouter = createTRPCRouter({
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
         experimentType: z.nativeEnum(ExperimentType).optional(),
+        verifiedOnly: z.boolean().default(false),
+        verificationSource: nexafsVerificationSourceSchema,
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -298,6 +305,8 @@ export const experimentsRouter = createTRPCRouter({
           edgeId: input.edgeId,
           instrumentId: input.instrumentId,
           experimentType: input.experimentType,
+          verifiedOnly: input.verifiedOnly,
+          verificationSource: input.verificationSource,
         },
         searchQuery: null,
         sortBy: input.sortBy,
@@ -323,6 +332,8 @@ export const experimentsRouter = createTRPCRouter({
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
         experimentType: z.nativeEnum(ExperimentType).optional(),
+        verifiedOnly: z.boolean().default(false),
+        verificationSource: nexafsVerificationSourceSchema,
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -333,6 +344,8 @@ export const experimentsRouter = createTRPCRouter({
           edgeId: input.edgeId,
           instrumentId: input.instrumentId,
           experimentType: input.experimentType,
+          verifiedOnly: input.verifiedOnly,
+          verificationSource: input.verificationSource,
         },
         searchQuery: input.query.trim(),
         sortBy: input.sortBy,

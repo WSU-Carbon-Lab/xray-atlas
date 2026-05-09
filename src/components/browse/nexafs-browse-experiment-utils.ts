@@ -8,6 +8,7 @@ export const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
 };
 
 export const NEXAFS_SORT_OPTION_KEYS = [
+  "quality",
   "favorites",
   "views",
   "geometries",
@@ -19,6 +20,7 @@ export const NEXAFS_SORT_OPTION_KEYS = [
 export type NexafsBrowseSortKey = (typeof NEXAFS_SORT_OPTION_KEYS)[number];
 
 export const NEXAFS_SORT_LABELS: Record<NexafsBrowseSortKey, string> = {
+  quality: "Best Data Quality",
   favorites: "Most Favorited (molecule)",
   views: "Most Viewed (molecule)",
   geometries: "Most Geometries",
@@ -35,6 +37,7 @@ export function formatExperimentType(
 }
 
 export function parseSortParam(raw: string | null): NexafsBrowseSortKey {
+  if (raw === "quality") return "quality";
   if (raw === "comments") return "publications";
   if (
     raw === "favorites" ||
@@ -50,7 +53,7 @@ export function parseSortParam(raw: string | null): NexafsBrowseSortKey {
   if (raw === "molecule") return "name";
   if (raw === "edge" || raw === "instrument") return "name";
   if (raw === "measurement" || raw === "upload") return "newest";
-  return "favorites";
+  return "quality";
 }
 
 export function parseExperimentTypeParam(

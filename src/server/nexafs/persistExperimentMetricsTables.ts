@@ -46,17 +46,25 @@ function prismaSpectrumToSpectrumPoints(
   rows: Array<{
     energyev: number;
     rawabs: number;
+    rawabserr: number | null;
     od: number | null;
+    oderr: number | null;
     massabsorption: number | null;
+    massabsorptionerr: number | null;
     beta: number | null;
+    betaerr: number | null;
   }>,
 ): SpectrumPoint[] {
   return rows.map((p) => ({
     energy: p.energyev,
     absorption: p.rawabs,
+    rawabsError: p.rawabserr ?? undefined,
     od: p.od ?? undefined,
+    odError: p.oderr ?? undefined,
     massabsorption: p.massabsorption ?? undefined,
+    massabsorptionError: p.massabsorptionerr ?? undefined,
     beta: p.beta ?? undefined,
+    betaError: p.betaerr ?? undefined,
   }));
 }
 
@@ -101,9 +109,13 @@ export async function persistExperimentMetricsTables(
     select: {
       energyev: true,
       rawabs: true,
+      rawabserr: true,
       od: true,
+      oderr: true,
       massabsorption: true,
+      massabsorptionerr: true,
       beta: true,
+      betaerr: true,
     },
   });
 
