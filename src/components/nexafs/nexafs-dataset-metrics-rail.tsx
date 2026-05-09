@@ -246,6 +246,41 @@ function TierSegmentedBar({
   );
 }
 
+/** Neutral skeleton track for any unscored metric (no numeric headline on a 0–100 scale). */
+function MissingMetricValueSkeleton() {
+  return (
+    <div
+      className="relative mt-1 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-zinc-700/45"
+      aria-hidden
+    >
+      <div className="absolute inset-y-0 right-0 flex w-[30%] items-stretch justify-end gap-px py-px pr-px opacity-[0.72]">
+        <div className="h-full min-w-[7px] shrink-0 rounded-[2px] bg-zinc-600/95" />
+        <div className="h-full min-w-[5px] shrink-0 rounded-[2px] bg-zinc-600/80" />
+        <div className="h-full min-w-[4px] shrink-0 rounded-[2px] bg-zinc-500/70" />
+      </div>
+    </div>
+  );
+}
+
+function MissingDatasetMetricPlaceholder({
+  bar,
+}: {
+  bar: NexafsBrowseDatasetMetricBarModel;
+}) {
+  return (
+    <div className="space-y-1 rounded-lg border border-zinc-700/60 bg-zinc-950/55 px-3 py-2.5">
+      <div className="text-[11px] leading-tight font-medium text-zinc-400">{bar.label}</div>
+      <p className="text-[10px] font-medium leading-snug text-amber-500">{bar.summary}</p>
+      <div className="pt-0.5">
+        <span className="text-xl leading-none font-semibold tabular-nums tracking-tight text-zinc-500 sm:text-2xl">
+          —
+        </span>
+      </div>
+      <MissingMetricValueSkeleton />
+    </div>
+  );
+}
+
 function ResolutionDistributionTrace({
   distribution,
 }: {
@@ -439,6 +474,16 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
   const hasScore = typeof scoreVal === "number" && Number.isFinite(scoreVal);
   const scoreRounded = hasScore ? Math.round(scoreVal) : null;
   const isResolutionDistribution = bar.key === "resolution_distribution";
+  const isMissingMetricPlaceholder =
+    !hasScore &&
+    (bar.key === "resolution_distribution" ||
+      bar.key === "snr" ||
+      bar.key === "norm_distance_od" ||
+      bar.key === "norm_distance_mass");
+
+  if (isMissingMetricPlaceholder) {
+    return <MissingDatasetMetricPlaceholder bar={bar} />;
+  }
 
   return (
     <div className="space-y-1 rounded-lg border border-zinc-700/60 bg-zinc-950/55 px-3 py-2.5">
@@ -488,7 +533,8 @@ function ChannelDatasetMetricBreakdownBody({
       <div className="border-b border-zinc-700/70 pb-3">
         <h3 className="text-sm font-semibold text-zinc-100">Dataset quality</h3>
         <p className="mt-1.5 text-[11px] leading-snug text-zinc-400">
-          Energy resolution is shown as a compact distribution trace with marker annotations for average and P75 spacing.
+          Energy resolution uses the distribution trace and P75 marker. SNR, OD normalization fit, and mass-absorption
+          normalization fit each contribute when scored; each missing statistic reduces the headline score by five points.
         </p>
       </div>
       <div className="space-y-2">

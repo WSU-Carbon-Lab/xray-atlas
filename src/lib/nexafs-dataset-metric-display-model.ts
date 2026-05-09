@@ -20,7 +20,11 @@ export type NexafsDatasetMetricChannelKey =
   (typeof NEXAFS_DATASET_METRIC_CHANNEL_ORDER)[number];
 
 export type NexafsBrowseDatasetMetricBarModel = {
-  key: "resolution_distribution" | "snr" | "norm_distance";
+  key:
+    | "resolution_distribution"
+    | "snr"
+    | "norm_distance_od"
+    | "norm_distance_mass";
   label: string;
   percent: number | null;
   tier: DatasetMetricTier | "unknown";
@@ -86,6 +90,9 @@ const RESOLUTION_SCORE_REF_EV = 0.1;
 /** Score drop per factor-of-10 coarser spacing (larger ΔE); finer than {@link RESOLUTION_SCORE_REF_EV} can exceed 100. */
 const RESOLUTION_SCORE_POINTS_PER_DECADE = 50;
 
+/** Points subtracted from the dataset aggregate for each unscored statistic among SNR, OD normalization fit, and mass-absorption normalization fit. */
+export const DATASET_QUALITY_MISSING_STATISTIC_PENALTY = 5;
+
 /**
  * Maps finite adjacent-spacing ΔE (in eV) to a percent-like score from decade distance to {@link RESOLUTION_SCORE_REF_EV}.
  * Coarser spacing (larger ΔE) lowers the score by {@link RESOLUTION_SCORE_POINTS_PER_DECADE} per factor-of-10 step; finer spacing can exceed 100 until callers apply diminishing returns.
@@ -101,6 +108,11 @@ export function resolutionSpacingDecadeScorePercent(deltaEv: number | null): num
 }
 
 function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+}
+
+function clampDatasetAggregatePercent(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, value));
 }
@@ -179,9 +191,11 @@ export type NexafsBrowseExperimentMetricChannelPayload = {
 /**
  * Parses grouped-browse JSON aggregates into a single dataset score plus detailed hover breakdown.
  *
- * Uses the uploaded channel (`rawabs`) as the canonical source for mean spacing, SNR, and normalization fit.
+ * Uses `rawabs` for mean spacing and SNR; uses `od` and `massabsorption` rows for separate normalization-anchor fits.
  * Dataset-level energy resolution scoring prefers the persisted P75 adjacent-spacing quantile when the spacing
- * distribution is available; the aggregate ring mean uses that resolution score once together with SNR and normalization.
+ * distribution is available. The aggregate mean uses resolution (with diminishing returns above 100), SNR, OD norm,
+ * and mass-absorption norm for finite parts only, then subtracts {@link DATASET_QUALITY_MISSING_STATISTIC_PENALTY}
+ * per missing statistic among SNR, OD normalization, and mass-absorption normalization (clamped to `[0, 100]`).
  *
  * @param headerPayload Experiment-level metrics header row or null when no `experiment_metrics` row exists.
  * @param channelsPayload JSON array from `experiment_metrics_channel` or empty array when uncomputed.
@@ -229,15 +243,24 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
   }
 
   const rawChannel = byChannel.get("rawabs");
+  const odChannel = byChannel.get("od");
+  const massChannel = byChannel.get("massabsorption");
   const spacingEv = finiteNumber(rawChannel?.point_spacing_ev);
   const snr = hasErrorBars ? finiteNumber(rawChannel?.snr) : null;
-  const normDist = normalizationRangesPresent
-    ? finiteNumber(rawChannel?.normalization_target_distance)
+  const normOdDist = normalizationRangesPresent
+    ? finiteNumber(odChannel?.normalization_target_distance)
+    : null;
+  const normMassDist = normalizationRangesPresent
+    ? finiteNumber(massChannel?.normalization_target_distance)
     : null;
   const spacingPct = resolutionSpacingDecadeScorePercent(spacingEv);
   const snrPct = snr != null ? snrToPercent(snr) : null;
-  const normPct =
-    normDist != null ? normalizationMeanDeviationToPercent(normDist) : null;
+  const normOdPct =
+    normOdDist != null ? normalizationMeanDeviationToPercent(normOdDist) : null;
+  const normMassPct =
+    normMassDist != null
+      ? normalizationMeanDeviationToPercent(normMassDist)
+      : null;
   const weightedResolutionPopulationScore =
     hyperfinePct * 1.2 + goodPct + fairPct * 0.65 + poorPct * 0.25;
   const hasDistribution = hyperfinePct + goodPct + fairPct + poorPct > 0;
@@ -316,30 +339,57 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
         ? snr != null
           ? "Computed from uploaded absorption and uploaded error bars."
           : "Error bars exist but no finite SNR could be computed."
-        : "Uploaded data has no error bars, so SNR is intentionally not scored.",
+        : "Uploaded data has no error bars",
     },
     {
-      key: "norm_distance",
-      label: "Normalization fit",
-      percent: normPct,
-      tier: tierFromPercentOrUnknown(normPct),
-      quantityValue: normDist != null ? normDist.toFixed(4) : "—",
+      key: "norm_distance_od",
+      label: "Normalization fit (OD)",
+      percent: normOdPct,
+      tier: tierFromPercentOrUnknown(normOdPct),
+      quantityValue: normOdDist != null ? normOdDist.toFixed(4) : "—",
       quantityUnit: "",
       summary: normalizationRangesPresent
-        ? normDist != null
-          ? "Deviation from declared pre-edge (0) and post-edge (1) anchors."
-          : "Normalization ranges are set, but fit could not be computed from uploaded samples."
-        : "Normalization ranges are missing for this dataset.",
+        ? normOdDist != null
+          ? "Mean absolute deviation from 0 (pre-edge) and 1 (post-edge) on the OD channel."
+          : "Normalization ranges are set, but OD anchor deviation could not be computed."
+        : "Pre-edge and post-edge regions are missing.",
+    },
+    {
+      key: "norm_distance_mass",
+      label: "Normalization fit (mass absorption)",
+      percent: normMassPct,
+      tier: tierFromPercentOrUnknown(normMassPct),
+      quantityValue: normMassDist != null ? normMassDist.toFixed(4) : "—",
+      quantityUnit: "",
+      summary: normalizationRangesPresent
+        ? normMassDist != null
+          ? "Mean absolute deviation from 0 (pre-edge) and 1 (post-edge) on the mass-absorption channel."
+          : "Normalization ranges are set, but mass-absorption anchor deviation could not be computed."
+        : "Pre-edge and post-edge regions are missing.",
     },
   ];
 
-  const aggregatePercent = combinePercentsMean([
-    densityContributionPercent(
-      resolvedResolutionPercent ?? spacingPct,
-    ),
+  const resolutionContribution = densityContributionPercent(
+    resolvedResolutionPercent ?? spacingPct,
+  );
+  const baseAggregateMean = combinePercentsMean([
+    resolutionContribution,
     snrPct,
-    normPct,
+    normOdPct,
+    normMassPct,
   ]);
+  let missingStatisticCount = 0;
+  if (snrPct == null) missingStatisticCount += 1;
+  if (normOdPct == null) missingStatisticCount += 1;
+  if (normMassPct == null) missingStatisticCount += 1;
+
+  const aggregatePercent =
+    baseAggregateMean == null
+      ? null
+      : clampDatasetAggregatePercent(
+          baseAggregateMean -
+            DATASET_QUALITY_MISSING_STATISTIC_PENALTY * missingStatisticCount,
+        );
   const missing = aggregatePercent == null;
 
   return {
