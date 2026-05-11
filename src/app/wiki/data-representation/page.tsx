@@ -63,6 +63,17 @@ export default function DataRepresentationPage() {
             Energy-intensity data and optional derived fields are persisted so
             users can inspect, compare, and export raw and processed traces.
           </p>
+          <p className="text-muted mt-2 text-sm">
+            Optional browser-side{" "}
+            <Link
+              href="/wiki/data-representation/kramers-kronig-delta"
+              className="text-accent hover:underline"
+            >
+              Kramers–Kronig delta from beta
+            </Link>{" "}
+            can populate <code className="text-foreground">delta</code> on spectrum
+            rows when contributors opt in at upload or authorized users recalculate.
+          </p>
         </section>
         <section className="border-border bg-surface rounded-lg border p-4">
           <h2

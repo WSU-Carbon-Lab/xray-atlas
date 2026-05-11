@@ -17,6 +17,8 @@ export type SpectrumPoint = {
   massabsorptionError?: number;
   beta?: number;
   betaError?: number;
+  delta?: number;
+  deltaError?: number;
 };
 
 export type SpectrumSelection = {

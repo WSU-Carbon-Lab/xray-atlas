@@ -10,15 +10,18 @@ import {
   useState,
   type Key as SelectionKey,
 } from "react";
+import { useSession } from "next-auth/react";
 import { createPortal } from "react-dom";
 import { Copy, Download } from "lucide-react";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import {
   BUTTON_GROUP_CHILD,
+  Button,
   Separator,
   ToggleButton,
   ToggleButtonGroup,
   Toolbar,
+  Tooltip,
 } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
 import type {
@@ -54,6 +57,12 @@ import type {
 } from "~/features/process-nexafs/ui/visualization-toggle";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
+import {
+  buildSpectrumpointDeltaUpdatesFromRows,
+  grantKkBrowserConsent,
+  KkBrowserConsentDialog,
+  readKkBrowserConsentGranted,
+} from "~/features/kk-calc";
 import { LoadingSkeleton } from "~/components/feedback/loading-state";
 import { NexafsBrowseGroupedSpectrumTable } from "~/components/nexafs/nexafs-browse-grouped-spectrum-table";
 
@@ -474,6 +483,68 @@ export function NexafsExperimentDatasetPanel({
     { enabled: enabled && Boolean(experimentId) },
   );
 
+  const { data: session } = useSession();
+  const utils = trpc.useUtils();
+  const canRecalculateKk = trpc.spectrumpoints.canRecalculateKkDelta.useQuery(
+    { experimentId },
+    { enabled: enabled && Boolean(experimentId) && Boolean(session?.user) },
+  );
+  const updateKkDeltaBatch = trpc.spectrumpoints.updateKkDeltaBatch.useMutation({
+    onSuccess: () => {
+      void utils.spectrumpoints.getByExperiment.invalidate({ experimentId });
+    },
+  });
+
+  const [kkPanelConsentOpen, setKkPanelConsentOpen] = useState(false);
+  const [kkRecalcBusy, setKkRecalcBusy] = useState(false);
+
+  const runKkRecalc = useCallback(async () => {
+    const raw = pointsQuery.data;
+    if (!raw?.length || !session?.user) {
+      return;
+    }
+    setKkRecalcBusy(true);
+    try {
+      const rows = raw.map((r) => ({
+        id: r.id,
+        polarizationid: r.polarizationid,
+        energyev: r.energyev,
+        beta: r.beta,
+      }));
+      const updates = buildSpectrumpointDeltaUpdatesFromRows(rows);
+      if (updates.length === 0) {
+        showToast(
+          "Need at least four finite beta samples per polarization trace",
+          "info",
+        );
+        return;
+      }
+      await updateKkDeltaBatch.mutateAsync({ experimentId, updates });
+      showToast("Updated delta from beta (KK)", "success");
+    } catch (e) {
+      showToast(
+        e instanceof Error ? e.message : "Could not update KK delta",
+        "error",
+      );
+    } finally {
+      setKkRecalcBusy(false);
+    }
+  }, [pointsQuery.data, experimentId, session?.user, updateKkDeltaBatch]);
+
+  const onPressRecalculateKk = useCallback(() => {
+    if (!readKkBrowserConsentGranted()) {
+      setKkPanelConsentOpen(true);
+      return;
+    }
+    void runKkRecalc();
+  }, [runKkRecalc]);
+
+  const onPanelKkConsentAccept = useCallback(() => {
+    grantKkBrowserConsent();
+    setKkPanelConsentOpen(false);
+    void runKkRecalc();
+  }, [runKkRecalc]);
+
   const annotatedRows = useMemo(
     () =>
       pointsQuery.data?.length
@@ -698,6 +769,9 @@ export function NexafsExperimentDatasetPanel({
     (p) => typeof p.massabsorption === "number",
   );
   const showBetaCol = sortedAllPoints.some((p) => typeof p.beta === "number");
+  const showDeltaCol = sortedAllPoints.some(
+    (p) => typeof p.delta === "number" && Number.isFinite(p.delta),
+  );
   const showI0Col = sortedAllPoints.some((p) => typeof p.i0 === "number");
 
   const spectrumRailCsvMenusDisabled =
@@ -893,11 +967,43 @@ export function NexafsExperimentDatasetPanel({
     );
   }
 
+  const showKkRecalcButton =
+    Boolean(canRecalculateKk.data?.allowed) && showBetaCol && !isSpectrumLoading;
+
   return (
     <div
       className="border-border bg-surface mt-2 flex w-full flex-col gap-3 rounded-xl border p-4 shadow-sm"
       data-testid="nexafs-experiment-dataset-panel"
     >
+      {showKkRecalcButton ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Tooltip delay={0}>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="text-xs font-medium"
+              isDisabled={kkRecalcBusy || updateKkDeltaBatch.isPending}
+              onPress={onPressRecalculateKk}
+            >
+              {kkRecalcBusy || updateKkDeltaBatch.isPending
+                ? "KK recalc…"
+                : "Recalc KK delta"}
+            </Button>
+            <Tooltip.Content className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg">
+              Recompute delta from stored beta in your browser (session consent
+              required once), then persist for this experiment when permitted.
+            </Tooltip.Content>
+          </Tooltip>
+        </div>
+      ) : null}
+
+      <KkBrowserConsentDialog
+        isOpen={kkPanelConsentOpen}
+        onDismiss={() => setKkPanelConsentOpen(false)}
+        onAccept={onPanelKkConsentAccept}
+      />
+
       <VisualizationToggle
         mode={visualizationMode}
         graphStyle={graphStyle}
@@ -940,6 +1046,7 @@ export function NexafsExperimentDatasetPanel({
           showOdCol={showOdCol}
           showMassCol={showMassCol}
           showBetaCol={showBetaCol}
+          showDeltaCol={showDeltaCol}
           showI0Col={showI0Col}
         />
       )}

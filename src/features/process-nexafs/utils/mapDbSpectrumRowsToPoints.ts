@@ -1,15 +1,17 @@
 /**
- * Maps persisted spectrum rows (with optional polarization geometry) into `SpectrumPoint` values for plotting and tables. Browse views use these fields as stored at upload time (`od`, `massabsorption`, `rawabs`, `beta`, `i0`) without recomputing normalization.
+ * Maps persisted spectrum rows (with optional polarization geometry) into `SpectrumPoint` values for plotting and tables. Browse views use these fields as stored at upload time (`od`, `massabsorption`, `rawabs`, `beta`, `delta`, `i0`) without recomputing normalization.
  */
 import type { SpectrumPoint } from "~/components/plots/types";
 
 export type DbSpectrumRowWithPolarization = {
+  id?: string;
   polarizationid: string | null;
   energyev: number;
   rawabs: number;
   od: number | null;
   massabsorption: number | null;
   beta: number | null;
+  delta?: number | null;
   i0: number | null;
   polarizations: { polardeg: unknown; azimuthdeg: unknown } | null;
 };
@@ -45,6 +47,7 @@ function rowToPoint(r: DbSpectrumRowWithPolarization): SpectrumPoint {
     out.massabsorption = r.massabsorption;
   }
   if (r.beta != null && Number.isFinite(r.beta)) out.beta = r.beta;
+  if (r.delta != null && Number.isFinite(r.delta)) out.delta = r.delta;
   if (r.i0 != null && Number.isFinite(r.i0)) out.i0 = r.i0;
   return out;
 }

@@ -251,6 +251,7 @@ export type DatasetState = {
   spectrumError: string | null;
   spectrumStats: SpectrumStats | null;
   collectedByUserIds: string[];
+  computeKkDeltaOnSubmit: boolean;
 };
 
 export function createEmptyDatasetState(file: File): DatasetState {
@@ -295,5 +296,6 @@ export function createEmptyDatasetState(file: File): DatasetState {
     spectrumError: null,
     spectrumStats: null,
     collectedByUserIds: [],
+    computeKkDeltaOnSubmit: false,
   };
 }

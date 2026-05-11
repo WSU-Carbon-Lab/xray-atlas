@@ -841,6 +841,8 @@ export const experimentsRouter = createTRPCRouter({
                 massabsorptionError: z.number().optional(),
                 beta: z.number().optional(),
                 betaError: z.number().optional(),
+                delta: z.number().optional(),
+                deltaError: z.number().optional(),
               }),
             )
             .min(1, "Spectrum CSV must contain at least one row"),
@@ -1229,6 +1231,8 @@ export const experimentsRouter = createTRPCRouter({
                 derived.beta[i] ?? null,
               ),
               betaerr: coalesceUploadedOrDerived(point.betaError, null),
+              delta: coalesceUploadedOrDerived(point.delta, null),
+              deltaerr: coalesceUploadedOrDerived(point.deltaError, null),
               i0: coalesceUploadedOrDerived(point.i0, null),
             }));
 

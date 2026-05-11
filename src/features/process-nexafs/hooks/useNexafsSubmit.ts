@@ -7,6 +7,7 @@ import {
   buildSpectrumPointsWithDerivedForUpload,
   extractGeometryPairs,
 } from "../utils";
+import { applyKkDeltaToSpectrumPoints } from "~/features/kk-calc";
 
 export type SubmitStatus =
   | { type: "error"; message: string }
@@ -14,7 +15,10 @@ export type SubmitStatus =
 
 export function useNexafsSubmit(
   datasets: DatasetState[],
-  options?: { onSuccess?: () => void },
+  options?: {
+    onSuccess?: () => void;
+    requestKkConsent?: () => Promise<boolean>;
+  },
 ) {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(undefined);
   const createNexafsMutation =
@@ -80,6 +84,27 @@ export function useNexafsSubmit(
         }
       }
 
+      const needsKk = datasets.some((d) => d.computeKkDeltaOnSubmit);
+      if (needsKk) {
+        if (!options?.requestKkConsent) {
+          setSubmitStatus({
+            type: "error",
+            message:
+              "Browser Kramers–Kronig consent is not available; reload the contribute page or disable the KK option.",
+          });
+          return;
+        }
+        const ok = await options.requestKkConsent();
+        if (!ok) {
+          setSubmitStatus({
+            type: "error",
+            message:
+              "Browser Kramers–Kronig calculation was not authorized for this session.",
+          });
+          return;
+        }
+      }
+
       try {
         for (const dataset of datasets) {
           if (!dataset.moleculeId) return;
@@ -110,6 +135,31 @@ export function useNexafsSubmit(
               name: dataset.sampleInfo.newVendorName.trim(),
               url: dataset.sampleInfo.newVendorUrl.trim() || undefined,
             };
+          }
+
+          let spectrumPoints = buildSpectrumPointsWithDerivedForUpload(dataset);
+          if (dataset.computeKkDeltaOnSubmit) {
+            const hasBeta = spectrumPoints.every(
+              (p) => typeof p.beta === "number" && Number.isFinite(p.beta),
+            );
+            if (!hasBeta) {
+              setSubmitStatus({
+                type: "error",
+                message: `Dataset "${dataset.fileName}": Kramers–Kronig requires finite beta on every row. Derive beta via normalization or map a beta column before enabling KK.`,
+              });
+              return;
+            }
+            try {
+              spectrumPoints = applyKkDeltaToSpectrumPoints(spectrumPoints);
+            } catch (err) {
+              const msg =
+                err instanceof Error ? err.message : "Kramers–Kronig failed.";
+              setSubmitStatus({
+                type: "error",
+                message: `${dataset.fileName}: ${msg}`,
+              });
+              return;
+            }
           }
 
           await createNexafsMutation.mutateAsync({
@@ -174,7 +224,7 @@ export function useNexafsSubmit(
             },
             geometry: geometryInput,
             spectrum: {
-              points: buildSpectrumPointsWithDerivedForUpload(dataset),
+              points: spectrumPoints,
             },
             peaksets: dataset.peaks.length > 0 ? dataset.peaks : undefined,
             collectedByUserIds:

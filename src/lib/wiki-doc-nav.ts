@@ -56,6 +56,11 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
       { id: "experiment-metadata-layer", label: "Experiment metadata layer" },
       { id: "spectrum-trace-layer", label: "Spectrum trace layer" },
       {
+        id: "kramers-kronig-delta",
+        label: "Kramers–Kronig delta from beta",
+        href: "/wiki/data-representation/kramers-kronig-delta",
+      },
+      {
         id: "provenance-and-attribution-layer",
         label: "Provenance and attribution layer",
       },

@@ -18,8 +18,12 @@ function fmtOpt(n: number | undefined): string {
  * @returns RFC-4180 style lines joined with `\n`, including a header row.
  */
 export function spectrumPointsToDetailedCsv(points: SpectrumPoint[]): string {
-  const header =
-    "energy_eV,mu,od,mass_absorption,beta,i0,theta_deg,phi_deg";
+  const hasDelta = points.some(
+    (p) => typeof p.delta === "number" && Number.isFinite(p.delta),
+  );
+  const header = hasDelta
+    ? "energy_eV,mu,od,mass_absorption,beta,delta,i0,theta_deg,phi_deg"
+    : "energy_eV,mu,od,mass_absorption,beta,i0,theta_deg,phi_deg";
   const lines = points.map((p) =>
     [
       p.energy.toFixed(6),
@@ -27,6 +31,7 @@ export function spectrumPointsToDetailedCsv(points: SpectrumPoint[]): string {
       fmtOpt(p.od),
       fmtOpt(p.massabsorption),
       fmtOpt(p.beta),
+      ...(hasDelta ? [fmtOpt(p.delta)] : []),
       fmtOpt(p.i0),
       fmtOpt(p.theta),
       fmtOpt(p.phi),
