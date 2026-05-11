@@ -1,3 +1,9 @@
+/**
+ * Henke-style bare-atom mass absorption on arbitrary energy grids: fetches optical constants per
+ * element, mixes by stoichiometry, and interpolates to spectrum energies. Per-element absorption curves
+ * are memoized in-process so parallel geometry passes and repeat toggles reuse one network round
+ * trip per symbol until failure clears that entry.
+ */
 import type { BareAtomPoint } from "../types";
 import type { SpectrumPoint } from "~/components/plots/types";
 import {
@@ -123,6 +129,50 @@ async function calculateAtomAbsorption(atom: string): Promise<BareAtomPoint[]> {
   }));
 }
 
+const atomBareAbsorptionCache = new Map<string, Promise<BareAtomPoint[]>>();
+
+function getCachedAtomBareAbsorption(atom: string): Promise<BareAtomPoint[]> {
+  const existing = atomBareAbsorptionCache.get(atom);
+  if (existing) {
+    return existing;
+  }
+  const pending = calculateAtomAbsorption(atom).catch((err) => {
+    atomBareAbsorptionCache.delete(atom);
+    throw err;
+  });
+  atomBareAbsorptionCache.set(atom, pending);
+  return pending;
+}
+
+/**
+ * Resolves Henke-derived bare-atom absorption samples for every unique element in `formula` into
+ * the module cache so a later {@link calculateBareAtomAbsorption} call on any geometry avoids
+ * waiting on duplicate fetches. Swallows parse errors; failed element fetches remain retryable after
+ * rejection clears that symbol’s cache entry.
+ *
+ * @param formula Stoichiometry string accepted by {@link parseChemicalFormula} after whitespace trim.
+ * @returns Resolves when every unique element’s cache entry is settled or rejects on first element failure.
+ */
+export async function warmBareAtomCacheForFormula(
+  formula: string,
+): Promise<void> {
+  const cleaned = formula.trim().replace(/\s+/g, "");
+  if (!cleaned) {
+    return;
+  }
+  let atoms: ElementCountMap;
+  try {
+    atoms = parseChemicalFormula(cleaned);
+  } catch {
+    return;
+  }
+  const symbols = Object.keys(atoms);
+  if (symbols.length === 0) {
+    return;
+  }
+  await Promise.all(symbols.map((a) => getCachedAtomBareAbsorption(a)));
+}
+
 function interpolate(
   x: number,
   x1: number,
@@ -195,6 +245,16 @@ function interpolateBareAtom(
   return interpolated;
 }
 
+/**
+ * Computes stoichiometry-weighted bare-atom mass absorption μ on the spectrum energy grid. Reuses
+ * in-flight and settled Henke-derived per-element curves keyed by element symbol for the lifetime of
+ * the module so repeated calls (multiple polarizations, step-edge toggles) avoid redundant fetches.
+ *
+ * @param formula Chemical stoichiometry string parsed by {@link parseChemicalFormula}.
+ * @param spectrumPoints Rows whose `.energy` values define the interpolation grid (only energies are read).
+ * @returns One mixed bare-atom μ sample per sorted spectrum energy, same ordering as sorted energies.
+ * @throws Error When the formula is empty, unparseable, or no element yields usable absorption data.
+ */
 export async function calculateBareAtomAbsorption(
   formula: string,
   spectrumPoints: SpectrumPoint[],
@@ -234,9 +294,9 @@ export async function calculateBareAtomAbsorption(
   const atomAbsorptions = new Map<string, BareAtomPoint[]>();
   const failedAtoms: string[] = [];
 
-  for (const [atom, count] of Object.entries(atoms)) {
+  for (const [atom] of Object.entries(atoms)) {
     try {
-      const atomAbsorption = await calculateAtomAbsorption(atom);
+      const atomAbsorption = await getCachedAtomBareAbsorption(atom);
       if (atomAbsorption.length === 0) {
         failedAtoms.push(atom);
         continue;

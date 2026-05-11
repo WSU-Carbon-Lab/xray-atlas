@@ -33,7 +33,10 @@ export type {
 } from "./peakDetection";
 export { calculateDifferenceSpectra } from "./differenceSpectra";
 export type { DifferenceSpectrum } from "./differenceSpectra";
-export { calculateBareAtomAbsorption } from "./bareAtomCalculation";
+export {
+  calculateBareAtomAbsorption,
+  warmBareAtomCacheForFormula,
+} from "./bareAtomCalculation";
 export { parseCSVFile } from "./csv";
 export { computeBetaIndex } from "./betaIndex";
 export { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";

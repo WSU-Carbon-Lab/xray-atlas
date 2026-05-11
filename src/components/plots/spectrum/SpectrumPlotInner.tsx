@@ -64,6 +64,19 @@ function buildTraceIds(traces: TraceData[]): string[] {
   );
 }
 
+function isBareAtomTraceName(trace: TraceData): boolean {
+  return typeof trace.name === "string" && /bare\s*atom/i.test(trace.name);
+}
+
+function firstNonBareTrace(traces: TraceData[]): TraceData | undefined {
+  for (const t of traces) {
+    if (!isBareAtomTraceName(t)) {
+      return t;
+    }
+  }
+  return traces[0];
+}
+
 export function SpectrumPlotInner({
   width,
   height,
@@ -121,8 +134,8 @@ export function SpectrumPlotInner({
 
   const allTraces = useMemo(
     () => [
-      ...groupedTraces.traces,
       ...referenceData.referenceTraces,
+      ...groupedTraces.traces,
       ...referenceData.differenceTraces,
     ],
     [
@@ -141,8 +154,7 @@ export function SpectrumPlotInner({
     if (visibleTraceIds.size === 0) return allTraces;
     return allTraces.filter((t, i) => {
       const id = typeof t.name === "string" ? t.name : `trace-${i}`;
-      if (typeof t.name === "string" && /bare\s*atom/i.test(t.name))
-        return true;
+      if (isBareAtomTraceName(t)) return true;
       return visibleTraceIds.has(id);
     });
   }, [allTraces, visibleTraceIds]);
@@ -351,7 +363,12 @@ export function SpectrumPlotInner({
         });
         return;
       }
-      const closest = findClosestPoint(energy, visibleTraces, threshold);
+      const tracesForSnap = visibleTraces.filter((t) => !isBareAtomTraceName(t));
+      const closest = findClosestPoint(
+        energy,
+        tracesForSnap.length > 0 ? tracesForSnap : visibleTraces,
+        threshold,
+      );
       const snapEnergy = closest?.energy ?? energy;
       const rows = visibleTraces.map((trace, i) => {
         const label = getTraceLabel(trace, i);
@@ -386,7 +403,7 @@ export function SpectrumPlotInner({
 
   const getYValueAtEnergy = useCallback(
     (energy: number): number => {
-      const trace = visibleTraces[0];
+      const trace = firstNonBareTrace(visibleTraces);
       if (trace) {
         const domain = zoomedXScale.domain() as [number, number];
         const span = Math.abs((domain[1] ?? 1) - (domain[0] ?? 0)) || 1;

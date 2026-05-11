@@ -47,7 +47,10 @@ import {
 import { trpc } from "~/trpc/client";
 import { useMoleculeSearch } from "~/features/process-nexafs";
 import type { MoleculeSearchResult } from "~/features/process-nexafs";
-import { calculateBareAtomAbsorption } from "~/features/process-nexafs/utils";
+import {
+  calculateBareAtomAbsorption,
+  warmBareAtomCacheForFormula,
+} from "~/features/process-nexafs/utils";
 import { computeBetaIndex } from "~/features/process-nexafs/utils";
 import {
   computeNormalizationForExperiment,
@@ -1058,6 +1061,14 @@ export function DatasetContent({
     return selectedMolecule?.chemicalFormula
       ? extractAtomsFromFormula(selectedMolecule.chemicalFormula)
       : new Set<string>();
+  }, [selectedMolecule?.chemicalFormula]);
+
+  useEffect(() => {
+    const f = selectedMolecule?.chemicalFormula?.trim();
+    if (!f) {
+      return;
+    }
+    void warmBareAtomCacheForFormula(f).catch(() => undefined);
   }, [selectedMolecule?.chemicalFormula]);
 
   // Check if current edge selection matches molecule atoms

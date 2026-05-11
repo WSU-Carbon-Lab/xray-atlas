@@ -47,6 +47,7 @@ import {
   mapDbSpectrumRowsToAnnotated,
   mapDbSpectrumRowsToPoints,
   spectrumPointsToDetailedCsv,
+  warmBareAtomCacheForFormula,
   type SpectrumPolarizationNode,
 } from "~/features/process-nexafs/utils";
 import {
@@ -638,6 +639,13 @@ export function NexafsExperimentDatasetPanel({
     moleculeFormulaQuery.data?.chemicalFormula ?? null;
 
   useEffect(() => {
+    if (!enabled || !chemicalFormula?.trim()) {
+      return;
+    }
+    void warmBareAtomCacheForFormula(chemicalFormula).catch(() => undefined);
+  }, [enabled, chemicalFormula]);
+
+  useEffect(() => {
     if (model.dataView === "od" && showBareAtomOverlay) {
       setShowBareAtomOverlay(false);
     }
@@ -745,7 +753,7 @@ export function NexafsExperimentDatasetPanel({
                     energy,
                     absorption: aligned[i]!,
                   })),
-                  color: "#ffffff",
+                  color: "#6b7280",
                   showInLegend: false,
                 };
                 return curve;

@@ -1,5 +1,11 @@
+/**
+ * Proxies CXRO Henke `.nff` tables for a single element. Caches successful response bodies in module
+ * memory so repeated requests for the same symbol skip upstream I/O within this Node process.
+ */
 import { NextResponse } from "next/server";
 import { henkeLblElementNffUrl } from "~/lib/henke-nff-cxro";
+
+const henkeLblTextByAtom = new Map<string, string>();
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,6 +27,11 @@ export async function GET(request: Request) {
   }
 
   try {
+    const cached = henkeLblTextByAtom.get(atom);
+    if (cached !== undefined) {
+      return NextResponse.json({ data: cached });
+    }
+
     const url = henkeLblElementNffUrl(atom);
     const response = await fetch(url, {
       headers: {
@@ -36,6 +47,7 @@ export async function GET(request: Request) {
     }
 
     const text = await response.text();
+    henkeLblTextByAtom.set(atom, text);
     return NextResponse.json({ data: text });
   } catch (error) {
     console.error(`Error fetching atomic form factor for ${atom}:`, error);
