@@ -1,0 +1,118 @@
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model account {
+  id                 String  @id(map: "accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         BigInt?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+  oauth_token_secret String?
+  oauth_token        String?
+  userId             String? @db.Uuid
+  user               user?   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "accounts_userId_fkey")
+
+  @@unique([provider, providerAccountId], map: "provider_unique")
+  @@schema("next_auth")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model session {
+  id           String   @id(map: "sessions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expires      DateTime @db.Timestamptz(6)
+  sessionToken String   @unique(map: "sessiontoken_unique")
+  userId       String?  @db.Uuid
+  user         user?    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sessions_userId_fkey")
+
+  @@schema("next_auth")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user {
+  id                            String                 @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                          String?
+  email                         String?                @unique(map: "email_unique")
+  emailVerified                 DateTime?              @db.Timestamptz(6)
+  image                         String?
+  contributionAgreementAccepted Boolean                @default(false)
+  contributionAgreementDate     DateTime?              @db.Timestamptz(6)
+  orcid                         String?
+  authenticator                 Authenticator[]
+  account                       account[]
+  session                       session[]
+  experimentfavorites           experimentfavorites[]
+  moleculecontributors          moleculecontributors[]
+  moleculefavorites             moleculefavorites[]
+  moleculeviews                 moleculeviews[]
+  userAppRoles                  UserAppRole[]
+
+  @@index([orcid], map: "users_orcid_idx")
+  @@schema("next_auth")
+}
+
+/// Application-defined roles. Authorization uses `permissions` (JSON); `can_access_labs` and
+/// `can_manage_users` mirror that list on write for reporting only.
+model AppRole {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug           String   @unique
+  displayName    String   @map("display_name")
+  description    String?
+  isSystem       Boolean  @default(false) @map("is_system")
+  canAccessLabs  Boolean  @default(false) @map("can_access_labs")
+  canManageUsers Boolean  @default(false) @map("can_manage_users")
+  color          String   @default("#5865F2") @db.VarChar(16)
+  faviconUrl     String?  @map("favicon_url") @db.VarChar(2048)
+  isEmailable    Boolean  @default(false) @map("is_emailable")
+  permissions    Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  userAppRoles UserAppRole[]
+
+  @@map("app_role")
+  @@schema("next_auth")
+}
+
+/// Many-to-many link between NextAuth users and application roles.
+model UserAppRole {
+  userId String @map("user_id") @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+
+  user user    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role AppRole @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([userId, roleId])
+  @@index([userId], map: "user_app_role_user_id_idx")
+  @@index([roleId], map: "user_app_role_role_id_idx")
+  @@map("user_app_role")
+  @@schema("next_auth")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model verificationToken {
+  identifier String?
+  token      String   @id(map: "verification_tokens_pkey")
+  expires    DateTime @db.Timestamptz(6)
+
+  @@unique([token, identifier], map: "token_identifier_unique")
+  @@schema("next_auth")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Authenticator {
+  id                   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  credentialID         String  @unique @db.VarChar(1024)
+  userId               String  @db.Uuid
+  counter              BigInt
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+  user                 user    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId])
+  @@schema("next_auth")
+}

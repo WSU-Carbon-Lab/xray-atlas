@@ -12,6 +12,7 @@ import {
   ArrowTopRightOnSquareIcon,
   AcademicCapIcon,
   BookOpenIcon,
+  ChartBarIcon,
   InformationCircleIcon,
   MagnifyingGlassIcon,
   LockOpenIcon,
@@ -57,6 +58,13 @@ const aboutResourceCards = [
     description:
       "Guidance for dataset contributors, metadata expectations, attribution, and scientific reproducibility practices.",
     icon: ArrowTopRightOnSquareIcon,
+  },
+  {
+    href: "/wiki/data-insights",
+    title: "Data Insights",
+    description:
+      "Vercel Speed Insights vocabulary for Core Web Vitals, Real Experience Score, percentiles, and how we track UX after deployments.",
+    icon: ChartBarIcon,
   },
   {
     href: "/wiki/api",

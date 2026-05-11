@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
+    "db:backfill-validation-summary": "bun scripts/backfill-experiment-validation-summary.ts",
     "dev": "next dev --turbo",
     "dev:tunnel": "concurrently --kill-others \"next dev --turbo\" \"sleep 3 && ngrok http 3000\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
@@ -24,6 +25,7 @@
     "openapi:validate": "bun scripts/openapi-validate.mjs",
     "openapi:check": "bun run openapi:lint && bun run openapi:validate",
     "api:v1:y6-smoke": "bun scripts/api-v1-y6-smoke.mjs",
+    "metrics:y6": "bun scripts/compute-y6-experiment-metrics.ts",
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit"

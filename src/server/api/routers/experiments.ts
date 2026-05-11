@@ -11,7 +11,38 @@ import {
   coalesceUploadedOrDerived,
   computeSpectrumDerivedScalarColumns,
 } from "~/server/nexafs/computeSpectrumDerivedColumns";
-import { fetchNexafsBrowseGrouped } from "~/server/nexafs/nexafsBrowseGroups";
+import {
+  buildChannelProvenance,
+  buildQualityScores,
+  buildValidationSummary,
+  type NormalizationRanges,
+  type NormalizationScope,
+  type UploadedChannel,
+} from "~/server/nexafs/normalizationMetadata";
+import {
+  fetchNexafsBrowseGrouped,
+  type NexafsBrowseSortKey,
+} from "~/server/nexafs/nexafsBrowseGroups";
+
+const nexafsBrowseSortBySchema = z
+  .enum([
+    "quality",
+    "favorites",
+    "views",
+    "geometries",
+    "publications",
+    "comments",
+    "name",
+    "newest",
+  ])
+  .default("quality")
+  .transform(
+    (v): NexafsBrowseSortKey => (v === "comments" ? "publications" : v),
+  );
+
+const nexafsVerificationSourceSchema = z
+  .enum(["either", "publication", "atlas"])
+  .default("either");
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 
 const emptyDerivedScalars = (): {
@@ -22,6 +53,16 @@ const emptyDerivedScalars = (): {
 
 const experimentCommentInputSchema = z.object({
   text: z.string().trim().min(1).max(2000),
+});
+
+const unifiedNormalizationRangesSchema = z.object({
+  pre: z.tuple([z.number(), z.number()]).nullable(),
+  post: z.tuple([z.number(), z.number()]).nullable(),
+});
+
+const normalizationSchema = z.object({
+  scope: z.enum(["none", "unified", "per_channel"]),
+  ranges: unifiedNormalizationRangesSchema.nullable(),
 });
 
 type ExperimentQualityComment = {
@@ -247,20 +288,13 @@ export const experimentsRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(12),
         offset: z.number().min(0).default(0),
-        sortBy: z
-          .enum([
-            "favorites",
-            "views",
-            "geometries",
-            "comments",
-            "name",
-            "newest",
-          ])
-          .default("favorites"),
+        sortBy: nexafsBrowseSortBySchema,
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
         experimentType: z.nativeEnum(ExperimentType).optional(),
+        verifiedOnly: z.boolean().default(false),
+        verificationSource: nexafsVerificationSourceSchema,
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -271,6 +305,8 @@ export const experimentsRouter = createTRPCRouter({
           edgeId: input.edgeId,
           instrumentId: input.instrumentId,
           experimentType: input.experimentType,
+          verifiedOnly: input.verifiedOnly,
+          verificationSource: input.verificationSource,
         },
         searchQuery: null,
         sortBy: input.sortBy,
@@ -291,20 +327,13 @@ export const experimentsRouter = createTRPCRouter({
         query: z.string().min(1),
         limit: z.number().min(1).max(50).default(12),
         offset: z.number().min(0).default(0),
-        sortBy: z
-          .enum([
-            "favorites",
-            "views",
-            "geometries",
-            "comments",
-            "name",
-            "newest",
-          ])
-          .default("favorites"),
+        sortBy: nexafsBrowseSortBySchema,
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
         experimentType: z.nativeEnum(ExperimentType).optional(),
+        verifiedOnly: z.boolean().default(false),
+        verificationSource: nexafsVerificationSourceSchema,
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -315,6 +344,8 @@ export const experimentsRouter = createTRPCRouter({
           edgeId: input.edgeId,
           instrumentId: input.instrumentId,
           experimentType: input.experimentType,
+          verifiedOnly: input.verifiedOnly,
+          verificationSource: input.verificationSource,
         },
         searchQuery: input.query.trim(),
         sortBy: input.sortBy,
@@ -747,6 +778,16 @@ export const experimentsRouter = createTRPCRouter({
           calibrationId: z.string().uuid().optional(),
           referenceStandard: z.string().optional(),
           isStandard: z.boolean().optional(),
+          normalization: normalizationSchema.optional(),
+          uploadedChannels: z
+            .array(z.enum(["rawabs", "od", "massabsorption", "beta"]))
+            .optional(),
+          validationOverride: z
+            .object({
+              bypass: z.boolean(),
+              reason: z.string().trim().min(1).optional(),
+            })
+            .optional(),
         }),
         geometry: z
           .object({
@@ -794,8 +835,12 @@ export const experimentsRouter = createTRPCRouter({
                 phi: z.number().optional(),
                 i0: z.number().optional(),
                 od: z.number().optional(),
+                rawabsError: z.number().optional(),
+                odError: z.number().optional(),
                 massabsorption: z.number().optional(),
+                massabsorptionError: z.number().optional(),
                 beta: z.number().optional(),
+                betaError: z.number().optional(),
               }),
             )
             .min(1, "Spectrum CSV must contain at least one row"),
@@ -821,6 +866,16 @@ export const experimentsRouter = createTRPCRouter({
         spectrum: spectrumInput,
         collectedByUserIds,
       } = input;
+      const normalizationScope: NormalizationScope =
+        experimentInput.normalization?.scope ?? "none";
+      const normalizationRanges: NormalizationRanges =
+        experimentInput.normalization?.ranges ?? null;
+      const uploadedChannels = Array.from(
+        new Set<UploadedChannel>([
+          ...(experimentInput.uploadedChannels ?? []),
+          "rawabs",
+        ]),
+      );
       const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
       const requestedCollectedBy = [...new Set(collectedByUserIds ?? [])];
       if (
@@ -1080,6 +1135,34 @@ export const experimentsRouter = createTRPCRouter({
           );
 
           const experimentId = crypto.randomUUID();
+          const validationSummary = buildValidationSummary({
+            points: spectrumInput.points,
+            ranges: normalizationRanges,
+            override: {
+              bypass: experimentInput.validationOverride?.bypass ?? false,
+              reason: experimentInput.validationOverride?.reason,
+            },
+          });
+          const qualityScores = buildQualityScores({
+            points: spectrumInput.points,
+            ranges: normalizationRanges,
+            doiPresent: false,
+          });
+          const hasDerivedValues = {
+            od: derivedByGroup.some((group) =>
+              group.od.some((value) => value != null),
+            ),
+            massabsorption: derivedByGroup.some((group) =>
+              group.massabsorption.some((value) => value != null),
+            ),
+            beta: derivedByGroup.some((group) =>
+              group.beta.some((value) => value != null),
+            ),
+          };
+          const channelProvenance = buildChannelProvenance({
+            uploadedChannels,
+            hasDerivedValues,
+          });
           const experiment = await tx.experiments.create({
             data: {
               id: experimentId,
@@ -1094,6 +1177,16 @@ export const experimentsRouter = createTRPCRouter({
               experimenttype: experimentInput.experimentType,
               nexafsexperimentkindid: kind?.id ?? null,
               collectedbyuserids: normalizedCollectedBy,
+              normalizationscope: normalizationScope,
+              normalizationranges:
+                normalizationRanges as unknown as Prisma.InputJsonValue,
+              uploadedchannels:
+                uploadedChannels as unknown as Prisma.InputJsonValue,
+              channelprovenance:
+                channelProvenance as unknown as Prisma.InputJsonValue,
+              validationsummary:
+                validationSummary as unknown as Prisma.InputJsonValue,
+              qualityscores: qualityScores as unknown as Prisma.InputJsonValue,
             },
             include: {
               samples: true,
@@ -1121,14 +1214,21 @@ export const experimentsRouter = createTRPCRouter({
               energyev: point.energy,
               rawabs: point.absorption,
               od: coalesceUploadedOrDerived(point.od, derived.od[i] ?? null),
+              rawabserr: coalesceUploadedOrDerived(point.rawabsError, null),
+              oderr: coalesceUploadedOrDerived(point.odError, null),
               massabsorption: coalesceUploadedOrDerived(
                 point.massabsorption,
                 derived.massabsorption[i] ?? null,
+              ),
+              massabsorptionerr: coalesceUploadedOrDerived(
+                point.massabsorptionError,
+                null,
               ),
               beta: coalesceUploadedOrDerived(
                 point.beta,
                 derived.beta[i] ?? null,
               ),
+              betaerr: coalesceUploadedOrDerived(point.betaError, null),
               i0: coalesceUploadedOrDerived(point.i0, null),
             }));
 
@@ -1165,6 +1265,93 @@ export const experimentsRouter = createTRPCRouter({
       );
 
       return transactionResult;
+    }),
+
+  updateNormalizationMetadata: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        normalization: normalizationSchema,
+        uploadedChannels: z
+          .array(z.enum(["rawabs", "od", "massabsorption", "beta"]))
+          .optional(),
+        reason: z.string().trim().min(1).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existingExperiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { createdby: true },
+      });
+      if (!existingExperiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+      const canMutate =
+        existingExperiment.createdby != null &&
+        ctx.userId != null &&
+        existingExperiment.createdby === ctx.userId;
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!canMutate && !isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "You do not have permission to update normalization metadata for this experiment",
+        });
+      }
+
+      const uploadedChannels = Array.from(
+        new Set<UploadedChannel>([
+          ...(input.uploadedChannels ?? []),
+          "rawabs",
+        ]),
+      );
+      const points = await ctx.db.spectrumpoints.findMany({
+        where: { experimentid: input.experimentId },
+        orderBy: { energyev: "asc" },
+      });
+      const spectrumPoints = points.map((point) => ({
+        energy: point.energyev,
+        absorption: point.rawabs,
+        od: point.od ?? undefined,
+        massabsorption: point.massabsorption ?? undefined,
+        beta: point.beta ?? undefined,
+      }));
+      const ranges: NormalizationRanges = input.normalization.ranges ?? null;
+      const validationSummary = buildValidationSummary({
+        points: spectrumPoints,
+        ranges,
+        override: { bypass: false, reason: input.reason },
+      });
+      const qualityScores = buildQualityScores({
+        points: spectrumPoints,
+        ranges,
+        doiPresent: false,
+      });
+      const channelProvenance = buildChannelProvenance({
+        uploadedChannels,
+        hasDerivedValues: {
+          od: points.some((point) => point.od != null),
+          massabsorption: points.some((point) => point.massabsorption != null),
+          beta: points.some((point) => point.beta != null),
+        },
+      });
+
+      return ctx.db.experiments.update({
+        where: { id: input.experimentId },
+        data: {
+          normalizationscope: input.normalization.scope,
+          normalizationranges: ranges as unknown as Prisma.InputJsonValue,
+          uploadedchannels: uploadedChannels as unknown as Prisma.InputJsonValue,
+          channelprovenance:
+            channelProvenance as unknown as Prisma.InputJsonValue,
+          validationsummary:
+            validationSummary as unknown as Prisma.InputJsonValue,
+          qualityscores: qualityScores as unknown as Prisma.InputJsonValue,
+        },
+      });
     }),
 
   update: protectedProcedure

@@ -275,6 +275,27 @@
     box-shadow: 0 1px 4px
       color-mix(in oklab, var(--foreground) 18%, transparent);
   }
+
+  .metric-breakdown-tooltip-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 26%, transparent)
+      transparent;
+  }
+
+  .metric-breakdown-tooltip-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .metric-breakdown-tooltip-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .metric-breakdown-tooltip-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: color-mix(in oklab, var(--foreground) 30%, transparent);
+    box-shadow: 0 1px 3px
+      color-mix(in oklab, var(--foreground) 15%, transparent);
+  }
 }
 
 @layer components {
@@ -415,6 +436,20 @@
 }
 
 @layer utilities {
+  /**
+   * Semantic z-index utilities (see :root --z-* tokens).
+   * Tailwind does not emit these from the CSS variables alone; without these rules,
+   * classes like `z-tooltip` would not apply any stacking level and portaled overlays
+   * could paint beneath sticky headers (`z-[400]`) or sibling cards.
+   */
+  .z-tooltip {
+    z-index: var(--z-tooltip);
+  }
+
+  .z-max {
+    z-index: var(--z-max);
+  }
+
   .text-balance {
     text-wrap: balance;
   }

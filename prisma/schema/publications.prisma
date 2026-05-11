@@ -1,0 +1,26 @@
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model experimentpublications {
+  experimentid  String       @db.Uuid
+  publicationid String       @db.Uuid
+  role          String       @default("cited")
+  experiments   experiments  @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  publications  publications @relation(fields: [publicationid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([experimentid, publicationid])
+  @@index([publicationid], map: "idx_experimentpublications_publicationid")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model publications {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  doi                    String                   @unique
+  title                  String
+  journal                String?
+  year                   Int?
+  authors                Json?
+  metadata               Json?
+  experimentpublications experimentpublications[]
+
+  @@schema("public")
+}

@@ -144,6 +144,33 @@ export function useNexafsSubmit(
               calibrationId: dataset.calibrationId || undefined,
               referenceStandard: dataset.referenceStandard.trim() || undefined,
               isStandard: dataset.isStandard,
+              normalization: {
+                scope: dataset.normalizationScope,
+                ranges:
+                  dataset.normalizationScope === "none"
+                    ? null
+                    : {
+                        pre: dataset.normalizationRegions.pre,
+                        post: dataset.normalizationRegions.post,
+                      },
+              },
+              validationOverride:
+                dataset.validationOverride.bypass ||
+                dataset.validationOverride.reason.trim().length > 0
+                  ? {
+                      bypass: dataset.validationOverride.bypass,
+                      reason:
+                        dataset.validationOverride.reason.trim() || undefined,
+                    }
+                  : undefined,
+              uploadedChannels: [
+                "rawabs",
+                ...(dataset.columnMappings.od ? (["od"] as const) : []),
+                ...(dataset.columnMappings.massabsorption
+                  ? (["massabsorption"] as const)
+                  : []),
+                ...(dataset.columnMappings.beta ? (["beta"] as const) : []),
+              ],
             },
             geometry: geometryInput,
             spectrum: {

@@ -4,14 +4,7 @@ import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import {
-  Atom,
-  ChevronDown,
-  Copy,
-  Heart,
-  MessageCircle,
-  TriangleRight,
-} from "lucide-react";
+import { Atom, ChevronDown, Heart, TriangleRight } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { trpc } from "~/trpc/client";
 import {
@@ -29,6 +22,10 @@ import { AvatarGroup, type UserWithOrcid } from "~/components/ui/avatar";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
+import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
+import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
+import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
+import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
 
 const pubChemCompoundUrl = (cid: string) =>
   `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}`;
@@ -185,7 +182,9 @@ export type NexafsExperimentCompactCardProps = {
     orcid: string | null;
   }>;
   polarizationCount: number;
-  commentCount: number;
+  linkedPublications: NexafsBrowseLinkedPublication[];
+  ingestVerified: boolean;
+  datasetMetrics: NexafsBrowseDatasetMetricsCardModel;
 };
 
 export function NexafsExperimentCompactCard({
@@ -208,7 +207,9 @@ export function NexafsExperimentCompactCard({
   experimentTypeLabel,
   experimentContributorUsers,
   polarizationCount,
-  commentCount,
+  linkedPublications,
+  ingestVerified,
+  datasetMetrics,
 }: NexafsExperimentCompactCardProps) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -318,127 +319,114 @@ export function NexafsExperimentCompactCard({
   const experimentTypeClass = experimentTypeChipClass(experimentTypeLabel);
   const instrumentFacilityLabel = `${instrumentName} | ${facilityLine}`;
   return (
-    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 pointer-events-none flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md dark:bg-zinc-800">
-      <div className="flex w-full flex-col md:flex-row md:items-center md:gap-4">
-      <div
-        role="link"
-        tabIndex={0}
-        className="focus-visible:ring-accent pointer-events-auto flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-r border-zinc-200 pr-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 md:gap-4 md:pr-4 dark:border-zinc-600"
-        onClick={() => router.push(href)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            router.push(href);
-          }
-        }}
-      >
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setImageModalOpen(true);
-          }}
-          className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 md:h-14 md:w-14 dark:bg-black ${
-            hasImage ? "" : `bg-linear-to-br ${previewGradient}`
-          }`}
-          aria-label="View molecule structure"
-        >
-          {hasImage ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-1">
-              <MoleculeImageSVG
-                imageUrl={imageurl ?? ""}
-                name={displayName}
-                className="h-full w-full [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
-              />
-            </div>
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <Atom
-                className="h-6 w-6 text-white/80"
-                strokeWidth={1}
+    <div className="border-border-default pointer-events-none @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm dark:border-border-default dark:bg-zinc-800">
+      <div className="flex w-full flex-col @md/nexafscard:flex-row @md/nexafscard:items-center @md/nexafscard:gap-4">
+        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 @md/nexafscard:gap-4 @md/nexafscard:pr-4 dark:border-zinc-600">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setImageModalOpen(true);
+            }}
+            className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:scale-105 @md/nexafscard:h-14 @md/nexafscard:w-14 dark:bg-black ${
+              hasImage ? "" : `bg-linear-to-br ${previewGradient}`
+            }`}
+            aria-label="View molecule structure"
+          >
+            {hasImage ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-1">
+                <MoleculeImageSVG
+                  imageUrl={imageurl ?? ""}
+                  name={displayName}
+                  className="h-full w-full [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
+                />
+              </div>
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <Atom
+                  className="h-6 w-6 text-white/80"
+                  strokeWidth={1}
+                  aria-hidden
+                />
+              </div>
+            )}
+            {displayUserHasUpvoted ? (
+              <span
+                className="bg-accent absolute top-1 right-1 h-2.5 w-2.5 rounded-full border border-black/50 shadow-[0_0_4px_rgba(99,102,241,0.8)]"
                 aria-hidden
               />
-            </div>
-          )}
-          {displayUserHasUpvoted ? (
-            <span
-              className="bg-accent absolute top-1 right-1 h-2.5 w-2.5 rounded-full border border-black/50 shadow-[0_0_4px_rgba(99,102,241,0.8)]"
-              aria-hidden
-            />
-          ) : null}
-        </button>
-        <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5">
-          <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-            <div className="min-w-0 shrink">
-              <span className="text-text-primary motion-safe:group-hover:text-accent block truncate text-sm leading-tight font-bold motion-safe:transition-colors">
+            ) : null}
+          </button>
+          <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5">
+            <div className="flex min-w-0 items-center gap-x-2 gap-y-1 overflow-hidden">
+              <span
+                role="link"
+                tabIndex={0}
+                className="focus-visible:ring-accent text-text-primary hover:text-accent motion-safe:transition-colors min-w-0 shrink truncate cursor-pointer text-sm leading-tight font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(href);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    router.push(href);
+                  }
+                }}
+              >
                 {displayName}
               </span>
+              <span
+                className="inline-flex shrink-0 items-center self-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <NexafsPublicationVerificationControl
+                  ingestVerified={ingestVerified}
+                  linkedPublications={linkedPublications}
+                />
+              </span>
             </div>
-            <span className="text-text-tertiary border-border-default inline-flex h-5 shrink-0 items-center rounded border bg-zinc-100 px-1.5 font-mono text-[9px] tabular-nums sm:text-[10px] dark:bg-zinc-700">
-              {chemicalformula || "N/A"}
-            </span>
-          </div>
-          <div className="flex min-w-0 shrink items-center gap-2 overflow-hidden">
-            {casNumber ? (
+            <div className="inline-flex h-5 max-w-full min-w-0 flex-nowrap items-center justify-start gap-x-1.5 overflow-hidden text-left text-[10px] leading-none whitespace-nowrap sm:text-[11px]">
+              <span
+                className={`inline-flex h-4.5 shrink-0 items-center rounded-full border px-1.5 font-semibold ${edgeClass}`}
+              >
+                {edgeLabel}
+              </span>
               <Tooltip delay={0}>
-                <Tooltip.Trigger>
-                  <button
-                    type="button"
-                    aria-label="Copy CAS number"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleCopy(casNumber, "CAS");
-                    }}
-                    className={`focus-visible:ring-accent inline-flex h-5 max-w-full shrink items-center gap-1 rounded px-1.5 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 sm:px-2 ${
-                      copiedText === "CAS"
-                        ? "bg-info/30 text-info dark:bg-info/40 dark:text-info-light"
-                        : "bg-info/20 text-info dark:bg-info/30 dark:text-info-light"
-                    }`}
+                <Tooltip.Trigger className="inline-flex min-w-0 max-w-[74%] shrink">
+                  <span
+                    className={`inline-flex h-4.5 min-w-0 max-w-full items-center truncate rounded-full border px-1.5 font-medium ${instrumentClass}`}
+                    title={instrumentFacilityLabel}
                   >
-                    <Copy
-                      className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5"
-                      aria-hidden
-                    />
-                    <span className="truncate font-mono text-[9px] tabular-nums sm:text-[10px]">
-                      CAS {casNumber}
+                    <span className="truncate @3xl/nexafscard:hidden">
+                      {instrumentName}
                     </span>
-                  </button>
+                    <span className="hidden min-w-0 truncate @3xl/nexafscard:inline">
+                      {instrumentFacilityLabel}
+                    </span>
+                  </span>
                 </Tooltip.Trigger>
                 <Tooltip.Content placement="top">
-                  {copiedText === "CAS" ? "Copied!" : "Copy CAS number"}
+                  {instrumentFacilityLabel}
                 </Tooltip.Content>
               </Tooltip>
-            ) : null}
-          </div>
-          <div className="inline-flex h-5 max-w-full min-w-0 items-center justify-start gap-x-1.5 overflow-hidden text-left text-[10px] leading-none whitespace-nowrap sm:text-[11px]">
-            <span
-              className={`inline-flex h-4.5 shrink-0 items-center rounded-full border px-1.5 font-semibold ${edgeClass}`}
-            >
-              {edgeLabel}
-            </span>
-            <span
-              className={`inline-flex h-4.5 max-w-[74%] min-w-0 items-center truncate rounded-full border px-1.5 font-medium ${instrumentClass}`}
-              title={instrumentFacilityLabel}
-            >
-              {instrumentFacilityLabel}
-            </span>
-            {experimentTypeLabel ? (
-              <span
-                className={`inline-flex h-4.5 shrink-0 items-center rounded-full border px-1.5 text-[9px] leading-none font-semibold sm:text-[10px] ${experimentTypeClass}`}
-                title={experimentTypeLabel}
-              >
-                {experimentTypeLabel}
-              </span>
-            ) : null}
+              {experimentTypeLabel ? (
+                <span
+                  className={`inline-flex h-4.5 shrink-0 items-center rounded-full border px-1.5 text-[9px] leading-none font-semibold sm:text-[10px] ${experimentTypeClass}`}
+                  title={experimentTypeLabel}
+                >
+                  {experimentTypeLabel}
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
-      </div>
-      <div
-        className="pointer-events-auto relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 md:ml-auto md:gap-x-3 md:gap-y-0 md:border-t-0 md:pt-0 md:pl-4 dark:border-zinc-600"
-        onClick={(e) => e.stopPropagation()}
-      >
+        <div
+          className="pointer-events-auto relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:ml-auto @md/nexafscard:gap-x-3 @md/nexafscard:gap-y-0 @md/nexafscard:border-t-0 @md/nexafscard:pt-0 @md/nexafscard:pl-4 dark:border-zinc-600"
+          onClick={(e) => e.stopPropagation()}
+        >
         <div className="flex flex-wrap items-center justify-end gap-1.5">
           <Tooltip delay={0}>
             <Tooltip.Trigger className="inline-flex shrink-0">
@@ -476,8 +464,14 @@ export function NexafsExperimentCompactCard({
             copiedText={copiedText}
             handleCopy={handleCopy}
             size="sm"
+            actionsLayout="compact"
+            compactContainerName="nexafscard"
           />
         </div>
+        <NexafsDatasetMetricsRail
+          metrics={datasetMetrics}
+          className="relative z-50"
+        />
         <div onClick={(e) => e.stopPropagation()}>
           <AvatarGroup
             users={avatarUsers}
@@ -553,14 +547,6 @@ export function NexafsExperimentCompactCard({
             value={formatCompactMetricCount(polarizationCount)}
             textClassName="text-[10px] text-cyan-500"
             title="Geometries"
-          />
-          <CompactCardMetricStat
-            icon={
-              <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            }
-            value={formatCompactMetricCount(commentCount)}
-            textClassName="text-[10px] text-teal-400"
-            title="Comments"
           />
         </CompactCardMetricsColumn>
       </div>

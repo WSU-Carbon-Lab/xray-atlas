@@ -8,10 +8,12 @@ export type NexafsBrowseActiveFiltersProps = {
   edgeLabel: string | null;
   instrumentLabel: string | null;
   acquisitionLabel: string | null;
+  verificationLabel: string | null;
   onRemoveMolecule: () => void;
   onRemoveEdge: () => void;
   onRemoveInstrument: () => void;
   onRemoveAcquisition: () => void;
+  onRemoveVerification: () => void;
   onClearAll: () => void;
 };
 
@@ -20,15 +22,21 @@ export function NexafsBrowseActiveFilters({
   edgeLabel,
   instrumentLabel,
   acquisitionLabel,
+  verificationLabel,
   onRemoveMolecule,
   onRemoveEdge,
   onRemoveInstrument,
   onRemoveAcquisition,
+  onRemoveVerification,
   onClearAll,
 }: NexafsBrowseActiveFiltersProps) {
-  const hasAny = [moleculeLabel, edgeLabel, instrumentLabel, acquisitionLabel].some(
-    (v) => (v?.length ?? 0) > 0,
-  );
+  const hasAny = [
+    moleculeLabel,
+    edgeLabel,
+    instrumentLabel,
+    acquisitionLabel,
+    verificationLabel,
+  ].some((v) => (v?.length ?? 0) > 0);
   if (!hasAny) return null;
 
   return (
@@ -87,6 +95,19 @@ export function NexafsBrowseActiveFilters({
               type="button"
               onClick={onRemoveAcquisition}
               aria-label={`Remove acquisition mode filter ${acquisitionLabel}`}
+              className="focus-visible:ring-accent -mr-0.5 rounded p-0.5 hover:bg-black/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:hover:bg-white/10"
+            >
+              <XMarkIcon className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </span>
+        )}
+        {verificationLabel && (
+          <span className="border-border bg-default text-foreground inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium">
+            Verified: {verificationLabel}
+            <button
+              type="button"
+              onClick={onRemoveVerification}
+              aria-label={`Remove verification filter ${verificationLabel}`}
               className="focus-visible:ring-accent -mr-0.5 rounded p-0.5 hover:bg-black/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:hover:bg-white/10"
             >
               <XMarkIcon className="h-3.5 w-3.5" aria-hidden />

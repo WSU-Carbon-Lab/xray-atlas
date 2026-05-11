@@ -194,7 +194,7 @@ X-ray Atlas uses PostgreSQL via Supabase with Prisma ORM.
 
 ### Creating Migrations
 
-When modifying `prisma/schema.prisma`:
+When modifying the Prisma schema under `prisma/schema/`:
 
 ```bash
 # Generate a new migration

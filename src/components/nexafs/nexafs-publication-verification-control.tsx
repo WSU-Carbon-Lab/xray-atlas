@@ -1,0 +1,423 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import { createPortal } from "react-dom";
+import { BadgeCheck } from "lucide-react";
+import { site } from "~/app/brand";
+import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
+
+const TOOLTIP_CLOSE_DELAY_MS = 100;
+const TOOLTIP_VERTICAL_OFFSET_PX = 8;
+
+const tooltipShellClassName =
+  "relative w-[min(18rem,calc(100vw-1rem))] max-w-[min(18rem,calc(100vw-1rem))] rounded-2xl border border-zinc-700/80 bg-zinc-900/95 px-3 py-2.5 text-left text-xs leading-snug text-zinc-100 shadow-2xl backdrop-blur-sm";
+
+const badgeRing =
+  "inline-flex shrink-0 rounded-full bg-zinc-50 p-px ring-2 ring-zinc-50 dark:bg-zinc-800 dark:ring-zinc-800";
+
+function normalizeDoiForHref(doi: string): string {
+  return doi.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
+}
+
+/**
+ * Returns an absolute DOI resolver URL for `doi`, stripping an existing `https://doi.org/` prefix when present.
+ */
+export function nexafsPublicationDoiHref(doi: string): string {
+  return `https://doi.org/${normalizeDoiForHref(doi)}`;
+}
+
+function truncateTitle(title: string, maxLen: number): string {
+  const t = title.trim();
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, Math.max(0, maxLen - 1)).trimEnd()}…`;
+}
+
+function shortenAuthors(authors: unknown): string | null {
+  if (authors == null) return null;
+  if (Array.isArray(authors)) {
+    const names: string[] = [];
+    for (const a of authors) {
+      if (typeof a === "string" && a.trim()) names.push(a.trim());
+      else if (a && typeof a === "object" && "name" in a) {
+        const n = (a as { name?: unknown }).name;
+        if (typeof n === "string" && n.trim()) names.push(n.trim());
+      }
+    }
+    if (names.length === 0) return null;
+    const first = names[0];
+    if (!first) return null;
+    if (names.length === 1) return first;
+    return `${first} et al.`;
+  }
+  if (typeof authors === "object") {
+    const o = authors as Record<string, unknown>;
+    const nested = o.names ?? o.authors;
+    if (Array.isArray(nested)) return shortenAuthors(nested);
+  }
+  return null;
+}
+
+/**
+ * Builds a single-line minimal citation for browse UI: shortened authors, optional year, truncated title;
+ * falls back to DOI when metadata is insufficient.
+ */
+export function formatNexafsBrowseMinimalCitation(
+  p: NexafsBrowseLinkedPublication,
+): string {
+  const au = shortenAuthors(p.authors);
+  const titleFrag = truncateTitle(p.title || "", 80);
+  if (au && titleFrag) {
+    const yearSuffix = p.year != null ? ` (${p.year})` : "";
+    return `${au}${yearSuffix}. ${titleFrag}`.replace(/\s+/g, " ").trim();
+  }
+  if (titleFrag && p.year != null) return `${p.year}. ${titleFrag}`.trim();
+  if (titleFrag) return titleFrag;
+  return p.doi;
+}
+
+export interface NexafsPublicationVerificationControlProps {
+  linkedPublications: NexafsBrowseLinkedPublication[];
+  /**
+   * When true and there are no linked publication DOIs, shows ingest-time verification (stored validation summary on the experiment).
+   */
+  ingestVerified?: boolean;
+}
+
+function VerificationBadgeStack({
+  hasAtlas,
+  hasDoi,
+}: {
+  hasAtlas: boolean;
+  hasDoi: boolean;
+}) {
+  if (!hasAtlas && !hasDoi) {
+    return (
+      <BadgeCheck
+        className="h-4 w-4 shrink-0 text-text-tertiary opacity-75"
+        strokeWidth={1.75}
+        aria-hidden
+      />
+    );
+  }
+  if (hasAtlas && hasDoi) {
+    return (
+      <span className="inline-flex items-center pr-0.5" aria-hidden>
+        <span className={`relative z-0 ${badgeRing}`}>
+          <BadgeCheck
+            className="h-3 w-3 shrink-0 text-[var(--accent)]"
+            strokeWidth={2}
+            aria-hidden
+          />
+        </span>
+        <span className={`relative z-[1] -ml-1.5 ${badgeRing}`}>
+          <BadgeCheck
+            className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400"
+            strokeWidth={2}
+            aria-hidden
+          />
+        </span>
+      </span>
+    );
+  }
+  if (hasAtlas) {
+    return (
+      <BadgeCheck
+        className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+        strokeWidth={1.75}
+        aria-hidden
+      />
+    );
+  }
+  return (
+    <BadgeCheck
+      className="h-4 w-4 shrink-0 text-[var(--accent)]"
+      strokeWidth={1.75}
+      aria-hidden
+    />
+  );
+}
+
+function verificationAriaLabel(hasAtlas: boolean, hasDoi: boolean): string {
+  if (!hasAtlas && !hasDoi) {
+    return "No publication DOI linked";
+  }
+  const parts: string[] = [];
+  if (hasAtlas) parts.push("Atlas ingest verification");
+  if (hasDoi) parts.push("linked publication DOI");
+  return `Dataset verification: ${parts.join("; ")}`;
+}
+
+function SectionTitle({ children }: { children: string }) {
+  return <p className="text-sm font-semibold text-zinc-100">{children}</p>;
+}
+
+function DoiResolverLink({ doi }: { doi: string }) {
+  const href = nexafsPublicationDoiHref(doi);
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="focus-visible:ring-accent mt-1 inline-block font-mono text-[11px] text-emerald-400 break-all hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {doi}
+    </a>
+  );
+}
+
+function VerificationTooltipSurface({
+  arrowOffsetPx,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}: {
+  arrowOffsetPx: number;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`pointer-events-auto ${tooltipShellClassName}`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {children}
+      <div
+        className="absolute top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b border-zinc-700/80 bg-zinc-900/95 transition-[left] duration-150 ease-out"
+        style={{ left: `calc(50% + ${arrowOffsetPx}px)` }}
+        aria-hidden
+      />
+    </div>
+  );
+}
+
+function useVerificationTooltipPosition(triggerRef: RefObject<HTMLElement | null>) {
+  const [position, setPosition] = useState({ left: 0, top: 0 });
+
+  const updatePosition = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el || typeof document === "undefined") return;
+    const rect = el.getBoundingClientRect();
+    setPosition({
+      left: rect.left + rect.width / 2,
+      top: rect.top - TOOLTIP_VERTICAL_OFFSET_PX,
+    });
+  }, [triggerRef]);
+
+  return { position, updatePosition };
+}
+
+/**
+ * Renders stacked verification badges on browse cards (Atlas ingest first when present, publication DOI behind when both).
+ * Hover or focus opens a portaled panel matching contributor avatar tooltips (`document.body`, `z-tooltip`, fixed layout).
+ */
+export function NexafsPublicationVerificationControl({
+  linkedPublications,
+  ingestVerified = false,
+}: NexafsPublicationVerificationControlProps) {
+  const n = linkedPublications.length;
+  const hasDoi = n > 0;
+  const hasAtlas = ingestVerified;
+
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const { position, updatePosition } = useVerificationTooltipPosition(triggerRef);
+
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const openTooltip = useCallback(() => {
+    updatePosition();
+    clearCloseTimer();
+    setIsOpen(true);
+  }, [clearCloseTimer, updatePosition]);
+
+  const scheduleCloseTooltip = useCallback(() => {
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      setIsOpen(false);
+      closeTimerRef.current = null;
+    }, TOOLTIP_CLOSE_DELAY_MS);
+  }, [clearCloseTimer]);
+
+  useEffect(() => {
+    return () => {
+      clearCloseTimer();
+    };
+  }, [clearCloseTimer]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = () => {
+      updatePosition();
+    };
+    window.addEventListener("resize", handler);
+    window.addEventListener("scroll", handler, true);
+    return () => {
+      window.removeEventListener("resize", handler);
+      window.removeEventListener("scroll", handler, true);
+    };
+  }, [isOpen, updatePosition]);
+
+  const tooltipInner = useMemo(() => {
+    if (!hasAtlas && !hasDoi) {
+      return (
+        <>
+          <SectionTitle>Publication status</SectionTitle>
+          <p className="mt-1 text-zinc-300">
+            No publication DOI linked on Atlas yet.
+          </p>
+        </>
+      );
+    }
+
+    if (hasAtlas && !hasDoi) {
+      return (
+        <>
+          <SectionTitle>Atlas verification</SectionTitle>
+          <p className="mt-1 text-zinc-300">
+            Verified by the {site.name} team, highest-trust verification flag.
+          </p>
+        </>
+      );
+    }
+
+    if (!hasAtlas && hasDoi && n === 1) {
+      const pub = linkedPublications[0]!;
+      const cite = formatNexafsBrowseMinimalCitation(pub);
+      return (
+        <>
+          <SectionTitle>Publication DOI</SectionTitle>
+          <p className="mt-1 text-zinc-300">
+            Linked publication reference (peer-reviewed literature).
+          </p>
+          <p className="mt-1 text-sm leading-snug text-zinc-200">{cite}</p>
+          <DoiResolverLink doi={pub.doi} />
+        </>
+      );
+    }
+
+    if (!hasAtlas && hasDoi && n > 1) {
+      return (
+        <>
+          <SectionTitle>Linked publications</SectionTitle>
+          <p className="mt-1 text-zinc-300">{n} DOIs linked to this dataset.</p>
+          <ul className="mt-2 space-y-2 border-t border-zinc-700/70 pt-2">
+            {linkedPublications.map((p) => {
+              const cite = formatNexafsBrowseMinimalCitation(p);
+              return (
+                <li key={p.doi}>
+                  <p className="text-sm leading-snug text-zinc-200">{cite}</p>
+                  <DoiResolverLink doi={p.doi} />
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      );
+    }
+
+    if (hasAtlas && hasDoi && n === 1) {
+      const pub = linkedPublications[0]!;
+      const cite = formatNexafsBrowseMinimalCitation(pub);
+      return (
+        <div className="flex flex-col gap-3">
+          <div>
+            <SectionTitle>Atlas verification</SectionTitle>
+            <p className="mt-1 text-zinc-300">
+              Verified by the {site.name} team, highest-trust verification flag.
+            </p>
+          </div>
+          <div className="border-t border-zinc-700/70 pt-3">
+            <SectionTitle>Publication DOI</SectionTitle>
+            <p className="mt-1 text-zinc-300">
+              Also linked to peer-reviewed literature.
+            </p>
+            <p className="mt-1 text-sm leading-snug text-zinc-200">{cite}</p>
+            <DoiResolverLink doi={pub.doi} />
+          </div>
+        </div>
+      );
+    }
+
+    const pubs = linkedPublications;
+    return (
+      <div className="flex flex-col gap-3">
+        <div>
+          <SectionTitle>Atlas verification</SectionTitle>
+          <p className="mt-1 text-zinc-300">
+            Verified by the {site.name} team, highest-trust verification flag.
+          </p>
+        </div>
+        <div className="border-t border-zinc-700/70 pt-3">
+          <SectionTitle>Linked publications</SectionTitle>
+          <p className="mt-1 text-zinc-300">{n} DOIs linked.</p>
+          <ul className="mt-2 space-y-2">
+            {pubs.map((p) => {
+              const cite = formatNexafsBrowseMinimalCitation(p);
+              return (
+                <li key={p.doi}>
+                  <p className="text-sm leading-snug text-zinc-200">{cite}</p>
+                  <DoiResolverLink doi={p.doi} />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+    );
+  }, [hasAtlas, hasDoi, n, linkedPublications]);
+
+  const ariaLabel = verificationAriaLabel(hasAtlas, hasDoi);
+
+  return (
+    <>
+      <span
+        ref={triggerRef}
+        tabIndex={0}
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        className="focus-visible:ring-accent inline-flex shrink-0 cursor-default items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        onMouseEnter={openTooltip}
+        onMouseLeave={scheduleCloseTooltip}
+        onFocus={openTooltip}
+        onBlur={scheduleCloseTooltip}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <VerificationBadgeStack hasAtlas={hasAtlas} hasDoi={hasDoi} />
+      </span>
+      {isOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="z-tooltip pointer-events-none fixed -translate-x-1/2 -translate-y-full"
+              style={{ left: position.left, top: position.top }}
+            >
+              <VerificationTooltipSurface
+                arrowOffsetPx={0}
+                onMouseEnter={openTooltip}
+                onMouseLeave={scheduleCloseTooltip}
+              >
+                {tooltipInner}
+              </VerificationTooltipSurface>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}

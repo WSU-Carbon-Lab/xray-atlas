@@ -10,15 +10,17 @@ import {
 import { useSearchParams, useRouter } from "next/navigation";
 import type { ExperimentType } from "~/prisma/browser";
 import { trpc } from "~/trpc/client";
+import { cn } from "@heroui/styles";
 import { ErrorState } from "@/components/feedback/error-state";
 import {
   ArrowsUpDownIcon,
   CalendarDaysIcon,
-  ChatBubbleBottomCenterTextIcon,
+  CheckBadgeIcon,
   CheckIcon,
   CircleStackIcon,
   EyeIcon,
   HeartIcon,
+  ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 import { BrowseTabs } from "@/components/layout/browse-tabs";
 import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
@@ -49,6 +51,11 @@ const NEXAFS_SORT_OPTIONS: Array<{
   icon: ReactNode;
 }> = [
   {
+    key: "quality",
+    label: NEXAFS_SORT_LABELS.quality,
+    icon: <ShieldCheckIcon className="h-4 w-4 shrink-0" />,
+  },
+  {
     key: "favorites",
     label: NEXAFS_SORT_LABELS.favorites,
     icon: <HeartIcon className="h-4 w-4 shrink-0" />,
@@ -64,9 +71,9 @@ const NEXAFS_SORT_OPTIONS: Array<{
     icon: <CircleStackIcon className="h-4 w-4 shrink-0" />,
   },
   {
-    key: "comments",
-    label: NEXAFS_SORT_LABELS.comments,
-    icon: <ChatBubbleBottomCenterTextIcon className="h-4 w-4 shrink-0" />,
+    key: "publications",
+    label: NEXAFS_SORT_LABELS.publications,
+    icon: <CheckBadgeIcon className="h-4 w-4 shrink-0" />,
   },
   {
     key: "name",
@@ -81,6 +88,14 @@ const NEXAFS_SORT_OPTIONS: Array<{
     icon: <CalendarDaysIcon className="h-4 w-4 shrink-0" />,
   },
 ];
+
+type VerificationSource = "either" | "publication" | "atlas";
+
+const VERIFICATION_SOURCE_LABELS: Record<VerificationSource, string> = {
+  either: "Atlas or publication",
+  publication: "Third-party publication only",
+  atlas: "Xray Atlas internal review only",
+};
 
 export interface NexafsBrowseExperimentSectionProps {
   basePath: string;
@@ -113,7 +128,7 @@ export function NexafsBrowseExperimentSection({
   const [urlSynced, setUrlSynced] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [sortBy, setSortBy] = useState<NexafsBrowseSortKey>("favorites");
+  const [sortBy, setSortBy] = useState<NexafsBrowseSortKey>("quality");
   const [moleculeId, setMoleculeId] = useState<string | undefined>(undefined);
   const [edgeId, setEdgeId] = useState<string | undefined>(undefined);
   const [instrumentId, setInstrumentId] = useState<string | undefined>(
@@ -122,6 +137,9 @@ export function NexafsBrowseExperimentSection({
   const [experimentType, setExperimentType] = useState<
     ExperimentType | undefined
   >(undefined);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [verificationSource, setVerificationSource] =
+    useState<VerificationSource>("either");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const urlKey = searchParams.toString();
@@ -140,6 +158,11 @@ export function NexafsBrowseExperimentSection({
     setEdgeId(sp.get("edge") ?? undefined);
     setInstrumentId(sp.get("instrument") ?? undefined);
     setExperimentType(parseExperimentTypeParam(sp.get("type")));
+    setVerifiedOnly(sp.get("verified") === "1");
+    const source = sp.get("verifiedSource");
+    setVerificationSource(
+      source === "publication" || source === "atlas" ? source : "either",
+    );
     const p = sp.get("page");
     const n = p ? parseInt(p, 10) : 1;
     setCurrentPage(Number.isFinite(n) && n > 0 ? n : 1);
@@ -163,6 +186,8 @@ export function NexafsBrowseExperimentSection({
     edgeId,
     instrumentId,
     experimentType,
+    verifiedOnly,
+    verificationSource,
     lockedMoleculeId,
   ]);
 
@@ -171,11 +196,15 @@ export function NexafsBrowseExperimentSection({
     const params = new URLSearchParams();
     if (debouncedQuery) params.set("q", debouncedQuery);
     if (currentPage > 1) params.set("page", currentPage.toString());
-    if (sortBy !== "favorites") params.set("sort", sortBy);
+    if (sortBy !== "quality") params.set("sort", sortBy);
     if (!lockedMoleculeId && moleculeId) params.set("molecule", moleculeId);
     if (edgeId) params.set("edge", edgeId);
     if (instrumentId) params.set("instrument", instrumentId);
     if (experimentType) params.set("type", experimentType);
+    if (verifiedOnly) params.set("verified", "1");
+    if (verifiedOnly && verificationSource !== "either") {
+      params.set("verifiedSource", verificationSource);
+    }
     const qs = params.toString();
     const path = `${basePath}${qs ? `?${qs}` : ""}`;
     router.replace(path, { scroll: false });
@@ -188,6 +217,8 @@ export function NexafsBrowseExperimentSection({
     edgeId,
     instrumentId,
     experimentType,
+    verifiedOnly,
+    verificationSource,
     router,
     basePath,
     lockedMoleculeId,
@@ -205,6 +236,8 @@ export function NexafsBrowseExperimentSection({
       edgeId,
       instrumentId,
       experimentType,
+      verifiedOnly,
+      verificationSource,
     },
     {
       enabled: urlSynced && hasSearchQuery,
@@ -221,6 +254,8 @@ export function NexafsBrowseExperimentSection({
       edgeId,
       instrumentId,
       experimentType,
+      verifiedOnly,
+      verificationSource,
     },
     {
       enabled: urlSynced && !hasSearchQuery,
@@ -307,6 +342,9 @@ export function NexafsBrowseExperimentSection({
       experimentType ? (EXPERIMENT_TYPE_LABELS[experimentType] ?? null) : null,
     [experimentType],
   );
+  const activeVerificationLabel = verifiedOnly
+    ? VERIFICATION_SOURCE_LABELS[verificationSource]
+    : null;
 
   const sortLabelCurrent = NEXAFS_SORT_LABELS[sortBy];
 
@@ -315,6 +353,8 @@ export function NexafsBrowseExperimentSection({
     setEdgeId(undefined);
     setInstrumentId(undefined);
     setExperimentType(undefined);
+    setVerifiedOnly(false);
+    setVerificationSource("either");
   };
 
   const pageSubtitle = hasSearchQuery
@@ -356,6 +396,83 @@ export function NexafsBrowseExperimentSection({
             onExperimentTypeChange={setExperimentType}
           />
         </div>
+        <PopoverMenu
+          contentClassName="w-[min(100vw-2rem,320px)]"
+          renderTrigger={({ triggerProps, isOpen }) => (
+            <button
+              {...triggerProps}
+              type="button"
+              aria-label={`Verification filter; current ${verifiedOnly ? VERIFICATION_SOURCE_LABELS[verificationSource] : "all datasets"}`}
+              className={cn(
+                "border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+                verifiedOnly ? "ring-accent/35 ring-1 text-foreground" : "",
+              )}
+            >
+              <CheckBadgeIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
+              <span className="text-sm font-medium">Verified</span>
+              <span className="sr-only">
+                {isOpen
+                  ? "Close verification filter"
+                  : "Open verification filter"}
+              </span>
+            </button>
+          )}
+          renderContent={({ contentPositionClassName, contentProps, close }) => (
+            <PopoverMenuContent
+              {...contentProps}
+              className={`${contentPositionClassName} w-[min(100vw-2rem,320px)] rounded-xl py-1`}
+            >
+              <div className="space-y-2 p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVerifiedOnly((prev) => !prev);
+                  }}
+                  className={cn(
+                    "focus-visible:ring-accent flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2",
+                    verifiedOnly
+                      ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
+                      : "text-muted hover:bg-default hover:text-foreground",
+                  )}
+                >
+                  <span className="font-medium">Only verified datasets</span>
+                  {verifiedOnly ? (
+                    <CheckIcon className="text-accent h-4 w-4 shrink-0" aria-hidden />
+                  ) : null}
+                </button>
+                <div className="border-border-default space-y-1 rounded-md border p-1">
+                  {(["either", "publication", "atlas"] as const).map((option) => {
+                    const selected = verificationSource === option;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        disabled={!verifiedOnly}
+                        onClick={() => {
+                          setVerificationSource(option);
+                          close();
+                        }}
+                        className={cn(
+                          "focus-visible:ring-accent flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2",
+                          !verifiedOnly
+                            ? "text-zinc-500/70"
+                            : selected
+                              ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
+                              : "text-muted hover:bg-default hover:text-foreground",
+                        )}
+                      >
+                        <span>{VERIFICATION_SOURCE_LABELS[option]}</span>
+                        {verifiedOnly && selected ? (
+                          <CheckIcon className="text-accent h-4 w-4 shrink-0" aria-hidden />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </PopoverMenuContent>
+          )}
+        />
         {!hasSearchQuery ? (
           <PopoverMenu
             contentClassName="w-[min(100vw-2rem,300px)]"
@@ -424,10 +541,15 @@ export function NexafsBrowseExperimentSection({
         edgeLabel={activeEdgeLabel}
         instrumentLabel={activeInstrumentLabel}
         acquisitionLabel={activeAcquisitionLabel}
+        verificationLabel={activeVerificationLabel}
         onRemoveMolecule={() => setMoleculeId(undefined)}
         onRemoveEdge={() => setEdgeId(undefined)}
         onRemoveInstrument={() => setInstrumentId(undefined)}
         onRemoveAcquisition={() => setExperimentType(undefined)}
+        onRemoveVerification={() => {
+          setVerifiedOnly(false);
+          setVerificationSource("either");
+        }}
         onClearAll={handleClearFilters}
       />
 
