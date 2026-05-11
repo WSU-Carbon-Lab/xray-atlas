@@ -1,12 +1,13 @@
 /**
  * Wiki route documenting real-user performance monitoring via Vercel Speed Insights,
- * aligned with product instrumentation and reserving UI slots for future metric widgets.
+ * with embedded toy samples exercising shared population metric visualization primitives.
  */
 
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactElement } from "react";
 import { site } from "~/app/brand";
+import { DataInsightsMetricDemos } from "./data-insights-metric-demos";
 
 const VERCEL_SPEED_INSIGHTS_METRICS =
   "https://vercel.com/docs/speed-insights/metrics";
@@ -20,46 +21,6 @@ export const metadata: Metadata = {
     canonical: "/wiki/data-insights",
   },
 };
-
-/**
- * Permanent skeleton chrome reserving layout for Speed Insights-style charts and tiles until dedicated HeroUI metric surfaces ship.
- */
-function SpeedInsightsMetricSkeletonPreview(): ReactElement {
-  return (
-    <div
-      className="border-border bg-surface rounded-xl border p-4"
-      aria-hidden="true"
-    >
-      <p className="text-muted mb-4 text-xs">
-        Reserved layout for live charts and percentile summaries sourced from Vercel Speed Insights (non-interactive
-        placeholder).
-      </p>
-      <div className="bg-muted mb-5 h-28 animate-pulse rounded-lg" />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="border-border bg-background rounded-lg border p-3">
-          <div className="bg-muted mb-3 h-3 w-24 animate-pulse rounded" />
-          <div className="bg-muted mb-2 h-8 w-20 animate-pulse rounded-md" />
-          <div className="bg-muted h-2 w-full animate-pulse rounded-full" />
-        </div>
-        <div className="border-border bg-background rounded-lg border p-3">
-          <div className="bg-muted mb-3 h-3 w-28 animate-pulse rounded" />
-          <div className="bg-muted mb-2 h-8 w-16 animate-pulse rounded-md" />
-          <div className="bg-muted h-2 w-full animate-pulse rounded-full" />
-        </div>
-        <div className="border-border bg-background rounded-lg border p-3 sm:col-span-2 lg:col-span-1">
-          <div className="bg-muted mb-3 h-3 w-32 animate-pulse rounded" />
-          <div className="bg-muted mb-2 h-8 w-14 animate-pulse rounded-md" />
-          <div className="bg-muted h-2 w-full animate-pulse rounded-full" />
-        </div>
-      </div>
-      <div className="border-border mt-4 grid gap-2 rounded-lg border border-dashed p-3">
-        <div className="bg-muted h-3 animate-pulse rounded" />
-        <div className="bg-muted h-3 w-[92%] animate-pulse rounded" />
-        <div className="bg-muted h-3 w-[78%] animate-pulse rounded" />
-      </div>
-    </div>
-  );
-}
 
 export default function DataInsightsWikiPage(): ReactElement {
   return (
@@ -78,14 +39,14 @@ export default function DataInsightsWikiPage(): ReactElement {
         aria-labelledby="live-metrics-preview"
       >
         <h2 id="live-metrics-preview" className="text-foreground mb-2 text-lg font-semibold">
-          Live metrics preview
+          Metric visualization preview
         </h2>
         <p className="text-muted mb-4 text-sm">
-          The blocks below are <strong className="text-foreground font-medium">permanent skeletons</strong>: they hold
-          the eventual footprint for embedded charts and KPI tiles once shared HeroUI metric primitives land.
-          Until then they deliberately mimic loading states so reviewers validate spacing without swapping layouts twice.
+          The blocks below use <strong className="text-foreground font-medium">deterministic toy populations</strong>{" "}
+          wired through shared metric primitives. They preview how ordered statistics and headline gauges read in-wiki
+          without calling live Speed Insights APIs; production telemetry remains in the Vercel dashboard.
         </p>
-        <SpeedInsightsMetricSkeletonPreview />
+        <DataInsightsMetricDemos />
       </section>
 
       <section className="border-border bg-surface rounded-lg border p-4">

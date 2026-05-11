@@ -4,87 +4,121 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { site } from "~/app/brand";
+import { SpectralSpacingDemo } from "./spectral-spacing-demo";
 
 export const metadata: Metadata = {
   title: "Dataset Quality Metrics",
-  description: `How ${site.name} summarizes spectral resolution, SNR, normalization fits, and missing-statistic penalties on NEXAFS browse and molecule-detail cards.`,
+  description: `How ${site.name} summarizes spectral resolution, SNR, normalization-fit signals (in development), and missing-statistic penalties on dataset cards.`,
   alternates: {
     canonical: "/wiki/platform-features/dataset-quality-metrics",
   },
 };
+
+function WikiSection({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-border bg-surface rounded-lg border p-4">
+      <h2 id={id} className="text-foreground mb-2 text-lg font-semibold">
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
 
 export default function DatasetQualityMetricsWikiPage() {
   return (
     <div className="w-full min-w-0 space-y-6">
       <h1 className="text-foreground text-4xl font-bold">Dataset quality metrics</h1>
       <p className="text-muted">
-        NEXAFS grouped browse and experiment cards surface a single dataset-level quality control so you can
-        compare uploads at a glance. The circular headline summarizes several diagnostics; opening the tooltip
-        breaks down each component and explains why a row may show a dash instead of a numeric score.
+        Browse and molecule-detail NEXAFS cards show one headline quality ring plus a tooltip breakdown. Missing rows use
+        neutral placeholders and short explanations instead of invented numbers.
       </p>
 
-      <section className="border-border bg-surface rounded-lg border p-4">
-        <h2 id="headline-score" className="text-foreground mb-2 text-lg font-semibold">
-          Headline score
-        </h2>
-        <p className="text-muted text-sm">
-          The ring reports a value on a 0–100 scale derived from the finite metrics currently available for that
-          dataset. Resolution contributes via the energy-spacing model described below (including diminishing returns
-          when spacing is far finer than the reference). Signal-to-noise and each normalization fit contribute their
-          own 0–100 subscores when data allow. Each of three optional slots—SNR, OD normalization fit, and
-          mass-absorption normalization fit—that cannot be scored reduces the headline by five points before the
-          result is clamped to the display range.
+      <WikiSection id="metrics-roadmap" title="Metrics roadmap">
+        <p className="text-muted mb-3 text-sm">
+          Some signals are still evolving. The items below are planned or in active development; browse cards may show
+          interim rows until these stabilize.
         </p>
+        <ul className="text-muted list-inside list-disc space-y-2 text-sm">
+          <li>
+            <strong className="text-foreground font-medium">Normalization fits (OD and mass absorption):</strong>{" "}
+            clearer definitions, documentation examples, and richer tooltip copy for how declared pre-edge and post-edge
+            windows compare to anchor targets.
+          </li>
+          <li>
+            <strong className="text-foreground font-medium">Worked wiki examples:</strong> optional interactive demos for
+            normalization-fit rows and SNR (similar in spirit to the spacing demo below) once definitions are locked.
+          </li>
+        </ul>
+      </WikiSection>
+
+      <WikiSection id="headline-score" title="Headline score">
+        <p className="text-muted text-sm">
+          The ring is a 0–100 aggregate from whichever subscores are available for that dataset: energy resolution,
+          signal-to-noise (when error bars allow), and OD versus mass-absorption normalization fits (when ranges and
+          channels allow). The resolution model uses decade-relative spacing scoring; details follow under Energy
+          resolution. Each optional slot among SNR, OD normalization fit, and mass-absorption normalization fit that
+          cannot be scored applies a five-point penalty before the headline is clamped to the display range.
+        </p>
+      </WikiSection>
+
+      <WikiSection id="energy-resolution" title="Energy resolution distribution">
+        <p className="text-muted text-sm">
+          Adjacent channel spacing along the canonical polarization trace is grouped by tier: great (below 0.1 eV), good
+          (0.1–1 eV), OK (1–5 eV), and bad (above 5 eV). The tooltip uses a segmented trace and a P75 ΔE headline. The
+          resolution subscore uses a mapping anchored at 0.1 eV so equal ratios in spacing move the score similarly across
+          decades.
+        </p>
+      </WikiSection>
+
+      <section className="space-y-3">
+        <h2 id="demo-spacing-distribution" className="text-foreground text-lg font-semibold">
+          Demo: spacing distribution
+        </h2>
+        <p className="text-muted text-sm leading-relaxed">
+          The interactive bar uses fixed illustrative tier shares (65% / 30% / 3% / 2%) and the same thresholds as in
+          Energy resolution distribution; it is not computed from uploaded energies. The P75 value is a documentation
+          example aligned with those shares.
+        </p>
+        <SpectralSpacingDemo />
       </section>
 
-      <section className="border-border bg-surface rounded-lg border p-4">
-        <h2 id="energy-resolution" className="text-foreground mb-2 text-lg font-semibold">
-          Energy resolution distribution
-        </h2>
+      <WikiSection id="signal-to-noise" title="Signal-to-noise ratio">
         <p className="text-muted text-sm">
-          Adjacent energy spacing along the canonical polarization trace is classified into population tiers: great
-          (below 0.1 eV), good (0.1–1 eV), OK (1–5 eV), and bad (above 5 eV). The tooltip shows this distribution as a
-          segmented trace. The 75th percentile spacing (P75 ΔE) appears as the hero quantity in eV and positions a
-          marker along the bar. The resolution subscore uses a decade-relative mapping anchored at 0.1 eV so equal
-          ratios in spacing move the score by equal amounts, rather than a simple inverse linear scale.
+          SNR uses uploaded absorption and uncertainty when finite positive error bars exist. Without usable error bars,
+          SNR is omitted and the tooltip states why.
         </p>
-      </section>
+      </WikiSection>
 
-      <section className="border-border bg-surface rounded-lg border p-4">
-        <h2 id="signal-to-noise" className="text-foreground mb-2 text-lg font-semibold">
-          Signal-to-noise ratio
-        </h2>
+      <WikiSection id="normalization-fits" title="Normalization fits (OD and mass absorption)">
         <p className="text-muted text-sm">
-          SNR is evaluated on uploaded absorption using uploaded uncertainty when finite positive error bars exist on
-          those samples. If the spectrum has no usable error bars, SNR is intentionally omitted—the tooltip explains
-          that state rather than fabricating a variance estimate.
+          Rows aim to summarize how well traces match nominal plateaus in declared windows. Presentation and scoring copy
+          are still tightening—see{" "}
+          <a href="#metrics-roadmap" className="text-accent font-medium underline-offset-4 hover:underline">
+            Metrics roadmap
+          </a>
+          . Contributors should still supply pre-edge and post-edge ranges when possible so future scoring can consume
+          them.
         </p>
-      </section>
+      </WikiSection>
 
-      <section className="border-border bg-surface rounded-lg border p-4">
-        <h2 id="normalization-fits" className="text-foreground mb-2 text-lg font-semibold">
-          Normalization fits (OD and mass absorption)
-        </h2>
+      <WikiSection id="missing-rows" title="Missing metrics in the tooltip">
         <p className="text-muted text-sm">
-          When contributors declare pre-edge and post-edge energy windows, the platform measures how closely the optical
-          density trace matches nominal anchors (0 in the pre-edge window and 1 in the post-edge window), and does the
-          same independently for mass absorption. Missing windows mean both fits are unavailable and the tooltip flags
-          that pre-edge and post-edge regions were not supplied.
+          When a statistic cannot be scored, the row shows a skeleton bar, an em dash instead of a headline number, and
+          amber guidance (for example missing error bars or missing normalization windows). Resolution may be omitted if
+          there are too few points for an adjacent-spacing distribution.
         </p>
-      </section>
-
-      <section className="border-border bg-surface rounded-lg border p-4">
-        <h2 id="missing-rows" className="text-foreground mb-2 text-lg font-semibold">
-          Missing metrics in the tooltip
-        </h2>
-        <p className="text-muted text-sm">
-          When a statistic cannot be scored, the breakdown shows a neutral skeleton bar, an em dash instead of a numeric
-          headline for that row, and amber guidance text summarizing the reason (for example absent error bars or
-          absent normalization ranges). Energy resolution may be omitted entirely when there are not enough points to
-          estimate an adjacent-spacing distribution.
-        </p>
-      </section>
+      </WikiSection>
 
       <div className="flex flex-wrap gap-3">
         <Link

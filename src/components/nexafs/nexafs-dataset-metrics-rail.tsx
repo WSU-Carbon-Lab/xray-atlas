@@ -29,6 +29,15 @@ import {
 const METRIC_TOOLTIP_CLOSE_DELAY_MS = 100;
 const METRIC_TOOLTIP_VERTICAL_OFFSET_PX = 8;
 
+const NORMALIZATION_FIT_WIP_COPY =
+  "More metrics coming soon. Normalization fit metrics remain under active development.";
+
+function isNormalizationFitMetricKey(
+  key: NexafsBrowseDatasetMetricBarModel["key"],
+): boolean {
+  return key === "norm_distance_od" || key === "norm_distance_mass";
+}
+
 const TICK_FAIR = DATASET_METRIC_TIER_PERCENT_CUTOFFS.fairMinPercent;
 const TICK_GOOD = DATASET_METRIC_TIER_PERCENT_CUTOFFS.goodMinPercent;
 const TICK_EXCELLENT = DATASET_METRIC_TIER_PERCENT_CUTOFFS.excellentMinPercent;
@@ -270,9 +279,15 @@ function MissingDatasetMetricPlaceholder({
 }: {
   bar: NexafsBrowseDatasetMetricBarModel;
 }) {
+  const showNormFitWip = isNormalizationFitMetricKey(bar.key);
   return (
     <div className="space-y-1 rounded-lg border border-zinc-700/60 bg-zinc-950/55 px-3 py-2.5">
       <div className="text-[11px] leading-tight font-medium text-zinc-400">{bar.label}</div>
+      {showNormFitWip ? (
+        <p className="text-[10px] font-medium leading-snug text-zinc-400">
+          {NORMALIZATION_FIT_WIP_COPY}
+        </p>
+      ) : null}
       <p className="text-[10px] font-medium leading-snug text-amber-500">{bar.summary}</p>
       <div className="pt-0.5">
         <span className="text-xl leading-none font-semibold tabular-nums tracking-tight text-zinc-500 sm:text-2xl">
@@ -483,6 +498,7 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
       bar.key === "snr" ||
       bar.key === "norm_distance_od" ||
       bar.key === "norm_distance_mass");
+  const showNormFitWip = isNormalizationFitMetricKey(bar.key);
 
   if (isMissingMetricPlaceholder) {
     return <MissingDatasetMetricPlaceholder bar={bar} />;
@@ -493,6 +509,11 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
       <div className="text-[11px] leading-tight font-medium text-zinc-400">
         {bar.label}
       </div>
+      {showNormFitWip ? (
+        <p className="text-[10px] font-medium leading-snug text-zinc-400">
+          {NORMALIZATION_FIT_WIP_COPY}
+        </p>
+      ) : null}
       {!isResolutionDistribution ? (
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span
