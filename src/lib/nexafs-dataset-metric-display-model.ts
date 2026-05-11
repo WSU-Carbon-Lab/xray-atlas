@@ -3,16 +3,12 @@
  *
  * Owns JSON parsing for grouped browse SQL aggregates and applies `nexafs-dataset-metric-policy` breakpoints
  * consistently with metric persistence. Browse-card resolution subscores use a decade-relative ΔE mapping via
- * {@link resolutionSpacingDecadeScorePercent} rather than `(0.1/ΔE)×100`.
+ * {@link resolutionSpacingDecadeScorePercent} rather than `(0.1/ΔE)×100`. Headline dataset quality averages
+ * resolution and SNR only; OD and mass-absorption normalization fit scores are not listed in `bars` until they ship.
  */
 
 import type { DatasetMetricTier } from "~/lib/nexafs-dataset-metric-policy";
-import {
-  combinePercentsMean,
-  normalizationMeanDeviationToPercent,
-  snrToPercent,
-  tierFromPercent,
-} from "~/lib/nexafs-dataset-metric-policy";
+import { combinePercentsMean, snrToPercent, tierFromPercent } from "~/lib/nexafs-dataset-metric-policy";
 
 export const NEXAFS_DATASET_METRIC_CHANNEL_ORDER = ["rawabs", "od", "massabsorption", "beta"] as const;
 
@@ -20,11 +16,7 @@ export type NexafsDatasetMetricChannelKey =
   (typeof NEXAFS_DATASET_METRIC_CHANNEL_ORDER)[number];
 
 export type NexafsBrowseDatasetMetricBarModel = {
-  key:
-    | "resolution_distribution"
-    | "snr"
-    | "norm_distance_od"
-    | "norm_distance_mass";
+  key: "resolution_distribution" | "snr";
   label: string;
   percent: number | null;
   tier: DatasetMetricTier | "unknown";
@@ -90,7 +82,7 @@ const RESOLUTION_SCORE_REF_EV = 0.1;
 /** Score drop per factor-of-10 coarser spacing (larger ΔE); finer than {@link RESOLUTION_SCORE_REF_EV} can exceed 100. */
 const RESOLUTION_SCORE_POINTS_PER_DECADE = 50;
 
-/** Points subtracted from the dataset aggregate for each unscored statistic among SNR, OD normalization fit, and mass-absorption normalization fit. */
+/** Points subtracted from the browse headline aggregate when SNR cannot be scored (for example, no uploaded error bars or non-finite SNR). */
 export const DATASET_QUALITY_MISSING_STATISTIC_PENALTY = 5;
 
 /**
@@ -191,11 +183,11 @@ export type NexafsBrowseExperimentMetricChannelPayload = {
 /**
  * Parses grouped-browse JSON aggregates into a single dataset score plus detailed hover breakdown.
  *
- * Uses `rawabs` for mean spacing and SNR; uses `od` and `massabsorption` rows for separate normalization-anchor fits.
- * Dataset-level energy resolution scoring prefers the persisted P75 adjacent-spacing quantile when the spacing
- * distribution is available. The aggregate mean uses resolution (with diminishing returns above 100), SNR, OD norm,
- * and mass-absorption norm for finite parts only, then subtracts {@link DATASET_QUALITY_MISSING_STATISTIC_PENALTY}
- * per missing statistic among SNR, OD normalization, and mass-absorption normalization (clamped to `[0, 100]`).
+ * Uses `rawabs` for mean spacing and SNR. Dataset-level energy resolution scoring prefers the persisted P75 adjacent-spacing
+ * quantile when the spacing distribution is available. The headline aggregate mean uses resolution (with diminishing returns
+ * above 100) and SNR for finite parts only, then subtracts {@link DATASET_QUALITY_MISSING_STATISTIC_PENALTY} when SNR is
+ * unscored (clamped to `[0, 100]`). OD and mass-absorption normalization fit subscores do not enter the aggregate
+ * and are not materialized as `bars` rows until implemented.
  *
  * @param headerPayload Experiment-level metrics header row or null when no `experiment_metrics` row exists.
  * @param channelsPayload JSON array from `experiment_metrics_channel` or empty array when uncomputed.
@@ -243,24 +235,10 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
   }
 
   const rawChannel = byChannel.get("rawabs");
-  const odChannel = byChannel.get("od");
-  const massChannel = byChannel.get("massabsorption");
   const spacingEv = finiteNumber(rawChannel?.point_spacing_ev);
   const snr = hasErrorBars ? finiteNumber(rawChannel?.snr) : null;
-  const normOdDist = normalizationRangesPresent
-    ? finiteNumber(odChannel?.normalization_target_distance)
-    : null;
-  const normMassDist = normalizationRangesPresent
-    ? finiteNumber(massChannel?.normalization_target_distance)
-    : null;
   const spacingPct = resolutionSpacingDecadeScorePercent(spacingEv);
   const snrPct = snr != null ? snrToPercent(snr) : null;
-  const normOdPct =
-    normOdDist != null ? normalizationMeanDeviationToPercent(normOdDist) : null;
-  const normMassPct =
-    normMassDist != null
-      ? normalizationMeanDeviationToPercent(normMassDist)
-      : null;
   const weightedResolutionPopulationScore =
     hyperfinePct * 1.2 + goodPct + fairPct * 0.65 + poorPct * 0.25;
   const hasDistribution = hyperfinePct + goodPct + fairPct + poorPct > 0;
@@ -341,32 +319,6 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
           : "Error bars exist but no finite SNR could be computed."
         : "Uploaded data has no error bars",
     },
-    {
-      key: "norm_distance_od",
-      label: "Normalization fit (OD)",
-      percent: normOdPct,
-      tier: tierFromPercentOrUnknown(normOdPct),
-      quantityValue: normOdDist != null ? normOdDist.toFixed(4) : "—",
-      quantityUnit: "",
-      summary: normalizationRangesPresent
-        ? normOdDist != null
-          ? "Mean absolute deviation from 0 (pre-edge) and 1 (post-edge) on the OD channel."
-          : "Normalization ranges are set, but OD anchor deviation could not be computed."
-        : "Pre-edge and post-edge regions are missing.",
-    },
-    {
-      key: "norm_distance_mass",
-      label: "Normalization fit (mass absorption)",
-      percent: normMassPct,
-      tier: tierFromPercentOrUnknown(normMassPct),
-      quantityValue: normMassDist != null ? normMassDist.toFixed(4) : "—",
-      quantityUnit: "",
-      summary: normalizationRangesPresent
-        ? normMassDist != null
-          ? "Mean absolute deviation from 0 (pre-edge) and 1 (post-edge) on the mass-absorption channel."
-          : "Normalization ranges are set, but mass-absorption anchor deviation could not be computed."
-        : "Pre-edge and post-edge regions are missing.",
-    },
   ];
 
   const resolutionContribution = densityContributionPercent(
@@ -375,13 +327,9 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
   const baseAggregateMean = combinePercentsMean([
     resolutionContribution,
     snrPct,
-    normOdPct,
-    normMassPct,
   ]);
   let missingStatisticCount = 0;
   if (snrPct == null) missingStatisticCount += 1;
-  if (normOdPct == null) missingStatisticCount += 1;
-  if (normMassPct == null) missingStatisticCount += 1;
 
   const aggregatePercent =
     baseAggregateMean == null

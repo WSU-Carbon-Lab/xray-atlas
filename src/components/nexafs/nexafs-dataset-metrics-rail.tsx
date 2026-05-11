@@ -14,9 +14,10 @@ import { AlertCircle } from "lucide-react";
 import { Chip } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { BookOpenIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import type {
-  NexafsBrowseDatasetMetricBarModel,
-  NexafsBrowseDatasetMetricsCardModel,
+import {
+  DATASET_QUALITY_MISSING_STATISTIC_PENALTY,
+  type NexafsBrowseDatasetMetricBarModel,
+  type NexafsBrowseDatasetMetricsCardModel,
 } from "~/lib/nexafs-dataset-metric-display-model";
 import type { DatasetMetricTier } from "~/lib/nexafs-dataset-metric-policy";
 import {
@@ -28,15 +29,6 @@ import {
 
 const METRIC_TOOLTIP_CLOSE_DELAY_MS = 100;
 const METRIC_TOOLTIP_VERTICAL_OFFSET_PX = 8;
-
-const NORMALIZATION_FIT_WIP_COPY =
-  "More metrics coming soon. Normalization fit metrics remain under active development.";
-
-function isNormalizationFitMetricKey(
-  key: NexafsBrowseDatasetMetricBarModel["key"],
-): boolean {
-  return key === "norm_distance_od" || key === "norm_distance_mass";
-}
 
 const TICK_FAIR = DATASET_METRIC_TIER_PERCENT_CUTOFFS.fairMinPercent;
 const TICK_GOOD = DATASET_METRIC_TIER_PERCENT_CUTOFFS.goodMinPercent;
@@ -279,15 +271,9 @@ function MissingDatasetMetricPlaceholder({
 }: {
   bar: NexafsBrowseDatasetMetricBarModel;
 }) {
-  const showNormFitWip = isNormalizationFitMetricKey(bar.key);
   return (
     <div className="space-y-1 rounded-lg border border-zinc-700/60 bg-zinc-950/55 px-3 py-2.5">
       <div className="text-[11px] leading-tight font-medium text-zinc-400">{bar.label}</div>
-      {showNormFitWip ? (
-        <p className="text-[10px] font-medium leading-snug text-zinc-400">
-          {NORMALIZATION_FIT_WIP_COPY}
-        </p>
-      ) : null}
       <p className="text-[10px] font-medium leading-snug text-amber-500">{bar.summary}</p>
       <div className="pt-0.5">
         <span className="text-xl leading-none font-semibold tabular-nums tracking-tight text-zinc-500 sm:text-2xl">
@@ -494,11 +480,7 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
   const isResolutionDistribution = bar.key === "resolution_distribution";
   const isMissingMetricPlaceholder =
     !hasScore &&
-    (bar.key === "resolution_distribution" ||
-      bar.key === "snr" ||
-      bar.key === "norm_distance_od" ||
-      bar.key === "norm_distance_mass");
-  const showNormFitWip = isNormalizationFitMetricKey(bar.key);
+    (bar.key === "resolution_distribution" || bar.key === "snr");
 
   if (isMissingMetricPlaceholder) {
     return <MissingDatasetMetricPlaceholder bar={bar} />;
@@ -509,11 +491,6 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
       <div className="text-[11px] leading-tight font-medium text-zinc-400">
         {bar.label}
       </div>
-      {showNormFitWip ? (
-        <p className="text-[10px] font-medium leading-snug text-zinc-400">
-          {NORMALIZATION_FIT_WIP_COPY}
-        </p>
-      ) : null}
       {!isResolutionDistribution ? (
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span
@@ -593,12 +570,20 @@ function ChannelDatasetMetricBreakdownBody({
     <div className="flex flex-col gap-3">
       <div className="border-b border-zinc-700/70 pb-3">
         <h3 className="text-sm font-semibold text-zinc-100">Dataset quality</h3>
+        <p className="mt-1.5 text-[11px] leading-snug text-zinc-400">
+          The ring averages energy resolution and SNR subscores that are available, then subtracts{" "}
+          {DATASET_QUALITY_MISSING_STATISTIC_PENALTY} when SNR is not scored (for example, no error bars on the upload).
+          Normalization fit sections are in development and do not affect the headline score.
+        </p>
         <DatasetQualityWikiChip />
       </div>
       <div className="space-y-2">
         {metrics.bars.map((bar) => (
           <VercelStyleMetricBlock key={bar.key} bar={bar} />
         ))}
+        <p className="text-[10px] font-medium leading-snug text-zinc-400">
+          More coming soon...
+        </p>
       </div>
     </div>
   );

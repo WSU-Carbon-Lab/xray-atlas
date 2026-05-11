@@ -4,10 +4,6 @@ import {
   it as bunIt,
 } from "bun:test";
 import {
-  combinePercentsMean,
-  normalizationMeanDeviationToPercent,
-} from "~/lib/nexafs-dataset-metric-policy";
-import {
   buildNexafsBrowseDatasetMetricsCardModel,
   DATASET_QUALITY_MISSING_STATISTIC_PENALTY,
   resolutionSpacingDecadeScorePercent,
@@ -17,6 +13,7 @@ type ExpectAssertions = {
   toBe: (expected: unknown) => void;
   toBeCloseTo: (expected: number, precision?: number) => void;
   toBeNull: () => void;
+  toEqual: (expected: unknown) => void;
 };
 
 const describe = bunDescribe as (name: string, fn: () => void) => void;
@@ -66,7 +63,7 @@ describe("resolutionSpacingDecadeScorePercent", () => {
 });
 
 describe("buildNexafsBrowseDatasetMetricsCardModel", () => {
-  it("subtracts five points per missing SNR, OD norm, and mass-absorption norm", () => {
+  it("averages resolution and SNR only and subtracts five when SNR is unscored", () => {
     const model = buildNexafsBrowseDatasetMetricsCardModel(
       {
         normalization_ranges_present: false,
@@ -80,11 +77,11 @@ describe("buildNexafsBrowseDatasetMetricsCardModel", () => {
       [{ channel: "rawabs", point_spacing_ev: 0.1 }],
     );
     expect(model.aggregatePercent).toBe(
-      100 - 3 * DATASET_QUALITY_MISSING_STATISTIC_PENALTY,
+      100 - DATASET_QUALITY_MISSING_STATISTIC_PENALTY,
     );
   });
 
-  it("includes OD and mass normalization bars and applies one missing penalty when SNR absent", () => {
+  it("omits normalization-fit bars until implemented and excludes channel distances from the aggregate", () => {
     const model = buildNexafsBrowseDatasetMetricsCardModel(
       {
         normalization_ranges_present: true,
@@ -101,24 +98,12 @@ describe("buildNexafsBrowseDatasetMetricsCardModel", () => {
         { channel: "massabsorption", normalization_target_distance: 0.05 },
       ],
     );
-    expect(model.bars.some((b) => b.key === "norm_distance_od")).toBe(true);
-    expect(model.bars.some((b) => b.key === "norm_distance_mass")).toBe(true);
-    const normOdPct = normalizationMeanDeviationToPercent(0.05);
-    const normMassPct = normalizationMeanDeviationToPercent(0.05);
-    const baseMean = combinePercentsMean([
-      100,
-      null,
-      normOdPct,
-      normMassPct,
-    ])!;
+    expect(model.bars.map((b) => b.key)).toEqual([
+      "resolution_distribution",
+      "snr",
+    ]);
     expect(model.aggregatePercent).toBe(
-      Math.max(
-        0,
-        Math.min(
-          100,
-          baseMean - DATASET_QUALITY_MISSING_STATISTIC_PENALTY,
-        ),
-      ),
+      100 - DATASET_QUALITY_MISSING_STATISTIC_PENALTY,
     );
   });
 });
