@@ -7,7 +7,8 @@
  * piecewise-polynomial transforms in **TypeScript**: `refractive_to_ASF` scaling, linear `ASF_to_ASP`,
  * `KK_PP`, then `ASF_to_refractive`, matching `tests/kk-calc-validation/run_reference.py`
  * `kkcalc-delta-optical-beta`. With material context, **Henke bare-atom tails** extend imaginary ASF
- * before `KK_PP` (see `kkcalc-bare-asf-extension.ts` and bundled `kkcalc-henke-element-f2.bundle.json`).
+ * before `KK_PP` (see `kkcalc-bare-asf-extension.ts` and bundled `kkcalc-henke-element-f2.bundle.json`,
+ * generated from LBL CXRO `.nff` tables matching server bare-atom Henke data).
  * Default relativistic `Z^*` follows kkcalc2 extended objects (stoichiometry correction when extension
  * runs; `0` for measurement-only / `bareAtomExtension.enabled: false`).
  *

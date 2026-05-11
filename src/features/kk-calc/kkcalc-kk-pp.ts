@@ -2,7 +2,7 @@
  * kkcalc2 `transforms.KK_PP`: Kramers–Kronig from imaginary piecewise polynomial (orders
  * `[1,0,-1,-2,-3]`) to real ASF on `targetEnergies`, Watts et al. piecewise-polynomial kernel.
  *
- * Transcribed from `tests/kk-calc-validation/kkcalc/kkcalc2/transforms.py` for the
+ * Transcribed from kkcalc2 `transforms.KK_PP` (PyPI `kkcalc2`, Watts et al.) for the
  * `improve_accuracy=False` measurement-grid pipeline.
  */
 import { PI } from "./kkcalc-physical-constants";

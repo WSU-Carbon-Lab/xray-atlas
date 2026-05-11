@@ -16,11 +16,3 @@ dependencies = [
 
 [tool.uv]
 package = false
-
-[tool.uv.workspace]
-members = [
-    "kkcalc",
-]
-
-[tool.uv.sources]
-kkcalc2 = { workspace = true }

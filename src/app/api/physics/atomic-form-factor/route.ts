@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { henkeLblElementNffUrl } from "~/lib/henke-nff-cxro";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -20,9 +21,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    // CXRO/LBL database requires lowercase element names
-    const atomLower = atom.toLowerCase();
-    const url = `https://henke.lbl.gov/optical_constants/sf/${atomLower}.nff`;
+    const url = henkeLblElementNffUrl(atom);
     const response = await fetch(url, {
       headers: {
         "User-Agent": "X-ray Atlas/1.0",

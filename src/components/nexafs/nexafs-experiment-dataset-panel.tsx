@@ -64,6 +64,8 @@ import {
   KkBrowserConsentDialog,
   readKkBrowserConsentGranted,
 } from "~/features/kk-calc";
+import { computeDeltaFromBetaKkcalcStyle } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
+import { alignKkDeltaToSpectrumEnergyAxis } from "~/features/kk-calc/makima-interpolate";
 import { LoadingSkeleton } from "~/components/feedback/loading-state";
 import { NexafsBrowseGroupedSpectrumTable } from "~/components/nexafs/nexafs-browse-grouped-spectrum-table";
 
@@ -598,9 +600,13 @@ export function NexafsExperimentDatasetPanel({
     if (
       !showBareAtomOverlay ||
       !chemicalFormula?.trim() ||
-      model.dataView === "od" ||
-      model.dataView === "delta"
+      model.dataView === "od"
     ) {
+      setBareAtomReference(null);
+      return;
+    }
+
+    if (model.dataView === "delta" && !(model.deltaPoints?.length ?? 0)) {
       setBareAtomReference(null);
       return;
     }
@@ -640,6 +646,38 @@ export function NexafsExperimentDatasetPanel({
             color: "#6b7280",
             showInLegend: false,
           });
+        } else if (model.dataView === "delta") {
+          const muLike: SpectrumPoint[] = bareMu.map((p) => ({
+            energy: p.energy,
+            absorption: p.absorption,
+          }));
+          const betaLike = computeBetaIndex(
+            muLike,
+            muLike.map((p) => p.energy),
+            bareMu,
+          );
+          const energyEv = betaLike.map((p) => p.energy);
+          const betaArr = betaLike.map((p) => p.absorption);
+          const rawDelta = computeDeltaFromBetaKkcalcStyle({
+            energyEv,
+            beta: betaArr,
+            stoichiometryFormula: chemicalFormula.trim(),
+            densityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
+          });
+          const aligned = alignKkDeltaToSpectrumEnergyAxis(
+            energyEv,
+            energyEv,
+            rawDelta,
+          );
+          setBareAtomReference({
+            label: "Bare atom delta",
+            points: energyEv.map((energy, i) => ({
+              energy,
+              absorption: aligned[i]!,
+            })),
+            color: "#6b7280",
+            showInLegend: false,
+          });
         } else {
           setBareAtomReference({
             label: "Bare atom absorption",
@@ -667,6 +705,7 @@ export function NexafsExperimentDatasetPanel({
     chemicalFormula,
     model.dataView,
     model.absorptionPlotPoints,
+    model.deltaPoints,
   ]);
 
   const plotPeaks = useMemo(
@@ -898,17 +937,19 @@ export function NexafsExperimentDatasetPanel({
           <ToggleButton
             isIconOnly
             aria-label={
-              model.dataView === "od" || model.dataView === "delta"
-                ? "Bare atom overlay (not available in this view)"
+              model.dataView === "od"
+                ? "Bare atom overlay (not available in optical density view)"
                 : chemicalFormula
-                  ? "Bare atom reference curve on this energy grid"
+                  ? model.dataView === "delta"
+                    ? "Bare atom delta reference (KK from Henke beta on this grid)"
+                    : "Bare atom reference curve on this energy grid"
                   : "Bare atom overlay (no chemical formula on linked molecule)"
             }
             id="bare-atom"
             isDisabled={
               !chemicalFormula ||
               model.dataView === "od" ||
-              model.dataView === "delta" ||
+              (model.dataView === "delta" && !model.deltaAvailable) ||
               moleculeFormulaQuery.isLoading
             }
             className={plotToolbarBasisToggleClass}

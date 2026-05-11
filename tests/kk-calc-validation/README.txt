@@ -1,4 +1,6 @@
-Pinned kkcalc2 (xraysoftmat/kkcalc) + NumPy/SciPy/Matplotlib for tests/kk-calc-validation/run_reference.py.
+Pinned kkcalc2 from PyPI + NumPy/SciPy/Matplotlib for tests/kk-calc-validation/run_reference.py.
+The vendored `kkcalc/` git checkout is not required; regenerate the client Henke bundle from LBL CXRO
+with `uv run python tests/kk-calc-validation/tools/gen_henke_element_f2_bundle.py` (network).
 
 Setup: cd tests/kk-calc-validation && uv sync
 
@@ -16,7 +18,8 @@ Default PNG: kk_compare_<csv-stem>.png in this directory.
 
 Bun validation (`bun run test:kk-calc-validation`) uses the same CSV for TS kkcalc-style KK_PP vs
 the offline golden JSON (measurement-only), subprocess parity for extended `asp_db_im_extended`,
-SciPy makima alignment, coarse-grid KK + makima similarity, and **CSV delta column vs kkcalc-delta-optical-beta**.
+SciPy makima alignment, coarse-grid KK + makima similarity, **CSV delta column vs kkcalc-delta-optical-beta**,
+and (when `KK_HENKE_NETWORK_TEST=1` on CI, or off CI) **Henke bundle vs live CXRO `.nff`** for carbon.
 
 kkcalc2 optical pipeline (formula + mass density in g/cm³); default CLI matches `asp_db_im_extended`:
 

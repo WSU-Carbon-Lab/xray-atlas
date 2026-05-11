@@ -1,11 +1,11 @@
 /**
- * Bundled Henke-style tabulated imaginary atomic scattering factors `f_2` (Henke `.nff` lineage via
- * kkcalc2 `asf_database/db_data`) for client-side KK tail extension. The JSON is generated offline
- * (~475 KiB for 92 elements, 320 subsampled knots each) by
- * `tests/kk-calc-validation/tools/gen_henke_element_f2_bundle.py` from vendor `.nff` files; subsampling
- * trades disk size against tail smoothness compared to full kkcalc polynomial grids.
+ * Bundled Henke-style tabulated imaginary atomic scattering factors `f_2` from the same LBL CXRO
+ * `.nff` ASCII tables as `~/server/utils/cxro.ts` and `~/lib/henke-nff-cxro.ts`
+ * (`https://henke.lbl.gov/optical_constants/sf/<element>.nff`). The JSON is generated offline by
+ * `tests/kk-calc-validation/tools/gen_henke_element_f2_bundle.py` (networked fetch + subsampling) so
+ * KK Henke tail extension and bare-atom step-edge overlays stay on one database.
  *
- * This module does **not** fetch cxro.lbl.gov at runtime; missing symbols throw at evaluation time.
+ * This module does **not** fetch Henke URLs at runtime; missing symbols throw at evaluation time.
  */
 import henkeElementF2Bundle from "./kkcalc-henke-element-f2.bundle.json" with { type: "json" };
 import {

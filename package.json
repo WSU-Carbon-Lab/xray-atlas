@@ -29,7 +29,7 @@
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:kk-calc-validation": "bun test src/features/kk-calc/kk-calc-validation.test.ts"
+    "test:kk-calc-validation": "bun test src/features/kk-calc/*.test.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
