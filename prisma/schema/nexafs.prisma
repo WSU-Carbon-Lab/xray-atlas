@@ -116,6 +116,8 @@ model spectrumpoints {
   i0             Float?
   beta           Float?
   betaerr        Float?
+  delta          Float?
+  deltaerr       Float?
   massabsorption Float?
   massabsorptionerr Float?
   od             Float?

@@ -1,0 +1,3 @@
+ALTER TABLE "public"."spectrumpoints"
+ADD COLUMN "delta" DOUBLE PRECISION,
+ADD COLUMN "deltaerr" DOUBLE PRECISION;
