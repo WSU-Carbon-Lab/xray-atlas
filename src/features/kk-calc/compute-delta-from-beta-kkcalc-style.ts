@@ -33,6 +33,11 @@ export const DEFAULT_KK_MASS_DENSITY_G_CM3 = 1;
 export interface KkcalcMaterialContext {
   readonly stoichiometryFormula: string;
   readonly massDensityGPerCm3: number;
+  /**
+   * When set with both contributor pre- and post-edge ranges, forwarded to
+   * {@link ComputeDeltaFromBetaKkcalcStyleParams.henkeMergeDomain} for Henke tail merge anchoring.
+   */
+  readonly henkeMergeDomain?: readonly [number, number];
 }
 
 export type KkcalcRelativisticMode = "none" | "stoichiometry";
@@ -85,6 +90,11 @@ export interface ComputeDeltaFromBetaKkcalcStyleParams {
   readonly beta: readonly number[];
   readonly stoichiometryFormula: string;
   readonly densityGPerCm3: number;
+  /**
+   * Optional inclusive Henke ASF merge interval for {@link extendImaginaryAsfWithHenkeTails}; when
+   * omitted, extension uses the full measurement energy span (existing default).
+   */
+  readonly henkeMergeDomain?: readonly [number, number];
   readonly options?: ComputeDeltaFromBetaKkcalcStyleOptions;
 }
 
@@ -96,6 +106,9 @@ export interface ComputeDeltaFromBetaKkcalcStyleParams {
  * @param params.beta Optical absorption index `beta` (`n = 1 - delta + i beta`).
  * @param params.stoichiometryFormula Hill-style formula for number density (e.g. `C72H14O2`).
  * @param params.densityGPerCm3 Mass density in g/cm³.
+ * @param params.henkeMergeDomain Optional inclusive merge window for Henke tail extension; when both
+ *   contributor pre-edge and post-edge ranges exist, callers may supply this instead of defaulting
+ *   to the first/last measurement energy.
  * @param params.options Optional relativistic correction policy and Henke tail extension toggle.
  * @returns `delta` per energy, same convention as kkcalc2 `ASF_to_refractive(...).real`.
  * @throws RangeError On invalid grids, non-finite values, or non-positive density / formula issues.
@@ -108,6 +121,7 @@ export function computeDeltaFromBetaKkcalcStyle(
     beta,
     stoichiometryFormula,
     densityGPerCm3,
+    henkeMergeDomain,
     options,
   } = params;
   assertStrictAscendingFinite(energyEv, beta);
@@ -138,6 +152,7 @@ export function computeDeltaFromBetaKkcalcStyle(
       measuredEnergyEv: energyEv,
       measuredImaginaryAsf: Array.from(f2),
       composition,
+      mergeDomain: henkeMergeDomain,
     });
     segmentEnergies = ext.energiesEv;
     aspCoefs = imaginaryAsfToLinearAspCoefs(ext.energiesEv, ext.f2);

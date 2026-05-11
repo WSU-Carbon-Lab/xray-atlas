@@ -149,6 +149,8 @@ export const experimentsRouter = createTRPCRouter({
       const row = await ctx.db.experiments.findUnique({
         where: { id: input.experimentId },
         select: {
+          normalizationscope: true,
+          normalizationranges: true,
           samples: {
             select: {
               molecules: { select: { chemicalformula: true } },
@@ -160,6 +162,8 @@ export const experimentsRouter = createTRPCRouter({
         row?.samples?.molecules?.chemicalformula?.trim() ?? "";
       return {
         chemicalFormula: raw.length > 0 ? raw : null,
+        normalizationScope: row?.normalizationscope ?? null,
+        normalizationRanges: row?.normalizationranges ?? null,
       };
     }),
 

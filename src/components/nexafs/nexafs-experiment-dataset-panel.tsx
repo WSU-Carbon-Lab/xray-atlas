@@ -70,8 +70,27 @@ import {
 } from "~/features/kk-calc";
 import { computeDeltaFromBetaKkcalcStyle } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
 import { alignKkDeltaToSpectrumEnergyAxis } from "~/features/kk-calc/makima-interpolate";
+import { parseChemicalFormula } from "~/features/kk-calc/kkcalc-stoichiometry";
+import { resolveHenkeKkMergeDomainFromPrePostWindows } from "~/features/kk-calc/resolve-henke-kk-merge-domain";
+import {
+  parseStoredNormalizationRanges,
+  unifiedNormalizationWindowsForBasis,
+} from "~/lib/nexafs-normalization-ranges";
 import { LoadingSkeleton } from "~/components/feedback/loading-state";
 import { NexafsBrowseGroupedSpectrumTable } from "~/components/nexafs/nexafs-browse-grouped-spectrum-table";
+
+interface ExperimentFormulaMeta {
+  chemicalFormula?: string | null;
+  normalizationScope?: string | null;
+  normalizationRanges?: unknown;
+}
+
+interface SpectrumRowForKk {
+  id: string;
+  polarizationid: string | null;
+  energyev: number;
+  beta: number | null;
+}
 
 export interface NexafsExperimentDatasetPanelProps {
   experimentId: string;
@@ -505,12 +524,18 @@ export function NexafsExperimentDatasetPanel({
     { experimentId, limit: 10000, offset: 0 },
     { enabled: enabled && Boolean(experimentId) },
   );
-
   const moleculeFormulaQuery =
     trpc.experiments.moleculeFormulaForExperiment.useQuery(
       { experimentId },
       { enabled: enabled && Boolean(experimentId) },
     );
+  const moleculeMeta =
+    moleculeFormulaQuery.data as ExperimentFormulaMeta | undefined;
+  const chemicalFormula = moleculeMeta?.chemicalFormula ?? null;
+  const normalizationScopeForKk = moleculeMeta?.normalizationScope ?? null;
+  const normalizationRangesKeyForKk = JSON.stringify(
+    moleculeMeta?.normalizationRanges ?? null,
+  );
 
   const peaksQuery = trpc.spectrumpoints.peaksForExperiment.useQuery(
     { experimentId },
@@ -532,8 +557,47 @@ export function NexafsExperimentDatasetPanel({
   const [kkPanelConsentOpen, setKkPanelConsentOpen] = useState(false);
   const [kkRecalcBusy, setKkRecalcBusy] = useState(false);
 
+  const henkeMergeDomainForKkBeta = useMemo((): readonly [
+    number,
+    number,
+  ] | undefined => {
+    const formula = chemicalFormula?.trim();
+    if (!formula) {
+      return undefined;
+    }
+    let composition;
+    try {
+      composition = parseChemicalFormula(formula);
+    } catch {
+      return undefined;
+    }
+    let rangesRaw: unknown = null;
+    try {
+      rangesRaw =
+        normalizationRangesKeyForKk === "null"
+          ? null
+          : (JSON.parse(normalizationRangesKeyForKk) as unknown);
+    } catch {
+      return undefined;
+    }
+    const ranges = parseStoredNormalizationRanges(rangesRaw);
+    const win = unifiedNormalizationWindowsForBasis(
+      normalizationScopeForKk,
+      ranges,
+      "beta",
+    );
+    if (!win?.pre || !win.post) {
+      return undefined;
+    }
+    return resolveHenkeKkMergeDomainFromPrePostWindows({
+      pre: win.pre,
+      post: win.post,
+      composition,
+    });
+  }, [chemicalFormula, normalizationScopeForKk, normalizationRangesKeyForKk]);
+
   const runKkRecalc = useCallback(async () => {
-    const raw = pointsQuery.data;
+    const raw = pointsQuery.data as SpectrumRowForKk[] | undefined;
     if (!raw?.length || !session?.user) {
       return;
     }
@@ -545,7 +609,7 @@ export function NexafsExperimentDatasetPanel({
         energyev: r.energyev,
         beta: r.beta,
       }));
-      const formula = moleculeFormulaQuery.data?.chemicalFormula?.trim();
+      const formula = chemicalFormula?.trim();
       if (!formula) {
         showToast(
           "Kramers–Kronig needs a chemical formula on the experiment molecule.",
@@ -556,6 +620,7 @@ export function NexafsExperimentDatasetPanel({
       const updates = buildSpectrumpointDeltaUpdatesFromRows(rows, {
         stoichiometryFormula: formula,
         massDensityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
+        henkeMergeDomain: henkeMergeDomainForKkBeta,
       });
       if (updates.length === 0) {
         showToast(
@@ -574,12 +639,14 @@ export function NexafsExperimentDatasetPanel({
     } finally {
       setKkRecalcBusy(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Omit `pointsQuery.data` (TS2589 on router output); `dataUpdatedAt` tracks spectrumpoints cache updates.
   }, [
-    pointsQuery.data,
+    pointsQuery.dataUpdatedAt,
     experimentId,
     session?.user,
     updateKkDeltaBatch,
-    moleculeFormulaQuery.data,
+    chemicalFormula,
+    henkeMergeDomainForKkBeta,
   ]);
 
   const onPressRecalculateKk = useCallback(() => {
@@ -634,9 +701,6 @@ export function NexafsExperimentDatasetPanel({
       differenceSpectra.length,
     ],
   );
-
-  const chemicalFormula =
-    moleculeFormulaQuery.data?.chemicalFormula ?? null;
 
   useEffect(() => {
     if (!enabled || !chemicalFormula?.trim()) {
@@ -741,6 +805,7 @@ export function NexafsExperimentDatasetPanel({
                   beta: betaArr,
                   stoichiometryFormula: chemicalFormula.trim(),
                   densityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
+                  henkeMergeDomain: henkeMergeDomainForKkBeta,
                 });
                 const aligned = alignKkDeltaToSpectrumEnergyAxis(
                   energyEv,
@@ -800,6 +865,7 @@ export function NexafsExperimentDatasetPanel({
     model.dataView,
     model.deltaPoints,
     bareAtomOverlaySourcePoints,
+    henkeMergeDomainForKkBeta,
   ]);
 
   const plotPeaks = useMemo(

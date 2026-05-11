@@ -70,6 +70,7 @@ export function applyKkDeltaToSpectrumPoints(
       beta: B,
       stoichiometryFormula: material.stoichiometryFormula,
       densityGPerCm3: material.massDensityGPerCm3,
+      henkeMergeDomain: material.henkeMergeDomain,
     });
     const aligned = alignKkDeltaToSpectrumEnergyAxis(E, E, deltaArr);
     for (let k = 0; k < sortedIdx.length; k++) {
