@@ -56,9 +56,14 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
       { id: "experiment-metadata-layer", label: "Experiment metadata layer" },
       { id: "spectrum-trace-layer", label: "Spectrum trace layer" },
       {
-        id: "kramers-kronig-delta",
-        label: "Kramers–Kronig delta from beta",
-        href: "/wiki/data-representation/kramers-kronig-delta",
+        id: "input-spectroscopy",
+        label: "Input spectroscopy",
+        href: "/wiki/data-representation/input-spectroscopy",
+      },
+      {
+        id: "optical-constants",
+        label: "Optical constant components",
+        href: "/wiki/data-representation/optical-constants",
       },
       {
         id: "provenance-and-attribution-layer",

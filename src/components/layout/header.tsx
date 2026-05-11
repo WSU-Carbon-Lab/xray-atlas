@@ -24,6 +24,7 @@ function AboutDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [isWikiOpen, setIsWikiOpen] = useState(false);
   const [isPlatformFeaturesOpen, setIsPlatformFeaturesOpen] = useState(false);
+  const [isDataRepresentationOpen, setIsDataRepresentationOpen] = useState(false);
   const [isApiOpen, setIsApiOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -37,6 +38,7 @@ function AboutDropdown() {
         setIsOpen(false);
         setIsWikiOpen(false);
         setIsPlatformFeaturesOpen(false);
+        setIsDataRepresentationOpen(false);
         setIsApiOpen(false);
       }
     }
@@ -55,6 +57,7 @@ function AboutDropdown() {
     setIsOpen(false);
     setIsWikiOpen(false);
     setIsPlatformFeaturesOpen(false);
+    setIsDataRepresentationOpen(false);
     setIsApiOpen(false);
   };
 
@@ -113,14 +116,64 @@ function AboutDropdown() {
                     <BookOpenIcon className="text-accent h-4 w-4" />
                     <span>Wiki home</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick("/wiki/data-representation")}
-                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
-                  >
-                    <BookOpenIcon className="text-accent h-4 w-4" />
-                    <span>Data representation</span>
-                  </button>
+                  <div className="mx-3 mt-1 mb-1 rounded border border-border bg-default/40">
+                    <button
+                      type="button"
+                      onClick={() => setIsDataRepresentationOpen((prev) => !prev)}
+                      className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 text-left text-sm font-medium transition-colors"
+                      aria-expanded={isDataRepresentationOpen}
+                      aria-controls="about-data-representation-accordion"
+                    >
+                      <BookOpenIcon className="text-accent h-4 w-4" />
+                      <span>Data representation</span>
+                      <ChevronDown
+                        className={`ml-auto h-3.5 w-3.5 transition-transform ${
+                          isDataRepresentationOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {isDataRepresentationOpen ? (
+                      <div
+                        id="about-data-representation-accordion"
+                        className="space-y-0.5 pb-1"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleItemClick("/wiki/data-representation")
+                          }
+                          className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                        >
+                          <BookOpenIcon className="text-accent h-4 w-4" />
+                          <span>Overview</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleItemClick(
+                              "/wiki/data-representation/input-spectroscopy",
+                            )
+                          }
+                          className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                        >
+                          <BookOpenIcon className="text-accent h-4 w-4" />
+                          <span>Input spectroscopy</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleItemClick(
+                              "/wiki/data-representation/optical-constants",
+                            )
+                          }
+                          className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
+                        >
+                          <BookOpenIcon className="text-accent h-4 w-4" />
+                          <span>Optical constant components</span>
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="mx-3 mt-1 mb-1 rounded border border-border bg-default/40">
                     <button
                       type="button"

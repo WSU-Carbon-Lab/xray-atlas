@@ -64,15 +64,60 @@ export default function DataRepresentationPage() {
             users can inspect, compare, and export raw and processed traces.
           </p>
           <p className="text-muted mt-2 text-sm">
-            Optional browser-side{" "}
+            See{" "}
             <Link
-              href="/wiki/data-representation/kramers-kronig-delta"
+              href="/wiki/data-representation/input-spectroscopy"
               className="text-accent hover:underline"
             >
-              Kramers–Kronig delta from beta
+              Input spectroscopy
             </Link>{" "}
-            can populate <code className="text-foreground">delta</code> on spectrum
-            rows when contributors opt in at upload or authorized users recalculate.
+            for uploads and columns, and{" "}
+            <Link
+              href="/wiki/data-representation/optical-constants"
+              className="text-accent hover:underline"
+            >
+              Optical constant components
+            </Link>{" "}
+            for beta, delta, and optional browser-side Kramers–Kronig derivation.
+          </p>
+        </section>
+        <section className="border-border bg-surface rounded-lg border p-4">
+          <h2
+            id="input-spectroscopy-summary"
+            className="text-foreground mb-2 text-lg font-semibold"
+          >
+            Input spectroscopy (detail)
+          </h2>
+          <p className="text-muted text-sm">
+            Energy grids, mapped CSV columns, and geometry metadata for angle-resolved traces.
+          </p>
+          <p className="text-muted mt-2 text-sm">
+            <Link
+              href="/wiki/data-representation/input-spectroscopy"
+              className="text-accent hover:underline"
+            >
+              Open the input spectroscopy page
+            </Link>
+          </p>
+        </section>
+        <section className="border-border bg-surface rounded-lg border p-4">
+          <h2
+            id="optical-constants-summary"
+            className="text-foreground mb-2 text-lg font-semibold"
+          >
+            Optical constant components (detail)
+          </h2>
+          <p className="text-muted text-sm">
+            Beta, mu, optical density, and optional delta including KK lineage and makima
+            alignment to the upload energy axis.
+          </p>
+          <p className="text-muted mt-2 text-sm">
+            <Link
+              href="/wiki/data-representation/optical-constants"
+              className="text-accent hover:underline"
+            >
+              Open the optical constant components page
+            </Link>
           </p>
         </section>
         <section className="border-border bg-surface rounded-lg border p-4">
