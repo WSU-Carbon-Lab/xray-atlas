@@ -26,9 +26,12 @@ import {
 import { buttonVariants, cn } from "@heroui/styles";
 import type {
   DifferenceSpectrum,
+  GeometryGroup,
   ReferenceCurve,
   SpectrumPoint,
 } from "~/components/plots/types";
+import { groupPointsByGeometry, sortedGeometryGroupEntries } from "~/components/plots/utils/trace-utils";
+import { filterSpectrumPointsForGroupedPlot } from "~/components/plots/hooks/useSpectrumData";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import {
   plotToolbarAttachedShellClass,
@@ -106,6 +109,32 @@ function formatThetaPhiLabel(theta: number | null, phi: number | null): string {
     theta != null && Number.isFinite(theta) ? `${theta.toFixed(1)}` : "—";
   const p = phi != null && Number.isFinite(phi) ? `${phi.toFixed(1)}` : "—";
   return `θ ${t}°, φ ${p}°`;
+}
+
+function geometryGroupToSpectrumPoints(group: GeometryGroup): SpectrumPoint[] {
+  return group.energies.map((energy, i) => ({
+    energy,
+    absorption: group.absorptions[i] ?? Number.NaN,
+    theta: group.theta,
+    phi: group.phi,
+  }));
+}
+
+function toStrictAscendingEnergySpectrumPoints(
+  points: SpectrumPoint[],
+): SpectrumPoint[] {
+  const sorted = [...points].sort((a, b) => a.energy - b.energy);
+  const out: SpectrumPoint[] = [];
+  for (const p of sorted) {
+    if (!Number.isFinite(p.energy) || !Number.isFinite(p.absorption)) {
+      continue;
+    }
+    if (out.length > 0 && !(p.energy > out[out.length - 1]!.energy)) {
+      continue;
+    }
+    out.push(p);
+  }
+  return out;
 }
 
 function fileSuffixForGeometryLeaf(
@@ -463,8 +492,9 @@ export function NexafsExperimentDatasetPanel({
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
   const [showBareAtomOverlay, setShowBareAtomOverlay] = useState(false);
-  const [bareAtomReference, setBareAtomReference] =
-    useState<ReferenceCurve | null>(null);
+  const [bareAtomReferences, setBareAtomReferences] = useState<
+    ReferenceCurve[]
+  >([]);
   const showThetaPhiBeforeDiffRef = useRef<{
     showTheta: boolean;
     showPhi: boolean;
@@ -587,6 +617,23 @@ export function NexafsExperimentDatasetPanel({
     spectrumPoints,
   });
 
+  const bareAtomOverlaySourcePoints = useMemo(
+    () =>
+      differenceSpectra.length > 0
+        ? []
+        : filterSpectrumPointsForGroupedPlot(
+            model.plotPoints,
+            showThetaData,
+            showPhiData,
+          ),
+    [
+      model.plotPoints,
+      showThetaData,
+      showPhiData,
+      differenceSpectra.length,
+    ],
+  );
+
   const chemicalFormula =
     moleculeFormulaQuery.data?.chemicalFormula ?? null;
 
@@ -602,96 +649,135 @@ export function NexafsExperimentDatasetPanel({
       !chemicalFormula?.trim() ||
       model.dataView === "od"
     ) {
-      setBareAtomReference(null);
+      setBareAtomReferences([]);
       return;
     }
 
     if (model.dataView === "delta" && !(model.deltaPoints?.length ?? 0)) {
-      setBareAtomReference(null);
+      setBareAtomReferences([]);
       return;
     }
 
-    const absorptionBasis = model.absorptionPlotPoints;
-    if (absorptionBasis.length === 0) {
-      setBareAtomReference(null);
-      return;
-    }
+    const dataView = model.dataView;
 
     let cancelled = false;
 
     void (async () => {
       try {
-        const bareMu = await calculateBareAtomAbsorption(
-          chemicalFormula,
-          absorptionBasis,
-        );
-        if (cancelled) return;
+        if (bareAtomOverlaySourcePoints.length === 0) {
+          if (!cancelled) {
+            setBareAtomReferences([]);
+          }
+          return;
+        }
 
-        if (model.dataView === "beta") {
-          const muLike: SpectrumPoint[] = bareMu.map((p) => ({
-            energy: p.energy,
-            absorption: p.absorption,
-          }));
-          const betaLike = computeBetaIndex(
-            muLike,
-            muLike.map((p) => p.energy),
-            bareMu,
-          );
-          setBareAtomReference({
-            label: "Bare atom beta",
-            points: betaLike.map((p) => ({
-              energy: p.energy,
-              absorption: p.absorption,
-            })),
-            color: "#6b7280",
-            showInLegend: false,
-          });
-        } else if (model.dataView === "delta") {
-          const muLike: SpectrumPoint[] = bareMu.map((p) => ({
-            energy: p.energy,
-            absorption: p.absorption,
-          }));
-          const betaLike = computeBetaIndex(
-            muLike,
-            muLike.map((p) => p.energy),
-            bareMu,
-          );
-          const energyEv = betaLike.map((p) => p.energy);
-          const betaArr = betaLike.map((p) => p.absorption);
-          const rawDelta = computeDeltaFromBetaKkcalcStyle({
-            energyEv,
-            beta: betaArr,
-            stoichiometryFormula: chemicalFormula.trim(),
-            densityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
-          });
-          const aligned = alignKkDeltaToSpectrumEnergyAxis(
-            energyEv,
-            energyEv,
-            rawDelta,
-          );
-          setBareAtomReference({
-            label: "Bare atom delta",
-            points: energyEv.map((energy, i) => ({
-              energy,
-              absorption: aligned[i]!,
-            })),
-            color: "#6b7280",
-            showInLegend: false,
-          });
-        } else {
-          setBareAtomReference({
-            label: "Bare atom absorption",
-            points: bareMu.map((p) => ({
-              energy: p.energy,
-              absorption: p.absorption,
-            })),
-            color: "#6b7280",
-            showInLegend: false,
-          });
+        const entries = sortedGeometryGroupEntries(
+          groupPointsByGeometry(bareAtomOverlaySourcePoints),
+        );
+
+        const curves = await Promise.all(
+          entries.map(async ([, group]) => {
+            const strictPts = toStrictAscendingEnergySpectrumPoints(
+              geometryGroupToSpectrumPoints(group),
+            );
+            if (strictPts.length === 0) {
+              return null;
+            }
+            try {
+              const bareMu = await calculateBareAtomAbsorption(
+                chemicalFormula,
+                strictPts,
+              );
+              if (bareMu.length === 0) {
+                return null;
+              }
+              const geometryTag = group.label || "geometry";
+              if (dataView === "beta") {
+                const muLike: SpectrumPoint[] = bareMu.map((p) => ({
+                  energy: p.energy,
+                  absorption: p.absorption,
+                }));
+                const betaLike = computeBetaIndex(
+                  muLike,
+                  muLike.map((p) => p.energy),
+                  bareMu,
+                );
+                const curve: ReferenceCurve = {
+                  label: `Bare atom beta (${geometryTag})`,
+                  points: betaLike.map((p) => ({
+                    energy: p.energy,
+                    absorption: p.absorption,
+                  })),
+                  color: "#6b7280",
+                  showInLegend: false,
+                };
+                return curve;
+              }
+              if (dataView === "delta") {
+                if (strictPts.length < 4) {
+                  return null;
+                }
+                const muLike: SpectrumPoint[] = bareMu.map((p) => ({
+                  energy: p.energy,
+                  absorption: p.absorption,
+                }));
+                const betaLike = computeBetaIndex(
+                  muLike,
+                  muLike.map((p) => p.energy),
+                  bareMu,
+                );
+                const energyEv = betaLike.map((p) => p.energy);
+                const betaArr = betaLike.map((p) => p.absorption);
+                const rawDelta = computeDeltaFromBetaKkcalcStyle({
+                  energyEv,
+                  beta: betaArr,
+                  stoichiometryFormula: chemicalFormula.trim(),
+                  densityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
+                });
+                const aligned = alignKkDeltaToSpectrumEnergyAxis(
+                  energyEv,
+                  energyEv,
+                  rawDelta,
+                );
+                const curve: ReferenceCurve = {
+                  label: `Bare atom delta (${geometryTag})`,
+                  points: energyEv.map((energy, i) => ({
+                    energy,
+                    absorption: aligned[i]!,
+                  })),
+                  color: "#ffffff",
+                  showInLegend: false,
+                };
+                return curve;
+              }
+              const curve: ReferenceCurve = {
+                label: `Bare atom absorption (${geometryTag})`,
+                points: bareMu.map((p) => ({
+                  energy: p.energy,
+                  absorption: p.absorption,
+                })),
+                color: "#6b7280",
+                showInLegend: false,
+              };
+              return curve;
+            } catch {
+              return null;
+            }
+          }),
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        const next = curves.filter((c): c is ReferenceCurve => c !== null);
+        setBareAtomReferences(next);
+        if (next.length === 0 && entries.length > 0) {
+          showToast("Could not compute bare atom reference curve", "error");
         }
       } catch {
         if (!cancelled) {
-          setBareAtomReference(null);
+          setBareAtomReferences([]);
           showToast("Could not compute bare atom reference curve", "error");
         }
       }
@@ -704,8 +790,8 @@ export function NexafsExperimentDatasetPanel({
     showBareAtomOverlay,
     chemicalFormula,
     model.dataView,
-    model.absorptionPlotPoints,
     model.deltaPoints,
+    bareAtomOverlaySourcePoints,
   ]);
 
   const plotPeaks = useMemo(
@@ -865,8 +951,8 @@ export function NexafsExperimentDatasetPanel({
   );
 
   const referenceCurves = useMemo((): ReferenceCurve[] => {
-    return bareAtomReference ? [bareAtomReference] : [];
-  }, [bareAtomReference]);
+    return bareAtomReferences;
+  }, [bareAtomReferences]);
 
   const overlaySelectedKey =
     model.dataView === "od"

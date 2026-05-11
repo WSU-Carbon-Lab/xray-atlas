@@ -99,7 +99,7 @@ export function VisxSpectrumPlot({
   );
 
   // Calculate data extents
-  const extents = useDataExtents(points, differenceSpectra);
+  const extents = useDataExtents(points, differenceSpectra, referenceCurves);
 
   // Combine all traces for tooltip finding
   const allTraces = useMemo(() => {

@@ -8,9 +8,26 @@ import type {
   PlotDimensions,
   AxisStats,
   SpectrumPoint,
+  SpectrumYAxisQuantity,
 } from "../types";
 import { PLOT_CONFIG } from "../config";
 import { linearYDomainWithPadding } from "../utils/linearYDomain";
+
+function yDomainWithMandatoryZeroForDelta(
+  paddedDomain: [number, number],
+  yAxisQuantity: SpectrumYAxisQuantity | undefined,
+): [number, number] {
+  if (yAxisQuantity !== "delta") {
+    return paddedDomain;
+  }
+  const lo = paddedDomain[0] ?? 0;
+  const hi = paddedDomain[1] ?? 0;
+  return linearYDomainWithPadding(
+    Math.min(lo, hi, 0),
+    Math.max(lo, hi, 0),
+    0.1,
+  );
+}
 
 export type SubplotLayoutResult = {
   mainPlot: {
@@ -34,6 +51,7 @@ export function useSubplotLayout(
   peakVisualizationPoints: SpectrumPoint[] | null,
   energyStats?: AxisStats,
   absorptionStats?: AxisStats,
+  yAxisQuantity?: SpectrumYAxisQuantity,
 ): SubplotLayoutResult {
   return useMemo(() => {
     const hasSubplot =
@@ -93,12 +111,18 @@ export function useSubplotLayout(
       if (extents.absorptionExtent) {
         const minAbs = extents.absorptionExtent.min;
         const maxAbs = extents.absorptionExtent.max;
-        mainAbsorptionDomain = linearYDomainWithPadding(minAbs, maxAbs, 0.1);
+        mainAbsorptionDomain = yDomainWithMandatoryZeroForDelta(
+          linearYDomainWithPadding(minAbs, maxAbs, 0.1),
+          yAxisQuantity,
+        );
       } else if (absorptionStats?.min != null && absorptionStats?.max != null) {
-        mainAbsorptionDomain = linearYDomainWithPadding(
-          absorptionStats.min,
-          absorptionStats.max,
-          0.1,
+        mainAbsorptionDomain = yDomainWithMandatoryZeroForDelta(
+          linearYDomainWithPadding(
+            absorptionStats.min,
+            absorptionStats.max,
+            0.1,
+          ),
+          yAxisQuantity,
         );
       } else {
         mainAbsorptionDomain = [0, 1];
@@ -196,12 +220,18 @@ export function useSubplotLayout(
     if (extents.absorptionExtent) {
       const minAbs = extents.absorptionExtent.min;
       const maxAbs = extents.absorptionExtent.max;
-      mainAbsorptionDomain = linearYDomainWithPadding(minAbs, maxAbs, 0.1);
+      mainAbsorptionDomain = yDomainWithMandatoryZeroForDelta(
+        linearYDomainWithPadding(minAbs, maxAbs, 0.1),
+        yAxisQuantity,
+      );
     } else if (absorptionStats?.min != null && absorptionStats?.max != null) {
-      mainAbsorptionDomain = linearYDomainWithPadding(
-        absorptionStats.min,
-        absorptionStats.max,
-        0.1,
+      mainAbsorptionDomain = yDomainWithMandatoryZeroForDelta(
+        linearYDomainWithPadding(
+          absorptionStats.min,
+          absorptionStats.max,
+          0.1,
+        ),
+        yAxisQuantity,
       );
     } else {
       mainAbsorptionDomain = [0, 1];
@@ -234,5 +264,6 @@ export function useSubplotLayout(
     peakVisualizationPoints,
     energyStats,
     absorptionStats,
+    yAxisQuantity,
   ]);
 }

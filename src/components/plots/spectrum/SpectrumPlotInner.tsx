@@ -117,7 +117,7 @@ export function SpectrumPlotInner({
     selectedPeakId ?? null,
     selectedGeometry,
   );
-  const extents = useDataExtents(points, differenceSpectra);
+  const extents = useDataExtents(points, differenceSpectra, referenceCurves);
 
   const allTraces = useMemo(
     () => [
@@ -168,6 +168,7 @@ export function SpectrumPlotInner({
     peakViz.selectedGeometryPoints,
     energyStats,
     absorptionStats,
+    yAxisQuantity,
   );
 
   const { mainPlot, peakPlot, hasSubplot } = subplotLayout;
@@ -721,6 +722,18 @@ export function SpectrumPlotInner({
                     pointerEvents: inspectPlotHitSurfaceActive ? "all" : "none",
                   }}
                 />
+                {yAxisQuantity === "delta" && (
+                  <line
+                    x1={0}
+                    x2={mainPlotWidth}
+                    y1={mainPlotScales.yScale(0)}
+                    y2={mainPlotScales.yScale(0)}
+                    stroke={themeColors.axis}
+                    strokeWidth={1}
+                    vectorEffect="non-scaling-stroke"
+                    pointerEvents="none"
+                  />
+                )}
                 <ChartSpectrumLines
                   traces={visibleTraces}
                   scales={mainPlotScales}
