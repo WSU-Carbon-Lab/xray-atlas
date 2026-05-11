@@ -1343,7 +1343,7 @@ export function DatasetContent({
     onDatasetUpdate,
   ]);
 
-  type DataView = "od" | "absorption" | "bare-atom" | "beta";
+  type DataView = "od" | "absorption" | "bare-atom" | "beta" | "delta";
   const [dataView, setDataView] = useState<DataView>("od");
   const gateToastTimestampsRef = useRef<Record<string, number>>({});
 
@@ -1415,7 +1415,53 @@ export function DatasetContent({
     }
   }, [differenceSpectra.length, firstDifferenceLabel]);
 
-  type DifferenceRootView = "od" | "absorption" | "beta";
+  type DifferenceRootView = "od" | "absorption" | "beta" | "delta";
+
+  const deltaAvailable = useMemo(
+    () =>
+      dataset.spectrumPoints.some(
+        (p) => typeof p.delta === "number" && Number.isFinite(p.delta),
+      ),
+    [dataset.spectrumPoints],
+  );
+
+  const deltaPoints = useMemo((): SpectrumPoint[] | null => {
+    if (!deltaAvailable) return null;
+    const basis = absorptionPlotPoints ?? [];
+    const spec = dataset.spectrumPoints;
+    const rel = 1e-6;
+    const out: SpectrumPoint[] = [];
+    if (
+      basis.length === spec.length &&
+      basis.every(
+        (b, i) =>
+          Math.abs(b.energy - spec[i]!.energy) <=
+          rel * (1 + Math.abs(b.energy)),
+      )
+    ) {
+      for (let i = 0; i < basis.length; i++) {
+        const d = spec[i]!.delta;
+        if (typeof d === "number" && Number.isFinite(d)) {
+          out.push({ ...basis[i]!, absorption: d, delta: d });
+        }
+      }
+      return out.length > 0 ? out : null;
+    }
+    const byEnergy = new Map<number, number>();
+    for (const p of spec) {
+      const d = p.delta;
+      if (typeof d === "number" && Number.isFinite(d)) {
+        byEnergy.set(Math.round(p.energy * 1e9) / 1e9, d);
+      }
+    }
+    for (const b of basis) {
+      const d = byEnergy.get(Math.round(b.energy * 1e9) / 1e9);
+      if (typeof d === "number" && Number.isFinite(d)) {
+        out.push({ ...b, absorption: d, delta: d });
+      }
+    }
+    return out.length > 0 ? out : null;
+  }, [absorptionPlotPoints, dataset.spectrumPoints, deltaAvailable]);
 
   const differenceRootPoints = useMemo<{
     mode: DifferenceRootView;
@@ -1423,6 +1469,7 @@ export function DatasetContent({
   }>(() => {
     if (dataView === "od") return { mode: "od", points: edgeZeroOnePoints };
     if (dataView === "beta") return { mode: "beta", points: betaPoints };
+    if (dataView === "delta") return { mode: "delta", points: deltaPoints };
     if (dataView === "bare-atom") {
       return { mode: "absorption", points: absorptionPlotPoints ?? null };
     }
@@ -1430,7 +1477,7 @@ export function DatasetContent({
       mode: "absorption",
       points: absorptionPlotPoints ?? null,
     };
-  }, [dataView, edgeZeroOnePoints, absorptionPlotPoints, betaPoints]);
+  }, [dataView, edgeZeroOnePoints, absorptionPlotPoints, betaPoints, deltaPoints]);
 
   const computeDifferenceSpectraFromRoot = useCallback(
     (angleMode: "theta" | "phi") => {
@@ -1445,6 +1492,11 @@ export function DatasetContent({
           showDataViewGateToast(
             "requires-bare-atom",
             "Compute bare-atom absorption before switching to beta view",
+          );
+        } else if (differenceRootPoints.mode === "delta") {
+          showDataViewGateToast(
+            "no-delta",
+            "No finite delta on spectrum points for difference spectra in this view.",
           );
         }
         return false;
@@ -1508,6 +1560,18 @@ export function DatasetContent({
         return;
       }
 
+      if (next === "delta") {
+        if (!deltaAvailable) {
+          showDataViewGateToast(
+            "no-delta",
+            "No finite delta on spectrum points for this view.",
+          );
+          return;
+        }
+        setDataView("delta");
+        return;
+      }
+
       if (next === "absorption") {
         setDataView("absorption");
       }
@@ -1516,6 +1580,7 @@ export function DatasetContent({
       dataView,
       absorptionComputation,
       dataset.bareAtomPoints,
+      deltaAvailable,
       showDataViewGateToast,
     ],
   );
@@ -1526,7 +1591,9 @@ export function DatasetContent({
       ? edgeZeroOnePoints
       : dataView === "beta"
         ? (betaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints)
-        : absorptionPlotPoints;
+        : dataView === "delta"
+          ? (deltaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints)
+          : absorptionPlotPoints;
 
   const handleResetAllPeaksFromPlotRail = useCallback(() => {
     onDatasetUpdate(dataset.id, { peaks: [], selectedPeakId: null });
@@ -1577,18 +1644,26 @@ export function DatasetContent({
     betaMuLike.length > 0 &&
     (betaPoints?.length ?? 0) > 0;
 
-  type OverlayDataView = "od" | "absorption" | "beta";
+  type OverlayDataView = "od" | "absorption" | "beta" | "delta";
   const overlaySelectedKey: OverlayDataView =
-    dataView === "od" ? "od" : dataView === "beta" ? "beta" : "absorption";
+    dataView === "od"
+      ? "od"
+      : dataView === "beta"
+        ? "beta"
+        : dataView === "delta"
+          ? "delta"
+          : "absorption";
 
   const spectrumYAxisQuantity =
     dataView === "od"
       ? "optical-density"
       : dataView === "beta"
         ? "beta"
-        : dataView === "absorption" || dataView === "bare-atom"
-          ? "mass-absorption"
-          : "intensity";
+        : dataView === "delta"
+          ? "delta"
+          : dataView === "absorption" || dataView === "bare-atom"
+            ? "mass-absorption"
+            : "intensity";
 
   const isDifferenceEnabled = differenceSpectra.length > 0;
 
@@ -1679,7 +1754,8 @@ export function DatasetContent({
           if (!next) return;
           if (next === "od") trySetDataView("od");
           else if (next === "absorption") trySetDataView("absorption");
-          else trySetDataView("beta");
+          else if (next === "beta") trySetDataView("beta");
+          else if (next === "delta") trySetDataView("delta");
         }}
       >
         <ToggleButton
@@ -1712,6 +1788,18 @@ export function DatasetContent({
           <ToggleButtonGroup.Separator />
           <span className="text-sm font-semibold" aria-hidden>
             &#x03B2;
+          </span>
+        </ToggleButton>
+        <ToggleButton
+          isIconOnly
+          aria-label="Delta refractive decrement from stored values"
+          id="delta"
+          isDisabled={!deltaAvailable}
+          className={plotToolbarBasisToggleClass}
+        >
+          <ToggleButtonGroup.Separator />
+          <span className="text-sm font-semibold" aria-hidden>
+            &#x03B4;
           </span>
         </ToggleButton>
       </ToggleButtonGroup>

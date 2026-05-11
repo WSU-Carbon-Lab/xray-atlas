@@ -63,6 +63,8 @@ export interface CSVColumnMappings {
   massabsorptionError?: string;
   beta?: string;
   betaError?: string;
+  delta?: string;
+  deltaError?: string;
 }
 
 export type NormalizationScope = "none" | "unified" | "per_channel";

@@ -580,7 +580,8 @@ export function NexafsExperimentDatasetPanel({
     if (
       !showBareAtomOverlay ||
       !chemicalFormula?.trim() ||
-      model.dataView === "od"
+      model.dataView === "od" ||
+      model.dataView === "delta"
     ) {
       setBareAtomReference(null);
       return;
@@ -658,12 +659,14 @@ export function NexafsExperimentDatasetPanel({
   const differenceRootPoints = useMemo((): SpectrumPoint[] => {
     if (model.dataView === "od") return model.edgeZeroOnePoints;
     if (model.dataView === "beta") return model.betaPoints ?? [];
+    if (model.dataView === "delta") return model.deltaPoints ?? [];
     return model.absorptionPlotPoints;
   }, [
     model.dataView,
     model.edgeZeroOnePoints,
     model.absorptionPlotPoints,
     model.betaPoints,
+    model.deltaPoints,
   ]);
 
   const firstDifferenceLabel = differenceSpectra[0]?.label ?? "";
@@ -813,7 +816,9 @@ export function NexafsExperimentDatasetPanel({
       ? "od"
       : model.dataView === "beta"
         ? "beta"
-        : "absorption";
+        : model.dataView === "delta"
+          ? "delta"
+          : "absorption";
 
   const diffBareSelectedKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -875,8 +880,8 @@ export function NexafsExperimentDatasetPanel({
           <ToggleButton
             isIconOnly
             aria-label={
-              model.dataView === "od"
-                ? "Bare atom overlay (not available in OD view)"
+              model.dataView === "od" || model.dataView === "delta"
+                ? "Bare atom overlay (not available in this view)"
                 : chemicalFormula
                   ? "Bare atom reference curve on this energy grid"
                   : "Bare atom overlay (no chemical formula on linked molecule)"
@@ -885,6 +890,7 @@ export function NexafsExperimentDatasetPanel({
             isDisabled={
               !chemicalFormula ||
               model.dataView === "od" ||
+              model.dataView === "delta" ||
               moleculeFormulaQuery.isLoading
             }
             className={plotToolbarBasisToggleClass}
@@ -907,6 +913,7 @@ export function NexafsExperimentDatasetPanel({
             if (next === "od") model.setDataView("od");
             else if (next === "absorption") model.setDataView("absorption");
             else if (next === "beta") model.setDataView("beta");
+            else if (next === "delta") model.setDataView("delta");
           }}
         >
           <ToggleButton
@@ -940,6 +947,18 @@ export function NexafsExperimentDatasetPanel({
             <ToggleButtonGroup.Separator />
             <span className="text-sm font-semibold" aria-hidden>
               &#x03B2;
+            </span>
+          </ToggleButton>
+          <ToggleButton
+            isIconOnly
+            aria-label="Delta refractive decrement from stored values"
+            id="delta"
+            isDisabled={!model.deltaAvailable}
+            className={plotToolbarBasisToggleClass}
+          >
+            <ToggleButtonGroup.Separator />
+            <span className="text-sm font-semibold" aria-hidden>
+              &#x03B4;
             </span>
           </ToggleButton>
         </ToggleButtonGroup>

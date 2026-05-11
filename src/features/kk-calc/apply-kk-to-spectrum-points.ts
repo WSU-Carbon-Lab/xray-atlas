@@ -1,5 +1,6 @@
 import type { SpectrumPoint } from "~/components/plots/types";
 import { computeDeltaFromBetaDiscreteKK } from "./kk-discrete-henke";
+import { alignKkDeltaToSpectrumEnergyAxis } from "./makima-interpolate";
 
 function geometryGroupKey(p: SpectrumPoint): string {
   const theta = p.theta;
@@ -17,12 +18,12 @@ function geometryGroupKey(p: SpectrumPoint): string {
 
 /**
  * Augments upload-ready spectrum rows with `delta` computed from `beta` using
- * {@link computeDeltaFromBetaDiscreteKK} independently for each theta–phi group.
+ * {@link computeDeltaFromBetaDiscreteKK} independently for each theta–phi group, then
+ * {@link alignKkDeltaToSpectrumEnergyAxis} so `delta` is stored on each point's `energy` axis.
  *
  * @param points Spectrum rows that already include finite `beta` wherever KK should run;
  *   rows missing theta and phi are grouped together.
- * @returns A shallow-copied array with `delta` set on every index that participated in a
- *   successful group transform.
+ * @returns A shallow-copied array with finite `delta` on every index that participated in a successful group transform.
  * @throws RangeError When any geometry group contains a non-finite `beta` value.
  */
 export function applyKkDeltaToSpectrumPoints(
@@ -58,11 +59,15 @@ export function applyKkDeltaToSpectrumPoints(
       );
     }
     const deltaArr = computeDeltaFromBetaDiscreteKK(E, B);
+    const aligned = alignKkDeltaToSpectrumEnergyAxis(E, E, deltaArr);
     for (let k = 0; k < sortedIdx.length; k++) {
       const globalIdx = sortedIdx[k]!;
-      const d = deltaArr[k];
+      const d = aligned[k]!;
       if (Number.isFinite(d)) {
-        out[globalIdx] = { ...out[globalIdx]!, delta: d };
+        out[globalIdx] = {
+          ...out[globalIdx]!,
+          delta: d,
+        };
       }
     }
   }

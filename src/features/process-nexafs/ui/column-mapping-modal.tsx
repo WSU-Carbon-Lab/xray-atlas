@@ -112,6 +112,8 @@ export function ColumnMappingModal({
     if (mappings.od) numericColumns.add(mappings.od);
     if (mappings.massabsorption) numericColumns.add(mappings.massabsorption);
     if (mappings.beta) numericColumns.add(mappings.beta);
+    if (mappings.delta) numericColumns.add(mappings.delta);
+    if (mappings.deltaError) numericColumns.add(mappings.deltaError);
 
     const reports = analyzeNumericColumns(rawData, numericColumns);
     const stats: Record<string, ColumnStats> = {};

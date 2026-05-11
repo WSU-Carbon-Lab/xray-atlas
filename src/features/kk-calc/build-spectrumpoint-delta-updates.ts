@@ -1,4 +1,5 @@
 import { computeDeltaFromBetaDiscreteKK } from "./kk-discrete-henke";
+import { alignKkDeltaToSpectrumEnergyAxis } from "./makima-interpolate";
 
 export interface SpectrumpointRowForKk {
   readonly id: string;
@@ -9,7 +10,9 @@ export interface SpectrumpointRowForKk {
 
 /**
  * Builds `{ id, delta }` updates for `spectrumpoints` rows by running
- * {@link computeDeltaFromBetaDiscreteKK} independently on each polarization id group.
+ * {@link computeDeltaFromBetaDiscreteKK} independently on each polarization id group, then
+ * {@link alignKkDeltaToSpectrumEnergyAxis} so each persisted `delta` is defined on the row's
+ * `energyev` axis (makima remap when the KK grid differs from stored energies).
  *
  * @param rows All spectrum rows for one experiment (any order); rows with null or
  *   non-finite `beta` are skipped entirely for KK (no update emitted for those ids).
@@ -48,8 +51,9 @@ export function buildSpectrumpointDeltaUpdatesFromRows(
       }
     }
     const deltaArr = computeDeltaFromBetaDiscreteKK(E, B);
+    const aligned = alignKkDeltaToSpectrumEnergyAxis(E, E, deltaArr);
     for (let i = 0; i < group.length; i++) {
-      const d = deltaArr[i]!;
+      const d = aligned[i]!;
       if (Number.isFinite(d)) {
         out.push({ id: group[i]!.id, delta: d });
       }

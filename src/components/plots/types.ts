@@ -96,10 +96,16 @@ export type DifferenceSpectrum = {
 
 export type GraphStyle = "line" | "scatter" | "area";
 
+/**
+ * Vertical axis quantity for NEXAFS spectrum plots. `delta` is the real part of
+ * the complex refractive index (Kramers–Kronig decrement) when stored per point;
+ * use only when finite `SpectrumPoint.delta` exists for the active trace.
+ */
 export type SpectrumYAxisQuantity =
   | "optical-density"
   | "mass-absorption"
   | "beta"
+  | "delta"
   | "intensity";
 
 export type SpectrumPlotProps = {

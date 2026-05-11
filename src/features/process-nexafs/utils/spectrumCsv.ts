@@ -12,7 +12,7 @@ function fmtOpt(n: number | undefined): string {
 }
 
 /**
- * Builds a CSV document with stable columns: energy, primary mu (`absorption`), optional OD, mass absorption, beta, I0, theta, phi.
+ * Builds a CSV document with stable columns: energy, primary mu (`absorption`), optional OD, mass absorption, beta, optional delta (same energy row as `energy_eV`), I0, theta, phi.
  *
  * @param points Spectrum samples in display order (caller may sort by energy).
  * @returns RFC-4180 style lines joined with `\n`, including a header row.

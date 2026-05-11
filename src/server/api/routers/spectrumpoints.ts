@@ -5,8 +5,11 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "~/prisma/client";
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 import { userMayRecalculateKkDelta } from "~/server/nexafs/kkDeltaRecalculateAuthz";
+
+const KK_DELTA_BATCH_CHUNK = 800;
 
 export const spectrumpointsRouter = createTRPCRouter({
   canRecalculateKkDelta: publicProcedure
@@ -109,6 +112,8 @@ export const spectrumpointsRouter = createTRPCRouter({
             od: z.number().optional(),
             massabsorption: z.number().optional(),
             beta: z.number().optional(),
+            delta: z.number().optional(),
+            deltaerr: z.number().optional(),
             i0: z.number().optional(),
           }),
         ),
@@ -154,6 +159,8 @@ export const spectrumpointsRouter = createTRPCRouter({
             od: point.od ?? null,
             massabsorption: point.massabsorption ?? null,
             beta: point.beta ?? null,
+            delta: point.delta ?? null,
+            deltaerr: point.deltaerr ?? null,
             i0: point.i0 ?? null,
           })),
         });
@@ -210,12 +217,28 @@ export const spectrumpointsRouter = createTRPCRouter({
       }
 
       await ctx.db.$transaction(
-        input.updates.map((u) =>
-          ctx.db.spectrumpoints.update({
-            where: { id: u.id },
-            data: { delta: u.delta },
-          }),
-        ),
+        async (tx) => {
+          for (let i = 0; i < input.updates.length; i += KK_DELTA_BATCH_CHUNK) {
+            const chunk = input.updates.slice(i, i + KK_DELTA_BATCH_CHUNK);
+            const valuesSql = Prisma.join(
+              chunk.map(
+                (u) =>
+                  Prisma.sql`(${u.id}::uuid, ${u.delta}::double precision)`,
+              ),
+              ", ",
+            );
+            await tx.$executeRaw`
+              UPDATE public.spectrumpoints AS sp
+              SET delta = u.delta
+              FROM (VALUES ${valuesSql}) AS u(id, delta)
+              WHERE sp.id = u.id AND sp.experimentid = ${input.experimentId}::uuid
+            `;
+          }
+        },
+        {
+          maxWait: 20_000,
+          timeout: 180_000,
+        },
       );
 
       return { updated: input.updates.length };
