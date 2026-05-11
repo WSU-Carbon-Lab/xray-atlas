@@ -376,10 +376,15 @@ interface MoleculeCardActionsProps {
   handleCopy: (text: string, label: string) => void;
   size?: "sm" | "md";
   /**
-   * `browse`: molecule browse / NEXAFS shells — always show InChI/SMILES copy buttons and registry favicons.
-   * `carousel`: home popular-molecule tiles — hide those controls until the card hits `@lg` width inside `@container`.
+   * `browse`: molecule browse grid — always show InChI/SMILES copy buttons and registry favicons.
+   * `compact`: browse list / NEXAFS compact cards — hide the InChI/SMILES copy row until the card reaches `@2xl` on the named inline-size container (`compactContainerName`, default `moleculecard`) so the copy row yields space before the right action cluster wraps; registry favicons stay visible.
+   * `carousel`: home popular-molecule tiles — hide InChI/SMILES and registry rows until the card hits `@lg` width inside `@container`.
    */
-  actionsLayout?: "browse" | "carousel";
+  actionsLayout?: "browse" | "compact" | "carousel";
+  /**
+   * Selects which `@container/<name>` ancestor supplies `@…/<name>:` breakpoints for the compact InChI/SMILES row. Use `nexafscard` on NEXAFS experiment compact cards; browse list compact rows use the default `moleculecard`.
+   */
+  compactContainerName?: "moleculecard" | "nexafscard";
 }
 
 export function MoleculeCardActions({
@@ -390,13 +395,20 @@ export function MoleculeCardActions({
   handleCopy,
   size = "sm",
   actionsLayout = "browse",
+  compactContainerName = "moleculecard",
 }: MoleculeCardActionsProps) {
   const iconClass = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
   const textClass = size === "sm" ? "text-[10px]" : "text-xs";
+  const compactCopyShowClass =
+    compactContainerName === "nexafscard"
+      ? "@2xl/nexafscard:flex"
+      : "@2xl/moleculecard:flex";
   const inchiSmilesRowClass =
-    actionsLayout === "carousel"
-      ? "hidden min-w-0 flex-row flex-wrap items-center gap-2 @lg:flex"
-      : "flex min-w-0 flex-row flex-wrap items-center gap-2";
+    actionsLayout === "compact"
+      ? `hidden min-w-0 flex-row flex-wrap items-center gap-2 ${compactCopyShowClass}`
+      : actionsLayout === "carousel"
+        ? "hidden min-w-0 flex-row flex-wrap items-center gap-2 @lg:flex"
+        : "flex min-w-0 flex-row flex-wrap items-center gap-2";
   const registryRowClass =
     actionsLayout === "carousel"
       ? "hidden min-w-0 flex-row flex-wrap items-center gap-2 @lg:flex"
@@ -585,15 +597,15 @@ export const CompactCard = memo(function CompactCard({
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
   return (
-    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md md:flex-row md:items-center md:gap-4 dark:bg-zinc-800">
-      <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 md:flex-row md:gap-4 md:pr-4 dark:border-zinc-600">
+    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 @container/moleculecard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-4 dark:bg-zinc-800">
+      <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 @md/moleculecard:flex-row @md/moleculecard:gap-4 @md/moleculecard:pr-4 dark:border-zinc-600">
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             setImageModalOpen(true);
           }}
-          className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 md:h-14 md:w-14 dark:bg-black ${
+          className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 @md/moleculecard:h-14 @md/moleculecard:w-14 dark:bg-black ${
             hasImage ? "" : `bg-linear-to-br ${previewGradient}`
           }`}
           aria-label="View molecule structure"
@@ -697,7 +709,7 @@ export const CompactCard = memo(function CompactCard({
         </div>
       </div>
       <div
-        className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 md:ml-auto md:gap-x-3 md:gap-y-0 md:border-t-0 md:pt-0 md:pl-4 dark:border-zinc-600"
+        className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/moleculecard:ml-auto @md/moleculecard:gap-x-3 @md/moleculecard:gap-y-0 @md/moleculecard:border-t-0 @md/moleculecard:pt-0 @md/moleculecard:pl-4 dark:border-zinc-600"
         onClick={(e) => e.stopPropagation()}
       >
         <div>
@@ -708,6 +720,7 @@ export const CompactCard = memo(function CompactCard({
             copiedText={props.copiedText}
             handleCopy={props.handleCopy}
             size="sm"
+            actionsLayout="compact"
           />
         </div>
         <div>

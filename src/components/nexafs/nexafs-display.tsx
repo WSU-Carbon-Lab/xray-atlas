@@ -319,9 +319,9 @@ export function NexafsExperimentCompactCard({
   const experimentTypeClass = experimentTypeChipClass(experimentTypeLabel);
   const instrumentFacilityLabel = `${instrumentName} | ${facilityLine}`;
   return (
-    <div className="border-border-default pointer-events-none flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm dark:border-border-default dark:bg-zinc-800">
-      <div className="flex w-full flex-col md:flex-row md:items-center md:gap-4">
-        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 md:gap-4 md:pr-4 dark:border-zinc-600">
+    <div className="border-border-default pointer-events-none @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm dark:border-border-default dark:bg-zinc-800">
+      <div className="flex w-full flex-col @md/nexafscard:flex-row @md/nexafscard:items-center @md/nexafscard:gap-4">
+        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 @md/nexafscard:gap-4 @md/nexafscard:pr-4 dark:border-zinc-600">
           <button
             type="button"
             onClick={(e) => {
@@ -329,7 +329,7 @@ export function NexafsExperimentCompactCard({
               e.stopPropagation();
               setImageModalOpen(true);
             }}
-            className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:scale-105 md:h-14 md:w-14 dark:bg-black ${
+            className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:scale-105 @md/nexafscard:h-14 @md/nexafscard:w-14 dark:bg-black ${
               hasImage ? "" : `bg-linear-to-br ${previewGradient}`
             }`}
             aria-label="View molecule structure"
@@ -388,18 +388,30 @@ export function NexafsExperimentCompactCard({
                 />
               </span>
             </div>
-            <div className="inline-flex h-5 max-w-full min-w-0 items-center justify-start gap-x-1.5 overflow-hidden text-left text-[10px] leading-none whitespace-nowrap sm:text-[11px]">
+            <div className="inline-flex h-5 max-w-full min-w-0 flex-nowrap items-center justify-start gap-x-1.5 overflow-hidden text-left text-[10px] leading-none whitespace-nowrap sm:text-[11px]">
               <span
                 className={`inline-flex h-4.5 shrink-0 items-center rounded-full border px-1.5 font-semibold ${edgeClass}`}
               >
                 {edgeLabel}
               </span>
-              <span
-                className={`inline-flex h-4.5 max-w-[74%] min-w-0 items-center truncate rounded-full border px-1.5 font-medium ${instrumentClass}`}
-                title={instrumentFacilityLabel}
-              >
-                {instrumentFacilityLabel}
-              </span>
+              <Tooltip delay={0}>
+                <Tooltip.Trigger className="inline-flex min-w-0 max-w-[74%] shrink">
+                  <span
+                    className={`inline-flex h-4.5 min-w-0 max-w-full items-center truncate rounded-full border px-1.5 font-medium ${instrumentClass}`}
+                    title={instrumentFacilityLabel}
+                  >
+                    <span className="truncate @3xl/nexafscard:hidden">
+                      {instrumentName}
+                    </span>
+                    <span className="hidden min-w-0 truncate @3xl/nexafscard:inline">
+                      {instrumentFacilityLabel}
+                    </span>
+                  </span>
+                </Tooltip.Trigger>
+                <Tooltip.Content placement="top">
+                  {instrumentFacilityLabel}
+                </Tooltip.Content>
+              </Tooltip>
               {experimentTypeLabel ? (
                 <span
                   className={`inline-flex h-4.5 shrink-0 items-center rounded-full border px-1.5 text-[9px] leading-none font-semibold sm:text-[10px] ${experimentTypeClass}`}
@@ -412,7 +424,7 @@ export function NexafsExperimentCompactCard({
           </div>
         </div>
         <div
-          className="pointer-events-auto relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 md:ml-auto md:gap-x-3 md:gap-y-0 md:border-t-0 md:pt-0 md:pl-4 dark:border-zinc-600"
+          className="pointer-events-auto relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:ml-auto @md/nexafscard:gap-x-3 @md/nexafscard:gap-y-0 @md/nexafscard:border-t-0 @md/nexafscard:pt-0 @md/nexafscard:pl-4 dark:border-zinc-600"
           onClick={(e) => e.stopPropagation()}
         >
         <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -452,6 +464,8 @@ export function NexafsExperimentCompactCard({
             copiedText={copiedText}
             handleCopy={handleCopy}
             size="sm"
+            actionsLayout="compact"
+            compactContainerName="nexafscard"
           />
         </div>
         <NexafsDatasetMetricsRail
