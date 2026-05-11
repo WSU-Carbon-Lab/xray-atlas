@@ -6,8 +6,20 @@ import {
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
+import { userMayRecalculateKkDelta } from "~/server/nexafs/kkDeltaRecalculateAuthz";
 
 export const spectrumpointsRouter = createTRPCRouter({
+  canRecalculateKkDelta: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const allowed = await userMayRecalculateKkDelta(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+      return { allowed };
+    }),
+
   getByExperiment: publicProcedure
     .input(
       z.object({
@@ -151,6 +163,62 @@ export const spectrumpointsRouter = createTRPCRouter({
         success: true,
         count: createdPoints.count,
       };
+    }),
+
+  updateKkDeltaBatch: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        updates: z
+          .array(
+            z.object({
+              id: z.string().uuid(),
+              delta: z.number(),
+            }),
+          )
+          .min(1)
+          .max(20000),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const allowed = await userMayRecalculateKkDelta(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+      if (!allowed) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to update KK delta for this experiment",
+        });
+      }
+
+      const ids = input.updates.map((u) => u.id);
+      const rows = await ctx.db.spectrumpoints.findMany({
+        where: {
+          experimentid: input.experimentId,
+          id: { in: ids },
+        },
+        select: { id: true },
+      });
+
+      if (rows.length !== ids.length) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "One or more spectrum point ids do not belong to this experiment",
+        });
+      }
+
+      await ctx.db.$transaction(
+        input.updates.map((u) =>
+          ctx.db.spectrumpoints.update({
+            where: { id: u.id },
+            data: { delta: u.delta },
+          }),
+        ),
+      );
+
+      return { updated: input.updates.length };
     }),
 
   deleteByExperiment: protectedProcedure
