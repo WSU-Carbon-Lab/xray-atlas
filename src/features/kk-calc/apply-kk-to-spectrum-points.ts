@@ -1,5 +1,8 @@
 import type { SpectrumPoint } from "~/components/plots/types";
-import { computeDeltaFromBetaDiscreteKK } from "./kk-discrete-henke";
+import {
+  computeDeltaFromBetaKkcalcStyle,
+  type KkcalcMaterialContext,
+} from "./compute-delta-from-beta-kkcalc-style";
 import { alignKkDeltaToSpectrumEnergyAxis } from "./makima-interpolate";
 
 function geometryGroupKey(p: SpectrumPoint): string {
@@ -17,17 +20,21 @@ function geometryGroupKey(p: SpectrumPoint): string {
 }
 
 /**
- * Augments upload-ready spectrum rows with `delta` computed from `beta` using
- * {@link computeDeltaFromBetaDiscreteKK} independently for each theta–phi group, then
+ * Augments upload-ready spectrum rows with `delta` computed from `beta` using kkcalc2’s
+ * piecewise-polynomial **KK_PP** pipeline in TypeScript for each theta–phi group, then
  * {@link alignKkDeltaToSpectrumEnergyAxis} so `delta` is stored on each point's `energy` axis.
  *
  * @param points Spectrum rows that already include finite `beta` wherever KK should run;
  *   rows missing theta and phi are grouped together.
+ * @param material Stoichiometry and mass density for kkcalc2 `refractive_to_ASF` and
+ *   `ASF_to_refractive` (same contract as `tests/kk-calc-validation/run_reference.py`
+ *   `kkcalc-delta-optical-beta`).
  * @returns A shallow-copied array with finite `delta` on every index that participated in a successful group transform.
  * @throws RangeError When any geometry group contains a non-finite `beta` value.
  */
 export function applyKkDeltaToSpectrumPoints(
   points: readonly SpectrumPoint[],
+  material: KkcalcMaterialContext,
 ): SpectrumPoint[] {
   if (points.length === 0) return [];
 
@@ -58,7 +65,12 @@ export function applyKkDeltaToSpectrumPoints(
         "Kramers-Kronig requires finite beta on every point in each geometry group",
       );
     }
-    const deltaArr = computeDeltaFromBetaDiscreteKK(E, B);
+    const deltaArr = computeDeltaFromBetaKkcalcStyle({
+      energyEv: E,
+      beta: B,
+      stoichiometryFormula: material.stoichiometryFormula,
+      densityGPerCm3: material.massDensityGPerCm3,
+    });
     const aligned = alignKkDeltaToSpectrumEnergyAxis(E, E, deltaArr);
     for (let k = 0; k < sortedIdx.length; k++) {
       const globalIdx = sortedIdx[k]!;

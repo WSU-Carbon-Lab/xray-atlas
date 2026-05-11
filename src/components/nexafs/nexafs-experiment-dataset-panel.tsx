@@ -59,6 +59,7 @@ import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import {
   buildSpectrumpointDeltaUpdatesFromRows,
+  DEFAULT_KK_MASS_DENSITY_G_CM3,
   grantKkBrowserConsent,
   KkBrowserConsentDialog,
   readKkBrowserConsentGranted,
@@ -511,7 +512,18 @@ export function NexafsExperimentDatasetPanel({
         energyev: r.energyev,
         beta: r.beta,
       }));
-      const updates = buildSpectrumpointDeltaUpdatesFromRows(rows);
+      const formula = moleculeFormulaQuery.data?.chemicalFormula?.trim();
+      if (!formula) {
+        showToast(
+          "Kramers–Kronig needs a chemical formula on the experiment molecule.",
+          "info",
+        );
+        return;
+      }
+      const updates = buildSpectrumpointDeltaUpdatesFromRows(rows, {
+        stoichiometryFormula: formula,
+        massDensityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
+      });
       if (updates.length === 0) {
         showToast(
           "Need at least four finite beta samples per polarization trace",
@@ -529,7 +541,13 @@ export function NexafsExperimentDatasetPanel({
     } finally {
       setKkRecalcBusy(false);
     }
-  }, [pointsQuery.data, experimentId, session?.user, updateKkDeltaBatch]);
+  }, [
+    pointsQuery.data,
+    experimentId,
+    session?.user,
+    updateKkDeltaBatch,
+    moleculeFormulaQuery.data,
+  ]);
 
   const onPressRecalculateKk = useCallback(() => {
     if (!readKkBrowserConsentGranted()) {

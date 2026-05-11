@@ -1,19 +1,20 @@
 /**
- * KK-calc validation against Python references under `tests/kk-calc-validation`.
+ * KK-calc validation for the pure-TypeScript kkcalc2-style pipeline under `src/features/kk-calc/`.
  *
- * **Single committed SSOT:** NEXAFS CSV export under `src/features/kk-calc/__fixtures__/` with
- * columns `energy_eV`, `beta`, and persisted `delta` from the Atlas TS/database pipeline.
+ * **Fixtures**
+ * - NEXAFS CSV (`nexafs-experiment-*.csv`): `energy_eV`, `beta`, persisted `delta`.
+ * - **`kkcalc-optical-delta-golden.json`**: kkcalc2 optical `delta` from `beta` (C72H14O2, 1 g/cm³),
+ *   measurement-only knots (`run_reference.py kkcalc-delta-optical-beta --measurement-only`); see
+ *   `tests/kk-calc-validation/README.txt`. Offline golden for {@link computeDeltaFromBetaKkcalcStyle}
+ *   with `{ bareAtomExtension: { enabled: false } }`.
  *
- * - **Discrete kernel**: `computeDeltaFromBetaDiscreteKK` matches NumPy `discrete_delta_from_beta`
- *   (`discrete-mirror --csv`) within **rtol=1e-12**, **atol=1e-14**.
- * - **Makima**: `alignKkDeltaToSpectrumEnergyAxis` matches SciPy makima on a **kkcalc2 optical-beta**
- *   δ curve subsampled from the same CSV (**kkcalc-delta-optical-beta**, C72H14O2, 1 g/cm³).
- * - **Discrete KK vs kkcalc2 optical**: TS coarse discrete KK + makima vs full-grid kkcalc2 optical δ;
- *   metrics use optional **±1** sign on TS for convention parity (Pearson **r**, **RMSE**, **max abs**).
- * - **Persisted δ vs kkcalc2**: CSV **`delta`** column (what was stored) compared directly to
- *   **`kkcalc-delta-optical-beta`** δ recomputed from CSV **`beta`** (same formula/density as kkcalc2).
+ * - **KK_PP parity**: TS engine vs golden vector (tight tolerances).
+ * - **Makima**: `alignKkDeltaToSpectrumEnergyAxis` vs SciPy makima on a **subsampled** golden δ curve.
+ * - **Coarse-grid KK + makima**: TS KK on a coarse energy/beta subsample, makima remap to full grid,
+ *   compared to the full golden δ.
+ * - **Persisted δ vs golden**: CSV `delta` vs golden with optional sign flip for legacy sign parity.
  *
- * Prereq: `uv sync` in `tests/kk-calc-validation`; `uv` on `PATH`.
+ * **SciPy subprocess:** `uv sync` in `tests/kk-calc-validation`; `uv` on `PATH` for `scipy-makima` only.
  *
  * Commands: `bun run test:kk-calc-validation` or
  * `bun test src/features/kk-calc/kk-calc-validation.test.ts`
@@ -29,7 +30,7 @@ import {
   it as bunIt,
 } from "bun:test";
 
-import { computeDeltaFromBetaDiscreteKK } from "./kk-discrete-henke";
+import { computeDeltaFromBetaKkcalcStyle } from "./compute-delta-from-beta-kkcalc-style";
 import { alignKkDeltaToSpectrumEnergyAxis } from "./makima-interpolate";
 
 type ExpectAssertions = {
@@ -50,6 +51,27 @@ const csvFixturePath = path.join(
   "__fixtures__",
   "nexafs-experiment-30539a6a-pol-86906b55-th55-ph0.csv",
 );
+
+const kkcalcOpticalDeltaGoldenPath = path.join(
+  __dirname,
+  "__fixtures__",
+  "kkcalc-optical-delta-golden.json",
+);
+
+interface KkcalcOpticalDeltaGoldenFile {
+  readonly formula: string;
+  readonly density_g_per_cm3: number;
+  readonly delta: readonly number[];
+}
+
+function loadKkcalcOpticalDeltaGolden(): readonly number[] {
+  const raw = readFileSync(kkcalcOpticalDeltaGoldenPath, "utf-8");
+  const v = JSON.parse(raw) as KkcalcOpticalDeltaGoldenFile;
+  if (!Array.isArray(v.delta) || !v.delta.every((x): x is number => typeof x === "number")) {
+    throw new TypeError("golden.delta must be a number array");
+  }
+  return v.delta;
+}
 
 interface CsvSpectrum {
   energyEv: number[];
@@ -253,12 +275,8 @@ function pickTsDeltaSignVersusKkcalcDelta(
   tsDelta: readonly number[],
   kkcalcDelta: readonly number[],
 ): -1 | 1 {
-  const rPos = pearsonSampleCorrelation(tsDelta, kkcalcDelta);
-  const rNeg = pearsonSampleCorrelation(
-    tsDelta.map((v) => -v),
-    kkcalcDelta,
-  );
-  return Math.abs(rNeg) >= Math.abs(rPos) ? -1 : 1;
+  const r = pearsonSampleCorrelation(tsDelta, kkcalcDelta);
+  return r >= 0 ? 1 : -1;
 }
 
 function buildCoarseSpectrumIndices(length: number, step: number): number[] {
@@ -273,35 +291,48 @@ function buildCoarseSpectrumIndices(length: number, step: number): number[] {
   return coarseIdx;
 }
 
-function kkcalcDeltaOpticalBetaFromCsv(): number[] {
-  return parseNumberArrayField(
-    runReference([
-      "kkcalc-delta-optical-beta",
-      "--csv",
-      csvFixturePath,
-      "--formula",
-      "C72H14O2",
-      "--density",
-      "1",
-    ]),
-    "delta",
-  );
-}
-
 describe("kk-calc validation vs Python kkcalc2 + SciPy", () => {
-  it("discrete KK matches NumPy mirror (rtol=1e-12, atol=1e-14)", () => {
+  it("TS kkcalc-style delta matches offline kkcalc2 golden (rtol=1e-10, atol=1e-12)", () => {
     const { energyEv, beta } = loadNexafsCsvEnergyBeta(csvFixturePath);
-    const ts = computeDeltaFromBetaDiscreteKK(energyEv, beta);
+    const golden = loadKkcalcOpticalDeltaGolden();
+    expect(golden.length).toBe(energyEv.length);
+    const ts = computeDeltaFromBetaKkcalcStyle({
+      energyEv,
+      beta,
+      stoichiometryFormula: "C72H14O2",
+      densityGPerCm3: 1,
+      options: { bareAtomExtension: { enabled: false } },
+    });
+    assertAllClose(ts, golden, 1e-10, 1e-12);
+  });
+
+  it("TS extended delta matches kkcalc2 asp_db_im_extended subprocess (rtol=2e-7, atol=2e-10)", () => {
+    const { energyEv, beta } = loadNexafsCsvEnergyBeta(csvFixturePath);
     const pyDelta = parseNumberArrayField(
-      runReference(["discrete-mirror", "--csv", csvFixturePath]),
+      runReference([
+        "kkcalc-delta-optical-beta",
+        "--csv",
+        path.relative(validationDir, csvFixturePath),
+        "--formula",
+        "C72H14O2",
+        "--density",
+        "1",
+      ]),
       "delta",
     );
-    assertAllClose(ts, pyDelta, 1e-12, 1e-14);
+    expect(pyDelta.length).toBe(energyEv.length);
+    const ts = computeDeltaFromBetaKkcalcStyle({
+      energyEv,
+      beta,
+      stoichiometryFormula: "C72H14O2",
+      densityGPerCm3: 1,
+    });
+    assertAllClose(ts, pyDelta, 2e-7, 2e-10);
   });
 
   it("makima alignment matches SciPy on kkcalc2 optical-beta δ subsampled curve (rtol=1e-9, atol=1e-11)", () => {
     const { energyEv } = loadNexafsCsvEnergyBeta(csvFixturePath);
-    const deltaKkcalc = kkcalcDeltaOpticalBetaFromCsv();
+    const deltaKkcalc = [...loadKkcalcOpticalDeltaGolden()];
     expect(deltaKkcalc.length).toBe(energyEv.length);
     const step = 5;
     const coarseIdx = buildCoarseSpectrumIndices(energyEv.length, step);
@@ -326,9 +357,9 @@ describe("kk-calc validation vs Python kkcalc2 + SciPy", () => {
     assertAllClose(tsAligned, scipyDelta, 1e-9, 1e-11);
   });
 
-  it("reports δ similarity: TS discrete KK + makima vs kkcalc2 optical-beta δ", () => {
+  it("reports δ similarity: TS KK_PP on coarse grid + makima vs full golden δ", () => {
     const { energyEv, beta } = loadNexafsCsvEnergyBeta(csvFixturePath);
-    const deltaKkcalc = kkcalcDeltaOpticalBetaFromCsv();
+    const deltaKkcalc = [...loadKkcalcOpticalDeltaGolden()];
     expect(deltaKkcalc.length).toBe(energyEv.length);
     const step = 5;
     const coarseIdx = buildCoarseSpectrumIndices(energyEv.length, step);
@@ -336,18 +367,21 @@ describe("kk-calc validation vs Python kkcalc2 + SciPy", () => {
     const coarseBeta = coarseIdx.map((i) => beta[i]!);
     expect(coarseE.length).toBeGreaterThanOrEqual(4);
 
-    const coarseDeltaTs = computeDeltaFromBetaDiscreteKK(coarseE, coarseBeta);
+    const coarseDeltaTs = computeDeltaFromBetaKkcalcStyle({
+      energyEv: coarseE,
+      beta: coarseBeta,
+      stoichiometryFormula: "C72H14O2",
+      densityGPerCm3: 1,
+      options: { bareAtomExtension: { enabled: false } },
+    });
     const deltaTsPath = alignKkDeltaToSpectrumEnergyAxis(
       energyEv,
       coarseE,
       coarseDeltaTs,
     );
 
-    const signVersusTsDiscreteKkDelta = pickTsDeltaSignVersusKkcalcDelta(
-      deltaTsPath,
-      deltaKkcalc,
-    );
-    const tsCompared = deltaTsPath.map((v) => signVersusTsDiscreteKkDelta * v);
+    const signVersusTs = pickTsDeltaSignVersusKkcalcDelta(deltaTsPath, deltaKkcalc);
+    const tsCompared = deltaTsPath.map((v) => signVersusTs * v);
 
     const pearsonR = pearsonSampleCorrelation(tsCompared, deltaKkcalc);
     const rmse = rootMeanSquareError(tsCompared, deltaKkcalc);
@@ -356,9 +390,9 @@ describe("kk-calc validation vs Python kkcalc2 + SciPy", () => {
     console.info(
       JSON.stringify({
         csvFixture: "src/features/kk-calc/__fixtures__/nexafs-experiment-30539a6a-pol-86906b55-th55-ph0.csv",
-        deltaSimilarityTsDiscreteKkMakimaVersusKkcalcOpticalBeta: {
+        deltaSimilarityTsKkcalcCoarseMakimaVersusGolden: {
           coarseGridStep: step,
-          signVersusTsDiscreteKkDelta,
+          signVersusTsDelta: signVersusTs,
           pearsonR,
           rmse,
           maxAbsError,
@@ -367,15 +401,15 @@ describe("kk-calc validation vs Python kkcalc2 + SciPy", () => {
     );
 
     expect(Number.isFinite(pearsonR)).toBe(true);
-    expect(pearsonR).toBeGreaterThanOrEqual(0.945);
-    expect(rmse).toBeLessThanOrEqual(3.0e-3);
-    expect(maxAbsError).toBeLessThanOrEqual(1.1e-2);
+    expect(pearsonR).toBeGreaterThanOrEqual(0.998);
+    expect(rmse).toBeLessThanOrEqual(1.5e-4);
+    expect(maxAbsError).toBeLessThanOrEqual(2.0e-3);
   });
 
   it("persisted CSV δ (TS/DB) vs kkcalc2 δ recomputed from optical β (same grid)", () => {
     const { energyEv, deltaPersisted } =
       loadNexafsCsvEnergyBetaDeltaPersisted(csvFixturePath);
-    const deltaKkcalc = kkcalcDeltaOpticalBetaFromCsv();
+    const deltaKkcalc = [...loadKkcalcOpticalDeltaGolden()];
     expect(deltaKkcalc.length).toBe(energyEv.length);
     expect(deltaPersisted.length).toBe(energyEv.length);
 

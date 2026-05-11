@@ -36,10 +36,9 @@ same ``prefactor(E)`` from ``kkcalc2/conversions.py`` ``refractive_to_ASF(..., r
 When ``--number-density`` is set, this CLI instead evaluates ``ASF_to_refractive(energies, f_1 + i f_2, ...)``
 and returns the real part (dispersive ``delta`` in absolute kkcalc units).
 
-Atlas fixture ``beta`` is persisted imaginary optical index ``beta`` (see ``computeBetaIndex``); this
-validation still feeds it into kkcalc as ASF ``f_2`` for parity with the prior KK_PP wiring. Any
-systematic scale mismatch versus optical ``delta`` from discrete KK is therefore interpreted through
-that bookkeeping plus TS tail anchoring, not bitwise equality.
+Atlas fixture ``beta`` is persisted optical absorption index ``beta``; ``kkcalc-delta`` treats it as
+imaginary ASF ``f_2`` on the tabulated grid for KK_PP experiments. ``kkcalc-delta-optical-beta`` is the
+primary reference for TS ``computeDeltaFromBetaKkcalcStyle`` parity.
 """
 
 from __future__ import annotations
@@ -55,8 +54,6 @@ from pathlib import Path
 import numpy as np
 from scipy.constants import Avogadro as N_A
 from scipy.interpolate import Akima1DInterpolator
-
-from ts_discrete_kk_mirror import discrete_delta_from_beta
 
 
 def _load_fixture(path: Path) -> tuple[np.ndarray, np.ndarray]:
@@ -99,19 +96,15 @@ def _load_csv_energy_beta(path: Path) -> tuple[np.ndarray, np.ndarray]:
     return e, b
 
 
-def _kkcalc_delta_optical_beta_pipeline(
+def _kkcalc_delta_optical_beta_measurement_only_pipeline(
     e: np.ndarray,
     beta_optical: np.ndarray,
     formula: str,
     density_g_per_cm3: float,
 ) -> tuple[np.ndarray, float]:
     """
-    Optical-index ``beta`` to dispersive ``delta`` via kkcalc2 stoichiometry-aware conversions.
-
-    Converts ``beta`` to imaginary ASF ``f_2`` with ``refractive_to_ASF`` (density + formula),
-    runs ``KK_PP`` on ``f_2``, then maps ``f_1 + i f_2`` back with ``ASF_to_refractive`` using the
-    same density and composition. The returned ``delta`` array is the real part of that complex
-    refractive component (kkcalc2 ``conversions`` convention ``n = 1 - delta + i beta``).
+    Optical ``beta`` to ``delta`` without ``asp_db_im_extended``: measurement knots only (legacy
+    tight-parity path for TypeScript ``bareAtomExtension.enabled=false``).
     """
     with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
         from kkcalc2 import conversions
@@ -149,6 +142,54 @@ def _kkcalc_delta_optical_beta_pipeline(
     return delta, number_density
 
 
+def _kkcalc_delta_optical_beta_extended_pipeline(
+    e: np.ndarray,
+    beta_optical: np.ndarray,
+    formula: str,
+    density_g_per_cm3: float,
+) -> tuple[np.ndarray, float]:
+    """
+    Optical-index ``beta`` to dispersive ``delta`` with ``asp_db_im_extended`` Henke tails
+    (kkcalc2 GUI / ``KK_PP`` default merge).
+    """
+    with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+        from kkcalc2 import conversions
+        from kkcalc2.models.db_models import asp_db_im_extended
+        from kkcalc2.models.factors import asf_im
+        from kkcalc2.stoich import stoichiometry as kk_stoichiometry
+
+        f2 = conversions.refractive_to_ASF(
+            e,
+            beta_optical,
+            density=float(density_g_per_cm3),
+            stoichiometry=formula,
+        )
+        f2r = np.asarray(f2, dtype=np.float64)
+        sto = kk_stoichiometry(formula)
+        data_asf = asf_im(energies=e, factors=f2r, stoichiometry=sto)
+        extended = asp_db_im_extended(
+            data_asf=data_asf,
+            database=formula,
+            merge_domain=None,
+            fix_distortions=False,
+        )
+        re = extended.kk_transform(
+            target_energies=e,
+            improve_accuracy=False,
+            relativistic_correction=0.0,
+        )
+        f1 = np.asarray(re.factors, dtype=np.float64)
+        refr = conversions.ASF_to_refractive(
+            e,
+            f1 + 1j * f2r,
+            density=float(density_g_per_cm3),
+            stoichiometry=formula,
+        )
+        delta = np.asarray(refr, dtype=np.complex128).real
+        number_density = float(density_g_per_cm3) * float(N_A) / float(sto.formula_mass)
+    return delta, number_density
+
+
 def _kkcalc_f1_f2_on_grid(e: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Return kkcalc2 KK_PP ``f_1`` and input ``f_2`` on ``e`` (stdout from kkcalc2 suppressed)."""
     with redirect_stdout(io.StringIO()):
@@ -174,13 +215,6 @@ def _energy_beta_from_fixture_or_csv(args: argparse.Namespace) -> tuple[np.ndarr
     if getattr(args, "csv", None):
         return _load_csv_energy_beta(Path(args.csv))
     return _load_fixture(Path(args.fixture))
-
-
-def cmd_discrete_mirror(args: argparse.Namespace) -> None:
-    e, b = _energy_beta_from_fixture_or_csv(args)
-    out = discrete_delta_from_beta(e, b)
-    json.dump({"delta": out.tolist()}, sys.stdout)
-    sys.stdout.write("\n")
 
 
 def cmd_scipy_makima(args: argparse.Namespace) -> None:
@@ -234,12 +268,20 @@ def cmd_kkcalc_delta_optical_beta(args: argparse.Namespace) -> None:
         if not np.all(np.diff(e) > 0):
             raise ValueError("energyEv must be strictly ascending")
 
-    delta, nd = _kkcalc_delta_optical_beta_pipeline(
-        e,
-        b,
-        formula=str(args.formula),
-        density_g_per_cm3=float(args.density),
-    )
+    if getattr(args, "measurement_only", False):
+        delta, nd = _kkcalc_delta_optical_beta_measurement_only_pipeline(
+            e,
+            b,
+            formula=str(args.formula),
+            density_g_per_cm3=float(args.density),
+        )
+    else:
+        delta, nd = _kkcalc_delta_optical_beta_extended_pipeline(
+            e,
+            b,
+            formula=str(args.formula),
+            density_g_per_cm3=float(args.density),
+        )
     json.dump(
         {
             "delta": delta.tolist(),
@@ -285,19 +327,6 @@ def cmd_kkcalc_delta(args: argparse.Namespace) -> None:
 def main() -> None:
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
-
-    p_dm = sub.add_parser(
-        "discrete-mirror",
-        help='Mirror TS discrete KK on fixture or CSV; prints {"delta":[...]}.',
-    )
-    g_dm = p_dm.add_mutually_exclusive_group(required=True)
-    g_dm.add_argument("--fixture", type=str, help="JSON with energyEv and beta arrays.")
-    g_dm.add_argument(
-        "--csv",
-        type=str,
-        help='CSV with columns "energy_eV" and "beta".',
-    )
-    p_dm.set_defaults(func=cmd_discrete_mirror)
 
     p_sm = sub.add_parser(
         "scipy-makima",
@@ -357,6 +386,14 @@ def main() -> None:
         type=float,
         default=1.0,
         help="Mass density in g/cm^3 for kkcalc2 conversions.refractive_to_ASF (default 1).",
+    )
+    p_ob.add_argument(
+        "--measurement-only",
+        action="store_true",
+        help=(
+            "Use measurement-only ``asf_im`` knots (no ``asp_db_im_extended``); for TS parity when "
+            "``bareAtomExtension.enabled`` is false."
+        ),
     )
     p_ob.set_defaults(func=cmd_kkcalc_delta_optical_beta)
 

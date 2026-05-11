@@ -111,6 +111,7 @@ def plot_comparison(
         )
 
     residual = delta_kkcalc - delta_csv
+    residual_alt = delta_kkcalc + delta_csv
 
     fig, axes = plt.subplots(
         2,
@@ -120,6 +121,7 @@ def plot_comparison(
         layout="constrained",
     )
     ax0, ax1 = axes[0], axes[1]
+    axkk = ax0.twinx()
 
     ax0.plot(
         energy_ev,
@@ -129,7 +131,7 @@ def plot_comparison(
         ls="--",
         label=r"Atlas $\delta$ (CSV / TS persisted)",
     )
-    ax0.plot(
+    axkk.plot(
         energy_ev,
         delta_kkcalc,
         color="0.15",
@@ -139,11 +141,20 @@ def plot_comparison(
             rf"$\rho$={density:g} g/cm$^3$)"
         ),
     )
+    ax0.plot(
+        energy_ev,
+        -delta_csv,
+        color="C1",
+        lw=1.2,
+        ls="--",
+        label=r"Atlas $-\delta$ (CSV / TS persisted)",
+    )
     ax0.set_ylabel(r"$\delta$")
     ax0.legend(frameon=False, fontsize=8)
     ax0.set_title(csv_path.name)
 
     ax1.plot(energy_ev, residual, color="C3", lw=1.0)
+    ax1.plot(energy_ev, residual_alt, color="C4", lw=1.0)
     ax1.axhline(0.0, color="0.5", lw=0.6, ls=":")
     ax1.set_xlabel("Energy (eV)")
     ax1.set_ylabel(r"$\delta_{\mathrm{kkcalc}} - \delta_{\mathrm{CSV}}$")

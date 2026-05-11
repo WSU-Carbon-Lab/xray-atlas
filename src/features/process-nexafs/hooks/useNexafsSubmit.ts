@@ -7,7 +7,10 @@ import {
   buildSpectrumPointsWithDerivedForUpload,
   extractGeometryPairs,
 } from "../utils";
-import { applyKkDeltaToSpectrumPoints } from "~/features/kk-calc";
+import {
+  applyKkDeltaToSpectrumPoints,
+  DEFAULT_KK_MASS_DENSITY_G_CM3,
+} from "~/features/kk-calc";
 
 export type SubmitStatus =
   | { type: "error"; message: string }
@@ -21,6 +24,7 @@ export function useNexafsSubmit(
   },
 ) {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(undefined);
+  const utils = trpc.useUtils();
   const createNexafsMutation =
     trpc.experiments.createWithSpectrum.useMutation();
 
@@ -150,7 +154,21 @@ export function useNexafsSubmit(
               return;
             }
             try {
-              spectrumPoints = applyKkDeltaToSpectrumPoints(spectrumPoints);
+              const mol = await utils.client.molecules.getById.query({
+                id: dataset.moleculeId,
+              });
+              const formula = mol.chemicalFormula?.trim();
+              if (!formula) {
+                setSubmitStatus({
+                  type: "error",
+                  message: `Dataset "${dataset.fileName}": Kramers–Kronig requires a chemical formula on the selected molecule.`,
+                });
+                return;
+              }
+              spectrumPoints = applyKkDeltaToSpectrumPoints(spectrumPoints, {
+                stoichiometryFormula: formula,
+                massDensityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
+              });
             } catch (err) {
               const msg =
                 err instanceof Error ? err.message : "Kramers–Kronig failed.";
@@ -247,7 +265,7 @@ export function useNexafsSubmit(
         });
       }
     },
-    [datasets, options],
+    [datasets, options, utils.client],
   );
 
   return {

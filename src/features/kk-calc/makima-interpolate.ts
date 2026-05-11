@@ -229,7 +229,7 @@ export function interpolateMakimaSorted(
  * `kkEnergyEvAsc` within `relTol` pairwise.
  *
  * @param targetEnergyEvAsc Strictly ascending destination photon energies (e.g. full `spectrumpoints` grid).
- * @param kkEnergyEvAsc Strictly ascending energies used with `computeDeltaFromBetaDiscreteKK`.
+ * @param kkEnergyEvAsc Strictly ascending energies on which `kkDeltaAsc` was evaluated (kkcalc2 grid).
  * @param kkDeltaAsc `delta` values aligned with `kkEnergyEvAsc`.
  * @param relTol Relative tolerance on `|a_i-b_i|/(1+|a_i|)` for treating grids as identical.
  * @returns `delta` aligned to `targetEnergyEvAsc` (same length as `targetEnergyEvAsc`).

@@ -1,4 +1,7 @@
-import { computeDeltaFromBetaDiscreteKK } from "./kk-discrete-henke";
+import {
+  computeDeltaFromBetaKkcalcStyle,
+  type KkcalcMaterialContext,
+} from "./compute-delta-from-beta-kkcalc-style";
 import { alignKkDeltaToSpectrumEnergyAxis } from "./makima-interpolate";
 
 export interface SpectrumpointRowForKk {
@@ -9,18 +12,19 @@ export interface SpectrumpointRowForKk {
 }
 
 /**
- * Builds `{ id, delta }` updates for `spectrumpoints` rows by running
- * {@link computeDeltaFromBetaDiscreteKK} independently on each polarization id group, then
- * {@link alignKkDeltaToSpectrumEnergyAxis} so each persisted `delta` is defined on the row's
- * `energyev` axis (makima remap when the KK grid differs from stored energies).
+ * Builds `{ id, delta }` updates for `spectrumpoints` rows by running kkcalc2-style KK in TypeScript
+ * on each polarization id group, then {@link alignKkDeltaToSpectrumEnergyAxis} so each persisted `delta`
+ * is defined on the row's `energyev` axis (makima remap when the KK grid differs from stored energies).
  *
  * @param rows All spectrum rows for one experiment (any order); rows with null or
  *   non-finite `beta` are skipped entirely for KK (no update emitted for those ids).
+ * @param material Stoichiometry and mass density for kkcalc2 conversions.
  * @returns Update objects suitable for the authenticated `spectrumpoints.updateKkDeltaBatch`
  *   tRPC mutation payload shape.
  */
 export function buildSpectrumpointDeltaUpdatesFromRows(
   rows: readonly SpectrumpointRowForKk[],
+  material: KkcalcMaterialContext,
 ): { id: string; delta: number }[] {
   const eligible = rows.filter(
     (r) => r.beta != null && Number.isFinite(r.beta) && Number.isFinite(r.energyev),
@@ -50,7 +54,12 @@ export function buildSpectrumpointDeltaUpdatesFromRows(
         return [];
       }
     }
-    const deltaArr = computeDeltaFromBetaDiscreteKK(E, B);
+    const deltaArr = computeDeltaFromBetaKkcalcStyle({
+      energyEv: E,
+      beta: B,
+      stoichiometryFormula: material.stoichiometryFormula,
+      densityGPerCm3: material.massDensityGPerCm3,
+    });
     const aligned = alignKkDeltaToSpectrumEnergyAxis(E, E, deltaArr);
     for (let i = 0; i < group.length; i++) {
       const d = aligned[i]!;
