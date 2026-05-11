@@ -41,6 +41,7 @@ import { PeakPlotAnnotations } from "./PeakPlotAnnotations";
 import { InspectPinLayer } from "./InspectPinLayer";
 import { useInspectPins } from "../hooks/useInspectPins";
 import { NormalizationBrush } from "../visx/NormalizationBrush";
+import { NormalizationRegionHandles } from "../visx/NormalizationRegionHandles";
 import { PeakIndicators } from "../visx/PeakIndicators";
 import { PeakCurves } from "../visx/PeakCurves";
 import { PeakOverlayLayer } from "../visx/PeakOverlayLayer";
@@ -103,7 +104,10 @@ export function SpectrumPlotInner({
   headerRight,
   headerAnalysis,
   plotTopRailDataActions,
+  plotTopRailTrailingActions,
   showNormalizationShading = false,
+  normalizationEdgeHandlesEnabled = false,
+  onNormalizationEdgeEnergyChange,
   cursorMode: externalCursorMode,
   onCursorModeChange,
 }: SpectrumPlotInnerProps) {
@@ -811,6 +815,24 @@ export function SpectrumPlotInner({
                 themeColors={themeColors}
               />
             )}
+            {normalizationRegions &&
+              normalizationEdgeHandlesEnabled &&
+              onNormalizationEdgeEnergyChange &&
+              (selectionTarget !== null || showNormalizationShading) && (
+                <g
+                  style={{ pointerEvents: "auto" }}
+                  transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
+                >
+                  <NormalizationRegionHandles
+                    normalizationRegions={normalizationRegions}
+                    xScale={mainPlotScales.xScale}
+                    dimensions={mainPlot.dimensions}
+                    plotSvgRef={svgRef}
+                    energyDomain={dataXBounds}
+                    onEdgeEnergyChange={onNormalizationEdgeEnergyChange}
+                  />
+                </g>
+              )}
             {effectiveCursorMode === "zoom" && !selectionTarget && (
               <BrushZoom
                 xScale={mainPlotScales.xScale}
@@ -988,6 +1010,7 @@ export function SpectrumPlotInner({
                 : () => setExportModalOpen(true)
             }
             topRailLeadingExtras={plotTopRailDataActions}
+            topRailTrailingExtras={plotTopRailTrailingActions}
             dataViewTabs={headerRight}
             analysisTools={headerAnalysis}
           />

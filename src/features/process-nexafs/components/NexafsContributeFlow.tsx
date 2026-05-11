@@ -20,7 +20,6 @@ import {
   Label,
   Description,
   ErrorMessage,
-  Checkbox,
 } from "@heroui/react";
 import { Button as HeroButton } from "@heroui/react";
 import type { DatasetState, CSVColumnMappings } from "../types";
@@ -303,38 +302,6 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
               className="border-danger/40 bg-danger/10 text-danger-foreground rounded-lg border p-4 text-sm"
             >
               {submitStatus.message}
-            </div>
-          )}
-
-          {activeDataset && (
-            <div className="border-border bg-surface mb-4 rounded-lg border px-4 py-3">
-              <Checkbox
-                id={`nexafs-kk-${activeDataset.id}`}
-                className="items-start gap-3"
-                isSelected={activeDataset.computeKkDeltaOnSubmit}
-                onChange={() =>
-                  updateDataset(activeDataset.id, {
-                    computeKkDeltaOnSubmit: !activeDataset.computeKkDeltaOnSubmit,
-                  })
-                }
-              >
-                <Checkbox.Control>
-                  <Checkbox.Indicator />
-                </Checkbox.Control>
-                <Checkbox.Content>
-                  <Label
-                    htmlFor={`nexafs-kk-${activeDataset.id}`}
-                    className="text-foreground cursor-pointer text-sm font-medium"
-                  >
-                    Compute delta (Kramers–Kronig from beta) before submit
-                  </Label>
-                  <Description className="text-muted mt-1 block text-xs">
-                    Runs in your browser after you confirm the session consent
-                    dialog. Requires finite beta on every row (derive via
-                    normalization or map a beta column).
-                  </Description>
-                </Checkbox.Content>
-              </Checkbox>
             </div>
           )}
 

@@ -60,9 +60,20 @@ const unifiedNormalizationRangesSchema = z.object({
   post: z.tuple([z.number(), z.number()]).nullable(),
 });
 
+const perChannelNormalizationRangesSchema = z.object({
+  od: unifiedNormalizationRangesSchema,
+  massabsorption: unifiedNormalizationRangesSchema,
+  beta: unifiedNormalizationRangesSchema,
+});
+
+const normalizationRangesInputSchema = z.union([
+  unifiedNormalizationRangesSchema,
+  perChannelNormalizationRangesSchema,
+]);
+
 const normalizationSchema = z.object({
   scope: z.enum(["none", "unified", "per_channel"]),
-  ranges: unifiedNormalizationRangesSchema.nullable(),
+  ranges: normalizationRangesInputSchema.nullable(),
 });
 
 type ExperimentQualityComment = {
@@ -149,8 +160,10 @@ export const experimentsRouter = createTRPCRouter({
       const row = await ctx.db.experiments.findUnique({
         where: { id: input.experimentId },
         select: {
+          createdby: true,
           normalizationscope: true,
           normalizationranges: true,
+          uploadedchannels: true,
           samples: {
             select: {
               molecules: { select: { chemicalformula: true } },
@@ -160,10 +173,16 @@ export const experimentsRouter = createTRPCRouter({
       });
       const raw =
         row?.samples?.molecules?.chemicalformula?.trim() ?? "";
+      const userId = ctx.userId;
+      const canEditNormalizationMetadata =
+        Boolean(userId && row?.createdby && row.createdby === userId) ||
+        (Boolean(userId) && (await hasPrivilegedRole(ctx.db, userId)));
       return {
         chemicalFormula: raw.length > 0 ? raw : null,
         normalizationScope: row?.normalizationscope ?? null,
         normalizationRanges: row?.normalizationranges ?? null,
+        uploadedChannels: row?.uploadedchannels ?? null,
+        canEditNormalizationMetadata,
       };
     }),
 
@@ -1144,6 +1163,7 @@ export const experimentsRouter = createTRPCRouter({
           const validationSummary = buildValidationSummary({
             points: spectrumInput.points,
             ranges: normalizationRanges,
+            scope: normalizationScope,
             override: {
               bypass: experimentInput.validationOverride?.bypass ?? false,
               reason: experimentInput.validationOverride?.reason,
@@ -1152,6 +1172,7 @@ export const experimentsRouter = createTRPCRouter({
           const qualityScores = buildQualityScores({
             points: spectrumInput.points,
             ranges: normalizationRanges,
+            scope: normalizationScope,
             doiPresent: false,
           });
           const hasDerivedValues = {
@@ -1331,11 +1352,13 @@ export const experimentsRouter = createTRPCRouter({
       const validationSummary = buildValidationSummary({
         points: spectrumPoints,
         ranges,
+        scope: input.normalization.scope,
         override: { bypass: false, reason: input.reason },
       });
       const qualityScores = buildQualityScores({
         points: spectrumPoints,
         ranges,
+        scope: input.normalization.scope,
         doiPresent: false,
       });
       const channelProvenance = buildChannelProvenance({

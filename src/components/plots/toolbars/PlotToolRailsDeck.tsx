@@ -41,6 +41,10 @@ type PlotToolRailsDeckProps = {
   onResetZoom: () => void;
   onExportClick?: () => void;
   topRailLeadingExtras?: ReactNode;
+  /**
+   * Optional controls rendered in the top rail to the right of the cursor mode toggle group (inspect/zoom/pan). Each child becomes a direct sibling inside the same `Toolbar`, separated from the cursor cluster by a vertical divider. Use for standalone affordances such as a dataset Edit toggle.
+   */
+  topRailTrailingExtras?: ReactNode;
   displayTools?: ReactNode;
   analysisTools?: ReactNode;
   bottomTools?: ReactNode;
@@ -61,6 +65,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
   onResetZoom,
   onExportClick,
   topRailLeadingExtras,
+  topRailTrailingExtras,
   displayTools,
   analysisTools,
   bottomTools,
@@ -173,6 +178,15 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               <HandRaisedIcon className="h-5 w-5" aria-hidden />
             </ToggleButton>
           </ToggleButtonGroup>
+          {topRailTrailingExtras != null ? (
+            <>
+              <Separator
+                orientation="vertical"
+                className="mx-1 h-6 min-h-6 w-px shrink-0 self-center bg-(--border-default)"
+              />
+              {Children.toArray(topRailTrailingExtras)}
+            </>
+          ) : null}
         </Toolbar>
       ),
     };
@@ -223,6 +237,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
     onExportClick,
     onResetZoom,
     topRailLeadingExtras,
+    topRailTrailingExtras,
   ]);
 
   const leftRail = rails[0];

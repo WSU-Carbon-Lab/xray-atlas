@@ -12,7 +12,8 @@ import {
 } from "react";
 import { useSession } from "next-auth/react";
 import { createPortal } from "react-dom";
-import { Copy, Download } from "lucide-react";
+import { PencilIcon } from "@heroicons/react/24/outline";
+import { Copy, Download, RefreshCw, RotateCcw, Save } from "lucide-react";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import {
   BUTTON_GROUP_CHILD,
@@ -27,15 +28,20 @@ import { buttonVariants, cn } from "@heroui/styles";
 import type {
   DifferenceSpectrum,
   GeometryGroup,
+  NormalizationRegionEdgeId,
+  NormalizationRegions,
   ReferenceCurve,
   SpectrumPoint,
+  SpectrumSelection,
 } from "~/components/plots/types";
 import { groupPointsByGeometry, sortedGeometryGroupEntries } from "~/components/plots/utils/trace-utils";
 import { filterSpectrumPointsForGroupedPlot } from "~/components/plots/hooks/useSpectrumData";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import {
+  PlotSpectrumToolsToolbarSection,
   plotToolbarAttachedShellClass,
   plotToolbarBasisToggleClass,
+  plotToolbarGlyphToggleStandaloneClass,
   plotToolbarIconToolClass,
 } from "~/components/plots/toolbars";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
@@ -43,6 +49,7 @@ import {
   calculateBareAtomAbsorption,
   calculateDifferenceSpectra,
   computeBetaIndex,
+  computeZeroOneNormalization,
   groupSpectrumByPolarizationThetaPhi,
   mapDbSpectrumRowsToAnnotated,
   mapDbSpectrumRowsToPoints,
@@ -50,6 +57,11 @@ import {
   warmBareAtomCacheForFormula,
   type SpectrumPolarizationNode,
 } from "~/features/process-nexafs/utils";
+import { defaultNormalizationRangesFromSpectrum } from "~/features/process-nexafs/utils/normalizationDefaults";
+import type {
+  NormalizationRanges as PersistedNormalizationRanges,
+  NormalizationScope,
+} from "~/features/process-nexafs/types";
 import {
   mapPeaksetsToPlotPeaks,
   useNexafsSpectrumBrowseModel,
@@ -83,6 +95,8 @@ interface ExperimentFormulaMeta {
   chemicalFormula?: string | null;
   normalizationScope?: string | null;
   normalizationRanges?: unknown;
+  uploadedChannels?: unknown;
+  canEditNormalizationMetadata?: boolean;
 }
 
 interface SpectrumRowForKk {
@@ -90,6 +104,27 @@ interface SpectrumRowForKk {
   polarizationid: string | null;
   energyev: number;
   beta: number | null;
+}
+
+type UploadChan = "rawabs" | "od" | "massabsorption" | "beta";
+
+function uploadedChannelsForMutation(raw: unknown): UploadChan[] {
+  if (!Array.isArray(raw)) {
+    return ["rawabs"];
+  }
+  const out: UploadChan[] = [];
+  for (const x of raw) {
+    if (
+      typeof x === "string" &&
+      (x === "rawabs" ||
+        x === "od" ||
+        x === "massabsorption" ||
+        x === "beta")
+    ) {
+      out.push(x);
+    }
+  }
+  return out.length > 0 ? out : ["rawabs"];
 }
 
 export interface NexafsExperimentDatasetPanelProps {
@@ -548,14 +583,33 @@ export function NexafsExperimentDatasetPanel({
     { experimentId },
     { enabled: enabled && Boolean(experimentId) && Boolean(session?.user) },
   );
+  const kkRecalcAllowed = Boolean(canRecalculateKk.data?.allowed);
   const updateKkDeltaBatch = trpc.spectrumpoints.updateKkDeltaBatch.useMutation({
     onSuccess: () => {
       void utils.spectrumpoints.getByExperiment.invalidate({ experimentId });
     },
   });
+  const updateNormalizationMetadata =
+    trpc.experiments.updateNormalizationMetadata.useMutation({
+      onSuccess: () => {
+        void utils.experiments.moleculeFormulaForExperiment.invalidate({
+          experimentId,
+        });
+      },
+    });
 
   const [kkPanelConsentOpen, setKkPanelConsentOpen] = useState(false);
   const [kkRecalcBusy, setKkRecalcBusy] = useState(false);
+  const [datasetPlotEditorActive, setDatasetPlotEditorActive] = useState(false);
+  const [isPlotNormalizationMode, setIsPlotNormalizationMode] = useState(false);
+  const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
+    useState<"pre" | "post" | null>(null);
+  const [draftNormRegions, setDraftNormRegions] = useState<NormalizationRegions>(
+    { pre: null, post: null },
+  );
+  const initialNormDraftRef = useRef<NormalizationRegions | null>(null);
+  const [editorNormBaselineRaw, setEditorNormBaselineRaw] =
+    useState<unknown>(null);
 
   const henkeMergeDomainForKkBeta = useMemo((): readonly [
     number,
@@ -650,6 +704,22 @@ export function NexafsExperimentDatasetPanel({
   ]);
 
   const onPressRecalculateKk = useCallback(() => {
+    if (!readKkBrowserConsentGranted()) {
+      setKkPanelConsentOpen(true);
+      return;
+    }
+    void runKkRecalc();
+  }, [runKkRecalc]);
+
+  /**
+   * Reruns the Kramers Kronig delta pipeline from stored beta after discarding any
+   * transient panel state for the current session. The persisted spectrum row beta
+   * is always the input; this experiment does not maintain editable KK state, so
+   * "reset" reduces to invoking the same recalculate path as {@link onPressRecalculateKk},
+   * honoring the browser consent prompt when it has not yet been granted in this
+   * session.
+   */
+  const onPressResetKk = useCallback(() => {
     if (!readKkBrowserConsentGranted()) {
       setKkPanelConsentOpen(true);
       return;
@@ -983,6 +1053,9 @@ export function NexafsExperimentDatasetPanel({
     copy.sort((a, b) => a.energy - b.energy);
     return copy;
   }, [spectrumPoints]);
+  const sortedSpectrumFirstEnergy = sortedAllPoints[0]?.energy;
+  const sortedSpectrumLastEnergy =
+    sortedAllPoints[sortedAllPoints.length - 1]?.energy;
 
   const showOdCol = sortedAllPoints.some((p) => typeof p.od === "number");
   const showMassCol = sortedAllPoints.some(
@@ -997,36 +1070,65 @@ export function NexafsExperimentDatasetPanel({
   const spectrumRailCsvMenusDisabled =
     pointsQuery.isLoading || sortedAllPoints.length === 0;
 
-  const plotTopRailDataActions = useMemo(
-    () => [
-      <ExperimentSpectrumRailCsvDropdown
-        key="spectrum-rail-download"
-        kind="download"
-        disabled={spectrumRailCsvMenusDisabled}
-        experimentId={experimentId}
-        sortedAllPoints={sortedAllPoints}
-        groupedTree={groupedTree}
-      />,
-      <ExperimentSpectrumRailCsvDropdown
-        key="spectrum-rail-copy"
-        kind="copy"
-        disabled={spectrumRailCsvMenusDisabled}
-        experimentId={experimentId}
-        sortedAllPoints={sortedAllPoints}
-        groupedTree={groupedTree}
-      />,
-    ],
-    [
-      spectrumRailCsvMenusDisabled,
-      experimentId,
-      groupedTree,
-      sortedAllPoints,
-    ],
-  );
-
   const referenceCurves = useMemo((): ReferenceCurve[] => {
     return bareAtomReferences;
   }, [bareAtomReferences]);
+
+  const clientPreviewMuPoints = useMemo(() => {
+    if (
+      !datasetPlotEditorActive ||
+      !draftNormRegions.pre ||
+      !draftNormRegions.post
+    ) {
+      return null;
+    }
+    const comp = computeZeroOneNormalization(
+      sortedAllPoints,
+      draftNormRegions.pre,
+      draftNormRegions.post,
+    );
+    if (!comp?.normalizedPoints.length) {
+      return null;
+    }
+    return comp.normalizedPoints;
+  }, [
+    datasetPlotEditorActive,
+    draftNormRegions.pre,
+    draftNormRegions.post,
+    sortedAllPoints,
+  ]);
+
+  const spectrumPlotPoints = useMemo(() => {
+    if (!clientPreviewMuPoints) {
+      return model.plotPoints;
+    }
+    if (model.dataView === "od") {
+      return model.plotPoints;
+    }
+    if (model.dataView === "absorption") {
+      return clientPreviewMuPoints;
+    }
+    if (
+      model.dataView === "beta" &&
+      bareAtomReferences[0]?.points?.length
+    ) {
+      const bare = bareAtomReferences[0].points.map((p) => ({
+        energy: p.energy,
+        absorption: p.absorption,
+      }));
+      return computeBetaIndex(
+        clientPreviewMuPoints,
+        clientPreviewMuPoints.map((p) => p.energy),
+        bare,
+      );
+    }
+    return model.plotPoints;
+  }, [
+    bareAtomReferences,
+    clientPreviewMuPoints,
+    model.dataView,
+    model.plotPoints,
+  ]);
 
   const overlaySelectedKey =
     model.dataView === "od"
@@ -1068,7 +1170,351 @@ export function NexafsExperimentDatasetPanel({
     ],
   );
 
-  const plotLeftRail = (
+  const beginDatasetPlotEditor = useCallback(() => {
+    const meta =
+      moleculeFormulaQuery.data as ExperimentFormulaMeta | undefined;
+    setEditorNormBaselineRaw(meta?.normalizationRanges ?? null);
+    const parsed = parseStoredNormalizationRanges(meta?.normalizationRanges);
+    const scope = (meta?.normalizationScope ?? "none") as NormalizationScope;
+    const win = unifiedNormalizationWindowsForBasis(scope, parsed, "beta");
+    const def = defaultNormalizationRangesFromSpectrum(sortedAllPoints);
+    const pre = win?.pre
+      ? ([
+          Math.min(win.pre[0], win.pre[1]),
+          Math.max(win.pre[0], win.pre[1]),
+        ] as [number, number])
+      : (def?.pre ?? null);
+    const post = win?.post
+      ? ([
+          Math.min(win.post[0], win.post[1]),
+          Math.max(win.post[0], win.post[1]),
+        ] as [number, number])
+      : (def?.post ?? null);
+    const nextDraft: NormalizationRegions = { pre, post };
+    setDraftNormRegions(nextDraft);
+    initialNormDraftRef.current = {
+      pre: nextDraft.pre,
+      post: nextDraft.post,
+    };
+    setDatasetPlotEditorActive(true);
+    setIsPlotNormalizationMode(false);
+    setNormalizationSelectionTarget(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Avoid `moleculeFormulaQuery.data` / full `sortedAllPoints` in deps (TS2589); keys, span, and `dataUpdatedAt` track payload changes.
+  }, [
+    normalizationRangesKeyForKk,
+    normalizationScopeForKk,
+    chemicalFormula,
+    sortedAllPoints.length,
+    sortedSpectrumFirstEnergy,
+    sortedSpectrumLastEnergy,
+    moleculeFormulaQuery.dataUpdatedAt,
+  ]);
+
+  const endDatasetPlotEditor = useCallback(() => {
+    setDatasetPlotEditorActive(false);
+    setIsPlotNormalizationMode(false);
+    setNormalizationSelectionTarget(null);
+    setEditorNormBaselineRaw(null);
+    initialNormDraftRef.current = null;
+  }, []);
+
+  const handlePlotNormalizationMode = useCallback((enabled: boolean) => {
+    setIsPlotNormalizationMode(enabled);
+    if (!enabled) {
+      setNormalizationSelectionTarget(null);
+      setCursorMode("inspect");
+    } else {
+      setNormalizationSelectionTarget("pre");
+    }
+  }, []);
+
+  const handleNormalizationDraftSelection = useCallback(
+    (selection: SpectrumSelection | null) => {
+      if (!selection || !normalizationSelectionTarget) {
+        return;
+      }
+      const range: [number, number] = [
+        Math.min(selection.energyMin, selection.energyMax),
+        Math.max(selection.energyMin, selection.energyMax),
+      ];
+      if (normalizationSelectionTarget === "pre") {
+        setDraftNormRegions((prev) => ({ ...prev, pre: range }));
+      } else {
+        setDraftNormRegions((prev) => ({ ...prev, post: range }));
+      }
+    },
+    [normalizationSelectionTarget],
+  );
+
+  const handleResetDraftNormRegions = useCallback(() => {
+    const def = defaultNormalizationRangesFromSpectrum(sortedAllPoints);
+    if (!def) {
+      return;
+    }
+    setDraftNormRegions({ pre: def.pre, post: def.post });
+  }, [sortedAllPoints]);
+
+  const handleBrowseNormalizationEdgeDrag = useCallback(
+    (edge: NormalizationRegionEdgeId, energy: number) => {
+      const sortPair = (a: number, b: number): [number, number] =>
+        a <= b ? [a, b] : [b, a];
+      setDraftNormRegions((regions) => {
+        if (edge === "preMin" || edge === "preMax") {
+          const cur = regions.pre;
+          if (!cur) {
+            return { ...regions, pre: sortPair(energy, energy) };
+          }
+          const lo = Math.min(cur[0], cur[1]);
+          const hi = Math.max(cur[0], cur[1]);
+          const next =
+            edge === "preMin" ? sortPair(energy, hi) : sortPair(lo, energy);
+          return { ...regions, pre: next };
+        }
+        const cur = regions.post;
+        if (!cur) {
+          return { ...regions, post: sortPair(energy, energy) };
+        }
+        const lo = Math.min(cur[0], cur[1]);
+        const hi = Math.max(cur[0], cur[1]);
+        const next =
+          edge === "postMin" ? sortPair(energy, hi) : sortPair(lo, energy);
+        return { ...regions, post: next };
+      });
+    },
+    [],
+  );
+
+  const persistDraftNormalization = useCallback(async (): Promise<boolean> => {
+    const meta = moleculeFormulaQuery.data as ExperimentFormulaMeta | undefined;
+    if (!meta?.canEditNormalizationMetadata) {
+      return false;
+    }
+    let scopeOut = (meta.normalizationScope ?? "none") as NormalizationScope;
+    if (
+      scopeOut === "none" &&
+      (draftNormRegions.pre != null || draftNormRegions.post != null)
+    ) {
+      scopeOut = "unified";
+    }
+    const baselineParsed = parseStoredNormalizationRanges(editorNormBaselineRaw);
+    let rangesOut: PersistedNormalizationRanges | null;
+    if (
+      scopeOut === "per_channel" &&
+      baselineParsed != null &&
+      typeof baselineParsed === "object" &&
+      "od" in baselineParsed
+    ) {
+      rangesOut = {
+        ...baselineParsed,
+        beta: {
+          pre: draftNormRegions.pre,
+          post: draftNormRegions.post,
+        },
+      };
+    } else {
+      rangesOut = {
+        pre: draftNormRegions.pre,
+        post: draftNormRegions.post,
+      };
+    }
+    try {
+      await updateNormalizationMetadata.mutateAsync({
+        experimentId,
+        normalization: { scope: scopeOut, ranges: rangesOut },
+        uploadedChannels: uploadedChannelsForMutation(meta.uploadedChannels),
+      });
+      initialNormDraftRef.current = {
+        pre: draftNormRegions.pre,
+        post: draftNormRegions.post,
+      };
+      return true;
+    } catch (e) {
+      showToast(
+        e instanceof Error ? e.message : "Could not save normalization",
+        "error",
+      );
+      return false;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Avoid `moleculeFormulaQuery.data` in deps (TS2589); `dataUpdatedAt` tracks refetches.
+  }, [
+    chemicalFormula,
+    normalizationScopeForKk,
+    normalizationRangesKeyForKk,
+    draftNormRegions,
+    editorNormBaselineRaw,
+    experimentId,
+    updateNormalizationMetadata,
+    moleculeFormulaQuery.dataUpdatedAt,
+  ]);
+
+  const handleSaveNormalizationRanges = useCallback(async () => {
+    const ok = await persistDraftNormalization();
+    if (!ok) return;
+    showToast("Saved normalization regions", "success");
+    endDatasetPlotEditor();
+  }, [endDatasetPlotEditor, persistDraftNormalization]);
+
+  const handleSyncNormalizationAndKk = useCallback(async () => {
+    const ok = await persistDraftNormalization();
+    if (!ok) return;
+    showToast("Saved normalization ranges", "success");
+    if (!readKkBrowserConsentGranted()) {
+      setKkPanelConsentOpen(true);
+      return;
+    }
+    await runKkRecalc();
+  }, [persistDraftNormalization, runKkRecalc]);
+
+  const normDraftDirty = useMemo(() => {
+    if (!datasetPlotEditorActive) {
+      return false;
+    }
+    const init = initialNormDraftRef.current;
+    if (!init) {
+      return false;
+    }
+    return (
+      JSON.stringify(draftNormRegions.pre) !== JSON.stringify(init.pre) ||
+      JSON.stringify(draftNormRegions.post) !== JSON.stringify(init.post)
+    );
+  }, [datasetPlotEditorActive, draftNormRegions]);
+
+  const datasetPlotEditorAvailable =
+    Boolean(moleculeMeta?.canEditNormalizationMetadata) &&
+    visualizationMode === "graph" &&
+    !pointsQuery.isLoading;
+
+  const plotTopRailDataActions = useMemo(
+    () => [
+      <ExperimentSpectrumRailCsvDropdown
+        key="spectrum-rail-download"
+        kind="download"
+        disabled={spectrumRailCsvMenusDisabled}
+        experimentId={experimentId}
+        sortedAllPoints={sortedAllPoints}
+        groupedTree={groupedTree}
+      />,
+      <ExperimentSpectrumRailCsvDropdown
+        key="spectrum-rail-copy"
+        kind="copy"
+        disabled={spectrumRailCsvMenusDisabled}
+        experimentId={experimentId}
+        sortedAllPoints={sortedAllPoints}
+        groupedTree={groupedTree}
+      />,
+    ],
+    [
+      spectrumRailCsvMenusDisabled,
+      experimentId,
+      groupedTree,
+      sortedAllPoints,
+    ],
+  );
+
+  const handleToggleDatasetPlotEditor = useCallback(
+    (next: boolean) => {
+      if (next === datasetPlotEditorActive) {
+        return;
+      }
+      if (next) {
+        beginDatasetPlotEditor();
+      } else {
+        endDatasetPlotEditor();
+      }
+    },
+    [beginDatasetPlotEditor, endDatasetPlotEditor, datasetPlotEditorActive],
+  );
+
+  const plotTopRailTrailingActions = useMemo(
+    () =>
+      datasetPlotEditorAvailable ? (
+        <>
+          <Tooltip delay={0}>
+            <ToggleButton
+              isIconOnly
+              aria-label={
+                datasetPlotEditorActive
+                  ? "Close dataset editor"
+                  : "Edit normalization and Kramers Kronig delta"
+              }
+              isSelected={datasetPlotEditorActive}
+              onChange={handleToggleDatasetPlotEditor}
+              className={plotToolbarGlyphToggleStandaloneClass}
+            >
+              <PencilIcon className="h-5 w-5" aria-hidden />
+            </ToggleButton>
+            <Tooltip.Content
+              placement="bottom"
+              className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
+            >
+              Edit normalization regions and Kramers Kronig delta. Normalization
+              tools appear in the left rail.
+            </Tooltip.Content>
+          </Tooltip>
+          {datasetPlotEditorActive ? (
+            <>
+              <Tooltip delay={0}>
+                <Button
+                  type="button"
+                  isIconOnly
+                  aria-label="Save normalization regions"
+                  variant="secondary"
+                  isDisabled={
+                    !normDraftDirty || updateNormalizationMetadata.isPending
+                  }
+                  onPress={() => void handleSaveNormalizationRanges()}
+                  className={plotToolbarGlyphToggleStandaloneClass}
+                >
+                  <Save className="h-5 w-5" aria-hidden />
+                </Button>
+                <Tooltip.Content
+                  placement="bottom"
+                  className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
+                >
+                  Save pre/post beta normalization windows to the experiment.
+                  Disabled when there are no edits.
+                </Tooltip.Content>
+              </Tooltip>
+              <Tooltip delay={0}>
+                <Button
+                  type="button"
+                  isIconOnly
+                  aria-label="Save normalization ranges and sync KK delta"
+                  variant="secondary"
+                  isDisabled={
+                    updateNormalizationMetadata.isPending || kkRecalcBusy
+                  }
+                  onPress={() => void handleSyncNormalizationAndKk()}
+                  className={plotToolbarGlyphToggleStandaloneClass}
+                >
+                  <RefreshCw className="h-5 w-5" aria-hidden />
+                </Button>
+                <Tooltip.Content
+                  placement="bottom"
+                  className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
+                >
+                  Persist draft ranges, then run the browser Kramers–Kronig
+                  delta pipeline from stored beta (session consent when needed).
+                </Tooltip.Content>
+              </Tooltip>
+            </>
+          ) : null}
+        </>
+      ) : null,
+    [
+      datasetPlotEditorAvailable,
+      datasetPlotEditorActive,
+      handleToggleDatasetPlotEditor,
+      handleSaveNormalizationRanges,
+      handleSyncNormalizationAndKk,
+      kkRecalcBusy,
+      normDraftDirty,
+      updateNormalizationMetadata.isPending,
+    ],
+  );
+
+  const plotLeftRail = useMemo(
+    () => (
     <div className="pointer-events-auto flex flex-col gap-2">
       <Toolbar
         isAttached
@@ -1182,7 +1628,98 @@ export function NexafsExperimentDatasetPanel({
           </ToggleButton>
         </ToggleButtonGroup>
       </Toolbar>
+      {datasetPlotEditorActive ? (
+        <PlotSpectrumToolsToolbarSection
+          peakToolsEnabled={false}
+          isNormalizationMode={isPlotNormalizationMode}
+          onNormalizationModeChange={handlePlotNormalizationMode}
+          activeEdge={normalizationSelectionTarget ?? "pre"}
+          onActiveEdgeChange={(edge) => setNormalizationSelectionTarget(edge)}
+          onResetToDefaultRegions={handleResetDraftNormRegions}
+          normalizationLocked={false}
+          hasData={sortedAllPoints.length > 0}
+          isPeakSetMode={false}
+          onPeakSetModeChange={() => undefined}
+          peakCount={0}
+          onAutoDetectPeaks={() => undefined}
+          onResetAllPeaks={() => undefined}
+        />
+      ) : null}
+      {datasetPlotEditorActive &&
+      kkRecalcAllowed &&
+      showBetaCol &&
+      !pointsQuery.isLoading ? (
+        <Toolbar
+          isAttached
+          orientation="vertical"
+          aria-label="Kramers Kronig delta tools"
+          className={`${plotToolbarAttachedShellClass} flex w-fit flex-col gap-2`}
+        >
+          <Tooltip delay={0}>
+            <Button
+              type="button"
+              aria-label="Recalculate Kramers Kronig delta from stored beta"
+              variant="secondary"
+              isDisabled={kkRecalcBusy || updateKkDeltaBatch.isPending}
+              onPress={onPressRecalculateKk}
+              className={`${plotToolbarGlyphToggleStandaloneClass} text-xs font-semibold`}
+            >
+              KK
+            </Button>
+            <Tooltip.Content
+              placement="right"
+              className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
+            >
+              Recompute delta from stored beta in your browser (session
+              consent required once), then persist for this experiment when
+              permitted.
+            </Tooltip.Content>
+          </Tooltip>
+          <Tooltip delay={0}>
+            <Button
+              type="button"
+              isIconOnly
+              aria-label="Reset Kramers Kronig delta and redo calculation"
+              variant="secondary"
+              isDisabled={kkRecalcBusy || updateKkDeltaBatch.isPending}
+              onPress={onPressResetKk}
+              className={plotToolbarGlyphToggleStandaloneClass}
+            >
+              <RotateCcw className="h-4 w-4" aria-hidden />
+            </Button>
+            <Tooltip.Content
+              placement="right"
+              className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
+            >
+              Discard any transient KK state for this session and rerun the
+              same Kramers Kronig pipeline from stored beta.
+            </Tooltip.Content>
+          </Tooltip>
+        </Toolbar>
+      ) : null}
     </div>
+    ),
+    [
+      datasetPlotEditorActive,
+      isPlotNormalizationMode,
+      normalizationSelectionTarget,
+      handlePlotNormalizationMode,
+      handleResetDraftNormRegions,
+      sortedAllPoints.length,
+      diffBareSelectedKeys,
+      handleDiffBareSelectionChange,
+      model,
+      chemicalFormula,
+      moleculeFormulaQuery.isLoading,
+      overlaySelectedKey,
+      kkRecalcAllowed,
+      showBetaCol,
+      pointsQuery.isLoading,
+      kkRecalcBusy,
+      updateKkDeltaBatch.isPending,
+      onPressRecalculateKk,
+      onPressResetKk,
+    ],
   );
 
   if (!enabled) return null;
@@ -1205,37 +1742,11 @@ export function NexafsExperimentDatasetPanel({
     );
   }
 
-  const showKkRecalcButton =
-    Boolean(canRecalculateKk.data?.allowed) && showBetaCol && !isSpectrumLoading;
-
   return (
     <div
       className="border-border bg-surface mt-2 flex w-full flex-col gap-3 rounded-xl border p-4 shadow-sm"
       data-testid="nexafs-experiment-dataset-panel"
     >
-      {showKkRecalcButton ? (
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Tooltip delay={0}>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="text-xs font-medium"
-              isDisabled={kkRecalcBusy || updateKkDeltaBatch.isPending}
-              onPress={onPressRecalculateKk}
-            >
-              {kkRecalcBusy || updateKkDeltaBatch.isPending
-                ? "KK recalc…"
-                : "Recalc KK delta"}
-            </Button>
-            <Tooltip.Content className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg">
-              Recompute delta from stored beta in your browser (session consent
-              required once), then persist for this experiment when permitted.
-            </Tooltip.Content>
-          </Tooltip>
-        </div>
-      ) : null}
-
       <KkBrowserConsentDialog
         isOpen={kkPanelConsentOpen}
         onDismiss={() => setKkPanelConsentOpen(false)}
@@ -1256,23 +1767,82 @@ export function NexafsExperimentDatasetPanel({
         ) : (
           <div className="flex min-h-[420px] min-w-0 flex-1 flex-col rounded-xl border border-[var(--border-default)] p-4">
             <SpectrumPlot
-              points={model.plotPoints}
+              points={spectrumPlotPoints}
               graphStyle={graphStyle}
               yAxisQuantity={model.spectrumYAxisQuantity}
               referenceCurves={referenceCurves}
-              normalizationRegions={undefined}
-              showNormalizationShading={false}
-              plotContext={{ kind: "explore" }}
+              normalizationRegions={
+                datasetPlotEditorActive ? draftNormRegions : undefined
+              }
+              showNormalizationShading={datasetPlotEditorActive}
+              normalizationEdgeHandlesEnabled={
+                datasetPlotEditorActive &&
+                draftNormRegions.pre != null &&
+                draftNormRegions.post != null
+              }
+              onNormalizationEdgeEnergyChange={
+                datasetPlotEditorActive
+                  ? handleBrowseNormalizationEdgeDrag
+                  : undefined
+              }
+              plotContext={
+                datasetPlotEditorActive &&
+                isPlotNormalizationMode &&
+                normalizationSelectionTarget
+                  ? {
+                      kind: "normalize",
+                      target: normalizationSelectionTarget,
+                    }
+                  : { kind: "explore" }
+              }
+              onSelectionChange={
+                datasetPlotEditorActive && isPlotNormalizationMode
+                  ? handleNormalizationDraftSelection
+                  : undefined
+              }
               peaks={plotPeaks}
               differenceSpectra={differenceSpectra}
               showThetaData={showThetaData}
               showPhiData={showPhiData}
               headerRight={plotLeftRail}
               plotTopRailDataActions={plotTopRailDataActions}
+              plotTopRailTrailingActions={plotTopRailTrailingActions}
               cursorMode={cursorMode}
               onCursorModeChange={setCursorMode}
               emptyStateMessage="No points in this view."
             />
+            {datasetPlotEditorActive ? (
+              <div className="border-border bg-surface mt-3 flex flex-col gap-2 rounded-lg border p-3">
+                {isPlotNormalizationMode && normalizationSelectionTarget ? (
+                  <div
+                    className={
+                      normalizationSelectionTarget === "pre"
+                        ? "rounded-md border border-blue-500/35 bg-blue-500/10 p-2 text-xs text-blue-900 dark:text-blue-100"
+                        : "rounded-md border border-emerald-500/35 bg-emerald-500/10 p-2 text-xs text-emerald-900 dark:text-emerald-100"
+                    }
+                  >
+                    <div className="flex items-center gap-2">
+                      <PencilIcon className="h-4 w-4 shrink-0" aria-hidden />
+                      <span>
+                        {normalizationSelectionTarget === "pre"
+                          ? "Drag on the plot to set the pre-edge window (beta normalization channel)."
+                          : "Drag on the plot to set the post-edge window (beta normalization channel)."}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="tertiary"
+                    onPress={endDatasetPlotEditor}
+                  >
+                    Done
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
         )
       ) : isSpectrumLoading ? (

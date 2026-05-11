@@ -15,9 +15,11 @@ import {
   Button,
   Checkbox,
   Chip,
+  Description,
   Dropdown,
   Header,
   Input,
+  Label,
   Pagination,
   Separator,
   Table,
@@ -35,7 +37,10 @@ import {
   plotToolbarDifferenceToggleClass,
 } from "~/components/plots/toolbars";
 import { defaultNormalizationRangesFromSpectrum } from "~/features/process-nexafs/utils";
-import type { SpectrumSelection } from "~/components/plots/types";
+import type {
+  NormalizationRegionEdgeId,
+  SpectrumSelection,
+} from "~/components/plots/types";
 import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
 import { NexafsSampleInformationSection } from "~/components/forms";
@@ -51,6 +56,11 @@ import {
   calculateBareAtomAbsorption,
   warmBareAtomCacheForFormula,
 } from "~/features/process-nexafs/utils";
+import {
+  grantKkBrowserConsent,
+  KkBrowserConsentDialog,
+  readKkBrowserConsentGranted,
+} from "~/features/kk-calc";
 import { computeBetaIndex } from "~/features/process-nexafs/utils";
 import {
   computeNormalizationForExperiment,
@@ -925,6 +935,7 @@ export function DatasetContent({
     useState<VisualizationMode>("table");
   const [graphStyle, setGraphStyle] = useState<GraphStyle>("line");
   const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
+  const [kkDatasetConsentOpen, setKkDatasetConsentOpen] = useState(false);
   const [geometryEditMode, setGeometryEditMode] = useState(false);
   const [deleteConfirmGeometry, setDeleteConfirmGeometry] = useState<{
     theta: number | undefined;
@@ -1234,9 +1245,17 @@ export function DatasetContent({
           },
         });
       }
+    } else if (dataset.spectrumPoints.length === 0) {
+      if (dataset.normalizedPoints !== null || dataset.normalization !== null) {
+        onDatasetUpdate(dataset.id, {
+          normalizedPoints: null,
+          normalization: null,
+        });
+      }
     } else if (
-      dataset.normalizedPoints !== null ||
-      dataset.normalization !== null
+      !dataset.normalizationRegions.pre &&
+      !dataset.normalizationRegions.post &&
+      (dataset.normalizedPoints !== null || dataset.normalization !== null)
     ) {
       onDatasetUpdate(dataset.id, {
         normalizedPoints: null,
@@ -1293,6 +1312,55 @@ export function DatasetContent({
       });
     }
   };
+
+  const handleNormalizationEdgeEnergyChange = useCallback(
+    (edge: NormalizationRegionEdgeId, energy: number) => {
+      if (dataset.normalizationLocked) return;
+      const regions = dataset.normalizationRegions;
+      const sortPair = (a: number, b: number): [number, number] =>
+        a <= b ? [a, b] : [b, a];
+
+      if (edge === "preMin" || edge === "preMax") {
+        const cur = regions.pre;
+        if (!cur) {
+          onDatasetUpdate(dataset.id, {
+            normalizationRegions: {
+              ...regions,
+              pre: sortPair(energy, energy),
+            },
+          });
+          return;
+        }
+        const lo = Math.min(cur[0], cur[1]);
+        const hi = Math.max(cur[0], cur[1]);
+        const next =
+          edge === "preMin" ? sortPair(energy, hi) : sortPair(lo, energy);
+        onDatasetUpdate(dataset.id, {
+          normalizationRegions: { ...regions, pre: next },
+        });
+        return;
+      }
+
+      const cur = regions.post;
+      if (!cur) {
+        onDatasetUpdate(dataset.id, {
+          normalizationRegions: {
+            ...regions,
+            post: sortPair(energy, energy),
+          },
+        });
+        return;
+      }
+      const lo = Math.min(cur[0], cur[1]);
+      const hi = Math.max(cur[0], cur[1]);
+      const next =
+        edge === "postMin" ? sortPair(energy, hi) : sortPair(lo, energy);
+      onDatasetUpdate(dataset.id, {
+        normalizationRegions: { ...regions, post: next },
+      });
+    },
+    [dataset.id, dataset.normalizationLocked, dataset.normalizationRegions, onDatasetUpdate],
+  );
 
   const handlePlotNormalizationMode = useCallback((enabled: boolean) => {
     setIsPlotNormalizationMode(enabled);
@@ -1839,12 +1907,14 @@ export function DatasetContent({
     </>
   );
 
-  const normalizationRegions = dataset.normalizationLocked
-    ? {
-        pre: dataset.normalizationRegions.pre,
-        post: dataset.normalizationRegions.post,
-      }
-    : undefined;
+  const normalizationRegionsForPlot =
+    dataset.normalizationRegions.pre != null ||
+    dataset.normalizationRegions.post != null
+      ? {
+          pre: dataset.normalizationRegions.pre,
+          post: dataset.normalizationRegions.post,
+        }
+      : undefined;
 
   const tableUniqueThetaValues = useMemo(() => {
     const set = new Set<number>();
@@ -1885,15 +1955,62 @@ export function DatasetContent({
             >
               {visualizationMode === "graph" && plotPoints.length > 0 ? (
                 <div
-                  className="flex min-h-0 w-full min-w-0 flex-1 flex-col"
+                  className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3"
                   style={{ minHeight: 0 }}
                 >
+                  <div className="border-border bg-field-background/70 shrink-0 rounded-lg border px-3 py-2.5">
+                    <Checkbox
+                      className="items-start gap-3"
+                      isSelected={dataset.computeKkDeltaOnSubmit}
+                      onChange={(selected) => {
+                        if (!selected) {
+                          onDatasetUpdate(dataset.id, {
+                            computeKkDeltaOnSubmit: false,
+                          });
+                          return;
+                        }
+                        if (readKkBrowserConsentGranted()) {
+                          onDatasetUpdate(dataset.id, {
+                            computeKkDeltaOnSubmit: true,
+                          });
+                          return;
+                        }
+                        setKkDatasetConsentOpen(true);
+                      }}
+                    >
+                      <Checkbox.Control>
+                        <Checkbox.Indicator />
+                      </Checkbox.Control>
+                      <Checkbox.Content>
+                        <Label className="text-foreground cursor-pointer text-sm font-medium">
+                          Compute delta (Kramers–Kronig from beta) on submit
+                        </Label>
+                        <Description className="text-muted mt-1 block max-w-prose text-xs leading-snug">
+                          Runs in your browser after you confirm the session
+                          consent dialog. Requires finite beta on every row
+                          (derive via normalization or map a beta column).
+                        </Description>
+                      </Checkbox.Content>
+                    </Checkbox>
+                  </div>
                   <SpectrumPlot
                     points={plotPoints}
                     graphStyle={graphStyle}
                     yAxisQuantity={spectrumYAxisQuantity}
                     referenceCurves={referenceCurves}
-                    normalizationRegions={normalizationRegions}
+                    normalizationRegions={normalizationRegionsForPlot}
+                    showNormalizationShading={
+                      normalizationRegionsForPlot != null
+                    }
+                    normalizationEdgeHandlesEnabled={
+                      isPlotNormalizationMode &&
+                      Boolean(normalizationRegionsForPlot)
+                    }
+                    onNormalizationEdgeEnergyChange={
+                      dataset.normalizationLocked
+                        ? undefined
+                        : handleNormalizationEdgeEnergyChange
+                    }
                     onSelectionChange={handleNormalizationSelection}
                     headerRight={plotLeftPlotRail}
                     plotContext={
@@ -2191,6 +2308,16 @@ export function DatasetContent({
           </div>
         </div>
       </div>
+      <KkBrowserConsentDialog
+        isOpen={kkDatasetConsentOpen}
+        onDismiss={() => setKkDatasetConsentOpen(false)}
+        onAccept={() => {
+          grantKkBrowserConsent();
+          setKkDatasetConsentOpen(false);
+          onDatasetUpdate(dataset.id, { computeKkDeltaOnSubmit: true });
+        }}
+      />
+
       <AddMoleculeModal
         isOpen={showAddMoleculeModal}
         onClose={() => setShowAddMoleculeModal(false)}

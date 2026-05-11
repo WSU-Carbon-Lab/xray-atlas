@@ -13,9 +13,11 @@ import {
   snrToPercent,
   spacingEvToPercent,
 } from "~/lib/nexafs-dataset-metric-policy";
+import { parseStoredNormalizationRanges } from "~/lib/nexafs-normalization-ranges";
 import {
   buildQualityScores,
   type NormalizationRanges,
+  type NormalizationScope,
   type UploadedChannel,
 } from "~/server/nexafs/normalizationMetadata";
 
@@ -25,22 +27,6 @@ const UPLOADED_CHANNELS: readonly UploadedChannel[] = [
   "massabsorption",
   "beta",
 ];
-
-function parseNormalizationRanges(raw: unknown): NormalizationRanges {
-  if (raw == null || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  const parseEdge = (v: unknown): [number, number] | null => {
-    if (!Array.isArray(v) || v.length !== 2) return null;
-    const a = Number(v[0]);
-    const b = Number(v[1]);
-    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-    return [a, b];
-  };
-  const pre = parseEdge(o.pre);
-  const post = parseEdge(o.post);
-  if (pre == null && post == null) return null;
-  return { pre, post };
-}
 
 function prismaSpectrumToSpectrumPoints(
   rows: Array<{
@@ -92,6 +78,7 @@ export async function persistExperimentMetricsTables(
     select: {
       id: true,
       polarizationid: true,
+      normalizationscope: true,
       normalizationranges: true,
     },
   });
@@ -130,8 +117,12 @@ export async function persistExperimentMetricsTables(
   const doiPresent = linkedPub != null;
 
   const points = prismaSpectrumToSpectrumPoints(rows);
-  const ranges = parseNormalizationRanges(experiment.normalizationranges);
-  const qs = buildQualityScores({ points, ranges, doiPresent });
+  const ranges: NormalizationRanges = parseStoredNormalizationRanges(
+    experiment.normalizationranges,
+  );
+  const scope: NormalizationScope =
+    (experiment.normalizationscope as NormalizationScope | null) ?? "unified";
+  const qs = buildQualityScores({ points, ranges, scope, doiPresent });
 
   const channelPayload = UPLOADED_CHANNELS.map((channel) => {
     const qc = qs.perChannel[channel];

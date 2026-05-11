@@ -50,6 +50,15 @@ export type NormalizationRegions = {
   post: [number, number] | null;
 };
 
+/**
+ * Identifies which normalization window edge is dragged when adjusting pre/post energy ranges on the plot.
+ */
+export type NormalizationRegionEdgeId =
+  | "preMin"
+  | "preMax"
+  | "postMin"
+  | "postMax";
+
 export type PlotContext =
   | { kind: "explore" }
   | { kind: "normalize"; target: "pre" | "post" }
@@ -136,6 +145,10 @@ export type SpectrumPlotProps = {
    * Optional icon actions rendered in the top plot rail after Home (for example spectrum CSV download/copy menus). Fragments and arrays are flattened so each control is a direct sibling inside the same `ButtonGroup` as Home (continuous segment styling). When set, the default top-rail plot export shortcut is omitted; callers that still need export UI should include it inside this node or elsewhere.
    */
   plotTopRailDataActions?: ReactNode;
+  /**
+   * Optional controls rendered in the top plot rail to the right of the cursor mode toggle group. Each child becomes a direct sibling inside the rail toolbar, separated from inspect/zoom/pan by a vertical divider. Use for standalone affordances such as a dataset edit toggle that should sit outside the cursor cluster.
+   */
+  plotTopRailTrailingActions?: ReactNode;
   showThetaData?: boolean;
   showPhiData?: boolean;
   selectedGeometry?: { theta?: number; phi?: number } | null;
@@ -143,6 +156,17 @@ export type SpectrumPlotProps = {
    * When true, renders pre/post normalization band shading from `normalizationRegions` without enabling the interactive normalization brush (no `plotContext.kind === "normalize"` required).
    */
   showNormalizationShading?: boolean;
+  /**
+   * When true with `normalizationRegions`, renders draggable axis handles at each pre/post window edge (four handles when both ranges are set). Parents map drag updates back into draft or persisted regions.
+   */
+  normalizationEdgeHandlesEnabled?: boolean;
+  /**
+   * Invoked when the user drags a normalization window edge; energy is rounded to 0.01 eV. Parents enforce ordering within pre/post ranges.
+   */
+  onNormalizationEdgeEnergyChange?: (
+    edge: NormalizationRegionEdgeId,
+    energy: number,
+  ) => void;
   /**
    * Replaces the default empty-state copy when `points` is empty (for example browse/preview surfaces that do not upload CSV here).
    */
