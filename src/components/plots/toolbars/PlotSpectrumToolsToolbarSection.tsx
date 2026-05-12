@@ -30,6 +30,11 @@ export type PlotSpectrumToolsToolbarSectionProps = {
   onResetToDefaultRegions: () => void;
   normalizationLocked: boolean;
   hasData: boolean;
+  /**
+   * When false, omits the in-rail "reset regions" control (caller places it elsewhere, e.g. top plot rail).
+   * Defaults to true for contribute flows that keep reset beside pre/post edge pickers.
+   */
+  normalizationRegionResetInRail?: boolean;
   /** When false, hides peak-set controls so only normalization tools render (browse dataset editor). */
   peakToolsEnabled?: boolean;
   isPeakSetMode: boolean;
@@ -47,6 +52,7 @@ export function PlotSpectrumToolsToolbarSection({
   onResetToDefaultRegions,
   normalizationLocked,
   hasData,
+  normalizationRegionResetInRail = true,
   peakToolsEnabled = true,
   isPeakSetMode,
   onPeakSetModeChange,
@@ -62,7 +68,7 @@ export function PlotSpectrumToolsToolbarSection({
   const resetPeaksDisabled = peakSubtoolsDisabled || peakCount === 0;
 
   const handleRegionToolChange = (keys: Set<string | number>) => {
-    if (keys.has("reset")) {
+    if (normalizationRegionResetInRail && keys.has("reset")) {
       if (!resetDisabled) {
         onResetToDefaultRegions();
       }
@@ -150,16 +156,18 @@ export function PlotSpectrumToolsToolbarSection({
               <ToggleButtonGroup.Separator />
               <ArrowRightFromLine className="h-4 w-4" aria-hidden />
             </ToggleButton>
-            <ToggleButton
-              id="reset"
-              isIconOnly
-              aria-label="Reset pre and post regions to defaults"
-              isDisabled={resetDisabled}
-              className={plotToolbarGlyphToggleGroupItemVerticalClass}
-            >
-              <ToggleButtonGroup.Separator />
-              <RotateCcw className="h-4 w-4" aria-hidden />
-            </ToggleButton>
+            {normalizationRegionResetInRail ? (
+              <ToggleButton
+                id="reset"
+                isIconOnly
+                aria-label="Reset pre and post regions to defaults"
+                isDisabled={resetDisabled}
+                className={plotToolbarGlyphToggleGroupItemVerticalClass}
+              >
+                <ToggleButtonGroup.Separator />
+                <RotateCcw className="h-4 w-4" aria-hidden />
+              </ToggleButton>
+            ) : null}
           </ToggleButtonGroup>
         </>
       ) : null}

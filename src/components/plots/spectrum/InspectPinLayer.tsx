@@ -66,6 +66,46 @@ function buildPinCsv(
   return `${headers.join(",")}\n${values.join(",")}`;
 }
 
+const bareAtomBetaPinLabelRe = /^Bare atom beta\s*\(/i;
+
+function collapseUniformBareAtomBetaPinRows(
+  rows: InspectPinRow[],
+): InspectPinRow[] {
+  const bareRows = rows.filter((r) => bareAtomBetaPinLabelRe.test(r.label));
+  if (bareRows.length <= 1) {
+    return rows;
+  }
+  const vals = bareRows.map((r) => r.value);
+  if (!vals.every((v) => v != null && Number.isFinite(v))) {
+    return rows;
+  }
+  const nums = vals as number[];
+  const minV = Math.min(...nums);
+  const maxV = Math.max(...nums);
+  const span = Math.max(Math.abs(minV), Math.abs(maxV), 1e-12);
+  if (maxV - minV > Math.max(1e-12, span * 1e-9)) {
+    return rows;
+  }
+  const collapsed: InspectPinRow = {
+    label: "Bare atom beta",
+    color: bareRows[0]!.color,
+    value: nums[0]!,
+  };
+  let inserted = false;
+  const out: InspectPinRow[] = [];
+  for (const r of rows) {
+    if (bareAtomBetaPinLabelRe.test(r.label)) {
+      if (!inserted) {
+        out.push(collapsed);
+        inserted = true;
+      }
+    } else {
+      out.push(r);
+    }
+  }
+  return out;
+}
+
 /**
  * Renders inspect-pin visuals in either the SVG plot group or the HTML overlay
  * layer. A single component owns both sides so popover offsets, hover focus,
@@ -157,11 +197,12 @@ export function InspectPinLayer({
     const threshold = Math.max(range * 0.02, 1e-9);
     const map = new Map<string, InspectPinRow[]>();
     for (const pin of pins) {
-      const rows: InspectPinRow[] = visibleTraces.map((trace, index) => ({
+      const rawRows: InspectPinRow[] = visibleTraces.map((trace, index) => ({
         label: getTraceLabel(trace, index),
         color: getTraceColor(trace, themeColors.text),
         value: getValueAtEnergy(trace, pin.energy, threshold),
       }));
+      const rows = collapseUniformBareAtomBetaPinRows(rawRows);
       map.set(pin.id, rows);
     }
     return map;
