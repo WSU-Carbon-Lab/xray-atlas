@@ -6,6 +6,7 @@ export {
   analyzeNumericColumns,
   computeZeroOneNormalization,
   computeNormalizationForExperiment,
+  interpolateBareMu,
   rangesApproximatelyEqual,
   countPointsWithinRange,
   buildSpectrumStats,
@@ -54,7 +55,10 @@ export {
   type SpectrumPhiLeaf,
 } from "./groupSpectrumByPolarizationThetaPhi";
 export { spectrumPointsToDetailedCsv } from "./spectrumCsv";
-export { buildSpectrumPointsWithDerivedForUpload } from "./uploadDerivedSpectrum";
+export {
+  buildSpectrumPointsWithDerivedForUpload,
+  uploadDatasetHasFiniteBetaForKkOnEveryRow,
+} from "./uploadDerivedSpectrum";
 export { detectAuxiliarySpectrumColumnNames } from "./auxiliarySpectrumColumns";
 export {
   filterSpectrumPointsByGeometry,

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Key as SelectionKey,
+} from "react";
 import { skipToken } from "@tanstack/react-query";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import {
@@ -15,11 +22,9 @@ import {
   Button,
   Checkbox,
   Chip,
-  Description,
   Dropdown,
   Header,
   Input,
-  Label,
   Pagination,
   Separator,
   Table,
@@ -34,11 +39,38 @@ import {
   PlotSpectrumToolsToolbarSection,
   plotToolbarAttachedShellClass,
   plotToolbarBasisToggleClass,
-  plotToolbarDifferenceToggleClass,
+  plotToolbarToggleButtonGroupShellClass,
+  plotToolbarTooltipContentClass,
 } from "~/components/plots/toolbars";
-import { defaultNormalizationRangesFromSpectrum } from "~/features/process-nexafs/utils";
+import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
+import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
+import {
+  applyKkDeltaToSpectrumPoints,
+  DEFAULT_KK_MASS_DENSITY_G_CM3,
+  grantKkBrowserConsent,
+  KkBrowserConsentDialog,
+  readKkBrowserConsentGranted,
+} from "~/features/kk-calc";
+import {
+  buildAutoDetectedPeakList,
+  buildSpectrumPointsWithDerivedForUpload,
+  calculateBareAtomAbsorption,
+  calculateDifferenceSpectra,
+  computeBetaIndex,
+  computeNormalizationForExperiment,
+  computeZeroOneNormalization,
+  defaultNormalizationRangesFromSpectrum,
+  extractAtomsFromFormula,
+  filterSpectrumPointsByGeometry,
+  groupSpectrumByPolarizationThetaPhi,
+  mergePeaksPreservingManualAndSteps,
+  uploadDatasetHasFiniteBetaForKkOnEveryRow,
+  warmBareAtomCacheForFormula,
+  type DifferenceSpectrum,
+} from "~/features/process-nexafs/utils";
 import type {
   NormalizationRegionEdgeId,
+  ReferenceCurve,
   SpectrumSelection,
 } from "~/components/plots/types";
 import { AddMoleculeModal } from "./add-molecule-modal";
@@ -52,37 +84,25 @@ import {
 import { trpc } from "~/trpc/client";
 import { useMoleculeSearch } from "~/features/process-nexafs";
 import type { MoleculeSearchResult } from "~/features/process-nexafs";
+import { computeDeltaFromBetaKkcalcStyle } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
+import { prepareStrictlyAscendingEnergyBetaForKk } from "~/features/kk-calc/prepare-strictly-ascending-energy-beta-for-kk";
+import { alignKkDeltaToSpectrumEnergyAxis } from "~/features/kk-calc/makima-interpolate";
+import { parseChemicalFormula } from "~/features/kk-calc/kkcalc-stoichiometry";
+import { resolveHenkeKkMergeDomainFromPrePostWindows } from "~/features/kk-calc/resolve-henke-kk-merge-domain";
 import {
-  calculateBareAtomAbsorption,
-  warmBareAtomCacheForFormula,
-} from "~/features/process-nexafs/utils";
-import {
-  grantKkBrowserConsent,
-  KkBrowserConsentDialog,
-  readKkBrowserConsentGranted,
-} from "~/features/kk-calc";
-import { computeBetaIndex } from "~/features/process-nexafs/utils";
-import {
-  computeNormalizationForExperiment,
-  computeZeroOneNormalization,
-  extractAtomsFromFormula,
-} from "~/features/process-nexafs/utils";
+  parseStoredNormalizationRanges,
+  unifiedNormalizationWindowsForBasis,
+} from "~/lib/nexafs-normalization-ranges";
 import type { DatasetState, PeakData } from "~/features/process-nexafs";
-import {
-  calculateDifferenceSpectra,
-  type DifferenceSpectrum,
-} from "~/features/process-nexafs/utils";
-import {
-  buildAutoDetectedPeakList,
-  filterSpectrumPointsByGeometry,
-  mergePeaksPreservingManualAndSteps,
-} from "~/features/process-nexafs/utils";
 import type { CursorMode } from "~/components/plots/visx/CursorModeSelector";
+import { BareAtomStepEdgeIcon } from "~/components/icons";
 import { showToast } from "~/components/ui/toast";
 import { SimpleDialog } from "~/components/ui/dialog";
 import { DefaultButton as DialogButton } from "~/components/ui/button";
 
 type SpectrumPoint = DatasetState["spectrumPoints"][number];
+
+type KkBrowserConsentContinuation = { readonly kind: "preview-rail-delta" };
 
 function spectrumRowsToCsv(rows: SpectrumPoint[]): string {
   const header = "Energy (eV),mu,theta,phi";
@@ -314,20 +334,26 @@ function GeometrySpectrumTableBlock({
           </Dropdown>
           <Tooltip.Content
             placement="top"
-            className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100"
+            className={plotToolbarTooltipContentClass}
           >
-            Show or hide table columns
+            Columns: Choose which spectrum table columns are visible.
           </Tooltip.Content>
         </Tooltip>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
-          onPress={() => onCopyCsv(rows)}
-        >
-          <Copy className="size-3.5" />
-          Copy as CSV
-        </Button>
+        <Tooltip delay={0}>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
+            onPress={() => onCopyCsv(rows)}
+            aria-label="Copy table as CSV"
+          >
+            <Copy className="size-3.5" />
+            Copy as CSV
+          </Button>
+          <Tooltip.Content placement="top" className={plotToolbarTooltipContentClass}>
+            Copy as CSV: Copy this geometry slice to the clipboard as comma-separated values.
+          </Tooltip.Content>
+        </Tooltip>
       </div>
       {visibleColumnList.length === 0 ? (
         <p className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-2)] px-4 py-6 text-center text-xs text-[var(--text-tertiary)]">
@@ -821,8 +847,8 @@ function DatasetSpectrumTable({
                         >
                           <Trash2 className="size-4" />
                         </span>
-                        <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
-                          Remove this geometry ({rows.length} points)
+                        <Tooltip.Content className={plotToolbarTooltipContentClass}>
+                          Remove geometry: Delete every point for this theta/phi group.
                         </Tooltip.Content>
                       </Tooltip>
                     )}
@@ -876,9 +902,8 @@ function DatasetSpectrumTable({
               <ClipboardPaste className="size-4" />
               Add geometry
             </Button>
-            <Tooltip.Content className="rounded-lg bg-gray-900 px-3 py-2 text-white shadow-lg dark:bg-gray-700 dark:text-gray-100">
-              Add geometry from CSV or tab-separated data (Energy, mu, theta,
-              phi) from clipboard
+            <Tooltip.Content className={plotToolbarTooltipContentClass}>
+              Add geometry: Paste CSV or tab-separated energy, mu, and optional angles.
             </Tooltip.Content>
           </Tooltip>
         </div>
@@ -925,6 +950,8 @@ export function DatasetContent({
   const [differenceSpectra, setDifferenceSpectra] = useState<
     DifferenceSpectrum[]
   >([]);
+  const [showBareAtomContributionOverlay, setShowBareAtomContributionOverlay] =
+    useState(false);
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
   const [selectedGeometry] = useState<{
@@ -935,7 +962,9 @@ export function DatasetContent({
     useState<VisualizationMode>("table");
   const [graphStyle, setGraphStyle] = useState<GraphStyle>("line");
   const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
-  const [kkDatasetConsentOpen, setKkDatasetConsentOpen] = useState(false);
+  const [kkConsentContinuation, setKkConsentContinuation] =
+    useState<KkBrowserConsentContinuation | null>(null);
+  const [kkUploadBusy, setKkUploadBusy] = useState(false);
   const [geometryEditMode, setGeometryEditMode] = useState(false);
   const [deleteConfirmGeometry, setDeleteConfirmGeometry] = useState<{
     theta: number | undefined;
@@ -1190,20 +1219,11 @@ export function DatasetContent({
     }
     const preRange = dataset.normalizationRegions.pre;
     const postRange = dataset.normalizationRegions.post;
-    const preCount = dataset.spectrumPoints.filter(
-      (p) => p.energy >= preRange[0] && p.energy <= preRange[1],
-    ).length;
-    const postCount = dataset.spectrumPoints.filter(
-      (p) => p.energy >= postRange[0] && p.energy <= postRange[1],
-    ).length;
-    if (preCount === 0 || postCount === 0) {
-      return null;
-    }
     return computeNormalizationForExperiment(
       dataset.spectrumPoints,
       dataset.bareAtomPoints,
-      preCount,
-      postCount,
+      preRange,
+      postRange,
     );
   }, [
     dataset.spectrumPoints,
@@ -1425,6 +1445,12 @@ export function DatasetContent({
   type DataView = "od" | "absorption" | "bare-atom" | "beta" | "delta";
   const [dataView, setDataView] = useState<DataView>("od");
   const gateToastTimestampsRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    if (dataView === "od" && showBareAtomContributionOverlay) {
+      setShowBareAtomContributionOverlay(false);
+    }
+  }, [dataView, showBareAtomContributionOverlay]);
 
   const showDataViewGateToast = useCallback(
     (gateKey: string, message: string) => {
@@ -1674,6 +1700,60 @@ export function DatasetContent({
           ? (deltaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints)
           : absorptionPlotPoints;
 
+  const uploadRailSortedAllPoints = useMemo(() => {
+    const copy = [...dataset.spectrumPoints];
+    copy.sort((a, b) => a.energy - b.energy);
+    return copy;
+  }, [dataset.spectrumPoints]);
+
+  const uploadRailAnnotatedRows = useMemo(
+    () =>
+      uploadRailSortedAllPoints.map((point) => ({
+        polarizationId: null as string | null,
+        point,
+      })),
+    [uploadRailSortedAllPoints],
+  );
+
+  const uploadRailGroupedTree = useMemo(
+    () => groupSpectrumByPolarizationThetaPhi(uploadRailAnnotatedRows),
+    [uploadRailAnnotatedRows],
+  );
+
+  const uploadRailFilenameBase = useMemo(
+    () => `nexafs-upload-${dataset.id.slice(0, 8)}`,
+    [dataset.id],
+  );
+
+  const spectrumRailCsvMenusDisabled = uploadRailSortedAllPoints.length === 0;
+
+  const plotTopRailDataActions = useMemo(
+    () => [
+      <NexafsSpectrumRailCsvDropdown
+        key="spectrum-rail-download"
+        kind="download"
+        disabled={spectrumRailCsvMenusDisabled}
+        filenameBase={uploadRailFilenameBase}
+        sortedAllPoints={uploadRailSortedAllPoints}
+        groupedTree={uploadRailGroupedTree}
+      />,
+      <NexafsSpectrumRailCsvDropdown
+        key="spectrum-rail-copy"
+        kind="copy"
+        disabled={spectrumRailCsvMenusDisabled}
+        filenameBase={uploadRailFilenameBase}
+        sortedAllPoints={uploadRailSortedAllPoints}
+        groupedTree={uploadRailGroupedTree}
+      />,
+    ],
+    [
+      spectrumRailCsvMenusDisabled,
+      uploadRailFilenameBase,
+      uploadRailGroupedTree,
+      uploadRailSortedAllPoints,
+    ],
+  );
+
   const handleResetAllPeaksFromPlotRail = useCallback(() => {
     onDatasetUpdate(dataset.id, { peaks: [], selectedPeakId: null });
     showToast("All peaks removed", "success");
@@ -1705,16 +1785,233 @@ export function DatasetContent({
     onDatasetUpdate,
   ]);
 
-  const referenceCurves =
-    dataView === "bare-atom" && dataset.bareAtomPoints
-      ? [
-          {
-            label: "Bare Atom Absorption",
-            points: dataset.bareAtomPoints,
-            color: "#6b7280",
-          },
-        ]
-      : [];
+  const henkeMergeDomainUpload = useMemo(():
+    | readonly [number, number]
+    | undefined => {
+    const formula = selectedMolecule?.chemicalFormula?.trim();
+    if (!formula) {
+      return undefined;
+    }
+    let composition;
+    try {
+      composition = parseChemicalFormula(formula);
+    } catch {
+      return undefined;
+    }
+    const ranges = parseStoredNormalizationRanges(
+      dataset.normalizationRegions,
+    );
+    const win = unifiedNormalizationWindowsForBasis(
+      dataset.normalizationScope,
+      ranges,
+      "beta",
+    );
+    if (!win?.pre || !win.post) {
+      return undefined;
+    }
+    return resolveHenkeKkMergeDomainFromPrePostWindows({
+      pre: win.pre,
+      post: win.post,
+      composition,
+    });
+  }, [
+    selectedMolecule?.chemicalFormula,
+    dataset.normalizationScope,
+    dataset.normalizationRegions,
+  ]);
+
+  const runKkDeltaPreviewForUploadDraft = useCallback(() => {
+    const formula = selectedMolecule?.chemicalFormula?.trim();
+    if (!formula) {
+      showToast(
+        "Select a molecule with a chemical formula before running KK.",
+        "info",
+      );
+      return;
+    }
+    if (!uploadDatasetHasFiniteBetaForKkOnEveryRow(dataset)) {
+      showToast(
+        "Need finite beta on every row. Derive beta via normalization and bare atom, or map a beta column.",
+        "info",
+      );
+      return;
+    }
+    setKkUploadBusy(true);
+    try {
+      const base = buildSpectrumPointsWithDerivedForUpload(dataset);
+      const withDelta = applyKkDeltaToSpectrumPoints(base, {
+        stoichiometryFormula: formula,
+        massDensityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
+        henkeMergeDomain: henkeMergeDomainUpload,
+      });
+      const merged = dataset.spectrumPoints.map((p, i) => ({
+        ...p,
+        delta: withDelta[i]?.delta,
+      }));
+      onDatasetUpdate(dataset.id, { spectrumPoints: merged });
+      showToast("Updated delta from beta (KK) in this draft", "success");
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Kramers-Kronig failed.",
+        "error",
+      );
+    } finally {
+      setKkUploadBusy(false);
+    }
+  }, [
+    dataset,
+    selectedMolecule?.chemicalFormula,
+    henkeMergeDomainUpload,
+    onDatasetUpdate,
+  ]);
+
+  const onPressKkUploadRail = useCallback(() => {
+    if (!readKkBrowserConsentGranted()) {
+      setKkConsentContinuation({ kind: "preview-rail-delta" });
+      return;
+    }
+    runKkDeltaPreviewForUploadDraft();
+  }, [runKkDeltaPreviewForUploadDraft]);
+
+  const kkUploadRailVisible =
+    dataset.spectrumPoints.length > 0 &&
+    Boolean(selectedMolecule?.chemicalFormula?.trim()) &&
+    uploadDatasetHasFiniteBetaForKkOnEveryRow(dataset);
+
+  useEffect(() => {
+    if (!kkUploadRailVisible) return;
+    if (dataset.computeKkDeltaOnSubmit) return;
+    onDatasetUpdate(dataset.id, { computeKkDeltaOnSubmit: true });
+  }, [
+    kkUploadRailVisible,
+    dataset.id,
+    dataset.computeKkDeltaOnSubmit,
+    onDatasetUpdate,
+  ]);
+
+  const bareAtomFullViewReferenceCurves = useMemo((): ReferenceCurve[] => {
+    if (dataView === "bare-atom" && dataset.bareAtomPoints) {
+      return [
+        {
+          label: "Bare Atom Absorption",
+          points: dataset.bareAtomPoints,
+          color: "#6b7280",
+        },
+      ];
+    }
+    return [];
+  }, [dataView, dataset.bareAtomPoints]);
+
+  const bareAtomContributionOverlayCurves = useMemo((): ReferenceCurve[] => {
+    if (
+      !showBareAtomContributionOverlay ||
+      !dataset.bareAtomPoints?.length ||
+      dataView === "od" ||
+      dataView === "bare-atom"
+    ) {
+      return [];
+    }
+    const bare = dataset.bareAtomPoints;
+    if (dataView === "absorption") {
+      return [
+        {
+          label: "Bare atom absorption",
+          points: bare.map((p) => ({
+            energy: p.energy,
+            absorption: p.absorption,
+          })),
+          color: "#6b7280",
+          showInLegend: false,
+        },
+      ];
+    }
+    if (dataView === "beta") {
+      const muLike = bare.map((p) => ({
+        energy: p.energy,
+        absorption: p.absorption,
+      }));
+      const betaLike = computeBetaIndex(
+        muLike,
+        muLike.map((p) => p.energy),
+        bare,
+      );
+      return [
+        {
+          label: "Bare atom beta",
+          points: betaLike.map((p) => ({
+            energy: p.energy,
+            absorption: p.absorption,
+          })),
+          color: "#6b7280",
+          showInLegend: false,
+        },
+      ];
+    }
+    if (dataView === "delta") {
+      if (!deltaPoints?.length || bare.length < 4) {
+        return [];
+      }
+      const formula = selectedMolecule?.chemicalFormula?.trim();
+      if (!formula) {
+        return [];
+      }
+      const muLike = bare.map((p) => ({
+        energy: p.energy,
+        absorption: p.absorption,
+      }));
+      const betaLike = computeBetaIndex(
+        muLike,
+        muLike.map((p) => p.energy),
+        bare,
+      );
+      const prepared = prepareStrictlyAscendingEnergyBetaForKk(
+        betaLike.map((p) => p.energy),
+        betaLike.map((p) => p.absorption),
+      );
+      if (prepared.energyEv.length < 4) {
+        return [];
+      }
+      const rawDelta = computeDeltaFromBetaKkcalcStyle({
+        energyEv: prepared.energyEv,
+        beta: prepared.beta,
+        stoichiometryFormula: formula,
+        densityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
+        henkeMergeDomain: henkeMergeDomainUpload,
+      });
+      const aligned = alignKkDeltaToSpectrumEnergyAxis(
+        prepared.energyEv,
+        prepared.energyEv,
+        rawDelta,
+      );
+      return [
+        {
+          label: "Bare atom delta",
+          points: prepared.energyEv.map((energy, i) => ({
+            energy,
+            absorption: aligned[i]!,
+          })),
+          color: "#6b7280",
+          showInLegend: false,
+        },
+      ];
+    }
+    return [];
+  }, [
+    showBareAtomContributionOverlay,
+    dataView,
+    dataset.bareAtomPoints,
+    selectedMolecule?.chemicalFormula,
+    deltaPoints,
+    henkeMergeDomainUpload,
+  ]);
+
+  const spectrumReferenceCurves = useMemo(
+    () => [
+      ...bareAtomFullViewReferenceCurves,
+      ...bareAtomContributionOverlayCurves,
+    ],
+    [bareAtomFullViewReferenceCurves, bareAtomContributionOverlayCurves],
+  );
 
   const absorptionAvailable =
     (absorptionComputation?.normalizedPoints?.length ?? 0) > 0;
@@ -1794,6 +2091,49 @@ export function DatasetContent({
     computeDifferenceSpectraFromRoot,
   ]);
 
+  const diffBareContributionSelectedKeys = useMemo(() => {
+    const keys = new Set<string>();
+    if (isDifferenceEnabled) {
+      keys.add("difference");
+    }
+    if (showBareAtomContributionOverlay) {
+      keys.add("bare-atom");
+    }
+    return keys;
+  }, [isDifferenceEnabled, showBareAtomContributionOverlay]);
+
+  const handleDiffBareContributionSelectionChange = useCallback(
+    (keys: Set<SelectionKey> | "all") => {
+      const s =
+        keys === "all"
+          ? new Set<string>()
+          : new Set([...keys].map((k) => String(k)));
+      const nextDiff = s.has("difference");
+      const nextBare = s.has("bare-atom");
+      queueMicrotask(() => {
+        if (nextDiff !== isDifferenceEnabled) {
+          handleToggleDifferenceEnabled();
+        }
+        if (nextBare !== showBareAtomContributionOverlay) {
+          setShowBareAtomContributionOverlay(nextBare);
+        }
+      });
+    },
+    [
+      isDifferenceEnabled,
+      showBareAtomContributionOverlay,
+      handleToggleDifferenceEnabled,
+    ],
+  );
+
+  const plotBareAtomToggleDisabled =
+    !selectedMolecule?.chemicalFormula?.trim() ||
+    dataView === "od" ||
+    dataView === "bare-atom" ||
+    (dataView === "delta" && !deltaPoints?.length) ||
+    !dataset.bareAtomPoints?.length ||
+    isCalculatingBareAtom;
+
   const plotDataViewRail = (
     <Toolbar
       isAttached
@@ -1801,30 +2141,67 @@ export function DatasetContent({
       aria-label="Plot data view"
       className={`${plotToolbarAttachedShellClass} w-fit`}
     >
-      <ToggleButton
-        isIconOnly
-        aria-label="Difference spectrum toggle"
-        id="difference"
-        isSelected={isDifferenceEnabled}
-        onChange={(next) => {
-          if (next !== isDifferenceEnabled) {
-            queueMicrotask(() => {
-              handleToggleDifferenceEnabled();
-            });
-          }
-        }}
-        className={plotToolbarDifferenceToggleClass}
+      <ToggleButtonGroup
+        aria-label="Difference spectrum and bare atom reference"
+        selectionMode="multiple"
+        orientation="vertical"
+        className={plotToolbarToggleButtonGroupShellClass}
+        selectedKeys={diffBareContributionSelectedKeys}
+        onSelectionChange={handleDiffBareContributionSelectionChange}
       >
-        <span className="text-xs font-semibold" aria-hidden>
-          &#x0394;
-        </span>
-      </ToggleButton>
+        <Tooltip delay={0}>
+          <ToggleButton
+            isIconOnly
+            aria-label="Difference spectrum between geometries"
+            id="difference"
+            className={plotToolbarBasisToggleClass}
+          >
+            <span className="text-xs font-semibold" aria-hidden>
+              &#x0394;
+            </span>
+          </ToggleButton>
+          <Tooltip.Content
+            placement="right"
+            shouldFlip
+            className={plotToolbarTooltipContentClass}
+          >
+            Difference: Overlay spectra that subtract one geometry from another.
+          </Tooltip.Content>
+        </Tooltip>
+        <Tooltip delay={0}>
+          <ToggleButton
+            isIconOnly
+            aria-label={
+              dataView === "od"
+                ? "Bare atom overlay (not available in optical density view)"
+                : selectedMolecule?.chemicalFormula
+                  ? dataView === "delta"
+                    ? "Bare atom delta reference (KK from Henke beta on this grid)"
+                    : "Bare atom reference curve on this energy grid"
+                  : "Bare atom overlay (select a molecule with a formula)"
+            }
+            id="bare-atom"
+            isDisabled={plotBareAtomToggleDisabled}
+            className={plotToolbarBasisToggleClass}
+          >
+            <ToggleButtonGroup.Separator />
+            <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
+          </ToggleButton>
+          <Tooltip.Content
+            placement="right"
+            shouldFlip
+            className={plotToolbarTooltipContentClass}
+          >
+            Bare atom: Show the tabulated bare-atom curve for the same energy grid.
+          </Tooltip.Content>
+        </Tooltip>
+      </ToggleButtonGroup>
       <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
       <ToggleButtonGroup
         aria-label="Data view basis"
         selectionMode="single"
         orientation="vertical"
-        className="w-full overflow-hidden rounded-full"
+        className={plotToolbarToggleButtonGroupShellClass}
         selectedKeys={new Set([overlaySelectedKey])}
         onSelectionChange={(keys) => {
           const next = keys.values().next().value as
@@ -1837,50 +2214,86 @@ export function DatasetContent({
           else if (next === "delta") trySetDataView("delta");
         }}
       >
-        <ToggleButton
-          isIconOnly
-          aria-label="Optical density"
-          id="od"
-          className={plotToolbarBasisToggleClass}
-        >
-          <span className="text-xs font-semibold">OD</span>
-        </ToggleButton>
-        <ToggleButton
-          isIconOnly
-          aria-label="Mass absorption coefficient"
-          id="absorption"
-          isDisabled={!absorptionAvailable}
-          className={plotToolbarBasisToggleClass}
-        >
-          <ToggleButtonGroup.Separator />
-          <span className="text-sm font-semibold" aria-hidden>
-            &#x00B5;
-          </span>
-        </ToggleButton>
-        <ToggleButton
-          isIconOnly
-          aria-label="Beta index of refraction"
-          id="beta"
-          isDisabled={!betaAvailable}
-          className={plotToolbarBasisToggleClass}
-        >
-          <ToggleButtonGroup.Separator />
-          <span className="text-sm font-semibold" aria-hidden>
-            &#x03B2;
-          </span>
-        </ToggleButton>
-        <ToggleButton
-          isIconOnly
-          aria-label="Delta refractive decrement from stored values"
-          id="delta"
-          isDisabled={!deltaAvailable}
-          className={plotToolbarBasisToggleClass}
-        >
-          <ToggleButtonGroup.Separator />
-          <span className="text-sm font-semibold" aria-hidden>
-            &#x03B4;
-          </span>
-        </ToggleButton>
+        <Tooltip delay={0}>
+          <ToggleButton
+            isIconOnly
+            aria-label="Optical density"
+            id="od"
+            className={plotToolbarBasisToggleClass}
+          >
+            <span className="text-xs font-semibold">OD</span>
+          </ToggleButton>
+          <Tooltip.Content
+            placement="right"
+            shouldFlip
+            className={plotToolbarTooltipContentClass}
+          >
+            OD: Plot optical density derived from raw intensities.
+          </Tooltip.Content>
+        </Tooltip>
+        <Tooltip delay={0}>
+          <ToggleButton
+            isIconOnly
+            aria-label="Mass absorption coefficient"
+            id="absorption"
+            isDisabled={!absorptionAvailable}
+            className={plotToolbarBasisToggleClass}
+          >
+            <ToggleButtonGroup.Separator />
+            <span className="text-sm font-semibold" aria-hidden>
+              &#x00B5;
+            </span>
+          </ToggleButton>
+          <Tooltip.Content
+            placement="right"
+            shouldFlip
+            className={plotToolbarTooltipContentClass}
+          >
+            Mu: Plot mass absorption after edge normalization.
+          </Tooltip.Content>
+        </Tooltip>
+        <Tooltip delay={0}>
+          <ToggleButton
+            isIconOnly
+            aria-label="Beta index of refraction"
+            id="beta"
+            isDisabled={!betaAvailable}
+            className={plotToolbarBasisToggleClass}
+          >
+            <ToggleButtonGroup.Separator />
+            <span className="text-sm font-semibold" aria-hidden>
+              &#x03B2;
+            </span>
+          </ToggleButton>
+          <Tooltip.Content
+            placement="right"
+            shouldFlip
+            className={plotToolbarTooltipContentClass}
+          >
+            Beta: Plot the imaginary part of the index from mu and bare-atom data.
+          </Tooltip.Content>
+        </Tooltip>
+        <Tooltip delay={0}>
+          <ToggleButton
+            isIconOnly
+            aria-label="Delta refractive decrement from stored values"
+            id="delta"
+            isDisabled={!deltaAvailable}
+            className={plotToolbarBasisToggleClass}
+          >
+            <ToggleButtonGroup.Separator />
+            <span className="text-sm font-semibold" aria-hidden>
+              &#x03B4;
+            </span>
+          </ToggleButton>
+          <Tooltip.Content
+            placement="right"
+            shouldFlip
+            className={plotToolbarTooltipContentClass}
+          >
+            Delta: Plot stored delta values aligned to the current energy axis.
+          </Tooltip.Content>
+        </Tooltip>
       </ToggleButtonGroup>
     </Toolbar>
   );
@@ -1890,6 +2303,7 @@ export function DatasetContent({
       <div className="pointer-events-auto">{plotDataViewRail}</div>
       <div className="pointer-events-auto">
         <PlotSpectrumToolsToolbarSection
+          peakToolsEnabled={false}
           isNormalizationMode={isPlotNormalizationMode}
           onNormalizationModeChange={handlePlotNormalizationMode}
           activeEdge={normalizationSelectionTarget ?? "pre"}
@@ -1905,6 +2319,39 @@ export function DatasetContent({
         />
       </div>
     </>
+  );
+
+  const plotRightPlotRail = (
+    <div className="pointer-events-auto flex flex-col items-stretch gap-1">
+      <PlotSpectrumToolsToolbarSection
+        normalizationToolsEnabled={false}
+        isNormalizationMode={isPlotNormalizationMode}
+        onNormalizationModeChange={handlePlotNormalizationMode}
+        activeEdge={normalizationSelectionTarget ?? "pre"}
+        onActiveEdgeChange={setNormalizationSelectionTarget}
+        onResetToDefaultRegions={handleResetNormalizationRegions}
+        normalizationLocked={dataset.normalizationLocked}
+        hasData={dataset.spectrumPoints.length > 0}
+        isPeakSetMode={isManualPeakMode}
+        onPeakSetModeChange={handlePeakSetModeFromPlotRail}
+        peakCount={dataset.peaks.length}
+        onAutoDetectPeaks={handleAutoDetectPeaksFromPlotRail}
+        onResetAllPeaks={handleResetAllPeaksFromPlotRail}
+      />
+      {kkUploadRailVisible ? (
+        <>
+          <Separator
+            orientation="horizontal"
+            className="my-1 w-full shrink-0"
+          />
+          <NexafsPlotKkVerticalToolbar
+            visible
+            busy={kkUploadBusy}
+            onPressKk={onPressKkUploadRail}
+          />
+        </>
+      ) : null}
+    </div>
   );
 
   const normalizationRegionsForPlot =
@@ -1944,7 +2391,7 @@ export function DatasetContent({
           editMode={geometryEditMode}
           onEditModeChange={setGeometryEditMode}
         />
-        <div className="mt-3 flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+        <div className="mt-3 flex min-h-0 w-full flex-1 flex-col overflow-x-clip overflow-y-visible">
           <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
             <div
               className={`border-border bg-surface w-full border p-6 shadow-sm ${
@@ -1958,46 +2405,12 @@ export function DatasetContent({
                   className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3"
                   style={{ minHeight: 0 }}
                 >
-                  <div className="border-border bg-field-background/70 shrink-0 rounded-lg border px-3 py-2.5">
-                    <Checkbox
-                      className="items-start gap-3"
-                      isSelected={dataset.computeKkDeltaOnSubmit}
-                      onChange={(selected) => {
-                        if (!selected) {
-                          onDatasetUpdate(dataset.id, {
-                            computeKkDeltaOnSubmit: false,
-                          });
-                          return;
-                        }
-                        if (readKkBrowserConsentGranted()) {
-                          onDatasetUpdate(dataset.id, {
-                            computeKkDeltaOnSubmit: true,
-                          });
-                          return;
-                        }
-                        setKkDatasetConsentOpen(true);
-                      }}
-                    >
-                      <Checkbox.Control>
-                        <Checkbox.Indicator />
-                      </Checkbox.Control>
-                      <Checkbox.Content>
-                        <Label className="text-foreground cursor-pointer text-sm font-medium">
-                          Compute delta (Kramers–Kronig from beta) on submit
-                        </Label>
-                        <Description className="text-muted mt-1 block max-w-prose text-xs leading-snug">
-                          Runs in your browser after you confirm the session
-                          consent dialog. Requires finite beta on every row
-                          (derive via normalization or map a beta column).
-                        </Description>
-                      </Checkbox.Content>
-                    </Checkbox>
-                  </div>
                   <SpectrumPlot
                     points={plotPoints}
                     graphStyle={graphStyle}
                     yAxisQuantity={spectrumYAxisQuantity}
-                    referenceCurves={referenceCurves}
+                    plotTopRailDataActions={plotTopRailDataActions}
+                    referenceCurves={spectrumReferenceCurves}
                     normalizationRegions={normalizationRegionsForPlot}
                     showNormalizationShading={
                       normalizationRegionsForPlot != null
@@ -2013,6 +2426,8 @@ export function DatasetContent({
                     }
                     onSelectionChange={handleNormalizationSelection}
                     headerRight={plotLeftPlotRail}
+                    headerAnalysis={plotRightPlotRail}
+                    suppressAnalysisRailLeadingGrip
                     plotContext={
                       isPlotNormalizationMode && normalizationSelectionTarget
                         ? {
@@ -2309,12 +2724,16 @@ export function DatasetContent({
         </div>
       </div>
       <KkBrowserConsentDialog
-        isOpen={kkDatasetConsentOpen}
-        onDismiss={() => setKkDatasetConsentOpen(false)}
+        isOpen={kkConsentContinuation !== null}
+        onDismiss={() => setKkConsentContinuation(null)}
         onAccept={() => {
+          const continuation = kkConsentContinuation;
           grantKkBrowserConsent();
-          setKkDatasetConsentOpen(false);
-          onDatasetUpdate(dataset.id, { computeKkDeltaOnSubmit: true });
+          setKkConsentContinuation(null);
+          if (continuation?.kind === "preview-rail-delta") {
+            onDatasetUpdate(dataset.id, { computeKkDeltaOnSubmit: true });
+            runKkDeltaPreviewForUploadDraft();
+          }
         }}
       />
 

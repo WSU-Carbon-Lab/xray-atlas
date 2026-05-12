@@ -20,9 +20,16 @@ import {
   plotToolbarAttachedShellClass,
   plotToolbarGlyphToggleGroupItemVerticalClass,
   plotToolbarGlyphToggleStandaloneClass,
+  plotToolbarToggleButtonGroupShellClass,
+  plotToolbarTooltipContentClass,
 } from "./plot-toolbar-chrome";
 
 export type PlotSpectrumToolsToolbarSectionProps = {
+  /**
+   * When false, omits the normalization master toggle and pre/post region tools so callers can place
+   * normalization-only or peak-only segments on separate plot rails.
+   */
+  normalizationToolsEnabled?: boolean;
   isNormalizationMode: boolean;
   onNormalizationModeChange: (enabled: boolean) => void;
   activeEdge: "pre" | "post";
@@ -45,6 +52,7 @@ export type PlotSpectrumToolsToolbarSectionProps = {
 };
 
 export function PlotSpectrumToolsToolbarSection({
+  normalizationToolsEnabled = true,
   isNormalizationMode,
   onNormalizationModeChange,
   activeEdge,
@@ -95,6 +103,13 @@ export function PlotSpectrumToolsToolbarSection({
     }
   };
 
+  const showNorm = normalizationToolsEnabled;
+  const showPeaks = peakToolsEnabled;
+
+  if (!showNorm && !showPeaks) {
+    return null;
+  }
+
   return (
     <Toolbar
       isAttached
@@ -102,83 +117,110 @@ export function PlotSpectrumToolsToolbarSection({
       aria-label="Spectrum plot tools"
       className={`${plotToolbarAttachedShellClass} w-fit`}
     >
-      <Tooltip delay={0}>
-        <ToggleButton
-          isIconOnly
-          aria-label="Normalization tools"
-          isSelected={isNormalizationMode}
-          onChange={(next) => {
-            if (next !== isNormalizationMode) {
-              onNormalizationModeChange(next);
-            }
-          }}
-          isDisabled={scalingDisabled}
-          className={plotToolbarGlyphToggleStandaloneClass}
-        >
-          <Scaling className="h-5 w-5" aria-hidden />
-        </ToggleButton>
-        <Tooltip.Content
-          placement="right"
-          className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
-        >
-          Pre-edge and post-edge regions for OD scaling
-        </Tooltip.Content>
-      </Tooltip>
-      {isNormalizationMode ? (
+      {showNorm ? (
         <>
-          <Separator
-            orientation="horizontal"
-            className="my-1 w-full shrink-0"
-          />
-          <ToggleButtonGroup
-            aria-label="Normalization region tools"
-            selectionMode="single"
-            orientation="vertical"
-            selectedKeys={new Set([activeEdge])}
-            onSelectionChange={handleRegionToolChange}
-            isDisabled={normalizationLocked}
-            className="w-full overflow-hidden rounded-full"
-          >
+          <Tooltip delay={0}>
             <ToggleButton
-              id="pre"
               isIconOnly
-              aria-label="Pre-edge range"
-              className={plotToolbarGlyphToggleGroupItemVerticalClass}
+              aria-label="Normalization tools"
+              isSelected={isNormalizationMode}
+              onChange={(next) => {
+                if (next !== isNormalizationMode) {
+                  onNormalizationModeChange(next);
+                }
+              }}
+              isDisabled={scalingDisabled}
+              className={plotToolbarGlyphToggleStandaloneClass}
             >
-              <ArrowLeftToLine className="h-4 w-4" aria-hidden />
+              <Scaling className="h-5 w-5" aria-hidden />
             </ToggleButton>
-            <ToggleButton
-              id="post"
-              isIconOnly
-              aria-label="Post-edge range"
-              className={plotToolbarGlyphToggleGroupItemVerticalClass}
+            <Tooltip.Content
+              placement="right"
+              className={plotToolbarTooltipContentClass}
             >
-              <ToggleButtonGroup.Separator />
-              <ArrowRightFromLine className="h-4 w-4" aria-hidden />
-            </ToggleButton>
-            {normalizationRegionResetInRail ? (
-              <ToggleButton
-                id="reset"
-                isIconOnly
-                aria-label="Reset pre and post regions to defaults"
-                isDisabled={resetDisabled}
-                className={plotToolbarGlyphToggleGroupItemVerticalClass}
+              Normalization: Turn on pre-edge and post-edge bands for OD scaling.
+            </Tooltip.Content>
+          </Tooltip>
+          {isNormalizationMode ? (
+            <>
+              <Separator
+                orientation="horizontal"
+                className="my-1 w-full shrink-0"
+              />
+              <ToggleButtonGroup
+                aria-label="Normalization region tools"
+                selectionMode="single"
+                orientation="vertical"
+                selectedKeys={new Set([activeEdge])}
+                onSelectionChange={handleRegionToolChange}
+                isDisabled={normalizationLocked}
+                className={plotToolbarToggleButtonGroupShellClass}
               >
-                <ToggleButtonGroup.Separator />
-                <RotateCcw className="h-4 w-4" aria-hidden />
-              </ToggleButton>
-            ) : null}
-          </ToggleButtonGroup>
+                <Tooltip delay={0}>
+                  <ToggleButton
+                    id="pre"
+                    isIconOnly
+                    aria-label="Pre-edge range"
+                    className={plotToolbarGlyphToggleGroupItemVerticalClass}
+                  >
+                    <ArrowLeftToLine className="h-4 w-4" aria-hidden />
+                  </ToggleButton>
+                  <Tooltip.Content
+                    placement="right"
+                    className={plotToolbarTooltipContentClass}
+                  >
+                    Pre-edge: Choose the low-energy window used for normalization.
+                  </Tooltip.Content>
+                </Tooltip>
+                <Tooltip delay={0}>
+                  <ToggleButton
+                    id="post"
+                    isIconOnly
+                    aria-label="Post-edge range"
+                    className={plotToolbarGlyphToggleGroupItemVerticalClass}
+                  >
+                    <ToggleButtonGroup.Separator />
+                    <ArrowRightFromLine className="h-4 w-4" aria-hidden />
+                  </ToggleButton>
+                  <Tooltip.Content
+                    placement="right"
+                    className={plotToolbarTooltipContentClass}
+                  >
+                    Post-edge: Choose the high-energy window used for normalization.
+                  </Tooltip.Content>
+                </Tooltip>
+                {normalizationRegionResetInRail ? (
+                  <Tooltip delay={0}>
+                    <ToggleButton
+                      id="reset"
+                      isIconOnly
+                      aria-label="Reset pre and post regions to defaults"
+                      isDisabled={resetDisabled}
+                      className={plotToolbarGlyphToggleGroupItemVerticalClass}
+                    >
+                      <ToggleButtonGroup.Separator />
+                      <RotateCcw className="h-4 w-4" aria-hidden />
+                    </ToggleButton>
+                    <Tooltip.Content
+                      placement="right"
+                      className={plotToolbarTooltipContentClass}
+                    >
+                      Reset regions: Restore default pre-edge and post-edge spans.
+                    </Tooltip.Content>
+                  </Tooltip>
+                ) : null}
+              </ToggleButtonGroup>
+            </>
+          ) : null}
         </>
       ) : null}
 
-      {peakToolsEnabled ? (
-        <>
-          <Separator
-            orientation="horizontal"
-            className="my-1 w-full shrink-0"
-          />
+      {showNorm && showPeaks ? (
+        <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
+      ) : null}
 
+      {showPeaks ? (
+        <>
           <Tooltip delay={0}>
             <ToggleButton
               isIconOnly
@@ -196,9 +238,9 @@ export function PlotSpectrumToolsToolbarSection({
             </ToggleButton>
             <Tooltip.Content
               placement="right"
-              className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
+              className={plotToolbarTooltipContentClass}
             >
-              Select peaks on the plot or click empty area to add a peak
+              Peak mode: Click the plot to add peaks or select peaks to edit.
             </Tooltip.Content>
           </Tooltip>
 
@@ -215,36 +257,60 @@ export function PlotSpectrumToolsToolbarSection({
                 selectedKeys={new Set(["pointer"])}
                 onSelectionChange={handlePeakSubtoolChange}
                 isDisabled={peakSubtoolsDisabled}
-                className="w-full overflow-hidden rounded-full"
+                className={plotToolbarToggleButtonGroupShellClass}
               >
-                <ToggleButton
-                  id="pointer"
-                  isIconOnly
-                  aria-label="Select or add peaks on the plot. Click a peak to select, or empty plot to add."
-                  className={plotToolbarGlyphToggleGroupItemVerticalClass}
-                >
-                  <MousePointer2 className="h-4 w-4" aria-hidden />
-                </ToggleButton>
-                <ToggleButton
-                  id="auto-detect"
-                  isIconOnly
-                  aria-label="Auto-detect peaks from the visible spectrum"
-                  isDisabled={autoDetectDisabled}
-                  className={plotToolbarGlyphToggleGroupItemVerticalClass}
-                >
-                  <ToggleButtonGroup.Separator />
-                  <Sparkles className="h-4 w-4" aria-hidden />
-                </ToggleButton>
-                <ToggleButton
-                  id="reset-peaks"
-                  isIconOnly
-                  aria-label="Clear all peaks from this dataset"
-                  isDisabled={resetPeaksDisabled}
-                  className={plotToolbarGlyphToggleGroupItemVerticalClass}
-                >
-                  <ToggleButtonGroup.Separator />
-                  <RotateCcw className="h-4 w-4" aria-hidden />
-                </ToggleButton>
+                <Tooltip delay={0}>
+                  <ToggleButton
+                    id="pointer"
+                    isIconOnly
+                    aria-label="Select or add peaks on the plot. Click a peak to select, or empty plot to add."
+                    className={plotToolbarGlyphToggleGroupItemVerticalClass}
+                  >
+                    <MousePointer2 className="h-4 w-4" aria-hidden />
+                  </ToggleButton>
+                  <Tooltip.Content
+                    placement="right"
+                    className={plotToolbarTooltipContentClass}
+                  >
+                    Peak pointer: Select a peak marker or click empty space to add one.
+                  </Tooltip.Content>
+                </Tooltip>
+                <Tooltip delay={0}>
+                  <ToggleButton
+                    id="auto-detect"
+                    isIconOnly
+                    aria-label="Auto-detect peaks from the visible spectrum"
+                    isDisabled={autoDetectDisabled}
+                    className={plotToolbarGlyphToggleGroupItemVerticalClass}
+                  >
+                    <ToggleButtonGroup.Separator />
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                  </ToggleButton>
+                  <Tooltip.Content
+                    placement="right"
+                    className={plotToolbarTooltipContentClass}
+                  >
+                    Auto peaks: Run automatic peak picking on the visible trace.
+                  </Tooltip.Content>
+                </Tooltip>
+                <Tooltip delay={0}>
+                  <ToggleButton
+                    id="reset-peaks"
+                    isIconOnly
+                    aria-label="Clear all peaks from this dataset"
+                    isDisabled={resetPeaksDisabled}
+                    className={plotToolbarGlyphToggleGroupItemVerticalClass}
+                  >
+                    <ToggleButtonGroup.Separator />
+                    <RotateCcw className="h-4 w-4" aria-hidden />
+                  </ToggleButton>
+                  <Tooltip.Content
+                    placement="right"
+                    className={plotToolbarTooltipContentClass}
+                  >
+                    Reset peaks: Remove every peak from this spectrum.
+                  </Tooltip.Content>
+                </Tooltip>
               </ToggleButtonGroup>
             </>
           ) : null}

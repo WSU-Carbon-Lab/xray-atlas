@@ -3,6 +3,9 @@ export { PlotSpectrumToolsToolbarSection } from "./PlotSpectrumToolsToolbarSecti
 export type { PlotSpectrumToolsToolbarSectionProps } from "./PlotSpectrumToolsToolbarSection";
 export {
   plotToolbarAttachedShellClass,
+  plotToolbarTooltipContentClass,
+  plotToolbarToggleButtonGroupShellClass,
+  plotToolbarToggleButtonGroupHorizontalShellClass,
   plotToolbarBasisToggleClass,
   plotToolbarBasisToggleGroupItemVerticalClass,
   plotToolbarDifferenceToggleClass,

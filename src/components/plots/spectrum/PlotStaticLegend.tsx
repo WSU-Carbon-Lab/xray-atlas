@@ -1,8 +1,10 @@
 "use client";
 
 import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { Tooltip } from "@heroui/react";
 import type { TraceData } from "../types";
 import type { ChartThemeColors } from "../config";
+import { plotToolbarTooltipContentClass } from "../toolbars";
 import { buildLegendCoreModel } from "./legend-core";
 
 const LEGEND_INSET = 12;
@@ -225,58 +227,71 @@ export const PlotStaticLegend = memo(function PlotStaticLegend({
             {entries.map((entry) => {
               const isVisible =
                 visibleTraceIds.size === 0 || visibleTraceIds.has(entry.id);
+              const toggleHint = isVisible
+                ? `Hide trace: ${entry.label}`
+                : `Show trace: ${entry.label}`;
 
               return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  data-legend-toggle="true"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={() => onToggleTrace(entry.id)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    minWidth: 0,
-                    padding: 0,
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    color: themeColors.text,
-                    fontFamily: LEGEND_FONT_FAMILY,
-                    fontSize: LEGEND_FONT_SIZE,
-                    textAlign: "left",
-                    outline: "none",
-                  }}
-                >
-                  <span
-                    aria-hidden
+                <Tooltip key={entry.id} delay={0}>
+                  <button
+                    type="button"
+                    data-legend-toggle="true"
+                    aria-label={toggleHint}
+                    aria-pressed={isVisible}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={() => onToggleTrace(entry.id)}
+                    className="rounded-sm outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1"
                     style={{
-                      width: 14,
-                      height: 14,
-                      borderRadius: 3,
-                      border: `1px solid ${entry.color}`,
-                      backgroundColor: isVisible ? entry.color : "transparent",
-                      flexShrink: 0,
-                      opacity: isVisible ? 1 : 0.7,
-                    }}
-                  />
-                  <span
-                    data-export-legend-label
-                    style={{
-                      color: themeColors.text,
-                      fontWeight: 500,
-                      fontSize: LEGEND_FONT_SIZE,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
                       minWidth: 0,
-                      whiteSpace: "normal",
-                      overflowWrap: "anywhere",
-                      wordBreak: "break-word",
-                      opacity: isVisible ? 1 : 0.65,
+                      padding: 0,
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      color: themeColors.text,
+                      fontFamily: LEGEND_FONT_FAMILY,
+                      fontSize: LEGEND_FONT_SIZE,
+                      textAlign: "left",
+                      opacity: isVisible ? 1 : 0.85,
                     }}
                   >
-                    {entry.label}
-                  </span>
-                </button>
+                    <span
+                      aria-hidden
+                      style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: 3,
+                        border: `1px solid ${entry.color}`,
+                        backgroundColor: isVisible ? entry.color : "transparent",
+                        flexShrink: 0,
+                        opacity: isVisible ? 1 : 0.7,
+                      }}
+                    />
+                    <span
+                      data-export-legend-label
+                      style={{
+                        color: themeColors.text,
+                        fontWeight: 500,
+                        fontSize: LEGEND_FONT_SIZE,
+                        minWidth: 0,
+                        whiteSpace: "normal",
+                        overflowWrap: "anywhere",
+                        wordBreak: "break-word",
+                        opacity: isVisible ? 1 : 0.65,
+                      }}
+                    >
+                      {entry.label}
+                    </span>
+                  </button>
+                  <Tooltip.Content
+                    placement="left"
+                    className={plotToolbarTooltipContentClass}
+                  >
+                    {toggleHint}
+                  </Tooltip.Content>
+                </Tooltip>
               );
             })}
           </div>

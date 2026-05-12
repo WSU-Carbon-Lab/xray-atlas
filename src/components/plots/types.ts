@@ -136,11 +136,23 @@ export type SpectrumPlotProps = {
   onPeakDelete?: (peakId: string) => void;
   onPeakAdd?: (energy: number) => void;
   differenceSpectra?: DifferenceSpectrum[];
+  /**
+   * Optional controls for the **left** vertical plot tool rail (`PlotToolRailsDeck` display rail):
+   * trace basis toggles, difference/bare-atom view, and normalization tooling when applicable.
+   */
   headerRight?: ReactNode;
   /**
-   * Optional controls for the right-hand analysis tool rail (for example bare-atom overlay toggles).
+   * Optional controls for the **right** vertical plot tool rail (`PlotToolRailsDeck` analysis rail),
+   * for example peak editing and Kramers–Kronig actions that should stay off the left rail. Pass
+   * `suppressAnalysisRailLeadingGrip` when this rail should omit the decorative top grip.
    */
   headerAnalysis?: ReactNode;
+  /**
+   * When true, hides the decorative grip control at the top of the right analysis rail
+   * (`PlotToolRailsDeck`) so stacked analysis toolbars (peaks, KK) fill the rail without a dummy
+   * handle. Defaults to false so other plots keep the prior chrome.
+   */
+  suppressAnalysisRailLeadingGrip?: boolean;
   /**
    * Optional icon actions rendered in the top plot rail after Home (for example spectrum CSV download/copy menus). Fragments and arrays are flattened so each control is a direct sibling inside the same `ButtonGroup` as Home (continuous segment styling). When set, the default top-rail plot export shortcut is omitted; callers that still need export UI should include it inside this node or elsewhere.
    */

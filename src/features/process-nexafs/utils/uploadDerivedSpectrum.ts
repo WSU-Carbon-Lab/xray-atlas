@@ -41,50 +41,63 @@ export function buildSpectrumPointsWithDerivedForUpload(
 
   const barePts = dataset.bareAtomPoints;
   if (pre && post && barePts && barePts.length > 0) {
-    const preCount = points.filter(
-      (p) => p.energy >= pre[0] && p.energy <= pre[1],
-    ).length;
-    const postCount = points.filter(
-      (p) => p.energy >= post[0] && p.energy <= post[1],
-    ).length;
-    if (preCount > 0 && postCount > 0) {
-      const massComp = computeNormalizationForExperiment(
-        points,
-        barePts,
-        preCount,
-        postCount,
-      );
-      if (massComp) {
-        for (let i = 0; i < next.length; i++) {
-          const v = massComp.normalizedPoints[i]?.absorption;
-          if (typeof v === "number" && Number.isFinite(v)) {
-            const base = points[i]!;
-            next[i] = { ...base, ...next[i], massabsorption: v };
-          }
+    const massComp = computeNormalizationForExperiment(
+      points,
+      barePts,
+      pre,
+      post,
+    );
+    if (massComp) {
+      for (let i = 0; i < next.length; i++) {
+        const v = massComp.normalizedPoints[i]?.absorption;
+        if (typeof v === "number" && Number.isFinite(v)) {
+          const base = points[i]!;
+          next[i] = { ...base, ...next[i], massabsorption: v };
         }
-        const uniqueEnergies = Array.from(
-          new Set(points.map((p) => p.energy)),
-        ).sort((a, b) => a - b);
-        const atomicPoints = uniqueEnergies.map((E) => ({
-          energy: E,
-          absorption: interpolateBareMu(barePts, E),
-        }));
-        const energyEv = points.map((p) => p.energy);
-        const betaArr = computeBetaIndex(
-          massComp.normalizedPoints,
-          energyEv,
-          atomicPoints,
-        );
-        for (let i = 0; i < next.length; i++) {
-          const v = betaArr[i]?.absorption;
-          if (typeof v === "number" && Number.isFinite(v)) {
-            const base = points[i]!;
-            next[i] = { ...base, ...next[i], beta: v };
-          }
+      }
+      const uniqueEnergies = Array.from(
+        new Set(points.map((p) => p.energy)),
+      ).sort((a, b) => a - b);
+      const atomicPoints = uniqueEnergies.map((E) => ({
+        energy: E,
+        absorption: interpolateBareMu(barePts, E),
+      }));
+      const energyEv = points.map((p) => p.energy);
+      const betaArr = computeBetaIndex(
+        massComp.normalizedPoints,
+        energyEv,
+        atomicPoints,
+      );
+      for (let i = 0; i < next.length; i++) {
+        const v = betaArr[i]?.absorption;
+        if (typeof v === "number" && Number.isFinite(v)) {
+          const base = points[i]!;
+          next[i] = { ...base, ...next[i], beta: v };
         }
       }
     }
   }
 
   return next;
+}
+
+/**
+ * Reports whether an upload **draft** dataset can run the same browser-side beta→delta
+ * Kramers–Kronig path as submit-time {@link buildSpectrumPointsWithDerivedForUpload} followed by
+ * {@link applyKkDeltaToSpectrumPoints} from `~/features/kk-calc`: every derived row must carry a
+ * finite `beta` after OD / mass-absorption / beta derivation from normalization windows and bare
+ * atom data. Returns false when there are no points or when any derived row lacks finite beta.
+ *
+ * @param dataset Contribute-flow dataset state (spectrum grid, normalization regions, bare atom).
+ */
+export function uploadDatasetHasFiniteBetaForKkOnEveryRow(
+  dataset: DatasetState,
+): boolean {
+  const derived = buildSpectrumPointsWithDerivedForUpload(dataset);
+  if (derived.length === 0) {
+    return false;
+  }
+  return derived.every(
+    (p) => typeof p.beta === "number" && Number.isFinite(p.beta),
+  );
 }

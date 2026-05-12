@@ -12,7 +12,11 @@
  * bound are prepended. **High side:** samples from just above the merge upper bound through the
  * tabulated ceiling are appended. **Overlap:** measured energies inside the merge window carry
  * rescaled `f_2` so the window endpoints align with Henke compound values (kkcalc2 `scale_data` /
- * `extend_data_with_db` intent).
+ * `extend_data_with_db` intent). Contributor merge intervals are clamped to the Henke tabulated
+ * intersection. When makima-interpolated measured `f_2` at those merge energies is numerically flat,
+ * the merge span falls back to the first/last experiment energy; if endpoints are still flat,
+ * measured `f_2` is shifted additively so its midpoint matches the Henke midpoint (affine scaling is
+ * singular there).
  */
 import {
   henkeCompoundF2AtEv,
@@ -133,6 +137,27 @@ function compoundF2LogLogExtrapolationAnchors(
   return out;
 }
 
+function mergeDomainMatchesFullSpan(
+  mergeDomain: readonly [number, number],
+  measuredEnergyEv: readonly number[],
+  relTol = 1e-9,
+): boolean {
+  const n = measuredEnergyEv.length;
+  const lo = measuredEnergyEv[0]!;
+  const hi = measuredEnergyEv[n - 1]!;
+  const sx = (a: number, b: number) =>
+    Math.abs(a - b) <= relTol * (1 + Math.max(Math.abs(a), Math.abs(b)));
+  return sx(mergeDomain[0], lo) && sx(mergeDomain[1], hi);
+}
+
+function makimaMeasuredF2EndpointsDegenerate(
+  measLo: number,
+  measHi: number,
+): boolean {
+  const scale = Math.max(1, Math.abs(measLo), Math.abs(measHi));
+  return Math.abs(measHi - measLo) <= 1e-10 * scale;
+}
+
 function concatStrictAscendingUnique(
   segments: readonly (readonly { e: number; f2: number }[])[],
   epsRel = 1e-12,
@@ -184,7 +209,7 @@ export interface ExtendImaginaryAsfWithHenkeParams {
  * @param params.composition Parsed stoichiometry for compound Henke summation.
  * @param params.mergeDomain Optional inclusive merge window; defaults to the full experiment span.
  * @returns Strictly ascending energies and matching `f_2` ready for {@link imaginaryAsfToLinearAspCoefs}.
- * @throws RangeError When Henke tables do not cover the merge window or scaling is degenerate.
+ * @throws RangeError When Henke tables do not cover the merge window after clamping.
  */
 export function extendImaginaryAsfWithHenkeTails(
   params: ExtendImaginaryAsfWithHenkeParams,
@@ -194,40 +219,73 @@ export function extendImaginaryAsfWithHenkeTails(
   if (n < 4 || measuredImaginaryAsf.length !== n) {
     throw new RangeError("measuredEnergyEv and measuredImaginaryAsf must have the same length >= 4");
   }
-  const mergeDomain: readonly [number, number] = params.mergeDomain ?? [
+  const fullSpan: readonly [number, number] = [
     measuredEnergyEv[0]!,
     measuredEnergyEv[n - 1]!,
   ];
+  let mergeDomain: readonly [number, number] = params.mergeDomain ?? fullSpan;
   if (!(mergeDomain[1] > mergeDomain[0])) {
     throw new RangeError("mergeDomain must be strictly increasing");
   }
 
   const span = henkeCompositionTabulatedSpan(composition);
-  if (mergeDomain[0] < span.minEv || mergeDomain[1] > span.maxEv) {
-    throw new RangeError(
-      `mergeDomain [${String(mergeDomain[0])}, ${String(mergeDomain[1])}] eV lies outside Henke tabulated intersection [${String(span.minEv)}, ${String(span.maxEv)}] eV`,
-    );
+  const clampToHenke = (d: readonly [number, number]): readonly [number, number] => {
+    const lo = Math.max(d[0], span.minEv);
+    const hi = Math.min(d[1], span.maxEv);
+    return [lo, hi] as const;
+  };
+
+  mergeDomain = clampToHenke(mergeDomain);
+  if (!(mergeDomain[1] > mergeDomain[0])) {
+    mergeDomain = clampToHenke(fullSpan);
+  }
+  if (!(mergeDomain[1] > mergeDomain[0])) {
+    throw new RangeError("mergeDomain must be strictly increasing after Henke span clamp");
   }
 
-  const dataMergeRange = interpolateMakimaSorted(
+  let dataMergeRange = interpolateMakimaSorted(
     [mergeDomain[0], mergeDomain[1]],
     measuredEnergyEv,
     measuredImaginaryAsf,
   );
-  const dbLo = henkeCompoundF2AtEv(composition, mergeDomain[0]);
-  const dbHi = henkeCompoundF2AtEv(composition, mergeDomain[1]);
-  const measLo = dataMergeRange[0]!;
-  const measHi = dataMergeRange[1]!;
-  const denom = measHi - measLo;
-  if (!(Math.abs(denom) > 1e-300)) {
-    throw new RangeError(
-      "Henke merge scaling is degenerate: makima merge endpoints for measured f_2 are equal",
+  let dbLo = henkeCompoundF2AtEv(composition, mergeDomain[0]);
+  let dbHi = henkeCompoundF2AtEv(composition, mergeDomain[1]);
+  let measLo = dataMergeRange[0]!;
+  let measHi = dataMergeRange[1]!;
+
+  if (
+    makimaMeasuredF2EndpointsDegenerate(measLo, measHi) &&
+    !mergeDomainMatchesFullSpan(mergeDomain, measuredEnergyEv)
+  ) {
+    mergeDomain = clampToHenke(fullSpan);
+    if (!(mergeDomain[1] > mergeDomain[0])) {
+      throw new RangeError(
+        "Henke merge fallback span is degenerate: experiment energies lie outside Henke tabulated intersection",
+      );
+    }
+    dataMergeRange = interpolateMakimaSorted(
+      [mergeDomain[0], mergeDomain[1]],
+      measuredEnergyEv,
+      measuredImaginaryAsf,
+    );
+    dbLo = henkeCompoundF2AtEv(composition, mergeDomain[0]);
+    dbHi = henkeCompoundF2AtEv(composition, mergeDomain[1]);
+    measLo = dataMergeRange[0]!;
+    measHi = dataMergeRange[1]!;
+  }
+
+  let scaledMeas: number[];
+  if (makimaMeasuredF2EndpointsDegenerate(measLo, measHi)) {
+    const midMeas = 0.5 * (measLo + measHi);
+    const midDb = 0.5 * (dbLo + dbHi);
+    scaledMeas = measuredImaginaryAsf.map((y) => y + (midDb - midMeas));
+  } else {
+    const denom = measHi - measLo;
+    const scale = (dbHi - dbLo) / denom;
+    scaledMeas = measuredImaginaryAsf.map(
+      (y) => (y - measLo) * scale + dbLo,
     );
   }
-  const scale = (dbHi - dbLo) / denom;
-  const scaledMeas = measuredImaginaryAsf.map(
-    (y) => (y - measLo) * scale + dbLo,
-  );
 
   const dataMergeLbIdx = argMaxGreaterOrEqual(measuredEnergyEv, mergeDomain[0]);
   let dataMergeUbIdx = argMaxStrictGreater(measuredEnergyEv, mergeDomain[1]) - 1;

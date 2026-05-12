@@ -3,7 +3,8 @@ import {
   computeDeltaFromBetaKkcalcStyle,
   type KkcalcMaterialContext,
 } from "./compute-delta-from-beta-kkcalc-style";
-import { alignKkDeltaToSpectrumEnergyAxis } from "./makima-interpolate";
+import { interpolateMakimaSorted } from "./makima-interpolate";
+import { prepareStrictlyAscendingEnergyBetaForKk } from "./prepare-strictly-ascending-energy-beta-for-kk";
 
 function geometryGroupKey(p: SpectrumPoint): string {
   const theta = p.theta;
@@ -21,8 +22,9 @@ function geometryGroupKey(p: SpectrumPoint): string {
 
 /**
  * Augments upload-ready spectrum rows with `delta` computed from `beta` using kkcalc2’s
- * piecewise-polynomial **KK_PP** pipeline in TypeScript for each theta–phi group, then
- * {@link alignKkDeltaToSpectrumEnergyAxis} so `delta` is stored on each point's `energy` axis.
+ * piecewise-polynomial **KK_PP** pipeline in TypeScript for each theta–phi group, then maps
+ * `delta` back onto each row’s energy using makima interpolation when duplicate energies were
+ * merged for KK.
  *
  * @param points Spectrum rows that already include finite `beta` wherever KK should run;
  *   rows missing theta and phi are grouped together.
@@ -65,17 +67,29 @@ export function applyKkDeltaToSpectrumPoints(
         "Kramers-Kronig requires finite beta on every point in each geometry group",
       );
     }
+    const prepared = prepareStrictlyAscendingEnergyBetaForKk(E, B);
+    if (prepared.energyEv.length < 4) {
+      continue;
+    }
     const deltaArr = computeDeltaFromBetaKkcalcStyle({
-      energyEv: E,
-      beta: B,
+      energyEv: prepared.energyEv,
+      beta: prepared.beta,
       stoichiometryFormula: material.stoichiometryFormula,
       densityGPerCm3: material.massDensityGPerCm3,
       henkeMergeDomain: material.henkeMergeDomain,
     });
-    const aligned = alignKkDeltaToSpectrumEnergyAxis(E, E, deltaArr);
+    const uniqueTargets = Array.from(new Set(E)).sort((a, b) => a - b);
+    const alignedUnique = interpolateMakimaSorted(
+      uniqueTargets,
+      prepared.energyEv,
+      deltaArr,
+    );
+    const deltaByEnergy = new Map(
+      uniqueTargets.map((e, i) => [e, alignedUnique[i]!]),
+    );
     for (let k = 0; k < sortedIdx.length; k++) {
       const globalIdx = sortedIdx[k]!;
-      const d = aligned[k]!;
+      const d = deltaByEnergy.get(E[k]!);
       if (Number.isFinite(d)) {
         out[globalIdx] = {
           ...out[globalIdx]!,

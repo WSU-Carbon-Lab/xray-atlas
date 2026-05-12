@@ -17,6 +17,7 @@ type PlotToolRailProps = {
   topRailTrailingExtras?: ReactNode;
   dataViewTabs: ReactNode;
   analysisTools?: ReactNode;
+  suppressAnalysisRailLeadingGrip?: boolean;
 };
 
 export const PlotToolRail = memo(function PlotToolRail({
@@ -32,6 +33,7 @@ export const PlotToolRail = memo(function PlotToolRail({
   topRailTrailingExtras,
   dataViewTabs,
   analysisTools,
+  suppressAnalysisRailLeadingGrip,
 }: PlotToolRailProps) {
   return (
     <PlotToolRailsDeck
@@ -47,6 +49,7 @@ export const PlotToolRail = memo(function PlotToolRail({
       topRailTrailingExtras={topRailTrailingExtras}
       displayTools={dataViewTabs}
       analysisTools={analysisTools}
+      suppressAnalysisRailLeadingGrip={suppressAnalysisRailLeadingGrip}
     />
   );
 });

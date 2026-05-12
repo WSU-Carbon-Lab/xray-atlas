@@ -1,22 +1,18 @@
 "use client";
 
 import {
-  memo,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type Key as SelectionKey,
 } from "react";
 import { useSession } from "next-auth/react";
-import { createPortal } from "react-dom";
 import { PencilIcon } from "@heroicons/react/24/outline";
-import { Copy, Download, RotateCcw, Save } from "lucide-react";
+import { RotateCcw, Save } from "lucide-react";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import {
-  BUTTON_GROUP_CHILD,
   Button,
   Separator,
   ToggleButton,
@@ -25,7 +21,6 @@ import {
   Tooltip,
   type Key as HeroUiKey,
 } from "@heroui/react";
-import { buttonVariants, cn } from "@heroui/styles";
 import type {
   DifferenceSpectrum,
   GeometryGroup,
@@ -43,8 +38,9 @@ import {
   plotToolbarAttachedShellClass,
   plotToolbarBasisToggleClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
-  plotToolbarGlyphToggleStandaloneClass,
-  plotToolbarIconToolClass,
+  plotToolbarToggleButtonGroupHorizontalShellClass,
+  plotToolbarToggleButtonGroupShellClass,
+  plotToolbarTooltipContentClass,
 } from "~/components/plots/toolbars";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
 import {
@@ -56,9 +52,7 @@ import {
   groupSpectrumByPolarizationThetaPhi,
   mapDbSpectrumRowsToAnnotated,
   mapDbSpectrumRowsToPoints,
-  spectrumPointsToDetailedCsv,
   warmBareAtomCacheForFormula,
-  type SpectrumPolarizationNode,
 } from "~/features/process-nexafs/utils";
 import { defaultNormalizationRangesFromSpectrum } from "~/features/process-nexafs/utils/normalizationDefaults";
 import type {
@@ -85,6 +79,7 @@ import {
   readKkBrowserConsentGranted,
 } from "~/features/kk-calc";
 import { computeDeltaFromBetaKkcalcStyle } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
+import { prepareStrictlyAscendingEnergyBetaForKk } from "~/features/kk-calc/prepare-strictly-ascending-energy-beta-for-kk";
 import { alignKkDeltaToSpectrumEnergyAxis } from "~/features/kk-calc/makima-interpolate";
 import { parseChemicalFormula } from "~/features/kk-calc/kkcalc-stoichiometry";
 import { resolveHenkeKkMergeDomainFromPrePostWindows } from "~/features/kk-calc/resolve-henke-kk-merge-domain";
@@ -94,6 +89,8 @@ import {
 } from "~/lib/nexafs-normalization-ranges";
 import { LoadingSkeleton } from "~/components/feedback/loading-state";
 import { NexafsBrowseGroupedSpectrumTable } from "~/components/nexafs/nexafs-browse-grouped-spectrum-table";
+import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
+import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
 
 interface ExperimentFormulaMeta {
   chemicalFormula?: string | null;
@@ -163,13 +160,6 @@ function NexafsExperimentPlotSkeleton() {
   );
 }
 
-function formatThetaPhiLabel(theta: number | null, phi: number | null): string {
-  const t =
-    theta != null && Number.isFinite(theta) ? `${theta.toFixed(1)}` : "—";
-  const p = phi != null && Number.isFinite(phi) ? `${phi.toFixed(1)}` : "—";
-  return `θ ${t}°, φ ${p}°`;
-}
-
 function geometryGroupToSpectrumPoints(group: GeometryGroup): SpectrumPoint[] {
   return group.energies.map((energy, i) => ({
     energy,
@@ -195,322 +185,6 @@ function toStrictAscendingEnergySpectrumPoints(
   }
   return out;
 }
-
-function fileSuffixForGeometryLeaf(
-  polKey: string,
-  thetaKey: string,
-  phiKey: string,
-): string {
-  const pol =
-    polKey === "__none__"
-      ? "pol-none"
-      : `pol-${polKey.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8)}`;
-  const t =
-    thetaKey === "none" ? "th-x" : `th${thetaKey.replace(/[^0-9.-]/g, "x")}`;
-  const p =
-    phiKey === "none" ? "ph-x" : `ph${phiKey.replace(/[^0-9.-]/g, "x")}`;
-  return `${pol}-${t}-${p}`;
-}
-
-interface SpectrumGeometryCsvRow {
-  id: string;
-  label: string;
-  rowCount: number;
-  points: SpectrumPoint[];
-  fileSuffix: string;
-}
-
-function spectrumGeometryCsvRowsFromTree(
-  tree: SpectrumPolarizationNode[],
-): SpectrumGeometryCsvRow[] {
-  const rows: SpectrumGeometryCsvRow[] = [];
-  for (const node of tree) {
-    for (const t of node.thetaNodes) {
-      for (const leaf of t.phiLeaves) {
-        rows.push({
-          id: `${node.polarizationKey}|${t.thetaKey}|${leaf.phiKey}`,
-          label: formatThetaPhiLabel(t.theta, leaf.phi),
-          rowCount: leaf.points.length,
-          points: leaf.points,
-          fileSuffix: fileSuffixForGeometryLeaf(
-            node.polarizationKey,
-            t.thetaKey,
-            leaf.phiKey,
-          ),
-        });
-      }
-    }
-  }
-  return rows;
-}
-
-const ExperimentSpectrumRailCsvDropdown = memo(
-  function ExperimentSpectrumRailCsvDropdown({
-    kind,
-    disabled,
-    experimentId,
-    sortedAllPoints,
-    groupedTree,
-    [BUTTON_GROUP_CHILD]: _buttonGroupChild,
-  }: {
-    kind: "download" | "copy";
-    disabled: boolean;
-    experimentId: string;
-    sortedAllPoints: SpectrumPoint[];
-    groupedTree: SpectrumPolarizationNode[];
-    [BUTTON_GROUP_CHILD]?: boolean;
-  }) {
-    const [open, setOpen] = useState(false);
-    const triggerRef = useRef<HTMLButtonElement>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
-    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
-
-    const geometryCsvRows = useMemo(
-      () => spectrumGeometryCsvRowsFromTree(groupedTree),
-      [groupedTree],
-    );
-
-    const downloadCsv = useCallback(
-      (points: SpectrumPoint[], filenameBase: string) => {
-        if (points.length === 0) return;
-        const csv = spectrumPointsToDetailedCsv(points);
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${filenameBase}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast("CSV download started", "success");
-      },
-      [],
-    );
-
-    const copyCsv = useCallback((points: SpectrumPoint[]) => {
-      if (points.length === 0) return;
-      const csv = spectrumPointsToDetailedCsv(points);
-      void navigator.clipboard.writeText(csv).then(
-        () => {
-          showToast(`Copied ${points.length} rows as CSV`, "success");
-        },
-        () => {
-          showToast("Could not copy to clipboard", "error");
-        },
-      );
-    }, []);
-
-    const expBase = useMemo(
-      () => `nexafs-experiment-${experimentId.slice(0, 8)}`,
-      [experimentId],
-    );
-
-    const updateMenuPosition = useCallback(() => {
-      const el = triggerRef.current;
-      if (!el || typeof window === "undefined") return;
-      const r = el.getBoundingClientRect();
-      const margin = 8;
-      const menuWidth = Math.min(352, window.innerWidth - margin * 2);
-      let left = r.left;
-      if (left + menuWidth > window.innerWidth - margin) {
-        left = Math.max(margin, window.innerWidth - menuWidth - margin);
-      }
-      setMenuPos({ top: r.bottom + margin, left });
-    }, []);
-
-    useLayoutEffect(() => {
-      if (!open) return;
-      updateMenuPosition();
-    }, [open, updateMenuPosition]);
-
-    useEffect(() => {
-      if (!open) return;
-      const onResize = () => updateMenuPosition();
-      window.addEventListener("resize", onResize);
-      return () => window.removeEventListener("resize", onResize);
-    }, [open, updateMenuPosition]);
-
-    useEffect(() => {
-      if (!open) return;
-      const onKey = (e: KeyboardEvent) => {
-        if (e.key === "Escape") setOpen(false);
-      };
-      window.addEventListener("keydown", onKey);
-      return () => window.removeEventListener("keydown", onKey);
-    }, [open]);
-
-    useEffect(() => {
-      if (!open) return;
-      const onDoc = (e: MouseEvent) => {
-        const t = e.target as Node;
-        if (triggerRef.current?.contains(t) || menuRef.current?.contains(t)) {
-          return;
-        }
-        setOpen(false);
-      };
-      document.addEventListener("mousedown", onDoc);
-      return () => document.removeEventListener("mousedown", onDoc);
-    }, [open]);
-
-    const ariaLabel =
-      kind === "download"
-        ? "Download spectrum data"
-        : "Copy spectrum data to clipboard";
-
-    const menuAriaLabel =
-      kind === "download"
-        ? "Choose what to download"
-        : "Choose what to copy";
-
-    const triggerClass = cn(
-      buttonVariants({ variant: "tertiary" }),
-      plotToolbarIconToolClass,
-      kind === "download"
-        ? "!rounded-s-none !rounded-e-none"
-        : "!rounded-s-none !rounded-e-3xl",
-    );
-
-    const runCsvAll = useCallback(() => {
-      if (disabled) return;
-      if (kind === "download") {
-        downloadCsv(sortedAllPoints, expBase);
-      } else {
-        copyCsv(sortedAllPoints);
-      }
-      setOpen(false);
-    }, [copyCsv, disabled, downloadCsv, expBase, kind, sortedAllPoints]);
-
-    const runCsvGeometryLeaf = useCallback(
-      (points: SpectrumPoint[], fileSuffix: string) => {
-        if (disabled || points.length === 0) return;
-        if (kind === "download") {
-          downloadCsv(points, `${expBase}-${fileSuffix}`);
-        } else {
-          copyCsv(points);
-        }
-        setOpen(false);
-      },
-      [copyCsv, disabled, downloadCsv, expBase, kind],
-    );
-
-    const menuShellClass =
-      "border-border bg-surface fixed z-50 max-h-[min(26rem,calc(100vh-2rem))] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border p-2 shadow-2xl ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)] scrollbar-thin";
-
-    const sectionLabelClass =
-      "px-2.5 pb-1.5 pt-2 text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-[var(--text-tertiary)] first:pt-0.5";
-
-    const menuItemClass =
-      "text-foreground hover:bg-default/90 focus-visible:ring-accent flex w-full flex-col items-start gap-0.5 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-45";
-
-    const menuPortal =
-      open &&
-      typeof document !== "undefined" &&
-      createPortal(
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            aria-hidden
-            onClick={() => setOpen(false)}
-          />
-          <div
-            ref={menuRef}
-            role="menu"
-            aria-label={menuAriaLabel}
-            className={menuShellClass}
-            style={{ top: menuPos.top, left: menuPos.left }}
-          >
-            <div className={sectionLabelClass}>Plot image (PNG)</div>
-            <button
-              type="button"
-              disabled
-              role="menuitem"
-              title="Coming soon"
-              className="text-muted bg-[color-mix(in_oklab,var(--surface-2)_55%,transparent)] flex w-full cursor-not-allowed flex-col items-start gap-0.5 rounded-xl border border-[color-mix(in_oklab,var(--border-default)_70%,transparent)] px-3 py-2.5 text-left opacity-75"
-            >
-              <span className="text-sm font-medium">
-                {kind === "download"
-                  ? "Download plot as PNG"
-                  : "Copy plot as PNG"}
-              </span>
-              <span className="text-xs text-[var(--text-tertiary)]">
-                Coming soon
-              </span>
-            </button>
-            <div
-              className="my-2 h-px bg-[color-mix(in_oklab,var(--border-default)_85%,transparent)]"
-              role="separator"
-            />
-            <div className={sectionLabelClass}>All</div>
-            <button
-              type="button"
-              role="menuitem"
-              disabled={disabled}
-              onClick={runCsvAll}
-              className={menuItemClass}
-            >
-              <span className="text-sm font-medium">All polarizations</span>
-              <span className="text-xs tabular-nums text-[var(--text-secondary)]">
-                {sortedAllPoints.length}{" "}
-                {sortedAllPoints.length === 1 ? "row" : "rows"}
-              </span>
-            </button>
-            <div
-              className="my-2 h-px bg-[color-mix(in_oklab,var(--border-default)_85%,transparent)]"
-              role="separator"
-            />
-            <div className={sectionLabelClass}>By geometry</div>
-            <div className="flex flex-col gap-0.5">
-              {geometryCsvRows.map((row) => (
-                <button
-                  key={row.id}
-                  type="button"
-                  role="menuitem"
-                  disabled={disabled}
-                  onClick={() =>
-                    runCsvGeometryLeaf(row.points, row.fileSuffix)
-                  }
-                  className={menuItemClass}
-                >
-                  <span className="font-mono text-sm font-medium tracking-tight">
-                    {row.label}
-                  </span>
-                  <span className="text-xs tabular-nums text-[var(--text-secondary)]">
-                    {row.rowCount} {row.rowCount === 1 ? "row" : "rows"}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </>,
-        document.body,
-      );
-
-    return (
-      <div className="relative inline-flex">
-        <button
-          ref={triggerRef}
-          type="button"
-          disabled={disabled}
-          aria-label={ariaLabel}
-          aria-expanded={open}
-          aria-haspopup="menu"
-          title={kind === "download" ? "Download" : "Copy"}
-          className={triggerClass}
-          onClick={() => {
-            if (disabled) return;
-            setOpen((v) => !v);
-          }}
-        >
-          {kind === "download" ? (
-            <Download className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
-          ) : (
-            <Copy className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
-          )}
-        </button>
-        {menuPortal}
-      </div>
-    );
-  },
-);
 
 function NexafsExperimentTableSkeleton() {
   return (
@@ -721,22 +395,6 @@ export function NexafsExperimentDatasetPanel({
     void runKkRecalc();
   }, [runKkRecalc]);
 
-  /**
-   * Reruns the Kramers Kronig delta pipeline from stored beta after discarding any
-   * transient panel state for the current session. The persisted spectrum row beta
-   * is always the input; this experiment does not maintain editable KK state, so
-   * "reset" reduces to invoking the same recalculate path as {@link onPressRecalculateKk},
-   * honoring the browser consent prompt when it has not yet been granted in this
-   * session.
-   */
-  const onPressResetKk = useCallback(() => {
-    if (!readKkBrowserConsentGranted()) {
-      setKkPanelConsentOpen(true);
-      return;
-    }
-    void runKkRecalc();
-  }, [runKkRecalc]);
-
   const onPanelKkConsentAccept = useCallback(() => {
     grantKkBrowserConsent();
     setKkPanelConsentOpen(false);
@@ -889,23 +547,28 @@ export function NexafsExperimentDatasetPanel({
                   muLike.map((p) => p.energy),
                   bareMu,
                 );
-                const energyEv = betaLike.map((p) => p.energy);
-                const betaArr = betaLike.map((p) => p.absorption);
+                const prepared = prepareStrictlyAscendingEnergyBetaForKk(
+                  betaLike.map((p) => p.energy),
+                  betaLike.map((p) => p.absorption),
+                );
+                if (prepared.energyEv.length < 4) {
+                  return { curve: null, bareMuForBetaPreview: null };
+                }
                 const rawDelta = computeDeltaFromBetaKkcalcStyle({
-                  energyEv,
-                  beta: betaArr,
+                  energyEv: prepared.energyEv,
+                  beta: prepared.beta,
                   stoichiometryFormula: chemicalFormula.trim(),
                   densityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
                   henkeMergeDomain: henkeMergeDomainForKkBeta,
                 });
                 const aligned = alignKkDeltaToSpectrumEnergyAxis(
-                  energyEv,
-                  energyEv,
+                  prepared.energyEv,
+                  prepared.energyEv,
                   rawDelta,
                 );
                 const curve: ReferenceCurve = {
                   label: `Bare atom delta (${geometryTag})`,
-                  points: energyEv.map((energy, i) => ({
+                  points: prepared.energyEv.map((energy, i) => ({
                     energy,
                     absorption: aligned[i]!,
                   })),
@@ -1186,20 +849,11 @@ export function NexafsExperimentDatasetPanel({
       if (!editorNormBareMuPoints?.length) {
         return null;
       }
-      const preCount = sortedAllPoints.filter(
-        (p) => p.energy >= pre[0] && p.energy <= pre[1],
-      ).length;
-      const postCount = sortedAllPoints.filter(
-        (p) => p.energy >= post[0] && p.energy <= post[1],
-      ).length;
-      if (preCount === 0 || postCount === 0) {
-        return null;
-      }
       const massComp = computeNormalizationForExperiment(
         sortedAllPoints,
         editorNormBareMuPoints,
-        preCount,
-        postCount,
+        pre,
+        post,
       );
       if (!massComp?.normalizedPoints.length) {
         return null;
@@ -1491,19 +1145,19 @@ export function NexafsExperimentDatasetPanel({
 
   const plotTopRailDataActions = useMemo(
     () => [
-      <ExperimentSpectrumRailCsvDropdown
+      <NexafsSpectrumRailCsvDropdown
         key="spectrum-rail-download"
         kind="download"
         disabled={spectrumRailCsvMenusDisabled}
-        experimentId={experimentId}
+        filenameBase={`nexafs-experiment-${experimentId.slice(0, 8)}`}
         sortedAllPoints={sortedAllPoints}
         groupedTree={groupedTree}
       />,
-      <ExperimentSpectrumRailCsvDropdown
+      <NexafsSpectrumRailCsvDropdown
         key="spectrum-rail-copy"
         kind="copy"
         disabled={spectrumRailCsvMenusDisabled}
-        experimentId={experimentId}
+        filenameBase={`nexafs-experiment-${experimentId.slice(0, 8)}`}
         sortedAllPoints={sortedAllPoints}
         groupedTree={groupedTree}
       />,
@@ -1579,36 +1233,54 @@ export function NexafsExperimentDatasetPanel({
             aria-label="Edit, save, or reset normalization regions"
             selectionMode="multiple"
             orientation="horizontal"
-            className="overflow-hidden rounded-full"
+            className={plotToolbarToggleButtonGroupHorizontalShellClass}
             selectedKeys={editSaveToolbarSelectedKeys}
             onSelectionChange={handleEditSaveToolbarSelectionChange}
           >
-            <ToggleButton
-              id="edit"
-              isIconOnly
-              aria-label={
-                datasetPlotEditorActive
-                  ? "Close dataset editor"
-                  : "Edit normalization and Kramers Kronig delta"
-              }
-              className={plotToolbarGlyphToggleGroupItemHorizontalClass}
-            >
-              <PencilIcon className="h-5 w-5" aria-hidden />
-            </ToggleButton>
+            <Tooltip delay={0}>
+              <ToggleButton
+                id="edit"
+                isIconOnly
+                aria-label={
+                  datasetPlotEditorActive
+                    ? "Close dataset editor"
+                    : "Edit normalization and Kramers Kronig delta"
+                }
+                className={plotToolbarGlyphToggleGroupItemHorizontalClass}
+              >
+                <PencilIcon className="h-5 w-5" aria-hidden />
+              </ToggleButton>
+              <Tooltip.Content
+                placement="bottom"
+                className={plotToolbarTooltipContentClass}
+              >
+                {datasetPlotEditorActive
+                  ? "Close editor: Leave normalization draft mode without saving."
+                  : "Edit dataset: Adjust beta normalization windows and related metadata."}
+              </Tooltip.Content>
+            </Tooltip>
             {datasetPlotEditorActive ? (
               <>
-                <ToggleButton
-                  id="save"
-                  isIconOnly
-                  aria-label="Save normalization regions"
-                  isDisabled={
-                    !normDraftDirty || updateNormalizationMetadata.isPending
-                  }
-                  className={plotToolbarGlyphToggleGroupItemHorizontalClass}
-                >
-                  <ToggleButtonGroup.Separator />
-                  <Save className="h-5 w-5" aria-hidden />
-                </ToggleButton>
+                <Tooltip delay={0}>
+                  <ToggleButton
+                    id="save"
+                    isIconOnly
+                    aria-label="Save normalization regions"
+                    isDisabled={
+                      !normDraftDirty || updateNormalizationMetadata.isPending
+                    }
+                    className={plotToolbarGlyphToggleGroupItemHorizontalClass}
+                  >
+                    <ToggleButtonGroup.Separator />
+                    <Save className="h-5 w-5" aria-hidden />
+                  </ToggleButton>
+                  <Tooltip.Content
+                    placement="bottom"
+                    className={plotToolbarTooltipContentClass}
+                  >
+                    Save: Write the draft pre/post windows to the experiment record.
+                  </Tooltip.Content>
+                </Tooltip>
                 <Tooltip delay={0}>
                   <ToggleButton
                     id="reset"
@@ -1622,9 +1294,9 @@ export function NexafsExperimentDatasetPanel({
                   </ToggleButton>
                   <Tooltip.Content
                     placement="bottom"
-                    className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
+                    className={plotToolbarTooltipContentClass}
                   >
-                    Restore draft pre/post windows from the spectrum defaults.
+                    Reset draft: Restore default pre-edge and post-edge spans from the spectrum.
                   </Tooltip.Content>
                 </Tooltip>
               </>
@@ -1643,194 +1315,196 @@ export function NexafsExperimentDatasetPanel({
     ],
   );
 
-  const plotLeftRail = useMemo(
-    () => (
-    <div className="pointer-events-auto flex flex-col gap-2">
-      <Toolbar
-        isAttached
-        orientation="vertical"
-        aria-label="Spectrum display tools"
-        className={`${plotToolbarAttachedShellClass} w-fit`}
-      >
-        <ToggleButtonGroup
-          aria-label="Difference spectrum and bare atom reference"
-          selectionMode="multiple"
-          orientation="vertical"
-          className="w-full overflow-hidden rounded-full"
-          selectedKeys={diffBareSelectedKeys}
-          onSelectionChange={handleDiffBareSelectionChange}
-        >
-          <ToggleButton
-            isIconOnly
-            aria-label="Difference spectrum between geometries"
-            id="difference"
-            className={plotToolbarBasisToggleClass}
-          >
-            <span className="text-xs font-semibold" aria-hidden>
-              &#x0394;
-            </span>
-          </ToggleButton>
-          <ToggleButton
-            isIconOnly
-            aria-label={
-              model.dataView === "od"
-                ? "Bare atom overlay (not available in optical density view)"
-                : chemicalFormula
-                  ? model.dataView === "delta"
-                    ? "Bare atom delta reference (KK from Henke beta on this grid)"
-                    : "Bare atom reference curve on this energy grid"
-                  : "Bare atom overlay (no chemical formula on linked molecule)"
-            }
-            id="bare-atom"
-            isDisabled={
-              !chemicalFormula ||
-              model.dataView === "od" ||
-              (model.dataView === "delta" && !model.deltaAvailable) ||
-              moleculeFormulaQuery.isLoading
-            }
-            className={plotToolbarBasisToggleClass}
-          >
-            <ToggleButtonGroup.Separator />
-            <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
-          </ToggleButton>
-        </ToggleButtonGroup>
-
-        <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
-
-        <ToggleButtonGroup
-          aria-label="Data view basis"
-          selectionMode="single"
-          orientation="vertical"
-          className="w-full overflow-hidden rounded-full"
-          selectedKeys={new Set([overlaySelectedKey])}
-          onSelectionChange={(keys) => {
-            const next = keys.values().next().value as string | undefined;
-            if (next === "od") model.setDataView("od");
-            else if (next === "absorption") model.setDataView("absorption");
-            else if (next === "beta") model.setDataView("beta");
-            else if (next === "delta") model.setDataView("delta");
-          }}
-        >
-          <ToggleButton
-            isIconOnly
-            aria-label="Optical density"
-            id="od"
-            isDisabled={!model.odAvailable}
-            className={plotToolbarBasisToggleClass}
-          >
-            <span className="text-xs font-semibold">OD</span>
-          </ToggleButton>
-          <ToggleButton
-            isIconOnly
-            aria-label="Mass absorption coefficient"
-            id="absorption"
-            isDisabled={!model.absorptionAvailable}
-            className={plotToolbarBasisToggleClass}
-          >
-            <ToggleButtonGroup.Separator />
-            <span className="text-sm font-semibold" aria-hidden>
-              &#x00B5;
-            </span>
-          </ToggleButton>
-          <ToggleButton
-            isIconOnly
-            aria-label="Beta index of refraction"
-            id="beta"
-            isDisabled={!model.betaAvailable}
-            className={plotToolbarBasisToggleClass}
-          >
-            <ToggleButtonGroup.Separator />
-            <span className="text-sm font-semibold" aria-hidden>
-              &#x03B2;
-            </span>
-          </ToggleButton>
-          <ToggleButton
-            isIconOnly
-            aria-label="Delta refractive decrement from stored values"
-            id="delta"
-            isDisabled={!model.deltaAvailable}
-            className={plotToolbarBasisToggleClass}
-          >
-            <ToggleButtonGroup.Separator />
-            <span className="text-sm font-semibold" aria-hidden>
-              &#x03B4;
-            </span>
-          </ToggleButton>
-        </ToggleButtonGroup>
-      </Toolbar>
-      {datasetPlotEditorActive ? (
-        <PlotSpectrumToolsToolbarSection
-          peakToolsEnabled={false}
-          normalizationRegionResetInRail={false}
-          isNormalizationMode={isPlotNormalizationMode}
-          onNormalizationModeChange={handlePlotNormalizationMode}
-          activeEdge={normalizationSelectionTarget ?? "pre"}
-          onActiveEdgeChange={(edge) => setNormalizationSelectionTarget(edge)}
-          onResetToDefaultRegions={handleResetDraftNormRegions}
-          normalizationLocked={false}
-          hasData={sortedAllPoints.length > 0}
-          isPeakSetMode={false}
-          onPeakSetModeChange={() => undefined}
-          peakCount={0}
-          onAutoDetectPeaks={() => undefined}
-          onResetAllPeaks={() => undefined}
-        />
-      ) : null}
-      {datasetPlotEditorActive &&
-      kkRecalcAllowed &&
-      showBetaCol &&
-      !pointsQuery.isLoading ? (
+  const plotLeftRail = useMemo(() => {
+    const browseBareAtomToggleDisabled =
+      !chemicalFormula ||
+      model.dataView === "od" ||
+      (model.dataView === "delta" && !model.deltaAvailable) ||
+      moleculeFormulaQuery.isLoading;
+    return (
+      <div className="pointer-events-auto flex flex-col gap-2">
         <Toolbar
           isAttached
           orientation="vertical"
-          aria-label="Kramers Kronig delta tools"
-          className={`${plotToolbarAttachedShellClass} flex w-fit flex-col gap-2`}
+          aria-label="Spectrum display tools"
+          className={`${plotToolbarAttachedShellClass} w-fit`}
         >
-          <Tooltip delay={0}>
-            <Button
-              type="button"
-              aria-label="Recalculate Kramers Kronig delta from stored beta"
-              variant="secondary"
-              isDisabled={kkRecalcBusy || updateKkDeltaBatch.isPending}
-              onPress={onPressRecalculateKk}
-              className={`${plotToolbarGlyphToggleStandaloneClass} text-xs font-semibold`}
-            >
-              KK
-            </Button>
-            <Tooltip.Content
-              placement="right"
-              className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
-            >
-              Recompute delta from stored beta in your browser (session
-              consent required once), then persist for this experiment when
-              permitted.
-            </Tooltip.Content>
-          </Tooltip>
-          <Tooltip delay={0}>
-            <Button
-              type="button"
-              isIconOnly
-              aria-label="Reset Kramers Kronig delta and redo calculation"
-              variant="secondary"
-              isDisabled={kkRecalcBusy || updateKkDeltaBatch.isPending}
-              onPress={onPressResetKk}
-              className={plotToolbarGlyphToggleStandaloneClass}
-            >
-              <RotateCcw className="h-4 w-4" aria-hidden />
-            </Button>
-            <Tooltip.Content
-              placement="right"
-              className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg"
-            >
-              Discard any transient KK state for this session and rerun the
-              same Kramers Kronig pipeline from stored beta.
-            </Tooltip.Content>
-          </Tooltip>
+          <ToggleButtonGroup
+            aria-label="Difference spectrum and bare atom reference"
+            selectionMode="multiple"
+            orientation="vertical"
+            className={plotToolbarToggleButtonGroupShellClass}
+            selectedKeys={diffBareSelectedKeys}
+            onSelectionChange={handleDiffBareSelectionChange}
+          >
+            <Tooltip delay={0}>
+              <ToggleButton
+                isIconOnly
+                aria-label="Difference spectrum between geometries"
+                id="difference"
+                className={plotToolbarBasisToggleClass}
+              >
+                <span className="text-xs font-semibold" aria-hidden>
+                  &#x0394;
+                </span>
+              </ToggleButton>
+              <Tooltip.Content
+                placement="right"
+                shouldFlip
+                className={plotToolbarTooltipContentClass}
+              >
+                Difference: Overlay spectra that subtract one geometry from another.
+              </Tooltip.Content>
+            </Tooltip>
+            <Tooltip delay={0}>
+              <ToggleButton
+                isIconOnly
+                aria-label={
+                  model.dataView === "od"
+                    ? "Bare atom overlay (not available in optical density view)"
+                    : chemicalFormula
+                      ? model.dataView === "delta"
+                        ? "Bare atom delta reference (KK from Henke beta on this grid)"
+                        : "Bare atom reference curve on this energy grid"
+                      : "Bare atom overlay (no chemical formula on linked molecule)"
+                }
+                id="bare-atom"
+                isDisabled={browseBareAtomToggleDisabled}
+                className={plotToolbarBasisToggleClass}
+              >
+                <ToggleButtonGroup.Separator />
+                <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
+              </ToggleButton>
+              <Tooltip.Content
+                placement="right"
+                shouldFlip
+                className={plotToolbarTooltipContentClass}
+              >
+                Bare atom: Show the tabulated bare-atom curve for the same energy grid.
+              </Tooltip.Content>
+            </Tooltip>
+          </ToggleButtonGroup>
+
+          <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
+
+          <ToggleButtonGroup
+            aria-label="Data view basis"
+            selectionMode="single"
+            orientation="vertical"
+            className={plotToolbarToggleButtonGroupShellClass}
+            selectedKeys={new Set([overlaySelectedKey])}
+            onSelectionChange={(keys) => {
+              const next = keys.values().next().value as string | undefined;
+              if (next === "od") model.setDataView("od");
+              else if (next === "absorption") model.setDataView("absorption");
+              else if (next === "beta") model.setDataView("beta");
+              else if (next === "delta") model.setDataView("delta");
+            }}
+          >
+            <Tooltip delay={0}>
+              <ToggleButton
+                isIconOnly
+                aria-label="Optical density"
+                id="od"
+                isDisabled={!model.odAvailable}
+                className={plotToolbarBasisToggleClass}
+              >
+                <span className="text-xs font-semibold">OD</span>
+              </ToggleButton>
+              <Tooltip.Content
+                placement="right"
+                shouldFlip
+                className={plotToolbarTooltipContentClass}
+              >
+                OD: Plot stored optical density when the upload includes it.
+              </Tooltip.Content>
+            </Tooltip>
+            <Tooltip delay={0}>
+              <ToggleButton
+                isIconOnly
+                aria-label="Mass absorption coefficient"
+                id="absorption"
+                isDisabled={!model.absorptionAvailable}
+                className={plotToolbarBasisToggleClass}
+              >
+                <ToggleButtonGroup.Separator />
+                <span className="text-sm font-semibold" aria-hidden>
+                  &#x00B5;
+                </span>
+              </ToggleButton>
+              <Tooltip.Content
+                placement="right"
+                shouldFlip
+                className={plotToolbarTooltipContentClass}
+              >
+                Mu: Plot mass absorption coefficient from the database columns.
+              </Tooltip.Content>
+            </Tooltip>
+            <Tooltip delay={0}>
+              <ToggleButton
+                isIconOnly
+                aria-label="Beta index of refraction"
+                id="beta"
+                isDisabled={!model.betaAvailable}
+                className={plotToolbarBasisToggleClass}
+              >
+                <ToggleButtonGroup.Separator />
+                <span className="text-sm font-semibold" aria-hidden>
+                  &#x03B2;
+                </span>
+              </ToggleButton>
+              <Tooltip.Content
+                placement="right"
+                shouldFlip
+                className={plotToolbarTooltipContentClass}
+              >
+                Beta: Plot stored beta values when the upload includes them.
+              </Tooltip.Content>
+            </Tooltip>
+            <Tooltip delay={0}>
+              <ToggleButton
+                isIconOnly
+                aria-label="Delta refractive decrement from stored values"
+                id="delta"
+                isDisabled={!model.deltaAvailable}
+                className={plotToolbarBasisToggleClass}
+              >
+                <ToggleButtonGroup.Separator />
+                <span className="text-sm font-semibold" aria-hidden>
+                  &#x03B4;
+                </span>
+              </ToggleButton>
+              <Tooltip.Content
+                placement="right"
+                shouldFlip
+                className={plotToolbarTooltipContentClass}
+              >
+                Delta: Plot stored delta values aligned to the spectrum energy axis.
+              </Tooltip.Content>
+            </Tooltip>
+          </ToggleButtonGroup>
         </Toolbar>
-      ) : null}
-    </div>
-    ),
-    [
+        {datasetPlotEditorActive ? (
+          <PlotSpectrumToolsToolbarSection
+            peakToolsEnabled={false}
+            normalizationRegionResetInRail={false}
+            isNormalizationMode={isPlotNormalizationMode}
+            onNormalizationModeChange={handlePlotNormalizationMode}
+            activeEdge={normalizationSelectionTarget ?? "pre"}
+            onActiveEdgeChange={(edge) => setNormalizationSelectionTarget(edge)}
+            onResetToDefaultRegions={handleResetDraftNormRegions}
+            normalizationLocked={false}
+            hasData={sortedAllPoints.length > 0}
+            isPeakSetMode={false}
+            onPeakSetModeChange={() => undefined}
+            peakCount={0}
+            onAutoDetectPeaks={() => undefined}
+            onResetAllPeaks={() => undefined}
+          />
+        ) : null}
+      </div>
+    );
+  }, [
       datasetPlotEditorActive,
       isPlotNormalizationMode,
       normalizationSelectionTarget,
@@ -1843,15 +1517,35 @@ export function NexafsExperimentDatasetPanel({
       chemicalFormula,
       moleculeFormulaQuery.isLoading,
       overlaySelectedKey,
-      kkRecalcAllowed,
-      showBetaCol,
-      pointsQuery.isLoading,
-      kkRecalcBusy,
-      updateKkDeltaBatch.isPending,
-      onPressRecalculateKk,
-      onPressResetKk,
-    ],
-  );
+    ]);
+
+  const plotRightRail = useMemo(() => {
+    if (
+      !datasetPlotEditorActive ||
+      !kkRecalcAllowed ||
+      !showBetaCol ||
+      pointsQuery.isLoading
+    ) {
+      return null;
+    }
+    return (
+      <div className="pointer-events-auto flex flex-col gap-2">
+        <NexafsPlotKkVerticalToolbar
+          visible
+          busy={kkRecalcBusy || updateKkDeltaBatch.isPending}
+          onPressKk={onPressRecalculateKk}
+        />
+      </div>
+    );
+  }, [
+    datasetPlotEditorActive,
+    kkRecalcAllowed,
+    showBetaCol,
+    pointsQuery.isLoading,
+    kkRecalcBusy,
+    updateKkDeltaBatch.isPending,
+    onPressRecalculateKk,
+  ]);
 
   if (!enabled) return null;
 
@@ -1939,6 +1633,8 @@ export function NexafsExperimentDatasetPanel({
               showThetaData={showThetaData}
               showPhiData={showPhiData}
               headerRight={plotLeftRail}
+              headerAnalysis={plotRightRail}
+              suppressAnalysisRailLeadingGrip
               plotTopRailDataActions={plotTopRailDataActions}
               plotTopRailTrailingActions={plotTopRailTrailingActions}
               cursorMode={cursorMode}

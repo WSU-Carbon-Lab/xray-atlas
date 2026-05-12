@@ -105,6 +105,7 @@ export function SpectrumPlotInner({
   headerAnalysis,
   plotTopRailDataActions,
   plotTopRailTrailingActions,
+  suppressAnalysisRailLeadingGrip = false,
   showNormalizationShading = false,
   normalizationEdgeHandlesEnabled = false,
   onNormalizationEdgeEnergyChange,
@@ -633,7 +634,7 @@ export function SpectrumPlotInner({
 
   return (
     <div
-      className="flex min-h-0 w-full flex-col gap-2 overflow-hidden rounded-xl"
+      className="flex min-h-0 w-full flex-col gap-2 overflow-visible rounded-xl"
       style={{ width, height }}
       ref={containerRef}
     >
@@ -992,7 +993,7 @@ export function SpectrumPlotInner({
             position: "absolute",
             left: mainPlot.dimensions.margins.left,
             top: mainPlot.dimensions.margins.top,
-            zIndex: 10,
+            zIndex: 50,
             pointerEvents: "none",
           }}
         >
@@ -1013,6 +1014,7 @@ export function SpectrumPlotInner({
             topRailTrailingExtras={plotTopRailTrailingActions}
             dataViewTabs={headerRight}
             analysisTools={headerAnalysis}
+            suppressAnalysisRailLeadingGrip={suppressAnalysisRailLeadingGrip}
           />
         </div>
       </div>

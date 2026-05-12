@@ -125,7 +125,13 @@
     --z-modal: 500;
     --z-popover: 600;
     --z-tooltip: 700;
-    --z-toast: 800;
+    /*
+     * Plot spectrum rails (HeroUI Tooltip.Content portaled) must sit above in-plot HTML overlays
+     * (e.g. PeakPlotAnnotations z-[19]) while staying below toasts.
+     */
+    --z-plot-tooltip: 9400;
+    /* Toasts must stack above modal (500), popover-menu (650), tooltips (700), and sticky chrome. */
+    --z-toast: 9500;
     --z-max: 9999;
 
     --bg-color: var(--background);
@@ -439,11 +445,20 @@
   /**
    * Semantic z-index utilities (see :root --z-* tokens).
    * Tailwind does not emit these from the CSS variables alone; without these rules,
-   * classes like `z-tooltip` would not apply any stacking level and portaled overlays
+   * classes like `z-tooltip` or `z-toast` would not apply any stacking level and portaled overlays
    * could paint beneath sticky headers (`z-[400]`) or sibling cards.
+   * `z-plot-tooltip` is for spectrum plot rail hints (below toasts, above in-plot overlays).
    */
   .z-tooltip {
     z-index: var(--z-tooltip);
+  }
+
+  .z-plot-tooltip {
+    z-index: var(--z-plot-tooltip);
+  }
+
+  .z-toast {
+    z-index: var(--z-toast);
   }
 
   .z-max {

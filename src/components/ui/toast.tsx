@@ -8,6 +8,13 @@ import {
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 
+/**
+ * Lightweight client-side toast list: owns local queue state via `useToast`,
+ * optional global fan-out via `showToast`, and token-aligned surface styling.
+ * Does not portal; mount near the page root so `position: fixed` is not clipped
+ * by transformed ancestors.
+ */
+
 export type ToastType = "success" | "error" | "warning" | "info";
 
 export interface Toast {
@@ -40,26 +47,27 @@ function ToastItem({ toast, onRemove }: ToastProps) {
   };
 
   const styles = {
-    success:
-      "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200",
-    error:
-      "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200",
-    warning:
-      "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200",
-    info: "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200",
+    success: "border border-success bg-success/10 text-success-foreground",
+    error: "border border-danger bg-danger/10 text-danger-foreground",
+    warning: "border border-warning bg-warning/10 text-warning-foreground",
+    info: "border border-border bg-surface text-foreground",
   };
 
   const Icon = icons[toast.type];
 
   return (
     <div
-      className={`animate-in slide-in-from-bottom-2 flex items-start gap-3 rounded-lg border p-4 shadow-lg transition-all ${styles[toast.type]}`}
+      className={`animate-in slide-in-from-bottom-2 pointer-events-auto flex items-start gap-3 rounded-lg p-4 shadow-lg transition-all ${styles[toast.type]}`}
     >
-      <Icon className="h-5 w-5 shrink-0" />
+      <Icon
+        className={`h-5 w-5 shrink-0 ${toast.type === "info" ? "text-accent" : ""}`}
+        aria-hidden
+      />
       <p className="flex-1 text-sm font-medium">{toast.message}</p>
       <button
+        type="button"
         onClick={() => onRemove(toast.id)}
-        className="shrink-0 rounded p-1 hover:bg-black/10 dark:hover:bg-white/10"
+        className="text-foreground/80 hover:bg-default shrink-0 rounded p-1 transition-colors"
         aria-label="Dismiss"
       >
         <XMarkIcon className="h-4 w-4" />
@@ -68,6 +76,14 @@ function ToastItem({ toast, onRemove }: ToastProps) {
   );
 }
 
+/**
+ * Renders queued toasts in a fixed bottom stack using `--z-toast` so items sit
+ * above modal and in-page overlay layers without intercepting pointer events
+ * on the rest of the viewport.
+ *
+ * @param toasts - Active toast records to display.
+ * @param onRemove - Removes a toast by id when dismissed or after duration.
+ */
 export function ToastContainer({
   toasts,
   onRemove,
@@ -75,8 +91,16 @@ export function ToastContainer({
   toasts: Toast[];
   onRemove: (id: string) => void;
 }) {
+  if (toasts.length === 0) {
+    return null;
+  }
+
   return (
-    <div className="z-toast fixed bottom-4 left-1/2 flex -translate-x-1/2 flex-col gap-2">
+    <div
+      className="pointer-events-none z-toast fixed bottom-4 left-1/2 flex -translate-x-1/2 flex-col gap-2"
+      aria-live="polite"
+      aria-relevant="additions text"
+    >
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
       ))}
@@ -87,6 +111,10 @@ export function ToastContainer({
 let toastIdCounter = 0;
 const toastListeners: Array<(toast: Toast) => void> = [];
 
+/**
+ * Enqueues a toast for every mounted `useToast` listener in the tab; prefer
+ * `useToast().showToast` when only one surface should receive the message.
+ */
 export function showToast(
   message: string,
   type: ToastType = "info",
@@ -101,6 +129,10 @@ export function showToast(
   toastListeners.forEach((listener) => listener(toast));
 }
 
+/**
+ * Holds toast queue state for the calling component tree and subscribes to
+ * global `showToast` broadcasts until unmount.
+ */
 export function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([]);
 

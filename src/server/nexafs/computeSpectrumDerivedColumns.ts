@@ -66,17 +66,11 @@ export async function computeSpectrumDerivedScalarColumns(
   if (barePoints.length === 0) {
     return { od, massabsorption, beta };
   }
-  const preCount = points.filter(
-    (p) => p.energy >= ranges.pre[0] && p.energy <= ranges.pre[1],
-  ).length;
-  const postCount = points.filter(
-    (p) => p.energy >= ranges.post[0] && p.energy <= ranges.post[1],
-  ).length;
   const massComp = computeNormalizationForExperiment(
     points,
     barePoints,
-    preCount,
-    postCount,
+    ranges.pre,
+    ranges.post,
   );
   if (!massComp) {
     return { od, massabsorption, beta };
