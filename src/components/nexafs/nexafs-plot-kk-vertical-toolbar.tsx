@@ -1,11 +1,11 @@
 "use client";
 
-import { Button, Toolbar, Tooltip } from "@heroui/react";
+import { Button, Toolbar } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import {
   plotToolbarAttachedShellClass,
   plotToolbarGlyphToggleGroupItemVerticalClass,
-  plotToolbarTooltipContentClass,
+  PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
 
 /**
@@ -41,7 +41,13 @@ export function NexafsPlotKkVerticalToolbar({
       aria-label="Kramers Kronig delta tools"
       className={`${plotToolbarAttachedShellClass} flex w-fit flex-col gap-2`}
     >
-      <Tooltip delay={0}>
+      <PlotToolbarRichHint
+        title="KK"
+        description="Recompute delta from beta in-browser (consent once). Drafts update locally; experiments may save on the server when permitted."
+        whenDisabledDescription="Wait for the current KK calculation or save to finish."
+        placement="left"
+        disabled={busy}
+      >
         <Button
           type="button"
           variant="tertiary"
@@ -55,14 +61,7 @@ export function NexafsPlotKkVerticalToolbar({
         >
           KK
         </Button>
-        <Tooltip.Content
-          placement="left"
-          className={plotToolbarTooltipContentClass}
-        >
-          KK: Recompute delta from beta in-browser (consent once). Drafts update locally; experiments
-          may save on the server when permitted.
-        </Tooltip.Content>
-      </Tooltip>
+      </PlotToolbarRichHint>
     </Toolbar>
   );
 }

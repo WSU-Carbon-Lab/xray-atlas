@@ -1,5 +1,10 @@
 export { PlotToolRailsDeck } from "./PlotToolRailsDeck";
 export { PlotSpectrumToolsToolbarSection } from "./PlotSpectrumToolsToolbarSection";
+export {
+  PlotToolbarRichHint,
+  type PlotToolbarRichHintPlacement,
+  type PlotToolbarRichHintProps,
+} from "./plot-toolbar-rich-hint";
 export type { PlotSpectrumToolsToolbarSectionProps } from "./PlotSpectrumToolsToolbarSection";
 export {
   plotToolbarAttachedShellClass,

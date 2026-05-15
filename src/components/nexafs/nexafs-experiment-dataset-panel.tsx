@@ -18,7 +18,6 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Toolbar,
-  Tooltip,
   type Key as HeroUiKey,
 } from "@heroui/react";
 import type {
@@ -38,7 +37,7 @@ import {
   plotToolbarAttachedShellClass,
   plotToolbarBasisToggleClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
-  plotToolbarTooltipContentClass,
+  PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
 import {
@@ -1235,7 +1234,17 @@ export function NexafsExperimentDatasetPanel({
             selectedKeys={editSaveToolbarSelectedKeys}
             onSelectionChange={handleEditSaveToolbarSelectionChange}
           >
-            <Tooltip delay={0}>
+            <PlotToolbarRichHint
+              title={
+                datasetPlotEditorActive ? "Close dataset editor" : "Edit dataset"
+              }
+              description={
+                datasetPlotEditorActive
+                  ? "Leave normalization draft mode without saving."
+                  : "Adjust beta normalization windows and related metadata."
+              }
+              placement="bottom"
+            >
               <ToggleButton
                 id="edit"
                 isIconOnly
@@ -1248,18 +1257,22 @@ export function NexafsExperimentDatasetPanel({
               >
                 <PencilIcon className="h-5 w-5" aria-hidden />
               </ToggleButton>
-              <Tooltip.Content
-                placement="bottom"
-                className={plotToolbarTooltipContentClass}
-              >
-                {datasetPlotEditorActive
-                  ? "Close editor: Leave normalization draft mode without saving."
-                  : "Edit dataset: Adjust beta normalization windows and related metadata."}
-              </Tooltip.Content>
-            </Tooltip>
+            </PlotToolbarRichHint>
             {datasetPlotEditorActive ? (
               <>
-                <Tooltip delay={0}>
+                <PlotToolbarRichHint
+                  title="Save"
+                  description="Write the draft pre/post windows to the experiment record."
+                  whenDisabledDescription={
+                    updateNormalizationMetadata.isPending
+                      ? "Wait for the save to finish."
+                      : "Adjust pre- or post-edge windows to enable save."
+                  }
+                  placement="bottom"
+                  disabled={
+                    !normDraftDirty || updateNormalizationMetadata.isPending
+                  }
+                >
                   <ToggleButton
                     id="save"
                     isIconOnly
@@ -1272,14 +1285,18 @@ export function NexafsExperimentDatasetPanel({
                     <ToggleButtonGroup.Separator />
                     <Save className="h-5 w-5" aria-hidden />
                   </ToggleButton>
-                  <Tooltip.Content
-                    placement="bottom"
-                    className={plotToolbarTooltipContentClass}
-                  >
-                    Save: Write the draft pre/post windows to the experiment record.
-                  </Tooltip.Content>
-                </Tooltip>
-                <Tooltip delay={0}>
+                </PlotToolbarRichHint>
+                <PlotToolbarRichHint
+                  title="Reset draft"
+                  description="Restore default pre-edge and post-edge spans from the spectrum."
+                  whenDisabledDescription={
+                    sortedAllPoints.length === 0
+                      ? "Wait for spectrum points to load."
+                      : "Wait for the save to finish."
+                  }
+                  placement="bottom"
+                  disabled={normResetDisabled}
+                >
                   <ToggleButton
                     id="reset"
                     isIconOnly
@@ -1290,13 +1307,7 @@ export function NexafsExperimentDatasetPanel({
                     <ToggleButtonGroup.Separator />
                     <RotateCcw className="h-4 w-4" aria-hidden />
                   </ToggleButton>
-                  <Tooltip.Content
-                    placement="bottom"
-                    className={plotToolbarTooltipContentClass}
-                  >
-                    Reset draft: Restore default pre-edge and post-edge spans from the spectrum.
-                  </Tooltip.Content>
-                </Tooltip>
+                </PlotToolbarRichHint>
               </>
             ) : null}
           </ToggleButtonGroup>
@@ -1309,6 +1320,7 @@ export function NexafsExperimentDatasetPanel({
       handleEditSaveToolbarSelectionChange,
       normDraftDirty,
       normResetDisabled,
+      sortedAllPoints.length,
       updateNormalizationMetadata.isPending,
     ],
   );
@@ -1335,7 +1347,11 @@ export function NexafsExperimentDatasetPanel({
             selectedKeys={diffBareSelectedKeys}
             onSelectionChange={handleDiffBareSelectionChange}
           >
-            <Tooltip delay={0}>
+            <PlotToolbarRichHint
+              title="Difference"
+              description="Overlay spectra that subtract one geometry from another."
+              placement="right"
+            >
               <ToggleButton
                 isIconOnly
                 aria-label="Difference spectrum between geometries"
@@ -1346,14 +1362,22 @@ export function NexafsExperimentDatasetPanel({
                   &#x0394;
                 </span>
               </ToggleButton>
-              <Tooltip.Content
-                placement="right"
-                className={plotToolbarTooltipContentClass}
-              >
-                Difference: Overlay spectra that subtract one geometry from another.
-              </Tooltip.Content>
-            </Tooltip>
-            <Tooltip delay={0}>
+            </PlotToolbarRichHint>
+            <PlotToolbarRichHint
+              title="Bare atom"
+              description="Show the tabulated bare-atom curve for the same energy grid."
+              whenDisabledDescription={
+                moleculeFormulaQuery.isLoading
+                  ? "Loading molecule formula."
+                  : !chemicalFormula
+                    ? "Link a molecule with a chemical formula first."
+                    : model.dataView === "od"
+                      ? "Switch the plot to mu, beta, or delta to compare bare atom."
+                      : "Run KK or upload delta values to enable bare-atom overlay on delta."
+              }
+              placement="right"
+              disabled={browseBareAtomToggleDisabled}
+            >
               <ToggleButton
                 isIconOnly
                 aria-label={
@@ -1372,13 +1396,7 @@ export function NexafsExperimentDatasetPanel({
                 <ToggleButtonGroup.Separator />
                 <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
               </ToggleButton>
-              <Tooltip.Content
-                placement="right"
-                className={plotToolbarTooltipContentClass}
-              >
-                Bare atom: Show the tabulated bare-atom curve for the same energy grid.
-              </Tooltip.Content>
-            </Tooltip>
+            </PlotToolbarRichHint>
           </ToggleButtonGroup>
 
           <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
@@ -1397,7 +1415,13 @@ export function NexafsExperimentDatasetPanel({
               else if (next === "delta") model.setDataView("delta");
             }}
           >
-            <Tooltip delay={0}>
+            <PlotToolbarRichHint
+              title="OD"
+              description="Plot stored optical density when the upload includes it."
+              whenDisabledDescription="This dataset has no stored OD column."
+              placement="right"
+              disabled={!model.odAvailable}
+            >
               <ToggleButton
                 isIconOnly
                 aria-label="Optical density"
@@ -1407,14 +1431,14 @@ export function NexafsExperimentDatasetPanel({
               >
                 <span className="text-xs font-semibold">OD</span>
               </ToggleButton>
-              <Tooltip.Content
-                placement="right"
-                className={plotToolbarTooltipContentClass}
-              >
-                OD: Plot stored optical density when the upload includes it.
-              </Tooltip.Content>
-            </Tooltip>
-            <Tooltip delay={0}>
+            </PlotToolbarRichHint>
+            <PlotToolbarRichHint
+              title="Mu"
+              description="Plot mass absorption coefficient from the database columns."
+              whenDisabledDescription="This dataset has no stored mass-absorption (mu) column."
+              placement="right"
+              disabled={!model.absorptionAvailable}
+            >
               <ToggleButton
                 isIconOnly
                 aria-label="Mass absorption coefficient"
@@ -1427,14 +1451,14 @@ export function NexafsExperimentDatasetPanel({
                   &#x00B5;
                 </span>
               </ToggleButton>
-              <Tooltip.Content
-                placement="right"
-                className={plotToolbarTooltipContentClass}
-              >
-                Mu: Plot mass absorption coefficient from the database columns.
-              </Tooltip.Content>
-            </Tooltip>
-            <Tooltip delay={0}>
+            </PlotToolbarRichHint>
+            <PlotToolbarRichHint
+              title="Beta"
+              description="Plot stored beta values when the upload includes them."
+              whenDisabledDescription="This dataset has no stored beta column."
+              placement="right"
+              disabled={!model.betaAvailable}
+            >
               <ToggleButton
                 isIconOnly
                 aria-label="Beta index of refraction"
@@ -1447,14 +1471,14 @@ export function NexafsExperimentDatasetPanel({
                   &#x03B2;
                 </span>
               </ToggleButton>
-              <Tooltip.Content
-                placement="right"
-                className={plotToolbarTooltipContentClass}
-              >
-                Beta: Plot stored beta values when the upload includes them.
-              </Tooltip.Content>
-            </Tooltip>
-            <Tooltip delay={0}>
+            </PlotToolbarRichHint>
+            <PlotToolbarRichHint
+              title="Delta"
+              description="Plot stored delta values aligned to the spectrum energy axis."
+              whenDisabledDescription="Run KK or upload delta values for this spectrum first."
+              placement="right"
+              disabled={!model.deltaAvailable}
+            >
               <ToggleButton
                 isIconOnly
                 aria-label="Delta refractive decrement from stored values"
@@ -1467,13 +1491,7 @@ export function NexafsExperimentDatasetPanel({
                   &#x03B4;
                 </span>
               </ToggleButton>
-              <Tooltip.Content
-                placement="right"
-                className={plotToolbarTooltipContentClass}
-              >
-                Delta: Plot stored delta values aligned to the spectrum energy axis.
-              </Tooltip.Content>
-            </Tooltip>
+            </PlotToolbarRichHint>
           </ToggleButtonGroup>
         </Toolbar>
         {datasetPlotEditorActive ? (

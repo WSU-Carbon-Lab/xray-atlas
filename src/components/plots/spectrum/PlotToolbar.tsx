@@ -9,9 +9,9 @@ import {
   PencilIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
-import { Button, Tooltip } from "@heroui/react";
+import { Button } from "@heroui/react";
 import type { ChartThemeColors } from "../config";
-import { plotToolbarTooltipContentClass } from "../toolbars";
+import { PlotToolbarRichHint } from "../toolbars";
 import type { CursorMode } from "./ModeBar";
 
 type PlotToolbarProps = {
@@ -26,25 +26,30 @@ const MODES: {
   mode: CursorMode;
   icon: ComponentType<{ className?: string }>;
   ariaLabel: string;
-  tooltip: string;
+  hintTitle: string;
+  hintDescription: string;
 }[] = [
   {
     mode: "select",
     icon: CursorArrowRaysIcon,
     ariaLabel: "Select normalization region",
-    tooltip: "Select region: Drag on the plot to choose the normalization energy window.",
+    hintTitle: "Select region",
+    hintDescription:
+      "Drag on the plot to choose the normalization energy window.",
   },
   {
     mode: "peak",
     icon: PencilIcon,
     ariaLabel: "Edit peaks on plot",
-    tooltip: "Edit peaks: Click the plot to add peaks or select a peak to adjust.",
+    hintTitle: "Edit peaks",
+    hintDescription: "Click the plot to add peaks or select a peak to adjust.",
   },
   {
     mode: "inspect",
     icon: EyeIcon,
     ariaLabel: "Inspect spectrum values",
-    tooltip: "Inspect values: Hover the spectrum to read coordinates and values.",
+    hintTitle: "Inspect values",
+    hintDescription: "Hover the spectrum to read coordinates and values.",
   },
 ];
 
@@ -61,7 +66,7 @@ export const PlotToolbar = memo(function PlotToolbar({
       role="toolbar"
       aria-label="Plot tools"
     >
-      <Tooltip delay={0}>
+      <PlotToolbarRichHint title="Pan" description="Drag horizontally after zooming in.">
         <Button
           variant={currentMode === "pan" ? "primary" : "ghost"}
           isIconOnly
@@ -74,11 +79,11 @@ export const PlotToolbar = memo(function PlotToolbar({
         >
           <HandRaisedIcon className="h-5 w-5" />
         </Button>
-        <Tooltip.Content className={plotToolbarTooltipContentClass}>
-          Pan plot: Drag horizontally after zooming in.
-        </Tooltip.Content>
-      </Tooltip>
-      <Tooltip delay={0}>
+      </PlotToolbarRichHint>
+      <PlotToolbarRichHint
+        title="Zoom in"
+        description="Narrow the energy window around the plot center."
+      >
         <Button
           variant="ghost"
           isIconOnly
@@ -90,11 +95,11 @@ export const PlotToolbar = memo(function PlotToolbar({
         >
           <MagnifyingGlassPlusIcon className="h-5 w-5" />
         </Button>
-        <Tooltip.Content className={plotToolbarTooltipContentClass}>
-          Zoom in: Narrow the energy window around the plot center.
-        </Tooltip.Content>
-      </Tooltip>
-      <Tooltip delay={0}>
+      </PlotToolbarRichHint>
+      <PlotToolbarRichHint
+        title="Zoom out"
+        description="Widen the energy window toward the full range."
+      >
         <Button
           variant="ghost"
           isIconOnly
@@ -106,14 +111,11 @@ export const PlotToolbar = memo(function PlotToolbar({
         >
           <MagnifyingGlassMinusIcon className="h-5 w-5" />
         </Button>
-        <Tooltip.Content className={plotToolbarTooltipContentClass}>
-          Zoom out: Widen the energy window toward the full range.
-        </Tooltip.Content>
-      </Tooltip>
-      {MODES.map(({ mode, icon: Icon, ariaLabel, tooltip }) => {
+      </PlotToolbarRichHint>
+      {MODES.map(({ mode, icon: Icon, ariaLabel, hintTitle, hintDescription }) => {
         const isActive = currentMode === mode;
         return (
-          <Tooltip key={mode} delay={0}>
+          <PlotToolbarRichHint key={mode} title={hintTitle} description={hintDescription}>
             <Button
               variant={isActive ? "primary" : "ghost"}
               isIconOnly
@@ -126,10 +128,7 @@ export const PlotToolbar = memo(function PlotToolbar({
             >
               <Icon className="h-5 w-5" />
             </Button>
-            <Tooltip.Content className={plotToolbarTooltipContentClass}>
-              {tooltip}
-            </Tooltip.Content>
-          </Tooltip>
+          </PlotToolbarRichHint>
         );
       })}
     </div>

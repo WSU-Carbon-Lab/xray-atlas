@@ -40,6 +40,7 @@ import {
   plotToolbarAttachedShellClass,
   plotToolbarBasisToggleClass,
   plotToolbarTooltipContentClass,
+  PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
 import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
@@ -2148,7 +2149,11 @@ export function DatasetContent({
         selectedKeys={diffBareContributionSelectedKeys}
         onSelectionChange={handleDiffBareContributionSelectionChange}
       >
-        <Tooltip delay={0}>
+        <PlotToolbarRichHint
+          title="Difference"
+          description="Overlay spectra that subtract one geometry from another."
+          placement="right"
+        >
           <ToggleButton
             isIconOnly
             aria-label="Difference spectrum between geometries"
@@ -2159,14 +2164,26 @@ export function DatasetContent({
               &#x0394;
             </span>
           </ToggleButton>
-          <Tooltip.Content
-            placement="right"
-            className={plotToolbarTooltipContentClass}
-          >
-            Difference: Overlay spectra that subtract one geometry from another.
-          </Tooltip.Content>
-        </Tooltip>
-        <Tooltip delay={0}>
+        </PlotToolbarRichHint>
+        <PlotToolbarRichHint
+          title="Bare atom"
+          description="Show the tabulated bare-atom curve for the same energy grid."
+          whenDisabledDescription={
+            isCalculatingBareAtom
+              ? "Calculating bare-atom reference."
+              : !selectedMolecule?.chemicalFormula?.trim()
+                ? "Select a molecule with a chemical formula first."
+                : dataView === "od"
+                  ? "Switch the plot to mu, beta, or delta to compare bare atom."
+                  : dataView === "bare-atom"
+                    ? "Bare-atom overlay is already the active view."
+                    : !dataset.bareAtomPoints?.length
+                      ? "Bare-atom reference is not available for this edge yet."
+                      : "Run KK or upload delta values to enable bare-atom overlay on delta."
+          }
+          placement="right"
+          disabled={plotBareAtomToggleDisabled}
+        >
           <ToggleButton
             isIconOnly
             aria-label={
@@ -2185,13 +2202,7 @@ export function DatasetContent({
             <ToggleButtonGroup.Separator />
             <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
           </ToggleButton>
-          <Tooltip.Content
-            placement="right"
-            className={plotToolbarTooltipContentClass}
-          >
-            Bare atom: Show the tabulated bare-atom curve for the same energy grid.
-          </Tooltip.Content>
-        </Tooltip>
+        </PlotToolbarRichHint>
       </ToggleButtonGroup>
       <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
       <ToggleButtonGroup
@@ -2211,7 +2222,11 @@ export function DatasetContent({
           else if (next === "delta") trySetDataView("delta");
         }}
       >
-        <Tooltip delay={0}>
+        <PlotToolbarRichHint
+          title="OD"
+          description="Plot optical density derived from raw intensities."
+          placement="right"
+        >
           <ToggleButton
             isIconOnly
             aria-label="Optical density"
@@ -2220,14 +2235,14 @@ export function DatasetContent({
           >
             <span className="text-xs font-semibold">OD</span>
           </ToggleButton>
-          <Tooltip.Content
-            placement="right"
-            className={plotToolbarTooltipContentClass}
-          >
-            OD: Plot optical density derived from raw intensities.
-          </Tooltip.Content>
-        </Tooltip>
-        <Tooltip delay={0}>
+        </PlotToolbarRichHint>
+        <PlotToolbarRichHint
+          title="Mu"
+          description="Plot mass absorption after edge normalization."
+          whenDisabledDescription="Set pre- and post-edge windows and normalize to enable mu."
+          placement="right"
+          disabled={!absorptionAvailable}
+        >
           <ToggleButton
             isIconOnly
             aria-label="Mass absorption coefficient"
@@ -2240,14 +2255,14 @@ export function DatasetContent({
               &#x00B5;
             </span>
           </ToggleButton>
-          <Tooltip.Content
-            placement="right"
-            className={plotToolbarTooltipContentClass}
-          >
-            Mu: Plot mass absorption after edge normalization.
-          </Tooltip.Content>
-        </Tooltip>
-        <Tooltip delay={0}>
+        </PlotToolbarRichHint>
+        <PlotToolbarRichHint
+          title="Beta"
+          description="Plot the imaginary part of the index from mu and bare-atom data."
+          whenDisabledDescription="Normalize to mu with bare-atom reference to enable beta."
+          placement="right"
+          disabled={!betaAvailable}
+        >
           <ToggleButton
             isIconOnly
             aria-label="Beta index of refraction"
@@ -2260,14 +2275,14 @@ export function DatasetContent({
               &#x03B2;
             </span>
           </ToggleButton>
-          <Tooltip.Content
-            placement="right"
-            className={plotToolbarTooltipContentClass}
-          >
-            Beta: Plot the imaginary part of the index from mu and bare-atom data.
-          </Tooltip.Content>
-        </Tooltip>
-        <Tooltip delay={0}>
+        </PlotToolbarRichHint>
+        <PlotToolbarRichHint
+          title="Delta"
+          description="Plot stored delta values aligned to the current energy axis."
+          whenDisabledDescription="Run KK from the right rail or upload delta values first."
+          placement="right"
+          disabled={!deltaAvailable}
+        >
           <ToggleButton
             isIconOnly
             aria-label="Delta refractive decrement from stored values"
@@ -2280,13 +2295,7 @@ export function DatasetContent({
               &#x03B4;
             </span>
           </ToggleButton>
-          <Tooltip.Content
-            placement="right"
-            className={plotToolbarTooltipContentClass}
-          >
-            Delta: Plot stored delta values aligned to the current energy axis.
-          </Tooltip.Content>
-        </Tooltip>
+        </PlotToolbarRichHint>
       </ToggleButtonGroup>
     </Toolbar>
   );

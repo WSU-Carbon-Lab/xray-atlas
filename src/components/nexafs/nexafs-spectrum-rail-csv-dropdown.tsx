@@ -11,7 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Copy, Download } from "lucide-react";
-import { BUTTON_GROUP_CHILD, Tooltip } from "@heroui/react";
+import { BUTTON_GROUP_CHILD } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
 import type { SpectrumPoint } from "~/components/plots/types";
 import {
@@ -21,7 +21,7 @@ import {
 import { showToast } from "~/components/ui/toast";
 import {
   plotToolbarIconToolClass,
-  plotToolbarTooltipContentClass,
+  PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
 
 /**
@@ -59,6 +59,11 @@ interface SpectrumGeometryCsvRow {
   points: SpectrumPoint[];
   fileSuffix: string;
 }
+
+const SPECTRUM_RAIL_DOWNLOAD_HINT_LINE =
+  "Save spectrum CSV for every geometry or one slice.";
+const SPECTRUM_RAIL_COPY_HINT_LINE =
+  "Copy spectrum CSV for every geometry or one slice.";
 
 function spectrumGeometryCsvRowsFromTree(
   tree: SpectrumPolarizationNode[],
@@ -337,9 +342,28 @@ export const NexafsSpectrumRailCsvDropdown = memo(
         document.body,
       );
 
+    const hintTitle =
+      kind === "download" ? "Download spectrum CSV" : "Copy spectrum CSV";
+    const hintDescription =
+      kind === "download"
+        ? SPECTRUM_RAIL_DOWNLOAD_HINT_LINE
+        : SPECTRUM_RAIL_COPY_HINT_LINE;
+
+    const iconGlyph =
+      kind === "download" ? (
+        <Download className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+      ) : (
+        <Copy className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+      );
+
     return (
       <div className="relative inline-flex">
-        <Tooltip delay={0}>
+        <PlotToolbarRichHint
+          title={hintTitle}
+          description={hintDescription}
+          whenDisabledDescription="Wait for spectrum points to load, or upload a file with measured data."
+          disabled={disabled}
+        >
           <button
             ref={triggerRef}
             type="button"
@@ -353,21 +377,9 @@ export const NexafsSpectrumRailCsvDropdown = memo(
               setOpen((v) => !v);
             }}
           >
-            {kind === "download" ? (
-              <Download className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
-            ) : (
-              <Copy className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
-            )}
+            {iconGlyph}
           </button>
-          <Tooltip.Content
-            placement="bottom"
-            className={plotToolbarTooltipContentClass}
-          >
-            {kind === "download"
-              ? "Download data: Save spectrum CSV for every geometry or one slice."
-              : "Copy data: Copy spectrum CSV for every geometry or one slice."}
-          </Tooltip.Content>
-        </Tooltip>
+        </PlotToolbarRichHint>
         {menuPortal}
       </div>
     );

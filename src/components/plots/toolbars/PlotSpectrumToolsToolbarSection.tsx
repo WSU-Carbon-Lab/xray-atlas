@@ -5,7 +5,6 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Toolbar,
-  Tooltip,
 } from "@heroui/react";
 import {
   ArrowLeftToLine,
@@ -20,8 +19,8 @@ import {
   plotToolbarAttachedShellClass,
   plotToolbarGlyphToggleGroupItemVerticalClass,
   plotToolbarGlyphToggleStandaloneClass,
-  plotToolbarTooltipContentClass,
 } from "./plot-toolbar-chrome";
+import { PlotToolbarRichHint } from "./plot-toolbar-rich-hint";
 
 export type PlotSpectrumToolsToolbarSectionProps = {
   /**
@@ -118,7 +117,12 @@ export function PlotSpectrumToolsToolbarSection({
     >
       {showNorm ? (
         <>
-          <Tooltip delay={0}>
+          <PlotToolbarRichHint
+            title="Normalization"
+            description="Turn on pre-edge and post-edge bands for OD scaling."
+            whenDisabledDescription="Upload or select a spectrum with measured points first."
+            placement="left"
+          >
             <ToggleButton
               isIconOnly
               aria-label="Normalization tools"
@@ -133,13 +137,7 @@ export function PlotSpectrumToolsToolbarSection({
             >
               <Scaling className="h-5 w-5" aria-hidden />
             </ToggleButton>
-            <Tooltip.Content
-              placement="right"
-              className={plotToolbarTooltipContentClass}
-            >
-              Normalization: Turn on pre-edge and post-edge bands for OD scaling.
-            </Tooltip.Content>
-          </Tooltip>
+          </PlotToolbarRichHint>
           {isNormalizationMode ? (
             <>
               <Separator
@@ -155,7 +153,11 @@ export function PlotSpectrumToolsToolbarSection({
                 isDisabled={normalizationLocked}
                 className="w-full rounded-full"
               >
-                <Tooltip delay={0}>
+                <PlotToolbarRichHint
+                  title="Pre-edge"
+                  description="Choose the low-energy window used for normalization."
+                  placement="left"
+                >
                   <ToggleButton
                     id="pre"
                     isIconOnly
@@ -164,14 +166,12 @@ export function PlotSpectrumToolsToolbarSection({
                   >
                     <ArrowLeftToLine className="h-4 w-4" aria-hidden />
                   </ToggleButton>
-                  <Tooltip.Content
-                    placement="right"
-                    className={plotToolbarTooltipContentClass}
-                  >
-                    Pre-edge: Choose the low-energy window used for normalization.
-                  </Tooltip.Content>
-                </Tooltip>
-                <Tooltip delay={0}>
+                </PlotToolbarRichHint>
+                <PlotToolbarRichHint
+                  title="Post-edge"
+                  description="Choose the high-energy window used for normalization."
+                  placement="left"
+                >
                   <ToggleButton
                     id="post"
                     isIconOnly
@@ -181,15 +181,19 @@ export function PlotSpectrumToolsToolbarSection({
                     <ToggleButtonGroup.Separator />
                     <ArrowRightFromLine className="h-4 w-4" aria-hidden />
                   </ToggleButton>
-                  <Tooltip.Content
-                    placement="right"
-                    className={plotToolbarTooltipContentClass}
-                  >
-                    Post-edge: Choose the high-energy window used for normalization.
-                  </Tooltip.Content>
-                </Tooltip>
+                </PlotToolbarRichHint>
                 {normalizationRegionResetInRail ? (
-                  <Tooltip delay={0}>
+                  <PlotToolbarRichHint
+                    title="Reset regions"
+                    description="Restore default pre-edge and post-edge spans."
+                    whenDisabledDescription={
+                      scalingDisabled
+                        ? "Upload or select a spectrum with measured points first."
+                        : "Normalization regions are locked for this dataset."
+                    }
+                    placement="left"
+                    disabled={resetDisabled}
+                  >
                     <ToggleButton
                       id="reset"
                       isIconOnly
@@ -200,13 +204,7 @@ export function PlotSpectrumToolsToolbarSection({
                       <ToggleButtonGroup.Separator />
                       <RotateCcw className="h-4 w-4" aria-hidden />
                     </ToggleButton>
-                    <Tooltip.Content
-                      placement="right"
-                      className={plotToolbarTooltipContentClass}
-                    >
-                      Reset regions: Restore default pre-edge and post-edge spans.
-                    </Tooltip.Content>
-                  </Tooltip>
+                  </PlotToolbarRichHint>
                 ) : null}
               </ToggleButtonGroup>
             </>
@@ -220,7 +218,12 @@ export function PlotSpectrumToolsToolbarSection({
 
       {showPeaks ? (
         <>
-          <Tooltip delay={0}>
+          <PlotToolbarRichHint
+            title="Peak mode"
+            description="Click the plot to add peaks or select peaks to edit."
+            whenDisabledDescription="Upload or select a spectrum with measured points first."
+            placement="left"
+          >
             <ToggleButton
               isIconOnly
               aria-label="Peak set tools"
@@ -235,13 +238,7 @@ export function PlotSpectrumToolsToolbarSection({
             >
               <Mountain className="h-5 w-5" aria-hidden />
             </ToggleButton>
-            <Tooltip.Content
-              placement="right"
-              className={plotToolbarTooltipContentClass}
-            >
-              Peak mode: Click the plot to add peaks or select peaks to edit.
-            </Tooltip.Content>
-          </Tooltip>
+          </PlotToolbarRichHint>
 
           {isPeakSetMode ? (
             <>
@@ -258,7 +255,11 @@ export function PlotSpectrumToolsToolbarSection({
                 isDisabled={peakSubtoolsDisabled}
                 className="w-full rounded-full"
               >
-                <Tooltip delay={0}>
+                <PlotToolbarRichHint
+                  title="Peak pointer"
+                  description="Select a peak marker or click empty space to add one."
+                  placement="left"
+                >
                   <ToggleButton
                     id="pointer"
                     isIconOnly
@@ -267,14 +268,18 @@ export function PlotSpectrumToolsToolbarSection({
                   >
                     <MousePointer2 className="h-4 w-4" aria-hidden />
                   </ToggleButton>
-                  <Tooltip.Content
-                    placement="right"
-                    className={plotToolbarTooltipContentClass}
-                  >
-                    Peak pointer: Select a peak marker or click empty space to add one.
-                  </Tooltip.Content>
-                </Tooltip>
-                <Tooltip delay={0}>
+                </PlotToolbarRichHint>
+                <PlotToolbarRichHint
+                  title="Auto peaks"
+                  description="Run automatic peak picking on the visible trace."
+                  whenDisabledDescription={
+                    peakMasterDisabled
+                      ? "Upload or select a spectrum with measured points first."
+                      : "Turn on peak mode first."
+                  }
+                  placement="left"
+                  disabled={autoDetectDisabled}
+                >
                   <ToggleButton
                     id="auto-detect"
                     isIconOnly
@@ -285,14 +290,20 @@ export function PlotSpectrumToolsToolbarSection({
                     <ToggleButtonGroup.Separator />
                     <Sparkles className="h-4 w-4" aria-hidden />
                   </ToggleButton>
-                  <Tooltip.Content
-                    placement="right"
-                    className={plotToolbarTooltipContentClass}
-                  >
-                    Auto peaks: Run automatic peak picking on the visible trace.
-                  </Tooltip.Content>
-                </Tooltip>
-                <Tooltip delay={0}>
+                </PlotToolbarRichHint>
+                <PlotToolbarRichHint
+                  title="Reset peaks"
+                  description="Remove every peak from this spectrum."
+                  whenDisabledDescription={
+                    peakMasterDisabled
+                      ? "Upload or select a spectrum with measured points first."
+                      : !isPeakSetMode
+                        ? "Turn on peak mode first."
+                        : "Add at least one peak before clearing all peaks."
+                  }
+                  placement="left"
+                  disabled={resetPeaksDisabled}
+                >
                   <ToggleButton
                     id="reset-peaks"
                     isIconOnly
@@ -303,13 +314,7 @@ export function PlotSpectrumToolsToolbarSection({
                     <ToggleButtonGroup.Separator />
                     <RotateCcw className="h-4 w-4" aria-hidden />
                   </ToggleButton>
-                  <Tooltip.Content
-                    placement="right"
-                    className={plotToolbarTooltipContentClass}
-                  >
-                    Reset peaks: Remove every peak from this spectrum.
-                  </Tooltip.Content>
-                </Tooltip>
+                </PlotToolbarRichHint>
               </ToggleButtonGroup>
             </>
           ) : null}
