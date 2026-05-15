@@ -21,8 +21,49 @@ export function resolveHenkeKkMergeDomainFromPrePostWindows(args: {
   const span = henkeCompositionTabulatedSpan(args.composition);
   const preLo = Math.min(args.pre[0], args.pre[1]);
   const postHi = Math.max(args.post[0], args.post[1]);
-  let lo = Math.max(preLo, span.minEv);
-  let hi = Math.min(postHi, span.maxEv);
+  const lo = Math.max(preLo, span.minEv);
+  const hi = Math.min(postHi, span.maxEv);
+  if (!(hi > lo)) {
+    return undefined;
+  }
+  return [lo, hi];
+}
+
+/**
+ * Resolves the Henke tail merge window for bare-atom reference overlays: contributor pre/post
+ * windows when present, otherwise the strict ascending measurement energies for the geometry
+ * (clamped to tabulated Henke coverage).
+ *
+ * @param args.composition Parsed stoichiometry for Henke limits.
+ * @param args.prePostWindows Optional contributor normalization windows for the active basis.
+ * @param args.measuredEnergyEv Strictly ascending energies on which bare-atom β/δ are evaluated (length >= 4).
+ * @returns Merge domain for {@link extendImaginaryAsfWithHenkeTails}, or `undefined` when no valid window exists.
+ */
+export function resolveHenkeKkMergeDomainForBareAtomOverlay(args: {
+  readonly composition: readonly StoichiometryTerm[];
+  readonly prePostWindows: {
+    readonly pre: readonly [number, number];
+    readonly post: readonly [number, number];
+  } | null;
+  readonly measuredEnergyEv: readonly number[];
+}): readonly [number, number] | undefined {
+  if (args.prePostWindows) {
+    const fromWindows = resolveHenkeKkMergeDomainFromPrePostWindows({
+      pre: args.prePostWindows.pre,
+      post: args.prePostWindows.post,
+      composition: args.composition,
+    });
+    if (fromWindows) {
+      return fromWindows;
+    }
+  }
+  const n = args.measuredEnergyEv.length;
+  if (n < 4) {
+    return undefined;
+  }
+  const span = henkeCompositionTabulatedSpan(args.composition);
+  const lo = Math.max(args.measuredEnergyEv[0]!, span.minEv);
+  const hi = Math.min(args.measuredEnergyEv[n - 1]!, span.maxEv);
   if (!(hi > lo)) {
     return undefined;
   }

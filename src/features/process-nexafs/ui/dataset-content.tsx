@@ -84,11 +84,12 @@ import {
 import { trpc } from "~/trpc/client";
 import { useMoleculeSearch } from "~/features/process-nexafs";
 import type { MoleculeSearchResult } from "~/features/process-nexafs";
-import { computeDeltaFromBetaKkcalcStyle } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
-import { prepareStrictlyAscendingEnergyBetaForKk } from "~/features/kk-calc/prepare-strictly-ascending-energy-beta-for-kk";
-import { alignKkDeltaToSpectrumEnergyAxis } from "~/features/kk-calc/makima-interpolate";
+import { buildBareAtomReferenceCurve } from "~/features/process-nexafs/utils/buildBareAtomReferenceCurve";
 import { parseChemicalFormula } from "~/features/kk-calc/kkcalc-stoichiometry";
-import { resolveHenkeKkMergeDomainFromPrePostWindows } from "~/features/kk-calc/resolve-henke-kk-merge-domain";
+import {
+  resolveHenkeKkMergeDomainForBareAtomOverlay,
+  resolveHenkeKkMergeDomainFromPrePostWindows,
+} from "~/features/kk-calc/resolve-henke-kk-merge-domain";
 import {
   parseStoredNormalizationRanges,
   unifiedNormalizationWindowsForBasis,
@@ -1912,94 +1913,62 @@ export function DatasetContent({
       return [];
     }
     const bare = dataset.bareAtomPoints;
-    if (dataView === "absorption") {
-      return [
-        {
-          label: "Bare atom absorption",
-          points: bare.map((p) => ({
-            energy: p.energy,
-            absorption: p.absorption,
-          })),
-          color: "#6b7280",
-          showInLegend: false,
-        },
-      ];
+    const formula = selectedMolecule?.chemicalFormula?.trim();
+    if (!formula) {
+      return [];
     }
-    if (dataView === "beta") {
-      const muLike = bare.map((p) => ({
-        energy: p.energy,
-        absorption: p.absorption,
-      }));
-      const betaLike = computeBetaIndex(
-        muLike,
-        muLike.map((p) => p.energy),
-        bare,
-      );
-      return [
-        {
-          label: "Bare atom beta",
-          points: betaLike.map((p) => ({
-            energy: p.energy,
-            absorption: p.absorption,
-          })),
-          color: "#6b7280",
-          showInLegend: false,
-        },
-      ];
+    const referenceView =
+      dataView === "beta"
+        ? "beta"
+        : dataView === "delta"
+          ? "delta"
+          : "absorption";
+    const targetEnergyEv =
+      referenceView === "delta" && deltaPoints?.length
+        ? deltaPoints.map((p) => p.energy)
+        : undefined;
+    let henkeMerge = henkeMergeDomainUpload;
+    if (referenceView === "delta" && targetEnergyEv && targetEnergyEv.length >= 4) {
+      try {
+        const composition = parseChemicalFormula(formula);
+        const ranges = parseStoredNormalizationRanges(
+          dataset.normalizationRegions,
+        );
+        const win = unifiedNormalizationWindowsForBasis(
+          dataset.normalizationScope,
+          ranges,
+          "beta",
+        );
+        henkeMerge = resolveHenkeKkMergeDomainForBareAtomOverlay({
+          composition,
+          prePostWindows:
+            win?.pre && win.post ? { pre: win.pre, post: win.post } : null,
+          measuredEnergyEv: targetEnergyEv,
+        });
+      } catch {
+        henkeMerge = henkeMergeDomainUpload;
+      }
     }
-    if (dataView === "delta") {
-      if (!deltaPoints?.length || bare.length < 4) {
-        return [];
-      }
-      const formula = selectedMolecule?.chemicalFormula?.trim();
-      if (!formula) {
-        return [];
-      }
-      const muLike = bare.map((p) => ({
-        energy: p.energy,
-        absorption: p.absorption,
-      }));
-      const betaLike = computeBetaIndex(
-        muLike,
-        muLike.map((p) => p.energy),
-        bare,
-      );
-      const prepared = prepareStrictlyAscendingEnergyBetaForKk(
-        betaLike.map((p) => p.energy),
-        betaLike.map((p) => p.absorption),
-      );
-      if (prepared.energyEv.length < 4) {
-        return [];
-      }
-      const rawDelta = computeDeltaFromBetaKkcalcStyle({
-        energyEv: prepared.energyEv,
-        beta: prepared.beta,
-        stoichiometryFormula: formula,
-        densityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
-        henkeMergeDomain: henkeMergeDomainUpload,
-      });
-      const aligned = alignKkDeltaToSpectrumEnergyAxis(
-        prepared.energyEv,
-        prepared.energyEv,
-        rawDelta,
-      );
-      return [
-        {
-          label: "Bare atom delta",
-          points: prepared.energyEv.map((energy, i) => ({
-            energy,
-            absorption: aligned[i]!,
-          })),
-          color: "#6b7280",
-          showInLegend: false,
-        },
-      ];
-    }
-    return [];
+    const curve = buildBareAtomReferenceCurve({
+      bareMu: bare,
+      dataView: referenceView,
+      stoichiometryFormula: formula,
+      label:
+        referenceView === "beta"
+          ? "Bare atom beta"
+          : referenceView === "delta"
+            ? "Bare atom delta"
+            : "Bare atom absorption",
+      targetEnergyEv,
+      henkeMergeDomain: henkeMerge,
+    });
+    return curve ? [curve] : [];
   }, [
     showBareAtomContributionOverlay,
     dataView,
     dataset.bareAtomPoints,
+    dataset.normalizationRegions,
+    dataset.normalizationScope,
     selectedMolecule?.chemicalFormula,
     deltaPoints,
     henkeMergeDomainUpload,
@@ -2166,8 +2135,8 @@ export function DatasetContent({
           </ToggleButton>
         </PlotToolbarRichHint>
         <PlotToolbarRichHint
-          title="Bare atom"
-          description="Show the tabulated bare-atom curve for the same energy grid."
+          title="Bare atom step edge"
+          description="Overlay the tabulated bare-atom step-edge reference on the current energy grid."
           whenDisabledDescription={
             isCalculatingBareAtom
               ? "Calculating bare-atom reference."

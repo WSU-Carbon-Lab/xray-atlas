@@ -156,6 +156,8 @@ export function PlotSpectrumToolsToolbarSection({
                 <PlotToolbarRichHint
                   title="Pre-edge"
                   description="Choose the low-energy window used for normalization."
+                  whenDisabledDescription="Normalization regions are locked for this dataset."
+                  disabled={normalizationLocked}
                   placement="left"
                 >
                   <ToggleButton
@@ -170,6 +172,8 @@ export function PlotSpectrumToolsToolbarSection({
                 <PlotToolbarRichHint
                   title="Post-edge"
                   description="Choose the high-energy window used for normalization."
+                  whenDisabledDescription="Normalization regions are locked for this dataset."
+                  disabled={normalizationLocked}
                   placement="left"
                 >
                   <ToggleButton
@@ -258,6 +262,12 @@ export function PlotSpectrumToolsToolbarSection({
                 <PlotToolbarRichHint
                   title="Peak pointer"
                   description="Select a peak marker or click empty space to add one."
+                  whenDisabledDescription={
+                    peakMasterDisabled
+                      ? "Upload or select a spectrum with measured points first."
+                      : "Turn on peak mode first."
+                  }
+                  disabled={peakSubtoolsDisabled}
                   placement="left"
                 >
                   <ToggleButton

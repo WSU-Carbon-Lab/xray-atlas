@@ -38,6 +38,10 @@ export {
   calculateBareAtomAbsorption,
   warmBareAtomCacheForFormula,
 } from "./bareAtomCalculation";
+export {
+  buildBareAtomReferenceCurve,
+  type BareAtomReferenceDataView,
+} from "./buildBareAtomReferenceCurve";
 export { parseCSVFile } from "./csv";
 export { computeBetaIndex } from "./betaIndex";
 export { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";

@@ -41,6 +41,7 @@ import {
 } from "~/components/plots/toolbars";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
 import {
+  buildBareAtomReferenceCurve,
   calculateBareAtomAbsorption,
   calculateDifferenceSpectra,
   computeBetaIndex,
@@ -75,11 +76,11 @@ import {
   KkBrowserConsentDialog,
   readKkBrowserConsentGranted,
 } from "~/features/kk-calc";
-import { computeDeltaFromBetaKkcalcStyle } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
-import { prepareStrictlyAscendingEnergyBetaForKk } from "~/features/kk-calc/prepare-strictly-ascending-energy-beta-for-kk";
-import { alignKkDeltaToSpectrumEnergyAxis } from "~/features/kk-calc/makima-interpolate";
 import { parseChemicalFormula } from "~/features/kk-calc/kkcalc-stoichiometry";
-import { resolveHenkeKkMergeDomainFromPrePostWindows } from "~/features/kk-calc/resolve-henke-kk-merge-domain";
+import {
+  resolveHenkeKkMergeDomainForBareAtomOverlay,
+  resolveHenkeKkMergeDomainFromPrePostWindows,
+} from "~/features/kk-calc/resolve-henke-kk-merge-domain";
 import {
   parseStoredNormalizationRanges,
   unifiedNormalizationWindowsForBasis,
@@ -422,19 +423,12 @@ export function NexafsExperimentDatasetPanel({
 
   const bareAtomOverlaySourcePoints = useMemo(
     () =>
-      differenceSpectra.length > 0
-        ? []
-        : filterSpectrumPointsForGroupedPlot(
-            model.plotPoints,
-            showThetaData,
-            showPhiData,
-          ),
-    [
-      model.plotPoints,
-      showThetaData,
-      showPhiData,
-      differenceSpectra.length,
-    ],
+      filterSpectrumPointsForGroupedPlot(
+        model.plotPoints,
+        showThetaData,
+        showPhiData,
+      ),
+    [model.plotPoints, showThetaData, showPhiData],
   );
 
   useEffect(() => {
@@ -507,86 +501,64 @@ export function NexafsExperimentDatasetPanel({
                 return { curve: null, bareMuForBetaPreview: null };
               }
               const geometryTag = group.label || "geometry";
-              if (dataView === "beta") {
-                const muLike: SpectrumPoint[] = bareMu.map((p) => ({
-                  energy: p.energy,
-                  absorption: p.absorption,
-                }));
-                const betaLike = computeBetaIndex(
-                  muLike,
-                  muLike.map((p) => p.energy),
-                  bareMu,
-                );
-                const curve: ReferenceCurve = {
-                  label: `Bare atom beta (${geometryTag})`,
-                  points: betaLike.map((p) => ({
-                    energy: p.energy,
-                    absorption: p.absorption,
-                  })),
-                  color: "#6b7280",
-                  showInLegend: false,
-                };
-                return {
-                  curve,
-                  bareMuForBetaPreview: bareMu,
-                };
-              }
-              if (dataView === "delta") {
-                if (strictPts.length < 4) {
-                  return { curve: null, bareMuForBetaPreview: null };
+              const targetEnergyEv = strictPts.map((p) => p.energy);
+              const referenceView =
+                dataView === "beta"
+                  ? "beta"
+                  : dataView === "delta"
+                    ? "delta"
+                    : "absorption";
+              let henkeMerge = henkeMergeDomainForKkBeta;
+              if (referenceView === "delta" && targetEnergyEv.length >= 4) {
+                try {
+                  const composition = parseChemicalFormula(
+                    chemicalFormula.trim(),
+                  );
+                  let rangesRaw: unknown = null;
+                  try {
+                    rangesRaw =
+                      normalizationRangesKeyForKk === "null"
+                        ? null
+                        : (JSON.parse(normalizationRangesKeyForKk) as unknown);
+                  } catch {
+                    rangesRaw = null;
+                  }
+                  const ranges = parseStoredNormalizationRanges(rangesRaw);
+                  const win = unifiedNormalizationWindowsForBasis(
+                    normalizationScopeForKk,
+                    ranges,
+                    "beta",
+                  );
+                  henkeMerge = resolveHenkeKkMergeDomainForBareAtomOverlay({
+                    composition,
+                    prePostWindows:
+                      win?.pre && win.post
+                        ? { pre: win.pre, post: win.post }
+                        : null,
+                    measuredEnergyEv: targetEnergyEv,
+                  });
+                } catch {
+                  henkeMerge = henkeMergeDomainForKkBeta;
                 }
-                const muLike: SpectrumPoint[] = bareMu.map((p) => ({
-                  energy: p.energy,
-                  absorption: p.absorption,
-                }));
-                const betaLike = computeBetaIndex(
-                  muLike,
-                  muLike.map((p) => p.energy),
-                  bareMu,
-                );
-                const prepared = prepareStrictlyAscendingEnergyBetaForKk(
-                  betaLike.map((p) => p.energy),
-                  betaLike.map((p) => p.absorption),
-                );
-                if (prepared.energyEv.length < 4) {
-                  return { curve: null, bareMuForBetaPreview: null };
-                }
-                const rawDelta = computeDeltaFromBetaKkcalcStyle({
-                  energyEv: prepared.energyEv,
-                  beta: prepared.beta,
-                  stoichiometryFormula: chemicalFormula.trim(),
-                  densityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
-                  henkeMergeDomain: henkeMergeDomainForKkBeta,
-                });
-                const aligned = alignKkDeltaToSpectrumEnergyAxis(
-                  prepared.energyEv,
-                  prepared.energyEv,
-                  rawDelta,
-                );
-                const curve: ReferenceCurve = {
-                  label: `Bare atom delta (${geometryTag})`,
-                  points: prepared.energyEv.map((energy, i) => ({
-                    energy,
-                    absorption: aligned[i]!,
-                  })),
-                  color: "#6b7280",
-                  showInLegend: false,
-                };
-                return {
-                  curve,
-                  bareMuForBetaPreview: bareMu,
-                };
               }
-              const curve: ReferenceCurve = {
-                label: `Bare atom absorption (${geometryTag})`,
-                points: bareMu.map((p) => ({
-                  energy: p.energy,
-                  absorption: p.absorption,
-                })),
-                color: "#6b7280",
-                showInLegend: false,
+              const curve = buildBareAtomReferenceCurve({
+                bareMu,
+                dataView: referenceView,
+                stoichiometryFormula: chemicalFormula.trim(),
+                label:
+                  referenceView === "beta"
+                    ? `Bare atom beta (${geometryTag})`
+                    : referenceView === "delta"
+                      ? `Bare atom delta (${geometryTag})`
+                      : `Bare atom absorption (${geometryTag})`,
+                targetEnergyEv:
+                  referenceView === "delta" ? targetEnergyEv : undefined,
+                henkeMergeDomain: henkeMerge,
+              });
+              return {
+                curve,
+                bareMuForBetaPreview: curve ? bareMu : null,
               };
-              return { curve, bareMuForBetaPreview: bareMu };
             } catch {
               return { curve: null, bareMuForBetaPreview: null };
             }
@@ -632,6 +604,8 @@ export function NexafsExperimentDatasetPanel({
     model.deltaPoints,
     bareAtomOverlaySourcePoints,
     henkeMergeDomainForKkBeta,
+    normalizationScopeForKk,
+    normalizationRangesKeyForKk,
   ]);
 
   const plotPeaks = useMemo(
@@ -1329,7 +1303,6 @@ export function NexafsExperimentDatasetPanel({
     const browseBareAtomToggleDisabled =
       !chemicalFormula ||
       model.dataView === "od" ||
-      (model.dataView === "delta" && !model.deltaAvailable) ||
       moleculeFormulaQuery.isLoading;
     return (
       <div className="pointer-events-auto flex flex-col gap-2">
@@ -1364,8 +1337,8 @@ export function NexafsExperimentDatasetPanel({
               </ToggleButton>
             </PlotToolbarRichHint>
             <PlotToolbarRichHint
-              title="Bare atom"
-              description="Show the tabulated bare-atom curve for the same energy grid."
+              title="Bare atom step edge"
+              description="Overlay the tabulated bare-atom step-edge reference on the current energy grid."
               whenDisabledDescription={
                 moleculeFormulaQuery.isLoading
                   ? "Loading molecule formula."
@@ -1373,7 +1346,7 @@ export function NexafsExperimentDatasetPanel({
                     ? "Link a molecule with a chemical formula first."
                     : model.dataView === "od"
                       ? "Switch the plot to mu, beta, or delta to compare bare atom."
-                      : "Run KK or upload delta values to enable bare-atom overlay on delta."
+                      : "Bare-atom overlay is not available in this view."
               }
               placement="right"
               disabled={browseBareAtomToggleDisabled}

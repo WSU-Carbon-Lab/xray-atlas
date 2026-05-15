@@ -10,10 +10,9 @@ import {
   type FocusEvent,
   type MouseEvent,
   type ReactElement,
-  type ReactNode,
   type Ref,
 } from "react";
-import { createPortal } from "react-dom";
+import { createRoot, type Root } from "react-dom/client";
 import { BUTTON_GROUP_CHILD } from "@heroui/react";
 
 /**
@@ -24,6 +23,9 @@ export type PlotToolbarRichHintPlacement = "top" | "bottom" | "left" | "right";
 
 const CLOSE_DELAY_MS = 100;
 const EDGE_GAP_PX = 8;
+
+const DISABLED_INNER_TRIGGER_CLASS =
+  "pointer-events-none flex size-full min-h-0 min-w-0 items-center justify-center border-0 bg-transparent p-0 shadow-none rounded-none opacity-50";
 
 function readAnchorRect(el: HTMLElement | null) {
   if (!el || typeof document === "undefined") {
@@ -116,8 +118,8 @@ export interface PlotToolbarRichHintProps {
 
 /**
  * Wraps one plot-rail control and shows a hover/focus hint in a `document.body` portal at `z-max`.
- * Clones the child (no wrapper element) so HeroUI button groups keep connected segment styling and
- * forwards {@link BUTTON_GROUP_CHILD} to the inner control.
+ * Returns a single trigger element (no fragment siblings) so HeroUI button groups keep connected
+ * segment styling; when disabled, segment classes sit on a hover-capturing shell around the control.
  */
 export function PlotToolbarRichHint({
   title,
@@ -129,6 +131,7 @@ export function PlotToolbarRichHint({
   [BUTTON_GROUP_CHILD]: buttonGroupChild,
 }: PlotToolbarRichHintProps) {
   const anchorRef = useRef<HTMLElement | null>(null);
+  const portalRootRef = useRef<Root | null>(null);
   const [open, setOpen] = useState(false);
   const [anchorBox, setAnchorBox] = useState<{
     left: number;
@@ -138,10 +141,10 @@ export function PlotToolbarRichHint({
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerDisabled = readTriggerDisabled(children, disabledOverride);
-  const hintBody =
-    triggerDisabled && whenDisabledDescription
-      ? whenDisabledDescription
-      : description;
+  const hintBody = triggerDisabled
+    ? (whenDisabledDescription ?? description)
+    : description;
+  const showUnavailableLabel = triggerDisabled;
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -206,7 +209,52 @@ export function PlotToolbarRichHint({
     return () => window.removeEventListener("keydown", onKey);
   }, [clearCloseTimer, open]);
 
+  useLayoutEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const host = document.createElement("div");
+    host.setAttribute("data-plot-toolbar-rich-hint-portal", "");
+    document.body.appendChild(host);
+    portalRootRef.current = createRoot(host);
+    return () => {
+      portalRootRef.current?.unmount();
+      host.remove();
+      portalRootRef.current = null;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const root = portalRootRef.current;
+    if (!root) {
+      return;
+    }
+    if (open && anchorBox) {
+      root.render(
+        <PlotToolbarRichHintPanel
+          anchorBox={anchorBox}
+          title={title}
+          hintBody={hintBody}
+          showUnavailableLabel={showUnavailableLabel}
+          onPointerEnter={openHint}
+          onPointerLeave={scheduleClose}
+        />,
+      );
+    } else {
+      root.render(null);
+    }
+  }, [
+    anchorBox,
+    hintBody,
+    open,
+    openHint,
+    scheduleClose,
+    showUnavailableLabel,
+    title,
+  ]);
+
   const childProps = children.props as {
+    className?: string;
     ref?: Ref<HTMLElement>;
     onMouseEnter?: (event: MouseEvent<HTMLElement>) => void;
     onMouseLeave?: (event: MouseEvent<HTMLElement>) => void;
@@ -214,7 +262,25 @@ export function PlotToolbarRichHint({
     onBlur?: (event: FocusEvent<HTMLElement>) => void;
   };
 
-  const hintedChild = cloneElement(children, {
+  const segmentClassName = childProps.className ?? "";
+
+  if (triggerDisabled) {
+    return (
+      <span
+        ref={mergeRefs(anchorRef)}
+        className={segmentClassName}
+        onMouseEnter={openHint}
+        onMouseLeave={scheduleClose}
+      >
+        {cloneElement(children, {
+          [BUTTON_GROUP_CHILD]: buttonGroupChild,
+          className: DISABLED_INNER_TRIGGER_CLASS,
+        } as Record<string, unknown>)}
+      </span>
+    );
+  }
+
+  return cloneElement(children, {
     [BUTTON_GROUP_CHILD]: buttonGroupChild,
     ref: mergeRefs(anchorRef, childProps.ref),
     onMouseEnter: chainHandlers(
@@ -236,44 +302,20 @@ export function PlotToolbarRichHint({
       childProps.onBlur,
     ),
   } as Record<string, unknown>);
-
-  const portal: ReactNode =
-    open &&
-    anchorBox &&
-    typeof document !== "undefined"
-      ? createPortal(
-          <PlotToolbarRichHintPanel
-            anchorBox={anchorBox}
-            title={title}
-            hintBody={hintBody}
-            triggerDisabled={triggerDisabled}
-            onPointerEnter={openHint}
-            onPointerLeave={scheduleClose}
-          />,
-          document.body,
-        )
-      : null;
-
-  return (
-    <>
-      {hintedChild}
-      {portal}
-    </>
-  );
 }
 
 function PlotToolbarRichHintPanel({
   anchorBox,
   title,
   hintBody,
-  triggerDisabled,
+  showUnavailableLabel,
   onPointerEnter,
   onPointerLeave,
 }: {
   anchorBox: { left: number; top: number; outerClassName: string };
   title: string;
   hintBody: string;
-  triggerDisabled: boolean;
+  showUnavailableLabel: boolean;
   onPointerEnter: () => void;
   onPointerLeave: () => void;
 }) {
@@ -290,7 +332,7 @@ function PlotToolbarRichHintPanel({
         onMouseLeave={onPointerLeave}
       >
         <p className="text-foreground font-semibold leading-snug">{title}</p>
-        {triggerDisabled ? (
+        {showUnavailableLabel ? (
           <p className="text-muted mt-1 text-[0.6875rem] font-semibold uppercase tracking-wide">
             Unavailable
           </p>

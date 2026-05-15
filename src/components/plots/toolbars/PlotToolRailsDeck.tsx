@@ -205,8 +205,9 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               whenDisabledDescription={
                 isCursorDisabled
                   ? "Exit normalization region editing to use plot cursors."
-                  : "Zoom into a region of the plot first."
+                  : "Select the zoom tool and drag a box on the plot to magnify an energy range, then pan."
               }
+              disabled={isCursorDisabled || isPanDisabled}
             >
               <ToggleButton
                 isIconOnly
