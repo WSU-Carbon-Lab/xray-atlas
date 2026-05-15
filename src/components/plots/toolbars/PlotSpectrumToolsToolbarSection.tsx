@@ -20,7 +20,6 @@ import {
   plotToolbarAttachedShellClass,
   plotToolbarGlyphToggleGroupItemVerticalClass,
   plotToolbarGlyphToggleStandaloneClass,
-  plotToolbarToggleButtonGroupShellClass,
   plotToolbarTooltipContentClass,
 } from "./plot-toolbar-chrome";
 
@@ -154,7 +153,7 @@ export function PlotSpectrumToolsToolbarSection({
                 selectedKeys={new Set([activeEdge])}
                 onSelectionChange={handleRegionToolChange}
                 isDisabled={normalizationLocked}
-                className={plotToolbarToggleButtonGroupShellClass}
+                className="w-full rounded-full"
               >
                 <Tooltip delay={0}>
                   <ToggleButton
@@ -257,7 +256,7 @@ export function PlotSpectrumToolsToolbarSection({
                 selectedKeys={new Set(["pointer"])}
                 onSelectionChange={handlePeakSubtoolChange}
                 isDisabled={peakSubtoolsDisabled}
-                className={plotToolbarToggleButtonGroupShellClass}
+                className="w-full rounded-full"
               >
                 <Tooltip delay={0}>
                   <ToggleButton

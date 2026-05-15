@@ -11,8 +11,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Copy, Download } from "lucide-react";
-import { Button, BUTTON_GROUP_CHILD, Tooltip } from "@heroui/react";
-import { cn } from "@heroui/styles";
+import { BUTTON_GROUP_CHILD, Tooltip } from "@heroui/react";
+import { buttonVariants, cn } from "@heroui/styles";
 import type { SpectrumPoint } from "~/components/plots/types";
 import {
   spectrumPointsToDetailedCsv,
@@ -109,7 +109,7 @@ export type NexafsSpectrumRailCsvDropdownProps = {
 };
 
 /**
- * Icon `Button` trigger plus fixed-position menu: offers disabled plot-PNG placeholders, **All polarizations** CSV, and per-geometry CSV slices using `spectrumPointsToDetailedCsv`. Download path creates a blob download; copy path uses `navigator.clipboard.writeText` and toasts outcomes. Uses HeroUI `Button` (not a native `<button>`) as the `Tooltip` trigger so React Aria hover wiring matches the other `ButtonGroup` controls in `PlotToolRailsDeck`.
+ * Icon trigger plus fixed-position menu: offers disabled plot-PNG placeholders, **All polarizations** CSV, and per-geometry CSV slices using `spectrumPointsToDetailedCsv`. Download path creates a blob download; copy path uses `navigator.clipboard.writeText` and toasts outcomes.
  */
 export const NexafsSpectrumRailCsvDropdown = memo(
   function NexafsSpectrumRailCsvDropdown({
@@ -215,6 +215,7 @@ export const NexafsSpectrumRailCsvDropdown = memo(
       kind === "download" ? "Choose what to download" : "Choose what to copy";
 
     const triggerClassName = cn(
+      buttonVariants({ variant: "tertiary" }),
       plotToolbarIconToolClass,
       kind === "download"
         ? "!rounded-s-none !rounded-e-none"
@@ -338,18 +339,16 @@ export const NexafsSpectrumRailCsvDropdown = memo(
 
     return (
       <div className="relative inline-flex">
-        <Tooltip delay={0} closeDelay={100}>
-          <Button
+        <Tooltip delay={0}>
+          <button
             ref={triggerRef}
             type="button"
-            variant="tertiary"
-            isDisabled={disabled}
-            isIconOnly
+            disabled={disabled}
             aria-label={ariaLabel}
             aria-expanded={open}
             aria-haspopup="menu"
             className={triggerClassName}
-            onPress={() => {
+            onClick={() => {
               if (disabled) return;
               setOpen((v) => !v);
             }}
@@ -359,7 +358,7 @@ export const NexafsSpectrumRailCsvDropdown = memo(
             ) : (
               <Copy className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
             )}
-          </Button>
+          </button>
           <Tooltip.Content
             placement="bottom"
             className={plotToolbarTooltipContentClass}

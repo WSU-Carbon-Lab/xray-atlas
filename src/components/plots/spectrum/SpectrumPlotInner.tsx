@@ -993,7 +993,7 @@ export function SpectrumPlotInner({
             position: "absolute",
             left: mainPlot.dimensions.margins.left,
             top: mainPlot.dimensions.margins.top,
-            zIndex: 50,
+            zIndex: 10,
             pointerEvents: "none",
           }}
         >

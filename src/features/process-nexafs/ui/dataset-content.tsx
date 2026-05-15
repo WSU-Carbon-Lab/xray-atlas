@@ -39,7 +39,6 @@ import {
   PlotSpectrumToolsToolbarSection,
   plotToolbarAttachedShellClass,
   plotToolbarBasisToggleClass,
-  plotToolbarToggleButtonGroupShellClass,
   plotToolbarTooltipContentClass,
 } from "~/components/plots/toolbars";
 import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
@@ -2145,7 +2144,7 @@ export function DatasetContent({
         aria-label="Difference spectrum and bare atom reference"
         selectionMode="multiple"
         orientation="vertical"
-        className={plotToolbarToggleButtonGroupShellClass}
+        className="w-full rounded-full"
         selectedKeys={diffBareContributionSelectedKeys}
         onSelectionChange={handleDiffBareContributionSelectionChange}
       >
@@ -2162,7 +2161,6 @@ export function DatasetContent({
           </ToggleButton>
           <Tooltip.Content
             placement="right"
-            shouldFlip
             className={plotToolbarTooltipContentClass}
           >
             Difference: Overlay spectra that subtract one geometry from another.
@@ -2189,7 +2187,6 @@ export function DatasetContent({
           </ToggleButton>
           <Tooltip.Content
             placement="right"
-            shouldFlip
             className={plotToolbarTooltipContentClass}
           >
             Bare atom: Show the tabulated bare-atom curve for the same energy grid.
@@ -2201,7 +2198,7 @@ export function DatasetContent({
         aria-label="Data view basis"
         selectionMode="single"
         orientation="vertical"
-        className={plotToolbarToggleButtonGroupShellClass}
+        className="w-full rounded-full"
         selectedKeys={new Set([overlaySelectedKey])}
         onSelectionChange={(keys) => {
           const next = keys.values().next().value as
@@ -2225,7 +2222,6 @@ export function DatasetContent({
           </ToggleButton>
           <Tooltip.Content
             placement="right"
-            shouldFlip
             className={plotToolbarTooltipContentClass}
           >
             OD: Plot optical density derived from raw intensities.
@@ -2246,7 +2242,6 @@ export function DatasetContent({
           </ToggleButton>
           <Tooltip.Content
             placement="right"
-            shouldFlip
             className={plotToolbarTooltipContentClass}
           >
             Mu: Plot mass absorption after edge normalization.
@@ -2267,7 +2262,6 @@ export function DatasetContent({
           </ToggleButton>
           <Tooltip.Content
             placement="right"
-            shouldFlip
             className={plotToolbarTooltipContentClass}
           >
             Beta: Plot the imaginary part of the index from mu and bare-atom data.
@@ -2288,7 +2282,6 @@ export function DatasetContent({
           </ToggleButton>
           <Tooltip.Content
             placement="right"
-            shouldFlip
             className={plotToolbarTooltipContentClass}
           >
             Delta: Plot stored delta values aligned to the current energy axis.
@@ -2391,7 +2384,7 @@ export function DatasetContent({
           editMode={geometryEditMode}
           onEditModeChange={setGeometryEditMode}
         />
-        <div className="mt-3 flex min-h-0 w-full flex-1 flex-col overflow-x-clip overflow-y-visible">
+        <div className="mt-3 flex min-h-0 w-full flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
             <div
               className={`border-border bg-surface w-full border p-6 shadow-sm ${

@@ -30,7 +30,6 @@ import {
   plotToolbarAttachedShellClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
   plotToolbarIconToolClass,
-  plotToolbarToggleButtonGroupHorizontalShellClass,
   plotToolbarTooltipContentClass,
 } from "./plot-toolbar-chrome";
 
@@ -160,7 +159,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
             aria-label="Cursor interaction mode"
             selectionMode="single"
             orientation="horizontal"
-            className={plotToolbarToggleButtonGroupHorizontalShellClass}
+            className="rounded-full"
             selectedKeys={
               new Set([
                 currentMode === "inspect" ||
@@ -347,9 +346,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           </div>
           {leftRail?.isAvailable ? (
             <div className="pointer-events-none absolute left-3 top-1/2 z-30 -translate-y-1/2">
-              <div className="pointer-events-auto flex flex-col items-center gap-2">
-                {leftRail.render()}
-              </div>
+              {leftRail.render()}
             </div>
           ) : null}
           <div className="pointer-events-auto absolute right-3 top-1/2 z-30 -translate-y-1/2">

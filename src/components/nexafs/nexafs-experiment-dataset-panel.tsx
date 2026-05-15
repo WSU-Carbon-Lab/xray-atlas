@@ -38,8 +38,6 @@ import {
   plotToolbarAttachedShellClass,
   plotToolbarBasisToggleClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
-  plotToolbarToggleButtonGroupHorizontalShellClass,
-  plotToolbarToggleButtonGroupShellClass,
   plotToolbarTooltipContentClass,
 } from "~/components/plots/toolbars";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
@@ -1233,7 +1231,7 @@ export function NexafsExperimentDatasetPanel({
             aria-label="Edit, save, or reset normalization regions"
             selectionMode="multiple"
             orientation="horizontal"
-            className={plotToolbarToggleButtonGroupHorizontalShellClass}
+            className="rounded-full"
             selectedKeys={editSaveToolbarSelectedKeys}
             onSelectionChange={handleEditSaveToolbarSelectionChange}
           >
@@ -1333,7 +1331,7 @@ export function NexafsExperimentDatasetPanel({
             aria-label="Difference spectrum and bare atom reference"
             selectionMode="multiple"
             orientation="vertical"
-            className={plotToolbarToggleButtonGroupShellClass}
+            className="w-full rounded-full"
             selectedKeys={diffBareSelectedKeys}
             onSelectionChange={handleDiffBareSelectionChange}
           >
@@ -1350,7 +1348,6 @@ export function NexafsExperimentDatasetPanel({
               </ToggleButton>
               <Tooltip.Content
                 placement="right"
-                shouldFlip
                 className={plotToolbarTooltipContentClass}
               >
                 Difference: Overlay spectra that subtract one geometry from another.
@@ -1377,7 +1374,6 @@ export function NexafsExperimentDatasetPanel({
               </ToggleButton>
               <Tooltip.Content
                 placement="right"
-                shouldFlip
                 className={plotToolbarTooltipContentClass}
               >
                 Bare atom: Show the tabulated bare-atom curve for the same energy grid.
@@ -1391,7 +1387,7 @@ export function NexafsExperimentDatasetPanel({
             aria-label="Data view basis"
             selectionMode="single"
             orientation="vertical"
-            className={plotToolbarToggleButtonGroupShellClass}
+            className="w-full rounded-full"
             selectedKeys={new Set([overlaySelectedKey])}
             onSelectionChange={(keys) => {
               const next = keys.values().next().value as string | undefined;
@@ -1413,7 +1409,6 @@ export function NexafsExperimentDatasetPanel({
               </ToggleButton>
               <Tooltip.Content
                 placement="right"
-                shouldFlip
                 className={plotToolbarTooltipContentClass}
               >
                 OD: Plot stored optical density when the upload includes it.
@@ -1434,7 +1429,6 @@ export function NexafsExperimentDatasetPanel({
               </ToggleButton>
               <Tooltip.Content
                 placement="right"
-                shouldFlip
                 className={plotToolbarTooltipContentClass}
               >
                 Mu: Plot mass absorption coefficient from the database columns.
@@ -1455,7 +1449,6 @@ export function NexafsExperimentDatasetPanel({
               </ToggleButton>
               <Tooltip.Content
                 placement="right"
-                shouldFlip
                 className={plotToolbarTooltipContentClass}
               >
                 Beta: Plot stored beta values when the upload includes them.
@@ -1476,7 +1469,6 @@ export function NexafsExperimentDatasetPanel({
               </ToggleButton>
               <Tooltip.Content
                 placement="right"
-                shouldFlip
                 className={plotToolbarTooltipContentClass}
               >
                 Delta: Plot stored delta values aligned to the spectrum energy axis.
