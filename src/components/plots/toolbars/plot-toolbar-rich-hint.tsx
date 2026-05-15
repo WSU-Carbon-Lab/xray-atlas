@@ -106,6 +106,14 @@ function readTriggerDisabled(
   return props.isDisabled === true || props.disabled === true;
 }
 
+/** Defers `createRoot` teardown so React 19 does not warn during an in-flight commit. */
+function schedulePortalTeardown(root: Root, host: HTMLDivElement) {
+  queueMicrotask(() => {
+    root.unmount();
+    host.remove();
+  });
+}
+
 export interface PlotToolbarRichHintProps {
   title: string;
   description: string;
@@ -131,6 +139,7 @@ export function PlotToolbarRichHint({
   [BUTTON_GROUP_CHILD]: buttonGroupChild,
 }: PlotToolbarRichHintProps) {
   const anchorRef = useRef<HTMLElement | null>(null);
+  const portalHostRef = useRef<HTMLDivElement | null>(null);
   const portalRootRef = useRef<Root | null>(null);
   const [open, setOpen] = useState(false);
   const [anchorBox, setAnchorBox] = useState<{
@@ -210,39 +219,31 @@ export function PlotToolbarRichHint({
   }, [clearCloseTimer, open]);
 
   useLayoutEffect(() => {
-    if (typeof document === "undefined") {
+    if (typeof document === "undefined" || !open || !anchorBox) {
       return;
     }
-    const host = document.createElement("div");
-    host.setAttribute("data-plot-toolbar-rich-hint-portal", "");
-    document.body.appendChild(host);
-    portalRootRef.current = createRoot(host);
-    return () => {
-      portalRootRef.current?.unmount();
-      host.remove();
-      portalRootRef.current = null;
-    };
-  }, []);
 
-  useLayoutEffect(() => {
-    const root = portalRootRef.current;
-    if (!root) {
-      return;
+    let host = portalHostRef.current;
+    let root = portalRootRef.current;
+    if (!host || !root) {
+      host = document.createElement("div");
+      host.setAttribute("data-plot-toolbar-rich-hint-portal", "");
+      document.body.appendChild(host);
+      root = createRoot(host);
+      portalHostRef.current = host;
+      portalRootRef.current = root;
     }
-    if (open && anchorBox) {
-      root.render(
-        <PlotToolbarRichHintPanel
-          anchorBox={anchorBox}
-          title={title}
-          hintBody={hintBody}
-          showUnavailableLabel={showUnavailableLabel}
-          onPointerEnter={openHint}
-          onPointerLeave={scheduleClose}
-        />,
-      );
-    } else {
-      root.render(null);
-    }
+
+    root.render(
+      <PlotToolbarRichHintPanel
+        anchorBox={anchorBox}
+        title={title}
+        hintBody={hintBody}
+        showUnavailableLabel={showUnavailableLabel}
+        onPointerEnter={openHint}
+        onPointerLeave={scheduleClose}
+      />,
+    );
   }, [
     anchorBox,
     hintBody,
@@ -252,6 +253,33 @@ export function PlotToolbarRichHint({
     showUnavailableLabel,
     title,
   ]);
+
+  useLayoutEffect(() => {
+    if (open) {
+      return;
+    }
+    const root = portalRootRef.current;
+    const host = portalHostRef.current;
+    if (!root || !host) {
+      return;
+    }
+    schedulePortalTeardown(root, host);
+    portalRootRef.current = null;
+    portalHostRef.current = null;
+  }, [open]);
+
+  useEffect(() => {
+    return () => {
+      const root = portalRootRef.current;
+      const host = portalHostRef.current;
+      if (!root || !host) {
+        return;
+      }
+      schedulePortalTeardown(root, host);
+      portalRootRef.current = null;
+      portalHostRef.current = null;
+    };
+  }, []);
 
   const childProps = children.props as {
     className?: string;
