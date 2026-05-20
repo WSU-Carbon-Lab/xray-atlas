@@ -55,6 +55,7 @@ import {
   buildAutoDetectedPeakList,
   buildSpectrumPointsWithDerivedForUpload,
   calculateBareAtomAbsorption,
+  calculateBareAtomDelta,
   calculateDifferenceSpectra,
   computeBetaIndex,
   computeNormalizationForExperiment,
@@ -86,15 +87,16 @@ import { useMoleculeSearch } from "~/features/process-nexafs";
 import type { MoleculeSearchResult } from "~/features/process-nexafs";
 import { buildBareAtomReferenceCurve } from "~/features/process-nexafs/utils/buildBareAtomReferenceCurve";
 import { parseChemicalFormula } from "~/features/kk-calc/kkcalc-stoichiometry";
-import {
-  resolveHenkeKkMergeDomainForBareAtomOverlay,
-  resolveHenkeKkMergeDomainFromPrePostWindows,
-} from "~/features/kk-calc/resolve-henke-kk-merge-domain";
+import { resolveHenkeKkMergeDomainFromPrePostWindows } from "~/features/kk-calc/resolve-henke-kk-merge-domain";
 import {
   parseStoredNormalizationRanges,
   unifiedNormalizationWindowsForBasis,
 } from "~/lib/nexafs-normalization-ranges";
-import type { DatasetState, PeakData } from "~/features/process-nexafs";
+import type {
+  BareAtomPoint,
+  DatasetState,
+  PeakData,
+} from "~/features/process-nexafs";
 import type { CursorMode } from "~/components/plots/visx/CursorModeSelector";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import { showToast } from "~/components/ui/toast";
@@ -944,6 +946,11 @@ export function DatasetContent({
   const [showAddFacilityModal, setShowAddFacilityModal] = useState(false);
   const [isCalculatingBareAtom, setIsCalculatingBareAtom] = useState(false);
   const [bareAtomError, setBareAtomError] = useState<string | null>(null);
+  const [bareAtomDeltaPoints, setBareAtomDeltaPoints] = useState<
+    BareAtomPoint[] | null
+  >(null);
+  const [isCalculatingBareAtomDelta, setIsCalculatingBareAtomDelta] =
+    useState(false);
   const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
     useState<"pre" | "post" | null>(null);
   const [isPlotNormalizationMode, setIsPlotNormalizationMode] = useState(false);
@@ -1569,6 +1576,44 @@ export function DatasetContent({
     return out.length > 0 ? out : null;
   }, [absorptionPlotPoints, dataset.spectrumPoints, deltaAvailable]);
 
+  useEffect(() => {
+    const formula = selectedMolecule?.chemicalFormula?.trim();
+    if (!formula) {
+      setBareAtomDeltaPoints(null);
+      return;
+    }
+    const deltaGrid =
+      deltaPoints && deltaPoints.length >= 2
+        ? deltaPoints
+        : dataset.spectrumPoints;
+    if (deltaGrid.length < 2) {
+      setBareAtomDeltaPoints(null);
+      return;
+    }
+    let cancelled = false;
+    setIsCalculatingBareAtomDelta(true);
+    void calculateBareAtomDelta(formula, deltaGrid)
+      .then((points) => {
+        if (!cancelled) {
+          setBareAtomDeltaPoints(points.length > 0 ? points : null);
+          setIsCalculatingBareAtomDelta(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBareAtomDeltaPoints(null);
+          setIsCalculatingBareAtomDelta(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedMolecule?.chemicalFormula,
+    dataset.spectrumPoints,
+    deltaPoints,
+  ]);
+
   const differenceRootPoints = useMemo<{
     mode: DifferenceRootView;
     points: SpectrumPoint[] | null;
@@ -1923,55 +1968,25 @@ export function DatasetContent({
         : dataView === "delta"
           ? "delta"
           : "absorption";
-    const targetEnergyEv =
-      referenceView === "delta" && deltaPoints?.length
-        ? deltaPoints.map((p) => p.energy)
-        : undefined;
-    let henkeMerge = henkeMergeDomainUpload;
-    if (referenceView === "delta" && targetEnergyEv && targetEnergyEv.length >= 4) {
-      try {
-        const composition = parseChemicalFormula(formula);
-        const ranges = parseStoredNormalizationRanges(
-          dataset.normalizationRegions,
-        );
-        const win = unifiedNormalizationWindowsForBasis(
-          dataset.normalizationScope,
-          ranges,
-          "beta",
-        );
-        henkeMerge = resolveHenkeKkMergeDomainForBareAtomOverlay({
-          composition,
-          prePostWindows:
-            win?.pre && win.post ? { pre: win.pre, post: win.post } : null,
-          measuredEnergyEv: targetEnergyEv,
-        });
-      } catch {
-        henkeMerge = henkeMergeDomainUpload;
-      }
-    }
     const curve = buildBareAtomReferenceCurve({
-      bareMu: bare,
+      bareMu: referenceView === "delta" ? undefined : bare,
+      bareDelta:
+        referenceView === "delta" ? (bareAtomDeltaPoints ?? undefined) : undefined,
       dataView: referenceView,
-      stoichiometryFormula: formula,
       label:
         referenceView === "beta"
           ? "Bare atom beta"
           : referenceView === "delta"
             ? "Bare atom delta"
             : "Bare atom absorption",
-      targetEnergyEv,
-      henkeMergeDomain: henkeMerge,
     });
     return curve ? [curve] : [];
   }, [
     showBareAtomContributionOverlay,
     dataView,
     dataset.bareAtomPoints,
-    dataset.normalizationRegions,
-    dataset.normalizationScope,
+    bareAtomDeltaPoints,
     selectedMolecule?.chemicalFormula,
-    deltaPoints,
-    henkeMergeDomainUpload,
   ]);
 
   const spectrumReferenceCurves = useMemo(
@@ -2099,9 +2114,12 @@ export function DatasetContent({
     !selectedMolecule?.chemicalFormula?.trim() ||
     dataView === "od" ||
     dataView === "bare-atom" ||
-    (dataView === "delta" && !deltaPoints?.length) ||
-    !dataset.bareAtomPoints?.length ||
-    isCalculatingBareAtom;
+    (dataView === "delta" &&
+      (!deltaPoints?.length ||
+        isCalculatingBareAtomDelta ||
+        !bareAtomDeltaPoints?.length)) ||
+    ((dataView === "absorption" || dataView === "beta") &&
+      (!dataset.bareAtomPoints?.length || isCalculatingBareAtom));
 
   const plotDataViewRail = (
     <Toolbar
@@ -2146,9 +2164,15 @@ export function DatasetContent({
                   ? "Switch the plot to mu, beta, or delta to compare bare atom."
                   : dataView === "bare-atom"
                     ? "Bare-atom overlay is already the active view."
-                    : !dataset.bareAtomPoints?.length
-                      ? "Bare-atom reference is not available for this edge yet."
-                      : "Run KK or upload delta values to enable bare-atom overlay on delta."
+                    : dataView === "delta"
+                      ? isCalculatingBareAtomDelta
+                        ? "Computing Henke/CXRO bare-atom delta."
+                        : !bareAtomDeltaPoints?.length
+                          ? "Need stored or computed delta on the spectrum grid."
+                          : "Bare-atom overlay is not available in this view."
+                      : !dataset.bareAtomPoints?.length
+                        ? "Bare-atom reference is not available for this edge yet."
+                        : "Bare-atom overlay is not available in this view."
           }
           placement="right"
           disabled={plotBareAtomToggleDisabled}
@@ -2160,7 +2184,7 @@ export function DatasetContent({
                 ? "Bare atom overlay (not available in optical density view)"
                 : selectedMolecule?.chemicalFormula
                   ? dataView === "delta"
-                    ? "Bare atom delta reference (KK from Henke beta on this grid)"
+                    ? "Bare atom delta reference (Henke/CXRO f1 on this grid)"
                     : "Bare atom reference curve on this energy grid"
                   : "Bare atom overlay (select a molecule with a formula)"
             }

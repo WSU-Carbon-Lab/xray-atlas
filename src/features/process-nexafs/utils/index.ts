@@ -36,6 +36,7 @@ export { calculateDifferenceSpectra } from "./differenceSpectra";
 export type { DifferenceSpectrum } from "./differenceSpectra";
 export {
   calculateBareAtomAbsorption,
+  calculateBareAtomDelta,
   warmBareAtomCacheForFormula,
 } from "./bareAtomCalculation";
 export {

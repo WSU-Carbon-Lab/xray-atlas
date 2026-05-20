@@ -21,11 +21,15 @@ describe("buildBareAtomReferenceCurve", () => {
     absorption: 0.01 + energy * 1e-5,
   }));
 
+  const bareDelta = [281, 289, 297, 303].map((energy) => ({
+    energy,
+    absorption: 1e-4 * energy,
+  }));
+
   it("returns absorption reference on bare mu grid", () => {
     const curve = buildBareAtomReferenceCurve({
       bareMu,
       dataView: "absorption",
-      stoichiometryFormula: "C",
       label: "Bare atom absorption",
     });
     if (!curve) {
@@ -35,20 +39,17 @@ describe("buildBareAtomReferenceCurve", () => {
     expect(curve.label).toBe("Bare atom absorption");
   });
 
-  it("returns delta reference aligned to targetEnergyEv via makima", () => {
-    const targetEnergyEv = [281, 289, 297, 303];
+  it("returns delta reference from precomputed Henke/CXRO delta samples", () => {
     const curve = buildBareAtomReferenceCurve({
-      bareMu,
+      bareDelta,
       dataView: "delta",
-      stoichiometryFormula: "C",
       label: "Bare atom delta",
-      targetEnergyEv,
     });
     if (!curve) {
       throw new Error("expected delta reference curve");
     }
     const energies = curve.points.map((p) => p.energy);
-    expect(energies).toEqual(targetEnergyEv);
+    expect(energies).toEqual(bareDelta.map((p) => p.energy));
     const allFinite = curve.points.every((p) => Number.isFinite(p.absorption));
     expect(allFinite).toBe(true);
   });
