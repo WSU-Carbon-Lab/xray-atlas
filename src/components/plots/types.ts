@@ -17,6 +17,8 @@ export type SpectrumPoint = {
   massabsorptionError?: number;
   beta?: number;
   betaError?: number;
+  delta?: number;
+  deltaError?: number;
 };
 
 export type SpectrumSelection = {
@@ -47,6 +49,15 @@ export type NormalizationRegions = {
   pre: [number, number] | null;
   post: [number, number] | null;
 };
+
+/**
+ * Identifies which normalization window edge is dragged when adjusting pre/post energy ranges on the plot.
+ */
+export type NormalizationRegionEdgeId =
+  | "preMin"
+  | "preMax"
+  | "postMin"
+  | "postMax";
 
 export type PlotContext =
   | { kind: "explore" }
@@ -94,10 +105,16 @@ export type DifferenceSpectrum = {
 
 export type GraphStyle = "line" | "scatter" | "area";
 
+/**
+ * Vertical axis quantity for NEXAFS spectrum plots. `delta` is the real part of
+ * the complex refractive index (Kramers–Kronig decrement) when stored per point;
+ * use only when finite `SpectrumPoint.delta` exists for the active trace.
+ */
 export type SpectrumYAxisQuantity =
   | "optical-density"
   | "mass-absorption"
   | "beta"
+  | "delta"
   | "intensity";
 
 export type SpectrumPlotProps = {
@@ -119,15 +136,31 @@ export type SpectrumPlotProps = {
   onPeakDelete?: (peakId: string) => void;
   onPeakAdd?: (energy: number) => void;
   differenceSpectra?: DifferenceSpectrum[];
+  /**
+   * Optional controls for the **left** vertical plot tool rail (`PlotToolRailsDeck` display rail):
+   * trace basis toggles, difference/bare-atom view, and normalization tooling when applicable.
+   */
   headerRight?: ReactNode;
   /**
-   * Optional controls for the right-hand analysis tool rail (for example bare-atom overlay toggles).
+   * Optional controls for the **right** vertical plot tool rail (`PlotToolRailsDeck` analysis rail),
+   * for example peak editing and Kramers–Kronig actions that should stay off the left rail. Pass
+   * `suppressAnalysisRailLeadingGrip` when this rail should omit the decorative top grip.
    */
   headerAnalysis?: ReactNode;
+  /**
+   * When true, hides the decorative grip control at the top of the right analysis rail
+   * (`PlotToolRailsDeck`) so stacked analysis toolbars (peaks, KK) fill the rail without a dummy
+   * handle. Defaults to false so other plots keep the prior chrome.
+   */
+  suppressAnalysisRailLeadingGrip?: boolean;
   /**
    * Optional icon actions rendered in the top plot rail after Home (for example spectrum CSV download/copy menus). Fragments and arrays are flattened so each control is a direct sibling inside the same `ButtonGroup` as Home (continuous segment styling). When set, the default top-rail plot export shortcut is omitted; callers that still need export UI should include it inside this node or elsewhere.
    */
   plotTopRailDataActions?: ReactNode;
+  /**
+   * Optional controls rendered in the top plot rail to the right of the cursor mode toggle group. Each child becomes a direct sibling inside the rail toolbar, separated from inspect/zoom/pan by a vertical divider. Use for standalone affordances such as a dataset edit toggle that should sit outside the cursor cluster.
+   */
+  plotTopRailTrailingActions?: ReactNode;
   showThetaData?: boolean;
   showPhiData?: boolean;
   selectedGeometry?: { theta?: number; phi?: number } | null;
@@ -135,6 +168,17 @@ export type SpectrumPlotProps = {
    * When true, renders pre/post normalization band shading from `normalizationRegions` without enabling the interactive normalization brush (no `plotContext.kind === "normalize"` required).
    */
   showNormalizationShading?: boolean;
+  /**
+   * When true with `normalizationRegions`, renders draggable axis handles at each pre/post window edge (four handles when both ranges are set). Parents map drag updates back into draft or persisted regions.
+   */
+  normalizationEdgeHandlesEnabled?: boolean;
+  /**
+   * Invoked when the user drags a normalization window edge; energy is rounded to 0.01 eV. Parents enforce ordering within pre/post ranges.
+   */
+  onNormalizationEdgeEnergyChange?: (
+    edge: NormalizationRegionEdgeId,
+    energy: number,
+  ) => void;
   /**
    * Replaces the default empty-state copy when `points` is empty (for example browse/preview surfaces that do not upload CSV here).
    */

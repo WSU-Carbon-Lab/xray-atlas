@@ -170,6 +170,10 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
           if (betav !== undefined) point.beta = betav;
           const betaErr = readOptionalFloat(row, cm.betaError);
           if (betaErr !== undefined) point.betaError = betaErr;
+          const deltav = readOptionalFloat(row, cm.delta);
+          if (deltav !== undefined) point.delta = deltav;
+          const deltaErrv = readOptionalFloat(row, cm.deltaError);
+          if (deltaErrv !== undefined) point.deltaError = deltaErrv;
 
           spectrumPoints.push(point);
         }
@@ -465,7 +469,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       datasets
         .map(
           (d) =>
-            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.columnMappings.i0 ?? ""}:${d.columnMappings.od ?? ""}:${d.columnMappings.massabsorption ?? ""}:${d.columnMappings.beta ?? ""}:${d.columnMappings.rawabsError ?? ""}:${d.columnMappings.odError ?? ""}:${d.columnMappings.massabsorptionError ?? ""}:${d.columnMappings.betaError ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${Array.isArray(d.csvRawData) ? d.csvRawData.length : 0}`,
+            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.columnMappings.i0 ?? ""}:${d.columnMappings.od ?? ""}:${d.columnMappings.massabsorption ?? ""}:${d.columnMappings.beta ?? ""}:${d.columnMappings.delta ?? ""}:${d.columnMappings.deltaError ?? ""}:${d.columnMappings.rawabsError ?? ""}:${d.columnMappings.odError ?? ""}:${d.columnMappings.massabsorptionError ?? ""}:${d.columnMappings.betaError ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${Array.isArray(d.csvRawData) ? d.csvRawData.length : 0}`,
         )
         .join(","),
     [datasets],

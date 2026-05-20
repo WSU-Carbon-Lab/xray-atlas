@@ -14,8 +14,10 @@ type PlotToolRailProps = {
   onResetZoom: () => void;
   onExportClick?: () => void;
   topRailLeadingExtras?: ReactNode;
+  topRailTrailingExtras?: ReactNode;
   dataViewTabs: ReactNode;
   analysisTools?: ReactNode;
+  suppressAnalysisRailLeadingGrip?: boolean;
 };
 
 export const PlotToolRail = memo(function PlotToolRail({
@@ -28,8 +30,10 @@ export const PlotToolRail = memo(function PlotToolRail({
   onResetZoom,
   onExportClick,
   topRailLeadingExtras,
+  topRailTrailingExtras,
   dataViewTabs,
   analysisTools,
+  suppressAnalysisRailLeadingGrip,
 }: PlotToolRailProps) {
   return (
     <PlotToolRailsDeck
@@ -42,8 +46,10 @@ export const PlotToolRail = memo(function PlotToolRail({
       onResetZoom={onResetZoom}
       onExportClick={onExportClick}
       topRailLeadingExtras={topRailLeadingExtras}
+      topRailTrailingExtras={topRailTrailingExtras}
       displayTools={dataViewTabs}
       analysisTools={analysisTools}
+      suppressAnalysisRailLeadingGrip={suppressAnalysisRailLeadingGrip}
     />
   );
 });

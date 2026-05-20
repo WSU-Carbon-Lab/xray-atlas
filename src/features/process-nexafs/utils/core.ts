@@ -161,6 +161,22 @@ export const interpolateBareMu = (
   );
 };
 
+/**
+ * Computes a single affine transform that maps the average pre-edge absorption to `0` and the
+ * average post-edge absorption to `1` using the contributor-selected energy windows.
+ *
+ * Both windows are treated as **inclusive** energy intervals and may be supplied in any order;
+ * the function uses `min(window[0], window[1])` and `max(window[0], window[1])` when filtering.
+ * This is the stable-monitor (zero-one) normalization path used for `od`; for the bare-atom
+ * (mass-absorption / beta) path, use {@link computeNormalizationForExperiment}.
+ *
+ * Returns `null` when `points` is empty, either window is `null`, either window contains zero
+ * spectrum points, or the pre/post averages are equal to within `1e-10` (degenerate transform).
+ *
+ * @param points Spectrum samples; the same `(scale, offset)` is applied to every input row.
+ * @param preRange Inclusive `[energyMin, energyMax]` pre-edge window.
+ * @param postRange Inclusive `[energyMin, energyMax]` post-edge window.
+ */
 export const computeZeroOneNormalization = (
   points: SpectrumPoint[],
   preRange: [number, number] | null,
@@ -170,11 +186,22 @@ export const computeZeroOneNormalization = (
     return null;
   }
 
+  const normalizedPreRange: [number, number] = [
+    Math.min(preRange[0], preRange[1]),
+    Math.max(preRange[0], preRange[1]),
+  ];
+  const normalizedPostRange: [number, number] = [
+    Math.min(postRange[0], postRange[1]),
+    Math.max(postRange[0], postRange[1]),
+  ];
+
   const preEdgePoints = points.filter(
-    (p) => p.energy >= preRange[0] && p.energy <= preRange[1],
+    (p) =>
+      p.energy >= normalizedPreRange[0] && p.energy <= normalizedPreRange[1],
   );
   const postEdgePoints = points.filter(
-    (p) => p.energy >= postRange[0] && p.energy <= postRange[1],
+    (p) =>
+      p.energy >= normalizedPostRange[0] && p.energy <= normalizedPostRange[1],
   );
 
   if (preEdgePoints.length === 0 || postEdgePoints.length === 0) {
@@ -204,44 +231,51 @@ export const computeZeroOneNormalization = (
     normalizedPoints,
     scale,
     offset,
-    preRange,
-    postRange,
+    preRange: normalizedPreRange,
+    postRange: normalizedPostRange,
   };
 };
 
+/**
+ * Fits a per-geometry affine transform (scale, offset) that maps experimental absorption onto
+ * tabulated bare-atom absorption within the contributor-selected pre-edge and post-edge energy
+ * windows.
+ *
+ * Both windows are treated as **inclusive** energy intervals and may be supplied in any order;
+ * the function uses `min(window[0], window[1])` and `max(window[0], window[1])` when filtering.
+ * Points are grouped by `(theta, phi)` so each polarization geometry receives its own linear
+ * fit; the returned aggregate `scale` and `offset` are point-count-weighted averages across
+ * geometries and are intended for telemetry / display, not for re-applying the transform.
+ *
+ * Returns `null` when:
+ *   - `points` is empty;
+ *   - either window is `null`;
+ *   - any geometry group has zero points inside one of the windows; or
+ *   - the per-group linear regression has fewer than two distinct samples.
+ *
+ * @param points Spectrum samples; mutated copy is sorted internally — caller order is preserved.
+ * @param barePoints Bare-atom (or analogous reference) absorption curve, sorted by energy.
+ * @param preRange Inclusive `[energyMin, energyMax]` pre-edge window selected by the contributor.
+ * @param postRange Inclusive `[energyMin, energyMax]` post-edge window selected by the contributor.
+ */
 export const computeNormalizationForExperiment = (
   points: SpectrumPoint[],
   barePoints: BareAtomPoint[],
-  preEdgeCount: number,
-  postEdgeCount: number,
+  preRange: [number, number] | null,
+  postRange: [number, number] | null,
 ): NormalizationComputation | null => {
-  if (points.length === 0) {
+  if (points.length === 0 || !preRange || !postRange) {
     return null;
   }
 
-  const sortedPoints = [...points].sort((a, b) => a.energy - b.energy);
-  const clampedPre = Math.max(0, Math.min(preEdgeCount, sortedPoints.length));
-  const clampedPost = Math.max(0, Math.min(postEdgeCount, sortedPoints.length));
-
-  const preRange: [number, number] | null =
-    clampedPre > 0
-      ? [
-          sortedPoints[0]!.energy,
-          sortedPoints[Math.min(clampedPre - 1, sortedPoints.length - 1)]!
-            .energy,
-        ]
-      : null;
-  const postRange: [number, number] | null =
-    clampedPost > 0
-      ? [
-          sortedPoints[Math.max(sortedPoints.length - clampedPost, 0)]!.energy,
-          sortedPoints[sortedPoints.length - 1]!.energy,
-        ]
-      : null;
-
-  if (!preRange || !postRange) {
-    return null;
-  }
+  const normalizedPreRange: [number, number] = [
+    Math.min(preRange[0], preRange[1]),
+    Math.max(preRange[0], preRange[1]),
+  ];
+  const normalizedPostRange: [number, number] = [
+    Math.min(postRange[0], postRange[1]),
+    Math.max(postRange[0], postRange[1]),
+  ];
 
   type GeometryKey = string;
   const computeNormalizationForGroup = (
@@ -336,8 +370,8 @@ export const computeNormalizationForExperiment = (
   for (const [geometryKey, groupPoints] of geometryGroups.entries()) {
     const normalization = computeNormalizationForGroup(
       groupPoints,
-      preRange,
-      postRange,
+      normalizedPreRange,
+      normalizedPostRange,
     );
     if (normalization) {
       geometryNormalizations.set(geometryKey, normalization);
@@ -384,8 +418,8 @@ export const computeNormalizationForExperiment = (
     normalizedPoints,
     scale: aggregateScale,
     offset: aggregateOffset,
-    preRange,
-    postRange,
+    preRange: normalizedPreRange,
+    postRange: normalizedPostRange,
   };
 };
 

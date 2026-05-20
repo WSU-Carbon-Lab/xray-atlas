@@ -86,6 +86,15 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
           trace.marker?.color ?? trace.line?.color ?? "#666";
         const strokeWidth =
           typeof trace.line?.width === "number" ? trace.line.width : lineWidth;
+        const dashKind = trace.line?.dash;
+        const strokeDasharray =
+          dashKind === "dash"
+            ? "6 4"
+            : dashKind === "dot"
+              ? "2 4"
+              : dashKind === "dashdot"
+                ? "6 2 2 2"
+                : undefined;
         const markerSize =
           typeof trace.marker?.size === "number" ? trace.marker.size : 4;
         const markerOpacity =
@@ -122,6 +131,7 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
                 y={(d) => scales.yScale(d.y)}
                 stroke={color}
                 strokeWidth={strokeWidth}
+                strokeDasharray={strokeDasharray}
                 strokeLinecap={PLOT_CONFIG.line.strokeLinecap}
                 strokeOpacity={0.92}
                 curve={curveLinear}

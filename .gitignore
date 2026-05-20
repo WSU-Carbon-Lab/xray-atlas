@@ -13,6 +13,9 @@
 
 # testing
 /coverage
+tests/kk-calc-validation/.venv
+tests/kk-calc-validation/__pycache__/
+tests/kk-calc-validation/kkcalc/
 
 # database
 /prisma/db.sqlite

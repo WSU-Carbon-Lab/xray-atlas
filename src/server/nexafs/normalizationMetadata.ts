@@ -1,17 +1,20 @@
 import type { SpectrumPoint } from "~/components/plots/types";
+import type {
+  NormalizationRange,
+  NormalizationRanges,
+  NormalizationScope,
+  PerChannelNormalizationRanges,
+  UnifiedNormalizationRanges,
+} from "~/features/process-nexafs/types";
 
 export type UploadedChannel = "rawabs" | "od" | "massabsorption" | "beta";
 
-export type NormalizationScope = "none" | "unified" | "per_channel";
-
-export type NormalizationRange = [number, number] | null;
-
-export type UnifiedNormalizationRanges = {
-  pre: NormalizationRange;
-  post: NormalizationRange;
+export type {
+  NormalizationRange,
+  NormalizationRanges,
+  NormalizationScope,
+  UnifiedNormalizationRanges,
 };
-
-export type NormalizationRanges = UnifiedNormalizationRanges | null;
 
 export type ChannelProvenanceStatus =
   | "uploaded_authoritative"
@@ -50,6 +53,42 @@ export type ExperimentQualityScores = {
   normalizationRangesPresent: boolean;
   aggregateScore: number | null;
 };
+
+function isPerChannelStoredRanges(
+  ranges: NormalizationRanges,
+): ranges is PerChannelNormalizationRanges {
+  return (
+    ranges !== null &&
+    typeof ranges === "object" &&
+    "od" in ranges &&
+    "massabsorption" in ranges &&
+    "beta" in ranges
+  );
+}
+
+/**
+ * Resolves contributor pre/post windows for one scalar channel: under `per_channel` scope returns that
+ * channel's pair; under `unified` / `none` returns the shared unified object when `ranges` is unified-shaped.
+ */
+export function unifiedRangesForUploadedChannel(
+  scope: NormalizationScope,
+  ranges: NormalizationRanges,
+  channel: Exclude<UploadedChannel, "rawabs">,
+): UnifiedNormalizationRanges | null {
+  if (!ranges) {
+    return null;
+  }
+  if (scope === "per_channel" && isPerChannelStoredRanges(ranges)) {
+    if (channel === "od") {
+      return ranges.od;
+    }
+    if (channel === "massabsorption") {
+      return ranges.massabsorption;
+    }
+    return ranges.beta;
+  }
+  return ranges as UnifiedNormalizationRanges;
+}
 
 /**
  * Assigns per-channel provenance for upload and derivation paths.
@@ -174,10 +213,20 @@ function normalizationMeanDeviationForChannel(
   points: SpectrumPoint[],
   ranges: NormalizationRanges,
   key: UploadedChannel,
+  scope: NormalizationScope,
 ): number | null {
-  if (!ranges) return null;
-  const prePts = pointsInRange(points, ranges.pre);
-  const postPts = pointsInRange(points, ranges.post);
+  if (!ranges) {
+    return null;
+  }
+  const unified =
+    key === "rawabs"
+      ? unifiedRangesForUploadedChannel(scope, ranges, "od")
+      : unifiedRangesForUploadedChannel(scope, ranges, key);
+  if (!unified) {
+    return null;
+  }
+  const prePts = pointsInRange(points, unified.pre);
+  const postPts = pointsInRange(points, unified.post);
   const pooled = [
     ...finiteTargetPoints(prePts, key, 0),
     ...finiteTargetPoints(postPts, key, 1),
@@ -207,11 +256,14 @@ function pointsInRange(
 export function buildValidationSummary(args: {
   points: SpectrumPoint[];
   ranges: NormalizationRanges;
+  scope?: NormalizationScope;
   override: { bypass: boolean; reason?: string };
 }): ValidationSummary {
   const warnings: string[] = [];
-  const prePoints = pointsInRange(args.points, args.ranges?.pre ?? null);
-  const postPoints = pointsInRange(args.points, args.ranges?.post ?? null);
+  const scope: NormalizationScope = args.scope ?? "unified";
+  const odWindows = unifiedRangesForUploadedChannel(scope, args.ranges, "od");
+  const prePoints = pointsInRange(args.points, odWindows?.pre ?? null);
+  const postPoints = pointsInRange(args.points, odWindows?.post ?? null);
   const mode =
     prePoints.length > 0 && postPoints.length > 0 ? "ranges" : "single_point";
   if (mode === "single_point") {
@@ -300,14 +352,17 @@ export function buildValidationSummary(args: {
 export function buildQualityScores(args: {
   points: SpectrumPoint[];
   ranges: NormalizationRanges;
+  scope?: NormalizationScope;
   doiPresent: boolean;
 }): ExperimentQualityScores {
+  const scope: NormalizationScope = args.scope ?? "unified";
   const channelComponent = (key: UploadedChannel): QualityScoreComponent => {
     const values = finiteValues(args.points, key);
     const normDistance = normalizationMeanDeviationForChannel(
       args.points,
       args.ranges,
       key,
+      scope,
     );
     return {
       pointSpacing: averageSpacingForChannel(args.points, key),

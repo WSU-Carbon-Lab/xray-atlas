@@ -1,8 +1,16 @@
+/**
+ * Shared Tailwind class strings for spectrum plot toolbars (attached chrome, toggles, tooltip copy styling).
+ */
+
 const plotToolbarToggleSelectedClass =
-  "data-[selected=true]:bg-red-500 data-[selected=true]:text-white data-[selected=true]:[&_svg]:text-white data-[selected=true]:shadow-sm";
+  "data-[selected=true]:bg-(--accent) data-[selected=true]:text-(--accent-foreground) data-[selected=true]:[&_svg]:text-(--accent-foreground) data-[selected=true]:shadow-sm";
 
 const plotToolbarGlyphToggleBase =
   "h-9 w-9 min-w-9 shrink-0 text-(--text-primary) transition-colors data-[hovered=true]:data-[selected=false]:bg-(--surface-3)/60";
+
+/** Styling for `Tooltip.Content` on plot rails (no dedicated stacking token; overlays use theme defaults). */
+export const plotToolbarTooltipContentClass =
+  "bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg";
 
 export const plotToolbarAttachedShellClass =
   "bg-(--surface-glass)/90 px-1 py-1 shadow-md backdrop-blur-md";

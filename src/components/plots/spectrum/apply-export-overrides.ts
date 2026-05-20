@@ -9,7 +9,7 @@ export function applyExportOverrides(
   visibleTraceExportInfo: VisibleTraceExportInfo,
 ): void {
   const axisLabelRe =
-    /^(Energy \(|Optical density|Mass absorption|Intensity \(a\.u\.\)|β)/;
+    /^(Energy \(|Optical density|Mass absorption|Intensity \(a\.u\.\)|β|δ)/;
   const {
     background,
     fontAxisLabel,

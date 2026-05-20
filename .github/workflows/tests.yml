@@ -1,0 +1,43 @@
+name: Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Which test suite to run
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - kk-calc
+          - server-nexafs
+          - process-nexafs-utils
+
+jobs:
+  test:
+    name: Run tests (${{ inputs.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Run test suite
+        run: |
+          case "${{ inputs.suite }}" in
+            all) bun run test ;;
+            kk-calc) bun run test:kk-calc ;;
+            server-nexafs) bun run test:server-nexafs ;;
+            process-nexafs-utils) bun test src/features/process-nexafs/utils ;;
+            *) echo "Unknown suite: ${{ inputs.suite }}" && exit 1 ;;
+          esac

@@ -41,6 +41,7 @@ import { PeakPlotAnnotations } from "./PeakPlotAnnotations";
 import { InspectPinLayer } from "./InspectPinLayer";
 import { useInspectPins } from "../hooks/useInspectPins";
 import { NormalizationBrush } from "../visx/NormalizationBrush";
+import { NormalizationRegionHandles } from "../visx/NormalizationRegionHandles";
 import { PeakIndicators } from "../visx/PeakIndicators";
 import { PeakCurves } from "../visx/PeakCurves";
 import { PeakOverlayLayer } from "../visx/PeakOverlayLayer";
@@ -62,6 +63,19 @@ function buildTraceIds(traces: TraceData[]): string[] {
   return traces.map((t, i) =>
     typeof t.name === "string" ? t.name : `trace-${i}`,
   );
+}
+
+function isBareAtomTraceName(trace: TraceData): boolean {
+  return typeof trace.name === "string" && /bare\s*atom/i.test(trace.name);
+}
+
+function firstNonBareTrace(traces: TraceData[]): TraceData | undefined {
+  for (const t of traces) {
+    if (!isBareAtomTraceName(t)) {
+      return t;
+    }
+  }
+  return traces[0];
 }
 
 export function SpectrumPlotInner({
@@ -90,7 +104,11 @@ export function SpectrumPlotInner({
   headerRight,
   headerAnalysis,
   plotTopRailDataActions,
+  plotTopRailTrailingActions,
+  suppressAnalysisRailLeadingGrip = false,
   showNormalizationShading = false,
+  normalizationEdgeHandlesEnabled = false,
+  onNormalizationEdgeEnergyChange,
   cursorMode: externalCursorMode,
   onCursorModeChange,
 }: SpectrumPlotInnerProps) {
@@ -117,12 +135,12 @@ export function SpectrumPlotInner({
     selectedPeakId ?? null,
     selectedGeometry,
   );
-  const extents = useDataExtents(points, differenceSpectra);
+  const extents = useDataExtents(points, differenceSpectra, referenceCurves);
 
   const allTraces = useMemo(
     () => [
-      ...groupedTraces.traces,
       ...referenceData.referenceTraces,
+      ...groupedTraces.traces,
       ...referenceData.differenceTraces,
     ],
     [
@@ -141,8 +159,7 @@ export function SpectrumPlotInner({
     if (visibleTraceIds.size === 0) return allTraces;
     return allTraces.filter((t, i) => {
       const id = typeof t.name === "string" ? t.name : `trace-${i}`;
-      if (typeof t.name === "string" && /bare\s*atom/i.test(t.name))
-        return true;
+      if (isBareAtomTraceName(t)) return true;
       return visibleTraceIds.has(id);
     });
   }, [allTraces, visibleTraceIds]);
@@ -168,6 +185,7 @@ export function SpectrumPlotInner({
     peakViz.selectedGeometryPoints,
     energyStats,
     absorptionStats,
+    yAxisQuantity,
   );
 
   const { mainPlot, peakPlot, hasSubplot } = subplotLayout;
@@ -350,7 +368,12 @@ export function SpectrumPlotInner({
         });
         return;
       }
-      const closest = findClosestPoint(energy, visibleTraces, threshold);
+      const tracesForSnap = visibleTraces.filter((t) => !isBareAtomTraceName(t));
+      const closest = findClosestPoint(
+        energy,
+        tracesForSnap.length > 0 ? tracesForSnap : visibleTraces,
+        threshold,
+      );
       const snapEnergy = closest?.energy ?? energy;
       const rows = visibleTraces.map((trace, i) => {
         const label = getTraceLabel(trace, i);
@@ -385,7 +408,7 @@ export function SpectrumPlotInner({
 
   const getYValueAtEnergy = useCallback(
     (energy: number): number => {
-      const trace = visibleTraces[0];
+      const trace = firstNonBareTrace(visibleTraces);
       if (trace) {
         const domain = zoomedXScale.domain() as [number, number];
         const span = Math.abs((domain[1] ?? 1) - (domain[0] ?? 0)) || 1;
@@ -611,7 +634,7 @@ export function SpectrumPlotInner({
 
   return (
     <div
-      className="flex min-h-0 w-full flex-col gap-2 overflow-hidden rounded-xl"
+      className="flex min-h-0 w-full flex-col gap-2 overflow-visible rounded-xl"
       style={{ width, height }}
       ref={containerRef}
     >
@@ -721,6 +744,18 @@ export function SpectrumPlotInner({
                     pointerEvents: inspectPlotHitSurfaceActive ? "all" : "none",
                   }}
                 />
+                {yAxisQuantity === "delta" && (
+                  <line
+                    x1={0}
+                    x2={mainPlotWidth}
+                    y1={mainPlotScales.yScale(0)}
+                    y2={mainPlotScales.yScale(0)}
+                    stroke={themeColors.axis}
+                    strokeWidth={1}
+                    vectorEffect="non-scaling-stroke"
+                    pointerEvents="none"
+                  />
+                )}
                 <ChartSpectrumLines
                   traces={visibleTraces}
                   scales={mainPlotScales}
@@ -781,6 +816,24 @@ export function SpectrumPlotInner({
                 themeColors={themeColors}
               />
             )}
+            {normalizationRegions &&
+              normalizationEdgeHandlesEnabled &&
+              onNormalizationEdgeEnergyChange &&
+              (selectionTarget !== null || showNormalizationShading) && (
+                <g
+                  style={{ pointerEvents: "auto" }}
+                  transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
+                >
+                  <NormalizationRegionHandles
+                    normalizationRegions={normalizationRegions}
+                    xScale={mainPlotScales.xScale}
+                    dimensions={mainPlot.dimensions}
+                    plotSvgRef={svgRef}
+                    energyDomain={dataXBounds}
+                    onEdgeEnergyChange={onNormalizationEdgeEnergyChange}
+                  />
+                </g>
+              )}
             {effectiveCursorMode === "zoom" && !selectionTarget && (
               <BrushZoom
                 xScale={mainPlotScales.xScale}
@@ -958,8 +1011,10 @@ export function SpectrumPlotInner({
                 : () => setExportModalOpen(true)
             }
             topRailLeadingExtras={plotTopRailDataActions}
+            topRailTrailingExtras={plotTopRailTrailingActions}
             dataViewTabs={headerRight}
             analysisTools={headerAnalysis}
+            suppressAnalysisRailLeadingGrip={suppressAnalysisRailLeadingGrip}
           />
         </div>
       </div>

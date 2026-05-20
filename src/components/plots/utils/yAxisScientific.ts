@@ -63,6 +63,12 @@ export function spectrumYAxisPresentation(
       tickFormat,
     };
   }
+  if (quantity === "delta") {
+    return {
+      label: `δ (abs. units)${mult}`,
+      tickFormat,
+    };
+  }
   return {
     label: `Intensity (a.u.)${mult}`,
     tickFormat,

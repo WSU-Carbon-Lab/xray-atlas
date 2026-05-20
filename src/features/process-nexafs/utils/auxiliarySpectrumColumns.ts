@@ -7,6 +7,8 @@ export function detectAuxiliarySpectrumColumnNames(columns: string[]): {
   massabsorptionError?: string;
   beta?: string;
   betaError?: string;
+  delta?: string;
+  deltaError?: string;
 } {
   const norm = (raw: string) =>
     raw
@@ -45,6 +47,20 @@ export function detectAuxiliarySpectrumColumnNames(columns: string[]): {
   );
   const beta = pick((n) => n === "beta");
   const betaError = pick((n) => n === "betaerr" || n === "betaerror");
+  const delta = pick(
+    (n) =>
+      (n === "delta" || n === "kkdelta" || n === "kk_delta") &&
+      !n.includes("energy") &&
+      !n.includes("err") &&
+      !n.includes("error"),
+  );
+  const deltaError = pick(
+    (n) =>
+      n === "deltaerr" ||
+      n === "deltaerror" ||
+      n.includes("deltaerr") ||
+      n.includes("deltaerror"),
+  );
   const massabsorption = pick(
     (n) =>
       n.includes("massabsorption") ||
@@ -70,5 +86,7 @@ export function detectAuxiliarySpectrumColumnNames(columns: string[]): {
     ...(betaError ? { betaError } : {}),
     ...(massabsorption ? { massabsorption } : {}),
     ...(massabsorptionError ? { massabsorptionError } : {}),
+    ...(delta ? { delta } : {}),
+    ...(deltaError ? { deltaError } : {}),
   };
 }

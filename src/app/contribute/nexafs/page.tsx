@@ -14,7 +14,12 @@ import {
   useNexafsSubmit,
   NexafsContributeFlow,
 } from "~/features/process-nexafs";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import {
+  KkBrowserConsentDialog,
+  grantKkBrowserConsent,
+  readKkBrowserConsentGranted,
+} from "~/features/kk-calc";
 import {
   NexafsCreateCalibrationDialog,
   NexafsCreateEdgeDialog,
@@ -28,6 +33,32 @@ export default function NEXAFSContributePage() {
 
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const handleAgreementAccepted = () => setShowAgreementModal(false);
+
+  const kkConsentResolverRef = useRef<((value: boolean) => void) | null>(null);
+  const [kkConsentOpen, setKkConsentOpen] = useState(false);
+
+  const dismissKkConsent = useCallback(() => {
+    kkConsentResolverRef.current?.(false);
+    kkConsentResolverRef.current = null;
+    setKkConsentOpen(false);
+  }, []);
+
+  const acceptKkConsent = useCallback(() => {
+    grantKkBrowserConsent();
+    kkConsentResolverRef.current?.(true);
+    kkConsentResolverRef.current = null;
+    setKkConsentOpen(false);
+  }, []);
+
+  const requestKkConsent = useCallback(async () => {
+    if (readKkBrowserConsentGranted()) {
+      return true;
+    }
+    return await new Promise<boolean>((resolve) => {
+      kkConsentResolverRef.current = resolve;
+      setKkConsentOpen(true);
+    });
+  }, []);
 
   const {
     instrumentOptions,
@@ -62,7 +93,7 @@ export default function NEXAFSContributePage() {
 
   const { submit, submitStatus, setSubmitStatus, isPending } = useNexafsSubmit(
     datasets,
-    { onSuccess: clearDatasets },
+    { onSuccess: clearDatasets, requestKkConsent },
   );
 
   const [showEdgeDialog, setShowEdgeDialog] = useState(false);
@@ -257,6 +288,12 @@ export default function NEXAFSContributePage() {
         onDescriptionChange={setNewCalibrationDescription}
         onCreate={() => void handleCreateCalibration()}
         isCreating={createCalibrationMutation.isPending}
+      />
+
+      <KkBrowserConsentDialog
+        isOpen={kkConsentOpen}
+        onDismiss={dismissKkConsent}
+        onAccept={acceptKkConsent}
       />
     </>
   );

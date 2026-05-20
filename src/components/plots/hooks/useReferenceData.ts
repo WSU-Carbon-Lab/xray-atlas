@@ -34,6 +34,7 @@ export function useReferenceData(
       line: {
         color: curve.color ?? "#111827",
         width: 2.5,
+        dash: /bare\s*atom/i.test(curve.label) ? "dash" : "solid",
       },
       hovertemplate:
         `<b>${curve.label}</b><br>` +

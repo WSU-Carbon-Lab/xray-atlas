@@ -1,0 +1,103 @@
+import type { SpectrumPoint } from "~/components/plots/types";
+import {
+  computeDeltaFromBetaKkcalcStyle,
+  type KkcalcMaterialContext,
+} from "./compute-delta-from-beta-kkcalc-style";
+import { interpolateMakimaSorted } from "./makima-interpolate";
+import { prepareStrictlyAscendingEnergyBetaForKk } from "./prepare-strictly-ascending-energy-beta-for-kk";
+
+function geometryGroupKey(p: SpectrumPoint): string {
+  const theta = p.theta;
+  const phi = p.phi;
+  if (
+    typeof theta === "number" &&
+    Number.isFinite(theta) &&
+    typeof phi === "number" &&
+    Number.isFinite(phi)
+  ) {
+    return `${theta.toFixed(6)}:${phi.toFixed(6)}`;
+  }
+  return "__none__";
+}
+
+/**
+ * Augments upload-ready spectrum rows with `delta` computed from `beta` using kkcalc2’s
+ * piecewise-polynomial **KK_PP** pipeline in TypeScript for each theta–phi group, then maps
+ * `delta` back onto each row’s energy using makima interpolation when duplicate energies were
+ * merged for KK.
+ *
+ * @param points Spectrum rows that already include finite `beta` wherever KK should run;
+ *   rows missing theta and phi are grouped together.
+ * @param material Stoichiometry and mass density for kkcalc2 `refractive_to_ASF` and
+ *   `ASF_to_refractive` (same contract as `tests/kk-calc-validation/run_reference.py`
+ *   `kkcalc-delta-optical-beta`).
+ * @returns A shallow-copied array with finite `delta` on every index that participated in a successful group transform.
+ * @throws RangeError When any geometry group contains a non-finite `beta` value.
+ */
+export function applyKkDeltaToSpectrumPoints(
+  points: readonly SpectrumPoint[],
+  material: KkcalcMaterialContext,
+): SpectrumPoint[] {
+  if (points.length === 0) return [];
+
+  const byKey = new Map<string, number[]>();
+  for (let idx = 0; idx < points.length; idx++) {
+    const key = geometryGroupKey(points[idx]!);
+    const arr = byKey.get(key);
+    if (arr) {
+      arr.push(idx);
+    } else {
+      byKey.set(key, [idx]);
+    }
+  }
+
+  const out = points.map((p) => ({ ...p }));
+
+  for (const indices of byKey.values()) {
+    const sortedIdx = [...indices].sort(
+      (a, b) => points[a]!.energy - points[b]!.energy,
+    );
+    const E = sortedIdx.map((i) => points[i]!.energy);
+    const B = sortedIdx.map((i) => {
+      const b = points[i]!.beta;
+      return typeof b === "number" && Number.isFinite(b) ? b : Number.NaN;
+    });
+    if (!B.every((b) => Number.isFinite(b))) {
+      throw new RangeError(
+        "Kramers-Kronig requires finite beta on every point in each geometry group",
+      );
+    }
+    const prepared = prepareStrictlyAscendingEnergyBetaForKk(E, B);
+    if (prepared.energyEv.length < 4) {
+      continue;
+    }
+    const deltaArr = computeDeltaFromBetaKkcalcStyle({
+      energyEv: prepared.energyEv,
+      beta: prepared.beta,
+      stoichiometryFormula: material.stoichiometryFormula,
+      densityGPerCm3: material.massDensityGPerCm3,
+      henkeMergeDomain: material.henkeMergeDomain,
+    });
+    const uniqueTargets = Array.from(new Set(E)).sort((a, b) => a - b);
+    const alignedUnique = interpolateMakimaSorted(
+      uniqueTargets,
+      prepared.energyEv,
+      deltaArr,
+    );
+    const deltaByEnergy = new Map(
+      uniqueTargets.map((e, i) => [e, alignedUnique[i]!]),
+    );
+    for (let k = 0; k < sortedIdx.length; k++) {
+      const globalIdx = sortedIdx[k]!;
+      const d = deltaByEnergy.get(E[k]!);
+      if (Number.isFinite(d)) {
+        out[globalIdx] = {
+          ...out[globalIdx]!,
+          delta: d,
+        };
+      }
+    }
+  }
+
+  return out;
+}

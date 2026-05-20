@@ -5,9 +5,28 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "~/prisma/client";
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
+import { userMayRecalculateKkDelta } from "~/server/nexafs/kkDeltaRecalculateAuthz";
+import {
+  buildKkDeltaMetadata,
+  kkDeltaMetadataToJson,
+} from "~/server/nexafs/kkDeltaMetadata";
+
+const KK_DELTA_BATCH_CHUNK = 800;
 
 export const spectrumpointsRouter = createTRPCRouter({
+  canRecalculateKkDelta: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const allowed = await userMayRecalculateKkDelta(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+      return { allowed };
+    }),
+
   getByExperiment: publicProcedure
     .input(
       z.object({
@@ -97,6 +116,8 @@ export const spectrumpointsRouter = createTRPCRouter({
             od: z.number().optional(),
             massabsorption: z.number().optional(),
             beta: z.number().optional(),
+            delta: z.number().finite().optional(),
+            deltaerr: z.number().optional(),
             i0: z.number().optional(),
           }),
         ),
@@ -142,6 +163,8 @@ export const spectrumpointsRouter = createTRPCRouter({
             od: point.od ?? null,
             massabsorption: point.massabsorption ?? null,
             beta: point.beta ?? null,
+            delta: point.delta ?? null,
+            deltaerr: point.deltaerr ?? null,
             i0: point.i0 ?? null,
           })),
         });
@@ -150,6 +173,100 @@ export const spectrumpointsRouter = createTRPCRouter({
       return {
         success: true,
         count: createdPoints.count,
+      };
+    }),
+
+  /**
+   * Overwrites `spectrumpoints.delta` for the given point ids (client KK output).
+   * Records {@link experiments.kkdeltametadata} with source `kk_browser_recalculate` and
+   * `calculatedAt` so readers can tell delta was recomputed from beta in-browser.
+   */
+  updateKkDeltaBatch: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        updates: z
+          .array(
+            z.object({
+              id: z.string().uuid(),
+              delta: z.number().finite(),
+            }),
+          )
+          .min(1)
+          .max(20000),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const allowed = await userMayRecalculateKkDelta(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+      if (!allowed) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to update KK delta for this experiment",
+        });
+      }
+
+      const ids = input.updates.map((u) => u.id);
+      const rows = await ctx.db.spectrumpoints.findMany({
+        where: {
+          experimentid: input.experimentId,
+          id: { in: ids },
+        },
+        select: { id: true },
+      });
+
+      if (rows.length !== ids.length) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "One or more spectrum point ids do not belong to this experiment",
+        });
+      }
+
+      const calculatedAt = new Date();
+      const kkDeltaMetadata = buildKkDeltaMetadata({
+        source: "kk_browser_recalculate",
+        calculatedAt,
+        calculatedByUserId: ctx.userId,
+      });
+
+      await ctx.db.$transaction(
+        async (tx) => {
+          for (let i = 0; i < input.updates.length; i += KK_DELTA_BATCH_CHUNK) {
+            const chunk = input.updates.slice(i, i + KK_DELTA_BATCH_CHUNK);
+            const valuesSql = Prisma.join(
+              chunk.map(
+                (u) =>
+                  Prisma.sql`(${u.id}::uuid, ${u.delta}::double precision)`,
+              ),
+              ", ",
+            );
+            await tx.$executeRaw`
+              UPDATE public.spectrumpoints AS sp
+              SET delta = u.delta
+              FROM (VALUES ${valuesSql}) AS u(id, delta)
+              WHERE sp.id = u.id AND sp.experimentid = ${input.experimentId}::uuid
+            `;
+          }
+          await tx.experiments.update({
+            where: { id: input.experimentId },
+            data: {
+              kkdeltametadata: kkDeltaMetadataToJson(kkDeltaMetadata),
+              updatedat: calculatedAt,
+            },
+          });
+        },
+        {
+          maxWait: 20_000,
+          timeout: 180_000,
+        },
+      );
+
+      return {
+        updated: input.updates.length,
+        kkDeltaMetadata,
       };
     }),
 

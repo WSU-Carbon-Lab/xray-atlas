@@ -9,28 +9,14 @@
 
 import { Prisma } from "~/prisma/client";
 import { db } from "~/server/db";
+import { parseStoredNormalizationRanges } from "~/lib/nexafs-normalization-ranges";
 import {
   buildQualityScores,
   buildValidationSummary,
   type NormalizationRanges,
+  type NormalizationScope,
 } from "~/server/nexafs/normalizationMetadata";
 import type { SpectrumPoint } from "~/components/plots/types";
-
-function parseNormalizationRanges(raw: unknown): NormalizationRanges {
-  if (raw == null || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  const parseEdge = (v: unknown): [number, number] | null => {
-    if (!Array.isArray(v) || v.length !== 2) return null;
-    const a = Number(v[0]);
-    const b = Number(v[1]);
-    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-    return [a, b];
-  };
-  const pre = parseEdge(o.pre);
-  const post = parseEdge(o.post);
-  if (pre == null && post == null) return null;
-  return { pre, post };
-}
 
 async function main(): Promise<void> {
   let updated = 0;
@@ -47,6 +33,7 @@ async function main(): Promise<void> {
       select: {
         id: true,
         polarizationid: true,
+        normalizationscope: true,
         normalizationranges: true,
       },
     });
@@ -87,17 +74,23 @@ async function main(): Promise<void> {
         beta: p.beta ?? undefined,
       }));
 
-      const ranges = parseNormalizationRanges(exp.normalizationranges);
+      const ranges: NormalizationRanges = parseStoredNormalizationRanges(
+        exp.normalizationranges,
+      );
+      const scope: NormalizationScope =
+        (exp.normalizationscope as NormalizationScope | null) ?? "unified";
 
       const validationSummary = buildValidationSummary({
         points,
         ranges,
+        scope,
         override: { bypass: false },
       });
 
       const qualityScores = buildQualityScores({
         points,
         ranges,
+        scope,
         doiPresent: doiExperimentIds.has(exp.id),
       });
 

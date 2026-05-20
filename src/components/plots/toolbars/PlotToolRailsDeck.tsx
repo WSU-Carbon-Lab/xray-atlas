@@ -30,6 +30,7 @@ import {
   plotToolbarGlyphToggleGroupItemHorizontalClass,
   plotToolbarIconToolClass,
 } from "./plot-toolbar-chrome";
+import { PlotToolbarRichHint } from "./plot-toolbar-rich-hint";
 
 type PlotToolRailsDeckProps = {
   plotWidth: number;
@@ -40,10 +41,22 @@ type PlotToolRailsDeckProps = {
   onCursorModeChange: (mode: CursorMode) => void;
   onResetZoom: () => void;
   onExportClick?: () => void;
+  /**
+   * Optional buttons or menus to the left of export in the top `ButtonGroup` (for example spectrum CSV download and copy). This deck does not modify unknown children; callers should wrap controls with `PlotToolbarRichHint` when hints are needed.
+   */
   topRailLeadingExtras?: ReactNode;
+  /**
+   * Optional controls rendered in the top rail to the right of the cursor mode toggle group (inspect/zoom/pan). Each child becomes a direct sibling inside the same `Toolbar`, separated from the cursor cluster by a vertical divider.
+   */
+  topRailTrailingExtras?: ReactNode;
   displayTools?: ReactNode;
   analysisTools?: ReactNode;
   bottomTools?: ReactNode;
+  /**
+   * When true, omits the decorative vertical-rail grip `ButtonGroup` above the analysis stack so
+   * dataset-style rails show only real tools. Tray mode still uses its own hover handles.
+   */
+  suppressAnalysisRailLeadingGrip?: boolean;
 };
 
 type TraySide = "top" | "bottom" | "left" | "right";
@@ -61,9 +74,11 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
   onResetZoom,
   onExportClick,
   topRailLeadingExtras,
+  topRailTrailingExtras,
   displayTools,
   analysisTools,
   bottomTools,
+  suppressAnalysisRailLeadingGrip = false,
 }: PlotToolRailsDeckProps) {
   const [isTrayMode, setIsTrayMode] = useState(false);
   const [hoveredSide, setHoveredSide] = useState<TraySide | null>(null);
@@ -92,29 +107,39 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
             variant="tertiary"
             aria-label="Reset zoom, data export, and plot export"
           >
-            <Button
-              type="button"
-              isIconOnly
-              aria-label="Reset zoom"
-              onPress={onResetZoom}
-              className={plotToolbarIconToolClass}
+            <PlotToolbarRichHint
+              title="Reset zoom"
+              description="Fit the plot back to the full energy range."
             >
-              <HomeIcon className="h-5 w-5" aria-hidden />
-            </Button>
+              <Button
+                type="button"
+                isIconOnly
+                aria-label="Reset zoom"
+                onPress={onResetZoom}
+                className={plotToolbarIconToolClass}
+              >
+                <HomeIcon className="h-5 w-5" aria-hidden />
+              </Button>
+            </PlotToolbarRichHint>
             {topRailLeadingExtras != null
               ? Children.toArray(topRailLeadingExtras)
               : null}
             {!topRailLeadingExtras && onExportClick ? (
-              <Button
-                type="button"
-                isIconOnly
-                aria-label="Export plot"
-                onPress={onExportClick}
-                className={plotToolbarIconToolClass}
+              <PlotToolbarRichHint
+                title="Export plot"
+                description="Open options to save the figure as an image."
               >
-                <ButtonGroup.Separator />
-                <ArrowDownTrayIcon className="h-5 w-5" aria-hidden />
-              </Button>
+                <Button
+                  type="button"
+                  isIconOnly
+                  aria-label="Export plot"
+                  onPress={onExportClick}
+                  className={plotToolbarIconToolClass}
+                >
+                  <ButtonGroup.Separator />
+                  <ArrowDownTrayIcon className="h-5 w-5" aria-hidden />
+                </Button>
+              </PlotToolbarRichHint>
             ) : null}
           </ButtonGroup>
           <Separator
@@ -125,7 +150,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
             aria-label="Cursor interaction mode"
             selectionMode="single"
             orientation="horizontal"
-            className="overflow-hidden rounded-full"
+            className="rounded-full"
             selectedKeys={
               new Set([
                 currentMode === "inspect" ||
@@ -143,36 +168,68 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               }
             }}
           >
-            <ToggleButton
-              isIconOnly
-              id="inspect"
-              aria-label="Inspect values"
-              className={plotToolbarGlyphToggleGroupItemHorizontalClass}
-              isDisabled={isCursorDisabled}
+            <PlotToolbarRichHint
+              title="Inspect"
+              description="Hover the spectrum to read coordinates and values."
+              whenDisabledDescription="Exit normalization region editing to use plot cursors."
             >
-              <EyeIcon className="h-5 w-5" aria-hidden />
-            </ToggleButton>
-            <ToggleButton
-              isIconOnly
-              id="zoom"
-              aria-label="Zoom region"
-              className={plotToolbarGlyphToggleGroupItemHorizontalClass}
-              isDisabled={isCursorDisabled}
+              <ToggleButton
+                isIconOnly
+                id="inspect"
+                aria-label="Inspect values"
+                className={plotToolbarGlyphToggleGroupItemHorizontalClass}
+                isDisabled={isCursorDisabled}
+              >
+                <EyeIcon className="h-5 w-5" aria-hidden />
+              </ToggleButton>
+            </PlotToolbarRichHint>
+            <PlotToolbarRichHint
+              title="Zoom"
+              description="Drag a box on the plot to magnify that energy region."
+              whenDisabledDescription="Exit normalization region editing to use plot cursors."
             >
-              <ToggleButtonGroup.Separator />
-              <MagnifyingGlassIcon className="h-5 w-5" aria-hidden />
-            </ToggleButton>
-            <ToggleButton
-              isIconOnly
-              id="pan"
-              aria-label="Pan horizontally"
-              className={plotToolbarGlyphToggleGroupItemHorizontalClass}
-              isDisabled={isCursorDisabled || isPanDisabled}
+              <ToggleButton
+                isIconOnly
+                id="zoom"
+                aria-label="Zoom region"
+                className={plotToolbarGlyphToggleGroupItemHorizontalClass}
+                isDisabled={isCursorDisabled}
+              >
+                <ToggleButtonGroup.Separator />
+                <MagnifyingGlassIcon className="h-5 w-5" aria-hidden />
+              </ToggleButton>
+            </PlotToolbarRichHint>
+            <PlotToolbarRichHint
+              title="Pan"
+              description="Drag the plot left or right after you have zoomed in."
+              whenDisabledDescription={
+                isCursorDisabled
+                  ? "Exit normalization region editing to use plot cursors."
+                  : "Select the zoom tool and drag a box on the plot to magnify an energy range, then pan."
+              }
+              disabled={isCursorDisabled || isPanDisabled}
             >
-              <ToggleButtonGroup.Separator />
-              <HandRaisedIcon className="h-5 w-5" aria-hidden />
-            </ToggleButton>
+              <ToggleButton
+                isIconOnly
+                id="pan"
+                aria-label="Pan horizontally"
+                className={plotToolbarGlyphToggleGroupItemHorizontalClass}
+                isDisabled={isCursorDisabled || isPanDisabled}
+              >
+                <ToggleButtonGroup.Separator />
+                <HandRaisedIcon className="h-5 w-5" aria-hidden />
+              </ToggleButton>
+            </PlotToolbarRichHint>
           </ToggleButtonGroup>
+          {topRailTrailingExtras != null ? (
+            <>
+              <Separator
+                orientation="vertical"
+                className="mx-1 h-6 min-h-6 w-px shrink-0 self-center bg-(--border-default)"
+              />
+              {Children.toArray(topRailTrailingExtras)}
+            </>
+          ) : null}
         </Toolbar>
       ),
     };
@@ -188,17 +245,27 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           orientation="vertical"
           className={`${plotToolbarAttachedShellClass} flex max-h-[24rem] flex-col items-center overflow-auto`}
         >
-          <ButtonGroup orientation="vertical" variant="tertiary" aria-label="Rail handle">
-            <Button
-              type="button"
-              isIconOnly
-              aria-label="Analysis tools"
-              className={plotToolbarIconToolClass}
-            >
-              <GripVertical className="h-5 w-5" />
-            </Button>
-          </ButtonGroup>
-          <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
+          {!suppressAnalysisRailLeadingGrip ? (
+            <>
+              <ButtonGroup orientation="vertical" variant="tertiary" aria-label="Rail handle">
+                <PlotToolbarRichHint
+                  title="Analysis rail"
+                  description="Vertical stack for peaks, normalization, and related tools."
+                  placement="left"
+                >
+                  <Button
+                    type="button"
+                    isIconOnly
+                    aria-label="Analysis rail grip"
+                    className={plotToolbarIconToolClass}
+                  >
+                    <GripVertical className="h-5 w-5" />
+                  </Button>
+                </PlotToolbarRichHint>
+              </ButtonGroup>
+              <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
+            </>
+          ) : null}
           <div className="flex w-full flex-col items-center gap-1">{analysisTools}</div>
         </Toolbar>
       ),
@@ -223,6 +290,8 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
     onExportClick,
     onResetZoom,
     topRailLeadingExtras,
+    topRailTrailingExtras,
+    suppressAnalysisRailLeadingGrip,
   ]);
 
   const leftRail = rails[0];
@@ -235,14 +304,24 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
       className="pointer-events-none relative"
       style={{ width: plotWidth, height: plotHeight }}
     >
-      <Button
-        isIconOnly
-        aria-label={isTrayMode ? "Show all plot toolbars" : "Hide plot toolbars"}
-        onPress={() => setIsTrayMode((prev) => !prev)}
-        className="pointer-events-auto absolute left-3 top-3 z-40 h-11 w-11 min-w-11 rounded-xl border border-(--border-default) bg-(--surface-glass)/70 text-(--text-secondary) shadow-md backdrop-blur-sm hover:bg-(--surface-2)/70 hover:text-(--text-primary)"
+      <PlotToolbarRichHint
+        title={isTrayMode ? "Dock toolbars" : "Tray mode"}
+        description={
+          isTrayMode
+            ? "Pin rails back to the plot edges."
+            : "Hide rails until you hover a side handle."
+        }
+        placement="bottom"
       >
-        <Grip className="h-5 w-5" />
-      </Button>
+        <Button
+          isIconOnly
+          aria-label={isTrayMode ? "Dock plot toolbars" : "Float plot toolbars in tray mode"}
+          onPress={() => setIsTrayMode((prev) => !prev)}
+          className="pointer-events-auto absolute left-3 top-3 z-40 h-11 w-11 min-w-11 rounded-xl border border-(--border-default) bg-(--surface-glass)/70 text-(--text-secondary) shadow-md backdrop-blur-sm hover:bg-(--surface-2)/70 hover:text-(--text-primary)"
+        >
+          <Grip className="h-5 w-5" />
+        </Button>
+      </PlotToolbarRichHint>
 
       {!isTrayMode ? (
         <>
@@ -254,9 +333,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           </div>
           {leftRail?.isAvailable ? (
             <div className="pointer-events-none absolute left-3 top-1/2 z-30 -translate-y-1/2">
-              <div className="flex flex-col items-center gap-2">
-                {leftRail.render()}
-              </div>
+              {leftRail.render()}
             </div>
           ) : null}
           <div className="pointer-events-auto absolute right-3 top-1/2 z-30 -translate-y-1/2">
@@ -273,13 +350,19 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
         onMouseLeave={() => setHoveredSide((prev) => (prev === "top" ? null : prev))}
       >
         {hoveredSide !== "top" ? (
-          <Button
-            isIconOnly
-            aria-label="Top toolbar handle"
-            className={HANDLE_BUTTON_CLASS}
+          <PlotToolbarRichHint
+            title="Top handle"
+            description="Hover here to show the top plot toolbar."
+            placement="bottom"
           >
-            <GripHorizontal className="h-6 w-6" />
-          </Button>
+            <Button
+              isIconOnly
+              aria-label="Reveal top plot toolbar"
+              className={HANDLE_BUTTON_CLASS}
+            >
+              <GripHorizontal className="h-6 w-6" />
+            </Button>
+          </PlotToolbarRichHint>
         ) : null}
         {hoveredSide === "top" && topRail?.isAvailable ? (
           <div className="absolute left-1/2 top-0 -translate-x-1/2">
@@ -296,13 +379,19 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
         }
       >
         {hoveredSide !== "bottom" ? (
-          <Button
-            isIconOnly
-            aria-label="Bottom toolbar handle"
-            className={HANDLE_BUTTON_CLASS}
+          <PlotToolbarRichHint
+            title="Bottom handle"
+            description="Hover here to show the bottom plot toolbar when present."
+            placement="top"
           >
-            <GripHorizontal className="h-6 w-6" />
-          </Button>
+            <Button
+              isIconOnly
+              aria-label="Reveal bottom plot toolbar"
+              className={HANDLE_BUTTON_CLASS}
+            >
+              <GripHorizontal className="h-6 w-6" />
+            </Button>
+          </PlotToolbarRichHint>
         ) : null}
         {hoveredSide === "bottom" && bottomRail?.isAvailable ? (
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
@@ -318,13 +407,19 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           onMouseLeave={() => setHoveredSide((prev) => (prev === "left" ? null : prev))}
         >
           {hoveredSide !== "left" ? (
-            <Button
-              isIconOnly
-              aria-label="Left toolbar handle"
-              className={HANDLE_BUTTON_CLASS}
+            <PlotToolbarRichHint
+              title="Left handle"
+              description="Hover here to show the left data-view rail."
+              placement="right"
             >
-              <GripVertical className="h-6 w-6" />
-            </Button>
+              <Button
+                isIconOnly
+                aria-label="Reveal left plot toolbar"
+                className={HANDLE_BUTTON_CLASS}
+              >
+                <GripVertical className="h-6 w-6" />
+              </Button>
+            </PlotToolbarRichHint>
           ) : null}
           {hoveredSide === "left" ? (
             <div className="absolute left-0 top-1/2 -translate-y-1/2">
@@ -342,13 +437,19 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
         }
       >
         {hoveredSide !== "right" ? (
-          <Button
-            isIconOnly
-            aria-label="Right toolbar handle"
-            className={HANDLE_BUTTON_CLASS}
+          <PlotToolbarRichHint
+            title="Right handle"
+            description="Hover here to show the right analysis rail."
+            placement="left"
           >
-            <GripVertical className="h-6 w-6" />
-          </Button>
+            <Button
+              isIconOnly
+              aria-label="Reveal right plot toolbar"
+              className={HANDLE_BUTTON_CLASS}
+            >
+              <GripVertical className="h-6 w-6" />
+            </Button>
+          </PlotToolbarRichHint>
         ) : null}
         {hoveredSide === "right" && rightRail?.isAvailable ? (
           <div className="absolute right-0 top-1/2 -translate-y-1/2">

@@ -27,6 +27,7 @@ type DatasetExportRow = {
   od: number | null;
   mass_absorption: number | null;
   beta: number | null;
+  delta: number | null;
   created_at: string;
 };
 
@@ -50,6 +51,7 @@ const datasetExportColumns = [
   "od",
   "mass_absorption",
   "beta",
+  "delta",
   "created_at",
 ] as const;
 
@@ -179,6 +181,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         od: point.od,
         mass_absorption: point.massabsorption,
         beta: point.beta,
+        delta: point.delta,
         created_at: point.experiments.createdat.toISOString(),
       };
     });

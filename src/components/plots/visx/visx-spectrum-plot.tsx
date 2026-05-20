@@ -99,13 +99,13 @@ export function VisxSpectrumPlot({
   );
 
   // Calculate data extents
-  const extents = useDataExtents(points, differenceSpectra);
+  const extents = useDataExtents(points, differenceSpectra, referenceCurves);
 
   // Combine all traces for tooltip finding
   const allTraces = useMemo(() => {
     return [
-      ...groupedTraces.traces,
       ...referenceData.referenceTraces,
+      ...groupedTraces.traces,
       ...referenceData.differenceTraces,
     ];
   }, [
@@ -602,9 +602,11 @@ function VisxSpectrumPlotInner({
       const energyDomainRange = domain[1] - domain[0];
       const threshold = energyDomainRange * 0.02;
 
-      // Use appropriate traces based on which plot we're in
+      const mainSnapTraces = [...groupedTraces, ...differenceTraces];
       const tracesToSearch = isInMainPlot
-        ? allTraces
+        ? mainSnapTraces.length > 0
+          ? mainSnapTraces
+          : allTraces
         : peakViz.selectedGeometryTrace
           ? [peakViz.selectedGeometryTrace]
           : [];
@@ -634,6 +636,8 @@ function VisxSpectrumPlotInner({
       mainPlotScales,
       peakPlotScales,
       allTraces,
+      groupedTraces,
+      differenceTraces,
       peakViz.selectedGeometryTrace,
       showTooltip,
       hideTooltip,

@@ -9,7 +9,7 @@ import type {
 import type { Peak } from "~/components/plots/types";
 import { showToast } from "~/components/ui/toast";
 
-export type NexafsBrowseDataView = "od" | "absorption" | "beta";
+export type NexafsBrowseDataView = "od" | "absorption" | "beta" | "delta";
 
 export interface UseNexafsSpectrumBrowseModelArgs {
   spectrumPoints: SpectrumPoint[];
@@ -22,6 +22,7 @@ export interface UseNexafsSpectrumBrowseModelResult {
   edgeZeroOnePoints: SpectrumPoint[];
   absorptionPlotPoints: SpectrumPoint[];
   betaPoints: SpectrumPoint[] | null;
+  deltaPoints: SpectrumPoint[] | null;
   spectrumYAxisQuantity: SpectrumYAxisQuantity;
   referenceCurves: ReferenceCurve[];
   normalizationRegions: { pre: [number, number] | null; post: [number, number] | null };
@@ -29,13 +30,14 @@ export interface UseNexafsSpectrumBrowseModelResult {
   odAvailable: boolean;
   absorptionAvailable: boolean;
   betaAvailable: boolean;
+  deltaAvailable: boolean;
 }
 
 /**
  * Maps persisted spectrum points to plot traces without recomputing normalization: OD, mu (mass absorption when stored else raw absorption), and beta use the values saved at upload time.
  *
  * @param spectrumPoints Rows from `mapDbSpectrumRowsToPoints` (energy-ascending), with optional `od`, `massabsorption`, `rawabs` merged into `absorption` for mu, and optional `beta`.
- * @returns View selection, per-basis `plotPoints` (y values in `absorption` for the plot stack), difference-spectrum roots aligned with the active basis, and availability flags for each basis toggle.
+ * @returns View selection, per-basis `plotPoints` (y values in `absorption` for the plot stack), difference-spectrum roots aligned with the active basis, and availability flags for each basis toggle including optional KK `delta`.
  */
 export function useNexafsSpectrumBrowseModel({
   spectrumPoints,
@@ -71,16 +73,27 @@ export function useNexafsSpectrumBrowseModel({
     return rows.map((p) => ({ ...p, absorption: p.beta! }));
   }, [spectrumPoints]);
 
+  const storedDeltaPoints = useMemo((): SpectrumPoint[] | null => {
+    const rows = spectrumPoints.filter(
+      (p) => typeof p.delta === "number" && Number.isFinite(p.delta),
+    );
+    if (rows.length === 0) return null;
+    return rows.map((p) => ({ ...p, absorption: p.delta! }));
+  }, [spectrumPoints]);
+
   const odAvailable = storedOdPoints.length > 0;
   const absorptionAvailable = storedMuPoints.some(
     (p) => typeof p.absorption === "number" && Number.isFinite(p.absorption),
   );
   const betaAvailable =
     storedBetaPoints !== null && storedBetaPoints.length > 0;
+  const deltaAvailable =
+    storedDeltaPoints !== null && storedDeltaPoints.length > 0;
 
   const absorptionPlotPoints = storedMuPoints;
   const edgeZeroOnePoints = storedOdPoints;
   const betaPoints = storedBetaPoints;
+  const deltaPoints = storedDeltaPoints;
 
   const setDataView = useCallback(
     (next: NexafsBrowseDataView) => {
@@ -115,9 +128,27 @@ export function useNexafsSpectrumBrowseModel({
           return;
         }
         setDataViewState("beta");
+        return;
+      }
+      if (next === "delta") {
+        if (!deltaAvailable) {
+          showGateToast(
+            "browse-delta",
+            "No stored delta values for this experiment.",
+          );
+          return;
+        }
+        setDataViewState("delta");
+        return;
       }
     },
-    [odAvailable, absorptionAvailable, betaAvailable, showGateToast],
+    [
+      odAvailable,
+      absorptionAvailable,
+      betaAvailable,
+      deltaAvailable,
+      showGateToast,
+    ],
   );
 
   const plotPoints =
@@ -125,14 +156,18 @@ export function useNexafsSpectrumBrowseModel({
       ? storedOdPoints
       : dataView === "beta"
         ? (storedBetaPoints ?? storedMuPoints)
-        : storedMuPoints;
+        : dataView === "delta"
+          ? (storedDeltaPoints ?? storedMuPoints)
+          : storedMuPoints;
 
   const spectrumYAxisQuantity: SpectrumYAxisQuantity =
     dataView === "od"
       ? "optical-density"
       : dataView === "beta"
         ? "beta"
-        : "mass-absorption";
+        : dataView === "delta"
+          ? "delta"
+          : "mass-absorption";
 
   return {
     dataView,
@@ -141,6 +176,7 @@ export function useNexafsSpectrumBrowseModel({
     edgeZeroOnePoints,
     absorptionPlotPoints,
     betaPoints,
+    deltaPoints,
     spectrumYAxisQuantity,
     referenceCurves: [],
     normalizationRegions: { pre: null, post: null },
@@ -148,6 +184,7 @@ export function useNexafsSpectrumBrowseModel({
     odAvailable,
     absorptionAvailable,
     betaAvailable,
+    deltaAvailable,
   };
 }
 

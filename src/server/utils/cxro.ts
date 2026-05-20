@@ -1,10 +1,12 @@
 import {
+  henkeLblElementNffUrl,
+  parseHenkeLblNffText,
+} from "~/lib/henke-nff-cxro";
+import {
   computeMolecularWeight,
   getAtomicWeight,
   parseChemicalFormula,
 } from "./chemistry";
-
-const CXRO_BASE_URL = "https://henke.lbl.gov/optical_constants/sf";
 const ELECTRON_RADIUS_CM = 2.8179403227e-13; // cm
 const PLANCK_CONSTANT_TIMES_C_EV_ANGSTROM = 12398.4193; // eV * Å
 const AVOGADRO = 6.02214076e23;
@@ -31,7 +33,7 @@ async function fetchElementF2Data(element: string): Promise<ElementF2Dataset> {
     return cached;
   }
 
-  const url = `${CXRO_BASE_URL}/${element.toLowerCase()}.nff`;
+  const url = henkeLblElementNffUrl(element);
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(
@@ -40,34 +42,9 @@ async function fetchElementF2Data(element: string): Promise<ElementF2Dataset> {
   }
 
   const text = await response.text();
-  const energies: number[] = [];
-  const f2Values: number[] = [];
-
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
-
-    const [energyToken, , f2Token] = line.split(/\s+/);
-    if (!energyToken || !f2Token) {
-      continue;
-    }
-
-    const energy = Number.parseFloat(energyToken);
-    const f2 = Number.parseFloat(f2Token);
-
-    if (!Number.isFinite(energy) || !Number.isFinite(f2)) {
-      continue;
-    }
-
-    energies.push(energy);
-    f2Values.push(f2);
-  }
-
-  if (energies.length === 0) {
-    throw new Error(`No CXRO data parsed for element ${element}.`);
-  }
+  const parsed = parseHenkeLblNffText(text);
+  const energies = [...parsed.energiesEv];
+  const f2Values = [...parsed.f2];
 
   const dataset: ElementF2Dataset = {
     element,

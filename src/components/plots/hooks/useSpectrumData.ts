@@ -14,6 +14,44 @@ import {
   sortedGeometryGroupEntries,
 } from "../utils/trace-utils";
 
+/**
+ * Filters spectrum rows to the same set {@link useSpectrumData} turns into grouped line traces when
+ * difference spectra are off: fixed-geometry rows appear only when neither θ-split nor φ-split is active;
+ * angle-resolved rows follow the θ/φ toggle semantics used by the plot.
+ *
+ * @param points Source rows (typically the active view’s `plotPoints` where `absorption` holds the plotted y).
+ * @param showThetaData When true, include every finite θ/φ row (θ-split mode).
+ * @param showPhiData When true, include every finite θ/φ row (φ-split mode).
+ * @returns A shallow-filtered array; does not sort energies or deduplicate.
+ */
+export function filterSpectrumPointsForGroupedPlot(
+  points: SpectrumPoint[],
+  showThetaData: boolean,
+  showPhiData: boolean,
+): SpectrumPoint[] {
+  return points.filter((point) => {
+    const hasGeometry =
+      typeof point.theta === "number" &&
+      Number.isFinite(point.theta) &&
+      typeof point.phi === "number" &&
+      Number.isFinite(point.phi);
+
+    if (!hasGeometry) {
+      return !showThetaData && !showPhiData;
+    }
+
+    if (showThetaData) {
+      return true;
+    }
+
+    if (showPhiData) {
+      return true;
+    }
+
+    return true;
+  });
+}
+
 export type SpectrumDataResult = {
   traces: TraceData[];
   keys: string[];
@@ -38,31 +76,7 @@ export function useSpectrumData(
       !differenceSpectra || differenceSpectra.length === 0;
 
     const filteredPoints = showOriginalData
-      ? points.filter((point) => {
-          const hasGeometry =
-            typeof point.theta === "number" &&
-            Number.isFinite(point.theta) &&
-            typeof point.phi === "number" &&
-            Number.isFinite(point.phi);
-
-          if (!hasGeometry) {
-            // Show fixed geometry points only if neither theta nor phi data is shown
-            return !showThetaData && !showPhiData;
-          }
-
-          // If showing theta data, show all points (they all have theta)
-          if (showThetaData) {
-            return true;
-          }
-
-          // If showing phi data, show all points (they all have phi)
-          if (showPhiData) {
-            return true;
-          }
-
-          // If neither is shown, show all points (default behavior)
-          return true;
-        })
+      ? filterSpectrumPointsForGroupedPlot(points, showThetaData, showPhiData)
       : [];
 
     const groups = groupPointsByGeometry(filteredPoints);

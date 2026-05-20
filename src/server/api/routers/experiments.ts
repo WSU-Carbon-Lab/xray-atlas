@@ -23,6 +23,13 @@ import {
   fetchNexafsBrowseGrouped,
   type NexafsBrowseSortKey,
 } from "~/server/nexafs/nexafsBrowseGroups";
+import {
+  buildKkDeltaMetadata,
+  deriveKkDeltaSourceOnCreate,
+  kkDeltaMetadataToJson,
+  parseKkDeltaMetadata,
+} from "~/server/nexafs/kkDeltaMetadata";
+import { SPECTRUMPOINTS_SERVER_SCAN_CAP } from "~/server/nexafs/spectrumpointLimits";
 
 const nexafsBrowseSortBySchema = z
   .enum([
@@ -60,9 +67,20 @@ const unifiedNormalizationRangesSchema = z.object({
   post: z.tuple([z.number(), z.number()]).nullable(),
 });
 
+const perChannelNormalizationRangesSchema = z.object({
+  od: unifiedNormalizationRangesSchema,
+  massabsorption: unifiedNormalizationRangesSchema,
+  beta: unifiedNormalizationRangesSchema,
+});
+
+const normalizationRangesInputSchema = z.union([
+  unifiedNormalizationRangesSchema,
+  perChannelNormalizationRangesSchema,
+]);
+
 const normalizationSchema = z.object({
   scope: z.enum(["none", "unified", "per_channel"]),
-  ranges: unifiedNormalizationRangesSchema.nullable(),
+  ranges: normalizationRangesInputSchema.nullable(),
 });
 
 type ExperimentQualityComment = {
@@ -149,6 +167,11 @@ export const experimentsRouter = createTRPCRouter({
       const row = await ctx.db.experiments.findUnique({
         where: { id: input.experimentId },
         select: {
+          createdby: true,
+          normalizationscope: true,
+          normalizationranges: true,
+          uploadedchannels: true,
+          kkdeltametadata: true,
           samples: {
             select: {
               molecules: { select: { chemicalformula: true } },
@@ -158,8 +181,17 @@ export const experimentsRouter = createTRPCRouter({
       });
       const raw =
         row?.samples?.molecules?.chemicalformula?.trim() ?? "";
+      const userId = ctx.userId;
+      const canEditNormalizationMetadata =
+        Boolean(userId && row?.createdby && row.createdby === userId) ||
+        (Boolean(userId) && (await hasPrivilegedRole(ctx.db, userId)));
       return {
         chemicalFormula: raw.length > 0 ? raw : null,
+        normalizationScope: row?.normalizationscope ?? null,
+        normalizationRanges: row?.normalizationranges ?? null,
+        uploadedChannels: row?.uploadedchannels ?? null,
+        kkDeltaMetadata: parseKkDeltaMetadata(row?.kkdeltametadata),
+        canEditNormalizationMetadata,
       };
     }),
 
@@ -782,6 +814,7 @@ export const experimentsRouter = createTRPCRouter({
           uploadedChannels: z
             .array(z.enum(["rawabs", "od", "massabsorption", "beta"]))
             .optional(),
+          computeKkDeltaOnSubmit: z.boolean().optional(),
           validationOverride: z
             .object({
               bypass: z.boolean(),
@@ -841,6 +874,8 @@ export const experimentsRouter = createTRPCRouter({
                 massabsorptionError: z.number().optional(),
                 beta: z.number().optional(),
                 betaError: z.number().optional(),
+                delta: z.number().finite().optional(),
+                deltaError: z.number().optional(),
               }),
             )
             .min(1, "Spectrum CSV must contain at least one row"),
@@ -1138,6 +1173,7 @@ export const experimentsRouter = createTRPCRouter({
           const validationSummary = buildValidationSummary({
             points: spectrumInput.points,
             ranges: normalizationRanges,
+            scope: normalizationScope,
             override: {
               bypass: experimentInput.validationOverride?.bypass ?? false,
               reason: experimentInput.validationOverride?.reason,
@@ -1146,6 +1182,7 @@ export const experimentsRouter = createTRPCRouter({
           const qualityScores = buildQualityScores({
             points: spectrumInput.points,
             ranges: normalizationRanges,
+            scope: normalizationScope,
             doiPresent: false,
           });
           const hasDerivedValues = {
@@ -1163,6 +1200,54 @@ export const experimentsRouter = createTRPCRouter({
             uploadedChannels,
             hasDerivedValues,
           });
+
+          let spectrumHasDelta = false;
+          for (const group of geometryGroups) {
+            for (const point of group.points) {
+              const deltaVal = coalesceUploadedOrDerived(point.delta, null);
+              if (deltaVal != null && Number.isFinite(deltaVal)) {
+                spectrumHasDelta = true;
+                break;
+              }
+            }
+            if (spectrumHasDelta) {
+              break;
+            }
+          }
+
+          if (
+            experimentInput.computeKkDeltaOnSubmit === true &&
+            !spectrumHasDelta
+          ) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "computeKkDeltaOnSubmit requires finite delta on at least one spectrum point",
+            });
+          }
+          if (
+            experimentInput.computeKkDeltaOnSubmit === true &&
+            !uploadedChannels.includes("beta")
+          ) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "computeKkDeltaOnSubmit requires beta in uploadedChannels",
+            });
+          }
+
+          const kkDeltaSourceOnCreate = deriveKkDeltaSourceOnCreate({
+            spectrumHasFiniteDelta: spectrumHasDelta,
+            computeKkDeltaOnSubmit: experimentInput.computeKkDeltaOnSubmit,
+          });
+          const kkDeltaMetadataOnCreate =
+            kkDeltaSourceOnCreate != null
+              ? buildKkDeltaMetadata({
+                  source: kkDeltaSourceOnCreate,
+                  calculatedByUserId: ctx.userId,
+                })
+              : null;
+
           const experiment = await tx.experiments.create({
             data: {
               id: experimentId,
@@ -1184,6 +1269,10 @@ export const experimentsRouter = createTRPCRouter({
                 uploadedChannels as unknown as Prisma.InputJsonValue,
               channelprovenance:
                 channelProvenance as unknown as Prisma.InputJsonValue,
+              kkdeltametadata:
+                kkDeltaMetadataOnCreate != null
+                  ? kkDeltaMetadataToJson(kkDeltaMetadataOnCreate)
+                  : undefined,
               validationsummary:
                 validationSummary as unknown as Prisma.InputJsonValue,
               qualityscores: qualityScores as unknown as Prisma.InputJsonValue,
@@ -1229,6 +1318,8 @@ export const experimentsRouter = createTRPCRouter({
                 derived.beta[i] ?? null,
               ),
               betaerr: coalesceUploadedOrDerived(point.betaError, null),
+              delta: coalesceUploadedOrDerived(point.delta, null),
+              deltaerr: coalesceUploadedOrDerived(point.deltaError, null),
               i0: coalesceUploadedOrDerived(point.i0, null),
             }));
 
@@ -1308,9 +1399,19 @@ export const experimentsRouter = createTRPCRouter({
           "rawabs",
         ]),
       );
+      const pointCount = await ctx.db.spectrumpoints.count({
+        where: { experimentid: input.experimentId },
+      });
+      if (pointCount > SPECTRUMPOINTS_SERVER_SCAN_CAP) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Normalization revalidation supports at most ${SPECTRUMPOINTS_SERVER_SCAN_CAP} spectrum points per experiment (${pointCount} present)`,
+        });
+      }
       const points = await ctx.db.spectrumpoints.findMany({
         where: { experimentid: input.experimentId },
         orderBy: { energyev: "asc" },
+        take: SPECTRUMPOINTS_SERVER_SCAN_CAP,
       });
       const spectrumPoints = points.map((point) => ({
         energy: point.energyev,
@@ -1323,11 +1424,13 @@ export const experimentsRouter = createTRPCRouter({
       const validationSummary = buildValidationSummary({
         points: spectrumPoints,
         ranges,
+        scope: input.normalization.scope,
         override: { bypass: false, reason: input.reason },
       });
       const qualityScores = buildQualityScores({
         points: spectrumPoints,
         ranges,
+        scope: input.normalization.scope,
         doiPresent: false,
       });
       const channelProvenance = buildChannelProvenance({

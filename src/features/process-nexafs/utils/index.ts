@@ -6,6 +6,7 @@ export {
   analyzeNumericColumns,
   computeZeroOneNormalization,
   computeNormalizationForExperiment,
+  interpolateBareMu,
   rangesApproximatelyEqual,
   countPointsWithinRange,
   buildSpectrumStats,
@@ -33,7 +34,15 @@ export type {
 } from "./peakDetection";
 export { calculateDifferenceSpectra } from "./differenceSpectra";
 export type { DifferenceSpectrum } from "./differenceSpectra";
-export { calculateBareAtomAbsorption } from "./bareAtomCalculation";
+export {
+  calculateBareAtomAbsorption,
+  calculateBareAtomDelta,
+  warmBareAtomCacheForFormula,
+} from "./bareAtomCalculation";
+export {
+  buildBareAtomReferenceCurve,
+  type BareAtomReferenceDataView,
+} from "./buildBareAtomReferenceCurve";
 export { parseCSVFile } from "./csv";
 export { computeBetaIndex } from "./betaIndex";
 export { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";
@@ -51,7 +60,10 @@ export {
   type SpectrumPhiLeaf,
 } from "./groupSpectrumByPolarizationThetaPhi";
 export { spectrumPointsToDetailedCsv } from "./spectrumCsv";
-export { buildSpectrumPointsWithDerivedForUpload } from "./uploadDerivedSpectrum";
+export {
+  buildSpectrumPointsWithDerivedForUpload,
+  uploadDatasetHasFiniteBetaForKkOnEveryRow,
+} from "./uploadDerivedSpectrum";
 export { detectAuxiliarySpectrumColumnNames } from "./auxiliarySpectrumColumns";
 export {
   filterSpectrumPointsByGeometry,

@@ -1,0 +1,79 @@
+import {
+  computeDeltaFromBetaKkcalcStyle,
+  type KkcalcMaterialContext,
+} from "./compute-delta-from-beta-kkcalc-style";
+import { alignKkDeltaToSpectrumEnergyAxis } from "./makima-interpolate";
+import { prepareStrictlyAscendingEnergyBetaForKk } from "./prepare-strictly-ascending-energy-beta-for-kk";
+
+export interface SpectrumpointRowForKk {
+  readonly id: string;
+  readonly polarizationid: string | null;
+  readonly energyev: number;
+  readonly beta: number | null;
+}
+
+/**
+ * Builds `{ id, delta }` updates for `spectrumpoints` rows by running kkcalc2-style KK in TypeScript
+ * on each polarization id group, then {@link alignKkDeltaToSpectrumEnergyAxis} so each persisted `delta`
+ * is defined on the row's `energyev` axis (makima remap when the KK grid differs from stored energies).
+ *
+ * @param rows All spectrum rows for one experiment (any order); rows with null or
+ *   non-finite `beta` are skipped entirely for KK (no update emitted for those ids).
+ * @param material Stoichiometry and mass density for kkcalc2 conversions.
+ * @returns Update objects suitable for the authenticated `spectrumpoints.updateKkDeltaBatch`
+ *   tRPC mutation payload shape. That mutation overwrites `delta` on the given ids and sets
+ *   `experiments.kk_delta_metadata` (`kk_browser_recalculate`, `calculatedAt` UTC).
+ */
+export function buildSpectrumpointDeltaUpdatesFromRows(
+  rows: readonly SpectrumpointRowForKk[],
+  material: KkcalcMaterialContext,
+): { id: string; delta: number }[] {
+  const eligible = rows.filter(
+    (r) => r.beta != null && Number.isFinite(r.beta) && Number.isFinite(r.energyev),
+  );
+  if (eligible.length < 4) {
+    return [];
+  }
+
+  const byPol = new Map<string | null, SpectrumpointRowForKk[]>();
+  for (const r of eligible) {
+    const list = byPol.get(r.polarizationid);
+    if (list) {
+      list.push(r);
+    } else {
+      byPol.set(r.polarizationid, [r]);
+    }
+  }
+
+  const out: { id: string; delta: number }[] = [];
+
+  for (const group of byPol.values()) {
+    group.sort((a, b) => a.energyev - b.energyev);
+    const E = group.map((r) => r.energyev);
+    const B = group.map((r) => r.beta!);
+    const prepared = prepareStrictlyAscendingEnergyBetaForKk(E, B);
+    if (prepared.energyEv.length < 4) {
+      continue;
+    }
+    const deltaArr = computeDeltaFromBetaKkcalcStyle({
+      energyEv: prepared.energyEv,
+      beta: prepared.beta,
+      stoichiometryFormula: material.stoichiometryFormula,
+      densityGPerCm3: material.massDensityGPerCm3,
+      henkeMergeDomain: material.henkeMergeDomain,
+    });
+    const aligned = alignKkDeltaToSpectrumEnergyAxis(
+      E,
+      prepared.energyEv,
+      deltaArr,
+    );
+    for (let i = 0; i < group.length; i++) {
+      const d = aligned[i]!;
+      if (Number.isFinite(d)) {
+        out.push({ id: group[i]!.id, delta: d });
+      }
+    }
+  }
+
+  return out;
+}

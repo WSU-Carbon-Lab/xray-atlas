@@ -62,6 +62,7 @@ export interface NexafsBrowseGroupedSpectrumTableProps {
   showOdCol: boolean;
   showMassCol: boolean;
   showBetaCol: boolean;
+  showDeltaCol: boolean;
   showI0Col: boolean;
 }
 
@@ -138,6 +139,7 @@ function SpectrumLeafTable({
   showOdCol,
   showMassCol,
   showBetaCol,
+  showDeltaCol,
   showI0Col,
   tableRowIdPrefix,
 }: {
@@ -147,6 +149,7 @@ function SpectrumLeafTable({
   showOdCol: boolean;
   showMassCol: boolean;
   showBetaCol: boolean;
+  showDeltaCol: boolean;
   showI0Col: boolean;
   tableRowIdPrefix: string;
 }) {
@@ -186,9 +189,10 @@ function SpectrumLeafTable({
         ...(showOdCol ? [{ id: "od" as const, label: "OD" }] : []),
         ...(showMassCol ? [{ id: "mass" as const, label: "Mass abs." }] : []),
         ...(showBetaCol ? [{ id: "beta" as const, label: "beta" }] : []),
+        ...(showDeltaCol ? [{ id: "delta" as const, label: "delta" }] : []),
         ...(showI0Col ? [{ id: "i0" as const, label: "I0" }] : []),
       ],
-    [showColumn, showOdCol, showMassCol, showBetaCol, showI0Col],
+    [showColumn, showOdCol, showMassCol, showBetaCol, showDeltaCol, showI0Col],
   );
 
   const totalPages = Math.max(1, Math.ceil(points.length / PAGE_SIZE));
@@ -399,6 +403,15 @@ function SpectrumLeafTable({
                             </Table.Cell>
                           );
                         }
+                        if (col.id === "delta") {
+                          return (
+                            <Table.Cell key={col.id} className="text-right">
+                              {typeof point.delta === "number"
+                                ? point.delta.toExponential(3)
+                                : ""}
+                            </Table.Cell>
+                          );
+                        }
                         if (col.id === "i0") {
                           return (
                             <Table.Cell key={col.id} className="text-right">
@@ -495,6 +508,7 @@ export function NexafsBrowseGroupedSpectrumTable({
   showOdCol,
   showMassCol,
   showBetaCol,
+  showDeltaCol,
   showI0Col,
 }: NexafsBrowseGroupedSpectrumTableProps) {
   const instanceSuffix = useId();
@@ -595,6 +609,7 @@ export function NexafsBrowseGroupedSpectrumTable({
                     showOdCol={showOdCol}
                     showMassCol={showMassCol}
                     showBetaCol={showBetaCol}
+                    showDeltaCol={showDeltaCol}
                     showI0Col={showI0Col}
                     tableRowIdPrefix={itemId}
                   />

@@ -4,11 +4,10 @@ import type { ReactNode } from "react";
 import { TableCellsIcon, ChartBarIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import { ChartLine, ChartArea, ChartScatter } from "lucide-react";
 import { Tooltip } from "@heroui/react";
+import { plotToolbarTooltipContentClass } from "~/components/plots/toolbars";
 
 export type VisualizationMode = "graph" | "table";
 export type GraphStyle = "line" | "scatter" | "area";
-
-const tooltipContentClass = "bg-foreground text-background rounded-lg px-3 py-2 shadow-lg";
 
 const inactiveButtonClass =
   "border-border bg-surface text-foreground flex h-8 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-default";
@@ -66,8 +65,8 @@ export function VisualizationToggle({
             <ChartBarIcon className="h-4 w-4" />
             <span>Graph</span>
           </button>
-          <Tooltip.Content className={tooltipContentClass}>
-            View spectrum data as an interactive graph
+          <Tooltip.Content className={plotToolbarTooltipContentClass}>
+            Show graph: Open the interactive spectrum plot.
           </Tooltip.Content>
         </Tooltip>
         <Tooltip delay={0}>
@@ -79,8 +78,8 @@ export function VisualizationToggle({
             <TableCellsIcon className="h-4 w-4" />
             <span>Table</span>
           </button>
-          <Tooltip.Content className={tooltipContentClass}>
-            View spectrum data as a table with all data points
+          <Tooltip.Content className={plotToolbarTooltipContentClass}>
+            Show table: View every point in a sortable grid.
           </Tooltip.Content>
         </Tooltip>
       </div>
@@ -104,12 +103,12 @@ export function VisualizationToggle({
                     {style === "area" && "Area"}
                   </span>
                 </button>
-                <Tooltip.Content className={tooltipContentClass}>
+                <Tooltip.Content className={plotToolbarTooltipContentClass}>
                   {style === "line"
-                    ? "Display spectrum as a continuous line"
+                    ? "Plot line: Draw the spectrum as connected segments."
                     : style === "scatter"
-                      ? "Display spectrum as individual data points"
-                      : "Display spectrum as a filled area under the curve"}
+                      ? "Plot scatter: Draw one marker per sample."
+                      : "Plot area: Fill the region under the spectrum curve."}
                 </Tooltip.Content>
               </Tooltip>
             ))}
@@ -133,8 +132,10 @@ export function VisualizationToggle({
                 <PencilSquareIcon className="h-4 w-4" />
                 <span>Edit</span>
               </button>
-              <Tooltip.Content className={tooltipContentClass}>
-                {editMode ? "Exit edit mode" : "Edit values in the table"}
+              <Tooltip.Content className={plotToolbarTooltipContentClass}>
+                {editMode
+                  ? "Exit edit mode: Stop changing cells in the table."
+                  : "Edit table: Change energy, mu, and angles in place."}
               </Tooltip.Content>
             </Tooltip>
           </div>
