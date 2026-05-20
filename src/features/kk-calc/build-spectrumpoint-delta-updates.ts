@@ -20,7 +20,8 @@ export interface SpectrumpointRowForKk {
  *   non-finite `beta` are skipped entirely for KK (no update emitted for those ids).
  * @param material Stoichiometry and mass density for kkcalc2 conversions.
  * @returns Update objects suitable for the authenticated `spectrumpoints.updateKkDeltaBatch`
- *   tRPC mutation payload shape.
+ *   tRPC mutation payload shape. That mutation overwrites `delta` on the given ids and sets
+ *   `experiments.kk_delta_metadata` (`kk_browser_recalculate`, `calculatedAt` UTC).
  */
 export function buildSpectrumpointDeltaUpdatesFromRows(
   rows: readonly SpectrumpointRowForKk[],

@@ -184,6 +184,17 @@ function toStrictAscendingEnergySpectrumPoints(
   return out;
 }
 
+function strictlyAscendingUniqueEnergies(energies: readonly number[]): number[] {
+  const sorted = energies.filter((e) => Number.isFinite(e)).sort((a, b) => a - b);
+  const out: number[] = [];
+  for (const energy of sorted) {
+    if (out.length === 0 || energy > out[out.length - 1]!) {
+      out.push(energy);
+    }
+  }
+  return out;
+}
+
 function NexafsExperimentTableSkeleton() {
   return (
     <div
@@ -266,6 +277,9 @@ export function NexafsExperimentDatasetPanel({
   const updateKkDeltaBatch = trpc.spectrumpoints.updateKkDeltaBatch.useMutation({
     onSuccess: () => {
       void utils.spectrumpoints.getByExperiment.invalidate({ experimentId });
+      void utils.experiments.moleculeFormulaForExperiment.invalidate({
+        experimentId,
+      });
     },
   });
   const updateNormalizationMetadata =
@@ -365,8 +379,17 @@ export function NexafsExperimentDatasetPanel({
         );
         return;
       }
-      await updateKkDeltaBatch.mutateAsync({ experimentId, updates });
-      showToast("Updated delta from beta (KK)", "success");
+      const result = await updateKkDeltaBatch.mutateAsync({
+        experimentId,
+        updates,
+      });
+      const recalcAt = result.kkDeltaMetadata?.calculatedAt;
+      showToast(
+        recalcAt
+          ? `Recalculated delta from beta (KK) at ${new Date(recalcAt).toLocaleString()}`
+          : "Recalculated delta from beta (KK)",
+        "success",
+      );
     } catch (e) {
       showToast(
         e instanceof Error ? e.message : "Could not update KK delta",
@@ -455,20 +478,25 @@ export function NexafsExperimentDatasetPanel({
       return;
     }
 
-    if (model.dataView === "delta" && !(model.deltaPoints?.length ?? 0)) {
+    if (
+      model.dataView === "delta" &&
+      !model.deltaAvailable &&
+      !pointsQuery.isFetching
+    ) {
       setBareAtomReferences([]);
       setBareAtomMuOverlayPoints(null);
       return;
     }
 
     const dataView = model.dataView;
+    const formula = chemicalFormula.trim();
 
     let cancelled = false;
 
     void (async () => {
       try {
         if (bareAtomOverlaySourcePoints.length === 0) {
-          if (!cancelled) {
+          if (!cancelled && !pointsQuery.isFetching) {
             setBareAtomReferences([]);
             setBareAtomMuOverlayPoints(null);
           }
@@ -478,6 +506,107 @@ export function NexafsExperimentDatasetPanel({
         const entries = sortedGeometryGroupEntries(
           groupPointsByGeometry(bareAtomOverlaySourcePoints),
         );
+        if (entries.length === 0) {
+          if (!cancelled && !pointsQuery.isFetching) {
+            setBareAtomReferences([]);
+            setBareAtomMuOverlayPoints(null);
+          }
+          return;
+        }
+
+        const resolveHenkeMerge = (
+          measuredEnergyEv: readonly number[],
+        ): readonly [number, number] | undefined => {
+          if (measuredEnergyEv.length < 4) {
+            return henkeMergeDomainForKkBeta;
+          }
+          try {
+            const composition = parseChemicalFormula(formula);
+            let rangesRaw: unknown = null;
+            try {
+              rangesRaw =
+                normalizationRangesKeyForKk === "null"
+                  ? null
+                  : (JSON.parse(normalizationRangesKeyForKk) as unknown);
+            } catch {
+              rangesRaw = null;
+            }
+            const ranges = parseStoredNormalizationRanges(rangesRaw);
+            const win = unifiedNormalizationWindowsForBasis(
+              normalizationScopeForKk,
+              ranges,
+              "beta",
+            );
+            return (
+              resolveHenkeKkMergeDomainForBareAtomOverlay({
+                composition,
+                prePostWindows:
+                  win?.pre && win.post
+                    ? { pre: win.pre, post: win.post }
+                    : null,
+                measuredEnergyEv,
+              }) ?? henkeMergeDomainForKkBeta
+            );
+          } catch {
+            return henkeMergeDomainForKkBeta;
+          }
+        };
+
+        if (dataView === "delta") {
+          const deltaTargetEnergyEv = strictlyAscendingUniqueEnergies(
+            model.deltaPoints?.map((p) => p.energy) ?? [],
+          );
+          if (deltaTargetEnergyEv.length < 4) {
+            if (!cancelled && !pointsQuery.isFetching) {
+              setBareAtomReferences([]);
+              setBareAtomMuOverlayPoints(null);
+            }
+            return;
+          }
+
+          const firstGroup = entries[0]![1];
+          const strictPts = toStrictAscendingEnergySpectrumPoints(
+            geometryGroupToSpectrumPoints(firstGroup),
+          );
+          if (strictPts.length === 0) {
+            if (!cancelled && !pointsQuery.isFetching) {
+              setBareAtomReferences([]);
+              setBareAtomMuOverlayPoints(null);
+            }
+            return;
+          }
+
+          const bareMu = await calculateBareAtomAbsorption(formula, strictPts);
+          if (cancelled) {
+            return;
+          }
+          if (bareMu.length === 0) {
+            setBareAtomReferences([]);
+            setBareAtomMuOverlayPoints(null);
+            showToast("Could not compute bare atom reference curve", "error");
+            return;
+          }
+
+          const curve = buildBareAtomReferenceCurve({
+            bareMu,
+            dataView: "delta",
+            stoichiometryFormula: formula,
+            label: "Bare atom delta",
+            targetEnergyEv: deltaTargetEnergyEv,
+            henkeMergeDomain: resolveHenkeMerge(deltaTargetEnergyEv),
+          });
+
+          if (cancelled) {
+            return;
+          }
+
+          setBareAtomReferences(curve ? [curve] : []);
+          setBareAtomMuOverlayPoints(curve ? bareMu : null);
+          if (!curve) {
+            showToast("Could not compute bare atom reference curve", "error");
+          }
+          return;
+        }
 
         type BareOverlayBuild = {
           curve: ReferenceCurve | null;
@@ -494,66 +623,26 @@ export function NexafsExperimentDatasetPanel({
             }
             try {
               const bareMu = await calculateBareAtomAbsorption(
-                chemicalFormula,
+                formula,
                 strictPts,
               );
               if (bareMu.length === 0) {
                 return { curve: null, bareMuForBetaPreview: null };
               }
               const geometryTag = group.label || "geometry";
-              const targetEnergyEv = strictPts.map((p) => p.energy);
               const referenceView =
-                dataView === "beta"
-                  ? "beta"
-                  : dataView === "delta"
-                    ? "delta"
-                    : "absorption";
-              let henkeMerge = henkeMergeDomainForKkBeta;
-              if (referenceView === "delta" && targetEnergyEv.length >= 4) {
-                try {
-                  const composition = parseChemicalFormula(
-                    chemicalFormula.trim(),
-                  );
-                  let rangesRaw: unknown = null;
-                  try {
-                    rangesRaw =
-                      normalizationRangesKeyForKk === "null"
-                        ? null
-                        : (JSON.parse(normalizationRangesKeyForKk) as unknown);
-                  } catch {
-                    rangesRaw = null;
-                  }
-                  const ranges = parseStoredNormalizationRanges(rangesRaw);
-                  const win = unifiedNormalizationWindowsForBasis(
-                    normalizationScopeForKk,
-                    ranges,
-                    "beta",
-                  );
-                  henkeMerge = resolveHenkeKkMergeDomainForBareAtomOverlay({
-                    composition,
-                    prePostWindows:
-                      win?.pre && win.post
-                        ? { pre: win.pre, post: win.post }
-                        : null,
-                    measuredEnergyEv: targetEnergyEv,
-                  });
-                } catch {
-                  henkeMerge = henkeMergeDomainForKkBeta;
-                }
-              }
+                dataView === "beta" ? "beta" : "absorption";
               const curve = buildBareAtomReferenceCurve({
                 bareMu,
                 dataView: referenceView,
-                stoichiometryFormula: chemicalFormula.trim(),
+                stoichiometryFormula: formula,
                 label:
                   referenceView === "beta"
                     ? `Bare atom beta (${geometryTag})`
-                    : referenceView === "delta"
-                      ? `Bare atom delta (${geometryTag})`
-                      : `Bare atom absorption (${geometryTag})`,
-                targetEnergyEv:
-                  referenceView === "delta" ? targetEnergyEv : undefined,
-                henkeMergeDomain: henkeMerge,
+                    : `Bare atom absorption (${geometryTag})`,
+                henkeMergeDomain: resolveHenkeMerge(
+                  strictPts.map((p) => p.energy),
+                ),
               });
               return {
                 curve,
@@ -601,11 +690,13 @@ export function NexafsExperimentDatasetPanel({
     showBareAtomOverlay,
     chemicalFormula,
     model.dataView,
+    model.deltaAvailable,
     model.deltaPoints,
     bareAtomOverlaySourcePoints,
     henkeMergeDomainForKkBeta,
     normalizationScopeForKk,
     normalizationRangesKeyForKk,
+    pointsQuery.isFetching,
   ]);
 
   const plotPeaks = useMemo(

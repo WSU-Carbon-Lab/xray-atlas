@@ -23,6 +23,12 @@ import {
   fetchNexafsBrowseGrouped,
   type NexafsBrowseSortKey,
 } from "~/server/nexafs/nexafsBrowseGroups";
+import {
+  buildKkDeltaMetadata,
+  kkDeltaMetadataToJson,
+  parseKkDeltaMetadata,
+  type KkDeltaSource,
+} from "~/server/nexafs/kkDeltaMetadata";
 
 const nexafsBrowseSortBySchema = z
   .enum([
@@ -164,6 +170,7 @@ export const experimentsRouter = createTRPCRouter({
           normalizationscope: true,
           normalizationranges: true,
           uploadedchannels: true,
+          kkdeltametadata: true,
           samples: {
             select: {
               molecules: { select: { chemicalformula: true } },
@@ -182,6 +189,7 @@ export const experimentsRouter = createTRPCRouter({
         normalizationScope: row?.normalizationscope ?? null,
         normalizationRanges: row?.normalizationranges ?? null,
         uploadedChannels: row?.uploadedchannels ?? null,
+        kkDeltaMetadata: parseKkDeltaMetadata(row?.kkdeltametadata),
         canEditNormalizationMetadata,
       };
     }),
@@ -805,6 +813,9 @@ export const experimentsRouter = createTRPCRouter({
           uploadedChannels: z
             .array(z.enum(["rawabs", "od", "massabsorption", "beta"]))
             .optional(),
+          kkDeltaSource: z
+            .enum(["uploaded_column", "kk_at_upload"])
+            .optional(),
           validationOverride: z
             .object({
               bypass: z.boolean(),
@@ -1190,6 +1201,32 @@ export const experimentsRouter = createTRPCRouter({
             uploadedChannels,
             hasDerivedValues,
           });
+
+          let spectrumHasDelta = false;
+          for (const group of geometryGroups) {
+            for (const point of group.points) {
+              const deltaVal = coalesceUploadedOrDerived(point.delta, null);
+              if (deltaVal != null && Number.isFinite(deltaVal)) {
+                spectrumHasDelta = true;
+                break;
+              }
+            }
+            if (spectrumHasDelta) {
+              break;
+            }
+          }
+
+          const kkDeltaSourceOnCreate: KkDeltaSource | null = spectrumHasDelta
+            ? (experimentInput.kkDeltaSource ?? "uploaded_column")
+            : null;
+          const kkDeltaMetadataOnCreate =
+            kkDeltaSourceOnCreate != null
+              ? buildKkDeltaMetadata({
+                  source: kkDeltaSourceOnCreate,
+                  calculatedByUserId: ctx.userId,
+                })
+              : null;
+
           const experiment = await tx.experiments.create({
             data: {
               id: experimentId,
@@ -1211,6 +1248,10 @@ export const experimentsRouter = createTRPCRouter({
                 uploadedChannels as unknown as Prisma.InputJsonValue,
               channelprovenance:
                 channelProvenance as unknown as Prisma.InputJsonValue,
+              kkdeltametadata:
+                kkDeltaMetadataOnCreate != null
+                  ? kkDeltaMetadataToJson(kkDeltaMetadataOnCreate)
+                  : undefined,
               validationsummary:
                 validationSummary as unknown as Prisma.InputJsonValue,
               qualityscores: qualityScores as unknown as Prisma.InputJsonValue,

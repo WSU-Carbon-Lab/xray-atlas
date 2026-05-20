@@ -125,6 +125,17 @@ export default function WikiOpticalConstantsPage() {
           <code className="text-foreground">collected_by_user_ids</code>, a molecule contributor
           on the parent sample, or a privileged administrator-style role.
         </p>
+        <p className="text-muted mt-3 text-sm">
+          Each experiment may store <code className="text-foreground">kk_delta_metadata</code>{" "}
+          (JSON on <code className="text-foreground">experiments</code>) recording how the
+          current <code className="text-foreground">delta</code> column was produced: an uploaded
+          column at ingest, KK at upload, or a later browser recalculate from{" "}
+          <code className="text-foreground">beta</code>. The record includes an ISO{" "}
+          <code className="text-foreground">calculatedAt</code> timestamp, optional{" "}
+          <code className="text-foreground">calculatedByUserId</code>, engine label, and a short
+          note that recalculated delta overwrites prior values for the persisted point ids in
+          that batch.
+        </p>
       </section>
     </div>
   );

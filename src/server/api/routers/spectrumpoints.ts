@@ -8,6 +8,10 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "~/prisma/client";
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 import { userMayRecalculateKkDelta } from "~/server/nexafs/kkDeltaRecalculateAuthz";
+import {
+  buildKkDeltaMetadata,
+  kkDeltaMetadataToJson,
+} from "~/server/nexafs/kkDeltaMetadata";
 
 const KK_DELTA_BATCH_CHUNK = 800;
 
@@ -172,6 +176,11 @@ export const spectrumpointsRouter = createTRPCRouter({
       };
     }),
 
+  /**
+   * Overwrites `spectrumpoints.delta` for the given point ids (client KK output).
+   * Records {@link experiments.kkdeltametadata} with source `kk_browser_recalculate` and
+   * `calculatedAt` so readers can tell delta was recomputed from beta in-browser.
+   */
   updateKkDeltaBatch: protectedProcedure
     .input(
       z.object({
@@ -216,6 +225,13 @@ export const spectrumpointsRouter = createTRPCRouter({
         });
       }
 
+      const calculatedAt = new Date();
+      const kkDeltaMetadata = buildKkDeltaMetadata({
+        source: "kk_browser_recalculate",
+        calculatedAt,
+        calculatedByUserId: ctx.userId,
+      });
+
       await ctx.db.$transaction(
         async (tx) => {
           for (let i = 0; i < input.updates.length; i += KK_DELTA_BATCH_CHUNK) {
@@ -234,6 +250,13 @@ export const spectrumpointsRouter = createTRPCRouter({
               WHERE sp.id = u.id AND sp.experimentid = ${input.experimentId}::uuid
             `;
           }
+          await tx.experiments.update({
+            where: { id: input.experimentId },
+            data: {
+              kkdeltametadata: kkDeltaMetadataToJson(kkDeltaMetadata),
+              updatedat: calculatedAt,
+            },
+          });
         },
         {
           maxWait: 20_000,
@@ -241,7 +264,10 @@ export const spectrumpointsRouter = createTRPCRouter({
         },
       );
 
-      return { updated: input.updates.length };
+      return {
+        updated: input.updates.length,
+        kkDeltaMetadata,
+      };
     }),
 
   deleteByExperiment: protectedProcedure

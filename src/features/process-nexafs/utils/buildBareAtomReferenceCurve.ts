@@ -108,17 +108,33 @@ export function buildBareAtomReferenceCurve(args: {
     return null;
   }
 
+  const kkMin = prepared.energyEv[0]!;
+  const kkMax = prepared.energyEv[prepared.energyEv.length - 1]!;
+  const alignmentTarget = targetEnergyEv.filter(
+    (energy) => energy >= kkMin && energy <= kkMax,
+  );
+  const gridForAlign =
+    alignmentTarget.length >= 4 ? alignmentTarget : [...targetEnergyEv];
+
   const aligned = alignKkDeltaToSpectrumEnergyAxis(
-    targetEnergyEv,
+    gridForAlign,
     prepared.energyEv,
     rawDelta,
   );
 
-  return {
-    ...base,
-    points: targetEnergyEv.map((energy, i) => ({
+  const points = gridForAlign
+    .map((energy, i) => ({
       energy,
       absorption: aligned[i]!,
-    })),
+    }))
+    .filter((p) => Number.isFinite(p.absorption));
+
+  if (points.length < 2) {
+    return null;
+  }
+
+  return {
+    ...base,
+    points,
   };
 }

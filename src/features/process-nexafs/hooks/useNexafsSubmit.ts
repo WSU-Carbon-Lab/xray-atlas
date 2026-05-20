@@ -239,6 +239,11 @@ export function useNexafsSubmit(
                   : []),
                 ...(dataset.columnMappings.beta ? (["beta"] as const) : []),
               ],
+              kkDeltaSource: dataset.computeKkDeltaOnSubmit
+                ? "kk_at_upload"
+                : dataset.columnMappings.delta
+                  ? "uploaded_column"
+                  : undefined,
             },
             geometry: geometryInput,
             spectrum: {
