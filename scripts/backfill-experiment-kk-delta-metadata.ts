@@ -3,6 +3,7 @@
  * but no provenance JSON (for example after adding the column on an existing database).
  *
  * Run: `bun scripts/backfill-experiment-kk-delta-metadata.ts`
+ * Optional: `--source=kk_browser_recalculate` (default: `uploaded_column` for legacy finite delta).
  *
  * Requires `DATABASE_URL` (same wiring as `~/server/db` via `~/env`).
  */
@@ -14,7 +15,17 @@ import {
   kkDeltaMetadataToJson,
 } from "~/server/nexafs/kkDeltaMetadata";
 
+function parseSourceArg(): "uploaded_column" | "kk_browser_recalculate" {
+  const flag = process.argv.find((a) => a.startsWith("--source="));
+  const value = flag?.slice("--source=".length);
+  if (value === "kk_browser_recalculate") {
+    return "kk_browser_recalculate";
+  }
+  return "uploaded_column";
+}
+
 async function main(): Promise<void> {
+  const source = parseSourceArg();
   const backfilledAt = new Date();
   let updated = 0;
   let cursor: string | undefined;
@@ -42,7 +53,7 @@ async function main(): Promise<void> {
     cursor = batch[batch.length - 1]!.id;
 
     const metadata = buildKkDeltaMetadata({
-      source: "kk_browser_recalculate",
+      source,
       calculatedAt: backfilledAt,
       calculatedByUserId: null,
     });
@@ -79,6 +90,7 @@ async function main(): Promise<void> {
     JSON.stringify({
       ok: true,
       updated,
+      source,
       calculatedAt: backfilledAt.toISOString(),
     }),
   );

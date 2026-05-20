@@ -7,17 +7,20 @@
 
 import { readdirSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { config as loadEnvFile } from "dotenv";
 import pg from "pg";
 
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(scriptDir, "..");
+
 function loadEnv(): void {
-  const root = path.resolve(import.meta.dir, "..");
-  loadEnvFile({ path: path.join(root, ".env") });
-  loadEnvFile({ path: path.join(root, ".env.local") });
+  loadEnvFile({ path: path.join(repoRoot, ".env") });
+  loadEnvFile({ path: path.join(repoRoot, ".env.local") });
 }
 
 function localMigrationNames(): string[] {
-  const dir = path.join(import.meta.dir, "..", "prisma", "migrations");
+  const dir = path.join(repoRoot, "prisma", "migrations");
   return readdirSync(dir).filter((name) => name !== "migration_lock.toml");
 }
 

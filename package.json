@@ -11,6 +11,8 @@
     "check": "next lint && tsc --noEmit",
     "db:generate": "prisma migrate dev",
     "db:migrate": "prisma migrate deploy",
+    "db:migrate:check": "bun scripts/db-migrate-check.ts",
+    "db:migrate:run": "bun scripts/db-migrate-run.ts",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:backfill-validation-summary": "bun scripts/backfill-experiment-validation-summary.ts",
@@ -30,6 +32,9 @@
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test": "bun test src",
+    "test:kk-calc": "bun test src/features/kk-calc",
+    "test:server-nexafs": "bun test src/server/nexafs",
     "test:kk-calc-validation": "bun test src/features/kk-calc/*.test.ts"
   },
   "dependencies": {

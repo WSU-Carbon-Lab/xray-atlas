@@ -36,6 +36,23 @@ const KK_DELTA_METADATA_NOTE: Record<KkDeltaSource, string> = {
 };
 
 /**
+ * Derives ingest-time `KkDeltaSource` from persisted spectrum shape and contributor KK intent.
+ * Ignores any client-supplied source enum; callers pass only `computeKkDeltaOnSubmit`.
+ */
+export function deriveKkDeltaSourceOnCreate(args: {
+  spectrumHasFiniteDelta: boolean;
+  computeKkDeltaOnSubmit: boolean | undefined;
+}): KkDeltaSource | null {
+  if (!args.spectrumHasFiniteDelta) {
+    return null;
+  }
+  if (args.computeKkDeltaOnSubmit === true) {
+    return "kk_at_upload";
+  }
+  return "uploaded_column";
+}
+
+/**
  * Builds metadata to persist after delta is written on an experiment.
  */
 export function buildKkDeltaMetadata(args: {

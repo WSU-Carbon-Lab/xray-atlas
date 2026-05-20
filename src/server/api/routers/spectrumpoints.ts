@@ -116,7 +116,7 @@ export const spectrumpointsRouter = createTRPCRouter({
             od: z.number().optional(),
             massabsorption: z.number().optional(),
             beta: z.number().optional(),
-            delta: z.number().optional(),
+            delta: z.number().finite().optional(),
             deltaerr: z.number().optional(),
             i0: z.number().optional(),
           }),
@@ -189,7 +189,7 @@ export const spectrumpointsRouter = createTRPCRouter({
           .array(
             z.object({
               id: z.string().uuid(),
-              delta: z.number(),
+              delta: z.number().finite(),
             }),
           )
           .min(1)

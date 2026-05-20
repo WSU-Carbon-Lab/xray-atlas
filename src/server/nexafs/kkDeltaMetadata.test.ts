@@ -5,6 +5,7 @@ import {
 } from "bun:test";
 import {
   buildKkDeltaMetadata,
+  deriveKkDeltaSourceOnCreate,
   KK_DELTA_ENGINE_LABEL,
   parseKkDeltaMetadata,
 } from "./kkDeltaMetadata";
@@ -17,6 +18,35 @@ type ExpectAssertions = {
 const describe = bunDescribe as (name: string, fn: () => void) => void;
 const it = bunIt as (name: string, fn: () => void) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
+
+describe("deriveKkDeltaSourceOnCreate", () => {
+  it("returns null when no finite delta", () => {
+    expect(
+      deriveKkDeltaSourceOnCreate({
+        spectrumHasFiniteDelta: false,
+        computeKkDeltaOnSubmit: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("prefers kk_at_upload when KK ran at ingest", () => {
+    expect(
+      deriveKkDeltaSourceOnCreate({
+        spectrumHasFiniteDelta: true,
+        computeKkDeltaOnSubmit: true,
+      }),
+    ).toBe("kk_at_upload");
+  });
+
+  it("defaults to uploaded_column when delta present without KK flag", () => {
+    expect(
+      deriveKkDeltaSourceOnCreate({
+        spectrumHasFiniteDelta: true,
+        computeKkDeltaOnSubmit: false,
+      }),
+    ).toBe("uploaded_column");
+  });
+});
 
 describe("parseKkDeltaMetadata", () => {
   it("returns null for invalid input", () => {

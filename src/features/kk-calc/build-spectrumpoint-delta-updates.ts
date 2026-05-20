@@ -3,6 +3,7 @@ import {
   type KkcalcMaterialContext,
 } from "./compute-delta-from-beta-kkcalc-style";
 import { alignKkDeltaToSpectrumEnergyAxis } from "./makima-interpolate";
+import { prepareStrictlyAscendingEnergyBetaForKk } from "./prepare-strictly-ascending-energy-beta-for-kk";
 
 export interface SpectrumpointRowForKk {
   readonly id: string;
@@ -50,19 +51,22 @@ export function buildSpectrumpointDeltaUpdatesFromRows(
     group.sort((a, b) => a.energyev - b.energyev);
     const E = group.map((r) => r.energyev);
     const B = group.map((r) => r.beta!);
-    for (let i = 1; i < E.length; i++) {
-      if (E[i]! <= E[i - 1]!) {
-        return [];
-      }
+    const prepared = prepareStrictlyAscendingEnergyBetaForKk(E, B);
+    if (prepared.energyEv.length < 4) {
+      continue;
     }
     const deltaArr = computeDeltaFromBetaKkcalcStyle({
-      energyEv: E,
-      beta: B,
+      energyEv: prepared.energyEv,
+      beta: prepared.beta,
       stoichiometryFormula: material.stoichiometryFormula,
       densityGPerCm3: material.massDensityGPerCm3,
       henkeMergeDomain: material.henkeMergeDomain,
     });
-    const aligned = alignKkDeltaToSpectrumEnergyAxis(E, E, deltaArr);
+    const aligned = alignKkDeltaToSpectrumEnergyAxis(
+      E,
+      prepared.energyEv,
+      deltaArr,
+    );
     for (let i = 0; i < group.length; i++) {
       const d = aligned[i]!;
       if (Number.isFinite(d)) {

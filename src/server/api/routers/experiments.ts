@@ -25,10 +25,11 @@ import {
 } from "~/server/nexafs/nexafsBrowseGroups";
 import {
   buildKkDeltaMetadata,
+  deriveKkDeltaSourceOnCreate,
   kkDeltaMetadataToJson,
   parseKkDeltaMetadata,
-  type KkDeltaSource,
 } from "~/server/nexafs/kkDeltaMetadata";
+import { SPECTRUMPOINTS_SERVER_SCAN_CAP } from "~/server/nexafs/spectrumpointLimits";
 
 const nexafsBrowseSortBySchema = z
   .enum([
@@ -813,9 +814,7 @@ export const experimentsRouter = createTRPCRouter({
           uploadedChannels: z
             .array(z.enum(["rawabs", "od", "massabsorption", "beta"]))
             .optional(),
-          kkDeltaSource: z
-            .enum(["uploaded_column", "kk_at_upload"])
-            .optional(),
+          computeKkDeltaOnSubmit: z.boolean().optional(),
           validationOverride: z
             .object({
               bypass: z.boolean(),
@@ -875,7 +874,7 @@ export const experimentsRouter = createTRPCRouter({
                 massabsorptionError: z.number().optional(),
                 beta: z.number().optional(),
                 betaError: z.number().optional(),
-                delta: z.number().optional(),
+                delta: z.number().finite().optional(),
                 deltaError: z.number().optional(),
               }),
             )
@@ -1216,9 +1215,31 @@ export const experimentsRouter = createTRPCRouter({
             }
           }
 
-          const kkDeltaSourceOnCreate: KkDeltaSource | null = spectrumHasDelta
-            ? (experimentInput.kkDeltaSource ?? "uploaded_column")
-            : null;
+          if (
+            experimentInput.computeKkDeltaOnSubmit === true &&
+            !spectrumHasDelta
+          ) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "computeKkDeltaOnSubmit requires finite delta on at least one spectrum point",
+            });
+          }
+          if (
+            experimentInput.computeKkDeltaOnSubmit === true &&
+            !uploadedChannels.includes("beta")
+          ) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "computeKkDeltaOnSubmit requires beta in uploadedChannels",
+            });
+          }
+
+          const kkDeltaSourceOnCreate = deriveKkDeltaSourceOnCreate({
+            spectrumHasFiniteDelta: spectrumHasDelta,
+            computeKkDeltaOnSubmit: experimentInput.computeKkDeltaOnSubmit,
+          });
           const kkDeltaMetadataOnCreate =
             kkDeltaSourceOnCreate != null
               ? buildKkDeltaMetadata({
@@ -1378,9 +1399,19 @@ export const experimentsRouter = createTRPCRouter({
           "rawabs",
         ]),
       );
+      const pointCount = await ctx.db.spectrumpoints.count({
+        where: { experimentid: input.experimentId },
+      });
+      if (pointCount > SPECTRUMPOINTS_SERVER_SCAN_CAP) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Normalization revalidation supports at most ${SPECTRUMPOINTS_SERVER_SCAN_CAP} spectrum points per experiment (${pointCount} present)`,
+        });
+      }
       const points = await ctx.db.spectrumpoints.findMany({
         where: { experimentid: input.experimentId },
         orderBy: { energyev: "asc" },
+        take: SPECTRUMPOINTS_SERVER_SCAN_CAP,
       });
       const spectrumPoints = points.map((point) => ({
         energy: point.energyev,
