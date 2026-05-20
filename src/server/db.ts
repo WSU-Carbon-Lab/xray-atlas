@@ -5,8 +5,8 @@ import { env } from "~/env";
 
 /**
  * Builds a Prisma 7 client backed by the `pg` driver via `@prisma/adapter-pg`, using the pooled
- * `DATABASE_URL` from validated env (Supabase pooler). Migrations continue to use `DIRECT_URL`
- * from `prisma.config.ts`.
+ * `DATABASE_URL` from validated env (Supabase pooler). Prisma CLI migrations use `DIRECT_URL`
+ * via `prisma.config.ts` `datasource.url` (not the pooler transaction port).
  */
 const createPrismaClient = () => {
   const adapter = new PrismaPg({

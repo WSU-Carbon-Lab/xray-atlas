@@ -1,0 +1,2 @@
+-- No-op placeholder: some databases briefly carried `deltaenergyev` before
+-- 20260510180000_drop_spectrumpoints_deltaenergyev removes it. No DDL here.
