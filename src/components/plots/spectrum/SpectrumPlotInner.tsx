@@ -64,6 +64,14 @@ import { BrushZoom } from "../visx/BrushZoom";
 import type { ZoomMode } from "../visx/BrushZoom";
 import { NORMALIZATION_COLORS } from "../constants";
 import { PlotToolRail } from "./PlotToolRail";
+import { findClosestTraceIndex } from "../utils/find-closest-trace";
+import {
+  copySpectrumCsvOnCopyEvent,
+  resolveSpectrumGeometryCsvRowForTrace,
+  spectrumCsvClipboardText,
+  spectrumGeometryCsvRowsFromTree,
+} from "~/components/nexafs/nexafs-spectrum-csv-shared";
+import { NexafsSpectrumPlotContextMenu } from "~/components/nexafs/nexafs-spectrum-plot-context-menu";
 
 type SpectrumPlotInnerProps = SpectrumPlotProps & {
   width: number;
@@ -136,12 +144,18 @@ export function SpectrumPlotInner({
   onNormalizationEdgeEnergyChange,
   cursorMode: externalCursorMode,
   onCursorModeChange,
+  spectrumCsvContextMenu,
 }: SpectrumPlotInnerProps) {
   const opticalLinkConfig = opticalLink ?? betaDeltaLinkLegacy;
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const themeColors = useChartThemeFromCSS();
   const svgRef = useRef<SVGSVGElement>(null);
+  const plotCopySurfaceRef = useRef<HTMLDivElement>(null);
+  const hiddenCsvTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const hoveredTraceIndexRef = useRef<number | null>(null);
+  const spectrumCsvContextMenuRef = useRef(spectrumCsvContextMenu);
+  spectrumCsvContextMenuRef.current = spectrumCsvContextMenu;
 
   const groupedTraces = useSpectrumData(
     points,
@@ -555,9 +569,13 @@ export function SpectrumPlotInner({
     [clampDomainToMinSpan],
   );
 
+  const [geometryLegendPositionResetKey, setGeometryLegendPositionResetKey] =
+    useState(0);
+
   const handleResetZoom = useCallback(() => {
     setZoomedXDomain(null);
     setZoomedYDomain(null);
+    setGeometryLegendPositionResetKey((key) => key + 1);
   }, []);
 
   const selectionTarget =
@@ -587,6 +605,16 @@ export function SpectrumPlotInner({
     updatePinEnergy: updateInspectPinEnergy,
     selectPin: selectInspectPin,
   } = useInspectPins();
+
+  const [plotCsvContextMenu, setPlotCsvContextMenu] = useState<{
+    top: number;
+    left: number;
+    geometryRow: ReturnType<typeof resolveSpectrumGeometryCsvRowForTrace>;
+  } | null>(null);
+
+  const closePlotCsvContextMenu = useCallback(() => {
+    setPlotCsvContextMenu(null);
+  }, []);
 
   const tooltip = useTooltip<{
     energy: number;
@@ -635,11 +663,23 @@ export function SpectrumPlotInner({
         return;
       }
       const tracesForSnap = visibleTraces.filter((t) => !isBareAtomTraceName(t));
-      const closest = findClosestPoint(
+      const snapTraces =
+        tracesForSnap.length > 0 ? tracesForSnap : visibleTraces;
+      const closestTraceIndex = findClosestTraceIndex(
         energy,
-        tracesForSnap.length > 0 ? tracesForSnap : visibleTraces,
+        snapTraces,
         threshold,
       );
+      if (closestTraceIndex != null) {
+        const snapTrace = snapTraces[closestTraceIndex];
+        const globalIndex =
+          snapTrace != null ? visibleTraces.indexOf(snapTrace) : -1;
+        hoveredTraceIndexRef.current =
+          globalIndex >= 0 ? globalIndex : closestTraceIndex;
+      } else {
+        hoveredTraceIndexRef.current = null;
+      }
+      const closest = findClosestPoint(energy, snapTraces, threshold);
       const snapEnergy = closest?.energy ?? energy;
       const rows = visibleTraces.map((trace, i) => {
         const label = getTraceLabel(trace, i);
@@ -670,7 +710,106 @@ export function SpectrumPlotInner({
 
   const handleMouseLeave = useCallback(() => {
     tooltip.hideTooltip();
+    hoveredTraceIndexRef.current = null;
   }, [tooltip]);
+
+  const spectrumCsvCopyListenerActive =
+    spectrumCsvContextMenu != null &&
+    !spectrumCsvContextMenu.disabled &&
+    spectrumCsvContextMenu.sortedAllPoints.length > 0;
+
+  const syncHiddenCsvTextareaSelection = useCallback(() => {
+    const menu = spectrumCsvContextMenuRef.current;
+    const textarea = hiddenCsvTextareaRef.current;
+    if (
+      !menu ||
+      menu.disabled ||
+      menu.sortedAllPoints.length === 0 ||
+      !textarea
+    ) {
+      return;
+    }
+    textarea.value = spectrumCsvClipboardText(menu.sortedAllPoints);
+    textarea.focus({ preventScroll: true });
+    textarea.select();
+  }, []);
+
+  const handlePlotCopySurfaceContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!spectrumCsvCopyListenerActive) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      const menu = spectrumCsvContextMenuRef.current;
+      if (!menu) {
+        return;
+      }
+      const geometryRows = spectrumGeometryCsvRowsFromTree(menu.groupedTree);
+      const traceIndex = hoveredTraceIndexRef.current;
+      const trace =
+        traceIndex != null && traceIndex >= 0
+          ? (visibleTraces[traceIndex] ?? null)
+          : null;
+      const geometryRow = resolveSpectrumGeometryCsvRowForTrace(
+        trace,
+        geometryRows,
+      );
+      setPlotCsvContextMenu({
+        top: event.clientY,
+        left: event.clientX,
+        geometryRow,
+      });
+      event.currentTarget.focus({ preventScroll: true });
+      syncHiddenCsvTextareaSelection();
+    },
+    [
+      spectrumCsvCopyListenerActive,
+      syncHiddenCsvTextareaSelection,
+      visibleTraces,
+    ],
+  );
+
+  const handlePlotCopySurfaceMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!spectrumCsvCopyListenerActive || event.button !== 0) {
+        return;
+      }
+      event.currentTarget.focus({ preventScroll: true });
+    },
+    [spectrumCsvCopyListenerActive],
+  );
+
+  useEffect(() => {
+    if (!spectrumCsvCopyListenerActive) {
+      return;
+    }
+    const onCopy = (event: ClipboardEvent) => {
+      const host = plotCopySurfaceRef.current;
+      const menu = spectrumCsvContextMenuRef.current;
+      if (
+        !host ||
+        !menu ||
+        menu.disabled ||
+        menu.sortedAllPoints.length === 0
+      ) {
+        return;
+      }
+      const target = event.target;
+      const active = document.activeElement;
+      const textarea = hiddenCsvTextareaRef.current;
+      const inPlot =
+        (target instanceof Node && host.contains(target)) ||
+        (active instanceof Node && host.contains(active)) ||
+        active === textarea;
+      if (!inPlot) {
+        return;
+      }
+      copySpectrumCsvOnCopyEvent(event, menu.sortedAllPoints);
+    };
+    document.addEventListener("copy", onCopy, true);
+    return () => document.removeEventListener("copy", onCopy, true);
+  }, [spectrumCsvCopyListenerActive]);
 
   const getYValueAtEnergy = useCallback(
     (energy: number): number => {
@@ -939,7 +1078,34 @@ export function SpectrumPlotInner({
       style={{ width, height }}
       ref={containerRef}
     >
-      <div className="relative min-h-0 min-w-0 flex-1">
+      <div
+        ref={plotCopySurfaceRef}
+        className="relative min-h-0 min-w-0 flex-1 outline-none"
+        tabIndex={spectrumCsvCopyListenerActive ? -1 : undefined}
+        onContextMenu={handlePlotCopySurfaceContextMenu}
+        onMouseDown={handlePlotCopySurfaceMouseDown}
+      >
+        {spectrumCsvCopyListenerActive ? (
+          <textarea
+            ref={hiddenCsvTextareaRef}
+            readOnly
+            aria-hidden
+            tabIndex={-1}
+            className="pointer-events-none fixed left-0 top-0 m-0 h-px w-px overflow-hidden border-0 p-0 opacity-0"
+          />
+        ) : null}
+        {spectrumCsvCopyListenerActive && spectrumCsvContextMenu ? (
+          <NexafsSpectrumPlotContextMenu
+            open={plotCsvContextMenu != null}
+            anchor={
+              plotCsvContextMenu ?? { top: 0, left: 0 }
+            }
+            onClose={closePlotCsvContextMenu}
+            filenameBase={spectrumCsvContextMenu.filenameBase}
+            sortedAllPoints={spectrumCsvContextMenu.sortedAllPoints}
+            geometryRow={plotCsvContextMenu?.geometryRow ?? null}
+          />
+        ) : null}
         <svg
           ref={svgRef}
           width={width}
@@ -965,6 +1131,7 @@ export function SpectrumPlotInner({
               visibleTraceIds={visibleTraceIds}
               onToggleGeometry={toggleGeometryLegend}
               geometryLegendAngleTitle={geometryLegendAngleTitle}
+              geometryLegendPositionResetKey={geometryLegendPositionResetKey}
               imaginaryYAxisQuantity={imaginaryYAxisQuantity}
               realYAxisQuantity={realYAxisQuantity}
               pins={inspectPins}
@@ -1252,6 +1419,10 @@ export function SpectrumPlotInner({
                     themeColors={themeColors}
                     plotWidth={mainPlotWidth}
                     plotHeight={mainPlotHeight}
+                    plotSvgRef={svgRef}
+                    plotMarginLeft={mainPlot.dimensions.margins.left}
+                    plotMarginTop={mainPlot.dimensions.margins.top}
+                    positionResetKey={geometryLegendPositionResetKey}
                     graphStyle={graphStyle}
                     imaginaryColumnGlyph={opticalLinkConfig.imaginaryGlyph}
                     realColumnGlyph={opticalLinkConfig.realGlyph}
@@ -1266,6 +1437,10 @@ export function SpectrumPlotInner({
                     themeColors={themeColors}
                     plotWidth={mainPlotWidth}
                     plotHeight={mainPlotHeight}
+                    plotSvgRef={svgRef}
+                    plotMarginLeft={mainPlot.dimensions.margins.left}
+                    plotMarginTop={mainPlot.dimensions.margins.top}
+                    positionResetKey={geometryLegendPositionResetKey}
                     graphStyle={graphStyle}
                     channelColumnGlyph={channelLegendGlyph}
                     angleColumnTitle={geometryLegendAngleTitle}

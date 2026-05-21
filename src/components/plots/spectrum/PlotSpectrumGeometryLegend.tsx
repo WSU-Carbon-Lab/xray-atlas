@@ -1,11 +1,12 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, type RefObject } from "react";
 import { Tooltip } from "@heroui/react";
 import type { ChartThemeColors } from "../config";
 import { plotToolbarTooltipContentClass } from "../toolbars";
 import type { GraphStyle } from "../types";
 import { LEGEND_SWATCH_WIDTH, LegendSwatch } from "./LegendSwatch";
+import { useDraggablePlotLegendPosition } from "./use-draggable-plot-legend-position";
 import type {
   LinkedSpectrumGeometryLegendRow,
   SingleSpectrumGeometryLegendRow,
@@ -24,9 +25,14 @@ type PlotSpectrumGeometryLegendPropsBase = {
   themeColors: ChartThemeColors;
   plotWidth: number;
   plotHeight: number;
+  plotSvgRef?: RefObject<SVGSVGElement | null>;
+  plotMarginLeft?: number;
+  plotMarginTop?: number;
   angleColumnTitle: string;
   graphStyle?: GraphStyle;
   legendBorderRadius?: number;
+  /** When this key changes (e.g. zoom reset), the legend snaps back to its default corner. */
+  positionResetKey?: string | number;
 };
 
 export type PlotSpectrumGeometryLegendLinkedProps =
@@ -64,7 +70,17 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
     angleColumnTitle,
     graphStyle = "line",
     legendBorderRadius = 8,
+    plotSvgRef: plotSvgRefProp,
+    plotMarginLeft = 0,
+    plotMarginTop = 0,
+    positionResetKey,
   } = props;
+
+  const legendGroupSvgRef = useRef<SVGSVGElement | null>(null);
+  const setLegendGroupRef = useCallback((node: SVGGElement | null) => {
+    legendGroupSvgRef.current = node?.ownerSVGElement ?? null;
+  }, []);
+  const plotSvgRef = plotSvgRefProp ?? legendGroupSvgRef;
 
   const isLinked = props.mode === "linked";
   const rows = props.rows;
@@ -126,9 +142,26 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
   const defaultY = LEGEND_INSET;
   const shouldRender = rows.length > 0 && legendWidth > 0;
 
-  const [position, setPosition] = useState({ x: defaultX, y: defaultY });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const {
+    position,
+    isDragging,
+    handleContainerPointerDown,
+    handleContainerPointerMove,
+    handleContainerPointerUp,
+    handleContainerPointerCancel,
+  } = useDraggablePlotLegendPosition({
+    plotWidth,
+    plotHeight,
+    boxHeight,
+    legendWidth,
+    defaultX,
+    defaultY,
+    plotSvgRef,
+    plotMarginLeft,
+    plotMarginTop,
+    positionResetKey,
+    inset: LEGEND_INSET,
+  });
 
   const isRowVisible = useCallback(
     (row: LinkedSpectrumGeometryLegendRow | SingleSpectrumGeometryLegendRow) => {
@@ -148,84 +181,30 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
     [visibleTraceIds, isLinked],
   );
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest?.('[data-legend-toggle="true"]')) {
-        return;
-      }
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(true);
-      dragStartRef.current = {
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
-      };
-    },
-    [position],
-  );
-
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!isDragging || !dragStartRef.current) {
-        return;
-      }
-      const newX = e.clientX - dragStartRef.current.x;
-      const newY = e.clientY - dragStartRef.current.y;
-      const maxX = Math.max(0, plotWidth - legendWidth - LEGEND_INSET);
-      const maxY = Math.max(0, plotHeight - boxHeight - LEGEND_INSET);
-      setPosition({
-        x: Math.max(LEGEND_INSET, Math.min(newX, maxX)),
-        y: Math.max(LEGEND_INSET, Math.min(newY, maxY)),
-      });
-    },
-    [isDragging, plotWidth, plotHeight, boxHeight, legendWidth],
-  );
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    dragStartRef.current = null;
-  }, []);
-
-  useEffect(() => {
-    const maxX = Math.max(0, plotWidth - legendWidth - LEGEND_INSET);
-    const maxY = Math.max(0, plotHeight - boxHeight - LEGEND_INSET);
-    setPosition((prev) => ({
-      x: Math.max(LEGEND_INSET, Math.min(prev.x, maxX)),
-      y: Math.max(LEGEND_INSET, Math.min(prev.y, maxY)),
-    }));
-  }, [plotWidth, plotHeight, boxHeight, legendWidth]);
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
-      return () => {
-        window.removeEventListener("mousemove", handleMouseMove);
-        window.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
-
   if (!shouldRender) {
     return null;
   }
 
   return (
-    <g pointerEvents="all">
+    <g ref={setLegendGroupRef} pointerEvents="all">
       <foreignObject
         x={position.x}
         y={position.y}
         width={legendWidth}
         height={boxHeight}
-        style={{ overflow: "visible" }}
+        style={{ overflow: "visible", pointerEvents: "all" }}
       >
         <div
           data-export-legend-container
-          onMouseDown={handleMouseDown}
+          data-legend-drag-handle="true"
+          onPointerDown={handleContainerPointerDown}
+          onPointerMove={handleContainerPointerMove}
+          onPointerUp={handleContainerPointerUp}
+          onPointerCancel={handleContainerPointerCancel}
           style={{
             cursor: isDragging ? "grabbing" : "move",
             userSelect: "none",
+            touchAction: "none",
             padding: LEGEND_PADDING,
             backgroundColor: themeColors.paper,
             border: `1px solid ${themeColors.axis}`,
@@ -287,7 +266,7 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
                     data-legend-toggle="true"
                     aria-label={toggleHint}
                     aria-pressed={visible}
-                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => onToggleGeometry(row.geometryKey)}
                     style={{
                       display: "grid",

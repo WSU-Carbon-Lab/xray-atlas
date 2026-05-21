@@ -34,10 +34,13 @@ import { filterSpectrumPointsForGroupedPlot } from "~/components/plots/hooks/use
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import {
   PlotSpectrumToolsToolbarSection,
-  plotToolbarAttachedShellClass,
-  plotToolbarBasisToggleClass,
+  PlotToolbarGroupSeparator,
+  plotToolbarAttachedToolbarVerticalClass,
+  plotToolbarAttachedToggleGroupHorizontalClass,
+  plotToolbarAttachedToggleGroupVerticalClass,
   plotToolbarCompactGlyphToggleClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
+  plotToolbarGlyphToggleGroupItemVerticalClass,
   PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
@@ -71,6 +74,7 @@ import {
   buildPlotPointsForChannel,
   isImaginaryChannel,
   isRealChannel,
+  type NexafsPlotChannelId,
 } from "~/features/process-nexafs/nexafs-plot-channels";
 import type { OpticalLinkPlotConfig } from "~/components/plots/hooks/useLinkedOpticalTraces";
 import { NEXAFS_PLOT_DATA_RAIL_DEFINITION } from "~/features/process-nexafs/nexafs-plot-data-rail-config";
@@ -1168,13 +1172,15 @@ export function NexafsExperimentDatasetPanel({
     visualizationMode === "graph" &&
     !pointsQuery.isLoading;
 
+  const spectrumCsvFilenameBase = `nexafs-experiment-${experimentId.slice(0, 8)}`;
+
   const plotTopRailDataActions = useMemo(
     () => [
       <NexafsSpectrumRailCsvDropdown
         key="spectrum-rail-download"
         kind="download"
         disabled={spectrumRailCsvMenusDisabled}
-        filenameBase={`nexafs-experiment-${experimentId.slice(0, 8)}`}
+        filenameBase={spectrumCsvFilenameBase}
         sortedAllPoints={sortedAllPoints}
         groupedTree={groupedTree}
       />,
@@ -1182,14 +1188,29 @@ export function NexafsExperimentDatasetPanel({
         key="spectrum-rail-copy"
         kind="copy"
         disabled={spectrumRailCsvMenusDisabled}
-        filenameBase={`nexafs-experiment-${experimentId.slice(0, 8)}`}
+        filenameBase={spectrumCsvFilenameBase}
         sortedAllPoints={sortedAllPoints}
         groupedTree={groupedTree}
       />,
     ],
     [
       spectrumRailCsvMenusDisabled,
-      experimentId,
+      spectrumCsvFilenameBase,
+      groupedTree,
+      sortedAllPoints,
+    ],
+  );
+
+  const spectrumCsvContextMenu = useMemo(
+    () => ({
+      disabled: spectrumRailCsvMenusDisabled,
+      filenameBase: spectrumCsvFilenameBase,
+      sortedAllPoints,
+      groupedTree,
+    }),
+    [
+      spectrumRailCsvMenusDisabled,
+      spectrumCsvFilenameBase,
       groupedTree,
       sortedAllPoints,
     ],
@@ -1258,7 +1279,7 @@ export function NexafsExperimentDatasetPanel({
             aria-label="Edit, save, or reset normalization regions"
             selectionMode="multiple"
             orientation="horizontal"
-            className="rounded-full"
+            className={plotToolbarAttachedToggleGroupHorizontalClass}
             selectedKeys={editSaveToolbarSelectedKeys}
             onSelectionChange={handleEditSaveToolbarSelectionChange}
           >
@@ -1353,6 +1374,17 @@ export function NexafsExperimentDatasetPanel({
     ],
   );
 
+  const setPlotChannel = model.setPlotChannel;
+  const handlePlotChannelChange = useCallback(
+    (channel: NexafsPlotChannelId) => {
+      setPlotChannel(channel);
+      if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
+        setLinkImaginaryReal(false);
+      }
+    },
+    [setPlotChannel],
+  );
+
   const plotLeftRail = useMemo(() => {
     const bareAtomOverlayChannelSupported = bareAtomOverlaySupportedForChannel(
       model.plotChannel,
@@ -1362,18 +1394,18 @@ export function NexafsExperimentDatasetPanel({
       !bareAtomOverlayChannelSupported ||
       moleculeFormulaQuery.isLoading;
     return (
-      <div className="pointer-events-auto flex flex-col gap-2">
+      <div className="pointer-events-auto flex flex-col items-center">
         <Toolbar
           isAttached
           orientation="vertical"
           aria-label="Spectrum display tools"
-          className={`${plotToolbarAttachedShellClass} w-fit`}
+          className={plotToolbarAttachedToolbarVerticalClass}
         >
           <ToggleButtonGroup
             aria-label="Difference spectrum and bare atom reference"
             selectionMode="multiple"
             orientation="vertical"
-            className="w-full rounded-full"
+            className={plotToolbarAttachedToggleGroupVerticalClass}
             selectedKeys={diffBareSelectedKeys}
             onSelectionChange={handleDiffBareSelectionChange}
           >
@@ -1386,7 +1418,7 @@ export function NexafsExperimentDatasetPanel({
                 isIconOnly
                 aria-label="Difference spectrum between geometries"
                 id="difference"
-                className={plotToolbarBasisToggleClass}
+                className={plotToolbarGlyphToggleGroupItemVerticalClass}
               >
                 <span className="text-xs font-semibold" aria-hidden>
                   &#x0394;
@@ -1423,7 +1455,7 @@ export function NexafsExperimentDatasetPanel({
                 }
                 id="bare-atom"
                 isDisabled={browseBareAtomToggleDisabled}
-                className={plotToolbarBasisToggleClass}
+                className={plotToolbarGlyphToggleGroupItemVerticalClass}
               >
                 <ToggleButtonGroup.Separator />
                 <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
@@ -1432,15 +1464,19 @@ export function NexafsExperimentDatasetPanel({
           </ToggleButtonGroup>
         </Toolbar>
 
+        <PlotToolbarGroupSeparator orientation="horizontal" />
+
         <NexafsPlotDataRail
           plotChannel={model.plotChannel}
-          onPlotChannelChange={model.setPlotChannel}
+          onPlotChannelChange={handlePlotChannelChange}
           availability={model.channelAvailability}
           linkImaginaryReal={linkImaginaryReal}
           onLinkImaginaryRealChange={setLinkImaginaryReal}
         />
         {datasetPlotEditorActive ? (
-          <PlotSpectrumToolsToolbarSection
+          <>
+            <PlotToolbarGroupSeparator orientation="horizontal" />
+            <PlotSpectrumToolsToolbarSection
             peakToolsEnabled={false}
             normalizationRegionResetInRail={false}
             isNormalizationMode={isPlotNormalizationMode}
@@ -1456,6 +1492,7 @@ export function NexafsExperimentDatasetPanel({
             onAutoDetectPeaks={() => undefined}
             onResetAllPeaks={() => undefined}
           />
+          </>
         ) : null}
       </div>
     );
@@ -1472,6 +1509,7 @@ export function NexafsExperimentDatasetPanel({
       chemicalFormula,
       moleculeFormulaQuery.isLoading,
       linkImaginaryReal,
+      handlePlotChannelChange,
     ]);
 
   const plotRightRail = useMemo(() => {
@@ -1479,51 +1517,39 @@ export function NexafsExperimentDatasetPanel({
       return null;
     }
     return (
-      <Toolbar isAttached className={plotToolbarAttachedShellClass}>
-        <ToggleButtonGroup
-          selectionMode="single"
-          selectedKeys={opticalLinkSplitView ? ["split"] : []}
-          onSelectionChange={(keys: Set<SelectionKey> | "all") => {
-            if (keys === "all") {
-              setOpticalLinkSplitView(false);
-              return;
-            }
-            setOpticalLinkSplitView(keys.has("split"));
+      <PlotToolbarRichHint
+        title={
+          opticalLinkSplitView
+            ? "Unsplit linked plot"
+            : "Split imaginary and real"
+        }
+        description={
+          opticalLinkSplitView
+            ? "Show imaginary and real channels on one shared y-axis."
+            : "Stack imaginary (top) and real (bottom) with separate y-ranges on one energy axis."
+        }
+        placement="left"
+      >
+        <ToggleButton
+          isIconOnly
+          aria-label={
+            opticalLinkSplitView
+              ? "Unsplit linked optical plot"
+              : "Split linked optical plot"
+          }
+          isSelected={opticalLinkSplitView}
+          onChange={(next) => {
+            setOpticalLinkSplitView(next);
           }}
+          className={plotToolbarCompactGlyphToggleClass}
         >
-          <PlotToolbarRichHint
-            title={
-              opticalLinkSplitView
-                ? "Unsplit linked plot"
-                : "Split imaginary and real"
-            }
-            description={
-              opticalLinkSplitView
-                ? "Show imaginary and real channels on one shared y-axis."
-                : "Stack imaginary (top) and real (bottom) with separate y-ranges on one energy axis."
-            }
-            placement="left"
-          >
-            <ToggleButton
-              id="split"
-              isIconOnly
-              aria-label={
-                opticalLinkSplitView
-                  ? "Unsplit linked optical plot"
-                  : "Split linked optical plot"
-              }
-              aria-pressed={opticalLinkSplitView}
-              className={plotToolbarCompactGlyphToggleClass}
-            >
-              {opticalLinkSplitView ? (
-                <ChevronsDownUp className="h-4 w-4" aria-hidden />
-              ) : (
-                <ChevronsUpDown className="h-4 w-4" aria-hidden />
-              )}
-            </ToggleButton>
-          </PlotToolbarRichHint>
-        </ToggleButtonGroup>
-      </Toolbar>
+          {opticalLinkSplitView ? (
+            <ChevronsDownUp className="h-4 w-4" aria-hidden />
+          ) : (
+            <ChevronsUpDown className="h-4 w-4" aria-hidden />
+          )}
+        </ToggleButton>
+      </PlotToolbarRichHint>
     );
   }, [opticalLink, opticalLinkSplitView]);
 
@@ -1650,6 +1676,7 @@ export function NexafsExperimentDatasetPanel({
               plotTopRailTrailingActions={plotTopRailTrailingActions}
               cursorMode={cursorMode}
               onCursorModeChange={setCursorMode}
+              spectrumCsvContextMenu={spectrumCsvContextMenu}
               emptyStateMessage="No points in this view."
             />
             {datasetPlotEditorActive ? (

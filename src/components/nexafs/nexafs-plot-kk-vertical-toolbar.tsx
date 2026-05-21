@@ -3,7 +3,8 @@
 import { Button, Toolbar } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import {
-  plotToolbarAttachedShellClass,
+  plotToolbarAttachedToolbarHorizontalClass,
+  plotToolbarAttachedToolbarVerticalClass,
   plotToolbarGlyphToggleGroupItemVerticalClass,
   PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
@@ -44,7 +45,11 @@ export function NexafsPlotKkVerticalToolbar({
       isAttached
       orientation={orientation}
       aria-label="Kramers Kronig delta tools"
-      className={`${plotToolbarAttachedShellClass} flex w-fit ${isHorizontal ? "flex-row" : "flex-col"} gap-2`}
+      className={
+        isHorizontal
+          ? plotToolbarAttachedToolbarHorizontalClass
+          : plotToolbarAttachedToolbarVerticalClass
+      }
     >
       <PlotToolbarRichHint
         title="KK"

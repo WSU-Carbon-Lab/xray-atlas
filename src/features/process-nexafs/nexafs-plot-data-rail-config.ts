@@ -18,18 +18,18 @@ const TRAY_META: Record<
   }
 > = {
   spectroscopy: {
-    trayGlyph: "Sp",
+    trayGlyph: "Rw",
     trayLabel: "Spectroscopy",
     trayDescription:
       "Uploaded signal, edge-normalized 0–1 trace, or mass absorption μ.",
   },
   imaginary: {
-    trayGlyph: "ℑ",
+    trayGlyph: "β",
     trayLabel: "Imaginary optical constants",
     trayDescription: "β, atomic f₂, Im(ε), and Im(χ) from stored spectrum data.",
   },
   real: {
-    trayGlyph: "ℜ",
+    trayGlyph: "δ",
     trayLabel: "Real optical constants",
     trayDescription: "δ, atomic f₁, Re(ε), and Re(χ) from stored spectrum data.",
   },
@@ -80,6 +80,12 @@ export const NEXAFS_PLOT_DATA_RAIL_DEFINITION: PlotDataRailDefinition<
   ).map((id) => ({
     id,
     ...TRAY_META[id],
+    defaultChannelId:
+      id === "spectroscopy"
+        ? ("raw" as const)
+        : id === "imaginary"
+          ? ("beta" as const)
+          : ("delta" as const),
   })),
   channels: NEXAFS_PLOT_CHANNEL_DEFINITIONS.map((def) => ({
     id: def.id,

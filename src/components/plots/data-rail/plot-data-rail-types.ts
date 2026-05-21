@@ -2,15 +2,21 @@ import type { ReactNode } from "react";
 import type { SpectrumYAxisQuantity } from "../types";
 
 /**
- * Declarative configuration for a vertical plot data rail: trays group channels; each channel
- * binds a compact glyph, tooltip copy, y-axis semantics, and optional availability rules.
+ * Declarative configuration for a plot data rail: trays group channels; each channel binds a compact
+ * glyph, tooltip copy, y-axis semantics, and optional availability rules. The view rail renders
+ * one collapsed row per tray with a popover channel picker.
  */
-export interface PlotDataRailTrayDefinition<TTrayId extends string = string> {
+export interface PlotDataRailTrayDefinition<
+  TTrayId extends string = string,
+  TChannelId extends string = string,
+> {
   readonly id: TTrayId;
-  /** Up to two Unicode characters shown on the tray trigger when no channel in this tray is active. */
+  /** Up to two Unicode characters shown on the collapsed tray segment when no channel in this tray is active or highlighted. */
   readonly trayGlyph: string;
   readonly trayLabel: string;
   readonly trayDescription: string;
+  /** Preferred channel when this tray becomes active and the current selection is unavailable or in another tray. */
+  readonly defaultChannelId?: TChannelId;
 }
 
 export interface PlotDataRailChannelDefinition<
@@ -30,7 +36,7 @@ export interface PlotDataRailDefinition<
   TChannelId extends string = string,
   TTrayId extends string = string,
 > {
-  readonly trays: readonly PlotDataRailTrayDefinition<TTrayId>[];
+  readonly trays: readonly PlotDataRailTrayDefinition<TTrayId, TChannelId>[];
   readonly channels: readonly PlotDataRailChannelDefinition<
     TChannelId,
     TTrayId
@@ -88,6 +94,73 @@ export function channelsForTray<
   return definition.channels.filter((c) => c.trayId === trayId);
 }
 
+function linkedTrayPairForLink<
+  TChannelId extends string,
+  TTrayId extends string,
+>(
+  definition: PlotDataRailDefinition<TChannelId, TTrayId>,
+  link: PlotDataRailLinkDefinition<TChannelId, TTrayId>,
+): { readonly primaryTrayId: TTrayId; readonly companionTrayId: TTrayId } | null {
+  const index = definition.trays.findIndex((t) => t.id === link.insertAfterTrayId);
+  if (index < 0 || index + 1 >= definition.trays.length) {
+    return null;
+  }
+  return {
+    primaryTrayId: link.insertAfterTrayId,
+    companionTrayId: definition.trays[index + 1]!.id,
+  };
+}
+
+export interface PlotDataTrayPopoverRow<
+  TChannelId extends string,
+  TTrayId extends string,
+> {
+  readonly trayId: TTrayId;
+  readonly channels: readonly PlotDataRailChannelDefinition<
+    TChannelId,
+    TTrayId
+  >[];
+}
+
+/**
+ * Tray popover channel matrix: one horizontal row for a single tray, or two rows when a link
+ * is active on a tray pair (primary tray channels on top, companion tray channels below).
+ */
+export function channelsForTrayPopover<
+  TChannelId extends string,
+  TTrayId extends string,
+>(
+  definition: PlotDataRailDefinition<TChannelId, TTrayId>,
+  trayId: TTrayId,
+  links: readonly PlotDataRailLinkDefinition<TChannelId, TTrayId>[] | undefined,
+  linkState: Readonly<Record<string, boolean>> | undefined,
+): readonly PlotDataTrayPopoverRow<TChannelId, TTrayId>[] {
+  if (links != null && linkState != null) {
+    for (const link of links) {
+      if (!linkState[link.id]) {
+        continue;
+      }
+      const pair = linkedTrayPairForLink(definition, link);
+      if (
+        pair != null &&
+        (trayId === pair.primaryTrayId || trayId === pair.companionTrayId)
+      ) {
+        return [
+          {
+            trayId: pair.primaryTrayId,
+            channels: channelsForTray(definition, pair.primaryTrayId),
+          },
+          {
+            trayId: pair.companionTrayId,
+            channels: channelsForTray(definition, pair.companionTrayId),
+          },
+        ];
+      }
+    }
+  }
+  return [{ trayId, channels: channelsForTray(definition, trayId) }];
+}
+
 export function channelDefinitionById<
   TChannelId extends string,
   TTrayId extends string,
@@ -110,6 +183,45 @@ export function trayIdForChannel<
   channelId: TChannelId,
 ): TTrayId {
   return channelDefinitionById(definition, channelId).trayId;
+}
+
+/**
+ * Returns the active plot channel when it belongs to `trayId`; otherwise `null` (another tray owns the plot).
+ */
+export function activePlotChannelInTray<
+  TChannelId extends string,
+  TTrayId extends string,
+>(
+  definition: PlotDataRailDefinition<TChannelId, TTrayId>,
+  trayId: TTrayId,
+  activeChannelId: TChannelId,
+): TChannelId | null {
+  const active = channelDefinitionById(definition, activeChannelId);
+  return active.trayId === trayId ? activeChannelId : null;
+}
+
+/**
+ * Resolves the preferred channel when focusing a tray: tray `defaultChannelId` when available, else the first available channel in tray order.
+ */
+export function defaultPlotChannelForTray<
+  TChannelId extends string,
+  TTrayId extends string,
+>(
+  definition: PlotDataRailDefinition<TChannelId, TTrayId>,
+  trayId: TTrayId,
+  isAvailable: (id: TChannelId) => boolean,
+): TChannelId | null {
+  const tray = definition.trays.find((t) => t.id === trayId);
+  const preferred = tray?.defaultChannelId;
+  if (preferred != null && isAvailable(preferred)) {
+    return preferred;
+  }
+  for (const ch of channelsForTray(definition, trayId)) {
+    if (isAvailable(ch.id)) {
+      return ch.id;
+    }
+  }
+  return null;
 }
 
 /** Per-tray highlight state when link overlays pair channels across trays. */

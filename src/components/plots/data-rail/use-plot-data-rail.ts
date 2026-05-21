@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SpectrumPoint, SpectrumYAxisQuantity } from "../types";
 import {
   channelDefinitionById,
-  channelsForTray,
+  defaultPlotChannelForTray,
   type PlotDataRailDefinition,
 } from "./plot-data-rail-types";
 
@@ -28,36 +28,24 @@ export interface UsePlotDataRailResult<TChannelId extends string> {
   readonly activeChannelGlyph: string;
 }
 
-function firstAvailableInTray<
+function initialActiveChannelId<
   TChannelId extends string,
   TTrayId extends string,
 >(
   definition: PlotDataRailDefinition<TChannelId, TTrayId>,
-  trayId: TTrayId,
   isAvailable: (id: TChannelId) => boolean,
-): TChannelId | null {
-  for (const ch of channelsForTray(definition, trayId)) {
-    if (isAvailable(ch.id)) {
-      return ch.id;
-    }
+  initialChannelId: TChannelId | undefined,
+): TChannelId {
+  if (initialChannelId != null && isAvailable(initialChannelId)) {
+    return initialChannelId;
   }
-  return null;
-}
-
-function firstAvailableChannel<
-  TChannelId extends string,
-  TTrayId extends string,
->(
-  definition: PlotDataRailDefinition<TChannelId, TTrayId>,
-  isAvailable: (id: TChannelId) => boolean,
-): TChannelId | null {
   for (const tray of definition.trays) {
-    const id = firstAvailableInTray(definition, tray.id, isAvailable);
+    const id = defaultPlotChannelForTray(definition, tray.id, isAvailable);
     if (id != null) {
       return id;
     }
   }
-  return null;
+  return definition.channels[0]!.id;
 }
 
 /**
@@ -76,10 +64,11 @@ export function usePlotDataRail<
 }: UsePlotDataRailArgs<TChannelId, TTrayId>): UsePlotDataRailResult<TChannelId> {
   const fallbackId = useMemo(
     () =>
-      initialChannelId != null && isChannelAvailable(initialChannelId)
-        ? initialChannelId
-        : (firstAvailableChannel(definition, isChannelAvailable) ??
-          definition.channels[0]!.id),
+      initialActiveChannelId(
+        definition,
+        isChannelAvailable,
+        initialChannelId,
+      ),
     [definition, initialChannelId, isChannelAvailable],
   );
 
@@ -92,9 +81,9 @@ export function usePlotDataRail<
     }
     const trayId = channelDefinitionById(definition, activeChannelId).trayId;
     const next =
-      firstAvailableInTray(definition, trayId, isChannelAvailable) ??
-      firstAvailableChannel(definition, isChannelAvailable);
-    if (next != null && next !== activeChannelId) {
+      defaultPlotChannelForTray(definition, trayId, isChannelAvailable) ??
+      initialActiveChannelId(definition, isChannelAvailable, undefined);
+    if (next !== activeChannelId) {
       setActiveChannelIdState(next);
     }
   }, [activeChannelId, definition, isChannelAvailable]);

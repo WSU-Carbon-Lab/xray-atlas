@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Separator,
-  ToggleButton,
-  ToggleButtonGroup,
-  Toolbar,
-} from "@heroui/react";
+import { ToggleButton, ToggleButtonGroup, Toolbar } from "@heroui/react";
 import {
   ArrowLeftToLine,
   ArrowRightFromLine,
@@ -16,10 +11,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
-  plotToolbarAttachedShellClass,
+  plotToolbarAttachedToolbarVerticalClass,
+  plotToolbarAttachedToggleGroupVerticalClass,
   plotToolbarGlyphToggleGroupItemVerticalClass,
   plotToolbarGlyphToggleStandaloneClass,
 } from "./plot-toolbar-chrome";
+import { PlotToolbarGroupSeparator } from "./plot-toolbar-group-separator";
 import { PlotToolbarRichHint } from "./plot-toolbar-rich-hint";
 
 export type PlotSpectrumToolsToolbarSectionProps = {
@@ -113,7 +110,7 @@ export function PlotSpectrumToolsToolbarSection({
       isAttached
       orientation="vertical"
       aria-label="Spectrum plot tools"
-      className={`${plotToolbarAttachedShellClass} w-fit`}
+      className={plotToolbarAttachedToolbarVerticalClass}
     >
       {showNorm ? (
         <>
@@ -140,10 +137,7 @@ export function PlotSpectrumToolsToolbarSection({
           </PlotToolbarRichHint>
           {isNormalizationMode ? (
             <>
-              <Separator
-                orientation="horizontal"
-                className="my-1 w-full shrink-0"
-              />
+              <PlotToolbarGroupSeparator orientation="horizontal" />
               <ToggleButtonGroup
                 aria-label="Normalization region tools"
                 selectionMode="single"
@@ -151,7 +145,7 @@ export function PlotSpectrumToolsToolbarSection({
                 selectedKeys={new Set([activeEdge])}
                 onSelectionChange={handleRegionToolChange}
                 isDisabled={normalizationLocked}
-                className="w-full rounded-full"
+                className={plotToolbarAttachedToggleGroupVerticalClass}
               >
                 <PlotToolbarRichHint
                   title="Pre-edge"
@@ -217,7 +211,7 @@ export function PlotSpectrumToolsToolbarSection({
       ) : null}
 
       {showNorm && showPeaks ? (
-        <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
+        <PlotToolbarGroupSeparator orientation="horizontal" />
       ) : null}
 
       {showPeaks ? (
@@ -246,10 +240,7 @@ export function PlotSpectrumToolsToolbarSection({
 
           {isPeakSetMode ? (
             <>
-              <Separator
-                orientation="horizontal"
-                className="my-1 w-full shrink-0"
-              />
+              <PlotToolbarGroupSeparator orientation="horizontal" />
               <ToggleButtonGroup
                 aria-label="Peak set tools"
                 selectionMode="single"
@@ -257,7 +248,7 @@ export function PlotSpectrumToolsToolbarSection({
                 selectedKeys={new Set(["pointer"])}
                 onSelectionChange={handlePeakSubtoolChange}
                 isDisabled={peakSubtoolsDisabled}
-                className="w-full rounded-full"
+                className={plotToolbarAttachedToggleGroupVerticalClass}
               >
                 <PlotToolbarRichHint
                   title="Peak pointer"

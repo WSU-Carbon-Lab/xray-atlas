@@ -26,8 +26,8 @@ export interface NexafsPlotDataRailProps {
 }
 
 /**
- * NEXAFS browse plot left-rail data views: spectroscopy, imaginary, and real trays with optional
- * real/imaginary link overlay.
+ * NEXAFS browse plot left-rail data views: three compact tray rows (spectroscopy, imaginary, real)
+ * with horizontal channel pickers and an inline real/imaginary link strip between imaginary and real trays.
  */
 export function NexafsPlotDataRail({
   plotChannel,
@@ -77,7 +77,7 @@ export function NexafsPlotDataRail({
       links={links}
       linkState={{ [NEXAFS_IMAGINARY_REAL_LINK_ID]: linkImaginaryReal }}
       onLinkStateChange={(_id, linked) => onLinkImaginaryRealChange(linked)}
-      hintPlacement="right"
+      hintPlacement="top"
       ariaLabel="NEXAFS data views"
     />
   );

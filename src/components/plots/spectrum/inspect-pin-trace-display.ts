@@ -12,24 +12,11 @@ import {
 } from "./spectrum-geometry-legend-angle";
 import { spectrumChannelGlyphForQuantity } from "./spectrum-geometry-legend-types";
 import { getTraceLabel } from "./utils";
-
-const LINKED_IMAGINARY_PREFIX = "link-imaginary-";
-const LINKED_REAL_PREFIX = "link-real-";
-const GEOMETRY_PREFIX = "geometry-";
-
-const OPTICAL_ROLE_IDS: readonly NexafsPlotChannelId[] = [
-  "im-epsilon",
-  "re-epsilon",
-  "im-chi",
-  "re-chi",
-  "mass-absorption",
-  "normalized",
-  "raw",
-  "f2",
-  "f1",
-  "beta",
-  "delta",
-];
+import {
+  LINKED_IMAGINARY_PREFIX,
+  LINKED_REAL_PREFIX,
+  parseTraceGeometryIdentity,
+} from "./parse-trace-geometry-identity";
 
 export type InspectPinTraceDisplay = {
   readonly rowKey: string;
@@ -115,18 +102,6 @@ function glyphForChannelId(id: NexafsPlotChannelId): string {
   return getPlotChannelDefinition(id).shortLabel;
 }
 
-function parseRoleFromTraceName(
-  name: string,
-): { role: NexafsPlotChannelId; geometryKey: string } | null {
-  for (const role of OPTICAL_ROLE_IDS) {
-    const prefix = `${role}-`;
-    if (name.startsWith(prefix) && name.length > prefix.length) {
-      return { role, geometryKey: name.slice(prefix.length) };
-    }
-  }
-  return null;
-}
-
 function markerSymbolForTrace(
   trace: TraceData,
   parsed: {
@@ -194,53 +169,6 @@ function channelGlyphForTrace(
   return getTraceLabel(trace, 0);
 }
 
-function parseTraceIdentity(trace: TraceData): {
-  readonly linkKind: "imaginary" | "real" | null;
-  readonly geometryKey: string | undefined;
-  readonly role: NexafsPlotChannelId | null;
-} {
-  const legendId = trace.legendId;
-  if (typeof legendId === "string") {
-    if (legendId.startsWith(LINKED_IMAGINARY_PREFIX)) {
-      return {
-        linkKind: "imaginary",
-        geometryKey: legendId.slice(LINKED_IMAGINARY_PREFIX.length),
-        role: null,
-      };
-    }
-    if (legendId.startsWith(LINKED_REAL_PREFIX)) {
-      return {
-        linkKind: "real",
-        geometryKey: legendId.slice(LINKED_REAL_PREFIX.length),
-        role: null,
-      };
-    }
-    if (legendId.startsWith(GEOMETRY_PREFIX)) {
-      return {
-        linkKind: null,
-        geometryKey: legendId.slice(GEOMETRY_PREFIX.length),
-        role: null,
-      };
-    }
-  }
-
-  const name = typeof trace.name === "string" ? trace.name : "";
-  const fromName = name ? parseRoleFromTraceName(name) : null;
-  if (fromName) {
-    return {
-      linkKind: isImaginaryChannel(fromName.role)
-        ? "imaginary"
-        : isRealChannel(fromName.role)
-          ? "real"
-          : null,
-      geometryKey: fromName.geometryKey,
-      role: fromName.role,
-    };
-  }
-
-  return { linkKind: null, geometryKey: undefined, role: null };
-}
-
 function listLabelForDisplay(
   markerSymbol: TraceMarkerSymbol,
   channelGlyph: string,
@@ -297,7 +225,7 @@ export function buildInspectPinTraceDisplays(
   ctx: InspectPinDisplayContext,
 ): InspectPinTraceDisplay[] {
   const geometries = traces.map((t) => {
-    const id = parseTraceIdentity(t);
+    const id = parseTraceGeometryIdentity(t);
     const parsed = id.geometryKey ? parseGeometryKey(id.geometryKey) : {};
     const geom = geometryFromTrace(t);
     return {
@@ -308,7 +236,7 @@ export function buildInspectPinTraceDisplays(
   const split = resolveLinkedOpticalAngleSplit(geometries);
 
   return traces.map((trace, index) => {
-    const parsed = parseTraceIdentity(trace);
+    const parsed = parseTraceGeometryIdentity(trace);
     const markerSymbol = markerSymbolForTrace(trace, parsed, ctx);
     const channelGlyph = channelGlyphForTrace(trace, parsed, ctx);
     const angleLabel = angleCellLabel(trace, parsed.geometryKey, split, ctx);

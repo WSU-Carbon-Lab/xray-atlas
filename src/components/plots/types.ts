@@ -3,6 +3,7 @@
  * Extracted from SpectrumPlot.tsx for reuse across renderers
  */
 import type { ReactNode } from "react";
+import type { SpectrumPolarizationNode } from "~/features/process-nexafs/utils";
 import type { OpticalLinkPlotConfig } from "./hooks/useLinkedOpticalTraces";
 
 export type SpectrumPoint = {
@@ -260,6 +261,17 @@ export type SpectrumPlotProps = {
    * Replaces the default empty-state copy when `points` is empty (for example browse/preview surfaces that do not upload CSV here).
    */
   emptyStateMessage?: string;
+  /**
+   * When set, right-click opens a minimal CSV context menu on the plot and Copy is hijacked to place total-dataset CSV on the clipboard (toolbar dropdown still handles per-geometry export).
+   */
+  spectrumCsvContextMenu?: SpectrumCsvContextMenuConfig;
+};
+
+export type SpectrumCsvContextMenuConfig = {
+  disabled: boolean;
+  filenameBase: string;
+  sortedAllPoints: SpectrumPoint[];
+  groupedTree: SpectrumPolarizationNode[];
 };
 
 /**

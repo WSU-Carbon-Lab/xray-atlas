@@ -61,6 +61,7 @@ export type OpticalLinkSplitSpectrumBodyProps = {
   readonly visibleTraceIds: ReadonlySet<string>;
   readonly onToggleGeometry: (geometryKey: string) => void;
   readonly geometryLegendAngleTitle: string;
+  readonly geometryLegendPositionResetKey?: number;
   readonly imaginaryYAxisQuantity: SpectrumYAxisQuantity;
   readonly realYAxisQuantity: SpectrumYAxisQuantity;
   readonly pins: readonly PinnedInspectPoint[];
@@ -152,6 +153,7 @@ export function OpticalLinkSplitSpectrumBody({
   visibleTraceIds,
   onToggleGeometry,
   geometryLegendAngleTitle,
+  geometryLegendPositionResetKey,
   imaginaryYAxisQuantity,
   realYAxisQuantity,
   pins,
@@ -613,6 +615,10 @@ export function OpticalLinkSplitSpectrumBody({
             themeColors={themeColors}
             plotWidth={imaginaryInner.width}
             plotHeight={imaginaryInner.height + realInner.height}
+            plotSvgRef={plotSvgRef}
+            plotMarginLeft={imaginaryPlot.dimensions.margins.left}
+            plotMarginTop={imaginaryPlot.dimensions.margins.top}
+            positionResetKey={geometryLegendPositionResetKey}
             graphStyle={graphStyle}
             imaginaryColumnGlyph={opticalLinkConfig.imaginaryGlyph}
             realColumnGlyph={opticalLinkConfig.realGlyph}

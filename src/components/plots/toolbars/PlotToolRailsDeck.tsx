@@ -18,7 +18,6 @@ import {
 import {
   Button,
   ButtonGroup,
-  Separator,
   ToggleButton,
   ToggleButtonGroup,
   Toolbar,
@@ -34,10 +33,13 @@ import { Grip, GripHorizontal, GripVertical } from "lucide-react";
 import type { CursorMode } from "../spectrum/ModeBar";
 import type { PlotRailDefinition } from "./types";
 import {
-  plotToolbarAttachedShellClass,
+  plotToolbarAttachedToolbarHorizontalClass,
+  plotToolbarAttachedToolbarVerticalScrollClass,
+  plotToolbarAttachedToggleGroupHorizontalClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
   plotToolbarIconToolClass,
 } from "./plot-toolbar-chrome";
+import { PlotToolbarGroupSeparator } from "./plot-toolbar-group-separator";
 import { PlotToolbarRichHint } from "./plot-toolbar-rich-hint";
 
 /** Pixel insets that align rails with axis spines (inside the canvas, not on the outer border). */
@@ -125,7 +127,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           isAttached
           orientation="horizontal"
           aria-label="Plot navigation and cursor"
-          className={`${plotToolbarAttachedShellClass} items-stretch gap-2`}
+          className={plotToolbarAttachedToolbarHorizontalClass}
         >
           <ButtonGroup
             orientation="horizontal"
@@ -167,15 +169,12 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               </PlotToolbarRichHint>
             ) : null}
           </ButtonGroup>
-          <Separator
-            orientation="vertical"
-            className="mx-1 h-6 min-h-6 w-px shrink-0 self-center bg-(--border-default)"
-          />
+          <PlotToolbarGroupSeparator orientation="vertical" />
           <ToggleButtonGroup
             aria-label="Cursor interaction mode"
             selectionMode="single"
             orientation="horizontal"
-            className="rounded-full"
+            className={plotToolbarAttachedToggleGroupHorizontalClass}
             selectedKeys={
               new Set([
                 currentMode === "inspect" ||
@@ -248,10 +247,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           </ToggleButtonGroup>
           {topRailTrailingExtras != null ? (
             <>
-              <Separator
-                orientation="vertical"
-                className="mx-1 h-6 min-h-6 w-px shrink-0 self-center bg-(--border-default)"
-              />
+              <PlotToolbarGroupSeparator orientation="vertical" />
               {Children.toArray(topRailTrailingExtras)}
             </>
           ) : null}
@@ -268,11 +264,15 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           isAttached
           aria-label="Analysis tools"
           orientation="vertical"
-          className={`${plotToolbarAttachedShellClass} flex max-h-[24rem] flex-col items-center overflow-auto`}
+          className={plotToolbarAttachedToolbarVerticalScrollClass}
         >
           {!suppressAnalysisRailLeadingGrip ? (
             <>
-              <ButtonGroup orientation="vertical" variant="tertiary" aria-label="Rail handle">
+              <ButtonGroup
+                orientation="vertical"
+                variant="tertiary"
+                aria-label="Rail handle"
+              >
                 <PlotToolbarRichHint
                   title="Analysis rail"
                   description="Vertical stack for peaks, normalization, and related tools."
@@ -288,7 +288,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
                   </Button>
                 </PlotToolbarRichHint>
               </ButtonGroup>
-              <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
+              <PlotToolbarGroupSeparator orientation="horizontal" />
             </>
           ) : null}
           <div className="flex w-full flex-col items-center gap-1">{analysisTools}</div>
