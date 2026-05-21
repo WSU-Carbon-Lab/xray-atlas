@@ -9,7 +9,7 @@ const SWATCH_BOX_HEIGHT = 12;
 const SWATCH_LINE_HEIGHT = 3;
 const SWATCH_MARKER_SIZE = 10;
 
-export function legendSwatchBoxStyle(): CSSProperties {
+export function legendSwatchBoxStyle(contrastStroke?: string): CSSProperties {
   return {
     width: LEGEND_SWATCH_WIDTH,
     height: SWATCH_BOX_HEIGHT,
@@ -17,6 +17,9 @@ export function legendSwatchBoxStyle(): CSSProperties {
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+    boxShadow: contrastStroke
+      ? `inset 0 0 0 1px color-mix(in oklch, ${contrastStroke} 42%, transparent)`
+      : undefined,
   };
 }
 
@@ -144,6 +147,7 @@ export function LegendSwatch({
   graphStyle = "line",
   markerShape = "circle",
   bandLineVariants,
+  contrastStroke,
 }: {
   color: string;
   variant: LegendSwatchVariant;
@@ -155,6 +159,8 @@ export function LegendSwatch({
     top: "solid" | "dash";
     bottom: "solid" | "dash";
   };
+  /** Axis or foreground stroke for a subtle swatch keyline (light-mode contrast). */
+  contrastStroke?: string;
 }) {
   const innerStyle = swatchInnerStyle(color, variant, graphStyle, markerShape);
   if (graphStyle === "area" && variant === "band" && bandLineVariants) {
@@ -164,7 +170,7 @@ export function LegendSwatch({
       bandLineVariants.bottom,
     );
     return (
-      <span aria-hidden style={legendSwatchBoxStyle()}>
+      <span aria-hidden style={legendSwatchBoxStyle(contrastStroke)}>
         <span style={parts.container}>
           <span style={parts.topLine} />
           <span style={parts.bottomLine} />
@@ -173,7 +179,7 @@ export function LegendSwatch({
     );
   }
   return (
-    <span aria-hidden style={legendSwatchBoxStyle()}>
+    <span aria-hidden style={legendSwatchBoxStyle(contrastStroke)}>
       <span style={innerStyle ?? undefined} />
     </span>
   );

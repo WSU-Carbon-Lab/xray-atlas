@@ -1,6 +1,14 @@
 "use client";
 
-import { memo, useCallback, useMemo, useRef, type RefObject } from "react";
+import {
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import type { ChartThemeColors } from "../config";
 import type { GraphStyle } from "../types";
 import { LEGEND_SWATCH_WIDTH, LegendSwatch } from "./LegendSwatch";
@@ -9,18 +17,20 @@ import type {
   LinkedSpectrumGeometryLegendRow,
   SingleSpectrumGeometryLegendRow,
 } from "./spectrum-geometry-legend-types";
-
-const LEGEND_INSET = 12;
-const LEGEND_GAP = 4;
-const LEGEND_PADDING = 8;
-const LEGEND_BORDER_PX = 1;
-const LEGEND_HEADER_FONT_SIZE = 11;
-const LEGEND_HEADER_MARGIN_BOTTOM = 6;
-const LEGEND_HEADER_BLOCK_HEIGHT =
-  LEGEND_HEADER_FONT_SIZE + LEGEND_HEADER_MARGIN_BOTTOM;
-const LEGEND_ROW_HEIGHT = 14;
-const LEGEND_FONT_SIZE = 13;
-const LEGEND_FONT_FAMILY = "var(--font-sans), system-ui, sans-serif";
+import {
+  LEGEND_BORDER_PX,
+  LEGEND_FONT_FAMILY,
+  LEGEND_FONT_SIZE,
+  LEGEND_GAP,
+  LEGEND_HEADER_FONT_SIZE,
+  LEGEND_HEADER_MARGIN_BOTTOM,
+  LEGEND_INSET,
+  LEGEND_PADDING,
+  LEGEND_ROW_HEIGHT,
+  computeGeometryLegendBoxHeight,
+  computeGeometryLegendWidth,
+  geometryLegendPanelDimensions,
+} from "./spectrum-geometry-legend-layout";
 
 type PlotSpectrumGeometryLegendPropsBase = {
   visibleTraceIds: Set<string>;
@@ -57,16 +67,6 @@ export type PlotSpectrumGeometryLegendProps =
   | PlotSpectrumGeometryLegendLinkedProps
   | PlotSpectrumGeometryLegendSingleProps;
 
-function computeLegendBoxHeight(rowCount: number): number {
-  const rowGaps = rowCount > 0 ? (rowCount - 1) * LEGEND_GAP : 0;
-  const panelHeight =
-    LEGEND_PADDING * 2 +
-    LEGEND_HEADER_BLOCK_HEIGHT +
-    rowCount * LEGEND_ROW_HEIGHT +
-    rowGaps;
-  return panelHeight + LEGEND_BORDER_PX * 2;
-}
-
 function isSwatchToggleTarget(target: EventTarget | null): boolean {
   return (
     target instanceof Element &&
@@ -98,6 +98,7 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
   } = props;
 
   const legendGroupSvgRef = useRef<SVGSVGElement | null>(null);
+  const legendPanelRef = useRef<HTMLDivElement | null>(null);
   const setLegendGroupRef = useCallback((node: SVGGElement | null) => {
     legendGroupSvgRef.current = node?.ownerSVGElement ?? null;
   }, []);
@@ -106,7 +107,6 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
   const isLinked = props.mode === "linked";
   const rows = props.rows;
   const linkedAreaBandLegend = isLinked && graphStyle === "area";
-  const swatchColumnCount = linkedAreaBandLegend ? 1 : isLinked ? 2 : 1;
   const gridTemplateColumns = linkedAreaBandLegend
     ? `${LEGEND_SWATCH_WIDTH}px 1fr`
     : isLinked
@@ -123,30 +123,83 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
     return { col1: props.channelColumnGlyph, col2: null as string | null };
   }, [isLinked, props]);
 
-  const boxHeight = computeLegendBoxHeight(rows.length);
+  const estimatedBoxHeight = computeGeometryLegendBoxHeight(rows.length);
+  const estimatedLegendWidth = useMemo(
+    () =>
+      computeGeometryLegendWidth({
+        plotWidth,
+        angleColumnTitle,
+        angleLabels: rows.map((row) => row.angleLabel),
+        headerCol1: headerGlyphs.col1,
+        headerCol2: headerGlyphs.col2,
+        isLinked,
+        linkedAreaBandLegend,
+      }),
+    [
+      plotWidth,
+      angleColumnTitle,
+      rows,
+      headerGlyphs.col1,
+      headerGlyphs.col2,
+      isLinked,
+      linkedAreaBandLegend,
+    ],
+  );
 
-  const legendWidth = useMemo(() => {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const measure = (text: string) => {
-      if (!ctx) return 0;
-      ctx.font = `600 12px system-ui`;
-      return ctx.measureText(text).width;
+  const [measuredBoxSize, setMeasuredBoxSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const legendWidth = measuredBoxSize?.width ?? estimatedLegendWidth;
+  const boxHeight = measuredBoxSize?.height ?? estimatedBoxHeight;
+  const { panelWidth, panelHeight } = geometryLegendPanelDimensions(
+    legendWidth,
+    boxHeight,
+  );
+
+  useLayoutEffect(() => {
+    const panel = legendPanelRef.current;
+    if (!panel) {
+      return;
+    }
+
+    const syncMeasuredSize = () => {
+      const contentWidth = Math.ceil(panel.scrollWidth);
+      const contentHeight = Math.ceil(panel.scrollHeight);
+      const minBoxWidth = estimatedLegendWidth;
+      const nextWidth = Math.min(
+        Math.max(0, plotWidth - LEGEND_INSET * 2),
+        Math.max(minBoxWidth, contentWidth + LEGEND_BORDER_PX * 2),
+      );
+      const nextHeight = contentHeight + LEGEND_BORDER_PX * 2;
+      setMeasuredBoxSize((previous) => {
+        if (
+          previous !== null &&
+          previous.width === nextWidth &&
+          previous.height === nextHeight
+        ) {
+          return previous;
+        }
+        return { width: nextWidth, height: nextHeight };
+      });
     };
-    const headerWidth = isLinked
-      ? Math.max(measure(headerGlyphs.col1), measure(headerGlyphs.col2 ?? ""))
-      : measure(headerGlyphs.col1);
-    const angleWidths = rows.map((r) => measure(r.angleLabel));
-    const maxAngle = angleWidths.length > 0 ? Math.max(...angleWidths) : 40;
-    return Math.min(
-      plotWidth - LEGEND_INSET * 2,
-      LEGEND_PADDING * 2 +
-        LEGEND_SWATCH_WIDTH * swatchColumnCount +
-        headerWidth +
-        maxAngle +
-        24,
-    );
-  }, [plotWidth, rows, headerGlyphs, isLinked, swatchColumnCount]);
+
+    syncMeasuredSize();
+    const observer = new ResizeObserver(syncMeasuredSize);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [
+    plotWidth,
+    estimatedLegendWidth,
+    rows,
+    headerGlyphs.col1,
+    headerGlyphs.col2,
+    angleColumnTitle,
+    isLinked,
+    linkedAreaBandLegend,
+    graphStyle,
+  ]);
 
   const defaultX = plotWidth - legendWidth - LEGEND_INSET;
   const defaultY = LEGEND_INSET;
@@ -216,8 +269,6 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
 
   const panelX = position.x + LEGEND_BORDER_PX;
   const panelY = position.y + LEGEND_BORDER_PX;
-  const panelWidth = Math.max(0, legendWidth - LEGEND_BORDER_PX * 2);
-  const panelHeight = Math.max(0, boxHeight - LEGEND_BORDER_PX * 2);
 
   return (
     <g ref={setLegendGroupRef} pointerEvents="all">
@@ -242,6 +293,7 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
         style={{ overflow: "visible", pointerEvents: "all" }}
       >
         <div
+          ref={legendPanelRef}
           data-export-legend-container
           data-legend-drag-handle="true"
           onPointerDownCapture={handleLegendSurfacePointerDownCapture}
@@ -251,7 +303,6 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
           style={{
             boxSizing: "border-box",
             width: "100%",
-            height: panelHeight,
             padding: LEGEND_PADDING,
             backgroundColor: "transparent",
             borderRadius: Math.max(0, legendBorderRadius - LEGEND_BORDER_PX),
@@ -295,6 +346,7 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
           </div>
           <div
             data-export-legend-entries
+            data-export-legend-layout="geometry-rows"
             style={{
               display: "flex",
               flexDirection: "column",

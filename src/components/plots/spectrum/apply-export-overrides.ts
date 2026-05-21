@@ -14,7 +14,6 @@ export function applyExportOverrides(
     background,
     fontAxisLabel,
     fontTick,
-    fontLegendTitle,
     fontLegendLabel,
     spineWidth,
     tickStrokeWidth,
@@ -44,11 +43,6 @@ export function applyExportOverrides(
     else el.setAttribute("font-size", String(fontTick));
   });
 
-  clone.querySelectorAll("[data-export-legend-title]").forEach((el) => {
-    if (el instanceof HTMLElement) {
-      el.style.fontSize = `${fontLegendTitle}px`;
-    }
-  });
   clone.querySelectorAll("[data-export-legend-label]").forEach((el) => {
     if (el instanceof HTMLElement) {
       el.style.fontSize = `${fontLegendLabel}px`;
@@ -62,7 +56,10 @@ export function applyExportOverrides(
     legendContainer.style.borderRadius = `${legendBorderRadius}px`;
   }
   const legendEntries = clone.querySelector("[data-export-legend-entries]");
-  if (legendEntries instanceof HTMLElement) {
+  if (
+    legendEntries instanceof HTMLElement &&
+    legendEntries.getAttribute("data-export-legend-layout") !== "geometry-rows"
+  ) {
     legendEntries.style.display = "grid";
     legendEntries.style.gridTemplateColumns = `repeat(${legendColumns}, 1fr)`;
     legendEntries.style.gap = "8px";
