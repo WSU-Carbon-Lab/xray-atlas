@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Atom, ChevronDown, Heart, TriangleRight } from "lucide-react";
-import { Tooltip } from "@heroui/react";
+import { Atom, Heart, TriangleRight } from "lucide-react";
+import { ChevronRightIcon } from "@heroicons/react/24/outline";
+import { Chip, Tooltip } from "@heroui/react";
+import { cn } from "@heroui/styles";
 import { trpc } from "~/trpc/client";
 import {
   CompactCardMetricsColumn,
@@ -13,10 +15,7 @@ import {
   formatCompactMetricCount,
 } from "~/components/browse/compact-card-metrics";
 import { MoleculeImageSVG } from "~/components/molecules/molecule-image-svg";
-import {
-  MoleculeCardActions,
-  MoleculeImageModal,
-} from "~/components/molecules/molecule-display";
+import { MoleculeImageModal } from "~/components/molecules/molecule-display";
 import { getPreviewGradient } from "~/components/molecules/category-tags";
 import { AvatarGroup, type UserWithOrcid } from "~/components/ui/avatar";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
@@ -26,11 +25,6 @@ import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs
 import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
 import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
 import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
-
-const pubChemCompoundUrl = (cid: string) =>
-  `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}`;
-const casRegistryUrl = (casNumber: string) =>
-  `https://commonchemistry.cas.org/detail?cas_rn=${casNumber}&search=${casNumber}`;
 
 function trpcKeyMatchesExperimentsProcedure(
   queryKey: readonly unknown[],
@@ -157,15 +151,14 @@ function experimentTypeChipClass(experimentTypeLabel: string | null): string {
 }
 
 export type NexafsExperimentCompactCardProps = {
-  href: string;
+  /** Molecule detail route listing all NEXAFS datasets for this compound. */
+  moleculeHref: string;
   experimentId: string;
   moleculeId: string;
   displayName: string;
   iupacname: string;
   chemicalformula: string;
   imageurl: string | null;
-  inchi: string;
-  smiles: string;
   casNumber: string | null;
   pubChemCid: string | null;
   favoriteCount: number;
@@ -188,15 +181,13 @@ export type NexafsExperimentCompactCardProps = {
 };
 
 export function NexafsExperimentCompactCard({
-  href,
+  moleculeHref,
   experimentId,
   moleculeId,
   displayName,
   iupacname,
   chemicalformula,
   imageurl,
-  inchi,
-  smiles,
   casNumber,
   pubChemCid,
   favoriteCount,
@@ -211,12 +202,10 @@ export function NexafsExperimentCompactCard({
   ingestVerified,
   datasetMetrics,
 }: NexafsExperimentCompactCardProps) {
-  const router = useRouter();
   const { data: session } = useSession();
   const user = session?.user;
   const isSignedIn = !!user;
   const queryClient = useQueryClient();
-  const [copiedText, setCopiedText] = useState<string | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [spectrumExpanded, setSpectrumExpanded] = useState(false);
   const [optimisticFavoriteDelta, setOptimisticFavoriteDelta] = useState(0);
@@ -265,22 +254,13 @@ export function NexafsExperimentCompactCard({
     void favoriteMutation.mutateAsync({ experimentId });
   }, [isSignedIn, experimentId, favoriteMutation]);
 
-  const handleCopy = useCallback((text: string, label: string) => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      void navigator.clipboard.writeText(text).then(() => {
-        setCopiedText(label);
-        setTimeout(() => setCopiedText(null), 2000);
-      });
-    }
-  }, []);
-
   const previewMolecule: MoleculeView = {
     id: moleculeId,
     name: displayName,
     iupacName: iupacname,
     chemicalFormula: chemicalformula,
-    SMILES: smiles,
-    InChI: inchi,
+    SMILES: "",
+    InChI: "",
     pubChemCid,
     casNumber,
     favoriteCount,
@@ -289,21 +269,10 @@ export function NexafsExperimentCompactCard({
 
   const previewGradient = getPreviewGradient(previewMolecule);
   const hasImage = Boolean(imageurl?.trim());
-  const pubChemUrlResolved = pubChemCid ? pubChemCompoundUrl(pubChemCid) : null;
-  const casUrlResolved = casNumber ? casRegistryUrl(casNumber) : null;
 
-  const actionsMolecule = {
-    InChI: inchi,
-    SMILES: smiles,
-    pubChemCid,
-    casNumber,
-    name: displayName,
-    iupacName: iupacname,
-    chemicalFormula: chemicalformula,
-    id: moleculeId,
-    favoriteCount: displayUpvoteCount,
-    userHasFavorited: displayUserHasUpvoted,
-  } as MoleculeView;
+  const toggleSpectrumExpanded = useCallback(() => {
+    setSpectrumExpanded((open) => !open);
+  }, []);
 
   const avatarUsers: UserWithOrcid[] = experimentContributorUsers.map((c) => ({
     id: c.id,
@@ -319,9 +288,18 @@ export function NexafsExperimentCompactCard({
   const experimentTypeClass = experimentTypeChipClass(experimentTypeLabel);
   const instrumentFacilityLabel = `${instrumentName} | ${facilityLine}`;
   return (
-    <div className="border-border-default pointer-events-none @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm dark:border-border-default dark:bg-zinc-800">
-      <div className="flex w-full flex-col @md/nexafscard:flex-row @md/nexafscard:items-center @md/nexafscard:gap-4">
-        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 @md/nexafscard:gap-4 @md/nexafscard:pr-4 dark:border-zinc-600">
+    <div className="border-border-default @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:border-border-default dark:bg-zinc-800">
+      <div
+        aria-expanded={spectrumExpanded}
+        onClick={toggleSpectrumExpanded}
+        className={cn(
+          "flex w-full cursor-pointer flex-col p-3 motion-safe:transition-colors motion-safe:duration-200 @md/nexafscard:flex-row @md/nexafscard:items-center @md/nexafscard:gap-4",
+          spectrumExpanded
+            ? "bg-zinc-100/80 dark:bg-zinc-700/40"
+            : "hover:bg-zinc-100/60 dark:hover:bg-zinc-700/25",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 @md/nexafscard:gap-4 @md/nexafscard:pr-4 dark:border-zinc-600">
           <button
             type="button"
             onClick={(e) => {
@@ -360,27 +338,13 @@ export function NexafsExperimentCompactCard({
           </button>
           <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5">
             <div className="flex min-w-0 items-center gap-x-2 gap-y-1 overflow-hidden">
-              <span
-                role="link"
-                tabIndex={0}
-                className="focus-visible:ring-accent text-text-primary hover:text-accent motion-safe:transition-colors min-w-0 shrink truncate cursor-pointer text-sm leading-tight font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  router.push(href);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    router.push(href);
-                  }
-                }}
-              >
+              <span className="text-text-primary min-w-0 shrink truncate text-sm leading-tight font-bold">
                 {displayName}
               </span>
               <span
                 className="inline-flex shrink-0 items-center self-center"
                 onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
               >
                 <NexafsPublicationVerificationControl
                   ingestVerified={ingestVerified}
@@ -423,56 +387,49 @@ export function NexafsExperimentCompactCard({
             </div>
           </div>
         </div>
-        <div
-          className="pointer-events-auto relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:ml-auto @md/nexafscard:gap-x-3 @md/nexafscard:gap-y-0 @md/nexafscard:border-t-0 @md/nexafscard:pt-0 @md/nexafscard:pl-4 dark:border-zinc-600"
+        <div className="relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:ml-auto @md/nexafscard:gap-x-3 @md/nexafscard:gap-y-0 @md/nexafscard:border-t-0 @md/nexafscard:pt-0 @md/nexafscard:pl-4 dark:border-zinc-600">
+        <Link
+          href={moleculeHref}
+          className="focus-visible:ring-accent inline-flex max-w-full shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
-        <div className="flex flex-wrap items-center justify-end gap-1.5">
-          <Tooltip delay={0}>
-            <Tooltip.Trigger className="inline-flex shrink-0">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setSpectrumExpanded((open) => !open);
-                }}
-                aria-expanded={spectrumExpanded}
-                aria-label={
-                  spectrumExpanded
-                    ? "Collapse spectrum plot and table"
-                    : "Expand spectrum plot and table"
-                }
-                className="text-text-tertiary hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 transition-colors dark:border-zinc-600"
-              >
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${spectrumExpanded ? "rotate-180" : ""}`}
-                  aria-hidden
-                />
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Content placement="left">
-              {spectrumExpanded ? "Hide spectrum" : "Show spectrum"}
-            </Tooltip.Content>
-          </Tooltip>
-        </div>
-        <div>
-          <MoleculeCardActions
-            molecule={actionsMolecule}
-            pubChemUrl={pubChemUrlResolved}
-            casUrl={casUrlResolved}
-            copiedText={copiedText}
-            handleCopy={handleCopy}
-            size="sm"
-            actionsLayout="compact"
-            compactContainerName="nexafscard"
+          <Chip
+            variant="soft"
+            color="accent"
+            size="md"
+            className={cn(
+              "max-w-full cursor-pointer shadow-sm backdrop-blur-sm motion-safe:transition-opacity motion-safe:duration-200 hover:opacity-90",
+              "dark:border dark:border-accent/55 dark:bg-accent/28 dark:shadow-md dark:backdrop-blur-none",
+            )}
+          >
+            <Chip.Label
+              className={cn(
+                "min-w-0 font-medium",
+                "text-accent dark:text-accent-foreground",
+              )}
+            >
+              To molecule
+            </Chip.Label>
+            <ChevronRightIcon
+              className="size-4 shrink-0 text-accent opacity-75 dark:text-accent-foreground dark:opacity-90"
+              aria-hidden
+            />
+          </Chip>
+        </Link>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <NexafsDatasetMetricsRail
+            metrics={datasetMetrics}
+            className="relative z-50"
           />
         </div>
-        <NexafsDatasetMetricsRail
-          metrics={datasetMetrics}
-          className="relative z-50"
-        />
-        <div onClick={(e) => e.stopPropagation()}>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           <AvatarGroup
             users={avatarUsers}
             size="sm"
@@ -551,14 +508,21 @@ export function NexafsExperimentCompactCard({
         </CompactCardMetricsColumn>
       </div>
       </div>
-      {spectrumExpanded ? (
-        <div className="pointer-events-auto mt-3 w-full min-w-0 border-t border-zinc-200 pt-3 dark:border-zinc-600">
-          <NexafsExperimentDatasetPanel
-            experimentId={experimentId}
-            enabled={spectrumExpanded}
-          />
+      <div
+        className={cn(
+          "grid motion-safe:transition-[grid-template-rows] motion-safe:duration-300 motion-safe:ease-in-out",
+          spectrumExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="pointer-events-auto min-h-0 overflow-hidden">
+          <div className="w-full min-w-0 border-t border-zinc-200 px-3 pt-3 pb-3 dark:border-zinc-600">
+            <NexafsExperimentDatasetPanel
+              experimentId={experimentId}
+              enabled={spectrumExpanded}
+            />
+          </div>
         </div>
-      ) : null}
+      </div>
       <MoleculeImageModal
         isOpen={imageModalOpen}
         onClose={() => setImageModalOpen(false)}
