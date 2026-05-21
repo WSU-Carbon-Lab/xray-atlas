@@ -37,40 +37,62 @@ export function formatYTickScaled(value: number, exp: number): string {
   return trimNumericString(value / 10 ** exp, 4);
 }
 
+type YAxisPresentationMeta = {
+  name: string;
+  unit: string;
+  flatScale?: boolean;
+  /**
+   * Subtract from raw plotted y before tick labels and scale exponent; plot data
+   * and inspect pins stay on the raw quantity (e.g. Re(ε) near 1).
+   */
+  displayOffset?: number;
+};
+
+const Y_AXIS_PRESENTATION: Record<SpectrumYAxisQuantity, YAxisPresentationMeta> =
+  {
+  "optical-density": { name: "Optical density", unit: "", flatScale: true },
+  "mass-absorption": {
+    name: "Mass absorption",
+    unit: "g/cm²",
+  },
+  beta: { name: "β", unit: "" },
+  delta: { name: "δ", unit: "" },
+  intensity: { name: "Raw signal", unit: "a.u." },
+  "raw-upload": { name: "Raw upload", unit: "a.u." },
+  "scattering-f2": { name: "f₂", unit: "e⁻/atom" },
+  "scattering-f1": { name: "f₁", unit: "e⁻/atom" },
+  "permittivity-im": { name: "Im(ε)", unit: "" },
+  "permittivity-re": { name: "Re(ε) − 1", unit: "", displayOffset: 1 },
+  "susceptibility-im": { name: "Im(χ)", unit: "" },
+  "susceptibility-re": { name: "Re(χ)", unit: "" },
+};
+
+/**
+ * Builds the y-axis title and tick formatter for a spectrum quantity and visible y extent.
+ *
+ * Plot geometry uses raw stored values. When `displayOffset` is set (Re(ε) uses 1),
+ * tick labels show `value - displayOffset` and the scale exponent is derived from
+ * that shifted range so small deviations from unity read like Re(χ). Inspect pins and
+ * CSV export still report raw Re(ε).
+ */
 export function spectrumYAxisPresentation(
   quantity: SpectrumYAxisQuantity,
   minY: number,
   maxY: number,
 ): { label: string; tickFormat: (v: number) => string } {
-  const exp =
-    quantity === "optical-density"
-      ? 0
-      : yScaleExponentFromDomain(minY, maxY);
-  const mult = exp === 0 ? "" : ` x 10${toUnicodeSuperscriptInt(exp)}`;
-  const tickFormat = (v: number) => formatYTickScaled(v, exp);
-  if (quantity === "optical-density") {
-    return { label: "Optical density", tickFormat };
-  }
-  if (quantity === "mass-absorption") {
-    return {
-      label: `Mass absorption (g/cm^2)${mult}`,
-      tickFormat,
-    };
-  }
-  if (quantity === "beta") {
-    return {
-      label: `β (abs. units)${mult}`,
-      tickFormat,
-    };
-  }
-  if (quantity === "delta") {
-    return {
-      label: `δ (abs. units)${mult}`,
-      tickFormat,
-    };
-  }
+  const meta = Y_AXIS_PRESENTATION[quantity];
+  const displayOffset = meta.displayOffset ?? 0;
+  const minDisplay = minY - displayOffset;
+  const maxDisplay = maxY - displayOffset;
+  const exp = meta.flatScale
+    ? 0
+    : yScaleExponentFromDomain(minDisplay, maxDisplay);
+  const mult = exp === 0 ? "" : ` × 10${toUnicodeSuperscriptInt(exp)}`;
+  const unitSuffix = meta.unit ? ` (${meta.unit})` : "";
+  const tickFormat = (v: number) =>
+    formatYTickScaled(v - displayOffset, exp);
   return {
-    label: `Intensity (a.u.)${mult}`,
+    label: `${meta.name}${unitSuffix}${mult}`,
     tickFormat,
   };
 }

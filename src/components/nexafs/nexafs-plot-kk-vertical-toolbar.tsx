@@ -23,29 +23,34 @@ export interface NexafsPlotKkVerticalToolbarProps {
    * then run the KK pipeline (upload drafts vs persisted experiments are caller-defined).
    */
   readonly onPressKk: () => void;
+  /** Rail layout: vertical on the analysis stack, horizontal on the bottom deck. */
+  readonly orientation?: "vertical" | "horizontal";
 }
 
 export function NexafsPlotKkVerticalToolbar({
   visible,
   busy,
   onPressKk,
+  orientation = "vertical",
 }: NexafsPlotKkVerticalToolbarProps) {
   if (!visible) {
     return null;
   }
 
+  const isHorizontal = orientation === "horizontal";
+
   return (
     <Toolbar
       isAttached
-      orientation="vertical"
+      orientation={orientation}
       aria-label="Kramers Kronig delta tools"
-      className={`${plotToolbarAttachedShellClass} flex w-fit flex-col gap-2`}
+      className={`${plotToolbarAttachedShellClass} flex w-fit ${isHorizontal ? "flex-row" : "flex-col"} gap-2`}
     >
       <PlotToolbarRichHint
         title="KK"
         description="Recompute delta from beta in-browser (consent once). Drafts update locally; experiments may save on the server when permitted."
         whenDisabledDescription="Wait for the current KK calculation or save to finish."
-        placement="left"
+        placement={isHorizontal ? "top" : "left"}
         disabled={busy}
       >
         <Button

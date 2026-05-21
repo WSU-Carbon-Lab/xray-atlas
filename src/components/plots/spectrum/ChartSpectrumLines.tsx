@@ -6,27 +6,44 @@ import { curveLinear } from "@visx/curve";
 import type { TraceData, GraphStyle } from "../types";
 import { PLOT_CONFIG } from "../config";
 import type { ChartScales } from "./types";
+import type { LinkedOpticalAreaBand } from "../utils/linked-optical-area-bands";
+import { isLinkedOpticalSpectrumTrace } from "../utils/linked-optical-area-bands";
+import { ChartLinkedOpticalAreaBands } from "./ChartLinkedOpticalAreaBands";
 
 export const ChartSpectrumLines = memo(function ChartSpectrumLines({
   traces,
   scales,
   graphStyle = "line",
   idPrefix = "spectrum",
+  linkedOpticalAreaBands,
 }: {
   traces: TraceData[];
   scales: ChartScales;
   graphStyle?: GraphStyle;
   idPrefix?: string;
+  /** Fills between paired imaginary/real traces; skips per-trace area on link traces. */
+  linkedOpticalAreaBands?: readonly LinkedOpticalAreaBand[];
 }) {
   if (!scales || traces.length === 0) return null;
 
   const yZeroPixel = scales.yScale(0);
   const showAreaGradient = graphStyle === "area";
   const lineWidth = PLOT_CONFIG.line.strokeWidth;
+  const useLinkedAreaBands =
+    graphStyle === "area" &&
+    linkedOpticalAreaBands != null &&
+    linkedOpticalAreaBands.length > 0;
 
   return (
     <g>
-      {showAreaGradient && (
+      {useLinkedAreaBands ? (
+        <ChartLinkedOpticalAreaBands
+          bands={linkedOpticalAreaBands}
+          scales={scales}
+          idPrefix={`${idPrefix}-linked-band`}
+        />
+      ) : null}
+      {showAreaGradient && !useLinkedAreaBands && (
         <defs>
           {traces.map((trace, index) => {
             const color =
@@ -102,15 +119,15 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
 
         const showLine = graphStyle === "line" || graphStyle === "area";
         const showMarkers = graphStyle === "scatter";
-        const showArea = graphStyle === "area";
-
-        const areaPoints = showArea ? points : points;
+        const showArea =
+          graphStyle === "area" &&
+          !(useLinkedAreaBands && isLinkedOpticalSpectrumTrace(trace));
 
         return (
           <g key={`trace-${index}`} data-trace-index={index}>
             {showArea && (
               <AreaClosed
-                data={areaPoints}
+                data={points}
                 x={(d) => scales.xScale(d.x)}
                 y={(d) => scales.yScale(d.y)}
                 y0={() => yZeroPixel}
@@ -138,16 +155,36 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
               />
             )}
             {showMarkers &&
-              points.map((point, pointIndex) => (
-                <circle
-                  key={`marker-${index}-${pointIndex}`}
-                  cx={scales.xScale(point.x)}
-                  cy={scales.yScale(point.y)}
-                  r={markerSize / 2}
-                  fill={color}
-                  opacity={markerOpacity}
-                />
-              ))}
+              points.map((point, pointIndex) => {
+                const cx = scales.xScale(point.x);
+                const cy = scales.yScale(point.y);
+                const markerKey = `marker-${index}-${pointIndex}`;
+                if (trace.marker?.symbol === "square") {
+                  const side = markerSize;
+                  const half = side / 2;
+                  return (
+                    <rect
+                      key={markerKey}
+                      x={cx - half}
+                      y={cy - half}
+                      width={side}
+                      height={side}
+                      fill={color}
+                      opacity={markerOpacity}
+                    />
+                  );
+                }
+                return (
+                  <circle
+                    key={markerKey}
+                    cx={cx}
+                    cy={cy}
+                    r={markerSize / 2}
+                    fill={color}
+                    opacity={markerOpacity}
+                  />
+                );
+              })}
           </g>
         );
       })}

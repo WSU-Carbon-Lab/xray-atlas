@@ -76,6 +76,24 @@ export function complexAsfToDeltaOptical(
 }
 
 /**
+ * Inverts {@link complexAsfToDeltaOptical}: maps optical `delta` to real atomic scattering
+ * factor `f_1` on the same energy samples.
+ */
+export function opticalDeltaToRealAsf(
+  energyEv: readonly number[],
+  delta: readonly number[],
+  numberDensityAtomsPerCm3: number,
+): Float64Array {
+  const n = energyEv.length;
+  const pref = refractivePrefactorPerAsf(energyEv, numberDensityAtomsPerCm3);
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    out[i] = delta[i]! * pref[i]!;
+  }
+  return out;
+}
+
+/**
  * Number density (atoms / cm³) from mass density (g/cm³) and formula mass (g/mol), kkcalc2 convention.
  */
 export function numberDensityFromMassDensity(

@@ -25,11 +25,26 @@ import { findClosestPoint } from "../utils/find-closest-point";
 import { eventToPlotCoords } from "../utils/svgPlotPointer";
 import { PLOT_CONFIG, useChartThemeFromCSS } from "../config";
 import { useSubplotLayout } from "./useSubplotLayout";
+import { useOpticalLinkSplitLayout } from "./useOpticalLinkSplitLayout";
+import {
+  OpticalLinkSplitSpectrumBody,
+  yAxisQuantityForOpticalRole,
+} from "./OpticalLinkSplitSpectrumBody";
+import {
+  absorptionExtentFromTraces,
+  filterTracesForOpticalLinkSplitRole,
+} from "../utils/optical-link-split-utils";
 import { ChartAxes } from "./ChartAxes";
 import { ChartGrid } from "./ChartGrid";
 import { ChartSpectrumLines } from "./ChartSpectrumLines";
 import { PlotToolbar } from "./PlotToolbar";
-import { PlotStaticLegend } from "./PlotStaticLegend";
+import { PlotSpectrumGeometryLegend } from "./PlotSpectrumGeometryLegend";
+import { useLinkedOpticalTraces } from "../hooks/useLinkedOpticalTraces";
+import { buildLinkedOpticalAreaBands } from "../utils/linked-optical-area-bands";
+import {
+  buildSingleSpectrumGeometryLegendRows,
+  spectrumChannelGlyphForQuantity,
+} from "./spectrum-geometry-legend-types";
 import { ExportPlotModal } from "./ExportPlotModal";
 import { ChartCrosshairAndDots } from "./ChartCrosshairAndDots";
 import {
@@ -59,10 +74,15 @@ type SpectrumPlotInnerProps = SpectrumPlotProps & {
   ) => void;
 };
 
+function traceVisibilityId(trace: TraceData, index: number): string {
+  if (typeof trace.legendId === "string" && trace.legendId.length > 0) {
+    return trace.legendId;
+  }
+  return typeof trace.name === "string" ? trace.name : `trace-${index}`;
+}
+
 function buildTraceIds(traces: TraceData[]): string[] {
-  return traces.map((t, i) =>
-    typeof t.name === "string" ? t.name : `trace-${i}`,
-  );
+  return traces.map((t, i) => traceVisibilityId(t, i));
 }
 
 function isBareAtomTraceName(trace: TraceData): boolean {
@@ -98,11 +118,16 @@ export function SpectrumPlotInner({
   onPeakDelete,
   onPeakAdd,
   differenceSpectra = [],
+  companionSpectra = [],
+  opticalLink,
+  opticalLinkSplitView = false,
+  betaDeltaLink: betaDeltaLinkLegacy,
   showThetaData = false,
   showPhiData = false,
   selectedGeometry = null,
   headerRight,
   headerAnalysis,
+  plotBottomTools,
   plotTopRailDataActions,
   plotTopRailTrailingActions,
   suppressAnalysisRailLeadingGrip = false,
@@ -112,6 +137,7 @@ export function SpectrumPlotInner({
   cursorMode: externalCursorMode,
   onCursorModeChange,
 }: SpectrumPlotInnerProps) {
+  const opticalLinkConfig = opticalLink ?? betaDeltaLinkLegacy;
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const themeColors = useChartThemeFromCSS();
@@ -124,10 +150,33 @@ export function SpectrumPlotInner({
     differenceSpectra,
     isDark,
   );
+  const linkedOptical = useLinkedOpticalTraces(
+    groupedTraces.traces,
+    groupedTraces.keys,
+    opticalLinkConfig,
+    showThetaData,
+    showPhiData,
+  );
+  const effectiveCompanionSpectra = useMemo(
+    () => (opticalLinkConfig ? [] : companionSpectra),
+    [opticalLinkConfig, companionSpectra],
+  );
+  const extentsCompanionSpectra = useMemo(() => {
+    if (!opticalLinkConfig) {
+      return effectiveCompanionSpectra;
+    }
+    return [
+      {
+        label: "Linked companion",
+        points: [...opticalLinkConfig.companionPoints],
+      },
+    ];
+  }, [opticalLinkConfig, effectiveCompanionSpectra]);
   const referenceData = useReferenceData(
     referenceCurves,
     differenceSpectra,
     isDark,
+    effectiveCompanionSpectra,
   );
   const peakViz = usePeakVisualization(
     points,
@@ -135,17 +184,86 @@ export function SpectrumPlotInner({
     selectedPeakId ?? null,
     selectedGeometry,
   );
-  const extents = useDataExtents(points, differenceSpectra, referenceCurves);
+  const extents = useDataExtents(
+    points,
+    differenceSpectra,
+    referenceCurves,
+    extentsCompanionSpectra,
+  );
+
+  const singleGeometryLegend = useMemo(() => {
+    if (linkedOptical.active) {
+      return { rows: [], angleColumnTitle: "" };
+    }
+    return buildSingleSpectrumGeometryLegendRows({
+      traces: groupedTraces.traces,
+      geometryKeys: groupedTraces.keys,
+      groups: groupedTraces.groups,
+      showThetaData,
+      showPhiData,
+    });
+  }, [
+    linkedOptical.active,
+    groupedTraces.traces,
+    groupedTraces.keys,
+    groupedTraces.groups,
+    showThetaData,
+    showPhiData,
+  ]);
+
+  const taggedSingleTraces = useMemo(() => {
+    if (linkedOptical.active) {
+      return groupedTraces.traces;
+    }
+    return groupedTraces.traces.map((trace, index) => {
+      const key = groupedTraces.keys[index] ?? `idx-${index}`;
+      return {
+        ...trace,
+        legendId: `geometry-${key}`,
+        showlegend: false,
+      };
+    });
+  }, [linkedOptical.active, groupedTraces.traces, groupedTraces.keys]);
+
+  const primarySpectrumTraces = linkedOptical.active
+    ? linkedOptical.primaryTraces
+    : taggedSingleTraces;
+
+  const opticalSplitActive =
+    opticalLinkSplitView && linkedOptical.active && opticalLinkConfig != null;
+
+  const linkedOpticalAreaBands = useMemo(() => {
+    if (!linkedOptical.active || graphStyle !== "area" || opticalSplitActive) {
+      return undefined;
+    }
+    const bands = buildLinkedOpticalAreaBands(
+      linkedOptical.primaryTraces,
+      linkedOptical.companionTraces,
+    );
+    return bands.length > 0 ? bands : undefined;
+  }, [
+    linkedOptical.active,
+    linkedOptical.primaryTraces,
+    linkedOptical.companionTraces,
+    graphStyle,
+    opticalSplitActive,
+  ]);
 
   const allTraces = useMemo(
     () => [
       ...referenceData.referenceTraces,
-      ...groupedTraces.traces,
+      ...primarySpectrumTraces,
+      ...(linkedOptical.active
+        ? linkedOptical.companionTraces
+        : referenceData.companionTraces),
       ...referenceData.differenceTraces,
     ],
     [
-      groupedTraces.traces,
+      primarySpectrumTraces,
+      linkedOptical.active,
+      linkedOptical.companionTraces,
       referenceData.referenceTraces,
+      referenceData.companionTraces,
       referenceData.differenceTraces,
     ],
   );
@@ -158,30 +276,158 @@ export function SpectrumPlotInner({
   const visibleTraces = useMemo(() => {
     if (visibleTraceIds.size === 0) return allTraces;
     return allTraces.filter((t, i) => {
-      const id = typeof t.name === "string" ? t.name : `trace-${i}`;
+      const id = traceVisibilityId(t, i);
       if (isBareAtomTraceName(t)) return true;
       return visibleTraceIds.has(id);
     });
   }, [allTraces, visibleTraceIds]);
 
-  const toggleTrace = useCallback(
-    (id: string) => {
+  const visibleLinkedOpticalAreaBands = useMemo(() => {
+    if (!linkedOpticalAreaBands) {
+      return undefined;
+    }
+    if (visibleTraceIds.size === 0) {
+      return linkedOpticalAreaBands;
+    }
+    return linkedOpticalAreaBands.filter((band) => {
+      const row = linkedOptical.legendRows.find(
+        (r) => r.geometryKey === band.geometryKey,
+      );
+      if (!row) {
+        return true;
+      }
+      return (
+        visibleTraceIds.has(row.imaginaryTraceId) &&
+        visibleTraceIds.has(row.realTraceId)
+      );
+    });
+  }, [
+    linkedOpticalAreaBands,
+    linkedOptical.legendRows,
+    visibleTraceIds,
+  ]);
+
+  const toggleGeometryLegend = useCallback(
+    (geometryKey: string) => {
+      if (linkedOptical.active) {
+        const row = linkedOptical.legendRows.find(
+          (r) => r.geometryKey === geometryKey,
+        );
+        if (!row) {
+          return;
+        }
+        setVisibleTraceIds((prev) => {
+          const next = new Set(prev.size === 0 ? allTraceIds : prev);
+          const pairVisible =
+            next.has(row.imaginaryTraceId) && next.has(row.realTraceId);
+          if (pairVisible) {
+            next.delete(row.imaginaryTraceId);
+            next.delete(row.realTraceId);
+          } else {
+            next.add(row.imaginaryTraceId);
+            next.add(row.realTraceId);
+          }
+          return next;
+        });
+        return;
+      }
+      const row = singleGeometryLegend.rows.find(
+        (r) => r.geometryKey === geometryKey,
+      );
+      if (!row) {
+        return;
+      }
       setVisibleTraceIds((prev) => {
         const next = new Set(prev.size === 0 ? allTraceIds : prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+        if (next.has(row.traceId)) {
+          next.delete(row.traceId);
+        } else {
+          next.add(row.traceId);
+        }
         return next;
       });
     },
-    [allTraceIds],
+    [
+      allTraceIds,
+      linkedOptical.active,
+      linkedOptical.legendRows,
+      singleGeometryLegend.rows,
+    ],
+  );
+
+  const geometryLegendAngleTitle = linkedOptical.active
+    ? linkedOptical.angleColumnTitle
+    : singleGeometryLegend.angleColumnTitle;
+
+  const showGeometryLegend =
+    linkedOptical.active && opticalLinkConfig
+      ? linkedOptical.legendRows.length > 0
+      : singleGeometryLegend.rows.length > 0;
+
+  const channelLegendGlyph = spectrumChannelGlyphForQuantity(
+    yAxisQuantity ?? "intensity",
   );
 
   const contentHeight = height;
+
+  const splitImaginaryTraces = useMemo(
+    () =>
+      opticalSplitActive
+        ? filterTracesForOpticalLinkSplitRole(
+            visibleTraces,
+            "imaginary",
+            opticalLinkConfig,
+          )
+        : [],
+    [opticalSplitActive, visibleTraces, opticalLinkConfig],
+  );
+
+  const splitRealTraces = useMemo(
+    () =>
+      opticalSplitActive
+        ? filterTracesForOpticalLinkSplitRole(
+            visibleTraces,
+            "real",
+            opticalLinkConfig,
+          )
+        : [],
+    [opticalSplitActive, visibleTraces, opticalLinkConfig],
+  );
+
+  const imaginaryYAxisQuantity = useMemo(
+    () =>
+      opticalLinkConfig
+        ? yAxisQuantityForOpticalRole(opticalLinkConfig.imaginaryRole)
+        : (yAxisQuantity ?? "intensity"),
+    [opticalLinkConfig, yAxisQuantity],
+  );
+
+  const realYAxisQuantity = useMemo(
+    () =>
+      opticalLinkConfig
+        ? yAxisQuantityForOpticalRole(opticalLinkConfig.realRole)
+        : (yAxisQuantity ?? "intensity"),
+    [opticalLinkConfig, yAxisQuantity],
+  );
+
+  const opticalSplitLayout = useOpticalLinkSplitLayout(
+    width,
+    contentHeight,
+    extents,
+    opticalSplitActive
+      ? absorptionExtentFromTraces(splitImaginaryTraces)
+      : null,
+    opticalSplitActive ? absorptionExtentFromTraces(splitRealTraces) : null,
+    energyStats,
+    imaginaryYAxisQuantity,
+    realYAxisQuantity,
+  );
+
   const subplotLayout = useSubplotLayout(
     width,
     contentHeight,
     extents,
-    peakViz.hasPeakVisualization,
+    peakViz.hasPeakVisualization && !opticalSplitActive,
     peakViz.selectedGeometryPoints,
     energyStats,
     absorptionStats,
@@ -189,14 +435,17 @@ export function SpectrumPlotInner({
   );
 
   const { mainPlot, peakPlot, hasSubplot } = subplotLayout;
+  const interactionPlot = opticalSplitActive
+    ? opticalSplitLayout.imaginaryPlot
+    : mainPlot;
   const dataXBounds = useMemo((): [number, number] => {
     if (extents.energyExtent) {
       const { min, max } = extents.energyExtent;
       return [min, max];
     }
-    const d = mainPlot.xScale.domain();
+    const d = interactionPlot.xScale.domain();
     return [d[0] ?? 0, d[1] ?? 1000];
-  }, [extents.energyExtent, mainPlot.xScale]);
+  }, [extents.energyExtent, interactionPlot.xScale]);
 
   const [zoomedXDomain, setZoomedXDomain] = useState<[number, number] | null>(
     null,
@@ -207,11 +456,11 @@ export function SpectrumPlotInner({
 
   const visibleYDomain = useMemo((): [number, number] => {
     const raw =
-      zoomedYDomain ?? (mainPlot.yScale.domain() as [number, number]);
+      zoomedYDomain ?? (interactionPlot.yScale.domain() as [number, number]);
     const a = raw[0] ?? 0;
     const b = raw[1] ?? 0;
     return [Math.min(a, b), Math.max(a, b)];
-  }, [zoomedYDomain, mainPlot.yScale]);
+  }, [zoomedYDomain, interactionPlot.yScale]);
 
   const yAxisPrimary = useMemo(() => {
     const q: SpectrumYAxisQuantity = yAxisQuantity ?? "intensity";
@@ -220,15 +469,31 @@ export function SpectrumPlotInner({
 
   const zoomedXScale = useMemo(() => {
     const domain =
-      zoomedXDomain ?? (mainPlot.xScale.domain() as [number, number]);
-    return mainPlot.xScale.copy().domain(domain);
-  }, [mainPlot.xScale, zoomedXDomain]);
+      zoomedXDomain ?? (interactionPlot.xScale.domain() as [number, number]);
+    return interactionPlot.xScale.copy().domain(domain);
+  }, [interactionPlot.xScale, zoomedXDomain]);
 
   const zoomedYScale = useMemo(() => {
     const domain =
-      zoomedYDomain ?? (mainPlot.yScale.domain() as [number, number]);
-    return mainPlot.yScale.copy().domain(domain);
-  }, [mainPlot.yScale, zoomedYDomain]);
+      zoomedYDomain ?? (interactionPlot.yScale.domain() as [number, number]);
+    return interactionPlot.yScale.copy().domain(domain);
+  }, [interactionPlot.yScale, zoomedYDomain]);
+
+  const splitImaginaryYScale = useMemo(() => {
+    const domain = opticalSplitLayout.imaginaryPlot.yScale.domain() as [
+      number,
+      number,
+    ];
+    return opticalSplitLayout.imaginaryPlot.yScale.copy().domain(domain);
+  }, [opticalSplitLayout.imaginaryPlot.yScale]);
+
+  const splitRealYScale = useMemo(() => {
+    const domain = opticalSplitLayout.realPlot.yScale.domain() as [
+      number,
+      number,
+    ];
+    return opticalSplitLayout.realPlot.yScale.copy().domain(domain);
+  }, [opticalSplitLayout.realPlot.yScale]);
 
   const mainPlotScales = useMemo(
     () => ({
@@ -341,11 +606,12 @@ export function SpectrumPlotInner({
       }
       if (effectiveCursorMode !== "inspect") return;
       const svgRect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - svgRect.left - mainPlot.dimensions.margins.left;
+      const x =
+        e.clientX - svgRect.left - interactionPlot.dimensions.margins.left;
       const plotWidth =
-        mainPlot.dimensions.width -
-        mainPlot.dimensions.margins.left -
-        mainPlot.dimensions.margins.right;
+        interactionPlot.dimensions.width -
+        interactionPlot.dimensions.margins.left -
+        interactionPlot.dimensions.margins.right;
       if (x < 0 || x > plotWidth) {
         tooltip.hideTooltip();
         return;
@@ -396,9 +662,9 @@ export function SpectrumPlotInner({
       thresholdFraction,
       themeColors.text,
       tooltip,
-      mainPlot.dimensions.margins.left,
-      mainPlot.dimensions.width,
-      mainPlot.dimensions.margins.right,
+      interactionPlot.dimensions.margins.left,
+      interactionPlot.dimensions.width,
+      interactionPlot.dimensions.margins.right,
     ],
   );
 
@@ -450,15 +716,15 @@ export function SpectrumPlotInner({
       const pt = eventToPlotCoords(
         event.nativeEvent,
         svg,
-        mainPlot.dimensions.margins.left,
-        mainPlot.dimensions.margins.top,
+        interactionPlot.dimensions.margins.left,
+        interactionPlot.dimensions.margins.top,
       );
       if (!pt) return;
       const localX = pt.x;
       const plotInnerWidth =
-        mainPlot.dimensions.width -
-        mainPlot.dimensions.margins.left -
-        mainPlot.dimensions.margins.right;
+        interactionPlot.dimensions.width -
+        interactionPlot.dimensions.margins.left -
+        interactionPlot.dimensions.margins.right;
       if (localX < 0 || localX > plotInnerWidth) return;
       const rawEnergy = zoomedXScale.invert(localX);
       const rounded = Math.round(rawEnergy * 1000) / 1000;
@@ -469,7 +735,7 @@ export function SpectrumPlotInner({
       effectiveCursorMode,
       isManualPeakMode,
       selectionTarget,
-      mainPlot.dimensions,
+      interactionPlot.dimensions,
       zoomedXScale,
       addInspectPin,
       tooltip,
@@ -495,14 +761,48 @@ export function SpectrumPlotInner({
   }, [peakViz.selectedGeometryPoints]);
 
   const mainPlotHeight =
-    mainPlot.dimensions.height -
-    mainPlot.dimensions.margins.top -
-    mainPlot.dimensions.margins.bottom;
+    interactionPlot.dimensions.height -
+    interactionPlot.dimensions.margins.top -
+    interactionPlot.dimensions.margins.bottom;
 
   const mainPlotWidth =
-    mainPlot.dimensions.width -
-    mainPlot.dimensions.margins.left -
-    mainPlot.dimensions.margins.right;
+    interactionPlot.dimensions.width -
+    interactionPlot.dimensions.margins.left -
+    interactionPlot.dimensions.margins.right;
+
+  const plotCanvasWidth = width;
+  const plotCanvasHeight = contentHeight;
+
+  const railInsets = useMemo(() => {
+    if (opticalSplitActive) {
+      const imag = opticalSplitLayout.imaginaryPlot.dimensions.margins;
+      const real = opticalSplitLayout.realPlot.dimensions.margins;
+      return {
+        left: Math.max(imag.left, real.left),
+        right: Math.max(imag.right, real.right),
+        top: imag.top,
+        bottom: Math.max(imag.bottom, real.bottom),
+      };
+    }
+    if (hasSubplot && peakPlot) {
+      const mainMargins = mainPlot.dimensions.margins;
+      const peakMargins = peakPlot.dimensions.margins;
+      return {
+        left: mainMargins.left,
+        right: mainMargins.right,
+        top: mainMargins.top,
+        bottom: peakMargins.bottom,
+      };
+    }
+    const m = mainPlot.dimensions.margins;
+    return { left: m.left, right: m.right, top: m.top, bottom: m.bottom };
+  }, [
+    opticalSplitActive,
+    opticalSplitLayout,
+    hasSubplot,
+    peakPlot,
+    mainPlot.dimensions.margins,
+  ]);
 
   const [isPanDragging, setIsPanDragging] = useState(false);
   const panStartRef = useRef<{ x: number } | null>(null);
@@ -591,7 +891,8 @@ export function SpectrumPlotInner({
     const onMove = (e: PointerEvent) => {
       if (!panStartRef.current) return;
       const rect = svg.getBoundingClientRect();
-      const plotX = e.clientX - rect.left - mainPlot.dimensions.margins.left;
+      const plotX =
+        e.clientX - rect.left - interactionPlot.dimensions.margins.left;
       const totalDeltaX = plotX - panStartRef.current.x;
       applyPanFromDelta(totalDeltaX);
     };
@@ -613,7 +914,7 @@ export function SpectrumPlotInner({
   }, [
     isPanDragging,
     applyPanFromDelta,
-    mainPlot.dimensions.margins.left,
+    interactionPlot.dimensions.margins.left,
     clearPanDragCursor,
   ]);
 
@@ -647,6 +948,73 @@ export function SpectrumPlotInner({
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
         >
+          {opticalSplitActive && opticalLinkConfig ? (
+            <OpticalLinkSplitSpectrumBody
+              layout={opticalSplitLayout}
+              width={width}
+              contentHeight={contentHeight}
+              imaginaryTraces={splitImaginaryTraces}
+              realTraces={splitRealTraces}
+              zoomedXScale={zoomedXScale}
+              imaginaryYScale={splitImaginaryYScale}
+              realYScale={splitRealYScale}
+              themeColors={themeColors}
+              graphStyle={graphStyle}
+              opticalLinkConfig={opticalLinkConfig}
+              legendRows={linkedOptical.legendRows}
+              visibleTraceIds={visibleTraceIds}
+              onToggleGeometry={toggleGeometryLegend}
+              geometryLegendAngleTitle={geometryLegendAngleTitle}
+              imaginaryYAxisQuantity={imaginaryYAxisQuantity}
+              realYAxisQuantity={realYAxisQuantity}
+              pins={inspectPins}
+              selectedPinId={selectedInspectPinId}
+              onSelectPin={selectInspectPin}
+              onRemovePin={removeInspectPin}
+              onUpdatePinEnergy={updateInspectPinEnergy}
+              plotSvgRef={svgRef}
+              showThetaData={showThetaData}
+              showPhiData={showPhiData}
+              tooltipEnergy={
+                tooltipData && effectiveCursorMode === "inspect"
+                  ? tooltipData.energy
+                  : null
+              }
+              crosshairRows={tooltipData?.rows ?? []}
+              allVisibleTraces={visibleTraces}
+              effectiveCursorMode={effectiveCursorMode}
+              normalizationRegions={normalizationRegions}
+              selectionTarget={selectionTarget}
+              showNormalizationShading={showNormalizationShading}
+              normalizationEdgeHandlesEnabled={normalizationEdgeHandlesEnabled}
+              onNormalizationEdgeEnergyChange={onNormalizationEdgeEnergyChange}
+              onSelectionChange={
+                onSelectionChange as (s: SpectrumSelection | null) => void
+              }
+              isDark={isDark}
+              dataXBounds={dataXBounds}
+              zoomedXDomain={zoomedXDomain}
+              onMarqueeZoom={handleMarqueeZoom}
+              onResetZoom={handleResetZoom}
+              peaks={peaks}
+              selectedPeakId={selectedPeakId ?? null}
+              isManualPeakMode={isManualPeakMode}
+              onPeakSelect={onPeakSelect}
+              onPeakAdd={onPeakAdd}
+              onPeakDelete={onPeakDelete}
+              onPeakUpdate={onPeakUpdate}
+              onPeakEnergyUpdate={handlePeakEnergyUpdate}
+              getYValueAtEnergy={getYValueAtEnergy}
+              inspectPlotHitSurfaceActive={inspectPlotHitSurfaceActive}
+              onPlotAreaClick={handlePlotAreaClick}
+              onPanStart={handlePanStart}
+              onPanMove={handlePanMove}
+              onPanEnd={handlePanEnd}
+              panGroupRef={panGroupRef}
+              panOverlayRef={panOverlayRef}
+            />
+          ) : (
+          <>
           <defs>
             <clipPath id={plotClipId}>
               <rect x={0} y={0} width={mainPlotWidth} height={mainPlotHeight} />
@@ -761,6 +1129,7 @@ export function SpectrumPlotInner({
                   scales={mainPlotScales}
                   graphStyle={graphStyle}
                   idPrefix="main"
+                  linkedOpticalAreaBands={visibleLinkedOpticalAreaBands}
                 />
                 <PeakIndicators
                   peaks={peaks}
@@ -800,6 +1169,11 @@ export function SpectrumPlotInner({
                   onUpdatePinEnergy={updateInspectPinEnergy}
                   overlayWidth={width}
                   overlayHeight={contentHeight}
+                  yAxisQuantity={yAxisQuantity}
+                  showThetaData={showThetaData}
+                  showPhiData={showPhiData}
+                  linkedImaginaryGlyph={opticalLinkConfig?.imaginaryGlyph}
+                  linkedRealGlyph={opticalLinkConfig?.realGlyph}
                 />
               </g>
             </g>
@@ -868,14 +1242,36 @@ export function SpectrumPlotInner({
             <g
               transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
             >
-              <PlotStaticLegend
-                traces={allTraces}
-                visibleTraceIds={visibleTraceIds}
-                onToggleTrace={toggleTrace}
-                themeColors={themeColors}
-                plotWidth={mainPlotWidth}
-                plotHeight={mainPlotHeight}
-              />
+              {showGeometryLegend ? (
+                linkedOptical.active && opticalLinkConfig ? (
+                  <PlotSpectrumGeometryLegend
+                    mode="linked"
+                    rows={linkedOptical.legendRows}
+                    visibleTraceIds={visibleTraceIds}
+                    onToggleGeometry={toggleGeometryLegend}
+                    themeColors={themeColors}
+                    plotWidth={mainPlotWidth}
+                    plotHeight={mainPlotHeight}
+                    graphStyle={graphStyle}
+                    imaginaryColumnGlyph={opticalLinkConfig.imaginaryGlyph}
+                    realColumnGlyph={opticalLinkConfig.realGlyph}
+                    angleColumnTitle={geometryLegendAngleTitle}
+                  />
+                ) : (
+                  <PlotSpectrumGeometryLegend
+                    mode="single"
+                    rows={singleGeometryLegend.rows}
+                    visibleTraceIds={visibleTraceIds}
+                    onToggleGeometry={toggleGeometryLegend}
+                    themeColors={themeColors}
+                    plotWidth={mainPlotWidth}
+                    plotHeight={mainPlotHeight}
+                    graphStyle={graphStyle}
+                    channelColumnGlyph={channelLegendGlyph}
+                    angleColumnTitle={geometryLegendAngleTitle}
+                  />
+                )
+              ) : null}
             </g>
             <ChartAxes
               scales={mainPlotScales}
@@ -898,7 +1294,7 @@ export function SpectrumPlotInner({
           </g>
 
           {hasSubplot && peakPlot && (
-            <g transform={`translate(0, ${mainPlot.dimensions.height})`}>
+            <g transform={`translate(0, ${interactionPlot.dimensions.height})`}>
               <rect
                 x={peakPlot.dimensions.margins.left}
                 y={peakPlot.dimensions.margins.top}
@@ -959,6 +1355,8 @@ export function SpectrumPlotInner({
               )}
             </g>
           )}
+          </>
+          )}
         </svg>
         <PeakPlotAnnotations
           peaks={peaks}
@@ -979,7 +1377,7 @@ export function SpectrumPlotInner({
           selectedPinId={selectedInspectPinId}
           visibleTraces={visibleTraces}
           scales={mainPlotScales}
-          dimensions={mainPlot.dimensions}
+          dimensions={interactionPlot.dimensions}
           themeColors={themeColors}
           plotSvgRef={svgRef}
           onSelectPin={selectInspectPin}
@@ -987,19 +1385,20 @@ export function SpectrumPlotInner({
           onUpdatePinEnergy={updateInspectPinEnergy}
           overlayWidth={width}
           overlayHeight={contentHeight}
+          yAxisQuantity={yAxisQuantity}
+          showThetaData={showThetaData}
+          showPhiData={showPhiData}
+          linkedImaginaryGlyph={opticalLinkConfig?.imaginaryGlyph}
+          linkedRealGlyph={opticalLinkConfig?.realGlyph}
         />
         <div
-          style={{
-            position: "absolute",
-            left: mainPlot.dimensions.margins.left,
-            top: mainPlot.dimensions.margins.top,
-            zIndex: 10,
-            pointerEvents: "none",
-          }}
+          className="pointer-events-none absolute inset-0 z-10"
+          style={{ width: plotCanvasWidth, height: plotCanvasHeight }}
         >
           <PlotToolRail
-            plotWidth={mainPlotWidth}
-            plotHeight={mainPlotHeight}
+            plotWidth={plotCanvasWidth}
+            plotHeight={plotCanvasHeight}
+            railInsets={railInsets}
             currentMode={effectiveCursorMode}
             isCursorDisabled={plotContext?.kind === "normalize"}
             isPanDisabled={zoomedXDomain == null}
@@ -1014,6 +1413,7 @@ export function SpectrumPlotInner({
             topRailTrailingExtras={plotTopRailTrailingActions}
             dataViewTabs={headerRight}
             analysisTools={headerAnalysis}
+            bottomTools={plotBottomTools}
             suppressAnalysisRailLeadingGrip={suppressAnalysisRailLeadingGrip}
           />
         </div>

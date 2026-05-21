@@ -2333,21 +2333,17 @@ export function DatasetContent({
         onAutoDetectPeaks={handleAutoDetectPeaksFromPlotRail}
         onResetAllPeaks={handleResetAllPeaksFromPlotRail}
       />
-      {kkUploadRailVisible ? (
-        <>
-          <Separator
-            orientation="horizontal"
-            className="my-1 w-full shrink-0"
-          />
-          <NexafsPlotKkVerticalToolbar
-            visible
-            busy={kkUploadBusy}
-            onPressKk={onPressKkUploadRail}
-          />
-        </>
-      ) : null}
     </div>
   );
+
+  const plotBottomPlotRail = kkUploadRailVisible ? (
+    <NexafsPlotKkVerticalToolbar
+      visible
+      orientation="horizontal"
+      busy={kkUploadBusy}
+      onPressKk={onPressKkUploadRail}
+    />
+  ) : null;
 
   const normalizationRegionsForPlot =
     dataset.normalizationRegions.pre != null ||
@@ -2422,6 +2418,7 @@ export function DatasetContent({
                     onSelectionChange={handleNormalizationSelection}
                     headerRight={plotLeftPlotRail}
                     headerAnalysis={plotRightPlotRail}
+                    plotBottomTools={plotBottomPlotRail}
                     suppressAnalysisRailLeadingGrip
                     plotContext={
                       isPlotNormalizationMode && normalizationSelectionTarget

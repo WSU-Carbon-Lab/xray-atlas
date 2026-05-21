@@ -7,6 +7,7 @@ import type { TraceData, SpectrumPoint, DifferenceSpectrum } from "../types";
 import {
   SPECTRUM_TRACE_GRADIENT_DARK,
   SPECTRUM_TRACE_GRADIENT_LIGHT,
+  SPECTRUM_TRACE_LINE_WIDTH,
   spectrumTraceColorAlongGradient,
 } from "../constants";
 import {
@@ -104,7 +105,7 @@ export function useSpectrumData(
         },
         line: {
           color,
-          width: 1.6,
+          width: SPECTRUM_TRACE_LINE_WIDTH,
         },
         hovertemplate:
           `<b>${group.label || key}</b><br>` +

@@ -23,6 +23,9 @@ export type LegendCoreModel = {
 };
 
 function traceId(trace: TraceData, index: number): string {
+  if (typeof trace.legendId === "string" && trace.legendId.length > 0) {
+    return trace.legendId;
+  }
   const name = typeof trace.name === "string" ? trace.name : "";
   return name || `trace-${index}`;
 }

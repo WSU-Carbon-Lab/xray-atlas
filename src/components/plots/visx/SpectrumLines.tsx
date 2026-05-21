@@ -8,6 +8,10 @@ import { curveLinear } from "@visx/curve";
 import type { TraceData } from "../types";
 import type { VisxScales } from "../hooks/useVisxScales";
 import type { GraphStyle } from "../types";
+import { SPECTRUM_TRACE_LINE_WIDTH } from "../constants";
+import type { LinkedOpticalAreaBand } from "../utils/linked-optical-area-bands";
+import { isLinkedOpticalSpectrumTrace } from "../utils/linked-optical-area-bands";
+import { ChartLinkedOpticalAreaBands } from "../spectrum/ChartLinkedOpticalAreaBands";
 
 const defaultIdPrefix = "area";
 
@@ -16,11 +20,13 @@ export const SpectrumLines = memo(function SpectrumLines({
   scales,
   graphStyle = "line",
   idPrefix = defaultIdPrefix,
+  linkedOpticalAreaBands,
 }: {
   traces: TraceData[];
   scales: VisxScales;
   graphStyle?: GraphStyle;
   idPrefix?: string;
+  linkedOpticalAreaBands?: readonly LinkedOpticalAreaBand[];
 }) {
   if (!scales || traces.length === 0) return null;
 
@@ -28,10 +34,21 @@ export const SpectrumLines = memo(function SpectrumLines({
   const yBaselineData = typeof yDomain[0] === "number" ? yDomain[0] : 0;
   const yBaselinePixel = scales.yScale(yBaselineData);
   const showAreaGradient = graphStyle === "area";
+  const useLinkedAreaBands =
+    graphStyle === "area" &&
+    linkedOpticalAreaBands != null &&
+    linkedOpticalAreaBands.length > 0;
 
   return (
     <g>
-      {showAreaGradient && (
+      {useLinkedAreaBands ? (
+        <ChartLinkedOpticalAreaBands
+          bands={linkedOpticalAreaBands}
+          scales={scales}
+          idPrefix={`${idPrefix}-linked-band`}
+        />
+      ) : null}
+      {showAreaGradient && !useLinkedAreaBands && (
         <defs>
           {traces.map((trace, index) => {
             const color =
@@ -95,7 +112,9 @@ export const SpectrumLines = memo(function SpectrumLines({
           "#666";
 
         const lineWidth =
-          typeof trace.line?.width === "number" ? trace.line.width : 1.6;
+          typeof trace.line?.width === "number"
+            ? trace.line.width
+            : SPECTRUM_TRACE_LINE_WIDTH;
 
         const markerSize =
           typeof trace.marker?.size === "number" ? trace.marker.size : 4;
@@ -106,7 +125,9 @@ export const SpectrumLines = memo(function SpectrumLines({
 
         const showLine = graphStyle === "line" || graphStyle === "area";
         const showMarkers = graphStyle === "scatter";
-        const showArea = graphStyle === "area";
+        const showArea =
+          graphStyle === "area" &&
+          !(useLinkedAreaBands && isLinkedOpticalSpectrumTrace(trace));
 
         return (
           <g key={`trace-${index}`}>
@@ -134,16 +155,36 @@ export const SpectrumLines = memo(function SpectrumLines({
               />
             )}
             {showMarkers &&
-              points.map((point, pointIndex) => (
-                <circle
-                  key={`marker-${index}-${pointIndex}`}
-                  cx={scales.xScale(point.x)}
-                  cy={scales.yScale(point.y)}
-                  r={markerSize / 2}
-                  fill={color}
-                  opacity={markerOpacity}
-                />
-              ))}
+              points.map((point, pointIndex) => {
+                const cx = scales.xScale(point.x);
+                const cy = scales.yScale(point.y);
+                const markerKey = `marker-${index}-${pointIndex}`;
+                if (trace.marker?.symbol === "square") {
+                  const side = markerSize;
+                  const half = side / 2;
+                  return (
+                    <rect
+                      key={markerKey}
+                      x={cx - half}
+                      y={cy - half}
+                      width={side}
+                      height={side}
+                      fill={color}
+                      opacity={markerOpacity}
+                    />
+                  );
+                }
+                return (
+                  <circle
+                    key={markerKey}
+                    cx={cx}
+                    cy={cy}
+                    r={markerSize / 2}
+                    fill={color}
+                    opacity={markerOpacity}
+                  />
+                );
+              })}
           </g>
         );
       })}

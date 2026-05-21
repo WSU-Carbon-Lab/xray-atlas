@@ -1,22 +1,39 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo } from "react";
 import type {
   ReferenceCurve,
   SpectrumPoint,
   SpectrumYAxisQuantity,
 } from "~/components/plots/types";
+import { usePlotDataRail } from "~/components/plots/data-rail";
 import type { Peak } from "~/components/plots/types";
 import { showToast } from "~/components/ui/toast";
+import {
+  assessPlotChannelAvailability,
+  buildPlotPointsForChannel,
+  isPlotChannelAvailable,
+  legacyDataViewToPlotChannel,
+  plotChannelToLegacyDataView,
+  type NexafsBrowseDataView,
+  type NexafsPlotChannelAvailability,
+  type NexafsPlotChannelId,
+} from "~/features/process-nexafs/nexafs-plot-channels";
+import { NEXAFS_PLOT_DATA_RAIL_DEFINITION } from "~/features/process-nexafs/nexafs-plot-data-rail-config";
 
-export type NexafsBrowseDataView = "od" | "absorption" | "beta" | "delta";
+export type { NexafsBrowseDataView, NexafsPlotChannelId };
 
 export interface UseNexafsSpectrumBrowseModelArgs {
   spectrumPoints: SpectrumPoint[];
+  stoichiometryFormula?: string | null;
 }
 
 export interface UseNexafsSpectrumBrowseModelResult {
+  plotChannel: NexafsPlotChannelId;
+  setPlotChannel: (next: NexafsPlotChannelId) => void;
+  /** @deprecated Prefer `plotChannel`; retained for bare-atom and normalization branches. */
   dataView: NexafsBrowseDataView;
+  /** @deprecated Prefer `setPlotChannel`. */
   setDataView: (next: NexafsBrowseDataView) => void;
   plotPoints: SpectrumPoint[];
   edgeZeroOnePoints: SpectrumPoint[];
@@ -24,6 +41,7 @@ export interface UseNexafsSpectrumBrowseModelResult {
   betaPoints: SpectrumPoint[] | null;
   deltaPoints: SpectrumPoint[] | null;
   spectrumYAxisQuantity: SpectrumYAxisQuantity;
+  channelAvailability: NexafsPlotChannelAvailability;
   referenceCurves: ReferenceCurve[];
   normalizationRegions: { pre: [number, number] | null; post: [number, number] | null };
   showNormalizationShading: boolean;
@@ -34,33 +52,64 @@ export interface UseNexafsSpectrumBrowseModelResult {
 }
 
 /**
- * Maps persisted spectrum points to plot traces without recomputing normalization: OD, mu (mass absorption when stored else raw absorption), and beta use the values saved at upload time.
+ * Maps persisted spectrum points to plot traces without recomputing normalization.
  *
- * @param spectrumPoints Rows from `mapDbSpectrumRowsToPoints` (energy-ascending), with optional `od`, `massabsorption`, `rawabs` merged into `absorption` for mu, and optional `beta`.
- * @returns View selection, per-basis `plotPoints` (y values in `absorption` for the plot stack), difference-spectrum roots aligned with the active basis, and availability flags for each basis toggle including optional KK `delta`.
+ * @param spectrumPoints Rows from `mapDbSpectrumRowsToPoints` (energy-ascending).
+ * @param stoichiometryFormula Optional formula for derived optical-constant channels.
  */
 export function useNexafsSpectrumBrowseModel({
   spectrumPoints,
+  stoichiometryFormula = null,
 }: UseNexafsSpectrumBrowseModelArgs): UseNexafsSpectrumBrowseModelResult {
-  const [dataView, setDataViewState] = useState<NexafsBrowseDataView>("od");
-  const gateToastRef = useRef<Record<string, number>>({});
+  const channelAvailability = useMemo(
+    () =>
+      assessPlotChannelAvailability(
+        spectrumPoints,
+        Boolean(stoichiometryFormula?.trim()),
+      ),
+    [spectrumPoints, stoichiometryFormula],
+  );
 
-  const showGateToast = useCallback((key: string, message: string) => {
-    const last = gateToastRef.current[key] ?? 0;
-    const now = Date.now();
-    if (now - last < 5000) return;
-    gateToastRef.current[key] = now;
-    showToast(message, "info");
-  }, []);
+  const isChannelAvailable = useCallback(
+    (id: NexafsPlotChannelId) =>
+      isPlotChannelAvailable(id, channelAvailability),
+    [channelAvailability],
+  );
 
-  const storedMuPoints = spectrumPoints;
+  const buildPlotPoints = useCallback(
+    (id: NexafsPlotChannelId) =>
+      buildPlotPointsForChannel(id, spectrumPoints, stoichiometryFormula),
+    [spectrumPoints, stoichiometryFormula],
+  );
+
+  const onUnavailableSelect = useCallback(
+    (_id: NexafsPlotChannelId, _message: string) => {
+      showToast(NEXAFS_GATE_MESSAGE(_id), "info");
+    },
+    [],
+  );
+
+  const rail = usePlotDataRail({
+    definition: NEXAFS_PLOT_DATA_RAIL_DEFINITION,
+    isChannelAvailable,
+    buildPlotPoints,
+    onUnavailableSelect,
+  });
+
+  const setPlotChannel = rail.setActiveChannelId;
+
+  const setDataView = useCallback(
+    (next: NexafsBrowseDataView) => {
+      const mapped = legacyDataViewToPlotChannel(next);
+      setPlotChannel(mapped);
+    },
+    [setPlotChannel],
+  );
 
   const storedOdPoints = useMemo(
     () =>
       spectrumPoints
-        .filter(
-          (p) => typeof p.od === "number" && Number.isFinite(p.od),
-        )
+        .filter((p) => typeof p.od === "number" && Number.isFinite(p.od))
         .map((p) => ({ ...p, absorption: p.od! })),
     [spectrumPoints],
   );
@@ -81,111 +130,53 @@ export function useNexafsSpectrumBrowseModel({
     return rows.map((p) => ({ ...p, absorption: p.delta! }));
   }, [spectrumPoints]);
 
-  const odAvailable = storedOdPoints.length > 0;
-  const absorptionAvailable = storedMuPoints.some(
-    (p) => typeof p.absorption === "number" && Number.isFinite(p.absorption),
-  );
-  const betaAvailable =
-    storedBetaPoints !== null && storedBetaPoints.length > 0;
-  const deltaAvailable =
-    storedDeltaPoints !== null && storedDeltaPoints.length > 0;
-
-  const absorptionPlotPoints = storedMuPoints;
-  const edgeZeroOnePoints = storedOdPoints;
-  const betaPoints = storedBetaPoints;
-  const deltaPoints = storedDeltaPoints;
-
-  const setDataView = useCallback(
-    (next: NexafsBrowseDataView) => {
-      if (next === "od") {
-        if (!odAvailable) {
-          showGateToast(
-            "browse-od",
-            "No stored optical density (OD) for this experiment.",
-          );
-          return;
-        }
-        setDataViewState("od");
-        return;
-      }
-      if (next === "absorption") {
-        if (!absorptionAvailable) {
-          showGateToast(
-            "browse-absorption",
-            "No stored mass absorption or raw absorption for this experiment.",
-          );
-          return;
-        }
-        setDataViewState("absorption");
-        return;
-      }
-      if (next === "beta") {
-        if (!betaAvailable) {
-          showGateToast(
-            "browse-beta",
-            "No stored beta values for this experiment.",
-          );
-          return;
-        }
-        setDataViewState("beta");
-        return;
-      }
-      if (next === "delta") {
-        if (!deltaAvailable) {
-          showGateToast(
-            "browse-delta",
-            "No stored delta values for this experiment.",
-          );
-          return;
-        }
-        setDataViewState("delta");
-        return;
-      }
-    },
-    [
-      odAvailable,
-      absorptionAvailable,
-      betaAvailable,
-      deltaAvailable,
-      showGateToast,
-    ],
-  );
-
-  const plotPoints =
-    dataView === "od"
-      ? storedOdPoints
-      : dataView === "beta"
-        ? (storedBetaPoints ?? storedMuPoints)
-        : dataView === "delta"
-          ? (storedDeltaPoints ?? storedMuPoints)
-          : storedMuPoints;
-
-  const spectrumYAxisQuantity: SpectrumYAxisQuantity =
-    dataView === "od"
-      ? "optical-density"
-      : dataView === "beta"
-        ? "beta"
-        : dataView === "delta"
-          ? "delta"
-          : "mass-absorption";
+  const plotChannel = rail.activeChannelId;
+  const dataView = plotChannelToLegacyDataView(plotChannel);
 
   return {
+    plotChannel,
+    setPlotChannel,
     dataView,
     setDataView,
-    plotPoints,
-    edgeZeroOnePoints,
-    absorptionPlotPoints,
-    betaPoints,
-    deltaPoints,
-    spectrumYAxisQuantity,
+    plotPoints: rail.plotPoints,
+    edgeZeroOnePoints: storedOdPoints,
+    absorptionPlotPoints: spectrumPoints,
+    betaPoints: storedBetaPoints,
+    deltaPoints: storedDeltaPoints,
+    spectrumYAxisQuantity: rail.yAxisQuantity,
+    channelAvailability,
     referenceCurves: [],
     normalizationRegions: { pre: null, post: null },
     showNormalizationShading: false,
-    odAvailable,
-    absorptionAvailable,
-    betaAvailable,
-    deltaAvailable,
+    odAvailable: channelAvailability.normalized,
+    absorptionAvailable: channelAvailability.massAbsorption,
+    betaAvailable: channelAvailability.beta,
+    deltaAvailable: channelAvailability.delta,
   };
+}
+
+function NEXAFS_GATE_MESSAGE(channel: NexafsPlotChannelId): string {
+  if (channel === "raw") {
+    return "No raw upload column on this experiment.";
+  }
+  if (channel === "normalized") {
+    return "No stored optical density (OD) for this experiment.";
+  }
+  if (channel === "mass-absorption") {
+    return "No stored mass absorption for this experiment.";
+  }
+  if (channel === "delta") {
+    return "No stored delta values for this experiment.";
+  }
+  if (
+    channel === "beta" ||
+    channel === "f2" ||
+    channel === "im-epsilon" ||
+    channel === "im-chi"
+  ) {
+    return "No stored beta values for this experiment.";
+  }
+  return "Select a molecule formula and upload beta and delta to use derived optical constants.";
 }
 
 export function mapPeaksetsToPlotPeaks(

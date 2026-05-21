@@ -5,10 +5,12 @@ import {
   useEffect,
   useMemo,
   useState,
+  type CSSProperties,
   type RefObject,
 } from "react";
 import { Copy } from "lucide-react";
 import type { PinnedInspectPoint, PlotDimensions, TraceData } from "../types";
+import type { SpectrumYAxisQuantity } from "../types";
 import type { ChartScales } from "./types";
 import type { ChartThemeColors } from "../config";
 import { PEAK_SELECTION_ACCENT } from "../constants";
@@ -17,16 +19,23 @@ import {
   DraggablePlotPopover,
   type PopoverOffset,
 } from "./DraggablePlotPopover";
-import { getTraceColor, getTraceLabel, getValueAtEnergy } from "./utils";
+import { getTraceColor, getValueAtEnergy } from "./utils";
+import {
+  buildInspectPinTraceDisplays,
+  inspectPinAngleColumnTitle,
+  inspectPinPreferTableLayout,
+  type InspectPinDisplayContext,
+  type InspectPinTraceDisplay,
+} from "./inspect-pin-trace-display";
 
 export type InspectPinLayerSlot = "svg" | "overlay";
 
 type PopoverOffsetMap = Record<string, PopoverOffset>;
 
 type InspectPinRow = {
-  label: string;
-  color: string;
-  value: number | null;
+  readonly display: InspectPinTraceDisplay;
+  readonly color: string;
+  readonly value: number | null;
 };
 
 function defaultOffsetForIndex(index: number): PopoverOffset {
@@ -38,6 +47,7 @@ function formatEnergyEv(energy: number): string {
   return (Math.round(energy * 1000) / 1000).toFixed(3);
 }
 
+/** Raw plotted y; axis may use a display offset (e.g. Re(ε) − 1 on the axis only). */
 function formatTraceValue(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "\u2014";
   const abs = Math.abs(value);
@@ -56,7 +66,7 @@ function buildPinCsv(
   energy: number,
   rows: InspectPinRow[],
 ): string {
-  const headers = ["energy_eV", ...rows.map((r) => r.label)];
+  const headers = ["energy_eV", ...rows.map((r) => r.display.csvLabel)];
   const values = [
     formatEnergyEv(energy),
     ...rows.map((r) =>
@@ -66,12 +76,8 @@ function buildPinCsv(
   return `${headers.join(",")}\n${values.join(",")}`;
 }
 
-const bareAtomBetaPinLabelRe = /^Bare atom beta\s*\(/i;
-
-function collapseUniformBareAtomBetaPinRows(
-  rows: InspectPinRow[],
-): InspectPinRow[] {
-  const bareRows = rows.filter((r) => bareAtomBetaPinLabelRe.test(r.label));
+function collapseUniformBareAtomBetaPinRows(rows: InspectPinRow[]): InspectPinRow[] {
+  const bareRows = rows.filter((r) => r.display.isBareAtomBeta);
   if (bareRows.length <= 1) {
     return rows;
   }
@@ -87,14 +93,18 @@ function collapseUniformBareAtomBetaPinRows(
     return rows;
   }
   const collapsed: InspectPinRow = {
-    label: "Bare atom beta",
+    display: {
+      ...bareRows[0]!.display,
+      listLabel: "Bare atom beta",
+      csvLabel: "bare_atom_beta",
+    },
     color: bareRows[0]!.color,
     value: nums[0]!,
   };
   let inserted = false;
   const out: InspectPinRow[] = [];
   for (const r of rows) {
-    if (bareAtomBetaPinLabelRe.test(r.label)) {
+    if (r.display.isBareAtomBeta) {
       if (!inserted) {
         out.push(collapsed);
         inserted = true;
@@ -106,41 +116,25 @@ function collapseUniformBareAtomBetaPinRows(
   return out;
 }
 
+function pinSwatchStyle(
+  color: string,
+  markerSymbol: InspectPinTraceDisplay["markerSymbol"],
+): CSSProperties {
+  const size = 10;
+  return {
+    width: size,
+    height: size,
+    backgroundColor: color,
+    borderRadius: markerSymbol === "circle" ? "50%" : 1,
+    flexShrink: 0,
+    boxSizing: "border-box",
+  };
+}
+
 /**
  * Renders inspect-pin visuals in either the SVG plot group or the HTML overlay
  * layer. A single component owns both sides so popover offsets, hover focus,
  * and pin ordering remain consistent between the two render passes.
- *
- * Parameters
- * ----------
- * slot : "svg" | "overlay"
- *     Selects which subtree to render in the current pass. SVG pass draws
- *     crosshairs + colored dots + the draggable rail marker; overlay pass
- *     draws the HTML popovers.
- * pins : PinnedInspectPoint[]
- *     List of active client-side pins.
- * selectedPinId : string | null
- *     Id of the focused pin used to elevate z-index and emphasize the rail.
- * visibleTraces : TraceData[]
- *     Spectra currently shown on the plot. Rows and crosshair dots are
- *     derived from these at render time so pins stay consistent with legend
- *     toggles and y-axis quantity switches.
- * scales : ChartScales
- *     Main plot scales used by both SVG and overlay positioning.
- * dimensions : PlotDimensions
- *     Main plot dimensions used by both SVG and overlay positioning.
- * themeColors : ChartThemeColors
- *     Provides crosshair / text defaults.
- * plotSvgRef : RefObject<SVGSVGElement | null>
- *     Used by the rail marker to translate pointer `clientX` to energy.
- * onSelectPin : (id: string | null) => void
- *     Invoked when a pin's marker or popover is pressed.
- * onRemovePin : (id: string) => void
- *     Invoked by the popover close button.
- * onUpdatePinEnergy : (id: string, energy: number) => void
- *     Invoked while the user drags a pin's rail marker.
- * overlayWidth, overlayHeight : number
- *     Dimensions of the HTML overlay; used for absolute positioning only.
  */
 export function InspectPinLayer({
   slot,
@@ -156,6 +150,12 @@ export function InspectPinLayer({
   onUpdatePinEnergy,
   overlayWidth,
   overlayHeight,
+  yAxisQuantity,
+  showThetaData = false,
+  showPhiData = false,
+  linkedImaginaryGlyph,
+  linkedRealGlyph,
+  suppressPinStem = false,
 }: {
   slot: InspectPinLayerSlot;
   pins: PinnedInspectPoint[];
@@ -170,10 +170,46 @@ export function InspectPinLayer({
   onUpdatePinEnergy: (id: string, energy: number) => void;
   overlayWidth: number;
   overlayHeight: number;
+  yAxisQuantity?: SpectrumYAxisQuantity;
+  showThetaData?: boolean;
+  showPhiData?: boolean;
+  linkedImaginaryGlyph?: string;
+  linkedRealGlyph?: string;
+  suppressPinStem?: boolean;
 }) {
   const [popoverOffsets, setPopoverOffsets] = useState<PopoverOffsetMap>({});
   const [draggingPinId, setDraggingPinId] = useState<string | null>(null);
   const [pinCollapsed, setPinCollapsed] = useState<Record<string, boolean>>({});
+
+  const displayContext = useMemo((): InspectPinDisplayContext => {
+    return {
+      yAxisQuantity,
+      showThetaData,
+      showPhiData,
+      linkedImaginaryGlyph,
+      linkedRealGlyph,
+    };
+  }, [
+    yAxisQuantity,
+    showThetaData,
+    showPhiData,
+    linkedImaginaryGlyph,
+    linkedRealGlyph,
+  ]);
+
+  const traceDisplays = useMemo(
+    () => buildInspectPinTraceDisplays(visibleTraces, displayContext),
+    [visibleTraces, displayContext],
+  );
+
+  const useTableLayout = inspectPinPreferTableLayout(
+    visibleTraces.length,
+    visibleTraces,
+  );
+  const angleColumnTitle = inspectPinAngleColumnTitle(
+    visibleTraces,
+    displayContext,
+  );
 
   const setOffsetForPin = useCallback(
     (pinId: string, next: PopoverOffset) => {
@@ -198,7 +234,7 @@ export function InspectPinLayer({
     const map = new Map<string, InspectPinRow[]>();
     for (const pin of pins) {
       const rawRows: InspectPinRow[] = visibleTraces.map((trace, index) => ({
-        label: getTraceLabel(trace, index),
+        display: traceDisplays[index]!,
         color: getTraceColor(trace, themeColors.text),
         value: getValueAtEnergy(trace, pin.energy, threshold),
       }));
@@ -206,7 +242,13 @@ export function InspectPinLayer({
       map.set(pin.id, rows);
     }
     return map;
-  }, [pins, scales.xScale, themeColors.text, visibleTraces]);
+  }, [
+    pins,
+    scales.xScale,
+    themeColors.text,
+    traceDisplays,
+    visibleTraces,
+  ]);
 
   if (pins.length === 0) return null;
 
@@ -223,29 +265,27 @@ export function InspectPinLayer({
           const xLocal = scales.xScale(pin.energy);
           return (
             <g key={pin.id}>
-              <line
-                x1={xLocal}
-                y1={0}
-                x2={xLocal}
-                y2={plotHeight}
-                stroke={gripActive ? PEAK_SELECTION_ACCENT : crosshairColor}
-                strokeWidth={gripActive ? 1.5 : 1.25}
-                strokeDasharray={gripActive ? undefined : "5,4"}
-                opacity={gripActive ? 0.85 : 0.6}
-                pointerEvents="none"
-              />
+              {!suppressPinStem ? (
+                <line
+                  x1={xLocal}
+                  y1={0}
+                  x2={xLocal}
+                  y2={plotHeight}
+                  stroke={gripActive ? PEAK_SELECTION_ACCENT : crosshairColor}
+                  strokeWidth={gripActive ? 1.5 : 1.25}
+                  strokeDasharray={gripActive ? undefined : "5,4"}
+                  opacity={gripActive ? 0.85 : 0.6}
+                  pointerEvents="none"
+                />
+              ) : null}
               {rows.map((row, rowIndex) =>
                 row.value == null ? null : (
-                  <circle
+                  <PinSvgMarker
                     key={`${pin.id}-dot-${rowIndex}`}
-                    cx={xLocal}
-                    cy={scales.yScale(row.value)}
-                    r={5}
-                    fill={row.color}
-                    stroke="rgba(255,255,255,0.9)"
-                    strokeWidth={1.5}
-                    opacity={0.95}
-                    pointerEvents="none"
+                    x={xLocal}
+                    y={scales.yScale(row.value)}
+                    color={row.color}
+                    symbol={row.display.markerSymbol}
                   />
                 ),
               )}
@@ -340,45 +380,160 @@ export function InspectPinLayer({
                   </button>
                 </div>
               </div>
-              <ul className="flex flex-col gap-0.5 text-[11px]">
-                {rows.length === 0 ? (
-                  <li className="italic text-[var(--chart-text-secondary)]">
-                    No visible traces
-                  </li>
-                ) : (
-                  rows.map((row) => (
-                    <li
-                      key={row.label}
-                      className="flex items-center gap-1.5"
-                    >
-                      <span
-                        className="inline-block h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: row.color }}
-                        aria-hidden
-                      />
-                      <span className="min-w-0 flex-1 truncate text-[var(--chart-text)]">
-                        {row.label}
-                      </span>
-                      <span className="font-mono tabular-nums text-[var(--chart-text)]">
-                        {formatTraceValue(row.value)}
-                      </span>
-                      <InlineCopyButton
-                        label={`Copy ${row.label}`}
-                        disabled={row.value == null}
-                        onCopy={() =>
-                          copyToClipboard(
-                            row.value == null ? "" : String(row.value),
-                          )
-                        }
-                      />
-                    </li>
-                  ))
-                )}
-              </ul>
+              {rows.length === 0 ? (
+                <p className="text-[11px] italic text-[var(--chart-text-secondary)]">
+                  No visible traces
+                </p>
+              ) : useTableLayout ? (
+                <InspectPinTraceTable
+                  rows={rows}
+                  angleColumnTitle={angleColumnTitle}
+                  pinEnergy={pin.energy}
+                />
+              ) : (
+                <InspectPinTraceList rows={rows} />
+              )}
             </div>
           </DraggablePlotPopover>
         );
       })}
+    </div>
+  );
+}
+
+function PinSvgMarker({
+  x,
+  y,
+  color,
+  symbol,
+}: {
+  x: number;
+  y: number;
+  color: string;
+  symbol: InspectPinTraceDisplay["markerSymbol"];
+}) {
+  const stroke = "rgba(255,255,255,0.9)";
+  const strokeWidth = 1.5;
+  if (symbol === "square") {
+    const half = 5;
+    return (
+      <rect
+        x={x - half}
+        y={y - half}
+        width={half * 2}
+        height={half * 2}
+        fill={color}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        opacity={0.95}
+        pointerEvents="none"
+      />
+    );
+  }
+  return (
+    <circle
+      cx={x}
+      cy={y}
+      r={5}
+      fill={color}
+      stroke={stroke}
+      strokeWidth={strokeWidth}
+      opacity={0.95}
+      pointerEvents="none"
+    />
+  );
+}
+
+function InspectPinTraceList({ rows }: { rows: InspectPinRow[] }) {
+  return (
+    <ul className="flex flex-col gap-0.5 text-[11px]">
+      {rows.map((row) => (
+        <li key={row.display.rowKey} className="flex items-center gap-1.5">
+          <span
+            style={pinSwatchStyle(row.color, row.display.markerSymbol)}
+            aria-hidden
+          />
+          <span className="min-w-0 flex-1 truncate text-[var(--chart-text)]">
+            {row.display.listLabel}
+          </span>
+          <span className="font-mono tabular-nums text-[var(--chart-text)]">
+            {formatTraceValue(row.value)}
+          </span>
+          <InlineCopyButton
+            label={`Copy ${row.display.listLabel}`}
+            disabled={row.value == null}
+            onCopy={() =>
+              copyToClipboard(
+                row.value == null ? "" : String(row.value),
+              )
+            }
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function InspectPinTraceTable({
+  rows,
+  angleColumnTitle,
+  pinEnergy,
+}: {
+  rows: InspectPinRow[];
+  angleColumnTitle: string;
+  pinEnergy: number;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[12rem] border-collapse text-[11px]">
+        <thead>
+          <tr className="text-left text-[10px] uppercase tracking-wider text-[var(--chart-text-secondary)]">
+            <th className="pb-0.5 pr-2 font-medium">Trace</th>
+            <th className="pb-0.5 pr-2 font-medium tabular-nums">
+              {angleColumnTitle}
+            </th>
+            <th className="pb-0.5 pr-1 text-right font-medium">y</th>
+            <th className="pb-0.5 w-6" aria-hidden />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={row.display.rowKey}
+              className="border-t border-[color-mix(in_oklab,var(--chart-grid-strong)_22%,transparent)]"
+            >
+              <td className="py-0.5 pr-2">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    style={pinSwatchStyle(row.color, row.display.markerSymbol)}
+                    aria-hidden
+                  />
+                  <span className="text-[var(--chart-text)]">
+                    {row.display.channelGlyph}
+                  </span>
+                </span>
+              </td>
+              <td className="py-0.5 pr-2 tabular-nums text-[var(--chart-text-secondary)]">
+                {row.display.angleLabel || "\u2014"}
+              </td>
+              <td className="py-0.5 pr-1 text-right font-mono tabular-nums text-[var(--chart-text)]">
+                {formatTraceValue(row.value)}
+              </td>
+              <td className="py-0.5 text-right">
+                <InlineCopyButton
+                  label={`Copy ${row.display.channelGlyph} at ${formatEnergyEv(pinEnergy)} eV`}
+                  disabled={row.value == null}
+                  onCopy={() =>
+                    copyToClipboard(
+                      row.value == null ? "" : String(row.value),
+                    )
+                  }
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

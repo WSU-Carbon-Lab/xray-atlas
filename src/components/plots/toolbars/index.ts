@@ -1,4 +1,4 @@
-export { PlotToolRailsDeck } from "./PlotToolRailsDeck";
+export { PlotToolRailsDeck, type PlotToolRailInsets } from "./PlotToolRailsDeck";
 export { PlotSpectrumToolsToolbarSection } from "./PlotSpectrumToolsToolbarSection";
 export {
   PlotToolbarRichHint,
@@ -17,6 +17,9 @@ export {
   plotToolbarGlyphToggleGroupItemVerticalClass,
   plotToolbarGlyphToggleStandaloneClass,
   plotToolbarIconToolClass,
+  plotToolbarCompactIconToolClass,
+  plotToolbarCompactGlyphToggleClass,
+  plotToolbarToggleForcedSelectedClass,
 } from "./plot-toolbar-chrome";
 export type {
   PlotRailAxis,
@@ -24,3 +27,11 @@ export type {
   PlotRailExpansionState,
   PlotRailId,
 } from "./types";
+export {
+  PlotDataViewRail,
+  usePlotDataRail,
+  channelDefinitionById,
+  type PlotDataRailDefinition,
+  type PlotDataRailChannelDefinition,
+  type PlotDataViewRailProps,
+} from "../data-rail";
