@@ -11,12 +11,23 @@ import { eventToPlotCoords } from "../utils/svgPlotPointer";
 
 export type PlotLegendPosition = { x: number; y: number };
 
-type DragSession = {
-  startPlotX: number;
-  startPlotY: number;
-  originX: number;
-  originY: number;
-};
+type DragSession =
+  | {
+      kind: "plot";
+      startPlotX: number;
+      startPlotY: number;
+      originX: number;
+      originY: number;
+    }
+  | {
+      kind: "screen";
+      startClientX: number;
+      startClientY: number;
+      originX: number;
+      originY: number;
+    };
+
+const DRAG_CLICK_SUPPRESS_PX = 4;
 
 /**
  * Manages draggable in-plot legend position in plot-inner coordinates (0..plotWidth),
@@ -56,6 +67,7 @@ export function useDraggablePlotLegendPosition(args: {
   });
   const [isDragging, setIsDragging] = useState(false);
   const dragSessionRef = useRef<DragSession | null>(null);
+  const dragMovedRef = useRef(false);
 
   const clampPosition = useCallback(
     (x: number, y: number): PlotLegendPosition => {
@@ -82,13 +94,26 @@ export function useDraggablePlotLegendPosition(args: {
     (event: Pick<PointerEvent, "clientX" | "clientY">) => {
       const session = dragSessionRef.current;
       if (!session) return;
+      if (session.kind === "screen") {
+        const dx = event.clientX - session.startClientX;
+        const dy = event.clientY - session.startClientY;
+        if (Math.hypot(dx, dy) >= DRAG_CLICK_SUPPRESS_PX) {
+          dragMovedRef.current = true;
+        }
+        setPosition(
+          clampPosition(session.originX + dx, session.originY + dy),
+        );
+        return;
+      }
       const pt = plotPointFromClient(event);
       if (!pt) return;
+      const dx = pt.x - session.startPlotX;
+      const dy = pt.y - session.startPlotY;
+      if (Math.hypot(dx, dy) >= DRAG_CLICK_SUPPRESS_PX) {
+        dragMovedRef.current = true;
+      }
       setPosition(
-        clampPosition(
-          session.originX + (pt.x - session.startPlotX),
-          session.originY + (pt.y - session.startPlotY),
-        ),
+        clampPosition(session.originX + dx, session.originY + dy),
       );
     },
     [plotPointFromClient, clampPosition],
@@ -99,23 +124,38 @@ export function useDraggablePlotLegendPosition(args: {
     setIsDragging(false);
   }, []);
 
-  const handleContainerPointerDown = useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
+  const consumeLegendToggleClick = useCallback(() => {
+    if (!dragMovedRef.current) {
+      return false;
+    }
+    dragMovedRef.current = false;
+    return true;
+  }, []);
+
+  const handleLegendPointerDown = useCallback(
+    (event: React.PointerEvent<Element>) => {
       if (event.button !== 0) return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest?.('[data-legend-toggle="true"]')) return;
       event.preventDefault();
       event.stopPropagation();
+      dragMovedRef.current = false;
       const pt = plotPointFromClient(event.nativeEvent);
-      if (!pt) return;
-      dragSessionRef.current = {
-        startPlotX: pt.x,
-        startPlotY: pt.y,
-        originX: position.x,
-        originY: position.y,
-      };
+      dragSessionRef.current = pt
+        ? {
+            kind: "plot",
+            startPlotX: pt.x,
+            startPlotY: pt.y,
+            originX: position.x,
+            originY: position.y,
+          }
+        : {
+            kind: "screen",
+            startClientX: event.clientX,
+            startClientY: event.clientY,
+            originX: position.x,
+            originY: position.y,
+          };
       setIsDragging(true);
-      (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+      event.currentTarget.setPointerCapture(event.pointerId);
     },
     [plotPointFromClient, position.x, position.y],
   );
@@ -157,8 +197,8 @@ export function useDraggablePlotLegendPosition(args: {
     setPosition({ x: defaultX, y: defaultY });
   }, [positionResetKey, defaultX, defaultY]);
 
-  const handleContainerPointerMove = useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
+  const handleLegendPointerMove = useCallback(
+    (event: React.PointerEvent<Element>) => {
       if (!dragSessionRef.current) return;
       event.preventDefault();
       event.stopPropagation();
@@ -167,13 +207,13 @@ export function useDraggablePlotLegendPosition(args: {
     [applyDragMove],
   );
 
-  const handleContainerPointerUp = useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
+  const handleLegendPointerUp = useCallback(
+    (event: React.PointerEvent<Element>) => {
       if (!dragSessionRef.current) return;
       event.stopPropagation();
-      (event.currentTarget as HTMLElement).releasePointerCapture?.(
-        event.pointerId,
-      );
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
       endDrag();
     },
     [endDrag],
@@ -182,9 +222,10 @@ export function useDraggablePlotLegendPosition(args: {
   return {
     position,
     isDragging,
-    handleContainerPointerDown,
-    handleContainerPointerMove,
-    handleContainerPointerUp,
-    handleContainerPointerCancel: handleContainerPointerUp,
+    consumeLegendToggleClick,
+    handleLegendPointerDown,
+    handleLegendPointerMove,
+    handleLegendPointerUp,
+    handleLegendPointerCancel: handleLegendPointerUp,
   };
 }

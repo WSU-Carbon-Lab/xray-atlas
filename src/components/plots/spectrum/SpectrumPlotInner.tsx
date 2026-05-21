@@ -1406,6 +1406,24 @@ export function SpectrumPlotInner({
                 />
               </g>
             )}
+            <ChartAxes
+              scales={mainPlotScales}
+              dimensions={mainPlot.dimensions}
+              themeColors={themeColors}
+              showXAxisLabel={!hasSubplot}
+              yAxisLabel={yAxisPrimary.label}
+              yTickFormat={(v) => yAxisPrimary.tickFormat(Number(v))}
+            />
+            {tooltipData && effectiveCursorMode === "inspect" && (
+              <ChartCrosshairAndDots
+                energy={tooltipData.energy}
+                dots={crosshairDots}
+                xScale={mainPlotScales.xScale}
+                yScale={mainPlotScales.yScale}
+                dimensions={mainPlot.dimensions}
+                themeColors={themeColors}
+              />
+            )}
             <g
               transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
             >
@@ -1448,24 +1466,6 @@ export function SpectrumPlotInner({
                 )
               ) : null}
             </g>
-            <ChartAxes
-              scales={mainPlotScales}
-              dimensions={mainPlot.dimensions}
-              themeColors={themeColors}
-              showXAxisLabel={!hasSubplot}
-              yAxisLabel={yAxisPrimary.label}
-              yTickFormat={(v) => yAxisPrimary.tickFormat(Number(v))}
-            />
-            {tooltipData && effectiveCursorMode === "inspect" && (
-              <ChartCrosshairAndDots
-                energy={tooltipData.energy}
-                dots={crosshairDots}
-                xScale={mainPlotScales.xScale}
-                yScale={mainPlotScales.yScale}
-                dimensions={mainPlot.dimensions}
-                themeColors={themeColors}
-              />
-            )}
           </g>
 
           {hasSubplot && peakPlot && (

@@ -32,7 +32,7 @@ export const PLOT_TOOLBAR_RICH_HINT_CLOSE_DELAY_MS = 0;
 const EDGE_GAP_PX = 8;
 
 const DISABLED_INNER_TRIGGER_CLASS =
-  "pointer-events-none flex size-full min-h-0 min-w-0 items-center justify-center border-0 bg-transparent p-0 shadow-none rounded-none opacity-50";
+  "pointer-events-none flex size-full min-h-0 min-w-0 items-center justify-center border-0 bg-transparent p-0 shadow-none rounded-none opacity-100";
 
 function readAnchorRect(el: HTMLElement | null) {
   if (!el || typeof document === "undefined") {

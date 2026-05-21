@@ -604,28 +604,6 @@ export function OpticalLinkSplitSpectrumBody({
           </g>
         )}
 
-        <g
-          transform={`translate(${imaginaryPlot.dimensions.margins.left}, ${imaginaryPlot.dimensions.margins.top})`}
-        >
-          <PlotSpectrumGeometryLegend
-            mode="linked"
-            rows={[...legendRows]}
-            visibleTraceIds={new Set(visibleTraceIds)}
-            onToggleGeometry={onToggleGeometry}
-            themeColors={themeColors}
-            plotWidth={imaginaryInner.width}
-            plotHeight={imaginaryInner.height + realInner.height}
-            plotSvgRef={plotSvgRef}
-            plotMarginLeft={imaginaryPlot.dimensions.margins.left}
-            plotMarginTop={imaginaryPlot.dimensions.margins.top}
-            positionResetKey={geometryLegendPositionResetKey}
-            graphStyle={graphStyle}
-            imaginaryColumnGlyph={opticalLinkConfig.imaginaryGlyph}
-            realColumnGlyph={opticalLinkConfig.realGlyph}
-            angleColumnTitle={geometryLegendAngleTitle}
-          />
-        </g>
-
         <ChartAxes
           scales={imaginaryScales}
           dimensions={imaginaryPlot.dimensions}
@@ -667,6 +645,28 @@ export function OpticalLinkSplitSpectrumBody({
             </g>
           </>
         )}
+
+        <g
+          transform={`translate(${imaginaryPlot.dimensions.margins.left}, ${imaginaryPlot.dimensions.margins.top})`}
+        >
+          <PlotSpectrumGeometryLegend
+            mode="linked"
+            rows={[...legendRows]}
+            visibleTraceIds={new Set(visibleTraceIds)}
+            onToggleGeometry={onToggleGeometry}
+            themeColors={themeColors}
+            plotWidth={imaginaryInner.width}
+            plotHeight={imaginaryInner.height + realInner.height}
+            plotSvgRef={plotSvgRef}
+            plotMarginLeft={imaginaryPlot.dimensions.margins.left}
+            plotMarginTop={imaginaryPlot.dimensions.margins.top}
+            positionResetKey={geometryLegendPositionResetKey}
+            graphStyle={graphStyle}
+            imaginaryColumnGlyph={opticalLinkConfig.imaginaryGlyph}
+            realColumnGlyph={opticalLinkConfig.realGlyph}
+            angleColumnTitle={geometryLegendAngleTitle}
+          />
+        </g>
       </g>
     </>
   );

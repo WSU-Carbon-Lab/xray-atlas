@@ -1,9 +1,7 @@
 "use client";
 
 import { memo, useCallback, useMemo, useRef, type RefObject } from "react";
-import { Tooltip } from "@heroui/react";
 import type { ChartThemeColors } from "../config";
-import { plotToolbarTooltipContentClass } from "../toolbars";
 import type { GraphStyle } from "../types";
 import { LEGEND_SWATCH_WIDTH, LegendSwatch } from "./LegendSwatch";
 import { useDraggablePlotLegendPosition } from "./use-draggable-plot-legend-position";
@@ -13,9 +11,14 @@ import type {
 } from "./spectrum-geometry-legend-types";
 
 const LEGEND_INSET = 12;
-const LEGEND_ROW_HEIGHT = 24;
 const LEGEND_GAP = 4;
 const LEGEND_PADDING = 8;
+const LEGEND_BORDER_PX = 1;
+const LEGEND_HEADER_FONT_SIZE = 11;
+const LEGEND_HEADER_MARGIN_BOTTOM = 6;
+const LEGEND_HEADER_BLOCK_HEIGHT =
+  LEGEND_HEADER_FONT_SIZE + LEGEND_HEADER_MARGIN_BOTTOM;
+const LEGEND_ROW_HEIGHT = 14;
 const LEGEND_FONT_SIZE = 13;
 const LEGEND_FONT_FAMILY = "var(--font-sans), system-ui, sans-serif";
 
@@ -54,9 +57,27 @@ export type PlotSpectrumGeometryLegendProps =
   | PlotSpectrumGeometryLegendLinkedProps
   | PlotSpectrumGeometryLegendSingleProps;
 
+function computeLegendBoxHeight(rowCount: number): number {
+  const rowGaps = rowCount > 0 ? (rowCount - 1) * LEGEND_GAP : 0;
+  const panelHeight =
+    LEGEND_PADDING * 2 +
+    LEGEND_HEADER_BLOCK_HEIGHT +
+    rowCount * LEGEND_ROW_HEIGHT +
+    rowGaps;
+  return panelHeight + LEGEND_BORDER_PX * 2;
+}
+
+function isSwatchToggleTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest("[data-legend-swatch-toggle]") !== null
+  );
+}
+
 /**
  * In-plot geometry legend: linked mode shows imaginary/real columns plus angle;
- * single mode shows one channel column plus angle. Swatches follow graphStyle.
+ * single mode shows one channel column plus angle. Drag anywhere except swatch
+ * controls; swatches toggle geometry visibility.
  */
 export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLegend(
   props: PlotSpectrumGeometryLegendProps,
@@ -102,12 +123,7 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
     return { col1: props.channelColumnGlyph, col2: null as string | null };
   }, [isLinked, props]);
 
-  const headerHeight = 20;
-  const boxHeight =
-    LEGEND_PADDING * 2 +
-    headerHeight +
-    rows.length * LEGEND_ROW_HEIGHT +
-    (rows.length > 0 ? (rows.length - 1) * LEGEND_GAP : 0);
+  const boxHeight = computeLegendBoxHeight(rows.length);
 
   const legendWidth = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -130,13 +146,7 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
         maxAngle +
         24,
     );
-  }, [
-    plotWidth,
-    rows,
-    headerGlyphs,
-    isLinked,
-    swatchColumnCount,
-  ]);
+  }, [plotWidth, rows, headerGlyphs, isLinked, swatchColumnCount]);
 
   const defaultX = plotWidth - legendWidth - LEGEND_INSET;
   const defaultY = LEGEND_INSET;
@@ -145,10 +155,11 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
   const {
     position,
     isDragging,
-    handleContainerPointerDown,
-    handleContainerPointerMove,
-    handleContainerPointerUp,
-    handleContainerPointerCancel,
+    consumeLegendToggleClick,
+    handleLegendPointerDown,
+    handleLegendPointerMove,
+    handleLegendPointerUp,
+    handleLegendPointerCancel,
   } = useDraggablePlotLegendPosition({
     plotWidth,
     plotHeight,
@@ -162,6 +173,16 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
     positionResetKey,
     inset: LEGEND_INSET,
   });
+
+  const handleLegendSurfacePointerDownCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isSwatchToggleTarget(event.target)) {
+        return;
+      }
+      handleLegendPointerDown(event);
+    },
+    [handleLegendPointerDown],
+  );
 
   const isRowVisible = useCallback(
     (row: LinkedSpectrumGeometryLegendRow | SingleSpectrumGeometryLegendRow) => {
@@ -185,35 +206,60 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
     return null;
   }
 
+  const swatchToggleGridColumn = linkedAreaBandLegend
+    ? "1 / span 1"
+    : isLinked
+      ? "1 / span 2"
+      : "1 / span 1";
+
+  const legendCursor = isDragging ? "grabbing" : "move";
+
+  const panelX = position.x + LEGEND_BORDER_PX;
+  const panelY = position.y + LEGEND_BORDER_PX;
+  const panelWidth = Math.max(0, legendWidth - LEGEND_BORDER_PX * 2);
+  const panelHeight = Math.max(0, boxHeight - LEGEND_BORDER_PX * 2);
+
   return (
     <g ref={setLegendGroupRef} pointerEvents="all">
-      <foreignObject
+      <rect
         x={position.x}
         y={position.y}
         width={legendWidth}
         height={boxHeight}
+        rx={legendBorderRadius}
+        ry={legendBorderRadius}
+        fill={themeColors.paper}
+        fillOpacity={0.95}
+        stroke={themeColors.axis}
+        strokeWidth={LEGEND_BORDER_PX}
+        pointerEvents="none"
+      />
+      <foreignObject
+        x={panelX}
+        y={panelY}
+        width={panelWidth}
+        height={panelHeight}
         style={{ overflow: "visible", pointerEvents: "all" }}
       >
         <div
           data-export-legend-container
           data-legend-drag-handle="true"
-          onPointerDown={handleContainerPointerDown}
-          onPointerMove={handleContainerPointerMove}
-          onPointerUp={handleContainerPointerUp}
-          onPointerCancel={handleContainerPointerCancel}
+          onPointerDownCapture={handleLegendSurfacePointerDownCapture}
+          onPointerMove={handleLegendPointerMove}
+          onPointerUp={handleLegendPointerUp}
+          onPointerCancel={handleLegendPointerCancel}
           style={{
-            cursor: isDragging ? "grabbing" : "move",
-            userSelect: "none",
-            touchAction: "none",
-            padding: LEGEND_PADDING,
-            backgroundColor: themeColors.paper,
-            border: `1px solid ${themeColors.axis}`,
-            borderRadius: legendBorderRadius,
             boxSizing: "border-box",
             width: "100%",
+            height: panelHeight,
+            padding: LEGEND_PADDING,
+            backgroundColor: "transparent",
+            borderRadius: Math.max(0, legendBorderRadius - LEGEND_BORDER_PX),
             fontFamily: LEGEND_FONT_FAMILY,
             fontSize: LEGEND_FONT_SIZE,
-            opacity: 0.95,
+            userSelect: "none",
+            touchAction: "none",
+            cursor: legendCursor,
           }}
         >
           <div
@@ -222,10 +268,11 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
               gridTemplateColumns,
               gap: LEGEND_GAP,
               alignItems: "center",
-              marginBottom: 6,
+              marginBottom: LEGEND_HEADER_MARGIN_BOTTOM,
               color: themeColors.text,
-              fontSize: 11,
+              fontSize: LEGEND_HEADER_FONT_SIZE,
               fontWeight: 600,
+              lineHeight: 1,
             }}
           >
             {linkedAreaBandLegend ? (
@@ -260,25 +307,37 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
                 ? `Hide ${angleColumnTitle} ${row.angleLabel}`
                 : `Show ${angleColumnTitle} ${row.angleLabel}`;
               return (
-                <Tooltip key={row.geometryKey} delay={0}>
+                <div
+                  key={row.geometryKey}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns,
+                    gap: LEGEND_GAP,
+                    alignItems: "center",
+                    minHeight: LEGEND_ROW_HEIGHT,
+                  }}
+                >
                   <button
                     type="button"
-                    data-legend-toggle="true"
+                    data-legend-swatch-toggle="true"
+                    title={toggleHint}
                     aria-label={toggleHint}
                     aria-pressed={visible}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={() => onToggleGeometry(row.geometryKey)}
+                    onClick={() => {
+                      if (consumeLegendToggleClick()) return;
+                      onToggleGeometry(row.geometryKey);
+                    }}
                     style={{
-                      display: "grid",
-                      gridTemplateColumns,
-                      gap: LEGEND_GAP,
+                      gridColumn: swatchToggleGridColumn,
+                      display: "inline-flex",
+                      flexDirection: "row",
                       alignItems: "center",
-                      width: "100%",
+                      justifyContent: "center",
+                      gap: LEGEND_GAP,
                       padding: 0,
                       border: "none",
                       background: "transparent",
                       cursor: "pointer",
-                      color: themeColors.text,
                       opacity: visible ? 1 : 0.55,
                     }}
                   >
@@ -326,25 +385,22 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
                         graphStyle={graphStyle}
                       />
                     )}
-                    <span
-                      data-export-legend-label
-                      style={{
-                        textAlign: "right",
-                        fontWeight: 500,
-                        fontSize: LEGEND_FONT_SIZE,
-                        paddingRight: 2,
-                      }}
-                    >
-                      {row.angleLabel}
-                    </span>
                   </button>
-                  <Tooltip.Content
-                    placement="left"
-                    className={plotToolbarTooltipContentClass}
+                  <span
+                    data-export-legend-label
+                    style={{
+                      textAlign: "right",
+                      fontWeight: 500,
+                      fontSize: LEGEND_FONT_SIZE,
+                      lineHeight: 1,
+                      paddingRight: 2,
+                      color: themeColors.text,
+                      opacity: visible ? 1 : 0.55,
+                    }}
                   >
-                    {toggleHint}
-                  </Tooltip.Content>
-                </Tooltip>
+                    {row.angleLabel}
+                  </span>
+                </div>
               );
             })}
           </div>

@@ -390,7 +390,9 @@ export function NexafsExperimentCompactCard({
         <div className="relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:ml-auto @md/nexafscard:gap-x-3 @md/nexafscard:gap-y-0 @md/nexafscard:border-t-0 @md/nexafscard:pt-0 @md/nexafscard:pl-4 dark:border-zinc-600">
         <Link
           href={moleculeHref}
-          className="focus-visible:ring-accent inline-flex max-w-full shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className={cn(
+            "focus-visible:ring-accent group/to-molecule inline-flex max-w-full shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          )}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
@@ -399,8 +401,11 @@ export function NexafsExperimentCompactCard({
             color="accent"
             size="md"
             className={cn(
-              "max-w-full cursor-pointer shadow-sm backdrop-blur-sm motion-safe:transition-opacity motion-safe:duration-200 hover:opacity-90",
+              "max-w-full cursor-pointer shadow-sm backdrop-blur-sm",
+              "motion-safe:transition-[background-color,border-color,box-shadow] motion-safe:duration-200",
+              "group-hover/to-molecule:border-accent/45 group-hover/to-molecule:bg-accent/12 group-hover/to-molecule:shadow-md",
               "dark:border dark:border-accent/55 dark:bg-accent/28 dark:shadow-md dark:backdrop-blur-none",
+              "dark:group-hover/to-molecule:border-accent/80 dark:group-hover/to-molecule:bg-accent/42 dark:group-hover/to-molecule:shadow-lg",
             )}
           >
             <Chip.Label
@@ -412,7 +417,10 @@ export function NexafsExperimentCompactCard({
               To molecule
             </Chip.Label>
             <ChevronRightIcon
-              className="size-4 shrink-0 text-accent opacity-75 dark:text-accent-foreground dark:opacity-90"
+              className={cn(
+                "size-4 shrink-0 text-accent opacity-75 motion-safe:transition-[transform,opacity] motion-safe:duration-200 dark:text-accent-foreground dark:opacity-90",
+                "group-hover/to-molecule:translate-x-0.5 group-hover/to-molecule:opacity-100",
+              )}
               aria-hidden
             />
           </Chip>

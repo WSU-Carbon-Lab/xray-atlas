@@ -1,22 +1,24 @@
 /**
  * Shared Tailwind class strings for spectrum plot toolbars (attached chrome, toggles, tooltip copy styling).
  *
- * Visual hierarchy: black attached shell; segment fills use theme greys (idle, hover, disabled) and accent when selected.
+ * Visual hierarchy: elevated attached shell (light surface pill, dark black pill); segment fills use
+ * theme greys (idle, hover, disabled) and accent when selected.
  */
 
 const plotToolbarToggleSelectedClass =
   "data-[selected=true]:!bg-(--accent) data-[selected=true]:text-(--accent-foreground) data-[selected=true]:[&_svg]:text-(--accent-foreground) data-[selected=true]:shadow-sm";
 
-/** Idle segment fill (neutral grey) on the black shell. */
-const plotToolbarSegmentIdleFill = "!bg-(--surface-2)";
+/** Idle segment fill: light inset on surface shell; dark grey on black shell. */
+const plotToolbarSegmentIdleFill =
+  "!bg-background dark:!bg-(--surface-2)";
 
 /** Hover on unselected segments. */
 const plotToolbarSegmentHoverFill =
-  "hover:!bg-(--surface-3) data-[hovered=true]:data-[selected=false]:!bg-(--surface-3)";
+  "hover:!bg-(--surface-2) data-[hovered=true]:data-[selected=false]:!bg-(--surface-2) dark:hover:!bg-(--surface-3) dark:data-[hovered=true]:data-[selected=false]:!bg-(--surface-3)";
 
-/** Disabled segment fill (dark grey). */
+/** Disabled segment fill: readable icon contrast in both themes. */
 const plotToolbarSegmentDisabledFill =
-  "data-[disabled=true]:!bg-(--surface-1) data-[disabled=true]:text-(--text-secondary) data-[disabled=true]:opacity-60 data-[disabled=true]:[&_svg]:text-(--text-secondary) data-[disabled=true]:[&_svg]:opacity-60";
+  "data-[disabled=true]:!bg-(--surface-3) data-[disabled=true]:text-(--text-tertiary) data-[disabled=true]:[&_svg]:text-(--text-tertiary) dark:data-[disabled=true]:!bg-(--surface-1) dark:data-[disabled=true]:text-(--text-secondary) dark:data-[disabled=true]:opacity-70 dark:data-[disabled=true]:[&_svg]:text-(--text-secondary)";
 
 const plotToolbarGlyphToggleBase = `h-9 w-9 min-w-9 shrink-0 ${plotToolbarSegmentIdleFill} text-(--text-primary) transition-colors ${plotToolbarSegmentHoverFill} ${plotToolbarSegmentDisabledFill}`;
 
@@ -25,10 +27,10 @@ export const plotToolbarTooltipContentClass =
   "bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-xs shadow-lg";
 
 /**
- * Attached plot toolbar shell: overrides HeroUI `.toolbar--attached` `bg-surface` so rails read as a black pill on the plot.
+ * Attached plot toolbar shell: overrides HeroUI `.toolbar--attached` `bg-surface` so rails read as an elevated pill on the plot.
  */
 export const plotToolbarAttachedShellClass =
-  "rounded-full border border-(--border-default)/50 !bg-black px-1 py-1 shadow-md";
+  "rounded-full border border-(--border-strong) !bg-(--surface-2) px-1 py-1 shadow-sm dark:border-(--border-default)/50 dark:!bg-black dark:shadow-md";
 
 /**
  * Flex gap between sibling tool **groups** inside one attached `Toolbar` (for example home/export | inspect/zoom/pan | edit).
@@ -53,11 +55,11 @@ export const plotToolbarAttachedToolbarVerticalScrollClass = `${plotToolbarAttac
 
 /** Thin vertical rule between horizontal tool groups inside one attached top rail. */
 export const plotToolbarGroupSeparatorVerticalClass =
-  "mx-1 h-6 min-h-6 w-px shrink-0 self-center bg-(--border-default)";
+  "mx-1 h-6 min-h-6 w-px shrink-0 self-center bg-(--border-strong)/70 dark:bg-(--border-default)";
 
 /** Thin horizontal rule between vertical tool groups inside one attached rail. */
 export const plotToolbarGroupSeparatorHorizontalClass =
-  "my-1 w-full shrink-0 bg-(--border-default)";
+  "my-1 w-full shrink-0 bg-(--border-strong)/70 dark:bg-(--border-default)";
 
 /** `ToggleButtonGroup` / `ButtonGroup` chrome for horizontal segments inside one attached group. */
 export const plotToolbarAttachedToggleGroupHorizontalClass = "rounded-full";
@@ -65,7 +67,7 @@ export const plotToolbarAttachedToggleGroupHorizontalClass = "rounded-full";
 /** `ToggleButtonGroup` chrome for vertical segments inside one attached group. */
 export const plotToolbarAttachedToggleGroupVerticalClass = "w-full rounded-full";
 
-/** Horizontal channel picker popover: same black pill as attached plot rails. */
+/** Horizontal channel picker popover: same attached pill chrome as plot rails. */
 export const plotToolbarAttachedHorizontalPickerShellClass =
   `${plotToolbarAttachedShellClass} w-fit rounded-full`;
 
@@ -114,11 +116,11 @@ export type PlotToolbarBasisSegmentPosition = "first" | "middle" | "last" | "onl
  * Applied on the hover-capturing shell from {@link PlotToolbarRichHint} when the trigger is disabled.
  */
 export const plotToolbarBasisSegmentDisabledClass =
-  "!bg-(--surface-1) text-(--text-secondary) opacity-60 shadow-none [&_svg]:text-(--text-secondary) [&_svg]:opacity-60";
+  "!bg-(--surface-3) text-(--text-tertiary) shadow-none [&_svg]:text-(--text-tertiary) dark:!bg-(--surface-1) dark:text-(--text-secondary) dark:opacity-70 dark:[&_svg]:text-(--text-secondary)";
 
 /**
  * Corner radii for one row in a vertical attached stack when each row is wrapped (for example in a popover trigger).
- * Idle rows use neutral grey fills on the black shell; selection uses accent tokens.
+ * Idle rows use theme segment fills on the attached shell; selection uses accent tokens.
  */
 export function plotToolbarBasisSegmentClass(
   position: PlotToolbarBasisSegmentPosition,
@@ -160,7 +162,7 @@ const plotToolbarLinkSegmentCornerClass = (
 };
 
 /**
- * Thin middle strip for tray link controls (for example beta-delta chain): centered icon on neutral grey fill.
+ * Thin middle strip for tray link controls (for example beta-delta chain): centered icon on segment idle fill.
  */
 export function plotToolbarLinkSegmentClass(
   position: PlotToolbarBasisSegmentPosition,
