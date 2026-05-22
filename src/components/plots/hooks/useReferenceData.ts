@@ -8,12 +8,14 @@ import type { SpectrumPoint } from "../types";
 import {
   SPECTRUM_TRACE_GRADIENT_DARK,
   SPECTRUM_TRACE_GRADIENT_LIGHT,
+  SPECTRUM_TRACE_LINE_WIDTH,
   spectrumTraceColorAlongGradient,
 } from "../constants";
 
 export type ReferenceDataResult = {
   referenceTraces: TraceData[];
   differenceTraces: TraceData[];
+  companionTraces: TraceData[];
 };
 
 /**
@@ -23,6 +25,7 @@ export function useReferenceData(
   referenceCurves: ReferenceCurve[],
   differenceSpectra: DifferenceSpectrum[],
   isDark: boolean,
+  companionSpectra: DifferenceSpectrum[] = [],
 ): ReferenceDataResult {
   const referenceTraces = useMemo<TraceData[]>(() => {
     return referenceCurves.map((curve) => ({
@@ -33,8 +36,8 @@ export function useReferenceData(
       y: curve.points.map((point) => point.absorption),
       line: {
         color: curve.color ?? "#111827",
-        width: 2.5,
-        dash: /bare\s*atom/i.test(curve.label) ? "dash" : "solid",
+        width: SPECTRUM_TRACE_LINE_WIDTH,
+        dash: curve.lineDash ?? "solid",
       },
       hovertemplate:
         `<b>${curve.label}</b><br>` +
@@ -133,8 +136,39 @@ export function useReferenceData(
     });
   }, [differenceSpectra, isDark]);
 
+  const companionTraces = useMemo<TraceData[]>(() => {
+    const palette = isDark
+      ? SPECTRUM_TRACE_GRADIENT_DARK
+      : SPECTRUM_TRACE_GRADIENT_LIGHT;
+    return companionSpectra.map((spec, index) => {
+      const color = spectrumTraceColorAlongGradient(
+        palette,
+        index,
+        Math.max(1, companionSpectra.length),
+      );
+      return {
+        type: "scattergl",
+        mode: "lines",
+        name: spec.label,
+        x: spec.points.map((point) => point.energy),
+        y: spec.points.map((point) => point.absorption),
+        line: {
+          color,
+          width: 1.8,
+          dash: "dashdot",
+        },
+        hovertemplate:
+          `<b>${spec.label}</b><br>` +
+          "Energy: %{x:.3f} eV<br>Value: %{y:.4f}" +
+          "<extra></extra>",
+        showlegend: true,
+      };
+    });
+  }, [companionSpectra, isDark]);
+
   return {
     referenceTraces,
     differenceTraces,
+    companionTraces,
   };
 }

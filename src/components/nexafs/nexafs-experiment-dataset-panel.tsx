@@ -9,12 +9,12 @@ import {
   type Key as SelectionKey,
 } from "react";
 import { useSession } from "next-auth/react";
+import { useTheme } from "next-themes";
 import { PencilIcon } from "@heroicons/react/24/outline";
-import { RotateCcw, Save } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, RotateCcw, Save } from "lucide-react";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import {
   Button,
-  Separator,
   ToggleButton,
   ToggleButtonGroup,
   Toolbar,
@@ -34,16 +34,18 @@ import { filterSpectrumPointsForGroupedPlot } from "~/components/plots/hooks/use
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import {
   PlotSpectrumToolsToolbarSection,
-  plotToolbarAttachedShellClass,
-  plotToolbarBasisToggleClass,
+  PlotToolbarGroupSeparator,
+  plotToolbarAttachedToolbarVerticalClass,
+  plotToolbarAttachedToggleGroupHorizontalClass,
+  plotToolbarAttachedToggleGroupVerticalClass,
+  plotToolbarCompactGlyphToggleClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
+  plotToolbarGlyphToggleGroupItemVerticalClass,
   PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
 import {
-  buildBareAtomReferenceCurve,
   calculateBareAtomAbsorption,
-  calculateBareAtomDelta,
   calculateDifferenceSpectra,
   computeBetaIndex,
   computeNormalizationForExperiment,
@@ -59,10 +61,29 @@ import type {
   NormalizationRanges as PersistedNormalizationRanges,
   NormalizationScope,
 } from "~/features/process-nexafs/types";
+import { channelDefinitionById } from "~/components/plots/data-rail";
+import {
+  NexafsPlotDataRail,
+  resolveLinkedCompanionChannel,
+} from "~/components/nexafs/nexafs-plot-data-rail";
 import {
   mapPeaksetsToPlotPeaks,
   useNexafsSpectrumBrowseModel,
 } from "~/features/process-nexafs/hooks/useNexafsSpectrumBrowseModel";
+import {
+  buildPlotPointsForChannel,
+  isImaginaryChannel,
+  isRealChannel,
+  type NexafsPlotChannelId,
+} from "~/features/process-nexafs/nexafs-plot-channels";
+import type { OpticalLinkPlotConfig } from "~/components/plots/hooks/useLinkedOpticalTraces";
+import { NEXAFS_PLOT_DATA_RAIL_DEFINITION } from "~/features/process-nexafs/nexafs-plot-data-rail-config";
+import {
+  bareAtomOverlaySupportedForChannel,
+  bareAtomReferencesForOverlay,
+  buildBareAtomRepresentationMatrix,
+  type BareAtomRepresentationMatrix,
+} from "~/features/process-nexafs/bare-atom-representation-matrix";
 import { VisualizationToggle } from "~/features/process-nexafs/ui/visualization-toggle";
 import type {
   VisualizationMode,
@@ -234,12 +255,12 @@ export function NexafsExperimentDatasetPanel({
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
   const [showBareAtomOverlay, setShowBareAtomOverlay] = useState(false);
-  const [bareAtomReferences, setBareAtomReferences] = useState<
-    ReferenceCurve[]
-  >([]);
-  const [bareAtomMuOverlayPoints, setBareAtomMuOverlayPoints] = useState<
-    BareAtomPoint[] | null
-  >(null);
+  const [linkImaginaryReal, setLinkImaginaryReal] = useState(false);
+  const [opticalLinkSplitView, setOpticalLinkSplitView] = useState(false);
+  const [bareAtomMatrix, setBareAtomMatrix] =
+    useState<BareAtomRepresentationMatrix | null>(null);
+  const { resolvedTheme } = useTheme();
+  const chartIsDark = resolvedTheme === "dark";
   const showThetaPhiBeforeDiffRef = useRef<{
     showTheta: boolean;
     showPhi: boolean;
@@ -442,6 +463,7 @@ export function NexafsExperimentDatasetPanel({
 
   const model = useNexafsSpectrumBrowseModel({
     spectrumPoints,
+    stoichiometryFormula: chemicalFormula,
   });
 
   const bareAtomOverlaySourcePoints = useMemo(
@@ -462,122 +484,63 @@ export function NexafsExperimentDatasetPanel({
   }, [enabled, chemicalFormula]);
 
   useEffect(() => {
-    if (model.dataView === "od" && showBareAtomOverlay) {
+    if (
+      !bareAtomOverlaySupportedForChannel(model.plotChannel) &&
+      showBareAtomOverlay
+    ) {
       setShowBareAtomOverlay(false);
     }
-  }, [model.dataView, showBareAtomOverlay]);
+  }, [model.plotChannel, showBareAtomOverlay]);
 
   useEffect(() => {
     if (
       !showBareAtomOverlay ||
       !chemicalFormula?.trim() ||
-      model.dataView === "od"
+      !bareAtomOverlaySupportedForChannel(model.plotChannel)
     ) {
-      setBareAtomReferences([]);
-      setBareAtomMuOverlayPoints(null);
+      setBareAtomMatrix(null);
       return;
     }
 
-    const dataView = model.dataView;
     const formula = chemicalFormula.trim();
-
     let cancelled = false;
 
     void (async () => {
       try {
         if (bareAtomOverlaySourcePoints.length === 0) {
           if (!cancelled && !pointsQuery.isFetching) {
-            setBareAtomReferences([]);
-            setBareAtomMuOverlayPoints(null);
+            setBareAtomMatrix(null);
           }
           return;
         }
 
-        const plotEnergySource =
-          dataView === "delta"
-            ? (model.deltaPoints ?? [])
-            : dataView === "beta"
-              ? (model.betaPoints ?? [])
-              : model.absorptionPlotPoints;
-
         const targetEnergyEv = strictlyAscendingUniqueEnergies(
-          plotEnergySource.map((p) => p.energy),
+          model.plotPoints.map((p) => p.energy),
         );
         if (targetEnergyEv.length < 2) {
           if (!cancelled && !pointsQuery.isFetching) {
-            setBareAtomReferences([]);
-            setBareAtomMuOverlayPoints(null);
+            setBareAtomMatrix(null);
           }
           return;
         }
 
-        const gridPts = targetEnergyEv.map((energy) => ({
-          energy,
-          absorption: 0,
-        }));
-
-        if (dataView === "delta") {
-          const bareDelta = await calculateBareAtomDelta(formula, gridPts);
-          if (cancelled) {
-            return;
-          }
-          if (bareDelta.length === 0) {
-            setBareAtomReferences([]);
-            setBareAtomMuOverlayPoints(null);
-            showToast("Could not compute bare atom reference curve", "error");
-            return;
-          }
-
-          const curve = buildBareAtomReferenceCurve({
-            bareDelta,
-            dataView: "delta",
-            label: "Bare atom delta",
-          });
-
-          if (cancelled) {
-            return;
-          }
-
-          setBareAtomReferences(curve ? [curve] : []);
-          setBareAtomMuOverlayPoints(null);
-          if (!curve) {
-            showToast("Could not compute bare atom reference curve", "error");
-          }
-          return;
-        }
-
-        const bareMu = await calculateBareAtomAbsorption(formula, gridPts);
+        const matrix = await buildBareAtomRepresentationMatrix(
+          formula,
+          targetEnergyEv,
+        );
         if (cancelled) {
           return;
         }
-        if (bareMu.length === 0) {
-          setBareAtomReferences([]);
-          setBareAtomMuOverlayPoints(null);
+        if (!matrix) {
+          setBareAtomMatrix(null);
           showToast("Could not compute bare atom reference curve", "error");
           return;
         }
 
-        const referenceView = dataView === "beta" ? "beta" : "absorption";
-        const curve = buildBareAtomReferenceCurve({
-          bareMu,
-          dataView: referenceView,
-          label:
-            referenceView === "beta" ? "Bare atom beta" : "Bare atom absorption",
-        });
-
-        if (cancelled) {
-          return;
-        }
-
-        setBareAtomReferences(curve ? [curve] : []);
-        setBareAtomMuOverlayPoints(curve ? bareMu : null);
-        if (!curve) {
-          showToast("Could not compute bare atom reference curve", "error");
-        }
+        setBareAtomMatrix(matrix);
       } catch {
         if (!cancelled) {
-          setBareAtomReferences([]);
-          setBareAtomMuOverlayPoints(null);
+          setBareAtomMatrix(null);
           showToast("Could not compute bare atom reference curve", "error");
         }
       }
@@ -589,10 +552,8 @@ export function NexafsExperimentDatasetPanel({
   }, [
     showBareAtomOverlay,
     chemicalFormula,
-    model.dataView,
-    model.deltaPoints,
-    model.betaPoints,
-    model.absorptionPlotPoints,
+    model.plotChannel,
+    model.plotPoints,
     bareAtomOverlaySourcePoints,
     pointsQuery.isFetching,
   ]);
@@ -602,17 +563,133 @@ export function NexafsExperimentDatasetPanel({
     [peaksQuery.data],
   );
 
-  const differenceRootPoints = useMemo((): SpectrumPoint[] => {
-    if (model.dataView === "od") return model.edgeZeroOnePoints;
-    if (model.dataView === "beta") return model.betaPoints ?? [];
-    if (model.dataView === "delta") return model.deltaPoints ?? [];
-    return model.absorptionPlotPoints;
+  const differenceRootPoints = useMemo(
+    (): SpectrumPoint[] => model.plotPoints,
+    [model.plotPoints],
+  );
+
+  useEffect(() => {
+    if (!linkImaginaryReal) {
+      setOpticalLinkSplitView(false);
+    }
+  }, [linkImaginaryReal]);
+
+  const opticalLink = useMemo((): OpticalLinkPlotConfig | undefined => {
+    if (!linkImaginaryReal || !chemicalFormula?.trim()) {
+      return undefined;
+    }
+    const channel = model.plotChannel;
+    if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
+      return undefined;
+    }
+    const companionId = resolveLinkedCompanionChannel(channel, true);
+    if (companionId == null) {
+      return undefined;
+    }
+    const imaginaryRole = isImaginaryChannel(channel)
+      ? channel
+      : isImaginaryChannel(companionId)
+        ? companionId
+        : null;
+    const realRole = isRealChannel(channel)
+      ? channel
+      : isRealChannel(companionId)
+        ? companionId
+        : null;
+    if (imaginaryRole == null || realRole == null) {
+      return undefined;
+    }
+    const companionPoints = buildPlotPointsForChannel(
+      companionId,
+      spectrumPoints,
+      chemicalFormula,
+    );
+    if (companionPoints.length === 0) {
+      return undefined;
+    }
+    const imaginaryGlyph = channelDefinitionById(
+      NEXAFS_PLOT_DATA_RAIL_DEFINITION,
+      imaginaryRole,
+    ).glyph;
+    const realGlyph = channelDefinitionById(
+      NEXAFS_PLOT_DATA_RAIL_DEFINITION,
+      realRole,
+    ).glyph;
+    return {
+      primaryRole: channel,
+      imaginaryRole,
+      realRole,
+      imaginaryGlyph,
+      realGlyph,
+      companionPoints,
+    };
   }, [
-    model.dataView,
-    model.edgeZeroOnePoints,
-    model.absorptionPlotPoints,
-    model.betaPoints,
-    model.deltaPoints,
+    linkImaginaryReal,
+    chemicalFormula,
+    model.plotChannel,
+    spectrumPoints,
+  ]);
+
+  const bareAtomReferences = useMemo((): ReferenceCurve[] => {
+    if (!showBareAtomOverlay || !bareAtomMatrix) {
+      return [];
+    }
+    if (!bareAtomOverlaySupportedForChannel(model.plotChannel)) {
+      return [];
+    }
+    const linkRoles = opticalLink
+      ? {
+          imaginaryRole: opticalLink.imaginaryRole,
+          realRole: opticalLink.realRole,
+        }
+      : undefined;
+    return bareAtomReferencesForOverlay(
+      bareAtomMatrix,
+      model.plotChannel,
+      chartIsDark,
+      linkRoles,
+    );
+  }, [
+    showBareAtomOverlay,
+    bareAtomMatrix,
+    model.plotChannel,
+    chartIsDark,
+    opticalLink,
+  ]);
+
+  const companionSpectra = useMemo((): DifferenceSpectrum[] => {
+    if (opticalLink) {
+      return [];
+    }
+    if (!chemicalFormula?.trim()) {
+      return [];
+    }
+    const companionId = resolveLinkedCompanionChannel(
+      model.plotChannel,
+      linkImaginaryReal,
+    );
+    if (companionId == null) {
+      return [];
+    }
+    const points = buildPlotPointsForChannel(
+      companionId,
+      spectrumPoints,
+      chemicalFormula,
+    );
+    if (points.length === 0) {
+      return [];
+    }
+    const def = channelDefinitionById(
+      NEXAFS_PLOT_DATA_RAIL_DEFINITION,
+      companionId,
+    );
+    return [{ label: `Linked ${def.glyph}`, points }];
+  }, [
+    opticalLink,
+    linkImaginaryReal,
+    chemicalFormula,
+    model.plotChannel,
+    spectrumPoints,
   ]);
 
   const firstDifferenceLabel = differenceSpectra[0]?.label ?? "";
@@ -653,7 +730,7 @@ export function NexafsExperimentDatasetPanel({
     if (differenceSpectra.length === 0) return;
     void computeDifferenceSpectraFromRoot(differenceAngleMode);
   }, [
-    model.dataView,
+    model.plotChannel,
     differenceAngleMode,
     differenceRootPoints,
     differenceSpectra.length,
@@ -791,9 +868,7 @@ export function NexafsExperimentDatasetPanel({
   const spectrumRailCsvMenusDisabled =
     pointsQuery.isLoading || sortedAllPoints.length === 0;
 
-  const referenceCurves = useMemo((): ReferenceCurve[] => {
-    return bareAtomReferences;
-  }, [bareAtomReferences]);
+  const referenceCurves = bareAtomReferences;
 
   const clientPreviewMuPoints = useMemo(() => {
     if (
@@ -838,35 +913,29 @@ export function NexafsExperimentDatasetPanel({
     if (!clientPreviewMuPoints) {
       return model.plotPoints;
     }
-    if (model.dataView === "od") {
+    if (model.plotChannel === "normalized") {
       return model.plotPoints;
     }
-    if (model.dataView === "absorption") {
+    if (model.plotChannel === "mass-absorption") {
       return clientPreviewMuPoints;
     }
-    if (model.dataView === "beta" && bareAtomMuOverlayPoints?.length) {
-      return computeBetaIndex(
-        clientPreviewMuPoints,
-        clientPreviewMuPoints.map((p) => p.energy),
-        bareAtomMuOverlayPoints,
-      );
+    if (model.plotChannel === "beta") {
+      const bareMu = bareAtomMatrix?.channels["mass-absorption"];
+      if (bareMu?.length) {
+        return computeBetaIndex(
+          clientPreviewMuPoints,
+          clientPreviewMuPoints.map((p) => p.energy),
+          bareMu.map((p) => ({ energy: p.energy, absorption: p.absorption })),
+        );
+      }
     }
     return model.plotPoints;
   }, [
-    bareAtomMuOverlayPoints,
+    bareAtomMatrix,
     clientPreviewMuPoints,
-    model.dataView,
+    model.plotChannel,
     model.plotPoints,
   ]);
-
-  const overlaySelectedKey =
-    model.dataView === "od"
-      ? "od"
-      : model.dataView === "beta"
-        ? "beta"
-        : model.dataView === "delta"
-          ? "delta"
-          : "absorption";
 
   const diffBareSelectedKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -1103,30 +1172,59 @@ export function NexafsExperimentDatasetPanel({
     visualizationMode === "graph" &&
     !pointsQuery.isLoading;
 
+  const spectrumCsvFilenameBase = `nexafs-experiment-${experimentId.slice(0, 8)}`;
+
+  const spectrumCsvExportOptions = useMemo(
+    () => ({
+      stoichiometryFormula: chemicalFormula,
+    }),
+    [chemicalFormula],
+  );
+
   const plotTopRailDataActions = useMemo(
     () => [
       <NexafsSpectrumRailCsvDropdown
         key="spectrum-rail-download"
         kind="download"
         disabled={spectrumRailCsvMenusDisabled}
-        filenameBase={`nexafs-experiment-${experimentId.slice(0, 8)}`}
+        filenameBase={spectrumCsvFilenameBase}
         sortedAllPoints={sortedAllPoints}
         groupedTree={groupedTree}
+        csvExportOptions={spectrumCsvExportOptions}
       />,
       <NexafsSpectrumRailCsvDropdown
         key="spectrum-rail-copy"
         kind="copy"
         disabled={spectrumRailCsvMenusDisabled}
-        filenameBase={`nexafs-experiment-${experimentId.slice(0, 8)}`}
+        filenameBase={spectrumCsvFilenameBase}
         sortedAllPoints={sortedAllPoints}
         groupedTree={groupedTree}
+        csvExportOptions={spectrumCsvExportOptions}
       />,
     ],
     [
       spectrumRailCsvMenusDisabled,
-      experimentId,
+      spectrumCsvFilenameBase,
       groupedTree,
       sortedAllPoints,
+      spectrumCsvExportOptions,
+    ],
+  );
+
+  const spectrumCsvContextMenu = useMemo(
+    () => ({
+      disabled: spectrumRailCsvMenusDisabled,
+      filenameBase: spectrumCsvFilenameBase,
+      sortedAllPoints,
+      groupedTree,
+      stoichiometryFormula: chemicalFormula,
+    }),
+    [
+      spectrumRailCsvMenusDisabled,
+      spectrumCsvFilenameBase,
+      groupedTree,
+      sortedAllPoints,
+      chemicalFormula,
     ],
   );
 
@@ -1193,7 +1291,7 @@ export function NexafsExperimentDatasetPanel({
             aria-label="Edit, save, or reset normalization regions"
             selectionMode="multiple"
             orientation="horizontal"
-            className="rounded-full"
+            className={plotToolbarAttachedToggleGroupHorizontalClass}
             selectedKeys={editSaveToolbarSelectedKeys}
             onSelectionChange={handleEditSaveToolbarSelectionChange}
           >
@@ -1288,24 +1386,38 @@ export function NexafsExperimentDatasetPanel({
     ],
   );
 
+  const setPlotChannel = model.setPlotChannel;
+  const handlePlotChannelChange = useCallback(
+    (channel: NexafsPlotChannelId) => {
+      setPlotChannel(channel);
+      if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
+        setLinkImaginaryReal(false);
+      }
+    },
+    [setPlotChannel],
+  );
+
   const plotLeftRail = useMemo(() => {
+    const bareAtomOverlayChannelSupported = bareAtomOverlaySupportedForChannel(
+      model.plotChannel,
+    );
     const browseBareAtomToggleDisabled =
       !chemicalFormula ||
-      model.dataView === "od" ||
+      !bareAtomOverlayChannelSupported ||
       moleculeFormulaQuery.isLoading;
     return (
-      <div className="pointer-events-auto flex flex-col gap-2">
+      <div className="pointer-events-auto flex flex-col items-center">
         <Toolbar
           isAttached
           orientation="vertical"
           aria-label="Spectrum display tools"
-          className={`${plotToolbarAttachedShellClass} w-fit`}
+          className={plotToolbarAttachedToolbarVerticalClass}
         >
           <ToggleButtonGroup
             aria-label="Difference spectrum and bare atom reference"
             selectionMode="multiple"
             orientation="vertical"
-            className="w-full rounded-full"
+            className={plotToolbarAttachedToggleGroupVerticalClass}
             selectedKeys={diffBareSelectedKeys}
             onSelectionChange={handleDiffBareSelectionChange}
           >
@@ -1318,7 +1430,7 @@ export function NexafsExperimentDatasetPanel({
                 isIconOnly
                 aria-label="Difference spectrum between geometries"
                 id="difference"
-                className={plotToolbarBasisToggleClass}
+                className={plotToolbarGlyphToggleGroupItemVerticalClass}
               >
                 <span className="text-xs font-semibold" aria-hidden>
                   &#x0394;
@@ -1333,8 +1445,8 @@ export function NexafsExperimentDatasetPanel({
                   ? "Loading molecule formula."
                   : !chemicalFormula
                     ? "Link a molecule with a chemical formula first."
-                    : model.dataView === "od"
-                      ? "Switch the plot to mu, beta, or delta to compare bare atom."
+                    : !bareAtomOverlayChannelSupported
+                      ? "Switch to mass absorption or an optical-constant view for bare atom."
                       : "Bare-atom overlay is not available in this view."
               }
               placement="right"
@@ -1343,121 +1455,40 @@ export function NexafsExperimentDatasetPanel({
               <ToggleButton
                 isIconOnly
                 aria-label={
-                  model.dataView === "od"
-                    ? "Bare atom overlay (not available in optical density view)"
+                  !bareAtomOverlayChannelSupported
+                    ? "Bare atom overlay (not available for raw or 0–1 normalized views)"
                     : chemicalFormula
-                      ? model.dataView === "delta"
+                      ? model.plotChannel === "delta"
                         ? "Bare atom delta reference (Henke/CXRO f1 on this grid)"
-                        : "Bare atom reference curve on this energy grid"
+                        : model.plotChannel === "mass-absorption"
+                          ? "Bare atom mass absorption reference (Henke/CXRO on this grid)"
+                          : "Bare atom reference curve on this energy grid"
                       : "Bare atom overlay (no chemical formula on linked molecule)"
                 }
                 id="bare-atom"
                 isDisabled={browseBareAtomToggleDisabled}
-                className={plotToolbarBasisToggleClass}
+                className={plotToolbarGlyphToggleGroupItemVerticalClass}
               >
                 <ToggleButtonGroup.Separator />
                 <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
               </ToggleButton>
             </PlotToolbarRichHint>
           </ToggleButtonGroup>
-
-          <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
-
-          <ToggleButtonGroup
-            aria-label="Data view basis"
-            selectionMode="single"
-            orientation="vertical"
-            className="w-full rounded-full"
-            selectedKeys={new Set([overlaySelectedKey])}
-            onSelectionChange={(keys) => {
-              const next = keys.values().next().value as string | undefined;
-              if (next === "od") model.setDataView("od");
-              else if (next === "absorption") model.setDataView("absorption");
-              else if (next === "beta") model.setDataView("beta");
-              else if (next === "delta") model.setDataView("delta");
-            }}
-          >
-            <PlotToolbarRichHint
-              title="OD"
-              description="Plot stored optical density when the upload includes it."
-              whenDisabledDescription="This dataset has no stored OD column."
-              placement="right"
-              disabled={!model.odAvailable}
-            >
-              <ToggleButton
-                isIconOnly
-                aria-label="Optical density"
-                id="od"
-                isDisabled={!model.odAvailable}
-                className={plotToolbarBasisToggleClass}
-              >
-                <span className="text-xs font-semibold">OD</span>
-              </ToggleButton>
-            </PlotToolbarRichHint>
-            <PlotToolbarRichHint
-              title="Mu"
-              description="Plot mass absorption coefficient from the database columns."
-              whenDisabledDescription="This dataset has no stored mass-absorption (mu) column."
-              placement="right"
-              disabled={!model.absorptionAvailable}
-            >
-              <ToggleButton
-                isIconOnly
-                aria-label="Mass absorption coefficient"
-                id="absorption"
-                isDisabled={!model.absorptionAvailable}
-                className={plotToolbarBasisToggleClass}
-              >
-                <ToggleButtonGroup.Separator />
-                <span className="text-sm font-semibold" aria-hidden>
-                  &#x00B5;
-                </span>
-              </ToggleButton>
-            </PlotToolbarRichHint>
-            <PlotToolbarRichHint
-              title="Beta"
-              description="Plot stored beta values when the upload includes them."
-              whenDisabledDescription="This dataset has no stored beta column."
-              placement="right"
-              disabled={!model.betaAvailable}
-            >
-              <ToggleButton
-                isIconOnly
-                aria-label="Beta index of refraction"
-                id="beta"
-                isDisabled={!model.betaAvailable}
-                className={plotToolbarBasisToggleClass}
-              >
-                <ToggleButtonGroup.Separator />
-                <span className="text-sm font-semibold" aria-hidden>
-                  &#x03B2;
-                </span>
-              </ToggleButton>
-            </PlotToolbarRichHint>
-            <PlotToolbarRichHint
-              title="Delta"
-              description="Plot stored delta values aligned to the spectrum energy axis."
-              whenDisabledDescription="Run KK or upload delta values for this spectrum first."
-              placement="right"
-              disabled={!model.deltaAvailable}
-            >
-              <ToggleButton
-                isIconOnly
-                aria-label="Delta refractive decrement from stored values"
-                id="delta"
-                isDisabled={!model.deltaAvailable}
-                className={plotToolbarBasisToggleClass}
-              >
-                <ToggleButtonGroup.Separator />
-                <span className="text-sm font-semibold" aria-hidden>
-                  &#x03B4;
-                </span>
-              </ToggleButton>
-            </PlotToolbarRichHint>
-          </ToggleButtonGroup>
         </Toolbar>
+
+        <PlotToolbarGroupSeparator orientation="horizontal" />
+
+        <NexafsPlotDataRail
+          plotChannel={model.plotChannel}
+          onPlotChannelChange={handlePlotChannelChange}
+          availability={model.channelAvailability}
+          linkImaginaryReal={linkImaginaryReal}
+          onLinkImaginaryRealChange={setLinkImaginaryReal}
+        />
         {datasetPlotEditorActive ? (
-          <PlotSpectrumToolsToolbarSection
+          <>
+            <PlotToolbarGroupSeparator orientation="horizontal" />
+            <PlotSpectrumToolsToolbarSection
             peakToolsEnabled={false}
             normalizationRegionResetInRail={false}
             isNormalizationMode={isPlotNormalizationMode}
@@ -1473,6 +1504,7 @@ export function NexafsExperimentDatasetPanel({
             onAutoDetectPeaks={() => undefined}
             onResetAllPeaks={() => undefined}
           />
+          </>
         ) : null}
       </div>
     );
@@ -1488,10 +1520,52 @@ export function NexafsExperimentDatasetPanel({
       model,
       chemicalFormula,
       moleculeFormulaQuery.isLoading,
-      overlaySelectedKey,
+      linkImaginaryReal,
+      handlePlotChannelChange,
     ]);
 
   const plotRightRail = useMemo(() => {
+    if (opticalLink == null) {
+      return null;
+    }
+    return (
+      <PlotToolbarRichHint
+        title={
+          opticalLinkSplitView
+            ? "Unsplit linked plot"
+            : "Split imaginary and real"
+        }
+        description={
+          opticalLinkSplitView
+            ? "Show imaginary and real channels on one shared y-axis."
+            : "Stack imaginary (top) and real (bottom) with separate y-ranges on one energy axis."
+        }
+        placement="left"
+      >
+        <ToggleButton
+          isIconOnly
+          aria-label={
+            opticalLinkSplitView
+              ? "Unsplit linked optical plot"
+              : "Split linked optical plot"
+          }
+          isSelected={opticalLinkSplitView}
+          onChange={(next) => {
+            setOpticalLinkSplitView(next);
+          }}
+          className={plotToolbarCompactGlyphToggleClass}
+        >
+          {opticalLinkSplitView ? (
+            <ChevronsDownUp className="h-4 w-4" aria-hidden />
+          ) : (
+            <ChevronsUpDown className="h-4 w-4" aria-hidden />
+          )}
+        </ToggleButton>
+      </PlotToolbarRichHint>
+    );
+  }, [opticalLink, opticalLinkSplitView]);
+
+  const plotBottomRail = useMemo(() => {
     if (
       !datasetPlotEditorActive ||
       !kkRecalcAllowed ||
@@ -1501,13 +1575,12 @@ export function NexafsExperimentDatasetPanel({
       return null;
     }
     return (
-      <div className="pointer-events-auto flex flex-col gap-2">
-        <NexafsPlotKkVerticalToolbar
-          visible
-          busy={kkRecalcBusy || updateKkDeltaBatch.isPending}
-          onPressKk={onPressRecalculateKk}
-        />
-      </div>
+      <NexafsPlotKkVerticalToolbar
+        visible
+        orientation="horizontal"
+        busy={kkRecalcBusy || updateKkDeltaBatch.isPending}
+        onPressKk={onPressRecalculateKk}
+      />
     );
   }, [
     datasetPlotEditorActive,
@@ -1602,15 +1675,20 @@ export function NexafsExperimentDatasetPanel({
               }
               peaks={plotPeaks}
               differenceSpectra={differenceSpectra}
+              companionSpectra={companionSpectra}
+              opticalLink={opticalLink}
+              opticalLinkSplitView={opticalLinkSplitView}
               showThetaData={showThetaData}
               showPhiData={showPhiData}
               headerRight={plotLeftRail}
               headerAnalysis={plotRightRail}
+              plotBottomTools={plotBottomRail}
               suppressAnalysisRailLeadingGrip
               plotTopRailDataActions={plotTopRailDataActions}
               plotTopRailTrailingActions={plotTopRailTrailingActions}
               cursorMode={cursorMode}
               onCursorModeChange={setCursorMode}
+              spectrumCsvContextMenu={spectrumCsvContextMenu}
               emptyStateMessage="No points in this view."
             />
             {datasetPlotEditorActive ? (
@@ -1658,6 +1736,7 @@ export function NexafsExperimentDatasetPanel({
           showBetaCol={showBetaCol}
           showDeltaCol={showDeltaCol}
           showI0Col={showI0Col}
+          csvExportOptions={spectrumCsvExportOptions}
         />
       )}
     </div>

@@ -1,12 +1,11 @@
 import type { ReferenceCurve } from "~/components/plots/types";
+import { bareAtomReferenceStrokeColor } from "~/features/process-nexafs/bare-atom-reference-style";
 
 import type { BareAtomPoint } from "../types";
 import { computeBetaIndex } from "./betaIndex";
 
 /** Y-axis basis for a tabulated bare-atom reference overlay on spectrum plots. */
 export type BareAtomReferenceDataView = "absorption" | "beta" | "delta";
-
-const BARE_ATOM_REFERENCE_COLOR = "#6b7280";
 
 /**
  * Builds one bare-atom reference trace from CXRO-derived samples: mu for absorption view, beta from
@@ -23,10 +22,13 @@ export function buildBareAtomReferenceCurve(args: {
   readonly bareDelta?: readonly BareAtomPoint[];
   readonly dataView: BareAtomReferenceDataView;
   readonly label: string;
+  readonly isDark?: boolean;
+  readonly lineDash?: ReferenceCurve["lineDash"];
 }): ReferenceCurve | null {
   const base = {
     label: args.label,
-    color: BARE_ATOM_REFERENCE_COLOR,
+    color: bareAtomReferenceStrokeColor(args.isDark ?? false),
+    lineDash: args.lineDash ?? "solid",
     showInLegend: false as const,
   };
 

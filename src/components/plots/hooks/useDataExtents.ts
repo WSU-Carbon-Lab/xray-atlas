@@ -18,6 +18,7 @@ export function useDataExtents(
   points: SpectrumPoint[],
   differenceSpectra: DifferenceSpectrum[],
   referenceCurves?: readonly ReferenceCurve[],
+  companionSpectra: DifferenceSpectrum[] = [],
 ): DataExtents {
   const energyExtent = useMemo(() => {
     const fromDiff: number[] = [];
@@ -31,11 +32,18 @@ export function useDataExtents(
     const fromPoints = points
       .map((p) => p.energy)
       .filter((e): e is number => typeof e === "number" && Number.isFinite(e));
-    const merged =
-      differenceSpectra.length > 0 ? [...fromDiff, ...fromPoints] : fromPoints;
+    const fromCompanion: number[] = [];
+    companionSpectra.forEach((spec) => {
+      spec.points.forEach((point) => {
+        if (typeof point.energy === "number" && Number.isFinite(point.energy)) {
+          fromCompanion.push(point.energy);
+        }
+      });
+    });
+    const merged = [...fromDiff, ...fromCompanion, ...fromPoints];
     if (merged.length === 0) return null;
     return { min: Math.min(...merged), max: Math.max(...merged) };
-  }, [points, differenceSpectra]);
+  }, [points, differenceSpectra, companionSpectra]);
 
   const absorptionExtent = useMemo(() => {
     const fromDiff: number[] = [];
@@ -67,13 +75,21 @@ export function useDataExtents(
         }
       }
     }
-    const merged =
-      differenceSpectra.length > 0
-        ? [...fromDiff, ...fromPoints, ...fromRefs]
-        : [...fromPoints, ...fromRefs];
+    const fromCompanion: number[] = [];
+    companionSpectra.forEach((spec) => {
+      spec.points.forEach((point) => {
+        if (
+          typeof point.absorption === "number" &&
+          Number.isFinite(point.absorption)
+        ) {
+          fromCompanion.push(point.absorption);
+        }
+      });
+    });
+    const merged = [...fromDiff, ...fromCompanion, ...fromPoints, ...fromRefs];
     if (merged.length === 0) return null;
     return { min: Math.min(...merged), max: Math.max(...merged) };
-  }, [points, differenceSpectra, referenceCurves]);
+  }, [points, differenceSpectra, referenceCurves, companionSpectra]);
 
   return {
     energyExtent,

@@ -52,9 +52,6 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
     breadcrumbLabel: "Data representation",
     overviewNavIcon: "data-representation",
     sections: [
-      { id: "molecule-and-sample-layer", label: "Molecule and sample layer" },
-      { id: "experiment-metadata-layer", label: "Experiment metadata layer" },
-      { id: "spectrum-trace-layer", label: "Spectrum trace layer" },
       {
         id: "input-spectroscopy",
         label: "Input spectroscopy",
@@ -62,12 +59,8 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
       },
       {
         id: "optical-constants",
-        label: "Optical constant components",
+        label: "Optical constants & plot views",
         href: "/wiki/data-representation/optical-constants",
-      },
-      {
-        id: "provenance-and-attribution-layer",
-        label: "Provenance and attribution layer",
       },
     ],
   },

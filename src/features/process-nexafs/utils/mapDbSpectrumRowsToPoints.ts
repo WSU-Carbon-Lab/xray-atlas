@@ -24,6 +24,9 @@ export type AnnotatedSpectrumRow = {
 /**
  * Converts database spectrum rows into plot-ready points: `absorption` is the stored mass absorption when finite, otherwise stored raw absorption, matching what was persisted for the experiment.
  *
+ * Polarization orientation on each point comes from the joined `polarizations` row:
+ * `polardeg` maps to `SpectrumPoint.theta` and `azimuthdeg` maps to `SpectrumPoint.phi` (laboratory polar/azimuth in degrees).
+ *
  * @param rows Ordered spectrum rows from Prisma (ascending energy). Each row may include joined `polarizations` for theta/phi.
  * @returns The same length as `rows`; theta/phi are omitted when polarization is missing or non-finite.
  */
@@ -49,6 +52,7 @@ function rowToPoint(r: DbSpectrumRowWithPolarization): SpectrumPoint {
   if (r.beta != null && Number.isFinite(r.beta)) out.beta = r.beta;
   if (r.delta != null && Number.isFinite(r.delta)) out.delta = r.delta;
   if (r.i0 != null && Number.isFinite(r.i0)) out.i0 = r.i0;
+  if (Number.isFinite(r.rawabs)) out.rawabs = r.rawabs;
   return out;
 }
 

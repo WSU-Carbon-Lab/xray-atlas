@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * Edge-mounted plot tool rails (left data, top navigation, right analysis, optional bottom).
+ *
+ * Layout invariant: parents pass the **full plotting canvas** `plotWidth` x `plotHeight` (SVG or
+ * host box), not inner margin-subtracted plot area. Optional `railInsets` align rails with axis
+ * spines (left/right/top/bottom margins) so controls sit inside the plot frame and avoid tick labels.
+ */
+
 import {
   Children,
   memo,
@@ -10,7 +18,6 @@ import {
 import {
   Button,
   ButtonGroup,
-  Separator,
   ToggleButton,
   ToggleButtonGroup,
   Toolbar,
@@ -26,15 +33,32 @@ import { Grip, GripHorizontal, GripVertical } from "lucide-react";
 import type { CursorMode } from "../spectrum/ModeBar";
 import type { PlotRailDefinition } from "./types";
 import {
-  plotToolbarAttachedShellClass,
+  plotToolbarAttachedToolbarHorizontalClass,
+  plotToolbarAttachedToolbarVerticalScrollClass,
+  plotToolbarAttachedToggleGroupHorizontalClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
   plotToolbarIconToolClass,
 } from "./plot-toolbar-chrome";
+import { PlotToolbarGroupSeparator } from "./plot-toolbar-group-separator";
 import { PlotToolbarRichHint } from "./plot-toolbar-rich-hint";
+
+/** Pixel insets that align rails with axis spines (inside the canvas, not on the outer border). */
+export type PlotToolRailInsets = {
+  left: number;
+  right: number;
+  top: number;
+  /** Bottom margin height (x-axis band); bottom rail sits above this band inside the plot frame. */
+  bottom: number;
+};
+
+/** Lifts the bottom rail slightly above the bottom spine into the inner plot area. */
+const BOTTOM_RAIL_ABOVE_SPINE_PX = 8;
 
 type PlotToolRailsDeckProps = {
   plotWidth: number;
   plotHeight: number;
+  /** When set, left/top/right rails sit inside the plot frame at these offsets from the canvas edge. */
+  railInsets?: PlotToolRailInsets;
   currentMode: CursorMode;
   isCursorDisabled: boolean;
   isPanDisabled: boolean;
@@ -64,9 +88,12 @@ type TraySide = "top" | "bottom" | "left" | "right";
 const HANDLE_BUTTON_CLASS =
   "pointer-events-auto h-11 w-11 min-w-11 rounded-xl border border-(--border-default) bg-(--surface-glass)/70 text-(--text-secondary) shadow-md backdrop-blur-sm opacity-90 transition duration-200 hover:bg-(--surface-2)/70 hover:text-(--text-primary) hover:opacity-100";
 
+const RAIL_EDGE_PAD = 4;
+
 export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
   plotWidth,
   plotHeight,
+  railInsets,
   currentMode,
   isCursorDisabled,
   isPanDisabled,
@@ -100,7 +127,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           isAttached
           orientation="horizontal"
           aria-label="Plot navigation and cursor"
-          className={`${plotToolbarAttachedShellClass} items-stretch gap-2`}
+          className={plotToolbarAttachedToolbarHorizontalClass}
         >
           <ButtonGroup
             orientation="horizontal"
@@ -142,15 +169,12 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               </PlotToolbarRichHint>
             ) : null}
           </ButtonGroup>
-          <Separator
-            orientation="vertical"
-            className="mx-1 h-6 min-h-6 w-px shrink-0 self-center bg-(--border-default)"
-          />
+          <PlotToolbarGroupSeparator orientation="vertical" />
           <ToggleButtonGroup
             aria-label="Cursor interaction mode"
             selectionMode="single"
             orientation="horizontal"
-            className="rounded-full"
+            className={plotToolbarAttachedToggleGroupHorizontalClass}
             selectedKeys={
               new Set([
                 currentMode === "inspect" ||
@@ -223,10 +247,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           </ToggleButtonGroup>
           {topRailTrailingExtras != null ? (
             <>
-              <Separator
-                orientation="vertical"
-                className="mx-1 h-6 min-h-6 w-px shrink-0 self-center bg-(--border-default)"
-              />
+              <PlotToolbarGroupSeparator orientation="vertical" />
               {Children.toArray(topRailTrailingExtras)}
             </>
           ) : null}
@@ -243,11 +264,15 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           isAttached
           aria-label="Analysis tools"
           orientation="vertical"
-          className={`${plotToolbarAttachedShellClass} flex max-h-[24rem] flex-col items-center overflow-auto`}
+          className={plotToolbarAttachedToolbarVerticalScrollClass}
         >
           {!suppressAnalysisRailLeadingGrip ? (
             <>
-              <ButtonGroup orientation="vertical" variant="tertiary" aria-label="Rail handle">
+              <ButtonGroup
+                orientation="vertical"
+                variant="tertiary"
+                aria-label="Rail handle"
+              >
                 <PlotToolbarRichHint
                   title="Analysis rail"
                   description="Vertical stack for peaks, normalization, and related tools."
@@ -263,7 +288,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
                   </Button>
                 </PlotToolbarRichHint>
               </ButtonGroup>
-              <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
+              <PlotToolbarGroupSeparator orientation="horizontal" />
             </>
           ) : null}
           <div className="flex w-full flex-col items-center gap-1">{analysisTools}</div>
@@ -299,6 +324,22 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
   const rightRail = rails[2];
   const bottomRail = rails[3];
 
+  const insetLeft = (railInsets?.left ?? RAIL_EDGE_PAD) + RAIL_EDGE_PAD;
+  const insetRight = (railInsets?.right ?? RAIL_EDGE_PAD) + RAIL_EDGE_PAD;
+  const insetTop = (railInsets?.top ?? RAIL_EDGE_PAD) + RAIL_EDGE_PAD;
+  const insetBottom =
+    (railInsets?.bottom ?? RAIL_EDGE_PAD) +
+    RAIL_EDGE_PAD +
+    BOTTOM_RAIL_ABOVE_SPINE_PX;
+  const topRailLeft = insetLeft;
+  const topRailRight = insetRight;
+  const topRailWidth =
+    plotWidth > topRailLeft + topRailRight
+      ? plotWidth - topRailLeft - topRailRight
+      : plotWidth;
+  const bottomRailLeft = insetLeft;
+  const bottomRailWidth = topRailWidth;
+
   return (
     <div
       className="pointer-events-none relative"
@@ -317,7 +358,8 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           isIconOnly
           aria-label={isTrayMode ? "Dock plot toolbars" : "Float plot toolbars in tray mode"}
           onPress={() => setIsTrayMode((prev) => !prev)}
-          className="pointer-events-auto absolute left-3 top-3 z-40 h-11 w-11 min-w-11 rounded-xl border border-(--border-default) bg-(--surface-glass)/70 text-(--text-secondary) shadow-md backdrop-blur-sm hover:bg-(--surface-2)/70 hover:text-(--text-primary)"
+          className="pointer-events-auto absolute z-40 h-11 w-11 min-w-11 rounded-xl border border-(--border-default) bg-(--surface-glass)/70 text-(--text-secondary) shadow-md backdrop-blur-sm hover:bg-(--surface-2)/70 hover:text-(--text-primary)"
+          style={{ left: insetLeft, top: insetTop }}
         >
           <Grip className="h-5 w-5" />
         </Button>
@@ -325,18 +367,34 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
 
       {!isTrayMode ? (
         <>
-          <div className="pointer-events-auto absolute left-1/2 top-3 z-30 -translate-x-1/2">
+          <div
+            className="pointer-events-auto absolute z-30 flex justify-center"
+            style={{ left: topRailLeft, top: insetTop, width: topRailWidth }}
+          >
             {topRail?.isAvailable ? topRail.render() : null}
           </div>
-          <div className="pointer-events-auto absolute bottom-3 left-1/2 z-30 -translate-x-1/2">
+          <div
+            className="pointer-events-auto absolute z-30 flex justify-center"
+            style={{
+              left: bottomRailLeft,
+              bottom: insetBottom,
+              width: bottomRailWidth,
+            }}
+          >
             {bottomRail?.isAvailable ? bottomRail.render() : null}
           </div>
           {leftRail?.isAvailable ? (
-            <div className="pointer-events-none absolute left-3 top-1/2 z-30 -translate-y-1/2">
+            <div
+              className="pointer-events-none absolute top-1/2 z-30 -translate-y-1/2"
+              style={{ left: insetLeft }}
+            >
               {leftRail.render()}
             </div>
           ) : null}
-          <div className="pointer-events-auto absolute right-3 top-1/2 z-30 -translate-y-1/2">
+          <div
+            className="pointer-events-auto absolute top-1/2 z-30 -translate-y-1/2"
+            style={{ right: insetRight }}
+          >
             {rightRail?.isAvailable ? rightRail.render() : null}
           </div>
         </>
@@ -345,7 +403,8 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
       {isTrayMode ? (
         <>
       <div
-        className="pointer-events-auto absolute left-1/2 top-3 z-30 -translate-x-1/2"
+        className="pointer-events-auto absolute z-30 flex justify-center"
+        style={{ left: topRailLeft, top: insetTop, width: topRailWidth }}
         onMouseEnter={() => setHoveredSide("top")}
         onMouseLeave={() => setHoveredSide((prev) => (prev === "top" ? null : prev))}
       >
@@ -365,14 +424,17 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           </PlotToolbarRichHint>
         ) : null}
         {hoveredSide === "top" && topRail?.isAvailable ? (
-          <div className="absolute left-1/2 top-0 -translate-x-1/2">
-            {topRail.render()}
-          </div>
+          <div className="flex w-full justify-center">{topRail.render()}</div>
         ) : null}
       </div>
 
       <div
-        className="pointer-events-auto absolute bottom-3 left-1/2 z-30 -translate-x-1/2"
+        className="pointer-events-auto absolute z-30 flex justify-center"
+        style={{
+          left: bottomRailLeft,
+          bottom: insetBottom,
+          width: bottomRailWidth,
+        }}
         onMouseEnter={() => setHoveredSide("bottom")}
         onMouseLeave={() =>
           setHoveredSide((prev) => (prev === "bottom" ? null : prev))
@@ -394,15 +456,14 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           </PlotToolbarRichHint>
         ) : null}
         {hoveredSide === "bottom" && bottomRail?.isAvailable ? (
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
-            {bottomRail.render()}
-          </div>
+          <div className="flex w-full justify-center">{bottomRail.render()}</div>
         ) : null}
       </div>
 
       {leftRail?.isAvailable ? (
         <div
-          className="pointer-events-auto absolute left-3 top-1/2 z-30 -translate-y-1/2"
+          className="pointer-events-auto absolute top-1/2 z-30 -translate-y-1/2"
+          style={{ left: insetLeft }}
           onMouseEnter={() => setHoveredSide("left")}
           onMouseLeave={() => setHoveredSide((prev) => (prev === "left" ? null : prev))}
         >
@@ -430,7 +491,8 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
       ) : null}
 
       <div
-        className="pointer-events-auto absolute right-3 top-1/2 z-30 -translate-y-1/2"
+        className="pointer-events-auto absolute top-1/2 z-30 -translate-y-1/2"
+        style={{ right: insetRight }}
         onMouseEnter={() => setHoveredSide("right")}
         onMouseLeave={() =>
           setHoveredSide((prev) => (prev === "right" ? null : prev))

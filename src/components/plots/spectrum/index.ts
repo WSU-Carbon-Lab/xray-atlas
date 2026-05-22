@@ -1,14 +1,15 @@
 export { PlotContainer } from "./PlotContainer";
 export { useSubplotLayout } from "./useSubplotLayout";
 export type { SubplotLayoutResult } from "./useSubplotLayout";
+export { useOpticalLinkSplitLayout } from "./useOpticalLinkSplitLayout";
+export type { OpticalLinkSplitLayoutResult } from "./useOpticalLinkSplitLayout";
 export { ChartAxes } from "./ChartAxes";
 export { ChartGrid } from "./ChartGrid";
 export { ChartSpectrumLines } from "./ChartSpectrumLines";
 export { OverviewStrip } from "./OverviewStrip";
 export { AccessibleBrushOverview } from "./AccessibleBrushOverview";
-export { StaticLegend } from "./StaticLegend";
-export { InlineLegend } from "./InlineLegend";
-export { PlotStaticLegend } from "./PlotStaticLegend";
+export { PlotSpectrumGeometryLegend } from "./PlotSpectrumGeometryLegend";
+export type { PlotSpectrumGeometryLegendProps } from "./PlotSpectrumGeometryLegend";
 export { ModeBar } from "./ModeBar";
 export type { CursorMode } from "./ModeBar";
 export { MultiTraceTooltip } from "./MultiTraceTooltip";

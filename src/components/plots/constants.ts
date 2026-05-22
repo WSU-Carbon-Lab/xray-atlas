@@ -35,6 +35,9 @@ export const SPECTRUM_TRACE_GRADIENT_LIGHT = [
 
 export const SPECTRUM_TRACE_GRADIENT = SPECTRUM_TRACE_GRADIENT_DARK;
 
+/** Default Plotly/visx stroke width for primary and reference spectrum traces (experimental and bare-atom). */
+export const SPECTRUM_TRACE_LINE_WIDTH = 1.6;
+
 function parseHexColor(hex: string): { r: number; g: number; b: number } {
   const h = hex.trim().replace("#", "");
   if (h.length === 3) {

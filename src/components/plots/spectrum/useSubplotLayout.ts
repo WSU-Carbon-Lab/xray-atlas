@@ -10,6 +10,7 @@ import type {
   SpectrumPoint,
   SpectrumYAxisQuantity,
 } from "../types";
+import { spectrumYAxisAnchorsAtZero } from "../types";
 import { PLOT_CONFIG } from "../config";
 import { linearYDomainWithPadding } from "../utils/linearYDomain";
 
@@ -17,7 +18,7 @@ function yDomainWithMandatoryZeroForDelta(
   paddedDomain: [number, number],
   yAxisQuantity: SpectrumYAxisQuantity | undefined,
 ): [number, number] {
-  if (yAxisQuantity !== "delta") {
+  if (!spectrumYAxisAnchorsAtZero(yAxisQuantity)) {
     return paddedDomain;
   }
   const lo = paddedDomain[0] ?? 0;

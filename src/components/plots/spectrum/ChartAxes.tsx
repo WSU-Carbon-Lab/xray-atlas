@@ -70,6 +70,7 @@ export const ChartAxes = memo(function ChartAxes({
         tickStroke={axisColor}
         tickLength={-PLOT_CONFIG.axis.tickSize}
         numTicks={8}
+        tickFormat={showXAxisLabel ? undefined : () => ""}
         tickLabelProps={() => ({
           fill: tickLabelColor,
           fontSize: tickFontSize,

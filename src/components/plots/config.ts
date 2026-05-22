@@ -47,6 +47,8 @@ export const PLOT_CONFIG = {
     strokeLinecap: "round" as const,
   },
   peakPlotHeightRatio: 0.6,
+  /** Stacked optical-link split: top imaginary panel height fraction. */
+  opticalLinkSplitHeightRatio: 0.5,
   energyPaddingFraction: 0.032,
   tooltipSnapThresholdFraction: 0.02,
   interaction: {

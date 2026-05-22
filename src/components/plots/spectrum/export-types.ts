@@ -6,8 +6,8 @@
  * - [data-export-plot-background] - plot background rect (SpectrumPlotInner)
  * - [data-export-axis-spine] - main axis spine line (ChartAxes)
  * - [data-export-axis-group] - wrapper g around each visx Axis (ChartAxes)
- * - [data-export-legend-title] - legend title div (PlotStaticLegend)
- * - [data-export-legend-label] - legend label span per trace (PlotStaticLegend)
+ * - [data-export-legend-label] - legend label span per geometry row
+ * - [data-export-legend-layout] - "geometry-rows" skips multi-column grid overrides
  * - [data-trace-index] - trace group g with index (ChartSpectrumLines)
  */
 

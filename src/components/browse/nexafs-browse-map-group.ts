@@ -24,15 +24,13 @@ export function mapNexafsBrowseGroupToCard(group: NexafsBrowseGroup) {
   return {
     key: group.experimentId,
     props: {
-      href: `/molecules/${moleculePath}?nexafsExperiment=${encodeURIComponent(group.experimentId)}`,
+      moleculeHref: `/molecules/${moleculePath}`,
       experimentId: group.experimentId,
       moleculeId: molecule.id,
       displayName: molecule.displayName,
       iupacname: molecule.iupacname,
       chemicalformula: molecule.chemicalformula,
       imageurl: molecule.imageurl,
-      inchi: molecule.inchi,
-      smiles: molecule.smiles,
       casNumber: molecule.casNumber,
       pubChemCid: molecule.pubChemCid,
       favoriteCount: group.favoriteCount,

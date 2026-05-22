@@ -14,6 +14,8 @@ import {
 } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { BUTTON_GROUP_CHILD } from "@heroui/react";
+import { cn } from "@heroui/styles";
+import { plotToolbarBasisSegmentDisabledClass } from "./plot-toolbar-chrome";
 
 /**
  * Where the portaled hint panel anchors relative to the wrapped control. `top` centers the panel
@@ -21,11 +23,16 @@ import { BUTTON_GROUP_CHILD } from "@heroui/react";
  */
 export type PlotToolbarRichHintPlacement = "top" | "bottom" | "left" | "right";
 
-const CLOSE_DELAY_MS = 100;
+/** Default hover dwell before a portaled hint opens (pointer enter only; focus opens immediately). */
+export const PLOT_TOOLBAR_RICH_HINT_OPEN_DELAY_MS = 500;
+
+/** Default close delay after pointer leave; zero hides the hint without linger. */
+export const PLOT_TOOLBAR_RICH_HINT_CLOSE_DELAY_MS = 0;
+
 const EDGE_GAP_PX = 8;
 
 const DISABLED_INNER_TRIGGER_CLASS =
-  "pointer-events-none flex size-full min-h-0 min-w-0 items-center justify-center border-0 bg-transparent p-0 shadow-none rounded-none opacity-50";
+  "pointer-events-none flex size-full min-h-0 min-w-0 items-center justify-center border-0 bg-transparent p-0 shadow-none rounded-none opacity-100";
 
 function readAnchorRect(el: HTMLElement | null) {
   if (!el || typeof document === "undefined") {
@@ -120,12 +127,18 @@ export interface PlotToolbarRichHintProps {
   whenDisabledDescription?: string;
   disabled?: boolean;
   placement?: PlotToolbarRichHintPlacement;
+  /** Milliseconds after pointer enter before the hint opens; focus still opens immediately. */
+  openDelayMs?: number;
+  /** Milliseconds after pointer leave before the hint closes; defaults to instant hide. */
+  closeDelayMs?: number;
   children: ReactElement;
   [BUTTON_GROUP_CHILD]?: boolean;
 }
 
 /**
  * Wraps one plot-rail control and shows a hover/focus hint in a `document.body` portal at `z-max`.
+ * Pointer enter uses {@link PlotToolbarRichHintProps.openDelayMs}; focus opens immediately for keyboard users.
+ * Pointer leave uses {@link PlotToolbarRichHintProps.closeDelayMs} (default zero for instant hide).
  * Returns a single trigger element (no fragment siblings) so HeroUI button groups keep connected
  * segment styling; when disabled, segment classes sit on a hover-capturing shell around the control.
  */
@@ -135,6 +148,8 @@ export function PlotToolbarRichHint({
   whenDisabledDescription,
   disabled: disabledOverride,
   placement = "top",
+  openDelayMs = PLOT_TOOLBAR_RICH_HINT_OPEN_DELAY_MS,
+  closeDelayMs = PLOT_TOOLBAR_RICH_HINT_CLOSE_DELAY_MS,
   children,
   [BUTTON_GROUP_CHILD]: buttonGroupChild,
 }: PlotToolbarRichHintProps) {
@@ -147,6 +162,7 @@ export function PlotToolbarRichHint({
     top: number;
     outerClassName: string;
   } | null>(null);
+  const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerDisabled = readTriggerDisabled(children, disabledOverride);
@@ -154,6 +170,13 @@ export function PlotToolbarRichHint({
     ? (whenDisabledDescription ?? description)
     : description;
   const showUnavailableLabel = triggerDisabled;
+
+  const clearOpenTimer = useCallback(() => {
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+  }, []);
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -169,24 +192,50 @@ export function PlotToolbarRichHint({
   }, [placement]);
 
   const openHint = useCallback(() => {
+    clearOpenTimer();
     updateAnchor();
     clearCloseTimer();
     setOpen(true);
-  }, [clearCloseTimer, updateAnchor]);
+  }, [clearCloseTimer, clearOpenTimer, updateAnchor]);
+
+  const scheduleOpenFromPointer = useCallback(() => {
+    clearOpenTimer();
+    clearCloseTimer();
+    if (openDelayMs <= 0) {
+      openHint();
+      return;
+    }
+    openTimerRef.current = setTimeout(() => {
+      openTimerRef.current = null;
+      openHint();
+    }, openDelayMs);
+  }, [clearCloseTimer, clearOpenTimer, openDelayMs, openHint]);
+
+  const closeHint = useCallback(() => {
+    clearOpenTimer();
+    clearCloseTimer();
+    setOpen(false);
+  }, [clearCloseTimer, clearOpenTimer]);
 
   const scheduleClose = useCallback(() => {
+    clearOpenTimer();
     clearCloseTimer();
+    if (closeDelayMs <= 0) {
+      setOpen(false);
+      return;
+    }
     closeTimerRef.current = setTimeout(() => {
       setOpen(false);
       closeTimerRef.current = null;
-    }, CLOSE_DELAY_MS);
-  }, [clearCloseTimer]);
+    }, closeDelayMs);
+  }, [clearCloseTimer, clearOpenTimer, closeDelayMs]);
 
   useEffect(() => {
     return () => {
+      clearOpenTimer();
       clearCloseTimer();
     };
-  }, [clearCloseTimer]);
+  }, [clearCloseTimer, clearOpenTimer]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -210,13 +259,12 @@ export function PlotToolbarRichHint({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        clearCloseTimer();
-        setOpen(false);
+        closeHint();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [clearCloseTimer, open]);
+  }, [closeHint, open]);
 
   useLayoutEffect(() => {
     if (typeof document === "undefined" || !open || !anchorBox) {
@@ -296,8 +344,8 @@ export function PlotToolbarRichHint({
     return (
       <span
         ref={mergeRefs(anchorRef)}
-        className={segmentClassName}
-        onMouseEnter={openHint}
+        className={cn(segmentClassName, plotToolbarBasisSegmentDisabledClass)}
+        onMouseEnter={scheduleOpenFromPointer}
         onMouseLeave={scheduleClose}
       >
         {cloneElement(children, {
@@ -313,7 +361,7 @@ export function PlotToolbarRichHint({
     ref: mergeRefs(anchorRef, childProps.ref),
     onMouseEnter: chainHandlers(
       (event: MouseEvent<HTMLElement>) => {
-        openHint();
+        scheduleOpenFromPointer();
         event.stopPropagation();
       },
       childProps.onMouseEnter,

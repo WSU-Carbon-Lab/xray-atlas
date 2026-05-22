@@ -88,7 +88,12 @@ export function VisxSpectrumPlot({
   );
 
   // Process reference and difference data
-  const referenceData = useReferenceData(referenceCurves, differenceSpectra, isDark);
+  const referenceData = useReferenceData(
+    referenceCurves,
+    differenceSpectra,
+    isDark,
+    [],
+  );
 
   // Process peak visualization
   const peakViz = usePeakVisualization(

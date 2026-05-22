@@ -3,6 +3,8 @@
  * Extracted from SpectrumPlot.tsx for reuse across renderers
  */
 import type { ReactNode } from "react";
+import type { SpectrumPolarizationNode } from "~/features/process-nexafs/utils";
+import type { OpticalLinkPlotConfig } from "./hooks/useLinkedOpticalTraces";
 
 export type SpectrumPoint = {
   energy: number;
@@ -19,6 +21,8 @@ export type SpectrumPoint = {
   betaError?: number;
   delta?: number;
   deltaError?: number;
+  /** Uploaded raw absorption before normalization (database `rawabs`). */
+  rawabs?: number;
 };
 
 export type SpectrumSelection = {
@@ -39,6 +43,7 @@ export type ReferenceCurve = {
   label: string;
   points: Array<{ energy: number; absorption: number }>;
   color?: string;
+  lineDash?: "solid" | "dash" | "dot" | "dashdot";
   /**
    * When false, the trace is drawn but omitted from the static legend (for example bare-atom overlays).
    */
@@ -105,6 +110,9 @@ export type DifferenceSpectrum = {
 
 export type GraphStyle = "line" | "scatter" | "area";
 
+/** Scatter marker glyph for linked imaginary (circle) vs real (square) optical traces. */
+export type TraceMarkerSymbol = "circle" | "square";
+
 /**
  * Vertical axis quantity for NEXAFS spectrum plots. `delta` is the real part of
  * the complex refractive index (Kramers–Kronig decrement) when stored per point;
@@ -115,7 +123,48 @@ export type SpectrumYAxisQuantity =
   | "mass-absorption"
   | "beta"
   | "delta"
-  | "intensity";
+  | "intensity"
+  | "raw-upload"
+  | "scattering-f2"
+  | "scattering-f1"
+  | "permittivity-im"
+  | "permittivity-re"
+  | "susceptibility-im"
+  | "susceptibility-re";
+
+const SPECTRUM_Y_AXIS_ZERO_ANCHOR_QUANTITIES = new Set<SpectrumYAxisQuantity>([
+  "optical-density",
+  "beta",
+  "delta",
+  "intensity",
+  "raw-upload",
+  "scattering-f2",
+  "permittivity-im",
+  "susceptibility-im",
+]);
+
+/**
+ * When true, the main plot y-domain is expanded to include zero after data padding.
+ * Use for signed or baseline-centered channels (β, δ, Im(ε), Im(χ), OD, raw intensity, f₂).
+ */
+export function spectrumYAxisAnchorsAtZero(
+  quantity: SpectrumYAxisQuantity | undefined,
+): boolean {
+  return (
+    quantity !== undefined &&
+    SPECTRUM_Y_AXIS_ZERO_ANCHOR_QUANTITIES.has(quantity)
+  );
+}
+
+/**
+ * When true, the y-domain follows trace min/max plus linear padding only (no mandatory zero).
+ * Use for quantities that sit near unity or another offset (Re(ε), f₁, Re(χ), mass absorption).
+ */
+export function spectrumYAxisUsesDataExtentsOnly(
+  quantity: SpectrumYAxisQuantity | undefined,
+): boolean {
+  return quantity !== undefined && !spectrumYAxisAnchorsAtZero(quantity);
+}
 
 export type SpectrumPlotProps = {
   points: SpectrumPoint[];
@@ -137,6 +186,30 @@ export type SpectrumPlotProps = {
   onPeakAdd?: (energy: number) => void;
   differenceSpectra?: DifferenceSpectrum[];
   /**
+   * Secondary geometry traces overlaid on the main plot (for example linked real/imaginary partners).
+   * Unlike difference spectra, these do not hide the primary traces.
+   */
+  companionSpectra?: DifferenceSpectrum[];
+  /**
+   * When set, overlays a linked imaginary/real channel pair per geometry (β↔δ, f₂↔f₁, Im/Re ε, Im/Re χ)
+   * with matching colors; imaginary-role lines are solid and real-role lines are dashed. Replaces flat `companionSpectra`
+   * for imaginary/real link mode.
+   */
+  opticalLink?: OpticalLinkPlotConfig;
+  /**
+   * When true with `opticalLink`, stacks imaginary traces (top) and real traces (bottom) on one
+   * shared energy axis and zoom domain; disables linked area between-fill bands.
+   */
+  opticalLinkSplitView?: boolean;
+  /**
+   * @deprecated Pass split/coalesce controls via `headerAnalysis` on the right analysis rail.
+   */
+  opticalLinkSplitToggle?: ReactNode;
+  /**
+   * @deprecated Use `opticalLink`. Kept for callers not yet migrated.
+   */
+  betaDeltaLink?: OpticalLinkPlotConfig;
+  /**
    * Optional controls for the **left** vertical plot tool rail (`PlotToolRailsDeck` display rail):
    * trace basis toggles, difference/bare-atom view, and normalization tooling when applicable.
    */
@@ -153,6 +226,11 @@ export type SpectrumPlotProps = {
    * handle. Defaults to false so other plots keep the prior chrome.
    */
   suppressAnalysisRailLeadingGrip?: boolean;
+  /**
+   * Optional controls for the bottom plot tool rail (`PlotToolRailsDeck`), for example
+   * Kramers–Kronig recalculate actions that should not sit on the right analysis stack.
+   */
+  plotBottomTools?: ReactNode;
   /**
    * Optional icon actions rendered in the top plot rail after Home (for example spectrum CSV download/copy menus). Fragments and arrays are flattened so each control is a direct sibling inside the same `ButtonGroup` as Home (continuous segment styling). When set, the default top-rail plot export shortcut is omitted; callers that still need export UI should include it inside this node or elsewhere.
    */
@@ -183,6 +261,19 @@ export type SpectrumPlotProps = {
    * Replaces the default empty-state copy when `points` is empty (for example browse/preview surfaces that do not upload CSV here).
    */
   emptyStateMessage?: string;
+  /**
+   * When set, right-click opens a minimal CSV context menu on the plot and Copy is hijacked to place total-dataset CSV on the clipboard (toolbar dropdown still handles per-geometry export).
+   */
+  spectrumCsvContextMenu?: SpectrumCsvContextMenuConfig;
+};
+
+export type SpectrumCsvContextMenuConfig = {
+  disabled: boolean;
+  filenameBase: string;
+  sortedAllPoints: SpectrumPoint[];
+  groupedTree: SpectrumPolarizationNode[];
+  /** Molecule formula for derived f/ε/χ and bare-atom CSV columns; omit when unknown. */
+  stoichiometryFormula?: string | null;
 };
 
 /**
@@ -192,6 +283,10 @@ export type SpectrumPlotProps = {
 export type TraceData = {
   type: "scattergl" | "scatter";
   mode: "lines" | "markers" | "lines+markers";
+  /**
+   * Stable id for legend visibility toggles; when set, overrides trace `name` for visibility keys.
+   */
+  legendId?: string;
   name?: string;
   x: number[];
   y: number[];
@@ -204,6 +299,7 @@ export type TraceData = {
     color?: string;
     size?: number;
     opacity?: number;
+    symbol?: TraceMarkerSymbol;
   };
   hovertemplate?: string;
   showlegend?: boolean;
