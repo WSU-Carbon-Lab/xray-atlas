@@ -6,7 +6,7 @@
  */
 
 const plotToolbarToggleSelectedClass =
-  "data-[selected=true]:!bg-(--accent) data-[selected=true]:text-(--accent-foreground) data-[selected=true]:[&_svg]:text-(--accent-foreground) data-[selected=true]:shadow-sm";
+  "data-[selected=true]:!bg-(--accent) data-[selected=true]:dark:!bg-(--accent) data-[selected=true]:text-(--accent-foreground) data-[selected=true]:dark:text-(--accent-foreground) data-[selected=true]:[&_svg]:text-(--accent-foreground) data-[selected=true]:dark:[&_svg]:text-(--accent-foreground) data-[selected=true]:shadow-sm";
 
 /** Idle segment fill: light inset on surface shell; dark grey on black shell. */
 const plotToolbarSegmentIdleFill =
@@ -167,12 +167,12 @@ const plotToolbarLinkSegmentCornerClass = (
 export function plotToolbarLinkSegmentClass(
   position: PlotToolbarBasisSegmentPosition,
 ): string {
-  return `flex h-6 w-full min-w-9 shrink-0 cursor-pointer appearance-none items-center justify-center border-0 ${plotToolbarSegmentIdleFill} p-0 text-(--text-primary) shadow-none transition-colors ${plotToolbarSegmentHoverFill} ${plotToolbarLinkSegmentCornerClass(position)}`;
+  return `flex h-6 w-full min-w-9 shrink-0 cursor-pointer appearance-none items-center justify-center border-0 ${plotToolbarSegmentIdleFill} p-0 text-(--text-primary) shadow-none transition-colors ${plotToolbarSegmentHoverFill} ${plotToolbarToggleSelectedClass} ${plotToolbarLinkSegmentCornerClass(position)}`;
 }
 
 /** Accent fill when a tray toggle is highlighted but group selection state is unreliable. */
 export const plotToolbarToggleForcedSelectedClass =
-  "!bg-(--accent) text-(--accent-foreground) shadow-sm [&_svg]:text-(--accent-foreground)";
+  "!bg-(--accent) dark:!bg-(--accent) text-(--accent-foreground) dark:text-(--accent-foreground) shadow-sm [&_svg]:text-(--accent-foreground) dark:[&_svg]:text-(--accent-foreground)";
 
 export const plotToolbarDifferenceToggleClass =
   `h-9 w-9 min-w-9 rounded-full ${plotToolbarSegmentIdleFill} text-(--text-primary) transition-colors ${plotToolbarSegmentHoverFill} ${plotToolbarSegmentDisabledFill} ${plotToolbarToggleSelectedClass}`;

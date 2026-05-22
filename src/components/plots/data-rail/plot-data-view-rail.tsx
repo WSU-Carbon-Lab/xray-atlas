@@ -365,6 +365,7 @@ function PlotDataRailTrayTrigger<
         <button
           ref={triggerRef}
           type="button"
+          data-selected={trayHighlighted || isTrayOpen ? true : undefined}
           aria-controls={isTrayOpen ? pickerContentId : undefined}
           aria-expanded={isTrayOpen}
           aria-haspopup="listbox"
@@ -426,6 +427,7 @@ function PlotDataRailLinkSegment<
     >
       <button
         type="button"
+        data-selected={linked ? true : undefined}
         aria-label={linked ? `Unlink ${link.title}` : link.title}
         aria-pressed={linked}
         disabled={!enabled}
