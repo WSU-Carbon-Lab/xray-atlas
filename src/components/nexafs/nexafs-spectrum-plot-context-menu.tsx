@@ -10,6 +10,7 @@ import {
   spectrumCsvMenuItemClass,
   spectrumCsvMenuSectionLabelClass,
   spectrumCsvMenuShellClass,
+  type NexafsSpectrumCsvExportOptions,
   type SpectrumGeometryCsvRow,
 } from "~/components/nexafs/nexafs-spectrum-csv-shared";
 
@@ -20,6 +21,7 @@ export type NexafsSpectrumPlotContextMenuProps = {
   filenameBase: string;
   sortedAllPoints: SpectrumPoint[];
   geometryRow: SpectrumGeometryCsvRow | null;
+  csvExportOptions?: NexafsSpectrumCsvExportOptions;
 };
 
 function clampMenuPosition(
@@ -50,6 +52,7 @@ export function NexafsSpectrumPlotContextMenu({
   filenameBase,
   sortedAllPoints,
   geometryRow,
+  csvExportOptions,
 }: NexafsSpectrumPlotContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuPos, setMenuPos] = useState(anchor);
@@ -89,29 +92,30 @@ export function NexafsSpectrumPlotContextMenu({
   }, [open, onClose]);
 
   const runCopyAll = useCallback(() => {
-    copySpectrumCsv(sortedAllPoints);
+    copySpectrumCsv(sortedAllPoints, csvExportOptions);
     onClose();
-  }, [sortedAllPoints, onClose]);
+  }, [csvExportOptions, sortedAllPoints, onClose]);
 
   const runDownloadAll = useCallback(() => {
-    downloadSpectrumCsv(sortedAllPoints, filenameBase);
+    void downloadSpectrumCsv(sortedAllPoints, filenameBase, csvExportOptions);
     onClose();
-  }, [filenameBase, sortedAllPoints, onClose]);
+  }, [csvExportOptions, filenameBase, sortedAllPoints, onClose]);
 
   const runCopyGeometry = useCallback(() => {
     if (!geometryRow || geometryRow.points.length === 0) return;
-    copySpectrumCsv(geometryRow.points);
+    copySpectrumCsv(geometryRow.points, csvExportOptions);
     onClose();
-  }, [geometryRow, onClose]);
+  }, [csvExportOptions, geometryRow, onClose]);
 
   const runDownloadGeometry = useCallback(() => {
     if (!geometryRow || geometryRow.points.length === 0) return;
-    downloadSpectrumCsv(
+    void downloadSpectrumCsv(
       geometryRow.points,
       `${filenameBase}-${geometryRow.fileSuffix}`,
+      csvExportOptions,
     );
     onClose();
-  }, [filenameBase, geometryRow, onClose]);
+  }, [csvExportOptions, filenameBase, geometryRow, onClose]);
 
   if (!open || sortedAllPoints.length === 0) {
     return null;

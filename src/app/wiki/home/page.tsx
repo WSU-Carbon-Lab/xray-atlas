@@ -175,46 +175,38 @@ export default function NexafsWikiPage() {
             title={`Representations stored in ${site.name}`}
             id="representations-stored"
           />
-          <p className="text-muted mb-6 max-w-none">
-            NEXAFS measures X-ray absorption versus incident energy (and often
-            versus geometry). The catalog exposes comparable traces using the
-            conventions below.
+          <p className="text-muted mb-4 max-w-none">
+            NEXAFS measures X-ray absorption versus incident energy (and often versus
+            geometry). The catalog exposes comparable traces on{" "}
+            <code className="text-foreground">spectrumpoints</code> rows and, on browse
+            dataset plots, through an eleven-channel rail in three trays (spectroscopy,
+            imaginary optical constants, real optical constants).
           </p>
-          <ul className="space-y-4">
-            <li className="border-border bg-default/40 rounded-xl border px-4 py-3">
-              <strong className="text-foreground">
-                Mass absorption coefficient (μ){" "}
-                <span className="text-muted font-normal">
-                  [cm<sup>2</sup>/g]
-                </span>
-              </strong>
-              <p className="text-muted mt-2 text-sm leading-relaxed">
-                A standard absorption-related quantity tied to Beer-Lambert style
-                attenuation. Where bare-atom normalization is applied, pre-edge and
-                post-edge regions are anchored to bare-atom references.
-              </p>
-            </li>
-            <li className="border-border bg-default/40 rounded-xl border px-4 py-3">
-              <strong className="text-foreground">Optical density (OD)</strong>
-              <p className="text-muted mt-2 text-sm leading-relaxed">
-                Proportional to mass absorption up to experimental factors. In
-                {site.name}, OD naming denotes traces scaled so the pre-edge trends
-                toward zero and the post-edge trends toward one after the chosen
-                normalization workflow.
-              </p>
-            </li>
-            <li className="border-border bg-default/40 rounded-xl border px-4 py-3">
-              <strong className="text-foreground">
-                Beta (β) / index of refraction
-              </strong>
-              <p className="text-muted mt-2 text-sm leading-relaxed">
-                Following common X-ray optics notation{" "}
-                <span className="font-mono text-xs">n = 1 - δ + iβ</span>, with β
-                tied to absorption. Normalization may reference bare-atom β in
-                pre-edge and post-edge windows analogously to μ.
-              </p>
-            </li>
-          </ul>
+          <p className="text-muted max-w-none text-sm leading-relaxed">
+            <span className="text-foreground font-medium">Persisted</span> columns are
+            written at ingest or recalculate and plotted as stored.{" "}
+            <span className="text-foreground font-medium">Derived in browse</span> views
+            (f<sub>1</sub>, f<sub>2</sub>, Im/Re epsilon, Im/Re chi) are computed from
+            stored <code className="text-foreground">beta</code> and{" "}
+            <code className="text-foreground">delta</code> using{" "}
+            <span className="font-mono text-xs">n = 1 - delta + i beta</span> and are not
+            saved back to the database. An interactive example plot and brief
+            Kramers-Kronig / makima notes are on{" "}
+            <Link
+              href="/wiki/data-representation/optical-constants"
+              className="text-accent hover:underline"
+            >
+              Optical constants and plot views
+            </Link>
+            . Upload mapping is in{" "}
+            <Link
+              href="/wiki/data-representation/input-spectroscopy"
+              className="text-accent hover:underline"
+            >
+              Input spectroscopy
+            </Link>
+            .
+          </p>
         </section>
 
         <section className="border-border bg-surface rounded-2xl border p-6 sm:p-8">

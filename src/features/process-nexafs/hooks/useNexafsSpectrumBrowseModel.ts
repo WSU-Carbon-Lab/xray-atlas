@@ -26,6 +26,8 @@ export type { NexafsBrowseDataView, NexafsPlotChannelId };
 export interface UseNexafsSpectrumBrowseModelArgs {
   spectrumPoints: SpectrumPoint[];
   stoichiometryFormula?: string | null;
+  /** When set and available, selects this channel on first render (browse/wiki demos). */
+  initialPlotChannel?: NexafsPlotChannelId;
 }
 
 export interface UseNexafsSpectrumBrowseModelResult {
@@ -56,10 +58,12 @@ export interface UseNexafsSpectrumBrowseModelResult {
  *
  * @param spectrumPoints Rows from `mapDbSpectrumRowsToPoints` (energy-ascending).
  * @param stoichiometryFormula Optional formula for derived optical-constant channels.
+ * @param initialPlotChannel Optional first channel when available (wiki demos often start on beta).
  */
 export function useNexafsSpectrumBrowseModel({
   spectrumPoints,
   stoichiometryFormula = null,
+  initialPlotChannel,
 }: UseNexafsSpectrumBrowseModelArgs): UseNexafsSpectrumBrowseModelResult {
   const channelAvailability = useMemo(
     () =>
@@ -93,6 +97,7 @@ export function useNexafsSpectrumBrowseModel({
     definition: NEXAFS_PLOT_DATA_RAIL_DEFINITION,
     isChannelAvailable,
     buildPlotPoints,
+    initialChannelId: initialPlotChannel,
     onUnavailableSelect,
   });
 

@@ -1,6 +1,5 @@
 /**
- * About segment outlining dataset layering across molecules, experiments, spectra,
- * and provenance signals exposed through query APIs.
+ * Hub table of contents for Data representation child guides.
  */
 
 import type { Metadata } from "next";
@@ -10,11 +9,35 @@ import { site } from "~/app/brand";
 export const metadata: Metadata = {
   title: "Data Representation and Structure",
   description:
-    `How ${site.name} represents molecules, samples, experiments, and spectroscopy traces for robust querying and scientific reuse.`,
+    `How ${site.name} maps uploaded spectroscopy into persisted traces, optical constants, and browse plot channels.`,
   alternates: {
     canonical: "/wiki/data-representation",
   },
 };
+
+interface DataRepresentationChildPage {
+  readonly id: string;
+  readonly href: string;
+  readonly title: string;
+  readonly description: string;
+}
+
+const childPages: readonly DataRepresentationChildPage[] = [
+  {
+    id: "input-spectroscopy",
+    href: "/wiki/data-representation/input-spectroscopy",
+    title: "Input spectroscopy",
+    description:
+      "CSV column mapping, example upload table, and a downloadable template for angle-resolved traces.",
+  },
+  {
+    id: "optical-constants",
+    href: "/wiki/data-representation/optical-constants",
+    title: "Optical constants and plot views",
+    description:
+      "Persisted beta, mu, optical density, and delta; channel equations; browse rail channels; example plot and brief Kramers-Kronig / makima notes.",
+  },
+];
 
 export default function DataRepresentationPage() {
   return (
@@ -22,132 +45,43 @@ export default function DataRepresentationPage() {
       <h1 className="text-foreground text-4xl font-bold">
         Data representation and structure
       </h1>
-      <p className="text-muted">
-        {site.name} stores spectroscopy records so users can query both
-        scientific content and experimental provenance. Dataset pages combine
-        molecules, spectrum traces, and metadata in one navigable model.
+      <p className="text-muted max-w-none">
+        {site.name} stores NEXAFS measurements as queryable molecules, experiments,
+        and per-energy spectrum points. The guides below cover how uploads become
+        persisted traces and how browse plots expose optical-constant channels.
       </p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <section className="border-border bg-surface rounded-lg border p-4">
-          <h2
-            id="molecule-and-sample-layer"
-            className="text-foreground mb-2 text-lg font-semibold"
+      <nav aria-label="Data representation guides" className="grid gap-4">
+        {childPages.map((page) => (
+          <Link
+            key={page.href}
+            href={page.href}
+            id={page.id}
+            className="border-border bg-surface hover:border-accent/40 focus-visible:ring-accent block rounded-2xl border p-6 transition-colors focus-visible:ring-2 focus-visible:outline-none sm:p-8"
           >
-            Molecule and sample layer
-          </h2>
-          <p className="text-muted text-sm">
-            Names, synonyms, formulas, identifiers, and sample descriptors are
-            stored to support name-driven and chemistry-driven discovery.
-          </p>
-        </section>
-        <section className="border-border bg-surface rounded-lg border p-4">
-          <h2
-            id="experiment-metadata-layer"
-            className="text-foreground mb-2 text-lg font-semibold"
+            <h2 className="text-foreground text-lg font-semibold">{page.title}</h2>
+            <p className="text-muted mt-2 text-sm leading-relaxed">
+              {page.description}
+            </p>
+          </Link>
+        ))}
+      </nav>
+      <section className="border-border bg-surface rounded-2xl border p-6 sm:p-8">
+        <h2 className="text-foreground mb-2 text-lg font-semibold">Related</h2>
+        <p className="text-muted text-sm leading-relaxed">
+          Overview of stored representations and units on{" "}
+          <Link
+            href="/wiki/home#representations-stored"
+            className="text-accent hover:underline"
           >
-            Experiment metadata layer
-          </h2>
-          <p className="text-muted text-sm">
-            Facility, instrument, edge, geometry, and detection metadata provide
-            context required for interpretation and comparison.
-          </p>
-        </section>
-        <section className="border-border bg-surface rounded-lg border p-4">
-          <h2
-            id="spectrum-trace-layer"
-            className="text-foreground mb-2 text-lg font-semibold"
-          >
-            Spectrum trace layer
-          </h2>
-          <p className="text-muted text-sm">
-            Energy-intensity data and optional derived fields are persisted so
-            users can inspect, compare, and export raw and processed traces.
-          </p>
-          <p className="text-muted mt-2 text-sm">
-            See{" "}
-            <Link
-              href="/wiki/data-representation/input-spectroscopy"
-              className="text-accent hover:underline"
-            >
-              Input spectroscopy
-            </Link>{" "}
-            for uploads and columns, and{" "}
-            <Link
-              href="/wiki/data-representation/optical-constants"
-              className="text-accent hover:underline"
-            >
-              Optical constant components
-            </Link>{" "}
-            for beta, delta, and optional browser-side Kramers–Kronig derivation.
-          </p>
-        </section>
-        <section className="border-border bg-surface rounded-lg border p-4">
-          <h2
-            id="input-spectroscopy-summary"
-            className="text-foreground mb-2 text-lg font-semibold"
-          >
-            Input spectroscopy (detail)
-          </h2>
-          <p className="text-muted text-sm">
-            Energy grids, mapped CSV columns, and geometry metadata for angle-resolved traces.
-          </p>
-          <p className="text-muted mt-2 text-sm">
-            <Link
-              href="/wiki/data-representation/input-spectroscopy"
-              className="text-accent hover:underline"
-            >
-              Open the input spectroscopy page
-            </Link>
-          </p>
-        </section>
-        <section className="border-border bg-surface rounded-lg border p-4">
-          <h2
-            id="optical-constants-summary"
-            className="text-foreground mb-2 text-lg font-semibold"
-          >
-            Optical constant components (detail)
-          </h2>
-          <p className="text-muted text-sm">
-            Beta, mu, optical density, and optional delta including KK lineage and makima
-            alignment to the upload energy axis.
-          </p>
-          <p className="text-muted mt-2 text-sm">
-            <Link
-              href="/wiki/data-representation/optical-constants"
-              className="text-accent hover:underline"
-            >
-              Open the optical constant components page
-            </Link>
-          </p>
-        </section>
-        <section className="border-border bg-surface rounded-lg border p-4">
-          <h2
-            id="provenance-and-attribution-layer"
-            className="text-foreground mb-2 text-lg font-semibold"
-          >
-            Provenance and attribution layer
-          </h2>
-          <p className="text-muted text-sm">
-            Contributor and citation context support reproducibility and proper
-            credit for data reuse.
-          </p>
-        </section>
-      </div>
-      <p className="text-muted">
-        To query these fields directly, start with{" "}
-        <Link href="/browse/molecules" className="text-accent hover:underline">
-          molecule browse
-        </Link>
-        {" "}for identity and composition filters,{" "}
-        <Link href="/browse/nexafs" className="text-accent hover:underline">
-          NEXAFS browse
-        </Link>
-        {" "}for edge and geometry comparisons, and{" "}
-        <Link href="/wiki/contributions" className="text-accent hover:underline">
-          contribution guidelines
-        </Link>
-        {" "}for metadata completeness before upload.
-      </p>
+            Wiki home
+          </Link>
+          . Browse datasets at{" "}
+          <Link href="/browse/nexafs" className="text-accent hover:underline">
+            NEXAFS browse
+          </Link>
+          .
+        </p>
+      </section>
     </div>
   );
 }

@@ -169,7 +169,7 @@ function AboutDropdown() {
                           className="text-foreground hover:bg-default flex w-full items-center gap-3 px-3 py-2 pl-9 text-left text-sm transition-colors"
                         >
                           <BookOpenIcon className="text-accent h-4 w-4" />
-                          <span>Optical constant components</span>
+                          <span>Optical constants & plot views</span>
                         </button>
                       </div>
                     ) : null}

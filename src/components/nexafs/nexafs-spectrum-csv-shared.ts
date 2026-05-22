@@ -1,11 +1,14 @@
 import type { SpectrumPoint } from "~/components/plots/types";
 import {
-  spectrumPointsToDetailedCsv,
+  buildNexafsSpectrumExportCsv,
+  type NexafsSpectrumCsvExportOptions,
   type SpectrumPolarizationNode,
 } from "~/features/process-nexafs/utils";
 import { showToast } from "~/components/ui/toast";
 import type { TraceData } from "~/components/plots/types";
 import { parseTraceGeometryIdentity } from "~/components/plots/spectrum/parse-trace-geometry-identity";
+
+export type { NexafsSpectrumCsvExportOptions };
 
 export function formatThetaPhiLabel(theta: number | null, phi: number | null): string {
   const t =
@@ -164,15 +167,38 @@ export function resolveSpectrumGeometryCsvRowForTrace(
   return candidates[0] ?? null;
 }
 
-export function downloadSpectrumCsv(
+function exportOmittedToast(
+  result: Awaited<ReturnType<typeof buildNexafsSpectrumExportCsv>>,
+): void {
+  if (result.omittedDerivedColumns && result.omittedBareAtomColumns) {
+    showToast(
+      "Exported persisted columns only (link a molecule formula for f, ε, χ, and bare-atom columns)",
+      "info",
+    );
+  } else if (result.omittedDerivedColumns) {
+    showToast(
+      "Exported without derived f/ε/χ (needs stored beta and delta plus formula)",
+      "info",
+    );
+  } else if (result.omittedBareAtomColumns) {
+    showToast(
+      "Exported without bare-atom reference columns (formula missing or Henke fetch failed)",
+      "info",
+    );
+  }
+}
+
+export async function downloadSpectrumCsv(
   points: SpectrumPoint[],
   fileBase: string,
-): void {
+  exportOptions?: NexafsSpectrumCsvExportOptions,
+): Promise<void> {
   if (points.length === 0) {
     return;
   }
-  const csv = spectrumPointsToDetailedCsv(points);
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const result = await buildNexafsSpectrumExportCsv(points, exportOptions);
+  exportOmittedToast(result);
+  const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -183,26 +209,34 @@ export function downloadSpectrumCsv(
 }
 
 /** Builds the detailed CSV string written to the clipboard for total-dataset copy. */
-export function spectrumCsvClipboardText(points: SpectrumPoint[]): string {
+export async function spectrumCsvClipboardText(
+  points: SpectrumPoint[],
+  exportOptions?: NexafsSpectrumCsvExportOptions,
+): Promise<string> {
   if (points.length === 0) {
     return "";
   }
-  return spectrumPointsToDetailedCsv(points);
+  const result = await buildNexafsSpectrumExportCsv(points, exportOptions);
+  exportOmittedToast(result);
+  return result.csv;
 }
 
-export function copySpectrumCsv(points: SpectrumPoint[]): void {
+export function copySpectrumCsv(
+  points: SpectrumPoint[],
+  exportOptions?: NexafsSpectrumCsvExportOptions,
+): void {
   if (points.length === 0) {
     return;
   }
-  const csv = spectrumCsvClipboardText(points);
-  void navigator.clipboard.writeText(csv).then(
-    () => {
+  void (async () => {
+    try {
+      const csv = await spectrumCsvClipboardText(points, exportOptions);
+      await navigator.clipboard.writeText(csv);
       showToast(`Copied ${points.length} rows as CSV`, "success");
-    },
-    () => {
+    } catch {
       showToast("Could not copy to clipboard", "error");
-    },
-  );
+    }
+  })();
 }
 
 /**
@@ -211,13 +245,21 @@ export function copySpectrumCsv(points: SpectrumPoint[]): void {
 export function copySpectrumCsvOnCopyEvent(
   event: ClipboardEvent,
   points: SpectrumPoint[],
+  exportOptions?: NexafsSpectrumCsvExportOptions,
 ): void {
   if (points.length === 0) {
     return;
   }
   event.preventDefault();
-  event.clipboardData?.setData("text/plain", spectrumCsvClipboardText(points));
-  showToast(`Copied ${points.length} rows as CSV`, "success");
+  void (async () => {
+    try {
+      const csv = await spectrumCsvClipboardText(points, exportOptions);
+      await navigator.clipboard.writeText(csv);
+      showToast(`Copied ${points.length} rows as CSV`, "success");
+    } catch {
+      showToast("Could not copy to clipboard", "error");
+    }
+  })();
 }
 
 export const spectrumCsvMenuShellClass =

@@ -1174,6 +1174,13 @@ export function NexafsExperimentDatasetPanel({
 
   const spectrumCsvFilenameBase = `nexafs-experiment-${experimentId.slice(0, 8)}`;
 
+  const spectrumCsvExportOptions = useMemo(
+    () => ({
+      stoichiometryFormula: chemicalFormula,
+    }),
+    [chemicalFormula],
+  );
+
   const plotTopRailDataActions = useMemo(
     () => [
       <NexafsSpectrumRailCsvDropdown
@@ -1183,6 +1190,7 @@ export function NexafsExperimentDatasetPanel({
         filenameBase={spectrumCsvFilenameBase}
         sortedAllPoints={sortedAllPoints}
         groupedTree={groupedTree}
+        csvExportOptions={spectrumCsvExportOptions}
       />,
       <NexafsSpectrumRailCsvDropdown
         key="spectrum-rail-copy"
@@ -1191,6 +1199,7 @@ export function NexafsExperimentDatasetPanel({
         filenameBase={spectrumCsvFilenameBase}
         sortedAllPoints={sortedAllPoints}
         groupedTree={groupedTree}
+        csvExportOptions={spectrumCsvExportOptions}
       />,
     ],
     [
@@ -1198,6 +1207,7 @@ export function NexafsExperimentDatasetPanel({
       spectrumCsvFilenameBase,
       groupedTree,
       sortedAllPoints,
+      spectrumCsvExportOptions,
     ],
   );
 
@@ -1207,12 +1217,14 @@ export function NexafsExperimentDatasetPanel({
       filenameBase: spectrumCsvFilenameBase,
       sortedAllPoints,
       groupedTree,
+      stoichiometryFormula: chemicalFormula,
     }),
     [
       spectrumRailCsvMenusDisabled,
       spectrumCsvFilenameBase,
       groupedTree,
       sortedAllPoints,
+      chemicalFormula,
     ],
   );
 
@@ -1724,6 +1736,7 @@ export function NexafsExperimentDatasetPanel({
           showBetaCol={showBetaCol}
           showDeltaCol={showDeltaCol}
           showI0Col={showI0Col}
+          csvExportOptions={spectrumCsvExportOptions}
         />
       )}
     </div>

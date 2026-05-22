@@ -27,6 +27,7 @@ import {
   spectrumCsvMenuShellClass,
   spectrumCsvMenuDisabledItemClass,
   spectrumGeometryCsvRowsFromTree,
+  type NexafsSpectrumCsvExportOptions,
 } from "~/components/nexafs/nexafs-spectrum-csv-shared";
 
 const SPECTRUM_RAIL_DOWNLOAD_HINT_LINE =
@@ -40,6 +41,7 @@ export type NexafsSpectrumRailCsvDropdownProps = {
   filenameBase: string;
   sortedAllPoints: SpectrumPoint[];
   groupedTree: SpectrumPolarizationNode[];
+  csvExportOptions?: NexafsSpectrumCsvExportOptions;
   [BUTTON_GROUP_CHILD]?: boolean;
 };
 
@@ -50,6 +52,7 @@ export const NexafsSpectrumRailCsvDropdown = memo(
     filenameBase,
     sortedAllPoints,
     groupedTree,
+    csvExportOptions,
     [BUTTON_GROUP_CHILD]: _buttonGroupChild,
   }: NexafsSpectrumRailCsvDropdownProps) {
     const [open, setOpen] = useState(false);
@@ -128,24 +131,28 @@ export const NexafsSpectrumRailCsvDropdown = memo(
     const runCsvAll = useCallback(() => {
       if (disabled) return;
       if (kind === "download") {
-        downloadSpectrumCsv(sortedAllPoints, filenameBase);
+        void downloadSpectrumCsv(sortedAllPoints, filenameBase, csvExportOptions);
       } else {
-        copySpectrumCsv(sortedAllPoints);
+        copySpectrumCsv(sortedAllPoints, csvExportOptions);
       }
       setOpen(false);
-    }, [disabled, filenameBase, kind, sortedAllPoints]);
+    }, [csvExportOptions, disabled, filenameBase, kind, sortedAllPoints]);
 
     const runCsvGeometryLeaf = useCallback(
       (points: SpectrumPoint[], fileSuffix: string) => {
         if (disabled || points.length === 0) return;
         if (kind === "download") {
-          downloadSpectrumCsv(points, `${filenameBase}-${fileSuffix}`);
+          void downloadSpectrumCsv(
+            points,
+            `${filenameBase}-${fileSuffix}`,
+            csvExportOptions,
+          );
         } else {
-          copySpectrumCsv(points);
+          copySpectrumCsv(points, csvExportOptions);
         }
         setOpen(false);
       },
-      [disabled, filenameBase, kind],
+      [csvExportOptions, disabled, filenameBase, kind],
     );
 
     const menuPortal =

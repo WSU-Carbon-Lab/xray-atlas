@@ -20,6 +20,7 @@ interface PlatformFeatureItem {
   readonly title: string;
   readonly description: string;
   readonly wikiGuideHref?: string;
+  readonly wikiGuideLinkLabel?: string;
 }
 
 const featureItems: readonly PlatformFeatureItem[] = [
@@ -34,6 +35,8 @@ const featureItems: readonly PlatformFeatureItem[] = [
     title: "Interactive visualization",
     description:
       "Inspect and compare spectrum traces with tools designed for angle and mode-aware analysis.",
+    wikiGuideHref: "/wiki/data-representation/optical-constants",
+    wikiGuideLinkLabel: "Read optical constants and plot views",
   },
   {
     id: "dataset-quality-metrics",
@@ -41,6 +44,7 @@ const featureItems: readonly PlatformFeatureItem[] = [
     description:
       "Browse and molecule-detail NEXAFS cards show a compact ring summarizing spacing distribution (including a P75 ΔE marker), optional SNR when error bars exist, and separate OD versus mass-absorption normalization anchor distances.",
     wikiGuideHref: "/wiki/platform-features/dataset-quality-metrics",
+    wikiGuideLinkLabel: "Read the dataset quality guide",
   },
   {
     id: "contribution-workflows",
@@ -83,7 +87,7 @@ export default function PlatformFeaturesPage() {
                 href={item.wikiGuideHref}
                 className="text-accent mt-2 inline-block text-sm font-medium hover:underline"
               >
-                Read the dataset quality guide
+                {item.wikiGuideLinkLabel ?? "Read the guide"}
               </Link>
             ) : null}
           </section>

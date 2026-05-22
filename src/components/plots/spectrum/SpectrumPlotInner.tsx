@@ -729,9 +729,15 @@ export function SpectrumPlotInner({
     ) {
       return;
     }
-    textarea.value = spectrumCsvClipboardText(menu.sortedAllPoints);
-    textarea.focus({ preventScroll: true });
-    textarea.select();
+    void spectrumCsvClipboardText(menu.sortedAllPoints, {
+      stoichiometryFormula: menu.stoichiometryFormula,
+    }).then((csv) => {
+      if (hiddenCsvTextareaRef.current === textarea) {
+        textarea.value = csv;
+        textarea.focus({ preventScroll: true });
+        textarea.select();
+      }
+    });
   }, []);
 
   const handlePlotCopySurfaceContextMenu = useCallback(
@@ -805,7 +811,9 @@ export function SpectrumPlotInner({
       if (!inPlot) {
         return;
       }
-      copySpectrumCsvOnCopyEvent(event, menu.sortedAllPoints);
+      copySpectrumCsvOnCopyEvent(event, menu.sortedAllPoints, {
+        stoichiometryFormula: menu.stoichiometryFormula,
+      });
     };
     document.addEventListener("copy", onCopy, true);
     return () => document.removeEventListener("copy", onCopy, true);
@@ -1104,6 +1112,9 @@ export function SpectrumPlotInner({
             filenameBase={spectrumCsvContextMenu.filenameBase}
             sortedAllPoints={spectrumCsvContextMenu.sortedAllPoints}
             geometryRow={plotCsvContextMenu?.geometryRow ?? null}
+            csvExportOptions={{
+              stoichiometryFormula: spectrumCsvContextMenu.stoichiometryFormula,
+            }}
           />
         ) : null}
         <svg

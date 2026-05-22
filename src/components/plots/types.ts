@@ -272,6 +272,8 @@ export type SpectrumCsvContextMenuConfig = {
   filenameBase: string;
   sortedAllPoints: SpectrumPoint[];
   groupedTree: SpectrumPolarizationNode[];
+  /** Molecule formula for derived f/ε/χ and bare-atom CSV columns; omit when unknown. */
+  stoichiometryFormula?: string | null;
 };
 
 /**

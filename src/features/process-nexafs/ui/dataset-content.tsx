@@ -44,6 +44,7 @@ import {
 } from "~/components/plots/toolbars";
 import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
+import { copySpectrumCsv } from "~/components/nexafs/nexafs-spectrum-csv-shared";
 import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
@@ -106,23 +107,6 @@ import { DefaultButton as DialogButton } from "~/components/ui/button";
 type SpectrumPoint = DatasetState["spectrumPoints"][number];
 
 type KkBrowserConsentContinuation = { readonly kind: "preview-rail-delta" };
-
-function spectrumRowsToCsv(rows: SpectrumPoint[]): string {
-  const header = "Energy (eV),mu,theta,phi";
-  const escape = (v: string) =>
-    /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-  const lines = rows.map((p) =>
-    [
-      p.energy.toFixed(4),
-      p.absorption.toExponential(6),
-      typeof p.theta === "number" ? p.theta.toFixed(2) : "",
-      typeof p.phi === "number" ? p.phi.toFixed(2) : "",
-    ]
-      .map(escape)
-      .join(","),
-  );
-  return [header, ...lines].join("\n");
-}
 
 function parsePastedSpectrumText(text: string): {
   points: SpectrumPoint[];
@@ -628,6 +612,7 @@ interface DatasetSpectrumTableProps {
   points: SpectrumPoint[];
   uniqueThetaValues: number[];
   uniquePhiValues: number[];
+  stoichiometryFormula?: string | null;
   editMode?: boolean;
   onDeleteGeometry?: (
     theta: number | undefined,
@@ -642,6 +627,7 @@ function DatasetSpectrumTable({
   points,
   uniqueThetaValues,
   uniquePhiValues,
+  stoichiometryFormula = null,
   editMode = false,
   onDeleteGeometry,
   onPasteGeometries,
@@ -774,12 +760,12 @@ function DatasetSpectrumTable({
     [showColumn],
   );
 
-  const handleCopyCsv = useCallback((rows: SpectrumPoint[]) => {
-    const csv = spectrumRowsToCsv(rows);
-    void navigator.clipboard.writeText(csv).then(() => {
-      showToast(`Copied ${rows.length} rows as CSV`, "success");
-    });
-  }, []);
+  const handleCopyCsv = useCallback(
+    (rows: SpectrumPoint[]) => {
+      copySpectrumCsv(rows, { stoichiometryFormula });
+    },
+    [stoichiometryFormula],
+  );
 
   return (
     <div className="flex flex-col rounded-xl border border-[var(--border-default)] bg-[var(--surface-1)] p-3">
@@ -1773,6 +1759,13 @@ export function DatasetContent({
 
   const spectrumRailCsvMenusDisabled = uploadRailSortedAllPoints.length === 0;
 
+  const uploadRailCsvExportOptions = useMemo(
+    () => ({
+      stoichiometryFormula: selectedMolecule?.chemicalFormula ?? null,
+    }),
+    [selectedMolecule?.chemicalFormula],
+  );
+
   const plotTopRailDataActions = useMemo(
     () => [
       <NexafsSpectrumRailCsvDropdown
@@ -1782,6 +1775,7 @@ export function DatasetContent({
         filenameBase={uploadRailFilenameBase}
         sortedAllPoints={uploadRailSortedAllPoints}
         groupedTree={uploadRailGroupedTree}
+        csvExportOptions={uploadRailCsvExportOptions}
       />,
       <NexafsSpectrumRailCsvDropdown
         key="spectrum-rail-copy"
@@ -1790,11 +1784,13 @@ export function DatasetContent({
         filenameBase={uploadRailFilenameBase}
         sortedAllPoints={uploadRailSortedAllPoints}
         groupedTree={uploadRailGroupedTree}
+        csvExportOptions={uploadRailCsvExportOptions}
       />,
     ],
     [
       spectrumRailCsvMenusDisabled,
       uploadRailFilenameBase,
+      uploadRailCsvExportOptions,
       uploadRailGroupedTree,
       uploadRailSortedAllPoints,
     ],
@@ -2527,6 +2523,9 @@ export function DatasetContent({
                     points={plotPoints}
                     uniqueThetaValues={tableUniqueThetaValues}
                     uniquePhiValues={tableUniquePhiValues}
+                    stoichiometryFormula={
+                      selectedMolecule?.chemicalFormula ?? null
+                    }
                     editMode={geometryEditMode}
                     onDeleteGeometry={handleDeleteGeometry}
                     onPasteGeometries={handlePasteGeometries}

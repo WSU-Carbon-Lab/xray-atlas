@@ -16,12 +16,13 @@ import {
 import { buttonVariants, cn } from "@heroui/styles";
 import type { SpectrumPoint } from "~/components/plots/types";
 import {
+  copySpectrumCsv,
+  type NexafsSpectrumCsvExportOptions,
+} from "~/components/nexafs/nexafs-spectrum-csv-shared";
+import {
   phiLeafEnergySubtitle,
-  spectrumPointsToDetailedCsv,
   type SpectrumPolarizationNode,
 } from "~/features/process-nexafs/utils";
-import { showToast } from "~/components/ui/toast";
-
 const PAGE_SIZE = 10;
 
 type SpectrumTableColumnId = "energy" | "mu" | "theta" | "phi";
@@ -64,6 +65,7 @@ export interface NexafsBrowseGroupedSpectrumTableProps {
   showBetaCol: boolean;
   showDeltaCol: boolean;
   showI0Col: boolean;
+  csvExportOptions?: NexafsSpectrumCsvExportOptions;
 }
 
 interface BrowseGeometrySection {
@@ -142,6 +144,7 @@ function SpectrumLeafTable({
   showDeltaCol,
   showI0Col,
   tableRowIdPrefix,
+  csvExportOptions,
 }: {
   points: SpectrumPoint[];
   uniqueThetaValues: number[];
@@ -152,6 +155,7 @@ function SpectrumLeafTable({
   showDeltaCol: boolean;
   showI0Col: boolean;
   tableRowIdPrefix: string;
+  csvExportOptions?: NexafsSpectrumCsvExportOptions;
 }) {
   const [pageIndex, setPageIndex] = useState(0);
   const [visibleColumns, setVisibleColumns] = useState(DEFAULT_VISIBLE_COLUMNS);
@@ -206,11 +210,8 @@ function SpectrumLeafTable({
     visibleColumnList[0]?.id;
 
   const handleCopyCsv = useCallback(() => {
-    const csv = spectrumPointsToDetailedCsv(points);
-    void navigator.clipboard.writeText(csv).then(() => {
-      showToast(`Copied ${points.length} rows as CSV`, "success");
-    });
-  }, [points]);
+    copySpectrumCsv(points, csvExportOptions);
+  }, [csvExportOptions, points]);
 
   const tableClassNames = {
     table:
@@ -510,6 +511,7 @@ export function NexafsBrowseGroupedSpectrumTable({
   showBetaCol,
   showDeltaCol,
   showI0Col,
+  csvExportOptions,
 }: NexafsBrowseGroupedSpectrumTableProps) {
   const instanceSuffix = useId();
   const basePrefix =
@@ -612,6 +614,7 @@ export function NexafsBrowseGroupedSpectrumTable({
                     showDeltaCol={showDeltaCol}
                     showI0Col={showI0Col}
                     tableRowIdPrefix={itemId}
+                    csvExportOptions={csvExportOptions}
                   />
                 </Accordion.Body>
               </Accordion.Panel>
