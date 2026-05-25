@@ -170,9 +170,7 @@ export type NexafsExperimentCompactCardProps = {
   experimentContributorUsers: Array<{
     id: string;
     name: string | null;
-    email: string | null;
     image: string | null;
-    orcid: string | null;
   }>;
   polarizationCount: number;
   linkedPublications: NexafsBrowseLinkedPublication[];
@@ -277,9 +275,7 @@ export function NexafsExperimentCompactCard({
   const avatarUsers: UserWithOrcid[] = experimentContributorUsers.map((c) => ({
     id: c.id,
     name: c.name,
-    email: c.email,
     image: c.image,
-    orcid: c.orcid,
   }));
 
   const facilityLine = facilityName ?? "Facility unknown";

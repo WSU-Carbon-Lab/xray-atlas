@@ -1,8 +1,6 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
-import { cookies } from "next/headers";
-import { DEV_MOCK_USER_ID } from "~/lib/dev-mock-data";
 import { hasManageUsersCapability } from "~/server/auth/privileged-role";
 
 function getClientIpFromRequest(req: Request | undefined): string | null {
@@ -19,7 +17,6 @@ function getClientIpFromRequest(req: Request | undefined): string | null {
 
 interface CreateContextOptions {
   userId: string | null;
-  isDevMock: boolean;
   clientIp: string | null;
 }
 
@@ -31,7 +28,6 @@ interface FetchCreateContextOptions {
 const createInnerTRPCContext = (opts: CreateContextOptions) => {
   return {
     userId: opts.userId,
-    isDevMock: opts.isDevMock,
     clientIp: opts.clientIp,
     db,
   };
@@ -41,23 +37,11 @@ export const createTRPCContext = async (
   opts: FetchCreateContextOptions = {},
 ) => {
   const session = await auth();
-  let userId = session?.user?.id ?? null;
-  let isDevMock = false;
-
-  if (process.env.NODE_ENV === "development") {
-    const cookieStore = await cookies();
-    const devSession = cookieStore.get("dev-auth-session");
-    if (devSession?.value === DEV_MOCK_USER_ID) {
-      userId = DEV_MOCK_USER_ID;
-      isDevMock = true;
-    }
-  }
-
+  const userId = session?.user?.id ?? null;
   const clientIp = getClientIpFromRequest(opts.req);
 
   return createInnerTRPCContext({
     userId,
-    isDevMock,
     clientIp,
   });
 };
@@ -94,7 +78,6 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
   return next({
     ctx: {
       userId: ctx.userId,
-      isDevMock: ctx.isDevMock,
     },
   });
 });
@@ -115,7 +98,6 @@ const enforceManageUsers = t.middleware(async ({ ctx, next }) => {
   return next({
     ctx: {
       userId: ctx.userId,
-      isDevMock: ctx.isDevMock,
     },
   });
 });

@@ -204,7 +204,7 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
       name: typeof o.name === "string" ? o.name : null,
       email: null,
       image: typeof o.image === "string" ? o.image : null,
-      orcid: typeof o.orcid === "string" ? o.orcid : null,
+      orcid: typeof o.orcid === "string" ? o.orcid : id,
     });
   }
   return out;
@@ -431,11 +431,13 @@ export async function fetchNexafsBrowseGrouped(
                 AND e2.createdby IS NOT NULL
             ) t
             INNER JOIN "next_auth"."user" u
-              ON u.id = CASE
-                WHEN trim(t.uid) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-                  THEN trim(t.uid)::uuid
-                ELSE NULL
-              END
+              ON u.id = trim(t.uid)
+              OR EXISTS (
+                SELECT 1
+                FROM next_auth.user_legacy_id_redirect r
+                WHERE r.legacy_uuid::text = trim(t.uid)
+                  AND r.orcid_id = u.id
+              )
           ) sub
           WHERE sub.n IS NOT NULL AND trim(sub.n) <> ''
         ) AS contributor_labels,
@@ -446,14 +448,14 @@ export async function fetchNexafsBrowseGrouped(
                 'id', u.id::text,
                 'name', u.name,
                 'image', u.image,
-                'orcid', u.orcid
+                'orcid', u.id
               )
               ORDER BY u.name NULLS LAST
             ),
             '[]'::json
           )
           FROM (
-            SELECT DISTINCT u.id, u.name, u.image, u.orcid
+            SELECT DISTINCT u.id, u.name, u.image
             FROM (
               SELECT trim(uu.uid) AS uid
               FROM experiments e2
@@ -466,11 +468,13 @@ export async function fetchNexafsBrowseGrouped(
                 AND e2.createdby IS NOT NULL
             ) t
             INNER JOIN "next_auth"."user" u
-              ON u.id = CASE
-                WHEN trim(t.uid) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-                  THEN trim(t.uid)::uuid
-                ELSE NULL
-              END
+              ON u.id = trim(t.uid)
+              OR EXISTS (
+                SELECT 1
+                FROM next_auth.user_legacy_id_redirect r
+                WHERE r.legacy_uuid::text = trim(t.uid)
+                  AND r.orcid_id = u.id
+              )
           ) u
         ) AS contributor_users,
         (

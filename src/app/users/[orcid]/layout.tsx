@@ -1,15 +1,27 @@
 import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
 import { db } from "~/server/db";
+import {
+  isLegacyUserUuidSegment,
+  resolveUserIdFromRouteSegment,
+} from "~/lib/user-route";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ orcid: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
+  const { orcid: routeSegment } = await params;
+  const userId = await resolveUserIdFromRouteSegment(db, routeSegment);
+  if (!userId) {
+    return {
+      title: "User not found",
+      robots: { index: false, follow: false },
+    };
+  }
 
   const user = await db.user.findUnique({
-    where: { id },
+    where: { id: userId },
     select: { id: true, name: true },
   });
 
@@ -36,6 +48,7 @@ export async function generateMetadata({
   return {
     title: `${displayName} profile`,
     description,
+    robots: { index: false, follow: false },
     alternates: {
       canonical: `/users/${user.id}`,
     },
@@ -52,8 +65,22 @@ export async function generateMetadata({
   };
 }
 
-export default function UserDetailLayout({
+export default async function UserDetailLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+  params,
+}: Readonly<{
+  children: React.ReactNode;
+  params: Promise<{ orcid: string }>;
+}>) {
+  const { orcid: routeSegment } = await params;
+
+  if (isLegacyUserUuidSegment(routeSegment)) {
+    const canonicalId = await resolveUserIdFromRouteSegment(db, routeSegment);
+    if (!canonicalId) {
+      notFound();
+    }
+    redirect(`/users/${canonicalId}`);
+  }
+
   return children;
 }

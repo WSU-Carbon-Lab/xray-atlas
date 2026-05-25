@@ -17,6 +17,7 @@
     "db:studio": "prisma studio",
     "db:backfill-validation-summary": "bun scripts/backfill-experiment-validation-summary.ts",
     "db:backfill-kk-delta-metadata": "bun scripts/backfill-experiment-kk-delta-metadata.ts",
+    "db:audit-orcid-pk": "bun scripts/migrate-user-orcid-pk-audit.ts",
     "dev": "next dev --turbo",
     "dev:tunnel": "concurrently --kill-others \"next dev --turbo\" \"sleep 3 && ngrok http 3000\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",

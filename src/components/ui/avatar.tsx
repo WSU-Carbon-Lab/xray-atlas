@@ -151,27 +151,16 @@ export function AvatarButton({
                 >
                   {user.name ?? "User"}
                 </a>
-                {user.orcid && (
-                  <a
-                    href={`https://orcid.org/${user.orcid}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted hover:text-accent flex items-center gap-1.5 text-xs transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <ORCIDIcon className="h-3 w-3 shrink-0" authenticated />
-                    <span className="tabular-nums">{user.orcid}</span>
-                  </a>
-                )}
-                {user.email && (
-                  <a
-                    href={`mailto:${user.email}`}
-                    className="text-muted hover:text-accent text-xs transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {user.email}
-                  </a>
-                )}
+                <a
+                  href={`https://orcid.org/${user.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted hover:text-accent flex items-center gap-1.5 text-xs transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ORCIDIcon className="h-3 w-3 shrink-0" authenticated />
+                  <span className="tabular-nums">{user.id}</span>
+                </a>
               </div>
             </div>
           </div>
@@ -352,7 +341,7 @@ function userDisplayName(user: UserWithOrcid): string {
 }
 
 function userOrcid(user: UserWithOrcid): string | null {
-  const value = user.orcid?.trim();
+  const value = user.id?.trim();
   return value && value.length > 0 ? value : null;
 }
 

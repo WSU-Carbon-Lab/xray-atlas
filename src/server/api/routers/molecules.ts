@@ -35,7 +35,7 @@ import {
 } from "~/types/upload";
 import { uploadMoleculeImage, deleteMoleculeImage } from "~/server/storage";
 import type { db } from "~/server/db";
-import { isDevMockUser } from "~/lib/dev-mock-data";
+import { orcidUserIdSchema } from "~/lib/orcid";
 import { pickRandomTagHex } from "~/lib/tag-colors";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { toMoleculeView } from "./molecules-view";
@@ -63,11 +63,6 @@ async function checkCanEdit(
   createdby: string | null,
 ): Promise<boolean> {
   if (createdby === userId) return true;
-  const userRow = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { orcid: true },
-  });
-  if (!userRow?.orcid) return false;
   const contributor = await prisma.moleculecontributors.findUnique({
     where: {
       moleculeid_userid: { moleculeid: moleculeId, userid: userId },
@@ -671,7 +666,7 @@ export const moleculesRouter = createTRPCRouter({
           moleculecontributors: {
             include: {
               user: {
-                select: { id: true, name: true, image: true, orcid: true },
+                select: { id: true, name: true, image: true },
               },
             },
             orderBy: { contributedat: "asc" },
@@ -744,7 +739,7 @@ export const moleculesRouter = createTRPCRouter({
             moleculecontributors: {
               include: {
                 user: {
-                  select: { id: true, name: true, image: true, orcid: true },
+                  select: { id: true, name: true, image: true },
                 },
               },
               orderBy: { contributedat: "asc" },
@@ -1118,7 +1113,7 @@ export const moleculesRouter = createTRPCRouter({
                 moleculecontributors: {
                   include: {
                     user: {
-                      select: { id: true, name: true, image: true, orcid: true },
+                      select: { id: true, name: true, image: true },
                     },
                   },
                   orderBy: { contributedat: "asc" },
@@ -1189,7 +1184,7 @@ export const moleculesRouter = createTRPCRouter({
               moleculesynonyms: { orderBy: { order: "asc" }[] };
               moleculecontributors: {
                 include: {
-                  user: { select: { id: true; name: true; image: true; orcid: true } };
+                  user: { select: { id: true; name: true; image: true } };
                 };
                 orderBy: { contributedat: "asc" }[];
               };
@@ -1237,7 +1232,7 @@ export const moleculesRouter = createTRPCRouter({
               moleculesynonyms: { orderBy: [{ order: "asc" }] },
               moleculecontributors: {
                 include: {
-                  user: { select: { id: true, name: true, image: true, orcid: true } },
+                  user: { select: { id: true, name: true, image: true } },
                 },
                 orderBy: [{ contributedat: "asc" }],
               },
@@ -1290,7 +1285,7 @@ export const moleculesRouter = createTRPCRouter({
               moleculesynonyms: { orderBy: [{ order: "asc" }] },
               moleculecontributors: {
                 include: {
-                  user: { select: { id: true, name: true, image: true, orcid: true } },
+                  user: { select: { id: true, name: true, image: true } },
                 },
                 orderBy: [{ contributedat: "asc" }],
               },
@@ -1329,7 +1324,7 @@ export const moleculesRouter = createTRPCRouter({
             moleculesynonyms: { orderBy: [{ order: "asc" }] },
             moleculecontributors: {
               include: {
-                user: { select: { id: true, name: true, image: true, orcid: true } },
+                user: { select: { id: true, name: true, image: true } },
               },
               orderBy: [{ contributedat: "asc" }],
             },
@@ -1408,7 +1403,7 @@ export const moleculesRouter = createTRPCRouter({
         where: { moleculeid: input.moleculeId },
         include: {
           user: {
-            select: { id: true, name: true, image: true, orcid: true },
+            select: { id: true, name: true, image: true },
           },
         },
         orderBy: [{ contributiontype: "asc" }, { contributedat: "asc" }],
@@ -1632,9 +1627,7 @@ export const moleculesRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const throttleKey =
         input.sessionId ??
-        (ctx.userId && !(ctx.isDevMock && isDevMockUser(ctx.userId))
-          ? ctx.userId
-          : null) ??
+        ctx.userId ??
         ctx.clientIp ??
         "anon";
       if (!checkTrackViewThrottle(throttleKey)) return { recorded: false };
@@ -1642,10 +1635,7 @@ export const moleculesRouter = createTRPCRouter({
         where: { id: input.moleculeId },
       });
       if (!molecule) return { recorded: false };
-      const effectiveUserId =
-        ctx.userId && !(ctx.isDevMock && isDevMockUser(ctx.userId))
-          ? ctx.userId
-          : null;
+      const effectiveUserId = ctx.userId ?? null;
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       const dedupWhere = effectiveUserId
         ? { userid: effectiveUserId }
@@ -1677,84 +1667,12 @@ export const moleculesRouter = createTRPCRouter({
   getByCreator: publicProcedure
     .input(
       z.object({
-        creatorId: z.string(),
+        creatorId: orcidUserIdSchema,
         limit: z.number().min(1).max(100).default(10),
         cursor: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      if (ctx.isDevMock && isDevMockUser(input.creatorId)) {
-        const requestedLimit = input.limit;
-        const molecules = await ctx.db.molecules.findMany({
-          take: Math.min(requestedLimit + 1, 11),
-          cursor: input.cursor ? { id: input.cursor } : undefined,
-          include: {
-            moleculesynonyms: {
-              orderBy: [{ order: "asc" }],
-            },
-            moleculecontributors: {
-              include: {
-                user: {
-                  select: { id: true, name: true, image: true, orcid: true },
-                },
-              },
-              orderBy: { contributedat: "asc" },
-            },
-            moleculetags: {
-              include: { tags: true },
-            },
-            samples: {
-              include: { _count: { select: { experiments: true } } },
-            },
-          },
-          orderBy: {
-            createdat: "desc",
-          },
-        });
-
-        const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
-          ...molecule,
-          moleculesynonyms: [
-            ...molecule.moleculesynonyms
-              .filter((syn) => syn.order === 0)
-              .sort((a, b) => a.synonym.length - b.synonym.length),
-            ...molecule.moleculesynonyms
-              .filter((syn) => syn.order !== 0)
-              .sort((a, b) => a.synonym.length - b.synonym.length),
-          ],
-        }));
-
-        let nextCursor: string | undefined = undefined;
-        if (moleculesWithSortedSynonyms.length > input.limit) {
-          const nextItem = moleculesWithSortedSynonyms.pop();
-          nextCursor = nextItem?.id;
-        }
-
-        let favoritedSet = new Set<string>();
-        if (ctx.userId && moleculesWithSortedSynonyms.length > 0) {
-          const ids = moleculesWithSortedSynonyms.map((m) => m.id);
-          const favorited = await ctx.db.moleculefavorites.findMany({
-            where: {
-              moleculeid: { in: ids },
-              userid: ctx.userId,
-            },
-            select: { moleculeid: true },
-          });
-          favoritedSet = new Set(favorited.map((f) => f.moleculeid));
-        }
-
-        const viewMolecules = moleculesWithSortedSynonyms.map((mol) =>
-          toMoleculeView(mol, {
-            userHasFavorited: favoritedSet.has(mol.id),
-          }),
-        );
-
-        return {
-          molecules: viewMolecules,
-          nextCursor,
-        };
-      }
-
       const molecules = await ctx.db.molecules.findMany({
         where: {
           createdby: input.creatorId,
@@ -1768,7 +1686,7 @@ export const moleculesRouter = createTRPCRouter({
           moleculecontributors: {
             include: {
               user: {
-                select: { id: true, name: true, image: true, orcid: true },
+                select: { id: true, name: true, image: true },
               },
             },
             orderBy: { contributedat: "asc" },
@@ -1839,12 +1757,6 @@ export const moleculesRouter = createTRPCRouter({
           code: "NOT_FOUND",
           message: "Molecule not found",
         });
-      }
-      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-        return {
-          favorited: false,
-          favoriteCount: molecule.favoritecount,
-        };
       }
       const existing = await ctx.db.moleculefavorites.findUnique({
         where: {
@@ -2060,7 +1972,7 @@ export const moleculesRouter = createTRPCRouter({
     .input(
       z.object({
         moleculeId: z.string().uuid(),
-        newCreatorId: z.string().uuid(),
+        newCreatorId: orcidUserIdSchema,
       }),
     )
     .mutation(async ({ ctx, input }) => {

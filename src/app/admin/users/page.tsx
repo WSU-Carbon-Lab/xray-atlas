@@ -121,9 +121,7 @@ function AdminQueryError({
 interface AdminUserRow {
   id: string;
   name: string | null;
-  email: string | null;
   image: string | null;
-  orcid: string | null;
   userAppRoles: {
     role: {
       id: string;
@@ -323,8 +321,6 @@ export default function AdminUsersPage() {
   const [editUserTarget, setEditUserTarget] = useState<{
     id: string;
     name: string | null;
-    email: string | null;
-    orcid: string | null;
     userAppRoles: {
       role: {
         id: string;
@@ -337,8 +333,6 @@ export default function AdminUsersPage() {
     }[];
   } | null>(null);
   const [editUserDisplayName, setEditUserDisplayName] = useState("");
-  const [editUserEmail, setEditUserEmail] = useState("");
-  const [editUserOrcid, setEditUserOrcid] = useState("");
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -462,8 +456,6 @@ export default function AdminUsersPage() {
       new Set(editUserTarget.userAppRoles.map((ur) => ur.role.id)),
     );
     setEditUserDisplayName(editUserTarget.name ?? "");
-    setEditUserEmail(editUserTarget.email ?? "");
-    setEditUserOrcid(editUserTarget.orcid ?? "");
   }, [editUserTarget]);
 
   const toggleRoleSelection = useCallback(
@@ -625,13 +617,13 @@ export default function AdminUsersPage() {
       let cmp = 0;
       switch (column) {
         case "member": {
-          const an = (a.name ?? a.email ?? "").toLocaleLowerCase();
-          const bn = (b.name ?? b.email ?? "").toLocaleLowerCase();
+          const an = (a.name ?? a.id).toLocaleLowerCase();
+          const bn = (b.name ?? b.id).toLocaleLowerCase();
           cmp = an.localeCompare(bn);
           break;
         }
         case "orcid":
-          cmp = (a.orcid ?? "").localeCompare(b.orcid ?? "");
+          cmp = a.id.localeCompare(b.id);
           break;
         case "roles": {
           const slugsA = a.userAppRoles.map((x) => x.role.slug);
@@ -646,8 +638,8 @@ export default function AdminUsersPage() {
             .join(", ");
           cmp = ar.localeCompare(br);
           if (cmp !== 0) break;
-          const an = (a.name ?? a.email ?? "").toLocaleLowerCase();
-          const bn = (b.name ?? b.email ?? "").toLocaleLowerCase();
+          const an = (a.name ?? a.id).toLocaleLowerCase();
+          const bn = (b.name ?? b.id).toLocaleLowerCase();
           cmp = an.localeCompare(bn);
           break;
         }
@@ -702,7 +694,7 @@ export default function AdminUsersPage() {
           User administration
         </h1>
         <p className="text-muted mt-2 max-w-2xl text-sm leading-relaxed">
-          Edit display name, email, ORCID, and roles; manage custom roles; remove
+          Edit display name and roles; manage custom roles; remove
           accounts. At most one of Administrator, Maintainer, or Contributor per
           user, plus any custom roles. Changes apply on the next request or session
           refresh where relevant.
@@ -808,9 +800,9 @@ export default function AdminUsersPage() {
                     <SearchField.SearchIcon className="text-muted h-5 w-5 shrink-0" />
                     <SearchField.Input
                       ref={searchInputRef}
-                      placeholder="Search users by name, email, or ORCID…"
+                      placeholder="Search users by name or ORCID iD…"
                       className="placeholder:text-muted min-w-0 flex-1 border-0 bg-transparent p-0 text-sm shadow-none outline-none"
-                      aria-label="Search users by name, email, or ORCID"
+                      aria-label="Search users by name or ORCID iD"
                       aria-keyshortcuts="Meta+K Ctrl+K"
                       onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                         if (e.key === "Enter") {
@@ -913,7 +905,6 @@ export default function AdminUsersPage() {
                               user={{
                                 id: u.id,
                                 name: u.name,
-                                email: u.email,
                                 image: u.image,
                               }}
                               size="sm"
@@ -928,35 +919,31 @@ export default function AdminUsersPage() {
                                   size="sm"
                                   variant="ghost"
                                   className="text-muted size-8 shrink-0"
-                                  aria-label={`Copy user id for ${u.name ?? u.email ?? "user"}`}
+                                  aria-label={`Copy ORCID iD for ${u.name ?? "user"}`}
                                   onPress={() => void copyUserId(u.id)}
                                 >
                                   <Copy className="size-3.5" />
                                 </Button>
                               </div>
-                              <span className="text-muted truncate text-xs">
-                                {u.email ?? "—"}
+                              <span className="text-muted truncate font-mono text-xs tabular-nums">
+                                {u.id}
                               </span>
                             </div>
                           </div>
                         </Table.Cell>
                         <Table.Cell className="align-middle px-2 py-2.5">
-                          {u.orcid ? (
-                            <a
-                              href={`https://orcid.org/${u.orcid}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-muted hover:text-accent inline-flex max-w-full items-center gap-1.5 text-xs transition-colors"
-                            >
-                              <ORCIDIcon
-                                className="size-3.5 shrink-0"
-                                authenticated
-                              />
-                              <span className="tabular-nums">{u.orcid}</span>
-                            </a>
-                          ) : (
-                            <span className="text-muted text-xs">—</span>
-                          )}
+                          <a
+                            href={`https://orcid.org/${u.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted hover:text-accent inline-flex max-w-full items-center gap-1.5 text-xs transition-colors"
+                          >
+                            <ORCIDIcon
+                              className="size-3.5 shrink-0"
+                              authenticated
+                            />
+                            <span className="tabular-nums">{u.id}</span>
+                          </a>
                         </Table.Cell>
                         <Table.Cell className="align-middle px-2 py-2.5">
                           <div className="flex flex-wrap gap-1">
@@ -981,14 +968,14 @@ export default function AdminUsersPage() {
                         <Table.Cell className="align-middle px-2 py-2.5 pr-4">
                           <div
                             role="group"
-                            aria-label={`Actions for ${u.name ?? u.email ?? "user"}`}
+                            aria-label={`Actions for ${u.name ?? u.id}`}
                             className="ml-auto grid w-[6.25rem] grid-cols-3 place-items-center gap-0"
                           >
                             <Button
                               isIconOnly
                               size="sm"
                               variant="ghost"
-                              aria-label={`Open profile for ${u.name ?? u.email ?? "user"}`}
+                              aria-label={`Open profile for ${u.name ?? u.id}`}
                               className="text-foreground size-9 min-h-9 min-w-9"
                               onPress={() => router.push(`/users/${u.id}`)}
                             >
@@ -998,14 +985,12 @@ export default function AdminUsersPage() {
                               isIconOnly
                               size="sm"
                               variant="ghost"
-                              aria-label={`Edit user ${u.name ?? u.email ?? ""}`}
+                              aria-label={`Edit user ${u.name ?? u.id}`}
                               className="text-foreground size-9 min-h-9 min-w-9"
                               onPress={() =>
                                 setEditUserTarget({
                                   id: u.id,
                                   name: u.name,
-                                  email: u.email,
-                                  orcid: u.orcid,
                                   userAppRoles: u.userAppRoles,
                                 })
                               }
@@ -1032,7 +1017,7 @@ export default function AdminUsersPage() {
                                 aria-label={
                                   isSelf
                                     ? "Delete unavailable for your own account"
-                                    : `Delete ${u.name ?? u.email ?? "user"}`
+                                    : `Delete ${u.name ?? u.id}`
                                 }
                                 className={cn(
                                   "size-9 min-h-9 min-w-9",
@@ -1111,7 +1096,7 @@ export default function AdminUsersPage() {
         onClose={() => setEditUserTarget(null)}
         title={
           editUserTarget
-            ? `Edit ${editUserTarget.name ?? editUserTarget.email ?? "user"}`
+            ? `Edit ${editUserTarget.name ?? editUserTarget.id}`
             : "Edit user"
         }
         maxWidth="max-w-xl"
@@ -1149,38 +1134,13 @@ export default function AdminUsersPage() {
               />
             </div>
             <div className="min-w-0">
-              <Label htmlFor="admin-edit-email">Email</Label>
-              <p className="text-muted mt-1 mb-2 text-xs leading-relaxed wrap-break-word">
-                Directory contact email for profiles and search. This is not
-                authentication: sign-in uses linked accounts (for example OAuth
-                or passkeys). Leave empty to clear. Must be unique in the
-                database if set.
+              <Label>ORCID iD</Label>
+              <p className="text-muted mt-1 mb-2 font-mono text-xs tabular-nums wrap-break-word">
+                {editUserTarget?.id ?? "—"}
               </p>
-              <Input
-                id="admin-edit-email"
-                type="email"
-                value={editUserEmail}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setEditUserEmail(e.target.value)
-                }
-                placeholder="name@institution.org"
-                className="mt-0 w-full min-w-0"
-              />
-            </div>
-            <div className="min-w-0">
-              <Label htmlFor="admin-edit-orcid">ORCID</Label>
-              <p className="text-muted mt-1 mb-2 text-xs leading-relaxed wrap-break-word">
-                Leave empty to clear. Format is validated on save.
+              <p className="text-muted text-xs leading-relaxed">
+                The ORCID iD is the account primary key and cannot be changed here.
               </p>
-              <Input
-                id="admin-edit-orcid"
-                value={editUserOrcid}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setEditUserOrcid(e.target.value)
-                }
-                placeholder="0000-0001-2345-6789"
-                className="mt-0 w-full min-w-0"
-              />
             </div>
             <div className="border-border border-t pt-2">
               <p className="text-foreground mb-2 text-sm font-medium">Roles</p>
@@ -1228,24 +1188,9 @@ export default function AdminUsersPage() {
                 }
                 onPress={() => {
                   if (!editUserTarget || selectedRoleIds.size === 0) return;
-                  const emailTrim = editUserEmail.trim();
-                  const emailPayload =
-                    emailTrim === "" ? ("" as const) : emailTrim;
-                  if (
-                    emailPayload !== "" &&
-                    !z.string().email().safeParse(emailPayload).success
-                  ) {
-                    showToast(
-                      "Enter a valid email or leave the field empty.",
-                      "error",
-                    );
-                    return;
-                  }
                   updateUser.mutate({
                     userId: editUserTarget.id,
                     name: editUserDisplayName,
-                    email: emailPayload,
-                    orcid: editUserOrcid,
                     roleIds: Array.from(selectedRoleIds),
                   });
                 }}

@@ -9,8 +9,6 @@ import type { MoleculeView } from "~/types/molecule";
 
 type Molecule = MoleculeView;
 
-type SessionUserWithOrcid = { orcid?: string | null };
-
 export function MoleculeDetailLayoutClient({
   molecule,
   moleculeId,
@@ -21,9 +19,8 @@ export function MoleculeDetailLayoutClient({
   children: React.ReactNode;
 }) {
   const { data: session } = useSession();
-  const isSignedIn = !!session?.user;
-  const hasOrcid = !!(session?.user as SessionUserWithOrcid)?.orcid;
-  const canEdit = isSignedIn && hasOrcid;
+  const isSignedIn = !!session?.user?.id;
+  const canEdit = isSignedIn;
 
   return (
     <MoleculeDetailProvider

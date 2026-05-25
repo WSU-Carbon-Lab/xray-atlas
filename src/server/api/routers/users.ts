@@ -5,30 +5,21 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import {
-  DEV_MOCK_USER,
-  DEV_MOCK_LINKED_ACCOUNTS,
-  DEV_MOCK_PASSKEYS,
-  isDevMockUser,
-} from "~/lib/dev-mock-data";
-import { normalizeOrcidUserInput, orcidIdSchema } from "~/lib/orcid";
+import { orcidUserIdSchema } from "~/lib/orcid";
+import { resolveUserIdFromRouteSegment } from "~/lib/user-route";
 
 const userPublicProfileSchema = z.object({
-  id: z.string().uuid(),
+  id: orcidUserIdSchema,
   name: z.string().nullable(),
   image: z.string().nullable(),
-  orcid: z.string().nullable(),
-  email: z.string().nullable(),
 });
+
+const userRouteIdSchema = z.string().min(1).max(64);
 
 export const usersRouter = createTRPCRouter({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");
-    }
-
-    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-      return DEV_MOCK_USER;
     }
 
     const user = await ctx.db.user.findUnique({
@@ -43,70 +34,38 @@ export const usersRouter = createTRPCRouter({
   }),
 
   getById: publicProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({ id: userRouteIdSchema }))
     .output(userPublicProfileSchema)
     .query(async ({ ctx, input }) => {
-      const isSelf = ctx.userId === input.id;
-
-      if (isDevMockUser(input.id)) {
-        if (!isSelf) {
-          return {
-            id: DEV_MOCK_USER.id,
-            name: DEV_MOCK_USER.name,
-            image: DEV_MOCK_USER.image,
-            orcid: DEV_MOCK_USER.orcid,
-            email: null,
-          };
-        }
-        return {
-          id: DEV_MOCK_USER.id,
-          name: DEV_MOCK_USER.name,
-          image: DEV_MOCK_USER.image,
-          orcid: DEV_MOCK_USER.orcid,
-          email: DEV_MOCK_USER.email,
-        };
+      const userId = await resolveUserIdFromRouteSegment(ctx.db, input.id);
+      if (!userId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
       }
-
-      if (isSelf) {
-        const user = await ctx.db.user.findUnique({
-          where: { id: input.id },
-          select: {
-            id: true,
-            name: true,
-            image: true,
-            orcid: true,
-            email: true,
-          },
-        });
-        if (!user) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
-        }
-        return user;
-      }
+      const isSelf = ctx.userId === userId;
 
       const user = await ctx.db.user.findUnique({
-        where: { id: input.id },
+        where: { id: userId },
         select: {
           id: true,
           name: true,
           image: true,
-          orcid: true,
         },
       });
       if (!user) {
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
       }
-      return { ...user, email: null };
+
+      if (!isSelf) {
+        return user;
+      }
+
+      return user;
     }),
 
   /**
    * Lists users who hold a **lineage** system role (`maintainer` or `administrator` slug), for
    * public UI (e.g. transfer ownership, About listings). Intentionally slug-based to match fixed
    * `AppRole` tiers in `app-role-lineage`, not a generic permission query.
-   *
-   * Each row includes `lineageRoleSlug` identifying which lineage assignment matched (`maintainer`
-   * or `administrator`), when deterministically linked via `userAppRoles`; yields `null` only when
-   * no lineage assignment resolves unexpectedly given Prisma constraints.
    */
   getCoreMaintainers: publicProcedure.query(async ({ ctx }) => {
     const lineageSlugs = ["maintainer", "administrator"] as const;
@@ -126,7 +85,6 @@ export const usersRouter = createTRPCRouter({
         id: true,
         name: true,
         image: true,
-        orcid: true,
         userAppRoles: {
           where: {
             role: {
@@ -149,60 +107,13 @@ export const usersRouter = createTRPCRouter({
       id: row.id,
       name: row.name,
       image: row.image,
-      orcid: row.orcid,
       lineageRoleSlug: row.userAppRoles[0]?.role.slug ?? null,
     }));
-  }),
-
-  updateORCID: protectedProcedure
-    .input(
-      z.object({
-        orcid: orcidIdSchema,
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      if (!ctx.userId) {
-        throw new Error("User not authenticated");
-      }
-
-      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-        return { ...DEV_MOCK_USER, orcid: input.orcid };
-      }
-
-      const orcidId = normalizeOrcidUserInput(input.orcid);
-
-      const user = await ctx.db.user.update({
-        where: { id: ctx.userId },
-        data: { orcid: orcidId },
-      });
-
-      return user;
-    }),
-
-  removeORCID: protectedProcedure.mutation(async ({ ctx }) => {
-    if (!ctx.userId) {
-      throw new Error("User not authenticated");
-    }
-
-    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-      return { ...DEV_MOCK_USER, orcid: null };
-    }
-
-    const user = await ctx.db.user.update({
-      where: { id: ctx.userId },
-      data: { orcid: null },
-    });
-
-    return user;
   }),
 
   getLinkedAccounts: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");
-    }
-
-    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-      return DEV_MOCK_LINKED_ACCOUNTS;
     }
 
     const accounts = await ctx.db.account.findMany({
@@ -229,10 +140,6 @@ export const usersRouter = createTRPCRouter({
         throw new Error("User not authenticated");
       }
 
-      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-        throw new Error("Cannot modify accounts in dev mode");
-      }
-
       const account = await ctx.db.account.findUnique({
         where: { id: input.accountId },
         include: {
@@ -256,6 +163,13 @@ export const usersRouter = createTRPCRouter({
         throw new Error("Account user not found");
       }
 
+      if (account.provider === "orcid") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "The ORCID account cannot be unlinked; it is your sign-in identity.",
+        });
+      }
+
       const userAccounts = account.user.account;
       if (userAccounts.length <= 1) {
         throw new Error("Cannot unlink the only account");
@@ -265,23 +179,12 @@ export const usersRouter = createTRPCRouter({
         where: { id: input.accountId },
       });
 
-      if (account.provider === "orcid") {
-        await ctx.db.user.update({
-          where: { id: ctx.userId },
-          data: { orcid: null },
-        });
-      }
-
       return { success: true };
     }),
 
   getPasskeys: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");
-    }
-
-    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-      return DEV_MOCK_PASSKEYS;
     }
 
     const passkeys = await ctx.db.authenticator.findMany({
@@ -317,10 +220,6 @@ export const usersRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) {
         throw new Error("User not authenticated");
-      }
-
-      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-        throw new Error("Cannot modify passkeys in dev mode");
       }
 
       const passkey = await ctx.db.authenticator.findUnique({
@@ -372,10 +271,6 @@ export const usersRouter = createTRPCRouter({
         throw new Error("User not authenticated");
       }
 
-      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-        throw new Error("Cannot modify user image in dev mode");
-      }
-
       const updatedUser = await ctx.db.user.update({
         where: { id: ctx.userId },
         data: { image: input.image },
@@ -384,53 +279,9 @@ export const usersRouter = createTRPCRouter({
       return { image: updatedUser.image };
     }),
 
-  updateEmail: protectedProcedure
-    .input(
-      z.object({
-        email: z.string().email("Invalid email address"),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      if (!ctx.userId) {
-        throw new Error("User not authenticated");
-      }
-
-      if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-        return { ...DEV_MOCK_USER, email: input.email };
-      }
-
-      const updatedUser = await ctx.db.user.update({
-        where: { id: ctx.userId },
-        data: { email: input.email },
-      });
-
-      return { email: updatedUser.email };
-    }),
-
-  removeEmail: protectedProcedure.mutation(async ({ ctx }) => {
-    if (!ctx.userId) {
-      throw new Error("User not authenticated");
-    }
-
-    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-      return { ...DEV_MOCK_USER, email: null };
-    }
-
-    const updatedUser = await ctx.db.user.update({
-      where: { id: ctx.userId },
-      data: { email: null },
-    });
-
-    return { email: updatedUser.email };
-  }),
-
   deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");
-    }
-
-    if (ctx.isDevMock && isDevMockUser(ctx.userId)) {
-      throw new Error("Cannot delete account in dev mode");
     }
 
     await ctx.db.$transaction(async (tx) => {

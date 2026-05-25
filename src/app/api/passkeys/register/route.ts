@@ -44,8 +44,8 @@ export async function POST() {
     const options = await generateRegistrationOptions({
       rpName,
       rpID: rpId,
-      userName: user.email ?? user.id,
-      userDisplayName: user.name ?? user.email ?? "User",
+      userName: user.id,
+      userDisplayName: user.name ?? user.id,
       userID: user.id,
       timeout: 60000,
       attestationType: "none",

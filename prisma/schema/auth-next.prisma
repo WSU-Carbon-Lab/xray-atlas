@@ -13,7 +13,7 @@ model account {
   session_state      String?
   oauth_token_secret String?
   oauth_token        String?
-  userId             String? @db.Uuid
+  userId             String? @db.VarChar(19)
   user               user?   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "accounts_userId_fkey")
 
   @@unique([provider, providerAccountId], map: "provider_unique")
@@ -25,22 +25,19 @@ model session {
   id           String   @id(map: "sessions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   expires      DateTime @db.Timestamptz(6)
   sessionToken String   @unique(map: "sessiontoken_unique")
-  userId       String?  @db.Uuid
+  userId       String?  @db.VarChar(19)
   user         user?    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sessions_userId_fkey")
 
   @@schema("next_auth")
 }
 
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// NextAuth user row; primary key is the bare ORCID iD (compliance apex identifier).
 model user {
-  id                            String                 @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                            String                 @id(map: "users_pkey") @db.VarChar(19)
   name                          String?
-  email                         String?                @unique(map: "email_unique")
-  emailVerified                 DateTime?              @db.Timestamptz(6)
   image                         String?
   contributionAgreementAccepted Boolean                @default(false)
   contributionAgreementDate     DateTime?              @db.Timestamptz(6)
-  orcid                         String?
   authenticator                 Authenticator[]
   account                       account[]
   session                       session[]
@@ -50,7 +47,15 @@ model user {
   moleculeviews                 moleculeviews[]
   userAppRoles                  UserAppRole[]
 
-  @@index([orcid], map: "users_orcid_idx")
+  @@schema("next_auth")
+}
+
+/// Maps pre-migration UUID profile URLs to the canonical ORCID user id.
+model UserLegacyIdRedirect {
+  legacyUuid String @id @map("legacy_uuid") @db.Uuid
+  orcidId    String @map("orcid_id") @db.VarChar(19)
+
+  @@map("user_legacy_id_redirect")
   @@schema("next_auth")
 }
 
@@ -79,7 +84,7 @@ model AppRole {
 
 /// Many-to-many link between NextAuth users and application roles.
 model UserAppRole {
-  userId String @map("user_id") @db.Uuid
+  userId String @map("user_id") @db.VarChar(19)
   roleId String @map("role_id") @db.Uuid
 
   user user    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -106,7 +111,7 @@ model verificationToken {
 model Authenticator {
   id                   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   credentialID         String  @unique @db.VarChar(1024)
-  userId               String  @db.Uuid
+  userId               String  @db.VarChar(19)
   counter              BigInt
   credentialDeviceType String
   credentialBackedUp   Boolean

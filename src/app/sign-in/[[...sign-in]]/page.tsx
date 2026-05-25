@@ -4,9 +4,20 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SocialSignInButtons } from "@/components/auth/social-sign-in-buttons";
 
+const SIGN_IN_ERROR_MESSAGES: Record<string, string> = {
+  GitHubRequiresOrcid:
+    "Sign in with ORCID first to create your account, then link GitHub from your profile.",
+  InvalidOrcid: "ORCID sign-in failed. Check your ORCID credentials and try again.",
+};
+
 function SignInContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const authError = searchParams.get("error");
+  const errorMessage =
+    authError && SIGN_IN_ERROR_MESSAGES[authError]
+      ? SIGN_IN_ERROR_MESSAGES[authError]
+      : null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-1 p-4">
@@ -15,9 +26,14 @@ function SignInContent() {
           Sign in to X-ray Atlas
         </h1>
         <p className="mb-6 text-sm text-text-secondary">
-          ORCID is recommended for researchers. GitHub, Hugging Face, and passkeys are also
-          available as alternatives.
+          New accounts are created with ORCID. GitHub sign-in works after you link GitHub from
+          your profile. Passkeys remain available but are not fully supported yet.
         </p>
+        {errorMessage ? (
+          <p className="text-error mb-4 text-sm" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
         <SocialSignInButtons callbackUrl={callbackUrl} />
         <div className="mt-6 rounded-lg bg-surface-2 p-4">
           <p className="text-xs text-text-secondary">

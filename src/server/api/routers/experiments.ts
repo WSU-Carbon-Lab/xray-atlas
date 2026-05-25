@@ -4,6 +4,7 @@ import {
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
+import { orcidUserIdSchema } from "~/lib/orcid";
 import { TRPCError } from "@trpc/server";
 import { Prisma, ExperimentType, ProcessMethod } from "~/prisma/client";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
@@ -890,7 +891,7 @@ export const experimentsRouter = createTRPCRouter({
             }),
           )
           .optional(),
-        collectedByUserIds: z.array(z.string().uuid()).optional(),
+        collectedByUserIds: z.array(orcidUserIdSchema).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

@@ -6,7 +6,7 @@ import { trpc } from "~/trpc/client";
 import { PageSkeleton } from "@/components/feedback/loading-state";
 import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
 import { MoleculeDisplayCompact } from "@/components/molecules/molecule-display";
-import { ORCIDIcon, GitHubIcon, HuggingFaceIcon } from "@/components/icons";
+import { ORCIDIcon, GitHubIcon } from "@/components/icons";
 import { CustomAvatar } from "@/components/ui/avatar";
 import { SimpleDialog } from "@/components/ui/dialog";
 import Link from "next/link";
@@ -45,9 +45,9 @@ function base64urlDecode(str: string): Uint8Array {
 export default function UserProfilePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ orcid: string }>;
 }) {
-  const { id: userId } = use(params);
+  const { orcid: userId } = use(params);
   const { data: session, status } = useSession();
   const {
     data: user,
@@ -60,14 +60,11 @@ export default function UserProfilePage({
       retry: false,
     },
   );
-  const removeORCID = trpc.users.removeORCID.useMutation();
   const unlinkAccount = trpc.users.unlinkAccount.useMutation();
   const deletePasskey = trpc.users.deletePasskey.useMutation();
   const utils = trpc.useUtils();
   const { toasts, removeToast, showToast } = useToast();
 
-  const [_orcidInput, setOrcidInput] = useState("");
-  const [isEditingOrcid, setIsEditingOrcid] = useState(false);
   const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
   const [showConnectAccountModal, setShowConnectAccountModal] = useState(false);
 
@@ -84,18 +81,6 @@ export default function UserProfilePage({
   const { data: passkeys } = trpc.users.getPasskeys.useQuery(undefined, {
     enabled: isOwnProfile,
   });
-
-  const handleRemoveORCID = async () => {
-    try {
-      await removeORCID.mutateAsync();
-      await utils.users.getById.invalidate({ id: userId });
-      setIsEditingOrcid(false);
-      setOrcidInput("");
-    } catch (err) {
-      console.error("Failed to remove ORCID:", err);
-      showToast(getErrorMessage(err, "Failed to remove ORCID iD"), "error", 0);
-    }
-  };
 
   const handleRegisterPasskey = async () => {
     setIsRegisteringPasskey(true);
@@ -327,23 +312,18 @@ export default function UserProfilePage({
             <h1 className="text-text-primary mb-2 text-3xl font-bold">
               {user.name}
             </h1>
-            {isOwnProfile && user.email && (
-              <p className="text-text-secondary mb-2">{user.email}</p>
-            )}
-            {user.orcid && !isEditingOrcid && (
-              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                <a
-                  href={`https://orcid.org/${user.orcid}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-text-secondary hover:text-accent inline-flex items-center gap-2 text-sm transition-colors"
-                  aria-label={`View ORCID record - ${user.orcid}`}
-                >
-                  <ORCIDIcon className="h-5 w-5 shrink-0" authenticated />
-                  <span className="tabular-nums">{user.orcid}</span>
-                </a>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+              <a
+                href={`https://orcid.org/${user.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-text-secondary hover:text-accent inline-flex items-center gap-2 text-sm transition-colors"
+                aria-label={`View ORCID record - ${user.id}`}
+              >
+                <ORCIDIcon className="h-5 w-5 shrink-0" authenticated />
+                <span className="tabular-nums">{user.id}</span>
+              </a>
+            </div>
           </div>
         </div>
 
@@ -356,72 +336,26 @@ export default function UserProfilePage({
                     ORCID iD
                   </h2>
                   <p className="text-text-secondary mb-4 text-sm">
-                    Link your ORCID iD to your account for better research
-                    attribution.
+                    Your account is identified by your ORCID iD. It cannot be
+                    changed from this page.
                   </p>
-
-                  {user.orcid ? (
-                    <div className="border-border-default bg-surface-2 flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
-                      <div className="flex items-center gap-3">
-                        <ORCIDIcon className="h-6 w-6 shrink-0" authenticated />
-                        <div>
-                          <a
-                            href={`https://orcid.org/${user.orcid}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-accent hover:text-accent-dark inline-flex items-center gap-2 text-sm font-medium transition-colors"
-                            aria-label={`View ORCID record - ${user.orcid}`}
-                          >
-                            <span className="tabular-nums">{user.orcid}</span>
-                          </a>
-                          <p className="text-text-tertiary text-xs">
-                            Authenticated ORCID iD
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onPress={() => {
-                            setIsEditingOrcid(true);
-                            setOrcidInput(user.orcid ?? "");
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onPress={handleRemoveORCID}
-                          isPending={removeORCID.isPending}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="border-border-default bg-surface-2 flex items-center gap-3 rounded-lg border p-4">
-                      <ORCIDIcon className="h-6 w-6 shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-text-tertiary text-sm font-medium">
-                          Authenticate ORCID iD
-                        </p>
-                        <p className="text-text-tertiary text-xs">
-                          Link your ORCID account to verify your identity
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        onPress={() => {
-                          window.location.href = `/api/auth/link-account?provider=orcid`;
-                        }}
+                  <div className="border-border-default bg-surface-2 flex flex-wrap items-center gap-4 rounded-lg border p-4">
+                    <ORCIDIcon className="h-6 w-6 shrink-0" authenticated />
+                    <div>
+                      <a
+                        href={`https://orcid.org/${user.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent hover:text-accent-dark inline-flex items-center gap-2 text-sm font-medium transition-colors"
+                        aria-label={`View ORCID record - ${user.id}`}
                       >
-                        Authenticate
-                      </Button>
+                        <span className="tabular-nums">{user.id}</span>
+                      </a>
+                      <p className="text-text-tertiary text-xs">
+                        Primary sign-in identity
+                      </p>
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 <div>
@@ -475,47 +409,6 @@ export default function UserProfilePage({
                       </Card>
                     )}
 
-                    {linkedAccounts?.some(
-                      (acc) => acc.provider === "huggingface",
-                    ) && (
-                      <Card
-                        variant="default"
-                        className="border-border-default border"
-                      >
-                        <Card.Content className="flex items-center justify-between p-4">
-                          <div className="flex items-center gap-3">
-                            <HuggingFaceIcon className="h-6 w-6 shrink-0" />
-                            <div>
-                              <p className="text-text-primary text-sm font-medium">
-                                Hugging Face
-                              </p>
-                              <p className="text-text-tertiary text-xs">
-                                Connected
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onPress={async () => {
-                              const hfAccount = linkedAccounts.find(
-                                (acc) => acc.provider === "huggingface",
-                              );
-                              if (hfAccount) {
-                                await unlinkAccount.mutateAsync({
-                                  accountId: hfAccount.id,
-                                });
-                                await utils.users.getLinkedAccounts.invalidate();
-                              }
-                            }}
-                            isPending={unlinkAccount.isPending}
-                          >
-                            <X className="h-4 w-4" />
-                            <span>Disconnect</span>
-                          </Button>
-                        </Card.Content>
-                      </Card>
-                    )}
                   </div>
 
                   <Button
@@ -572,30 +465,13 @@ export default function UserProfilePage({
                               <span>Connect GitHub</span>
                             </Button>
                           )}
-                          {!linkedAccounts?.some(
-                            (acc) => acc.provider === "huggingface",
-                          ) && (
-                            <Button
-                              className="w-full justify-start"
-                              variant="ghost"
-                              onPress={() => {
-                                window.location.href = `/api/auth/link-account?provider=huggingface`;
-                              }}
-                            >
-                              <HuggingFaceIcon className="h-5 w-5 shrink-0" />
-                              <span>Connect Hugging Face</span>
-                            </Button>
-                          )}
                           {linkedAccounts?.some(
                             (acc) => acc.provider === "github",
-                          ) &&
-                            linkedAccounts?.some(
-                              (acc) => acc.provider === "huggingface",
-                            ) && (
-                              <p className="text-text-tertiary text-sm">
-                                All available accounts are connected.
-                              </p>
-                            )}
+                          ) && (
+                            <p className="text-text-tertiary text-sm">
+                              GitHub is already connected.
+                            </p>
+                          )}
                         </Card.Content>
                         <Card.Footer>
                           <Button
