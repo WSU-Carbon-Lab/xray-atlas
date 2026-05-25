@@ -36,9 +36,12 @@ function validateDirectUrl(raw: string): string[] {
       "DIRECT_URL must not include pgbouncer=true; that belongs on DATABASE_URL only.",
     );
   }
-  if (issues.length === 0 && parsed.hostname.includes("pooler") && port === "5432") {
+  if (
+    parsed.hostname.endsWith(".supabase.com") &&
+    !parsed.hostname.includes(".pooler.")
+  ) {
     issues.push(
-      "DIRECT_URL points at a pooler host. Prefer db.<project-ref>.supabase.co:5432 from Supabase Database settings.",
+      `DIRECT_URL host "${parsed.hostname}" does not resolve. Supabase migrate hosts are db.<project-ref>.supabase.co:5432 (direct) or aws-*-<region>.pooler.supabase.com:5432 (session pooler), not *.supabase.com without "pooler".`,
     );
   }
   return issues;

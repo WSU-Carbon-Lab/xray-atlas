@@ -30,6 +30,48 @@ BEGIN
 END
 $precheck$;
 
+DO $ownership$
+DECLARE
+  target_owner name;
+  role_owner name;
+BEGIN
+  SELECT tableowner INTO target_owner
+  FROM pg_tables
+  WHERE schemaname = 'next_auth' AND tablename = 'user';
+
+  IF target_owner IS NULL THEN
+    RAISE EXCEPTION 'next_auth."user" not found; cannot verify table ownership for migration';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_tables
+    WHERE schemaname = 'next_auth' AND tablename = 'user_app_role'
+  ) THEN
+    RETURN;
+  END IF;
+
+  SELECT tableowner INTO role_owner
+  FROM pg_tables
+  WHERE schemaname = 'next_auth' AND tablename = 'user_app_role';
+
+  IF role_owner IS DISTINCT FROM target_owner THEN
+    IF current_setting('is_superuser') = 'on' THEN
+      EXECUTE format(
+        'ALTER TABLE next_auth.user_app_role OWNER TO %I',
+        target_owner
+      );
+    ELSE
+      RAISE EXCEPTION
+        'next_auth.user_app_role is owned by %, but next_auth."user" is owned by %. '
+        'Run scripts/supabase/orcid-pk-prepare-role-table-ownership.sql in the Supabase SQL Editor, '
+        'then mark the failed migration rolled back (`prisma migrate resolve --rolled-back 20260522120000_user_orcid_primary_key`) and retry.',
+        role_owner,
+        target_owner;
+    END IF;
+  END IF;
+END
+$ownership$;
+
 CREATE TABLE IF NOT EXISTS next_auth.user_legacy_id_redirect (
   legacy_uuid UUID NOT NULL,
   orcid_id VARCHAR(19) NOT NULL,
@@ -114,17 +156,17 @@ WHERE ef.user_id = u."id";
 ALTER TABLE public.experiment_favorites DROP COLUMN user_id;
 ALTER TABLE public.experiment_favorites RENAME COLUMN user_id_orcid TO user_id;
 
-UPDATE molecules.molecules m
+UPDATE public.molecules m
 SET createdby = u."orcid"
 FROM next_auth."user" u
 WHERE m.createdby IS NOT NULL AND m.createdby = u."id"::text;
 
-UPDATE nexafs.experiments e
+UPDATE public.experiments e
 SET createdby = u."orcid"
 FROM next_auth."user" u
 WHERE e.createdby IS NOT NULL AND e.createdby = u."id"::text;
 
-UPDATE nexafs.experiments e
+UPDATE public.experiments e
 SET collected_by_user_ids = COALESCE(
   (
     SELECT array_agg(
