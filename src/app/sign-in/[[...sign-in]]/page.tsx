@@ -1,23 +1,20 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SocialSignInButtons } from "@/components/auth/social-sign-in-buttons";
-
-const SIGN_IN_ERROR_MESSAGES: Record<string, string> = {
-  GitHubRequiresOrcid:
-    "Sign in with ORCID first to create your account, then link GitHub from your profile.",
-  InvalidOrcid: "ORCID sign-in failed. Check your ORCID credentials and try again.",
-};
+import { mapSignInPageError } from "~/lib/auth-sign-in-errors";
 
 function SignInContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const authError = searchParams.get("error");
+  const [passkeyInlineError, setPasskeyInlineError] = useState<string | null>(
+    null,
+  );
   const errorMessage =
-    authError && SIGN_IN_ERROR_MESSAGES[authError]
-      ? SIGN_IN_ERROR_MESSAGES[authError]
-      : null;
+    passkeyInlineError ??
+    mapSignInPageError(authError);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-1 p-4">
@@ -44,7 +41,12 @@ function SignInContent() {
             {errorMessage}
           </p>
         ) : null}
-        <SocialSignInButtons callbackUrl={callbackUrl} />
+        <SocialSignInButtons
+          callbackUrl={callbackUrl}
+          onPasskeyError={(message) =>
+            setPasskeyInlineError(message.length > 0 ? message : null)
+          }
+        />
       </div>
     </div>
   );

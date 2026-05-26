@@ -50,21 +50,15 @@ export async function userHasAal3EligiblePasskey(
 }
 
 /**
- * Throws when a privileged user enrolls a passkey that does not meet AAL3 metadata requirements.
+ * Returns whether enrollment metadata satisfies AAL3 for audit and profile UI only.
+ *
+ * Privileged roles may enroll AAL2 platform passkeys; AAL3 hardware keys are enforced at
+ * role assignment and on privileged routes, not during `createAuthenticator`.
  */
-export function assertAal3EligibleEnrollment(
-  userId: string,
-  requiresAal3: boolean,
+export function enrollmentMeetsAal3HardwarePolicy(
   authenticator: AuthenticatorAalFields,
-): void {
-  if (!requiresAal3) {
-    return;
-  }
-  if (!isAal3Eligible(authenticator)) {
-    throw new Error(
-      "Privileged roles require a hardware security key with direct attestation. Use a cross-platform FIDO2 key, then try again.",
-    );
-  }
+): boolean {
+  return isAal3Eligible(authenticator);
 }
 
 /**

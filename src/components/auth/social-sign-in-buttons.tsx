@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { signIn as webauthnSignIn } from "next-auth/webauthn";
 import { Button, Tooltip } from "@heroui/react";
 import { Key } from "lucide-react";
 import { ORCIDIcon, GitHubIcon } from "~/components/icons";
+import { mapWebAuthnSignInError } from "~/lib/auth-sign-in-errors";
 
 const ORCID_TOOLTIP =
   "ORCID is a free, unique, persistent identifier (PID) for individuals to use as they engage in research, scholarship, and innovation activities. It can also help you save time when you use your ORCID to sign into systems like this one. Learn more at orcid.org.";
@@ -24,12 +26,15 @@ const secondaryButtonClassName =
 interface SocialSignInButtonsProps {
   callbackUrl: string;
   onSignIn?: () => void;
+  onPasskeyError?: (message: string) => void;
 }
 
 export function SocialSignInButtons({
   callbackUrl,
   onSignIn,
+  onPasskeyError,
 }: SocialSignInButtonsProps) {
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const handleORCID = async () => {
     onSignIn?.();
     await signIn("orcid", { callbackUrl });
@@ -40,13 +45,50 @@ export function SocialSignInButtons({
     await signIn("github", { callbackUrl });
   };
 
-  const handlePasskey = async () => {
-    await webauthnSignIn("passkey", { callbackUrl });
-    onSignIn?.();
+  const reportPasskeyError = (message: string) => {
+    if (onPasskeyError) {
+      onPasskeyError(message);
+    } else {
+      setPasskeyError(message);
+    }
   };
+
+  const handlePasskey = async () => {
+    setPasskeyError(null);
+    onPasskeyError?.("");
+    const result = await webauthnSignIn("passkey", {
+      callbackUrl,
+      redirect: false,
+    });
+    if (result?.error) {
+      reportPasskeyError(
+        mapWebAuthnSignInError(
+          result.error,
+          "Passkey sign-in failed. Try again or sign in with ORCID.",
+        ),
+      );
+      return;
+    }
+    if (result?.url) {
+      window.location.assign(result.url);
+      return;
+    }
+    if (result?.ok) {
+      window.location.assign(callbackUrl);
+      return;
+    }
+    reportPasskeyError("Passkey sign-in did not complete. Try again.");
+  };
+
+  const visiblePasskeyError = onPasskeyError ? null : passkeyError;
 
   return (
     <div className="flex w-full flex-col gap-3">
+      {visiblePasskeyError ? (
+        <p className="text-error text-sm" role="alert">
+          {visiblePasskeyError}
+        </p>
+      ) : null}
       <Tooltip delay={0}>
         <Tooltip.Trigger>
           <Button

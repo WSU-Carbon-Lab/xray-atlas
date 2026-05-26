@@ -24,24 +24,11 @@ export function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  // Prevent hydration mismatch by only rendering after mount
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return (
-      <button
-        className="border-border bg-surface flex h-10 w-10 items-center justify-center rounded-lg border text-foreground transition-colors hover:bg-default"
-        aria-label="Toggle theme"
-        disabled
-      >
-        <Sun className="h-4 w-4" />
-      </button>
-    );
-  }
-
-  const isDark = resolvedTheme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
   const handleToggle = () => {
     setTheme(isDark ? "light" : "dark");
@@ -49,12 +36,19 @@ export function ThemeToggle() {
 
   return (
     <button
-      onClick={handleToggle}
-      className="border-border bg-surface flex h-10 w-10 items-center justify-center rounded-lg border text-foreground transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       type="button"
+      onClick={mounted ? handleToggle : undefined}
+      disabled={!mounted}
+      className="border-border bg-surface flex h-10 w-10 items-center justify-center rounded-lg border text-foreground transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+      aria-label={
+        mounted
+          ? isDark
+            ? "Switch to light theme"
+            : "Switch to dark theme"
+          : "Toggle theme"
+      }
     >
-      {isDark ? (
+      {!mounted || !isDark ? (
         <Sun className="h-4 w-4" />
       ) : (
         <Moon className="h-4 w-4" />

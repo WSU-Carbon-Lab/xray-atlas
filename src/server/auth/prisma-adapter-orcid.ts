@@ -4,7 +4,7 @@ import type { PrismaClient } from "~/prisma/client";
 import { parseOrcidForStorage } from "~/lib/orcid";
 import { emitAuditEvent } from "~/server/audit";
 import {
-  assertAal3EligibleEnrollment,
+  enrollmentMeetsAal3HardwarePolicy,
   requiresAal3ForUser,
 } from "~/server/auth/passkey-policy";
 import {
@@ -182,12 +182,16 @@ export function PrismaAdapterOrcid(db: PrismaClient) {
           ? enrollmentMeta.credentialDeviceType
           : authenticator.credentialDeviceType;
 
-      const needsAal3 = await requiresAal3ForUser(db, authenticator.userId);
-      assertAal3EligibleEnrollment(authenticator.userId, needsAal3, {
+      const aalFields = {
         aaguid,
         attestationFormat,
         credentialDeviceType,
-      });
+      };
+      const requiresAal3Hardware = await requiresAal3ForUser(
+        db,
+        authenticator.userId,
+      );
+      const enrollmentAal3Eligible = enrollmentMeetsAal3HardwarePolicy(aalFields);
 
       const created = await db.authenticator.create({
         data: {
@@ -216,6 +220,10 @@ export function PrismaAdapterOrcid(db: PrismaClient) {
           credentialDeviceType,
           aaguid,
           attestationFormat,
+          requiresAal3Hardware,
+          enrollmentAal3Eligible,
+          privilegedHardwareKeyPending:
+            requiresAal3Hardware && !enrollmentAal3Eligible,
         },
         failSilent: true,
       });

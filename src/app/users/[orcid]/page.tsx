@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { ToastContainer, useToast } from "@/components/ui/toast";
+import { mapWebAuthnSignInError } from "~/lib/auth-sign-in-errors";
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
   return error instanceof Error && error.message
@@ -94,14 +95,22 @@ export default function UserProfilePage({
       });
 
       if (result?.error) {
-        throw new Error(result.error);
+        throw new Error(
+          mapWebAuthnSignInError(
+            result.error,
+            "Passkey registration failed. Please try again.",
+          ),
+        );
       }
 
       if (result && !result.ok) {
         throw new Error("Passkey registration did not complete");
       }
 
-      await utils.users.getPasskeys.invalidate();
+      await Promise.all([
+        utils.users.getPasskeys.invalidate(),
+        utils.users.getPasskeyEnrollmentStatus.invalidate(),
+      ]);
       showToast("Passkey registered", "success");
     } catch (error) {
       console.error("Failed to register passkey:", error);
@@ -404,16 +413,31 @@ export default function UserProfilePage({
             </div>
 
             <div className="border-border-default mt-8 border-t pt-8">
-              {(passkeyRequiredRedirect || passkeyEnrollment?.enrolled === false) && (
+              {(passkeyRequiredRedirect ||
+                passkeyEnrollment?.enrolled === false) && (
                 <div
                   className="border-warning/40 bg-warning/10 text-text-primary mb-4 rounded-xl border p-4 text-sm"
                   role="status"
                 >
                   {passkeyEnrollment?.requiresAal3Hardware
-                    ? "Register a hardware security key passkey before using administration or Labs tools. Platform passkeys alone do not meet the privileged-role requirement."
-                    : "Register a passkey to unlock data contribution and administration. Browse remains available with ORCID sign-in."}
+                    ? "Register a passkey to unlock contribution. For administration or Labs, you will also need a hardware security key (cross-platform FIDO2, e.g. YubiKey) in addition to platform passkeys such as Touch ID."
+                    : "Register a passkey to unlock data contribution. Browse remains available with ORCID sign-in."}
                 </div>
               )}
+              {passkeyEnrollment?.requiresAal3Hardware &&
+                passkeyEnrollment.enrolled &&
+                !passkeyEnrollment.hasAal3EligiblePasskey && (
+                  <div
+                    className="border-warning/40 bg-warning/10 text-text-primary mb-4 rounded-xl border p-4 text-sm"
+                    role="status"
+                  >
+                    You have a passkey for sign-in and contribution. Administrator
+                    and Labs tools require a hardware security key: use Create
+                    Passkey and choose a cross-platform FIDO2 key (e.g. YubiKey).
+                    Touch ID, Windows Hello, and synced password-manager passkeys
+                    do not satisfy that requirement.
+                  </div>
+                )}
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-text-primary mb-1 text-xl font-semibold">
