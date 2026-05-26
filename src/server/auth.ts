@@ -23,6 +23,7 @@ import {
 import { PrismaAdapterOrcid } from "~/server/auth/prisma-adapter-orcid";
 import { parseOrcidForStorage } from "~/lib/orcid";
 import { emitAuditEvent } from "~/server/audit";
+import { orcidOidcBaseUrl } from "~/server/auth/orcid-oidc-config";
 import { enrichUserProfileFromOrcidUserinfo } from "~/server/auth/orcid-userinfo";
 import { resolveWebAuthnRelayingParty } from "~/server/auth/webauthn-relaying-party";
 
@@ -37,12 +38,6 @@ interface ORCIDProfile {
   name?: string;
   given_name?: string;
   family_name?: string;
-}
-
-function orcidOAuthBaseUrl(): string {
-  return env.ORCID_USE_SANDBOX === "true"
-    ? "https://sandbox.orcid.org"
-    : "https://orcid.org";
 }
 
 function resolveGitHubCredentials(): {
@@ -66,13 +61,14 @@ function resolveGitHubCredentials(): {
 function ORCID(
   options: OAuthUserConfig<ORCIDProfile>,
 ): OAuthConfig<ORCIDProfile> {
-  const baseUrl = orcidOAuthBaseUrl();
+  const baseUrl = orcidOidcBaseUrl();
 
   return {
     ...options,
     id: "orcid",
     name: "ORCID",
     type: "oauth",
+    issuer: baseUrl,
     checks: ["pkce", "state"],
     authorization: {
       url: `${baseUrl}/oauth/authorize`,
