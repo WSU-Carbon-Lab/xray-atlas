@@ -14,6 +14,7 @@ export const env = createEnv({
     DATABASE_URL: z.string().url(),
     DIRECT_URL: z.string().url(),
     AUTH_SECRET: z.string(),
+    OAUTH_TOKEN_ENCRYPTION_KEY: z.string().min(1).optional(),
     AUTH_URL: z.string().url(),
     WEBAUTHN_RP_ID: z.string().min(1).optional(),
     WEBAUTHN_ORIGIN: z.string().url().optional(),
@@ -52,6 +53,7 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     AUTH_SECRET: process.env.AUTH_SECRET,
     AUTH_URL: process.env.AUTH_URL,
+    OAUTH_TOKEN_ENCRYPTION_KEY: process.env.OAUTH_TOKEN_ENCRYPTION_KEY,
     WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID,
     WEBAUTHN_ORIGIN: process.env.WEBAUTHN_ORIGIN,
     ORCID_CLIENT_ID: process.env.ORCID_CLIENT_ID,
@@ -80,3 +82,7 @@ export const env = createEnv({
    */
   emptyStringAsUndefined: true,
 });
+
+if (env.NODE_ENV === "production" && !env.OAUTH_TOKEN_ENCRYPTION_KEY) {
+  throw new Error("OAUTH_TOKEN_ENCRYPTION_KEY_MISSING");
+}

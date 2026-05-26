@@ -3,6 +3,7 @@ import type { AdapterAuthenticator } from "@auth/core/adapters";
 import type { PrismaClient } from "~/prisma/client";
 import { parseOrcidForStorage } from "~/lib/orcid";
 import { emitAuditEvent } from "~/server/audit";
+import { encryptOAuthToken } from "~/server/auth/oauth-token-crypto";
 import {
   enrollmentMeetsAal3HardwarePolicy,
   requiresAal3ForUser,
@@ -53,8 +54,69 @@ function toAdapterAuthenticator(row: {
 export function PrismaAdapterOrcid(db: PrismaClient) {
   const base = PrismaAdapter(db);
 
+  type MaybeOAuthToken = string | null | undefined;
+  type OAuthTokenFields = {
+    access_token?: MaybeOAuthToken;
+    refresh_token?: MaybeOAuthToken;
+    id_token?: MaybeOAuthToken;
+    oauth_token_secret?: MaybeOAuthToken;
+    oauth_token?: MaybeOAuthToken;
+  };
+
+  function encryptMaybe(value: MaybeOAuthToken): MaybeOAuthToken {
+    if (value === null) return null;
+    if (value === undefined) return undefined;
+    return encryptOAuthToken(value);
+  }
+
+  function encryptOAuthTokens<T extends OAuthTokenFields>(account: T): T {
+    return {
+      ...account,
+      access_token: encryptMaybe(account.access_token),
+      refresh_token: encryptMaybe(account.refresh_token),
+      id_token: encryptMaybe(account.id_token),
+      oauth_token_secret: encryptMaybe(account.oauth_token_secret),
+      oauth_token: encryptMaybe(account.oauth_token),
+    };
+  }
+
   return {
     ...base,
+    linkAccount: (
+      account: Parameters<NonNullable<(typeof base)["linkAccount"]>>[0],
+    ) => base.linkAccount!(encryptOAuthTokens(account)),
+    updateAccount: async (
+      account: Parameters<NonNullable<(typeof base)["linkAccount"]>>[0],
+    ): Promise<void> => {
+      const encrypted = encryptOAuthTokens(account);
+
+      const stripUndefined = <T extends Record<string, unknown>>(
+        obj: T,
+      ): Partial<T> => {
+        const out: Partial<T> = {};
+        for (const key in obj) {
+          const value = obj[key];
+          if (value !== undefined) out[key] = value;
+        }
+        return out;
+      };
+
+      await db.account.update({
+        where: {
+          provider_providerAccountId: {
+            provider: encrypted.provider,
+            providerAccountId: encrypted.providerAccountId,
+          },
+        },
+        data: stripUndefined({
+          access_token: encrypted.access_token,
+          refresh_token: encrypted.refresh_token,
+          id_token: encrypted.id_token,
+          oauth_token_secret: encrypted.oauth_token_secret,
+          oauth_token: encrypted.oauth_token,
+        }) as Parameters<(typeof db)["account"]["update"]>[0]["data"],
+      });
+    },
     getSessionAndUser: async (sessionToken: string) => {
       if (!base.getSessionAndUser) {
         return null;

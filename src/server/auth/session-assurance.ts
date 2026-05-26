@@ -4,6 +4,7 @@ import {
   assertedAalForAuthenticator,
   type AssertedAal,
 } from "~/server/auth/aal";
+import { decryptNullableOAuthToken } from "~/server/auth/oauth-token-crypto";
 import { getSessionTokenFromRequest } from "~/server/auth/session-token";
 
 const ORCID_AUTHENTICATOR = "orcid_oidc";
@@ -54,11 +55,8 @@ export async function upsertOrcidSessionAssurance(
     orderBy: { id: "desc" },
   });
 
-  const idToken = account?.id_token;
-  const claims =
-    idToken !== null && idToken !== undefined
-      ? await resolveOrcidIdTokenClaims(idToken)
-      : null;
+  const idToken = decryptNullableOAuthToken(account?.id_token ?? null);
+  const claims = idToken !== null ? await resolveOrcidIdTokenClaims(idToken) : null;
 
   const establishedAt = establishedAtFromAuthTime(claims?.authTime ?? null);
   const amrFromUpstream =

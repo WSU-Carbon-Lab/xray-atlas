@@ -23,6 +23,7 @@ import { orcidUserIdSchema } from "~/lib/orcid";
 import { resolveUserIdFromRouteSegment } from "~/lib/user-route";
 import { toMoleculeView } from "~/server/api/routers/molecules-view";
 import { fetchNexafsBrowseGrouped } from "~/server/nexafs/nexafsBrowseGroups";
+import { decryptOAuthToken } from "~/server/auth/oauth-token-crypto";
 
 const contributionAgreementStatusSchema = z.object({
   accepted: z.boolean(),
@@ -109,10 +110,15 @@ async function resolveGitHubAccountPresentation(account: {
     return { login: null, profileUrl: null, avatarUrl: null };
   }
 
+  const accessToken = decryptOAuthToken(account.access_token);
+  if (!accessToken) {
+    return { login: null, profileUrl: null, avatarUrl: null };
+  }
+
   try {
     const response = await fetch("https://api.github.com/user", {
       headers: {
-        Authorization: `Bearer ${account.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
         Accept: "application/vnd.github+json",
       },
     });
