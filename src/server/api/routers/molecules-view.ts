@@ -3,10 +3,10 @@ import type { MoleculeView, MoleculeViewCreatedBy } from "~/types/molecule";
 type SynonymRow = { synonym: string; order: number };
 type ContributorRow = {
   id: string;
-  userid: string;
+  userid: string | null;
   contributiontype: string;
   contributedat: Date;
-  user: { id: string; name: string | null; image: string | null };
+  user: { id: string; name: string | null; image: string | null } | null;
 };
 type TagRow = { id: string; name: string; slug: string; color: string | null };
 
@@ -109,7 +109,7 @@ function creatorFromContributors(
   const creator = contributors.find(
     (c) => c.contributiontype.toLowerCase() === "creator",
   );
-  if (!creator) return null;
+  if (!creator?.user) return null;
   return {
     id: creator.user.id,
     name: creator.user.name,

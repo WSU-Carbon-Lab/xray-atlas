@@ -33,18 +33,24 @@ export function mapWebAuthnSignInError(
   if (trimmed.length === 0) {
     return fallback;
   }
-  const knownAdapter = KNOWN_PASSKEY_ADAPTER_MESSAGES[trimmed];
+  return resolveWebAuthnSignInMessage(trimmed) ?? fallback;
+}
+
+function resolveWebAuthnSignInMessage(
+  errorCode: string,
+): string | null {
+  const knownAdapter = KNOWN_PASSKEY_ADAPTER_MESSAGES[errorCode];
   if (knownAdapter) {
     return knownAdapter;
   }
-  const mapped = WEB_AUTHN_SIGN_IN_ERROR_MESSAGES[trimmed];
+  const mapped = WEB_AUTHN_SIGN_IN_ERROR_MESSAGES[errorCode];
   if (mapped) {
     return mapped;
   }
-  if (trimmed.includes(" ") && trimmed.length > 24) {
-    return trimmed;
+  if (errorCode.includes(" ") && errorCode.length > 24) {
+    return errorCode;
   }
-  return fallback;
+  return null;
 }
 
 /**
@@ -65,13 +71,5 @@ export function mapSignInPageError(
   if (signInPageMessages[errorCode]) {
     return signInPageMessages[errorCode];
   }
-  const webauthnMessage = WEB_AUTHN_SIGN_IN_ERROR_MESSAGES[errorCode];
-  if (webauthnMessage) {
-    return webauthnMessage;
-  }
-  const adapterMessage = KNOWN_PASSKEY_ADAPTER_MESSAGES[errorCode];
-  if (adapterMessage) {
-    return adapterMessage;
-  }
-  return null;
+  return resolveWebAuthnSignInMessage(errorCode);
 }

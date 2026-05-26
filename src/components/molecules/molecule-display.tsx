@@ -25,6 +25,7 @@ import { useRealtimeUpvotes } from "~/hooks/useRealtimeUpvotes";
 import type { MoleculeView } from "~/types/molecule";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
+import { moleculeContributorUsers } from "~/lib/molecule-contributor-users";
 import {
   CategoryTagGroupEditable,
   MoleculeTags,
@@ -582,7 +583,7 @@ export const CompactCard = memo(function CompactCard({
 }) {
   const fromContributorsCompact =
     (props.molecule.contributors?.length ?? 0) > 0
-      ? props.molecule.contributors!.map((c) => c.user)
+      ? moleculeContributorUsers(props.molecule.contributors)
       : [];
   const avatarUsers: UserWithOrcid[] =
     fromContributorsCompact.length > 0
@@ -841,7 +842,7 @@ export const FullCard = memo(function FullCard({
 }) {
   const fromContributors =
     (props.molecule.contributors?.length ?? 0) > 0
-      ? props.molecule.contributors!.map((c) => c.user)
+      ? moleculeContributorUsers(props.molecule.contributors)
       : [];
   const avatarUsers: UserWithOrcid[] =
     fromContributors.length > 0
@@ -1074,7 +1075,7 @@ export const FullCardCarousel = memo(function FullCardCarousel({
 }) {
   const fromContributors =
     (props.molecule.contributors?.length ?? 0) > 0
-      ? props.molecule.contributors!.map((c) => c.user)
+      ? moleculeContributorUsers(props.molecule.contributors)
       : [];
   const avatarUsers: UserWithOrcid[] =
     fromContributors.length > 0
@@ -1845,7 +1846,7 @@ export const HeaderCard = memo(function HeaderCard({
   };
   const fromContributors =
     (props.molecule.contributors?.length ?? 0) > 0
-      ? props.molecule.contributors!.map((c) => c.user)
+      ? moleculeContributorUsers(props.molecule.contributors)
       : [];
   const avatarUsers: UserWithOrcid[] =
     fromContributors.length > 0

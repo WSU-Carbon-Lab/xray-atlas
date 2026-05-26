@@ -41,6 +41,11 @@ import { pickRandomTagHex } from "~/lib/tag-colors";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { toMoleculeView } from "./molecules-view";
 import { queryMoleculeIdsByPopularityRank } from "./molecules-popularity-ranking";
+import {
+  findMoleculeContributor,
+  findMoleculeFavorite,
+  upsertMoleculeContributor,
+} from "~/server/db/engagement-queries";
 
 function slugifyTagName(name: string): string {
   const base = name
@@ -64,12 +69,12 @@ async function checkCanEdit(
   createdby: string | null,
 ): Promise<boolean> {
   if (createdby === userId) return true;
-  const contributor = await prisma.moleculecontributors.findUnique({
-    where: {
-      moleculeid_userid: { moleculeid: moleculeId, userid: userId },
-    },
-  });
-  return !!contributor;
+  const contributor = await findMoleculeContributor(
+    prisma,
+    moleculeId,
+    userId,
+  );
+  return contributor != null;
 }
 
 async function ensureContributor(
@@ -78,17 +83,12 @@ async function ensureContributor(
   userId: string,
   contributionType: "creator" | "editor" | "contributor",
 ): Promise<void> {
-  await prisma.moleculecontributors.upsert({
-    where: {
-      moleculeid_userid: { moleculeid: moleculeId, userid: userId },
-    },
-    create: {
-      moleculeid: moleculeId,
-      userid: userId,
-      contributiontype: contributionType,
-    },
-    update: { contributiontype: contributionType },
-  });
+  await upsertMoleculeContributor(
+    prisma,
+    moleculeId,
+    userId,
+    contributionType,
+  );
 }
 
 export const moleculesRouter = createTRPCRouter({
@@ -687,15 +687,12 @@ export const moleculesRouter = createTRPCRouter({
 
       let userHasFavorited = false;
       if (ctx.userId) {
-        const favorite = await ctx.db.moleculefavorites.findUnique({
-          where: {
-            moleculeid_userid: {
-              moleculeid: molecule.id,
-              userid: ctx.userId,
-            },
-          },
-        });
-        userHasFavorited = !!favorite;
+        const favorite = await findMoleculeFavorite(
+          ctx.db,
+          molecule.id,
+          ctx.userId,
+        );
+        userHasFavorited = favorite != null;
       }
 
       return toMoleculeView(
@@ -760,15 +757,12 @@ export const moleculesRouter = createTRPCRouter({
 
         let userHasFavorited = false;
         if (ctx.userId) {
-          const favorite = await ctx.db.moleculefavorites.findUnique({
-            where: {
-              moleculeid_userid: {
-                moleculeid: molecule.id,
-                userid: ctx.userId,
-              },
-            },
-          });
-          userHasFavorited = !!favorite;
+          const favorite = await findMoleculeFavorite(
+            ctx.db,
+            molecule.id,
+            ctx.userId,
+          );
+          userHasFavorited = favorite != null;
         }
 
         return toMoleculeView(
@@ -1759,24 +1753,14 @@ export const moleculesRouter = createTRPCRouter({
           message: "Molecule not found",
         });
       }
-      const existing = await ctx.db.moleculefavorites.findUnique({
-        where: {
-          moleculeid_userid: {
-            moleculeid: input.moleculeId,
-            userid: ctx.userId,
-          },
-        },
-      });
+      const existing = await findMoleculeFavorite(
+        ctx.db,
+        input.moleculeId,
+        ctx.userId,
+      );
       if (existing) {
         await ctx.db.$transaction([
-          ctx.db.moleculefavorites.delete({
-            where: {
-              moleculeid_userid: {
-                moleculeid: input.moleculeId,
-                userid: ctx.userId,
-              },
-            },
-          }),
+          ctx.db.moleculefavorites.delete({ where: { id: existing.id } }),
           ctx.db.molecules.update({
             where: { id: input.moleculeId },
             data: { favoritecount: { decrement: 1 } },

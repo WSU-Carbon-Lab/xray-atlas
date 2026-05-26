@@ -3,7 +3,6 @@
 import { use, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { signIn as webauthnSignIn } from "next-auth/webauthn";
 import { trpc } from "~/trpc/client";
 import { PageSkeleton } from "@/components/feedback/loading-state";
 import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
@@ -30,7 +29,8 @@ import {
   X,
 } from "lucide-react";
 import { ToastContainer, useToast } from "@/components/ui/toast";
-import { mapWebAuthnSignInError } from "~/lib/auth-sign-in-errors";
+import { runPasskeyClientAuth } from "~/lib/passkey-client-auth";
+import { moleculeContributorUsers } from "~/lib/molecule-contributor-users";
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
   return error instanceof Error && error.message
@@ -89,22 +89,16 @@ export default function UserProfilePage({
   const handleRegisterPasskey = async () => {
     setIsRegisteringPasskey(true);
     try {
-      const result = await webauthnSignIn("passkey", {
-        redirect: false,
+      const result = await runPasskeyClientAuth({
         action: "register",
+        errorFallback: "Passkey registration failed. Please try again.",
+        incompleteFallback: "Passkey registration did not complete",
       });
 
-      if (result?.error) {
+      if (!result.ok) {
         throw new Error(
-          mapWebAuthnSignInError(
-            result.error,
-            "Passkey registration failed. Please try again.",
-          ),
+          result.errorMessage ?? "Passkey registration failed. Please try again.",
         );
-      }
-
-      if (result && !result.ok) {
-        throw new Error("Passkey registration did not complete");
       }
 
       await Promise.all([
@@ -677,8 +671,9 @@ function UserMoleculesList({ userId }: { userId: string }) {
 
   const recipientOptions = (() => {
     if (!pendingTransferMolecule) return [];
-    const contributors =
-      pendingTransferMolecule.contributors?.map((c) => c.user) ?? [];
+    const contributors = moleculeContributorUsers(
+      pendingTransferMolecule.contributors,
+    );
     const core = coreMaintainers ?? [];
 
     const byId = new Map<

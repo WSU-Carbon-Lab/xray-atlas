@@ -7,10 +7,15 @@ export interface MoleculeViewCreatedBy {
 
 export interface MoleculeViewContributor {
   id: string;
-  userId: string;
+  userId: string | null;
   contributionType: string;
   contributedAt: Date | string;
-  user: { id: string; name: string | null; image: string | null; orcid?: string | null };
+  user: {
+    id: string;
+    name: string | null;
+    image: string | null;
+    orcid?: string | null;
+  } | null;
 }
 
 export interface MoleculeViewTag {

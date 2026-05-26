@@ -3,12 +3,34 @@ import type { PrismaClient } from "~/prisma/client";
 import { AAL3, meetsAalRequirement } from "~/server/auth/aal";
 import {
   getPasskeyEnrollmentStatus,
-  requiresAal3ForUser,
+  type PasskeyEnrollmentStatus,
 } from "~/server/auth/passkey-policy";
 import { getSessionAssuranceForRequest } from "~/server/auth/session-assurance";
 
 type MfaAccessDb = Pick<PrismaClient, "authenticator" | "user" | "userAppRole"> &
   Pick<PrismaClient, "session" | "sessionAssurance">;
+
+function adminWriteAllowedFromStatus(
+  status: PasskeyEnrollmentStatus,
+  sessionAssertedAal: string | null | undefined,
+): boolean {
+  if (!status.enrolled) {
+    return false;
+  }
+  if (!status.requiresAal3Hardware) {
+    return true;
+  }
+  if (!status.hasAal3EligiblePasskey) {
+    return false;
+  }
+  if (
+    sessionAssertedAal &&
+    meetsAalRequirement(sessionAssertedAal, AAL3)
+  ) {
+    return true;
+  }
+  return status.hasAal3EligiblePasskey;
+}
 
 /**
  * Returns whether the user has completed passkey enrollment (at least one active credential).
@@ -34,21 +56,11 @@ export async function userMayAccessAdminWrites(
   req: Request | undefined,
 ): Promise<boolean> {
   const status = await getPasskeyEnrollmentStatus(db, userId);
-  if (!status.enrolled) {
-    return false;
-  }
-  const requiresAal3 = await requiresAal3ForUser(db, userId);
-  if (!requiresAal3) {
-    return true;
-  }
-  if (status.hasAal3EligiblePasskey) {
-    const assurance = await getSessionAssuranceForRequest(db, req);
-    if (assurance && meetsAalRequirement(assurance.assertedAal, AAL3)) {
-      return true;
-    }
-    return status.hasAal3EligiblePasskey;
-  }
-  return false;
+  const assurance =
+    status.requiresAal3Hardware && status.hasAal3EligiblePasskey
+      ? await getSessionAssuranceForRequest(db, req)
+      : null;
+  return adminWriteAllowedFromStatus(status, assurance?.assertedAal);
 }
 
 /**
@@ -76,12 +88,16 @@ export async function assertPasskeyEnrolledForAdmin(
   userId: string,
   req: Request | undefined,
 ): Promise<void> {
-  const allowed = await userMayAccessAdminWrites(db, userId, req);
+  const status = await getPasskeyEnrollmentStatus(db, userId);
+  const assurance =
+    status.requiresAal3Hardware && status.hasAal3EligiblePasskey
+      ? await getSessionAssuranceForRequest(db, req)
+      : null;
+  const allowed = adminWriteAllowedFromStatus(status, assurance?.assertedAal);
   if (!allowed) {
-    const requiresAal3 = await requiresAal3ForUser(db, userId);
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: requiresAal3
+      message: status.requiresAal3Hardware
         ? "Administrator access requires a hardware security key passkey. Enroll one from your profile, then sign in with that passkey."
         : "Register a passkey from your profile before using administration tools.",
     });

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { signIn as webauthnSignIn } from "next-auth/webauthn";
 import { Button, Tooltip } from "@heroui/react";
 import { Key } from "lucide-react";
 import { ORCIDIcon, GitHubIcon } from "~/components/icons";
-import { mapWebAuthnSignInError } from "~/lib/auth-sign-in-errors";
+import {
+  applyPasskeyClientRedirect,
+  runPasskeyClientAuth,
+} from "~/lib/passkey-client-auth";
 
 const ORCID_TOOLTIP =
   "ORCID is a free, unique, persistent identifier (PID) for individuals to use as they engage in research, scholarship, and innovation activities. It can also help you save time when you use your ORCID to sign into systems like this one. Learn more at orcid.org.";
@@ -56,28 +58,20 @@ export function SocialSignInButtons({
   const handlePasskey = async () => {
     setPasskeyError(null);
     onPasskeyError?.("");
-    const result = await webauthnSignIn("passkey", {
+    const result = await runPasskeyClientAuth({
       callbackUrl,
-      redirect: false,
+      errorFallback:
+        "Passkey sign-in failed. Try again or sign in with ORCID.",
+      incompleteFallback: "Passkey sign-in did not complete. Try again.",
     });
-    if (result?.error) {
+    if (!result.ok) {
       reportPasskeyError(
-        mapWebAuthnSignInError(
-          result.error,
+        result.errorMessage ??
           "Passkey sign-in failed. Try again or sign in with ORCID.",
-        ),
       );
       return;
     }
-    if (result?.url) {
-      window.location.assign(result.url);
-      return;
-    }
-    if (result?.ok) {
-      window.location.assign(callbackUrl);
-      return;
-    }
-    reportPasskeyError("Passkey sign-in did not complete. Try again.");
+    applyPasskeyClientRedirect(result);
   };
 
   const visiblePasskeyError = onPasskeyError ? null : passkeyError;

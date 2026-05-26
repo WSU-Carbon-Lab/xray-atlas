@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
+import { mapWebAuthnSignInError } from "~/lib/auth-sign-in-errors";
 
 export interface UsePasskeyEnrollmentGateOptions {
   onDecline?: () => void;
@@ -41,12 +42,14 @@ export function usePasskeyEnrollmentGate(
     isSignedIn && enrollmentQuery.data?.enrolled === true;
 
   const onEnrollmentError = (error: unknown) => {
-    showToast(
+    const message =
       error instanceof Error
-        ? error.message
-        : "Passkey registration did not complete.",
-      "error",
-    );
+        ? mapWebAuthnSignInError(
+            error.message,
+            "Passkey registration did not complete.",
+          )
+        : "Passkey registration did not complete.";
+    showToast(message, "error");
     options.onDecline?.();
   };
 

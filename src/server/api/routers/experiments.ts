@@ -25,6 +25,7 @@ import {
   fetchNexafsBrowseGrouped,
   type NexafsBrowseSortKey,
 } from "~/server/nexafs/nexafsBrowseGroups";
+import { findExperimentFavorite } from "~/server/db/engagement-queries";
 import {
   buildKkDeltaMetadata,
   deriveKkDeltaSourceOnCreate,
@@ -462,25 +463,15 @@ export const experimentsRouter = createTRPCRouter({
         });
       }
 
-      const existing = await ctx.db.experimentfavorites.findUnique({
-        where: {
-          experimentid_userid: {
-            experimentid: input.experimentId,
-            userid: ctx.userId,
-          },
-        },
-      });
+      const existing = await findExperimentFavorite(
+        ctx.db,
+        input.experimentId,
+        ctx.userId,
+      );
 
       if (existing) {
         await ctx.db.$transaction(async (tx) => {
-          await tx.experimentfavorites.delete({
-            where: {
-              experimentid_userid: {
-                experimentid: input.experimentId,
-                userid: ctx.userId,
-              },
-            },
-          });
+          await tx.experimentfavorites.delete({ where: { id: existing.id } });
           await tx.experimentquality.upsert({
             where: { experimentid: input.experimentId },
             create: { experimentid: input.experimentId, favorites: 0 },
