@@ -2,9 +2,11 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
+  privilegedWriteProcedure,
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { evaluateSessionWriteAssurance } from "~/server/auth/mfa-access";
 import { isAal3Eligible } from "~/server/auth/aal";
 import {
   getPasskeyEnrollmentStatus,
@@ -746,6 +748,13 @@ export const usersRouter = createTRPCRouter({
     return getPasskeyEnrollmentStatus(ctx.db, ctx.userId);
   }),
 
+  getSessionWriteAssurance: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    return evaluateSessionWriteAssurance(ctx.db, ctx.userId, ctx.req);
+  }),
+
   getPasskeys: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");
@@ -779,7 +788,7 @@ export const usersRouter = createTRPCRouter({
     }));
   }),
 
-  deletePasskey: protectedProcedure
+  deletePasskey: privilegedWriteProcedure
     .input(
       z.object({
         passkeyId: z.string().min(1).max(1024),
@@ -904,7 +913,7 @@ export const usersRouter = createTRPCRouter({
       return { image: updatedUser.image };
     }),
 
-  deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
+  deleteAccount: privilegedWriteProcedure.mutation(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");
     }

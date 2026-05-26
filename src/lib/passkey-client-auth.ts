@@ -1,5 +1,9 @@
 import { signIn as webauthnSignIn } from "next-auth/webauthn";
+import { TRPCClientError } from "@trpc/client";
 import { mapWebAuthnSignInError } from "~/lib/auth-sign-in-errors";
+import type { SessionWriteAssuranceAppCode } from "~/server/auth/mfa-access";
+
+export type { SessionWriteAssuranceAppCode };
 
 export interface RunPasskeyClientAuthOptions {
   callbackUrl?: string;
@@ -60,4 +64,38 @@ export function applyPasskeyClientRedirect(
   if (result.redirectUrl) {
     window.location.assign(result.redirectUrl);
   }
+}
+
+function readSessionAalAppCode(data: unknown): SessionWriteAssuranceAppCode | null {
+  if (typeof data !== "object" || data === null || !("appCode" in data)) {
+    return null;
+  }
+  const code = (data as { appCode: unknown }).appCode;
+  if (code === "SESSION_AAL_REQUIRED" || code === "SESSION_AAL3_REQUIRED") {
+    return code;
+  }
+  return null;
+}
+
+/**
+ * Returns whether `error` is a privileged-write FORBIDDEN that requires passkey session step-up.
+ */
+export function getSessionAalRequiredAppCode(
+  error: unknown,
+): SessionWriteAssuranceAppCode | null {
+  if (!(error instanceof TRPCClientError)) {
+    return null;
+  }
+  const data = error.data as { code?: string } | undefined;
+  if (data?.code !== "FORBIDDEN") {
+    return null;
+  }
+  return readSessionAalAppCode(data);
+}
+
+/**
+ * Returns whether `error` is a privileged-write FORBIDDEN that requires passkey session step-up.
+ */
+export function isSessionAalRequiredError(error: unknown): boolean {
+  return getSessionAalRequiredAppCode(error) !== null;
 }

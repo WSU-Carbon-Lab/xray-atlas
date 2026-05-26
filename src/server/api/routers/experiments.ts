@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   contributeWriteProcedure,
   createTRPCRouter,
+  privilegedWriteProcedure,
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
@@ -1501,7 +1502,7 @@ export const experimentsRouter = createTRPCRouter({
       return experiment;
     }),
 
-  remove: protectedProcedure
+  remove: privilegedWriteProcedure
     .input(z.object({ experimentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const experiment = await ctx.db.experiments.findUnique({
@@ -1533,7 +1534,7 @@ export const experimentsRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  transferOwnership: protectedProcedure
+  transferOwnership: privilegedWriteProcedure
     .input(
       z.object({
         experimentId: z.string().uuid(),
@@ -1596,7 +1597,7 @@ export const experimentsRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  getDeleteDataPointImpact: protectedProcedure
+  getDeleteDataPointImpact: privilegedWriteProcedure
     .input(z.object({ experimentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const experiment = await ctx.db.experiments.findUnique({
@@ -1630,7 +1631,7 @@ export const experimentsRouter = createTRPCRouter({
       return { dataPointsRemoved };
     }),
 
-  removeCollector: protectedProcedure
+  removeCollector: privilegedWriteProcedure
     .input(
       z.object({
         experimentId: z.string().uuid(),

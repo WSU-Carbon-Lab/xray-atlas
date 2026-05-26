@@ -1,13 +1,17 @@
 "use client";
 
-import { use, useCallback, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Tabs } from "@heroui/react";
 import { trpc } from "~/trpc/client";
 import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
 import { ToastContainer, useToast } from "@/components/ui/toast";
-import { runPasskeyClientAuth } from "~/lib/passkey-client-auth";
+import {
+  applyPasskeyClientRedirect,
+  getSessionAalRequiredAppCode,
+  runPasskeyClientAuth,
+} from "~/lib/passkey-client-auth";
 import {
   ProfileApiKeysSection,
   ProfileContributionsSection,
@@ -75,9 +79,16 @@ export default function UserProfilePage({
       enabled: isOwnProfile,
     });
 
+  const { data: sessionWriteAssurance } =
+    trpc.users.getSessionWriteAssurance.useQuery(undefined, {
+      enabled: isOwnProfile,
+    });
+
   const { data: passkeys } = trpc.users.getPasskeys.useQuery(undefined, {
     enabled: isOwnProfile,
   });
+
+  const [isPasskeySigningIn, setIsPasskeySigningIn] = useState(false);
 
   const tabIds = useMemo((): ProfileTabId[] => {
     if (isOwnProfile) {
@@ -85,6 +96,47 @@ export default function UserProfilePage({
     }
     return ["contributions"];
   }, [isOwnProfile]);
+
+  useEffect(() => {
+    if (passkeyRequiredRedirect && isOwnProfile) {
+      setSelectedTab("security");
+    }
+  }, [isOwnProfile, passkeyRequiredRedirect]);
+
+  const handlePasskeySignIn = useCallback(async () => {
+    setIsPasskeySigningIn(true);
+    try {
+      const result = await runPasskeyClientAuth({
+        action: "sign-in",
+        callbackUrl: window.location.href,
+        errorFallback: "Passkey sign-in failed. Please try again.",
+        incompleteFallback: "Passkey sign-in did not complete",
+      });
+
+      if (!result.ok) {
+        throw new Error(
+          result.errorMessage ?? "Passkey sign-in failed. Please try again.",
+        );
+      }
+
+      if (result.redirectUrl) {
+        applyPasskeyClientRedirect(result);
+        return;
+      }
+
+      await utils.users.getSessionWriteAssurance.invalidate();
+      showToast("Signed in with passkey", "success");
+    } catch (signInError) {
+      console.error("Failed passkey sign-in:", signInError);
+      showToast(
+        getErrorMessage(signInError, "Passkey sign-in failed"),
+        "error",
+        0,
+      );
+    } finally {
+      setIsPasskeySigningIn(false);
+    }
+  }, [showToast, utils.users.getSessionWriteAssurance]);
 
   const handleRegisterPasskey = useCallback(async () => {
     setIsRegisteringPasskey(true);
@@ -104,6 +156,7 @@ export default function UserProfilePage({
       await Promise.all([
         utils.users.getPasskeys.invalidate(),
         utils.users.getPasskeyEnrollmentStatus.invalidate(),
+        utils.users.getSessionWriteAssurance.invalidate(),
       ]);
       showToast("Passkey added", "success");
     } catch (registerError) {
@@ -116,7 +169,12 @@ export default function UserProfilePage({
     } finally {
       setIsRegisteringPasskey(false);
     }
-  }, [showToast, utils.users.getPasskeyEnrollmentStatus, utils.users.getPasskeys]);
+  }, [
+    showToast,
+    utils.users.getPasskeyEnrollmentStatus,
+    utils.users.getPasskeys,
+    utils.users.getSessionWriteAssurance,
+  ]);
 
   const handleDeletePasskey = useCallback(
     async (passkeyId: string) => {
@@ -131,9 +189,17 @@ export default function UserProfilePage({
           "error",
           0,
         );
+        if (getSessionAalRequiredAppCode(deleteError)) {
+          void handlePasskeySignIn();
+        }
       }
     },
-    [deletePasskey, showToast, utils.users.getPasskeys],
+    [
+      deletePasskey,
+      handlePasskeySignIn,
+      showToast,
+      utils.users.getPasskeys,
+    ],
   );
 
   const handleUnlinkGitHub = useCallback(
@@ -275,6 +341,9 @@ export default function UserProfilePage({
             <ProfileContributionsSection
               userId={user.id}
               isOwnProfile={isOwnProfile}
+              onSessionAalRequired={() => {
+                void handlePasskeySignIn();
+              }}
             />
           </Tabs.Panel>
 
@@ -288,10 +357,13 @@ export default function UserProfilePage({
                   passkeys={passkeys}
                   passkeyEnrollment={passkeyEnrollment}
                   passkeyRequiredRedirect={passkeyRequiredRedirect}
+                  sessionWriteAssurance={sessionWriteAssurance}
                   isRegistering={isRegisteringPasskey}
                   isDeleting={deletePasskey.isPending}
+                  isPasskeySigningIn={isPasskeySigningIn}
                   onRegister={handleRegisterPasskey}
                   onDelete={handleDeletePasskey}
+                  onPasskeySignIn={handlePasskeySignIn}
                 />
                 <ProfileGitHubSecuritySection
                   linkedAccounts={linkedAccounts}

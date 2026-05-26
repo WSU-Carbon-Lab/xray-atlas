@@ -7,7 +7,7 @@ import {
 import { getSessionTokenFromRequest } from "~/server/auth/session-token";
 
 const ORCID_AUTHENTICATOR = "orcid_oidc";
-const WEBAUTHN_AUTHENTICATOR = "webauthn";
+export const WEBAUTHN_AUTHENTICATOR = "webauthn";
 export const PLACEHOLDER_ASSERTED_AAL: AssertedAal = "aal1";
 
 export interface SessionAssuranceSnapshot {

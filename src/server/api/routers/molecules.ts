@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   contributeWriteProcedure,
   createTRPCRouter,
+  privilegedWriteProcedure,
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
@@ -1902,7 +1903,7 @@ export const moleculesRouter = createTRPCRouter({
       };
     }),
 
-  remove: protectedProcedure
+  remove: privilegedWriteProcedure
     .input(z.object({ moleculeId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const molecule = await ctx.db.molecules.findUnique({
@@ -1953,7 +1954,7 @@ export const moleculesRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  transferOwnership: protectedProcedure
+  transferOwnership: privilegedWriteProcedure
     .input(
       z.object({
         moleculeId: z.string().uuid(),
@@ -2021,7 +2022,7 @@ export const moleculesRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  getDeleteDataPointImpact: protectedProcedure
+  getDeleteDataPointImpact: privilegedWriteProcedure
     .input(z.object({ moleculeId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) {

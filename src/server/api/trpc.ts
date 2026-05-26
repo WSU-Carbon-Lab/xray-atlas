@@ -2,8 +2,9 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
 import {
-  assertPasskeyEnrolledForAdmin,
   assertPasskeyEnrolledForContribute,
+  SessionAalRequiredError,
+  assertSessionAalForPrivilegedWrites,
 } from "~/server/auth/mfa-access";
 import { hasManageUsersCapability } from "~/server/auth/privileged-role";
 
@@ -59,10 +60,15 @@ export const createTRPCContext = async (
 
 const t = initTRPC.context<typeof createTRPCContext>().create({
   errorFormatter({ shape, error }) {
+    const sessionAalAppCode =
+      error.cause instanceof SessionAalRequiredError
+        ? error.cause.appCode
+        : undefined;
     return {
       ...shape,
       data: {
         ...shape.data,
+        appCode: sessionAalAppCode,
         zodError:
           error.cause instanceof Error &&
           "name" in error.cause &&
@@ -129,11 +135,11 @@ const enforceManageUsers = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-const enforcePasskeyForAdmin = t.middleware(async ({ ctx, next }) => {
+const enforcePrivilegedSessionAal = t.middleware(async ({ ctx, next }) => {
   if (!ctx.userId) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
-  await assertPasskeyEnrolledForAdmin(ctx.db, ctx.userId, ctx.req);
+  await assertSessionAalForPrivilegedWrites(ctx.db, ctx.userId, ctx.req);
   return next({
     ctx: {
       userId: ctx.userId,
@@ -141,6 +147,10 @@ const enforcePasskeyForAdmin = t.middleware(async ({ ctx, next }) => {
   });
 });
 
+/** Destructive or ownership-changing writes require passkey enrollment and session AAL. */
+export const privilegedWriteProcedure =
+  protectedProcedure.use(enforcePrivilegedSessionAal);
+
 export const adminProcedure = protectedProcedure
   .use(enforceManageUsers)
-  .use(enforcePasskeyForAdmin);
+  .use(enforcePrivilegedSessionAal);

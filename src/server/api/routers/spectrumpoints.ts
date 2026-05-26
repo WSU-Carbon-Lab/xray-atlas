@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   createTRPCRouter,
+  privilegedWriteProcedure,
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
@@ -270,7 +271,7 @@ export const spectrumpointsRouter = createTRPCRouter({
       };
     }),
 
-  deleteByExperiment: protectedProcedure
+  deleteByExperiment: privilegedWriteProcedure
     .input(z.object({ experimentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const experiment = await ctx.db.experiments.findUnique({
