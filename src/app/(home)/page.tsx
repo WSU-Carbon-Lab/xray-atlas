@@ -3,7 +3,8 @@
 import type { ComponentType } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Button, Chip } from "@heroui/react";
+import { Button } from "@heroui/react";
+import { AccentNavChip } from "@/components/ui/accent-nav-chip";
 import { cn } from "@heroui/styles";
 import { Upload } from "lucide-react";
 import {
@@ -255,73 +256,21 @@ const homeQuickLinks: readonly HomeQuickLink[] = [
 
 function WikiQuickStartChip() {
   return (
-    <Link
+    <AccentNavChip
       href="/wiki/home"
-      className="focus-visible:ring-accent inline-flex max-w-full rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-    >
-      <Chip
-        variant="soft"
-        color="accent"
-        size="md"
-        className={cn(
-          "max-w-full cursor-pointer shadow-sm backdrop-blur-sm transition-opacity hover:opacity-90",
-          "dark:border dark:border-accent/55 dark:bg-accent/28 dark:shadow-md dark:backdrop-blur-none",
-        )}
-      >
-        <BookOpenIcon
-          className="size-4 shrink-0 text-accent dark:text-accent-foreground"
-          aria-hidden
-        />
-        <Chip.Label
-          className={cn(
-            "min-w-0 text-balance font-medium",
-            "text-accent dark:text-accent-foreground",
-          )}
-        >
-          Quick start: NEXAFS terminology & data guide
-        </Chip.Label>
-        <ChevronRightIcon
-          className="size-4 shrink-0 text-accent opacity-75 dark:text-accent-foreground dark:opacity-90"
-          aria-hidden
-        />
-      </Chip>
-    </Link>
+      label="Quick start: NEXAFS terminology & data guide"
+      icon={BookOpenIcon}
+    />
   );
 }
 
 function BrowseCatalogChip() {
   return (
-    <Link
+    <AccentNavChip
       href="/browse/molecules"
-      className="focus-visible:ring-accent inline-flex max-w-full rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-    >
-      <Chip
-        variant="soft"
-        color="accent"
-        size="md"
-        className={cn(
-          "max-w-full cursor-pointer shadow-sm backdrop-blur-sm transition-opacity hover:opacity-90",
-          "dark:border dark:border-accent/55 dark:bg-accent/28 dark:shadow-md dark:backdrop-blur-none",
-        )}
-      >
-        <BeakerIcon
-          className="size-4 shrink-0 text-accent dark:text-accent-foreground"
-          aria-hidden
-        />
-        <Chip.Label
-          className={cn(
-            "min-w-0 text-balance font-medium",
-            "text-accent dark:text-accent-foreground",
-          )}
-        >
-          Browse catalog
-        </Chip.Label>
-        <ChevronRightIcon
-          className="size-4 shrink-0 text-accent opacity-75 dark:text-accent-foreground dark:opacity-90"
-          aria-hidden
-        />
-      </Chip>
-    </Link>
+      label="Browse catalog"
+      icon={BeakerIcon}
+    />
   );
 }
 

@@ -9,11 +9,10 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { AlertCircle } from "lucide-react";
-import { Chip } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { BookOpenIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { BookOpenIcon } from "@heroicons/react/24/outline";
+import { AccentNavChip } from "@/components/ui/accent-nav-chip";
 import {
   DATASET_QUALITY_MISSING_STATISTIC_PENALTY,
   type NexafsBrowseDatasetMetricBarModel,
@@ -529,38 +528,14 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
 
 function DatasetQualityWikiChip() {
   return (
-    <Link
+    <AccentNavChip
       href="/wiki/platform-features/dataset-quality-metrics"
-      className="focus-visible:ring-accent focus-visible:ring-offset-background mt-2 inline-flex max-w-full rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <Chip
-        variant="soft"
-        color="accent"
-        size="sm"
-        className={cn(
-          "max-w-full cursor-pointer shadow-sm backdrop-blur-sm transition-opacity hover:opacity-90",
-          "dark:border dark:border-accent/55 dark:bg-accent/28 dark:shadow-md dark:backdrop-blur-none",
-        )}
-      >
-        <BookOpenIcon
-          className="size-3.5 shrink-0 text-accent dark:text-accent-foreground"
-          aria-hidden
-        />
-        <Chip.Label
-          className={cn(
-            "min-w-0 text-balance text-[11px] font-medium leading-tight",
-            "text-accent dark:text-accent-foreground",
-          )}
-        >
-          Dataset quality metrics guide
-        </Chip.Label>
-        <ChevronRightIcon
-          className="size-3.5 shrink-0 text-accent opacity-75 dark:text-accent-foreground dark:opacity-90"
-          aria-hidden
-        />
-      </Chip>
-    </Link>
+      label="Dataset quality metrics guide"
+      icon={BookOpenIcon}
+      size="sm"
+      linkClassName="focus-visible:ring-offset-background mt-2"
+      onClick={(event) => event.stopPropagation()}
+    />
   );
 }
 

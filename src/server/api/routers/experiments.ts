@@ -54,6 +54,10 @@ const nexafsVerificationSourceSchema = z
   .enum(["either", "publication", "atlas"])
   .default("either");
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
+import {
+  userMayDeleteExperiment,
+  userMayTransferExperimentOwnership,
+} from "~/server/nexafs/experimentManageAuthz";
 
 const emptyDerivedScalars = (): {
   od: Array<number | null>;
@@ -1495,5 +1499,194 @@ export const experimentsRouter = createTRPCRouter({
       });
 
       return experiment;
+    }),
+
+  remove: protectedProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true, createdby: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+      const allowed = await userMayDeleteExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+      if (!allowed) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to delete this experiment",
+        });
+      }
+
+      await ctx.db.experiments.delete({
+        where: { id: input.experimentId },
+      });
+
+      return { success: true };
+    }),
+
+  transferOwnership: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        newCreatorId: orcidUserIdSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true, createdby: true },
+      });
+
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      const allowed = await userMayTransferExperimentOwnership(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+      if (!allowed) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the dataset owner can transfer ownership",
+        });
+      }
+
+      if (input.newCreatorId === ctx.userId) {
+        return { success: true };
+      }
+
+      const newUser = await ctx.db.user.findUnique({
+        where: { id: input.newCreatorId },
+        select: { id: true },
+      });
+
+      if (!newUser) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Selected recipient user not found",
+        });
+      }
+
+      await ctx.db.experiments.update({
+        where: { id: input.experimentId },
+        data: { createdby: input.newCreatorId },
+      });
+
+      return { success: true };
+    }),
+
+  getDeleteDataPointImpact: protectedProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { createdby: true },
+      });
+
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      const allowed = await userMayDeleteExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+      if (!allowed) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to view delete impact",
+        });
+      }
+
+      const dataPointsRemoved = await ctx.db.spectrumpoints.count({
+        where: { experimentid: input.experimentId },
+      });
+
+      return { dataPointsRemoved };
+    }),
+
+  removeCollector: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        collectorUserId: orcidUserIdSchema.optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+
+      const targetUserId = input.collectorUserId ?? ctx.userId;
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: {
+          id: true,
+          createdby: true,
+          collectedbyuserids: true,
+        },
+      });
+
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      if (!experiment.collectedbyuserids.includes(targetUserId)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "User is not listed as a collector on this dataset",
+        });
+      }
+
+      const isOwner = experiment.createdby === ctx.userId;
+      const isSelf = targetUserId === ctx.userId;
+      if (!isOwner && !isSelf) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only remove your own collector listing",
+        });
+      }
+
+      const nextCollectorIds = experiment.collectedbyuserids.filter(
+        (id) => id !== targetUserId,
+      );
+
+      await ctx.db.experiments.update({
+        where: { id: input.experimentId },
+        data: { collectedbyuserids: nextCollectorIds },
+      });
+
+      return { success: true };
     }),
 });

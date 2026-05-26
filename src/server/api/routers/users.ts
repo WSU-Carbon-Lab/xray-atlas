@@ -462,8 +462,38 @@ export const usersRouter = createTRPCRouter({
         offset: input.offset,
       });
 
+      const ownershipRows =
+        groups.length === 0
+          ? []
+          : await ctx.db.experiments.findMany({
+              where: { id: { in: groups.map((group) => group.experimentId) } },
+              select: {
+                id: true,
+                createdby: true,
+                collectedbyuserids: true,
+              },
+            });
+      const ownershipByExperimentId = new Map(
+        ownershipRows.map((row) => [row.id, row]),
+      );
+
+      const enrichedGroups = groups.map((group) => {
+        const ownership = ownershipByExperimentId.get(group.experimentId);
+        const profileContributions: Array<"creator" | "collector"> = [];
+        if (ownership?.createdby === userId) {
+          profileContributions.push("creator");
+        }
+        if (
+          ownership?.collectedbyuserids.includes(userId) &&
+          ownership.createdby !== userId
+        ) {
+          profileContributions.push("collector");
+        }
+        return { ...group, profileContributions };
+      });
+
       return {
-        groups,
+        groups: enrichedGroups,
         total,
         hasMore: input.offset + groups.length < total,
       };

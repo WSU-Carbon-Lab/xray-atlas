@@ -338,7 +338,7 @@ export async function fetchNexafsBrowseGrouped(
           SELECT 1
           FROM experiment_favorites ef
           WHERE ef.experiment_id = e.id
-            AND ef.user_id = ${viewerUserId}::uuid
+            AND ef.user_id = ${viewerUserId}
         ) AS user_has_favorited,
         e.createdat,
         e.createdby,

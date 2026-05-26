@@ -13,11 +13,9 @@ import { runPasskeyClientAuth } from "~/lib/passkey-client-auth";
 import {
   ProfileApiKeysSection,
   ProfileContributionsSection,
-  ProfileGitHubHeaderBadge,
   ProfileGitHubSecuritySection,
   ProfileHeader,
   type ProfileGitHubPresentation,
-  ProfileOverviewSection,
   ProfilePasskeysSection,
   ProfileSectionCard,
 } from "./profile-sections";
@@ -28,7 +26,7 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
     : fallbackMessage;
 }
 
-type ProfileTabId = "overview" | "security" | "contributions";
+type ProfileTabId = "contributions" | "security";
 
 export default function UserProfilePage({
   params,
@@ -56,7 +54,7 @@ export default function UserProfilePage({
   const { toasts, removeToast, showToast } = useToast();
 
   const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<ProfileTabId>("overview");
+  const [selectedTab, setSelectedTab] = useState<ProfileTabId>("contributions");
 
   const isOwnProfile =
     !!session?.user?.id && !!user && session.user.id === user.id;
@@ -77,9 +75,9 @@ export default function UserProfilePage({
 
   const tabIds = useMemo((): ProfileTabId[] => {
     if (isOwnProfile) {
-      return ["overview", "security", "contributions"];
+      return ["contributions", "security"];
     }
-    return ["overview", "contributions"];
+    return ["contributions"];
   }, [isOwnProfile]);
 
   const handleRegisterPasskey = useCallback(async () => {
@@ -237,54 +235,50 @@ export default function UserProfilePage({
       <div className="space-y-6">
         <ProfileHeader
           user={user}
-          githubBadge={
-            <ProfileGitHubHeaderBadge
-              github={headerGithub}
-              isOwnProfile={isOwnProfile}
-            />
-          }
+          github={headerGithub}
+          isOwnProfile={isOwnProfile}
         />
 
-        <Tabs
-          selectedKey={effectiveTab}
-          onSelectionChange={(key) => {
-            const next = String(key);
-            if (next === "overview" || next === "security" || next === "contributions") {
-              setSelectedTab(next);
-            }
-          }}
-          className="w-full"
-        >
-          <Tabs.ListContainer className="w-full">
-            <Tabs.List
-              aria-label="Profile sections"
-              className="border-border bg-surface flex w-full flex-wrap gap-1 rounded-xl border p-1"
-            >
-              <Tabs.Tab id="overview" className="flex-1 px-4 py-2 text-sm font-medium">
-                Overview
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              {isOwnProfile ? (
-                <Tabs.Tab id="security" className="flex-1 px-4 py-2 text-sm font-medium">
+        {isOwnProfile ? (
+          <Tabs
+            selectedKey={effectiveTab}
+            onSelectionChange={(key) => {
+              const next = String(key);
+              if (next === "security" || next === "contributions") {
+                queueMicrotask(() => setSelectedTab(next));
+              }
+            }}
+            className="w-full"
+          >
+            <Tabs.ListContainer className="w-full">
+              <Tabs.List
+                aria-label="Profile sections"
+                className="border-border bg-surface flex w-full flex-wrap gap-1 rounded-xl border p-1"
+              >
+                <Tabs.Tab
+                  id="contributions"
+                  className="flex-1 px-4 py-2 text-sm font-medium"
+                >
+                  Contributions
+                  <Tabs.Indicator />
+                </Tabs.Tab>
+                <Tabs.Tab
+                  id="security"
+                  className="flex-1 px-4 py-2 text-sm font-medium"
+                >
                   Security
                   <Tabs.Indicator />
                 </Tabs.Tab>
-              ) : null}
-              <Tabs.Tab
-                id="contributions"
-                className="flex-1 px-4 py-2 text-sm font-medium"
-              >
-                Contributions
-                <Tabs.Indicator />
-              </Tabs.Tab>
-            </Tabs.List>
-          </Tabs.ListContainer>
+              </Tabs.List>
+            </Tabs.ListContainer>
 
-          <Tabs.Panel id="overview" className="pt-6">
-            <ProfileOverviewSection userId={user.id} />
-          </Tabs.Panel>
+            <Tabs.Panel id="contributions" className="pt-6">
+              <ProfileContributionsSection
+                userId={user.id}
+                isOwnProfile={isOwnProfile}
+              />
+            </Tabs.Panel>
 
-          {isOwnProfile ? (
             <Tabs.Panel id="security" className="pt-6">
               <ProfileSectionCard
                 title="Account security"
@@ -307,15 +301,13 @@ export default function UserProfilePage({
                 <ProfileApiKeysSection />
               </ProfileSectionCard>
             </Tabs.Panel>
-          ) : null}
-
-          <Tabs.Panel id="contributions" className="pt-6">
-            <ProfileContributionsSection
-              userId={user.id}
-              isOwnProfile={isOwnProfile}
-            />
-          </Tabs.Panel>
-        </Tabs>
+          </Tabs>
+        ) : (
+          <ProfileContributionsSection
+            userId={user.id}
+            isOwnProfile={isOwnProfile}
+          />
+        )}
       </div>
     </div>
   );
