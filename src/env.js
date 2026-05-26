@@ -82,7 +82,3 @@ export const env = createEnv({
    */
   emptyStringAsUndefined: true,
 });
-
-if (env.NODE_ENV === "production" && !env.OAUTH_TOKEN_ENCRYPTION_KEY) {
-  throw new Error("OAUTH_TOKEN_ENCRYPTION_KEY_MISSING");
-}
