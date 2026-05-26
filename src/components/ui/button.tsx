@@ -15,20 +15,32 @@ import { Button as HeroButton } from "@heroui/react";
  */
 type DefaultButtonProps = React.ComponentProps<typeof HeroButton>;
 
+function buttonHeightClass(size: DefaultButtonProps["size"]): string {
+  switch (size ?? "md") {
+    case "sm":
+      return "h-8";
+    case "lg":
+      return "h-11";
+    default:
+      return "h-10";
+  }
+}
+
 export function DefaultButton({
   children,
   className,
   variant = "primary",
+  size = "md",
   ...props
 }: DefaultButtonProps) {
   const variantClasses =
     variant === "outline"
       ? "bg-surface hover:bg-default border-border"
       : "bg-accent text-accent-foreground border-accent hover:opacity-90";
-  const baseClassName = `cursor-pointer flex h-8 items-center gap-2 rounded-lg border px-3 shadow-sm transition-[background-color,box-shadow] hover:shadow-md [touch-action:manipulation] border-border text-foreground ${variantClasses}`;
+  const baseClassName = `cursor-pointer flex ${buttonHeightClass(size)} items-center gap-2 rounded-lg border px-3 shadow-sm transition-[background-color,box-shadow] hover:shadow-md [touch-action:manipulation] border-border text-foreground ${variantClasses}`;
 
-  const resolvedClassName = typeof className === "string" 
-    ? `${baseClassName} ${className}` 
+  const resolvedClassName = typeof className === "string"
+    ? `${baseClassName} ${className}`
     : typeof className === "function"
       ? (renderProps: Parameters<typeof className>[0]) => {
           const custom = className(renderProps);
@@ -40,7 +52,7 @@ export function DefaultButton({
     <HeroButton
       {...props}
       variant={variant}
-      size={props.size ?? "md"}
+      size={size}
       className={resolvedClassName}
     >
       {children}

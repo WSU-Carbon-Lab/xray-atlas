@@ -15,6 +15,12 @@ const GITHUB_TOOLTIP =
 const PASSKEY_TOOLTIP =
   "Sign in securely using a passkey. Passkeys use your device's biometric authentication (fingerprint, face recognition) or a security key for passwordless sign-in.";
 
+const orcidSignInButtonClassName =
+  "orcid-sign-in-button flex w-full max-w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl font-semibold text-text-primary transition-[transform,filter] hover:scale-[1.01] data-[hovered=true]:scale-[1.01] touch-manipulation";
+
+const secondaryButtonClassName =
+  "flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border-default bg-surface-2 text-text-primary transition-[background-color,box-shadow,transform,filter] hover:scale-[1.01] hover:bg-surface-3 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 data-[hovered=true]:scale-[1.01] data-[hovered=true]:brightness-105 touch-manipulation";
+
 interface SocialSignInButtonsProps {
   callbackUrl: string;
   onSignIn?: () => void;
@@ -43,18 +49,14 @@ export function SocialSignInButtons({
     <div className="flex w-full flex-col gap-3">
       <Tooltip delay={0}>
         <Tooltip.Trigger>
-          <div
-            className="orcid-gradient-border w-full max-w-full rounded-2xl p-px"
-            role="group"
+          <Button
+            className={orcidSignInButtonClassName}
+            variant="tertiary"
+            onPress={handleORCID}
           >
-            <Button
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-surface-1 text-text-primary transition-[background-color,box-shadow,transform,filter] hover:scale-[1.01] hover:bg-surface-2 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 data-[hovered=true]:scale-[1.01] data-[hovered=true]:brightness-105 touch-manipulation"
-              onPress={handleORCID}
-            >
-              <ORCIDIcon className="h-5 w-5 shrink-0" authenticated />
-              Sign in with ORCID
-            </Button>
-          </div>
+            <ORCIDIcon className="h-5 w-5 shrink-0" authenticated />
+            Sign in or Sign up with ORCID
+          </Button>
         </Tooltip.Trigger>
         <Tooltip.Content placement="top" className="max-w-xs">
           <p>{ORCID_TOOLTIP}</p>
@@ -63,7 +65,7 @@ export function SocialSignInButtons({
       <Tooltip delay={0}>
         <Tooltip.Trigger>
           <Button
-            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border-default bg-surface-2 text-text-primary transition-[background-color,box-shadow,transform,filter] hover:scale-[1.01] hover:bg-surface-3 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 data-[hovered=true]:scale-[1.01] data-[hovered=true]:brightness-105 touch-manipulation"
+            className={secondaryButtonClassName}
             variant="tertiary"
             onPress={handleGitHub}
           >
@@ -85,7 +87,7 @@ export function SocialSignInButtons({
       <Tooltip delay={0}>
         <Tooltip.Trigger>
           <Button
-            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border-default bg-surface-2 text-text-primary transition-[background-color,box-shadow,transform,filter] hover:scale-[1.01] hover:bg-surface-3 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 data-[hovered=true]:scale-[1.01] data-[hovered=true]:brightness-105 touch-manipulation"
+            className={secondaryButtonClassName}
             variant="tertiary"
             onPress={handlePasskey}
           >

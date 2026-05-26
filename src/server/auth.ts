@@ -1,9 +1,20 @@
 import NextAuth from "next-auth";
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+} from "@simplewebauthn/server";
 import { db } from "~/server/db";
 import { env } from "~/env";
 import GitHub from "next-auth/providers/github";
 import Passkey from "next-auth/providers/passkey";
 import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers";
+import { assertedAalForAuthenticator } from "~/server/auth/aal";
+import {
+  setPendingPasskeyAssurance,
+  setPendingPasskeyEnrollmentMeta,
+} from "~/server/auth/passkey-ceremony-bridge";
 import { cookies } from "next/headers";
 import {
   getUserSessionCapabilities,
@@ -11,6 +22,9 @@ import {
 } from "~/server/auth/privileged-role";
 import { PrismaAdapterOrcid } from "~/server/auth/prisma-adapter-orcid";
 import { parseOrcidForStorage } from "~/lib/orcid";
+import { emitAuditEvent } from "~/server/audit";
+import { enrichUserProfileFromOrcidUserinfo } from "~/server/auth/orcid-userinfo";
+import { resolveWebAuthnRelayingParty } from "~/server/auth/webauthn-relaying-party";
 
 const emptySessionCapabilities: UserSessionCapabilities = {
   canAccessLabs: false,
@@ -113,11 +127,79 @@ if (githubClientId && githubClientSecret) {
   );
 }
 
-providers.push(Passkey({}));
+const webAuthnRp = resolveWebAuthnRelayingParty();
 
-const useSecureCookies = env.AUTH_URL?.startsWith("https://") ?? false;
+function normalizeCredentialId(credentialId: string): string {
+  return Buffer.from(credentialId, "base64").toString("base64");
+}
+
+providers.push(
+  Passkey({
+    relayingParty: {
+      id: webAuthnRp.id,
+      name: webAuthnRp.name,
+      origin: webAuthnRp.origin,
+    },
+    registrationOptions: {
+      authenticatorSelection: {
+        residentKey: "preferred",
+        userVerification: "required",
+      },
+    },
+    simpleWebAuthn: {
+      generateAuthenticationOptions,
+      generateRegistrationOptions,
+      verifyRegistrationResponse: async (options) => {
+        const verification = await verifyRegistrationResponse(options);
+        if (verification.verified && verification.registrationInfo) {
+          const { registrationInfo } = verification;
+          const credentialId = Buffer.from(registrationInfo.credentialID).toString(
+            "base64",
+          );
+          await setPendingPasskeyEnrollmentMeta({
+            credentialId,
+            aaguid: registrationInfo.aaguid ?? null,
+            attestationFormat: registrationInfo.fmt ?? null,
+            credentialDeviceType: registrationInfo.credentialDeviceType,
+          });
+        }
+        return verification;
+      },
+      verifyAuthenticationResponse: async (options) => {
+        const verification = await verifyAuthenticationResponse(options);
+        if (verification.verified) {
+          const credentialId = normalizeCredentialId(options.response.id);
+          const row = await db.authenticator.findFirst({
+            where: { credentialID: credentialId, revokedAt: null },
+            select: {
+              aaguid: true,
+              attestationFormat: true,
+              credentialDeviceType: true,
+            },
+          });
+          await setPendingPasskeyAssurance({
+            credentialId,
+            assertedAal: row
+              ? assertedAalForAuthenticator(row)
+              : assertedAalForAuthenticator({
+                  aaguid: null,
+                  attestationFormat: null,
+                  credentialDeviceType: "multiDevice",
+                }),
+          });
+        }
+        return verification;
+      },
+    },
+  }),
+);
+
+const useSecureCookies =
+  env.NODE_ENV === "production" && env.AUTH_URL.startsWith("https://");
 const cookiePrefix = useSecureCookies ? "__Secure-" : "";
 const sameSite = useSecureCookies ? ("none" as const) : ("lax" as const);
+const nextAuthPublicUrl =
+  env.NODE_ENV === "production" ? env.AUTH_URL : undefined;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapterOrcid(db),
@@ -128,7 +210,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   trustHost: true,
   basePath: "/api/auth",
-  ...(env.AUTH_URL && { url: env.AUTH_URL }),
+  ...(nextAuthPublicUrl ? { url: nextAuthPublicUrl } : {}),
   cookies: {
     pkceCodeVerifier: {
       name: `${cookiePrefix}next-auth.pkce.code_verifier`,
@@ -153,6 +235,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: {
     strategy: "database",
+  },
+  events: {
+    linkAccount: async ({ user, account }) => {
+      if (!user.id || !account.provider) return;
+      await emitAuditEvent({
+        eventType: "account.link.complete",
+        eventScope: "auth.account",
+        actorUserId: user.id,
+        subjectUserId: user.id,
+        payload: {
+          provider: account.provider,
+          providerAccountId: account.providerAccountId,
+        },
+        failSilent: true,
+      });
+    },
   },
   callbacks: {
     async signIn({ user, account }) {
@@ -214,6 +312,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           } catch {
             return "/sign-in?error=InvalidOrcid";
           }
+
+          if (user.id && account.access_token) {
+            try {
+              await enrichUserProfileFromOrcidUserinfo(
+                db,
+                user.id,
+                account.access_token,
+              );
+            } catch (err) {
+              console.error(
+                "[NextAuth] ORCID userinfo enrichment failed; sign-in continues.",
+                err,
+              );
+            }
+          }
         }
 
         if (linkingUserId && linkingProvider === account.provider) {
@@ -244,6 +357,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               where: { id: existingAccount.id },
               data: { userId: currentUserId },
             });
+            await emitAuditEvent({
+              eventType: "account.link.complete",
+              eventScope: "auth.account",
+              actorUserId: currentUserId,
+              subjectUserId: currentUserId,
+              payload: {
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+              },
+              failSilent: true,
+            });
             cookieStore.delete("linkAccountUserId");
             cookieStore.delete("linkAccountProvider");
             return true;
@@ -259,10 +383,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
 
           if (orphanedAccounts.length === 0) {
+            const orphanUserId = user.id;
             await db.user.delete({
-              where: { id: user.id },
+              where: { id: orphanUserId },
+            });
+            await emitAuditEvent({
+              eventType: "user.delete",
+              eventScope: "account.link.merge",
+              actorUserId: currentUserId,
+              subjectUserId: orphanUserId,
+              failSilent: true,
             });
           }
+
+          await emitAuditEvent({
+            eventType: "account.link.complete",
+            eventScope: "auth.account.merge",
+            actorUserId: currentUserId,
+            subjectUserId: currentUserId,
+            payload: {
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+            },
+            failSilent: true,
+          });
 
           cookieStore.delete("linkAccountUserId");
           cookieStore.delete("linkAccountProvider");
@@ -336,6 +480,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           user: {
             ...session.user,
             id: user.id,
+            email: user.id,
             ...caps,
           },
         };

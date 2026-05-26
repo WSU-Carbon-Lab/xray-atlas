@@ -21,6 +21,7 @@ import type { Key } from "@heroui/react";
 import { Breadcrumbs, Button, Card, Form, Separator, Tabs } from "@heroui/react";
 import { parseFacilityJsonFile } from "~/app/contribute/facility/utils/parse-facility-json";
 import { parseFacilityCsvFile } from "~/app/contribute/facility/utils/parse-facility-csv";
+import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
 
 import { skipToken } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -48,12 +49,24 @@ export default function FacilityContributePage({
   const router = useRouter();
   const { data: session } = useSession();
   const isSignedIn = !!session?.user;
-  const [showAgreementModal, setShowAgreementModal] = useState(false);
   const isModal = variant === "modal";
 
-  const handleAgreementAccepted = () => {
-    setShowAgreementModal(false);
-  };
+  const {
+    isCheckingAgreement,
+    canContribute,
+    showAgreementModal,
+    isAccepting,
+    handleAgree,
+    onModalClose,
+  } = useContributionAgreementGate({
+    onDecline: () => {
+      if (isModal) {
+        onClose?.();
+      } else {
+        router.push("/contribute");
+      }
+    },
+  });
   const [facilityData, setFacilityData] = useState<FacilityFormState>({
     name: "",
     city: "",
@@ -521,14 +534,9 @@ export default function FacilityContributePage({
     <>
       <ContributionAgreementModal
         isOpen={showAgreementModal}
-        onClose={() => {
-          if (isModal) {
-            onClose?.();
-          } else {
-            router.push("/contribute");
-          }
-        }}
-        onAgree={handleAgreementAccepted}
+        onClose={onModalClose}
+        onAgree={handleAgree}
+        isSubmitting={isAccepting}
       />
       <ContributionFileDropOverlay
         isDragging={isDragging}
@@ -555,6 +563,13 @@ export default function FacilityContributePage({
             database, use the Instruments step to add rows, then submit once.
           </p>
 
+          {isCheckingAgreement ? (
+            <p className="text-muted text-sm">
+              Checking contribution agreement status...
+            </p>
+          ) : null}
+
+          {canContribute ? (
           <Form onSubmit={handleSubmit} className="space-y-8">
             <Tabs
               selectedKey={contributeStep}
@@ -705,6 +720,7 @@ export default function FacilityContributePage({
               </div>
             ) : null}
           </Form>
+          ) : null}
         </div>
       </div>
     </>

@@ -1,5 +1,7 @@
 -- Applied on Supabase as migration `grant_next_auth_prisma_permissions`.
 -- Grants the `prisma` role full access to next_auth and aligns object ownership.
+-- `audit_event` INSERT-only (no UPDATE/DELETE) is enforced in migration 20260526120000_audit_event;
+-- the ownership loop below still assigns table owner to `prisma` for new next_auth tables.
 
 GRANT USAGE, CREATE ON SCHEMA next_auth TO prisma;
 

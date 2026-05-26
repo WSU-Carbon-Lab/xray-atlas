@@ -1,7 +1,9 @@
 "use client";
 
 import { use, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { signIn as webauthnSignIn } from "next-auth/webauthn";
 import { trpc } from "~/trpc/client";
 import { PageSkeleton } from "@/components/feedback/loading-state";
 import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
@@ -33,13 +35,6 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
   return error instanceof Error && error.message
     ? error.message
     : fallbackMessage;
-}
-
-function base64urlDecode(str: string): Uint8Array {
-  let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
-  const pad = base64.length % 4;
-  if (pad) base64 += "=".repeat(4 - pad);
-  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 }
 
 export default function UserProfilePage({
@@ -78,6 +73,14 @@ export default function UserProfilePage({
     },
   );
 
+  const searchParams = useSearchParams();
+  const passkeyRequiredRedirect = searchParams.get("passkey") === "required";
+
+  const { data: passkeyEnrollment } = trpc.users.getPasskeyEnrollmentStatus.useQuery(
+    undefined,
+    { enabled: isOwnProfile },
+  );
+
   const { data: passkeys } = trpc.users.getPasskeys.useQuery(undefined, {
     enabled: isOwnProfile,
   });
@@ -85,110 +88,21 @@ export default function UserProfilePage({
   const handleRegisterPasskey = async () => {
     setIsRegisteringPasskey(true);
     try {
-      const registerResponse = await fetch("/api/passkeys/register", {
-        method: "POST",
+      const result = await webauthnSignIn("passkey", {
+        redirect: false,
+        action: "register",
       });
 
-      if (!registerResponse.ok) {
-        throw new Error("Failed to generate registration options");
+      if (result?.error) {
+        throw new Error(result.error);
       }
 
-      const options = (await registerResponse.json()) as {
-        challenge: string;
-        user: { id: string; name: string; displayName: string };
-        excludeCredentials?: Array<{
-          id: string | { type: "Buffer"; data: number[] };
-          type: "public-key";
-        }>;
-        rp: { name: string; id: string };
-        pubKeyCredParams: Array<{ type: "public-key"; alg: number }>;
-        authenticatorSelection?: unknown;
-        timeout?: number;
-        attestation?: "none" | "indirect" | "direct";
-      };
-
-      const credentialIdToBufferSource = (
-        id: string | { type: "Buffer"; data: number[] },
-      ): BufferSource =>
-        (typeof id === "string"
-          ? base64urlDecode(id)
-          : new Uint8Array(id.data)) as BufferSource;
-
-      const publicKeyOptions: PublicKeyCredentialCreationOptions = {
-        challenge: Uint8Array.from(atob(options.challenge), (c) =>
-          c.charCodeAt(0),
-        ),
-        rp: options.rp,
-        user: {
-          id: base64urlDecode(options.user.id) as BufferSource,
-          name: options.user.name,
-          displayName: options.user.displayName,
-        },
-        pubKeyCredParams: options.pubKeyCredParams.map((param) => ({
-          type: "public-key" as const,
-          alg: param.alg,
-        })),
-        excludeCredentials: options.excludeCredentials?.map((cred) => ({
-          id: credentialIdToBufferSource(cred.id),
-          type: "public-key",
-        })),
-        timeout: options.timeout,
-        attestation: options.attestation ?? "none",
-        authenticatorSelection: options.authenticatorSelection as
-          | AuthenticatorSelectionCriteria
-          | undefined,
-      };
-
-      const credential = (await navigator.credentials.create({
-        publicKey: publicKeyOptions,
-      })) as PublicKeyCredential | null;
-
-      if (!credential) {
-        throw new Error("Failed to create credential");
-      }
-
-      const attestationResponse =
-        credential.response as AuthenticatorAttestationResponse;
-      const credentialId = Array.from(new Uint8Array(credential.rawId))
-        .map((b) => String.fromCharCode(b))
-        .join("");
-      const clientDataJSON = Array.from(
-        new Uint8Array(attestationResponse.clientDataJSON),
-      )
-        .map((b) => String.fromCharCode(b))
-        .join("");
-      const attestationObject = Array.from(
-        new Uint8Array(attestationResponse.attestationObject),
-      )
-        .map((b) => String.fromCharCode(b))
-        .join("");
-
-      const transports = attestationResponse.getTransports();
-
-      const verifyResponse = await fetch("/api/passkeys/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          credential: {
-            id: credential.id,
-            rawId: btoa(credentialId),
-            response: {
-              clientDataJSON: btoa(clientDataJSON),
-              attestationObject: btoa(attestationObject),
-              transports,
-            },
-            type: credential.type,
-          },
-        }),
-      });
-
-      if (!verifyResponse.ok) {
-        throw new Error("Failed to verify passkey");
+      if (result && !result.ok) {
+        throw new Error("Passkey registration did not complete");
       }
 
       await utils.users.getPasskeys.invalidate();
+      showToast("Passkey registered", "success");
     } catch (error) {
       console.error("Failed to register passkey:", error);
       showToast(
@@ -490,13 +404,23 @@ export default function UserProfilePage({
             </div>
 
             <div className="border-border-default mt-8 border-t pt-8">
+              {(passkeyRequiredRedirect || passkeyEnrollment?.enrolled === false) && (
+                <div
+                  className="border-warning/40 bg-warning/10 text-text-primary mb-4 rounded-xl border p-4 text-sm"
+                  role="status"
+                >
+                  {passkeyEnrollment?.requiresAal3Hardware
+                    ? "Register a hardware security key passkey before using administration or Labs tools. Platform passkeys alone do not meet the privileged-role requirement."
+                    : "Register a passkey to unlock data contribution and administration. Browse remains available with ORCID sign-in."}
+                </div>
+              )}
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-text-primary mb-1 text-xl font-semibold">
                     Security
                   </h2>
                   <p className="text-text-secondary text-sm">
-                    Manage your passwordless authentication methods
+                    Manage passkeys for sign-in and step-up access
                   </p>
                 </div>
                 <Button
@@ -523,15 +447,19 @@ export default function UserProfilePage({
                           <Key className="text-text-secondary h-5 w-5 shrink-0" />
                           <div>
                             <p className="text-text-primary text-sm font-medium">
-                              {passkey.deviceType === "cross-platform"
-                                ? "Cross-platform Passkey"
-                                : "Single Device Passkey"}
+                              {passkey.nickname ??
+                                (passkey.deviceType === "multiDevice"
+                                  ? "Cross-platform Passkey"
+                                  : "Single Device Passkey")}
                             </p>
                             <p className="text-text-tertiary text-xs">
                               {passkey.transports.length > 0
                                 ? `Transports: ${passkey.transports.join(", ")}`
                                 : "No transport info"}
                               {passkey.backedUp ? " · Backed up" : ""}
+                              {passkey.lastUsedAt
+                                ? ` · Last used ${new Date(passkey.lastUsedAt).toLocaleDateString()}`
+                                : ""}
                             </p>
                           </div>
                         </div>
@@ -556,8 +484,8 @@ export default function UserProfilePage({
                 >
                   <Card.Content className="p-4 text-center">
                     <p className="text-text-tertiary text-sm">
-                      No passkeys registered. Create one to enable passwordless
-                      sign-in.
+                      No passkeys registered. Create one to sign in without ORCID
+                      and to contribute data.
                     </p>
                   </Card.Content>
                 </Card>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { SignInButton } from "@/components/auth/sign-in-button";
@@ -11,16 +10,46 @@ import {
 } from "@/components/contribute";
 import { ContributionAgreementModal } from "@/components/contribute";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
+import { PasskeyEnrollmentPrompt } from "@/components/auth/passkey-enrollment-prompt";
+import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
+import { usePasskeyEnrollmentGate } from "~/hooks/usePasskeyEnrollmentGate";
 
 export default function ContributePage() {
   const router = useRouter();
+  const {
+    isSignedIn,
+    isCheckingAgreement,
+    canContribute,
+    showAgreementModal,
+    isAccepting,
+    handleAgree,
+    onModalClose,
+  } = useContributionAgreementGate({
+    onDecline: () => {
+      router.push("/");
+    },
+  });
+  const {
+    isChecking: isCheckingPasskey,
+    needsPasskeyEnrollment,
+    requiresAal3Hardware,
+    canAccessContributeWrites,
+  } = usePasskeyEnrollmentGate();
+
   const { data: session } = useSession();
-  const isSignedIn = !!session?.user;
-  const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const profileHref = session?.user?.id
+    ? `/users/${encodeURIComponent(session.user.id)}`
+    : "/sign-in";
+
+  const canSubmitContributions =
+    canContribute && canAccessContributeWrites && !needsPasskeyEnrollment;
 
   const handleContributionTypeSelect = (
     type: "molecule" | "facility" | "nexafs",
   ) => {
+    if (!canSubmitContributions) {
+      return;
+    }
     if (type === "molecule") {
       router.push("/contribute/molecule");
     } else if (type === "facility") {
@@ -28,11 +57,6 @@ export default function ContributePage() {
     } else if (type === "nexafs") {
       router.push("/contribute/nexafs");
     }
-  };
-
-  const handleAgreementAccepted = () => {
-    setShowAgreementModal(false);
-    // Modal will close and user can now select contribution type
   };
 
   if (!isSignedIn) {
@@ -57,11 +81,9 @@ export default function ContributePage() {
     <>
       <ContributionAgreementModal
         isOpen={showAgreementModal}
-        onClose={() => {
-          // Don't allow closing without agreeing - user must agree to continue
-          // Modal will only close after agreement is accepted
-        }}
-        onAgree={handleAgreementAccepted}
+        onClose={onModalClose}
+        onAgree={handleAgree}
+        isSubmitting={isAccepting}
       />
 
       <div className="container mx-auto px-4 py-16">
@@ -76,51 +98,73 @@ export default function ContributePage() {
             </p>
           </div>
 
-          <div className="border-border bg-background-secondary text-foreground mb-8 rounded-xl border p-6">
-            <h2 className="text-foreground mb-3 text-xl font-semibold">
-              Contribution Guidelines
-            </h2>
-            <ul className="text-muted space-y-2 text-sm">
-              <li className="flex items-start">
-                <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
-                <span>
-                  All contributions must be accurate and properly documented
-                </span>
-              </li>
-              <li className="flex items-start">
-                <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
-                <span>
-                  Data will be made available under an open data license
-                </span>
-              </li>
-              <li className="flex items-start">
-                <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
-                <span>
-                  Please verify that your data does not already exist in the
-                  database
-                </span>
-              </li>
-              <li className="flex items-start">
-                <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
-                <span>
-                  You must have the legal rights to contribute the data
-                </span>
-              </li>
-            </ul>
-          </div>
+          {isCheckingAgreement || isCheckingPasskey ? (
+            <p className="text-muted text-center text-sm">
+              Checking account requirements...
+            </p>
+          ) : needsPasskeyEnrollment ? (
+            <div className="mb-8">
+              <PasskeyEnrollmentPrompt
+                profileHref={profileHref}
+                requiresAal3Hardware={requiresAal3Hardware}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="border-border bg-background-secondary text-foreground mb-8 rounded-xl border p-6">
+                <h2 className="text-foreground mb-3 text-xl font-semibold">
+                  Contribution Guidelines
+                </h2>
+                <ul className="text-muted space-y-2 text-sm">
+                  <li className="flex items-start">
+                    <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
+                    <span>
+                      All contributions must be accurate and properly documented
+                    </span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
+                    <span>
+                      Data will be made available under an open data license
+                    </span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
+                    <span>
+                      Please verify that your data does not already exist in the
+                      database
+                    </span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
+                    <span>
+                      You must have the legal rights to contribute the data
+                    </span>
+                  </li>
+                </ul>
+              </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <AddNexafsCard
-              onClick={() => handleContributionTypeSelect("nexafs")}
-              fullWidth
-            />
-            <AddMoleculeCard
-              onClick={() => handleContributionTypeSelect("molecule")}
-            />
-            <AddFacilityCard
-              onClick={() => handleContributionTypeSelect("facility")}
-            />
-          </div>
+              <div
+                className={
+                  canSubmitContributions
+                    ? "grid gap-6 md:grid-cols-2"
+                    : "pointer-events-none opacity-50"
+                }
+                aria-hidden={!canSubmitContributions}
+              >
+                <AddNexafsCard
+                  onClick={() => handleContributionTypeSelect("nexafs")}
+                  fullWidth
+                />
+                <AddMoleculeCard
+                  onClick={() => handleContributionTypeSelect("molecule")}
+                />
+                <AddFacilityCard
+                  onClick={() => handleContributionTypeSelect("facility")}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>

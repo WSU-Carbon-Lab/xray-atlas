@@ -31,8 +31,8 @@ model moleculesynonyms {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   moleculeid String    @db.Uuid
   synonym    String
-  slug       String
   order      Int       @default(0)
+  slug       String
   molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([moleculeid, synonym])
@@ -59,15 +59,13 @@ model tags {
 model moleculecontributors {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   moleculeid       String    @map("molecule_id") @db.Uuid
-  userid           String    @map("user_id") @db.VarChar(19)
   contributiontype String    @default("contributor") @map("contribution_type")
   contributedat    DateTime  @default(now()) @map("contributed_at") @db.Timestamptz(6)
+  userid           String?   @map("user_id") @db.VarChar(19)
   molecules        molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user             user      @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user             user?     @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([moleculeid, userid])
   @@index([moleculeid])
-  @@index([userid])
   @@map("molecule_contributors")
   @@schema("public")
 }
@@ -76,14 +74,12 @@ model moleculecontributors {
 model moleculefavorites {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   moleculeid String    @map("molecule_id") @db.Uuid
-  userid     String    @map("user_id") @db.Uuid
   createdat  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  userid     String?   @map("user_id") @db.VarChar(19)
   molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user       user      @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       user?     @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([moleculeid, userid])
   @@index([moleculeid])
-  @@index([userid])
   @@map("molecule_favorites")
   @@schema("public")
 }
@@ -92,15 +88,13 @@ model moleculefavorites {
 model moleculeviews {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   moleculeid String    @map("molecule_id") @db.Uuid
-  userid     String?   @map("user_id") @db.VarChar(19)
   viewedat   DateTime  @default(now()) @map("viewed_at") @db.Timestamptz(6)
   sessionid  String?   @map("session_id")
+  userid     String?   @map("user_id") @db.VarChar(19)
   molecules  molecules @relation(fields: [moleculeid], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user       user?     @relation(fields: [userid], references: [id], onUpdate: NoAction)
+  user       user?     @relation(fields: [userid], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([moleculeid])
-  @@index([userid])
-  @@index([moleculeid, userid, sessionid])
   @@map("molecule_views")
   @@schema("public")
 }

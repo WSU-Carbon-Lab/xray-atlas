@@ -82,25 +82,21 @@ function SignInModalContent() {
                   </button>
                 </div>
                 <p className="mb-6 text-sm text-text-secondary">
-                  ORCID is recommended for researchers. GitHub, Hugging Face, and passkeys are
-                  also available as alternatives.
+                  New accounts are created with{" "}
+                  <a
+                    href="https://orcid.org"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent hover:text-accent-dark underline"
+                  >
+                    ORCID
+                  </a>
+                  . GitHub sign-in works after you link GitHub from your profile. Passkeys remain
+                  available but are not fully supported yet.
                 </p>
                 <SocialSignInButtons
                   callbackUrl={safeCallbackUrl}
                 />
-                <div className="mt-4 rounded-lg bg-surface-2 p-4">
-                  <p className="text-xs text-text-secondary">
-                    Hover the ORCID button above for details.{" "}
-                    <a
-                      href="https://orcid.org"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-accent hover:text-accent-dark underline"
-                    >
-                      Learn more at orcid.org
-                    </a>
-                  </p>
-                </div>
               </Dialog.Panel>
             </Transition.Child>
           </div>

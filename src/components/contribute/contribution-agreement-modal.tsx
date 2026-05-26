@@ -48,12 +48,14 @@ interface ContributionAgreementModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAgree: () => void;
+  isSubmitting?: boolean;
 }
 
 export function ContributionAgreementModal({
   isOpen,
   onClose,
   onAgree,
+  isSubmitting = false,
 }: ContributionAgreementModalProps) {
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
 
@@ -179,7 +181,8 @@ export function ContributionAgreementModal({
                   <Button
                     variant="primary"
                     onClick={handleAgree}
-                    isDisabled={!allRequiredAnswered}
+                    isDisabled={!allRequiredAnswered || isSubmitting}
+                    isPending={isSubmitting}
                     className="w-full min-w-[200px] sm:w-auto"
                   >
                     I Agree

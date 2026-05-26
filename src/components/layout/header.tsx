@@ -527,7 +527,7 @@ export default function Header() {
                 isSignedIn ? (
                   <CustomUserButton />
                 ) : (
-                  <SignInButton size="sm">Sign In</SignInButton>
+                  <SignInButton>Sign In</SignInButton>
                 )
               ) : (
                 <div className="h-10 w-10" />

@@ -1,6 +1,10 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
+import {
+  assertPasskeyEnrolledForAdmin,
+  assertPasskeyEnrolledForContribute,
+} from "~/server/auth/mfa-access";
 import { hasManageUsersCapability } from "~/server/auth/privileged-role";
 
 function getClientIpFromRequest(req: Request | undefined): string | null {
@@ -18,6 +22,8 @@ function getClientIpFromRequest(req: Request | undefined): string | null {
 interface CreateContextOptions {
   userId: string | null;
   clientIp: string | null;
+  userAgent: string | null;
+  req?: Request;
 }
 
 interface FetchCreateContextOptions {
@@ -29,6 +35,8 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
   return {
     userId: opts.userId,
     clientIp: opts.clientIp,
+    userAgent: opts.userAgent,
+    req: opts.req,
     db,
   };
 };
@@ -39,10 +47,13 @@ export const createTRPCContext = async (
   const session = await auth();
   const userId = session?.user?.id ?? null;
   const clientIp = getClientIpFromRequest(opts.req);
+  const userAgent = opts.req?.headers.get("user-agent")?.trim() ?? null;
 
   return createInnerTRPCContext({
     userId,
     clientIp,
+    userAgent,
+    req: opts.req,
   });
 };
 
@@ -84,6 +95,22 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
 
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
 
+const enforcePasskeyForContribute = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.userId) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  await assertPasskeyEnrolledForContribute(ctx.db, ctx.userId);
+  return next({
+    ctx: {
+      userId: ctx.userId,
+    },
+  });
+});
+
+/** Mutations that create or modify contributed scientific records require passkey enrollment. */
+export const contributeWriteProcedure =
+  protectedProcedure.use(enforcePasskeyForContribute);
+
 const enforceManageUsers = t.middleware(async ({ ctx, next }) => {
   if (!ctx.userId) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -102,4 +129,18 @@ const enforceManageUsers = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-export const adminProcedure = protectedProcedure.use(enforceManageUsers);
+const enforcePasskeyForAdmin = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.userId) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  await assertPasskeyEnrolledForAdmin(ctx.db, ctx.userId, ctx.req);
+  return next({
+    ctx: {
+      userId: ctx.userId,
+    },
+  });
+});
+
+export const adminProcedure = protectedProcedure
+  .use(enforceManageUsers)
+  .use(enforcePasskeyForAdmin);

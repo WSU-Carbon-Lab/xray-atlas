@@ -5,8 +5,28 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { isAal3Eligible } from "~/server/auth/aal";
+import {
+  getPasskeyEnrollmentStatus,
+  requiresAal3ForUser,
+} from "~/server/auth/passkey-policy";
+import {
+  auditRequestMetaFromTrpcContext,
+  emitAuditEvent,
+} from "~/server/audit";
+import {
+  CONTRIBUTION_AGREEMENT_VERSION,
+} from "~/lib/contribution-agreement";
 import { orcidUserIdSchema } from "~/lib/orcid";
 import { resolveUserIdFromRouteSegment } from "~/lib/user-route";
+
+const contributionAgreementStatusSchema = z.object({
+  accepted: z.boolean(),
+  acceptedAt: z.date().nullable(),
+  agreementVersion: z.string().nullable(),
+  currentVersion: z.string(),
+  needsAcceptance: z.boolean(),
+});
 
 const userPublicProfileSchema = z.object({
   id: orcidUserIdSchema,
@@ -17,6 +37,113 @@ const userPublicProfileSchema = z.object({
 const userRouteIdSchema = z.string().min(1).max(64);
 
 export const usersRouter = createTRPCRouter({
+  getContributionAgreementStatus: protectedProcedure
+    .output(contributionAgreementStatusSchema)
+    .query(async ({ ctx }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+
+      const user = await ctx.db.user.findUnique({
+        where: { id: ctx.userId },
+        select: {
+          contributionAgreementAccepted: true,
+          contributionAgreementDate: true,
+          contributionAgreementVersion: true,
+        },
+      });
+
+      if (!user) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      }
+
+      const needsAcceptance =
+        !user.contributionAgreementAccepted ||
+        user.contributionAgreementVersion !== CONTRIBUTION_AGREEMENT_VERSION;
+
+      return {
+        accepted: user.contributionAgreementAccepted,
+        acceptedAt: user.contributionAgreementDate,
+        agreementVersion: user.contributionAgreementVersion,
+        currentVersion: CONTRIBUTION_AGREEMENT_VERSION,
+        needsAcceptance,
+      };
+    }),
+
+  acceptContributionAgreement: protectedProcedure
+    .output(
+      z.object({
+        success: z.literal(true),
+        version: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+
+      const subjectUserId = ctx.userId;
+      const requestMeta = auditRequestMetaFromTrpcContext({
+        clientIp: ctx.clientIp,
+        userAgent: ctx.userAgent,
+      });
+
+      const existing = await ctx.db.user.findUnique({
+        where: { id: subjectUserId },
+        select: {
+          name: true,
+          contributionAgreementAccepted: true,
+          contributionAgreementVersion: true,
+        },
+      });
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      }
+
+      if (
+        existing.contributionAgreementAccepted &&
+        existing.contributionAgreementVersion === CONTRIBUTION_AGREEMENT_VERSION
+      ) {
+        return { success: true as const, version: CONTRIBUTION_AGREEMENT_VERSION };
+      }
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: subjectUserId },
+          data: {
+            contributionAgreementAccepted: true,
+            contributionAgreementDate: new Date(),
+            contributionAgreementVersion: CONTRIBUTION_AGREEMENT_VERSION,
+          },
+        });
+
+        await tx.consentReceipt.create({
+          data: {
+            userId: subjectUserId,
+            agreementVersion: CONTRIBUTION_AGREEMENT_VERSION,
+            orcidAtAcceptance: subjectUserId,
+            nameAtAcceptance: existing.name,
+            sourceIp: ctx.clientIp,
+          },
+        });
+
+        await emitAuditEvent({
+          db: tx,
+          eventType: "consent.accept",
+          eventScope: "users.acceptContributionAgreement",
+          actorUserId: subjectUserId,
+          subjectUserId,
+          payload: {
+            agreementVersion: CONTRIBUTION_AGREEMENT_VERSION,
+          },
+          requestMeta,
+        });
+      });
+
+      return { success: true as const, version: CONTRIBUTION_AGREEMENT_VERSION };
+    }),
+
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");
@@ -179,8 +306,30 @@ export const usersRouter = createTRPCRouter({
         where: { id: input.accountId },
       });
 
+      await emitAuditEvent({
+        eventType: "account.unlink",
+        eventScope: "users.unlinkAccount",
+        actorUserId: ctx.userId,
+        subjectUserId: ctx.userId,
+        payload: {
+          provider: account.provider,
+          providerAccountId: account.providerAccountId,
+        },
+        requestMeta: auditRequestMetaFromTrpcContext({
+          clientIp: ctx.clientIp,
+          userAgent: ctx.userAgent,
+        }),
+      });
+
       return { success: true };
     }),
+
+  getPasskeyEnrollmentStatus: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    return getPasskeyEnrollmentStatus(ctx.db, ctx.userId);
+  }),
 
   getPasskeys: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.userId) {
@@ -188,33 +337,37 @@ export const usersRouter = createTRPCRouter({
     }
 
     const passkeys = await ctx.db.authenticator.findMany({
-      where: { userId: ctx.userId },
+      where: { userId: ctx.userId, revokedAt: null },
       select: {
-        id: true,
         credentialID: true,
         credentialDeviceType: true,
         credentialBackedUp: true,
         transports: true,
         counter: true,
+        nickname: true,
+        createdAt: true,
+        lastUsedAt: true,
       },
-      orderBy: {
-        counter: "desc",
-      },
+      orderBy: [{ createdAt: "desc" }],
     });
 
     return passkeys.map((p) => ({
-      id: p.id,
+      id: p.credentialID,
+      credentialId: p.credentialID,
+      nickname: p.nickname,
       deviceType: p.credentialDeviceType,
       backedUp: p.credentialBackedUp,
       transports: p.transports?.split(",") ?? [],
-      lastUsed: Number(p.counter),
+      signCount: Number(p.counter),
+      createdAt: p.createdAt,
+      lastUsedAt: p.lastUsedAt,
     }));
   }),
 
   deletePasskey: protectedProcedure
     .input(
       z.object({
-        passkeyId: z.string().uuid(),
+        passkeyId: z.string().min(1).max(1024),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -223,11 +376,19 @@ export const usersRouter = createTRPCRouter({
       }
 
       const passkey = await ctx.db.authenticator.findUnique({
-        where: { id: input.passkeyId },
+        where: { credentialID: input.passkeyId },
         include: {
           user: {
             include: {
-              authenticator: true,
+              authenticator: {
+                where: { revokedAt: null },
+                select: {
+                  credentialID: true,
+                  aaguid: true,
+                  attestationFormat: true,
+                  credentialDeviceType: true,
+                },
+              },
               account: true,
             },
           },
@@ -249,12 +410,61 @@ export const usersRouter = createTRPCRouter({
       const userAuthenticators = passkey.user.authenticator;
       const userAccounts = passkey.user.account;
 
-      if (userAuthenticators.length <= 1 && userAccounts.length === 0) {
-        throw new Error("Cannot delete the only authentication method");
+      const hasOrcidAccount = userAccounts.some(
+        (account) => account.provider === "orcid",
+      );
+      if (userAuthenticators.length <= 1 && !hasOrcidAccount) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Cannot remove your only sign-in method. Link ORCID or register another passkey first.",
+        });
       }
 
-      await ctx.db.authenticator.delete({
-        where: { id: input.passkeyId },
+      const requiresAal3 = await requiresAal3ForUser(ctx.db, ctx.userId);
+      if (
+        requiresAal3 &&
+        isAal3Eligible({
+          aaguid: passkey.aaguid,
+          attestationFormat: passkey.attestationFormat,
+          credentialDeviceType: passkey.credentialDeviceType,
+        })
+      ) {
+        const otherAal3 = userAuthenticators.filter(
+          (row) =>
+            row.credentialID !== input.passkeyId &&
+            isAal3Eligible({
+              aaguid: row.aaguid,
+              attestationFormat: row.attestationFormat,
+              credentialDeviceType: row.credentialDeviceType,
+            }),
+        );
+        if (otherAal3.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Cannot revoke your only hardware security key while you hold administrator or Labs access.",
+          });
+        }
+      }
+
+      await ctx.db.authenticator.update({
+        where: { credentialID: input.passkeyId },
+        data: { revokedAt: new Date() },
+      });
+
+      await emitAuditEvent({
+        eventType: "authenticator.revoke",
+        eventScope: "auth.webauthn",
+        actorUserId: ctx.userId,
+        subjectUserId: ctx.userId,
+        payload: {
+          credentialID: input.passkeyId,
+        },
+        requestMeta: auditRequestMetaFromTrpcContext({
+          clientIp: ctx.clientIp,
+          userAgent: ctx.userAgent,
+        }),
       });
 
       return { success: true };
@@ -284,6 +494,12 @@ export const usersRouter = createTRPCRouter({
       throw new Error("User not authenticated");
     }
 
+    const subjectUserId = ctx.userId;
+    const requestMeta = auditRequestMetaFromTrpcContext({
+      clientIp: ctx.clientIp,
+      userAgent: ctx.userAgent,
+    });
+
     await ctx.db.$transaction(async (tx) => {
       await tx.experiments.deleteMany({
         where: { createdby: ctx.userId },
@@ -311,7 +527,16 @@ export const usersRouter = createTRPCRouter({
       });
 
       await tx.user.delete({
-        where: { id: ctx.userId },
+        where: { id: subjectUserId },
+      });
+
+      await emitAuditEvent({
+        db: tx,
+        eventType: "user.delete",
+        eventScope: "users.deleteAccount",
+        actorUserId: subjectUserId,
+        subjectUserId,
+        requestMeta,
       });
     });
 

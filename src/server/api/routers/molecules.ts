@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  contributeWriteProcedure,
   createTRPCRouter,
   publicProcedure,
   protectedProcedure,
@@ -444,7 +445,7 @@ export const moleculesRouter = createTRPCRouter({
       };
     }),
 
-  create: protectedProcedure
+  create: contributeWriteProcedure
     .input(moleculeUploadSchema)
     .mutation(async ({ ctx, input }) => {
       // Check if molecule already exists by searching for one with matching IUPAC name

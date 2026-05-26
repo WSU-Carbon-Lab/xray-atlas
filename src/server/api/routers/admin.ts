@@ -17,6 +17,14 @@ import { TRPCError } from "@trpc/server";
 import sharp from "sharp";
 import { createTRPCRouter, adminProcedure } from "~/server/api/trpc";
 import {
+  auditRequestMetaFromTrpcContext,
+  emitAuditEvent,
+  type AuditRequestMeta,
+} from "~/server/audit";
+import {
+  assertAal3PasskeyBeforePrivilegedRole,
+} from "~/server/auth/passkey-policy";
+import {
   countUsersWithManageCapabilityExcluding,
   hasManageUsersCapability,
 } from "~/server/auth/privileged-role";
@@ -27,6 +35,7 @@ import {
   normalizeRoleDisplayName,
   parseRolePermissions,
   permissionsArraySchema,
+  permissionsGrantLabsAccess,
   permissionsGrantManageUsers,
   roleSlugSchema,
   sessionProjectionFromPermissions,
@@ -35,12 +44,53 @@ import {
 import { roleHexColorSchema } from "~/lib/app-role-colors";
 import { primaryHexFromRgbaBuffer } from "~/lib/extract-image-primary-hex";
 import { fetchRemoteImageBytesForSampling } from "~/server/utils/safe-remote-image-url";
-import { Prisma, type PrismaClient } from "~/prisma/client";
+import type { Prisma, PrismaClient } from "~/prisma/client";
 
 const optionalFaviconUrlSchema = z.union([
   z.literal(""),
   z.string().url().max(2048),
 ]);
+
+async function emitRoleChangeAudits(
+  tx: Prisma.TransactionClient,
+  params: {
+    actorUserId: string;
+    subjectUserId: string;
+    previousRoleIds: string[];
+    nextRoleIds: string[];
+    requestMeta: AuditRequestMeta;
+    eventScope: string;
+  },
+): Promise<void> {
+  const previous = new Set(params.previousRoleIds);
+  const next = new Set(params.nextRoleIds);
+  for (const roleId of params.nextRoleIds) {
+    if (!previous.has(roleId)) {
+      await emitAuditEvent({
+        db: tx,
+        eventType: "role.assign",
+        eventScope: params.eventScope,
+        actorUserId: params.actorUserId,
+        subjectUserId: params.subjectUserId,
+        payload: { roleId },
+        requestMeta: params.requestMeta,
+      });
+    }
+  }
+  for (const roleId of params.previousRoleIds) {
+    if (!next.has(roleId)) {
+      await emitAuditEvent({
+        db: tx,
+        eventType: "role.revoke",
+        eventScope: params.eventScope,
+        actorUserId: params.actorUserId,
+        subjectUserId: params.subjectUserId,
+        payload: { roleId },
+        requestMeta: params.requestMeta,
+      });
+    }
+  }
+}
 
 const appRoleAdminDtoSchema = z.object({
   id: z.string().uuid(),
@@ -144,6 +194,24 @@ async function loadAndValidateRoleAssignment(
           "Cannot remove management access from the last user who has it.",
       });
     }
+  }
+  const willRequireAal3 = roles.some((role) => {
+    const permissions = parseRolePermissions(role.permissions);
+    return (
+      permissionsGrantManageUsers(permissions) ||
+      permissionsGrantLabsAccess(permissions)
+    );
+  });
+  try {
+    await assertAal3PasskeyBeforePrivilegedRole(db, userId, willRequireAal3);
+  } catch (error) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Privileged role requires a hardware security key passkey.",
+    });
   }
 }
 
@@ -290,6 +358,14 @@ export const adminRouter = createTRPCRouter({
       await loadAndValidateRoleAssignment(ctx.db, input.userId, input.roleIds);
 
       const nameDb = input.name.trim() === "" ? null : input.name.trim();
+      const previousRoles = await ctx.db.userAppRole.findMany({
+        where: { userId: input.userId },
+        select: { roleId: true },
+      });
+      const requestMeta = auditRequestMetaFromTrpcContext({
+        clientIp: ctx.clientIp,
+        userAgent: ctx.userAgent,
+      });
 
       await ctx.db.$transaction(async (tx) => {
         await tx.user.update({
@@ -305,6 +381,16 @@ export const adminRouter = createTRPCRouter({
             roleId,
           })),
         });
+        if (ctx.userId) {
+          await emitRoleChangeAudits(tx, {
+            actorUserId: ctx.userId,
+            subjectUserId: input.userId,
+            previousRoleIds: previousRoles.map((row) => row.roleId),
+            nextRoleIds: input.roleIds,
+            requestMeta,
+            eventScope: "admin.updateUser",
+          });
+        }
       });
 
       return { success: true as const };
@@ -325,6 +411,14 @@ export const adminRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found." });
       }
       await loadAndValidateRoleAssignment(ctx.db, input.userId, input.roleIds);
+      const previousRoles = await ctx.db.userAppRole.findMany({
+        where: { userId: input.userId },
+        select: { roleId: true },
+      });
+      const requestMeta = auditRequestMetaFromTrpcContext({
+        clientIp: ctx.clientIp,
+        userAgent: ctx.userAgent,
+      });
       await ctx.db.$transaction(async (tx) => {
         await tx.userAppRole.deleteMany({ where: { userId: input.userId } });
         await tx.userAppRole.createMany({
@@ -333,6 +427,16 @@ export const adminRouter = createTRPCRouter({
             roleId,
           })),
         });
+        if (ctx.userId) {
+          await emitRoleChangeAudits(tx, {
+            actorUserId: ctx.userId,
+            subjectUserId: input.userId,
+            previousRoleIds: previousRoles.map((row) => row.roleId),
+            nextRoleIds: input.roleIds,
+            requestMeta,
+            eventScope: "admin.setUserRoles",
+          });
+        }
       });
       return { success: true as const };
     }),
@@ -490,6 +594,7 @@ export const adminRouter = createTRPCRouter({
       return { success: true as const };
     }),
 
+  // Hard-deletes today; Phase 4 may soft-disable via user.disabledAt before tombstone erasure.
   deleteUser: adminProcedure
     .input(z.object({ userId: orcidUserIdSchema }))
     .mutation(async ({ ctx, input }) => {
@@ -520,6 +625,10 @@ export const adminRouter = createTRPCRouter({
           });
         }
       }
+      const requestMeta = auditRequestMetaFromTrpcContext({
+        clientIp: ctx.clientIp,
+        userAgent: ctx.userAgent,
+      });
       await ctx.db.$transaction(async (tx) => {
         await tx.experiments.deleteMany({
           where: { createdby: input.userId },
@@ -542,6 +651,14 @@ export const adminRouter = createTRPCRouter({
         });
         await tx.user.delete({
           where: { id: input.userId },
+        });
+        await emitAuditEvent({
+          db: tx,
+          eventType: "user.delete",
+          eventScope: "admin.deleteUser",
+          actorUserId: ctx.userId,
+          subjectUserId: input.userId,
+          requestMeta,
         });
       });
       return { success: true as const };

@@ -26,8 +26,18 @@ function SignInContent() {
           Sign in to X-ray Atlas
         </h1>
         <p className="mb-6 text-sm text-text-secondary">
-          New accounts are created with ORCID. GitHub sign-in works after you link GitHub from
-          your profile. Passkeys remain available but are not fully supported yet.
+          Sign in with{" "}
+          <a
+            href="https://orcid.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent hover:text-accent-dark underline"
+          >
+            ORCID
+          </a>{" "}
+          to create or access your account. After your first ORCID sign-in, register a passkey from
+          your profile before contributing data. Returning users can sign in with an existing
+          passkey. GitHub works only after you link it from your profile.
         </p>
         {errorMessage ? (
           <p className="text-error mb-4 text-sm" role="alert">
@@ -35,18 +45,6 @@ function SignInContent() {
           </p>
         ) : null}
         <SocialSignInButtons callbackUrl={callbackUrl} />
-        <div className="mt-6 rounded-lg bg-surface-2 p-4">
-          <p className="text-xs text-text-secondary">
-            <a
-              href="https://orcid.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent hover:text-accent-dark underline"
-            >
-              Learn more at orcid.org
-            </a>
-          </p>
-        </div>
       </div>
     </div>
   );

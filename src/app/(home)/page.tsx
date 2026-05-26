@@ -354,20 +354,20 @@ export default function HomePage() {
               />
             </div>
           </div>
-          <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-3">
+          <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
             {homeQuickLinks.map(({ href, title, hint, Icon }) => (
               <Link
                 key={href}
                 href={href}
-                className="focus-visible:ring-accent border-border bg-surface text-foreground hover:border-accent/30 hover:bg-default group flex min-h-[6.5rem] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-4 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:min-h-0 sm:gap-2 sm:py-5"
+                className="focus-visible:ring-accent border-border bg-surface text-foreground hover:border-accent/30 hover:bg-default group flex max-sm:min-h-[5.75rem] flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3.5 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-1.5 sm:px-1.5 sm:py-3"
               >
-                <span className="bg-accent/12 text-accent ring-accent/15 inline-flex rounded-lg p-2 ring-1">
-                  <Icon className="size-5 shrink-0" aria-hidden />
+                <span className="bg-accent/12 text-accent ring-accent/15 inline-flex rounded-lg p-1.5 ring-1 sm:p-2">
+                  <Icon className="size-4 shrink-0 sm:size-[1.125rem]" aria-hidden />
                 </span>
-                <span className="text-foreground group-hover:text-accent text-sm font-semibold transition-colors">
+                <span className="text-foreground group-hover:text-accent text-sm font-semibold leading-tight transition-colors sm:text-xs">
                   {title}
                 </span>
-                <span className="text-muted max-w-[11rem] px-0.5 text-[11px] leading-snug sm:text-xs">
+                <span className="text-muted max-w-[10rem] px-0.5 text-[11px] leading-snug sm:max-w-[6.75rem] sm:text-[10px]">
                   {hint}
                 </span>
               </Link>
