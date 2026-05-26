@@ -13,6 +13,8 @@ export type NexafsBrowseGroupFilters = {
   experimentType?: ExperimentType;
   verifiedOnly?: boolean;
   verificationSource?: "either" | "publication" | "atlas";
+  /** ORCID iD: experiments created by or listing this user in `collected_by_user_ids`. */
+  contributorUserId?: string;
 };
 
 export function buildNexafsBrowseWhereSql(
@@ -34,6 +36,12 @@ export function buildNexafsBrowseWhereSql(
     parts.push(
       Prisma.sql`e.experimenttype = ${filters.experimentType}::"ExperimentType"`,
     );
+  }
+  if (filters.contributorUserId) {
+    parts.push(Prisma.sql`(
+      e.createdby = ${filters.contributorUserId}
+      OR ${filters.contributorUserId} = ANY(e.collected_by_user_ids)
+    )`);
   }
   if (filters.verifiedOnly) {
     if (filters.verificationSource === "publication") {

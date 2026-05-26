@@ -19,6 +19,8 @@ import {
 } from "~/lib/contribution-agreement";
 import { orcidUserIdSchema } from "~/lib/orcid";
 import { resolveUserIdFromRouteSegment } from "~/lib/user-route";
+import { toMoleculeView } from "~/server/api/routers/molecules-view";
+import { fetchNexafsBrowseGrouped } from "~/server/nexafs/nexafsBrowseGroups";
 
 const contributionAgreementStatusSchema = z.object({
   accepted: z.boolean(),
@@ -28,13 +30,116 @@ const contributionAgreementStatusSchema = z.object({
   needsAcceptance: z.boolean(),
 });
 
+const userProfileRoleSchema = z.object({
+  slug: z.string(),
+  displayName: z.string(),
+  color: z.string(),
+});
+
+const userPublicGitHubSchema = z.object({
+  login: z.string().nullable(),
+  profileUrl: z.string().url().nullable(),
+});
+
 const userPublicProfileSchema = z.object({
   id: orcidUserIdSchema,
   name: z.string().nullable(),
   image: z.string().nullable(),
+  roles: z.array(userProfileRoleSchema),
+  github: userPublicGitHubSchema.nullable(),
 });
 
 const userRouteIdSchema = z.string().min(1).max(64);
+
+const profileContributionStatsSchema = z.object({
+  moleculesByYear: z.array(
+    z.object({
+      year: z.number().int(),
+      count: z.number().int().nonnegative(),
+    }),
+  ),
+  spectraByYear: z.array(
+    z.object({
+      year: z.number().int(),
+      count: z.number().int().nonnegative(),
+    }),
+  ),
+  totals: z.object({
+    molecules: z.number().int().nonnegative(),
+    spectra: z.number().int().nonnegative(),
+    moleculesThisYear: z.number().int().nonnegative(),
+    spectraThisYear: z.number().int().nonnegative(),
+  }),
+});
+
+type ProfileMoleculeContribution = "creator" | "contributor";
+
+/**
+ * Fills missing calendar years between the first and last observed year with zero counts.
+ */
+function fillContributionYearSeries(
+  rows: Array<{ year: number; count: number }>,
+): Array<{ year: number; count: number }> {
+  if (rows.length === 0) {
+    return [];
+  }
+  const minYear = Math.min(...rows.map((row) => row.year));
+  const maxYear = Math.max(...rows.map((row) => row.year));
+  const countByYear = new Map(rows.map((row) => [row.year, row.count]));
+  const filled: Array<{ year: number; count: number }> = [];
+  for (let year = minYear; year <= maxYear; year += 1) {
+    filled.push({ year, count: countByYear.get(year) ?? 0 });
+  }
+  return filled;
+}
+
+/**
+ * Resolves GitHub login and profile URLs for a linked account using the stored OAuth token.
+ */
+async function resolveGitHubAccountPresentation(account: {
+  access_token: string | null;
+}): Promise<{
+  login: string | null;
+  profileUrl: string | null;
+  avatarUrl: string | null;
+}> {
+  if (!account.access_token) {
+    return { login: null, profileUrl: null, avatarUrl: null };
+  }
+
+  try {
+    const response = await fetch("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${account.access_token}`,
+        Accept: "application/vnd.github+json",
+      },
+    });
+    if (!response.ok) {
+      return { login: null, profileUrl: null, avatarUrl: null };
+    }
+    const body: unknown = await response.json();
+    if (
+      typeof body !== "object" ||
+      body === null ||
+      !("login" in body) ||
+      typeof body.login !== "string"
+    ) {
+      return { login: null, profileUrl: null, avatarUrl: null };
+    }
+    const login = body.login;
+    const profileUrl =
+      "html_url" in body && typeof body.html_url === "string"
+        ? body.html_url
+        : `https://github.com/${login}`;
+    const avatarUrl =
+      "avatar_url" in body && typeof body.avatar_url === "string"
+        ? body.avatar_url
+        : null;
+    return { login, profileUrl, avatarUrl };
+  } catch {
+    return { login: null, profileUrl: null, avatarUrl: null };
+  }
+}
 
 export const usersRouter = createTRPCRouter({
   getContributionAgreementStatus: protectedProcedure
@@ -168,25 +273,274 @@ export const usersRouter = createTRPCRouter({
       if (!userId) {
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
       }
-      const isSelf = ctx.userId === userId;
-
       const user = await ctx.db.user.findUnique({
         where: { id: userId },
         select: {
           id: true,
           name: true,
           image: true,
+          userAppRoles: {
+            select: {
+              role: {
+                select: {
+                  slug: true,
+                  displayName: true,
+                  color: true,
+                },
+              },
+            },
+            orderBy: { role: { displayName: "asc" } },
+          },
         },
       });
       if (!user) {
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
       }
 
-      if (!isSelf) {
-        return user;
+      const roles = user.userAppRoles.map((row) => ({
+        slug: row.role.slug,
+        displayName: row.role.displayName,
+        color: row.role.color,
+      }));
+
+      const githubAccount = await ctx.db.account.findFirst({
+        where: { userId: user.id, provider: "github" },
+        select: { access_token: true, providerAccountId: true },
+      });
+
+      let github: z.infer<typeof userPublicGitHubSchema> | null = null;
+      if (githubAccount) {
+        const presentation = await resolveGitHubAccountPresentation({
+          access_token: githubAccount.access_token,
+        });
+        const login =
+          presentation.login ??
+          `user-${githubAccount.providerAccountId.slice(0, 6)}`;
+        github = {
+          login: presentation.login,
+          profileUrl:
+            presentation.profileUrl ??
+            (login ? `https://github.com/${login}` : null),
+        };
       }
 
-      return user;
+      return {
+        id: user.id,
+        name: user.name,
+        image: user.image,
+        roles,
+        github,
+      };
+    }),
+
+  /**
+   * Lists molecules where the user created the record or appears in `molecule_contributors`.
+   */
+  listProfileMolecules: publicProcedure
+    .input(
+      z.object({
+        userId: userRouteIdSchema,
+        limit: z.number().min(1).max(24).default(12),
+        cursor: z.string().uuid().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = await resolveUserIdFromRouteSegment(ctx.db, input.userId);
+      if (!userId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      }
+
+      const molecules = await ctx.db.molecules.findMany({
+        where: {
+          OR: [
+            { createdby: userId },
+            {
+              moleculecontributors: {
+                some: { userid: userId },
+              },
+            },
+          ],
+        },
+        take: input.limit + 1,
+        cursor: input.cursor ? { id: input.cursor } : undefined,
+        include: {
+          moleculesynonyms: {
+            orderBy: [{ order: "asc" }],
+          },
+          moleculecontributors: {
+            include: {
+              user: {
+                select: { id: true, name: true, image: true },
+              },
+            },
+            orderBy: { contributedat: "asc" },
+          },
+          moleculetags: {
+            include: { tags: true },
+          },
+          samples: {
+            include: { _count: { select: { experiments: true } } },
+          },
+        },
+        orderBy: { createdat: "desc" },
+      });
+
+      const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
+        ...molecule,
+        moleculesynonyms: [
+          ...molecule.moleculesynonyms
+            .filter((syn) => syn.order === 0)
+            .sort((a, b) => a.synonym.length - b.synonym.length),
+          ...molecule.moleculesynonyms
+            .filter((syn) => syn.order !== 0)
+            .sort((a, b) => a.synonym.length - b.synonym.length),
+        ],
+      }));
+
+      let nextCursor: string | undefined;
+      if (moleculesWithSortedSynonyms.length > input.limit) {
+        const nextItem = moleculesWithSortedSynonyms.pop();
+        nextCursor = nextItem?.id;
+      }
+
+      let favoritedSet = new Set<string>();
+      if (ctx.userId && moleculesWithSortedSynonyms.length > 0) {
+        const ids = moleculesWithSortedSynonyms.map((m) => m.id);
+        const favorited = await ctx.db.moleculefavorites.findMany({
+          where: {
+            moleculeid: { in: ids },
+            userid: ctx.userId,
+          },
+          select: { moleculeid: true },
+        });
+        favoritedSet = new Set(favorited.map((f) => f.moleculeid));
+      }
+
+      const items = moleculesWithSortedSynonyms.map((mol) => {
+        const isCreator = mol.createdby === userId;
+        const isContributor = mol.moleculecontributors.some(
+          (row) => row.userid === userId,
+        );
+        const contributions: ProfileMoleculeContribution[] = [];
+        if (isCreator) contributions.push("creator");
+        if (isContributor) contributions.push("contributor");
+
+        return {
+          molecule: toMoleculeView(mol, {
+            userHasFavorited: favoritedSet.has(mol.id),
+          }),
+          contributions,
+        };
+      });
+
+      return { items, nextCursor };
+    }),
+
+  /**
+   * Lists grouped NEXAFS experiments created by or collected with the given ORCID user.
+   */
+  listProfileExperiments: publicProcedure
+    .input(
+      z.object({
+        userId: userRouteIdSchema,
+        limit: z.number().min(1).max(24).default(12),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = await resolveUserIdFromRouteSegment(ctx.db, input.userId);
+      if (!userId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      }
+
+      const { groups, total } = await fetchNexafsBrowseGrouped(ctx.db, {
+        viewerUserId: ctx.userId,
+        filters: { contributorUserId: userId },
+        searchQuery: null,
+        sortBy: "newest",
+        limit: input.limit,
+        offset: input.offset,
+      });
+
+      return {
+        groups,
+        total,
+        hasMore: input.offset + groups.length < total,
+      };
+    }),
+
+  /**
+   * Returns public contribution counts for a profile: molecules (creator or contributor) and
+   * NEXAFS experiments (creator or collector), grouped by calendar year of `createdat`.
+   */
+  getProfileContributionStats: publicProcedure
+    .input(z.object({ userId: userRouteIdSchema }))
+    .output(profileContributionStatsSchema)
+    .query(async ({ ctx, input }) => {
+      const userId = await resolveUserIdFromRouteSegment(ctx.db, input.userId);
+      if (!userId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      }
+
+      const currentYear = new Date().getFullYear();
+
+      const moleculesByYearRows = await ctx.db.$queryRaw<
+        Array<{ year: number; count: bigint }>
+      >`
+        SELECT
+          EXTRACT(YEAR FROM m.createdat)::int AS year,
+          COUNT(DISTINCT m.id)::bigint AS count
+        FROM molecules m
+        LEFT JOIN molecule_contributors mc
+          ON mc.molecule_id = m.id AND mc.user_id = ${userId}
+        WHERE m.createdby = ${userId} OR mc.user_id IS NOT NULL
+        GROUP BY 1
+        ORDER BY 1
+      `;
+
+      const spectraByYearRows = await ctx.db.$queryRaw<
+        Array<{ year: number; count: bigint }>
+      >`
+        SELECT
+          EXTRACT(YEAR FROM e.createdat)::int AS year,
+          COUNT(DISTINCT e.id)::bigint AS count
+        FROM experiments e
+        WHERE e.createdby = ${userId}
+          OR ${userId} = ANY(e.collected_by_user_ids)
+        GROUP BY 1
+        ORDER BY 1
+      `;
+
+      const moleculesByYear = fillContributionYearSeries(
+        moleculesByYearRows.map((row) => ({
+          year: row.year,
+          count: Number(row.count),
+        })),
+      );
+      const spectraByYear = fillContributionYearSeries(
+        spectraByYearRows.map((row) => ({
+          year: row.year,
+          count: Number(row.count),
+        })),
+      );
+
+      const molecules = moleculesByYear.reduce((sum, row) => sum + row.count, 0);
+      const spectra = spectraByYear.reduce((sum, row) => sum + row.count, 0);
+      const moleculesThisYear =
+        moleculesByYear.find((row) => row.year === currentYear)?.count ?? 0;
+      const spectraThisYear =
+        spectraByYear.find((row) => row.year === currentYear)?.count ?? 0;
+
+      return {
+        moleculesByYear,
+        spectraByYear,
+        totals: {
+          molecules,
+          spectra,
+          moleculesThisYear,
+          spectraThisYear,
+        },
+      };
     }),
 
   /**
@@ -250,10 +604,38 @@ export const usersRouter = createTRPCRouter({
         provider: true,
         providerAccountId: true,
         type: true,
+        access_token: true,
       },
     });
 
-    return accounts;
+    const enriched = await Promise.all(
+      accounts.map(async (account) => {
+        if (account.provider !== "github") {
+          return {
+            id: account.id,
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+            type: account.type,
+          };
+        }
+
+        const github = await resolveGitHubAccountPresentation({
+          access_token: account.access_token,
+        });
+
+        return {
+          id: account.id,
+          provider: "github" as const,
+          providerAccountId: account.providerAccountId,
+          type: account.type,
+          login: github.login,
+          profileUrl: github.profileUrl,
+          avatarUrl: github.avatarUrl,
+        };
+      }),
+    );
+
+    return enriched;
   }),
 
   unlinkAccount: protectedProcedure
