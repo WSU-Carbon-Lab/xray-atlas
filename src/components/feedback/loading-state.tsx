@@ -53,6 +53,32 @@ export function MoleculeCardSkeleton() {
   );
 }
 
+export function NexafsExperimentCompactSkeleton() {
+  return (
+    <div className="border-border-default dark:border-border-default flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:bg-zinc-800">
+      <div className="flex w-full flex-col p-3 md:flex-row md:items-center md:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4 border-r border-zinc-200 pr-4 dark:border-zinc-600">
+          <LoadingSkeleton className="h-11 w-11 shrink-0 rounded-lg md:h-14 md:w-14" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <LoadingSkeleton className="h-4 w-36 max-w-full rounded" />
+            <div className="flex flex-wrap gap-1.5">
+              <LoadingSkeleton className="h-4.5 w-12 rounded-full" />
+              <LoadingSkeleton className="h-4.5 w-24 rounded-full" />
+              <LoadingSkeleton className="h-4.5 w-10 rounded-full" />
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-zinc-200 pt-3 md:mt-0 md:border-t-0 md:pt-0 md:pl-4 dark:border-zinc-600">
+          <LoadingSkeleton className="h-8 w-28 rounded-full" />
+          <LoadingSkeleton className="h-8 w-24 rounded-lg" />
+          <LoadingSkeleton className="h-6 w-6 rounded-full" />
+          <LoadingSkeleton className="h-3.5 w-8 rounded" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MoleculeCompactSkeleton() {
   return (
     <div className="border-border-default dark:border-border-default flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm md:flex-row md:items-center md:gap-4 dark:bg-zinc-800">

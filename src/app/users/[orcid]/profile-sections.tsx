@@ -1,20 +1,24 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
+  Accordion,
   Alert,
   Avatar,
   Button,
   Card,
   Chip,
   ListBox,
+  Pagination,
   Tabs,
   Tooltip,
 } from "@heroui/react";
 import {
   BeakerIcon,
   BoltIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import {
   ExternalLink,
@@ -33,8 +37,9 @@ import {
   type DisplayMolecule,
 } from "@/components/molecules/molecule-display";
 import {
-  MoleculeCardSkeleton,
+  LoadingSkeleton,
   MoleculeCompactSkeleton,
+  NexafsExperimentCompactSkeleton,
 } from "@/components/feedback/loading-state";
 import { NexafsExperimentCompactCard } from "@/components/nexafs/nexafs-display";
 import { mapNexafsBrowseGroupToCard } from "@/components/browse/nexafs-browse-map-group";
@@ -849,6 +854,140 @@ function profileExperimentLabel(group: ProfileExperimentGroup): string {
 const profileMoleculeListClassName =
   "w-full space-y-3 [&>div]:[contain-intrinsic-size:0_80px] [&>div]:[content-visibility:auto]";
 
+const PROFILE_MOLECULES_PAGE_SIZE = 12;
+const PROFILE_NEXAFS_PAGE_SIZE = 12;
+
+const profileContributionsPaginationLinkClassName =
+  "rounded-lg border border-border bg-surface text-foreground";
+
+const profileContributionsPaginationActiveClassName =
+  "border-accent bg-accent text-accent-foreground";
+
+function ProfileContributionsPagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+  ariaLabel,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  ariaLabel: string;
+}) {
+  if (totalPages <= 1) {
+    return null;
+  }
+
+  return (
+    <nav
+      aria-label={ariaLabel}
+      className="mt-6 flex justify-center sm:justify-end"
+    >
+      <Pagination size="sm" className="gap-2">
+        <Pagination.Content className="gap-2">
+          <Pagination.Item>
+            <Pagination.Previous
+              isDisabled={currentPage <= 1}
+              aria-label="Previous page"
+              onPress={() => onPageChange(Math.max(1, currentPage - 1))}
+              className={profileContributionsPaginationLinkClassName}
+            >
+              <Pagination.PreviousIcon />
+            </Pagination.Previous>
+          </Pagination.Item>
+          {totalPages <= 20
+            ? Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                (page) => (
+                  <Pagination.Item key={page}>
+                    <Pagination.Link
+                      isActive={page === currentPage}
+                      onPress={() => onPageChange(page)}
+                      className={`${profileContributionsPaginationLinkClassName} ${
+                        page === currentPage
+                          ? profileContributionsPaginationActiveClassName
+                          : ""
+                      }`}
+                    >
+                      {page}
+                    </Pagination.Link>
+                  </Pagination.Item>
+                ),
+              )
+            : null}
+          {totalPages > 20 ? (
+            <Pagination.Item>
+              <span className="text-muted px-2 text-xs tabular-nums">
+                {currentPage} / {totalPages}
+              </span>
+            </Pagination.Item>
+          ) : null}
+          <Pagination.Item>
+            <Pagination.Next
+              isDisabled={currentPage >= totalPages}
+              aria-label="Next page"
+              onPress={() =>
+                onPageChange(Math.min(totalPages, currentPage + 1))
+              }
+              className={profileContributionsPaginationLinkClassName}
+            >
+              <Pagination.NextIcon />
+            </Pagination.Next>
+          </Pagination.Item>
+        </Pagination.Content>
+      </Pagination>
+    </nav>
+  );
+}
+
+const profileDangerZoneAccordionId = "profile-contributions-danger-zone";
+
+function ProfileContributionsDangerZoneAccordion({
+  description,
+  dangerZoneOpen,
+  onDangerZoneOpenChange,
+}: {
+  description: string;
+  dangerZoneOpen: boolean;
+  onDangerZoneOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Accordion
+      allowsMultipleExpanded
+      variant="surface"
+      aria-label="Danger zone for contributed data"
+      className="border-border w-full rounded-lg border"
+      expandedKeys={
+        dangerZoneOpen
+          ? new Set([profileDangerZoneAccordionId])
+          : new Set()
+      }
+      onExpandedChange={(keys) => {
+        onDangerZoneOpenChange(
+          [...keys].map(String).includes(profileDangerZoneAccordionId),
+        );
+      }}
+    >
+      <Accordion.Item id={profileDangerZoneAccordionId}>
+        <Accordion.Heading>
+          <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+            <span className="text-foreground min-w-0 flex-1 text-sm font-semibold">
+              Danger zone
+            </span>
+            <Accordion.Indicator className="text-muted shrink-0 [&>svg]:size-4">
+              <ChevronDownIcon className="h-4 w-4" aria-hidden />
+            </Accordion.Indicator>
+          </Accordion.Trigger>
+        </Accordion.Heading>
+        <Accordion.Panel>
+          <Accordion.Body className="pt-0">
+            <p className="text-muted text-sm">{description}</p>
+          </Accordion.Body>
+        </Accordion.Panel>
+      </Accordion.Item>
+    </Accordion>
+  );
+}
+
 function ProfileMoleculeGridSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <div className={profileMoleculeListClassName}>
@@ -865,9 +1004,183 @@ function ProfileNexafsListSkeleton({ rows = 2 }: { rows?: number }) {
   return (
     <div className="space-y-3">
       {Array.from({ length: rows }, (_, index) => (
-        <MoleculeCardSkeleton key={index} />
+        <NexafsExperimentCompactSkeleton key={index} />
       ))}
     </div>
+  );
+}
+
+const profileTabListClassName =
+  "border-border bg-surface flex w-full flex-wrap gap-1 rounded-xl border p-1";
+
+function ProfileTabBarSkeleton({
+  tabs,
+  className,
+}: {
+  tabs: string[];
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(profileTabListClassName, className)}
+      aria-hidden
+    >
+      {tabs.map((label) => (
+        <div
+          key={label}
+          className="flex flex-1 items-center justify-center px-4 py-2"
+        >
+          <LoadingSkeleton className="h-4 w-20 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ProfilePageShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="container mx-auto max-w-5xl px-4 py-8">
+      <div className="mb-6">
+        <Link
+          href="/"
+          className="text-muted hover:text-accent text-sm transition-colors"
+        >
+          Back to home
+        </Link>
+      </div>
+      <div className="space-y-6">{children}</div>
+    </div>
+  );
+}
+
+export function ProfileHeaderSkeleton() {
+  return (
+    <header className="border-border bg-surface flex flex-col gap-4 rounded-2xl border p-4 sm:gap-5 sm:p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-5">
+        <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-5">
+          <LoadingSkeleton className="ring-border h-[4.5rem] w-[4.5rem] shrink-0 rounded-full ring-2 ring-offset-2 ring-offset-background sm:h-20 sm:w-20" />
+          <div className="min-w-0 flex-1 pt-0.5">
+            <LoadingSkeleton className="mb-2 h-8 w-48 max-w-full rounded sm:h-9" />
+            <div className="flex flex-col gap-2">
+              <LoadingSkeleton className="h-5 w-40 max-w-full rounded" />
+              <LoadingSkeleton className="h-5 w-32 max-w-full rounded" />
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <LoadingSkeleton className="h-6 w-24 rounded-full" />
+              <LoadingSkeleton className="h-6 w-20 rounded-full" />
+            </div>
+          </div>
+        </div>
+        <ProfileContributionHeaderYearCharts
+          stats={undefined}
+          isLoading
+          className="w-full min-w-0 md:max-w-[min(100%,28rem)] md:flex-1 lg:max-w-none"
+        />
+      </div>
+      <ProfileContributionHeaderStats
+        stats={undefined}
+        isLoading
+        isError={false}
+      />
+    </header>
+  );
+}
+
+export function ProfileMainTabsSkeleton({
+  showSecurity = false,
+}: {
+  showSecurity?: boolean;
+}) {
+  return (
+    <ProfileTabBarSkeleton
+      tabs={showSecurity ? ["Contributions", "Security"] : ["Contributions"]}
+    />
+  );
+}
+
+function ProfileDangerZoneAccordionSkeleton() {
+  return (
+    <div
+      className="border-border flex w-full items-center gap-2 rounded-lg border px-4 py-3"
+      aria-hidden
+    >
+      <LoadingSkeleton className="h-4 w-28 rounded" />
+      <LoadingSkeleton className="ms-auto h-4 w-4 shrink-0 rounded" />
+    </div>
+  );
+}
+
+export function ProfileContributionsSectionSkeleton({
+  showDangerZoneAccordion = false,
+}: {
+  showDangerZoneAccordion?: boolean;
+} = {}) {
+  return (
+    <div className="space-y-0">
+      <ProfileTabBarSkeleton
+        tabs={["Molecules", "NEXAFS"]}
+        className="sm:max-w-md"
+      />
+      <div className="space-y-10 pt-6">
+        <section aria-busy="true" aria-label="Loading molecules">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <div className="space-y-2">
+              <LoadingSkeleton className="h-7 w-28 rounded" />
+              <LoadingSkeleton className="h-4 w-full max-w-md rounded" />
+            </div>
+            <LoadingSkeleton className="h-9 w-40 rounded-full" />
+          </div>
+          {showDangerZoneAccordion ? (
+            <div className="mb-4 space-y-2">
+              <ProfileDangerZoneAccordionSkeleton />
+              <LoadingSkeleton className="h-4 w-full max-w-xl rounded" />
+            </div>
+          ) : null}
+          <ProfileMoleculeGridSkeleton rows={4} />
+        </section>
+      </div>
+    </div>
+  );
+}
+
+export function ProfileSecuritySectionSkeleton() {
+  return (
+    <div
+      className="border-border bg-surface space-y-6 rounded-2xl border p-5 sm:p-6"
+      aria-busy="true"
+      aria-label="Loading security settings"
+    >
+      <div className="space-y-2">
+        <LoadingSkeleton className="h-6 w-40 rounded" />
+        <LoadingSkeleton className="h-4 w-full max-w-lg rounded" />
+      </div>
+      <div className="border-border space-y-3 border-t pt-6">
+        <LoadingSkeleton className="h-5 w-24 rounded" />
+        <LoadingSkeleton className="h-10 w-full max-w-md rounded-lg" />
+      </div>
+      <div className="border-border space-y-3 border-t pt-6">
+        <LoadingSkeleton className="h-5 w-16 rounded" />
+        <LoadingSkeleton className="h-10 w-32 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
+export function ProfilePageSkeleton({
+  showSecurity = true,
+  showDangerZoneAccordion = false,
+}: {
+  showSecurity?: boolean;
+  showDangerZoneAccordion?: boolean;
+} = {}) {
+  return (
+    <>
+      <ProfileHeaderSkeleton />
+      {showSecurity ? <ProfileMainTabsSkeleton showSecurity /> : null}
+      <ProfileContributionsSectionSkeleton
+        showDangerZoneAccordion={showDangerZoneAccordion}
+      />
+    </>
   );
 }
 
@@ -880,22 +1193,57 @@ export function ProfileContributionsSection({
 }) {
   const [contributionsSubview, setContributionsSubview] =
     useState<ProfileContributionsSubview>("molecules");
+  const [moleculesPage, setMoleculesPage] = useState(1);
+  const [nexafsPage, setNexafsPage] = useState(1);
+
+  useEffect(() => {
+    setMoleculesPage(1);
+    setNexafsPage(1);
+  }, [contributionsSubview, userId]);
+
+  const moleculesOffset = (moleculesPage - 1) * PROFILE_MOLECULES_PAGE_SIZE;
+  const nexafsOffset = (nexafsPage - 1) * PROFILE_NEXAFS_PAGE_SIZE;
 
   const { data: moleculesData, isLoading: moleculesLoading } =
     trpc.users.listProfileMolecules.useQuery({
       userId,
-      limit: 12,
+      limit: PROFILE_MOLECULES_PAGE_SIZE,
+      offset: moleculesOffset,
     });
 
   const { data: experimentsData, isLoading: experimentsLoading } =
     trpc.users.listProfileExperiments.useQuery({
       userId,
-      limit: 12,
+      limit: PROFILE_NEXAFS_PAGE_SIZE,
+      offset: nexafsOffset,
     });
 
   const molecules = moleculesData?.items ?? [];
+  const moleculesTotal = moleculesData?.total ?? 0;
+  const moleculesTotalPages = Math.max(
+    1,
+    Math.ceil(moleculesTotal / PROFILE_MOLECULES_PAGE_SIZE),
+  );
+
   const experimentGroups = experimentsData?.groups ?? [];
-  const nexafsDatasetCount = experimentsData?.total ?? experimentGroups.length;
+  const nexafsTotal = experimentsData?.total ?? 0;
+  const nexafsTotalPages = Math.max(
+    1,
+    Math.ceil(nexafsTotal / PROFILE_NEXAFS_PAGE_SIZE),
+  );
+  const nexafsDatasetCount = nexafsTotal;
+
+  useEffect(() => {
+    if (moleculesPage > moleculesTotalPages) {
+      setMoleculesPage(moleculesTotalPages);
+    }
+  }, [moleculesPage, moleculesTotalPages]);
+
+  useEffect(() => {
+    if (nexafsPage > nexafsTotalPages) {
+      setNexafsPage(nexafsTotalPages);
+    }
+  }, [nexafsPage, nexafsTotalPages]);
 
   return (
     <div className="space-y-0">
@@ -956,6 +1304,11 @@ export function ProfileContributionsSection({
             isOwnProfile={isOwnProfile}
             molecules={molecules}
             isLoading={moleculesLoading}
+            pagination={{
+              currentPage: moleculesPage,
+              totalPages: moleculesTotalPages,
+              onPageChange: setMoleculesPage,
+            }}
           />
         </section>
       </Tabs.Panel>
@@ -986,6 +1339,11 @@ export function ProfileContributionsSection({
             isOwnProfile={isOwnProfile}
             experimentGroups={experimentGroups}
             isLoading={experimentsLoading}
+            pagination={{
+              currentPage: nexafsPage,
+              totalPages: nexafsTotalPages,
+              onPageChange: setNexafsPage,
+            }}
           />
         </section>
       </Tabs.Panel>
@@ -994,16 +1352,24 @@ export function ProfileContributionsSection({
   );
 }
 
+type ProfileContributionsPaginationState = {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+};
+
 function ProfileNexafsList({
   userId,
   isOwnProfile,
   experimentGroups,
   isLoading,
+  pagination,
 }: {
   userId: string;
   isOwnProfile: boolean;
   experimentGroups: ProfileExperimentGroup[];
   isLoading: boolean;
+  pagination: ProfileContributionsPaginationState;
 }) {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
@@ -1032,6 +1398,7 @@ function ProfileNexafsList({
   >(null);
   const [expandedManageExperimentIds, setExpandedManageExperimentIds] =
     useState(() => new Set<string>());
+  const [dangerZoneOpen, setDangerZoneOpen] = useState(false);
 
   const toggleManageExperiment = (experimentId: string) => {
     setExpandedManageExperimentIds((previous) => {
@@ -1098,7 +1465,7 @@ function ProfileNexafsList({
   };
 
   const invalidateProfileExperiments = async () => {
-    await utils.users.listProfileExperiments.invalidate({ userId, limit: 12 });
+    await utils.users.listProfileExperiments.invalidate({ userId });
   };
 
   const handleDeleteConfirm = async () => {
@@ -1156,6 +1523,37 @@ function ProfileNexafsList({
       );
     }
   };
+
+  const ownsAnyExperiment = experimentGroups.some((group) =>
+    group.profileContributions.includes("creator"),
+  );
+  const collectsAnyExperiment = experimentGroups.some((group) =>
+    group.profileContributions.includes("collector"),
+  );
+  const showDangerZone =
+    isOwnProfile && (ownsAnyExperiment || collectsAnyExperiment);
+
+  const manageableExperimentIds = useMemo(
+    () =>
+      experimentGroups
+        .filter((group) => {
+          if (!isOwnProfile) return false;
+          return (
+            group.profileContributions.includes("creator") ||
+            group.profileContributions.includes("collector")
+          );
+        })
+        .map((group) => group.experimentId),
+    [experimentGroups, isOwnProfile],
+  );
+
+  useEffect(() => {
+    if (!dangerZoneOpen) {
+      setExpandedManageExperimentIds(new Set());
+      return;
+    }
+    setExpandedManageExperimentIds(new Set(manageableExperimentIds));
+  }, [dangerZoneOpen, manageableExperimentIds]);
 
   if (isLoading) {
     return <ProfileNexafsListSkeleton rows={2} />;
@@ -1241,37 +1639,14 @@ function ProfileNexafsList({
     );
   };
 
-  const ownsAnyExperiment = experimentGroups.some((group) =>
-    group.profileContributions.includes("creator"),
-  );
-  const collectsAnyExperiment = experimentGroups.some((group) =>
-    group.profileContributions.includes("collector"),
-  );
+  const nexafsDangerZoneDescription = ownsAnyExperiment
+    ? collectsAnyExperiment
+      ? "Delete or transfer datasets you uploaded. For datasets you only collected on, remove your collector listing without deleting the experiment."
+      : "Delete datasets you uploaded or transfer ownership. Deleting removes the experiment and spectrum points; transferring keeps the record and changes the owner."
+    : "Remove yourself as a collector on datasets you did not upload, without deleting the experiment.";
 
-  return (
-    <div className="space-y-4">
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
-      {isOwnProfile && ownsAnyExperiment ? (
-        <p className="text-muted text-sm">
-          Open Manage on datasets you uploaded to delete them or transfer
-          ownership. Deleting removes the experiment and spectrum points;
-          transferring keeps the record and changes the owner.
-        </p>
-      ) : null}
-      {isOwnProfile && collectsAnyExperiment && !ownsAnyExperiment ? (
-        <p className="text-muted text-sm">
-          Open Manage on datasets you collected to remove yourself as a collector
-          without deleting the experiment.
-        </p>
-      ) : null}
-      {isOwnProfile && collectsAnyExperiment && ownsAnyExperiment ? (
-        <p className="text-muted text-sm">
-          For datasets you only collected on, Manage removes your collector
-          listing. For datasets you uploaded, Manage supports delete and
-          transfer.
-        </p>
-      ) : null}
-      <ul className={profileNexafsListClassName}>
+  const nexafsList = (
+    <ul className={profileNexafsListClassName}>
         {experimentGroups.map((group) => {
           const { key, props } = mapNexafsBrowseGroupToCard(group);
           const label = profileExperimentLabel(group);
@@ -1279,7 +1654,8 @@ function ProfileNexafsList({
             isOwnProfile && group.profileContributions.includes("creator");
           const canLeaveCollector =
             isOwnProfile && group.profileContributions.includes("collector");
-          const canManage = canManageCreator || canLeaveCollector;
+          const canManage =
+            dangerZoneOpen && (canManageCreator || canLeaveCollector);
           const manageExpanded = expandedManageExperimentIds.has(
             group.experimentId,
           );
@@ -1291,7 +1667,6 @@ function ProfileNexafsList({
                   <div className="self-stretch">
                     <ProfileDangerZoneRail
                       subjectLabel={label}
-                      onClose={() => toggleManageExperiment(group.experimentId)}
                       showDelete={canManageCreator}
                       onDelete={
                         canManageCreator
@@ -1311,7 +1686,9 @@ function ProfileNexafsList({
                       extraActions={
                         canLeaveCollector ? (
                           <>
-                            <div className="border-border h-px w-full border-t" />
+                            {canManageCreator ? (
+                              <div className="border-border h-px w-full border-t" />
+                            ) : null}
                             <Tooltip delay={0}>
                               <Tooltip.Trigger>
                                 <span className="inline-flex h-11 w-11 flex-none">
@@ -1325,7 +1702,10 @@ function ProfileNexafsList({
                                     }
                                     size="sm"
                                     variant="ghost"
-                                    className="text-warning h-11 w-11 rounded-none rounded-b-lg"
+                                    className={cn(
+                                      "text-warning h-11 w-11 rounded-none rounded-b-lg",
+                                      !canManageCreator && "rounded-t-lg",
+                                    )}
                                     isPending={removeCollector.isPending}
                                   >
                                     <UserMinus className="h-4 w-4" />
@@ -1361,10 +1741,7 @@ function ProfileNexafsList({
                     onPress={() => toggleManageExperiment(group.experimentId)}
                     size="sm"
                     variant="ghost"
-                    className={cn(
-                      "absolute end-2 top-2 z-10 h-8 w-8",
-                      "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100",
-                    )}
+                    className="absolute end-2 top-2 z-10 h-8 w-8 opacity-100"
                   >
                     <MoreVertical className="h-4 w-4" aria-hidden />
                   </Button>
@@ -1375,7 +1752,35 @@ function ProfileNexafsList({
             </li>
           );
         })}
-      </ul>
+    </ul>
+  );
+
+  return (
+    <div className="space-y-4">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      {showDangerZone ? (
+        <>
+          <ProfileContributionsDangerZoneAccordion
+            description={nexafsDangerZoneDescription}
+            dangerZoneOpen={dangerZoneOpen}
+            onDangerZoneOpenChange={setDangerZoneOpen}
+          />
+          {!dangerZoneOpen ? (
+            <p className="text-muted text-sm">
+              Expand Danger zone to delete, transfer ownership, or remove your
+              collector listing on contributed datasets.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+      {nexafsList}
+
+      <ProfileContributionsPagination
+        ariaLabel="NEXAFS contributions pages"
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        onPageChange={pagination.onPageChange}
+      />
 
       <SimpleDialog
         isOpen={deleteDialogExperimentId !== null}
@@ -1510,11 +1915,13 @@ function ProfileMoleculesList({
   isOwnProfile,
   molecules,
   isLoading,
+  pagination,
 }: {
   userId: string;
   isOwnProfile: boolean;
   molecules: ProfileMoleculeListItem[];
   isLoading: boolean;
+  pagination: ProfileContributionsPaginationState;
 }) {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
@@ -1544,6 +1951,7 @@ function ProfileMoleculesList({
   const [expandedManageMoleculeIds, setExpandedManageMoleculeIds] = useState(
     () => new Set<string>(),
   );
+  const [dangerZoneOpen, setDangerZoneOpen] = useState(false);
 
   const toggleManageMolecule = (moleculeId: string) => {
     setExpandedManageMoleculeIds((previous) => {
@@ -1613,7 +2021,7 @@ function ProfileMoleculesList({
     if (!deleteDialogMoleculeId) return;
     try {
       await removeMolecule.mutateAsync({ moleculeId: deleteDialogMoleculeId });
-      await utils.users.listProfileMolecules.invalidate({ userId, limit: 12 });
+      await utils.users.listProfileMolecules.invalidate({ userId });
       closeDelete();
       showToast("Molecule deleted", "success");
     } catch (error) {
@@ -1632,7 +2040,7 @@ function ProfileMoleculesList({
         moleculeId: transferDialogMoleculeId,
         newCreatorId: transferRecipientUserId,
       });
-      await utils.users.listProfileMolecules.invalidate({ userId, limit: 12 });
+      await utils.users.listProfileMolecules.invalidate({ userId });
       closeTransfer();
       showToast("Ownership transferred", "success");
     } catch (error) {
@@ -1643,6 +2051,27 @@ function ProfileMoleculesList({
       );
     }
   };
+
+  const ownsAnyMolecule = molecules.some((item) =>
+    item.contributions.includes("creator"),
+  );
+  const showDangerZone = isOwnProfile && ownsAnyMolecule;
+
+  const creatorMoleculeIds = useMemo(
+    () =>
+      molecules
+        .filter((item) => item.contributions.includes("creator"))
+        .map((item) => item.molecule.id),
+    [molecules],
+  );
+
+  useEffect(() => {
+    if (!dangerZoneOpen) {
+      setExpandedManageMoleculeIds(new Set());
+      return;
+    }
+    setExpandedManageMoleculeIds(new Set(creatorMoleculeIds));
+  }, [dangerZoneOpen, creatorMoleculeIds]);
 
   if (isLoading) {
     return <ProfileMoleculeGridSkeleton />;
@@ -1728,23 +2157,13 @@ function ProfileMoleculesList({
     );
   };
 
-  const ownsAnyMolecule = molecules.some((item) =>
-    item.contributions.includes("creator"),
-  );
-
-  return (
-    <div className="space-y-4">
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
-      {isOwnProfile && ownsAnyMolecule ? (
-        <p className="text-muted text-sm">
-          Open Manage on a molecule you created to delete it or transfer ownership.
-          Deleting removes the molecule and related records; transferring keeps the
-          record and changes the owner.
-        </p>
-      ) : null}
-      <div className={profileMoleculeListClassName}>
+  const moleculeList = (
+    <div className={profileMoleculeListClassName}>
         {molecules.map(({ molecule, contributions }) => {
-          const canManage = isOwnProfile && contributions.includes("creator");
+          const canManage =
+            dangerZoneOpen &&
+            isOwnProfile &&
+            contributions.includes("creator");
           const manageExpanded = expandedManageMoleculeIds.has(molecule.id);
 
           if (canManage && manageExpanded) {
@@ -1754,7 +2173,6 @@ function ProfileMoleculesList({
                   <div className="self-stretch">
                     <ProfileDangerZoneRail
                       subjectLabel={molecule.name}
-                      onClose={() => toggleManageMolecule(molecule.id)}
                       onDelete={() => openDelete(molecule.id)}
                       deleteDisabled={
                         removeMolecule.isPending &&
@@ -1789,10 +2207,7 @@ function ProfileMoleculesList({
                     onPress={() => toggleManageMolecule(molecule.id)}
                     size="sm"
                     variant="ghost"
-                    className={cn(
-                      "absolute end-2 top-2 z-10 h-8 w-8",
-                      "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100",
-                    )}
+                    className="absolute end-2 top-2 z-10 h-8 w-8 opacity-100"
                   >
                     <MoreVertical className="h-4 w-4" aria-hidden />
                   </Button>
@@ -1806,7 +2221,35 @@ function ProfileMoleculesList({
             </div>
           );
         })}
-      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      {showDangerZone ? (
+        <>
+          <ProfileContributionsDangerZoneAccordion
+            description="Delete molecules you created or transfer ownership to another researcher. Deleting removes the molecule and related records; transferring keeps the record and changes the owner."
+            dangerZoneOpen={dangerZoneOpen}
+            onDangerZoneOpenChange={setDangerZoneOpen}
+          />
+          {!dangerZoneOpen ? (
+            <p className="text-muted text-sm">
+              Expand Danger zone to delete or transfer ownership of molecules you
+              created.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+      {moleculeList}
+
+      <ProfileContributionsPagination
+        ariaLabel="Molecule contributions pages"
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        onPageChange={pagination.onPageChange}
+      />
 
       <SimpleDialog
         isOpen={deleteDialogMoleculeId !== null}

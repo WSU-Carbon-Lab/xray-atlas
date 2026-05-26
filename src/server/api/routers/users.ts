@@ -341,7 +341,7 @@ export const usersRouter = createTRPCRouter({
       z.object({
         userId: userRouteIdSchema,
         limit: z.number().min(1).max(24).default(12),
-        cursor: z.string().uuid().optional(),
+        offset: z.number().min(0).default(0),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -350,40 +350,45 @@ export const usersRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
       }
 
-      const molecules = await ctx.db.molecules.findMany({
-        where: {
-          OR: [
-            { createdby: userId },
-            {
-              moleculecontributors: {
-                some: { userid: userId },
-              },
+      const profileMoleculeWhere = {
+        OR: [
+          { createdby: userId },
+          {
+            moleculecontributors: {
+              some: { userid: userId },
             },
-          ],
-        },
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        include: {
-          moleculesynonyms: {
-            orderBy: [{ order: "asc" }],
           },
-          moleculecontributors: {
-            include: {
-              user: {
-                select: { id: true, name: true, image: true },
-              },
+        ],
+      };
+
+      const [molecules, total] = await Promise.all([
+        ctx.db.molecules.findMany({
+          where: profileMoleculeWhere,
+          skip: input.offset,
+          take: input.limit,
+          include: {
+            moleculesynonyms: {
+              orderBy: [{ order: "asc" }],
             },
-            orderBy: { contributedat: "asc" },
+            moleculecontributors: {
+              include: {
+                user: {
+                  select: { id: true, name: true, image: true },
+                },
+              },
+              orderBy: { contributedat: "asc" },
+            },
+            moleculetags: {
+              include: { tags: true },
+            },
+            samples: {
+              include: { _count: { select: { experiments: true } } },
+            },
           },
-          moleculetags: {
-            include: { tags: true },
-          },
-          samples: {
-            include: { _count: { select: { experiments: true } } },
-          },
-        },
-        orderBy: { createdat: "desc" },
-      });
+          orderBy: { createdat: "desc" },
+        }),
+        ctx.db.molecules.count({ where: profileMoleculeWhere }),
+      ]);
 
       const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
         ...molecule,
@@ -396,12 +401,6 @@ export const usersRouter = createTRPCRouter({
             .sort((a, b) => a.synonym.length - b.synonym.length),
         ],
       }));
-
-      let nextCursor: string | undefined;
-      if (moleculesWithSortedSynonyms.length > input.limit) {
-        const nextItem = moleculesWithSortedSynonyms.pop();
-        nextCursor = nextItem?.id;
-      }
 
       let favoritedSet = new Set<string>();
       if (ctx.userId && moleculesWithSortedSynonyms.length > 0) {
@@ -433,7 +432,11 @@ export const usersRouter = createTRPCRouter({
         };
       });
 
-      return { items, nextCursor };
+      return {
+        items,
+        total,
+        hasMore: input.offset + items.length < total,
+      };
     }),
 
   /**

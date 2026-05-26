@@ -3,10 +3,8 @@
 import { use, useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 import { Tabs } from "@heroui/react";
 import { trpc } from "~/trpc/client";
-import { PageSkeleton } from "@/components/feedback/loading-state";
 import { NotFoundState, ErrorState } from "@/components/feedback/error-state";
 import { ToastContainer, useToast } from "@/components/ui/toast";
 import { runPasskeyClientAuth } from "~/lib/passkey-client-auth";
@@ -16,8 +14,11 @@ import {
   ProfileGitHubSecuritySection,
   ProfileHeader,
   type ProfileGitHubPresentation,
+  ProfilePageShell,
+  ProfilePageSkeleton,
   ProfilePasskeysSection,
   ProfileSectionCard,
+  ProfileSecuritySectionSkeleton,
 } from "./profile-sections";
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -34,13 +35,13 @@ export default function UserProfilePage({
   params: Promise<{ orcid: string }>;
 }) {
   const { orcid: userId } = use(params);
-  const { data: session, status } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const searchParams = useSearchParams();
   const passkeyRequiredRedirect = searchParams.get("passkey") === "required";
 
   const {
     data: user,
-    isLoading,
+    isLoading: userLoading,
     isError,
     error,
   } = trpc.users.getById.useQuery(
@@ -56,8 +57,13 @@ export default function UserProfilePage({
   const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
   const [selectedTab, setSelectedTab] = useState<ProfileTabId>("contributions");
 
+  const sessionOwnsRoute =
+    sessionStatus === "authenticated" && session.user.id === userId;
+
   const isOwnProfile =
     !!session?.user?.id && !!user && session.user.id === user.id;
+
+  const showSecurityTabSkeleton = sessionOwnsRoute || isOwnProfile;
 
   const { data: linkedAccounts } = trpc.users.getLinkedAccounts.useQuery(
     undefined,
@@ -174,11 +180,14 @@ export default function UserProfilePage({
     return user?.github ?? null;
   }, [isOwnProfile, linkedAccounts, user?.github]);
 
-  if (isLoading || status === "loading") {
+  if (userLoading) {
     return (
-      <div className="container mx-auto max-w-5xl px-4 py-8">
-        <PageSkeleton />
-      </div>
+      <ProfilePageShell>
+        <ProfilePageSkeleton
+          showSecurity={showSecurityTabSkeleton}
+          showDangerZoneAccordion={sessionOwnsRoute}
+        />
+      </ProfilePageShell>
     );
   }
 
@@ -188,16 +197,16 @@ export default function UserProfilePage({
       error?.message === "User not found"
     ) {
       return (
-        <div className="container mx-auto max-w-5xl px-4 py-8">
+        <ProfilePageShell>
           <NotFoundState
             title="User Not Found"
             message="The user you're looking for doesn't exist."
           />
-        </div>
+        </ProfilePageShell>
       );
     }
     return (
-      <div className="container mx-auto max-w-5xl px-4 py-8">
+      <ProfilePageShell>
         <ErrorState
           title="Failed to load user"
           message={
@@ -205,81 +214,72 @@ export default function UserProfilePage({
           }
           onRetry={() => window.location.reload()}
         />
-      </div>
+      </ProfilePageShell>
     );
   }
 
   if (!user) {
     return (
-      <div className="container mx-auto max-w-5xl px-4 py-8">
+      <ProfilePageShell>
         <NotFoundState />
-      </div>
+      </ProfilePageShell>
     );
   }
 
   const effectiveTab = tabIds.includes(selectedTab) ? selectedTab : tabIds[0];
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8">
+    <ProfilePageShell>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
-      <div className="mb-6">
-        <Link
-          href="/"
-          className="text-muted hover:text-accent text-sm transition-colors"
+      <ProfileHeader
+        user={user}
+        github={headerGithub}
+        isOwnProfile={isOwnProfile}
+      />
+
+      {isOwnProfile ? (
+        <Tabs
+          selectedKey={effectiveTab}
+          onSelectionChange={(key) => {
+            const next = String(key);
+            if (next === "security" || next === "contributions") {
+              queueMicrotask(() => setSelectedTab(next));
+            }
+          }}
+          className="w-full"
         >
-          Back to home
-        </Link>
-      </div>
-
-      <div className="space-y-6">
-        <ProfileHeader
-          user={user}
-          github={headerGithub}
-          isOwnProfile={isOwnProfile}
-        />
-
-        {isOwnProfile ? (
-          <Tabs
-            selectedKey={effectiveTab}
-            onSelectionChange={(key) => {
-              const next = String(key);
-              if (next === "security" || next === "contributions") {
-                queueMicrotask(() => setSelectedTab(next));
-              }
-            }}
-            className="w-full"
-          >
-            <Tabs.ListContainer className="w-full">
-              <Tabs.List
-                aria-label="Profile sections"
-                className="border-border bg-surface flex w-full flex-wrap gap-1 rounded-xl border p-1"
+          <Tabs.ListContainer className="w-full">
+            <Tabs.List
+              aria-label="Profile sections"
+              className="border-border bg-surface flex w-full flex-wrap gap-1 rounded-xl border p-1"
+            >
+              <Tabs.Tab
+                id="contributions"
+                className="flex-1 px-4 py-2 text-sm font-medium"
               >
-                <Tabs.Tab
-                  id="contributions"
-                  className="flex-1 px-4 py-2 text-sm font-medium"
-                >
-                  Contributions
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-                <Tabs.Tab
-                  id="security"
-                  className="flex-1 px-4 py-2 text-sm font-medium"
-                >
-                  Security
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-              </Tabs.List>
-            </Tabs.ListContainer>
+                Contributions
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              <Tabs.Tab
+                id="security"
+                className="flex-1 px-4 py-2 text-sm font-medium"
+              >
+                Security
+                <Tabs.Indicator />
+              </Tabs.Tab>
+            </Tabs.List>
+          </Tabs.ListContainer>
 
-            <Tabs.Panel id="contributions" className="pt-6">
-              <ProfileContributionsSection
-                userId={user.id}
-                isOwnProfile={isOwnProfile}
-              />
-            </Tabs.Panel>
+          <Tabs.Panel id="contributions" className="pt-6">
+            <ProfileContributionsSection
+              userId={user.id}
+              isOwnProfile={isOwnProfile}
+            />
+          </Tabs.Panel>
 
-            <Tabs.Panel id="security" className="pt-6">
+          <Tabs.Panel id="security" className="pt-6">
+            {effectiveTab === "security" ? (
               <ProfileSectionCard
                 title="Account security"
                 description="Passkeys for sign-in and contribution access. API keys for programmatic access are coming soon."
@@ -300,15 +300,17 @@ export default function UserProfilePage({
                 />
                 <ProfileApiKeysSection />
               </ProfileSectionCard>
-            </Tabs.Panel>
-          </Tabs>
-        ) : (
-          <ProfileContributionsSection
-            userId={user.id}
-            isOwnProfile={isOwnProfile}
-          />
-        )}
-      </div>
-    </div>
+            ) : (
+              <ProfileSecuritySectionSkeleton />
+            )}
+          </Tabs.Panel>
+        </Tabs>
+      ) : (
+        <ProfileContributionsSection
+          userId={user.id}
+          isOwnProfile={isOwnProfile}
+        />
+      )}
+    </ProfilePageShell>
   );
 }
