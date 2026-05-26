@@ -9,6 +9,7 @@ import {
   Avatar,
   Button,
   Card,
+  Checkbox,
   Chip,
   ListBox,
   Pagination,
@@ -1448,6 +1449,15 @@ function ProfileNexafsList({
   const removeExperiment = trpc.experiments.remove.useMutation();
   const transferOwnership = trpc.experiments.transferOwnership.useMutation();
   const removeCollector = trpc.experiments.removeCollector.useMutation();
+  const confirmClaimContributions =
+    trpc.experiments.confirmClaimContributions.useMutation();
+  const setClaimState = trpc.experiments.setClaimState.useMutation();
+  const setContributionVisibility =
+    trpc.experiments.setContributionVisibility.useMutation();
+  const { data: unclaimedContributions } =
+    trpc.experiments.listMyUnclaimedContributions.useQuery(undefined, {
+      enabled: isOwnProfile,
+    });
   const getDeleteDataPointImpact =
     trpc.experiments.getDeleteDataPointImpact.useMutation();
   const { data: coreMaintainers } = trpc.users.getCoreMaintainers.useQuery(
@@ -1470,6 +1480,12 @@ function ProfileNexafsList({
   const [expandedManageExperimentIds, setExpandedManageExperimentIds] =
     useState(() => new Set<string>());
   const [dangerZoneOpen, setDangerZoneOpen] = useState(false);
+  const [selectedExperimentIds, setSelectedExperimentIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [selectedUnclaimedIds, setSelectedUnclaimedIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const toggleManageExperiment = (experimentId: string) => {
     setExpandedManageExperimentIds((previous) => {
@@ -1537,7 +1553,34 @@ function ProfileNexafsList({
   };
 
   const invalidateProfileExperiments = async () => {
-    await utils.users.listProfileExperiments.invalidate({ userId });
+    await Promise.all([
+      utils.users.listProfileExperiments.invalidate({ userId }),
+      utils.experiments.listMyUnclaimedContributions.invalidate(),
+    ]);
+  };
+
+  const toggleExperimentSelection = (experimentId: string) => {
+    setSelectedExperimentIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(experimentId)) {
+        next.delete(experimentId);
+      } else {
+        next.add(experimentId);
+      }
+      return next;
+    });
+  };
+
+  const toggleUnclaimedSelection = (experimentId: string) => {
+    setSelectedUnclaimedIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(experimentId)) {
+        next.delete(experimentId);
+      } else {
+        next.add(experimentId);
+      }
+      return next;
+    });
   };
 
   const handleDeleteConfirm = async () => {
@@ -1599,6 +1642,77 @@ function ProfileNexafsList({
     }
   };
 
+  const handleBulkContributionVisibility = async (visibleProfile: boolean) => {
+    const experimentIds = Array.from(selectedExperimentIds);
+    if (experimentIds.length === 0) {
+      showToast("Select at least one dataset first", "error", 0);
+      return;
+    }
+    try {
+      await setContributionVisibility.mutateAsync({
+        experimentIds,
+        visibleProfile,
+      });
+      await invalidateProfileExperiments();
+      showToast(
+        visibleProfile
+          ? "Contributor profiles are now visible"
+          : "Contributor profiles detached to ORCID-only",
+        "success",
+      );
+      setSelectedExperimentIds(new Set());
+    } catch (error) {
+      handlePrivilegedWriteError(
+        error,
+        showToast,
+        onSessionAalRequired,
+        "Failed to update contribution visibility",
+      );
+    }
+  };
+
+  const handleConfirmClaim = async () => {
+    const experimentIds = Array.from(selectedUnclaimedIds);
+    if (experimentIds.length === 0) {
+      showToast("Select at least one unclaimed dataset", "error", 0);
+      return;
+    }
+    try {
+      await confirmClaimContributions.mutateAsync({ experimentIds });
+      await invalidateProfileExperiments();
+      showToast("Claimed selected contributions", "success");
+      setSelectedUnclaimedIds(new Set());
+    } catch (error) {
+      handlePrivilegedWriteError(
+        error,
+        showToast,
+        onSessionAalRequired,
+        "Failed to claim contributions",
+      );
+    }
+  };
+
+  const handleRemainUnclaimed = async () => {
+    const experimentIds = Array.from(selectedUnclaimedIds);
+    if (experimentIds.length === 0) {
+      showToast("Select at least one unclaimed dataset", "error", 0);
+      return;
+    }
+    try {
+      await setClaimState.mutateAsync({ experimentIds, claim: false });
+      await invalidateProfileExperiments();
+      showToast("Selected datasets remain unclaimed", "success");
+      setSelectedUnclaimedIds(new Set());
+    } catch (error) {
+      handlePrivilegedWriteError(
+        error,
+        showToast,
+        onSessionAalRequired,
+        "Failed to update claim state",
+      );
+    }
+  };
+
   const ownsAnyExperiment = experimentGroups.some((group) =>
     group.profileContributions.includes("creator"),
   );
@@ -1625,10 +1739,15 @@ function ProfileNexafsList({
   useEffect(() => {
     if (!dangerZoneOpen) {
       setExpandedManageExperimentIds(new Set());
+      setSelectedExperimentIds(new Set());
       return;
     }
     setExpandedManageExperimentIds(new Set(manageableExperimentIds));
   }, [dangerZoneOpen, manageableExperimentIds]);
+
+  useEffect(() => {
+    setSelectedUnclaimedIds(new Set());
+  }, [userId]);
 
   if (isLoading) {
     return <ProfileNexafsListSkeleton rows={2} />;
@@ -1648,14 +1767,14 @@ function ProfileNexafsList({
 
   const recipientOptions = (() => {
     if (!pendingTransferExperiment) return [];
-    const contributors = pendingTransferExperiment.contributorUsers.map(
-      (user) => ({
-        id: user.id,
+    const contributors = pendingTransferExperiment.contributorUsers
+      .filter((user) => user.userId != null && user.isPublicProfileVisible)
+      .map((user) => ({
+        id: user.userId!,
         name: user.name,
         image: user.image,
         kind: "contributor" as const,
-      }),
-    );
+      }));
     const core = coreMaintainers ?? [];
 
     const byId = new Map<
@@ -1797,6 +1916,15 @@ function ProfileNexafsList({
                     />
                   </div>
                   <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex justify-end">
+                      <Checkbox
+                        isSelected={selectedExperimentIds.has(group.experimentId)}
+                        onChange={() =>
+                          toggleExperimentSelection(group.experimentId)
+                        }
+                        aria-label={`Select dataset ${label}`}
+                      />
+                    </div>
                     <NexafsExperimentCompactCard {...props} />
                   </div>
                 </div>
@@ -1809,6 +1937,15 @@ function ProfileNexafsList({
               {canManage ? (
                 <div className="group relative">
                   <NexafsExperimentCompactCard {...props} />
+                  <div className="absolute end-12 top-2 z-10">
+                    <Checkbox
+                      isSelected={selectedExperimentIds.has(group.experimentId)}
+                      onChange={() =>
+                        toggleExperimentSelection(group.experimentId)
+                      }
+                      aria-label={`Select dataset ${label}`}
+                    />
+                  </div>
                   <Button
                     isIconOnly
                     aria-label={`Manage NEXAFS dataset ${label}`}
@@ -1833,6 +1970,62 @@ function ProfileNexafsList({
   return (
     <div className="space-y-4">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      {isOwnProfile && (unclaimedContributions?.length ?? 0) > 0 ? (
+        <Card className="border-border bg-surface border">
+          <Card.Header className="border-border border-b px-4 py-3">
+            <Card.Title className="text-foreground text-sm font-semibold">
+              Unclaimed ORCID contributions
+            </Card.Title>
+            <Card.Description className="text-muted text-xs">
+              Confirm claim to show your name and avatar. Until claimed, only your ORCID is shown.
+            </Card.Description>
+          </Card.Header>
+          <Card.Content className="space-y-3 p-4">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="primary"
+                onPress={() => void handleConfirmClaim()}
+                isPending={confirmClaimContributions.isPending}
+              >
+                Confirm claim
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => void handleRemainUnclaimed()}
+                isPending={setClaimState.isPending}
+              >
+                Remain unclaimed
+              </Button>
+            </div>
+            <ul className="space-y-2">
+              {unclaimedContributions?.map((row) => (
+                <li key={`unclaimed-${row.experimentId}`}>
+                  <label className="border-border bg-default/20 flex items-start gap-2 rounded-lg border p-2">
+                    <Checkbox
+                      isSelected={selectedUnclaimedIds.has(row.experimentId)}
+                      onChange={() => toggleUnclaimedSelection(row.experimentId)}
+                      aria-label={`Select unclaimed experiment ${row.experiment.id}`}
+                    />
+                    <span className="min-w-0 text-sm">
+                      <span className="text-foreground block font-medium">
+                        {row.experiment.moleculeName} ({row.experiment.edgeLabel})
+                      </span>
+                      <span className="text-muted block text-xs">
+                        {row.experiment.instrumentName}
+                        {row.experiment.facilityName
+                          ? ` | ${row.experiment.facilityName}`
+                          : ""}
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </Card.Content>
+        </Card>
+      ) : null}
       {showDangerZone ? (
         <>
           <ProfileContributionsDangerZoneAccordion
@@ -1845,7 +2038,37 @@ function ProfileNexafsList({
               Expand Danger zone to delete, transfer ownership, or remove your
               collector listing on contributed datasets.
             </p>
-          ) : null}
+          ) : (
+            <div className="border-border bg-default/20 flex flex-wrap items-center gap-2 rounded-lg border p-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() =>
+                  setSelectedExperimentIds(
+                    new Set(experimentGroups.map((group) => group.experimentId)),
+                  )
+                }
+              >
+                Select all datasets
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onPress={() => void handleBulkContributionVisibility(false)}
+                isPending={setContributionVisibility.isPending}
+              >
+                Detach profile details
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => void handleBulkContributionVisibility(true)}
+                isPending={setContributionVisibility.isPending}
+              >
+                Restore profile details
+              </Button>
+            </div>
+          )}
         </>
       ) : null}
       {nexafsList}

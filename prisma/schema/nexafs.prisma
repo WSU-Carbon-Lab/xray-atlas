@@ -42,6 +42,7 @@ model experiments {
   validationsummary         Json?                      @map("validation_summary")
   qualityscores             Json?                      @map("quality_scores")
   kkdeltametadata           Json?                      @map("kk_delta_metadata")
+  experimentcontributors    experimentcontributors[]
   experimentfavorites       experimentfavorites[]
   experimentmetrics         experimentmetrics?
   experimentmetricschannels experimentmetricschannel[] @relation("ExperimentMetricsChannelHeader")
@@ -63,6 +64,29 @@ model experiments {
   @@index([instrumentid], map: "idx_experiments_instrumentid")
   @@index([polarizationid], map: "idx_experiments_polarizationid")
   @@index([nexafsexperimentkindid], map: "idx_experiments_nexafs_kindid")
+  @@schema("public")
+}
+
+model experimentcontributors {
+  id                     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  experimentid           String      @map("experiment_id") @db.Uuid
+  orcidid                String      @map("orcid_id") @db.VarChar(19)
+  userid                 String?     @map("user_id") @db.VarChar(19)
+  role                   String
+  isclaimed              Boolean     @default(false) @map("is_claimed")
+  ispublicprofilevisible Boolean     @default(false) @map("is_public_profile_visible")
+  detachedat             DateTime?   @map("detached_at") @db.Timestamptz(6)
+  claimedat              DateTime?   @map("claimed_at") @db.Timestamptz(6)
+  createdat              DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedat              DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  experiments            experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user                   user?       @relation(fields: [userid], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([experimentid, orcidid, role], map: "experiment_contributors_unique_role")
+  @@index([experimentid], map: "idx_experiment_contributors_experiment_id")
+  @@index([orcidid], map: "idx_experiment_contributors_orcid_id")
+  @@index([userid], map: "idx_experiment_contributors_user_id")
+  @@map("experiment_contributors")
   @@schema("public")
 }
 

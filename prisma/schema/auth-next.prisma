@@ -51,6 +51,7 @@ model user {
   userAppRoles                  UserAppRole[]
   experimentfavorites           experimentfavorites[]
   moleculecontributors          moleculecontributors[]
+  experimentcontributors        experimentcontributors[]
   moleculefavorites             moleculefavorites[]
   moleculeviews                 moleculeviews[]
 

@@ -13,7 +13,7 @@ export type NexafsBrowseGroupFilters = {
   experimentType?: ExperimentType;
   verifiedOnly?: boolean;
   verificationSource?: "either" | "publication" | "atlas";
-  /** ORCID iD: experiments created by or listing this user in `collected_by_user_ids`. */
+  /** ORCID iD: experiments with an attribution record for this contributor. */
   contributorUserId?: string;
 };
 
@@ -38,9 +38,11 @@ export function buildNexafsBrowseWhereSql(
     );
   }
   if (filters.contributorUserId) {
-    parts.push(Prisma.sql`(
-      e.createdby = ${filters.contributorUserId}
-      OR ${filters.contributorUserId} = ANY(e.collected_by_user_ids)
+    parts.push(Prisma.sql`EXISTS (
+      SELECT 1
+      FROM experiment_contributors ecf
+      WHERE ecf.experiment_id = e.id
+        AND ecf.orcid_id = ${filters.contributorUserId}
     )`);
   }
   if (filters.verifiedOnly) {
@@ -165,10 +167,12 @@ export type NexafsBrowseGroupRow = {
 
 export type NexafsBrowseContributorUser = {
   id: string;
+  userId: string | null;
+  orcid: string;
   name: string | null;
-  email: string | null;
   image: string | null;
-  orcid: string | null;
+  isClaimed: boolean;
+  isPublicProfileVisible: boolean;
 };
 
 export type NexafsBrowseGroupDto = {
@@ -205,14 +209,26 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
   for (const u of raw) {
     if (!u || typeof u !== "object") continue;
     const o = u as Record<string, unknown>;
-    const id = typeof o.id === "string" ? o.id : "";
-    if (!id) continue;
+    const orcid = typeof o.orcid === "string" ? o.orcid.trim() : "";
+    if (!orcid) continue;
+    const userIdRaw = typeof o.userId === "string" ? o.userId.trim() : "";
+    const userId = userIdRaw.length > 0 ? userIdRaw : null;
+    const isClaimed = Boolean(o.isClaimed);
+    const isPublicProfileVisible = Boolean(o.isPublicProfileVisible);
     out.push({
-      id,
-      name: typeof o.name === "string" ? o.name : null,
-      email: null,
-      image: typeof o.image === "string" ? o.image : null,
-      orcid: typeof o.orcid === "string" ? o.orcid : id,
+      id: orcid,
+      userId,
+      orcid,
+      name:
+        typeof o.name === "string" && isPublicProfileVisible
+          ? o.name
+          : null,
+      image:
+        typeof o.image === "string" && isPublicProfileVisible
+          ? o.image
+          : null,
+      isClaimed,
+      isPublicProfileVisible,
     });
   }
   return out;
@@ -426,26 +442,15 @@ export async function fetchNexafsBrowseGrouped(
         (
           SELECT string_agg(sub.n, ' | ' ORDER BY sub.n)
           FROM (
-            SELECT DISTINCT u.name AS n
-            FROM (
-              SELECT DISTINCT trim(uu.uid) AS uid
-              FROM experiments e2
-              LEFT JOIN LATERAL unnest(COALESCE(e2.collected_by_user_ids, ARRAY[]::text[])) AS uu(uid) ON TRUE
-              WHERE e2.id = b.experiment_id
-              UNION
-              SELECT e2.createdby::text AS uid
-              FROM experiments e2
-              WHERE e2.id = b.experiment_id
-                AND e2.createdby IS NOT NULL
-            ) t
-            INNER JOIN "next_auth"."user" u
-              ON u.id = trim(t.uid)
-              OR EXISTS (
-                SELECT 1
-                FROM next_auth.user_legacy_id_redirect r
-                WHERE r.legacy_uuid::text = trim(t.uid)
-                  AND r.orcid_id = u.id
-              )
+            SELECT DISTINCT
+              CASE
+                WHEN ec.is_public_profile_visible AND u.name IS NOT NULL AND trim(u.name) <> '' THEN u.name
+                ELSE ec.orcid_id
+              END AS n
+            FROM experiment_contributors ec
+            LEFT JOIN "next_auth"."user" u
+              ON u.id = ec.user_id
+            WHERE ec.experiment_id = b.experiment_id
           ) sub
           WHERE sub.n IS NOT NULL AND trim(sub.n) <> ''
         ) AS contributor_labels,
@@ -453,37 +458,31 @@ export async function fetchNexafsBrowseGrouped(
           SELECT COALESCE(
             json_agg(
               json_build_object(
-                'id', u.id::text,
-                'name', u.name,
-                'image', u.image,
-                'orcid', u.id
+                'orcid', ec.orcid_id,
+                'userId', ec.user_id,
+                'name', CASE
+                  WHEN ec.is_public_profile_visible THEN u.name
+                  ELSE NULL
+                END,
+                'image', CASE
+                  WHEN ec.is_public_profile_visible THEN u.image
+                  ELSE NULL
+                END,
+                'isClaimed', ec.is_claimed,
+                'isPublicProfileVisible', ec.is_public_profile_visible
               )
-              ORDER BY u.name NULLS LAST
+              ORDER BY
+                CASE
+                  WHEN ec.is_public_profile_visible AND u.name IS NOT NULL THEN u.name
+                  ELSE ec.orcid_id
+                END
             ),
             '[]'::json
           )
-          FROM (
-            SELECT DISTINCT u.id, u.name, u.image
-            FROM (
-              SELECT trim(uu.uid) AS uid
-              FROM experiments e2
-              LEFT JOIN LATERAL unnest(COALESCE(e2.collected_by_user_ids, ARRAY[]::text[])) AS uu(uid) ON TRUE
-              WHERE e2.id = b.experiment_id
-              UNION
-              SELECT e2.createdby::text AS uid
-              FROM experiments e2
-              WHERE e2.id = b.experiment_id
-                AND e2.createdby IS NOT NULL
-            ) t
-            INNER JOIN "next_auth"."user" u
-              ON u.id = trim(t.uid)
-              OR EXISTS (
-                SELECT 1
-                FROM next_auth.user_legacy_id_redirect r
-                WHERE r.legacy_uuid::text = trim(t.uid)
-                  AND r.orcid_id = u.id
-              )
-          ) u
+          FROM experiment_contributors ec
+          LEFT JOIN "next_auth"."user" u
+            ON u.id = ec.user_id
+          WHERE ec.experiment_id = b.experiment_id
         ) AS contributor_users,
         (
           SELECT json_build_object(

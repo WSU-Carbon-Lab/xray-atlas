@@ -476,28 +476,30 @@ export const usersRouter = createTRPCRouter({
       const ownershipRows =
         groups.length === 0
           ? []
-          : await ctx.db.experiments.findMany({
-              where: { id: { in: groups.map((group) => group.experimentId) } },
+          : await ctx.db.experimentcontributors.findMany({
+              where: {
+                experimentid: { in: groups.map((group) => group.experimentId) },
+                orcidid: userId,
+              },
               select: {
-                id: true,
-                createdby: true,
-                collectedbyuserids: true,
+                experimentid: true,
+                role: true,
               },
             });
-      const ownershipByExperimentId = new Map(
-        ownershipRows.map((row) => [row.id, row]),
-      );
+      const contributionByExperimentId = new Map<string, Set<string>>();
+      for (const row of ownershipRows) {
+        const roles = contributionByExperimentId.get(row.experimentid) ?? new Set();
+        roles.add(row.role);
+        contributionByExperimentId.set(row.experimentid, roles);
+      }
 
       const enrichedGroups = groups.map((group) => {
-        const ownership = ownershipByExperimentId.get(group.experimentId);
+        const roles = contributionByExperimentId.get(group.experimentId);
         const profileContributions: Array<"creator" | "collector"> = [];
-        if (ownership?.createdby === userId) {
+        if (roles?.has("owner")) {
           profileContributions.push("creator");
         }
-        if (
-          ownership?.collectedbyuserids.includes(userId) &&
-          ownership.createdby !== userId
-        ) {
+        if (roles?.has("collector")) {
           profileContributions.push("collector");
         }
         return { ...group, profileContributions };
@@ -546,8 +548,9 @@ export const usersRouter = createTRPCRouter({
           EXTRACT(YEAR FROM e.createdat)::int AS year,
           COUNT(DISTINCT e.id)::bigint AS count
         FROM experiments e
-        WHERE e.createdby = ${userId}
-          OR ${userId} = ANY(e.collected_by_user_ids)
+        INNER JOIN experiment_contributors ec
+          ON ec.experiment_id = e.id
+        WHERE ec.orcid_id = ${userId}
         GROUP BY 1
         ORDER BY 1
       `;

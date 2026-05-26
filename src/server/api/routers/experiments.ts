@@ -70,6 +70,12 @@ const experimentCommentInputSchema = z.object({
   text: z.string().trim().min(1).max(2000),
 });
 
+const contributionBatchExperimentIdsSchema = z
+  .array(z.string().uuid())
+  .min(1)
+  .max(200)
+  .transform((ids) => [...new Set(ids)]);
+
 const unifiedNormalizationRangesSchema = z.object({
   pre: z.tuple([z.number(), z.number()]).nullable(),
   post: z.tuple([z.number(), z.number()]).nullable(),
@@ -889,6 +895,7 @@ export const experimentsRouter = createTRPCRouter({
           )
           .optional(),
         collectedByUserIds: z.array(orcidUserIdSchema).optional(),
+        collectedByOrcidIds: z.array(orcidUserIdSchema).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -898,6 +905,7 @@ export const experimentsRouter = createTRPCRouter({
         geometry: geometryInput,
         spectrum: spectrumInput,
         collectedByUserIds,
+        collectedByOrcidIds,
       } = input;
       const normalizationScope: NormalizationScope =
         experimentInput.normalization?.scope ?? "none";
@@ -911,6 +919,9 @@ export const experimentsRouter = createTRPCRouter({
       );
       const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
       const requestedCollectedBy = [...new Set(collectedByUserIds ?? [])];
+      const requestedCollectedByOrcid = [
+        ...new Set(collectedByOrcidIds ?? []),
+      ];
       if (
         !isPrivilegedUser &&
         requestedCollectedBy.some((userId) => userId !== ctx.userId)
@@ -1026,6 +1037,9 @@ export const experimentsRouter = createTRPCRouter({
               });
             }
           }
+          const normalizedCollectorOrcidIds = [
+            ...new Set([...normalizedCollectedBy, ...requestedCollectedByOrcid]),
+          ];
 
           // Resolve vendor
           let vendorId: string | null =
@@ -1282,6 +1296,61 @@ export const experimentsRouter = createTRPCRouter({
             },
           });
 
+          const contributorRows = new Map<
+            string,
+            {
+              orcidid: string;
+              userid: string | null;
+              role: "owner" | "collector";
+              isclaimed: boolean;
+              ispublicprofilevisible: boolean;
+              claimedat: Date | null;
+            }
+          >();
+          if (ctx.userId) {
+            contributorRows.set(`owner:${ctx.userId}`, {
+              orcidid: ctx.userId,
+              userid: ctx.userId,
+              role: "owner",
+              isclaimed: true,
+              ispublicprofilevisible: true,
+              claimedat: new Date(),
+            });
+          }
+          for (const collectorOrcid of normalizedCollectorOrcidIds) {
+            const rowKey = `collector:${collectorOrcid}`;
+            if (!contributorRows.has(rowKey)) {
+              contributorRows.set(rowKey, {
+                orcidid: collectorOrcid,
+                userid: normalizedCollectedBy.includes(collectorOrcid)
+                  ? collectorOrcid
+                  : null,
+                role: "collector",
+                isclaimed: normalizedCollectedBy.includes(collectorOrcid),
+                ispublicprofilevisible: normalizedCollectedBy.includes(
+                  collectorOrcid,
+                ),
+                claimedat: normalizedCollectedBy.includes(collectorOrcid)
+                  ? new Date()
+                  : null,
+              });
+            }
+          }
+          if (contributorRows.size > 0) {
+            await tx.experimentcontributors.createMany({
+              data: Array.from(contributorRows.values()).map((row) => ({
+                experimentid: experiment.id,
+                orcidid: row.orcidid,
+                userid: row.userid,
+                role: row.role,
+                isclaimed: row.isclaimed,
+                ispublicprofilevisible: row.ispublicprofilevisible,
+                claimedat: row.claimedat,
+              })),
+              skipDuplicates: true,
+            });
+          }
+
           let spectrumPointsCreated = 0;
           for (
             let groupIndex = 0;
@@ -1354,6 +1423,182 @@ export const experimentsRouter = createTRPCRouter({
       );
 
       return transactionResult;
+    }),
+
+  listMyUnclaimedContributions: protectedProcedure.query(async ({ ctx }) => {
+    const rows = await ctx.db.experimentcontributors.findMany({
+      where: {
+        orcidid: ctx.userId,
+        OR: [{ userid: null }, { isclaimed: false }],
+      },
+      orderBy: [{ createdat: "desc" }],
+      include: {
+        experiments: {
+          select: {
+            id: true,
+            createdat: true,
+            samples: {
+              select: {
+                molecules: {
+                  select: {
+                    iupacname: true,
+                    chemicalformula: true,
+                  },
+                },
+              },
+            },
+            edges: { select: { targetatom: true, corestate: true } },
+            instruments: {
+              select: {
+                name: true,
+                facilities: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    return rows.map((row) => ({
+      experimentId: row.experimentid,
+      role: row.role,
+      detachedAt: row.detachedat,
+      createdAt: row.createdat,
+      experiment: {
+        id: row.experiments.id,
+        createdAt: row.experiments.createdat,
+        moleculeName:
+          row.experiments.samples.molecules.iupacname ??
+          row.experiments.samples.molecules.chemicalformula,
+        edgeLabel: `${row.experiments.edges.targetatom} ${row.experiments.edges.corestate}`,
+        instrumentName: row.experiments.instruments.name,
+        facilityName: row.experiments.instruments.facilities?.name ?? null,
+      },
+    }));
+  }),
+
+  setClaimState: protectedProcedure
+    .input(
+      z.object({
+        experimentIds: contributionBatchExperimentIdsSchema,
+        claim: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const targetRows = await ctx.db.experimentcontributors.findMany({
+        where: {
+          experimentid: { in: input.experimentIds },
+          orcidid: ctx.userId,
+        },
+        select: { id: true },
+      });
+      if (targetRows.length === 0) {
+        return { updatedCount: 0 };
+      }
+      const targetIds = targetRows.map((row) => row.id);
+      const now = new Date();
+      const update = await ctx.db.experimentcontributors.updateMany({
+        where: { id: { in: targetIds } },
+        data: input.claim
+          ? {
+              userid: ctx.userId,
+              isclaimed: true,
+              ispublicprofilevisible: true,
+              detachedat: null,
+              claimedat: now,
+            }
+          : {
+              userid: null,
+              isclaimed: false,
+              ispublicprofilevisible: false,
+              detachedat: now,
+            },
+      });
+      return { updatedCount: update.count };
+    }),
+
+  confirmClaimContributions: protectedProcedure
+    .input(
+      z.object({
+        experimentIds: contributionBatchExperimentIdsSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const now = new Date();
+      const update = await ctx.db.experimentcontributors.updateMany({
+        where: {
+          experimentid: { in: input.experimentIds },
+          orcidid: ctx.userId,
+        },
+        data: {
+          userid: ctx.userId,
+          isclaimed: true,
+          ispublicprofilevisible: true,
+          detachedat: null,
+          claimedat: now,
+        },
+      });
+      return { updatedCount: update.count };
+    }),
+
+  setContributionVisibility: protectedProcedure
+    .input(
+      z.object({
+        experimentIds: contributionBatchExperimentIdsSchema,
+        visibleProfile: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      const targetRows = await ctx.db.experimentcontributors.findMany({
+        where: {
+          experimentid: { in: input.experimentIds },
+          role: "collector",
+        },
+        include: {
+          experiments: {
+            select: { createdby: true },
+          },
+        },
+      });
+      const allowedIds = targetRows
+        .filter((row) => {
+          const isSelf = row.orcidid === ctx.userId;
+          const isOwner = row.experiments.createdby === ctx.userId;
+          return isSelf || isOwner || isPrivilegedUser;
+        })
+        .map((row) => row.id);
+      if (allowedIds.length === 0) {
+        return { updatedCount: 0 };
+      }
+      const now = new Date();
+      if (!input.visibleProfile) {
+        const update = await ctx.db.experimentcontributors.updateMany({
+          where: { id: { in: allowedIds } },
+          data: {
+            ispublicprofilevisible: false,
+            detachedat: now,
+            userid: null,
+            isclaimed: false,
+          },
+        });
+        return { updatedCount: update.count };
+      }
+      await ctx.db.$transaction(
+        targetRows
+          .filter((row) => allowedIds.includes(row.id))
+          .map((row) =>
+            ctx.db.experimentcontributors.update({
+              where: { id: row.id },
+              data: {
+                ispublicprofilevisible: true,
+                detachedat: null,
+                userid: row.userid,
+                isclaimed: row.userid != null,
+              },
+            }),
+          ),
+      );
+      return { updatedCount: allowedIds.length };
     }),
 
   updateNormalizationMetadata: protectedProcedure
