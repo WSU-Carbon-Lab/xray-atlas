@@ -13,7 +13,7 @@ model account {
   session_state      String?
   oauth_token_secret String?
   oauth_token        String?
-  userId             String? @db.Uuid
+  userId             String? @db.VarChar(19)
   user               user?   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "accounts_userId_fkey")
 
   @@unique([provider, providerAccountId], map: "provider_unique")
@@ -22,56 +22,68 @@ model account {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model session {
-  id           String   @id(map: "sessions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  expires      DateTime @db.Timestamptz(6)
-  sessionToken String   @unique(map: "sessiontoken_unique")
-  userId       String?  @db.Uuid
-  user         user?    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sessions_userId_fkey")
+  id               String            @id(map: "sessions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expires          DateTime          @db.Timestamptz(6)
+  sessionToken     String            @unique(map: "sessiontoken_unique")
+  userId           String?           @db.VarChar(19)
+  user             user?             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sessions_userId_fkey")
+  sessionAssurance SessionAssurance?
 
   @@schema("next_auth")
 }
 
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// NextAuth user row; primary key is the bare ORCID iD (compliance apex identifier).
 model user {
-  id                            String                 @id(map: "users_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                          String?
-  email                         String?                @unique(map: "email_unique")
-  emailVerified                 DateTime?              @db.Timestamptz(6)
   image                         String?
   contributionAgreementAccepted Boolean                @default(false)
   contributionAgreementDate     DateTime?              @db.Timestamptz(6)
-  orcid                         String?
+  contributionAgreementVersion  String?                @map("contribution_agreement_version")
+  disabledAt                    DateTime?              @db.Timestamptz(6)
+  disabledReason                String?
+  lastActivityAt                DateTime?              @db.Timestamptz(6)
+  mfaEnforcedAt                 DateTime?              @db.Timestamptz(6)
+  id                            String                 @id(map: "users_pkey") @db.VarChar(19)
+  consentReceipts               ConsentReceipt[]
   authenticator                 Authenticator[]
   account                       account[]
   session                       session[]
+  userAppRoles                  UserAppRole[]
   experimentfavorites           experimentfavorites[]
   moleculecontributors          moleculecontributors[]
+  experimentcontributors        experimentcontributors[]
   moleculefavorites             moleculefavorites[]
   moleculeviews                 moleculeviews[]
-  userAppRoles                  UserAppRole[]
 
-  @@index([orcid], map: "users_orcid_idx")
+  @@schema("next_auth")
+}
+
+/// Maps pre-migration UUID profile URLs to the canonical ORCID user id.
+model UserLegacyIdRedirect {
+  legacyUuid String @id @map("legacy_uuid") @db.Uuid
+  orcidId    String @map("orcid_id") @db.VarChar(19)
+
+  @@map("user_legacy_id_redirect")
   @@schema("next_auth")
 }
 
 /// Application-defined roles. Authorization uses `permissions` (JSON); `can_access_labs` and
 /// `can_manage_users` mirror that list on write for reporting only.
 model AppRole {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug           String   @unique
-  displayName    String   @map("display_name")
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug           String        @unique
+  displayName    String        @map("display_name")
   description    String?
-  isSystem       Boolean  @default(false) @map("is_system")
-  canAccessLabs  Boolean  @default(false) @map("can_access_labs")
-  canManageUsers Boolean  @default(false) @map("can_manage_users")
-  color          String   @default("#5865F2") @db.VarChar(16)
-  faviconUrl     String?  @map("favicon_url") @db.VarChar(2048)
-  isEmailable    Boolean  @default(false) @map("is_emailable")
-  permissions    Json     @default("[]")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  userAppRoles UserAppRole[]
+  isSystem       Boolean       @default(false) @map("is_system")
+  canAccessLabs  Boolean       @default(false) @map("can_access_labs")
+  canManageUsers Boolean       @default(false) @map("can_manage_users")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  color          String        @default("#5865F2") @db.VarChar(16)
+  faviconUrl     String?       @map("favicon_url") @db.VarChar(2048)
+  isEmailable    Boolean       @default(false) @map("is_emailable")
+  permissions    Json          @default("[]")
+  userAppRoles   UserAppRole[]
 
   @@map("app_role")
   @@schema("next_auth")
@@ -79,15 +91,13 @@ model AppRole {
 
 /// Many-to-many link between NextAuth users and application roles.
 model UserAppRole {
-  userId String @map("user_id") @db.Uuid
-  roleId String @map("role_id") @db.Uuid
-
-  user user    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  role AppRole @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roleId String  @map("role_id") @db.Uuid
+  userId String  @map("user_id") @db.VarChar(19)
+  role   AppRole @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user   user    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([userId, roleId])
-  @@index([userId], map: "user_app_role_user_id_idx")
-  @@index([roleId], map: "user_app_role_role_id_idx")
+  @@index([roleId])
   @@map("user_app_role")
   @@schema("next_auth")
 }
@@ -102,17 +112,88 @@ model verificationToken {
   @@schema("next_auth")
 }
 
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Append-only compliance audit log. Actor and subject identifiers store bare ORCID iDs; no FK to `user`.
+model AuditEvent {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  occurredAt    DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  actorUserId   String?  @map("actor_user_id") @db.VarChar(19)
+  subjectUserId String?  @map("subject_user_id") @db.VarChar(19)
+  eventType     String   @map("event_type")
+  eventScope    String   @map("event_scope")
+  payload       Json?
+  sourceIp      String?  @map("source_ip")
+  userAgent     String?  @map("user_agent")
+  sessionId     String?  @map("session_id") @db.Uuid
+
+  @@index([occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@index([subjectUserId, occurredAt])
+  @@index([eventType, occurredAt])
+  @@map("audit_event")
+  @@schema("next_auth")
+}
+
+/// Evidentiary snapshot when a user accepts the contribution agreement (spec section 4.5).
+model ConsentReceipt {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String   @map("user_id") @db.VarChar(19)
+  agreementVersion  String   @map("agreement_version")
+  acceptedAt        DateTime @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  orcidAtAcceptance String   @map("orcid_at_acceptance") @db.VarChar(19)
+  emailAtAcceptance String?  @map("email_at_acceptance")
+  nameAtAcceptance  String?  @map("name_at_acceptance")
+  sourceIp          String?  @map("source_ip")
+  user              user     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, acceptedAt])
+  @@map("consent_receipt")
+  @@schema("next_auth")
+}
+
+/// Stable attribution target after personal-data erasure (compliance spec section 4.4 Pattern A).
+model UserTombstone {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  formerOrcid      String?  @map("former_orcid") @db.VarChar(19)
+  erasedAt         DateTime @default(now()) @map("erased_at") @db.Timestamptz(6)
+  erasureScope     String   @map("erasure_scope")
+  preservedDisplay String?  @map("preserved_display")
+
+  @@map("user_tombstone")
+  @@schema("next_auth")
+}
+
+/// Per-session assurance metadata for audit and future AAL enforcement (compliance spec section 4.6).
+model SessionAssurance {
+  sessionId           String   @id @map("session_id") @db.Uuid
+  authenticator       String?
+  assertedAal         String?  @map("asserted_aal")
+  amrFromUpstream     Json?    @map("amr_from_upstream")
+  passkeyCredentialId String?  @map("passkey_credential_id") @db.VarChar(1024)
+  establishedAt       DateTime @default(now()) @map("established_at") @db.Timestamptz(6)
+  lastVerifiedAt      DateTime @default(now()) @map("last_verified_at") @db.Timestamptz(6)
+  session             session  @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("session_assurance")
+  @@schema("next_auth")
+}
+
+/// WebAuthn authenticator rows aligned with Auth.js `@auth/prisma-adapter` (credentialID primary key).
 model Authenticator {
-  id                   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  credentialID         String  @unique @db.VarChar(1024)
-  userId               String  @db.Uuid
+  credentialID         String    @id @db.VarChar(1024)
+  providerAccountId    String    @db.VarChar(1024)
+  credentialPublicKey  String    @db.Text
   counter              BigInt
   credentialDeviceType String
   credentialBackedUp   Boolean
   transports           String?
-  user                 user    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  userId               String?   @db.VarChar(19)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastUsedAt           DateTime? @map("last_used_at") @db.Timestamptz(6)
+  revokedAt            DateTime? @map("revoked_at") @db.Timestamptz(6)
+  aaguid               String?   @db.VarChar(64)
+  attestationFormat    String?   @map("attestation_format") @db.VarChar(64)
+  nickname             String?   @db.VarChar(100)
+  user                 user?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([userId])
   @@schema("next_auth")
 }

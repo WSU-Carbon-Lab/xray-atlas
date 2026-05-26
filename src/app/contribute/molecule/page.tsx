@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Breadcrumbs } from "@heroui/react";
 import { ContributionAgreementModal } from "~/components/contribute";
 import { MoleculeContributionForm } from "~/components/forms";
 import type { MoleculeContributePageProps } from "~/components/forms";
+import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
 
 export type { MoleculeContributePageProps };
 
@@ -18,12 +18,24 @@ export default function MoleculeContributePage({
   const router = useRouter();
   const { data: session } = useSession();
   const isSignedIn = !!session?.user;
-  const [showAgreementModal, setShowAgreementModal] = useState(false);
   const isModal = variant === "modal";
 
-  const handleAgreementAccepted = () => {
-    setShowAgreementModal(false);
-  };
+  const {
+    isCheckingAgreement,
+    canContribute,
+    showAgreementModal,
+    isAccepting,
+    handleAgree,
+    onModalClose,
+  } = useContributionAgreementGate({
+    onDecline: () => {
+      if (isModal) {
+        onClose?.();
+      } else {
+        router.push("/contribute");
+      }
+    },
+  });
 
   if (!isSignedIn) {
     return (
@@ -42,14 +54,9 @@ export default function MoleculeContributePage({
     <>
       <ContributionAgreementModal
         isOpen={showAgreementModal}
-        onClose={() => {
-          if (isModal) {
-            onClose?.();
-          } else {
-            router.push("/contribute");
-          }
-        }}
-        onAgree={handleAgreementAccepted}
+        onClose={onModalClose}
+        onAgree={handleAgree}
+        isSubmitting={isAccepting}
       />
       <div className={`${isModal ? "" : "container mx-auto"} px-4 py-8`}>
         <div className="mx-auto max-w-4xl">
@@ -71,11 +78,17 @@ export default function MoleculeContributePage({
             review and submit. Drag a molecule JSON or CSV onto the page to
             import fields.
           </p>
-          <MoleculeContributionForm
-            variant={variant}
-            onCompleted={onCompleted}
-            onClose={onClose}
-          />
+          {isCheckingAgreement ? (
+            <p className="text-muted text-sm">
+              Checking contribution agreement status...
+            </p>
+          ) : canContribute ? (
+            <MoleculeContributionForm
+              variant={variant}
+              onCompleted={onCompleted}
+              onClose={onClose}
+            />
+          ) : null}
         </div>
       </div>
     </>

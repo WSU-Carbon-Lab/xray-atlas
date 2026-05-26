@@ -1,12 +1,20 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SocialSignInButtons } from "@/components/auth/social-sign-in-buttons";
+import { mapSignInPageError } from "~/lib/auth-sign-in-errors";
 
 function SignInContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const authError = searchParams.get("error");
+  const [passkeyInlineError, setPasskeyInlineError] = useState<string | null>(
+    null,
+  );
+  const errorMessage =
+    passkeyInlineError ??
+    mapSignInPageError(authError);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-1 p-4">
@@ -15,22 +23,30 @@ function SignInContent() {
           Sign in to X-ray Atlas
         </h1>
         <p className="mb-6 text-sm text-text-secondary">
-          ORCID is recommended for researchers. GitHub, Hugging Face, and passkeys are also
-          available as alternatives.
+          Sign in with{" "}
+          <a
+            href="https://orcid.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent hover:text-accent-dark underline"
+          >
+            ORCID
+          </a>{" "}
+          to create or access your account. After your first ORCID sign-in, register a passkey from
+          your profile before contributing data. Returning users can sign in with an existing
+          passkey. GitHub works only after you link it from your profile.
         </p>
-        <SocialSignInButtons callbackUrl={callbackUrl} />
-        <div className="mt-6 rounded-lg bg-surface-2 p-4">
-          <p className="text-xs text-text-secondary">
-            <a
-              href="https://orcid.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent hover:text-accent-dark underline"
-            >
-              Learn more at orcid.org
-            </a>
+        {errorMessage ? (
+          <p className="text-error mb-4 text-sm" role="alert">
+            {errorMessage}
           </p>
-        </div>
+        ) : null}
+        <SocialSignInButtons
+          callbackUrl={callbackUrl}
+          onPasskeyError={(message) =>
+            setPasskeyInlineError(message.length > 0 ? message : null)
+          }
+        />
       </div>
     </div>
   );

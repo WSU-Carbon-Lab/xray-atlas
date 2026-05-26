@@ -1,5 +1,6 @@
 import type { PrismaClient } from "~/prisma/client";
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
+import { findMoleculeContributor } from "~/server/db/engagement-queries";
 
 /**
  * Determines whether `userId` may trigger client-side Kramers–Kronig recomputation for an
@@ -53,15 +54,11 @@ export async function userMayRecalculateKkDelta(
     return false;
   }
 
-  const contributor = await db.moleculecontributors.findUnique({
-    where: {
-      moleculeid_userid: {
-        moleculeid: sample.moleculeid,
-        userid: userId,
-      },
-    },
-    select: { id: true },
-  });
+  const contributor = await findMoleculeContributor(
+    db,
+    sample.moleculeid,
+    userId,
+  );
 
   return contributor != null;
 }

@@ -1,18 +1,30 @@
 import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+} from "@simplewebauthn/server";
 import { db } from "~/server/db";
 import { env } from "~/env";
 import GitHub from "next-auth/providers/github";
-import HuggingFace from "next-auth/providers/huggingface";
 import Passkey from "next-auth/providers/passkey";
 import type { OAuthConfig, OAuthUserConfig } from "next-auth/providers";
+import { assertedAalForAuthenticator } from "~/server/auth/aal";
+import {
+  setPendingPasskeyAssurance,
+  setPendingPasskeyEnrollmentMeta,
+} from "~/server/auth/passkey-ceremony-bridge";
 import { cookies } from "next/headers";
 import {
   getUserSessionCapabilities,
   type UserSessionCapabilities,
 } from "~/server/auth/privileged-role";
-import { DEV_MOCK_USER_ID } from "~/lib/dev-mock-data";
+import { PrismaAdapterOrcid } from "~/server/auth/prisma-adapter-orcid";
 import { parseOrcidForStorage } from "~/lib/orcid";
+import { emitAuditEvent } from "~/server/audit";
+import { enrichUserProfileFromOrcidUserinfo } from "~/server/auth/orcid-userinfo";
+import { resolveWebAuthnRelayingParty } from "~/server/auth/webauthn-relaying-party";
 
 const emptySessionCapabilities: UserSessionCapabilities = {
   canAccessLabs: false,
@@ -20,32 +32,41 @@ const emptySessionCapabilities: UserSessionCapabilities = {
   roleSlugs: [],
 };
 
-const githubClientId = env.GITHUB_CLIENT_ID;
-const githubClientSecret = env.GITHUB_CLIENT_SECRET;
-
 interface ORCIDProfile {
   sub: string;
   name?: string;
   given_name?: string;
   family_name?: string;
-  email?: string;
 }
 
-function getPersistableOrcid(provider: string, providerAccountId: string): string | null {
-  if (provider !== "orcid") {
-    return null;
+function orcidOAuthBaseUrl(): string {
+  return env.ORCID_USE_SANDBOX === "true"
+    ? "https://sandbox.orcid.org"
+    : "https://orcid.org";
+}
+
+function resolveGitHubCredentials(): {
+  clientId: string | undefined;
+  clientSecret: string | undefined;
+} {
+  if (env.NODE_ENV === "development") {
+    if (env.DEV_GITHUB_CLIENT_ID && env.DEV_GITHUB_CLIENT_SECRET) {
+      return {
+        clientId: env.DEV_GITHUB_CLIENT_ID,
+        clientSecret: env.DEV_GITHUB_CLIENT_SECRET,
+      };
+    }
   }
-  try {
-    return parseOrcidForStorage(providerAccountId);
-  } catch {
-    return null;
-  }
+  return {
+    clientId: env.GITHUB_CLIENT_ID,
+    clientSecret: env.GITHUB_CLIENT_SECRET,
+  };
 }
 
 function ORCID(
   options: OAuthUserConfig<ORCIDProfile>,
 ): OAuthConfig<ORCIDProfile> {
-  const baseUrl = "https://orcid.org";
+  const baseUrl = orcidOAuthBaseUrl();
 
   return {
     ...options,
@@ -56,7 +77,7 @@ function ORCID(
     authorization: {
       url: `${baseUrl}/oauth/authorize`,
       params: {
-        scope: "/authenticate",
+        scope: "openid",
         response_type: "code",
       },
     },
@@ -65,10 +86,10 @@ function ORCID(
     profile(profile) {
       const fullName =
         `${profile.given_name ?? ""} ${profile.family_name ?? ""}`.trim();
+      const orcidId = parseOrcidForStorage(profile.sub);
       return {
-        id: profile.sub,
+        id: orcidId,
         name: profile.name ?? (fullName || undefined),
-        email: profile.email,
       };
     },
     style: {
@@ -82,7 +103,6 @@ function ORCID(
 const providers: Array<
   | OAuthConfig<ORCIDProfile>
   | ReturnType<typeof GitHub>
-  | ReturnType<typeof HuggingFace>
   | ReturnType<typeof Passkey>
 > = [];
 
@@ -95,6 +115,9 @@ if (env.ORCID_CLIENT_ID && env.ORCID_CLIENT_SECRET) {
   );
 }
 
+const { clientId: githubClientId, clientSecret: githubClientSecret } =
+  resolveGitHubCredentials();
+
 if (githubClientId && githubClientSecret) {
   providers.push(
     GitHub({
@@ -104,28 +127,82 @@ if (githubClientId && githubClientSecret) {
   );
 }
 
-if (env.HUGGINGFACE_CLIENT_ID && env.HUGGINGFACE_CLIENT_SECRET) {
-  providers.push(
-    HuggingFace({
-      clientId: env.HUGGINGFACE_CLIENT_ID,
-      clientSecret: env.HUGGINGFACE_CLIENT_SECRET,
-      authorization: {
-        params: {
-          scope: "openid profile email",
-        },
-      },
-    }),
-  );
+const webAuthnRp = resolveWebAuthnRelayingParty();
+
+function normalizeCredentialId(credentialId: string): string {
+  return Buffer.from(credentialId, "base64").toString("base64");
 }
 
-providers.push(Passkey({}));
+providers.push(
+  Passkey({
+    relayingParty: {
+      id: webAuthnRp.id,
+      name: webAuthnRp.name,
+      origin: webAuthnRp.origin,
+    },
+    registrationOptions: {
+      authenticatorSelection: {
+        residentKey: "preferred",
+        userVerification: "required",
+      },
+    },
+    simpleWebAuthn: {
+      generateAuthenticationOptions,
+      generateRegistrationOptions,
+      verifyRegistrationResponse: async (options) => {
+        const verification = await verifyRegistrationResponse(options);
+        if (verification.verified && verification.registrationInfo) {
+          const { registrationInfo } = verification;
+          const credentialId = Buffer.from(registrationInfo.credentialID).toString(
+            "base64",
+          );
+          await setPendingPasskeyEnrollmentMeta({
+            credentialId,
+            aaguid: registrationInfo.aaguid ?? null,
+            attestationFormat: registrationInfo.fmt ?? null,
+            credentialDeviceType: registrationInfo.credentialDeviceType,
+          });
+        }
+        return verification;
+      },
+      verifyAuthenticationResponse: async (options) => {
+        const verification = await verifyAuthenticationResponse(options);
+        if (verification.verified) {
+          const credentialId = normalizeCredentialId(options.response.id);
+          const row = await db.authenticator.findFirst({
+            where: { credentialID: credentialId, revokedAt: null },
+            select: {
+              aaguid: true,
+              attestationFormat: true,
+              credentialDeviceType: true,
+            },
+          });
+          await setPendingPasskeyAssurance({
+            credentialId,
+            assertedAal: row
+              ? assertedAalForAuthenticator(row)
+              : assertedAalForAuthenticator({
+                  aaguid: null,
+                  attestationFormat: null,
+                  credentialDeviceType: "multiDevice",
+                }),
+          });
+        }
+        return verification;
+      },
+    },
+  }),
+);
 
-const useSecureCookies = env.AUTH_URL?.startsWith("https://") ?? false;
+const useSecureCookies =
+  env.NODE_ENV === "production" && env.AUTH_URL.startsWith("https://");
 const cookiePrefix = useSecureCookies ? "__Secure-" : "";
 const sameSite = useSecureCookies ? ("none" as const) : ("lax" as const);
+const nextAuthPublicUrl =
+  env.NODE_ENV === "production" ? env.AUTH_URL : undefined;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(db),
+  adapter: PrismaAdapterOrcid(db),
   providers,
   debug: process.env.NODE_ENV === "development",
   experimental: {
@@ -133,7 +210,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   trustHost: true,
   basePath: "/api/auth",
-  ...(env.AUTH_URL && { url: env.AUTH_URL }),
+  ...(nextAuthPublicUrl ? { url: nextAuthPublicUrl } : {}),
   cookies: {
     pkceCodeVerifier: {
       name: `${cookiePrefix}next-auth.pkce.code_verifier`,
@@ -159,16 +236,98 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "database",
   },
+  events: {
+    linkAccount: async ({ user, account }) => {
+      if (!user.id || !account.provider) return;
+      await emitAuditEvent({
+        eventType: "account.link.complete",
+        eventScope: "auth.account",
+        actorUserId: user.id,
+        subjectUserId: user.id,
+        payload: {
+          provider: account.provider,
+          providerAccountId: account.providerAccountId,
+        },
+        failSilent: true,
+      });
+    },
+  },
   callbacks: {
     async signIn({ user, account }) {
       try {
-        if (!account || !user.id) {
+        if (!account) {
           return true;
         }
 
         const cookieStore = await cookies();
         const linkingUserId = cookieStore.get("linkAccountUserId")?.value;
         const linkingProvider = cookieStore.get("linkAccountProvider")?.value;
+
+        if (account.provider === "github") {
+          const existingAccount = await db.account.findUnique({
+            where: {
+              provider_providerAccountId: {
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+              },
+            },
+          });
+
+          if (existingAccount) {
+            cookieStore.delete("linkAccountUserId");
+            cookieStore.delete("linkAccountProvider");
+            return true;
+          }
+
+          if (
+            linkingUserId &&
+            linkingProvider === "github" &&
+            user.id === linkingUserId
+          ) {
+            cookieStore.delete("linkAccountUserId");
+            cookieStore.delete("linkAccountProvider");
+            return true;
+          }
+
+          if (linkingUserId && linkingProvider === "github") {
+            const targetUser = await db.user.findUnique({
+              where: { id: linkingUserId },
+              select: { id: true },
+            });
+            if (targetUser) {
+              cookieStore.delete("linkAccountUserId");
+              cookieStore.delete("linkAccountProvider");
+              return true;
+            }
+          }
+
+          cookieStore.delete("linkAccountUserId");
+          cookieStore.delete("linkAccountProvider");
+          return "/sign-in?error=GitHubRequiresOrcid";
+        }
+
+        if (account.provider === "orcid") {
+          try {
+            parseOrcidForStorage(account.providerAccountId);
+          } catch {
+            return "/sign-in?error=InvalidOrcid";
+          }
+
+          if (user.id && account.access_token) {
+            try {
+              await enrichUserProfileFromOrcidUserinfo(
+                db,
+                user.id,
+                account.access_token,
+              );
+            } catch (err) {
+              console.error(
+                "[NextAuth] ORCID userinfo enrichment failed; sign-in continues.",
+                err,
+              );
+            }
+          }
+        }
 
         if (linkingUserId && linkingProvider === account.provider) {
           const currentUserId = linkingUserId;
@@ -179,75 +338,79 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return true;
           }
 
-          if (currentUserId !== user.id) {
-            const existingAccount = await db.account.findUnique({
-              where: {
-                provider_providerAccountId: {
-                  provider: account.provider,
-                  providerAccountId: account.providerAccountId,
-                },
+          const existingAccount = await db.account.findUnique({
+            where: {
+              provider_providerAccountId: {
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
               },
-              include: {
-                user: true,
-              },
-            });
+            },
+          });
 
-            if (existingAccount) {
-              if (existingAccount.userId === currentUserId) {
-                cookieStore.delete("linkAccountUserId");
-                cookieStore.delete("linkAccountProvider");
-                return true;
-              }
-              await db.account.update({
-                where: { id: existingAccount.id },
-                data: { userId: currentUserId },
-              });
-
-              const orcidId = getPersistableOrcid(
-                account.provider,
-                account.providerAccountId,
-              );
-              if (orcidId) {
-                await db.user.update({
-                  where: { id: currentUserId },
-                  data: { orcid: orcidId },
-                });
-              }
+          if (existingAccount) {
+            if (existingAccount.userId === currentUserId) {
               cookieStore.delete("linkAccountUserId");
               cookieStore.delete("linkAccountProvider");
               return true;
             }
-
-            await db.account.updateMany({
-              where: { userId: user.id },
+            await db.account.update({
+              where: { id: existingAccount.id },
               data: { userId: currentUserId },
             });
-
-            const orcidId = getPersistableOrcid(
-              account.provider,
-              account.providerAccountId,
-            );
-            if (orcidId) {
-              await db.user.update({
-                where: { id: currentUserId },
-                data: { orcid: orcidId },
-              });
-            }
-
-            const orphanedAccounts = await db.account.findMany({
-              where: { userId: user.id },
+            await emitAuditEvent({
+              eventType: "account.link.complete",
+              eventScope: "auth.account",
+              actorUserId: currentUserId,
+              subjectUserId: currentUserId,
+              payload: {
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+              },
+              failSilent: true,
             });
-
-            if (orphanedAccounts.length === 0) {
-              await db.user.delete({
-                where: { id: user.id },
-              });
-            }
-
             cookieStore.delete("linkAccountUserId");
             cookieStore.delete("linkAccountProvider");
             return true;
           }
+
+          await db.account.updateMany({
+            where: { userId: user.id },
+            data: { userId: currentUserId },
+          });
+
+          const orphanedAccounts = await db.account.findMany({
+            where: { userId: user.id },
+          });
+
+          if (orphanedAccounts.length === 0) {
+            const orphanUserId = user.id;
+            await db.user.delete({
+              where: { id: orphanUserId },
+            });
+            await emitAuditEvent({
+              eventType: "user.delete",
+              eventScope: "account.link.merge",
+              actorUserId: currentUserId,
+              subjectUserId: orphanUserId,
+              failSilent: true,
+            });
+          }
+
+          await emitAuditEvent({
+            eventType: "account.link.complete",
+            eventScope: "auth.account.merge",
+            actorUserId: currentUserId,
+            subjectUserId: currentUserId,
+            payload: {
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+            },
+            failSilent: true,
+          });
+
+          cookieStore.delete("linkAccountUserId");
+          cookieStore.delete("linkAccountProvider");
+          return true;
         }
 
         const existingAccount = await db.account.findUnique({
@@ -256,9 +419,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               provider: account.provider,
               providerAccountId: account.providerAccountId,
             },
-          },
-          include: {
-            user: true,
           },
         });
 
@@ -283,43 +443,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("ACCOUNT_EXISTS");
         }
 
-        if (
-          account.provider === "orcid" &&
-          account.providerAccountId &&
-          user.id
-        ) {
-          const orcidId = getPersistableOrcid(
-            account.provider,
-            account.providerAccountId,
-          );
-          if (!orcidId) {
-            cookieStore.delete("linkAccountUserId");
-            cookieStore.delete("linkAccountProvider");
-            return true;
-          }
-
-          try {
-            const existingUser = await db.user.findUnique({
-              where: { id: user.id },
-              select: { id: true },
-            });
-
-            if (existingUser) {
-              await db.user.update({
-                where: { id: user.id },
-                data: { orcid: orcidId },
-              });
-            }
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : "Unknown error";
-            console.error("[NextAuth] Error updating ORCID:", errorMessage, {
-              userId: user.id,
-              orcidId,
-              providerAccountId: account.providerAccountId,
-            });
-          }
-        }
         cookieStore.delete("linkAccountUserId");
         cookieStore.delete("linkAccountProvider");
         return true;
@@ -341,71 +464,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
     },
     async session({ session, user }) {
-      if (process.env.NODE_ENV === "development") {
-        const cookieStore = await cookies();
-        const devSession = cookieStore.get("dev-auth-session");
-        if (devSession?.value === DEV_MOCK_USER_ID) {
-          return {
-            ...session,
-            user: {
-              id: DEV_MOCK_USER_ID,
-              name: "Dr. Jane Smith",
-              email: "jane.smith@example.edu",
-              image:
-                "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
-              orcid: "0000-0001-2345-6789",
-              ...emptySessionCapabilities,
-            },
-          };
-        }
-      }
-
       if (user?.id) {
-        if (process.env.NODE_ENV === "development") {
-          const cookieStore = await cookies();
-          const devSession = cookieStore.get("dev-auth-session");
-          if (devSession?.value === DEV_MOCK_USER_ID && user.id !== DEV_MOCK_USER_ID) {
-            return {
-              ...session,
-              user: {
-                id: DEV_MOCK_USER_ID,
-                name: "Dr. Jane Smith",
-                email: "jane.smith@example.edu",
-                image:
-                  "https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/purple.jpg",
-                orcid: "0000-0001-2345-6789",
-                ...emptySessionCapabilities,
-              },
-            };
-          }
-        }
-
-        let orcid: string | null = null;
         let caps: UserSessionCapabilities = { ...emptySessionCapabilities };
         try {
-          const [userWithOrcid, loaded] = await Promise.all([
-            db.user.findUnique({
-              where: { id: user.id },
-              select: { orcid: true },
-            }),
-            getUserSessionCapabilities(db, user.id),
-          ]);
-          orcid = userWithOrcid?.orcid ?? null;
-          caps = loaded;
+          caps = await getUserSessionCapabilities(db, user.id);
         } catch (err) {
           console.error(
             "[NextAuth] Session role enrichment failed; continuing with minimal session. Apply prisma migrations if tables are missing.",
             err,
           );
-          try {
-            const row = await db.user.findUnique({
-              where: { id: user.id },
-              select: { orcid: true },
-            });
-            orcid = row?.orcid ?? null;
-          } catch (inner) {
-            console.error("[NextAuth] Session ORCID fallback failed:", inner);
-          }
         }
 
         return {
@@ -413,38 +480,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           user: {
             ...session.user,
             id: user.id,
-            orcid,
+            email: user.id,
             ...caps,
           },
         };
       }
       return session;
-    },
-  },
-  events: {
-    async linkAccount({ user, account }) {
-      const orcidId = getPersistableOrcid(
-        account.provider,
-        account.providerAccountId,
-      );
-      if (!orcidId) {
-        return;
-      }
-
-      try {
-        await db.user.update({
-          where: { id: user.id },
-          data: { orcid: orcidId },
-        });
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        console.error("[NextAuth] Error persisting ORCID on linkAccount:", errorMessage, {
-          userId: user.id,
-          orcidId,
-          providerAccountId: account.providerAccountId,
-        });
-      }
     },
   },
   pages: {

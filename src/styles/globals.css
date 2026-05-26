@@ -404,27 +404,100 @@
     animation: skeleton-shimmer 1.5s ease-in-out infinite;
   }
 
-  .orcid-gradient-border {
-    border: 1px solid transparent;
+  button.orcid-sign-in-button,
+  .orcid-gradient-border,
+  .orcid-sign-in-button {
+    --orcid-brand: #a6ce39;
+    --orcid-brand-light: #c5e063;
+    --orcid-brand-dark: #6f972b;
+    --orcid-brand-muted: rgb(166 206 57 / 0.22);
+    border: 2px solid transparent;
     border-radius: 1rem;
     background:
       linear-gradient(
-          45deg,
-          var(--surface-2),
-          var(--surface-1) 50%,
-          var(--surface-2)
+          160deg,
+          color-mix(in oklab, var(--orcid-brand) 10%, var(--surface-1)),
+          var(--surface-1) 45%,
+          color-mix(in oklab, var(--orcid-brand) 6%, var(--surface-2))
         )
         padding-box,
       conic-gradient(
           from var(--border-angle),
-          rgba(71, 85, 105, 0.48) 80%,
-          var(--accent) 86%,
-          var(--accent) 90%,
-          var(--accent) 94%,
-          rgba(71, 85, 105, 0.48)
+          color-mix(in oklab, var(--orcid-brand-dark) 55%, var(--surface-3)) 0deg,
+          var(--orcid-brand-dark) 55deg,
+          var(--orcid-brand) 95deg,
+          var(--orcid-brand-light) 130deg,
+          var(--orcid-brand) 165deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 55%, var(--surface-3)) 220deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 40%, var(--surface-3)) 300deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 55%, var(--surface-3)) 360deg
         )
         border-box;
-    animation: border 4s linear infinite;
+    animation: border 3.5s linear infinite;
+    box-shadow:
+      0 0 0 1px rgb(166 206 57 / 0.12),
+      0 4px 14px rgb(0 0 0 / 0.12);
+    transition:
+      box-shadow 0.2s ease,
+      transform 0.2s ease,
+      filter 0.2s ease;
+  }
+
+  button.orcid-sign-in-button:hover,
+  button.orcid-sign-in-button[data-hovered="true"],
+  .orcid-sign-in-button:hover,
+  .orcid-sign-in-button[data-hovered="true"] {
+    box-shadow:
+      0 0 0 1px rgb(166 206 57 / 0.35),
+      0 0 22px rgb(166 206 57 / 0.28),
+      0 6px 18px rgb(0 0 0 / 0.18);
+    filter: brightness(1.04);
+  }
+
+  button.orcid-sign-in-button:focus-visible,
+  .orcid-sign-in-button:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--surface-1),
+      0 0 0 4px rgb(166 206 57 / 0.55),
+      0 0 20px rgb(166 206 57 / 0.25);
+  }
+
+  .dark button.orcid-sign-in-button,
+  .dark .orcid-sign-in-button,
+  .orcid-sign-in-button:where(.dark *) {
+    background:
+      linear-gradient(
+          160deg,
+          color-mix(in oklab, var(--orcid-brand) 14%, var(--surface-1)),
+          var(--surface-1) 40%,
+          color-mix(in oklab, var(--orcid-brand) 8%, var(--surface-2))
+        )
+        padding-box,
+      conic-gradient(
+          from var(--border-angle),
+          color-mix(in oklab, var(--orcid-brand-dark) 70%, var(--surface-3)) 0deg,
+          var(--orcid-brand-dark) 55deg,
+          var(--orcid-brand) 95deg,
+          var(--orcid-brand-light) 130deg,
+          var(--orcid-brand) 165deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 70%, var(--surface-3)) 220deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 50%, var(--surface-3)) 300deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 70%, var(--surface-3)) 360deg
+        )
+        border-box;
+    box-shadow:
+      0 0 0 1px rgb(166 206 57 / 0.2),
+      0 4px 16px rgb(0 0 0 / 0.35);
+  }
+
+  .dark button.orcid-sign-in-button:hover,
+  .dark button.orcid-sign-in-button[data-hovered="true"],
+  .dark .orcid-sign-in-button:hover,
+  .dark .orcid-sign-in-button[data-hovered="true"] {
+    box-shadow:
+      0 0 0 1px rgb(166 206 57 / 0.45),
+      0 0 28px rgb(166 206 57 / 0.32),
+      0 8px 22px rgb(0 0 0 / 0.4);
   }
 
   .form-input {

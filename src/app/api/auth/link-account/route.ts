@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "~/server/db";
 
 const linkAccountSchema = z.object({
-  provider: z.enum(["orcid", "github", "huggingface"]),
+  provider: z.enum(["orcid", "github"]),
 });
 
 export async function GET(request: Request) {

@@ -14,6 +14,7 @@ import {
   useNexafsSubmit,
   NexafsContributeFlow,
 } from "~/features/process-nexafs";
+import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import {
   KkBrowserConsentDialog,
@@ -24,15 +25,27 @@ import {
   NexafsCreateCalibrationDialog,
   NexafsCreateEdgeDialog,
 } from "~/components/forms";
+import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
 
 export default function NEXAFSContributePage() {
+  const router = useRouter();
   const { data: session } = useSession();
   const isSignedIn = !!session?.user;
   const utils = trpc.useUtils();
   const { toasts, removeToast, showToast } = useToast();
 
-  const [showAgreementModal, setShowAgreementModal] = useState(false);
-  const handleAgreementAccepted = () => setShowAgreementModal(false);
+  const {
+    isCheckingAgreement,
+    canContribute,
+    showAgreementModal,
+    isAccepting,
+    handleAgree,
+    onModalClose,
+  } = useContributionAgreementGate({
+    onDecline: () => {
+      router.push("/contribute");
+    },
+  });
 
   const kkConsentResolverRef = useRef<((value: boolean) => void) | null>(null);
   const [kkConsentOpen, setKkConsentOpen] = useState(false);
@@ -157,13 +170,7 @@ export default function NEXAFSContributePage() {
 
   if (!isSignedIn) {
     return (
-      <>
-        <ContributionAgreementModal
-          isOpen={showAgreementModal}
-          onClose={handleAgreementAccepted}
-          onAgree={handleAgreementAccepted}
-        />
-        <div className="container mx-auto flex min-h-[calc(100vh-20rem)] items-center justify-center px-4 py-16">
+      <div className="container mx-auto flex min-h-[calc(100vh-20rem)] items-center justify-center px-4 py-16">
           <div className="mx-auto max-w-2xl text-center">
             <h1 className="text-foreground mb-4 text-3xl font-bold">
               Sign In Required
@@ -176,7 +183,6 @@ export default function NEXAFSContributePage() {
             </div>
           </div>
         </div>
-      </>
     );
   }
 
@@ -184,8 +190,9 @@ export default function NEXAFSContributePage() {
     <>
       <ContributionAgreementModal
         isOpen={showAgreementModal}
-        onClose={handleAgreementAccepted}
-        onAgree={handleAgreementAccepted}
+        onClose={onModalClose}
+        onAgree={handleAgree}
+        isSubmitting={isAccepting}
       />
 
       <div
@@ -232,6 +239,13 @@ export default function NEXAFSContributePage() {
             can upload multiple datasets and process them through tabs.
           </p>
 
+          {isCheckingAgreement ? (
+            <p className="text-muted text-sm">
+              Checking contribution agreement status...
+            </p>
+          ) : null}
+
+          {canContribute ? (
           <div
             className={
               datasets.length > 0
@@ -265,6 +279,7 @@ export default function NEXAFSContributePage() {
               isPending={isPending}
             />
           </div>
+          ) : null}
         </div>
       </div>
 

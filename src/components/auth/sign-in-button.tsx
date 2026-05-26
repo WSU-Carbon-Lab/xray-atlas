@@ -13,7 +13,7 @@ interface SignInButtonProps {
 export function SignInButton({
   children = "Sign In",
   variant = "primary",
-  size = "sm",
+  size = "md",
 }: SignInButtonProps) {
   const { data: session } = useSession();
   const router = useRouter();

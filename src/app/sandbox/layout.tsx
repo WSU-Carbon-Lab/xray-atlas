@@ -22,11 +22,8 @@ export default async function SandboxLayout({
   if (!session?.user?.id) {
     redirect("/sign-in");
   }
-  const dev = process.env.NODE_ENV === "development";
   const allowed =
-    dev ||
-    session.user.canAccessLabs ||
-    session.user.canManageUsers;
+    session.user.canAccessLabs || session.user.canManageUsers;
   if (!allowed) {
     redirect("/");
   }

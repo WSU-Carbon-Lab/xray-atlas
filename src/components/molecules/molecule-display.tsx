@@ -25,6 +25,7 @@ import { useRealtimeUpvotes } from "~/hooks/useRealtimeUpvotes";
 import type { MoleculeView } from "~/types/molecule";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
+import { moleculeContributorUsers } from "~/lib/molecule-contributor-users";
 import {
   CategoryTagGroupEditable,
   MoleculeTags,
@@ -582,7 +583,7 @@ export const CompactCard = memo(function CompactCard({
 }) {
   const fromContributorsCompact =
     (props.molecule.contributors?.length ?? 0) > 0
-      ? props.molecule.contributors!.map((c) => c.user)
+      ? moleculeContributorUsers(props.molecule.contributors)
       : [];
   const avatarUsers: UserWithOrcid[] =
     fromContributorsCompact.length > 0
@@ -597,8 +598,10 @@ export const CompactCard = memo(function CompactCard({
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
   return (
-    <div className="group border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 @container/moleculecard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-4 dark:bg-zinc-800">
-      <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 @md/moleculecard:flex-row @md/moleculecard:gap-4 @md/moleculecard:pr-4 dark:border-zinc-600">
+    <>
+      <div className="border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 @container/moleculecard w-full overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md dark:bg-zinc-800">
+        <div className="group flex w-full flex-col p-3 @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 @md/moleculecard:flex-row @md/moleculecard:gap-4 @md/moleculecard:pr-4 dark:border-zinc-600">
         <button
           type="button"
           onClick={(e) => {
@@ -790,6 +793,8 @@ export const CompactCard = memo(function CompactCard({
             title="Datasets"
           />
         </CompactCardMetricsColumn>
+          </div>
+        </div>
       </div>
       <MoleculeImageModal
         isOpen={imageModalOpen}
@@ -800,7 +805,7 @@ export const CompactCard = memo(function CompactCard({
         chemicalFormula={props.molecule.chemicalFormula}
         previewGradient={previewGradient}
       />
-    </div>
+    </>
   );
 });
 
@@ -841,7 +846,7 @@ export const FullCard = memo(function FullCard({
 }) {
   const fromContributors =
     (props.molecule.contributors?.length ?? 0) > 0
-      ? props.molecule.contributors!.map((c) => c.user)
+      ? moleculeContributorUsers(props.molecule.contributors)
       : [];
   const avatarUsers: UserWithOrcid[] =
     fromContributors.length > 0
@@ -1074,7 +1079,7 @@ export const FullCardCarousel = memo(function FullCardCarousel({
 }) {
   const fromContributors =
     (props.molecule.contributors?.length ?? 0) > 0
-      ? props.molecule.contributors!.map((c) => c.user)
+      ? moleculeContributorUsers(props.molecule.contributors)
       : [];
   const avatarUsers: UserWithOrcid[] =
     fromContributors.length > 0
@@ -1845,7 +1850,7 @@ export const HeaderCard = memo(function HeaderCard({
   };
   const fromContributors =
     (props.molecule.contributors?.length ?? 0) > 0
-      ? props.molecule.contributors!.map((c) => c.user)
+      ? moleculeContributorUsers(props.molecule.contributors)
       : [];
   const avatarUsers: UserWithOrcid[] =
     fromContributors.length > 0

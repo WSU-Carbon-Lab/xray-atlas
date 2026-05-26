@@ -8,26 +8,34 @@
  * admins could theoretically both pass counts in a narrow race. Recovery is operational: core
  * maintainers can fix `next_auth.user_app_role` / `AppRole` assignments in Supabase or Postgres.
  *
- * **Editing users:** `updateUser` updates `user.name` (display name), `user.email`
- * (optional directory contact email when set; unique in DB), `user.orcid`, and replaces all `user_app_role` rows in one
+ * **Editing users:** `updateUser` updates `user.name` (display name) and replaces all `user_app_role` rows in one
  * transaction. `setUserRoles` only replaces roles. Both enforce at most one lineage role among
  * `administrator`, `maintainer`, and `contributor` (any number of custom roles may be added).
  */
-import { z, ZodError } from "zod";
+import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import sharp from "sharp";
 import { createTRPCRouter, adminProcedure } from "~/server/api/trpc";
 import {
+  auditRequestMetaFromTrpcContext,
+  emitAuditEvent,
+  type AuditRequestMeta,
+} from "~/server/audit";
+import {
+  assertAal3PasskeyBeforePrivilegedRole,
+} from "~/server/auth/passkey-policy";
+import {
   countUsersWithManageCapabilityExcluding,
   hasManageUsersCapability,
 } from "~/server/auth/privileged-role";
-import { isDevMockUser } from "~/lib/dev-mock-data";
 import { countLineageRolesInSlugs } from "~/lib/app-role-lineage";
+import { orcidUserIdSchema } from "~/lib/orcid";
 import {
   normalizePermissionList,
   normalizeRoleDisplayName,
   parseRolePermissions,
   permissionsArraySchema,
+  permissionsGrantLabsAccess,
   permissionsGrantManageUsers,
   roleSlugSchema,
   sessionProjectionFromPermissions,
@@ -35,14 +43,54 @@ import {
 } from "~/lib/app-role-permissions";
 import { roleHexColorSchema } from "~/lib/app-role-colors";
 import { primaryHexFromRgbaBuffer } from "~/lib/extract-image-primary-hex";
-import { parseOrcidForStorage } from "~/lib/orcid";
 import { fetchRemoteImageBytesForSampling } from "~/server/utils/safe-remote-image-url";
-import { Prisma, type PrismaClient } from "~/prisma/client";
+import type { Prisma, PrismaClient } from "~/prisma/client";
 
 const optionalFaviconUrlSchema = z.union([
   z.literal(""),
   z.string().url().max(2048),
 ]);
+
+async function emitRoleChangeAudits(
+  tx: Prisma.TransactionClient,
+  params: {
+    actorUserId: string;
+    subjectUserId: string;
+    previousRoleIds: string[];
+    nextRoleIds: string[];
+    requestMeta: AuditRequestMeta;
+    eventScope: string;
+  },
+): Promise<void> {
+  const previous = new Set(params.previousRoleIds);
+  const next = new Set(params.nextRoleIds);
+  for (const roleId of params.nextRoleIds) {
+    if (!previous.has(roleId)) {
+      await emitAuditEvent({
+        db: tx,
+        eventType: "role.assign",
+        eventScope: params.eventScope,
+        actorUserId: params.actorUserId,
+        subjectUserId: params.subjectUserId,
+        payload: { roleId },
+        requestMeta: params.requestMeta,
+      });
+    }
+  }
+  for (const roleId of params.previousRoleIds) {
+    if (!next.has(roleId)) {
+      await emitAuditEvent({
+        db: tx,
+        eventType: "role.revoke",
+        eventScope: params.eventScope,
+        actorUserId: params.actorUserId,
+        subjectUserId: params.subjectUserId,
+        payload: { roleId },
+        requestMeta: params.requestMeta,
+      });
+    }
+  }
+}
 
 const appRoleAdminDtoSchema = z.object({
   id: z.string().uuid(),
@@ -61,11 +109,9 @@ const appRoleAdminDtoSchema = z.object({
 });
 
 const adminListUserRowSchema = z.object({
-  id: z.string().uuid(),
+  id: orcidUserIdSchema,
   name: z.string().nullable(),
-  email: z.string().nullable(),
   image: z.string().nullable(),
-  orcid: z.string().nullable(),
   userAppRoles: z.array(
     z.object({
       role: z.object({
@@ -149,24 +195,23 @@ async function loadAndValidateRoleAssignment(
       });
     }
   }
-}
-
-function parseAdminOrcidField(raw: string): string | null {
-  const t = raw.trim();
-  if (t === "") {
-    return null;
-  }
+  const willRequireAal3 = roles.some((role) => {
+    const permissions = parseRolePermissions(role.permissions);
+    return (
+      permissionsGrantManageUsers(permissions) ||
+      permissionsGrantLabsAccess(permissions)
+    );
+  });
   try {
-    return parseOrcidForStorage(t);
-  } catch (e) {
-    if (e instanceof ZodError) {
-      const first = e.issues[0]?.message;
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: first ?? "Invalid ORCID.",
-      });
-    }
-    throw e;
+    await assertAal3PasskeyBeforePrivilegedRole(db, userId, willRequireAal3);
+  } catch (error) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Privileged role requires a hardware security key passkey.",
+    });
   }
 }
 
@@ -259,9 +304,8 @@ export const adminRouter = createTRPCRouter({
         q && q.length > 0
           ? {
               OR: [
-                { email: { contains: q, mode: "insensitive" as const } },
                 { name: { contains: q, mode: "insensitive" as const } },
-                { orcid: { contains: q, mode: "insensitive" as const } },
+                { id: { contains: q, mode: "insensitive" as const } },
               ],
             }
           : undefined;
@@ -270,13 +314,11 @@ export const adminRouter = createTRPCRouter({
           where,
           skip: input.skip,
           take: input.take,
-          orderBy: [{ name: "asc" }, { email: "asc" }],
+          orderBy: [{ name: "asc" }, { id: "asc" }],
           select: {
             id: true,
             name: true,
-            email: true,
             image: true,
-            orcid: true,
             userAppRoles: {
               include: {
                 role: {
@@ -301,20 +343,12 @@ export const adminRouter = createTRPCRouter({
   updateUser: adminProcedure
     .input(
       z.object({
-        userId: z.string().uuid(),
+        userId: orcidUserIdSchema,
         name: z.string().max(200),
-        email: z.union([z.literal(""), z.string().email().max(320)]),
-        orcid: z.string().max(500),
         roleIds: z.array(z.string().uuid()).min(1),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      if (ctx.isDevMock && isDevMockUser(input.userId)) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Cannot edit the dev mock user.",
-        });
-      }
       const target = await ctx.db.user.findUnique({
         where: { id: input.userId },
       });
@@ -324,55 +358,40 @@ export const adminRouter = createTRPCRouter({
       await loadAndValidateRoleAssignment(ctx.db, input.userId, input.roleIds);
 
       const nameDb = input.name.trim() === "" ? null : input.name.trim();
-      const emailDb = input.email === "" ? null : input.email.trim();
+      const previousRoles = await ctx.db.userAppRole.findMany({
+        where: { userId: input.userId },
+        select: { roleId: true },
+      });
+      const requestMeta = auditRequestMetaFromTrpcContext({
+        clientIp: ctx.clientIp,
+        userAgent: ctx.userAgent,
+      });
 
-      if (emailDb !== null) {
-        const clash = await ctx.db.user.findFirst({
-          where: {
-            email: emailDb,
-            NOT: { id: input.userId },
+      await ctx.db.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: input.userId },
+          data: {
+            name: nameDb,
           },
         });
-        if (clash) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "Another account already uses this email address.",
-          });
-        }
-      }
-
-      const orcidDb = parseAdminOrcidField(input.orcid);
-
-      try {
-        await ctx.db.$transaction(async (tx) => {
-          await tx.user.update({
-            where: { id: input.userId },
-            data: {
-              name: nameDb,
-              email: emailDb,
-              orcid: orcidDb,
-            },
-          });
-          await tx.userAppRole.deleteMany({ where: { userId: input.userId } });
-          await tx.userAppRole.createMany({
-            data: input.roleIds.map((roleId) => ({
-              userId: input.userId,
-              roleId,
-            })),
-          });
+        await tx.userAppRole.deleteMany({ where: { userId: input.userId } });
+        await tx.userAppRole.createMany({
+          data: input.roleIds.map((roleId) => ({
+            userId: input.userId,
+            roleId,
+          })),
         });
-      } catch (e) {
-        if (
-          e instanceof Prisma.PrismaClientKnownRequestError &&
-          e.code === "P2002"
-        ) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "Another account already uses this email address.",
+        if (ctx.userId) {
+          await emitRoleChangeAudits(tx, {
+            actorUserId: ctx.userId,
+            subjectUserId: input.userId,
+            previousRoleIds: previousRoles.map((row) => row.roleId),
+            nextRoleIds: input.roleIds,
+            requestMeta,
+            eventScope: "admin.updateUser",
           });
         }
-        throw e;
-      }
+      });
 
       return { success: true as const };
     }),
@@ -380,17 +399,11 @@ export const adminRouter = createTRPCRouter({
   setUserRoles: adminProcedure
     .input(
       z.object({
-        userId: z.string().uuid(),
+        userId: orcidUserIdSchema,
         roleIds: z.array(z.string().uuid()).min(1),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      if (ctx.isDevMock && isDevMockUser(input.userId)) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Cannot change roles for the dev mock user.",
-        });
-      }
       const target = await ctx.db.user.findUnique({
         where: { id: input.userId },
       });
@@ -398,6 +411,14 @@ export const adminRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found." });
       }
       await loadAndValidateRoleAssignment(ctx.db, input.userId, input.roleIds);
+      const previousRoles = await ctx.db.userAppRole.findMany({
+        where: { userId: input.userId },
+        select: { roleId: true },
+      });
+      const requestMeta = auditRequestMetaFromTrpcContext({
+        clientIp: ctx.clientIp,
+        userAgent: ctx.userAgent,
+      });
       await ctx.db.$transaction(async (tx) => {
         await tx.userAppRole.deleteMany({ where: { userId: input.userId } });
         await tx.userAppRole.createMany({
@@ -406,6 +427,16 @@ export const adminRouter = createTRPCRouter({
             roleId,
           })),
         });
+        if (ctx.userId) {
+          await emitRoleChangeAudits(tx, {
+            actorUserId: ctx.userId,
+            subjectUserId: input.userId,
+            previousRoleIds: previousRoles.map((row) => row.roleId),
+            nextRoleIds: input.roleIds,
+            requestMeta,
+            eventScope: "admin.setUserRoles",
+          });
+        }
       });
       return { success: true as const };
     }),
@@ -563,8 +594,9 @@ export const adminRouter = createTRPCRouter({
       return { success: true as const };
     }),
 
+  // Hard-deletes today; Phase 4 may soft-disable via user.disabledAt before tombstone erasure.
   deleteUser: adminProcedure
-    .input(z.object({ userId: z.string().uuid() }))
+    .input(z.object({ userId: orcidUserIdSchema }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) {
         throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -573,12 +605,6 @@ export const adminRouter = createTRPCRouter({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "You cannot delete your own account from the admin console.",
-        });
-      }
-      if (ctx.isDevMock && isDevMockUser(input.userId)) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Cannot delete the dev mock user.",
         });
       }
       const target = await ctx.db.user.findUnique({
@@ -599,6 +625,10 @@ export const adminRouter = createTRPCRouter({
           });
         }
       }
+      const requestMeta = auditRequestMetaFromTrpcContext({
+        clientIp: ctx.clientIp,
+        userAgent: ctx.userAgent,
+      });
       await ctx.db.$transaction(async (tx) => {
         await tx.experiments.deleteMany({
           where: { createdby: input.userId },
@@ -621,6 +651,14 @@ export const adminRouter = createTRPCRouter({
         });
         await tx.user.delete({
           where: { id: input.userId },
+        });
+        await emitAuditEvent({
+          db: tx,
+          eventType: "user.delete",
+          eventScope: "admin.deleteUser",
+          actorUserId: ctx.userId,
+          subjectUserId: input.userId,
+          requestMeta,
         });
       });
       return { success: true as const };

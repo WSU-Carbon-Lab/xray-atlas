@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { Prisma } from "~/prisma/client";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
+import {
+  contributeWriteProcedure,
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 const facilitiesListInclude = {
@@ -13,7 +18,7 @@ const facilitiesListInclude = {
 } as const;
 
 export const facilitiesRouter = createTRPCRouter({
-  create: protectedProcedure
+  create: contributeWriteProcedure
     .input(
       z.object({
         name: z.string().min(1, "Facility name is required"),

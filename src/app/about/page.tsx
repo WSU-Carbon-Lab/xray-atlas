@@ -118,7 +118,7 @@ function initialsFromName(name: string | null): string {
 function ProfileCard({ user }: { user: CoreMaintainerRow }) {
   const name = user.name ?? "User";
   const imageSrc = user.image?.trim() ? user.image.trim() : null;
-  const orcid = user.orcid?.trim() ? user.orcid.trim() : null;
+  const orcid = user.id.trim() ? user.id.trim() : null;
 
   return (
     <div className="border-border bg-surface rounded-xl border p-4">

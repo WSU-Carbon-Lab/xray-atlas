@@ -6,7 +6,13 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin/", "/sandbox/", "/sign-in/", "/contribute/"],
+        disallow: [
+          "/admin/",
+          "/sandbox/",
+          "/sign-in/",
+          "/contribute/",
+          "/users/",
+        ],
       },
     ],
     sitemap: "https://xrayatlas.wsu.edu/sitemap.xml",
