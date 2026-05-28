@@ -4,6 +4,10 @@ import { useState, useCallback } from "react";
 import { trpc } from "~/trpc/client";
 import type { DatasetState } from "../types";
 import {
+  collectorOrcidsFromAttributions,
+  filterValidOrcidAttributions,
+} from "~/lib/nexafs-attribution";
+import {
   buildSpectrumPointsWithDerivedForUpload,
   extractGeometryPairs,
 } from "../utils";
@@ -70,6 +74,19 @@ export function useNexafsSubmit(
           });
           return;
         }
+        const attributionRows = filterValidOrcidAttributions(
+          dataset.attributions,
+        );
+        const uploaderCount = attributionRows.filter(
+          (row) => row.role === "DataCurator",
+        ).length;
+        if (uploaderCount !== 1) {
+          setSubmitStatus({
+            type: "error",
+            message: `Dataset "${dataset.fileName}": Add exactly one data curator (uploader) in Researcher attribution.`,
+          });
+          return;
+        }
         const hasThetaMapping = Boolean(dataset.columnMappings.theta);
         const hasPhiMapping = Boolean(dataset.columnMappings.phi);
         if (hasThetaMapping !== hasPhiMapping) {
@@ -112,6 +129,10 @@ export function useNexafsSubmit(
       try {
         for (const dataset of datasets) {
           if (!dataset.moleculeId) return;
+
+          const attributionRows = filterValidOrcidAttributions(
+            dataset.attributions,
+          );
 
           const geometryInput =
             dataset.columnMappings.theta && dataset.columnMappings.phi
@@ -248,10 +269,21 @@ export function useNexafsSubmit(
               points: spectrumPoints,
             },
             peaksets: dataset.peaks.length > 0 ? dataset.peaks : undefined,
-            collectedByUserIds:
-              dataset.collectedByUserIds.length > 0
-                ? dataset.collectedByUserIds
+            attributions:
+              attributionRows.length > 0
+                ? attributionRows.map((row) => ({
+                    orcid: row.orcid,
+                    role: row.role,
+                  }))
                 : undefined,
+            collectedByUserIds: (() => {
+              const fromAttributions =
+                collectorOrcidsFromAttributions(attributionRows);
+              if (fromAttributions.length > 0) {
+                return fromAttributions;
+              }
+              return undefined;
+            })(),
           });
         }
 

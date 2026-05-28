@@ -27,6 +27,11 @@ export interface PopoverMenuProps {
   align?: "start" | "end";
   contentClassName?: string;
   defaultOpen?: boolean;
+  /**
+   * When set, pointer-down on a matching element (including portaled overlays) does
+   * not dismiss the menu. Use for nested ComboBox/Select popovers inside menu content.
+   */
+  ignoreOutsidePointerDownSelector?: string;
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
   renderContent: (props: PopoverMenuRenderProps) => ReactNode;
@@ -41,6 +46,7 @@ export function PopoverMenu({
   onOpenChange,
   align = "end",
   contentClassName = "",
+  ignoreOutsidePointerDownSelector,
   renderContent,
   renderTrigger,
   rootClassName = "relative",
@@ -87,6 +93,13 @@ export function PopoverMenu({
       if (rootRef.current?.contains(target)) {
         return;
       }
+      if (
+        ignoreOutsidePointerDownSelector &&
+        target instanceof Element &&
+        target.closest(ignoreOutsidePointerDownSelector)
+      ) {
+        return;
+      }
       close();
     };
 
@@ -103,7 +116,7 @@ export function PopoverMenu({
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [close, isOpen]);
+  }, [close, ignoreOutsidePointerDownSelector, isOpen]);
 
   const alignmentClassName = align === "start" ? "left-0" : "right-0";
 

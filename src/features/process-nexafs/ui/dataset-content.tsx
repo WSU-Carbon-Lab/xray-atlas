@@ -79,6 +79,10 @@ import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
 import { NexafsSampleInformationSection } from "~/components/forms";
 import {
+  DatasetAttributionEditor,
+  type DatasetAttributionChange,
+} from "./dataset-attribution-editor";
+import {
   VisualizationToggle,
   type VisualizationMode,
   type GraphStyle,
@@ -901,9 +905,13 @@ function DatasetSpectrumTable({
   );
 }
 
+type DatasetStatePatch =
+  | Partial<DatasetState>
+  | ((dataset: DatasetState) => Partial<DatasetState>);
+
 interface DatasetContentProps {
   dataset: DatasetState;
-  onDatasetUpdate: (datasetId: string, updates: Partial<DatasetState>) => void;
+  onDatasetUpdate: (datasetId: string, updates: DatasetStatePatch) => void;
   onReloadData?: () => void;
   instrumentOptions: Array<{ id: string; name: string; facilityName?: string }>;
   edgeOptions: Array<{ id: string; targetatom: string; corestate: string }>;
@@ -2366,8 +2374,24 @@ export function DatasetContent({
     return Array.from(set).sort((a, b) => a - b);
   }, [plotPoints]);
 
+  const handleAttributionsChange = useCallback(
+    (change: DatasetAttributionChange) => {
+      onDatasetUpdate(dataset.id, (current) => ({
+        attributions:
+          typeof change === "function"
+            ? change(current.attributions)
+            : change,
+      }));
+    },
+    [dataset.id, onDatasetUpdate],
+  );
+
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
+      <DatasetAttributionEditor
+        attributions={dataset.attributions}
+        onChange={handleAttributionsChange}
+      />
       <div className="flex w-full shrink-0 flex-col">
         <VisualizationToggle
           mode={visualizationMode}
