@@ -168,10 +168,9 @@ export function NexafsSourcePublicationAddMenu({
           </button>
         );
       }}
-      renderContent={({ close, contentProps, contentStyle, contentPositionClassName }) => (
+      renderContent={({ close, contentProps, contentPositionClassName }) => (
         <PopoverMenuContent
           {...contentProps}
-          style={contentStyle}
           className={cn(
             contentPositionClassName,
             "border-border bg-surface z-tooltip w-[min(24rem,calc(100vw-1.5rem))] rounded-xl border p-3 shadow-xl",
