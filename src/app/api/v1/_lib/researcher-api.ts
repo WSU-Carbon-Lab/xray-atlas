@@ -1,7 +1,8 @@
 import type { Prisma } from "~/prisma/client";
 import { z } from "zod";
+import { normalizeDoi } from "~/lib/doi";
 
-const DOI_PREFIX_PATTERN = /^https?:\/\/(?:dx\.)?doi\.org\//i;
+export { normalizeDoi } from "~/lib/doi";
 
 const truthyBoolean = z.enum(["true", "false"]).transform((value) => value === "true");
 
@@ -17,23 +18,6 @@ const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
-
-/**
- * Canonicalizes DOI input into a normalized identifier string suitable for exact database lookup.
- *
- * @param value - Raw DOI input that may be empty, already canonical, or prefixed by `https://doi.org/`.
- * @returns Canonical DOI string, or `null` when input is empty after trimming.
- */
-export function normalizeDoi(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  return trimmed.replace(DOI_PREFIX_PATTERN, "").toLowerCase();
-}
 
 /**
  * Parses and validates catalog query parameters for `GET /api/v1/molecules`.

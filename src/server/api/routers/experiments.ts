@@ -7,7 +7,16 @@ import {
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
-import { normalizeDoi } from "~/app/api/v1/_lib/researcher-api";
+import { normalizeDoi } from "~/lib/doi";
+import {
+  lookupPublicationDoi as fetchPublicationDoiLookup,
+  resolvePublicationDoi,
+} from "~/server/nexafs/lookupPublicationDoi";
+import {
+  clearExperimentSourcePaperDoi,
+  syncExperimentSourcePaperDoi,
+} from "~/server/nexafs/syncExperimentSourcePaperDoi";
+import type { PublicationCitation } from "~/lib/publication-citation";
 import { dataCiteContributorTypeSchema } from "~/lib/datacite-contributor-types";
 import { orcidUserIdSchema } from "~/lib/orcid";
 import { TRPCError } from "@trpc/server";
@@ -74,6 +83,18 @@ const sourcePaperDoiInputSchema = z
     }
     return normalized;
   });
+
+const publicationCitationOutputSchema = z.object({
+  doi: z.string(),
+  title: z.string(),
+  journal: z.string().nullable(),
+  year: z.number().nullable(),
+  authors: z.array(z.string()),
+});
+
+function mapPublicationCitationToOutput(citation: PublicationCitation) {
+  return publicationCitationOutputSchema.parse(citation);
+}
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 import {
   userMayDeleteExperiment,
@@ -949,6 +970,7 @@ export const experimentsRouter = createTRPCRouter({
             }),
           )
           .optional(),
+        sourcePaperDoi: sourcePaperDoiInputSchema.optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -960,7 +982,20 @@ export const experimentsRouter = createTRPCRouter({
         collectedByUserIds,
         collectedByOrcidIds,
         attributions: attributionsInput,
+        sourcePaperDoi: sourcePaperDoiInput,
       } = input;
+
+      let sourcePaperCitation: PublicationCitation | null = null;
+      if (sourcePaperDoiInput) {
+        sourcePaperCitation = await resolvePublicationDoi(sourcePaperDoiInput);
+        if (!sourcePaperCitation) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Source publication DOI was not found in Crossref or DataCite. Check the identifier or try again later.",
+          });
+        }
+      }
       const normalizationScope: NormalizationScope =
         experimentInput.normalization?.scope ?? "none";
       const normalizationRanges: NormalizationRanges =
@@ -1292,7 +1327,7 @@ export const experimentsRouter = createTRPCRouter({
             points: spectrumInput.points,
             ranges: normalizationRanges,
             scope: normalizationScope,
-            doiPresent: false,
+            doiPresent: sourcePaperCitation != null,
           });
           const hasDerivedValues = {
             od: derivedByGroup.some((group) =>
@@ -1466,6 +1501,14 @@ export const experimentsRouter = createTRPCRouter({
               transition: peak.transition ?? null,
             }));
             await tx.peaksets.createMany({ data: peaksetsData });
+          }
+
+          if (sourcePaperCitation) {
+            await syncExperimentSourcePaperDoi(
+              tx,
+              experiment.id,
+              sourcePaperCitation,
+            );
           }
 
           return {
@@ -2085,6 +2128,86 @@ export const experimentsRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  lookupPublicationDoi: publicProcedure
+    .input(z.object({ query: z.string().trim().min(1).max(512) }))
+    .query(async ({ input }) => {
+      const result = await fetchPublicationDoiLookup(input.query);
+      if (result.kind === "resolved") {
+        return {
+          kind: "resolved" as const,
+          citation: mapPublicationCitationToOutput(result.citation),
+        };
+      }
+      if (result.kind === "suggestions") {
+        return {
+          kind: "suggestions" as const,
+          suggestions: result.suggestions.map(mapPublicationCitationToOutput),
+        };
+      }
+      return { kind: "not_found" as const };
+    }),
+
+  getSourcePaperDoi: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const metrics = await ctx.db.experimentmetrics.findUnique({
+        where: { experimentid: input.experimentId },
+        select: {
+          originaldatadoi: true,
+          hasoriginaldatadoi: true,
+          sourcepaperdoiverified: true,
+        },
+      });
+      const doi = metrics?.originaldatadoi?.trim() ?? "";
+      if (!doi) {
+        return {
+          experimentId: input.experimentId,
+          doi: null,
+          citation: null,
+          hasOriginalDataDoi: false,
+          sourcePaperDoiVerified: false,
+        };
+      }
+      const link = await ctx.db.experimentpublications.findFirst({
+        where: { experimentid: input.experimentId, role: "source" },
+        include: {
+          publications: {
+            select: {
+              doi: true,
+              title: true,
+              journal: true,
+              year: true,
+              authors: true,
+            },
+          },
+        },
+      });
+      const pub = link?.publications;
+      const authorsFromDb = Array.isArray(pub?.authors)
+        ? (pub.authors as unknown[]).filter(
+            (item): item is string => typeof item === "string",
+          )
+        : [];
+      const citation =
+        pub != null
+          ? mapPublicationCitationToOutput({
+              doi: pub.doi,
+              title: pub.title,
+              journal: pub.journal,
+              year: pub.year,
+              authors: authorsFromDb,
+            })
+          : null;
+
+      return {
+        experimentId: input.experimentId,
+        doi,
+        citation,
+        hasOriginalDataDoi: metrics?.hasoriginaldatadoi ?? true,
+        sourcePaperDoiVerified: metrics?.sourcepaperdoiverified ?? false,
+      };
+    }),
+
   setSourcePaperDoi: contributeWriteProcedure
     .input(
       z.object({
@@ -2110,30 +2233,36 @@ export const experimentsRouter = createTRPCRouter({
         input.experimentId,
       );
 
-      const metrics = await ctx.db.experimentmetrics.upsert({
+      const citation = await resolvePublicationDoi(input.doi);
+      if (!citation) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Source publication DOI was not found in Crossref or DataCite. Check the identifier or try again later.",
+        });
+      }
+
+      await syncExperimentSourcePaperDoi(
+        ctx.db,
+        input.experimentId,
+        citation,
+      );
+
+      const metrics = await ctx.db.experimentmetrics.findUnique({
         where: { experimentid: input.experimentId },
-        create: {
-          experimentid: input.experimentId,
-          originaldatadoi: input.doi,
+        select: {
+          originaldatadoi: true,
           hasoriginaldatadoi: true,
-          sourcepaperdoiverified: false,
-          sourcepaperdoiverifiedat: null,
-          sourcepaperdoiverifiedby: null,
-        },
-        update: {
-          originaldatadoi: input.doi,
-          hasoriginaldatadoi: true,
-          sourcepaperdoiverified: false,
-          sourcepaperdoiverifiedat: null,
-          sourcepaperdoiverifiedby: null,
+          sourcepaperdoiverified: true,
         },
       });
 
       return {
         experimentId: input.experimentId,
-        originalDataDoi: metrics.originaldatadoi,
-        hasOriginalDataDoi: metrics.hasoriginaldatadoi,
-        sourcePaperDoiVerified: metrics.sourcepaperdoiverified,
+        originalDataDoi: metrics?.originaldatadoi ?? citation.doi,
+        hasOriginalDataDoi: metrics?.hasoriginaldatadoi ?? true,
+        sourcePaperDoiVerified: metrics?.sourcepaperdoiverified ?? false,
+        citation: mapPublicationCitationToOutput(citation),
       };
     }),
 
@@ -2157,30 +2286,14 @@ export const experimentsRouter = createTRPCRouter({
         input.experimentId,
       );
 
-      const metrics = await ctx.db.experimentmetrics.upsert({
-        where: { experimentid: input.experimentId },
-        create: {
-          experimentid: input.experimentId,
-          originaldatadoi: null,
-          hasoriginaldatadoi: false,
-          sourcepaperdoiverified: false,
-          sourcepaperdoiverifiedat: null,
-          sourcepaperdoiverifiedby: null,
-        },
-        update: {
-          originaldatadoi: null,
-          hasoriginaldatadoi: false,
-          sourcepaperdoiverified: false,
-          sourcepaperdoiverifiedat: null,
-          sourcepaperdoiverifiedby: null,
-        },
-      });
+      await clearExperimentSourcePaperDoi(ctx.db, input.experimentId);
 
       return {
         experimentId: input.experimentId,
-        originalDataDoi: metrics.originaldatadoi,
-        hasOriginalDataDoi: metrics.hasoriginaldatadoi,
-        sourcePaperDoiVerified: metrics.sourcepaperdoiverified,
+        originalDataDoi: null,
+        hasOriginalDataDoi: false,
+        sourcePaperDoiVerified: false,
+        citation: null,
       };
     }),
 
