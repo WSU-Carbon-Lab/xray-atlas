@@ -67,6 +67,7 @@ describe("resolveAttributionPublicDisplay", () => {
     expect(resolved.displayName).toBe(NAME);
     expect(resolved.imageUrl).toBe(null);
     expect(resolved.showProfileImage).toBe(false);
+    expect(resolved.avatarPlaceholder).toBe("person");
   });
 
   it("shows full profile for pending administrator attributions", () => {
@@ -196,6 +197,30 @@ describe("attributionResearcherAvatarProps", () => {
     const props = attributionResearcherAvatarProps({ orcid: ORCID, resolved });
     expect(props.isOrcidOnlyDisplay).toBe(true);
     expect(props.displayName).toBe(ORCID);
+    expect(props.imageUrl).toBe(null);
+    expect(props.isAtlasProfile).toBe(false);
+    expect(props.placeholder).toBe("person");
+  });
+
+  it("returns Person placeholder without profile image for name_only display", () => {
+    const resolved = resolveAttributionPublicDisplay({
+      orcid: ORCID,
+      claimStatus: "accepted",
+      storedDisplayName: NAME,
+      storedImageUrl: IMAGE,
+      targetPreferences: {
+        autoAcceptMode: "off",
+        displayPreferences: {
+          pending: "orcid_only",
+          accepted: "name_only",
+          unclaimed: "orcid_only",
+        },
+      },
+      targetRoleSlugs: [],
+    });
+    const props = attributionResearcherAvatarProps({ orcid: ORCID, resolved });
+    expect(props.isOrcidOnlyDisplay).toBe(false);
+    expect(props.displayName).toBe(NAME);
     expect(props.imageUrl).toBe(null);
     expect(props.isAtlasProfile).toBe(false);
     expect(props.placeholder).toBe("person");

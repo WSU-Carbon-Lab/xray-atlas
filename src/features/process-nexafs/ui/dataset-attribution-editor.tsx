@@ -26,6 +26,7 @@ import {
   type DatasetAttributionEntry,
 } from "~/lib/nexafs-attribution";
 import { attributionResearcherAvatarProps } from "~/lib/dataset-attribution-claim";
+import type { ResolvedAttributionPublicDisplay } from "~/lib/dataset-attribution-claim";
 import type { DataCiteContributorType } from "~/lib/datacite-contributor-types";
 import { isValidOrcidUserId } from "~/lib/orcid";
 import { AddResearcherAttributionForm } from "./add-researcher-attribution-form";
@@ -58,6 +59,19 @@ function roleLabelsForDisplay(roles: DataCiteContributorType[]): string {
   return roles.map((role) => contributorRoleLabel(role)).join(", ");
 }
 
+function resolvedFromAvatarDisplay(
+  display: AttributionAvatarDisplay,
+): ResolvedAttributionPublicDisplay {
+  return {
+    displayLabel: display.displayName,
+    displayName: display.isOrcidOnlyDisplay ? null : display.displayName,
+    imageUrl: display.image,
+    showProfileImage: Boolean(display.image?.trim()),
+    isOrcidOnlyLabel: display.isOrcidOnlyDisplay,
+    avatarPlaceholder: display.avatarPlaceholder,
+  };
+}
+
 function avatarDisplayToUser(
   display: AttributionAvatarDisplay,
   sessionOrcid: string | null = null,
@@ -70,13 +84,7 @@ function avatarDisplayToUser(
     display.roles.some((role) => isUploaderContributorRole(role));
   const avatarProps = attributionResearcherAvatarProps({
     orcid,
-    resolved: {
-      displayLabel: display.displayName,
-      displayName: display.isOrcidOnlyDisplay ? null : display.displayName,
-      imageUrl: display.image,
-      showProfileImage: Boolean(display.image?.trim()),
-      isOrcidOnlyLabel: display.isOrcidOnlyDisplay,
-    },
+    resolved: resolvedFromAvatarDisplay(display),
   });
   return {
     id: display.isClaimed ? profileId || orcid : orcid,
@@ -112,13 +120,7 @@ function ContributorAvatarPopover({
   const roleText = roleLabelsForDisplay(display.roles);
   const avatarProps = attributionResearcherAvatarProps({
     orcid: display.orcid,
-    resolved: {
-      displayLabel: display.displayName,
-      displayName: display.isOrcidOnlyDisplay ? null : display.displayName,
-      imageUrl: display.image,
-      showProfileImage: Boolean(display.image?.trim()),
-      isOrcidOnlyLabel: display.isOrcidOnlyDisplay,
-    },
+    resolved: resolvedFromAvatarDisplay(display),
   });
 
   return (

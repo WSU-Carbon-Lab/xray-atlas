@@ -15,7 +15,10 @@ import {
   dedupeNexafsContributorsByOrcid,
   type DataCiteContributorType as ContributorType,
 } from "~/lib/nexafs-contributors";
-import type { ExperimentContributorClaimStatus } from "~/lib/dataset-attribution-claim";
+import type {
+  AttributionAvatarPlaceholder,
+  ExperimentContributorClaimStatus,
+} from "~/lib/dataset-attribution-claim";
 import { isValidOrcidUserId } from "~/lib/orcid";
 
 export type {
@@ -55,6 +58,8 @@ export type DatasetAttributionEntry = {
   imageUrl: string | null;
   /** When true, public surfaces show ORCID-only attribution (Person avatar, no initials). */
   isOrcidOnlyDisplay?: boolean;
+  /** Avatar fallback when no profile image is shown; defaults from claim display resolution. */
+  avatarPlaceholder?: AttributionAvatarPlaceholder;
 };
 
 export type AttributionRoleOption = ContributorRoleOption & {
@@ -172,6 +177,8 @@ export type AttributionAvatarDisplay = {
   isClaimed: boolean;
   /** When true, avatar stacks render a blank Person icon instead of initials. */
   isOrcidOnlyDisplay: boolean;
+  /** Avatar fallback when no profile image is shown. */
+  avatarPlaceholder: AttributionAvatarPlaceholder;
   /** When true, the Atlas user accepted the current contribution agreement version. */
   hasContributionAgreement: boolean;
   roles: ContributorType[];
@@ -212,6 +219,28 @@ export function researcherAttributionBadgeStatus(params: {
   return "agreed";
 }
 
+function mergeAvatarPlaceholder(
+  current: AttributionAvatarPlaceholder | undefined,
+  next: AttributionAvatarPlaceholder,
+): AttributionAvatarPlaceholder {
+  if (current === "initials" || next === "initials") {
+    return "initials";
+  }
+  return "person";
+}
+
+function avatarPlaceholderForEntry(
+  row: Pick<
+    DatasetAttributionEntry,
+    "isOrcidOnlyDisplay" | "avatarPlaceholder"
+  >,
+): AttributionAvatarPlaceholder {
+  if (row.isOrcidOnlyDisplay) {
+    return "person";
+  }
+  return row.avatarPlaceholder ?? "initials";
+}
+
 /**
  * Builds the avatar-stack key for one `(orcid, role)` attribution row.
  */
@@ -233,6 +262,7 @@ export function datasetAttributionRowsForAvatarDisplay(
     const role =
       coerceContributorRoleInput(row.role) ??
       dataCiteContributorTypeSchema.parse(row.role);
+    const avatarPlaceholder = avatarPlaceholderForEntry(row);
     return {
       orcid,
       profileUserId: row.isClaimed ? (row.userId ?? orcid) : "",
@@ -240,9 +270,15 @@ export function datasetAttributionRowsForAvatarDisplay(
         row.isOrcidOnlyDisplay
           ? orcid
           : (row.displayName ?? (row.isClaimed ? "Researcher" : orcid)),
-      image: row.isOrcidOnlyDisplay ? null : row.isClaimed ? row.imageUrl : null,
+      image:
+        row.isOrcidOnlyDisplay || avatarPlaceholder === "person"
+          ? null
+          : row.isClaimed
+            ? row.imageUrl
+            : null,
       isClaimed: row.isClaimed,
       isOrcidOnlyDisplay: row.isOrcidOnlyDisplay ?? false,
+      avatarPlaceholder,
       hasContributionAgreement: row.hasContributionAgreement,
       roles: [role],
       stackKey: attributionAvatarStackKey(orcid, role),
@@ -258,6 +294,7 @@ export function datasetAttributionsForAvatarDisplay(
 ): AttributionAvatarDisplay[] {
   const hasAgreementByOrcid = new Map<string, boolean>();
   const orcidOnlyByOrcid = new Map<string, boolean>();
+  const avatarPlaceholderByOrcid = new Map<string, AttributionAvatarPlaceholder>();
   for (const row of filterValidOrcidAttributions(rows)) {
     const key = row.orcid.trim();
     hasAgreementByOrcid.set(
@@ -268,28 +305,42 @@ export function datasetAttributionsForAvatarDisplay(
       key,
       (orcidOnlyByOrcid.get(key) ?? false) || (row.isOrcidOnlyDisplay ?? false),
     );
+    avatarPlaceholderByOrcid.set(
+      key,
+      mergeAvatarPlaceholder(
+        avatarPlaceholderByOrcid.get(key),
+        avatarPlaceholderForEntry(row),
+      ),
+    );
   }
   return dedupeNexafsContributorsByOrcid(
     filterValidOrcidAttributions(rows).map((row) => ({
       orcid: row.orcid.trim(),
       userId: row.isClaimed ? (row.userId ?? row.orcid) : null,
       name: row.displayName,
-      image: row.isOrcidOnlyDisplay ? null : row.imageUrl,
+      image:
+        row.isOrcidOnlyDisplay || avatarPlaceholderForEntry(row) === "person"
+          ? null
+          : row.imageUrl,
       isClaimed: row.isClaimed,
       isPublicProfileVisible: row.isClaimed && !row.isOrcidOnlyDisplay,
       role: row.role,
     })),
   ).map((person) => {
     const isOrcidOnlyDisplay = orcidOnlyByOrcid.get(person.orcid) ?? false;
+    const avatarPlaceholder =
+      avatarPlaceholderByOrcid.get(person.orcid) ?? "initials";
     return {
       orcid: person.orcid,
       profileUserId: person.isClaimed ? person.orcid : "",
       displayName: isOrcidOnlyDisplay
         ? person.orcid
         : (person.name ?? (person.isClaimed ? "Researcher" : person.orcid)),
-      image: isOrcidOnlyDisplay ? null : person.image,
+      image:
+        isOrcidOnlyDisplay || avatarPlaceholder === "person" ? null : person.image,
       isClaimed: person.isClaimed,
       isOrcidOnlyDisplay,
+      avatarPlaceholder,
       hasContributionAgreement: hasAgreementByOrcid.get(person.orcid) ?? false,
       roles: person.roles,
       stackKey: person.orcid,
@@ -331,6 +382,7 @@ export function enrichAttributionAvatarDisplays(
           : display.profileUserId,
         displayName: display.orcid,
         image: null,
+        avatarPlaceholder: "person",
         hasContributionAgreement: profile.hasContributionAgreement,
       };
     }
@@ -346,7 +398,12 @@ export function enrichAttributionAvatarDisplays(
         display.displayName ??
         profileDisplayName ??
         (isClaimed ? "Researcher" : display.orcid),
-      image: isClaimed ? (display.image ?? profile.imageUrl) : null,
+      image:
+        display.avatarPlaceholder === "person"
+          ? null
+          : isClaimed
+            ? (display.image ?? profile.imageUrl)
+            : null,
       hasContributionAgreement: profile.hasContributionAgreement,
     };
   });
@@ -367,6 +424,7 @@ export type ExperimentAttributionContributorDto = {
   isPublicProfileVisible: boolean;
   hasContributionAgreement: boolean;
   isOrcidOnlyDisplay: boolean;
+  avatarPlaceholder: AttributionAvatarPlaceholder;
 };
 
 /**
@@ -386,6 +444,7 @@ export function datasetAttributionsFromContributorDtos(
     hasContributionAgreement: row.hasContributionAgreement,
     imageUrl: row.image,
     isOrcidOnlyDisplay: row.isOrcidOnlyDisplay,
+    avatarPlaceholder: row.avatarPlaceholder,
   }));
 }
 

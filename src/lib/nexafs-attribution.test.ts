@@ -202,6 +202,27 @@ describe("datasetAttributionsForAvatarDisplay", () => {
     expect(displays[0]?.displayName).toBe(ORCID);
     expect(displays[0]?.image).toBe(null);
     expect(displays[0]?.isOrcidOnlyDisplay).toBe(true);
+    expect(displays[0]?.avatarPlaceholder).toBe("person");
+  });
+
+  it("uses Person placeholder without image when avatarPlaceholder is person", () => {
+    const displays = datasetAttributionsForAvatarDisplay([
+      {
+        clientId: "a",
+        orcid: ORCID,
+        role: "DataCollector",
+        displayName: "Ada Lovelace",
+        userId: ORCID,
+        isClaimed: true,
+        hasContributionAgreement: true,
+        imageUrl: "https://example.com/hidden.jpg",
+        isOrcidOnlyDisplay: false,
+        avatarPlaceholder: "person",
+      },
+    ]);
+    expect(displays[0]?.displayName).toBe("Ada Lovelace");
+    expect(displays[0]?.image).toBe(null);
+    expect(displays[0]?.avatarPlaceholder).toBe("person");
   });
 });
 
@@ -220,6 +241,7 @@ describe("datasetAttributionsFromContributorDtos", () => {
         isPublicProfileVisible: true,
         hasContributionAgreement: true,
         isOrcidOnlyDisplay: false,
+        avatarPlaceholder: "initials",
       },
     ]);
     expect(entries.length).toBe(1);

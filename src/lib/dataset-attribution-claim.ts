@@ -86,6 +86,7 @@ export interface ResolvedAttributionPublicDisplay {
   imageUrl: string | null;
   showProfileImage: boolean;
   isOrcidOnlyLabel: boolean;
+  avatarPlaceholder: AttributionAvatarPlaceholder;
 }
 
 export type AttributionAvatarPlaceholder = "initials" | "person";
@@ -189,6 +190,7 @@ function resolveDisplayFromMode(
       imageUrl: null,
       showProfileImage: false,
       isOrcidOnlyLabel: true,
+      avatarPlaceholder: "person",
     };
   }
 
@@ -200,6 +202,7 @@ function resolveDisplayFromMode(
       imageUrl: null,
       showProfileImage: false,
       isOrcidOnlyLabel: trimmedName == null,
+      avatarPlaceholder: "person",
     };
   }
 
@@ -210,6 +213,7 @@ function resolveDisplayFromMode(
     imageUrl: storedImageUrl,
     showProfileImage: Boolean(storedImageUrl?.trim()),
     isOrcidOnlyLabel: trimmedName == null,
+    avatarPlaceholder: "initials",
   };
 }
 
@@ -235,9 +239,8 @@ export function attributionResearcherAvatarProps(params: {
     imageUrl: params.resolved.showProfileImage
       ? params.resolved.imageUrl
       : null,
-    isAtlasProfile:
-      params.resolved.displayName != null || params.resolved.showProfileImage,
-    placeholder: "initials",
+    isAtlasProfile: params.resolved.avatarPlaceholder === "initials",
+    placeholder: params.resolved.avatarPlaceholder,
     isOrcidOnlyDisplay: false,
   };
 }
