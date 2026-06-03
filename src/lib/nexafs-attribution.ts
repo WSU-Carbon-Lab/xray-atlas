@@ -307,4 +307,64 @@ export function enrichAttributionAvatarDisplays(
   });
 }
 
+/**
+ * Stored experiment contributor row returned by `experiments.listAttributions`.
+ */
+export type ExperimentAttributionContributorDto = {
+  id: string;
+  orcid: string;
+  role: DataCiteContributorType;
+  userId: string | null;
+  displayName: string | null;
+  image: string | null;
+  isClaimed: boolean;
+  isPublicProfileVisible: boolean;
+  hasContributionAgreement: boolean;
+};
+
+/**
+ * Maps `experiments.listAttributions` rows into contribute-style attribution entries for edit UIs.
+ */
+export function datasetAttributionsFromContributorDtos(
+  rows: ExperimentAttributionContributorDto[],
+): DatasetAttributionEntry[] {
+  return rows.map((row) => ({
+    clientId: row.id,
+    orcid: row.orcid,
+    role: row.role,
+    displayName: row.displayName,
+    userId: row.userId,
+    isClaimed: row.isClaimed,
+    hasContributionAgreement: row.hasContributionAgreement,
+    imageUrl: row.image,
+  }));
+}
+
+/**
+ * Builds the `experiments.setAttributions` payload from local attribution editor state.
+ */
+export function datasetAttributionsToSetAttributionInput(
+  rows: DatasetAttributionEntry[],
+): Array<{ orcid: string; role: DataCiteContributorType }> {
+  return filterValidOrcidAttributions(rows).map((row) => ({
+    orcid: row.orcid.trim(),
+    role: row.role,
+  }));
+}
+
+/**
+ * Returns whether two attribution lists match after validation and deduplication.
+ */
+export function datasetAttributionsEqual(
+  left: DatasetAttributionEntry[],
+  right: DatasetAttributionEntry[],
+): boolean {
+  const normalize = (rows: DatasetAttributionEntry[]) =>
+    dedupeDatasetAttributions(filterValidOrcidAttributions(rows))
+      .map((row) => `${row.orcid.trim()}:${row.role}`)
+      .sort()
+      .join("|");
+  return normalize(left) === normalize(right);
+}
+
 export { contributorRoleLabel, isUploaderContributorRole };

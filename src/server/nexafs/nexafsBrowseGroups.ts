@@ -5,6 +5,12 @@ import {
   type NexafsBrowseDatasetMetricsCardModel,
 } from "~/lib/nexafs-dataset-metric-display-model";
 import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
+import { normalizeStoredContributorRole } from "~/lib/datacite-contributor-types";
+import {
+  dedupeNexafsContributorsByOrcid,
+  type NexafsContributorPerson,
+  type DataCiteContributorType,
+} from "~/lib/nexafs-contributors";
 
 export type NexafsBrowseGroupFilters = {
   moleculeId?: string;
@@ -15,6 +21,8 @@ export type NexafsBrowseGroupFilters = {
   verificationSource?: "either" | "publication" | "atlas";
   /** ORCID iD: experiments with an attribution record for this contributor. */
   contributorUserId?: string;
+  /** Normalized DOI exact match on `experiment_metrics.original_data_doi`. */
+  sourcePaperDoi?: string;
 };
 
 export function buildNexafsBrowseWhereSql(
@@ -43,6 +51,14 @@ export function buildNexafsBrowseWhereSql(
       FROM experiment_contributors ecf
       WHERE ecf.experiment_id = e.id
         AND ecf.orcid_id = ${filters.contributorUserId}
+    )`);
+  }
+  if (filters.sourcePaperDoi) {
+    parts.push(Prisma.sql`EXISTS (
+      SELECT 1
+      FROM experiment_metrics em_doi
+      WHERE em_doi.experiment_id = e.id
+        AND em_doi.original_data_doi = ${filters.sourcePaperDoi}
     )`);
   }
   if (filters.verifiedOnly) {
@@ -165,15 +181,7 @@ export type NexafsBrowseGroupRow = {
   dataset_quality_score: number | null;
 };
 
-export type NexafsBrowseContributorUser = {
-  id: string;
-  userId: string | null;
-  orcid: string;
-  name: string | null;
-  image: string | null;
-  isClaimed: boolean;
-  isPublicProfileVisible: boolean;
-};
+export type NexafsBrowseContributorUser = NexafsContributorPerson;
 
 export type NexafsBrowseGroupDto = {
   experimentId: string;
@@ -203,6 +211,11 @@ export type NexafsBrowseGroupDto = {
   datasetMetrics: NexafsBrowseDatasetMetricsCardModel;
 };
 
+function parseContributorRole(raw: unknown): DataCiteContributorType | null {
+  if (typeof raw !== "string") return null;
+  return normalizeStoredContributorRole(raw);
+}
+
 function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
   if (!raw || !Array.isArray(raw)) return [];
   const out: NexafsBrowseContributorUser[] = [];
@@ -215,6 +228,7 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
     const userId = userIdRaw.length > 0 ? userIdRaw : null;
     const isClaimed = Boolean(o.isClaimed);
     const isPublicProfileVisible = Boolean(o.isPublicProfileVisible);
+    const role = parseContributorRole(o.role);
     out.push({
       id: orcid,
       userId,
@@ -229,9 +243,10 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
           : null,
       isClaimed,
       isPublicProfileVisible,
+      roles: role ? [role] : [],
     });
   }
-  return out;
+  return dedupeNexafsContributorsByOrcid(out);
 }
 
 function parseLinkedPublicationsJson(
@@ -460,6 +475,7 @@ export async function fetchNexafsBrowseGrouped(
               json_build_object(
                 'orcid', ec.orcid_id,
                 'userId', ec.user_id,
+                'role', ec.role,
                 'name', CASE
                   WHEN ec.is_public_profile_visible THEN u.name
                   ELSE NULL
