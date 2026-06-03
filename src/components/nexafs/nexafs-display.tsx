@@ -31,7 +31,10 @@ import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs
 import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
 import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
 import type { NexafsBrowseLinkedPublication, NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
-import { NexafsSourcePublicationsHeaderControl } from "~/components/nexafs/nexafs-source-publications-header";
+import {
+  NexafsSourcePublicationAddMenuControl,
+  NexafsSourcePublicationsHeaderControl,
+} from "~/components/nexafs/nexafs-source-publications-header";
 
 function trpcKeyMatchesExperimentsProcedure(
   queryKey: readonly unknown[],
@@ -407,6 +410,12 @@ export function NexafsExperimentCompactCard({
                   ingestVerified={ingestVerified}
                   linkedPublications={linkedPublications}
                   sourcePublications={sourcePublications}
+                  trailingSlot={
+                    <NexafsSourcePublicationAddMenuControl
+                      experimentId={experimentId}
+                      sourcePublications={sourcePublications}
+                    />
+                  }
                 />
                 <NexafsSourcePublicationsHeaderControl
                   experimentId={experimentId}

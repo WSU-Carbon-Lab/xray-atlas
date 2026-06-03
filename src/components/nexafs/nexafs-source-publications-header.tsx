@@ -4,10 +4,7 @@ import {
   useCallback,
   useMemo,
   useState,
-  type ComponentProps,
-  type KeyboardEvent,
   type MouseEvent,
-  type Ref,
 } from "react";
 import { Plus, X } from "lucide-react";
 import { Button, Chip } from "@heroui/react";
@@ -17,6 +14,7 @@ import { showToast } from "~/components/ui/toast";
 import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import {
   nexafsPublicationDoiHref,
+  nexafsVerificationBadgeRingClassName,
 } from "~/components/nexafs/nexafs-publication-verification-control";
 import type { NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
 import { ATTRIBUTION_NESTED_OVERLAY_SELECTOR } from "~/lib/nexafs-attribution";
@@ -74,66 +72,20 @@ function SourceDoiChip({
   );
 }
 
-function SourcePublicationEditorTrigger({
-  triggerProps,
-  isOpen,
-  ariaLabel,
-}: {
-  triggerProps: ComponentProps<"span"> & {
-    ref?: Ref<HTMLSpanElement>;
-    onClick?: (event: MouseEvent<HTMLSpanElement>) => void;
-  };
-  isOpen: boolean;
-  ariaLabel: string;
-}) {
-  const { onClick, ref, type: _buttonType, ...restTriggerProps } =
-    triggerProps as ComponentProps<"span"> & {
-      ref?: Ref<HTMLSpanElement>;
-      onClick?: (event: MouseEvent<HTMLSpanElement>) => void;
-      type?: string;
-    };
-
-  const handleActivate = (event: MouseEvent<HTMLSpanElement>) => {
-    event.stopPropagation();
-    onClick?.(event);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLSpanElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      event.stopPropagation();
-      onClick?.(event as unknown as MouseEvent<HTMLSpanElement>);
-    }
-  };
-
-  return (
-    <span
-      {...restTriggerProps}
-      ref={ref}
-      role="button"
-      tabIndex={0}
-      aria-label={ariaLabel}
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={handleActivate}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground focus-visible:ring-accent inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-        isOpen && "ring-accent ring-2 ring-offset-2",
-      )}
-    >
-      <Plus className="size-3.5 shrink-0" aria-hidden />
-    </span>
-  );
-}
+type NexafsSourcePublicationAddMenuProps = {
+  experimentId: string;
+  sourcePublications: NexafsBrowseSourcePublication[];
+  canEdit: boolean;
+};
 
 /**
- * Renders source publication DOI chips and the editor affordance beside the verification badge stack.
+ * Renders a compact add affordance beside the verification badge stack; opens a portaled editor for source publication DOIs.
  */
-export function NexafsSourcePublicationsHeader({
+export function NexafsSourcePublicationAddMenu({
   experimentId,
   sourcePublications,
   canEdit,
-}: NexafsSourcePublicationsHeaderProps) {
+}: NexafsSourcePublicationAddMenuProps) {
   const utils = trpc.useUtils();
   const [draft, setDraft] = useState<SourcePaperDoiFieldValue>({
     doi: "",
@@ -160,16 +112,6 @@ export function NexafsSourcePublicationsHeader({
     },
   });
 
-  const removeMutation = trpc.experiments.removeSourcePublication.useMutation({
-    onSuccess: async () => {
-      await invalidateBrowse();
-      showToast("Source publication removed", "success");
-    },
-    onError: (error) => {
-      showToast(error.message, "error");
-    },
-  });
-
   const existingDois = useMemo(
     () => new Set(sourcePublications.map((publication) => publication.doi)),
     [sourcePublications],
@@ -187,7 +129,7 @@ export function NexafsSourcePublicationsHeader({
     addMutation.mutate({ experimentId, doi: draft.citation.doi });
   }, [addMutation, draft.citation, existingDois, experimentId]);
 
-  if (sourcePublications.length === 0 && !canEdit) {
+  if (!canEdit) {
     return null;
   }
 
@@ -195,6 +137,135 @@ export function NexafsSourcePublicationsHeader({
     sourcePublications.length > 0
       ? "Add another source publication"
       : "Add source publication";
+
+  return (
+    <PopoverMenu
+      placement="bottom-start"
+      rootClassName="inline-flex shrink-0"
+      ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
+      renderTrigger={({ triggerProps, isOpen }) => {
+        const { onClick, onPointerDown, ...restTriggerProps } = triggerProps;
+        return (
+          <button
+            {...restTriggerProps}
+            type="button"
+            aria-label={addAriaLabel}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onPointerDown?.(event);
+            }}
+            onClick={(event: MouseEvent<HTMLButtonElement>) => {
+              event.stopPropagation();
+              onClick?.(event);
+            }}
+            className={cn(
+              nexafsVerificationBadgeRingClassName,
+              "text-muted hover:text-foreground focus-visible:ring-accent cursor-pointer items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-offset-1",
+              isOpen && "bg-surface-2 text-foreground",
+            )}
+          >
+            <Plus className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
+          </button>
+        );
+      }}
+      renderContent={({ close, contentProps, contentStyle, contentPositionClassName }) => (
+        <PopoverMenuContent
+          {...contentProps}
+          style={contentStyle}
+          className={cn(
+            contentPositionClassName,
+            "border-border bg-surface z-tooltip w-[min(24rem,calc(100vw-1.5rem))] rounded-xl border p-3 shadow-xl",
+          )}
+        >
+          <p className="text-foreground mb-2 text-sm font-semibold">
+            Add source publication
+          </p>
+          <p className="text-muted mb-3 text-xs leading-snug">
+            Link peer-reviewed papers that report the original measurement for this dataset.
+          </p>
+          <div data-attribution-nested-overlay="true">
+            <SourcePaperDoiField
+              value={draft}
+              onChange={setDraft}
+              disabled={addMutation.isPending}
+              showLabel={false}
+            />
+          </div>
+          <div className="mt-3 flex justify-end gap-2">
+            <Button type="button" size="sm" variant="tertiary" onPress={close}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              isDisabled={addMutation.isPending}
+              onPress={() => {
+                handleAdd();
+                close();
+              }}
+            >
+              Add
+            </Button>
+          </div>
+        </PopoverMenuContent>
+      )}
+    />
+  );
+}
+
+/**
+ * Loads edit permission and renders {@link NexafsSourcePublicationAddMenu} beside verification badges.
+ */
+export function NexafsSourcePublicationAddMenuControl({
+  experimentId,
+  sourcePublications,
+}: Omit<NexafsSourcePublicationAddMenuProps, "canEdit">) {
+  const canEditQuery = trpc.experiments.canEditExperiment.useQuery({
+    experimentId,
+  });
+
+  return (
+    <NexafsSourcePublicationAddMenu
+      experimentId={experimentId}
+      sourcePublications={sourcePublications}
+      canEdit={canEditQuery.data?.canEdit === true}
+    />
+  );
+}
+
+/**
+ * Renders linked source publication DOI chips for browse cards.
+ */
+export function NexafsSourcePublicationsHeader({
+  experimentId,
+  sourcePublications,
+  canEdit,
+}: NexafsSourcePublicationsHeaderProps) {
+  const utils = trpc.useUtils();
+
+  const invalidateBrowse = useCallback(async () => {
+    await Promise.all([
+      utils.experiments.getSourcePaperDoi.invalidate({ experimentId }),
+      utils.experiments.listSourcePublications.invalidate({ experimentId }),
+      utils.experiments.browseList.invalidate(),
+      utils.experiments.browseSearch.invalidate(),
+    ]);
+  }, [experimentId, utils.experiments]);
+
+  const removeMutation = trpc.experiments.removeSourcePublication.useMutation({
+    onSuccess: async () => {
+      await invalidateBrowse();
+      showToast("Source publication removed", "success");
+    },
+    onError: (error) => {
+      showToast(error.message, "error");
+    },
+  });
+
+  if (sourcePublications.length === 0) {
+    return null;
+  }
 
   return (
     <div
@@ -215,66 +286,6 @@ export function NexafsSourcePublicationsHeader({
           }}
         />
       ))}
-      {canEdit ? (
-        <PopoverMenu
-          placement="bottom-start"
-          ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
-          renderTrigger={({ triggerProps, isOpen }) => (
-            <SourcePublicationEditorTrigger
-              triggerProps={
-                triggerProps as ComponentProps<"span"> & {
-                  ref?: Ref<HTMLSpanElement>;
-                  onClick?: (event: MouseEvent<HTMLSpanElement>) => void;
-                }
-              }
-              isOpen={isOpen}
-              ariaLabel={addAriaLabel}
-            />
-          )}
-          renderContent={({ close, contentProps, contentStyle, contentPositionClassName }) => (
-            <PopoverMenuContent
-              {...contentProps}
-              style={contentStyle}
-              className={cn(
-                contentPositionClassName,
-                "border-border bg-surface z-tooltip w-[min(24rem,calc(100vw-1.5rem))] rounded-xl border p-3 shadow-xl",
-              )}
-            >
-              <p className="text-foreground mb-2 text-sm font-semibold">
-                Add source publication
-              </p>
-              <p className="text-muted mb-3 text-xs leading-snug">
-                Link peer-reviewed papers that report the original measurement for this dataset.
-              </p>
-              <div data-attribution-nested-overlay="true">
-                <SourcePaperDoiField
-                  value={draft}
-                  onChange={setDraft}
-                  disabled={addMutation.isPending}
-                  showLabel={false}
-                />
-              </div>
-              <div className="mt-3 flex justify-end gap-2">
-                <Button type="button" size="sm" variant="tertiary" onPress={close}>
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="primary"
-                  isDisabled={addMutation.isPending}
-                  onPress={() => {
-                    handleAdd();
-                    close();
-                  }}
-                >
-                  Add
-                </Button>
-              </div>
-            </PopoverMenuContent>
-          )}
-        />
-      ) : null}
     </div>
   );
 }

@@ -23,8 +23,10 @@ const TOOLTIP_VERTICAL_OFFSET_PX = 8;
 const tooltipShellClassName =
   "relative w-[min(18rem,calc(100vw-1rem))] max-w-[min(18rem,calc(100vw-1rem))] rounded-2xl border border-zinc-700/80 bg-zinc-900/95 px-3 py-2.5 text-left text-xs leading-snug text-zinc-100 shadow-2xl backdrop-blur-sm";
 
-const badgeRing =
+export const nexafsVerificationBadgeRingClassName =
   "inline-flex shrink-0 rounded-full bg-zinc-50 p-px ring-2 ring-zinc-50 dark:bg-zinc-800 dark:ring-zinc-800";
+
+const badgeRing = nexafsVerificationBadgeRingClassName;
 
 function normalizeDoiForHref(doi: string): string {
   return doi.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
@@ -93,6 +95,8 @@ export interface NexafsPublicationVerificationControlProps {
    * When true and there are no linked publication DOIs, shows ingest-time verification (stored validation summary on the experiment).
    */
   ingestVerified?: boolean;
+  /** Compact edit affordances rendered beside the badge stack (for example source publication add). */
+  trailingSlot?: ReactNode;
 }
 
 function VerificationBadgeStack({
@@ -270,6 +274,7 @@ export function NexafsPublicationVerificationControl({
   linkedPublications,
   sourcePublications = [],
   ingestVerified = false,
+  trailingSlot = null,
 }: NexafsPublicationVerificationControlProps) {
   const n = linkedPublications.length;
   const sourceCount = sourcePublications.length;
@@ -442,23 +447,26 @@ export function NexafsPublicationVerificationControl({
 
   return (
     <>
-      <span
-        ref={triggerRef}
-        tabIndex={0}
-        aria-label={ariaLabel}
-        aria-expanded={isOpen}
-        className="focus-visible:ring-accent inline-flex shrink-0 cursor-default items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-        onMouseEnter={openTooltip}
-        onMouseLeave={scheduleCloseTooltip}
-        onFocus={openTooltip}
-        onBlur={scheduleCloseTooltip}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <VerificationBadgeStack
-          hasAtlas={hasAtlas}
-          hasLinkedDoi={hasLinkedDoi}
-          hasSource={hasSource}
-        />
+      <span className="inline-flex shrink-0 items-center gap-0.5">
+        <span
+          ref={triggerRef}
+          tabIndex={0}
+          aria-label={ariaLabel}
+          aria-expanded={isOpen}
+          className="focus-visible:ring-accent inline-flex shrink-0 cursor-default items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          onMouseEnter={openTooltip}
+          onMouseLeave={scheduleCloseTooltip}
+          onFocus={openTooltip}
+          onBlur={scheduleCloseTooltip}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <VerificationBadgeStack
+            hasAtlas={hasAtlas}
+            hasLinkedDoi={hasLinkedDoi}
+            hasSource={hasSource}
+          />
+        </span>
+        {trailingSlot}
       </span>
       {isOpen && typeof document !== "undefined"
         ? createPortal(
