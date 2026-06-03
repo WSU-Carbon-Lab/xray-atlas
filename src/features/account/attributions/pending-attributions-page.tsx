@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronDownIcon, Lock } from "lucide-react";
 import {
@@ -45,7 +45,10 @@ const DISPLAY_STATE_DETAILS = {
     "How your credit appears when you decline or unclaim a dataset attribution.",
 } as const;
 
-const PENDING_ROLE_DETAIL =
+const PENDING_ROLE_SUMMARY =
+  "Name and profile on pending attributions are fixed by your role.";
+
+const PENDING_ROLE_TOOLTIP =
   "Administrators and maintainers always show name and profile on pending attributions. This preference is set by your role and cannot be changed here.";
 
 type DisplayPreferenceKey = keyof AttributionDisplayPreferences;
@@ -80,16 +83,30 @@ const DISPLAY_MODE_OPTIONS: AttributionDisplayMode[] = [
 const AUTO_ACCEPT_OPTIONS: AutoAcceptMode[] = ["off", "all"];
 
 const preferenceSelectTriggerClassName =
-  "border-border bg-surface h-10 w-full min-w-0 rounded-lg border shadow-none";
+  "border-border bg-surface min-h-10 w-full min-w-0 rounded-lg border shadow-none";
 
-function RoleDefaultChip() {
+function RoleDefaultLockedControl() {
   return (
-    <Chip size="sm" variant="soft" color="accent">
-      <span className="inline-flex items-center gap-1">
-        <Lock className="size-3 shrink-0" aria-hidden />
-        Role default
-      </span>
-    </Chip>
+    <Tooltip delay={0}>
+      <Tooltip.Trigger className="block w-full min-w-0">
+        <div
+          tabIndex={0}
+          className={`${preferenceSelectTriggerClassName} text-muted flex cursor-not-allowed items-center px-3`}
+          aria-disabled="true"
+          aria-label="Role default display mode"
+        >
+          <Chip size="sm" variant="soft" color="accent">
+            <span className="inline-flex items-center gap-1">
+              <Lock className="size-3 shrink-0" aria-hidden />
+              Role default
+            </span>
+          </Chip>
+        </div>
+      </Tooltip.Trigger>
+      <Tooltip.Content className="tooltip-content-panel max-w-xs">
+        {PENDING_ROLE_TOOLTIP}
+      </Tooltip.Content>
+    </Tooltip>
   );
 }
 
@@ -175,6 +192,10 @@ function DisplayPreferenceRow({
   ) => void;
 }) {
   const mode = prefs.displayPreferences[preferenceKey];
+  const [previewMode, setPreviewMode] = useState(mode);
+  useEffect(() => {
+    setPreviewMode(mode);
+  }, [mode]);
   const claimStatus = DISPLAY_STATE_CLAIM_STATUS[preferenceKey];
   const roleSlugs = prefs.pendingDisplayManagedByRole
     ? (["administrator"] as const)
@@ -184,53 +205,44 @@ function DisplayPreferenceRow({
 
   return (
     <div className="border-border flex h-full min-w-0 flex-col gap-3 rounded-lg border p-3">
-      <div className="flex min-w-0 items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <Label
-            htmlFor={roleManaged ? undefined : selectId}
-            className="text-foreground text-sm font-medium"
-          >
-            {DISPLAY_STATE_LABELS[preferenceKey]}
-          </Label>
-          <p className="text-muted mt-0.5 text-xs leading-snug">
-            {roleManaged
-              ? PENDING_ROLE_DETAIL
-              : DISPLAY_STATE_DETAILS[preferenceKey]}
-          </p>
-        </div>
-        {roleManaged ? (
-          <Tooltip delay={0}>
-            <Tooltip.Trigger>
-              <span tabIndex={0} className="shrink-0">
-                <RoleDefaultChip />
-              </span>
-            </Tooltip.Trigger>
-            <Tooltip.Content className="tooltip-content-panel max-w-xs">
-              {PENDING_ROLE_DETAIL}
-            </Tooltip.Content>
-          </Tooltip>
-        ) : null}
+      <div className="min-w-0">
+        <Label
+          htmlFor={roleManaged ? undefined : selectId}
+          className="text-foreground text-sm font-medium"
+        >
+          {DISPLAY_STATE_LABELS[preferenceKey]}
+        </Label>
+        <p className="text-muted mt-0.5 text-xs leading-snug">
+          {roleManaged
+            ? PENDING_ROLE_SUMMARY
+            : DISPLAY_STATE_DETAILS[preferenceKey]}
+        </p>
       </div>
       <AttributionDisplayPreview
         claimStatus={claimStatus}
-        mode={mode}
+        mode={previewMode}
         prefs={prefs.displayPreferences}
         profile={profile}
         roleSlugs={roleSlugs}
       />
-      {!roleManaged ? (
+      {roleManaged ? (
+        <div className="mt-auto w-full min-w-0">
+          <RoleDefaultLockedControl />
+        </div>
+      ) : (
         <Select
           id={selectId}
           aria-label={`${DISPLAY_STATE_LABELS[preferenceKey]} display`}
           isDisabled={prefsPending}
           selectedKey={mode}
           fullWidth
-          className="mt-auto"
+          className="mt-auto w-full min-w-0"
           onSelectionChange={(value) => {
             if (value == null) return;
             const next = String(
               Array.isArray(value) ? value[0] : value,
             ) as AttributionDisplayMode;
+            setPreviewMode(next);
             onModeChange(preferenceKey, next);
           }}
         >
@@ -254,7 +266,7 @@ function DisplayPreferenceRow({
             </ListBox>
           </Select.Popover>
         </Select>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -277,7 +289,7 @@ function AutoAcceptPreferenceRow({
         <Label htmlFor={selectId} className="text-foreground text-sm font-medium">
           Auto-accept new attributions
         </Label>
-        <p className="text-muted mt-0.5 max-w-prose text-xs leading-snug">
+        <p className="text-muted mt-0.5 text-xs leading-snug">
           {AUTO_ACCEPT_DETAIL}
         </p>
       </div>
@@ -457,7 +469,7 @@ export function PendingAttributionsPage() {
         allowsMultipleExpanded
         variant="surface"
         aria-label="Attribution preferences"
-        className="border-border w-full rounded-lg border"
+        className="border-border w-full min-w-0 self-stretch rounded-lg border"
         expandedKeys={
           prefsExpanded
             ? new Set([ATTRIBUTION_PREFERENCES_ACCORDION_ID])
@@ -469,9 +481,12 @@ export function PendingAttributionsPage() {
           );
         }}
       >
-        <Accordion.Item id={ATTRIBUTION_PREFERENCES_ACCORDION_ID}>
-          <Accordion.Heading>
-            <Accordion.Trigger className="hover:bg-default/50 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-start transition-colors">
+        <Accordion.Item
+          id={ATTRIBUTION_PREFERENCES_ACCORDION_ID}
+          className="w-full min-w-0"
+        >
+          <Accordion.Heading className="w-full min-w-0">
+            <Accordion.Trigger className="hover:bg-default/50 flex w-full min-w-0 items-center gap-3 rounded-lg px-4 py-3 text-start transition-colors">
               <span className="min-w-0 flex-1">
                 <span className="text-foreground block text-sm font-semibold">
                   Attribution preferences
@@ -485,10 +500,10 @@ export function PendingAttributionsPage() {
               </Accordion.Indicator>
             </Accordion.Trigger>
           </Accordion.Heading>
-          <Accordion.Panel>
-            <Accordion.Body className="px-4 pb-4 pt-0">
+          <Accordion.Panel className="w-full min-w-0">
+            <Accordion.Body className="w-full min-w-0 px-4 pb-4 pt-0">
               {prefs ? (
-                <div className="border-border flex flex-col gap-4 border-t pt-4">
+                <div className="border-border flex w-full min-w-0 flex-col gap-4 border-t pt-4">
                   <AutoAcceptPreferenceRow
                     prefs={prefs}
                     prefsPending={setPrefsMutation.isPending}
@@ -497,7 +512,7 @@ export function PendingAttributionsPage() {
                   <Separator />
                   <section
                     aria-labelledby="attribution-display-by-state"
-                    className="flex flex-col gap-3"
+                    className="flex w-full min-w-0 flex-col gap-3"
                   >
                     <h3
                       id="attribution-display-by-state"
@@ -505,7 +520,7 @@ export function PendingAttributionsPage() {
                     >
                       Profile display by claim state
                     </h3>
-                    <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3">
+                    <div className="grid w-full min-w-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-3">
                       {DISPLAY_PREFERENCE_KEYS.map((key) => (
                         <DisplayPreferenceRow
                           key={key}
