@@ -46,6 +46,17 @@ describe("listDataCiteContributorRoleOptions", () => {
       expect(primary).toContain(type);
     }
   });
+
+  it("uses Supervisor and Lead experimenter labels for slot roles", () => {
+    const options = listDataCiteContributorRoleOptions();
+    const supervisor = options.find((o) => o.contributorType === "Supervisor");
+    const projectLeader = options.find(
+      (o) => o.contributorType === "ProjectLeader",
+    );
+    expect(supervisor?.label).toBe("Supervisor");
+    expect(supervisor?.subtitle).toBe(undefined);
+    expect(projectLeader?.label).toBe("Lead experimenter");
+  });
 });
 
 describe("groupContributorRoleOptionsByTier", () => {

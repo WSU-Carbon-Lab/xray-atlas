@@ -125,10 +125,9 @@ const CONTRIBUTOR_TYPE_DEFINITIONS: Record<
     tier: "common",
   },
   ProjectLeader: {
-    label: "Project leader",
-    subtitle: "Principal investigator",
+    label: "Lead experimenter",
     description:
-      "Lead scientist accountable for the project or grant that funded the work.",
+      "Lead scientist responsible for experiment design, execution, or interpretation.",
     tier: "primary",
   },
   ProjectManager: {
@@ -180,9 +179,8 @@ const CONTRIBUTOR_TYPE_DEFINITIONS: Record<
   },
   Supervisor: {
     label: "Supervisor",
-    subtitle: "Graduate advisor",
     description:
-      "Faculty supervisor of the student or postdoc who collected or curated the data.",
+      "Supervisor accountable for the beamtime, project, or group that funded the work.",
     tier: "primary",
   },
   Translator: {
