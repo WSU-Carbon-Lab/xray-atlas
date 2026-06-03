@@ -12,6 +12,7 @@ import {
   Users,
   UserCog,
   FlaskConical,
+  Bell,
 } from "lucide-react";
 import type { User as NextAuthUser } from "next-auth";
 import { ORCIDIcon } from "~/components/icons";
@@ -137,6 +138,7 @@ interface AvatarButtonProps {
   handleAction: (action: string) => void;
   showManageUsers?: boolean;
   showSandbox?: boolean;
+  pendingAttributionCount?: number;
 }
 
 interface CustomAvatarProps extends React.ComponentProps<typeof Avatar> {
@@ -300,6 +302,7 @@ export function AvatarButton({
   handleAction,
   showManageUsers = false,
   showSandbox = false,
+  pendingAttributionCount = 0,
 }: AvatarButtonProps) {
   const menuContainerRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -335,19 +338,36 @@ export function AvatarButton({
     };
   }, [isOpen, setIsOpen]);
 
+  const menuTrigger = (
+    <Button
+      type="button"
+      onClick={() => setIsOpen((open) => !open)}
+      className="border-border bg-surface focus-visible:ring-accent hover:bg-default flex h-10 w-10 items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+      aria-label={
+        pendingAttributionCount > 0
+          ? `User menu, ${pendingAttributionCount} pending dataset attributions`
+          : "User menu"
+      }
+      aria-expanded={isOpen}
+      aria-haspopup="true"
+      aria-controls={isOpen ? menuId : undefined}
+    >
+      <CustomAvatar user={user} size="md" />
+    </Button>
+  );
+
   return (
     <div ref={menuContainerRef} className="relative">
-      <Button
-        type="button"
-        onClick={() => setIsOpen((open) => !open)}
-        className="border-border bg-surface focus-visible:ring-accent hover:bg-default flex h-10 w-10 items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-        aria-label="User menu"
-        aria-expanded={isOpen}
-        aria-haspopup="true"
-        aria-controls={isOpen ? menuId : undefined}
-      >
-        <CustomAvatar user={user} size="md" />
-      </Button>
+      {pendingAttributionCount > 0 ? (
+        <Badge.Anchor>
+          {menuTrigger}
+          <Badge color="danger" size="sm" placement="top-right">
+            {String(pendingAttributionCount)}
+          </Badge>
+        </Badge.Anchor>
+      ) : (
+        menuTrigger
+      )}
 
       {isOpen && (
         <div
@@ -407,6 +427,21 @@ export function AvatarButton({
               <Users className="h-4 w-4" />
               Create team
             </button>
+            <button
+              type="button"
+              onClick={() => handleAction("pending-attributions")}
+              className="text-foreground hover:bg-default flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm transition-colors"
+            >
+              <span className="flex items-center gap-3">
+                <Bell className="h-4 w-4" />
+                Pending attributions
+              </span>
+              {pendingAttributionCount > 0 ? (
+                <span className="bg-danger text-danger-foreground rounded-full px-2 py-0.5 text-xs font-medium tabular-nums">
+                  {pendingAttributionCount}
+                </span>
+              ) : null}
+            </button>
           </div>
           {showManageUsers || showSandbox ? (
             <div className="border-border border-t py-1">
@@ -447,10 +482,17 @@ export function AvatarButton({
   );
 }
 
+import { trpc } from "~/trpc/client";
+
 export function CustomUserButton() {
   const router = useRouter();
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
+  const { data: pendingCountData } =
+    trpc.datasetAttributions.countPendingForSession.useQuery(undefined, {
+      enabled: Boolean(session?.user?.id),
+      staleTime: 60_000,
+    });
 
   const user = session?.user;
 
@@ -476,6 +518,9 @@ export function CustomUserButton() {
       case "teams":
         router.push("/account/teams");
         break;
+      case "pending-attributions":
+        router.push("/account/attributions/pending");
+        break;
       default:
         break;
     }
@@ -498,6 +543,7 @@ export function CustomUserButton() {
       handleAction={handleAction}
       showManageUsers={Boolean(user.canManageUsers)}
       showSandbox={showSandbox}
+      pendingAttributionCount={pendingCountData?.count ?? 0}
     />
   );
 }
