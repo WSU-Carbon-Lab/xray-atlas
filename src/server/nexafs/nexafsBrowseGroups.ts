@@ -459,13 +459,30 @@ export async function fetchNexafsBrowseGrouped(
           FROM (
             SELECT DISTINCT
               CASE
-                WHEN ec.is_public_profile_visible AND u.name IS NOT NULL AND trim(u.name) <> '' THEN u.name
+                WHEN ec.claim_status = 'accepted'
+                  AND ec.is_public_profile_visible
+                  AND u.name IS NOT NULL
+                  AND trim(u.name) <> '' THEN u.name
+                WHEN ec.claim_status = 'pending'
+                  AND (
+                    u.show_name_on_pending_attributions = true
+                    OR EXISTS (
+                      SELECT 1
+                      FROM next_auth.user_app_role uar
+                      INNER JOIN next_auth.app_role ar ON ar.id = uar.role_id
+                      WHERE uar.user_id = ec.orcid_id
+                        AND ar.slug IN ('administrator', 'maintainer')
+                    )
+                  )
+                  AND u.name IS NOT NULL
+                  AND trim(u.name) <> '' THEN u.name
                 ELSE ec.orcid_id
               END AS n
             FROM experiment_contributors ec
-            LEFT JOIN "next_auth"."user" u
+            LEFT JOIN next_auth."user" u
               ON u.id = ec.user_id
             WHERE ec.experiment_id = b.experiment_id
+              AND ec.claim_status NOT IN ('declined', 'unclaimed')
           ) sub
           WHERE sub.n IS NOT NULL AND trim(sub.n) <> ''
         ) AS contributor_labels,
@@ -476,29 +493,68 @@ export async function fetchNexafsBrowseGrouped(
                 'orcid', ec.orcid_id,
                 'userId', ec.user_id,
                 'role', ec.role,
+                'claimStatus', ec.claim_status,
                 'name', CASE
-                  WHEN ec.is_public_profile_visible THEN u.name
+                  WHEN ec.claim_status = 'accepted'
+                    AND ec.is_public_profile_visible THEN u.name
+                  WHEN ec.claim_status = 'pending'
+                    AND (
+                      u.show_name_on_pending_attributions = true
+                      OR EXISTS (
+                        SELECT 1
+                        FROM next_auth.user_app_role uar
+                        INNER JOIN next_auth.app_role ar ON ar.id = uar.role_id
+                        WHERE uar.user_id = ec.orcid_id
+                          AND ar.slug IN ('administrator', 'maintainer')
+                      )
+                    ) THEN u.name
                   ELSE NULL
                 END,
                 'image', CASE
-                  WHEN ec.is_public_profile_visible THEN u.image
+                  WHEN ec.claim_status = 'accepted'
+                    AND ec.is_public_profile_visible THEN u.image
+                  WHEN ec.claim_status = 'pending'
+                    AND EXISTS (
+                      SELECT 1
+                      FROM next_auth.user_app_role uar
+                      INNER JOIN next_auth.app_role ar ON ar.id = uar.role_id
+                      WHERE uar.user_id = ec.orcid_id
+                        AND ar.slug IN ('administrator', 'maintainer')
+                    ) THEN u.image
                   ELSE NULL
                 END,
-                'isClaimed', ec.is_claimed,
-                'isPublicProfileVisible', ec.is_public_profile_visible
+                'isClaimed', ec.claim_status = 'accepted',
+                'isPublicProfileVisible', CASE
+                  WHEN ec.claim_status = 'accepted' THEN ec.is_public_profile_visible
+                  WHEN ec.claim_status = 'pending'
+                    AND EXISTS (
+                      SELECT 1
+                      FROM next_auth.user_app_role uar
+                      INNER JOIN next_auth.app_role ar ON ar.id = uar.role_id
+                      WHERE uar.user_id = ec.orcid_id
+                        AND ar.slug IN ('administrator', 'maintainer')
+                    ) THEN true
+                  ELSE false
+                END
               )
               ORDER BY
                 CASE
-                  WHEN ec.is_public_profile_visible AND u.name IS NOT NULL THEN u.name
+                  WHEN ec.claim_status = 'accepted'
+                    AND ec.is_public_profile_visible
+                    AND u.name IS NOT NULL THEN u.name
+                  WHEN ec.claim_status = 'pending'
+                    AND u.show_name_on_pending_attributions = true
+                    AND u.name IS NOT NULL THEN u.name
                   ELSE ec.orcid_id
                 END
             ),
             '[]'::json
           )
           FROM experiment_contributors ec
-          LEFT JOIN "next_auth"."user" u
+          LEFT JOIN next_auth."user" u
             ON u.id = ec.user_id
           WHERE ec.experiment_id = b.experiment_id
+            AND ec.claim_status NOT IN ('declined', 'unclaimed')
         ) AS contributor_users,
         (
           SELECT json_build_object(

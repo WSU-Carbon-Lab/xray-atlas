@@ -10,10 +10,19 @@ import {
 } from "~/lib/datacite-contributor-types";
 import { userHasCurrentContributionAgreement } from "~/lib/nexafs-attribution";
 import {
+  resolveAttributionPublicDisplay,
+  type ExperimentContributorClaimStatus,
+} from "~/lib/dataset-attribution-claim";
+import {
   isValidOrcidUserId,
   orcidUserIdSchema,
   parseOrcidForStorage,
 } from "~/lib/orcid";
+import {
+  buildContributorRowsWithClaimStatus,
+  loadContributorUserContextByOrcid,
+} from "~/server/nexafs/datasetAttributionClaiming";
+import { getUserSessionCapabilities } from "~/server/auth/privileged-role";
 
 export type ExperimentAttributionInput = {
   orcid: string;
@@ -24,9 +33,11 @@ export type ExperimentContributorInsertRow = {
   orcidid: string;
   userid: string | null;
   role: DataCiteContributorType;
+  claimstatus: ExperimentContributorClaimStatus;
   isclaimed: boolean;
   ispublicprofilevisible: boolean;
   claimedat: Date | null;
+  detachedat: Date | null;
 };
 
 const attributionInputSchema = orcidUserIdSchema;
@@ -108,27 +119,49 @@ export function assertValidCreateAttributions(
 export async function buildContributorInsertRows(
   db: PrismaClient | Prisma.TransactionClient,
   rows: ExperimentAttributionInput[],
+  sessionOrcid: string | null = null,
 ): Promise<ExperimentContributorInsertRow[]> {
   const orcids = [...new Set(rows.map((row) => row.orcid))];
-  const users =
-    orcids.length > 0
-      ? await db.user.findMany({
-          where: { id: { in: orcids } },
-          select: { id: true },
-        })
-      : [];
-  const knownUserIds = new Set(users.map((user) => user.id));
-  const now = new Date();
+  const userContextByOrcid = await loadContributorUserContextByOrcid(db, orcids);
+  return buildContributorRowsWithClaimStatus(
+    rows,
+    userContextByOrcid,
+    sessionOrcid,
+  );
+}
 
-  return rows.map((row) => {
-    const isKnownUser = knownUserIds.has(row.orcid);
+/**
+ * Preserves claim lifecycle fields when an experiment attribution list is rewritten.
+ */
+export function mergeContributorRowsWithExistingClaimState(
+  nextRows: ExperimentContributorInsertRow[],
+  existingRows: Array<{
+    orcidid: string;
+    role: string;
+    userid: string | null;
+    claimstatus: ExperimentContributorClaimStatus;
+    isclaimed: boolean;
+    ispublicprofilevisible: boolean;
+    claimedat: Date | null;
+    detachedat: Date | null;
+  }>,
+): ExperimentContributorInsertRow[] {
+  const existingByKey = new Map(
+    existingRows.map((row) => [`${row.orcidid}:${row.role}`, row]),
+  );
+  return nextRows.map((row) => {
+    const existing = existingByKey.get(`${row.orcidid}:${row.role}`);
+    if (!existing) {
+      return row;
+    }
     return {
-      orcidid: row.orcid,
-      userid: isKnownUser ? row.orcid : null,
-      role: row.role,
-      isclaimed: isKnownUser,
-      ispublicprofilevisible: isKnownUser,
-      claimedat: isKnownUser ? now : null,
+      ...row,
+      userid: existing.userid ?? row.userid,
+      claimstatus: existing.claimstatus,
+      isclaimed: existing.isclaimed,
+      ispublicprofilevisible: existing.ispublicprofilevisible,
+      claimedat: existing.claimedat,
+      detachedat: existing.detachedat,
     };
   });
 }
@@ -136,7 +169,8 @@ export async function buildContributorInsertRows(
 /**
  * Maps stored contributor rows to API DTOs for edit surfaces.
  */
-export function mapContributorRowsToDto(
+export async function mapContributorRowsToDto(
+  db: PrismaClient | Prisma.TransactionClient,
   rows: Array<{
     id: string;
     orcidid: string;
@@ -144,27 +178,52 @@ export function mapContributorRowsToDto(
     role: string;
     isclaimed: boolean;
     ispublicprofilevisible: boolean;
+    claimstatus: ExperimentContributorClaimStatus;
     user: {
       name: string | null;
       image: string | null;
       contributionAgreementAccepted: boolean;
       contributionAgreementVersion: string | null;
+      showNameOnPendingAttributions: boolean;
+      autoAcceptAttributions: boolean;
     } | null;
   }>,
 ) {
+  const roleSlugsByOrcid = new Map<string, string[]>();
+  for (const row of rows) {
+    if (!roleSlugsByOrcid.has(row.orcidid)) {
+      const caps = await getUserSessionCapabilities(db as PrismaClient, row.orcidid);
+      roleSlugsByOrcid.set(row.orcidid, caps.roleSlugs);
+    }
+  }
+
   return rows
     .map((row) => {
       const role = normalizeStoredContributorRole(row.role);
       if (!role) return null;
+      const resolved = resolveAttributionPublicDisplay({
+        orcid: row.orcidid,
+        claimStatus: row.claimstatus,
+        storedDisplayName: row.user?.name ?? null,
+        storedImageUrl: row.user?.image ?? null,
+        targetPreferences: {
+          showNameOnPendingAttributions:
+            row.user?.showNameOnPendingAttributions ?? false,
+          autoAcceptAttributions: row.user?.autoAcceptAttributions ?? false,
+        },
+        targetRoleSlugs: roleSlugsByOrcid.get(row.orcidid) ?? [],
+      });
+      const isClaimed = row.claimstatus === "accepted";
       return {
         id: row.id,
         orcid: row.orcidid,
         role,
         userId: row.userid,
-        displayName: row.user?.name ?? null,
-        image: row.user?.image ?? null,
-        isClaimed: row.isclaimed,
-        isPublicProfileVisible: row.ispublicprofilevisible,
+        displayName: resolved.displayName,
+        image: resolved.showProfileImage ? resolved.imageUrl : null,
+        isClaimed,
+        isPublicProfileVisible: isClaimed && row.ispublicprofilevisible,
+        claimStatus: row.claimstatus,
         hasContributionAgreement: row.user
           ? userHasCurrentContributionAgreement(row.user)
           : false,

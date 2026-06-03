@@ -83,11 +83,13 @@ import {
   assertValidCreateAttributions,
   buildContributorInsertRows,
   ensureUploaderOwnerAttribution,
+  mergeContributorRowsWithExistingClaimState,
   resolveKnownCollectorUserIds,
   mapContributorRowsToDto,
   normalizeAttributionInputs,
   type ExperimentAttributionInput,
 } from "~/server/nexafs/experimentAttributions";
+import { contributorFlagsForClaimStatus } from "~/lib/dataset-attribution-claim";
 import {
   assertUserMayEditExperiment,
   userMayEditExperiment,
@@ -1125,6 +1127,7 @@ export const experimentsRouter = createTRPCRouter({
           const contributorInsertRows = await buildContributorInsertRows(
             tx,
             attributionRows,
+            ctx.userId,
           );
           const collectedByFromAttributions = await resolveKnownCollectorUserIds(
             tx,
@@ -1397,9 +1400,11 @@ export const experimentsRouter = createTRPCRouter({
                 orcidid: row.orcidid,
                 userid: row.userid,
                 role: row.role,
+                claimstatus: row.claimstatus,
                 isclaimed: row.isclaimed,
                 ispublicprofilevisible: row.ispublicprofilevisible,
                 claimedat: row.claimedat,
+                detachedat: row.detachedat,
               })),
               skipDuplicates: true,
             });
@@ -1503,11 +1508,13 @@ export const experimentsRouter = createTRPCRouter({
               image: true,
               contributionAgreementAccepted: true,
               contributionAgreementVersion: true,
+              showNameOnPendingAttributions: true,
+              autoAcceptAttributions: true,
             },
           },
         },
       });
-      return mapContributorRowsToDto(rows);
+      return mapContributorRowsToDto(ctx.db, rows);
     }),
 
   setAttributions: protectedProcedure
@@ -1527,9 +1534,22 @@ export const experimentsRouter = createTRPCRouter({
       const attributionRows = normalizeAttributionInputs(input.attributions);
       assertValidCreateAttributions(attributionRows);
 
-      const contributorInsertRows = await buildContributorInsertRows(
-        ctx.db,
-        attributionRows,
+      const existingRows = await ctx.db.experimentcontributors.findMany({
+        where: { experimentid: input.experimentId },
+        select: {
+          orcidid: true,
+          role: true,
+          userid: true,
+          claimstatus: true,
+          isclaimed: true,
+          ispublicprofilevisible: true,
+          claimedat: true,
+          detachedat: true,
+        },
+      });
+      const contributorInsertRows = mergeContributorRowsWithExistingClaimState(
+        await buildContributorInsertRows(ctx.db, attributionRows, ctx.userId),
+        existingRows,
       );
       const collectedByFromAttributions = await resolveKnownCollectorUserIds(
         ctx.db,
@@ -1547,9 +1567,11 @@ export const experimentsRouter = createTRPCRouter({
               orcidid: row.orcidid,
               userid: row.userid,
               role: row.role,
+              claimstatus: row.claimstatus,
               isclaimed: row.isclaimed,
               ispublicprofilevisible: row.ispublicprofilevisible,
               claimedat: row.claimedat,
+              detachedat: row.detachedat,
             })),
           });
         }
@@ -1566,7 +1588,7 @@ export const experimentsRouter = createTRPCRouter({
     const rows = await ctx.db.experimentcontributors.findMany({
       where: {
         orcidid: ctx.userId,
-        OR: [{ userid: null }, { isclaimed: false }],
+        claimstatus: "pending",
       },
       orderBy: [{ createdat: "desc" }],
       include: {
@@ -1632,22 +1654,16 @@ export const experimentsRouter = createTRPCRouter({
         return { updatedCount: 0 };
       }
       const targetIds = targetRows.map((row) => row.id);
-      const now = new Date();
       const update = await ctx.db.experimentcontributors.updateMany({
         where: { id: { in: targetIds } },
         data: input.claim
           ? {
-              userid: ctx.userId,
-              isclaimed: true,
-              ispublicprofilevisible: true,
-              detachedat: null,
-              claimedat: now,
+              claimstatus: "accepted",
+              ...contributorFlagsForClaimStatus("accepted", ctx.userId),
             }
           : {
-              userid: null,
-              isclaimed: false,
-              ispublicprofilevisible: false,
-              detachedat: now,
+              claimstatus: "unclaimed",
+              ...contributorFlagsForClaimStatus("unclaimed", ctx.userId),
             },
       });
       return { updatedCount: update.count };
@@ -1660,18 +1676,14 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const now = new Date();
       const update = await ctx.db.experimentcontributors.updateMany({
         where: {
           experimentid: { in: input.experimentIds },
           orcidid: ctx.userId,
         },
         data: {
-          userid: ctx.userId,
-          isclaimed: true,
-          ispublicprofilevisible: true,
-          detachedat: null,
-          claimedat: now,
+          claimstatus: "accepted",
+          ...contributorFlagsForClaimStatus("accepted", ctx.userId),
         },
       });
       return { updatedCount: update.count };
