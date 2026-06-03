@@ -1,11 +1,14 @@
 import { z } from "zod";
 import {
+  adminProcedure,
   contributeWriteProcedure,
   createTRPCRouter,
   privilegedWriteProcedure,
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
+import { normalizeDoi } from "~/app/api/v1/_lib/researcher-api";
+import { dataCiteContributorTypeSchema } from "~/lib/datacite-contributor-types";
 import { orcidUserIdSchema } from "~/lib/orcid";
 import { TRPCError } from "@trpc/server";
 import { Prisma, ExperimentType, ProcessMethod } from "~/prisma/client";
@@ -54,11 +57,47 @@ const nexafsBrowseSortBySchema = z
 const nexafsVerificationSourceSchema = z
   .enum(["either", "publication", "atlas"])
   .default("either");
+
+const sourcePaperDoiInputSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(512)
+  .transform((value, ctx) => {
+    const normalized = normalizeDoi(value);
+    if (!normalized) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invalid DOI",
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  });
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 import {
   userMayDeleteExperiment,
   userMayTransferExperimentOwnership,
 } from "~/server/nexafs/experimentManageAuthz";
+import {
+  assertValidCreateAttributions,
+  buildContributorInsertRows,
+  ensureUploaderOwnerAttribution,
+  resolveKnownCollectorUserIds,
+  mapContributorRowsToDto,
+  normalizeAttributionInputs,
+  type ExperimentAttributionInput,
+} from "~/server/nexafs/experimentAttributions";
+import {
+  assertUserMayEditExperiment,
+  userMayEditExperiment,
+} from "~/server/nexafs/experimentEditAuthz";
+
+const experimentAttributionRoleSchema = z.union([
+  dataCiteContributorTypeSchema,
+  z.literal("owner"),
+  z.literal("collector"),
+]);
 
 const emptyDerivedScalars = (): {
   od: Array<number | null>;
@@ -341,6 +380,7 @@ export const experimentsRouter = createTRPCRouter({
         experimentType: z.nativeEnum(ExperimentType).optional(),
         verifiedOnly: z.boolean().default(false),
         verificationSource: nexafsVerificationSourceSchema,
+        sourcePaperDoi: sourcePaperDoiInputSchema.optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -353,6 +393,7 @@ export const experimentsRouter = createTRPCRouter({
           experimentType: input.experimentType,
           verifiedOnly: input.verifiedOnly,
           verificationSource: input.verificationSource,
+          sourcePaperDoi: input.sourcePaperDoi,
         },
         searchQuery: null,
         sortBy: input.sortBy,
@@ -380,6 +421,7 @@ export const experimentsRouter = createTRPCRouter({
         experimentType: z.nativeEnum(ExperimentType).optional(),
         verifiedOnly: z.boolean().default(false),
         verificationSource: nexafsVerificationSourceSchema,
+        sourcePaperDoi: sourcePaperDoiInputSchema.optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -392,6 +434,7 @@ export const experimentsRouter = createTRPCRouter({
           experimentType: input.experimentType,
           verifiedOnly: input.verifiedOnly,
           verificationSource: input.verificationSource,
+          sourcePaperDoi: input.sourcePaperDoi,
         },
         searchQuery: input.query.trim(),
         sortBy: input.sortBy,
@@ -896,6 +939,14 @@ export const experimentsRouter = createTRPCRouter({
           .optional(),
         collectedByUserIds: z.array(orcidUserIdSchema).optional(),
         collectedByOrcidIds: z.array(orcidUserIdSchema).optional(),
+        attributions: z
+          .array(
+            z.object({
+              orcid: orcidUserIdSchema,
+              role: experimentAttributionRoleSchema,
+            }),
+          )
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -906,6 +957,7 @@ export const experimentsRouter = createTRPCRouter({
         spectrum: spectrumInput,
         collectedByUserIds,
         collectedByOrcidIds,
+        attributions: attributionsInput,
       } = input;
       const normalizationScope: NormalizationScope =
         experimentInput.normalization?.scope ?? "none";
@@ -918,9 +970,15 @@ export const experimentsRouter = createTRPCRouter({
         ]),
       );
       const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
-      const requestedCollectedBy = [...new Set(collectedByUserIds ?? [])];
+      const requestedCollectedBy = [
+        ...new Set((collectedByUserIds ?? []).filter((id) =>
+          orcidUserIdSchema.safeParse(id).success,
+        )),
+      ];
       const requestedCollectedByOrcid = [
-        ...new Set(collectedByOrcidIds ?? []),
+        ...new Set((collectedByOrcidIds ?? []).filter((id) =>
+          orcidUserIdSchema.safeParse(id).success,
+        )),
       ];
       if (
         !isPrivilegedUser &&
@@ -1040,6 +1098,42 @@ export const experimentsRouter = createTRPCRouter({
           const normalizedCollectorOrcidIds = [
             ...new Set([...normalizedCollectedBy, ...requestedCollectedByOrcid]),
           ];
+
+          let attributionRows: ExperimentAttributionInput[] =
+            attributionsInput != null && attributionsInput.length > 0
+              ? normalizeAttributionInputs(attributionsInput)
+              : [];
+          if (attributionRows.length === 0) {
+            if (ctx.userId) {
+              attributionRows.push({ orcid: ctx.userId, role: "DataCurator" });
+            }
+            for (const collectorOrcid of normalizedCollectorOrcidIds) {
+              if (ctx.userId && collectorOrcid === ctx.userId) {
+                continue;
+              }
+              attributionRows.push({
+                orcid: collectorOrcid,
+                role: "DataCollector",
+              });
+            }
+          }
+          attributionRows = ensureUploaderOwnerAttribution(
+            attributionRows,
+            ctx.userId,
+          );
+          assertValidCreateAttributions(attributionRows);
+          const contributorInsertRows = await buildContributorInsertRows(
+            tx,
+            attributionRows,
+          );
+          const collectedByFromAttributions = await resolveKnownCollectorUserIds(
+            tx,
+            attributionRows,
+          );
+          const normalizedCollectedByForExperiment =
+            collectedByFromAttributions.length > 0
+              ? collectedByFromAttributions
+              : normalizedCollectedBy;
 
           // Resolve vendor
           let vendorId: string | null =
@@ -1273,7 +1367,7 @@ export const experimentsRouter = createTRPCRouter({
               createdby: ctx.userId ?? undefined,
               experimenttype: experimentInput.experimentType,
               nexafsexperimentkindid: kind?.id ?? null,
-              collectedbyuserids: normalizedCollectedBy,
+              collectedbyuserids: normalizedCollectedByForExperiment,
               normalizationscope: normalizationScope,
               normalizationranges:
                 normalizationRanges as unknown as Prisma.InputJsonValue,
@@ -1296,49 +1390,9 @@ export const experimentsRouter = createTRPCRouter({
             },
           });
 
-          const contributorRows = new Map<
-            string,
-            {
-              orcidid: string;
-              userid: string | null;
-              role: "owner" | "collector";
-              isclaimed: boolean;
-              ispublicprofilevisible: boolean;
-              claimedat: Date | null;
-            }
-          >();
-          if (ctx.userId) {
-            contributorRows.set(`owner:${ctx.userId}`, {
-              orcidid: ctx.userId,
-              userid: ctx.userId,
-              role: "owner",
-              isclaimed: true,
-              ispublicprofilevisible: true,
-              claimedat: new Date(),
-            });
-          }
-          for (const collectorOrcid of normalizedCollectorOrcidIds) {
-            const rowKey = `collector:${collectorOrcid}`;
-            if (!contributorRows.has(rowKey)) {
-              contributorRows.set(rowKey, {
-                orcidid: collectorOrcid,
-                userid: normalizedCollectedBy.includes(collectorOrcid)
-                  ? collectorOrcid
-                  : null,
-                role: "collector",
-                isclaimed: normalizedCollectedBy.includes(collectorOrcid),
-                ispublicprofilevisible: normalizedCollectedBy.includes(
-                  collectorOrcid,
-                ),
-                claimedat: normalizedCollectedBy.includes(collectorOrcid)
-                  ? new Date()
-                  : null,
-              });
-            }
-          }
-          if (contributorRows.size > 0) {
+          if (contributorInsertRows.length > 0) {
             await tx.experimentcontributors.createMany({
-              data: Array.from(contributorRows.values()).map((row) => ({
+              data: contributorInsertRows.map((row) => ({
                 experimentid: experiment.id,
                 orcidid: row.orcidid,
                 userid: row.userid,
@@ -1423,6 +1477,89 @@ export const experimentsRouter = createTRPCRouter({
       );
 
       return transactionResult;
+    }),
+
+  canEditExperiment: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => ({
+      canEdit: await userMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      ),
+    })),
+
+  listAttributions: protectedProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
+      const rows = await ctx.db.experimentcontributors.findMany({
+        where: { experimentid: input.experimentId },
+        orderBy: [{ role: "asc" }, { createdat: "asc" }],
+        include: {
+          user: {
+            select: {
+              name: true,
+              image: true,
+              contributionAgreementAccepted: true,
+              contributionAgreementVersion: true,
+            },
+          },
+        },
+      });
+      return mapContributorRowsToDto(rows);
+    }),
+
+  setAttributions: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        attributions: z.array(
+          z.object({
+            orcid: orcidUserIdSchema,
+            role: experimentAttributionRoleSchema,
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
+      const attributionRows = normalizeAttributionInputs(input.attributions);
+      assertValidCreateAttributions(attributionRows);
+
+      const contributorInsertRows = await buildContributorInsertRows(
+        ctx.db,
+        attributionRows,
+      );
+      const collectedByFromAttributions = await resolveKnownCollectorUserIds(
+        ctx.db,
+        attributionRows,
+      );
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.experimentcontributors.deleteMany({
+          where: { experimentid: input.experimentId },
+        });
+        if (contributorInsertRows.length > 0) {
+          await tx.experimentcontributors.createMany({
+            data: contributorInsertRows.map((row) => ({
+              experimentid: input.experimentId,
+              orcidid: row.orcidid,
+              userid: row.userid,
+              role: row.role,
+              isclaimed: row.isclaimed,
+              ispublicprofilevisible: row.ispublicprofilevisible,
+              claimedat: row.claimedat,
+            })),
+          });
+        }
+        await tx.experiments.update({
+          where: { id: input.experimentId },
+          data: { collectedbyuserids: collectedByFromAttributions },
+        });
+      });
+
+      return { updatedCount: contributorInsertRows.length };
     }),
 
   listMyUnclaimedContributions: protectedProcedure.query(async ({ ctx }) => {
@@ -1552,7 +1689,7 @@ export const experimentsRouter = createTRPCRouter({
       const targetRows = await ctx.db.experimentcontributors.findMany({
         where: {
           experimentid: { in: input.experimentIds },
-          role: "collector",
+          role: { in: ["DataCollector", "collector"] },
         },
         include: {
           experiments: {
@@ -1934,5 +2071,136 @@ export const experimentsRouter = createTRPCRouter({
       });
 
       return { success: true };
+    }),
+
+  setSourcePaperDoi: contributeWriteProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        doi: sourcePaperDoiInputSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+
+      const metrics = await ctx.db.experimentmetrics.upsert({
+        where: { experimentid: input.experimentId },
+        create: {
+          experimentid: input.experimentId,
+          originaldatadoi: input.doi,
+          hasoriginaldatadoi: true,
+          sourcepaperdoiverified: false,
+          sourcepaperdoiverifiedat: null,
+          sourcepaperdoiverifiedby: null,
+        },
+        update: {
+          originaldatadoi: input.doi,
+          hasoriginaldatadoi: true,
+          sourcepaperdoiverified: false,
+          sourcepaperdoiverifiedat: null,
+          sourcepaperdoiverifiedby: null,
+        },
+      });
+
+      return {
+        experimentId: input.experimentId,
+        originalDataDoi: metrics.originaldatadoi,
+        hasOriginalDataDoi: metrics.hasoriginaldatadoi,
+        sourcePaperDoiVerified: metrics.sourcepaperdoiverified,
+      };
+    }),
+
+  clearSourcePaperDoi: contributeWriteProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+
+      const metrics = await ctx.db.experimentmetrics.upsert({
+        where: { experimentid: input.experimentId },
+        create: {
+          experimentid: input.experimentId,
+          originaldatadoi: null,
+          hasoriginaldatadoi: false,
+          sourcepaperdoiverified: false,
+          sourcepaperdoiverifiedat: null,
+          sourcepaperdoiverifiedby: null,
+        },
+        update: {
+          originaldatadoi: null,
+          hasoriginaldatadoi: false,
+          sourcepaperdoiverified: false,
+          sourcepaperdoiverifiedat: null,
+          sourcepaperdoiverifiedby: null,
+        },
+      });
+
+      return {
+        experimentId: input.experimentId,
+        originalDataDoi: metrics.originaldatadoi,
+        hasOriginalDataDoi: metrics.hasoriginaldatadoi,
+        sourcePaperDoiVerified: metrics.sourcepaperdoiverified,
+      };
+    }),
+
+  verifySourcePaperDoi: adminProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const metrics = await ctx.db.experimentmetrics.findUnique({
+        where: { experimentid: input.experimentId },
+        select: { originaldatadoi: true },
+      });
+      if (!metrics?.originaldatadoi) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Experiment has no source paper DOI to verify",
+        });
+      }
+
+      const updated = await ctx.db.experimentmetrics.update({
+        where: { experimentid: input.experimentId },
+        data: {
+          sourcepaperdoiverified: true,
+          sourcepaperdoiverifiedat: new Date(),
+          sourcepaperdoiverifiedby: ctx.userId,
+        },
+      });
+
+      return {
+        experimentId: input.experimentId,
+        sourcePaperDoiVerified: updated.sourcepaperdoiverified,
+        sourcePaperDoiVerifiedAt:
+          updated.sourcepaperdoiverifiedat?.toISOString() ?? null,
+        sourcePaperDoiVerifiedBy: updated.sourcepaperdoiverifiedby,
+      };
     }),
 });

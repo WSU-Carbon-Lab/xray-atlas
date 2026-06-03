@@ -12,6 +12,9 @@ import { vendorsRouter } from "~/server/api/routers/vendors";
 import { physicsRouter } from "~/server/api/routers/physics";
 import { collaboratorsRouter } from "~/server/api/routers/collaborators";
 import { adminRouter } from "~/server/api/routers/admin";
+import { sampleAuxRouter } from "~/server/api/routers/sampleAux";
+import { sampleFileRouter } from "~/server/api/routers/sampleFile";
+import { experimentFileRouter } from "~/server/api/routers/experimentFile";
 
 export const appRouter = createTRPCRouter({
   molecules: moleculesRouter,
@@ -27,6 +30,9 @@ export const appRouter = createTRPCRouter({
   vendors: vendorsRouter,
   physics: physicsRouter,
   collaborators: collaboratorsRouter,
+  sampleAux: sampleAuxRouter,
+  sampleFile: sampleFileRouter,
+  experimentFile: experimentFileRouter,
 });
 
 export type AppRouter = typeof appRouter;

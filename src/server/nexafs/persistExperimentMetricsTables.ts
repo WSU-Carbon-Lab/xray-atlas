@@ -110,11 +110,12 @@ export async function persistExperimentMetricsTables(
     return { ok: false, experimentId, reason: "no_points" };
   }
 
-  const linkedPub = await db.experimentpublications.findFirst({
+  const existingMetrics = await db.experimentmetrics.findUnique({
     where: { experimentid: experimentId },
-    select: { publicationid: true },
+    select: { originaldatadoi: true },
   });
-  const doiPresent = linkedPub != null;
+  const storedDoi = existingMetrics?.originaldatadoi?.trim() ?? "";
+  const doiPresent = storedDoi.length > 0;
 
   const points = prismaSpectrumToSpectrumPoints(rows);
   const ranges: NormalizationRanges = parseStoredNormalizationRanges(
@@ -162,7 +163,6 @@ export async function persistExperimentMetricsTables(
         favoritecount: engagement?.favorites ?? 0,
         viewcount: 0,
         hasoriginaldatadoi: doiPresent,
-        originaldatadoi: null,
         qualityaggregatescore: aggregateScore,
         normalizationrangespresent: qs.normalizationRangesPresent,
         metricscomputedat: new Date(),
