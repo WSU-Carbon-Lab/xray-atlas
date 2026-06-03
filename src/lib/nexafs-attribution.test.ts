@@ -261,4 +261,12 @@ describe("listAttributionRoleOptions", () => {
     const options = listAttributionRoleOptions();
     expect(options.length).toBe(DATACITE_CONTRIBUTOR_TYPES.length);
   });
+
+  it("marks DataCurator as required at upload", () => {
+    const curator = listAttributionRoleOptions().find(
+      (o) => o.contributorType === "DataCurator",
+    );
+    expect(curator?.requiredAtUpload).toBe(true);
+    expect(curator?.tier).toBe("primary");
+  });
 });

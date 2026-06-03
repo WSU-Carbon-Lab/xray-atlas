@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import type { Key } from "@heroui/react";
 import { skipToken } from "@tanstack/react-query";
 import {
@@ -11,9 +11,11 @@ import {
   ErrorMessage,
   Input,
   Label,
+  Header,
   ListBox,
   ScrollShadow,
   Select,
+  Separator,
   Spinner,
 } from "@heroui/react";
 import {
@@ -25,8 +27,10 @@ import {
   isAttributionSearchQueryReady,
 } from "~/lib/attribution-researcher-search";
 import {
+  groupContributorRoleOptionsByTier,
   listAttributionRoleOptions,
   researcherAttributionBadgeStatus,
+  type AttributionRoleOption,
   type DatasetAttributionEntry,
   type ResearcherAttributionBadgeStatus,
 } from "~/lib/nexafs-attribution";
@@ -58,6 +62,36 @@ function badgeColorForStatus(
   if (status === "unclaimed") return "danger";
   if (status === "pending_agreement") return "warning";
   return "success";
+}
+
+function AttributionRoleListItem({ option }: { option: AttributionRoleOption }) {
+  return (
+    <ListBox.Item
+      id={option.contributorType}
+      textValue={`${option.label} ${option.subtitle ?? ""} ${option.description}`}
+    >
+      <div className="flex min-w-0 flex-col gap-0.5 py-0.5">
+        <span className="text-foreground flex flex-wrap items-center gap-1.5 font-medium">
+          <span>{option.label}</span>
+          {option.subtitle ? (
+            <span className="text-muted text-xs font-normal">{option.subtitle}</span>
+          ) : null}
+          {option.requiredAtUpload ? (
+            <Chip
+              size="sm"
+              variant="soft"
+              color="accent"
+              className="h-5 shrink-0 px-1.5 text-[10px]"
+            >
+              Required at upload
+            </Chip>
+          ) : null}
+        </span>
+        <span className="text-muted text-xs leading-snug">{option.description}</span>
+      </div>
+      <ListBox.ItemIndicator />
+    </ListBox.Item>
+  );
 }
 
 export function AddResearcherAttributionForm({
@@ -239,11 +273,10 @@ export function AddResearcherAttributionForm({
     roleOptions.find((option) => option.contributorType === roleDraft)?.label ??
     contributorRoleLabel(roleDraft);
 
-  const sortedRoleOptions = useMemo(() => {
-    const common = roleOptions.filter((o) => o.group === "common");
-    const rest = roleOptions.filter((o) => o.group !== "common");
-    return [...common, ...rest];
-  }, [roleOptions]);
+  const roleOptionSections = useMemo(
+    () => groupContributorRoleOptionsByTier(roleOptions),
+    [roleOptions],
+  );
 
   const emptyStateMessage = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -440,25 +473,26 @@ export function AddResearcherAttributionForm({
           <Select.Popover>
             <div data-attribution-nested-overlay="true">
             <ScrollShadow
-              className="max-h-52 min-h-0"
+              className="max-h-64 min-h-0"
               hideScrollBar
               orientation="vertical"
             >
-              <ListBox aria-label="Attribution roles">
-                {sortedRoleOptions.map((option) => (
-                  <ListBox.Item
-                    key={option.contributorType}
-                    id={option.contributorType}
-                    textValue={option.label}
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-medium">{option.label}</span>
-                      <span className="text-muted text-xs">
-                        {option.description}
-                      </span>
-                    </div>
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
+              <ListBox aria-label="Attribution roles" className="p-1">
+                {roleOptionSections.map((section, sectionIndex) => (
+                  <Fragment key={section.tier}>
+                    {sectionIndex > 0 ? <Separator className="my-1" /> : null}
+                    <ListBox.Section>
+                      <Header className="text-muted px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
+                        {section.sectionLabel}
+                      </Header>
+                      {section.options.map((option) => (
+                        <AttributionRoleListItem
+                          key={option.contributorType}
+                          option={option}
+                        />
+                      ))}
+                    </ListBox.Section>
+                  </Fragment>
                 ))}
               </ListBox>
             </ScrollShadow>

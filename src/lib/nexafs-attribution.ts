@@ -5,8 +5,10 @@ import {
   dataCiteContributorTypeSchema,
   isCollectorContributorRole,
   isUploaderContributorRole,
+  groupContributorRoleOptionsByTier,
   listDataCiteContributorRoleOptions,
   type ContributorRoleOption,
+  type ContributorRolePickerTier,
   type DataCiteContributorType,
 } from "~/lib/datacite-contributor-types";
 import {
@@ -15,7 +17,13 @@ import {
 } from "~/lib/nexafs-contributors";
 import { isValidOrcidUserId } from "~/lib/orcid";
 
-export type { DataCiteContributorType, ContributorRoleOption };
+export type {
+  ContributorRoleOption,
+  ContributorRolePickerTier,
+  DataCiteContributorType,
+};
+
+export { groupContributorRoleOptionsByTier };
 
 /**
  * CSS selector for portaled HeroUI overlays nested inside attribution popover menus.
