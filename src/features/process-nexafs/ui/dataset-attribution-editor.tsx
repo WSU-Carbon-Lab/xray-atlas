@@ -14,16 +14,6 @@ import { cn } from "@heroui/styles";
 import { Plus, Trash2, Users } from "lucide-react";
 import { ORCIDIcon } from "~/components/icons";
 import {
-  AvatarGroup,
-  CustomAvatar,
-  normalizeProfileImageUrl,
-  type UserWithOrcid,
-} from "~/components/ui/avatar";
-import {
-  PopoverMenu,
-  PopoverMenuContent,
-} from "~/components/ui/popover-menu";
-import {
   ATTRIBUTION_NESTED_OVERLAY_SELECTOR,
   datasetAttributionsForAvatarDisplay,
   dedupeDatasetAttributions,
@@ -35,10 +25,21 @@ import {
   type AttributionAvatarDisplay,
   type DatasetAttributionEntry,
 } from "~/lib/nexafs-attribution";
+import { attributionResearcherAvatarProps } from "~/lib/dataset-attribution-claim";
 import type { DataCiteContributorType } from "~/lib/datacite-contributor-types";
 import { isValidOrcidUserId } from "~/lib/orcid";
 import { AddResearcherAttributionForm } from "./add-researcher-attribution-form";
 import { ApplyTeamAttributionForm } from "./apply-team-attribution-form";
+import {
+  AvatarGroup,
+  normalizeProfileImageUrl,
+  ResearcherAvatar,
+  type UserWithOrcid,
+} from "~/components/ui/avatar";
+import {
+  PopoverMenu,
+  PopoverMenuContent,
+} from "~/components/ui/popover-menu";
 
 export type DatasetAttributionChange =
   | DatasetAttributionEntry[]
@@ -67,12 +68,23 @@ function avatarDisplayToUser(
     sessionOrcid != null &&
     orcid === sessionOrcid &&
     display.roles.some((role) => isUploaderContributorRole(role));
+  const avatarProps = attributionResearcherAvatarProps({
+    orcid,
+    resolved: {
+      displayLabel: display.displayName,
+      displayName: display.isOrcidOnlyDisplay ? null : display.displayName,
+      imageUrl: display.image,
+      showProfileImage: Boolean(display.image?.trim()),
+      isOrcidOnlyLabel: display.isOrcidOnlyDisplay,
+    },
+  });
   return {
     id: display.isClaimed ? profileId || orcid : orcid,
     orcid,
-    name: display.displayName,
-    image: normalizeProfileImageUrl(display.image),
-    isAtlasProfile: display.isClaimed,
+    name: avatarProps.displayName,
+    image: normalizeProfileImageUrl(avatarProps.imageUrl),
+    isAtlasProfile: avatarProps.isAtlasProfile,
+    avatarPlaceholder: avatarProps.placeholder,
     attributionBadgeStatus: isSessionUploader
       ? "agreed"
       : researcherAttributionBadgeStatus({
@@ -97,8 +109,17 @@ function ContributorAvatarPopover({
   onRemove: (row: DatasetAttributionEntry) => void;
   avatar: ReactNode;
 }) {
-  const user = avatarDisplayToUser(display, sessionOrcid);
   const roleText = roleLabelsForDisplay(display.roles);
+  const avatarProps = attributionResearcherAvatarProps({
+    orcid: display.orcid,
+    resolved: {
+      displayLabel: display.displayName,
+      displayName: display.isOrcidOnlyDisplay ? null : display.displayName,
+      imageUrl: display.image,
+      showProfileImage: Boolean(display.image?.trim()),
+      isOrcidOnlyLabel: display.isOrcidOnlyDisplay,
+    },
+  });
 
   return (
     <PopoverMenu
@@ -128,10 +149,24 @@ function ContributorAvatarPopover({
         >
           <div className="space-y-2">
             <div className="flex items-start gap-2">
-              <CustomAvatar size="sm" user={user} />
+              <ResearcherAvatar
+                displayName={avatarProps.displayName}
+                imageUrl={avatarProps.imageUrl}
+                identitySeed={display.orcid}
+                isAtlasProfile={avatarProps.isAtlasProfile}
+                placeholder={avatarProps.placeholder}
+                size="sm"
+                className="h-8 w-8 shrink-0"
+              />
               <div className="min-w-0 flex-1">
                 <p className="text-foreground truncate text-sm font-semibold">
-                  {display.displayName}
+                  {display.isOrcidOnlyDisplay ? (
+                    <span className="text-muted font-mono text-xs tabular-nums">
+                      {display.orcid}
+                    </span>
+                  ) : (
+                    display.displayName
+                  )}
                 </p>
                 <p className="text-muted text-xs">{roleText}</p>
                 <a

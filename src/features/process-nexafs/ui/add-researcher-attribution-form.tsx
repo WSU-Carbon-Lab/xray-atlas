@@ -383,6 +383,7 @@ export function AddResearcherAttributionForm({
                           imageUrl={hit.imageUrl}
                           identitySeed={hit.orcid}
                           isAtlasProfile={hit.hasAtlasProfile}
+                          placeholder={hit.hasAtlasProfile ? "initials" : "person"}
                           size="sm"
                           className="h-8 w-8 shrink-0"
                         />

@@ -18,6 +18,7 @@ import {
 import { contributorRoleLabel } from "~/lib/datacite-contributor-types";
 import {
   attributionDisplayModeLabel,
+  attributionResearcherAvatarProps,
   autoAcceptModeLabel,
   resolveAttributionPublicDisplay,
   type AttributionDisplayMode,
@@ -78,23 +79,8 @@ const DISPLAY_MODE_OPTIONS: AttributionDisplayMode[] = [
 
 const AUTO_ACCEPT_OPTIONS: AutoAcceptMode[] = ["off", "all"];
 
-function DetailsTooltip({ detail }: { detail: string }) {
-  return (
-    <Tooltip delay={0}>
-      <Tooltip.Trigger>
-        <span
-          className="text-muted inline-flex cursor-default text-xs underline decoration-dotted underline-offset-2"
-          tabIndex={0}
-        >
-          Details
-        </span>
-      </Tooltip.Trigger>
-      <Tooltip.Content className="tooltip-content-panel max-w-xs">
-        {detail}
-      </Tooltip.Content>
-    </Tooltip>
-  );
-}
+const preferenceSelectTriggerClassName =
+  "border-border bg-surface h-10 w-full min-w-0 rounded-lg border shadow-none";
 
 function RoleDefaultChip() {
   return (
@@ -141,34 +127,23 @@ function AttributionDisplayPreview({
     },
     targetRoleSlugs: roleSlugs,
   });
-
-  const isOrcidOnlyMode = mode === "orcid_only";
-  const isAtlasProfile = !isOrcidOnlyMode;
-  const avatarDisplayName = isOrcidOnlyMode
-    ? (profile.name ?? orcid)
-    : (resolved.displayName ?? profile.name ?? orcid);
+  const avatarProps = attributionResearcherAvatarProps({ orcid, resolved });
 
   return (
     <div
-      className="border-border bg-surface flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-2 shadow-sm"
+      className="bg-surface-2/40 flex min-h-9 min-w-0 items-center gap-2 rounded-md px-2 py-1.5"
       aria-hidden
     >
       <ResearcherAvatar
-        displayName={avatarDisplayName}
-        imageUrl={
-          isOrcidOnlyMode
-            ? null
-            : resolved.showProfileImage
-              ? resolved.imageUrl
-              : null
-        }
+        displayName={avatarProps.displayName}
+        imageUrl={avatarProps.imageUrl}
         identitySeed={orcid}
-        isAtlasProfile={isAtlasProfile}
-        placeholder="person"
+        isAtlasProfile={avatarProps.isAtlasProfile}
+        placeholder={avatarProps.placeholder}
         size="sm"
         className="shrink-0"
       />
-      {isOrcidOnlyMode ? (
+      {avatarProps.isOrcidOnlyDisplay ? (
         <span className="text-muted min-w-0 truncate font-mono text-xs tabular-nums">
           {orcid}
         </span>
@@ -205,16 +180,28 @@ function DisplayPreferenceRow({
     ? (["administrator"] as const)
     : ([] as const);
 
+  const selectId = `attribution-display-${preferenceKey}`;
+
   return (
-    <div className="border-border flex h-full min-w-0 flex-col gap-2 rounded-lg border p-2.5">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        <Label className="text-foreground text-sm font-medium">
-          {DISPLAY_STATE_LABELS[preferenceKey]}
-        </Label>
+    <div className="border-border flex h-full min-w-0 flex-col gap-3 rounded-lg border p-3">
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <Label
+            htmlFor={roleManaged ? undefined : selectId}
+            className="text-foreground text-sm font-medium"
+          >
+            {DISPLAY_STATE_LABELS[preferenceKey]}
+          </Label>
+          <p className="text-muted mt-0.5 text-xs leading-snug">
+            {roleManaged
+              ? PENDING_ROLE_DETAIL
+              : DISPLAY_STATE_DETAILS[preferenceKey]}
+          </p>
+        </div>
         {roleManaged ? (
           <Tooltip delay={0}>
             <Tooltip.Trigger>
-              <span tabIndex={0}>
+              <span tabIndex={0} className="shrink-0">
                 <RoleDefaultChip />
               </span>
             </Tooltip.Trigger>
@@ -222,9 +209,7 @@ function DisplayPreferenceRow({
               {PENDING_ROLE_DETAIL}
             </Tooltip.Content>
           </Tooltip>
-        ) : (
-          <DetailsTooltip detail={DISPLAY_STATE_DETAILS[preferenceKey]} />
-        )}
+        ) : null}
       </div>
       <AttributionDisplayPreview
         claimStatus={claimStatus}
@@ -235,9 +220,12 @@ function DisplayPreferenceRow({
       />
       {!roleManaged ? (
         <Select
+          id={selectId}
           aria-label={`${DISPLAY_STATE_LABELS[preferenceKey]} display`}
           isDisabled={prefsPending}
           selectedKey={mode}
+          fullWidth
+          className="mt-auto"
           onSelectionChange={(value) => {
             if (value == null) return;
             const next = String(
@@ -246,7 +234,7 @@ function DisplayPreferenceRow({
             onModeChange(preferenceKey, next);
           }}
         >
-          <Select.Trigger className="border-border bg-surface min-h-9 w-full rounded-lg border shadow-none">
+          <Select.Trigger className={preferenceSelectTriggerClassName}>
             <Select.Value />
             <Select.Indicator />
           </Select.Trigger>
@@ -281,24 +269,24 @@ function AutoAcceptPreferenceRow({
   onModeChange: (mode: AutoAcceptMode) => void;
 }) {
   const mode = prefs.autoAcceptMode;
-  const chipColor = mode === "all" ? "success" : "default";
+  const selectId = "attribution-auto-accept";
 
   return (
-    <div className="border-border flex flex-col gap-2.5 rounded-lg border p-2.5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-        <Label className="text-foreground text-sm font-medium">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0 flex-1">
+        <Label htmlFor={selectId} className="text-foreground text-sm font-medium">
           Auto-accept new attributions
         </Label>
-        <DetailsTooltip detail={AUTO_ACCEPT_DETAIL} />
-        <Chip size="sm" variant="soft" color={chipColor}>
-          {autoAcceptModeLabel(mode)}
-        </Chip>
+        <p className="text-muted mt-0.5 max-w-prose text-xs leading-snug">
+          {AUTO_ACCEPT_DETAIL}
+        </p>
       </div>
       <Select
+        id={selectId}
         aria-label="Auto-accept new attributions"
         isDisabled={prefsPending}
         selectedKey={mode}
-        className="sm:max-w-xs sm:shrink-0"
+        className="w-full sm:w-48 sm:shrink-0"
         onSelectionChange={(value) => {
           if (value == null) return;
           const next = String(
@@ -307,7 +295,7 @@ function AutoAcceptPreferenceRow({
           onModeChange(next);
         }}
       >
-        <Select.Trigger className="border-border bg-surface min-h-9 w-full rounded-lg border shadow-none">
+        <Select.Trigger className={preferenceSelectTriggerClassName}>
           <Select.Value />
           <Select.Indicator />
         </Select.Trigger>
@@ -483,58 +471,61 @@ export function PendingAttributionsPage() {
       >
         <Accordion.Item id={ATTRIBUTION_PREFERENCES_ACCORDION_ID}>
           <Accordion.Heading>
-            <Accordion.Trigger className="flex w-full items-center gap-2 px-1 py-1 text-start">
+            <Accordion.Trigger className="hover:bg-default/50 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-start transition-colors">
               <span className="min-w-0 flex-1">
-                <span className="text-foreground block text-base font-medium">
+                <span className="text-foreground block text-sm font-semibold">
                   Attribution preferences
                 </span>
-                <span className="text-muted block truncate text-sm">
+                <span className="text-muted block truncate text-xs">
                   {prefsSummary}
                 </span>
               </span>
               <Accordion.Indicator className="text-muted shrink-0 [&>svg]:size-4">
-                <ChevronDownIcon className="h-4 w-4" aria-hidden />
+                <ChevronDownIcon className="size-4" aria-hidden />
               </Accordion.Indicator>
             </Accordion.Trigger>
           </Accordion.Heading>
           <Accordion.Panel>
-            <Accordion.Body className="flex flex-col gap-4 pt-0">
+            <Accordion.Body className="px-4 pb-4 pt-0">
               {prefs ? (
-                <>
-                  <p className="text-muted text-sm">
-                    Choose how your credit appears on dataset rows for each
-                    claim state and whether new attributions are accepted
-                    automatically.
-                  </p>
+                <div className="border-border flex flex-col gap-4 border-t pt-4">
                   <AutoAcceptPreferenceRow
                     prefs={prefs}
                     prefsPending={setPrefsMutation.isPending}
                     onModeChange={handleAutoAcceptChange}
                   />
                   <Separator />
-                  <div className="flex flex-col gap-2">
-                    <h3 className="text-foreground text-sm font-medium">
+                  <section
+                    aria-labelledby="attribution-display-by-state"
+                    className="flex flex-col gap-3"
+                  >
+                    <h3
+                      id="attribution-display-by-state"
+                      className="text-foreground text-sm font-medium"
+                    >
                       Profile display by claim state
                     </h3>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-2.5">
+                    <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3">
                       {DISPLAY_PREFERENCE_KEYS.map((key) => (
-                          <DisplayPreferenceRow
-                            key={key}
-                            preferenceKey={key}
-                            prefs={prefs}
-                            profile={prefs.profilePreview}
-                            roleManaged={
-                              key === "pending" && prefs.pendingDisplayManagedByRole
-                            }
-                            prefsPending={setPrefsMutation.isPending}
-                            onModeChange={handleDisplayModeChange}
-                          />
+                        <DisplayPreferenceRow
+                          key={key}
+                          preferenceKey={key}
+                          prefs={prefs}
+                          profile={prefs.profilePreview}
+                          roleManaged={
+                            key === "pending" && prefs.pendingDisplayManagedByRole
+                          }
+                          prefsPending={setPrefsMutation.isPending}
+                          onModeChange={handleDisplayModeChange}
+                        />
                       ))}
                     </div>
-                  </div>
-                </>
+                  </section>
+                </div>
               ) : prefsQuery.isLoading ? (
-                <Spinner size="sm" aria-label="Loading preferences" />
+                <div className="border-border border-t pt-4">
+                  <Spinner size="sm" aria-label="Loading preferences" />
+                </div>
               ) : null}
             </Accordion.Body>
           </Accordion.Panel>

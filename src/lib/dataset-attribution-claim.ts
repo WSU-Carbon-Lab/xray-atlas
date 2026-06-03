@@ -88,6 +88,16 @@ export interface ResolvedAttributionPublicDisplay {
   isOrcidOnlyLabel: boolean;
 }
 
+export type AttributionAvatarPlaceholder = "initials" | "person";
+
+export interface AttributionResearcherAvatarProps {
+  displayName: string;
+  imageUrl: string | null;
+  isAtlasProfile: boolean;
+  placeholder: AttributionAvatarPlaceholder;
+  isOrcidOnlyDisplay: boolean;
+}
+
 /**
  * Parses persisted JSON attribution display preferences with schema defaults on invalid input.
  */
@@ -200,6 +210,35 @@ function resolveDisplayFromMode(
     imageUrl: storedImageUrl,
     showProfileImage: Boolean(storedImageUrl?.trim()),
     isOrcidOnlyLabel: trimmedName == null,
+  };
+}
+
+/**
+ * Maps resolved attribution display to `ResearcherAvatar` props so ORCID-only rows use a blank Person icon instead of initials.
+ */
+export function attributionResearcherAvatarProps(params: {
+  orcid: string;
+  resolved: ResolvedAttributionPublicDisplay;
+}): AttributionResearcherAvatarProps {
+  const orcid = params.orcid.trim();
+  if (params.resolved.isOrcidOnlyLabel) {
+    return {
+      displayName: orcid,
+      imageUrl: null,
+      isAtlasProfile: false,
+      placeholder: "person",
+      isOrcidOnlyDisplay: true,
+    };
+  }
+  return {
+    displayName: params.resolved.displayLabel,
+    imageUrl: params.resolved.showProfileImage
+      ? params.resolved.imageUrl
+      : null,
+    isAtlasProfile:
+      params.resolved.displayName != null || params.resolved.showProfileImage,
+    placeholder: "initials",
+    isOrcidOnlyDisplay: false,
   };
 }
 

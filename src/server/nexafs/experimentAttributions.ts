@@ -230,6 +230,7 @@ export async function mapContributorRowsToDto(
         hasContributionAgreement: row.user
           ? userHasCurrentContributionAgreement(row.user)
           : false,
+        isOrcidOnlyDisplay: resolved.isOrcidOnlyLabel,
       };
     })
     .filter((row): row is NonNullable<typeof row> => row != null);

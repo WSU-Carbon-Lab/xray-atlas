@@ -5,6 +5,7 @@ import {
 } from "bun:test";
 import {
   attributionDisplayModeLabel,
+  attributionResearcherAvatarProps,
   autoAcceptModeLabel,
   contributorFlagsForClaimStatus,
   defaultAttributionPreferencesForRoleSlugs,
@@ -172,6 +173,32 @@ describe("parseAttributionDisplayPreferences", () => {
     const parsed = parseAttributionDisplayPreferences({ pending: "invalid" });
     expect(parsed.pending).toBe("orcid_only");
     expect(parsed.accepted).toBe("name_and_avatar");
+  });
+});
+
+describe("attributionResearcherAvatarProps", () => {
+  it("returns Person placeholder props for ORCID-only display", () => {
+    const resolved = resolveAttributionPublicDisplay({
+      orcid: ORCID,
+      claimStatus: "pending",
+      storedDisplayName: "Hidden Name",
+      storedImageUrl: "https://example.com/a.jpg",
+      targetPreferences: {
+        autoAcceptMode: "off",
+        displayPreferences: {
+          pending: "orcid_only",
+          accepted: "name_and_avatar",
+          unclaimed: "orcid_only",
+        },
+      },
+      targetRoleSlugs: [],
+    });
+    const props = attributionResearcherAvatarProps({ orcid: ORCID, resolved });
+    expect(props.isOrcidOnlyDisplay).toBe(true);
+    expect(props.displayName).toBe(ORCID);
+    expect(props.imageUrl).toBe(null);
+    expect(props.isAtlasProfile).toBe(false);
+    expect(props.placeholder).toBe("person");
   });
 });
 

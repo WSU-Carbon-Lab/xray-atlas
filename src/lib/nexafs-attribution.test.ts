@@ -183,6 +183,26 @@ describe("datasetAttributionsForAvatarDisplay", () => {
     expect(displays[1]?.orcid).toBe("0000-0001-1111-1111");
     expect(displays[0]?.image).toBe("https://example.com/a.jpg");
   });
+
+  it("uses ORCID label and no image when isOrcidOnlyDisplay is set", () => {
+    const displays = datasetAttributionsForAvatarDisplay([
+      {
+        clientId: "a",
+        orcid: ORCID,
+        role: "DataCollector",
+        displayName: null,
+        userId: ORCID,
+        isClaimed: false,
+        hasContributionAgreement: false,
+        imageUrl: "https://example.com/hidden.jpg",
+        isOrcidOnlyDisplay: true,
+      },
+    ]);
+    expect(displays.length).toBe(1);
+    expect(displays[0]?.displayName).toBe(ORCID);
+    expect(displays[0]?.image).toBe(null);
+    expect(displays[0]?.isOrcidOnlyDisplay).toBe(true);
+  });
 });
 
 describe("datasetAttributionsFromContributorDtos", () => {
@@ -199,12 +219,14 @@ describe("datasetAttributionsFromContributorDtos", () => {
         claimStatus: "accepted",
         isPublicProfileVisible: true,
         hasContributionAgreement: true,
+        isOrcidOnlyDisplay: false,
       },
     ]);
     expect(entries.length).toBe(1);
     expect(entries[0]?.clientId).toBe("contrib-1");
     expect(entries[0]?.orcid).toBe(ORCID);
     expect(entries[0]?.role).toBe("DataCurator");
+    expect(entries[0]?.isOrcidOnlyDisplay).toBe(false);
   });
 });
 

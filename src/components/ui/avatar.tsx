@@ -27,6 +27,7 @@ export type UserWithOrcid = NextAuthUser & {
   canAccessLabs?: boolean;
   tooltipSubtitle?: string | null;
   isAtlasProfile?: boolean;
+  avatarPlaceholder?: ResearcherAvatarPlaceholder;
   /** Stable React key for stacked avatars when one ORCID has multiple roles. */
   avatarStackKey?: string;
   attributionBadgeStatus?: ResearcherAttributionBadgeStatus;
@@ -1040,6 +1041,7 @@ export function AvatarGroup({
                         isAtlasProfile={
                           user.isAtlasProfile ?? Boolean(user.id?.trim())
                         }
+                        placeholder={user.avatarPlaceholder ?? "person"}
                         attributionBadgeStatus={user.attributionBadgeStatus}
                         size={size}
                         className={constrainedClass}

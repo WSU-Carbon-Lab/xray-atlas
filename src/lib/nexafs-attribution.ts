@@ -53,6 +53,8 @@ export type DatasetAttributionEntry = {
   claimStatus?: ExperimentContributorClaimStatus;
   hasContributionAgreement: boolean;
   imageUrl: string | null;
+  /** When true, public surfaces show ORCID-only attribution (Person avatar, no initials). */
+  isOrcidOnlyDisplay?: boolean;
 };
 
 export type AttributionRoleOption = ContributorRoleOption & {
@@ -168,6 +170,8 @@ export type AttributionAvatarDisplay = {
   displayName: string;
   image: string | null;
   isClaimed: boolean;
+  /** When true, avatar stacks render a blank Person icon instead of initials. */
+  isOrcidOnlyDisplay: boolean;
   /** When true, the Atlas user accepted the current contribution agreement version. */
   hasContributionAgreement: boolean;
   roles: ContributorType[];
@@ -233,9 +237,12 @@ export function datasetAttributionRowsForAvatarDisplay(
       orcid,
       profileUserId: row.isClaimed ? (row.userId ?? orcid) : "",
       displayName:
-        row.displayName ?? (row.isClaimed ? "Researcher" : orcid),
-      image: row.isClaimed ? row.imageUrl : null,
+        row.isOrcidOnlyDisplay
+          ? orcid
+          : (row.displayName ?? (row.isClaimed ? "Researcher" : orcid)),
+      image: row.isOrcidOnlyDisplay ? null : row.isClaimed ? row.imageUrl : null,
       isClaimed: row.isClaimed,
+      isOrcidOnlyDisplay: row.isOrcidOnlyDisplay ?? false,
       hasContributionAgreement: row.hasContributionAgreement,
       roles: [role],
       stackKey: attributionAvatarStackKey(orcid, role),
@@ -250,11 +257,16 @@ export function datasetAttributionsForAvatarDisplay(
   rows: DatasetAttributionEntry[],
 ): AttributionAvatarDisplay[] {
   const hasAgreementByOrcid = new Map<string, boolean>();
+  const orcidOnlyByOrcid = new Map<string, boolean>();
   for (const row of filterValidOrcidAttributions(rows)) {
     const key = row.orcid.trim();
     hasAgreementByOrcid.set(
       key,
       (hasAgreementByOrcid.get(key) ?? false) || row.hasContributionAgreement,
+    );
+    orcidOnlyByOrcid.set(
+      key,
+      (orcidOnlyByOrcid.get(key) ?? false) || (row.isOrcidOnlyDisplay ?? false),
     );
   }
   return dedupeNexafsContributorsByOrcid(
@@ -262,22 +274,27 @@ export function datasetAttributionsForAvatarDisplay(
       orcid: row.orcid.trim(),
       userId: row.isClaimed ? (row.userId ?? row.orcid) : null,
       name: row.displayName,
-      image: row.imageUrl,
+      image: row.isOrcidOnlyDisplay ? null : row.imageUrl,
       isClaimed: row.isClaimed,
-      isPublicProfileVisible: row.isClaimed,
+      isPublicProfileVisible: row.isClaimed && !row.isOrcidOnlyDisplay,
       role: row.role,
     })),
-  ).map((person) => ({
-    orcid: person.orcid,
-    profileUserId: person.isClaimed ? person.orcid : "",
-    displayName:
-      person.name ?? (person.isClaimed ? "Researcher" : person.orcid),
-    image: person.image,
-    isClaimed: person.isClaimed,
-    hasContributionAgreement: hasAgreementByOrcid.get(person.orcid) ?? false,
-    roles: person.roles,
-    stackKey: person.orcid,
-  }));
+  ).map((person) => {
+    const isOrcidOnlyDisplay = orcidOnlyByOrcid.get(person.orcid) ?? false;
+    return {
+      orcid: person.orcid,
+      profileUserId: person.isClaimed ? person.orcid : "",
+      displayName: isOrcidOnlyDisplay
+        ? person.orcid
+        : (person.name ?? (person.isClaimed ? "Researcher" : person.orcid)),
+      image: isOrcidOnlyDisplay ? null : person.image,
+      isClaimed: person.isClaimed,
+      isOrcidOnlyDisplay,
+      hasContributionAgreement: hasAgreementByOrcid.get(person.orcid) ?? false,
+      roles: person.roles,
+      stackKey: person.orcid,
+    };
+  });
 }
 
 /**
@@ -303,6 +320,20 @@ export function enrichAttributionAvatarDisplays(
     const isClaimed = display.isClaimed;
     const profileUserId = display.profileUserId.trim();
     const profileDisplayName = profile.displayName?.trim() ?? null;
+    if (display.isOrcidOnlyDisplay) {
+      return {
+        ...display,
+        isClaimed,
+        profileUserId: isClaimed
+          ? profileUserId.length > 0
+            ? profileUserId
+            : display.orcid
+          : display.profileUserId,
+        displayName: display.orcid,
+        image: null,
+        hasContributionAgreement: profile.hasContributionAgreement,
+      };
+    }
     return {
       ...display,
       isClaimed,
@@ -335,6 +366,7 @@ export type ExperimentAttributionContributorDto = {
   claimStatus: ExperimentContributorClaimStatus;
   isPublicProfileVisible: boolean;
   hasContributionAgreement: boolean;
+  isOrcidOnlyDisplay: boolean;
 };
 
 /**
@@ -353,6 +385,7 @@ export function datasetAttributionsFromContributorDtos(
     claimStatus: row.claimStatus,
     hasContributionAgreement: row.hasContributionAgreement,
     imageUrl: row.image,
+    isOrcidOnlyDisplay: row.isOrcidOnlyDisplay,
   }));
 }
 
