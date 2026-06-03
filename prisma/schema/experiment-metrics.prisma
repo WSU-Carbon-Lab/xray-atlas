@@ -17,6 +17,7 @@ model experimentmetrics {
   experiments                experiments                @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
   experimentmetricschannels  experimentmetricschannel[] @relation("ExperimentMetricsChannelHeader")
 
+  @@index([originaldatadoi], map: "idx_experiment_metrics_original_data_doi", where: raw("(original_data_doi IS NOT NULL)"))
   @@map("experiment_metrics")
   @@schema("public")
 }

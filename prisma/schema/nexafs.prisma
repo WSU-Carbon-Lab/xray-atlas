@@ -42,7 +42,7 @@ model experiments {
   validationsummary         Json?                      @map("validation_summary")
   qualityscores             Json?                      @map("quality_scores")
   kkdeltametadata           Json?                      @map("kk_delta_metadata")
-  canonicalslug             String?                    @unique @map("canonical_slug")
+  canonicalslug             String?                    @unique(where: raw("(canonical_slug IS NOT NULL)")) @map("canonical_slug")
   experimentcontributors    experimentcontributors[]
   experimentfavorites       experimentfavorites[]
   experimentfiles           experimentfile[]
