@@ -21,6 +21,7 @@ import {
 } from "~/lib/contribution-agreement";
 import { userHasCurrentContributionAgreement } from "~/lib/nexafs-attribution";
 import { legacyProfileContributionSlug } from "~/lib/datacite-contributor-types";
+import { profileMoleculeContributionsFromRows } from "~/lib/molecule-contribution-types";
 import { orcidUserIdSchema } from "~/lib/orcid";
 import { resolveUserIdFromRouteSegment } from "~/lib/user-route";
 import { toMoleculeView } from "~/server/api/routers/molecules-view";
@@ -91,8 +92,6 @@ const profileContributionStatsSchema = z.object({
     spectraThisYear: z.number().int().nonnegative(),
   }),
 });
-
-type ProfileMoleculeContribution = "creator" | "contributor";
 
 /**
  * Fills missing calendar years between the first and last observed year with zero counts.
@@ -464,19 +463,22 @@ export const usersRouter = createTRPCRouter({
       }
 
       const items = moleculesWithSortedSynonyms.map((mol) => {
-        const isCreator = mol.createdby === userId;
-        const isContributor = mol.moleculecontributors.some(
-          (row) => row.userid === userId,
-        );
-        const contributions: ProfileMoleculeContribution[] = [];
-        if (isCreator) contributions.push("creator");
-        if (isContributor) contributions.push("contributor");
+        const contributorTypes = mol.moleculecontributors
+          .filter((row) => row.userid === userId)
+          .map((row) => row.contributiontype);
+        const contributions = profileMoleculeContributionsFromRows({
+          userId,
+          createdby: mol.createdby,
+          contributorTypes,
+        });
+        const isOwner = mol.createdby === userId;
 
         return {
           molecule: toMoleculeView(mol, {
             userHasFavorited: favoritedSet.has(mol.id),
           }),
           contributions,
+          isOwner,
         };
       });
 

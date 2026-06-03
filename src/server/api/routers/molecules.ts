@@ -43,6 +43,10 @@ import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { toMoleculeView } from "./molecules-view";
 import { queryMoleculeIdsByPopularityRank } from "./molecules-popularity-ranking";
 import {
+  normalizeMoleculeContributionType,
+  type MoleculeContributionType,
+} from "~/lib/molecule-contribution-types";
+import {
   findMoleculeContributor,
   findMoleculeFavorite,
   upsertMoleculeContributor,
@@ -82,7 +86,7 @@ async function ensureContributor(
   prisma: Pick<typeof db, "moleculecontributors">,
   moleculeId: string,
   userId: string,
-  contributionType: "creator" | "editor" | "contributor",
+  contributionType: MoleculeContributionType,
 ): Promise<void> {
   await upsertMoleculeContributor(
     prisma,
@@ -542,7 +546,7 @@ export const moleculesRouter = createTRPCRouter({
             : {}),
         },
       });
-      await ensureContributor(ctx.db, molecule.id, ctx.userId, "creator");
+      await ensureContributor(ctx.db, molecule.id, ctx.userId, "linked");
 
       return {
         success: true,
@@ -1404,13 +1408,21 @@ export const moleculesRouter = createTRPCRouter({
         },
         orderBy: [{ contributiontype: "asc" }, { contributedat: "asc" }],
       });
-      return contributors.map((c) => ({
-        id: c.id,
-        userId: c.userid,
-        contributionType: c.contributiontype,
-        contributedAt: c.contributedat,
-        user: c.user,
-      }));
+      return contributors.flatMap((c) => {
+        const contributionType = normalizeMoleculeContributionType(
+          c.contributiontype,
+        );
+        if (!contributionType) return [];
+        return [
+          {
+            id: c.id,
+            userId: c.userid,
+            contributionType,
+            contributedAt: c.contributedat,
+            user: c.user,
+          },
+        ];
+      });
     }),
 
   addContributor: protectedProcedure
@@ -1418,9 +1430,7 @@ export const moleculesRouter = createTRPCRouter({
       z.object({
         moleculeId: z.string().uuid(),
         userId: z.string().uuid(),
-        contributionType: z
-          .enum(["creator", "editor", "contributor"])
-          .default("contributor"),
+        contributionType: z.enum(["linked", "edited"]).default("linked"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -1895,7 +1905,7 @@ export const moleculesRouter = createTRPCRouter({
         },
       });
 
-      await ensureContributor(ctx.db, moleculeId, ctx.userId, "editor");
+      await ensureContributor(ctx.db, moleculeId, ctx.userId, "edited");
 
       return {
         success: true,
@@ -2014,9 +2024,9 @@ export const moleculesRouter = createTRPCRouter({
           tx,
           input.moleculeId,
           input.newCreatorId,
-          "creator",
+          "linked",
         );
-        await ensureContributor(tx, input.moleculeId, ctx.userId, "editor");
+        await ensureContributor(tx, input.moleculeId, ctx.userId, "edited");
       });
 
       return { success: true };

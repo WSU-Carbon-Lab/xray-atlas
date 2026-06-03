@@ -1,4 +1,5 @@
 import type { MoleculeView, MoleculeViewCreatedBy } from "~/types/molecule";
+import { normalizeMoleculeContributionType } from "~/lib/molecule-contribution-types";
 
 type SynonymRow = { synonym: string; order: number };
 type ContributorRow = {
@@ -59,7 +60,7 @@ export function toMoleculeView(
 ): MoleculeView {
   const name = primaryName(row);
   const synonymList = commonNames(row);
-  const createdBy = creatorFromContributors(row.moleculecontributors);
+  const createdBy = linkerFromContributors(row.moleculecontributors);
 
   return {
     name,
@@ -75,13 +76,21 @@ export function toMoleculeView(
     favoriteCount: row.favoritecount,
     userHasFavorited: options.userHasFavorited,
     createdBy: createdBy ?? undefined,
-    contributors: row.moleculecontributors?.map((c) => ({
-      id: c.id,
-      userId: c.userid,
-      contributionType: c.contributiontype,
-      contributedAt: c.contributedat,
-      user: c.user,
-    })),
+    contributors: row.moleculecontributors
+      ?.map((c) => {
+        const contributionType = normalizeMoleculeContributionType(
+          c.contributiontype,
+        );
+        if (!contributionType) return null;
+        return {
+          id: c.id,
+          userId: c.userid,
+          contributionType,
+          contributedAt: c.contributedat,
+          user: c.user,
+        };
+      })
+      .filter((c): c is NonNullable<typeof c> => c != null),
     moleculeTags: row.moleculetags?.map((mt) => ({
       id: mt.tags.id,
       name: mt.tags.name,
@@ -102,18 +111,19 @@ export function toMoleculeView(
   };
 }
 
-function creatorFromContributors(
+function linkerFromContributors(
   contributors?: ContributorRow[],
 ): MoleculeViewCreatedBy | null {
   if (!contributors?.length) return null;
-  const creator = contributors.find(
-    (c) => c.contributiontype.toLowerCase() === "creator",
-  );
-  if (!creator?.user) return null;
+  const linker = contributors.find((c) => {
+    const role = normalizeMoleculeContributionType(c.contributiontype);
+    return role === "linked";
+  });
+  if (!linker?.user) return null;
   return {
-    id: creator.user.id,
-    name: creator.user.name,
-    image: creator.user.image,
-    orcid: creator.user.id,
+    id: linker.user.id,
+    name: linker.user.name,
+    image: linker.user.image,
+    orcid: linker.user.id,
   };
 }

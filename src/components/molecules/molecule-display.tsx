@@ -26,6 +26,7 @@ import type { MoleculeView } from "~/types/molecule";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
 import { moleculeContributorUsers } from "~/lib/molecule-contributor-users";
+import { moleculeContributorAttributionRows } from "~/lib/molecule-contribution-types";
 import {
   CategoryTagGroupEditable,
   MoleculeTags,
@@ -836,6 +837,43 @@ function ContributorsOrEmpty({
       <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
       No contributors
     </span>
+  );
+}
+
+function MoleculeContributorAttributionList({
+  molecule,
+  className,
+}: {
+  molecule: MoleculeView;
+  className?: string;
+}) {
+  const rows = moleculeContributorAttributionRows(molecule.contributors ?? []);
+  if (rows.length === 0 && !molecule.createdBy) {
+    return null;
+  }
+  const displayRows =
+    rows.length > 0
+      ? rows
+      : molecule.createdBy
+        ? [
+            {
+              user: molecule.createdBy,
+              labels: ["Linked molecule to X-ray Atlas"],
+            },
+          ]
+        : [];
+
+  return (
+    <ul className={cn("space-y-1 text-xs", className)}>
+      {displayRows.map(({ user, labels }) => (
+        <li key={user.id ?? user.orcid ?? user.name ?? labels.join("-")}>
+          <span className="text-foreground font-medium">
+            {user.name ?? user.orcid ?? "Researcher"}
+          </span>
+          <span className="text-muted"> — {labels.join("; ")}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -2124,6 +2162,16 @@ export const HeaderCard = memo(function HeaderCard({
               </div>
             ) : null}
           </div>
+          {!isEditMode &&
+          ((props.molecule.contributors?.length ?? 0) > 0 ||
+            props.molecule.createdBy) ? (
+            <div className="min-w-0 border-t border-zinc-200 pt-3 dark:border-zinc-600">
+              <span className="text-text-secondary mb-2 block text-sm font-medium">
+                Contributors
+              </span>
+              <MoleculeContributorAttributionList molecule={props.molecule} />
+            </div>
+          ) : null}
           <footer
             className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-3 dark:border-zinc-600"
             onClick={(e) => e.stopPropagation()}
