@@ -4,6 +4,7 @@ export { AddMoleculeModal } from "./add-molecule-modal";
 export { ColumnMappingModal } from "./column-mapping-modal";
 export { DatasetContent } from "./dataset-content";
 export { DatasetAttributionEditor } from "./dataset-attribution-editor";
+export { ExperimentAttributionEditSection } from "./experiment-attribution-edit-section";
 export { DatasetTabs } from "./dataset-tabs";
 export { FileUploadZone } from "./file-upload-zone";
 export { NexafsUploadPortal } from "./nexafs-upload-portal";

@@ -48,6 +48,8 @@ export type DatasetAttributionChange =
 type DatasetAttributionEditorProps = {
   attributions: DatasetAttributionEntry[];
   onChange: (rows: DatasetAttributionChange) => void;
+  /** When false, hides the visible "Researchers" label (use aria-label on the avatar row). */
+  showLabel?: boolean;
 };
 
 function roleLabelsForDisplay(roles: DataCiteContributorType[]): string {
@@ -100,6 +102,7 @@ function ContributorAvatarPopover({
   return (
     <PopoverMenu
       align="start"
+      placement="auto"
       renderTrigger={({ triggerProps, isOpen }) => (
         <button
           type="button"
@@ -185,6 +188,7 @@ function ContributorAvatarPopover({
 export function DatasetAttributionEditor({
   attributions,
   onChange,
+  showLabel = true,
 }: DatasetAttributionEditorProps) {
   const { data: session } = useSession();
   const sessionOrcid = session?.user?.id ?? null;
@@ -293,6 +297,7 @@ export function DatasetAttributionEditor({
   const addResearcherControl = (
     <PopoverMenu
       align="start"
+      placement="auto"
       ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
       renderTrigger={({ triggerProps, isOpen }) => (
         <button
@@ -327,11 +332,23 @@ export function DatasetAttributionEditor({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex h-8 min-w-0 items-center gap-3">
-        <span className="text-muted shrink-0 text-sm font-medium leading-none">
-          Researchers
-        </span>
-        <div className="flex min-w-0 flex-1 items-center overflow-visible">
+      <div
+        className={cn(
+          "flex h-8 min-w-0 items-center",
+          showLabel ? "gap-3" : "gap-0",
+        )}
+      >
+        {showLabel ? (
+          <span className="text-muted shrink-0 text-sm font-medium leading-none">
+            Researchers
+          </span>
+        ) : null}
+        <div
+          className="flex min-w-0 flex-1 items-center overflow-visible"
+          {...(!showLabel
+            ? { role: "group" as const, "aria-label": "Researchers" }
+            : {})}
+        >
           <AvatarGroup
             key={avatarUsers.map((user) => user.avatarStackKey ?? user.orcid ?? user.id).join("|")}
             users={avatarUsers}

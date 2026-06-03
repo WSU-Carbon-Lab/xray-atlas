@@ -18,10 +18,15 @@ import { MoleculeImageSVG } from "~/components/molecules/molecule-image-svg";
 import { MoleculeImageModal } from "~/components/molecules/molecule-display";
 import { getPreviewGradient } from "~/components/molecules/category-tags";
 import { AvatarGroup, type UserWithOrcid } from "~/components/ui/avatar";
+import {
+  dedupeNexafsContributorsByOrcid,
+  type NexafsContributorPerson,
+} from "~/lib/nexafs-contributors";
 import { ORCIDIcon } from "~/components/icons";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
+import { ExperimentAttributionEditSection } from "~/features/process-nexafs/ui/experiment-attribution-edit-section";
 import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
 import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
 import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
@@ -168,15 +173,7 @@ export type NexafsExperimentCompactCardProps = {
   instrumentName: string;
   facilityName: string | null;
   experimentTypeLabel: string | null;
-  experimentContributorUsers: Array<{
-    id: string;
-    userId: string | null;
-    orcid: string;
-    name: string | null;
-    image: string | null;
-    isClaimed: boolean;
-    isPublicProfileVisible: boolean;
-  }>;
+  experimentContributorUsers: NexafsContributorPerson[];
   polarizationCount: number;
   linkedPublications: NexafsBrowseLinkedPublication[];
   ingestVerified: boolean;
@@ -277,16 +274,67 @@ export function NexafsExperimentCompactCard({
     setSpectrumExpanded((open) => !open);
   }, []);
 
-  const visibleContributorUsers: UserWithOrcid[] = experimentContributorUsers
+  const dedupedContributorUsers = dedupeNexafsContributorsByOrcid(
+    experimentContributorUsers,
+  );
+  const visibleContributorUsers: UserWithOrcid[] = dedupedContributorUsers
     .filter((contributor) => contributor.isPublicProfileVisible)
     .map((contributor) => ({
-      id: contributor.userId ?? contributor.orcid,
+      id: contributor.orcid,
+      orcid: contributor.orcid,
       name: contributor.name,
       image: contributor.image,
     }));
-  const hiddenContributors = experimentContributorUsers.filter(
+  const hiddenContributors = dedupedContributorUsers.filter(
     (contributor) => !contributor.isPublicProfileVisible,
   );
+
+  const readOnlyContributorAvatars =
+    visibleContributorUsers.length > 0 ||
+    hiddenContributors.length > 0 ? (
+      <>
+        {visibleContributorUsers.length > 0 ? (
+          <AvatarGroup
+            users={visibleContributorUsers}
+            size="sm"
+            tooltipVariant="name-orcid"
+            tooltipMode="shared"
+          />
+        ) : null}
+        {hiddenContributors.slice(0, 2).map((contributor) => (
+          <Tooltip key={`${contributor.orcid}-hidden`} delay={0}>
+            <Tooltip.Trigger className="inline-flex shrink-0">
+              <Chip
+                size="sm"
+                variant="soft"
+                className="border-warning/45 bg-warning/12 text-warning h-8"
+              >
+                <ORCIDIcon
+                  className="h-4 w-4 shrink-0"
+                  authenticated={false}
+                  aria-hidden
+                />
+                <Chip.Label className="tabular-nums text-[11px] font-semibold">
+                  {contributor.orcid}
+                </Chip.Label>
+              </Chip>
+            </Tooltip.Trigger>
+            <Tooltip.Content placement="top">
+              {contributor.isClaimed
+                ? "Detached profile: ORCID-only attribution"
+                : "Unclaimed contributor: ORCID-only attribution"}
+            </Tooltip.Content>
+          </Tooltip>
+        ))}
+        {hiddenContributors.length > 2 ? (
+          <Chip size="sm" variant="soft" className="h-8">
+            <Chip.Label className="text-xs font-semibold">
+              +{hiddenContributors.length - 2} ORCID
+            </Chip.Label>
+          </Chip>
+        ) : null}
+      </>
+    ) : null;
 
   const facilityLine = facilityName ?? "Facility unknown";
   const edgeClass = edgeChipClass(edgeLabel);
@@ -441,50 +489,16 @@ export function NexafsExperimentCompactCard({
           />
         </div>
         <div
-          className="flex items-center gap-1.5"
+          className="flex min-w-0 max-w-full items-center gap-1.5"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
-          {visibleContributorUsers.length > 0 ? (
-            <AvatarGroup
-              users={visibleContributorUsers}
-              size="sm"
-              tooltipVariant="name-orcid"
-              tooltipMode="shared"
-            />
-          ) : null}
-          {hiddenContributors.slice(0, 2).map((contributor) => (
-            <Tooltip key={`${contributor.orcid}-hidden`} delay={0}>
-              <Tooltip.Trigger className="inline-flex shrink-0">
-                <Chip
-                  size="sm"
-                  variant="soft"
-                  className="border-warning/45 bg-warning/12 text-warning h-8"
-                >
-                  <ORCIDIcon
-                    className="h-4 w-4 shrink-0"
-                    authenticated={false}
-                    aria-hidden
-                  />
-                  <Chip.Label className="tabular-nums text-[11px] font-semibold">
-                    {contributor.orcid}
-                  </Chip.Label>
-                </Chip>
-              </Tooltip.Trigger>
-              <Tooltip.Content placement="top">
-                {contributor.isClaimed
-                  ? "Detached profile: ORCID-only attribution"
-                  : "Unclaimed contributor: ORCID-only attribution"}
-              </Tooltip.Content>
-            </Tooltip>
-          ))}
-          {hiddenContributors.length > 2 ? (
-            <Chip size="sm" variant="soft" className="h-8">
-              <Chip.Label className="text-xs font-semibold">
-                +{hiddenContributors.length - 2} ORCID
-              </Chip.Label>
-            </Chip>
-          ) : null}
+          <ExperimentAttributionEditSection
+            experimentId={experimentId}
+            enabled
+            variant="inline"
+            readOnlyFallback={readOnlyContributorAvatars}
+          />
         </div>
         <CompactCardMetricsColumn className="relative z-40">
           {isSignedIn ? (
