@@ -1,0 +1,87 @@
+/// Extended sample preparation metadata (1:1 with `samples`).
+model sampleaux {
+  sampleid                    String   @id @map("sample_id") @db.Uuid
+  spinspeedrpm                Float?   @map("spin_speed_rpm")
+  spinaccelerationrpmperS     Float?   @map("spin_acceleration_rpm_per_s")
+  spindurations               Float?   @map("spin_duration_s")
+  bladespeedmmperS            Float?   @map("blade_speed_mm_per_s")
+  bladegapum                  Float?   @map("blade_gap_um")
+  bladetemperaturec           Float?   @map("blade_temperature_c")
+  depositionrateangstromperS  Float?   @map("deposition_rate_angstrom_per_s")
+  basepressuretorr            Float?   @map("base_pressure_torr")
+  workingpressuretorr         Float?   @map("working_pressure_torr")
+  sourcetemperaturec          Float?   @map("source_temperature_c")
+  substratetemperaturec       Float?   @map("substrate_temperature_c")
+  concentrationmgperml        Float?   @map("concentration_mg_per_ml")
+  solutionstirringtimeh       Float?   @map("solution_stirring_time_h")
+  solutionstirringtemperaturec Float?  @map("solution_stirring_temperature_c")
+  filtersizeum                Float?   @map("filter_size_um")
+  substrateorientation        String?  @map("substrate_orientation")
+  substratelot                String?  @map("substrate_lot")
+  oxidethicknessnm            Float?   @map("oxide_thickness_nm")
+  depositionatmosphere        String?  @map("deposition_atmosphere")
+  gloveboxo2ppm               Float?   @map("glovebox_o2_ppm")
+  gloveboxh2oppm              Float?   @map("glovebox_h2o_ppm")
+  annealingtemperaturec       Float?   @map("annealing_temperature_c")
+  annealingtimemin            Float?   @map("annealing_time_min")
+  annealingatmosphere         String?  @map("annealing_atmosphere")
+  annealingrampcpermin        Float?   @map("annealing_ramp_c_per_min")
+  preparationdescription      String?  @map("preparation_description")
+  notes                       String?
+  createdat                   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedat                   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  samples                     samples  @relation(fields: [sampleid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("sample_aux")
+  @@schema("public")
+}
+
+/// Auxiliary files attached to a sample (object storage keys in `sample-aux` bucket).
+model samplefile {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sampleid         String    @map("sample_id") @db.Uuid
+  storagepath      String    @map("storage_path")
+  originalfilename String    @map("original_filename")
+  mimetype         String    @map("mime_type")
+  sizebytes        BigInt    @map("size_bytes")
+  kind             String    @db.VarChar(64)
+  description      String?
+  checksumsha256   String?   @map("checksum_sha256") @db.Char(64)
+  createdby        String    @map("created_by") @db.VarChar(19)
+  committedat      DateTime? @map("committed_at") @db.Timestamptz(6)
+  deletedat        DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdat        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedat        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  samples          samples   @relation(fields: [sampleid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([sampleid], map: "idx_sample_file_sample_id")
+  @@index([createdby], map: "idx_sample_file_created_by")
+  @@index([sampleid], map: "idx_sample_file_active", where: raw("(deleted_at IS NULL)"))
+  @@map("sample_file")
+  @@schema("public")
+}
+
+/// Auxiliary files attached to an experiment (object storage keys in `experiment-aux` bucket).
+model experimentfile {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  experimentid     String      @map("experiment_id") @db.Uuid
+  storagepath      String      @map("storage_path")
+  originalfilename String      @map("original_filename")
+  mimetype         String      @map("mime_type")
+  sizebytes        BigInt      @map("size_bytes")
+  kind             String      @db.VarChar(64)
+  description      String?
+  checksumsha256   String?     @map("checksum_sha256") @db.Char(64)
+  createdby        String      @map("created_by") @db.VarChar(19)
+  committedat      DateTime?   @map("committed_at") @db.Timestamptz(6)
+  deletedat        DateTime?   @map("deleted_at") @db.Timestamptz(6)
+  createdat        DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedat        DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  experiments      experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([experimentid], map: "idx_experiment_file_experiment_id")
+  @@index([createdby], map: "idx_experiment_file_created_by")
+  @@index([experimentid], map: "idx_experiment_file_active", where: raw("(deleted_at IS NULL)"))
+  @@map("experiment_file")
+  @@schema("public")
+}

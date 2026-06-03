@@ -126,6 +126,8 @@ model samples {
   substrate              String?
   thickness              Float?
   preparationfingerprint String?        @map("preparation_fingerprint")
+  sampleaux              sampleaux?
+  samplefiles            samplefile[]
   experiments            experiments[]
   molecules              molecules      @relation(fields: [moleculeid], references: [id], onUpdate: NoAction)
   vendors                vendors?       @relation(fields: [vendorid], references: [id], onUpdate: NoAction)

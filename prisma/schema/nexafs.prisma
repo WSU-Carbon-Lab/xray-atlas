@@ -42,7 +42,9 @@ model experiments {
   validationsummary         Json?                      @map("validation_summary")
   qualityscores             Json?                      @map("quality_scores")
   kkdeltametadata           Json?                      @map("kk_delta_metadata")
+  canonicalslug             String?                    @unique @map("canonical_slug")
   experimentcontributors    experimentcontributors[]
+  experimentfiles           experimentfile[]
   experimentfavorites       experimentfavorites[]
   experimentmetrics         experimentmetrics?
   experimentmetricschannels experimentmetricschannel[] @relation("ExperimentMetricsChannelHeader")
