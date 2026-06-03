@@ -26,10 +26,10 @@ export interface UserAttributionPreferences {
 
 /**
  * Session attribution preferences plus whether administrator/maintainer lineage
- * roles fix effective browse behavior regardless of stored toggles.
+ * roles fix show-name-on-pending (name and profile on pending attributions).
  */
 export interface UserAttributionPreferencesView extends UserAttributionPreferences {
-  managedByLineageRole: boolean;
+  showNameOnPendingManagedByRole: boolean;
 }
 
 export interface AttributionPublicDisplayInput {

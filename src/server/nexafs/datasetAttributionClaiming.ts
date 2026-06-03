@@ -249,15 +249,15 @@ export async function getAttributionPreferencesForUser(
     throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
   }
   const caps = await getUserSessionCapabilities(db, userId);
-  const managedByLineageRole = userHasAdminOrMaintainerLineageRole(
+  const showNameOnPendingManagedByRole = userHasAdminOrMaintainerLineageRole(
     caps.roleSlugs,
   );
   return {
-    showNameOnPendingAttributions: managedByLineageRole
+    showNameOnPendingAttributions: showNameOnPendingManagedByRole
       ? true
       : user.showNameOnPendingAttributions,
     autoAcceptAttributions: user.autoAcceptAttributions,
-    managedByLineageRole,
+    showNameOnPendingManagedByRole,
   };
 }
 
@@ -270,17 +270,15 @@ export async function setAttributionPreferencesForUser(
   prefs: UserAttributionPreferences,
 ): Promise<UserAttributionPreferencesView> {
   const caps = await getUserSessionCapabilities(db, userId);
-  if (userHasAdminOrMaintainerLineageRole(caps.roleSlugs)) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message:
-        "Attribution preferences are fixed for administrator and maintainer roles",
-    });
-  }
+  const showNameOnPendingManagedByRole = userHasAdminOrMaintainerLineageRole(
+    caps.roleSlugs,
+  );
   const updated = await db.user.update({
     where: { id: userId },
     data: {
-      showNameOnPendingAttributions: prefs.showNameOnPendingAttributions,
+      showNameOnPendingAttributions: showNameOnPendingManagedByRole
+        ? true
+        : prefs.showNameOnPendingAttributions,
       autoAcceptAttributions: prefs.autoAcceptAttributions,
     },
     select: {
@@ -289,8 +287,10 @@ export async function setAttributionPreferencesForUser(
     },
   });
   return {
-    showNameOnPendingAttributions: updated.showNameOnPendingAttributions,
+    showNameOnPendingAttributions: showNameOnPendingManagedByRole
+      ? true
+      : updated.showNameOnPendingAttributions,
     autoAcceptAttributions: updated.autoAcceptAttributions,
-    managedByLineageRole: false,
+    showNameOnPendingManagedByRole,
   };
 }

@@ -2,56 +2,120 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
+import { Lock } from "lucide-react";
 import {
   Button,
   Card,
+  Chip,
   Label,
   Separator,
   Spinner,
   Switch,
+  Tooltip,
 } from "@heroui/react";
+import { cn } from "@heroui/styles";
 import { contributorRoleLabel } from "~/lib/datacite-contributor-types";
 import type { UserAttributionPreferencesView } from "~/lib/dataset-attribution-claim";
 import { showToast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
 
-const ROLE_MANAGED_PREFS_HELPER =
-  "Fixed for administrators and maintainers.";
-
 type AttributionPreferenceKey =
   | "showNameOnPendingAttributions"
   | "autoAcceptAttributions";
 
+const SHOW_NAME_DETAIL =
+  "Display your name on datasets you have not accepted yet. Profile image appears when your role policy allows it on pending attributions.";
+
+const SHOW_NAME_ROLE_DETAIL =
+  "Administrators and maintainers always show name and profile on pending attributions. This preference is set by your role and cannot be turned off here.";
+
+const AUTO_ACCEPT_DETAIL =
+  "Automatically accept future dataset attributions assigned to your ORCID. You can change this at any time.";
+
+function preferenceStatusChip(
+  isSelected: boolean,
+  roleManaged: boolean,
+): { label: string; color: "accent" | "default" | "success" } {
+  if (roleManaged) {
+    return { label: "Role default", color: "accent" };
+  }
+  if (isSelected) {
+    return { label: "On", color: "success" };
+  }
+  return { label: "Off", color: "default" };
+}
+
+function autoAcceptStatusChip(
+  isSelected: boolean,
+): { label: string; color: "default" | "success" } {
+  if (isSelected) {
+    return { label: "Enabled", color: "success" };
+  }
+  return { label: "Off", color: "default" };
+}
+
 function AttributionPreferenceRow({
   preferenceKey,
   label,
-  description,
+  detail,
   prefs,
   prefsPending,
+  roleManaged,
   onChange,
 }: {
   preferenceKey: AttributionPreferenceKey;
   label: string;
-  description: string;
+  detail: string;
   prefs: UserAttributionPreferencesView;
   prefsPending: boolean;
+  roleManaged: boolean;
   onChange: (key: AttributionPreferenceKey, value: boolean) => void;
 }) {
-  const roleManaged = prefs.managedByLineageRole;
-  const hintId = `attribution-pref-${preferenceKey}-role-hint`;
   const isSelected = prefs[preferenceKey];
   const switchDisabled = roleManaged || prefsPending;
+  const chip =
+    preferenceKey === "autoAcceptAttributions"
+      ? autoAcceptStatusChip(isSelected)
+      : preferenceStatusChip(isSelected, roleManaged);
 
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 flex-col gap-1">
-        <Label>{label}</Label>
-        <p className="text-muted text-sm">{description}</p>
-        {roleManaged ? (
-          <p id={hintId} className="text-muted text-sm">
-            {ROLE_MANAGED_PREFS_HELPER}
-          </p>
-        ) : null}
+    <div className="border-border flex items-center justify-between gap-4 rounded-lg border px-3 py-3">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Label className="text-foreground text-sm font-medium">{label}</Label>
+          {roleManaged ? (
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <span
+                  className="text-muted inline-flex shrink-0"
+                  aria-label="Set by administrator or maintainer role"
+                >
+                  <Lock className="size-4" aria-hidden />
+                </span>
+              </Tooltip.Trigger>
+              <Tooltip.Content className="tooltip-content-panel max-w-xs">
+                {SHOW_NAME_ROLE_DETAIL}
+              </Tooltip.Content>
+            </Tooltip>
+          ) : (
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <span
+                  className="text-muted inline-flex cursor-default text-xs underline decoration-dotted underline-offset-2"
+                  tabIndex={0}
+                >
+                  Details
+                </span>
+              </Tooltip.Trigger>
+              <Tooltip.Content className="tooltip-content-panel max-w-xs">
+                {detail}
+              </Tooltip.Content>
+            </Tooltip>
+          )}
+          <Chip size="sm" variant="soft" color={chip.color}>
+            {chip.label}
+          </Chip>
+        </div>
       </div>
       <Switch
         isSelected={isSelected}
@@ -59,7 +123,7 @@ function AttributionPreferenceRow({
         isDisabled={switchDisabled}
         aria-label={label}
         aria-disabled={switchDisabled}
-        aria-describedby={roleManaged ? hintId : undefined}
+        className={cn(roleManaged && "opacity-90")}
       />
     </div>
   );
@@ -145,13 +209,25 @@ export function PendingAttributionsPage() {
     key: AttributionPreferenceKey,
     value: boolean,
   ) => {
-    if (!prefsQuery.data || prefsQuery.data.managedByLineageRole) return;
+    if (!prefsQuery.data) return;
+    if (
+      key === "showNameOnPendingAttributions" &&
+      prefsQuery.data.showNameOnPendingManagedByRole
+    ) {
+      return;
+    }
     try {
       await setPrefsMutation.mutateAsync({
         showNameOnPendingAttributions:
-          prefsQuery.data.showNameOnPendingAttributions,
-        autoAcceptAttributions: prefsQuery.data.autoAcceptAttributions,
-        [key]: value,
+          prefsQuery.data.showNameOnPendingManagedByRole
+            ? true
+            : key === "showNameOnPendingAttributions"
+              ? value
+              : prefsQuery.data.showNameOnPendingAttributions,
+        autoAcceptAttributions:
+          key === "autoAcceptAttributions"
+            ? value
+            : prefsQuery.data.autoAcceptAttributions,
       });
       await prefsQuery.refetch();
       showToast("Attribution preferences saved", "success");
@@ -181,36 +257,31 @@ export function PendingAttributionsPage() {
           <Card.Title className="text-base font-medium">
             Attribution preferences
           </Card.Title>
+          <Card.Description className="text-muted text-sm">
+            Control how pending credits appear and whether new attributions are
+            accepted automatically.
+          </Card.Description>
         </Card.Header>
-        <Card.Content className="flex flex-col gap-4 px-4 pb-4">
+        <Card.Content className="flex flex-col gap-3 px-4 pb-4">
           {prefsQuery.data ? (
             <>
-              {prefsQuery.data.managedByLineageRole ? (
-                <p className="text-muted text-sm">
-                  Your administrator or maintainer role sets how pending
-                  attributions appear on browse and contribute surfaces; the
-                  toggles below reflect that policy and cannot be changed here.
-                </p>
-              ) : null}
               <AttributionPreferenceRow
                 preferenceKey="showNameOnPendingAttributions"
                 label="Show name on pending attributions"
-                description={
-                  prefsQuery.data.managedByLineageRole
-                    ? "Your name and profile image appear on pending attributions by role policy."
-                    : "Display your name (not your photo) on datasets you have not accepted yet."
-                }
+                detail={SHOW_NAME_DETAIL}
                 prefs={prefsQuery.data}
                 prefsPending={setPrefsMutation.isPending}
+                roleManaged={prefsQuery.data.showNameOnPendingManagedByRole}
                 onChange={(key, value) => void handlePrefChange(key, value)}
               />
               <Separator />
               <AttributionPreferenceRow
                 preferenceKey="autoAcceptAttributions"
                 label="Auto-accept new attributions"
-                description="Automatically accept future dataset attributions assigned to your ORCID."
+                detail={AUTO_ACCEPT_DETAIL}
                 prefs={prefsQuery.data}
                 prefsPending={setPrefsMutation.isPending}
+                roleManaged={false}
                 onChange={(key, value) => void handlePrefChange(key, value)}
               />
             </>
