@@ -149,7 +149,10 @@ function AttributionDisplayPreview({
     : (resolved.displayName ?? profile.name ?? orcid);
 
   return (
-    <div className="border-border bg-surface-2 flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2">
+    <div
+      className="border-border bg-surface flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-2 shadow-sm"
+      aria-hidden
+    >
       <ResearcherAvatar
         displayName={avatarDisplayName}
         imageUrl={
@@ -161,6 +164,7 @@ function AttributionDisplayPreview({
         }
         identitySeed={orcid}
         isAtlasProfile={isAtlasProfile}
+        placeholder="person"
         size="sm"
         className="shrink-0"
       />
@@ -202,8 +206,8 @@ function DisplayPreferenceRow({
     : ([] as const);
 
   return (
-    <div className="border-border flex h-full min-w-0 flex-col gap-3 rounded-lg border px-3 py-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="border-border flex h-full min-w-0 flex-col gap-2 rounded-lg border p-2.5">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         <Label className="text-foreground text-sm font-medium">
           {DISPLAY_STATE_LABELS[preferenceKey]}
         </Label>
@@ -219,12 +223,7 @@ function DisplayPreferenceRow({
             </Tooltip.Content>
           </Tooltip>
         ) : (
-          <>
-            <DetailsTooltip detail={DISPLAY_STATE_DETAILS[preferenceKey]} />
-            <Chip size="sm" variant="soft" color="default">
-              {attributionDisplayModeLabel(mode)}
-            </Chip>
-          </>
+          <DetailsTooltip detail={DISPLAY_STATE_DETAILS[preferenceKey]} />
         )}
       </div>
       <AttributionDisplayPreview
@@ -285,17 +284,15 @@ function AutoAcceptPreferenceRow({
   const chipColor = mode === "all" ? "success" : "default";
 
   return (
-    <div className="border-border flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <Label className="text-foreground text-sm font-medium">
-            Auto-accept new attributions
-          </Label>
-          <DetailsTooltip detail={AUTO_ACCEPT_DETAIL} />
-          <Chip size="sm" variant="soft" color={chipColor}>
-            {autoAcceptModeLabel(mode)}
-          </Chip>
-        </div>
+    <div className="border-border flex flex-col gap-2.5 rounded-lg border p-2.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+        <Label className="text-foreground text-sm font-medium">
+          Auto-accept new attributions
+        </Label>
+        <DetailsTooltip detail={AUTO_ACCEPT_DETAIL} />
+        <Chip size="sm" variant="soft" color={chipColor}>
+          {autoAcceptModeLabel(mode)}
+        </Chip>
       </div>
       <Select
         aria-label="Auto-accept new attributions"
@@ -515,11 +512,11 @@ export function PendingAttributionsPage() {
                     onModeChange={handleAutoAcceptChange}
                   />
                   <Separator />
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-2">
                     <h3 className="text-foreground text-sm font-medium">
                       Profile display by claim state
                     </h3>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-2.5">
                       {DISPLAY_PREFERENCE_KEYS.map((key) => (
                           <DisplayPreferenceRow
                             key={key}

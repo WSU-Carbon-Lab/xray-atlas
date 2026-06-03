@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { Person } from "@gravity-ui/icons";
 import {
   LogOut,
   User as UserIcon,
@@ -52,10 +53,17 @@ const atlasGradientFallbackClasses = [
 ] as const;
 const nonAtlasInitialsFallbackClassName =
   "border border-border bg-surface text-foreground";
+const personPlaceholderFallbackClassName =
+  "border border-border bg-surface text-muted";
 const researcherAvatarInitialsSizeClasses = {
   sm: "text-[10px]",
   md: "text-xs",
   lg: "text-sm",
+} as const;
+const researcherAvatarPersonIconSizeClasses = {
+  sm: "size-3.5",
+  md: "size-4",
+  lg: "size-[1.125rem]",
 } as const;
 
 function hashAvatarSeed(seed: string): number {
@@ -98,11 +106,14 @@ function shouldUseAvatarIconFallback(params: {
   return params.initials.length === 0;
 }
 
+export type ResearcherAvatarPlaceholder = "initials" | "person";
+
 function resolveAvatarFallbackStyle(params: {
   imageUrl: string | null | undefined;
   isAtlasProfile: boolean;
   hasIconFallback: boolean;
   gradientSeed: string;
+  placeholder: ResearcherAvatarPlaceholder;
 }): AvatarFallbackStyle {
   const resolvedImageUrl = normalizeProfileImageUrl(params.imageUrl);
   const hasGeneratedPlaceholder = isGeneratedPlaceholderAvatarUrl(resolvedImageUrl);
@@ -111,6 +122,12 @@ function resolveAvatarFallbackStyle(params: {
     return {
       imageUrl,
       fallbackClassName: "text-xs",
+    };
+  }
+  if (params.placeholder === "person") {
+    return {
+      imageUrl: null,
+      fallbackClassName: personPlaceholderFallbackClassName,
     };
   }
   if (!params.isAtlasProfile) {
@@ -161,6 +178,8 @@ export type ResearcherAvatarProps = {
   imageUrl?: string | null;
   identitySeed?: string | null;
   isAtlasProfile?: boolean;
+  /** When no profile image is shown, `person` renders a blank profile circle with a Person icon; `initials` keeps gradient or letter fallbacks. */
+  placeholder?: ResearcherAvatarPlaceholder;
   size?: "sm" | "md" | "lg";
   className?: string;
   attributionBadgeStatus?: ResearcherAttributionBadgeStatus;
@@ -185,6 +204,7 @@ export function ResearcherAvatar({
   imageUrl,
   identitySeed,
   isAtlasProfile = false,
+  placeholder = "person",
   size = "sm",
   className,
   attributionBadgeStatus,
@@ -203,12 +223,17 @@ export function ResearcherAvatar({
       displayName,
       imageUrl,
     ),
+    placeholder,
   });
   const showImage = Boolean(fallbackStyle.imageUrl);
+  const showPersonPlaceholder = !showImage && placeholder === "person";
   const badgeSizeClass =
     size === "sm" ? "size-2.5" : size === "md" ? "size-3" : "size-3.5";
   const initialsSizeClass =
     researcherAvatarInitialsSizeClasses[size] ?? researcherAvatarInitialsSizeClasses.sm;
+  const personIconSizeClass =
+    researcherAvatarPersonIconSizeClasses[size] ??
+    researcherAvatarPersonIconSizeClasses.sm;
 
   const avatarNode = (
     <Avatar size={size} className={className}>
@@ -222,12 +247,14 @@ export function ResearcherAvatar({
       <Avatar.Fallback
         className={cn(
           "inline-flex h-full w-full items-center justify-center rounded-full font-medium leading-none",
-          initialsSizeClass,
+          !showPersonPlaceholder ? initialsSizeClass : null,
           fallbackStyle.fallbackClassName,
         )}
       >
-        {showIconFallback ? (
-          <UserIcon className="size-3.5" aria-hidden />
+        {showPersonPlaceholder ? (
+          <Person className={personIconSizeClass} aria-hidden />
+        ) : showIconFallback ? (
+          <UserIcon className={personIconSizeClass} aria-hidden />
         ) : initials.length > 0 ? (
           initials.slice(0, 2)
         ) : (
@@ -272,6 +299,7 @@ export const CustomAvatar = ({
     isAtlasProfile,
     hasIconFallback: showIconFallback,
     gradientSeed: avatarIdentitySeedFromInputs(user.orcid, user.id, user.name),
+    placeholder: "initials",
   });
   const showImage = Boolean(fallbackStyle.imageUrl);
   return (
