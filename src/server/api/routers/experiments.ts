@@ -50,6 +50,12 @@ import {
   parseKkDeltaMetadata,
 } from "~/server/nexafs/kkDeltaMetadata";
 import { SPECTRUMPOINTS_SERVER_SCAN_CAP } from "~/server/nexafs/spectrumpointLimits";
+import {
+  buildAtlasTeamVerificationSummary,
+  clearAtlasTeamVerificationSummary,
+  isAtlasTeamVerifiedSummary,
+  validationSummaryToPrismaJson,
+} from "~/server/nexafs/atlasTeamVerification";
 
 const nexafsBrowseSortBySchema = z
   .enum([
@@ -1555,6 +1561,50 @@ export const experimentsRouter = createTRPCRouter({
         input.experimentId,
       ),
     })),
+
+  setAtlasTeamVerification: privilegedWriteProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        verified: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
+      if (!isPrivilegedUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Maintainer access is required to change Atlas team verification.",
+        });
+      }
+
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { validationsummary: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      const nextSummary = input.verified
+        ? buildAtlasTeamVerificationSummary()
+        : clearAtlasTeamVerificationSummary(experiment.validationsummary);
+
+      await ctx.db.experiments.update({
+        where: { id: input.experimentId },
+        data: {
+          validationsummary: validationSummaryToPrismaJson(nextSummary),
+        },
+      });
+
+      return {
+        experimentId: input.experimentId,
+        atlasTeamVerified: isAtlasTeamVerifiedSummary(nextSummary),
+      };
+    }),
 
   listAttributions: protectedProcedure
     .input(z.object({ experimentId: z.string().uuid() }))

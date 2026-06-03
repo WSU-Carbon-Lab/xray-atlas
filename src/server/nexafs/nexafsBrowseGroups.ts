@@ -74,10 +74,12 @@ export function buildNexafsBrowseWhereSql(
         WHERE epv.experiment_id = e.id
       )`);
     } else if (filters.verificationSource === "atlas") {
-      parts.push(Prisma.sql`(COALESCE(vs.validation_summary->>'passed', 'false') = 'true')`);
+      parts.push(
+        Prisma.sql`(COALESCE(vs.validation_summary->>'atlasTeamVerified', 'false') = 'true')`,
+      );
     } else {
       parts.push(Prisma.sql`(
-        COALESCE(vs.validation_summary->>'passed', 'false') = 'true'
+        COALESCE(vs.validation_summary->>'atlasTeamVerified', 'false') = 'true'
         OR EXISTS (
           SELECT 1
           FROM experiment_publications epv
@@ -397,7 +399,7 @@ export async function fetchNexafsBrowseGrouped(
         ed.corestate,
         i.name AS instrument_name,
         f.name AS facility_name,
-        (e.validation_summary IS NOT NULL) AS ingest_verified
+        (COALESCE(e.validation_summary->>'atlasTeamVerified', 'false') = 'true') AS ingest_verified
       FROM experiments e
       INNER JOIN samples s ON s.id = e.sampleid
       INNER JOIN molecules m ON m.id = s.moleculeid

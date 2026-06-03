@@ -6,14 +6,14 @@ import {
   useState,
   type MouseEvent,
 } from "react";
-import { Plus, X } from "lucide-react";
-import { Button, Chip } from "@heroui/react";
+import { Plus } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Button, Checkbox, Separator } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import {
-  nexafsPublicationDoiHref,
   nexafsVerificationBadgeRingClassName,
 } from "~/components/nexafs/nexafs-publication-verification-control";
 import type { NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
@@ -22,77 +22,19 @@ import {
   SourcePaperDoiField,
   type SourcePaperDoiFieldValue,
 } from "~/features/process-nexafs/ui/source-paper-doi-field";
+import { site } from "~/app/brand";
 
-type NexafsSourcePublicationsHeaderProps = {
+type NexafsVerificationHubMenuProps = {
   experimentId: string;
   sourcePublications: NexafsBrowseSourcePublication[];
-  canEdit: boolean;
+  atlasTeamVerified: boolean;
+  canEditSourcePublications: boolean;
+  canManageAtlasVerification: boolean;
 };
 
-function SourceDoiChip({
-  publication,
-  onRemove,
-  removable,
-}: {
-  publication: NexafsBrowseSourcePublication;
-  onRemove?: () => void;
-  removable: boolean;
-}) {
-  const href = nexafsPublicationDoiHref(publication.doi);
-  return (
-    <Chip
-      size="sm"
-      variant="soft"
-      className="border-border bg-surface max-w-[11rem] shrink-0 border"
-    >
-      <Chip.Label className="min-w-0 truncate text-[10px] font-medium sm:text-[11px]">
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-accent hover:underline"
-          onClick={(event) => event.stopPropagation()}
-        >
-          {publication.doi}
-        </a>
-      </Chip.Label>
-      {removable && onRemove ? (
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          aria-label={`Remove source publication ${publication.doi}`}
-          className="text-muted hover:text-danger -mr-1 min-h-6 min-w-6"
-          onPress={onRemove}
-        >
-          <X className="size-3" aria-hidden />
-        </Button>
-      ) : null}
-    </Chip>
-  );
-}
-
-type NexafsSourcePublicationAddMenuProps = {
-  experimentId: string;
-  sourcePublications: NexafsBrowseSourcePublication[];
-  canEdit: boolean;
-};
-
-/**
- * Renders a compact add affordance beside the verification badge stack; opens a portaled editor for source publication DOIs.
- */
-export function NexafsSourcePublicationAddMenu({
-  experimentId,
-  sourcePublications,
-  canEdit,
-}: NexafsSourcePublicationAddMenuProps) {
+function useInvalidateBrowseSourcePublications(experimentId: string) {
   const utils = trpc.useUtils();
-  const [draft, setDraft] = useState<SourcePaperDoiFieldValue>({
-    doi: "",
-    citation: null,
-  });
-
-  const invalidateBrowse = useCallback(async () => {
+  return useCallback(async () => {
     await Promise.all([
       utils.experiments.getSourcePaperDoi.invalidate({ experimentId }),
       utils.experiments.listSourcePublications.invalidate({ experimentId }),
@@ -100,12 +42,50 @@ export function NexafsSourcePublicationAddMenu({
       utils.experiments.browseSearch.invalidate(),
     ]);
   }, [experimentId, utils.experiments]);
+}
+
+/**
+ * Unified verification editor opened from the browse card + control: Atlas team verification (maintainers)
+ * and source publication linking (experiment editors).
+ */
+export function NexafsVerificationHubMenu({
+  experimentId,
+  sourcePublications,
+  atlasTeamVerified,
+  canEditSourcePublications,
+  canManageAtlasVerification,
+}: NexafsVerificationHubMenuProps) {
+  const invalidateBrowse = useInvalidateBrowseSourcePublications(experimentId);
+  const [draft, setDraft] = useState<SourcePaperDoiFieldValue>({
+    doi: "",
+    citation: null,
+  });
+
+  const atlasMutation = trpc.experiments.setAtlasTeamVerification.useMutation({
+    onSuccess: async () => {
+      await invalidateBrowse();
+      showToast("Atlas team verification updated", "success");
+    },
+    onError: (error) => {
+      showToast(error.message, "error");
+    },
+  });
 
   const addMutation = trpc.experiments.addSourcePublication.useMutation({
     onSuccess: async () => {
       await invalidateBrowse();
       setDraft({ doi: "", citation: null });
       showToast("Source publication added", "success");
+    },
+    onError: (error) => {
+      showToast(error.message, "error");
+    },
+  });
+
+  const removeMutation = trpc.experiments.removeSourcePublication.useMutation({
+    onSuccess: async () => {
+      await invalidateBrowse();
+      showToast("Source publication removed", "success");
     },
     onError: (error) => {
       showToast(error.message, "error");
@@ -129,14 +109,17 @@ export function NexafsSourcePublicationAddMenu({
     addMutation.mutate({ experimentId, doi: draft.citation.doi });
   }, [addMutation, draft.citation, existingDois, experimentId]);
 
-  if (!canEdit) {
+  const showAtlasSection = canManageAtlasVerification;
+  const showSourceSection = canEditSourcePublications;
+  if (!showAtlasSection && !showSourceSection) {
     return null;
   }
 
-  const addAriaLabel =
-    sourcePublications.length > 0
-      ? "Add another source publication"
-      : "Add source publication";
+  const hubAriaLabel = showAtlasSection
+    ? showSourceSection
+      ? "Manage dataset verification"
+      : "Manage Atlas team verification"
+    : "Manage source publications";
 
   return (
     <PopoverMenu
@@ -149,7 +132,7 @@ export function NexafsSourcePublicationAddMenu({
           <button
             {...restTriggerProps}
             type="button"
-            aria-label={addAriaLabel}
+            aria-label={hubAriaLabel}
             onPointerDown={(event) => {
               event.stopPropagation();
               onPointerDown?.(event);
@@ -176,37 +159,107 @@ export function NexafsSourcePublicationAddMenu({
             "border-border bg-surface z-tooltip w-[min(24rem,calc(100vw-1.5rem))] rounded-xl border p-3 shadow-xl",
           )}
         >
-          <p className="text-foreground mb-2 text-sm font-semibold">
-            Add source publication
+          <p className="text-foreground mb-1 text-sm font-semibold">
+            Dataset verification
           </p>
           <p className="text-muted mb-3 text-xs leading-snug">
-            Link peer-reviewed papers that report the original measurement for this dataset.
+            Reasons to trust this dataset on {site.name}.
           </p>
-          <div data-attribution-nested-overlay="true">
-            <SourcePaperDoiField
-              value={draft}
-              onChange={setDraft}
-              disabled={addMutation.isPending}
-              showLabel={false}
-            />
-          </div>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button type="button" size="sm" variant="tertiary" onPress={close}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="primary"
-              isDisabled={addMutation.isPending}
-              onPress={() => {
-                handleAdd();
-                close();
-              }}
-            >
-              Add
-            </Button>
-          </div>
+
+          {showAtlasSection ? (
+            <section className="mb-3">
+              <p className="text-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
+                Atlas team
+              </p>
+              <Checkbox
+                isSelected={atlasTeamVerified}
+                isDisabled={atlasMutation.isPending}
+                onChange={() => {
+                  atlasMutation.mutate({
+                    experimentId,
+                    verified: !atlasTeamVerified,
+                  });
+                }}
+              >
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                <Checkbox.Content>
+                  <span className="text-foreground text-sm">
+                    Verified by the {site.name} team
+                  </span>
+                </Checkbox.Content>
+              </Checkbox>
+            </section>
+          ) : null}
+
+          {showAtlasSection && showSourceSection ? (
+            <Separator className="bg-separator mb-3" />
+          ) : null}
+
+          {showSourceSection ? (
+            <section>
+              <p className="text-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
+                Source publications
+              </p>
+              <p className="text-muted mb-3 text-xs leading-snug">
+                Peer-reviewed papers reporting the original measurement.
+              </p>
+              {sourcePublications.length > 0 ? (
+                <ul className="mb-3 space-y-2">
+                  {sourcePublications.map((publication) => (
+                    <li
+                      key={publication.doi}
+                      className="border-border bg-surface-secondary flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5"
+                    >
+                      <span className="text-foreground min-w-0 font-mono text-[11px] break-all">
+                        {publication.doi}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-danger shrink-0"
+                        isDisabled={removeMutation.isPending}
+                        onPress={() => {
+                          removeMutation.mutate({
+                            experimentId,
+                            doi: publication.doi,
+                          });
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <div data-attribution-nested-overlay="true">
+                <SourcePaperDoiField
+                  value={draft}
+                  onChange={setDraft}
+                  disabled={addMutation.isPending}
+                  showLabel={false}
+                />
+              </div>
+              <div className="mt-3 flex justify-end gap-2">
+                <Button type="button" size="sm" variant="tertiary" onPress={close}>
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  isDisabled={addMutation.isPending}
+                  onPress={() => {
+                    handleAdd();
+                  }}
+                >
+                  Add publication
+                </Button>
+              </div>
+            </section>
+          ) : null}
         </PopoverMenuContent>
       )}
     />
@@ -214,97 +267,35 @@ export function NexafsSourcePublicationAddMenu({
 }
 
 /**
- * Loads edit permission and renders {@link NexafsSourcePublicationAddMenu} beside verification badges.
+ * Loads permissions and renders {@link NexafsVerificationHubMenu} beside verification badges.
  */
-export function NexafsSourcePublicationAddMenuControl({
+export function NexafsVerificationHubMenuControl({
   experimentId,
   sourcePublications,
-}: Omit<NexafsSourcePublicationAddMenuProps, "canEdit">) {
+  atlasTeamVerified,
+}: Omit<
+  NexafsVerificationHubMenuProps,
+  "canEditSourcePublications" | "canManageAtlasVerification"
+>) {
+  const { data: session } = useSession();
   const canEditQuery = trpc.experiments.canEditExperiment.useQuery({
     experimentId,
   });
 
-  return (
-    <NexafsSourcePublicationAddMenu
-      experimentId={experimentId}
-      sourcePublications={sourcePublications}
-      canEdit={canEditQuery.data?.canEdit === true}
-    />
-  );
-}
+  const canEditSourcePublications = canEditQuery.data?.canEdit === true;
+  const canManageAtlasVerification = session?.user?.canAccessLabs === true;
 
-/**
- * Renders linked source publication DOI chips for browse cards.
- */
-export function NexafsSourcePublicationsHeader({
-  experimentId,
-  sourcePublications,
-  canEdit,
-}: NexafsSourcePublicationsHeaderProps) {
-  const utils = trpc.useUtils();
-
-  const invalidateBrowse = useCallback(async () => {
-    await Promise.all([
-      utils.experiments.getSourcePaperDoi.invalidate({ experimentId }),
-      utils.experiments.listSourcePublications.invalidate({ experimentId }),
-      utils.experiments.browseList.invalidate(),
-      utils.experiments.browseSearch.invalidate(),
-    ]);
-  }, [experimentId, utils.experiments]);
-
-  const removeMutation = trpc.experiments.removeSourcePublication.useMutation({
-    onSuccess: async () => {
-      await invalidateBrowse();
-      showToast("Source publication removed", "success");
-    },
-    onError: (error) => {
-      showToast(error.message, "error");
-    },
-  });
-
-  if (sourcePublications.length === 0) {
+  if (!canEditSourcePublications && !canManageAtlasVerification) {
     return null;
   }
 
   return (
-    <div
-      className="inline-flex min-w-0 max-w-full shrink flex-wrap items-center gap-1"
-      onClick={(event) => event.stopPropagation()}
-      onKeyDown={(event) => event.stopPropagation()}
-    >
-      {sourcePublications.map((publication) => (
-        <SourceDoiChip
-          key={publication.doi}
-          publication={publication}
-          removable={canEdit}
-          onRemove={() => {
-            removeMutation.mutate({
-              experimentId,
-              doi: publication.doi,
-            });
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-/**
- * Loads edit permission and renders {@link NexafsSourcePublicationsHeader} for browse cards.
- */
-export function NexafsSourcePublicationsHeaderControl({
-  experimentId,
-  sourcePublications,
-}: Omit<NexafsSourcePublicationsHeaderProps, "canEdit">) {
-  const canEditQuery = trpc.experiments.canEditExperiment.useQuery({
-    experimentId,
-  });
-
-  return (
-    <NexafsSourcePublicationsHeader
+    <NexafsVerificationHubMenu
       experimentId={experimentId}
       sourcePublications={sourcePublications}
-      canEdit={canEditQuery.data?.canEdit === true}
+      atlasTeamVerified={atlasTeamVerified}
+      canEditSourcePublications={canEditSourcePublications}
+      canManageAtlasVerification={canManageAtlasVerification}
     />
   );
 }

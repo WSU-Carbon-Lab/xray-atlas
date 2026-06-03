@@ -10,8 +10,11 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { BadgeCheck, BookOpen } from "lucide-react";
+import { BadgeCheck, BookOpen, X } from "lucide-react";
+import { Button } from "@heroui/react";
 import { site } from "~/app/brand";
+import { trpc } from "~/trpc/client";
+import { showToast } from "~/components/ui/toast";
 import type {
   NexafsBrowseLinkedPublication,
   NexafsBrowseSourcePublication,
@@ -26,7 +29,11 @@ const tooltipShellClassName =
 export const nexafsVerificationBadgeRingClassName =
   "inline-flex shrink-0 rounded-full bg-zinc-50 p-px ring-2 ring-zinc-50 dark:bg-zinc-800 dark:ring-zinc-800";
 
+export const nexafsSourcePublicationBadgeClassName =
+  "text-blue-600 dark:text-blue-400";
+
 const badgeRing = nexafsVerificationBadgeRingClassName;
+const sourceBookClassName = nexafsSourcePublicationBadgeClassName;
 
 function normalizeDoiForHref(doi: string): string {
   return doi.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
@@ -91,11 +98,11 @@ export function formatNexafsBrowseMinimalCitation(
 export interface NexafsPublicationVerificationControlProps {
   linkedPublications: NexafsBrowseLinkedPublication[];
   sourcePublications?: NexafsBrowseSourcePublication[];
-  /**
-   * When true and there are no linked publication DOIs, shows ingest-time verification (stored validation summary on the experiment).
-   */
+  /** When true, shows Atlas team verification (maintainer flag on `validation_summary`). */
   ingestVerified?: boolean;
-  /** Compact edit affordances rendered beside the badge stack (for example source publication add). */
+  /** Experiment id for source-publication removal in the hover panel. */
+  experimentId?: string;
+  /** Compact edit affordances rendered beside the badge stack (unified verification hub). */
   trailingSlot?: ReactNode;
 }
 
@@ -130,7 +137,7 @@ function VerificationBadgeStack({
         </span>
         <span className={`relative z-[1] -ml-1.5 ${badgeRing}`}>
           <BookOpen
-            className="text-muted h-3 w-3 shrink-0"
+            className={`${sourceBookClassName} h-3 w-3 shrink-0`}
             strokeWidth={2}
             aria-hidden
           />
@@ -173,7 +180,7 @@ function VerificationBadgeStack({
   if (hasSource) {
     return (
       <BookOpen
-        className="text-muted h-4 w-4 shrink-0"
+        className={`${sourceBookClassName} h-4 w-4 shrink-0`}
         strokeWidth={1.75}
         aria-hidden
       />
@@ -274,6 +281,7 @@ export function NexafsPublicationVerificationControl({
   linkedPublications,
   sourcePublications = [],
   ingestVerified = false,
+  experimentId,
   trailingSlot = null,
 }: NexafsPublicationVerificationControlProps) {
   const n = linkedPublications.length;
@@ -281,6 +289,30 @@ export function NexafsPublicationVerificationControl({
   const hasLinkedDoi = n > 0;
   const hasSource = sourceCount > 0;
   const hasAtlas = ingestVerified;
+
+  const canEditQuery = trpc.experiments.canEditExperiment.useQuery(
+    { experimentId: experimentId ?? "" },
+    { enabled: Boolean(experimentId) },
+  );
+  const canEditSourcePublications = canEditQuery.data?.canEdit === true;
+
+  const utils = trpc.useUtils();
+  const removeMutation = trpc.experiments.removeSourcePublication.useMutation({
+    onSuccess: async () => {
+      if (experimentId) {
+        await Promise.all([
+          utils.experiments.getSourcePaperDoi.invalidate({ experimentId }),
+          utils.experiments.listSourcePublications.invalidate({ experimentId }),
+          utils.experiments.browseList.invalidate(),
+          utils.experiments.browseSearch.invalidate(),
+        ]);
+      }
+      showToast("Source publication removed", "success");
+    },
+    onError: (error) => {
+      showToast(error.message, "error");
+    },
+  });
 
   const triggerRef = useRef<HTMLSpanElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -327,6 +359,35 @@ export function NexafsPublicationVerificationControl({
     };
   }, [isOpen, updatePosition]);
 
+  const renderSourceRemove = useCallback(
+    (doi: string) => {
+      if (!canEditSourcePublications || !experimentId) {
+        return null;
+      }
+      return (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          isIconOnly
+          className="text-zinc-400 hover:text-red-400"
+          aria-label={`Remove source publication ${doi}`}
+          isDisabled={removeMutation.isPending}
+          onPress={() => {
+            removeMutation.mutate({ experimentId, doi });
+          }}
+        >
+          <X className="size-3.5" aria-hidden />
+        </Button>
+      );
+    },
+    [
+      canEditSourcePublications,
+      experimentId,
+      removeMutation,
+    ],
+  );
+
   const tooltipInner = useMemo(() => {
     const sourceSection =
       sourceCount === 0 ? null : sourceCount === 1 ? (
@@ -339,7 +400,10 @@ export function NexafsPublicationVerificationControl({
                 hasAtlas || hasLinkedDoi ? "border-t border-zinc-700/70 pt-3" : undefined
               }
             >
-              <SectionTitle>Source publication</SectionTitle>
+              <div className="flex items-start justify-between gap-2">
+                <SectionTitle>Source publication</SectionTitle>
+                {renderSourceRemove(pub.doi)}
+              </div>
               <p className="mt-1 text-zinc-300">
                 Peer-reviewed paper reporting the original measurement.
               </p>
@@ -363,7 +427,12 @@ export function NexafsPublicationVerificationControl({
               const cite = formatNexafsBrowseMinimalCitation(p);
               return (
                 <li key={p.doi}>
-                  <p className="text-sm leading-snug text-zinc-200">{cite}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 flex-1 text-sm leading-snug text-zinc-200">
+                      {cite}
+                    </p>
+                    {renderSourceRemove(p.doi)}
+                  </div>
                   <DoiResolverLink doi={p.doi} />
                 </li>
               );
@@ -439,6 +508,7 @@ export function NexafsPublicationVerificationControl({
     hasSource,
     n,
     linkedPublications,
+    renderSourceRemove,
     sourceCount,
     sourcePublications,
   ]);
