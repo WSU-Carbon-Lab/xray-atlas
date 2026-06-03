@@ -3,6 +3,7 @@ import type {
   SpectrumSelection,
 } from "~/components/plots/types";
 import type { DatasetAttributionEntry } from "~/lib/nexafs-attribution";
+import type { PublicationCitation } from "~/lib/publication-citation";
 import type { ProcessMethod } from "~/prisma/browser";
 import { type EXPERIMENT_TYPE_OPTIONS } from "./constants";
 
@@ -258,6 +259,8 @@ export type DatasetState = {
   collectedByUserIds: string[];
   attributions: DatasetAttributionEntry[];
   computeKkDeltaOnSubmit: boolean;
+  sourcePaperDoi: string;
+  sourcePaperCitation: PublicationCitation | null;
 };
 
 export function createEmptyDatasetState(file: File): DatasetState {
@@ -304,5 +307,7 @@ export function createEmptyDatasetState(file: File): DatasetState {
     collectedByUserIds: [],
     attributions: [],
     computeKkDeltaOnSubmit: false,
+    sourcePaperDoi: "",
+    sourcePaperCitation: null,
   };
 }

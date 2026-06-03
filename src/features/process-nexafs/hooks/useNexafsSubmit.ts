@@ -103,6 +103,14 @@ export function useNexafsSubmit(
           });
           return;
         }
+        const sourceDoiDraft = dataset.sourcePaperDoi.trim();
+        if (sourceDoiDraft.length > 0 && !dataset.sourcePaperCitation) {
+          setSubmitStatus({
+            type: "error",
+            message: `Dataset "${dataset.fileName}": Verify the source publication DOI before submitting.`,
+          });
+          return;
+        }
       }
 
       const needsKk = datasets.some((d) => d.computeKkDeltaOnSubmit);
@@ -284,6 +292,7 @@ export function useNexafsSubmit(
               }
               return undefined;
             })(),
+            sourcePaperDoi: dataset.sourcePaperCitation?.doi,
           });
         }
 

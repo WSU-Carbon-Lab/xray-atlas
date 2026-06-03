@@ -108,6 +108,7 @@ import {
 } from "~/lib/nexafs-normalization-ranges";
 import { LoadingSkeleton } from "~/components/feedback/loading-state";
 import { NexafsBrowseGroupedSpectrumTable } from "~/components/nexafs/nexafs-browse-grouped-spectrum-table";
+import { ExperimentSourcePaperDoiSection } from "~/features/process-nexafs/ui/experiment-source-paper-doi-section";
 import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
 
@@ -1617,6 +1618,11 @@ export function NexafsExperimentDatasetPanel({
       className="border-border bg-surface mt-2 flex w-full flex-col gap-3 rounded-xl border p-4 shadow-sm"
       data-testid="nexafs-experiment-dataset-panel"
     >
+      <ExperimentSourcePaperDoiSection
+        experimentId={experimentId}
+        enabled={enabled}
+        variant="panel"
+      />
       <KkBrowserConsentDialog
         isOpen={kkPanelConsentOpen}
         onDismiss={() => setKkPanelConsentOpen(false)}
