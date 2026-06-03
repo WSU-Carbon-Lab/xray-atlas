@@ -430,17 +430,26 @@ export function AvatarButton({
             <button
               type="button"
               onClick={() => handleAction("pending-attributions")}
-              className="text-foreground hover:bg-default flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm transition-colors"
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+              aria-label={
+                pendingAttributionCount > 0
+                  ? `Pending attributions, ${pendingAttributionCount} pending`
+                  : "Pending attributions"
+              }
             >
-              <span className="flex items-center gap-3">
-                <Bell className="h-4 w-4" />
-                Pending attributions
-              </span>
               {pendingAttributionCount > 0 ? (
-                <span className="bg-danger text-danger-foreground rounded-full px-2 py-0.5 text-xs font-medium tabular-nums">
-                  {pendingAttributionCount}
-                </span>
-              ) : null}
+                <Badge.Anchor>
+                  <span className="inline-flex shrink-0">
+                    <Bell className="h-4 w-4" aria-hidden />
+                  </span>
+                  <Badge color="danger" size="sm" placement="top-right">
+                    {String(pendingAttributionCount)}
+                  </Badge>
+                </Badge.Anchor>
+              ) : (
+                <Bell className="h-4 w-4 shrink-0" aria-hidden />
+              )}
+              Pending attributions
             </button>
           </div>
           {showManageUsers || showSandbox ? (
