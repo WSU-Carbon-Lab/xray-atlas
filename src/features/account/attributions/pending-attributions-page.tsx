@@ -126,8 +126,9 @@ function AttributionDisplayPreview({
       : claimStatus === "pending"
         ? "pending"
         : "unclaimed";
+  const orcid = profile.orcid;
   const resolved = resolveAttributionPublicDisplay({
-    orcid: profile.orcid,
+    orcid,
     claimStatus,
     storedDisplayName: profile.name,
     storedImageUrl: profile.image,
@@ -141,27 +142,37 @@ function AttributionDisplayPreview({
     targetRoleSlugs: roleSlugs,
   });
 
+  const isOrcidOnlyMode = mode === "orcid_only";
+  const isAtlasProfile = !isOrcidOnlyMode;
+  const avatarDisplayName = isOrcidOnlyMode
+    ? (profile.name ?? orcid)
+    : (resolved.displayName ?? profile.name ?? orcid);
+
   return (
     <div className="border-border bg-surface-2 flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2">
-      {resolved.showProfileImage ? (
-        <ResearcherAvatar
-          displayName={resolved.displayName ?? profile.name}
-          imageUrl={resolved.imageUrl}
-          identitySeed={profile.orcid}
-          isAtlasProfile
-          size="sm"
-        />
+      <ResearcherAvatar
+        displayName={avatarDisplayName}
+        imageUrl={
+          isOrcidOnlyMode
+            ? null
+            : resolved.showProfileImage
+              ? resolved.imageUrl
+              : null
+        }
+        identitySeed={orcid}
+        isAtlasProfile={isAtlasProfile}
+        size="sm"
+        className="shrink-0"
+      />
+      {isOrcidOnlyMode ? (
+        <span className="text-muted min-w-0 truncate font-mono text-xs tabular-nums">
+          {orcid}
+        </span>
       ) : (
-        <ResearcherAvatar
-          displayName={resolved.displayName ?? profile.orcid}
-          identitySeed={profile.orcid}
-          isAtlasProfile={Boolean(profile.name)}
-          size="sm"
-        />
+        <span className="text-foreground min-w-0 truncate text-xs font-medium">
+          {resolved.displayLabel}
+        </span>
       )}
-      <span className="text-foreground min-w-0 truncate text-xs font-medium">
-        {resolved.displayLabel}
-      </span>
     </div>
   );
 }
@@ -508,7 +519,7 @@ export function PendingAttributionsPage() {
                     <h3 className="text-foreground text-sm font-medium">
                       Profile display by claim state
                     </h3>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       {DISPLAY_PREFERENCE_KEYS.map((key) => (
                           <DisplayPreferenceRow
                             key={key}
