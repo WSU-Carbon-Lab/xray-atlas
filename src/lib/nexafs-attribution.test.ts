@@ -196,6 +196,7 @@ describe("datasetAttributionsFromContributorDtos", () => {
         displayName: "Uploader",
         image: null,
         isClaimed: true,
+        claimStatus: "accepted",
         isPublicProfileVisible: true,
         hasContributionAgreement: true,
       },

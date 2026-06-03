@@ -15,6 +15,7 @@ import {
   dedupeNexafsContributorsByOrcid,
   type DataCiteContributorType as ContributorType,
 } from "~/lib/nexafs-contributors";
+import type { ExperimentContributorClaimStatus } from "~/lib/dataset-attribution-claim";
 import { isValidOrcidUserId } from "~/lib/orcid";
 
 export type {
@@ -49,6 +50,7 @@ export type DatasetAttributionEntry = {
   displayName: string | null;
   userId: string | null;
   isClaimed: boolean;
+  claimStatus?: ExperimentContributorClaimStatus;
   hasContributionAgreement: boolean;
   imageUrl: string | null;
 };
@@ -192,8 +194,12 @@ export function userHasCurrentContributionAgreement(user: {
 export function researcherAttributionBadgeStatus(params: {
   isClaimed: boolean;
   hasContributionAgreement: boolean;
+  claimStatus?: ExperimentContributorClaimStatus;
 }): ResearcherAttributionBadgeStatus {
-  if (!params.isClaimed) {
+  if (params.claimStatus === "declined" || params.claimStatus === "unclaimed") {
+    return "unclaimed";
+  }
+  if (params.claimStatus === "pending" || !params.isClaimed) {
     return "unclaimed";
   }
   if (!params.hasContributionAgreement) {
@@ -228,7 +234,7 @@ export function datasetAttributionRowsForAvatarDisplay(
       profileUserId: row.isClaimed ? (row.userId ?? orcid) : "",
       displayName:
         row.displayName ?? (row.isClaimed ? "Researcher" : orcid),
-      image: row.imageUrl,
+      image: row.isClaimed ? row.imageUrl : null,
       isClaimed: row.isClaimed,
       hasContributionAgreement: row.hasContributionAgreement,
       roles: [role],
@@ -294,7 +300,7 @@ export function enrichAttributionAvatarDisplays(
     if (!profile) {
       return display;
     }
-    const isClaimed = display.isClaimed || profile.hasAtlasProfile;
+    const isClaimed = display.isClaimed;
     const profileUserId = display.profileUserId.trim();
     const profileDisplayName = profile.displayName?.trim() ?? null;
     return {
@@ -309,7 +315,7 @@ export function enrichAttributionAvatarDisplays(
         display.displayName ??
         profileDisplayName ??
         (isClaimed ? "Researcher" : display.orcid),
-      image: display.image ?? profile.imageUrl,
+      image: isClaimed ? (display.image ?? profile.imageUrl) : null,
       hasContributionAgreement: profile.hasContributionAgreement,
     };
   });
@@ -326,6 +332,7 @@ export type ExperimentAttributionContributorDto = {
   displayName: string | null;
   image: string | null;
   isClaimed: boolean;
+  claimStatus: ExperimentContributorClaimStatus;
   isPublicProfileVisible: boolean;
   hasContributionAgreement: boolean;
 };
@@ -343,6 +350,7 @@ export function datasetAttributionsFromContributorDtos(
     displayName: row.displayName,
     userId: row.userId,
     isClaimed: row.isClaimed,
+    claimStatus: row.claimStatus,
     hasContributionAgreement: row.hasContributionAgreement,
     imageUrl: row.image,
   }));
