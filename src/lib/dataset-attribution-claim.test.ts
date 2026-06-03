@@ -4,9 +4,13 @@ import {
   it as bunIt,
 } from "bun:test";
 import {
+  attributionDisplayModeLabel,
+  autoAcceptModeLabel,
   contributorFlagsForClaimStatus,
   defaultAttributionPreferencesForRoleSlugs,
+  effectiveAttributionDisplayPreferences,
   isPendingAttributionForOrcid,
+  parseAttributionDisplayPreferences,
   resolveAttributionPublicDisplay,
   userHasAdminOrMaintainerLineageRole,
 } from "./dataset-attribution-claim";
@@ -24,6 +28,8 @@ const ORCID = "0000-0002-6371-2123";
 const NAME = "Ada Lovelace";
 const IMAGE = "https://example.com/ada.jpg";
 
+const defaultPrefs = defaultAttributionPreferencesForRoleSlugs(["contributor"]);
+
 describe("resolveAttributionPublicDisplay", () => {
   it("shows ORCID only for pending attributions by default", () => {
     const resolved = resolveAttributionPublicDisplay({
@@ -31,10 +37,7 @@ describe("resolveAttributionPublicDisplay", () => {
       claimStatus: "pending",
       storedDisplayName: NAME,
       storedImageUrl: IMAGE,
-      targetPreferences: {
-        showNameOnPendingAttributions: false,
-        autoAcceptAttributions: false,
-      },
+      targetPreferences: defaultPrefs,
       targetRoleSlugs: ["contributor"],
     });
     expect(resolved.displayLabel).toBe(ORCID);
@@ -43,15 +46,19 @@ describe("resolveAttributionPublicDisplay", () => {
     expect(resolved.isOrcidOnlyLabel).toBe(true);
   });
 
-  it("shows name without avatar when pending and show-name pref is enabled", () => {
+  it("shows name without avatar when pending display pref is name_only", () => {
     const resolved = resolveAttributionPublicDisplay({
       orcid: ORCID,
       claimStatus: "pending",
       storedDisplayName: NAME,
       storedImageUrl: IMAGE,
       targetPreferences: {
-        showNameOnPendingAttributions: true,
-        autoAcceptAttributions: false,
+        autoAcceptMode: "off",
+        displayPreferences: {
+          pending: "name_only",
+          accepted: "name_and_avatar",
+          unclaimed: "orcid_only",
+        },
       },
       targetRoleSlugs: ["contributor"],
     });
@@ -67,10 +74,7 @@ describe("resolveAttributionPublicDisplay", () => {
       claimStatus: "pending",
       storedDisplayName: NAME,
       storedImageUrl: IMAGE,
-      targetPreferences: {
-        showNameOnPendingAttributions: false,
-        autoAcceptAttributions: false,
-      },
+      targetPreferences: defaultPrefs,
       targetRoleSlugs: ["administrator"],
     });
     expect(resolved.displayLabel).toBe(NAME);
@@ -78,7 +82,7 @@ describe("resolveAttributionPublicDisplay", () => {
     expect(resolved.showProfileImage).toBe(true);
   });
 
-  it("shows ORCID only after decline or unclaim", () => {
+  it("honors unclaimed display preference for declined and unclaimed rows", () => {
     for (const claimStatus of ["declined", "unclaimed"] as const) {
       const resolved = resolveAttributionPublicDisplay({
         orcid: ORCID,
@@ -86,38 +90,95 @@ describe("resolveAttributionPublicDisplay", () => {
         storedDisplayName: NAME,
         storedImageUrl: IMAGE,
         targetPreferences: {
-          showNameOnPendingAttributions: true,
-          autoAcceptAttributions: true,
+          autoAcceptMode: "off",
+          displayPreferences: {
+            pending: "orcid_only",
+            accepted: "name_and_avatar",
+            unclaimed: "name_only",
+          },
         },
-        targetRoleSlugs: ["administrator"],
+        targetRoleSlugs: [],
       });
-      expect(resolved.displayLabel).toBe(ORCID);
-      expect(resolved.isOrcidOnlyLabel).toBe(true);
+      expect(resolved.displayLabel).toBe(NAME);
+      expect(resolved.displayName).toBe(NAME);
+      expect(resolved.showProfileImage).toBe(false);
     }
   });
 
-  it("shows accepted attribution with name and image", () => {
+  it("shows accepted attribution with name and image by default", () => {
+    const resolved = resolveAttributionPublicDisplay({
+      orcid: ORCID,
+      claimStatus: "accepted",
+      storedDisplayName: NAME,
+      storedImageUrl: IMAGE,
+      targetPreferences: defaultPrefs,
+      targetRoleSlugs: [],
+    });
+    expect(resolved.displayLabel).toBe(NAME);
+    expect(resolved.imageUrl).toBe(IMAGE);
+  });
+
+  it("respects accepted orcid_only display preference", () => {
     const resolved = resolveAttributionPublicDisplay({
       orcid: ORCID,
       claimStatus: "accepted",
       storedDisplayName: NAME,
       storedImageUrl: IMAGE,
       targetPreferences: {
-        showNameOnPendingAttributions: false,
-        autoAcceptAttributions: false,
+        autoAcceptMode: "off",
+        displayPreferences: {
+          pending: "orcid_only",
+          accepted: "orcid_only",
+          unclaimed: "orcid_only",
+        },
       },
       targetRoleSlugs: [],
     });
-    expect(resolved.displayLabel).toBe(NAME);
-    expect(resolved.imageUrl).toBe(IMAGE);
+    expect(resolved.displayLabel).toBe(ORCID);
+    expect(resolved.isOrcidOnlyLabel).toBe(true);
   });
 });
 
 describe("defaultAttributionPreferencesForRoleSlugs", () => {
-  it("enables show-name-on-pending for maintainers", () => {
+  it("uses name_and_avatar pending display for maintainers", () => {
     const prefs = defaultAttributionPreferencesForRoleSlugs(["maintainer"]);
-    expect(prefs.showNameOnPendingAttributions).toBe(true);
-    expect(prefs.autoAcceptAttributions).toBe(false);
+    expect(prefs.displayPreferences.pending).toBe("name_and_avatar");
+    expect(prefs.autoAcceptMode).toBe("off");
+  });
+
+  it("defaults contributors to orcid_only pending display", () => {
+    const prefs = defaultAttributionPreferencesForRoleSlugs(["contributor"]);
+    expect(prefs.displayPreferences.pending).toBe("orcid_only");
+  });
+});
+
+describe("effectiveAttributionDisplayPreferences", () => {
+  it("locks pending display for administrator roles", () => {
+    const effective = effectiveAttributionDisplayPreferences(
+      {
+        pending: "orcid_only",
+        accepted: "name_only",
+        unclaimed: "orcid_only",
+      },
+      ["administrator"],
+    );
+    expect(effective.pending).toBe("name_and_avatar");
+    expect(effective.accepted).toBe("name_only");
+  });
+});
+
+describe("parseAttributionDisplayPreferences", () => {
+  it("falls back to defaults on invalid JSON", () => {
+    const parsed = parseAttributionDisplayPreferences({ pending: "invalid" });
+    expect(parsed.pending).toBe("orcid_only");
+    expect(parsed.accepted).toBe("name_and_avatar");
+  });
+});
+
+describe("attributionDisplayModeLabel", () => {
+  it("labels display modes for UI chips", () => {
+    expect(attributionDisplayModeLabel("orcid_only")).toBe("ORCID only");
+    expect(autoAcceptModeLabel("all")).toBe("All new");
   });
 });
 

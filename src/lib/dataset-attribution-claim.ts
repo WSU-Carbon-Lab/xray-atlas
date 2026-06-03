@@ -2,6 +2,7 @@
  * Dataset attribution claim lifecycle and public display resolution for NEXAFS contributors.
  * Maps stored claim status plus target-user preferences to ORCID-only vs name vs full profile UI.
  */
+import { z } from "zod";
 import { APP_LINEAGE_ROLE_SLUGS } from "~/lib/app-role-lineage";
 
 export const EXPERIMENT_CONTRIBUTOR_CLAIM_STATUSES = [
@@ -14,22 +15,60 @@ export const EXPERIMENT_CONTRIBUTOR_CLAIM_STATUSES = [
 export type ExperimentContributorClaimStatus =
   (typeof EXPERIMENT_CONTRIBUTOR_CLAIM_STATUSES)[number];
 
+export const AUTO_ACCEPT_MODES = ["off", "all"] as const;
+
+export type AutoAcceptMode = (typeof AUTO_ACCEPT_MODES)[number];
+
+export const ATTRIBUTION_DISPLAY_MODES = [
+  "orcid_only",
+  "name_only",
+  "name_and_avatar",
+] as const;
+
+export type AttributionDisplayMode = (typeof ATTRIBUTION_DISPLAY_MODES)[number];
+
+export const attributionDisplayModeSchema = z.enum(ATTRIBUTION_DISPLAY_MODES);
+
+export const attributionDisplayPreferencesSchema = z.object({
+  pending: attributionDisplayModeSchema,
+  accepted: attributionDisplayModeSchema,
+  unclaimed: attributionDisplayModeSchema,
+});
+
+export type AttributionDisplayPreferences = z.infer<
+  typeof attributionDisplayPreferencesSchema
+>;
+
+export const autoAcceptModeSchema = z.enum(AUTO_ACCEPT_MODES);
+
+export const DEFAULT_ATTRIBUTION_DISPLAY_PREFERENCES: AttributionDisplayPreferences =
+  {
+    pending: "orcid_only",
+    accepted: "name_and_avatar",
+    unclaimed: "orcid_only",
+  };
+
 const ADMIN_MAINTAINER_SLUGS = new Set<string>([
   APP_LINEAGE_ROLE_SLUGS[0],
   APP_LINEAGE_ROLE_SLUGS[1],
 ]);
 
 export interface UserAttributionPreferences {
-  showNameOnPendingAttributions: boolean;
-  autoAcceptAttributions: boolean;
+  autoAcceptMode: AutoAcceptMode;
+  displayPreferences: AttributionDisplayPreferences;
 }
 
 /**
  * Session attribution preferences plus whether administrator/maintainer lineage
- * roles fix show-name-on-pending (name and profile on pending attributions).
+ * roles lock pending display to name and avatar on dataset rows.
  */
 export interface UserAttributionPreferencesView extends UserAttributionPreferences {
-  showNameOnPendingManagedByRole: boolean;
+  pendingDisplayManagedByRole: boolean;
+  profilePreview: {
+    orcid: string;
+    name: string | null;
+    image: string | null;
+  };
 }
 
 export interface AttributionPublicDisplayInput {
@@ -50,6 +89,27 @@ export interface ResolvedAttributionPublicDisplay {
 }
 
 /**
+ * Parses persisted JSON attribution display preferences with schema defaults on invalid input.
+ */
+export function parseAttributionDisplayPreferences(
+  value: unknown,
+): AttributionDisplayPreferences {
+  const parsed = attributionDisplayPreferencesSchema.safeParse(value);
+  if (parsed.success) {
+    return parsed.data;
+  }
+  return { ...DEFAULT_ATTRIBUTION_DISPLAY_PREFERENCES };
+}
+
+/**
+ * Parses persisted auto-accept mode with fallback to off when unrecognized.
+ */
+export function parseAutoAcceptMode(value: unknown): AutoAcceptMode {
+  const parsed = autoAcceptModeSchema.safeParse(value);
+  return parsed.success ? parsed.data : "off";
+}
+
+/**
  * Reports whether the user holds administrator or maintainer lineage roles.
  */
 export function userHasAdminOrMaintainerLineageRole(
@@ -60,15 +120,86 @@ export function userHasAdminOrMaintainerLineageRole(
 
 /**
  * Resolves default attribution preferences for a new Atlas user row.
- * Administrators and maintainers show names on pending attributions by default.
+ * Administrators and maintainers show name and avatar on pending attributions by default.
  */
 export function defaultAttributionPreferencesForRoleSlugs(
   roleSlugs: readonly string[],
 ): UserAttributionPreferences {
-  const showNameOnPending = userHasAdminOrMaintainerLineageRole(roleSlugs);
+  const pendingDisplay = userHasAdminOrMaintainerLineageRole(roleSlugs)
+    ? "name_and_avatar"
+    : "orcid_only";
   return {
-    showNameOnPendingAttributions: showNameOnPending,
-    autoAcceptAttributions: false,
+    autoAcceptMode: "off",
+    displayPreferences: {
+      pending: pendingDisplay,
+      accepted: "name_and_avatar",
+      unclaimed: "orcid_only",
+    },
+  };
+}
+
+/**
+ * Applies role-managed pending display lock for administrator and maintainer users.
+ */
+export function effectiveAttributionDisplayPreferences(
+  preferences: AttributionDisplayPreferences,
+  roleSlugs: readonly string[],
+): AttributionDisplayPreferences {
+  if (!userHasAdminOrMaintainerLineageRole(roleSlugs)) {
+    return preferences;
+  }
+  return {
+    ...preferences,
+    pending: "name_and_avatar",
+  };
+}
+
+function claimStatusPreferenceKey(
+  claimStatus: ExperimentContributorClaimStatus,
+): keyof AttributionDisplayPreferences {
+  if (claimStatus === "accepted") {
+    return "accepted";
+  }
+  if (claimStatus === "declined" || claimStatus === "unclaimed") {
+    return "unclaimed";
+  }
+  return "pending";
+}
+
+function resolveDisplayFromMode(
+  mode: AttributionDisplayMode,
+  orcid: string,
+  trimmedName: string | null,
+  storedImageUrl: string | null,
+): ResolvedAttributionPublicDisplay {
+  if (mode === "orcid_only") {
+    return {
+      displayLabel: orcid,
+      displayName: null,
+      imageUrl: null,
+      showProfileImage: false,
+      isOrcidOnlyLabel: true,
+    };
+  }
+
+  if (mode === "name_only") {
+    const label = trimmedName ?? orcid;
+    return {
+      displayLabel: label,
+      displayName: trimmedName,
+      imageUrl: null,
+      showProfileImage: false,
+      isOrcidOnlyLabel: trimmedName == null,
+    };
+  }
+
+  const label = trimmedName ?? orcid;
+  return {
+    displayLabel: label,
+    displayName: trimmedName,
+    imageUrl: storedImageUrl,
+    showProfileImage: Boolean(storedImageUrl?.trim()),
+    isOrcidOnlyLabel: trimmedName == null,
   };
 }
 
@@ -80,62 +211,13 @@ export function resolveAttributionPublicDisplay(
 ): ResolvedAttributionPublicDisplay {
   const orcid = input.orcid.trim();
   const trimmedName = input.storedDisplayName?.trim() ?? null;
-
-  if (
-    input.claimStatus === "declined" ||
-    input.claimStatus === "unclaimed"
-  ) {
-    return {
-      displayLabel: orcid,
-      displayName: null,
-      imageUrl: null,
-      showProfileImage: false,
-      isOrcidOnlyLabel: true,
-    };
-  }
-
-  if (input.claimStatus === "accepted") {
-    const name = trimmedName ?? orcid;
-    return {
-      displayLabel: name,
-      displayName: trimmedName,
-      imageUrl: input.storedImageUrl,
-      showProfileImage: Boolean(input.storedImageUrl?.trim()),
-      isOrcidOnlyLabel: trimmedName == null,
-    };
-  }
-
-  const isAdminOrMaintainer = userHasAdminOrMaintainerLineageRole(
+  const effectivePreferences = effectiveAttributionDisplayPreferences(
+    input.targetPreferences.displayPreferences,
     input.targetRoleSlugs,
   );
-  if (isAdminOrMaintainer) {
-    const name = trimmedName ?? orcid;
-    return {
-      displayLabel: name,
-      displayName: trimmedName,
-      imageUrl: input.storedImageUrl,
-      showProfileImage: Boolean(input.storedImageUrl?.trim()),
-      isOrcidOnlyLabel: trimmedName == null,
-    };
-  }
-
-  if (input.targetPreferences.showNameOnPendingAttributions && trimmedName) {
-    return {
-      displayLabel: trimmedName,
-      displayName: trimmedName,
-      imageUrl: null,
-      showProfileImage: false,
-      isOrcidOnlyLabel: false,
-    };
-  }
-
-  return {
-    displayLabel: orcid,
-    displayName: null,
-    imageUrl: null,
-    showProfileImage: false,
-    isOrcidOnlyLabel: true,
-  };
+  const preferenceKey = claimStatusPreferenceKey(input.claimStatus);
+  const mode = effectivePreferences[preferenceKey];
+  return resolveDisplayFromMode(mode, orcid, trimmedName, input.storedImageUrl);
 }
 
 /**
@@ -201,4 +283,32 @@ export function isPendingAttributionForOrcid(params: {
     params.orcid.trim() === params.sessionOrcid.trim() &&
     params.claimStatus === "pending"
   );
+}
+
+/**
+ * Human-readable label for an attribution display mode chip or select option.
+ */
+export function attributionDisplayModeLabel(
+  mode: AttributionDisplayMode,
+): string {
+  switch (mode) {
+    case "orcid_only":
+      return "ORCID only";
+    case "name_only":
+      return "Name only";
+    case "name_and_avatar":
+      return "Name and avatar";
+  }
+}
+
+/**
+ * Human-readable label for auto-accept mode chips and select options.
+ */
+export function autoAcceptModeLabel(mode: AutoAcceptMode): string {
+  switch (mode) {
+    case "off":
+      return "Off";
+    case "all":
+      return "All new";
+  }
 }

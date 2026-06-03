@@ -2,7 +2,10 @@ import { TRPCError } from "@trpc/server";
 import type { Prisma, PrismaClient } from "~/prisma/client";
 import {
   contributorFlagsForClaimStatus,
+  effectiveAttributionDisplayPreferences,
   type ExperimentContributorClaimStatus,
+  parseAttributionDisplayPreferences,
+  parseAutoAcceptMode,
   type UserAttributionPreferences,
   type UserAttributionPreferencesView,
   userHasAdminOrMaintainerLineageRole,
@@ -12,8 +15,8 @@ import { getUserSessionCapabilities } from "~/server/auth/privileged-role";
 
 export type ContributorUserContext = {
   id: string;
-  showNameOnPendingAttributions: boolean;
-  autoAcceptAttributions: boolean;
+  autoAcceptMode: UserAttributionPreferences["autoAcceptMode"];
+  displayPreferences: UserAttributionPreferences["displayPreferences"];
   roleSlugs: string[];
 };
 
@@ -32,17 +35,21 @@ export async function loadContributorUserContextByOrcid(
     where: { id: { in: unique } },
     select: {
       id: true,
-      showNameOnPendingAttributions: true,
-      autoAcceptAttributions: true,
+      autoAcceptMode: true,
+      attributionDisplayPreferences: true,
     },
   });
   const out = new Map<string, ContributorUserContext>();
   for (const user of users) {
     const caps = await getUserSessionCapabilities(db as PrismaClient, user.id);
+    const displayPreferences = effectiveAttributionDisplayPreferences(
+      parseAttributionDisplayPreferences(user.attributionDisplayPreferences),
+      caps.roleSlugs,
+    );
     out.set(user.id, {
       id: user.id,
-      showNameOnPendingAttributions: user.showNameOnPendingAttributions,
-      autoAcceptAttributions: user.autoAcceptAttributions,
+      autoAcceptMode: parseAutoAcceptMode(user.autoAcceptMode),
+      displayPreferences,
       roleSlugs: caps.roleSlugs,
     });
   }
@@ -60,7 +67,7 @@ export function resolveInitialContributorClaimStatus(params: {
   if (params.sessionOrcid && params.orcid === params.sessionOrcid) {
     return "accepted";
   }
-  if (params.userContext?.autoAcceptAttributions) {
+  if (params.userContext?.autoAcceptMode === "all") {
     return "accepted";
   }
   return "pending";
@@ -241,23 +248,33 @@ export async function getAttributionPreferencesForUser(
   const user = await db.user.findUnique({
     where: { id: userId },
     select: {
-      showNameOnPendingAttributions: true,
-      autoAcceptAttributions: true,
+      id: true,
+      name: true,
+      image: true,
+      autoAcceptMode: true,
+      attributionDisplayPreferences: true,
     },
   });
   if (!user) {
     throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
   }
   const caps = await getUserSessionCapabilities(db, userId);
-  const showNameOnPendingManagedByRole = userHasAdminOrMaintainerLineageRole(
+  const pendingDisplayManagedByRole = userHasAdminOrMaintainerLineageRole(
+    caps.roleSlugs,
+  );
+  const displayPreferences = effectiveAttributionDisplayPreferences(
+    parseAttributionDisplayPreferences(user.attributionDisplayPreferences),
     caps.roleSlugs,
   );
   return {
-    showNameOnPendingAttributions: showNameOnPendingManagedByRole
-      ? true
-      : user.showNameOnPendingAttributions,
-    autoAcceptAttributions: user.autoAcceptAttributions,
-    showNameOnPendingManagedByRole,
+    autoAcceptMode: parseAutoAcceptMode(user.autoAcceptMode),
+    displayPreferences,
+    pendingDisplayManagedByRole,
+    profilePreview: {
+      orcid: user.id,
+      name: user.name,
+      image: user.image,
+    },
   };
 }
 
@@ -270,27 +287,41 @@ export async function setAttributionPreferencesForUser(
   prefs: UserAttributionPreferences,
 ): Promise<UserAttributionPreferencesView> {
   const caps = await getUserSessionCapabilities(db, userId);
-  const showNameOnPendingManagedByRole = userHasAdminOrMaintainerLineageRole(
+  const pendingDisplayManagedByRole = userHasAdminOrMaintainerLineageRole(
     caps.roleSlugs,
   );
+  const displayPreferencesToStore = pendingDisplayManagedByRole
+    ? {
+        ...prefs.displayPreferences,
+        pending: "name_and_avatar" as const,
+      }
+    : prefs.displayPreferences;
   const updated = await db.user.update({
     where: { id: userId },
     data: {
-      showNameOnPendingAttributions: showNameOnPendingManagedByRole
-        ? true
-        : prefs.showNameOnPendingAttributions,
-      autoAcceptAttributions: prefs.autoAcceptAttributions,
+      autoAcceptMode: prefs.autoAcceptMode,
+      attributionDisplayPreferences: displayPreferencesToStore,
     },
     select: {
-      showNameOnPendingAttributions: true,
-      autoAcceptAttributions: true,
+      id: true,
+      name: true,
+      image: true,
+      autoAcceptMode: true,
+      attributionDisplayPreferences: true,
     },
   });
+  const displayPreferences = effectiveAttributionDisplayPreferences(
+    parseAttributionDisplayPreferences(updated.attributionDisplayPreferences),
+    caps.roleSlugs,
+  );
   return {
-    showNameOnPendingAttributions: showNameOnPendingManagedByRole
-      ? true
-      : updated.showNameOnPendingAttributions,
-    autoAcceptAttributions: updated.autoAcceptAttributions,
-    showNameOnPendingManagedByRole,
+    autoAcceptMode: parseAutoAcceptMode(updated.autoAcceptMode),
+    displayPreferences,
+    pendingDisplayManagedByRole,
+    profilePreview: {
+      orcid: updated.id,
+      name: updated.name,
+      image: updated.image,
+    },
   };
 }

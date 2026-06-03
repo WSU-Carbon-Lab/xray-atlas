@@ -4,6 +4,10 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import {
+  attributionDisplayPreferencesSchema,
+  autoAcceptModeSchema,
+} from "~/lib/dataset-attribution-claim";
+import {
   countPendingAttributionsForOrcid,
   getAttributionPreferencesForUser,
   listPendingAttributionsForOrcid,
@@ -12,8 +16,8 @@ import {
 } from "~/server/nexafs/datasetAttributionClaiming";
 
 const attributionPreferencesSchema = z.object({
-  showNameOnPendingAttributions: z.boolean(),
-  autoAcceptAttributions: z.boolean(),
+  autoAcceptMode: autoAcceptModeSchema,
+  displayPreferences: attributionDisplayPreferencesSchema,
 });
 
 export const datasetAttributionsRouter = createTRPCRouter({

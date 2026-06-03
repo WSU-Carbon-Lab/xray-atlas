@@ -10,6 +10,8 @@ import {
 } from "~/lib/datacite-contributor-types";
 import { userHasCurrentContributionAgreement } from "~/lib/nexafs-attribution";
 import {
+  parseAttributionDisplayPreferences,
+  parseAutoAcceptMode,
   resolveAttributionPublicDisplay,
   type ExperimentContributorClaimStatus,
 } from "~/lib/dataset-attribution-claim";
@@ -184,8 +186,8 @@ export async function mapContributorRowsToDto(
       image: string | null;
       contributionAgreementAccepted: boolean;
       contributionAgreementVersion: string | null;
-      showNameOnPendingAttributions: boolean;
-      autoAcceptAttributions: boolean;
+      autoAcceptMode: string;
+      attributionDisplayPreferences: unknown;
     } | null;
   }>,
 ) {
@@ -207,9 +209,10 @@ export async function mapContributorRowsToDto(
         storedDisplayName: row.user?.name ?? null,
         storedImageUrl: row.user?.image ?? null,
         targetPreferences: {
-          showNameOnPendingAttributions:
-            row.user?.showNameOnPendingAttributions ?? false,
-          autoAcceptAttributions: row.user?.autoAcceptAttributions ?? false,
+          autoAcceptMode: parseAutoAcceptMode(row.user?.autoAcceptMode),
+          displayPreferences: parseAttributionDisplayPreferences(
+            row.user?.attributionDisplayPreferences,
+          ),
         },
         targetRoleSlugs: roleSlugsByOrcid.get(row.orcidid) ?? [],
       });

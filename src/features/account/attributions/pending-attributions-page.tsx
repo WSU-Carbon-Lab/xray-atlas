@@ -2,129 +2,315 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { ChevronDownIcon, Lock } from "lucide-react";
 import {
+  Accordion,
   Button,
   Card,
   Chip,
   Label,
+  ListBox,
+  Select,
   Separator,
   Spinner,
-  Switch,
   Tooltip,
 } from "@heroui/react";
-import { cn } from "@heroui/styles";
 import { contributorRoleLabel } from "~/lib/datacite-contributor-types";
-import type { UserAttributionPreferencesView } from "~/lib/dataset-attribution-claim";
+import {
+  attributionDisplayModeLabel,
+  autoAcceptModeLabel,
+  resolveAttributionPublicDisplay,
+  type AttributionDisplayMode,
+  type AttributionDisplayPreferences,
+  type AutoAcceptMode,
+  type ExperimentContributorClaimStatus,
+  type UserAttributionPreferencesView,
+} from "~/lib/dataset-attribution-claim";
+import { ResearcherAvatar } from "~/components/ui/avatar";
 import { showToast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
 
-type AttributionPreferenceKey =
-  | "showNameOnPendingAttributions"
-  | "autoAcceptAttributions";
-
-const SHOW_NAME_DETAIL =
-  "Display your name on datasets you have not accepted yet. Profile image appears when your role policy allows it on pending attributions.";
-
-const SHOW_NAME_ROLE_DETAIL =
-  "Administrators and maintainers always show name and profile on pending attributions. This preference is set by your role and cannot be turned off here.";
+const ATTRIBUTION_PREFERENCES_ACCORDION_ID = "attribution-preferences";
 
 const AUTO_ACCEPT_DETAIL =
   "Automatically accept future dataset attributions assigned to your ORCID. You can change this at any time.";
 
-function preferenceStatusChip(
-  isSelected: boolean,
-  roleManaged: boolean,
-): { label: string; color: "accent" | "default" | "success" } {
-  if (roleManaged) {
-    return { label: "Role default", color: "accent" };
-  }
-  if (isSelected) {
-    return { label: "On", color: "success" };
-  }
-  return { label: "Off", color: "default" };
+const DISPLAY_STATE_DETAILS = {
+  pending:
+    "How your credit appears on browse and contribute surfaces before you accept the attribution.",
+  accepted:
+    "How your credit appears after you accept attribution on a dataset.",
+  unclaimed:
+    "How your credit appears when you decline or unclaim a dataset attribution.",
+} as const;
+
+const PENDING_ROLE_DETAIL =
+  "Administrators and maintainers always show name and profile on pending attributions. This preference is set by your role and cannot be changed here.";
+
+type DisplayPreferenceKey = keyof AttributionDisplayPreferences;
+
+const DISPLAY_STATE_LABELS: Record<DisplayPreferenceKey, string> = {
+  pending: "Pending",
+  accepted: "Accepted",
+  unclaimed: "Unclaimed or declined",
+};
+
+const DISPLAY_STATE_CLAIM_STATUS: Record<
+  DisplayPreferenceKey,
+  ExperimentContributorClaimStatus
+> = {
+  pending: "pending",
+  accepted: "accepted",
+  unclaimed: "declined",
+};
+
+const DISPLAY_MODE_OPTIONS: AttributionDisplayMode[] = [
+  "orcid_only",
+  "name_only",
+  "name_and_avatar",
+];
+
+const AUTO_ACCEPT_OPTIONS: AutoAcceptMode[] = ["off", "all"];
+
+function DetailsTooltip({ detail }: { detail: string }) {
+  return (
+    <Tooltip delay={0}>
+      <Tooltip.Trigger>
+        <span
+          className="text-muted inline-flex cursor-default text-xs underline decoration-dotted underline-offset-2"
+          tabIndex={0}
+        >
+          Details
+        </span>
+      </Tooltip.Trigger>
+      <Tooltip.Content className="tooltip-content-panel max-w-xs">
+        {detail}
+      </Tooltip.Content>
+    </Tooltip>
+  );
 }
 
-function autoAcceptStatusChip(
-  isSelected: boolean,
-): { label: string; color: "default" | "success" } {
-  if (isSelected) {
-    return { label: "Enabled", color: "success" };
-  }
-  return { label: "Off", color: "default" };
+function RoleDefaultChip() {
+  return (
+    <Chip size="sm" variant="soft" color="accent">
+      <span className="inline-flex items-center gap-1">
+        <Lock className="size-3 shrink-0" aria-hidden />
+        Role default
+      </span>
+    </Chip>
+  );
 }
 
-function AttributionPreferenceRow({
-  preferenceKey,
-  label,
-  detail,
+function AttributionDisplayPreview({
+  claimStatus,
+  mode,
   prefs,
-  prefsPending,
-  roleManaged,
-  onChange,
+  profile,
+  roleSlugs,
 }: {
-  preferenceKey: AttributionPreferenceKey;
-  label: string;
-  detail: string;
-  prefs: UserAttributionPreferencesView;
-  prefsPending: boolean;
-  roleManaged: boolean;
-  onChange: (key: AttributionPreferenceKey, value: boolean) => void;
+  claimStatus: ExperimentContributorClaimStatus;
+  mode: AttributionDisplayMode;
+  prefs: AttributionDisplayPreferences;
+  profile: UserAttributionPreferencesView["profilePreview"];
+  roleSlugs: readonly string[];
 }) {
-  const isSelected = prefs[preferenceKey];
-  const switchDisabled = roleManaged || prefsPending;
-  const chip =
-    preferenceKey === "autoAcceptAttributions"
-      ? autoAcceptStatusChip(isSelected)
-      : preferenceStatusChip(isSelected, roleManaged);
+  const preferenceKey =
+    claimStatus === "accepted"
+      ? "accepted"
+      : claimStatus === "pending"
+        ? "pending"
+        : "unclaimed";
+  const resolved = resolveAttributionPublicDisplay({
+    orcid: profile.orcid,
+    claimStatus,
+    storedDisplayName: profile.name,
+    storedImageUrl: profile.image,
+    targetPreferences: {
+      autoAcceptMode: "off",
+      displayPreferences: {
+        ...prefs,
+        [preferenceKey]: mode,
+      },
+    },
+    targetRoleSlugs: roleSlugs,
+  });
 
   return (
-    <div className="border-border flex items-center justify-between gap-4 rounded-lg border px-3 py-3">
+    <div className="border-border bg-surface-2 flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2">
+      {resolved.showProfileImage ? (
+        <ResearcherAvatar
+          displayName={resolved.displayName ?? profile.name}
+          imageUrl={resolved.imageUrl}
+          identitySeed={profile.orcid}
+          isAtlasProfile
+          size="sm"
+        />
+      ) : (
+        <ResearcherAvatar
+          displayName={resolved.displayName ?? profile.orcid}
+          identitySeed={profile.orcid}
+          isAtlasProfile={Boolean(profile.name)}
+          size="sm"
+        />
+      )}
+      <span className="text-foreground min-w-0 truncate text-xs font-medium">
+        {resolved.displayLabel}
+      </span>
+    </div>
+  );
+}
+
+function DisplayPreferenceRow({
+  preferenceKey,
+  prefs,
+  profile,
+  roleManaged,
+  prefsPending,
+  onModeChange,
+}: {
+  preferenceKey: DisplayPreferenceKey;
+  prefs: UserAttributionPreferencesView;
+  profile: UserAttributionPreferencesView["profilePreview"];
+  roleManaged: boolean;
+  prefsPending: boolean;
+  onModeChange: (
+    key: DisplayPreferenceKey,
+    mode: AttributionDisplayMode,
+  ) => void;
+}) {
+  const mode = prefs.displayPreferences[preferenceKey];
+  const claimStatus = DISPLAY_STATE_CLAIM_STATUS[preferenceKey];
+  const roleSlugs = prefs.pendingDisplayManagedByRole
+    ? (["administrator"] as const)
+    : ([] as const);
+
+  return (
+    <div className="border-border flex flex-col gap-3 rounded-lg border px-3 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Label className="text-foreground text-sm font-medium">
+          {DISPLAY_STATE_LABELS[preferenceKey]}
+        </Label>
+        {roleManaged ? (
+          <Tooltip delay={0}>
+            <Tooltip.Trigger>
+              <span tabIndex={0}>
+                <RoleDefaultChip />
+              </span>
+            </Tooltip.Trigger>
+            <Tooltip.Content className="tooltip-content-panel max-w-xs">
+              {PENDING_ROLE_DETAIL}
+            </Tooltip.Content>
+          </Tooltip>
+        ) : (
+          <>
+            <DetailsTooltip detail={DISPLAY_STATE_DETAILS[preferenceKey]} />
+            <Chip size="sm" variant="soft" color="default">
+              {attributionDisplayModeLabel(mode)}
+            </Chip>
+          </>
+        )}
+      </div>
+      <AttributionDisplayPreview
+        claimStatus={claimStatus}
+        mode={mode}
+        prefs={prefs.displayPreferences}
+        profile={profile}
+        roleSlugs={roleSlugs}
+      />
+      {!roleManaged ? (
+        <Select
+          aria-label={`${DISPLAY_STATE_LABELS[preferenceKey]} display`}
+          isDisabled={prefsPending}
+          selectedKey={mode}
+          onSelectionChange={(value) => {
+            if (value == null) return;
+            const next = String(
+              Array.isArray(value) ? value[0] : value,
+            ) as AttributionDisplayMode;
+            onModeChange(preferenceKey, next);
+          }}
+        >
+          <Select.Trigger className="border-border bg-surface min-h-9 w-full rounded-lg border shadow-none sm:max-w-xs">
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox
+              aria-label={`${DISPLAY_STATE_LABELS[preferenceKey]} display options`}
+            >
+              {DISPLAY_MODE_OPTIONS.map((option) => (
+                <ListBox.Item
+                  id={option}
+                  key={option}
+                  textValue={attributionDisplayModeLabel(option)}
+                >
+                  {attributionDisplayModeLabel(option)}
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
+      ) : null}
+    </div>
+  );
+}
+
+function AutoAcceptPreferenceRow({
+  prefs,
+  prefsPending,
+  onModeChange,
+}: {
+  prefs: UserAttributionPreferencesView;
+  prefsPending: boolean;
+  onModeChange: (mode: AutoAcceptMode) => void;
+}) {
+  const mode = prefs.autoAcceptMode;
+  const chipColor = mode === "all" ? "success" : "default";
+
+  return (
+    <div className="border-border flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
-          <Label className="text-foreground text-sm font-medium">{label}</Label>
-          {roleManaged ? (
-            <Tooltip delay={0}>
-              <Tooltip.Trigger>
-                <span
-                  className="text-muted inline-flex shrink-0"
-                  aria-label="Set by administrator or maintainer role"
-                >
-                  <Lock className="size-4" aria-hidden />
-                </span>
-              </Tooltip.Trigger>
-              <Tooltip.Content className="tooltip-content-panel max-w-xs">
-                {SHOW_NAME_ROLE_DETAIL}
-              </Tooltip.Content>
-            </Tooltip>
-          ) : (
-            <Tooltip delay={0}>
-              <Tooltip.Trigger>
-                <span
-                  className="text-muted inline-flex cursor-default text-xs underline decoration-dotted underline-offset-2"
-                  tabIndex={0}
-                >
-                  Details
-                </span>
-              </Tooltip.Trigger>
-              <Tooltip.Content className="tooltip-content-panel max-w-xs">
-                {detail}
-              </Tooltip.Content>
-            </Tooltip>
-          )}
-          <Chip size="sm" variant="soft" color={chip.color}>
-            {chip.label}
+          <Label className="text-foreground text-sm font-medium">
+            Auto-accept new attributions
+          </Label>
+          <DetailsTooltip detail={AUTO_ACCEPT_DETAIL} />
+          <Chip size="sm" variant="soft" color={chipColor}>
+            {autoAcceptModeLabel(mode)}
           </Chip>
         </div>
       </div>
-      <Switch
-        isSelected={isSelected}
-        onChange={(selected) => onChange(preferenceKey, selected)}
-        isDisabled={switchDisabled}
-        aria-label={label}
-        aria-disabled={switchDisabled}
-        className={cn(roleManaged && "opacity-90")}
-      />
+      <Select
+        aria-label="Auto-accept new attributions"
+        isDisabled={prefsPending}
+        selectedKey={mode}
+        className="sm:max-w-xs sm:shrink-0"
+        onSelectionChange={(value) => {
+          if (value == null) return;
+          const next = String(
+            Array.isArray(value) ? value[0] : value,
+          ) as AutoAcceptMode;
+          onModeChange(next);
+        }}
+      >
+        <Select.Trigger className="border-border bg-surface min-h-9 w-full rounded-lg border shadow-none">
+          <Select.Value />
+          <Select.Indicator />
+        </Select.Trigger>
+        <Select.Popover>
+          <ListBox aria-label="Auto-accept options">
+            {AUTO_ACCEPT_OPTIONS.map((option) => (
+              <ListBox.Item
+                id={option}
+                key={option}
+                textValue={autoAcceptModeLabel(option)}
+              >
+                {autoAcceptModeLabel(option)}
+              </ListBox.Item>
+            ))}
+          </ListBox>
+        </Select.Popover>
+      </Select>
     </div>
   );
 }
@@ -157,6 +343,7 @@ export function PendingAttributionsPage() {
   const unclaimMutation = trpc.datasetAttributions.unclaimAttribution.useMutation();
   const setPrefsMutation = trpc.datasetAttributions.setPreferences.useMutation();
   const [busyContributorId, setBusyContributorId] = useState<string | null>(null);
+  const [prefsExpanded, setPrefsExpanded] = useState(false);
 
   const invalidateAll = useCallback(async () => {
     await Promise.all([
@@ -205,30 +392,12 @@ export function PendingAttributionsPage() {
     }
   };
 
-  const handlePrefChange = async (
-    key: AttributionPreferenceKey,
-    value: boolean,
+  const savePreferences = async (
+    next: Pick<UserAttributionPreferencesView, "autoAcceptMode" | "displayPreferences">,
   ) => {
     if (!prefsQuery.data) return;
-    if (
-      key === "showNameOnPendingAttributions" &&
-      prefsQuery.data.showNameOnPendingManagedByRole
-    ) {
-      return;
-    }
     try {
-      await setPrefsMutation.mutateAsync({
-        showNameOnPendingAttributions:
-          prefsQuery.data.showNameOnPendingManagedByRole
-            ? true
-            : key === "showNameOnPendingAttributions"
-              ? value
-              : prefsQuery.data.showNameOnPendingAttributions,
-        autoAcceptAttributions:
-          key === "autoAcceptAttributions"
-            ? value
-            : prefsQuery.data.autoAcceptAttributions,
-      });
+      await setPrefsMutation.mutateAsync(next);
       await prefsQuery.refetch();
       showToast("Attribution preferences saved", "success");
     } catch {
@@ -236,8 +405,38 @@ export function PendingAttributionsPage() {
     }
   };
 
+  const handleDisplayModeChange = (
+    key: DisplayPreferenceKey,
+    mode: AttributionDisplayMode,
+  ) => {
+    if (!prefsQuery.data) return;
+    if (key === "pending" && prefsQuery.data.pendingDisplayManagedByRole) {
+      return;
+    }
+    void savePreferences({
+      autoAcceptMode: prefsQuery.data.autoAcceptMode,
+      displayPreferences: {
+        ...prefsQuery.data.displayPreferences,
+        [key]: mode,
+      },
+    });
+  };
+
+  const handleAutoAcceptChange = (mode: AutoAcceptMode) => {
+    if (!prefsQuery.data) return;
+    void savePreferences({
+      autoAcceptMode: mode,
+      displayPreferences: prefsQuery.data.displayPreferences,
+    });
+  };
+
   const isLoading = pendingQuery.isLoading || prefsQuery.isLoading;
   const rows = pendingQuery.data ?? [];
+  const prefs = prefsQuery.data;
+
+  const prefsSummary = prefs
+    ? `${autoAcceptModeLabel(prefs.autoAcceptMode)} auto-accept · Pending ${attributionDisplayModeLabel(prefs.displayPreferences.pending)}`
+    : "Loading preferences";
 
   return (
     <div className="flex flex-col gap-8">
@@ -252,44 +451,83 @@ export function PendingAttributionsPage() {
         </p>
       </div>
 
-      <Card className="border-border bg-surface border">
-        <Card.Header className="px-4 py-3">
-          <Card.Title className="text-base font-medium">
-            Attribution preferences
-          </Card.Title>
-          <Card.Description className="text-muted text-sm">
-            Control how pending credits appear and whether new attributions are
-            accepted automatically.
-          </Card.Description>
-        </Card.Header>
-        <Card.Content className="flex flex-col gap-3 px-4 pb-4">
-          {prefsQuery.data ? (
-            <>
-              <AttributionPreferenceRow
-                preferenceKey="showNameOnPendingAttributions"
-                label="Show name on pending attributions"
-                detail={SHOW_NAME_DETAIL}
-                prefs={prefsQuery.data}
-                prefsPending={setPrefsMutation.isPending}
-                roleManaged={prefsQuery.data.showNameOnPendingManagedByRole}
-                onChange={(key, value) => void handlePrefChange(key, value)}
-              />
-              <Separator />
-              <AttributionPreferenceRow
-                preferenceKey="autoAcceptAttributions"
-                label="Auto-accept new attributions"
-                detail={AUTO_ACCEPT_DETAIL}
-                prefs={prefsQuery.data}
-                prefsPending={setPrefsMutation.isPending}
-                roleManaged={false}
-                onChange={(key, value) => void handlePrefChange(key, value)}
-              />
-            </>
-          ) : prefsQuery.isLoading ? (
-            <Spinner size="sm" aria-label="Loading preferences" />
-          ) : null}
-        </Card.Content>
-      </Card>
+      <Accordion
+        allowsMultipleExpanded
+        variant="surface"
+        aria-label="Attribution preferences"
+        className="border-border w-full rounded-lg border"
+        expandedKeys={
+          prefsExpanded
+            ? new Set([ATTRIBUTION_PREFERENCES_ACCORDION_ID])
+            : new Set()
+        }
+        onExpandedChange={(keys) => {
+          setPrefsExpanded(
+            [...keys].map(String).includes(ATTRIBUTION_PREFERENCES_ACCORDION_ID),
+          );
+        }}
+      >
+        <Accordion.Item id={ATTRIBUTION_PREFERENCES_ACCORDION_ID}>
+          <Accordion.Heading>
+            <Accordion.Trigger className="flex w-full items-center gap-2 px-1 py-1 text-start">
+              <span className="min-w-0 flex-1">
+                <span className="text-foreground block text-base font-medium">
+                  Attribution preferences
+                </span>
+                <span className="text-muted block truncate text-sm">
+                  {prefsSummary}
+                </span>
+              </span>
+              <Accordion.Indicator className="text-muted shrink-0 [&>svg]:size-4">
+                <ChevronDownIcon className="h-4 w-4" aria-hidden />
+              </Accordion.Indicator>
+            </Accordion.Trigger>
+          </Accordion.Heading>
+          <Accordion.Panel>
+            <Accordion.Body className="flex flex-col gap-4 pt-0">
+              {prefs ? (
+                <>
+                  <p className="text-muted text-sm">
+                    Choose how your credit appears on dataset rows for each
+                    claim state and whether new attributions are accepted
+                    automatically.
+                  </p>
+                  <AutoAcceptPreferenceRow
+                    prefs={prefs}
+                    prefsPending={setPrefsMutation.isPending}
+                    onModeChange={handleAutoAcceptChange}
+                  />
+                  <Separator />
+                  <div className="flex flex-col gap-3">
+                    <h3 className="text-foreground text-sm font-medium">
+                      Profile display by claim state
+                    </h3>
+                    <div className="grid gap-3 lg:grid-cols-3">
+                      {(Object.keys(DISPLAY_STATE_LABELS) as DisplayPreferenceKey[]).map(
+                        (key) => (
+                          <DisplayPreferenceRow
+                            key={key}
+                            preferenceKey={key}
+                            prefs={prefs}
+                            profile={prefs.profilePreview}
+                            roleManaged={
+                              key === "pending" && prefs.pendingDisplayManagedByRole
+                            }
+                            prefsPending={setPrefsMutation.isPending}
+                            onModeChange={handleDisplayModeChange}
+                          />
+                        ),
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : prefsQuery.isLoading ? (
+                <Spinner size="sm" aria-label="Loading preferences" />
+              ) : null}
+            </Accordion.Body>
+          </Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-foreground text-lg font-medium">
