@@ -55,6 +55,12 @@ const DISPLAY_STATE_LABELS: Record<DisplayPreferenceKey, string> = {
   unclaimed: "Unclaimed or declined",
 };
 
+const DISPLAY_PREFERENCE_KEYS: DisplayPreferenceKey[] = [
+  "pending",
+  "accepted",
+  "unclaimed",
+];
+
 const DISPLAY_STATE_CLAIM_STATUS: Record<
   DisplayPreferenceKey,
   ExperimentContributorClaimStatus
@@ -185,7 +191,7 @@ function DisplayPreferenceRow({
     : ([] as const);
 
   return (
-    <div className="border-border flex flex-col gap-3 rounded-lg border px-3 py-3">
+    <div className="border-border flex h-full min-w-0 flex-col gap-3 rounded-lg border px-3 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <Label className="text-foreground text-sm font-medium">
           {DISPLAY_STATE_LABELS[preferenceKey]}
@@ -230,7 +236,7 @@ function DisplayPreferenceRow({
             onModeChange(preferenceKey, next);
           }}
         >
-          <Select.Trigger className="border-border bg-surface min-h-9 w-full rounded-lg border shadow-none sm:max-w-xs">
+          <Select.Trigger className="border-border bg-surface min-h-9 w-full rounded-lg border shadow-none">
             <Select.Value />
             <Select.Indicator />
           </Select.Trigger>
@@ -502,9 +508,8 @@ export function PendingAttributionsPage() {
                     <h3 className="text-foreground text-sm font-medium">
                       Profile display by claim state
                     </h3>
-                    <div className="grid gap-3 lg:grid-cols-3">
-                      {(Object.keys(DISPLAY_STATE_LABELS) as DisplayPreferenceKey[]).map(
-                        (key) => (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      {DISPLAY_PREFERENCE_KEYS.map((key) => (
                           <DisplayPreferenceRow
                             key={key}
                             preferenceKey={key}
@@ -516,8 +521,7 @@ export function PendingAttributionsPage() {
                             prefsPending={setPrefsMutation.isPending}
                             onModeChange={handleDisplayModeChange}
                           />
-                        ),
-                      )}
+                      ))}
                     </div>
                   </div>
                 </>
