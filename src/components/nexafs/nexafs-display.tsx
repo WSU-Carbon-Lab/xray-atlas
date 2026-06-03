@@ -406,11 +406,11 @@ export function NexafsExperimentCompactCard({
                 <NexafsPublicationVerificationControl
                   ingestVerified={ingestVerified}
                   linkedPublications={linkedPublications}
+                  sourcePublications={sourcePublications}
                 />
                 <NexafsSourcePublicationsHeaderControl
                   experimentId={experimentId}
                   sourcePublications={sourcePublications}
-                  ingestVerified={ingestVerified}
                 />
               </span>
             </div>

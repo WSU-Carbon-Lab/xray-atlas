@@ -10,9 +10,12 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck, BookOpen } from "lucide-react";
 import { site } from "~/app/brand";
-import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
+import type {
+  NexafsBrowseLinkedPublication,
+  NexafsBrowseSourcePublication,
+} from "~/types/nexafs-browse";
 
 const TOOLTIP_CLOSE_DELAY_MS = 100;
 const TOOLTIP_VERTICAL_OFFSET_PX = 8;
@@ -85,6 +88,7 @@ export function formatNexafsBrowseMinimalCitation(
 
 export interface NexafsPublicationVerificationControlProps {
   linkedPublications: NexafsBrowseLinkedPublication[];
+  sourcePublications?: NexafsBrowseSourcePublication[];
   /**
    * When true and there are no linked publication DOIs, shows ingest-time verification (stored validation summary on the experiment).
    */
@@ -93,21 +97,45 @@ export interface NexafsPublicationVerificationControlProps {
 
 function VerificationBadgeStack({
   hasAtlas,
-  hasDoi,
+  hasLinkedDoi,
+  hasSource,
 }: {
   hasAtlas: boolean;
-  hasDoi: boolean;
+  hasLinkedDoi: boolean;
+  hasSource: boolean;
 }) {
-  if (!hasAtlas && !hasDoi) {
+  if (!hasAtlas && !hasLinkedDoi && !hasSource) {
     return (
       <BadgeCheck
-        className="h-4 w-4 shrink-0 text-text-tertiary opacity-75"
+        className="text-text-tertiary h-4 w-4 shrink-0 opacity-75"
         strokeWidth={1.75}
         aria-hidden
       />
     );
   }
-  if (hasAtlas && hasDoi) {
+
+  if (hasAtlas && hasSource) {
+    return (
+      <span className="inline-flex items-center pr-0.5" aria-hidden>
+        <span className={`relative z-0 ${badgeRing}`}>
+          <BadgeCheck
+            className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400"
+            strokeWidth={2}
+            aria-hidden
+          />
+        </span>
+        <span className={`relative z-[1] -ml-1.5 ${badgeRing}`}>
+          <BookOpen
+            className="text-muted h-3 w-3 shrink-0"
+            strokeWidth={2}
+            aria-hidden
+          />
+        </span>
+      </span>
+    );
+  }
+
+  if (hasAtlas && hasLinkedDoi) {
     return (
       <span className="inline-flex items-center pr-0.5" aria-hidden>
         <span className={`relative z-0 ${badgeRing}`}>
@@ -127,6 +155,7 @@ function VerificationBadgeStack({
       </span>
     );
   }
+
   if (hasAtlas) {
     return (
       <BadgeCheck
@@ -136,6 +165,17 @@ function VerificationBadgeStack({
       />
     );
   }
+
+  if (hasSource) {
+    return (
+      <BookOpen
+        className="text-muted h-4 w-4 shrink-0"
+        strokeWidth={1.75}
+        aria-hidden
+      />
+    );
+  }
+
   return (
     <BadgeCheck
       className="h-4 w-4 shrink-0 text-[var(--accent)]"
@@ -145,13 +185,18 @@ function VerificationBadgeStack({
   );
 }
 
-function verificationAriaLabel(hasAtlas: boolean, hasDoi: boolean): string {
-  if (!hasAtlas && !hasDoi) {
-    return "No publication DOI linked";
+function verificationAriaLabel(
+  hasAtlas: boolean,
+  hasLinkedDoi: boolean,
+  hasSource: boolean,
+): string {
+  if (!hasAtlas && !hasLinkedDoi && !hasSource) {
+    return "No dataset verification";
   }
   const parts: string[] = [];
-  if (hasAtlas) parts.push("Atlas ingest verification");
-  if (hasDoi) parts.push("linked publication DOI");
+  if (hasAtlas) parts.push("Atlas team verification");
+  if (hasSource) parts.push("source publication linked");
+  if (hasLinkedDoi) parts.push("linked publication DOI");
   return `Dataset verification: ${parts.join("; ")}`;
 }
 
@@ -223,10 +268,13 @@ function useVerificationTooltipPosition(triggerRef: RefObject<HTMLElement | null
  */
 export function NexafsPublicationVerificationControl({
   linkedPublications,
+  sourcePublications = [],
   ingestVerified = false,
 }: NexafsPublicationVerificationControlProps) {
   const n = linkedPublications.length;
-  const hasDoi = n > 0;
+  const sourceCount = sourcePublications.length;
+  const hasLinkedDoi = n > 0;
+  const hasSource = sourceCount > 0;
   const hasAtlas = ingestVerified;
 
   const triggerRef = useRef<HTMLSpanElement>(null);
@@ -275,49 +323,91 @@ export function NexafsPublicationVerificationControl({
   }, [isOpen, updatePosition]);
 
   const tooltipInner = useMemo(() => {
-    if (!hasAtlas && !hasDoi) {
+    const sourceSection =
+      sourceCount === 0 ? null : sourceCount === 1 ? (
+        (() => {
+          const pub = sourcePublications[0]!;
+          const cite = formatNexafsBrowseMinimalCitation(pub);
+          return (
+            <div
+              className={
+                hasAtlas || hasLinkedDoi ? "border-t border-zinc-700/70 pt-3" : undefined
+              }
+            >
+              <SectionTitle>Source publication</SectionTitle>
+              <p className="mt-1 text-zinc-300">
+                Peer-reviewed paper reporting the original measurement.
+              </p>
+              <p className="mt-1 text-sm leading-snug text-zinc-200">{cite}</p>
+              <DoiResolverLink doi={pub.doi} />
+            </div>
+          );
+        })()
+      ) : (
+        <div
+          className={
+            hasAtlas || hasLinkedDoi ? "border-t border-zinc-700/70 pt-3" : undefined
+          }
+        >
+          <SectionTitle>Source publications</SectionTitle>
+          <p className="mt-1 text-zinc-300">
+            {sourceCount} peer-reviewed source papers linked.
+          </p>
+          <ul className="mt-2 space-y-2">
+            {sourcePublications.map((p) => {
+              const cite = formatNexafsBrowseMinimalCitation(p);
+              return (
+                <li key={p.doi}>
+                  <p className="text-sm leading-snug text-zinc-200">{cite}</p>
+                  <DoiResolverLink doi={p.doi} />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      );
+
+    if (!hasAtlas && !hasLinkedDoi && !hasSource) {
       return (
         <>
-          <SectionTitle>Publication status</SectionTitle>
+          <SectionTitle>Verification status</SectionTitle>
           <p className="mt-1 text-zinc-300">
-            No publication DOI linked on Atlas yet.
+            No Atlas team verification or source publication linked yet.
           </p>
         </>
       );
     }
 
-    if (hasAtlas && !hasDoi) {
-      return (
-        <>
-          <SectionTitle>Atlas verification</SectionTitle>
-          <p className="mt-1 text-zinc-300">
-            Verified by the {site.name} team, highest-trust verification flag.
-          </p>
-        </>
-      );
-    }
+    const atlasSection = hasAtlas ? (
+      <div>
+        <SectionTitle>Atlas verification</SectionTitle>
+        <p className="mt-1 text-zinc-300">
+          Verified by the {site.name} team.
+        </p>
+      </div>
+    ) : null;
 
-    if (!hasAtlas && hasDoi && n === 1) {
-      const pub = linkedPublications[0]!;
-      const cite = formatNexafsBrowseMinimalCitation(pub);
-      return (
-        <>
-          <SectionTitle>Publication DOI</SectionTitle>
-          <p className="mt-1 text-zinc-300">
-            Linked publication reference (peer-reviewed literature).
-          </p>
-          <p className="mt-1 text-sm leading-snug text-zinc-200">{cite}</p>
-          <DoiResolverLink doi={pub.doi} />
-        </>
-      );
-    }
-
-    if (!hasAtlas && hasDoi && n > 1) {
-      return (
-        <>
+    const linkedSection =
+      !hasLinkedDoi ? null : n === 1 ? (
+        (() => {
+          const pub = linkedPublications[0]!;
+          const cite = formatNexafsBrowseMinimalCitation(pub);
+          return (
+            <div className={hasAtlas ? "border-t border-zinc-700/70 pt-3" : undefined}>
+              <SectionTitle>Linked publication</SectionTitle>
+              <p className="mt-1 text-zinc-300">
+                Additional literature reference linked to this dataset.
+              </p>
+              <p className="mt-1 text-sm leading-snug text-zinc-200">{cite}</p>
+              <DoiResolverLink doi={pub.doi} />
+            </div>
+          );
+        })()
+      ) : (
+        <div className={hasAtlas ? "border-t border-zinc-700/70 pt-3" : undefined}>
           <SectionTitle>Linked publications</SectionTitle>
-          <p className="mt-1 text-zinc-300">{n} DOIs linked to this dataset.</p>
-          <ul className="mt-2 space-y-2 border-t border-zinc-700/70 pt-2">
+          <p className="mt-1 text-zinc-300">{n} additional DOIs linked.</p>
+          <ul className="mt-2 space-y-2">
             {linkedPublications.map((p) => {
               const cite = formatNexafsBrowseMinimalCitation(p);
               return (
@@ -328,62 +418,27 @@ export function NexafsPublicationVerificationControl({
               );
             })}
           </ul>
-        </>
-      );
-    }
-
-    if (hasAtlas && hasDoi && n === 1) {
-      const pub = linkedPublications[0]!;
-      const cite = formatNexafsBrowseMinimalCitation(pub);
-      return (
-        <div className="flex flex-col gap-3">
-          <div>
-            <SectionTitle>Atlas verification</SectionTitle>
-            <p className="mt-1 text-zinc-300">
-              Verified by the {site.name} team, highest-trust verification flag.
-            </p>
-          </div>
-          <div className="border-t border-zinc-700/70 pt-3">
-            <SectionTitle>Publication DOI</SectionTitle>
-            <p className="mt-1 text-zinc-300">
-              Also linked to peer-reviewed literature.
-            </p>
-            <p className="mt-1 text-sm leading-snug text-zinc-200">{cite}</p>
-            <DoiResolverLink doi={pub.doi} />
-          </div>
         </div>
       );
-    }
 
-    const pubs = linkedPublications;
     return (
       <div className="flex flex-col gap-3">
-        <div>
-          <SectionTitle>Atlas verification</SectionTitle>
-          <p className="mt-1 text-zinc-300">
-            Verified by the {site.name} team, highest-trust verification flag.
-          </p>
-        </div>
-        <div className="border-t border-zinc-700/70 pt-3">
-          <SectionTitle>Linked publications</SectionTitle>
-          <p className="mt-1 text-zinc-300">{n} DOIs linked.</p>
-          <ul className="mt-2 space-y-2">
-            {pubs.map((p) => {
-              const cite = formatNexafsBrowseMinimalCitation(p);
-              return (
-                <li key={p.doi}>
-                  <p className="text-sm leading-snug text-zinc-200">{cite}</p>
-                  <DoiResolverLink doi={p.doi} />
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        {atlasSection}
+        {linkedSection}
+        {sourceSection}
       </div>
     );
-  }, [hasAtlas, hasDoi, n, linkedPublications]);
+  }, [
+    hasAtlas,
+    hasLinkedDoi,
+    hasSource,
+    n,
+    linkedPublications,
+    sourceCount,
+    sourcePublications,
+  ]);
 
-  const ariaLabel = verificationAriaLabel(hasAtlas, hasDoi);
+  const ariaLabel = verificationAriaLabel(hasAtlas, hasLinkedDoi, hasSource);
 
   return (
     <>
@@ -399,7 +454,11 @@ export function NexafsPublicationVerificationControl({
         onBlur={scheduleCloseTooltip}
         onClick={(e) => e.stopPropagation()}
       >
-        <VerificationBadgeStack hasAtlas={hasAtlas} hasDoi={hasDoi} />
+        <VerificationBadgeStack
+          hasAtlas={hasAtlas}
+          hasLinkedDoi={hasLinkedDoi}
+          hasSource={hasSource}
+        />
       </span>
       {isOpen && typeof document !== "undefined"
         ? createPortal(

@@ -1,7 +1,15 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { BookOpen, Plus, X } from "lucide-react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type ComponentProps,
+  type KeyboardEvent,
+  type MouseEvent,
+  type Ref,
+} from "react";
+import { Plus, X } from "lucide-react";
 import { Button, Chip } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { trpc } from "~/trpc/client";
@@ -11,18 +19,15 @@ import {
   nexafsPublicationDoiHref,
 } from "~/components/nexafs/nexafs-publication-verification-control";
 import type { NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
+import { ATTRIBUTION_NESTED_OVERLAY_SELECTOR } from "~/lib/nexafs-attribution";
 import {
   SourcePaperDoiField,
   type SourcePaperDoiFieldValue,
 } from "~/features/process-nexafs/ui/source-paper-doi-field";
 
-const NESTED_OVERLAY_SELECTOR =
-  "[data-overlay=true], [data-slot='popover'], [role='listbox']";
-
 type NexafsSourcePublicationsHeaderProps = {
   experimentId: string;
   sourcePublications: NexafsBrowseSourcePublication[];
-  ingestVerified: boolean;
   canEdit: boolean;
 };
 
@@ -69,13 +74,64 @@ function SourceDoiChip({
   );
 }
 
+function SourcePublicationEditorTrigger({
+  triggerProps,
+  isOpen,
+  ariaLabel,
+}: {
+  triggerProps: ComponentProps<"span"> & {
+    ref?: Ref<HTMLSpanElement>;
+    onClick?: (event: MouseEvent<HTMLSpanElement>) => void;
+  };
+  isOpen: boolean;
+  ariaLabel: string;
+}) {
+  const { onClick, ref, type: _buttonType, ...restTriggerProps } =
+    triggerProps as ComponentProps<"span"> & {
+      ref?: Ref<HTMLSpanElement>;
+      onClick?: (event: MouseEvent<HTMLSpanElement>) => void;
+      type?: string;
+    };
+
+  const handleActivate = (event: MouseEvent<HTMLSpanElement>) => {
+    event.stopPropagation();
+    onClick?.(event);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLSpanElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      event.stopPropagation();
+      onClick?.(event as unknown as MouseEvent<HTMLSpanElement>);
+    }
+  };
+
+  return (
+    <span
+      {...restTriggerProps}
+      ref={ref}
+      role="button"
+      tabIndex={0}
+      aria-label={ariaLabel}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={handleActivate}
+      onKeyDown={handleKeyDown}
+      className={cn(
+        "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground focus-visible:ring-accent inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+        isOpen && "ring-accent ring-2 ring-offset-2",
+      )}
+    >
+      <Plus className="size-3.5 shrink-0" aria-hidden />
+    </span>
+  );
+}
+
 /**
- * Renders source publication DOIs on the NEXAFS browse compact card header beside verification badges.
+ * Renders source publication DOI chips and the editor affordance beside the verification badge stack.
  */
 export function NexafsSourcePublicationsHeader({
   experimentId,
   sourcePublications,
-  ingestVerified,
   canEdit,
 }: NexafsSourcePublicationsHeaderProps) {
   const utils = trpc.useUtils();
@@ -131,12 +187,14 @@ export function NexafsSourcePublicationsHeader({
     addMutation.mutate({ experimentId, doi: draft.citation.doi });
   }, [addMutation, draft.citation, existingDois, experimentId]);
 
-  const showEmptyHint = sourcePublications.length === 0 && ingestVerified;
-  const showReadOnlyEmpty = sourcePublications.length === 0 && !canEdit && !showEmptyHint;
-
-  if (showReadOnlyEmpty) {
+  if (sourcePublications.length === 0 && !canEdit) {
     return null;
   }
+
+  const addAriaLabel =
+    sourcePublications.length > 0
+      ? "Add another source publication"
+      : "Add source publication";
 
   return (
     <div
@@ -157,42 +215,21 @@ export function NexafsSourcePublicationsHeader({
           }}
         />
       ))}
-      {showEmptyHint && !canEdit ? (
-        <Chip size="sm" variant="soft" className="border-border bg-surface border">
-          <BookOpen className="text-muted size-3 shrink-0" aria-hidden />
-          <Chip.Label className="text-muted text-[10px] font-medium sm:text-[11px]">
-            Source paper
-          </Chip.Label>
-        </Chip>
-      ) : null}
       {canEdit ? (
         <PopoverMenu
           placement="bottom-start"
-          ignoreOutsidePointerDownSelector={NESTED_OVERLAY_SELECTOR}
-          renderTrigger={({ triggerProps, toggle, isOpen }) => (
-            <button
-              {...triggerProps}
-              type="button"
-              aria-label={
-                sourcePublications.length > 0
-                  ? "Add another source publication"
-                  : "Add source publication"
+          ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
+          renderTrigger={({ triggerProps, isOpen }) => (
+            <SourcePublicationEditorTrigger
+              triggerProps={
+                triggerProps as ComponentProps<"span"> & {
+                  ref?: Ref<HTMLSpanElement>;
+                  onClick?: (event: MouseEvent<HTMLSpanElement>) => void;
+                }
               }
-              aria-expanded={isOpen}
-              className={cn(
-                "border-border bg-surface text-muted hover:text-accent inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2 text-[10px] font-medium transition-colors sm:text-[11px]",
-                showEmptyHint && sourcePublications.length === 0
-                  ? "border-accent/35 text-accent"
-                  : "",
-              )}
-              onClick={(event) => {
-                event.stopPropagation();
-                toggle();
-              }}
-            >
-              <Plus className="size-3.5 shrink-0" aria-hidden />
-              {sourcePublications.length === 0 ? <span>Source paper</span> : null}
-            </button>
+              isOpen={isOpen}
+              ariaLabel={addAriaLabel}
+            />
           )}
           renderContent={({ close, contentProps, contentStyle, contentPositionClassName }) => (
             <PopoverMenuContent
@@ -209,12 +246,14 @@ export function NexafsSourcePublicationsHeader({
               <p className="text-muted mb-3 text-xs leading-snug">
                 Link peer-reviewed papers that report the original measurement for this dataset.
               </p>
-              <SourcePaperDoiField
-                value={draft}
-                onChange={setDraft}
-                disabled={addMutation.isPending}
-                showLabel={false}
-              />
+              <div data-attribution-nested-overlay="true">
+                <SourcePaperDoiField
+                  value={draft}
+                  onChange={setDraft}
+                  disabled={addMutation.isPending}
+                  showLabel={false}
+                />
+              </div>
               <div className="mt-3 flex justify-end gap-2">
                 <Button type="button" size="sm" variant="tertiary" onPress={close}>
                   Cancel
@@ -246,7 +285,6 @@ export function NexafsSourcePublicationsHeader({
 export function NexafsSourcePublicationsHeaderControl({
   experimentId,
   sourcePublications,
-  ingestVerified,
 }: Omit<NexafsSourcePublicationsHeaderProps, "canEdit">) {
   const canEditQuery = trpc.experiments.canEditExperiment.useQuery({
     experimentId,
@@ -256,7 +294,6 @@ export function NexafsSourcePublicationsHeaderControl({
     <NexafsSourcePublicationsHeader
       experimentId={experimentId}
       sourcePublications={sourcePublications}
-      ingestVerified={ingestVerified}
       canEdit={canEditQuery.data?.canEdit === true}
     />
   );
