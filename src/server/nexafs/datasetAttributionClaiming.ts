@@ -4,6 +4,8 @@ import {
   contributorFlagsForClaimStatus,
   type ExperimentContributorClaimStatus,
   type UserAttributionPreferences,
+  type UserAttributionPreferencesView,
+  userHasAdminOrMaintainerLineageRole,
 } from "~/lib/dataset-attribution-claim";
 import type { ExperimentAttributionInput } from "~/server/nexafs/experimentAttributions";
 import { getUserSessionCapabilities } from "~/server/auth/privileged-role";
@@ -235,7 +237,7 @@ export async function countPendingAttributionsForOrcid(
 export async function getAttributionPreferencesForUser(
   db: PrismaClient,
   userId: string,
-): Promise<UserAttributionPreferences> {
+): Promise<UserAttributionPreferencesView> {
   const user = await db.user.findUnique({
     where: { id: userId },
     select: {
@@ -246,9 +248,16 @@ export async function getAttributionPreferencesForUser(
   if (!user) {
     throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
   }
+  const caps = await getUserSessionCapabilities(db, userId);
+  const managedByLineageRole = userHasAdminOrMaintainerLineageRole(
+    caps.roleSlugs,
+  );
   return {
-    showNameOnPendingAttributions: user.showNameOnPendingAttributions,
+    showNameOnPendingAttributions: managedByLineageRole
+      ? true
+      : user.showNameOnPendingAttributions,
     autoAcceptAttributions: user.autoAcceptAttributions,
+    managedByLineageRole,
   };
 }
 
@@ -259,7 +268,15 @@ export async function setAttributionPreferencesForUser(
   db: PrismaClient,
   userId: string,
   prefs: UserAttributionPreferences,
-): Promise<UserAttributionPreferences> {
+): Promise<UserAttributionPreferencesView> {
+  const caps = await getUserSessionCapabilities(db, userId);
+  if (userHasAdminOrMaintainerLineageRole(caps.roleSlugs)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message:
+        "Attribution preferences are fixed for administrator and maintainer roles",
+    });
+  }
   const updated = await db.user.update({
     where: { id: userId },
     data: {
@@ -274,5 +291,6 @@ export async function setAttributionPreferencesForUser(
   return {
     showNameOnPendingAttributions: updated.showNameOnPendingAttributions,
     autoAcceptAttributions: updated.autoAcceptAttributions,
+    managedByLineageRole: false,
   };
 }

@@ -24,6 +24,14 @@ export interface UserAttributionPreferences {
   autoAcceptAttributions: boolean;
 }
 
+/**
+ * Session attribution preferences plus whether administrator/maintainer lineage
+ * roles fix effective browse behavior regardless of stored toggles.
+ */
+export interface UserAttributionPreferencesView extends UserAttributionPreferences {
+  managedByLineageRole: boolean;
+}
+
 export interface AttributionPublicDisplayInput {
   orcid: string;
   claimStatus: ExperimentContributorClaimStatus;

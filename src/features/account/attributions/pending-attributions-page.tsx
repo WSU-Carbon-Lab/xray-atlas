@@ -11,8 +11,59 @@ import {
   Switch,
 } from "@heroui/react";
 import { contributorRoleLabel } from "~/lib/datacite-contributor-types";
+import type { UserAttributionPreferencesView } from "~/lib/dataset-attribution-claim";
 import { showToast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
+
+const ROLE_MANAGED_PREFS_HELPER =
+  "Fixed for administrators and maintainers.";
+
+type AttributionPreferenceKey =
+  | "showNameOnPendingAttributions"
+  | "autoAcceptAttributions";
+
+function AttributionPreferenceRow({
+  preferenceKey,
+  label,
+  description,
+  prefs,
+  prefsPending,
+  onChange,
+}: {
+  preferenceKey: AttributionPreferenceKey;
+  label: string;
+  description: string;
+  prefs: UserAttributionPreferencesView;
+  prefsPending: boolean;
+  onChange: (key: AttributionPreferenceKey, value: boolean) => void;
+}) {
+  const roleManaged = prefs.managedByLineageRole;
+  const hintId = `attribution-pref-${preferenceKey}-role-hint`;
+  const isSelected = prefs[preferenceKey];
+  const switchDisabled = roleManaged || prefsPending;
+
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex min-w-0 flex-col gap-1">
+        <Label>{label}</Label>
+        <p className="text-muted text-sm">{description}</p>
+        {roleManaged ? (
+          <p id={hintId} className="text-muted text-sm">
+            {ROLE_MANAGED_PREFS_HELPER}
+          </p>
+        ) : null}
+      </div>
+      <Switch
+        isSelected={isSelected}
+        onChange={(selected) => onChange(preferenceKey, selected)}
+        isDisabled={switchDisabled}
+        aria-label={label}
+        aria-disabled={switchDisabled}
+        aria-describedby={roleManaged ? hintId : undefined}
+      />
+    </div>
+  );
+}
 
 function formatDatasetLabel(row: {
   experiment: {
@@ -91,13 +142,15 @@ export function PendingAttributionsPage() {
   };
 
   const handlePrefChange = async (
-    key: "showNameOnPendingAttributions" | "autoAcceptAttributions",
+    key: AttributionPreferenceKey,
     value: boolean,
   ) => {
-    if (!prefsQuery.data) return;
+    if (!prefsQuery.data || prefsQuery.data.managedByLineageRole) return;
     try {
       await setPrefsMutation.mutateAsync({
-        ...prefsQuery.data,
+        showNameOnPendingAttributions:
+          prefsQuery.data.showNameOnPendingAttributions,
+        autoAcceptAttributions: prefsQuery.data.autoAcceptAttributions,
         [key]: value,
       });
       await prefsQuery.refetch();
@@ -132,44 +185,34 @@ export function PendingAttributionsPage() {
         <Card.Content className="flex flex-col gap-4 px-4 pb-4">
           {prefsQuery.data ? (
             <>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <Label>Show name on pending attributions</Label>
-                  <p className="text-muted text-sm">
-                    Display your name (not your photo) on datasets you have not
-                    accepted yet.
-                  </p>
-                </div>
-                <Switch
-                  isSelected={prefsQuery.data.showNameOnPendingAttributions}
-                  onChange={(selected) =>
-                    void handlePrefChange(
-                      "showNameOnPendingAttributions",
-                      selected,
-                    )
-                  }
-                  isDisabled={setPrefsMutation.isPending}
-                  aria-label="Show name on pending attributions"
-                />
-              </div>
+              {prefsQuery.data.managedByLineageRole ? (
+                <p className="text-muted text-sm">
+                  Your administrator or maintainer role sets how pending
+                  attributions appear on browse and contribute surfaces; the
+                  toggles below reflect that policy and cannot be changed here.
+                </p>
+              ) : null}
+              <AttributionPreferenceRow
+                preferenceKey="showNameOnPendingAttributions"
+                label="Show name on pending attributions"
+                description={
+                  prefsQuery.data.managedByLineageRole
+                    ? "Your name and profile image appear on pending attributions by role policy."
+                    : "Display your name (not your photo) on datasets you have not accepted yet."
+                }
+                prefs={prefsQuery.data}
+                prefsPending={setPrefsMutation.isPending}
+                onChange={(key, value) => void handlePrefChange(key, value)}
+              />
               <Separator />
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <Label>Auto-accept new attributions</Label>
-                  <p className="text-muted text-sm">
-                    Automatically accept future dataset attributions assigned to
-                    your ORCID.
-                  </p>
-                </div>
-                <Switch
-                  isSelected={prefsQuery.data.autoAcceptAttributions}
-                  onChange={(selected) =>
-                    void handlePrefChange("autoAcceptAttributions", selected)
-                  }
-                  isDisabled={setPrefsMutation.isPending}
-                  aria-label="Auto-accept new attributions"
-                />
-              </div>
+              <AttributionPreferenceRow
+                preferenceKey="autoAcceptAttributions"
+                label="Auto-accept new attributions"
+                description="Automatically accept future dataset attributions assigned to your ORCID."
+                prefs={prefsQuery.data}
+                prefsPending={setPrefsMutation.isPending}
+                onChange={(key, value) => void handlePrefChange(key, value)}
+              />
             </>
           ) : prefsQuery.isLoading ? (
             <Spinner size="sm" aria-label="Loading preferences" />
