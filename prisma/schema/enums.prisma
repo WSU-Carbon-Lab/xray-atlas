@@ -34,3 +34,12 @@ enum ProcessMethod {
 
   @@schema("public")
 }
+
+enum ExperimentContributorClaimStatus {
+  pending
+  accepted
+  declined
+  unclaimed
+
+  @@schema("public")
+}

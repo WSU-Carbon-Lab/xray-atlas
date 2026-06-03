@@ -75,10 +75,11 @@ model experimentcontributors {
   orcidid                String      @map("orcid_id") @db.VarChar(19)
   userid                 String?     @map("user_id") @db.VarChar(19)
   role                   String
-  isclaimed              Boolean     @default(false) @map("is_claimed")
-  ispublicprofilevisible Boolean     @default(false) @map("is_public_profile_visible")
-  detachedat             DateTime?   @map("detached_at") @db.Timestamptz(6)
-  claimedat              DateTime?   @map("claimed_at") @db.Timestamptz(6)
+  isclaimed              Boolean                          @default(false) @map("is_claimed")
+  ispublicprofilevisible Boolean                          @default(false) @map("is_public_profile_visible")
+  claimstatus            ExperimentContributorClaimStatus @default(pending) @map("claim_status")
+  detachedat             DateTime?                        @map("detached_at") @db.Timestamptz(6)
+  claimedat              DateTime?                        @map("claimed_at") @db.Timestamptz(6)
   createdat              DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedat              DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   experiments            experiments @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -88,6 +89,7 @@ model experimentcontributors {
   @@index([experimentid], map: "idx_experiment_contributors_experiment_id")
   @@index([orcidid], map: "idx_experiment_contributors_orcid_id")
   @@index([userid], map: "idx_experiment_contributors_user_id")
+  @@index([orcidid, claimstatus], map: "idx_experiment_contributors_orcid_claim_status")
   @@map("experiment_contributors")
   @@schema("public")
 }

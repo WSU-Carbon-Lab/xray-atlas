@@ -44,6 +44,8 @@ model user {
   disabledReason                String?
   lastActivityAt                DateTime?                @db.Timestamptz(6)
   mfaEnforcedAt                 DateTime?                @db.Timestamptz(6)
+  showNameOnPendingAttributions Boolean                  @default(false) @map("show_name_on_pending_attributions")
+  autoAcceptAttributions        Boolean                  @default(false) @map("auto_accept_attributions")
   authenticator                 Authenticator[]
   account                       account[]
   consentReceipts               ConsentReceipt[]
