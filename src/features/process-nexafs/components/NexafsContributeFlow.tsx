@@ -9,8 +9,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { ContributionFileDropOverlay } from "@/components/contribute";
 import {
-  FileUploadZone,
   ColumnMappingModal,
+  NexafsUploadPortal,
   DatasetTabs,
   DatasetContent,
   useDatasetStatus,
@@ -32,7 +32,12 @@ type VendorOption = { id: string; name: string | null; url?: string | null };
 export type NexafsContributeFlowProps = {
   datasets: DatasetState[];
   activeDatasetId: string | null;
-  updateDataset: (id: string, updates: Partial<DatasetState>) => void;
+  updateDataset: (
+    id: string,
+    updates:
+      | Partial<DatasetState>
+      | ((dataset: DatasetState) => Partial<DatasetState>),
+  ) => void;
   processDatasetData: (id: string) => void;
   handleFilesSelected: (files: File[]) => void | Promise<void>;
   handleNewDataset: () => void;
@@ -246,12 +251,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           onSubmit={submit}
         >
           {datasets.length === 0 && (
-            <div className="border-border bg-surface mb-8 w-full shrink-0 rounded-xl border p-4 shadow-sm">
-              <FileUploadZone
-                onFilesSelected={handleFilesSelected}
-                multiple={true}
-              />
-            </div>
+            <NexafsUploadPortal onFilesSelected={handleFilesSelected} />
           )}
 
           {datasets.length > 0 && (

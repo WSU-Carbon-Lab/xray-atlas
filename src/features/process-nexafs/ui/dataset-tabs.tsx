@@ -35,7 +35,12 @@ interface DatasetTabsProps {
   onNewDataset?: () => void;
   instrumentOptions: InstrumentOption[];
   edgeOptions: EdgeOption[];
-  updateDataset: (id: string, updates: Partial<DatasetState>) => void;
+  updateDataset: (
+    id: string,
+    updates:
+      | Partial<DatasetState>
+      | ((dataset: DatasetState) => Partial<DatasetState>),
+  ) => void;
 }
 
 type DescriptorModalType =
