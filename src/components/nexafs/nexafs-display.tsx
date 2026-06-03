@@ -30,7 +30,8 @@ import { ExperimentAttributionEditSection } from "~/features/process-nexafs/ui/e
 import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
 import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
 import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
-import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
+import type { NexafsBrowseLinkedPublication, NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
+import { NexafsSourcePublicationsHeaderControl } from "~/components/nexafs/nexafs-source-publications-header";
 
 function trpcKeyMatchesExperimentsProcedure(
   queryKey: readonly unknown[],
@@ -176,6 +177,7 @@ export type NexafsExperimentCompactCardProps = {
   experimentContributorUsers: NexafsContributorPerson[];
   polarizationCount: number;
   linkedPublications: NexafsBrowseLinkedPublication[];
+  sourcePublications: NexafsBrowseSourcePublication[];
   ingestVerified: boolean;
   datasetMetrics: NexafsBrowseDatasetMetricsCardModel;
 };
@@ -199,6 +201,7 @@ export function NexafsExperimentCompactCard({
   experimentContributorUsers,
   polarizationCount,
   linkedPublications,
+  sourcePublications,
   ingestVerified,
   datasetMetrics,
 }: NexafsExperimentCompactCardProps) {
@@ -396,13 +399,18 @@ export function NexafsExperimentCompactCard({
                 {displayName}
               </span>
               <span
-                className="inline-flex shrink-0 items-center self-center"
+                className="inline-flex shrink-0 items-center self-center gap-1"
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}
               >
                 <NexafsPublicationVerificationControl
                   ingestVerified={ingestVerified}
                   linkedPublications={linkedPublications}
+                />
+                <NexafsSourcePublicationsHeaderControl
+                  experimentId={experimentId}
+                  sourcePublications={sourcePublications}
+                  ingestVerified={ingestVerified}
                 />
               </span>
             </div>

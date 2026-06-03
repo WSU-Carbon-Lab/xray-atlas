@@ -13,8 +13,12 @@ import {
   resolvePublicationDoi,
 } from "~/server/nexafs/lookupPublicationDoi";
 import {
+  addExperimentSourcePublication,
   clearExperimentSourcePaperDoi,
+  listExperimentSourcePublications,
+  removeExperimentSourcePublication,
   syncExperimentSourcePaperDoi,
+  syncExperimentSourcePublications,
 } from "~/server/nexafs/syncExperimentSourcePaperDoi";
 import type { PublicationCitation } from "~/lib/publication-citation";
 import { dataCiteContributorTypeSchema } from "~/lib/datacite-contributor-types";
@@ -971,6 +975,7 @@ export const experimentsRouter = createTRPCRouter({
           )
           .optional(),
         sourcePaperDoi: sourcePaperDoiInputSchema.optional(),
+        sourcePaperDois: z.array(sourcePaperDoiInputSchema).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -983,18 +988,32 @@ export const experimentsRouter = createTRPCRouter({
         collectedByOrcidIds,
         attributions: attributionsInput,
         sourcePaperDoi: sourcePaperDoiInput,
+        sourcePaperDois: sourcePaperDoisInput,
       } = input;
 
-      let sourcePaperCitation: PublicationCitation | null = null;
-      if (sourcePaperDoiInput) {
-        sourcePaperCitation = await resolvePublicationDoi(sourcePaperDoiInput);
-        if (!sourcePaperCitation) {
+      const sourceDoiCandidates = [
+        ...(sourcePaperDoisInput ?? []),
+        ...(sourcePaperDoiInput ? [sourcePaperDoiInput] : []),
+      ];
+      const uniqueSourceDois = [
+        ...new Set(
+          sourceDoiCandidates
+            .map((value) => normalizeDoi(value))
+            .filter((value): value is string => value != null),
+        ),
+      ];
+
+      const sourcePaperCitations: PublicationCitation[] = [];
+      for (const doi of uniqueSourceDois) {
+        const citation = await resolvePublicationDoi(doi);
+        if (!citation) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
               "Source publication DOI was not found in Crossref or DataCite. Check the identifier or try again later.",
           });
         }
+        sourcePaperCitations.push(citation);
       }
       const normalizationScope: NormalizationScope =
         experimentInput.normalization?.scope ?? "none";
@@ -1327,7 +1346,7 @@ export const experimentsRouter = createTRPCRouter({
             points: spectrumInput.points,
             ranges: normalizationRanges,
             scope: normalizationScope,
-            doiPresent: sourcePaperCitation != null,
+            doiPresent: sourcePaperCitations.length > 0,
           });
           const hasDerivedValues = {
             od: derivedByGroup.some((group) =>
@@ -1503,11 +1522,11 @@ export const experimentsRouter = createTRPCRouter({
             await tx.peaksets.createMany({ data: peaksetsData });
           }
 
-          if (sourcePaperCitation) {
-            await syncExperimentSourcePaperDoi(
+          if (sourcePaperCitations.length > 0) {
+            await syncExperimentSourcePublications(
               tx,
               experiment.id,
-              sourcePaperCitation,
+              sourcePaperCitations,
             );
           }
 
@@ -2158,53 +2177,142 @@ export const experimentsRouter = createTRPCRouter({
           sourcepaperdoiverified: true,
         },
       });
-      const doi = metrics?.originaldatadoi?.trim() ?? "";
-      if (!doi) {
+      const rows = await listExperimentSourcePublications(
+        ctx.db,
+        input.experimentId,
+      );
+      const publications = rows.map((row) => mapPublicationCitationToOutput(row));
+      const primaryDoi = metrics?.originaldatadoi?.trim() ?? publications[0]?.doi ?? "";
+      const primaryCitation =
+        publications.find((publication) => publication.doi === primaryDoi) ??
+        publications[0] ??
+        null;
+
+      if (!primaryDoi) {
         return {
           experimentId: input.experimentId,
           doi: null,
           citation: null,
+          publications,
           hasOriginalDataDoi: false,
           sourcePaperDoiVerified: false,
         };
       }
-      const link = await ctx.db.experimentpublications.findFirst({
-        where: { experimentid: input.experimentId, role: "source" },
-        include: {
-          publications: {
-            select: {
-              doi: true,
-              title: true,
-              journal: true,
-              year: true,
-              authors: true,
-            },
-          },
-        },
-      });
-      const pub = link?.publications;
-      const authorsFromDb = Array.isArray(pub?.authors)
-        ? (pub.authors as unknown[]).filter(
-            (item): item is string => typeof item === "string",
-          )
-        : [];
-      const citation =
-        pub != null
-          ? mapPublicationCitationToOutput({
-              doi: pub.doi,
-              title: pub.title,
-              journal: pub.journal,
-              year: pub.year,
-              authors: authorsFromDb,
-            })
-          : null;
 
       return {
         experimentId: input.experimentId,
-        doi,
-        citation,
+        doi: primaryDoi,
+        citation: primaryCitation,
+        publications,
         hasOriginalDataDoi: metrics?.hasoriginaldatadoi ?? true,
         sourcePaperDoiVerified: metrics?.sourcepaperdoiverified ?? false,
+      };
+    }),
+
+  listSourcePublications: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const rows = await listExperimentSourcePublications(
+        ctx.db,
+        input.experimentId,
+      );
+      return {
+        experimentId: input.experimentId,
+        publications: rows.map((row) => mapPublicationCitationToOutput(row)),
+      };
+    }),
+
+  addSourcePublication: contributeWriteProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        doi: sourcePaperDoiInputSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+
+      const citation = await resolvePublicationDoi(input.doi);
+      if (!citation) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Source publication DOI was not found in Crossref or DataCite. Check the identifier or try again later.",
+        });
+      }
+
+      const primaryDoi = await addExperimentSourcePublication(
+        ctx.db,
+        input.experimentId,
+        citation,
+      );
+      const rows = await listExperimentSourcePublications(
+        ctx.db,
+        input.experimentId,
+      );
+
+      return {
+        experimentId: input.experimentId,
+        primaryDoi,
+        publications: rows.map((row) => mapPublicationCitationToOutput(row)),
+        citation: mapPublicationCitationToOutput(citation),
+      };
+    }),
+
+  removeSourcePublication: contributeWriteProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        doi: sourcePaperDoiInputSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+
+      const primaryDoi = await removeExperimentSourcePublication(
+        ctx.db,
+        input.experimentId,
+        input.doi,
+      );
+      const rows = await listExperimentSourcePublications(
+        ctx.db,
+        input.experimentId,
+      );
+
+      return {
+        experimentId: input.experimentId,
+        primaryDoi,
+        publications: rows.map((row) => mapPublicationCitationToOutput(row)),
       };
     }),
 

@@ -82,7 +82,7 @@ import {
   DatasetAttributionEditor,
   type DatasetAttributionChange,
 } from "./dataset-attribution-editor";
-import { SourcePaperDoiField } from "./source-paper-doi-field";
+import { SourcePaperPublicationsEditor } from "./source-paper-publications-editor";
 import {
   VisualizationToggle,
   type VisualizationMode,
@@ -2389,15 +2389,11 @@ export function DatasetContent({
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
-      <SourcePaperDoiField
-        value={{
-          doi: dataset.sourcePaperDoi,
-          citation: dataset.sourcePaperCitation,
-        }}
+      <SourcePaperPublicationsEditor
+        publications={dataset.sourcePaperPublications}
         onChange={(next) => {
           onDatasetUpdate(dataset.id, {
-            sourcePaperDoi: next.doi,
-            sourcePaperCitation: next.citation,
+            sourcePaperPublications: next,
           });
         }}
       />

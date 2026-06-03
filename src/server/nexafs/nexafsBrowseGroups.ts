@@ -4,7 +4,10 @@ import {
   buildNexafsBrowseDatasetMetricsCardModel,
   type NexafsBrowseDatasetMetricsCardModel,
 } from "~/lib/nexafs-dataset-metric-display-model";
-import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
+import type {
+  NexafsBrowseLinkedPublication,
+  NexafsBrowseSourcePublication,
+} from "~/types/nexafs-browse";
 import { normalizeStoredContributorRole } from "~/lib/datacite-contributor-types";
 import {
   dedupeNexafsContributorsByOrcid,
@@ -56,9 +59,11 @@ export function buildNexafsBrowseWhereSql(
   if (filters.sourcePaperDoi) {
     parts.push(Prisma.sql`EXISTS (
       SELECT 1
-      FROM experiment_metrics em_doi
-      WHERE em_doi.experiment_id = e.id
-        AND em_doi.original_data_doi = ${filters.sourcePaperDoi}
+      FROM experimentpublications ep_doi
+      INNER JOIN publications pub_doi ON pub_doi.id = ep_doi.publicationid
+      WHERE ep_doi.experimentid = e.id
+        AND ep_doi.role = 'source'
+        AND pub_doi.doi = ${filters.sourcePaperDoi}
     )`);
   }
   if (filters.verifiedOnly) {
@@ -175,6 +180,7 @@ export type NexafsBrowseGroupRow = {
   polarization_geometry_count: bigint;
   publication_link_count: bigint;
   linked_publications_json: unknown;
+  source_publications_json: unknown;
   ingest_verified: boolean;
   experiment_metrics_header_json: unknown;
   experiment_metrics_channels_json: unknown;
@@ -191,6 +197,7 @@ export type NexafsBrowseGroupDto = {
   experimenttype: ExperimentType | null;
   polarizationCount: number;
   linkedPublications: NexafsBrowseLinkedPublication[];
+  sourcePublications: NexafsBrowseSourcePublication[];
   ingestVerified: boolean;
   contributorLabels: string | null;
   contributorUsers: NexafsBrowseContributorUser[];
@@ -249,7 +256,7 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
   return dedupeNexafsContributorsByOrcid(out);
 }
 
-function parseLinkedPublicationsJson(
+function parsePublicationsJson(
   raw: unknown,
 ): NexafsBrowseLinkedPublication[] {
   if (!Array.isArray(raw)) return [];
@@ -284,7 +291,8 @@ export function mapNexafsBrowseGroupRow(
     createdat: row.createdat,
     experimenttype: row.experimenttype,
     polarizationCount: Number(row.polarization_geometry_count),
-    linkedPublications: parseLinkedPublicationsJson(row.linked_publications_json),
+    linkedPublications: parsePublicationsJson(row.linked_publications_json),
+    sourcePublications: parsePublicationsJson(row.source_publications_json),
     ingestVerified: Boolean(row.ingest_verified),
     contributorLabels: row.contributor_labels,
     contributorUsers: parseContributorUsers(row.contributor_users),
@@ -435,6 +443,7 @@ export async function fetchNexafsBrowseGrouped(
           SELECT COUNT(*)::bigint
           FROM experimentpublications ep
           WHERE ep.experimentid = b.experiment_id
+            AND ep.role <> 'source'
         ) AS publication_link_count,
         (
           SELECT COALESCE(
@@ -453,7 +462,27 @@ export async function fetchNexafsBrowseGrouped(
           FROM experimentpublications ep
           INNER JOIN publications pub ON pub.id = ep.publicationid
           WHERE ep.experimentid = b.experiment_id
+            AND ep.role <> 'source'
         ) AS linked_publications_json,
+        (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'doi', pub.doi,
+                'title', pub.title,
+                'journal', pub.journal,
+                'year', pub.year,
+                'authors', pub.authors
+              )
+              ORDER BY pub.year DESC NULLS LAST, pub.title ASC
+            ),
+            '[]'::json
+          )
+          FROM experimentpublications ep
+          INNER JOIN publications pub ON pub.id = ep.publicationid
+          WHERE ep.experimentid = b.experiment_id
+            AND ep.role = 'source'
+        ) AS source_publications_json,
         (
           SELECT string_agg(sub.n, ' | ' ORDER BY sub.n)
           FROM (

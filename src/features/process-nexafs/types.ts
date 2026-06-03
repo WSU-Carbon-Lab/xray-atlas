@@ -259,8 +259,7 @@ export type DatasetState = {
   collectedByUserIds: string[];
   attributions: DatasetAttributionEntry[];
   computeKkDeltaOnSubmit: boolean;
-  sourcePaperDoi: string;
-  sourcePaperCitation: PublicationCitation | null;
+  sourcePaperPublications: PublicationCitation[];
 };
 
 export function createEmptyDatasetState(file: File): DatasetState {
@@ -307,7 +306,6 @@ export function createEmptyDatasetState(file: File): DatasetState {
     collectedByUserIds: [],
     attributions: [],
     computeKkDeltaOnSubmit: false,
-    sourcePaperDoi: "",
-    sourcePaperCitation: null,
+    sourcePaperPublications: [],
   };
 }

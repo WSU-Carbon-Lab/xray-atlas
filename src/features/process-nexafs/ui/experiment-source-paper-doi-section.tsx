@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@heroui/react";
+import { useCallback, useMemo, useState } from "react";
+import { Button, Chip } from "@heroui/react";
+import { X } from "lucide-react";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import {
@@ -46,33 +47,8 @@ type ExperimentSourcePaperDoiSectionProps = {
   variant?: "panel" | "inline";
 };
 
-function valuesEqual(
-  a: SourcePaperDoiFieldValue,
-  b: SourcePaperDoiFieldValue,
-): boolean {
-  return (
-    a.doi === b.doi &&
-    (a.citation?.doi ?? "") === (b.citation?.doi ?? "") &&
-    (a.citation?.title ?? "") === (b.citation?.title ?? "")
-  );
-}
-
-function valueFromServer(data: {
-  doi: string | null;
-  citation: SourcePaperDoiFieldValue["citation"];
-}): SourcePaperDoiFieldValue {
-  const doi = data.doi?.trim() ?? "";
-  if (!doi) {
-    return { doi: "", citation: null };
-  }
-  return {
-    doi,
-    citation: data.citation,
-  };
-}
-
 /**
- * Loads and persists source publication DOI for an existing experiment (post-upload edit).
+ * Loads and persists source publication DOIs for an existing experiment (post-upload edit).
  */
 export function ExperimentSourcePaperDoiSection({
   experimentId,
@@ -81,6 +57,10 @@ export function ExperimentSourcePaperDoiSection({
 }: ExperimentSourcePaperDoiSectionProps) {
   const isInline = variant === "inline";
   const utils = trpc.useUtils();
+  const [draft, setDraft] = useState<SourcePaperDoiFieldValue>({
+    doi: "",
+    citation: null,
+  });
 
   const canEditQuery = trpc.experiments.canEditExperiment.useQuery(
     { experimentId },
@@ -93,19 +73,20 @@ export function ExperimentSourcePaperDoiSection({
     { enabled },
   );
 
-  const setDoiMutation = trpc.experiments.setSourcePaperDoi.useMutation({
+  const addMutation = trpc.experiments.addSourcePublication.useMutation({
     onSuccess: async () => {
       await utils.experiments.getSourcePaperDoi.invalidate({ experimentId });
       await utils.experiments.browseList.invalidate();
       await utils.experiments.browseSearch.invalidate();
-      showToast("Source publication updated", "success");
+      setDraft({ doi: "", citation: null });
+      showToast("Source publication added", "success");
     },
     onError: (error) => {
       showToast(error.message, "error");
     },
   });
 
-  const clearDoiMutation = trpc.experiments.clearSourcePaperDoi.useMutation({
+  const removeMutation = trpc.experiments.removeSourcePublication.useMutation({
     onSuccess: async () => {
       await utils.experiments.getSourcePaperDoi.invalidate({ experimentId });
       await utils.experiments.browseList.invalidate();
@@ -117,72 +98,27 @@ export function ExperimentSourcePaperDoiSection({
     },
   });
 
-  const serverValue = useMemo(
-    () =>
-      sourceQuery.data
-        ? valueFromServer(sourceQuery.data)
-        : { doi: "", citation: null },
-    [sourceQuery.data],
+  const publications = useMemo(
+    () => sourceQuery.data?.publications ?? [],
+    [sourceQuery.data?.publications],
   );
 
-  const [draft, setDraft] = useState<SourcePaperDoiFieldValue>({
-    doi: "",
-    citation: null,
-  });
-  const [hydrated, setHydrated] = useState(false);
-  const hydrationKeyRef = useRef<string | null>(null);
-  const hydrationKey = `${experimentId}:${sourceQuery.dataUpdatedAt}`;
+  const existingDois = useMemo(
+    () => new Set(publications.map((publication) => publication.doi)),
+    [publications],
+  );
 
-  useEffect(() => {
-    if (!enabled) {
-      hydrationKeyRef.current = null;
-      setHydrated(false);
-      setDraft({ doi: "", citation: null });
-      return;
-    }
-    if (!canEdit || !sourceQuery.isSuccess) {
-      return;
-    }
-    if (hydrationKeyRef.current === hydrationKey) {
-      return;
-    }
-    hydrationKeyRef.current = hydrationKey;
-    setDraft(serverValue);
-    setHydrated(true);
-  }, [canEdit, enabled, hydrationKey, serverValue, sourceQuery.isSuccess]);
-
-  const isDirty = useMemo(() => {
-    if (!hydrated) {
-      return false;
-    }
-    return !valuesEqual(draft, serverValue);
-  }, [draft, hydrated, serverValue]);
-
-  const handleSave = useCallback(() => {
-    if (!draft.doi.trim() && !serverValue.doi) {
-      return;
-    }
-    if (!draft.doi.trim()) {
-      clearDoiMutation.mutate({ experimentId });
-      return;
-    }
+  const handleAdd = useCallback(() => {
     if (!draft.citation) {
-      showToast("Verify the publication DOI before saving", "error");
+      showToast("Verify the publication DOI before adding", "error");
       return;
     }
-    setDoiMutation.mutate({ experimentId, doi: draft.doi });
-  }, [
-    clearDoiMutation,
-    draft.citation,
-    draft.doi,
-    experimentId,
-    serverValue.doi,
-    setDoiMutation,
-  ]);
-
-  const handleDiscard = useCallback(() => {
-    setDraft(serverValue);
-  }, [serverValue]);
+    if (existingDois.has(draft.citation.doi)) {
+      showToast("That source publication is already linked", "error");
+      return;
+    }
+    addMutation.mutate({ experimentId, doi: draft.citation.doi });
+  }, [addMutation, draft.citation, existingDois, experimentId]);
 
   if (!enabled) {
     return null;
@@ -202,7 +138,7 @@ export function ExperimentSourcePaperDoiSection({
   }
 
   if (!canEdit) {
-    if (!serverValue.citation && !serverValue.doi) {
+    if (publications.length === 0) {
       return null;
     }
     return (
@@ -212,13 +148,16 @@ export function ExperimentSourcePaperDoiSection({
         }
       >
         <p className="text-foreground mb-2 text-sm font-semibold">
-          Source publication
+          Source publications
         </p>
-        {serverValue.citation ? (
-          <ReadOnlySourcePaperCitation citation={serverValue.citation} />
-        ) : (
-          <p className="text-muted text-xs">{serverValue.doi}</p>
-        )}
+        <div className="flex flex-col gap-2">
+          {publications.map((publication) => (
+            <ReadOnlySourcePaperCitation
+              key={publication.doi}
+              citation={publication}
+            />
+          ))}
+        </div>
       </div>
     );
   }
@@ -226,56 +165,94 @@ export function ExperimentSourcePaperDoiSection({
   if (sourceQuery.isError) {
     return (
       <p className="text-danger text-xs sm:text-sm">
-        Could not load source publication for this dataset.
+        Could not load source publications for this dataset.
       </p>
     );
   }
 
-  const field = (
-    <SourcePaperDoiField
-      value={draft}
-      onChange={setDraft}
-      disabled={setDoiMutation.isPending || clearDoiMutation.isPending}
-      showLabel={!isInline}
-    />
+  const list = (
+    <div className="flex flex-col gap-2">
+      {publications.map((publication) => (
+        <div
+          key={publication.doi}
+          className="border-border bg-surface-2/60 flex items-start justify-between gap-2 rounded-lg border p-3"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-foreground text-sm font-medium leading-snug">
+              {publication.title}
+            </p>
+            <a
+              href={nexafsPublicationDoiHref(publication.doi)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent mt-2 inline-block text-xs font-medium hover:underline"
+            >
+              {publication.doi}
+            </a>
+          </div>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label={`Remove source publication ${publication.doi}`}
+            isDisabled={removeMutation.isPending}
+            className="text-muted hover:text-danger shrink-0"
+            onPress={() => {
+              removeMutation.mutate({ experimentId, doi: publication.doi });
+            }}
+          >
+            <X className="size-4" aria-hidden />
+          </Button>
+        </div>
+      ))}
+    </div>
   );
 
-  const saveActions = isDirty ? (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      <Button
-        type="button"
-        size="sm"
-        variant="tertiary"
-        isDisabled={setDoiMutation.isPending || clearDoiMutation.isPending}
-        onPress={handleDiscard}
-      >
-        Discard
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="primary"
-        isDisabled={setDoiMutation.isPending || clearDoiMutation.isPending}
-        onPress={handleSave}
-      >
-        Save
-      </Button>
+  const addField = (
+    <div className="flex flex-col gap-3">
+      <SourcePaperDoiField
+        value={draft}
+        onChange={setDraft}
+        disabled={addMutation.isPending || removeMutation.isPending}
+        showLabel={!isInline}
+      />
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          size="sm"
+          variant="primary"
+          isDisabled={
+            addMutation.isPending || removeMutation.isPending || !draft.citation
+          }
+          onPress={handleAdd}
+        >
+          Add source publication
+        </Button>
+      </div>
     </div>
-  ) : null;
+  );
 
   if (isInline) {
     return (
-      <div className="flex min-w-0 max-w-md flex-col gap-2">
-        {field}
-        {saveActions}
+      <div className="flex min-w-0 max-w-md flex-col gap-3">
+        {publications.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {publications.map((publication) => (
+              <Chip key={publication.doi} size="sm" variant="soft">
+                <Chip.Label className="truncate text-xs">{publication.doi}</Chip.Label>
+              </Chip>
+            ))}
+          </div>
+        ) : null}
+        {addField}
       </div>
     );
   }
 
   return (
     <div className="border-border bg-surface flex flex-col gap-3 rounded-lg border p-3">
-      {field}
-      {saveActions}
+      {publications.length > 0 ? list : null}
+      {addField}
     </div>
   );
 }
