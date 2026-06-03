@@ -465,7 +465,7 @@ export async function fetchNexafsBrowseGrouped(
                   AND trim(u.name) <> '' THEN u.name
                 WHEN ec.claim_status = 'pending'
                   AND (
-                    u.show_name_on_pending_attributions = true
+                    COALESCE(u.attribution_display_preferences->>'pending', 'orcid_only') IN ('name_only', 'name_and_avatar')
                     OR EXISTS (
                       SELECT 1
                       FROM next_auth.user_app_role uar
@@ -499,7 +499,7 @@ export async function fetchNexafsBrowseGrouped(
                     AND ec.is_public_profile_visible THEN u.name
                   WHEN ec.claim_status = 'pending'
                     AND (
-                      u.show_name_on_pending_attributions = true
+                      COALESCE(u.attribution_display_preferences->>'pending', 'orcid_only') IN ('name_only', 'name_and_avatar')
                       OR EXISTS (
                         SELECT 1
                         FROM next_auth.user_app_role uar
@@ -543,7 +543,7 @@ export async function fetchNexafsBrowseGrouped(
                     AND ec.is_public_profile_visible
                     AND u.name IS NOT NULL THEN u.name
                   WHEN ec.claim_status = 'pending'
-                    AND u.show_name_on_pending_attributions = true
+                    AND COALESCE(u.attribution_display_preferences->>'pending', 'orcid_only') IN ('name_only', 'name_and_avatar')
                     AND u.name IS NOT NULL THEN u.name
                   ELSE ec.orcid_id
                 END
