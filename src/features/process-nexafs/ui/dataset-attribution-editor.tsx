@@ -11,7 +11,7 @@ import {
 import { useSession } from "next-auth/react";
 import { Button, ErrorMessage } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Users } from "lucide-react";
 import { ORCIDIcon } from "~/components/icons";
 import {
   AvatarGroup,
@@ -38,6 +38,7 @@ import {
 import type { DataCiteContributorType } from "~/lib/datacite-contributor-types";
 import { isValidOrcidUserId } from "~/lib/orcid";
 import { AddResearcherAttributionForm } from "./add-researcher-attribution-form";
+import { ApplyTeamAttributionForm } from "./apply-team-attribution-form";
 
 export type DatasetAttributionChange =
   | DatasetAttributionEntry[]
@@ -294,40 +295,83 @@ export function DatasetAttributionEditor({
     return map;
   }, [avatarDisplays]);
 
+  const handleApplyTeamAttributions = useCallback(
+    (rows: DatasetAttributionEntry[]) => {
+      onChangeRef.current(dedupeDatasetAttributions(filterValidOrcidAttributions(rows)));
+      setOrcidError(null);
+    },
+    [],
+  );
+
   const addResearcherControl = (
-    <PopoverMenu
-      align="start"
-      placement="auto"
-      ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
-      renderTrigger={({ triggerProps, isOpen }) => (
-        <button
-          type="button"
-          {...triggerProps}
-          className={cn(
-            "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground focus-visible:ring-accent inline-flex size-8 shrink-0 items-center justify-center rounded-full border p-0 shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-            isOpen && "ring-accent ring-2 ring-offset-2",
-          )}
-          aria-label="Add researcher attribution"
-        >
-          <Plus className="size-4" aria-hidden />
-        </button>
-      )}
-      renderContent={({ close, contentProps, contentPositionClassName }) => (
-        <PopoverMenuContent
-          {...contentProps}
-          className={cn(
-            contentPositionClassName,
-            "border-border bg-surface w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-4 shadow-lg",
-          )}
-        >
-          <AddResearcherAttributionForm
-            validAttributions={validAttributions}
-            onAppendAttribution={handleAppendAttribution}
-            onClose={close}
-          />
-        </PopoverMenuContent>
-      )}
-    />
+    <div className="flex items-center gap-1">
+      <PopoverMenu
+        align="start"
+        placement="auto"
+        ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
+        renderTrigger={({ triggerProps, isOpen }) => (
+          <button
+            type="button"
+            {...triggerProps}
+            className={cn(
+              "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground focus-visible:ring-accent inline-flex size-8 shrink-0 items-center justify-center rounded-full border p-0 shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+              isOpen && "ring-accent ring-2 ring-offset-2",
+            )}
+            aria-label="Add from team"
+          >
+            <Users className="size-4" aria-hidden />
+          </button>
+        )}
+        renderContent={({ close, contentProps, contentPositionClassName }) => (
+          <PopoverMenuContent
+            {...contentProps}
+            className={cn(
+              contentPositionClassName,
+              "border-border bg-surface w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-4 shadow-lg",
+            )}
+          >
+            <ApplyTeamAttributionForm
+              validAttributions={validAttributions}
+              onApplyAttributions={handleApplyTeamAttributions}
+              onClose={close}
+            />
+          </PopoverMenuContent>
+        )}
+      />
+      <PopoverMenu
+        align="start"
+        placement="auto"
+        ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
+        renderTrigger={({ triggerProps, isOpen }) => (
+          <button
+            type="button"
+            {...triggerProps}
+            className={cn(
+              "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground focus-visible:ring-accent inline-flex size-8 shrink-0 items-center justify-center rounded-full border p-0 shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+              isOpen && "ring-accent ring-2 ring-offset-2",
+            )}
+            aria-label="Add researcher attribution"
+          >
+            <Plus className="size-4" aria-hidden />
+          </button>
+        )}
+        renderContent={({ close, contentProps, contentPositionClassName }) => (
+          <PopoverMenuContent
+            {...contentProps}
+            className={cn(
+              contentPositionClassName,
+              "border-border bg-surface w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-4 shadow-lg",
+            )}
+          >
+            <AddResearcherAttributionForm
+              validAttributions={validAttributions}
+              onAppendAttribution={handleAppendAttribution}
+              onClose={close}
+            />
+          </PopoverMenuContent>
+        )}
+      />
+    </div>
   );
 
   return (
