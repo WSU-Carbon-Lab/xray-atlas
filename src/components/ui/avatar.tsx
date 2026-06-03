@@ -401,12 +401,11 @@ export function AvatarButton({
             </button>
             <button
               type="button"
-              disabled
-              className="text-muted flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm opacity-60"
-              title="Coming soon"
+              onClick={() => handleAction("teams")}
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
             >
               <Users className="h-4 w-4" />
-              Create Team
+              Create team
             </button>
           </div>
           {showManageUsers || showSandbox ? (
@@ -473,6 +472,9 @@ export function CustomUserButton() {
         break;
       case "sandbox":
         router.push("/sandbox");
+        break;
+      case "teams":
+        router.push("/account/teams");
         break;
       default:
         break;
