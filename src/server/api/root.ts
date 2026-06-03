@@ -15,6 +15,7 @@ import { adminRouter } from "~/server/api/routers/admin";
 import { sampleAuxRouter } from "~/server/api/routers/sampleAux";
 import { sampleFileRouter } from "~/server/api/routers/sampleFile";
 import { experimentFileRouter } from "~/server/api/routers/experimentFile";
+import { attributionTeamsRouter } from "~/server/api/routers/attributionTeams";
 
 export const appRouter = createTRPCRouter({
   molecules: moleculesRouter,
@@ -33,6 +34,7 @@ export const appRouter = createTRPCRouter({
   sampleAux: sampleAuxRouter,
   sampleFile: sampleFileRouter,
   experimentFile: experimentFileRouter,
+  attributionTeams: attributionTeamsRouter,
 });
 
 export type AppRouter = typeof appRouter;
