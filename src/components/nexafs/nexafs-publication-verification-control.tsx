@@ -8,7 +8,7 @@ import {
   useState,
   type MouseEvent,
 } from "react";
-import { BadgeCheck, BookOpen, Shield, X } from "lucide-react";
+import { BadgeCheck, BookOpen, Shield } from "lucide-react";
 import { Button, Checkbox, Separator } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { site } from "~/app/brand";

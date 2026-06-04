@@ -54,6 +54,7 @@ import {
   buildAtlasTeamVerificationSummary,
   clearAtlasTeamVerificationSummary,
   isAtlasTeamVerifiedSummary,
+  userMayManageAtlasTeamVerification,
   validationSummaryToPrismaJson,
 } from "~/server/nexafs/atlasTeamVerification";
 
@@ -1554,15 +1555,21 @@ export const experimentsRouter = createTRPCRouter({
 
   canEditExperiment: publicProcedure
     .input(z.object({ experimentId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => ({
-      canEdit: await userMayEditExperiment(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      ),
-    })),
+    .query(async ({ ctx, input }) => {
+      const canManageAtlasVerification = ctx.userId
+        ? await userMayManageAtlasTeamVerification(ctx.db, ctx.userId)
+        : false;
+      return {
+        canEdit: await userMayEditExperiment(
+          ctx.db,
+          ctx.userId,
+          input.experimentId,
+        ),
+        canManageAtlasVerification,
+      };
+    }),
 
-  setAtlasTeamVerification: privilegedWriteProcedure
+  setAtlasTeamVerification: contributeWriteProcedure
     .input(
       z.object({
         experimentId: z.string().uuid(),
@@ -1570,11 +1577,15 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
-      if (!isPrivilegedUser) {
+      const mayManageAtlas = await userMayManageAtlasTeamVerification(
+        ctx.db,
+        ctx.userId,
+      );
+      if (!mayManageAtlas) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Maintainer access is required to change Atlas team verification.",
+          message:
+            "Administrator or maintainer access is required to change Atlas team verification.",
         });
       }
 

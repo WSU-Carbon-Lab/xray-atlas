@@ -1,4 +1,6 @@
-import { Prisma } from "~/prisma/client";
+import { userHasAdminOrMaintainerLineageRole } from "~/lib/dataset-attribution-claim";
+import { Prisma, type PrismaClient } from "~/prisma/client";
+import { getUserSessionCapabilities } from "~/server/auth/privileged-role";
 import type { ValidationSummary } from "~/server/nexafs/normalizationMetadata";
 
 const ATLAS_TEAM_BYPASS_REASON = "Atlas team verification";
@@ -101,4 +103,28 @@ export function validationSummaryToPrismaJson(
     return Prisma.DbNull;
   }
   return summary as unknown as Prisma.InputJsonValue;
+}
+
+/**
+ * Reports whether `userId` may set or clear Atlas-team verification on browse datasets.
+ *
+ * Grants access to users with administrator or maintainer lineage roles, or any role whose
+ * permissions include `labs_access`. Does not require an elevated session AAL beyond
+ * contribute-write enrollment.
+ *
+ * @param db - Prisma client (pooled app DB).
+ * @param userId - Authenticated user id, or `null` when unauthenticated.
+ */
+export async function userMayManageAtlasTeamVerification(
+  db: PrismaClient,
+  userId: string | null,
+): Promise<boolean> {
+  if (!userId) {
+    return false;
+  }
+  const caps = await getUserSessionCapabilities(db, userId);
+  if (userHasAdminOrMaintainerLineageRole(caps.roleSlugs)) {
+    return true;
+  }
+  return caps.canAccessLabs;
 }
