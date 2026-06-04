@@ -23,10 +23,19 @@ export type SubmitStatus =
   | { type: "error"; message: string }
   | undefined;
 
+export type DatasetPersistedIds = {
+  experimentId: string;
+  sampleId: string;
+};
+
 export function useNexafsSubmit(
   datasets: DatasetState[],
   options?: {
     onSuccess?: () => void;
+    onDatasetPersisted?: (
+      datasetId: string,
+      ids: DatasetPersistedIds,
+    ) => void;
     requestKkConsent?: () => Promise<boolean>;
     showToast?: (message: string, type?: ToastType) => void;
   },
@@ -50,7 +59,19 @@ export function useNexafsSubmit(
         return;
       }
 
-      for (const dataset of datasets) {
+      const datasetsToSubmit = datasets.filter(
+        (dataset) => !dataset.persistedExperimentId,
+      );
+      if (datasetsToSubmit.length === 0) {
+        setSubmitStatus({
+          type: "error",
+          message:
+            "Every open dataset is already submitted. Clear the form or add a new dataset tab.",
+        });
+        return;
+      }
+
+      for (const dataset of datasetsToSubmit) {
         if (!dataset.moleculeId) {
           setSubmitStatus({
             type: "error",
@@ -110,7 +131,7 @@ export function useNexafsSubmit(
         }
       }
 
-      const needsKk = datasets.some((d) => d.computeKkDeltaOnSubmit);
+      const needsKk = datasetsToSubmit.some((d) => d.computeKkDeltaOnSubmit);
       if (needsKk) {
         if (!options?.requestKkConsent) {
           setSubmitStatus({
@@ -132,7 +153,7 @@ export function useNexafsSubmit(
       }
 
       try {
-        for (const dataset of datasets) {
+        for (const dataset of datasetsToSubmit) {
           if (!dataset.moleculeId) return;
 
           const attributionRows = filterValidOrcidAttributions(
@@ -351,6 +372,11 @@ export function useNexafsSubmit(
               "warning",
             );
           }
+
+          options?.onDatasetPersisted?.(dataset.id, {
+            experimentId,
+            sampleId,
+          });
         }
 
         setSubmitStatus(undefined);

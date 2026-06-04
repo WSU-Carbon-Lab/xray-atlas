@@ -315,6 +315,10 @@ export type DatasetState = {
   sampleAux: SampleAuxFields;
   pendingExperimentAuxFiles: PendingAuxFile[];
   pendingSampleAuxFiles: PendingAuxFile[];
+  /** Set after `createWithSpectrum` succeeds so contributors can upload aux files post-submit. */
+  persistedExperimentId: string | null;
+  /** Sample row linked to the persisted experiment; required for sample-scoped aux uploads. */
+  persistedSampleId: string | null;
 };
 
 export function createEmptyDatasetState(file: File): DatasetState {
@@ -365,5 +369,7 @@ export function createEmptyDatasetState(file: File): DatasetState {
     sampleAux: {},
     pendingExperimentAuxFiles: [],
     pendingSampleAuxFiles: [],
+    persistedExperimentId: null,
+    persistedSampleId: null,
   };
 }

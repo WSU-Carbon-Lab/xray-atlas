@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { Form } from "@heroui/react";
 import {
   CheckIcon,
@@ -36,6 +36,8 @@ import {
   getNexafsAuxUploadDefaults,
   setNexafsAuxUploadDefaults,
 } from "~/lib/nexafs-aux-upload-defaults";
+import { usePersistedAuxUpload } from "~/features/process-nexafs/hooks/usePersistedAuxUpload";
+import type { PersistedAuxAccordionExpanded } from "~/features/process-nexafs/ui/dataset-persisted-aux-files";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -151,6 +153,22 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     [onAuxValidationError],
   );
 
+  const [auxAccordionExpanded, setAuxAccordionExpanded] =
+    useState<PersistedAuxAccordionExpanded>({
+      experiment: true,
+      sample: false,
+    });
+
+  const activeDataset = datasets.find((d) => d.id === activeDatasetId);
+  const persistedExperimentId = activeDataset?.persistedExperimentId ?? null;
+  const persistedSampleId = activeDataset?.persistedSampleId ?? null;
+
+  const persistedAuxUpload = usePersistedAuxUpload({
+    experimentId: persistedExperimentId,
+    sampleId: persistedSampleId,
+    onValidationError: reportAuxError,
+  });
+
   const queueExperimentAux = useCallback(
     (files: File[]) => {
       if (!activeDatasetId) {
@@ -160,6 +178,17 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
       const batchKind = inferAuxFileKindFromBatch(files).kind;
       if (batchKind !== defaults.kind) {
         setNexafsAuxUploadDefaults({ ...defaults, kind: batchKind });
+      }
+      if (persistedExperimentId) {
+        if (!auxAccordionExpanded.experiment) {
+          return;
+        }
+        void persistedAuxUpload.uploadExperimentFiles(
+          files,
+          batchKind,
+          defaults.description,
+        );
+        return;
       }
       updateDataset(activeDatasetId, (dataset) => ({
         pendingExperimentAuxFiles: appendPendingAuxFiles(
@@ -172,7 +201,14 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
         ),
       }));
     },
-    [activeDatasetId, reportAuxError, updateDataset],
+    [
+      activeDatasetId,
+      auxAccordionExpanded.experiment,
+      persistedAuxUpload,
+      persistedExperimentId,
+      reportAuxError,
+      updateDataset,
+    ],
   );
 
   const queueSampleAux = useCallback(
@@ -185,6 +221,17 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
       if (batchKind !== defaults.kind) {
         setNexafsAuxUploadDefaults({ ...defaults, kind: batchKind });
       }
+      if (persistedExperimentId && persistedSampleId) {
+        if (!auxAccordionExpanded.sample) {
+          return;
+        }
+        void persistedAuxUpload.uploadSampleFiles(
+          files,
+          batchKind,
+          defaults.description,
+        );
+        return;
+      }
       updateDataset(activeDatasetId, (dataset) => ({
         pendingSampleAuxFiles: appendPendingAuxFiles(
           dataset.pendingSampleAuxFiles,
@@ -196,10 +243,16 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
         ),
       }));
     },
-    [activeDatasetId, reportAuxError, updateDataset],
+    [
+      activeDatasetId,
+      auxAccordionExpanded.sample,
+      persistedAuxUpload,
+      persistedExperimentId,
+      persistedSampleId,
+      reportAuxError,
+      updateDataset,
+    ],
   );
-
-  const activeDataset = datasets.find((d) => d.id === activeDatasetId);
   const columnMappingDataset = columnMappingFile
     ? datasets.find((d) => d.id === columnMappingFile.datasetId)
     : null;
@@ -268,6 +321,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
                   key={activeDataset.id}
                   dataset={activeDataset}
                   onDatasetUpdate={updateDataset}
+                  onPersistedAuxExpandedChange={setAuxAccordionExpanded}
                   onReloadData={() => processDatasetData(activeDataset.id)}
                   instrumentOptions={instrumentOptions}
                   edgeOptions={edgeOptions}

@@ -9,7 +9,7 @@ import {
   type Key as SelectionKey,
 } from "react";
 import { skipToken } from "@tanstack/react-query";
-import { PencilIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, PencilIcon } from "@heroicons/react/24/outline";
 import {
   ChevronDown,
   ClipboardPaste,
@@ -91,6 +91,10 @@ import {
   type DatasetAttributionChange,
 } from "./dataset-attribution-editor";
 import { SourcePaperPublicationsEditor } from "./source-paper-publications-editor";
+import {
+  DatasetPersistedAuxFilesAccordion,
+  type PersistedAuxAccordionExpanded,
+} from "./dataset-persisted-aux-files";
 import {
   VisualizationToggle,
   type VisualizationMode,
@@ -918,6 +922,151 @@ type DatasetStatePatch =
   | Partial<DatasetState>
   | ((dataset: DatasetState) => Partial<DatasetState>);
 
+const DRAFT_EXPERIMENT_AUX_ACCORDION_ID = "draft-experiment-aux";
+const DRAFT_SAMPLE_AUX_ACCORDION_ID = "draft-sample-aux";
+
+function DraftDatasetAuxFilesSection({
+  dataset,
+  auxUploadKind,
+  auxUploadDescription,
+  onPendingKindChange,
+  onPendingDescriptionChange,
+  onDatasetUpdate,
+  onExpandedChange,
+}: {
+  dataset: DatasetState;
+  auxUploadKind: AuxFileKind;
+  auxUploadDescription: string;
+  onPendingKindChange: (kind: AuxFileKind) => void;
+  onPendingDescriptionChange: (description: string) => void;
+  onDatasetUpdate: (datasetId: string, updates: DatasetStatePatch) => void;
+  onExpandedChange?: (expanded: PersistedAuxAccordionExpanded) => void;
+}) {
+  const [expandedKeys, setExpandedKeys] = useState(
+    () =>
+      new Set([DRAFT_EXPERIMENT_AUX_ACCORDION_ID, DRAFT_SAMPLE_AUX_ACCORDION_ID]),
+  );
+  const experimentExpanded = expandedKeys.has(DRAFT_EXPERIMENT_AUX_ACCORDION_ID);
+  const sampleExpanded = expandedKeys.has(DRAFT_SAMPLE_AUX_ACCORDION_ID);
+
+  useEffect(() => {
+    onExpandedChange?.({
+      experiment: experimentExpanded,
+      sample: sampleExpanded,
+    });
+  }, [experimentExpanded, onExpandedChange, sampleExpanded]);
+
+  return (
+    <section className="flex flex-col gap-3" aria-labelledby="aux-files-heading">
+      <div>
+        <h2
+          id="aux-files-heading"
+          className="text-muted text-sm font-medium leading-none"
+        >
+          Auxiliary files
+        </h2>
+        <p className="text-muted mt-1 text-xs leading-snug">
+          Queued files upload when you submit this dataset. Expand a section to
+          drag files onto that target.
+        </p>
+      </div>
+      <AuxUploadDefaultsRow
+        pendingKind={auxUploadKind}
+        pendingDescription={auxUploadDescription}
+        onPendingKindChange={onPendingKindChange}
+        onPendingDescriptionChange={onPendingDescriptionChange}
+      />
+      <Accordion
+        allowsMultipleExpanded
+        variant="surface"
+        aria-label="Draft auxiliary files"
+        className="border-border w-full rounded-lg border"
+        expandedKeys={expandedKeys}
+        onExpandedChange={(keys) => {
+          setExpandedKeys(new Set([...keys].map(String)));
+        }}
+      >
+        <Accordion.Item id={DRAFT_EXPERIMENT_AUX_ACCORDION_ID}>
+          <Accordion.Heading>
+            <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
+                Experiment files
+              </span>
+              <span className="text-muted shrink-0 text-xs tabular-nums">
+                {dataset.pendingExperimentAuxFiles.length}
+              </span>
+              <Accordion.Indicator className="text-muted shrink-0 [&>svg]:size-4">
+                <ChevronDownIcon className="h-4 w-4" aria-hidden />
+              </Accordion.Indicator>
+            </Accordion.Trigger>
+          </Accordion.Heading>
+          <Accordion.Panel>
+            <Accordion.Body className="pt-0">
+              {experimentExpanded ? (
+                <AuxFileDropZone
+                  variant="compact"
+                  hideUploadDefaults
+                  pendingKind={auxUploadKind}
+                  pendingDescription={auxUploadDescription}
+                  scope="experiment"
+                  title="Experiment files"
+                  description="Protocols, raw beamline data (up to 500 MB each)."
+                  globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
+                  files={dataset.pendingExperimentAuxFiles}
+                  onFilesChange={(next) => {
+                    onDatasetUpdate(dataset.id, {
+                      pendingExperimentAuxFiles: next,
+                    });
+                  }}
+                  onValidationError={(message) => showToast(message, "error")}
+                />
+              ) : null}
+            </Accordion.Body>
+          </Accordion.Panel>
+        </Accordion.Item>
+        <Accordion.Item id={DRAFT_SAMPLE_AUX_ACCORDION_ID}>
+          <Accordion.Heading>
+            <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
+                Sample files
+              </span>
+              <span className="text-muted shrink-0 text-xs tabular-nums">
+                {dataset.pendingSampleAuxFiles.length}
+              </span>
+              <Accordion.Indicator className="text-muted shrink-0 [&>svg]:size-4">
+                <ChevronDownIcon className="h-4 w-4" aria-hidden />
+              </Accordion.Indicator>
+            </Accordion.Trigger>
+          </Accordion.Heading>
+          <Accordion.Panel>
+            <Accordion.Body className="pt-0">
+              {sampleExpanded ? (
+                <AuxFileDropZone
+                  variant="compact"
+                  hideUploadDefaults
+                  pendingKind={auxUploadKind}
+                  pendingDescription={auxUploadDescription}
+                  scope="sample"
+                  title="Sample files"
+                  description="Images and prep notes (up to 50 MB each)."
+                  globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX}
+                  files={dataset.pendingSampleAuxFiles}
+                  onFilesChange={(next) => {
+                    onDatasetUpdate(dataset.id, {
+                      pendingSampleAuxFiles: next,
+                    });
+                  }}
+                  onValidationError={(message) => showToast(message, "error")}
+                />
+              ) : null}
+            </Accordion.Body>
+          </Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
+    </section>
+  );
+}
+
 interface DatasetContentProps {
   dataset: DatasetState;
   onDatasetUpdate: (datasetId: string, updates: DatasetStatePatch) => void;
@@ -930,6 +1079,7 @@ interface DatasetContentProps {
   isLoadingEdges: boolean;
   isLoadingCalibrations: boolean;
   isLoadingVendors: boolean;
+  onPersistedAuxExpandedChange?: (expanded: PersistedAuxAccordionExpanded) => void;
 }
 
 export function DatasetContent({
@@ -944,6 +1094,7 @@ export function DatasetContent({
   isLoadingEdges: _isLoadingEdges,
   isLoadingCalibrations: _isLoadingCalibrations,
   isLoadingVendors,
+  onPersistedAuxExpandedChange,
 }: DatasetContentProps) {
   const [showAddMoleculeModal, setShowAddMoleculeModal] = useState(false);
   const [showAddFacilityModal, setShowAddFacilityModal] = useState(false);
@@ -2655,58 +2806,29 @@ export function DatasetContent({
         </div>
       </div>
 
-      <section className="flex flex-col gap-3" aria-labelledby="aux-files-heading">
-        <div>
-          <h2
-            id="aux-files-heading"
-            className="text-muted text-sm font-medium leading-none"
-          >
-            Auxiliary files
-          </h2>
-          <p className="text-muted mt-1 text-xs leading-snug">
-            Attach experiment protocols or sample preparation files. Drag onto
-            the matching target or browse per zone.
-          </p>
-        </div>
-        <AuxUploadDefaultsRow
+      {dataset.persistedExperimentId ? (
+        <DatasetPersistedAuxFilesAccordion
+          experimentId={dataset.persistedExperimentId}
+          sampleId={dataset.persistedSampleId}
           pendingKind={auxUploadKind}
           pendingDescription={auxUploadDescription}
           onPendingKindChange={setAuxUploadKind}
           onPendingDescriptionChange={setAuxUploadDescription}
+          onValidationError={(message) => showToast(message, "error")}
+          onUploadComplete={(message, type) => showToast(message, type)}
+          onExpandedChange={onPersistedAuxExpandedChange}
         />
-        <div className="grid gap-3 md:grid-cols-2 md:items-stretch">
-          <AuxFileDropZone
-            variant="compact"
-            hideUploadDefaults
-            pendingKind={auxUploadKind}
-            pendingDescription={auxUploadDescription}
-            scope="experiment"
-            title="Experiment files"
-            description="Protocols, raw beamline data (up to 500 MB each)."
-            globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
-            files={dataset.pendingExperimentAuxFiles}
-            onFilesChange={(next) => {
-              onDatasetUpdate(dataset.id, { pendingExperimentAuxFiles: next });
-            }}
-            onValidationError={(message) => showToast(message, "error")}
-          />
-          <AuxFileDropZone
-            variant="compact"
-            hideUploadDefaults
-            pendingKind={auxUploadKind}
-            pendingDescription={auxUploadDescription}
-            scope="sample"
-            title="Sample files"
-            description="Images and prep notes (up to 50 MB each)."
-            globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX}
-            files={dataset.pendingSampleAuxFiles}
-            onFilesChange={(next) => {
-              onDatasetUpdate(dataset.id, { pendingSampleAuxFiles: next });
-            }}
-            onValidationError={(message) => showToast(message, "error")}
-          />
-        </div>
-      </section>
+      ) : (
+        <DraftDatasetAuxFilesSection
+          dataset={dataset}
+          auxUploadKind={auxUploadKind}
+          auxUploadDescription={auxUploadDescription}
+          onPendingKindChange={setAuxUploadKind}
+          onPendingDescriptionChange={setAuxUploadDescription}
+          onDatasetUpdate={onDatasetUpdate}
+          onExpandedChange={onPersistedAuxExpandedChange}
+        />
+      )}
       <DatasetAttributionEditor
         attributions={dataset.attributions}
         onChange={handleAttributionsChange}

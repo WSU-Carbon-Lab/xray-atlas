@@ -106,7 +106,24 @@ export default function NEXAFSContributePage() {
 
   const { submit, submitStatus, setSubmitStatus, isPending } = useNexafsSubmit(
     datasets,
-    { onSuccess: clearDatasets, requestKkConsent, showToast },
+    {
+      onDatasetPersisted: (datasetId, ids) => {
+        updateDataset(datasetId, {
+          persistedExperimentId: ids.experimentId,
+          persistedSampleId: ids.sampleId,
+          pendingExperimentAuxFiles: [],
+          pendingSampleAuxFiles: [],
+        });
+      },
+      onSuccess: () => {
+        showToast(
+          "Dataset submitted. Add auxiliary files in the accordion below, then clear the form when finished.",
+          "success",
+        );
+      },
+      requestKkConsent,
+      showToast,
+    },
   );
 
   const [showEdgeDialog, setShowEdgeDialog] = useState(false);
