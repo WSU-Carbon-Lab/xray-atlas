@@ -1,6 +1,8 @@
-export { AuxFileDropZone } from "./AuxFileDropZone";
-export { StackedFileIcons } from "./StackedFileIcons";
-export type { StackedFileEntry } from "./StackedFileIcons";
+export {
+  AuxFileDropZone,
+  AuxUploadDefaultsRow,
+} from "./AuxFileDropZone";
+export { StackedFileIcons, type StackedFileEntry } from "./StackedFileIcons";
 export {
   SampleAuxAccordion,
   emptySampleAuxFields,

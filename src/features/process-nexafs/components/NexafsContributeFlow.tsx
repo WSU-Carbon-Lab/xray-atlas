@@ -24,8 +24,9 @@ import {
 import { Button as HeroButton } from "@heroui/react";
 import type { DatasetState, CSVColumnMappings } from "../types";
 import type { SubmitStatus } from "../hooks/useNexafsSubmit";
-import { useGlobalFileDropZone } from "~/hooks/useGlobalFileDropZone";
+import { useGlobalFileDropZone, globalDropZoneProps, GLOBAL_DROP_ZONE_IDS } from "~/hooks/useGlobalFileDropZone";
 import { appendPendingAuxFiles } from "~/lib/pending-aux-file";
+import { getNexafsAuxUploadDefaults } from "~/lib/nexafs-aux-upload-defaults";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -151,8 +152,8 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           dataset.pendingExperimentAuxFiles,
           files,
           "experiment",
-          "other",
-          undefined,
+          getNexafsAuxUploadDefaults().kind,
+          getNexafsAuxUploadDefaults().description,
           reportAuxError,
         ),
       }));
@@ -170,8 +171,8 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           dataset.pendingSampleAuxFiles,
           files,
           "sample",
-          "other",
-          undefined,
+          getNexafsAuxUploadDefaults().kind,
+          getNexafsAuxUploadDefaults().description,
           reportAuxError,
         ),
       }));
@@ -180,7 +181,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
   );
 
   const spectrumOverlay = useGlobalFileDropZone({
-    spectrumDropEnabled: datasets.length > 0,
+    spectrumDropEnabled: true,
     onSpectrumFiles: (files) => {
       void handleFilesSelected(files);
     },
@@ -226,7 +227,9 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           onSubmit={submit}
         >
           {datasets.length === 0 && (
-            <NexafsUploadPortal onFilesSelected={handleFilesSelected} />
+            <div {...globalDropZoneProps(GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET)}>
+              <NexafsUploadPortal onFilesSelected={handleFilesSelected} />
+            </div>
           )}
 
           {datasets.length > 0 && (

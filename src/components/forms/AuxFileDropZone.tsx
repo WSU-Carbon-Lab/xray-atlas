@@ -11,7 +11,14 @@ import {
   TextField,
 } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { Upload, X } from "lucide-react";
+import {
+  FileIcon,
+  FileSpreadsheet,
+  FileText,
+  ImageIcon,
+  Upload,
+  X,
+} from "lucide-react";
 import {
   AUX_FILE_KIND_LABELS,
   AUX_FILE_KINDS,
@@ -37,9 +44,98 @@ type AuxFileDropZoneProps = {
   uploadProgress?: Record<string, number>;
   onValidationError?: (message: string) => void;
   variant?: "default" | "compact";
-  dropLabel?: string;
   globalDropZoneId?: GlobalDropZoneId;
+  pendingKind?: AuxFileKind;
+  pendingDescription?: string;
+  onPendingKindChange?: (kind: AuxFileKind) => void;
+  onPendingDescriptionChange?: (description: string) => void;
+  hideUploadDefaults?: boolean;
 };
+
+const kindIconClass = "size-4 shrink-0";
+
+function kindIcon(kind: AuxFileKind) {
+  switch (kind) {
+    case "image":
+      return <ImageIcon className={kindIconClass} aria-hidden />;
+    case "spreadsheet":
+      return <FileSpreadsheet className={kindIconClass} aria-hidden />;
+    case "document":
+    case "protocol":
+      return <FileText className={kindIconClass} aria-hidden />;
+    default:
+      return <FileIcon className={kindIconClass} aria-hidden />;
+  }
+}
+
+function AuxUploadDefaultsFields({
+  pendingKind,
+  pendingDescription,
+  onPendingKindChange,
+  onPendingDescriptionChange,
+  disabled,
+  descriptionInputName,
+}: {
+  pendingKind: AuxFileKind;
+  pendingDescription: string;
+  onPendingKindChange: (kind: AuxFileKind) => void;
+  onPendingDescriptionChange: (description: string) => void;
+  disabled?: boolean;
+  descriptionInputName: string;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-muted text-xs font-medium">File kind</Label>
+        <Select
+          aria-label="Auxiliary file kind"
+          selectedKey={pendingKind}
+          isDisabled={disabled}
+          onSelectionChange={(key) => {
+            if (key == null) {
+              return;
+            }
+            onPendingKindChange(String(key) as AuxFileKind);
+          }}
+        >
+          <Select.Trigger className="border-border bg-field-background min-h-9 w-full rounded-lg border shadow-none">
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox aria-label="File kinds">
+              {AUX_FILE_KINDS.map((kind) => (
+                <ListBox.Item
+                  id={kind}
+                  key={kind}
+                  textValue={AUX_FILE_KIND_LABELS[kind]}
+                >
+                  {AUX_FILE_KIND_LABELS[kind]}
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
+      </div>
+      <TextField
+        name={descriptionInputName}
+        value={pendingDescription}
+        onChange={onPendingDescriptionChange}
+        isDisabled={disabled}
+        fullWidth
+      >
+        <Label className="text-muted text-xs font-medium">
+          Description (optional)
+        </Label>
+        <Input
+          placeholder="Brief note for this batch"
+          className="min-h-9"
+          aria-label="Auxiliary file description"
+        />
+      </TextField>
+    </div>
+  );
+}
 
 /**
  * Drag-and-drop and file-picker surface for queuing auxiliary uploads before or after submit.
@@ -54,22 +150,27 @@ export function AuxFileDropZone({
   uploadProgress,
   onValidationError,
   variant = "default",
-  dropLabel,
   globalDropZoneId,
+  pendingKind: pendingKindProp,
+  pendingDescription: pendingDescriptionProp,
+  onPendingKindChange,
+  onPendingDescriptionChange,
+  hideUploadDefaults = false,
 }: AuxFileDropZoneProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [localKind, setLocalKind] = useState<AuxFileKind>("other");
+  const [localDescription, setLocalDescription] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-  const [pendingKind, setPendingKind] = useState<AuxFileKind>("other");
-  const [pendingDescription, setPendingDescription] = useState("");
 
-  const capLabel = scope === "sample" ? "50 MB" : "500 MB";
+  const pendingKind = pendingKindProp ?? localKind;
+  const pendingDescription = pendingDescriptionProp ?? localDescription;
+  const setPendingKind = onPendingKindChange ?? setLocalKind;
+  const setPendingDescription =
+    onPendingDescriptionChange ?? setLocalDescription;
+
   const isCompact = variant === "compact";
-  const zoneMessage =
-    dropLabel ??
-    (scope === "sample"
-      ? "Drop sample files or click"
-      : "Drop experiment files or click");
+  const capLabel = scope === "sample" ? "50 MB" : "500 MB";
 
   const reportError = useCallback(
     (message: string) => {
@@ -93,13 +194,16 @@ export function AuxFileDropZone({
       );
       if (next.length > files.length) {
         onFilesChange(next);
-        setPendingDescription("");
+        if (!onPendingDescriptionChange) {
+          setLocalDescription("");
+        }
       }
     },
     [
       disabled,
       files,
       onFilesChange,
+      onPendingDescriptionChange,
       pendingDescription,
       pendingKind,
       reportError,
@@ -117,18 +221,6 @@ export function AuxFileDropZone({
     [queueFiles],
   );
 
-  const handleDrop = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setIsDragging(false);
-      if (event.dataTransfer.files?.length) {
-        queueFiles(event.dataTransfer.files);
-      }
-    },
-    [queueFiles],
-  );
-
   const removeFile = useCallback(
     (clientKey: string) => {
       onFilesChange(files.filter((entry) => entry.clientKey !== clientKey));
@@ -136,66 +228,13 @@ export function AuxFileDropZone({
     [files, onFilesChange],
   );
 
-  const kindDescriptionRow = (
-    <div
-      className={cn(
-        "grid gap-2",
-        isCompact ? "grid-cols-1 sm:grid-cols-2" : "gap-3 sm:grid-cols-2",
-      )}
-    >
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-foreground text-xs font-medium">File kind</Label>
-        <Select
-          aria-label="Auxiliary file kind"
-          selectedKey={pendingKind}
-          isDisabled={disabled}
-          onSelectionChange={(key) => {
-            if (key == null) {
-              return;
-            }
-            setPendingKind(String(key) as AuxFileKind);
-          }}
-        >
-          <Select.Trigger className="border-border bg-field-background min-h-9 w-full rounded-lg border shadow-none">
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox aria-label="File kinds">
-              {AUX_FILE_KINDS.map((kind) => (
-                <ListBox.Item
-                  id={kind}
-                  key={kind}
-                  textValue={AUX_FILE_KIND_LABELS[kind]}
-                >
-                  {AUX_FILE_KIND_LABELS[kind]}
-                </ListBox.Item>
-              ))}
-            </ListBox>
-          </Select.Popover>
-        </Select>
-      </div>
-      <TextField
-        name="aux-file-description"
-        value={pendingDescription}
-        onChange={setPendingDescription}
-        isDisabled={disabled}
-        fullWidth
-      >
-        <Label className="text-foreground text-xs font-medium">
-          Description (optional)
-        </Label>
-        <Input
-          placeholder="Brief note for this batch"
-          className="min-h-9"
-          aria-label="Auxiliary file description"
-        />
-      </TextField>
-    </div>
-  );
+  const dropTargetProps = globalDropZoneId
+    ? globalDropZoneProps(globalDropZoneId)
+    : {};
 
-  const dropSurface = (
+  const dropTarget = (
     <div
+      {...dropTargetProps}
       onDragEnter={(event) => {
         event.preventDefault();
         if (!disabled) {
@@ -207,14 +246,16 @@ export function AuxFileDropZone({
       }}
       onDragLeave={(event) => {
         event.preventDefault();
-        if (event.currentTarget === event.target) {
-          setIsDragging(false);
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          return;
         }
+        setIsDragging(false);
       }}
-      onDrop={handleDrop}
       className={cn(
-        "border-border flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-center transition-colors",
-        isCompact ? "min-h-[4.25rem] px-3 py-3" : "min-h-[7.5rem] px-4 py-5",
+        "flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-center transition-colors",
+        isCompact
+          ? "border-border min-h-[5.5rem] flex-1 px-3 py-3"
+          : "border-border min-h-[7.5rem] px-4 py-5 gap-2",
         isDragging && "border-accent bg-accent/5",
         disabled && "cursor-not-allowed opacity-60",
       )}
@@ -237,7 +278,7 @@ export function AuxFileDropZone({
       aria-label={`Upload ${scope} auxiliary files, up to ${capLabel} each`}
     >
       <Upload
-        className={cn("text-muted", isCompact ? "size-4" : "size-5")}
+        className={cn(isCompact ? "size-4" : "size-5", isDragging ? "text-accent" : "text-muted")}
         aria-hidden
       />
       <p
@@ -246,9 +287,11 @@ export function AuxFileDropZone({
           isCompact ? "text-xs" : "text-sm",
         )}
       >
-        {zoneMessage}
+        {isCompact ? "Drop or click to browse" : "Drop files or click to browse"}
       </p>
-      <p className="text-muted text-[11px]">Up to {capLabel} per file</p>
+      <p className={cn("text-muted", isCompact ? "text-[11px]" : "text-xs")}>
+        Up to {capLabel} per file
+      </p>
       <input
         ref={inputRef}
         id={inputId}
@@ -265,8 +308,7 @@ export function AuxFileDropZone({
     <StackedFileIcons
       files={files.map((entry) => {
         const progress = uploadProgress?.[entry.clientKey];
-        const isUploading =
-          progress != null && progress > 0 && progress < 100;
+        const isUploading = progress != null && progress > 0 && progress < 100;
         return {
           clientKey: entry.clientKey,
           name: entry.file.name,
@@ -291,6 +333,7 @@ export function AuxFileDropZone({
               key={entry.clientKey}
               className="border-border bg-surface-2 flex items-start gap-2 rounded-md border px-2.5 py-2"
             >
+              <span className="text-muted mt-0.5">{kindIcon(entry.kind)}</span>
               <div className="min-w-0 flex-1">
                 <p className="text-foreground truncate text-xs font-medium">
                   {entry.file.name}
@@ -336,38 +379,39 @@ export function AuxFileDropZone({
       </ul>
     ) : null;
 
-  const zoneProps = globalDropZoneId
-    ? globalDropZoneProps(globalDropZoneId)
-    : {};
-
   if (isCompact) {
     return (
       <section
-        {...zoneProps}
-        className="flex min-w-0 flex-col gap-2"
+        className="border-border bg-surface flex h-full min-h-0 flex-col gap-2 rounded-lg border p-3"
         aria-labelledby={`${inputId}-heading`}
       >
         <div>
-          <h2
+          <h3
             id={`${inputId}-heading`}
             className="text-muted text-sm font-medium leading-none"
           >
             {title}
-          </h2>
-          <p className="text-muted mt-0.5 text-[11px] leading-snug">
-            {description}
-          </p>
+          </h3>
+          <p className="text-muted mt-1 text-xs leading-snug">{description}</p>
         </div>
-        {kindDescriptionRow}
+        {!hideUploadDefaults ? (
+          <AuxUploadDefaultsFields
+            pendingKind={pendingKind}
+            pendingDescription={pendingDescription}
+            onPendingKindChange={setPendingKind}
+            onPendingDescriptionChange={setPendingDescription}
+            disabled={disabled}
+            descriptionInputName={`${inputId}-description`}
+          />
+        ) : null}
+        {dropTarget}
         {stackedQueue}
-        {dropSurface}
       </section>
     );
   }
 
   return (
     <section
-      {...zoneProps}
       className="border-border bg-surface flex flex-col gap-3 rounded-lg border p-4"
       aria-labelledby={`${inputId}-heading`}
     >
@@ -380,9 +424,48 @@ export function AuxFileDropZone({
         </h2>
         <p className="text-muted mt-1 text-xs leading-snug">{description}</p>
       </div>
-      {kindDescriptionRow}
-      {dropSurface}
+
+      {!hideUploadDefaults ? (
+        <AuxUploadDefaultsFields
+          pendingKind={pendingKind}
+          pendingDescription={pendingDescription}
+          onPendingKindChange={setPendingKind}
+          onPendingDescriptionChange={setPendingDescription}
+          disabled={disabled}
+          descriptionInputName={`${inputId}-description`}
+        />
+      ) : null}
+
+      {dropTarget}
       {detailedQueue}
     </section>
+  );
+}
+
+/**
+ * Shared file kind and description defaults for paired compact aux upload zones.
+ */
+export function AuxUploadDefaultsRow({
+  pendingKind,
+  pendingDescription,
+  onPendingKindChange,
+  onPendingDescriptionChange,
+  disabled = false,
+}: {
+  pendingKind: AuxFileKind;
+  pendingDescription: string;
+  onPendingKindChange: (kind: AuxFileKind) => void;
+  onPendingDescriptionChange: (description: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <AuxUploadDefaultsFields
+      pendingKind={pendingKind}
+      pendingDescription={pendingDescription}
+      onPendingKindChange={onPendingKindChange}
+      onPendingDescriptionChange={onPendingDescriptionChange}
+      disabled={disabled}
+      descriptionInputName="aux-upload-default-description"
+    />
   );
 }

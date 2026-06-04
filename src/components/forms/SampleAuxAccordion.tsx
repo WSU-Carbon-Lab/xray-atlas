@@ -23,10 +23,6 @@ import {
   type SampleProcessingMode,
   type SampleWetMethod,
 } from "~/lib/sample-aux-preparation";
-import {
-  globalDropZoneProps,
-  GLOBAL_DROP_ZONE_IDS,
-} from "~/hooks/useGlobalFileDropZone";
 
 type SampleAuxAccordionProps = {
   value: SampleAuxFields;
@@ -233,12 +229,18 @@ export function SampleAuxAccordion({
     if (value.processingMode != null || processMethod == null) {
       return;
     }
-    if (processMethod === "DRY") {
-      onChange({ ...value, processingMode: "dry" });
-    } else if (processMethod === "SOLVENT") {
-      onChange({ ...value, processingMode: "wet" });
+    const inferredMode =
+      processMethod === "DRY"
+        ? ("dry" as const)
+        : processMethod === "SOLVENT"
+          ? ("wet" as const)
+          : undefined;
+    if (inferredMode) {
+      onChange({ ...value, processingMode: inferredMode });
     }
-  }, [onChange, processMethod, value]);
+    // Only seed processingMode from sample processMethod when aux mode is unset.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: avoid re-sync on every aux field edit
+  }, [onChange, processMethod, value.processingMode]);
 
   const mode = value.processingMode;
   const wetMethod = value.wetMethod;
@@ -268,7 +270,6 @@ export function SampleAuxAccordion({
 
   return (
     <section
-      {...globalDropZoneProps(GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX)}
       className="flex flex-col gap-3"
       aria-labelledby="sample-aux-heading"
     >
