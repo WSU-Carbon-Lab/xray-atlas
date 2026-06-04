@@ -9,6 +9,7 @@ import {
   assertAuxFileSizeAllowed,
   assertAuxMimeAllowed,
   buildAuxStoragePath,
+  createAuxSignedReadUrl,
   createAuxSignedUploadUrl,
   EXPERIMENT_AUX_BUCKET,
   headAuxStorageObject,
@@ -54,6 +55,42 @@ export const experimentFileRouter = createTRPCRouter({
         orderBy: { createdat: "desc" },
       });
       return rows.map(serializeAuxFileRow);
+    }),
+
+  getDownloadUrl: publicProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        fileId: z.string().uuid(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const row = await ctx.db.experimentfile.findFirst({
+        where: {
+          id: input.fileId,
+          experimentid: input.experimentId,
+          deletedat: null,
+          committedat: { not: null },
+        },
+      });
+      if (!row) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "File not found",
+        });
+      }
+
+      const signedUrl = await createAuxSignedReadUrl({
+        bucket: EXPERIMENT_AUX_BUCKET,
+        path: row.storagepath,
+      });
+
+      return {
+        signedUrl,
+        originalFilename: row.originalfilename,
+        mimeType: row.mimetype,
+        sizeBytes: Number(row.sizebytes),
+      };
     }),
 
   requestUploadUrl: contributeWriteProcedure

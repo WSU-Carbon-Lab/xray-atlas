@@ -112,6 +112,7 @@ import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
 
 interface ExperimentFormulaMeta {
+  sampleId?: string | null;
   chemicalFormula?: string | null;
   normalizationScope?: string | null;
   normalizationRanges?: unknown;
@@ -278,6 +279,7 @@ export function NexafsExperimentDatasetPanel({
   const moleculeMeta =
     moleculeFormulaQuery.data as ExperimentFormulaMeta | undefined;
   const chemicalFormula = moleculeMeta?.chemicalFormula ?? null;
+  const sampleId = moleculeMeta?.sampleId ?? null;
   const normalizationScopeForKk = moleculeMeta?.normalizationScope ?? null;
   const normalizationRangesKeyForKk = JSON.stringify(
     moleculeMeta?.normalizationRanges ?? null,
@@ -1191,6 +1193,8 @@ export function NexafsExperimentDatasetPanel({
         sortedAllPoints={sortedAllPoints}
         groupedTree={groupedTree}
         csvExportOptions={spectrumCsvExportOptions}
+        experimentId={experimentId}
+        sampleId={sampleId}
       />,
       <NexafsSpectrumRailCsvDropdown
         key="spectrum-rail-copy"
@@ -1208,6 +1212,8 @@ export function NexafsExperimentDatasetPanel({
       groupedTree,
       sortedAllPoints,
       spectrumCsvExportOptions,
+      experimentId,
+      sampleId,
     ],
   );
 

@@ -147,6 +147,26 @@ export async function createAuxSignedReadUrl(args: {
 }
 
 /**
+ * Downloads the full object bytes from an aux bucket using the service role.
+ */
+export async function downloadAuxStorageObject(args: {
+  bucket: AuxStorageBucket;
+  path: string;
+}): Promise<Buffer> {
+  const { data, error } = await supabase.storage
+    .from(args.bucket)
+    .download(args.path);
+
+  if (error || !data) {
+    throw new Error(
+      error?.message ?? "Failed to download auxiliary file from storage",
+    );
+  }
+
+  return Buffer.from(await data.arrayBuffer());
+}
+
+/**
  * Returns object metadata when the upload exists in storage, or null when missing.
  */
 export async function headAuxStorageObject(args: {

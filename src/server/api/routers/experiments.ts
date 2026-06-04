@@ -261,6 +261,7 @@ export const experimentsRouter = createTRPCRouter({
           kkdeltametadata: true,
           samples: {
             select: {
+              id: true,
               molecules: { select: { chemicalformula: true } },
             },
           },
@@ -273,6 +274,7 @@ export const experimentsRouter = createTRPCRouter({
         Boolean(userId && row?.createdby && row.createdby === userId) ||
         (Boolean(userId) && (await hasPrivilegedRole(ctx.db, userId)));
       return {
+        sampleId: row?.samples?.id ?? null,
         chemicalFormula: raw.length > 0 ? raw : null,
         normalizationScope: row?.normalizationscope ?? null,
         normalizationRanges: row?.normalizationranges ?? null,
