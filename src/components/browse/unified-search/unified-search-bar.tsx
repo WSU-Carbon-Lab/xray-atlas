@@ -36,7 +36,7 @@ import {
   NexafsAcquisitionFilterPanel,
   NexafsVerificationFilterPanel,
 } from "../nexafs-catalog-filter-panels";
-import type { VerificationSource } from "../nexafs-browse-experiment-utils";
+import type { VerificationFilterChoice } from "../nexafs-filter-options";
 import type {
   CatalogToken,
   FacetData,
@@ -44,6 +44,8 @@ import type {
   FacetItem,
   NexafsCatalogFilters,
 } from "./types";
+import { buildPopularitySections } from "./catalog-search-popularity";
+import { CatalogSearchPopularityPanel } from "./catalog-search-popularity-panel";
 import { PeriodicEdgeModal } from "./periodic-edge-modal";
 import type { EdgeOption } from "./periodic-edge-modal";
 
@@ -69,19 +71,7 @@ const FIELD_CHIP_CLASSES: Record<CatalogToken["field"], string> = {
     "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25",
 };
 
-const FIELD_PANEL_LABEL_CLASSES: Record<FacetField, string> = {
-  edge: "text-accent",
-  mol: "text-green-600 dark:text-green-400",
-  instrument: "text-yellow-600 dark:text-yellow-400",
-  contributor: "text-purple-600 dark:text-purple-400",
-};
-
 type Candidate = FacetItem & { field: FacetField };
-
-interface PopularitySection {
-  field: FacetField;
-  items: FacetItem[];
-}
 
 export interface UnifiedSearchBarProps {
   /** Active facet and catalog filter tokens in the input area. */
@@ -100,10 +90,8 @@ export interface UnifiedSearchBarProps {
   catalogFilters: NexafsCatalogFilters;
   /** Called when the user selects or clears an acquisition mode. */
   onExperimentTypeChange: (value: ExperimentType | undefined) => void;
-  /** Called when the verified-only toggle changes. */
-  onVerifiedOnlyChange: (value: boolean) => void;
-  /** Called when the verification source sub-filter changes. */
-  onVerificationSourceChange: (source: VerificationSource) => void;
+  /** Called when the user selects a verification tier chip. */
+  onVerificationChange: (choice: VerificationFilterChoice) => void;
   /** Facet popularity data for the panel shown on empty focus. */
   facetCounts?: FacetData | null;
   /** Grouped typeahead results for the current query. */
@@ -150,8 +138,7 @@ export function UnifiedSearchBar({
   onClearAll,
   catalogFilters,
   onExperimentTypeChange,
-  onVerifiedOnlyChange,
-  onVerificationSourceChange,
+  onVerificationChange,
   facetCounts,
   searchResults,
   edges,
@@ -169,29 +156,10 @@ export function UnifiedSearchBar({
   const hasQuery = query.trim().length > 0;
   const isEmpty = tokens.length === 0 && query === "";
 
-  const popularitySections = useMemo<PopularitySection[]>(() => {
-    if (!facetCounts) return [];
-    const sections: PopularitySection[] = [];
-    if (facetCounts.edges.length > 0) {
-      sections.push({ field: "edge", items: facetCounts.edges.slice(0, 8) });
-    }
-    if (facetCounts.molecules.length > 0) {
-      sections.push({ field: "mol", items: facetCounts.molecules.slice(0, 6) });
-    }
-    if (facetCounts.instruments.length > 0) {
-      sections.push({
-        field: "instrument",
-        items: facetCounts.instruments.slice(0, 5),
-      });
-    }
-    if (facetCounts.contributors.length > 0) {
-      sections.push({
-        field: "contributor",
-        items: facetCounts.contributors.slice(0, 5),
-      });
-    }
-    return sections;
-  }, [facetCounts]);
+  const popularitySections = useMemo(
+    () => buildPopularitySections(facetCounts),
+    [facetCounts],
+  );
 
   const typeaheadCandidates = useMemo<Candidate[]>(() => {
     if (!hasQuery || !searchResults) return [];
@@ -457,60 +425,19 @@ export function UnifiedSearchBar({
               ))}
             </div>
           ) : (
-            <div className="py-2">
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
+            <div>
+              <CatalogSearchPopularityPanel
+                sections={popularitySections}
+                variant="browse"
+                onSelectItem={(field, item) => {
+                  onAdd(field, item.id);
+                  inputRef.current?.focus();
+                }}
+                onOpenPeriodic={() => {
                   setPeriodicOpen(true);
                   setIsOpen(false);
                 }}
-                className="hover:bg-default flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
-              >
-                <TableCellsIcon
-                  className="text-accent h-4 w-4 shrink-0"
-                  aria-hidden
-                />
-                <span className="text-foreground font-medium">
-                  Periodic table
-                </span>
-                <span className="text-muted text-xs">pick edges by element</span>
-              </button>
-
-              {popularitySections.map((section) => (
-                <div key={section.field} className="mt-2">
-                  <p
-                    className={[
-                      "mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide",
-                      FIELD_PANEL_LABEL_CLASSES[section.field],
-                    ].join(" ")}
-                  >
-                    {FIELD_LABELS[section.field]}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 px-3 pb-1">
-                    {section.items.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          onAdd(section.field, item.id);
-                          inputRef.current?.focus();
-                        }}
-                        className={[
-                          "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium transition-opacity hover:opacity-80",
-                          FIELD_CHIP_CLASSES[section.field],
-                        ].join(" ")}
-                      >
-                        {item.label}
-                        <span className="opacity-60 tabular-nums">
-                          {item.count}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+              />
 
               <div className="mt-2">
                 <p className="text-accent mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide">
@@ -529,8 +456,7 @@ export function UnifiedSearchBar({
                 <NexafsVerificationFilterPanel
                   verifiedOnly={catalogFilters.verifiedOnly}
                   verificationSource={catalogFilters.verificationSource}
-                  onVerifiedOnlyChange={onVerifiedOnlyChange}
-                  onVerificationSourceChange={onVerificationSourceChange}
+                  onVerificationChange={onVerificationChange}
                 />
               </div>
             </div>

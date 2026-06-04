@@ -3,18 +3,19 @@
 /**
  * Full-catalog hero search for the home page.
  *
- * Fires two parallel tRPC queries — `molecules.autosuggest` for the molecule
- * catalog and `experiments.searchEntities` for NEXAFS entities (edges,
- * instruments) — and groups results into labelled sections in the dropdown.
+ * On empty focus: popularity panel from `experiments.facetCounts` (portaled to
+ * `document.body` so the hero `overflow-hidden` section does not clip it).
+ * From two characters: grouped typeahead via `molecules.autosuggest` and
+ * `experiments.searchEntities`.
  *
  * Navigation targets:
- *   - Molecule result  → `/molecules/[slug]`
- *   - Edge result      → `/browse/nexafs?edge=<id>`
- *   - Instrument result → `/browse/nexafs?instrument=<id>`
- *   - Enter / submit   → `/browse/nexafs?q=<query>`
+ *   - Molecule result  -> `/molecules/[slug]`
+ *   - Edge result      -> `/browse/nexafs?edge=<id>`
+ *   - Instrument result -> `/browse/nexafs?instrument=<id>`
+ *   - Contributor      -> `/browse/nexafs?contributor=<orcid>`
+ *   - Enter / submit   -> `/browse/nexafs?q=<query>`
  *
- * A ⌘K (Ctrl+K) global shortcut focuses the input from anywhere on the page.
- * Arrow keys, Enter, and Escape follow standard combobox keyboard patterns.
+ * A Meta+K global shortcut focuses the input and opens the panel.
  */
 
 import {
@@ -29,6 +30,10 @@ import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
+import { buildPopularitySections } from "~/components/browse/unified-search/catalog-search-popularity";
+import { CatalogSearchPopularityPanel } from "~/components/browse/unified-search/catalog-search-popularity-panel";
+import type { FacetField, FacetItem } from "~/components/browse/unified-search/types";
+import { PortaledAnchorDropdown } from "~/components/ui/portaled-anchor-dropdown";
 
 type MolCandidate = {
   kind: "mol";
@@ -79,10 +84,26 @@ const SECTION_BADGE_LABEL: Record<Candidate["kind"], string> = {
   instrument: "Instrument",
 };
 
+const DROPDOWN_SHELL_CLASS =
+  "border-border bg-surface shadow-surface-2 z-max max-h-[min(480px,60vh)] overflow-y-auto rounded-xl border shadow-lg";
+
 function candidateHref(c: Candidate): string {
   if (c.kind === "mol") return `/molecules/${c.slug}`;
   if (c.kind === "edge") return `/browse/nexafs?edge=${c.id}`;
   return `/browse/nexafs?instrument=${c.id}`;
+}
+
+function popularityItemHref(field: FacetField, item: FacetItem): string {
+  if (field === "mol") {
+    return `/molecules/${slugifyMoleculeSynonym(item.label)}`;
+  }
+  if (field === "edge") {
+    return `/browse/nexafs?edge=${item.id}`;
+  }
+  if (field === "instrument") {
+    return `/browse/nexafs?instrument=${item.id}`;
+  }
+  return `/browse/nexafs?contributor=${encodeURIComponent(item.id)}`;
 }
 
 export interface CatalogHeroSearchProps {
@@ -106,6 +127,7 @@ export function CatalogHeroSearch({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
 
   const [query, setQuery] = useState("");
@@ -122,24 +144,37 @@ export function CatalogHeroSearch({
     setHighlightedIndex(-1);
   }, [debouncedQuery]);
 
-  const enabled = debouncedQuery.length >= 2;
+  const showTypeaheadPanel = query.trim().length >= 2;
+  const typeaheadEnabled = debouncedQuery.length >= 2;
+  const showPopularityPanel = isOpen && !showTypeaheadPanel;
+
+  const { data: facetCounts, isLoading: facetCountsLoading } =
+    trpc.experiments.facetCounts.useQuery(undefined, {
+      staleTime: 300_000,
+    });
+
+  const popularitySections = useMemo(
+    () => buildPopularitySections(facetCounts),
+    [facetCounts],
+  );
 
   const { data: molData, isLoading: molLoading } =
     trpc.molecules.autosuggest.useQuery(
       { query: debouncedQuery, limit: 4 },
-      { enabled, staleTime: 60_000 },
+      { enabled: typeaheadEnabled, staleTime: 60_000 },
     );
 
   const { data: entityData, isLoading: entityLoading } =
     trpc.experiments.searchEntities.useQuery(
       { query: debouncedQuery, limitPerGroup: 3 },
-      { enabled, staleTime: 60_000 },
+      { enabled: typeaheadEnabled, staleTime: 60_000 },
     );
 
-  const isLoading = enabled && (molLoading || entityLoading);
+  const isTypeaheadLoading =
+    typeaheadEnabled && (molLoading || entityLoading);
 
   const candidates = useMemo<Candidate[]>(() => {
-    if (!enabled) return [];
+    if (!typeaheadEnabled) return [];
     const out: Candidate[] = [];
 
     if (molData?.results) {
@@ -173,7 +208,7 @@ export function CatalogHeroSearch({
     }
 
     return out;
-  }, [enabled, molData, entityData]);
+  }, [typeaheadEnabled, molData, entityData]);
 
   const sectionBreakSet = useMemo<Set<number>>(() => {
     const s = new Set<number>();
@@ -187,17 +222,19 @@ export function CatalogHeroSearch({
     return s;
   }, [candidates]);
 
-  const showDropdown = isOpen && debouncedQuery.length >= 2;
+  const showDropdown = isOpen;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
       if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
+        containerRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
       ) {
-        setIsOpen(false);
-        setHighlightedIndex(-1);
+        return;
       }
+      setIsOpen(false);
+      setHighlightedIndex(-1);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -230,11 +267,21 @@ export function CatalogHeroSearch({
     [router],
   );
 
+  const navigatePopularity = useCallback(
+    (field: FacetField, item: FacetItem) => {
+      router.push(popularityItemHref(field, item));
+      setIsOpen(false);
+      setQuery("");
+      setDebouncedQuery("");
+    },
+    [router],
+  );
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        if (candidates.length === 0) return;
+        if (!showTypeaheadPanel || candidates.length === 0) return;
         setHighlightedIndex((i) => Math.min(i + 1, candidates.length - 1));
         return;
       }
@@ -265,7 +312,14 @@ export function CatalogHeroSearch({
         inputRef.current?.blur();
       }
     },
-    [candidates, highlightedIndex, navigate, query, router],
+    [
+      showTypeaheadPanel,
+      candidates,
+      highlightedIndex,
+      navigate,
+      query,
+      router,
+    ],
   );
 
   const clearSearch = useCallback(() => {
@@ -335,14 +389,27 @@ export function CatalogHeroSearch({
         ) : null}
       </div>
 
-      {showDropdown ? (
+      <PortaledAnchorDropdown
+        anchorRef={containerRef}
+        isOpen={showDropdown}
+        dropdownRef={dropdownRef}
+        className={DROPDOWN_SHELL_CLASS}
+      >
         <div
           id={listboxId}
           role="listbox"
           aria-label="Search suggestions"
-          className="border-border bg-surface shadow-surface-2 absolute left-0 right-0 top-full z-50 mt-1 max-h-[min(480px,60vh)] overflow-y-auto rounded-xl border shadow-lg"
         >
-          {isLoading && candidates.length === 0 ? (
+          {showPopularityPanel ? (
+            <CatalogSearchPopularityPanel
+              sections={popularitySections}
+              variant="home"
+              isLoading={facetCountsLoading}
+              onSelectItem={navigatePopularity}
+            />
+          ) : (isTypeaheadLoading ||
+              (showTypeaheadPanel && !typeaheadEnabled)) &&
+            candidates.length === 0 ? (
             <div className="py-2">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3 px-3 py-2">
@@ -351,7 +418,7 @@ export function CatalogHeroSearch({
                 </div>
               ))}
             </div>
-          ) : candidates.length > 0 ? (
+          ) : showTypeaheadPanel && candidates.length > 0 ? (
             <div className="py-1">
               {candidates.map((c, i) => (
                 <div key={`${c.kind}-${c.id}`}>
@@ -429,13 +496,13 @@ export function CatalogHeroSearch({
                 </button>
               </div>
             </div>
-          ) : (
+          ) : showTypeaheadPanel ? (
             <div className="text-muted px-4 py-6 text-center text-sm">
               No results for &ldquo;{debouncedQuery}&rdquo;
             </div>
-          )}
+          ) : null}
         </div>
-      ) : null}
+      </PortaledAnchorDropdown>
     </div>
   );
 }
