@@ -1,4 +1,4 @@
-import type { Prisma } from "~/prisma/client";
+import { Prisma } from "~/prisma/client";
 import type { db } from "~/server/db";
 
 type Db = typeof db | Prisma.TransactionClient;
@@ -76,13 +76,23 @@ export async function recordMoleculeView(
   if (existingView) {
     return { recorded: false, skipReason: "duplicate" };
   }
-  await prisma.moleculeviews.create({
-    data: {
-      moleculeid: moleculeId,
-      userid: userId,
-      sessionid: null,
-    },
-  });
+  try {
+    await prisma.moleculeviews.create({
+      data: {
+        moleculeid: moleculeId,
+        userid: userId,
+        sessionid: null,
+      },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return { recorded: false, skipReason: "duplicate" };
+    }
+    throw error;
+  }
   await prisma.molecules.update({
     where: { id: moleculeId },
     data: { viewcount: { increment: 1 } },

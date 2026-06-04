@@ -3,7 +3,7 @@ import {
   expect as bunExpect,
   it as bunIt,
 } from "bun:test";
-import type { PrismaClient } from "~/prisma/client";
+import { Prisma, type PrismaClient } from "~/prisma/client";
 import {
   checkAuthenticatedTrackViewThrottle,
   recordMoleculeView,
@@ -31,6 +31,7 @@ type ViewRow = {
 function createMockDb(config: {
   moleculeExists?: boolean;
   existingViews?: ViewRow[];
+  createThrowsUnique?: boolean;
 }): PrismaClient {
   const views = [...(config.existingViews ?? [])];
   let viewcount = 0;
@@ -69,6 +70,15 @@ function createMockDb(config: {
           sessionid: string | null;
         };
       }) => {
+        if (config.createThrowsUnique) {
+          throw new Prisma.PrismaClientKnownRequestError(
+            "Unique constraint failed",
+            {
+              code: "P2002",
+              clientVersion: "test",
+            },
+          );
+        }
         const row: ViewRow = {
           id: crypto.randomUUID(),
           moleculeid: data.moleculeid,
@@ -115,6 +125,21 @@ describe("recordMoleculeView", () => {
           sessionid: null,
         },
       ],
+    });
+    const result = await recordMoleculeView(db, {
+      moleculeId: MOLECULE_ID,
+      userId: USER_ORCID,
+    });
+    expect(result).toEqual({
+      recorded: false,
+      skipReason: "duplicate",
+    });
+  });
+
+  it("treats concurrent unique violations as duplicate without incrementing", async () => {
+    const db = createMockDb({
+      moleculeExists: true,
+      createThrowsUnique: true,
     });
     const result = await recordMoleculeView(db, {
       moleculeId: MOLECULE_ID,
