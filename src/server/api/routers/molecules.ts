@@ -51,6 +51,12 @@ import {
   findMoleculeFavorite,
   upsertMoleculeContributor,
 } from "~/server/db/engagement-queries";
+import {
+  moleculeBrowseFiltersSchema,
+  normalizeMoleculeBrowseFilters,
+  prismaMoleculeBrowseWhere,
+  sqlMoleculeBrowseFilters,
+} from "~/server/molecules/molecule-browse-filters";
 
 function slugifyTagName(name: string): string {
   const base = name
@@ -99,11 +105,12 @@ async function ensureContributor(
 export const moleculesRouter = createTRPCRouter({
   autosuggest: publicProcedure
     .input(
-      z.object({
-        query: z.string().min(1, "Query is required"),
-        limit: z.number().min(1).max(50).default(10),
-        tagIds: z.array(z.string().uuid()).optional().default([]),
-      }),
+      z
+        .object({
+          query: z.string().min(1, "Query is required"),
+          limit: z.number().min(1).max(50).default(10),
+        })
+        .merge(moleculeBrowseFiltersSchema),
     )
     .query(async ({ ctx, input }) => {
       const searchTerm = input.query.trim();
@@ -113,6 +120,9 @@ export const moleculesRouter = createTRPCRouter({
           results: [],
         };
       }
+
+      const browseFilters = normalizeMoleculeBrowseFilters(input);
+      const browseFilterSql = sqlMoleculeBrowseFilters(browseFilters, "m");
 
       const searchTermLower = searchTerm.toLowerCase();
       const searchPattern = `${searchTermLower}%`;
@@ -162,6 +172,7 @@ export const moleculesRouter = createTRPCRouter({
                     @@ plainto_tsquery('english', ${searchTerm})
               )
             )
+            AND (${browseFilterSql})
           LIMIT ${input.limit * 3}
         ),
         scored AS (
@@ -1167,14 +1178,15 @@ export const moleculesRouter = createTRPCRouter({
 
   getAllPaginated: publicProcedure
     .input(
-      z.object({
-        limit: z.number().min(1).max(100).default(12),
-        offset: z.number().min(0).default(0),
-        sortBy: z
-          .enum(["favorites", "created", "name", "views", "datasets"])
-          .default("favorites"),
-        tagIds: z.array(z.string().uuid()).optional().default([]),
-      }),
+      z
+        .object({
+          limit: z.number().min(1).max(100).default(12),
+          offset: z.number().min(0).default(0),
+          sortBy: z
+            .enum(["favorites", "created", "name", "views", "datasets"])
+            .default("favorites"),
+        })
+        .merge(moleculeBrowseFiltersSchema),
     )
     .query(async ({ ctx, input }) => {
       let molecules: Awaited<
@@ -1197,10 +1209,9 @@ export const moleculesRouter = createTRPCRouter({
         >
       >;
 
-      const tagFilter =
-        input.tagIds.length > 0
-          ? { moleculetags: { some: { tagid: { in: input.tagIds } } } }
-          : {};
+      const browseFilters = normalizeMoleculeBrowseFilters(input);
+      const tagFilter = prismaMoleculeBrowseWhere(browseFilters);
+      const browseFilterSql = sqlMoleculeBrowseFilters(browseFilters, "m");
 
       if (input.sortBy === "datasets") {
         const orderedIds = await ctx.db.$queryRaw<Array<{ id: string }>>`
@@ -1208,15 +1219,7 @@ export const moleculesRouter = createTRPCRouter({
           FROM public.molecules m
           LEFT JOIN public.samples s ON s.moleculeid = m.id
           LEFT JOIN public.experiments e ON e.sampleid = s.id
-          WHERE
-            (
-              cardinality(${input.tagIds}::uuid[]) = 0
-              OR EXISTS (
-                SELECT 1 FROM public.molecule_tags mt
-                WHERE mt.molecule_id = m.id
-                AND mt.tag_id = ANY(${input.tagIds}::uuid[])
-              )
-            )
+          WHERE (${browseFilterSql})
           GROUP BY m.id
           ORDER BY COUNT(DISTINCT e.id) DESC, m.createdat DESC
           LIMIT ${input.limit}
@@ -1251,15 +1254,7 @@ export const moleculesRouter = createTRPCRouter({
         const orderedIds = await ctx.db.$queryRaw<Array<{ id: string }>>`
           SELECT m.id
           FROM public.molecules m
-          WHERE
-            (
-              cardinality(${input.tagIds}::uuid[]) = 0
-              OR EXISTS (
-                SELECT 1 FROM public.molecule_tags mt
-                WHERE mt.molecule_id = m.id
-                AND mt.tag_id = ANY(${input.tagIds}::uuid[])
-              )
-            )
+          WHERE (${browseFilterSql})
           ORDER BY LOWER(
             COALESCE(
               (
@@ -1490,6 +1485,33 @@ export const moleculesRouter = createTRPCRouter({
       name: t.name,
       slug: t.slug,
       color: t.color,
+    }));
+  }),
+
+  browseTagCounts: publicProcedure.query(async ({ ctx }) => {
+    const rows = await ctx.db.$queryRaw<
+      Array<{
+        id: string;
+        name: string;
+        color: string | null;
+        count: bigint;
+      }>
+    >`
+      SELECT
+        t.id,
+        t.name,
+        t.color,
+        COUNT(mt.molecule_id)::bigint AS count
+      FROM public.tags t
+      LEFT JOIN public.molecule_tags mt ON mt.tag_id = t.id
+      GROUP BY t.id, t.name, t.color
+      ORDER BY count DESC, t.name ASC
+    `;
+    return rows.map((row) => ({
+      id: row.id,
+      label: row.name,
+      color: row.color,
+      count: Number(row.count),
     }));
   }),
 
