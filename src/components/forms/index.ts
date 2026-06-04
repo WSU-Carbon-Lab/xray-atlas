@@ -1,6 +1,7 @@
 export {
   AuxFileDropZone,
   AuxUploadDefaultsRow,
+  type AuxPersistedDisplayFile,
 } from "./AuxFileDropZone";
 export {
   AuxFileVisualIcon,

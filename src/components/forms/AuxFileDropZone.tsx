@@ -23,6 +23,17 @@ import {
   type AuxFileScope,
   type AuxFileVisualKind,
 } from "~/lib/aux-file-client";
+
+/** Server-committed auxiliary file row shown in the compact stack alongside pending uploads. */
+export type AuxPersistedDisplayFile = {
+  id: string;
+  originalFilename: string;
+  kind: string;
+};
+
+function auxKindFromString(kind: string): AuxFileKind {
+  return kind in AUX_FILE_KIND_LABELS ? (kind as AuxFileKind) : "other";
+}
 import { appendPendingAuxFiles } from "~/lib/pending-aux-file";
 import type { PendingAuxFile } from "~/features/process-nexafs/types";
 import { ContributionFileDropOverlay } from "@/components/contribute";
@@ -55,6 +66,10 @@ type AuxFileDropZoneProps = {
   hideUploadDefaults?: boolean;
   /** Reader-facing upload target in global drop overlay copy (defaults from `scope`). */
   uploadTypeLabel?: string;
+  /** Committed auxiliary files merged into the compact stack before pending queue entries. */
+  persistedFiles?: AuxPersistedDisplayFile[];
+  onPersistedFileRemove?: (fileId: string) => void;
+  persistedRemovingFileId?: string | null;
 };
 
 const kindIconClass = "size-4 shrink-0";
@@ -162,6 +177,9 @@ export function AuxFileDropZone({
   onPendingDescriptionChange,
   hideUploadDefaults = false,
   uploadTypeLabel: uploadTypeLabelProp,
+  persistedFiles = [],
+  onPersistedFileRemove,
+  persistedRemovingFileId = null,
 }: AuxFileDropZoneProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -272,7 +290,22 @@ export function AuxFileDropZone({
     [files, onFilesChange],
   );
 
-  const stackedPageFiles: StackedPageQueuedFile[] = files.map((entry) => {
+  const stackedPersistedFiles: StackedPageQueuedFile[] = persistedFiles.map(
+    (entry) => {
+      const isRemoving = persistedRemovingFileId === entry.id;
+      return {
+        id: `persisted:${entry.id}`,
+        filename: entry.originalFilename,
+        visualKind: auxFileVisualKindFromAuxKind(auxKindFromString(entry.kind)),
+        onRemove: onPersistedFileRemove
+          ? () => onPersistedFileRemove(entry.id)
+          : undefined,
+        removeDisabled: disabled || isRemoving || !onPersistedFileRemove,
+      };
+    },
+  );
+
+  const stackedPendingFiles: StackedPageQueuedFile[] = files.map((entry) => {
     const progress = uploadProgress?.[entry.clientKey];
     const isUploading = progress != null && progress > 0 && progress < 100;
     return {
@@ -284,14 +317,17 @@ export function AuxFileDropZone({
     };
   });
 
-  const hasQueuedInStack = isCompact && stackedPageFiles.length > 0;
-  const hasMultiFile = isCompact && files.length >= 2;
+  const stackedPageFiles = [...stackedPersistedFiles, ...stackedPendingFiles];
+  const totalStackCount = stackedPageFiles.length;
+
+  const hasQueuedInStack = isCompact && totalStackCount > 0;
+  const hasMultiFile = isCompact && totalStackCount >= 2;
   const stackAccent = scope === "experiment" ? "danger" : "accent";
   const experimentDangerZone =
     isCompact &&
     scope === "experiment" &&
     !showGlobalOverlay &&
-    (hasMultiFile || (isHovering && files.length > 0));
+    (hasMultiFile || (isHovering && totalStackCount > 0));
   const sampleFilledZone =
     isCompact &&
     scope === "sample" &&

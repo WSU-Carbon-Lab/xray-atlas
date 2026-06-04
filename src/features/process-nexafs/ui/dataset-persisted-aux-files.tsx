@@ -2,20 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Spinner } from "@heroui/react";
-import { cn } from "@heroui/styles";
 import {
   AuxFileDropZone,
   AuxUploadDefaultsRow,
+  type AuxPersistedDisplayFile,
 } from "~/components/forms";
 import { GLOBAL_DROP_ZONE_IDS } from "~/hooks/useGlobalFileDropZone";
 import type { AuxFileKind } from "~/lib/aux-file-client";
 import type { DatasetState, PendingAuxFile } from "~/features/process-nexafs/types";
 import { usePersistedAuxUpload } from "~/features/process-nexafs/hooks/usePersistedAuxUpload";
 import { trpc } from "~/trpc/client";
-import {
-  DatasetAuxExplorer,
-  type AuxExplorerFile,
-} from "./dataset-aux-explorer";
 
 /** When true, global experiment or sample aux drop handlers accept file drops. */
 export type AuxDropTargetsActive = {
@@ -45,8 +41,8 @@ export type DatasetAuxFilesTabProps = {
 };
 
 /**
- * Two-column auxiliary-files tab: directory explorer on the left and compact
- * upload drop zones on the right (when the user may edit or the tab is draft).
+ * Two-column auxiliary-files tab: experiment and sample compact upload panels
+ * each list queued (draft or in-flight) and persisted files in the stack UI.
  */
 export function DatasetAuxFilesTab({
   variant,
@@ -75,7 +71,7 @@ export function DatasetAuxFilesTab({
     { enabled: isPersisted && Boolean(experimentId) },
   );
   const canEdit = isPersisted ? (canEditQuery.data?.canEdit ?? false) : true;
-  const showUploadPanel = !isPersisted || canEdit;
+  const canUpload = canEdit;
 
   const experimentListQuery = trpc.experimentFile.list.useQuery(
     { experimentId },
@@ -112,15 +108,15 @@ export function DatasetAuxFilesTab({
       return;
     }
     onDropTargetsChange?.({
-      experiment: showUploadPanel,
-      sample: showUploadPanel && (isPersisted ? Boolean(sampleId) : true),
+      experiment: canUpload,
+      sample: canUpload && (isPersisted ? Boolean(sampleId) : true),
     });
   }, [
     auxTabActive,
+    canUpload,
     isPersisted,
     onDropTargetsChange,
     sampleId,
-    showUploadPanel,
   ]);
 
   const runExperimentUpload = useCallback(
@@ -258,8 +254,10 @@ export function DatasetAuxFilesTab({
     [dataset.id, isPersisted, onDatasetUpdate, runSampleUpload, sampleQueue],
   );
 
-  const experimentFiles: AuxExplorerFile[] = experimentListQuery.data ?? [];
-  const sampleFiles: AuxExplorerFile[] = sampleListQuery.data ?? [];
+  const persistedExperimentFiles: AuxPersistedDisplayFile[] =
+    experimentListQuery.data ?? [];
+  const persistedSampleFiles: AuxPersistedDisplayFile[] =
+    sampleListQuery.data ?? [];
 
   const readOnlyHint = useMemo(() => {
     if (!isPersisted) {
@@ -280,6 +278,9 @@ export function DatasetAuxFilesTab({
   const sampleDropFiles = isPersisted
     ? sampleQueue
     : dataset.pendingSampleAuxFiles;
+
+  const samplePanelDisabled =
+    uploadBusy || !canUpload || (isPersisted && !sampleId);
 
   return (
     <section
@@ -302,24 +303,31 @@ export function DatasetAuxFilesTab({
         </div>
       </div>
 
-      <div
-        className={cn(
-          "grid w-full items-start gap-4",
-          showUploadPanel ? "lg:grid-cols-2" : "grid-cols-1",
-        )}
-      >
-        <DatasetAuxExplorer
-          variant={variant}
-          experimentFiles={experimentFiles}
-          sampleFiles={sampleFiles}
-          sampleLinked={isPersisted ? Boolean(sampleId) : true}
-          experimentLoading={experimentListQuery.isLoading}
-          sampleLoading={sampleListQuery.isLoading}
-          draftPendingExperiment={dataset.pendingExperimentAuxFiles}
-          draftPendingSample={dataset.pendingSampleAuxFiles}
-          canEdit={canEdit}
-          deletingFileId={deletingFileId}
-          onDeleteExperimentFile={
+      {canUpload ? (
+        <AuxUploadDefaultsRow
+          pendingKind={pendingKind}
+          pendingDescription={pendingDescription}
+          onPendingKindChange={onPendingKindChange}
+          onPendingDescriptionChange={onPendingDescriptionChange}
+          disabled={uploadBusy}
+        />
+      ) : null}
+
+      <div className="grid w-full items-stretch gap-4 lg:grid-cols-2">
+        <AuxFileDropZone
+          variant="compact"
+          hideUploadDefaults
+          pendingKind={pendingKind}
+          pendingDescription={pendingDescription}
+          scope="experiment"
+          title="Experiment files"
+          description="Protocols, raw beamline data (up to 500 MB each)."
+          globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
+          files={experimentDropFiles}
+          persistedFiles={
+            isPersisted ? persistedExperimentFiles : undefined
+          }
+          onPersistedFileRemove={
             isPersisted && canEdit
               ? (fileId) => {
                   setDeletingFileId(fileId);
@@ -327,7 +335,28 @@ export function DatasetAuxFilesTab({
                 }
               : undefined
           }
-          onDeleteSampleFile={
+          persistedRemovingFileId={deletingFileId}
+          onFilesChange={handleExperimentQueueChange}
+          disabled={uploadBusy || !canUpload}
+          uploadProgress={isPersisted ? uploadProgress : undefined}
+          onValidationError={onValidationError}
+        />
+        <AuxFileDropZone
+          variant="compact"
+          hideUploadDefaults
+          pendingKind={pendingKind}
+          pendingDescription={pendingDescription}
+          scope="sample"
+          title="Sample files"
+          description={
+            isPersisted && !sampleId
+              ? "Link a sample to upload sample auxiliary files."
+              : "Images and prep notes (up to 50 MB each)."
+          }
+          globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX}
+          files={sampleDropFiles}
+          persistedFiles={isPersisted ? persistedSampleFiles : undefined}
+          onPersistedFileRemove={
             isPersisted && canEdit && sampleId
               ? (fileId) => {
                   setDeletingFileId(fileId);
@@ -335,59 +364,23 @@ export function DatasetAuxFilesTab({
                 }
               : undefined
           }
+          persistedRemovingFileId={deletingFileId}
+          onFilesChange={handleSampleQueueChange}
+          disabled={samplePanelDisabled}
+          uploadProgress={isPersisted ? uploadProgress : undefined}
+          onValidationError={onValidationError}
         />
-
-        {showUploadPanel ? (
-          <div className="flex flex-col gap-3">
-            <AuxUploadDefaultsRow
-              pendingKind={pendingKind}
-              pendingDescription={pendingDescription}
-              onPendingKindChange={onPendingKindChange}
-              onPendingDescriptionChange={onPendingDescriptionChange}
-              disabled={uploadBusy}
-            />
-            <AuxFileDropZone
-              variant="compact"
-              hideUploadDefaults
-              pendingKind={pendingKind}
-              pendingDescription={pendingDescription}
-              scope="experiment"
-              title="Experiment files"
-              description="Protocols, raw beamline data (up to 500 MB each)."
-              globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
-              files={experimentDropFiles}
-              onFilesChange={handleExperimentQueueChange}
-              disabled={uploadBusy}
-              uploadProgress={isPersisted ? uploadProgress : undefined}
-              onValidationError={onValidationError}
-            />
-            <AuxFileDropZone
-              variant="compact"
-              hideUploadDefaults
-              pendingKind={pendingKind}
-              pendingDescription={pendingDescription}
-              scope="sample"
-              title="Sample files"
-              description="Images and prep notes (up to 50 MB each)."
-              globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX}
-              files={sampleDropFiles}
-              onFilesChange={handleSampleQueueChange}
-              disabled={uploadBusy}
-              uploadProgress={isPersisted ? uploadProgress : undefined}
-              onValidationError={onValidationError}
-            />
-            {uploadBusy ? (
-              <p
-                className="text-muted flex items-center gap-2 text-xs"
-                role="status"
-              >
-                <Spinner size="sm" color="current" />
-                Uploading auxiliary files…
-              </p>
-            ) : null}
-          </div>
-        ) : null}
       </div>
+
+      {uploadBusy ? (
+        <p
+          className="text-muted flex items-center gap-2 text-xs"
+          role="status"
+        >
+          <Spinner size="sm" color="current" />
+          Uploading auxiliary files…
+        </p>
+      ) : null}
     </section>
   );
 }
