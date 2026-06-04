@@ -34,7 +34,12 @@ import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { BrowseSortButton, type BrowseSortOption } from "@/components/browse/browse-sort-button";
-import { Pagination, Tabs, Tooltip } from "@heroui/react";
+import {
+  Pagination,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+} from "@heroui/react";
 import {
   MoleculeSearchBar,
   useMoleculeFacetSelection,
@@ -222,41 +227,44 @@ function MoleculesBrowseContent() {
     ? `Search results for "${facet.debouncedQuery}"`
     : "Explore all molecules in the X-ray Atlas database.";
 
+  const viewToggleSegmentClass =
+    "text-muted hover:text-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground h-10 min-h-10 w-10 min-w-10 rounded-md transition-colors";
+
   const viewToggle = (
     <Tooltip delay={0}>
-      <div className="h-12 min-h-12 shrink-0">
-        <Tabs
-          selectedKey={viewMode}
-          onSelectionChange={(key) =>
-            setViewMode(key as "compact" | "spacious")
-          }
-          className="w-fit"
+      <Tooltip.Trigger className="inline-flex h-12 min-h-12 shrink-0">
+        <ToggleButtonGroup
+          aria-label="View mode"
+          selectionMode="single"
+          disallowEmptySelection
+          selectedKeys={new Set([viewMode])}
+          onSelectionChange={(keys) => {
+            const next = [...keys][0];
+            if (next === "compact" || next === "spacious") {
+              setViewMode(next);
+            }
+          }}
+          className="border-border bg-surface h-12 min-h-12 w-fit min-w-[5.25rem] rounded-lg border p-1"
         >
-          <Tabs.ListContainer>
-            <Tabs.List
-              aria-label="View mode"
-              className="border-border bg-surface text-muted !flex !h-12 !min-h-12 !w-fit min-w-[5.25rem] flex-row items-center gap-1 rounded-lg border p-1"
-            >
-              <Tabs.Tab
-                id="compact"
-                aria-label="Compact list view"
-                className="text-muted hover:text-foreground data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground relative z-10 flex h-10 min-h-10 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
-              >
-                <ListBulletIcon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5] text-current" />
-                <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
-              </Tabs.Tab>
-              <Tabs.Tab
-                id="spacious"
-                aria-label="Spacious grid view"
-                className="text-muted hover:text-foreground data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground relative z-10 flex h-10 min-h-10 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
-              >
-                <Squares2X2Icon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5] text-current" />
-                <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
-              </Tabs.Tab>
-            </Tabs.List>
-          </Tabs.ListContainer>
-        </Tabs>
-      </div>
+          <ToggleButton
+            id="compact"
+            isIconOnly
+            aria-label="Compact list view"
+            className={viewToggleSegmentClass}
+          >
+            <ListBulletIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
+          </ToggleButton>
+          <ToggleButtonGroup.Separator />
+          <ToggleButton
+            id="spacious"
+            isIconOnly
+            aria-label="Spacious grid view"
+            className={viewToggleSegmentClass}
+          >
+            <Squares2X2Icon className="h-5 w-5 shrink-0 stroke-[1.5]" />
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Tooltip.Trigger>
       <Tooltip.Content
         placement="top"
         className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
