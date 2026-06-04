@@ -968,6 +968,88 @@ export const experimentsRouter = createTRPCRouter({
     return { edges };
   }),
 
+  /**
+   * Returns edge catalog statistics derived from spectrum point data in the
+   * database. Only edges that have at least one linked experiment with
+   * measured spectrum points are included.
+   *
+   * Used by the periodic-edge modal to:
+   * - Determine which elements are truly "in catalog" (have measurements).
+   * - Drive the energy density chart (histogram + per-edge energy ranges).
+   *
+   * The histogram uses 80 equal-width bins spanning 100–800 eV. Bins 1..80
+   * map to the half-open intervals [100 + (i-1)*8.75, 100 + i*8.75).
+   */
+  edgeCatalogStats: publicProcedure.query(async ({ ctx }) => {
+    type CatalogEdgeRow = {
+      id: string;
+      targetatom: string;
+      corestate: string;
+      min_ev: number | null;
+      max_ev: number | null;
+      experiment_count: bigint;
+    };
+    type HistBucketRow = {
+      bucket: number;
+      count: bigint;
+    };
+
+    const HIST_MIN = 100;
+    const HIST_MAX = 800;
+    const HIST_BINS = 80;
+
+    const [catalogRows, histRows] = await Promise.all([
+      ctx.db.$queryRaw<CatalogEdgeRow[]>`
+        SELECT
+          e.id,
+          e.targetatom,
+          e.corestate,
+          MIN(sp.energyev)::float AS min_ev,
+          MAX(sp.energyev)::float AS max_ev,
+          COUNT(DISTINCT exp.id)::bigint AS experiment_count
+        FROM edges e
+        INNER JOIN experiments exp ON exp.edgeid = e.id
+        INNER JOIN spectrumpoints sp ON sp.experimentid = exp.id
+        GROUP BY e.id, e.targetatom, e.corestate
+      `,
+      ctx.db.$queryRaw<HistBucketRow[]>`
+        SELECT
+          width_bucket(sp.energyev::float, ${HIST_MIN}::float, ${HIST_MAX}::float, ${HIST_BINS}::int) AS bucket,
+          COUNT(*)::bigint AS count
+        FROM spectrumpoints sp
+        INNER JOIN experiments exp ON sp.experimentid = exp.id
+        WHERE sp.energyev BETWEEN ${HIST_MIN} AND ${HIST_MAX}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+    ]);
+
+    const buckets = new Array<number>(HIST_BINS).fill(0);
+    for (const row of histRows) {
+      const idx = row.bucket - 1;
+      if (idx >= 0 && idx < HIST_BINS) {
+        buckets[idx] = Number(row.count);
+      }
+    }
+
+    return {
+      edgesInCatalog: catalogRows.map((r) => ({
+        id: r.id,
+        targetatom: r.targetatom,
+        corestate: r.corestate,
+        minEv: r.min_ev,
+        maxEv: r.max_ev,
+        experimentCount: Number(r.experiment_count),
+      })),
+      energyHistogram: {
+        bucketMinEv: HIST_MIN,
+        bucketMaxEv: HIST_MAX,
+        bins: HIST_BINS,
+        buckets,
+      },
+    };
+  }),
+
   listCalibrationMethods: publicProcedure.query(async ({ ctx }) => {
     const methods = await ctx.db.calibrationmethods.findMany({
       orderBy: { name: "asc" },

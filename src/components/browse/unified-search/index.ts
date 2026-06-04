@@ -12,12 +12,35 @@ export type { UnifiedSearchBarProps } from "./unified-search-bar";
 export { PeriodicEdgeModal } from "./periodic-edge-modal";
 export type { PeriodicEdgeModalProps, EdgeOption } from "./periodic-edge-modal";
 
+export { EdgeEnergyDensityChart, EdgeEnergyDensityChartSkeleton } from "./edge-energy-density-chart";
+export type {
+  CatalogEdgeStat,
+  EnergyHistogram,
+  EdgeEnergyDensityChartProps,
+} from "./edge-energy-density-chart";
+
 export { useFacetSelection } from "./use-facet-selection";
 export type {
   UseFacetSelectionOptions,
   UseFacetSelectionReturn,
 } from "./use-facet-selection";
 
-export { readFacetParams, writeFacetParams, emptyFacetSelection } from "./url-state";
+export {
+  readFacetParams,
+  writeFacetParams,
+  emptyFacetSelection,
+  readNexafsCatalogFilterParams,
+  writeNexafsCatalogFilterParams,
+  emptyNexafsCatalogFilters,
+} from "./url-state";
 
-export type { FacetField, FacetToken, FacetSelection, FacetItem, FacetData } from "./types";
+export type {
+  FacetField,
+  FacetToken,
+  CatalogFilterField,
+  CatalogToken,
+  FacetSelection,
+  FacetItem,
+  FacetData,
+  NexafsCatalogFilters,
+} from "./types";
