@@ -122,6 +122,7 @@ function CopyButton({
     };
   }, []);
 
+  const isCopied = showCheck || copiedLabel === label;
   const iconClass = isInline ? "h-3.5 w-3.5 shrink-0" : "h-4 w-4 shrink-0";
   const transitionClass = "transition-opacity duration-200";
 
@@ -130,26 +131,42 @@ function CopyButton({
       <button
         type="button"
         onClick={handleClick}
-        aria-label={showCheck ? "Copied" : `Copy ${label}`}
-        className={
+        aria-label={isCopied ? "Copied" : `Copy ${label}`}
+        className={cn(
+          "focus-visible:ring-accent text-text-tertiary hover:bg-surface-2 hover:text-text-secondary inline-flex shrink-0 items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
           isInline
-            ? `focus-visible:ring-accent text-text-tertiary hover:bg-surface-2 hover:text-text-secondary inline-flex shrink-0 items-center justify-center rounded-md p-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${className}`
-            : `focus-visible:ring-accent text-text-tertiary hover:bg-surface-2 hover:text-text-secondary inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${className}`
-        }
+            ? "rounded-md p-1.5"
+            : "min-h-[44px] min-w-[44px] rounded-lg",
+          className,
+          isCopied && "pointer-events-auto opacity-100",
+        )}
       >
         <span className="relative inline-flex items-center justify-center">
           <Copy
-            className={`${iconClass} ${transitionClass} ${showCheck ? "pointer-events-none opacity-0" : "opacity-100"}`}
+            className={cn(
+              iconClass,
+              transitionClass,
+              isCopied
+                ? "pointer-events-none opacity-0"
+                : "opacity-100",
+            )}
             aria-hidden
           />
           <Check
-            className={`${iconClass} absolute shrink-0 text-emerald-600 dark:text-emerald-400 ${transitionClass} ${showCheck ? "opacity-100" : "pointer-events-none opacity-0"}`}
+            className={cn(
+              iconClass,
+              "absolute shrink-0 text-success",
+              transitionClass,
+              isCopied
+                ? "opacity-100"
+                : "pointer-events-none opacity-0",
+            )}
             aria-hidden
           />
         </span>
       </button>
       <Tooltip.Content placement="top">
-        {showCheck || copiedLabel === label ? "Copied!" : `Copy ${label}`}
+        {isCopied ? "Copied!" : `Copy ${label}`}
       </Tooltip.Content>
     </Tooltip>
   );
