@@ -2,24 +2,14 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useMoleculeDetail } from "@/components/browse/molecule-detail-context";
 import { NexafsBrowseExperimentSection } from "@/components/browse/nexafs-browse-experiment-section";
 import { NexafsExperimentCompactSkeleton } from "@/components/feedback/loading-state";
 import { trpc } from "~/trpc/client";
 
-const VIEW_SESSION_KEY = "xray-atlas-view-session";
 const VIEW_DEBOUNCE_KEY = "xray-atlas-view-debounce";
 const VIEW_DEBOUNCE_MS = 2000;
-
-function getOrCreateViewSessionId(): string {
-  if (typeof window === "undefined") return "";
-  let id = sessionStorage.getItem(VIEW_SESSION_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    sessionStorage.setItem(VIEW_SESSION_KEY, id);
-  }
-  return id;
-}
 
 function shouldDebounceTrackView(): boolean {
   if (typeof window === "undefined") return true;
@@ -76,6 +66,7 @@ function MoleculeNexafsBrowseAfterMount() {
 
 export default function MoleculeDetailPage() {
   const { molecule } = useMoleculeDetail();
+  const { data: session, status: sessionStatus } = useSession();
   const trackViewSent = useRef(false);
 
   const trackView = trpc.molecules.trackView.useMutation();
@@ -84,11 +75,11 @@ export default function MoleculeDetailPage() {
 
   useEffect(() => {
     if (!molecule?.id || trackViewSent.current) return;
+    if (sessionStatus !== "authenticated" || !session?.user?.id) return;
     if (shouldDebounceTrackView()) return;
     trackViewSent.current = true;
-    const sessionId = getOrCreateViewSessionId();
     trackViewMutateRef.current(
-      { moleculeId: molecule.id, ...(sessionId ? { sessionId } : {}) },
+      { moleculeId: molecule.id },
       {
         onSuccess: (data) => {
           if (data?.recorded === true) markTrackViewSent();
@@ -98,7 +89,7 @@ export default function MoleculeDetailPage() {
         },
       },
     );
-  }, [molecule?.id]);
+  }, [molecule?.id, session?.user?.id, sessionStatus]);
 
   return (
     <section

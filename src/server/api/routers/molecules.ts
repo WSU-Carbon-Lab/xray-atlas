@@ -7,28 +7,6 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 
-const TRACK_VIEW_THROTTLE_WINDOW_MS = 60_000;
-const TRACK_VIEW_MAX_PER_WINDOW = 5;
-
-const trackViewThrottle = new Map<
-  string,
-  { count: number; windowEnd: number }
->();
-
-function checkTrackViewThrottle(key: string): boolean {
-  const now = Date.now();
-  const entry = trackViewThrottle.get(key);
-  if (!entry || now > entry.windowEnd) {
-    trackViewThrottle.set(key, {
-      count: 1,
-      windowEnd: now + TRACK_VIEW_THROTTLE_WINDOW_MS,
-    });
-    return true;
-  }
-  if (entry.count >= TRACK_VIEW_MAX_PER_WINDOW) return false;
-  entry.count += 1;
-  return true;
-}
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "~/prisma/client";
 import {
@@ -40,6 +18,7 @@ import type { db } from "~/server/db";
 import { orcidUserIdSchema } from "~/lib/orcid";
 import { pickRandomTagHex } from "~/lib/tag-colors";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
+import { recordMoleculeView } from "~/server/engagement/record-molecule-view";
 import { toMoleculeView } from "./molecules-view";
 import { queryMoleculeIdsByPopularityRank } from "./molecules-popularity-ranking";
 import {
@@ -1649,47 +1628,13 @@ export const moleculesRouter = createTRPCRouter({
     .input(
       z.object({
         moleculeId: z.string().uuid(),
-        sessionId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const throttleKey =
-        input.sessionId ??
-        ctx.userId ??
-        ctx.clientIp ??
-        "anon";
-      if (!checkTrackViewThrottle(throttleKey)) return { recorded: false };
-      const molecule = await ctx.db.molecules.findUnique({
-        where: { id: input.moleculeId },
+      return recordMoleculeView(ctx.db, {
+        moleculeId: input.moleculeId,
+        userId: ctx.userId,
       });
-      if (!molecule) return { recorded: false };
-      const effectiveUserId = ctx.userId ?? null;
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      const dedupWhere = effectiveUserId
-        ? { userid: effectiveUserId }
-        : input.sessionId
-          ? { userid: null, sessionid: input.sessionId }
-          : { userid: null, sessionid: null };
-      const existingView = await ctx.db.moleculeviews.findFirst({
-        where: {
-          moleculeid: input.moleculeId,
-          viewedat: { gte: oneHourAgo },
-          ...dedupWhere,
-        },
-      });
-      if (existingView) return { recorded: false };
-      await ctx.db.moleculeviews.create({
-        data: {
-          moleculeid: input.moleculeId,
-          userid: effectiveUserId,
-          sessionid: input.sessionId ?? null,
-        },
-      });
-      await ctx.db.molecules.update({
-        where: { id: input.moleculeId },
-        data: { viewcount: { increment: 1 } },
-      });
-      return { recorded: true };
     }),
 
   getByCreator: publicProcedure
