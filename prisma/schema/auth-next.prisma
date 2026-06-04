@@ -58,6 +58,7 @@ model user {
   moleculeviews                 moleculeviews[]
   attributionteams              attributionteam[]
   attributionteammembers        attributionteammember[]
+  dashboardprocessingsessions   dashboardprocessingsession[]
 
   @@schema("next_auth")
 }

@@ -1,0 +1,3 @@
+Type = "NEXAFS Line Scan"
+PAxis = { Name = "Photon Energy", Points = ( 3 , 280.0 290.0 300.0 ) }
+QAxis = { Name = "Sample Y", Points = ( 2 , 0.0 1.0 ) }
