@@ -996,6 +996,15 @@ export function DatasetContent({
 
   const [kkUploadBusy, setKkUploadBusy] = useState(false);
   const [geometryEditMode, setGeometryEditMode] = useState(false);
+  const handleVisualizationModeChange = useCallback(
+    (mode: VisualizationMode) => {
+      setVisualizationMode(mode);
+      if (mode !== "table") {
+        setGeometryEditMode(false);
+      }
+    },
+    [],
+  );
   const [deleteConfirmGeometry, setDeleteConfirmGeometry] = useState<{
     theta: number | undefined;
     phi: number | undefined;
@@ -2431,7 +2440,7 @@ export function DatasetContent({
         <VisualizationToggle
           mode={visualizationMode}
           graphStyle={graphStyle}
-          onModeChange={setVisualizationMode}
+          onModeChange={handleVisualizationModeChange}
           onGraphStyleChange={setGraphStyle}
           showEditButton={visualizationMode === "table"}
           editMode={geometryEditMode}
@@ -2453,9 +2462,9 @@ export function DatasetContent({
                 onValidationError={(message) => showToast(message, "error")}
                 onUploadComplete={(message, type) => showToast(message, type)}
                 onDropTargetsChange={onAuxDropTargetsChange}
-                auxTabActive
+                auxTabActive={visualizationMode === "aux"}
               />
-            ) : (
+            ) : visualizationMode === "graph" || visualizationMode === "table" ? (
             <div
               className={`border-border bg-surface w-full border p-6 shadow-sm ${
                 visualizationMode === "table"
@@ -2645,7 +2654,7 @@ export function DatasetContent({
                 </div>
               )}
             </div>
-            )}
+            ) : null}
 
             {/* Selection Mode Toast */}
             {visualizationMode !== "aux" &&

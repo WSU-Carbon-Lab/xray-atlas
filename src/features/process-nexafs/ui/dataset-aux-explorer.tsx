@@ -1,10 +1,12 @@
 "use client";
 
-import { ChevronRight, FileIcon, FolderIcon } from "lucide-react";
+import { ChevronRight, FolderIcon } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import { cn } from "@heroui/styles";
+import { AuxFileVisualIcon } from "~/components/forms";
 import {
   AUX_FILE_KIND_LABELS,
+  auxFileVisualKindFromAuxKind,
   formatAuxFileSize,
   type AuxFileKind,
 } from "~/lib/aux-file-client";
@@ -29,10 +31,12 @@ type AuxExplorerFolderProps = {
   onDelete?: (fileId: string) => void;
 };
 
+function auxKindFromString(kind: string): AuxFileKind {
+  return kind in AUX_FILE_KIND_LABELS ? (kind as AuxFileKind) : "other";
+}
+
 function kindLabelFor(kind: string): string {
-  return kind in AUX_FILE_KIND_LABELS
-    ? AUX_FILE_KIND_LABELS[kind as AuxFileKind]
-    : kind;
+  return AUX_FILE_KIND_LABELS[auxKindFromString(kind)];
 }
 
 function AuxExplorerFolder({
@@ -77,9 +81,11 @@ function AuxExplorerFolder({
                       isDeleting && "opacity-60",
                     )}
                   >
-                    <FileIcon
+                    <AuxFileVisualIcon
+                      kind={auxFileVisualKindFromAuxKind(
+                        auxKindFromString(file.kind),
+                      )}
                       className="text-muted size-3.5 shrink-0"
-                      aria-hidden
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-foreground truncate text-sm">
