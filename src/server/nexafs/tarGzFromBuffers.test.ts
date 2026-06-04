@@ -1,9 +1,22 @@
-import { describe, expect, test } from "bun:test";
+import {
+  describe as bunDescribe,
+  expect as bunExpect,
+  it as bunIt,
+} from "bun:test";
 import { gunzipSync } from "node:zlib";
 import { buffersToTarGz } from "./tarGzFromBuffers";
 
+type ExpectAssertions = {
+  toBe: (expected: unknown) => void;
+  toBeGreaterThan: (expected: number) => void;
+};
+
+const describe = bunDescribe as (name: string, fn: () => void) => void;
+const it = bunIt as (name: string, fn: () => void | Promise<void>) => void;
+const expect = bunExpect as (value: unknown) => ExpectAssertions;
+
 describe("buffersToTarGz", () => {
-  test("produces a gzip tar containing the entry name", async () => {
+  it("produces a gzip tar containing the entry name", async () => {
     const archive = await buffersToTarGz([
       { path: "hello.txt", data: Buffer.from("hello", "utf-8") },
     ]);
