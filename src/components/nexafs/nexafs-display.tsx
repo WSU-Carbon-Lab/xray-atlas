@@ -15,9 +15,9 @@ import {
   formatCompactMetricCount,
 } from "~/components/browse/compact-card-metrics";
 import { MoleculeImageSVG } from "~/components/molecules/molecule-image-svg";
-import { MoleculeImageModal } from "~/components/molecules/molecule-display";
+import { MoleculeImageModal } from "~/components/molecules/molecule-image-modal";
 import { getPreviewGradient } from "~/components/molecules/category-tags";
-import { ContributorAvatarGroup } from "~/components/attribution/contributor-avatar-group";
+import { ContributorsOrEmpty } from "~/components/attribution/contributors-or-empty";
 import { nexafsContributorAvatarUsers } from "~/lib/contributor-avatar-display";
 import type { NexafsContributorPerson } from "~/lib/nexafs-contributors";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
@@ -276,14 +276,14 @@ export function NexafsExperimentCompactCard({
     experimentContributorUsers,
   );
 
-  const readOnlyContributorAvatars =
-    readOnlyContributorUsers.length > 0 ? (
-      <ContributorAvatarGroup
-        users={readOnlyContributorUsers}
-        size="sm"
-        max={8}
-      />
-    ) : null;
+  const readOnlyContributorAvatars = (
+    <ContributorsOrEmpty
+      users={readOnlyContributorUsers}
+      size="sm"
+      max={8}
+      empty="hidden"
+    />
+  );
 
   const facilityLine = facilityName ?? "Facility unknown";
   const edgeClass = edgeChipClass(edgeLabel);
