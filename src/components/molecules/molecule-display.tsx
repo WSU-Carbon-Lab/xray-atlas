@@ -5,7 +5,9 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { Copy } from "lucide-react";
-import { AvatarGroup, type UserWithOrcid } from "../ui/avatar";
+import { ContributorAvatarGroup } from "~/components/attribution/contributor-avatar-group";
+import type { UserWithOrcid } from "../ui/avatar";
+import { moleculeContributorAvatarUsers } from "~/lib/contributor-avatar-display";
 import {
   Button,
   Card,
@@ -25,7 +27,7 @@ import { useRealtimeUpvotes } from "~/hooks/useRealtimeUpvotes";
 import type { MoleculeView } from "~/types/molecule";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
-import { moleculeContributorUsers } from "~/lib/molecule-contributor-users";
+import { moleculeOverflowSynonyms } from "~/lib/molecule-synonym-overflow";
 import { moleculeContributorAttributionRows } from "~/lib/molecule-contribution-types";
 import {
   CategoryTagGroupEditable,
@@ -49,6 +51,8 @@ import {
   CompactCardMetricStat,
   formatCompactMetricCount,
 } from "~/components/browse/compact-card-metrics";
+import { compactOverflowCountChipClassName } from "~/components/ui/compact-overflow-count-chip";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 
 const EDIT_FIELD_CLASS =
   "rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-zinc-600 dark:bg-zinc-700/90";
@@ -379,14 +383,10 @@ interface MoleculeCardActionsProps {
   size?: "sm" | "md";
   /**
    * `browse`: molecule browse grid — always show InChI/SMILES copy buttons and registry favicons.
-   * `compact`: browse list / NEXAFS compact cards — hide the InChI/SMILES copy row until the card reaches `@2xl` on the named inline-size container (`compactContainerName`, default `moleculecard`) so the copy row yields space before the right action cluster wraps; registry favicons stay visible.
+   * `compact`: molecule browse list rows — registry favicons only (no InChI/SMILES copy).
    * `carousel`: home popular-molecule tiles — hide InChI/SMILES and registry rows until the card hits `@lg` width inside `@container`.
    */
   actionsLayout?: "browse" | "compact" | "carousel";
-  /**
-   * Selects which `@container/<name>` ancestor supplies `@…/<name>:` breakpoints for the compact InChI/SMILES row. Use `nexafscard` on NEXAFS experiment compact cards; browse list compact rows use the default `moleculecard`.
-   */
-  compactContainerName?: "moleculecard" | "nexafscard";
 }
 
 export function MoleculeCardActions({
@@ -397,30 +397,38 @@ export function MoleculeCardActions({
   handleCopy,
   size = "sm",
   actionsLayout = "browse",
-  compactContainerName = "moleculecard",
 }: MoleculeCardActionsProps) {
   const iconClass = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
   const textClass = size === "sm" ? "text-[10px]" : "text-xs";
-  const compactCopyShowClass =
-    compactContainerName === "nexafscard"
-      ? "@2xl/nexafscard:flex"
-      : "@2xl/moleculecard:flex";
+  const showInchiSmilesCopy =
+    actionsLayout === "browse" ||
+    (actionsLayout === "carousel");
   const inchiSmilesRowClass =
-    actionsLayout === "compact"
-      ? `hidden min-w-0 flex-row flex-wrap items-center gap-2 ${compactCopyShowClass}`
-      : actionsLayout === "carousel"
-        ? "hidden min-w-0 flex-row flex-wrap items-center gap-2 @lg:flex"
-        : "flex min-w-0 flex-row flex-wrap items-center gap-2";
+    actionsLayout === "carousel"
+      ? "hidden min-w-0 flex-row flex-wrap items-center gap-2 @lg:flex"
+      : "flex min-w-0 flex-row flex-wrap items-center gap-2";
   const registryRowClass =
     actionsLayout === "carousel"
       ? "hidden min-w-0 flex-row flex-wrap items-center gap-2 @lg:flex"
       : "flex min-w-0 flex-row flex-wrap items-center gap-2";
+  if (actionsLayout === "compact") {
+    return (
+      <div
+        className="flex min-w-0 flex-row flex-wrap items-center gap-2"
+        onClick={(e) => e.stopPropagation()}
+        role="group"
+      >
+        <MoleculeRegistryFaviconLinks casUrl={casUrl} pubChemUrl={pubChemUrl} />
+      </div>
+    );
+  }
   return (
     <div
       className="flex w-full min-w-0 flex-row flex-wrap items-center gap-x-4 gap-y-2"
       onClick={(e) => e.stopPropagation()}
       role="group"
     >
+      {showInchiSmilesCopy ? (
       <div className={inchiSmilesRowClass}>
         {molecule.InChI ? (
           <Tooltip delay={0}>
@@ -465,9 +473,135 @@ export function MoleculeCardActions({
           </Tooltip>
         ) : null}
       </div>
+      ) : null}
       <div className={registryRowClass}>
         <MoleculeRegistryFaviconLinks casUrl={casUrl} pubChemUrl={pubChemUrl} />
       </div>
+    </div>
+  );
+}
+
+const COMPACT_MOLECULE_TAG_VISIBLE = 3;
+
+type MoleculeTagLike = NonNullable<MoleculeView["moleculeTags"]>[number];
+
+function CompactMoleculeTagChip({
+  tag,
+  wide = false,
+}: {
+  tag: MoleculeTagLike;
+  wide?: boolean;
+}) {
+  const chipClass = getTagChipClass(tag);
+  const inlineStyle = getTagInlineStyle(tag);
+  return (
+    <span
+      className={cn(
+        "inline-flex h-4.5 shrink-0 items-center truncate rounded-full border border-black/10 px-1.5 font-semibold uppercase tracking-wide dark:border-white/15",
+        wide ? "max-w-[11rem]" : "max-w-[9rem]",
+        "text-[9px] leading-none sm:text-[10px]",
+        chipClass,
+      )}
+      style={inlineStyle}
+      title={tag.name}
+    >
+      {tag.name}
+    </span>
+  );
+}
+
+function CompactMoleculeCopyRow({
+  text,
+  displayText,
+  label,
+  copiedLabel,
+  onCopy,
+}: {
+  text: string;
+  displayText?: string;
+  label: string;
+  copiedLabel: string | null;
+  onCopy: (text: string, label: string) => void;
+}) {
+  const shown = displayText ?? text;
+  return (
+    <div
+      className="group/copyline flex min-w-0 max-w-full items-center gap-0.5"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span
+        className="text-text-tertiary min-w-0 flex-1 truncate font-mono text-[10px] leading-snug tabular-nums sm:text-[11px]"
+        title={shown}
+      >
+        {shown}
+      </span>
+      <CopyButton
+        text={text}
+        label={label}
+        copiedLabel={copiedLabel}
+        onCopy={onCopy}
+        size="inline"
+        className="pointer-events-none opacity-0 motion-safe:transition-opacity group-hover/copyline:pointer-events-auto group-hover/copyline:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+      />
+    </div>
+  );
+}
+
+function CompactMoleculeTagRow({
+  tags,
+  variant = "rail",
+}: {
+  tags: MoleculeView["moleculeTags"];
+  variant?: "rail" | "stacked";
+}) {
+  const list = tags ?? [];
+  if (list.length === 0) return null;
+  const visible = list.slice(0, COMPACT_MOLECULE_TAG_VISIBLE);
+  const overflow = list.slice(COMPACT_MOLECULE_TAG_VISIBLE);
+  const wideChips = variant === "rail";
+  return (
+    <div
+      className={cn(
+        "min-w-0 text-left leading-none",
+        variant === "stacked"
+          ? "flex w-full flex-wrap items-center gap-x-1.5 gap-y-1"
+          : "inline-flex h-5 max-w-full flex-1 flex-nowrap items-center justify-start gap-x-1.5 overflow-hidden",
+      )}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      {visible.map((tag) => (
+        <CompactMoleculeTagChip key={tag.id} tag={tag} wide={wideChips} />
+      ))}
+      {overflow.length > 0 ? (
+        <PopoverMenu
+          align="start"
+          contentClassName="max-w-xs"
+          renderTrigger={({ triggerProps, isOpen }) => (
+            <button
+              type="button"
+              {...triggerProps}
+              className={compactOverflowCountChipClassName(isOpen)}
+              aria-label={`${overflow.length} more category tags`}
+            >
+              +{overflow.length}
+            </button>
+          )}
+          renderContent={({ contentProps, contentPositionClassName }) => (
+            <PopoverMenuContent
+              {...contentProps}
+              className={cn(contentPositionClassName, "max-w-xs p-2")}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {overflow.map((tag) => (
+                  <CompactMoleculeTagChip key={tag.id} tag={tag} wide />
+                ))}
+              </div>
+            </PopoverMenuContent>
+          )}
+        />
+      ) : null}
     </div>
   );
 }
@@ -582,218 +716,189 @@ export const CompactCard = memo(function CompactCard({
 }: {
   props: MoleculeCardProps;
 }) {
-  const fromContributorsCompact =
-    (props.molecule.contributors?.length ?? 0) > 0
-      ? moleculeContributorUsers(props.molecule.contributors)
-      : [];
-  const avatarUsers: UserWithOrcid[] =
-    fromContributorsCompact.length > 0
-      ? fromContributorsCompact
-      : props.molecule.createdBy
-        ? [props.molecule.createdBy]
-        : [];
+  const avatarUsers: UserWithOrcid[] = moleculeContributorAvatarUsers(
+    props.molecule,
+  );
   const previewGradient = getPreviewGradient(props.molecule);
   const hasImage = Boolean(props.molecule.imageUrl?.trim());
   const viewCount = props.molecule.viewCount ?? 0;
   const experimentCount = props.molecule.experimentCount ?? 0;
   const [imageModalOpen, setImageModalOpen] = useState(false);
+  const compactTags = props.molecule.moleculeTags ?? [];
+  const hasCompactTags = compactTags.length > 0;
 
   return (
     <>
       <div className="border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 @container/moleculecard w-full overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md dark:bg-zinc-800">
-        <div className="group flex w-full flex-col p-3 @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-4">
-          <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 @md/moleculecard:flex-row @md/moleculecard:gap-4 @md/moleculecard:pr-4 dark:border-zinc-600">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setImageModalOpen(true);
-          }}
-          className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 @md/moleculecard:h-14 @md/moleculecard:w-14 dark:bg-black ${
-            hasImage ? "" : `bg-linear-to-br ${previewGradient}`
-          }`}
-          aria-label="View molecule structure"
-        >
-          {hasImage ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-1">
-              <MoleculeImageSVG
-                imageUrl={props.molecule.imageUrl ?? ""}
-                name={props.primaryName}
-                className="h-full w-full [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
-              />
-            </div>
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <Atom
-                className="h-6 w-6 text-white/80"
-                strokeWidth={1}
-                aria-hidden
-              />
-            </div>
-          )}
-          {props.realtimeUserHasUpvoted ? (
-            <span
-              className="bg-accent absolute top-1 right-1 h-2.5 w-2.5 rounded-full border border-black/50 shadow-[0_0_4px_rgba(99,102,241,0.8)]"
-              aria-hidden
-            />
-          ) : null}
-        </button>
-        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-          <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5">
-            <div className="flex min-w-0 items-end gap-2 overflow-hidden">
-              <div className="flex h-5 shrink-0 items-end">
-                <Link
-                  href={`/molecules/${canonicalMoleculeSlugFromView(props.molecule)}`}
-                  className="text-text-primary motion-safe:group-hover:text-accent block truncate text-sm leading-tight font-bold hover:underline motion-safe:transition-colors"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {props.primaryName}
-                </Link>
-              </div>
-              {props.orderedSynonyms.length > 0 ? (
-                <div className="flex h-5 shrink-0 items-end">
-                  <SynonymChipsWithPopup
-                    synonyms={props.orderedSynonyms}
-                    collapseOnly
-                  />
-                </div>
-              ) : null}
-            </div>
-            <div className="flex min-w-0 shrink items-center gap-2 overflow-hidden">
-              <span className="text-text-tertiary border-border-default inline-flex h-5 shrink-0 items-center rounded border bg-zinc-100 px-1.5 font-mono text-[9px] tabular-nums sm:text-[10px] dark:bg-zinc-700">
-                {props.molecule.chemicalFormula || "N/A"}
-              </span>
-              {props.molecule.casNumber ? (
-                <Tooltip delay={0}>
-                  <Tooltip.Trigger>
-                    <button
-                      type="button"
-                      aria-label="Copy CAS number"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        props.handleCopy(props.molecule.casNumber ?? "", "CAS");
-                      }}
-                      className={`focus-visible:ring-accent inline-flex h-5 max-w-full shrink items-center gap-1 rounded px-1.5 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 sm:px-2 ${
-                        props.copiedText === "CAS"
-                          ? "bg-info/30 text-info dark:bg-info/40 dark:text-info-light"
-                          : "bg-info/20 text-info dark:bg-info/30 dark:text-info-light"
-                      }`}
-                    >
-                      <Copy
-                        className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5"
-                        aria-hidden
-                      />
-                      <span className="truncate font-mono text-[9px] tabular-nums sm:text-[10px]">
-                        CAS {props.molecule.casNumber}
-                      </span>
-                    </button>
-                  </Tooltip.Trigger>
-                  <Tooltip.Content placement="top">
-                    {props.copiedText === "CAS" ? "Copied!" : "Copy CAS number"}
-                  </Tooltip.Content>
-                </Tooltip>
-              ) : null}
-            </div>
-          </div>
-          <div className="flex min-w-24 flex-1 shrink-0 flex-wrap items-center justify-start gap-0.5 py-0.5 sm:gap-1">
-            {(props.molecule.moleculeTags ?? []).slice(0, 3).map((tag) => {
-              const chipClass = getTagChipClass(tag);
-              const inlineStyle = getTagInlineStyle(tag);
-              return (
-                <span
-                  key={tag.id}
-                  className={`inline-flex max-w-12 shrink-0 items-center truncate rounded-md px-1 py-0.5 text-[8px] font-medium uppercase sm:max-w-none sm:px-1.5 sm:text-[9px] ${chipClass}`}
-                  style={inlineStyle}
-                >
-                  {tag.name}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-      <div
-        className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/moleculecard:ml-auto @md/moleculecard:gap-x-3 @md/moleculecard:gap-y-0 @md/moleculecard:border-t-0 @md/moleculecard:pt-0 @md/moleculecard:pl-4 dark:border-zinc-600"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div>
-          <MoleculeCardActions
-            molecule={props.molecule}
-            pubChemUrl={props.pubChemUrl}
-            casUrl={props.casUrl}
-            copiedText={props.copiedText}
-            handleCopy={props.handleCopy}
-            size="sm"
-            actionsLayout="compact"
-          />
-        </div>
-        <div>
-          <AvatarGroup
-            users={avatarUsers}
-            size="sm"
-            tooltipVariant="name-orcid"
-            tooltipMode="shared"
-          />
-        </div>
-        <CompactCardMetricsColumn>
-          <CompactCardMetricStat
-            icon={<Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-            value={formatCompactMetricCount(viewCount)}
-            textClassName="text-[10px] text-sky-500"
-          />
-          {props.molecule.id && props.isSignedIn ? (
+        <div className="group flex w-full flex-col gap-2 p-3 @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-2 @md/moleculecard:min-w-0 @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-3">
+          <div
+            className={cn(
+              "flex min-w-0 items-center gap-2 @md/moleculecard:gap-3",
+              hasCompactTags
+                ? "w-full @md/moleculecard:max-w-[min(42%,22rem)] @md/moleculecard:shrink-0"
+                : "w-full @md/moleculecard:min-w-0 @md/moleculecard:flex-1",
+            )}
+          >
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                props.handleFavorite();
+                setImageModalOpen(true);
               }}
-              disabled={props.favoriteMutation.isPending}
-              aria-label={
-                props.realtimeUserHasUpvoted ? "Unfavorite" : "Favorite"
-              }
-              className={`flex items-center gap-1 text-xs leading-none font-medium tabular-nums transition-colors hover:opacity-80 disabled:opacity-50 ${
-                props.realtimeUserHasUpvoted
-                  ? "text-pink-500"
-                  : "text-text-tertiary"
+              className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 @md/moleculecard:h-14 @md/moleculecard:w-14 dark:bg-black ${
+                hasImage ? "" : `bg-linear-to-br ${previewGradient}`
               }`}
+              aria-label="View molecule structure"
             >
-              <Heart
-                className={`h-3.5 w-3.5 shrink-0 ${
-                  props.realtimeUserHasUpvoted
-                    ? "fill-pink-500 text-pink-500"
-                    : ""
-                }`}
-                aria-hidden
-              />
-              {props.realtimeUpvoteCount}
+              {hasImage ? (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-1">
+                  <MoleculeImageSVG
+                    imageUrl={props.molecule.imageUrl ?? ""}
+                    name={props.primaryName}
+                    className="h-full w-full [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <Atom
+                    className="h-6 w-6 text-white/80"
+                    strokeWidth={1}
+                    aria-hidden
+                  />
+                </div>
+              )}
+              {props.realtimeUserHasUpvoted ? (
+                <span
+                  className="bg-accent absolute top-1 right-1 h-2.5 w-2.5 rounded-full border border-black/50 shadow-[0_0_4px_rgba(99,102,241,0.8)]"
+                  aria-hidden
+                />
+              ) : null}
             </button>
-          ) : (
-            <span
-              className={`flex items-center gap-1 text-xs leading-none font-medium tabular-nums ${
-                props.realtimeUserHasUpvoted
-                  ? "text-pink-500"
-                  : "text-text-tertiary"
-              }`}
-            >
-              <Heart
-                className={`h-3.5 w-3.5 shrink-0 ${
-                  props.realtimeUserHasUpvoted
-                    ? "fill-pink-500 text-pink-500"
-                    : ""
-                }`}
-                aria-hidden
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden py-0.5">
+              <div className="flex min-w-0 items-center gap-x-2 gap-y-1 overflow-hidden">
+                <Link
+                  href={`/molecules/${canonicalMoleculeSlugFromView(props.molecule)}`}
+                  className="text-text-primary motion-safe:group-hover:text-accent min-w-0 shrink self-center truncate text-sm leading-tight font-bold hover:underline motion-safe:transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {props.primaryName}
+                </Link>
+                {moleculeOverflowSynonyms(props.orderedSynonyms, {
+                  primaryName: props.primaryName,
+                }).length > 0 ? (
+                  <span className="inline-flex shrink-0 items-center self-center leading-none">
+                    <SynonymChipsWithPopup
+                      synonyms={props.orderedSynonyms}
+                      primaryName={props.primaryName}
+                      collapseOnly
+                    />
+                  </span>
+                ) : null}
+              </div>
+              {props.molecule.chemicalFormula ? (
+                <CompactMoleculeCopyRow
+                  text={props.molecule.chemicalFormula}
+                  label="Chemical formula"
+                  copiedLabel={props.copiedText}
+                  onCopy={props.handleCopy}
+                />
+              ) : null}
+              {props.molecule.casNumber ? (
+                <CompactMoleculeCopyRow
+                  text={props.molecule.casNumber}
+                  displayText={`CAS ${props.molecule.casNumber}`}
+                  label="CAS number"
+                  copiedLabel={props.copiedText}
+                  onCopy={props.handleCopy}
+                />
+              ) : null}
+            </div>
+          </div>
+          {hasCompactTags ? (
+            <div className="hidden min-w-0 flex-1 items-center @md/moleculecard:flex">
+              <CompactMoleculeTagRow tags={compactTags} variant="rail" />
+            </div>
+          ) : null}
+          </div>
+          {hasCompactTags ? (
+            <div className="w-full min-w-0 @md/moleculecard:hidden">
+              <CompactMoleculeTagRow tags={compactTags} variant="stacked" />
+            </div>
+          ) : null}
+          <div
+            className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/moleculecard:gap-x-3 @md/moleculecard:gap-y-0 @md/moleculecard:border-t-0 @md/moleculecard:border-l @md/moleculecard:pt-0 @md/moleculecard:pl-4 dark:border-zinc-600"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoleculeCardActions
+              molecule={props.molecule}
+              pubChemUrl={props.pubChemUrl}
+              casUrl={props.casUrl}
+              copiedText={props.copiedText}
+              handleCopy={props.handleCopy}
+              size="sm"
+              actionsLayout="compact"
+            />
+            <ContributorAvatarGroup users={avatarUsers} size="sm" />
+            <CompactCardMetricsColumn>
+              <CompactCardMetricStat
+                icon={<Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                value={formatCompactMetricCount(viewCount)}
+                textClassName="text-[10px] text-sky-500"
               />
-              {props.realtimeUpvoteCount}
-            </span>
-          )}
-          <CompactCardMetricStat
-            icon={<Database className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-            value={formatCompactMetricCount(experimentCount)}
-            textClassName="text-[10px] text-amber-500"
-            title="Datasets"
-          />
-        </CompactCardMetricsColumn>
+              {props.molecule.id && props.isSignedIn ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.handleFavorite();
+                  }}
+                  disabled={props.favoriteMutation.isPending}
+                  aria-label={
+                    props.realtimeUserHasUpvoted ? "Unfavorite" : "Favorite"
+                  }
+                  className={`flex items-center gap-1 text-xs leading-none font-medium tabular-nums transition-colors hover:opacity-80 disabled:opacity-50 ${
+                    props.realtimeUserHasUpvoted
+                      ? "text-pink-500"
+                      : "text-text-tertiary"
+                  }`}
+                >
+                  <Heart
+                    className={`h-3.5 w-3.5 shrink-0 ${
+                      props.realtimeUserHasUpvoted
+                        ? "fill-pink-500 text-pink-500"
+                        : ""
+                    }`}
+                    aria-hidden
+                  />
+                  {props.realtimeUpvoteCount}
+                </button>
+              ) : (
+                <span
+                  className={`flex items-center gap-1 text-xs leading-none font-medium tabular-nums ${
+                    props.realtimeUserHasUpvoted
+                      ? "text-pink-500"
+                      : "text-text-tertiary"
+                  }`}
+                >
+                  <Heart
+                    className={`h-3.5 w-3.5 shrink-0 ${
+                      props.realtimeUserHasUpvoted
+                        ? "fill-pink-500 text-pink-500"
+                        : ""
+                    }`}
+                    aria-hidden
+                  />
+                  {props.realtimeUpvoteCount}
+                </span>
+              )}
+              <CompactCardMetricStat
+                icon={<Database className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                value={formatCompactMetricCount(experimentCount)}
+                textClassName="text-[10px] text-amber-500"
+                title="Datasets"
+              />
+            </CompactCardMetricsColumn>
           </div>
         </div>
       </div>
@@ -819,12 +924,7 @@ function ContributorsOrEmpty({
 }) {
   if (users.length > 0) {
     return (
-      <AvatarGroup
-        users={users}
-        size="sm"
-        tooltipVariant="name-orcid"
-        tooltipMode="shared"
-      />
+      <ContributorAvatarGroup users={users} size="sm" />
     );
   }
   return (
@@ -882,16 +982,9 @@ export const FullCard = memo(function FullCard({
 }: {
   props: MoleculeCardProps;
 }) {
-  const fromContributors =
-    (props.molecule.contributors?.length ?? 0) > 0
-      ? moleculeContributorUsers(props.molecule.contributors)
-      : [];
-  const avatarUsers: UserWithOrcid[] =
-    fromContributors.length > 0
-      ? fromContributors
-      : props.molecule.createdBy
-        ? [props.molecule.createdBy]
-        : [];
+  const avatarUsers: UserWithOrcid[] = moleculeContributorAvatarUsers(
+    props.molecule,
+  );
   const previewGradient = getPreviewGradient(props.molecule);
   const hasImage = Boolean(props.molecule.imageUrl?.trim());
   const experimentCount = props.molecule.experimentCount ?? 0;
@@ -972,13 +1065,16 @@ export const FullCard = memo(function FullCard({
             {props.primaryName}
           </Link>
         </div>
-        {props.orderedSynonyms.length > 0 ? (
+        {moleculeOverflowSynonyms(props.orderedSynonyms, {
+          primaryName: props.primaryName,
+        }).length > 0 ? (
           <div
             className="min-w-0 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <SynonymChipsWithPopup
               synonyms={props.orderedSynonyms}
+              primaryName={props.primaryName}
               maxSynonyms={3}
             />
           </div>
@@ -1115,16 +1211,9 @@ export const FullCardCarousel = memo(function FullCardCarousel({
 }: {
   props: MoleculeCardProps;
 }) {
-  const fromContributors =
-    (props.molecule.contributors?.length ?? 0) > 0
-      ? moleculeContributorUsers(props.molecule.contributors)
-      : [];
-  const avatarUsers: UserWithOrcid[] =
-    fromContributors.length > 0
-      ? fromContributors
-      : props.molecule.createdBy
-        ? [props.molecule.createdBy]
-        : [];
+  const avatarUsers: UserWithOrcid[] = moleculeContributorAvatarUsers(
+    props.molecule,
+  );
   const previewGradient = getPreviewGradient(props.molecule);
   const hasImage = Boolean(props.molecule.imageUrl?.trim());
   const experimentCount = props.molecule.experimentCount ?? 0;
@@ -1213,13 +1302,16 @@ export const FullCardCarousel = memo(function FullCardCarousel({
             className="pt-0.5 @lg:hidden"
           />
         </div>
-        {props.orderedSynonyms.length > 0 ? (
+        {moleculeOverflowSynonyms(props.orderedSynonyms, {
+          primaryName: props.primaryName,
+        }).length > 0 ? (
           <div
             className="min-w-0 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <SynonymChipsWithPopup
               synonyms={props.orderedSynonyms}
+              primaryName={props.primaryName}
               maxSynonyms={3}
             />
           </div>
@@ -1886,16 +1978,9 @@ export const HeaderCard = memo(function HeaderCard({
       return;
     setPendingSynonymLookup(synonym);
   };
-  const fromContributors =
-    (props.molecule.contributors?.length ?? 0) > 0
-      ? moleculeContributorUsers(props.molecule.contributors)
-      : [];
-  const avatarUsers: UserWithOrcid[] =
-    fromContributors.length > 0
-      ? fromContributors
-      : props.molecule.createdBy
-        ? [props.molecule.createdBy]
-        : [];
+  const avatarUsers: UserWithOrcid[] = moleculeContributorAvatarUsers(
+    props.molecule,
+  );
   const previewGradient = getPreviewGradient(props.molecule);
   const hasImage = Boolean(props.molecule.imageUrl?.trim());
   const experimentCount = props.molecule.experimentCount ?? 0;
@@ -2100,10 +2185,13 @@ export const HeaderCard = memo(function HeaderCard({
                     size="inline"
                   />
                 </div>
-                {props.orderedSynonyms.length > 0 ? (
+                {moleculeOverflowSynonyms(props.orderedSynonyms, {
+                  primaryName: props.primaryName,
+                }).length > 0 ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <SynonymChipsWithPopup
                       synonyms={props.orderedSynonyms}
+                      primaryName={props.primaryName}
                       maxSynonyms={5}
                     />
                   </div>
@@ -2394,10 +2482,16 @@ export const MoleculeCard = memo(function MoleculeCard({
   };
   const handleCopy = (text: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      void navigator.clipboard.writeText(text).then(() => {
-        setCopiedText(label);
-        setTimeout(() => setCopiedText(null), 2000);
-      });
+      void navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          setCopiedText(label);
+          showToast(`${label} copied`, "success");
+          setTimeout(() => setCopiedText(null), 2000);
+        })
+        .catch(() => {
+          showToast("Could not copy to clipboard", "error");
+        });
     }
   };
   const noop = () => {

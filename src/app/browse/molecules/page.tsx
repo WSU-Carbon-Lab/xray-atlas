@@ -294,12 +294,12 @@ function MoleculesBrowseContent() {
           }
         />
 
-        <div className="min-w-0">
+        <div>
           {isLoading && (
             <div
               className={
                 viewMode === "compact"
-                  ? "w-full space-y-3"
+                  ? "space-y-3"
                   : "grid w-full grid-cols-1 gap-6 md:grid-cols-2"
               }
             >
@@ -347,9 +347,12 @@ function MoleculesBrowseContent() {
               ) : (
                 <>
                   {viewMode === "compact" ? (
-                    <div className="w-full space-y-3 [&>div]:[contain-intrinsic-size:0_80px] [&>div]:[content-visibility:auto]">
+                    <div
+                      className="space-y-3 [&>*]:[contain-intrinsic-size:0_80px] [&>*]:[content-visibility:auto]"
+                      aria-label="Molecule results"
+                    >
                       <AddMoleculeButton
-                        className="min-h-[140px]"
+                        className="min-h-[140px] w-full"
                         onCreated={handleMoleculeCreated}
                       />
                       {molecules.map((molecule) => {
@@ -357,12 +360,11 @@ function MoleculesBrowseContent() {
                         if (!displayMolecule) return null;
 
                         return (
-                          <div key={molecule.id}>
-                            <MoleculeDisplayCompact
-                              molecule={displayMolecule}
-                              enableRealtime={false}
-                            />
-                          </div>
+                          <MoleculeDisplayCompact
+                            key={molecule.id}
+                            molecule={displayMolecule}
+                            enableRealtime={false}
+                          />
                         );
                       })}
                     </div>
