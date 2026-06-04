@@ -109,3 +109,194 @@ export function formatAuxFileSize(bytes: number): string {
   }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+export type AuxFileVisualKind =
+  | "document"
+  | "spreadsheet"
+  | "image"
+  | "data"
+  | "archive"
+  | "generic";
+
+/**
+ * Maps MIME type and filename hints to a drop-zone icon category for stacked page visuals.
+ */
+export function inferAuxFileVisualKindFromMime(
+  mimeType: string,
+  fileName = "",
+): AuxFileVisualKind {
+  const mime = mimeType.trim().toLowerCase();
+  const name = fileName.toLowerCase();
+
+  if (
+    mime.startsWith("image/") ||
+    /\.(jpe?g|png|webp|tiff?|gif)$/i.test(name)
+  ) {
+    return "image";
+  }
+  if (
+    mime.includes("spreadsheet") ||
+    mime.includes("excel") ||
+    mime === "text/csv" ||
+    mime === "application/csv" ||
+    name.endsWith(".xlsx") ||
+    name.endsWith(".xls") ||
+    name.endsWith(".csv")
+  ) {
+    return "spreadsheet";
+  }
+  if (
+    mime === "application/pdf" ||
+    mime.includes("word") ||
+    name.endsWith(".pdf") ||
+    name.endsWith(".docx") ||
+    name.endsWith(".doc")
+  ) {
+    return "document";
+  }
+  if (
+    mime.includes("hdf") ||
+    mime.includes("netcdf") ||
+    mime === "application/json" ||
+    mime === "text/json" ||
+    name.endsWith(".h5") ||
+    name.endsWith(".hdf5") ||
+    name.endsWith(".nc") ||
+    name.endsWith(".json")
+  ) {
+    return "data";
+  }
+  if (
+    mime === "application/zip" ||
+    mime === "application/gzip" ||
+    mime === "application/x-gzip" ||
+    mime === "application/x-tar"
+  ) {
+    return "archive";
+  }
+  return "generic";
+}
+
+/**
+ * Infers stacked drop-zone icon category from a browser `File` instance.
+ */
+export function inferAuxFileVisualKindFromFile(file: File): AuxFileVisualKind {
+  return inferAuxFileVisualKindFromMime(file.type, file.name);
+}
+
+/**
+ * Maps global drag overlay type labels (for example `PDF`, `image`) to icon categories.
+ */
+export function inferAuxFileVisualKindFromDropLabel(
+  label: string,
+): AuxFileVisualKind {
+  const normalized = label.trim().toLowerCase();
+  if (normalized === "json" || normalized === "data") {
+    return "data";
+  }
+  if (normalized === "csv" || normalized === "spreadsheet") {
+    return "spreadsheet";
+  }
+  if (normalized === "pdf" || normalized === "document") {
+    return "document";
+  }
+  if (normalized === "image") {
+    return "image";
+  }
+  return "generic";
+}
+
+/**
+ * Builds a short type label for drag overlay copy from a file MIME type and name.
+ */
+export function dropTypeLabelFromFile(file: File): string {
+  const mime = (file.type || "").trim().toLowerCase();
+  const name = file.name.toLowerCase();
+
+  if (
+    mime === "application/json" ||
+    mime === "text/json" ||
+    name.endsWith(".json")
+  ) {
+    return "JSON";
+  }
+  if (
+    mime === "text/csv" ||
+    mime === "application/csv" ||
+    name.endsWith(".csv")
+  ) {
+    return "CSV";
+  }
+  if (mime === "application/pdf" || name.endsWith(".pdf")) {
+    return "PDF";
+  }
+  if (mime.startsWith("image/") || /\.(jpe?g|png|webp|tiff?|gif)$/i.test(name)) {
+    return "image";
+  }
+  if (
+    mime.includes("spreadsheet") ||
+    mime.includes("excel") ||
+    name.endsWith(".xlsx") ||
+    name.endsWith(".xls")
+  ) {
+    return "spreadsheet";
+  }
+  if (
+    mime.includes("word") ||
+    name.endsWith(".docx") ||
+    name.endsWith(".doc")
+  ) {
+    return "document";
+  }
+  if (
+    mime.includes("hdf") ||
+    mime.includes("netcdf") ||
+    name.endsWith(".h5") ||
+    name.endsWith(".hdf5") ||
+    name.endsWith(".nc")
+  ) {
+    return "data";
+  }
+  const ext = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1) : "";
+  if (ext.length > 0) {
+    return ext.toUpperCase();
+  }
+  return "files";
+}
+
+/**
+ * Builds reader-facing drop copy: `Drop {type} here to upload {uploadTypeLabel}` without duplicating "file".
+ */
+export function formatDropOverlayMessage(
+  fileTypeLabel: string,
+  uploadTypeLabel: string,
+): string {
+  const trimmed = fileTypeLabel.trim();
+  const target = uploadTypeLabel.trim();
+  const subject =
+    trimmed === "" || trimmed.toLowerCase() === "file"
+      ? "files"
+      : trimmed;
+  if (!target) {
+    return `Drop ${subject} here to upload`;
+  }
+  return `Drop ${subject} here to upload ${target}`;
+}
+
+const AUX_KIND_TO_VISUAL: Record<AuxFileKind, AuxFileVisualKind> = {
+  protocol: "document",
+  raw_data: "data",
+  image: "image",
+  spreadsheet: "spreadsheet",
+  document: "document",
+  other: "generic",
+};
+
+/**
+ * Maps queued aux file kind metadata to stacked drop-zone icon categories.
+ */
+export function auxFileVisualKindFromAuxKind(
+  kind: AuxFileKind,
+): AuxFileVisualKind {
+  return AUX_KIND_TO_VISUAL[kind];
+}

@@ -11,20 +11,16 @@ import {
   TextField,
 } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import {
-  FileIcon,
-  FileSpreadsheet,
-  FileText,
-  ImageIcon,
-  Upload,
-  X,
-} from "lucide-react";
+import { FileIcon, FileSpreadsheet, FileText, ImageIcon, X } from "lucide-react";
 import {
   AUX_FILE_KIND_LABELS,
   AUX_FILE_KINDS,
+  auxFileVisualKindFromAuxKind,
   formatAuxFileSize,
+  inferAuxFileVisualKindFromDropLabel,
   type AuxFileKind,
   type AuxFileScope,
+  type AuxFileVisualKind,
 } from "~/lib/aux-file-client";
 import { appendPendingAuxFiles } from "~/lib/pending-aux-file";
 import type { PendingAuxFile } from "~/features/process-nexafs/types";
@@ -34,7 +30,7 @@ import {
   useOptionalGlobalFileDropZoneContext,
   type GlobalDropZoneId,
 } from "~/hooks/useGlobalFileDropZone";
-import { StackedFileIcons } from "./StackedFileIcons";
+import { StackedFileIcons, StackedPageDropVisual } from "./StackedFileIcons";
 
 type AuxFileDropZoneProps = {
   scope: AuxFileScope;
@@ -52,6 +48,8 @@ type AuxFileDropZoneProps = {
   onPendingKindChange?: (kind: AuxFileKind) => void;
   onPendingDescriptionChange?: (description: string) => void;
   hideUploadDefaults?: boolean;
+  /** Reader-facing upload target in global drop overlay copy (defaults from `scope`). */
+  uploadTypeLabel?: string;
 };
 
 const kindIconClass = "size-4 shrink-0";
@@ -158,11 +156,15 @@ export function AuxFileDropZone({
   onPendingKindChange,
   onPendingDescriptionChange,
   hideUploadDefaults = false,
+  uploadTypeLabel: uploadTypeLabelProp,
 }: AuxFileDropZoneProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropSurfaceRef = useRef<HTMLDivElement>(null);
   const [localKind, setLocalKind] = useState<AuxFileKind>("other");
   const [localDescription, setLocalDescription] = useState("");
+  const [isHovering, setIsHovering] = useState(false);
+  const [pointer, setPointer] = useState({ x: 50, y: 50 });
 
   const globalDropState = useOptionalGlobalFileDropZoneContext();
   const showGlobalOverlay = Boolean(
@@ -178,6 +180,28 @@ export function AuxFileDropZone({
 
   const isCompact = variant === "compact";
   const capLabel = scope === "sample" ? "50 MB" : "500 MB";
+  const uploadTypeLabel =
+    uploadTypeLabelProp ??
+    (scope === "sample" ? "sample files" : "experiment files");
+
+  const syncPointer = useCallback((clientX: number, clientY: number) => {
+    const rect = dropSurfaceRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    const y = ((clientY - rect.top) / rect.height) * 100;
+    setPointer({
+      x: Math.min(100, Math.max(0, x)),
+      y: Math.min(100, Math.max(0, y)),
+    });
+  }, []);
+
+  const dragVisualKind: AuxFileVisualKind = showGlobalOverlay
+    ? inferAuxFileVisualKindFromDropLabel(
+        globalDropState?.fileTypeLabel ?? "files",
+      )
+    : auxFileVisualKindFromAuxKind(pendingKind);
 
   const reportError = useCallback(
     (message: string) => {
@@ -241,16 +265,25 @@ export function AuxFileDropZone({
 
   const dropTarget = (
     <div
+      ref={dropSurfaceRef}
       {...dropTargetProps}
       onDragOver={(event) => {
         event.preventDefault();
+        syncPointer(event.clientX, event.clientY);
       }}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => {
+        setIsHovering(false);
+        setPointer({ x: 50, y: 50 });
+      }}
+      onMouseMove={(event) => syncPointer(event.clientX, event.clientY)}
       className={cn(
-        "relative flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-center transition-colors",
+        "relative flex cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed text-center transition-colors",
         isCompact
-          ? "border-border min-h-[5.5rem] flex-1 px-3 py-3"
-          : "border-border min-h-[7.5rem] px-4 py-5 gap-2",
-        showGlobalOverlay && "border-accent bg-accent/5",
+          ? "border-border min-h-[6.75rem] flex-1 px-3 py-3"
+          : "border-border min-h-[8.5rem] px-4 py-5 gap-2",
+        (showGlobalOverlay || isHovering) && "border-accent/70 bg-accent/5",
+        showGlobalOverlay && "border-accent bg-accent/8",
         disabled && "cursor-not-allowed opacity-60",
       )}
       onClick={() => {
@@ -269,7 +302,7 @@ export function AuxFileDropZone({
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
-      aria-label={`Upload ${scope} auxiliary files, up to ${capLabel} each`}
+      aria-label={`Upload ${uploadTypeLabel}, up to ${capLabel} each`}
     >
       {showGlobalOverlay && globalDropZoneId && globalDropState ? (
         <ContributionFileDropOverlay
@@ -278,24 +311,40 @@ export function AuxFileDropZone({
           fileKind="mixed"
           fileName={globalDropState.fileName}
           messageOverride={globalDropState.messageForZone(globalDropZoneId)}
+          dropTypeLabel={globalDropState.fileTypeLabel}
+          visualKind={dragVisualKind}
         />
       ) : null}
-      <Upload
+      <StackedPageDropVisual
+        visualKind={dragVisualKind}
+        dropTypeLabel={
+          showGlobalOverlay ? (globalDropState?.fileTypeLabel ?? null) : null
+        }
+        isActive={isHovering || showGlobalOverlay}
+        isDragHighlight={showGlobalOverlay}
+        pointerX={pointer.x}
+        pointerY={pointer.y}
         className={cn(
-          isCompact ? "size-4" : "size-5",
-          showGlobalOverlay ? "text-accent" : "text-muted",
+          "motion-safe:transition-opacity motion-safe:duration-200",
+          showGlobalOverlay && "opacity-0",
         )}
-        aria-hidden
       />
       <p
         className={cn(
           "text-foreground font-medium",
           isCompact ? "text-xs" : "text-sm",
+          showGlobalOverlay && "opacity-0",
         )}
       >
         {isCompact ? "Drop or click to browse" : "Drop files or click to browse"}
       </p>
-      <p className={cn("text-muted", isCompact ? "text-[11px]" : "text-xs")}>
+      <p
+        className={cn(
+          "text-muted",
+          isCompact ? "text-[11px]" : "text-xs",
+          showGlobalOverlay && "opacity-0",
+        )}
+      >
         Up to {capLabel} per file
       </p>
       <input

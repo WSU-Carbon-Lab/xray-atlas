@@ -11,6 +11,10 @@ import {
   type ReactNode,
 } from "react";
 import type { ContributionFileDropOverlayFileKind } from "~/components/contribute/contribution-file-drop-overlay";
+import {
+  dropTypeLabelFromFile,
+  formatDropOverlayMessage,
+} from "~/lib/aux-file-client";
 
 export const GLOBAL_DROP_ZONE_IDS = {
   NEXAFS_NEW_DATASET: "nexafs-new-dataset",
@@ -30,20 +34,7 @@ export const GLOBAL_DROP_ZONE_UPLOAD_LABELS: Record<GlobalDropZoneId, string> =
     [GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX]: "sample files",
   };
 
-/**
- * Builds reader-facing drop copy: `Drop {fileTypeLabel} file here to upload {uploadTypeLabel}`.
- */
-export function formatDropOverlayMessage(
-  fileTypeLabel: string,
-  uploadTypeLabel: string,
-): string {
-  const typePart = fileTypeLabel.trim() || "file";
-  const target = uploadTypeLabel.trim();
-  if (!target) {
-    return `Drop ${typePart} file here to upload`;
-  }
-  return `Drop ${typePart} file here to upload ${target}`;
-}
+export { formatDropOverlayMessage } from "~/lib/aux-file-client";
 
 function spectrumFileKind(file: File): "csv" | "json" | null {
   const name = file.name.toLowerCase();
@@ -54,61 +45,6 @@ function spectrumFileKind(file: File): "csv" | "json" | null {
     return "csv";
   }
   return null;
-}
-
-function fileTypeLabelFromFile(file: File): string {
-  const mime = (file.type || "").trim().toLowerCase();
-  const name = file.name.toLowerCase();
-
-  if (
-    mime === "application/json" ||
-    mime === "text/json" ||
-    name.endsWith(".json")
-  ) {
-    return "JSON";
-  }
-  if (
-    mime === "text/csv" ||
-    mime === "application/csv" ||
-    name.endsWith(".csv")
-  ) {
-    return "CSV";
-  }
-  if (mime === "application/pdf" || name.endsWith(".pdf")) {
-    return "PDF";
-  }
-  if (mime.startsWith("image/") || /\.(jpe?g|png|webp|tiff?|gif)$/i.test(name)) {
-    return "image";
-  }
-  if (
-    mime.includes("spreadsheet") ||
-    mime.includes("excel") ||
-    name.endsWith(".xlsx") ||
-    name.endsWith(".xls")
-  ) {
-    return "spreadsheet";
-  }
-  if (
-    mime.includes("word") ||
-    name.endsWith(".docx") ||
-    name.endsWith(".doc")
-  ) {
-    return "document";
-  }
-  if (
-    mime.includes("hdf") ||
-    mime.includes("netcdf") ||
-    name.endsWith(".h5") ||
-    name.endsWith(".hdf5") ||
-    name.endsWith(".nc")
-  ) {
-    return "data";
-  }
-  if (mime) {
-    return "file";
-  }
-  const ext = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1) : "";
-  return ext.length > 0 ? ext.toUpperCase() : "file";
 }
 
 function classifyDraggedSpectrumKind(
@@ -155,22 +91,22 @@ function classifyDraggedFileTypeLabel(
       }
       const file = item.getAsFile();
       if (file) {
-        labels.push(fileTypeLabelFromFile(file));
+        labels.push(dropTypeLabelFromFile(file));
       }
     }
   }
 
   if (labels.length === 0 && files) {
     for (const file of Array.from(files)) {
-      labels.push(fileTypeLabelFromFile(file));
+      labels.push(dropTypeLabelFromFile(file));
     }
   }
 
   if (labels.length === 0) {
-    return "file";
+    return "files";
   }
   const unique = Array.from(new Set(labels));
-  return unique.length === 1 ? unique[0]! : "file";
+  return unique.length === 1 ? unique[0]! : "files";
 }
 
 function zoneUnderPointer(event: DragEvent): GlobalDropZoneId | null {
@@ -299,7 +235,7 @@ export function useGlobalFileDropZone(
   const [activeZone, setActiveZone] = useState<GlobalDropZoneId | null>(null);
   const [spectrumFileKind, setSpectrumFileKind] =
     useState<ContributionFileDropOverlayFileKind | null>(null);
-  const [fileTypeLabel, setFileTypeLabel] = useState("file");
+  const [fileTypeLabel, setFileTypeLabel] = useState("files");
   const [draggedFileName, setDraggedFileName] = useState<string | null>(null);
 
   const onSpectrumFilesRef = useRef(onSpectrumFiles);
@@ -369,7 +305,7 @@ export function useGlobalFileDropZone(
       setIsDraggingFiles(false);
       setActiveZone(null);
       setSpectrumFileKind(null);
-      setFileTypeLabel("file");
+      setFileTypeLabel("files");
       setDraggedFileName(null);
     }
   }, []);
@@ -383,7 +319,7 @@ export function useGlobalFileDropZone(
       const zone = zoneUnderPointer(event) ?? activeZone;
       setActiveZone(null);
       setSpectrumFileKind(null);
-      setFileTypeLabel("file");
+      setFileTypeLabel("files");
       setDraggedFileName(null);
 
       const allFiles = Array.from(event.dataTransfer?.files ?? []);

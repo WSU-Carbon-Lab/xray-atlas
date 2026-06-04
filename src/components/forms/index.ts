@@ -2,7 +2,12 @@ export {
   AuxFileDropZone,
   AuxUploadDefaultsRow,
 } from "./AuxFileDropZone";
-export { StackedFileIcons, type StackedFileEntry } from "./StackedFileIcons";
+export {
+  AuxFileVisualIcon,
+  StackedFileIcons,
+  StackedPageDropVisual,
+  type StackedFileEntry,
+} from "./StackedFileIcons";
 export {
   SampleAuxAccordion,
   emptySampleAuxFields,

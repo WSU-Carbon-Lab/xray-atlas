@@ -1,7 +1,11 @@
 "use client";
 
-import { DocumentArrowUpIcon } from "@heroicons/react/24/outline";
 import { cn } from "@heroui/styles";
+import { StackedPageDropVisual } from "~/components/forms/StackedFileIcons";
+import {
+  inferAuxFileVisualKindFromDropLabel,
+  type AuxFileVisualKind,
+} from "~/lib/aux-file-client";
 
 const MAX_FILE_NAME_LENGTH = 40;
 
@@ -16,11 +20,24 @@ function truncateFileName(name: string): string {
 function getDefaultSpectrumMessage(fileKind: "csv" | "json" | "mixed"): string {
   switch (fileKind) {
     case "json":
-      return "Drop JSON file here to upload";
+      return "Drop JSON here to upload";
     case "csv":
-      return "Drop CSV file here to upload";
+      return "Drop CSV here to upload";
     default:
-      return "Drop CSV or JSON files here to upload";
+      return "Drop CSV or JSON here to upload";
+  }
+}
+
+function spectrumVisualKind(
+  fileKind: ContributionFileDropOverlayFileKind,
+): AuxFileVisualKind {
+  switch (fileKind) {
+    case "json":
+      return "data";
+    case "csv":
+      return "spreadsheet";
+    default:
+      return "generic";
   }
 }
 
@@ -32,6 +49,8 @@ type ContributionFileDropOverlayProps = {
   fileName?: string | null;
   messageOverride?: string;
   variant?: "fullscreen" | "inset";
+  dropTypeLabel?: string | null;
+  visualKind?: AuxFileVisualKind;
 };
 
 export function ContributionFileDropOverlay({
@@ -40,12 +59,19 @@ export function ContributionFileDropOverlay({
   fileName = null,
   messageOverride,
   variant = "fullscreen",
+  dropTypeLabel = null,
+  visualKind: visualKindProp,
 }: ContributionFileDropOverlayProps) {
   if (!isDragging) return null;
 
   const message = messageOverride ?? getDefaultSpectrumMessage(fileKind);
   const displayFileName = fileName ? truncateFileName(fileName) : null;
   const isInset = variant === "inset";
+  const visualKind =
+    visualKindProp ??
+    (dropTypeLabel
+      ? inferAuxFileVisualKindFromDropLabel(dropTypeLabel)
+      : spectrumVisualKind(fileKind));
 
   return (
     <div
@@ -65,11 +91,12 @@ export function ContributionFileDropOverlay({
             : "gap-4 rounded-2xl p-12",
         )}
       >
-        <DocumentArrowUpIcon
-          className={cn(
-            "text-accent animate-bounce",
-            isInset ? "h-10 w-10 sm:h-12 sm:w-12" : "h-24 w-24",
-          )}
+        <StackedPageDropVisual
+          visualKind={visualKind}
+          dropTypeLabel={dropTypeLabel}
+          isActive
+          isDragHighlight
+          className={isInset ? "h-14" : "h-20 w-24"}
         />
         <p
           className={cn(
