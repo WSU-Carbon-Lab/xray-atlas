@@ -359,8 +359,8 @@ export function AuxFileDropZone({
       ) : null}
       <div
         className={cn(
-          "relative flex w-full justify-center motion-safe:transition-[min-height] motion-safe:duration-250 motion-safe:ease-out motion-reduce:transition-none",
-          isStackHovered && hasQueuedInStack && "min-h-[7.25rem]",
+          "relative flex w-full justify-center",
+          hasQueuedInStack && "h-[5.25rem]",
           showGlobalOverlay && "opacity-0",
         )}
         onMouseEnter={() => {
@@ -391,7 +391,6 @@ export function AuxFileDropZone({
           "text-foreground font-medium",
           isCompact ? "text-xs" : "text-sm",
           hasQueuedInStack && "text-[11px]",
-          hasQueuedInStack && isStackHovered && "mt-2",
           showGlobalOverlay && "opacity-0",
         )}
       >

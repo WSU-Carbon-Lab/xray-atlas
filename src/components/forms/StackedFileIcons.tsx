@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Button } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import {
@@ -107,14 +107,56 @@ function truncateStackFilename(name: string, maxChars = 22): string {
   return `${name.slice(0, head)}…${name.slice(-tail)}`;
 }
 
-const COMPACT_GRID_MAX_COLUMNS = 6;
-const COMPACT_GRID_MIN_CELL_REM = 4.75;
+/** Fixed visual slot height when hover expands queued files into a horizontal scroller. */
+const COMPACT_EXPANDED_VISUAL_HEIGHT_CLASS = "h-[5.25rem]";
+const COMPACT_SCROLLER_CELL_WIDTH_CLASS = "w-[4.75rem]";
+const COMPACT_SCROLLER_ICON_TILE_CLASS = "h-14 w-14";
 
-/** Minimum block height (rem) for the expanded hover grid from file count. */
-function compactGridMinHeightRem(fileCount: number): number {
-  const rows = Math.ceil(fileCount / COMPACT_GRID_MAX_COLUMNS);
-  const rowHeightRem = 4.5;
-  return Math.max(4.75, rows * rowHeightRem + 0.25);
+function useHorizontalScrollEdgeFades(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  itemCount: number,
+  enabled: boolean,
+) {
+  const [edges, setEdges] = useState({ left: false, right: false });
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !enabled) {
+      setEdges({ left: false, right: false });
+      return;
+    }
+
+    const update = () => {
+      const overflow = el.scrollWidth > el.clientWidth + 2;
+      setEdges({
+        left: overflow && el.scrollLeft > 2,
+        right:
+          overflow && el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+      });
+    };
+
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, [scrollRef, itemCount, enabled]);
+
+  return edges;
+}
+
+function layerExitTransformForSlot(slot: LayerSlot): string {
+  switch (slot) {
+    case "backLeft":
+      return "translate(-1.35rem, 0.3rem) rotate(-22deg) scale(0.68)";
+    case "backRight":
+      return "translate(1.35rem, 0.3rem) rotate(22deg) scale(0.68)";
+    case "front":
+      return "translateY(-0.7rem) rotate(3deg) scale(0.72)";
+  }
 }
 
 type StackedPageDropVisualProps = {
@@ -131,7 +173,7 @@ type StackedPageDropVisualProps = {
   /** Multi-file default stack uses filled accent styling without hover. */
   filledStack?: boolean;
   stackAccent?: StackedPageStackAccent;
-  /** Hovering the visual expands all queued files into a removable icon grid. */
+  /** Hovering the visual expands queued files into a horizontal removable scroller. */
   expandToGridOnHover?: boolean;
   isStackHovered?: boolean;
 };
@@ -231,6 +273,7 @@ function StackedPageLayer({
   pointerOffsetY,
   pointerRotate,
   isDecorative,
+  exitingToScroller,
 }: {
   slot: LayerSlot;
   file?: StackedPageQueuedFile;
@@ -243,26 +286,30 @@ function StackedPageLayer({
   pointerOffsetY: number;
   pointerRotate: number;
   isDecorative: boolean;
+  exitingToScroller: boolean;
 }) {
   const active = isActive || isDragHighlight;
   const emphasized = active || (filledStack && Boolean(file));
   const accentClasses = stackAccentLayerClasses(stackAccent, emphasized);
   const kind = file?.visualKind ?? visualKind;
-  const transform = layerTransformForSlot(
-    slot,
-    active,
-    filledStack && !active,
-    pointerOffsetX,
-    pointerOffsetY,
-    pointerRotate,
-  );
+  const transform = exitingToScroller
+    ? layerExitTransformForSlot(slot)
+    : layerTransformForSlot(
+        slot,
+        active,
+        filledStack && !active,
+        pointerOffsetX,
+        pointerOffsetY,
+        pointerRotate,
+      );
   const isFront = slot === "front";
 
   return (
     <span
       className={cn(
         "absolute flex h-11 w-[2.35rem] items-center justify-center rounded-md border shadow-sm",
-        "motion-safe:transition-transform motion-safe:duration-300 motion-reduce:transition-none",
+        "motion-safe:transition-[transform,opacity] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none",
+        exitingToScroller && "opacity-0",
         isDecorative && !file
           ? isFront
             ? "border-border bg-surface text-muted"
@@ -289,18 +336,32 @@ function StackedPageLayer({
   );
 }
 
-function StackedPageFileGridCell({
+function StackedPageFileScrollerCell({
   file,
   stackAccent,
+  index,
+  showScroller,
 }: {
   file: StackedPageQueuedFile;
   stackAccent: StackedPageStackAccent;
+  index: number;
+  showScroller: boolean;
 }) {
   const accentClasses = stackAccentLayerClasses(stackAccent, true);
 
   return (
     <div
-      className="group/layer pointer-events-auto flex min-w-0 w-full flex-col items-center gap-1"
+      className={cn(
+        "group/layer pointer-events-auto flex shrink-0 snap-start flex-col items-center gap-1.5",
+        COMPACT_SCROLLER_CELL_WIDTH_CLASS,
+        "motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none",
+        showScroller
+          ? "scale-100 opacity-100"
+          : "pointer-events-none scale-90 opacity-0",
+      )}
+      style={{
+        transitionDelay: showScroller ? `${Math.min(index, 10) * 35}ms` : "0ms",
+      }}
       title={file.filename}
       onClick={(event) => {
         event.stopPropagation();
@@ -311,14 +372,15 @@ function StackedPageFileGridCell({
     >
       <div
         className={cn(
-          "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border shadow-sm",
+          "relative flex shrink-0 items-center justify-center rounded-md border shadow-sm",
+          COMPACT_SCROLLER_ICON_TILE_CLASS,
           accentClasses.border,
           accentClasses.bg,
         )}
       >
         <AuxFileVisualIcon
           kind={file.visualKind}
-          className="text-muted size-4"
+          className="text-muted size-5"
         />
         <StackedPageRemoveButton
           filename={file.filename}
@@ -326,31 +388,32 @@ function StackedPageFileGridCell({
           onRemove={file.onRemove}
         />
       </div>
-      <p className="text-foreground line-clamp-2 w-full max-w-[4.75rem] text-center text-[9px] leading-tight font-medium break-all">
-        {truncateStackFilename(file.filename)}
+      <p className="text-foreground line-clamp-1 w-full text-center text-[9px] leading-tight font-medium">
+        {truncateStackFilename(file.filename, 18)}
       </p>
     </div>
   );
 }
 
-function StackedPageFileGrid({
+function StackedPageFileScroller({
   files,
   stackAccent,
-  className,
+  showScroller,
 }: {
   files: StackedPageQueuedFile[];
   stackAccent: StackedPageStackAccent;
-  className?: string;
+  showScroller: boolean;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const edges = useHorizontalScrollEdgeFades(
+    scrollRef,
+    files.length,
+    showScroller,
+  );
+
   return (
     <div
-      className={cn(
-        "pointer-events-auto grid w-full gap-3 px-0.5 motion-safe:transition-[opacity,transform] motion-safe:duration-250 motion-safe:ease-out motion-reduce:transition-none",
-        className,
-      )}
-      style={{
-        gridTemplateColumns: `repeat(auto-fill, minmax(${COMPACT_GRID_MIN_CELL_REM}rem, 1fr))`,
-      }}
+      className="relative h-full w-full min-w-0"
       onClick={(event) => {
         event.stopPropagation();
       }}
@@ -358,13 +421,36 @@ function StackedPageFileGrid({
         event.stopPropagation();
       }}
     >
-      {files.map((file) => (
-        <StackedPageFileGridCell
-          key={file.id}
-          file={file}
-          stackAccent={stackAccent}
+      <div
+        ref={scrollRef}
+        className={cn(
+          "scrollshadow-tags-x flex h-full w-full items-center gap-3 overflow-x-auto overscroll-x-contain px-0.5",
+          "scroll-smooth snap-x snap-mandatory",
+          showScroller ? "pointer-events-auto" : "pointer-events-none",
+        )}
+      >
+        {files.map((file, index) => (
+          <StackedPageFileScrollerCell
+            key={file.id}
+            file={file}
+            stackAccent={stackAccent}
+            index={index}
+            showScroller={showScroller}
+          />
+        ))}
+      </div>
+      {edges.left ? (
+        <div
+          className="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r to-transparent"
+          aria-hidden
         />
-      ))}
+      ) : null}
+      {edges.right ? (
+        <div
+          className="from-surface pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l to-transparent"
+          aria-hidden
+        />
+      ) : null}
     </div>
   );
 }
@@ -401,8 +487,9 @@ export function StackedPageDropVisual({
   const visibleFiles = hasQueuedFiles
     ? files.slice(-maxStackLayers)
     : [];
-  const showGrid =
+  const showScroller =
     expandToGridOnHover && isStackHovered && hasQueuedFiles && !isDragHighlight;
+  const useExpandedVisualSlot = expandToGridOnHover && hasQueuedFiles;
 
   const slotFiles: Record<LayerSlot, StackedPageQueuedFile | undefined> = {
     backLeft: undefined,
@@ -432,52 +519,47 @@ export function StackedPageDropVisual({
     pointerRotate,
   };
 
-  const gridMinHeightRem = compactGridMinHeightRem(files.length);
-
   return (
     <div
       className={cn(
-        "relative mx-auto flex w-full items-center justify-center",
-        showGrid ? "min-h-[var(--stacked-grid-min-h)]" : "h-12 w-[4.75rem]",
+        "relative mx-auto flex items-center justify-center",
+        useExpandedVisualSlot
+          ? cn(COMPACT_EXPANDED_VISUAL_HEIGHT_CLASS, "w-full min-w-0")
+          : "h-12 w-[4.75rem]",
         className,
       )}
-      style={
-        showGrid
-          ? ({
-              "--stacked-grid-min-h": `${gridMinHeightRem}rem`,
-            } as CSSProperties)
-          : undefined
-      }
       aria-hidden={!hasQueuedFiles}
     >
       <div
         className={cn(
           "relative flex h-12 w-[4.75rem] items-center justify-center",
-          "motion-safe:transition-[opacity,transform] motion-safe:duration-250 motion-safe:ease-out motion-reduce:transition-none",
-          showGrid
-            ? "pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[0.92] opacity-0"
-            : "opacity-100",
+          "motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none",
+          showScroller &&
+            "pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
         )}
       >
         <StackedPageLayer
           slot="backLeft"
           file={slotFiles.backLeft}
           isDecorative={!slotFiles.backLeft}
+          exitingToScroller={showScroller}
           {...layerProps}
         />
         <StackedPageLayer
           slot="backRight"
           file={slotFiles.backRight}
           isDecorative={!slotFiles.backRight}
+          exitingToScroller={showScroller}
           {...layerProps}
         />
         <StackedPageLayer
           slot="front"
           file={slotFiles.front}
           isDecorative={!slotFiles.front}
+          exitingToScroller={showScroller}
           {...layerProps}
         />
-        {hasQueuedFiles && !showGrid ? (
+        {hasQueuedFiles && !showScroller ? (
           <span
             className={cn(
               "border-border bg-surface text-foreground pointer-events-none absolute -top-1 -right-1 z-20 flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[9px] font-semibold leading-none tabular-nums shadow-sm",
@@ -493,14 +575,18 @@ export function StackedPageDropVisual({
       {expandToGridOnHover ? (
         <div
           className={cn(
-            "absolute inset-0 flex w-full items-center justify-center py-0.5",
-            "motion-safe:transition-[opacity,transform] motion-safe:duration-250 motion-safe:ease-out motion-reduce:transition-none",
-            showGrid
+            "absolute inset-0 flex w-full items-center justify-center",
+            "motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none",
+            showScroller
               ? "pointer-events-auto scale-100 opacity-100"
-              : "pointer-events-none scale-[0.97] opacity-0",
+              : "pointer-events-none scale-[0.96] opacity-0",
           )}
         >
-          <StackedPageFileGrid files={files} stackAccent={stackAccent} />
+          <StackedPageFileScroller
+            files={files}
+            stackAccent={stackAccent}
+            showScroller={showScroller}
+          />
         </div>
       ) : null}
     </div>
