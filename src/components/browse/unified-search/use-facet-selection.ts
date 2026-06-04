@@ -22,8 +22,11 @@ import type { ExperimentType } from "~/prisma/browser";
 import {
   EXPERIMENT_TYPE_LABELS,
   VERIFICATION_SOURCE_LABELS,
-  type VerificationSource,
 } from "../nexafs-browse-experiment-utils";
+import {
+  catalogFiltersFromVerificationChoice,
+  type VerificationFilterChoice,
+} from "../nexafs-filter-options";
 import {
   readFacetParams,
   writeFacetParams,
@@ -62,8 +65,7 @@ export interface UseFacetSelectionReturn {
   clearField: (field: FacetField) => void;
   clearAll: () => void;
   setExperimentType: (value: ExperimentType | undefined) => void;
-  setVerifiedOnly: (value: boolean) => void;
-  setVerificationSource: (source: VerificationSource) => void;
+  setVerification: (choice: VerificationFilterChoice) => void;
   currentPage: number;
   setCurrentPage: (page: number) => void;
 }
@@ -259,21 +261,12 @@ export function useFacetSelection({
     [resetPage],
   );
 
-  const setVerifiedOnly = useCallback(
-    (value: boolean) => {
+  const setVerification = useCallback(
+    (choice: VerificationFilterChoice) => {
       setCatalogFilters((prev) => ({
         ...prev,
-        verifiedOnly: value,
-        verificationSource: value ? prev.verificationSource : "either",
+        ...catalogFiltersFromVerificationChoice(choice),
       }));
-      resetPage();
-    },
-    [resetPage],
-  );
-
-  const setVerificationSource = useCallback(
-    (source: VerificationSource) => {
-      setCatalogFilters((prev) => ({ ...prev, verificationSource: source }));
       resetPage();
     },
     [resetPage],
@@ -306,8 +299,7 @@ export function useFacetSelection({
     clearField,
     clearAll,
     setExperimentType,
-    setVerifiedOnly,
-    setVerificationSource,
+    setVerification,
     currentPage,
     setCurrentPage,
   };

@@ -13,6 +13,10 @@ import {
 } from "./url-state";
 import type { FacetSelection, NexafsCatalogFilters } from "./types";
 import { ExperimentType } from "~/prisma/browser";
+import {
+  catalogFiltersFromVerificationChoice,
+  verificationFilterChoiceFromCatalog,
+} from "../nexafs-filter-options";
 
 type Matchers = {
   toEqual: (expected: unknown) => void;
@@ -182,6 +186,32 @@ describe("readNexafsCatalogFilterParams / writeNexafsCatalogFilterParams", () =>
     const filters = readNexafsCatalogFilterParams(sp);
     expect(filters.verifiedOnly).toBe(true);
     expect(filters.verificationSource).toBe("atlas");
+  });
+
+  it("maps verification chip any to cleared catalog filters", () => {
+    expect(catalogFiltersFromVerificationChoice("any")).toEqual({
+      verifiedOnly: false,
+      verificationSource: "either",
+    });
+    expect(
+      verificationFilterChoiceFromCatalog({
+        verifiedOnly: false,
+        verificationSource: "either",
+      }),
+    ).toBe("any");
+  });
+
+  it("maps verified tiers to verifiedOnly and verificationSource", () => {
+    expect(catalogFiltersFromVerificationChoice("publication")).toEqual({
+      verifiedOnly: true,
+      verificationSource: "publication",
+    });
+    expect(
+      verificationFilterChoiceFromCatalog({
+        verifiedOnly: true,
+        verificationSource: "atlas",
+      }),
+    ).toBe("atlas");
   });
 
   it("returns empty filters when params absent", () => {

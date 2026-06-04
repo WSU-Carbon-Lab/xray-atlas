@@ -136,8 +136,7 @@ export function NexafsBrowseExperimentSection({
     toggle: _toggle,
     clearAll: clearFacets,
     setExperimentType,
-    setVerifiedOnly,
-    setVerificationSource,
+    setVerification,
     currentPage,
     setCurrentPage,
   } = useFacetSelection({
@@ -253,8 +252,7 @@ export function NexafsBrowseExperimentSection({
             onClearAll={handleClearAll}
             catalogFilters={catalogFilters}
             onExperimentTypeChange={setExperimentType}
-            onVerifiedOnlyChange={setVerifiedOnly}
-            onVerificationSourceChange={setVerificationSource}
+            onVerificationChange={setVerification}
             facetCounts={facetData}
             searchResults={searchResults}
             edges={edgeOptions}
