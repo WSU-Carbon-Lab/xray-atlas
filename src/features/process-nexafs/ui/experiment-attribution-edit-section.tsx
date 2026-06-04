@@ -159,7 +159,7 @@ export function ExperimentAttributionEditSection({
     />
   );
 
-  if (canEditQuery.isLoading) {
+  if (!canEditQuery.isSuccess) {
     return loadingPlaceholder;
   }
 
@@ -167,7 +167,7 @@ export function ExperimentAttributionEditSection({
     return readOnlyFallback;
   }
 
-  if (attributionsQuery.isLoading || !hydratedFromServer) {
+  if (!attributionsQuery.isSuccess || !hydratedFromServer) {
     return loadingPlaceholder;
   }
 

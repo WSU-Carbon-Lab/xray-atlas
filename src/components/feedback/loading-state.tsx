@@ -2,12 +2,11 @@
 
 import React from "react";
 import { cn } from "@heroui/styles";
+import { AttributionAvatarRowSkeleton } from "~/components/ui/avatar";
 
 export function LoadingSkeleton({ className = "" }: { className?: string }) {
   return (
-    <div
-      className={`animate-pulse rounded-xl bg-gray-200 dark:bg-gray-700 ${className}`}
-    />
+    <div className={cn("bg-default/50 animate-pulse rounded-xl", className)} />
   );
 }
 
@@ -53,26 +52,41 @@ export function MoleculeCardSkeleton() {
   );
 }
 
+/**
+ * Layout-faithful placeholder for `NexafsExperimentCompactCard` browse rows (structure image, chips, metrics ring, avatars).
+ */
 export function NexafsExperimentCompactSkeleton() {
   return (
-    <div className="border-border-default dark:border-border-default flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:bg-zinc-800">
-      <div className="flex w-full flex-col p-3 md:flex-row md:items-center md:gap-4">
-        <div className="flex min-w-0 flex-1 items-center gap-4 border-r border-zinc-200 pr-4 dark:border-zinc-600">
-          <LoadingSkeleton className="h-11 w-11 shrink-0 rounded-lg md:h-14 md:w-14" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <LoadingSkeleton className="h-4 w-36 max-w-full rounded" />
-            <div className="flex flex-wrap gap-1.5">
-              <LoadingSkeleton className="h-4.5 w-12 rounded-full" />
-              <LoadingSkeleton className="h-4.5 w-24 rounded-full" />
-              <LoadingSkeleton className="h-4.5 w-10 rounded-full" />
+    <div
+      className="border-border-default @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:border-border-default dark:bg-zinc-800"
+      aria-hidden
+    >
+      <div className="flex w-full flex-col p-3 @md/nexafscard:flex-row @md/nexafscard:items-center @md/nexafscard:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 @md/nexafscard:gap-4 @md/nexafscard:pr-4 dark:border-zinc-600">
+          <LoadingSkeleton className="h-11 w-11 shrink-0 rounded-lg @md/nexafscard:h-14 @md/nexafscard:w-14" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5">
+            <div className="flex min-w-0 items-center gap-x-2">
+              <LoadingSkeleton className="h-4 min-w-0 max-w-[12rem] flex-1 rounded" />
+              <LoadingSkeleton className="h-4 w-4 shrink-0 rounded" />
+            </div>
+            <div className="flex h-5 max-w-full flex-nowrap items-center gap-x-1.5 overflow-hidden">
+              <LoadingSkeleton className="h-4.5 w-12 shrink-0 rounded-full" />
+              <LoadingSkeleton className="h-4.5 min-w-[4.5rem] max-w-[9rem] flex-1 rounded-full" />
+              <LoadingSkeleton className="h-4.5 w-10 shrink-0 rounded-full" />
             </div>
           </div>
         </div>
-        <div className="mt-3 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-zinc-200 pt-3 md:mt-0 md:border-t-0 md:pt-0 md:pl-4 dark:border-zinc-600">
-          <LoadingSkeleton className="h-8 w-28 rounded-full" />
-          <LoadingSkeleton className="h-8 w-24 rounded-lg" />
-          <LoadingSkeleton className="h-6 w-6 rounded-full" />
-          <LoadingSkeleton className="h-3.5 w-8 rounded" />
+        <div className="relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:ml-auto @md/nexafscard:border-t-0 @md/nexafscard:pt-0 @md/nexafscard:pl-4 dark:border-zinc-600">
+          <LoadingSkeleton className="h-8 w-[7.25rem] shrink-0 rounded-full" />
+          <LoadingSkeleton className="h-9 w-9 shrink-0 rounded-full" />
+          <AttributionAvatarRowSkeleton avatarCount={3} max={8} size="sm" />
+          <div className="flex min-w-[56px] shrink-0 flex-col items-end gap-0.5">
+            <LoadingSkeleton className="h-3.5 w-10 rounded" />
+            <div className="flex items-center gap-1">
+              <LoadingSkeleton className="h-3.5 w-3.5 shrink-0 rounded" />
+              <LoadingSkeleton className="h-3.5 w-5 rounded" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

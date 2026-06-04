@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { MoleculeHeaderSkeleton } from "@/components/feedback/loading-state";
+import {
+  MoleculeHeaderSkeleton,
+  NexafsExperimentCompactSkeleton,
+} from "@/components/feedback/loading-state";
 
 export default function MoleculeDetailLoading() {
   return (
@@ -61,12 +64,9 @@ export default function MoleculeDetailLoading() {
           <div className="h-12 w-24 shrink-0 animate-pulse rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800" />
           <div className="h-12 w-28 shrink-0 animate-pulse rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800" />
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3" aria-busy aria-label="Loading NEXAFS experiments">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="border-border bg-surface h-32 animate-pulse rounded-xl border shadow-lg dark:border-gray-700"
-            />
+            <NexafsExperimentCompactSkeleton key={i} />
           ))}
         </div>
       </div>

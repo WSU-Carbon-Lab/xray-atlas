@@ -25,6 +25,7 @@ import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { BrowseSortButton, type BrowseSortOption } from "@/components/browse/browse-sort-button";
 import { BrowseActiveFilters, type ActiveFilterItem } from "@/components/browse/browse-active-filters";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
+import { NexafsExperimentCompactSkeleton } from "@/components/feedback/loading-state";
 import { NexafsExperimentCompactCard } from "@/components/nexafs/nexafs-display";
 import { NexafsMoleculeFilterDropdown } from "@/components/browse/nexafs-molecule-filter-dropdown";
 import { NexafsEdgeFilterDropdown } from "@/components/browse/nexafs-edge-filter-dropdown";
@@ -467,12 +468,9 @@ export function NexafsBrowseExperimentSection({
 
       <div>
         {isLoading && (
-          <div className="space-y-3">
+          <div className="space-y-3" aria-busy aria-label="Loading NEXAFS experiments">
             {Array.from({ length: itemsPerPage }).map((_, i) => (
-              <div
-                key={i}
-                className="border-border bg-surface h-32 animate-pulse rounded-xl border shadow-lg"
-              />
+              <NexafsExperimentCompactSkeleton key={i} />
             ))}
           </div>
         )}

@@ -686,7 +686,7 @@ export function AttributionAvatarRowSkeleton({
           <span
             key={index}
             className={cn(
-              "bg-surface-2/60 ring-background animate-pulse rounded-full ring-2",
+              "border-border bg-default/50 animate-pulse rounded-full border",
               sizeClass,
             )}
           />

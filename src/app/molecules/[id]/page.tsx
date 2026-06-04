@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useMoleculeDetail } from "@/components/browse/molecule-detail-context";
 import { NexafsBrowseExperimentSection } from "@/components/browse/nexafs-browse-experiment-section";
+import { NexafsExperimentCompactSkeleton } from "@/components/feedback/loading-state";
 import { trpc } from "~/trpc/client";
 
 const VIEW_SESSION_KEY = "xray-atlas-view-session";
@@ -54,12 +55,9 @@ function MoleculeNexafsBrowse() {
 
 function MoleculeNexafsBrowseFallback() {
   return (
-    <div className="space-y-3" aria-hidden>
+    <div className="space-y-3" aria-busy aria-label="Loading NEXAFS experiments">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="border-border bg-surface h-32 animate-pulse rounded-xl border shadow-lg"
-        />
+        <NexafsExperimentCompactSkeleton key={i} />
       ))}
     </div>
   );
