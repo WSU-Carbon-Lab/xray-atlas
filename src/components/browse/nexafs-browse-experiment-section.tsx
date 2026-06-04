@@ -367,35 +367,94 @@ export function NexafsBrowseExperimentSection({
         searchValue={query}
         onSearchChange={setQuery}
         searchPlaceholder="Search catalog…"
+        toolbarTrailing={
+          !hasSearchQuery ? (
+            <PopoverMenu
+              contentClassName="w-[min(100vw-2rem,300px)]"
+              renderTrigger={({ triggerProps, isOpen }) => (
+                <button
+                  {...triggerProps}
+                  type="button"
+                  aria-label={`Sort experiments; current order is ${sortLabelCurrent}`}
+                  className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                >
+                  <ArrowsUpDownIcon
+                    className="h-5 w-5 shrink-0 stroke-[1.5]"
+                    aria-hidden
+                  />
+                  <span className="text-sm font-medium">Sort</span>
+                  <span className="sr-only">
+                    {isOpen ? "Close sort options" : "Open sort options"}
+                  </span>
+                </button>
+              )}
+              renderContent={({
+                contentPositionClassName,
+                contentProps,
+                close,
+              }) => (
+                <PopoverMenuContent
+                  {...contentProps}
+                  className={`${contentPositionClassName} w-[min(100vw-2rem,300px)] rounded-xl py-1`}
+                >
+                  <div className="space-y-0.5 p-1">
+                    {NEXAFS_SORT_OPTIONS.map((option) => {
+                      const isSelected = option.key === sortBy;
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => {
+                            setSortBy(option.key);
+                            close();
+                          }}
+                          className={`focus-visible:ring-accent flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
+                            isSelected
+                              ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
+                              : "text-muted hover:bg-default hover:text-foreground"
+                          }`}
+                          aria-label={`Sort by ${option.label}`}
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            {option.icon}
+                            <span className="truncate">{option.label}</span>
+                          </span>
+                          {isSelected ? (
+                            <CheckIcon
+                              className="text-accent h-4 w-4 shrink-0"
+                              aria-hidden
+                            />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </PopoverMenuContent>
+              )}
+            />
+          ) : null
+        }
       >
         {showMoleculeFilter ? (
-          <div className="shrink-0">
-            <NexafsMoleculeFilterDropdown
-              moleculeId={moleculeId}
-              onMoleculeChange={setMoleculeId}
-            />
-          </div>
+          <NexafsMoleculeFilterDropdown
+            moleculeId={moleculeId}
+            onMoleculeChange={setMoleculeId}
+          />
         ) : null}
-        <div className="shrink-0">
-          <NexafsEdgeFilterDropdown
-            edgeId={edgeId}
-            edges={edgeOptions}
-            onEdgeChange={setEdgeId}
-          />
-        </div>
-        <div className="shrink-0">
-          <NexafsInstrumentFilterDropdown
-            instrumentId={instrumentId}
-            instruments={instrumentFilterOptions}
-            onInstrumentChange={setInstrumentId}
-          />
-        </div>
-        <div className="shrink-0">
-          <NexafsAcquisitionFilterDropdown
-            experimentType={experimentType}
-            onExperimentTypeChange={setExperimentType}
-          />
-        </div>
+        <NexafsEdgeFilterDropdown
+          edgeId={edgeId}
+          edges={edgeOptions}
+          onEdgeChange={setEdgeId}
+        />
+        <NexafsInstrumentFilterDropdown
+          instrumentId={instrumentId}
+          instruments={instrumentFilterOptions}
+          onInstrumentChange={setInstrumentId}
+        />
+        <NexafsAcquisitionFilterDropdown
+          experimentType={experimentType}
+          onExperimentTypeChange={setExperimentType}
+        />
         <PopoverMenu
           contentClassName="w-[min(100vw-2rem,320px)]"
           renderTrigger={({ triggerProps, isOpen }) => (
@@ -473,67 +532,6 @@ export function NexafsBrowseExperimentSection({
             </PopoverMenuContent>
           )}
         />
-        {!hasSearchQuery ? (
-          <PopoverMenu
-            contentClassName="w-[min(100vw-2rem,300px)]"
-            renderTrigger={({ triggerProps, isOpen }) => (
-              <button
-                {...triggerProps}
-                type="button"
-                aria-label={`Sort experiments; current order is ${sortLabelCurrent}`}
-                className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              >
-                <ArrowsUpDownIcon
-                  className="h-5 w-5 shrink-0 stroke-[1.5]"
-                  aria-hidden
-                />
-                <span className="text-sm font-medium">Sort</span>
-                <span className="sr-only">
-                  {isOpen ? "Close sort options" : "Open sort options"}
-                </span>
-              </button>
-            )}
-            renderContent={({ contentPositionClassName, contentProps, close }) => (
-              <PopoverMenuContent
-                {...contentProps}
-                className={`${contentPositionClassName} w-[min(100vw-2rem,300px)] rounded-xl py-1`}
-              >
-                <div className="space-y-0.5 p-1">
-                  {NEXAFS_SORT_OPTIONS.map((option) => {
-                    const isSelected = option.key === sortBy;
-                    return (
-                      <button
-                        key={option.key}
-                        type="button"
-                        onClick={() => {
-                          setSortBy(option.key);
-                          close();
-                        }}
-                        className={`focus-visible:ring-accent flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
-                          isSelected
-                            ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
-                            : "text-muted hover:bg-default hover:text-foreground"
-                        }`}
-                        aria-label={`Sort by ${option.label}`}
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          {option.icon}
-                          <span className="truncate">{option.label}</span>
-                        </span>
-                        {isSelected ? (
-                          <CheckIcon
-                            className="text-accent h-4 w-4 shrink-0"
-                            aria-hidden
-                          />
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </PopoverMenuContent>
-            )}
-          />
-        ) : null}
       </BrowseHeader>
 
       <NexafsBrowseActiveFilters

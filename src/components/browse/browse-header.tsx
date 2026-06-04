@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { SearchField } from "@heroui/react";
+import { ScrollShadow, SearchField } from "@heroui/react";
 
 export interface BrowseHeaderProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
   searchShortcutKey?: string;
+  /** Filter controls; scroll horizontally when they do not fit the row. */
   children?: React.ReactNode;
+  /** Controls pinned at the trailing edge (for example Sort) so they do not orphan on wrap. */
+  toolbarTrailing?: React.ReactNode;
 }
 
 export function BrowseHeader({
@@ -17,6 +20,7 @@ export function BrowseHeader({
   searchPlaceholder,
   searchShortcutKey = "K",
   children,
+  toolbarTrailing,
 }: BrowseHeaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -39,10 +43,12 @@ export function BrowseHeader({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [searchShortcutKey]);
 
-  const hasToolbar = children != null && children !== false;
+  const hasToolbar =
+    (children != null && children !== false) ||
+    (toolbarTrailing != null && toolbarTrailing !== false);
 
   return (
-    <div className="flex w-full flex-col gap-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+    <div className="flex w-full flex-col gap-3 py-2 sm:flex-row sm:items-center sm:gap-4">
       <div
         className={
           hasToolbar
@@ -81,8 +87,24 @@ export function BrowseHeader({
         </SearchField>
       </div>
       {hasToolbar ? (
-        <div className="flex min-h-12 min-w-0 w-full flex-wrap items-center gap-2 sm:min-w-[min(100%,17.5rem)] sm:flex-1 sm:justify-end sm:gap-3">
-          {children}
+        <div className="flex min-h-12 min-w-0 w-full items-center gap-2 sm:min-w-0 sm:flex-1 sm:gap-3">
+          {children != null && children !== false ? (
+            <ScrollShadow
+              orientation="horizontal"
+              className="min-w-0 flex-1"
+              tabIndex={0}
+              aria-label="Browse filters"
+            >
+              <div className="flex w-max max-w-full flex-nowrap items-center gap-2 sm:gap-3">
+                {children}
+              </div>
+            </ScrollShadow>
+          ) : null}
+          {toolbarTrailing != null && toolbarTrailing !== false ? (
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              {toolbarTrailing}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
