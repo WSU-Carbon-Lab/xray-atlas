@@ -15,7 +15,7 @@ import {
   ChevronRightIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
-import { MoleculeSearch } from "@/components/molecules/molecule-search";
+import { CatalogHeroSearch } from "@/components/home/catalog-hero-search";
 import { MoleculeCard } from "@/components/molecules/molecule-display";
 import { MoleculeCardSkeleton } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -297,8 +297,8 @@ export default function HomePage() {
               {mission.heroShort}
             </p>
             <div className="mb-7 flex justify-center">
-              <MoleculeSearch
-                placeholder="Search by name, formula, or CAS..."
+              <CatalogHeroSearch
+                placeholder="Search molecules, edges, instruments..."
                 className="w-full max-w-2xl"
               />
             </div>
