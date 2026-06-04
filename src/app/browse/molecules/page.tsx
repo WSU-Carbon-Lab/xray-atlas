@@ -347,10 +347,7 @@ function MoleculesBrowseContent() {
               ) : (
                 <>
                   {viewMode === "compact" ? (
-                    <div
-                      className="space-y-3 [&>*]:[contain-intrinsic-size:0_80px] [&>*]:[content-visibility:auto]"
-                      aria-label="Molecule results"
-                    >
+                    <div className="space-y-3" aria-label="Molecule results">
                       <AddMoleculeButton
                         className="min-h-[140px] w-full"
                         onCreated={handleMoleculeCreated}
