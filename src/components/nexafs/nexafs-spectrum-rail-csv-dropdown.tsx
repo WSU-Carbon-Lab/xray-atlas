@@ -44,7 +44,13 @@ const SPECTRUM_RAIL_COPY_HINT_LINE =
   "Copy spectrum CSV for every geometry or one slice.";
 
 const downloadMenuAccordionClass =
-  "border-border w-full rounded-xl border bg-transparent";
+  "border-border w-full min-w-0 rounded-lg border";
+
+const downloadMenuAccordionTriggerClass =
+  "hover:bg-default/50 flex min-h-10 w-full min-w-0 items-center gap-2 rounded-lg px-3 py-2.5 text-start transition-colors";
+
+const downloadMenuAccordionIndicatorClass =
+  "text-muted ml-auto shrink-0 [&>svg]:size-4";
 
 function formatAuxFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -378,36 +384,45 @@ export const NexafsSpectrumRailCsvDropdown = memo(
             {kind === "download" && downloadExtrasEnabled ? (
               <Accordion
                 allowsMultipleExpanded
+                defaultExpandedKeys={[]}
+                hideSeparator
                 variant="surface"
                 aria-label="Download by geometry and auxiliary files"
                 className={downloadMenuAccordionClass}
               >
-                <Accordion.Item id="by-geometry">
-                  <Accordion.Heading>
-                    <Accordion.Trigger className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start">
-                      <span className="text-sm font-medium">By geometry</span>
-                      <Accordion.Indicator className="text-muted shrink-0">
-                        <ChevronDownIcon className="size-4" aria-hidden />
+                <Accordion.Item id="by-geometry" className="w-full min-w-0">
+                  <Accordion.Heading className="w-full min-w-0">
+                    <Accordion.Trigger className={downloadMenuAccordionTriggerClass}>
+                      <span className="text-foreground min-w-0 flex-1 text-sm font-medium">
+                        By geometry
+                      </span>
+                      <Accordion.Indicator className={downloadMenuAccordionIndicatorClass}>
+                        <ChevronDownIcon aria-hidden />
                       </Accordion.Indicator>
                     </Accordion.Trigger>
                   </Accordion.Heading>
-                  <Accordion.Panel>
-                    <Accordion.Body className="pt-0">{geometryAccordionBody}</Accordion.Body>
+                  <Accordion.Panel className="w-full min-w-0">
+                    <Accordion.Body className="pt-0">
+                      {geometryAccordionBody}
+                    </Accordion.Body>
                   </Accordion.Panel>
                 </Accordion.Item>
-                <Accordion.Item id="aux-experiment">
-                  <Accordion.Heading>
-                    <Accordion.Trigger
-                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start"
-                      isDisabled={experimentAuxFiles.length === 0}
-                    >
-                      <span className="text-sm font-medium">Aux experiment</span>
-                      <Accordion.Indicator className="text-muted shrink-0">
-                        <ChevronDownIcon className="size-4" aria-hidden />
+                <Accordion.Item
+                  id="aux-experiment"
+                  className="w-full min-w-0"
+                  isDisabled={experimentAuxFiles.length === 0}
+                >
+                  <Accordion.Heading className="w-full min-w-0">
+                    <Accordion.Trigger className={downloadMenuAccordionTriggerClass}>
+                      <span className="text-foreground min-w-0 flex-1 text-sm font-medium">
+                        Aux experiment
+                      </span>
+                      <Accordion.Indicator className={downloadMenuAccordionIndicatorClass}>
+                        <ChevronDownIcon aria-hidden />
                       </Accordion.Indicator>
                     </Accordion.Trigger>
                   </Accordion.Heading>
-                  <Accordion.Panel>
+                  <Accordion.Panel className="w-full min-w-0">
                     <Accordion.Body className="pt-0">
                       {experimentAuxFiles.length === 0 ? (
                         <p className="text-muted px-3 py-2 text-xs">
@@ -444,21 +459,22 @@ export const NexafsSpectrumRailCsvDropdown = memo(
                     </Accordion.Body>
                   </Accordion.Panel>
                 </Accordion.Item>
-                <Accordion.Item id="aux-sample">
-                  <Accordion.Heading>
-                    <Accordion.Trigger
-                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start"
-                      isDisabled={
-                        !sampleId || sampleAuxFiles.length === 0
-                      }
-                    >
-                      <span className="text-sm font-medium">Aux sample</span>
-                      <Accordion.Indicator className="text-muted shrink-0">
-                        <ChevronDownIcon className="size-4" aria-hidden />
+                <Accordion.Item
+                  id="aux-sample"
+                  className="w-full min-w-0"
+                  isDisabled={!sampleId || sampleAuxFiles.length === 0}
+                >
+                  <Accordion.Heading className="w-full min-w-0">
+                    <Accordion.Trigger className={downloadMenuAccordionTriggerClass}>
+                      <span className="text-foreground min-w-0 flex-1 text-sm font-medium">
+                        Aux sample
+                      </span>
+                      <Accordion.Indicator className={downloadMenuAccordionIndicatorClass}>
+                        <ChevronDownIcon aria-hidden />
                       </Accordion.Indicator>
                     </Accordion.Trigger>
                   </Accordion.Heading>
-                  <Accordion.Panel>
+                  <Accordion.Panel className="w-full min-w-0">
                     <Accordion.Body className="pt-0">
                       {!sampleId ? (
                         <p className="text-muted px-3 py-2 text-xs">
