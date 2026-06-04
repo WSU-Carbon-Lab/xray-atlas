@@ -78,3 +78,15 @@ const LEGACY_USER_UUID_REGEX =
 export function isLegacyUserUuidSegment(segment: string): boolean {
   return LEGACY_USER_UUID_REGEX.test(segment);
 }
+
+/**
+ * Returns whether `value` is a bare ORCID iD suitable for attribution and `next_auth.user.id`,
+ * excluding legacy pre-migration user UUIDs.
+ */
+export function isValidOrcidUserId(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed || isLegacyUserUuidSegment(trimmed)) {
+    return false;
+  }
+  return orcidUserIdSchema.safeParse(trimmed).success;
+}

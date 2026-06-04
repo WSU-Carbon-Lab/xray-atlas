@@ -1,3 +1,5 @@
+import type { MoleculeContributionType } from "~/lib/molecule-contribution-types";
+
 export interface MoleculeViewCreatedBy {
   id: string;
   name: string | null;
@@ -8,7 +10,7 @@ export interface MoleculeViewCreatedBy {
 export interface MoleculeViewContributor {
   id: string;
   userId: string | null;
-  contributionType: string;
+  contributionType: MoleculeContributionType;
   contributedAt: Date | string;
   user: {
     id: string;

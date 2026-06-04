@@ -12,12 +12,15 @@ import {
   Header,
 } from "@heroui/react";
 import { X } from "lucide-react";
+import { compactSynonymOverflowCountChipClassName } from "~/components/ui/compact-overflow-count-chip";
+import { moleculeOverflowSynonyms } from "~/lib/molecule-synonym-overflow";
 
 export const SYNONYM_CHIP_CLASS =
   "inline-flex items-center rounded-md border border-rose-300/70 bg-rose-100 px-2 py-0.5 text-[10px] font-medium tracking-wider text-rose-900 uppercase dark:border-rose-500/40 dark:bg-rose-500/35 dark:text-rose-100";
 
 interface SynonymTagGroupProps extends React.ComponentProps<typeof TagGroup> {
   synonyms: string[];
+  primaryName?: string;
   maxSynonyms?: number;
   tagGroupProps?: React.ComponentProps<typeof TagGroup>;
 }
@@ -113,7 +116,7 @@ function SynonymsPopup({
         onPointerDown={(event) => {
           event.stopPropagation();
         }}
-        className="focus-visible:ring-accent inline-flex shrink-0 cursor-pointer items-center rounded-md border border-rose-300/70 bg-rose-100 px-2 py-0.5 text-[10px] font-medium tracking-wider text-rose-900 uppercase transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:border-rose-500/40 dark:bg-rose-500/35 dark:text-rose-100"
+        className={compactSynonymOverflowCountChipClassName(isOpen)}
       >
         {displayLabel}
         <span className="sr-only">
@@ -157,6 +160,7 @@ function SynonymsPopup({
 
 interface SynonymChipsProps {
   synonyms: string[];
+  primaryName?: string;
   maxSynonyms?: number;
   size?: "default" | "compact";
   className?: string;
@@ -165,42 +169,49 @@ interface SynonymChipsProps {
 
 export const SynonymChips = ({
   synonyms,
+  primaryName,
   maxSynonyms = 3,
   size = "default",
   className = "",
   collapseOnly = false,
 }: SynonymChipsProps) => {
-  if (synonyms.length === 0) return null;
+  const overflowSynonyms = moleculeOverflowSynonyms(synonyms, { primaryName });
+  if (overflowSynonyms.length === 0) return null;
   if (collapseOnly) {
     return (
       <div className={className}>
         <SynonymsPopup
-          synonyms={synonyms}
-          remaining={synonyms.length}
-          label={`+${synonyms.length}`}
+          synonyms={overflowSynonyms}
+          remaining={overflowSynonyms.length}
+          label={`+${overflowSynonyms.length}`}
         />
       </div>
     );
   }
-  const truncated = [...synonyms]
+  const truncated = [...overflowSynonyms]
     .sort((a: string, b: string) => a.length - b.length)
     .slice(0, maxSynonyms);
-  const remaining = synonyms.length - truncated.length;
+  const hiddenSynonyms = overflowSynonyms.filter(
+    (syn) => !truncated.includes(syn),
+  );
   const chipClass =
     size === "compact"
       ? "inline-flex max-w-[4.5rem] min-w-0 shrink truncate rounded border border-rose-300/70 bg-rose-100 px-1.5 py-0.5 text-[9px] font-medium tracking-wider text-rose-900 uppercase dark:border-rose-500/40 dark:bg-rose-500/35 dark:text-rose-100"
       : `${SYNONYM_CHIP_CLASS} min-w-0 max-w-[6rem] shrink truncate`;
   return (
     <div
-      className={`flex min-w-0 flex-nowrap items-center gap-0.5 overflow-hidden sm:gap-1 ${className}`}
+      className={`flex min-w-0 flex-nowrap items-center gap-0.5 leading-none overflow-hidden sm:gap-1 ${className}`}
     >
       {truncated.map((syn: string) => (
         <span key={syn} className={chipClass} title={syn}>
           {syn}
         </span>
       ))}
-      {remaining > 0 ? (
-        <SynonymsPopup synonyms={synonyms} remaining={remaining} />
+      {hiddenSynonyms.length > 0 ? (
+        <SynonymsPopup
+          synonyms={hiddenSynonyms}
+          remaining={hiddenSynonyms.length}
+        />
       ) : null}
     </div>
   );
@@ -210,13 +221,18 @@ export const SynonymChipsWithPopup = SynonymChips;
 
 export const SynonymTagGroup = ({
   synonyms,
+  primaryName,
   maxSynonyms = 5,
   tagGroupProps,
 }: SynonymTagGroupProps) => {
-  if (synonyms.length === 0) return null;
-  const truncatedSynonyms = [...synonyms]
+  const overflowSynonyms = moleculeOverflowSynonyms(synonyms, { primaryName });
+  if (overflowSynonyms.length === 0) return null;
+  const truncatedSynonyms = [...overflowSynonyms]
     .sort((a: string, b: string) => a.length - b.length)
     .slice(0, maxSynonyms);
+  const hiddenSynonyms = overflowSynonyms.filter(
+    (syn) => !truncatedSynonyms.includes(syn),
+  );
 
   return (
     <TagGroup {...tagGroupProps}>
@@ -231,12 +247,12 @@ export const SynonymTagGroup = ({
             {synonym}
           </Tag>
         ))}
-        {truncatedSynonyms.length < synonyms.length && (
+        {hiddenSynonyms.length > 0 ? (
           <SynonymsPopup
-            synonyms={synonyms}
-            remaining={synonyms.length - truncatedSynonyms.length}
+            synonyms={hiddenSynonyms}
+            remaining={hiddenSynonyms.length}
           />
-        )}
+        ) : null}
       </TagGroup.List>
     </TagGroup>
   );

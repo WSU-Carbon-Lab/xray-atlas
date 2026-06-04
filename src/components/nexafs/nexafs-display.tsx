@@ -15,18 +15,19 @@ import {
   formatCompactMetricCount,
 } from "~/components/browse/compact-card-metrics";
 import { MoleculeImageSVG } from "~/components/molecules/molecule-image-svg";
-import { MoleculeImageModal } from "~/components/molecules/molecule-display";
+import { MoleculeImageModal } from "~/components/molecules/molecule-image-modal";
 import { getPreviewGradient } from "~/components/molecules/category-tags";
-import { AvatarGroup, type UserWithOrcid } from "~/components/ui/avatar";
-import { ORCIDIcon } from "~/components/icons";
+import { ContributorsOrEmpty } from "~/components/attribution/contributors-or-empty";
+import { nexafsContributorAvatarUsers } from "~/lib/contributor-avatar-display";
+import type { NexafsContributorPerson } from "~/lib/nexafs-contributors";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
+import { ExperimentAttributionEditSection } from "~/features/process-nexafs/ui/experiment-attribution-edit-section";
 import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
 import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
 import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
-import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
-
+import type { NexafsBrowseLinkedPublication, NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
 function trpcKeyMatchesExperimentsProcedure(
   queryKey: readonly unknown[],
   procedure: "browseList" | "browseSearch",
@@ -168,17 +169,10 @@ export type NexafsExperimentCompactCardProps = {
   instrumentName: string;
   facilityName: string | null;
   experimentTypeLabel: string | null;
-  experimentContributorUsers: Array<{
-    id: string;
-    userId: string | null;
-    orcid: string;
-    name: string | null;
-    image: string | null;
-    isClaimed: boolean;
-    isPublicProfileVisible: boolean;
-  }>;
+  experimentContributorUsers: NexafsContributorPerson[];
   polarizationCount: number;
   linkedPublications: NexafsBrowseLinkedPublication[];
+  sourcePublications: NexafsBrowseSourcePublication[];
   ingestVerified: boolean;
   datasetMetrics: NexafsBrowseDatasetMetricsCardModel;
 };
@@ -202,6 +196,7 @@ export function NexafsExperimentCompactCard({
   experimentContributorUsers,
   polarizationCount,
   linkedPublications,
+  sourcePublications,
   ingestVerified,
   datasetMetrics,
 }: NexafsExperimentCompactCardProps) {
@@ -277,15 +272,17 @@ export function NexafsExperimentCompactCard({
     setSpectrumExpanded((open) => !open);
   }, []);
 
-  const visibleContributorUsers: UserWithOrcid[] = experimentContributorUsers
-    .filter((contributor) => contributor.isPublicProfileVisible)
-    .map((contributor) => ({
-      id: contributor.userId ?? contributor.orcid,
-      name: contributor.name,
-      image: contributor.image,
-    }));
-  const hiddenContributors = experimentContributorUsers.filter(
-    (contributor) => !contributor.isPublicProfileVisible,
+  const readOnlyContributorUsers = nexafsContributorAvatarUsers(
+    experimentContributorUsers,
+  );
+
+  const readOnlyContributorAvatars = (
+    <ContributorsOrEmpty
+      users={readOnlyContributorUsers}
+      size="sm"
+      max={8}
+      empty="hidden"
+    />
   );
 
   const facilityLine = facilityName ?? "Facility unknown";
@@ -348,13 +345,15 @@ export function NexafsExperimentCompactCard({
                 {displayName}
               </span>
               <span
-                className="inline-flex shrink-0 items-center self-center"
+                className="inline-flex shrink-0 items-center self-center gap-1"
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}
               >
                 <NexafsPublicationVerificationControl
                   ingestVerified={ingestVerified}
                   linkedPublications={linkedPublications}
+                  sourcePublications={sourcePublications}
+                  experimentId={experimentId}
                 />
               </span>
             </div>
@@ -441,50 +440,18 @@ export function NexafsExperimentCompactCard({
           />
         </div>
         <div
-          className="flex items-center gap-1.5"
+          className="flex min-w-0 max-w-full items-center gap-1.5"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
-          {visibleContributorUsers.length > 0 ? (
-            <AvatarGroup
-              users={visibleContributorUsers}
-              size="sm"
-              tooltipVariant="name-orcid"
-              tooltipMode="shared"
-            />
-          ) : null}
-          {hiddenContributors.slice(0, 2).map((contributor) => (
-            <Tooltip key={`${contributor.orcid}-hidden`} delay={0}>
-              <Tooltip.Trigger className="inline-flex shrink-0">
-                <Chip
-                  size="sm"
-                  variant="soft"
-                  className="border-warning/45 bg-warning/12 text-warning h-8"
-                >
-                  <ORCIDIcon
-                    className="h-4 w-4 shrink-0"
-                    authenticated={false}
-                    aria-hidden
-                  />
-                  <Chip.Label className="tabular-nums text-[11px] font-semibold">
-                    {contributor.orcid}
-                  </Chip.Label>
-                </Chip>
-              </Tooltip.Trigger>
-              <Tooltip.Content placement="top">
-                {contributor.isClaimed
-                  ? "Detached profile: ORCID-only attribution"
-                  : "Unclaimed contributor: ORCID-only attribution"}
-              </Tooltip.Content>
-            </Tooltip>
-          ))}
-          {hiddenContributors.length > 2 ? (
-            <Chip size="sm" variant="soft" className="h-8">
-              <Chip.Label className="text-xs font-semibold">
-                +{hiddenContributors.length - 2} ORCID
-              </Chip.Label>
-            </Chip>
-          ) : null}
+          <ExperimentAttributionEditSection
+            experimentId={experimentId}
+            enabled
+            variant="inline"
+            readOnlyFallback={readOnlyContributorAvatars}
+            skeletonAvatarCount={Math.max(1, readOnlyContributorUsers.length)}
+            skeletonTrailingSlotCount={2}
+          />
         </div>
         <CompactCardMetricsColumn className="relative z-40">
           {isSignedIn ? (

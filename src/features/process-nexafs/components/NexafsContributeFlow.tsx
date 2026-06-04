@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { Form } from "@heroui/react";
 import {
   CheckIcon,
@@ -9,8 +9,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { ContributionFileDropOverlay } from "@/components/contribute";
 import {
-  FileUploadZone,
   ColumnMappingModal,
+  NexafsUploadPortal,
   DatasetTabs,
   DatasetContent,
   useDatasetStatus,
@@ -24,6 +24,20 @@ import {
 import { Button as HeroButton } from "@heroui/react";
 import type { DatasetState, CSVColumnMappings } from "../types";
 import type { SubmitStatus } from "../hooks/useNexafsSubmit";
+import {
+  GlobalFileDropZoneProvider,
+  useGlobalFileDropZoneContext,
+  globalDropZoneProps,
+  GLOBAL_DROP_ZONE_IDS,
+} from "~/hooks/useGlobalFileDropZone";
+import { appendPendingAuxFiles } from "~/lib/pending-aux-file";
+import { inferAuxFileKindFromBatch } from "~/lib/aux-file-client";
+import {
+  getNexafsAuxUploadDefaults,
+  setNexafsAuxUploadDefaults,
+} from "~/lib/nexafs-aux-upload-defaults";
+import { usePersistedAuxUpload } from "~/features/process-nexafs/hooks/usePersistedAuxUpload";
+import type { AuxDropTargetsActive } from "~/features/process-nexafs/ui/dataset-persisted-aux-files";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -32,7 +46,12 @@ type VendorOption = { id: string; name: string | null; url?: string | null };
 export type NexafsContributeFlowProps = {
   datasets: DatasetState[];
   activeDatasetId: string | null;
-  updateDataset: (id: string, updates: Partial<DatasetState>) => void;
+  updateDataset: (
+    id: string,
+    updates:
+      | Partial<DatasetState>
+      | ((dataset: DatasetState) => Partial<DatasetState>),
+  ) => void;
   processDatasetData: (id: string) => void;
   handleFilesSelected: (files: File[]) => void | Promise<void>;
   handleNewDataset: () => void;
@@ -60,6 +79,7 @@ export type NexafsContributeFlowProps = {
   submitStatus: SubmitStatus;
   setSubmitStatus: (status: SubmitStatus) => void;
   isPending: boolean;
+  onAuxValidationError?: (message: string) => void;
 };
 
 function DatasetMissingFieldsMessage({ dataset }: { dataset: DatasetState }) {
@@ -123,98 +143,132 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     submit,
     submitStatus,
     isPending,
+    onAuxValidationError,
   } = props;
 
-  const [isDragging, setIsDragging] = useState(false);
-  const [draggedFileType, setDraggedFileType] = useState<
-    "csv" | "json" | "mixed" | null
-  >(null);
-  const [draggedFileName, setDraggedFileName] = useState<string | null>(null);
-  const dragCounterRef = useRef(0);
+  const reportAuxError = useCallback(
+    (message: string) => {
+      onAuxValidationError?.(message);
+    },
+    [onAuxValidationError],
+  );
 
-  useEffect(() => {
-    const handleDragEnter = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounterRef.current++;
-      if (e.dataTransfer?.types.includes("Files")) {
-        setIsDragging(true);
-        if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
-          const items = Array.from(e.dataTransfer.items);
-          const firstFile = items
-            .find((item) => item.kind === "file")
-            ?.getAsFile();
-          if (firstFile?.name) setDraggedFileName(firstFile.name);
-          const fileTypes = items
-            .filter((item) => item.kind === "file")
-            .map((item) => {
-              const mimeType = item.type.toLowerCase();
-              if (mimeType === "application/json" || mimeType === "text/json")
-                return "json";
-              if (mimeType === "text/csv" || mimeType === "application/csv")
-                return "csv";
-              return null;
-            })
-            .filter((type): type is "csv" | "json" => type !== null);
-          if (fileTypes.length > 0) {
-            const uniqueTypes = Array.from(new Set(fileTypes));
-            setDraggedFileType(
-              uniqueTypes.length === 1 ? uniqueTypes[0]! : "mixed",
-            );
-          }
-        }
-      }
-    };
-
-    const handleDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    const handleDragLeave = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounterRef.current--;
-      if (dragCounterRef.current === 0) {
-        setIsDragging(false);
-        setDraggedFileType(null);
-        setDraggedFileName(null);
-      }
-    };
-
-    const handleDrop = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounterRef.current = 0;
-      setIsDragging(false);
-      setDraggedFileType(null);
-      setDraggedFileName(null);
-      const files = Array.from(e.dataTransfer?.files ?? []).filter((file) => {
-        const name = file.name.toLowerCase();
-        return name.endsWith(".csv") || name.endsWith(".json");
-      });
-      if (files.length > 0) void handleFilesSelected(files);
-    };
-
-    window.addEventListener("dragenter", handleDragEnter);
-    window.addEventListener("dragover", handleDragOver);
-    window.addEventListener("dragleave", handleDragLeave);
-    window.addEventListener("drop", handleDrop);
-    return () => {
-      window.removeEventListener("dragenter", handleDragEnter);
-      window.removeEventListener("dragover", handleDragOver);
-      window.removeEventListener("dragleave", handleDragLeave);
-      window.removeEventListener("drop", handleDrop);
-    };
-  }, [handleFilesSelected]);
+  const [auxDropTargetsActive, setAuxDropTargetsActive] =
+    useState<AuxDropTargetsActive>({
+      experiment: false,
+      sample: false,
+    });
 
   const activeDataset = datasets.find((d) => d.id === activeDatasetId);
+  const persistedExperimentId = activeDataset?.persistedExperimentId ?? null;
+  const persistedSampleId = activeDataset?.persistedSampleId ?? null;
+
+  const persistedAuxUpload = usePersistedAuxUpload({
+    experimentId: persistedExperimentId,
+    sampleId: persistedSampleId,
+    onValidationError: reportAuxError,
+  });
+
+  const queueExperimentAux = useCallback(
+    (files: File[]) => {
+      if (!activeDatasetId || !auxDropTargetsActive.experiment) {
+        return;
+      }
+      const defaults = getNexafsAuxUploadDefaults();
+      const batchKind = inferAuxFileKindFromBatch(files).kind;
+      if (batchKind !== defaults.kind) {
+        setNexafsAuxUploadDefaults({ ...defaults, kind: batchKind });
+      }
+      if (persistedExperimentId) {
+        if (!auxDropTargetsActive.experiment) {
+          return;
+        }
+        void persistedAuxUpload.uploadExperimentFiles(
+          files,
+          batchKind,
+          defaults.description,
+        );
+        return;
+      }
+      updateDataset(activeDatasetId, (dataset) => ({
+        pendingExperimentAuxFiles: appendPendingAuxFiles(
+          dataset.pendingExperimentAuxFiles,
+          files,
+          "experiment",
+          batchKind,
+          defaults.description,
+          reportAuxError,
+        ),
+      }));
+    },
+    [
+      activeDatasetId,
+      auxDropTargetsActive.experiment,
+      persistedAuxUpload,
+      persistedExperimentId,
+      reportAuxError,
+      updateDataset,
+    ],
+  );
+
+  const queueSampleAux = useCallback(
+    (files: File[]) => {
+      if (!activeDatasetId || !auxDropTargetsActive.sample) {
+        return;
+      }
+      const defaults = getNexafsAuxUploadDefaults();
+      const batchKind = inferAuxFileKindFromBatch(files).kind;
+      if (batchKind !== defaults.kind) {
+        setNexafsAuxUploadDefaults({ ...defaults, kind: batchKind });
+      }
+      if (persistedExperimentId && persistedSampleId) {
+        if (!auxDropTargetsActive.sample) {
+          return;
+        }
+        void persistedAuxUpload.uploadSampleFiles(
+          files,
+          batchKind,
+          defaults.description,
+        );
+        return;
+      }
+      updateDataset(activeDatasetId, (dataset) => ({
+        pendingSampleAuxFiles: appendPendingAuxFiles(
+          dataset.pendingSampleAuxFiles,
+          files,
+          "sample",
+          batchKind,
+          defaults.description,
+          reportAuxError,
+        ),
+      }));
+    },
+    [
+      activeDatasetId,
+      auxDropTargetsActive.sample,
+      persistedAuxUpload,
+      persistedExperimentId,
+      persistedSampleId,
+      reportAuxError,
+      updateDataset,
+    ],
+  );
   const columnMappingDataset = columnMappingFile
     ? datasets.find((d) => d.id === columnMappingFile.datasetId)
     : null;
 
   return (
-    <>
+    <GlobalFileDropZoneProvider
+      spectrumDropEnabled
+      newDatasetUploadLabel={
+        datasets.length > 0 ? "a new dataset" : ""
+      }
+      onSpectrumFiles={(files) => {
+        void handleFilesSelected(files);
+      }}
+      onExperimentAuxFiles={queueExperimentAux}
+      onSampleAuxFiles={queueSampleAux}
+    >
       <ColumnMappingModal
         isOpen={!!columnMappingFile}
         onClose={handleColumnMappingClose}
@@ -231,12 +285,6 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
             : "mx-auto flex w-full max-w-7xl flex-col"
         }
       >
-        <ContributionFileDropOverlay
-          isDragging={isDragging}
-          fileKind={draggedFileType ?? "mixed"}
-          fileName={draggedFileName}
-        />
-
         <Form
           className={
             datasets.length > 0
@@ -246,12 +294,9 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           onSubmit={submit}
         >
           {datasets.length === 0 && (
-            <div className="border-border bg-surface mb-8 w-full shrink-0 rounded-xl border p-4 shadow-sm">
-              <FileUploadZone
-                onFilesSelected={handleFilesSelected}
-                multiple={true}
-              />
-            </div>
+            <EmptyDatasetDropZone>
+              <NexafsUploadPortal onFilesSelected={handleFilesSelected} />
+            </EmptyDatasetDropZone>
           )}
 
           {datasets.length > 0 && (
@@ -276,6 +321,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
                   key={activeDataset.id}
                   dataset={activeDataset}
                   onDatasetUpdate={updateDataset}
+                  onAuxDropTargetsChange={setAuxDropTargetsActive}
                   onReloadData={() => processDatasetData(activeDataset.id)}
                   instrumentOptions={instrumentOptions}
                   edgeOptions={edgeOptions}
@@ -338,6 +384,27 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           )}
         </Form>
       </div>
-    </>
+    </GlobalFileDropZoneProvider>
+  );
+}
+
+function EmptyDatasetDropZone({ children }: { children: ReactNode }) {
+  const dropState = useGlobalFileDropZoneContext();
+  const zoneId = GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET;
+
+  return (
+    <div
+      {...globalDropZoneProps(zoneId)}
+      className="relative"
+    >
+      {children}
+      <ContributionFileDropOverlay
+        variant="inset"
+        isDragging={dropState.showOverlayForZone(zoneId)}
+        fileKind={dropState.spectrumFileKind ?? "mixed"}
+        fileName={dropState.fileName}
+        messageOverride={dropState.messageForZone(zoneId)}
+      />
+    </div>
   );
 }

@@ -12,3 +12,6 @@ export interface NexafsBrowseLinkedPublication {
   /** Stored JSON; callers format citations defensively. */
   authors?: unknown;
 }
+
+/** Source-paper metadata (`experimentpublications.role = 'source'`) for browse card headers. */
+export type NexafsBrowseSourcePublication = NexafsBrowseLinkedPublication;

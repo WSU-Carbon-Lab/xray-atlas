@@ -10,6 +10,8 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { Accordion } from "@heroui/react";
 import { Copy, Download } from "lucide-react";
 import { BUTTON_GROUP_CHILD } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
@@ -29,11 +31,39 @@ import {
   spectrumGeometryCsvRowsFromTree,
   type NexafsSpectrumCsvExportOptions,
 } from "~/components/nexafs/nexafs-spectrum-csv-shared";
+import { trpc } from "~/trpc/client";
+import {
+  downloadAuxFileFromSignedUrl,
+  downloadDatasetAllDataBundle,
+} from "~/lib/aux-file-download";
+import { showToast } from "~/components/ui/toast";
 
 const SPECTRUM_RAIL_DOWNLOAD_HINT_LINE =
-  "Save spectrum CSV for every geometry or one slice.";
+  "Save spectrum CSV, all-data archive, or auxiliary files.";
 const SPECTRUM_RAIL_COPY_HINT_LINE =
   "Copy spectrum CSV for every geometry or one slice.";
+
+const downloadMenuAccordionClass =
+  "border-border w-full min-w-0 rounded-lg border";
+
+const downloadMenuAccordionTriggerClass =
+  "hover:bg-default/50 flex min-h-10 w-full min-w-0 items-center gap-2 rounded-lg px-3 py-2.5 text-start transition-colors";
+
+const downloadMenuAccordionIndicatorClass =
+  "text-muted ml-auto shrink-0 [&>svg]:size-4";
+
+function formatAuxFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return "";
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export type NexafsSpectrumRailCsvDropdownProps = {
   kind: "download" | "copy";
@@ -42,6 +72,9 @@ export type NexafsSpectrumRailCsvDropdownProps = {
   sortedAllPoints: SpectrumPoint[];
   groupedTree: SpectrumPolarizationNode[];
   csvExportOptions?: NexafsSpectrumCsvExportOptions;
+  /** When set on the download menu, enables all-data bundle and auxiliary file rows. */
+  experimentId?: string;
+  sampleId?: string | null;
   [BUTTON_GROUP_CHILD]?: boolean;
 };
 
@@ -53,17 +86,44 @@ export const NexafsSpectrumRailCsvDropdown = memo(
     sortedAllPoints,
     groupedTree,
     csvExportOptions,
+    experimentId,
+    sampleId,
     [BUTTON_GROUP_CHILD]: _buttonGroupChild,
   }: NexafsSpectrumRailCsvDropdownProps) {
     const [open, setOpen] = useState(false);
+    const [auxDownloadBusyId, setAuxDownloadBusyId] = useState<string | null>(
+      null,
+    );
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+    const utils = trpc.useUtils();
 
     const geometryCsvRows = useMemo(
       () => spectrumGeometryCsvRowsFromTree(groupedTree),
       [groupedTree],
     );
+
+    const downloadExtrasEnabled =
+      kind === "download" && Boolean(experimentId) && !disabled;
+
+    const experimentAuxQuery = trpc.experimentFile.list.useQuery(
+      { experimentId: experimentId ?? "" },
+      {
+        enabled: open && downloadExtrasEnabled && Boolean(experimentId),
+      },
+    );
+
+    const sampleAuxQuery = trpc.sampleFile.list.useQuery(
+      { sampleId: sampleId ?? "" },
+      {
+        enabled:
+          open && downloadExtrasEnabled && Boolean(sampleId),
+      },
+    );
+
+    const experimentAuxFiles = experimentAuxQuery.data ?? [];
+    const sampleAuxFiles = sampleAuxQuery.data ?? [];
 
     const updateMenuPosition = useCallback(() => {
       const el = triggerRef.current;
@@ -138,6 +198,12 @@ export const NexafsSpectrumRailCsvDropdown = memo(
       setOpen(false);
     }, [csvExportOptions, disabled, filenameBase, kind, sortedAllPoints]);
 
+    const runAllDataBundle = useCallback(() => {
+      if (!experimentId || disabled) return;
+      downloadDatasetAllDataBundle(experimentId);
+      setOpen(false);
+    }, [disabled, experimentId]);
+
     const runCsvGeometryLeaf = useCallback(
       (points: SpectrumPoint[], fileSuffix: string) => {
         if (disabled || points.length === 0) return;
@@ -153,6 +219,96 @@ export const NexafsSpectrumRailCsvDropdown = memo(
         setOpen(false);
       },
       [csvExportOptions, disabled, filenameBase, kind],
+    );
+
+    const runExperimentAuxDownload = useCallback(
+      async (fileId: string, originalFilename: string) => {
+        if (!experimentId || disabled) return;
+        setAuxDownloadBusyId(fileId);
+        try {
+          const result = await utils.experimentFile.getDownloadUrl.fetch({
+            experimentId,
+            fileId,
+          });
+          await downloadAuxFileFromSignedUrl(
+            result.signedUrl,
+            result.originalFilename || originalFilename,
+          );
+          setOpen(false);
+        } catch {
+          showToast("Could not download experiment file", "error");
+        } finally {
+          setAuxDownloadBusyId(null);
+        }
+      },
+      [disabled, experimentId, utils.experimentFile.getDownloadUrl],
+    );
+
+    const runSampleAuxDownload = useCallback(
+      async (fileId: string, originalFilename: string) => {
+        if (!sampleId || disabled) return;
+        setAuxDownloadBusyId(fileId);
+        try {
+          const result = await utils.sampleFile.getDownloadUrl.fetch({
+            sampleId,
+            fileId,
+          });
+          await downloadAuxFileFromSignedUrl(
+            result.signedUrl,
+            result.originalFilename || originalFilename,
+          );
+          setOpen(false);
+        } catch {
+          showToast("Could not download sample file", "error");
+        } finally {
+          setAuxDownloadBusyId(null);
+        }
+      },
+      [disabled, sampleId, utils.sampleFile.getDownloadUrl],
+    );
+
+    const geometryAccordionBody = (
+      <div className="flex flex-col gap-0.5 px-1 pb-1">
+        {geometryCsvRows.map((row) => (
+          <button
+            key={row.id}
+            type="button"
+            role="menuitem"
+            disabled={disabled}
+            onClick={() => runCsvGeometryLeaf(row.points, row.fileSuffix)}
+            className={spectrumCsvMenuItemClass}
+          >
+            <span className="font-mono text-sm font-medium tracking-tight">
+              {row.label}
+            </span>
+            <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+              {row.rowCount} {row.rowCount === 1 ? "row" : "rows"}
+            </span>
+          </button>
+        ))}
+      </div>
+    );
+
+    const copyGeometryList = (
+      <div className="flex flex-col gap-0.5">
+        {geometryCsvRows.map((row) => (
+          <button
+            key={row.id}
+            type="button"
+            role="menuitem"
+            disabled={disabled}
+            onClick={() => runCsvGeometryLeaf(row.points, row.fileSuffix)}
+            className={spectrumCsvMenuItemClass}
+          >
+            <span className="font-mono text-sm font-medium tracking-tight">
+              {row.label}
+            </span>
+            <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+              {row.rowCount} {row.rowCount === 1 ? "row" : "rows"}
+            </span>
+          </button>
+        ))}
+      </div>
     );
 
     const menuPortal =
@@ -207,32 +363,165 @@ export const NexafsSpectrumRailCsvDropdown = memo(
                 {sortedAllPoints.length === 1 ? "row" : "rows"}
               </span>
             </button>
+            {downloadExtrasEnabled ? (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={disabled}
+                onClick={runAllDataBundle}
+                className={spectrumCsvMenuItemClass}
+              >
+                <span className="text-sm font-medium">All data</span>
+                <span className="text-xs text-[var(--text-secondary)]">
+                  CSV + experiment-aux + sample-aux (.tar.gz)
+                </span>
+              </button>
+            ) : null}
             <div
               className="my-2 h-px bg-[color-mix(in_oklab,var(--border-default)_85%,transparent)]"
               role="separator"
             />
-            <div className={spectrumCsvMenuSectionLabelClass}>By geometry</div>
-            <div className="flex flex-col gap-0.5">
-              {geometryCsvRows.map((row) => (
-                <button
-                  key={row.id}
-                  type="button"
-                  role="menuitem"
-                  disabled={disabled}
-                  onClick={() =>
-                    runCsvGeometryLeaf(row.points, row.fileSuffix)
-                  }
-                  className={spectrumCsvMenuItemClass}
+            {kind === "download" && downloadExtrasEnabled ? (
+              <Accordion
+                allowsMultipleExpanded
+                defaultExpandedKeys={[]}
+                hideSeparator
+                variant="surface"
+                aria-label="Download by geometry and auxiliary files"
+                className={downloadMenuAccordionClass}
+              >
+                <Accordion.Item id="by-geometry" className="w-full min-w-0">
+                  <Accordion.Heading className="w-full min-w-0">
+                    <Accordion.Trigger className={downloadMenuAccordionTriggerClass}>
+                      <span className="text-foreground min-w-0 flex-1 text-sm font-medium">
+                        By geometry
+                      </span>
+                      <Accordion.Indicator className={downloadMenuAccordionIndicatorClass}>
+                        <ChevronDownIcon aria-hidden />
+                      </Accordion.Indicator>
+                    </Accordion.Trigger>
+                  </Accordion.Heading>
+                  <Accordion.Panel className="w-full min-w-0">
+                    <Accordion.Body className="pt-0">
+                      {geometryAccordionBody}
+                    </Accordion.Body>
+                  </Accordion.Panel>
+                </Accordion.Item>
+                <Accordion.Item
+                  id="aux-experiment"
+                  className="w-full min-w-0"
+                  isDisabled={experimentAuxFiles.length === 0}
                 >
-                  <span className="font-mono text-sm font-medium tracking-tight">
-                    {row.label}
-                  </span>
-                  <span className="text-xs tabular-nums text-[var(--text-secondary)]">
-                    {row.rowCount} {row.rowCount === 1 ? "row" : "rows"}
-                  </span>
-                </button>
-              ))}
-            </div>
+                  <Accordion.Heading className="w-full min-w-0">
+                    <Accordion.Trigger className={downloadMenuAccordionTriggerClass}>
+                      <span className="text-foreground min-w-0 flex-1 text-sm font-medium">
+                        Aux experiment
+                      </span>
+                      <Accordion.Indicator className={downloadMenuAccordionIndicatorClass}>
+                        <ChevronDownIcon aria-hidden />
+                      </Accordion.Indicator>
+                    </Accordion.Trigger>
+                  </Accordion.Heading>
+                  <Accordion.Panel className="w-full min-w-0">
+                    <Accordion.Body className="pt-0">
+                      {experimentAuxFiles.length === 0 ? (
+                        <p className="text-muted px-3 py-2 text-xs">
+                          No experiment auxiliary files on record.
+                        </p>
+                      ) : (
+                        <div className="flex flex-col gap-0.5 px-1 pb-1">
+                          {experimentAuxFiles.map((file) => (
+                            <button
+                              key={file.id}
+                              type="button"
+                              role="menuitem"
+                              disabled={
+                                auxDownloadBusyId === file.id || disabled
+                              }
+                              onClick={() =>
+                                void runExperimentAuxDownload(
+                                  file.id,
+                                  file.originalFilename,
+                                )
+                              }
+                              className={spectrumCsvMenuItemClass}
+                            >
+                              <span className="line-clamp-2 text-sm font-medium">
+                                {file.originalFilename}
+                              </span>
+                              <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+                                {formatAuxFileSize(file.sizeBytes)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </Accordion.Body>
+                  </Accordion.Panel>
+                </Accordion.Item>
+                <Accordion.Item
+                  id="aux-sample"
+                  className="w-full min-w-0"
+                  isDisabled={!sampleId || sampleAuxFiles.length === 0}
+                >
+                  <Accordion.Heading className="w-full min-w-0">
+                    <Accordion.Trigger className={downloadMenuAccordionTriggerClass}>
+                      <span className="text-foreground min-w-0 flex-1 text-sm font-medium">
+                        Aux sample
+                      </span>
+                      <Accordion.Indicator className={downloadMenuAccordionIndicatorClass}>
+                        <ChevronDownIcon aria-hidden />
+                      </Accordion.Indicator>
+                    </Accordion.Trigger>
+                  </Accordion.Heading>
+                  <Accordion.Panel className="w-full min-w-0">
+                    <Accordion.Body className="pt-0">
+                      {!sampleId ? (
+                        <p className="text-muted px-3 py-2 text-xs">
+                          No sample linked to this dataset.
+                        </p>
+                      ) : sampleAuxFiles.length === 0 ? (
+                        <p className="text-muted px-3 py-2 text-xs">
+                          No sample auxiliary files on record.
+                        </p>
+                      ) : (
+                        <div className="flex flex-col gap-0.5 px-1 pb-1">
+                          {sampleAuxFiles.map((file) => (
+                            <button
+                              key={file.id}
+                              type="button"
+                              role="menuitem"
+                              disabled={
+                                auxDownloadBusyId === file.id || disabled
+                              }
+                              onClick={() =>
+                                void runSampleAuxDownload(
+                                  file.id,
+                                  file.originalFilename,
+                                )
+                              }
+                              className={spectrumCsvMenuItemClass}
+                            >
+                              <span className="line-clamp-2 text-sm font-medium">
+                                {file.originalFilename}
+                              </span>
+                              <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+                                {formatAuxFileSize(file.sizeBytes)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </Accordion.Body>
+                  </Accordion.Panel>
+                </Accordion.Item>
+              </Accordion>
+            ) : (
+              <>
+                <div className={spectrumCsvMenuSectionLabelClass}>By geometry</div>
+                {copyGeometryList}
+              </>
+            )}
           </div>
         </>,
         document.body,

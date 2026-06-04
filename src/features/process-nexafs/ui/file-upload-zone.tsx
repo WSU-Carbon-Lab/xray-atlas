@@ -141,10 +141,10 @@ export function FileUploadZone({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-dashed bg-surface px-6 py-6 text-left transition-transform duration-200 ${
+        className={`group bg-background/40 relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-xl border-2 border-dashed px-5 py-5 text-left transition-[transform,box-shadow,border-color] duration-200 ${
           isDragging
-            ? "border-accent bg-accent/5 shadow-lg dark:border-accent dark:bg-accent/10"
-            : "border-gray-300 hover:-translate-y-0.5 hover:border-accent hover:shadow-lg dark:border-gray-700"
+            ? "border-accent bg-accent/10 shadow-lg"
+            : "border-border hover:border-accent hover:bg-accent/5 hover:-translate-y-0.5 hover:shadow-md"
         }`}
       >
         <input
@@ -158,10 +158,10 @@ export function FileUploadZone({
         />
 
         <div className="flex flex-col gap-2">
-          <span className="text-sm font-semibold uppercase tracking-wide text-accent dark:text-accent-light">
-            Upload CSV or JSON Files
+          <span className="text-accent text-sm font-semibold tracking-wide uppercase">
+            Upload CSV or JSON files
           </span>
-          <span className="text-base text-gray-700 transition-colors duration-200 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-gray-100">
+          <span className="text-foreground text-base transition-colors duration-200">
             {isDragging
               ? draggedFileType === "json"
                 ? "Drop JSON file here"
@@ -170,17 +170,15 @@ export function FileUploadZone({
                   : "Drop files here"
               : "Drag and drop CSV or JSON files here"}
           </span>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            or click to browse • CSV or JSON files • Max {(maxFileSize / (1024 * 1024)).toFixed(0)}MB per file
-            {multiple && " • Multiple files supported"}
+          <span className="text-muted text-sm">
+            or click to browse • Max {(maxFileSize / (1024 * 1024)).toFixed(0)}MB per file
+            {multiple ? " • Multiple files supported" : null}
           </span>
         </div>
-        <div className="hidden shrink-0 text-gray-300 transition-colors duration-200 group-hover:text-accent dark:text-accent-light md:block">
+        <div className="text-muted hidden shrink-0 transition-colors duration-200 group-hover:text-accent md:block">
           <CloudArrowUpIcon
-            className={`h-16 w-16 transition-colors ${
-              isDragging
-                ? "text-accent dark:text-accent-light"
-                : "text-gray-300 group-hover:text-accent dark:text-accent-light"
+            className={`h-14 w-14 transition-colors ${
+              isDragging ? "text-accent" : "group-hover:text-accent"
             }`}
             aria-hidden="true"
           />

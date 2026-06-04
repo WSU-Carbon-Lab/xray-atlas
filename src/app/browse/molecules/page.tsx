@@ -6,11 +6,8 @@ import {
   useLayoutEffect,
   useMemo,
   useCallback,
-  useRef,
   Suspense,
-  type ReactNode,
 } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import {
   MoleculeDisplayCompact,
@@ -26,30 +23,33 @@ import { BrowseTabs } from "@/components/layout/browse-tabs";
 import {
   Squares2X2Icon,
   ListBulletIcon,
-  ArrowsUpDownIcon,
   HeartIcon,
   EyeIcon,
   CalendarDaysIcon,
   CircleStackIcon,
-  CheckIcon,
 } from "@heroicons/react/24/outline";
 import { AddMoleculeButton } from "@/components/contribute";
 import { BrowseHeader } from "@/components/browse/browse-header";
 import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
-import { TagFilterBar } from "@/components/browse/tag-filter-bar";
-import { TagsDropdown } from "@/components/browse/tags-dropdown";
-import { Pagination, Tabs, Tooltip } from "@heroui/react";
-import { PopoverMenu, PopoverMenuContent } from "@/components/ui/popover-menu";
+import { BrowseSortButton, type BrowseSortOption } from "@/components/browse/browse-sort-button";
+import {
+  Pagination,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+} from "@heroui/react";
+import {
+  MoleculeSearchBar,
+  useMoleculeFacetSelection,
+  tagLabelsFromFacetItems,
+  moleculeFacetSelectionToBrowseFilters,
+} from "@/components/browse/molecule-search";
 
 type MoleculeSortKey = "favorites" | "created" | "name" | "views" | "datasets";
 
-const MOLECULE_SORT_OPTIONS: Array<{
-  key: MoleculeSortKey;
-  label: string;
-  icon: ReactNode;
-}> = [
+const MOLECULE_SORT_OPTIONS: Array<BrowseSortOption<MoleculeSortKey>> = [
   {
     key: "favorites",
     label: "Most Favorited",
@@ -77,65 +77,32 @@ const MOLECULE_SORT_OPTIONS: Array<{
   },
 ];
 
+const MOLECULES_BROWSE_PATH = "/browse/molecules";
+
 function MoleculesBrowseContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const qParamRaw = searchParams.get("q") ?? "";
-  const pageParamRaw = searchParams.get("page") ?? "";
-  const tagsParamRaw = searchParams.get("tags") ?? "";
-  const lastSyncedUrlRef = useRef<string | null>(null);
-  const [query, setQuery] = useState(qParamRaw);
-  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  const { data: tagFacetItems = [] } = trpc.molecules.browseTagCounts.useQuery(
+    undefined,
+    { staleTime: 5 * 60 * 1000 },
+  );
+
+  const tagLabels = useMemo(
+    () => tagLabelsFromFacetItems(tagFacetItems),
+    [tagFacetItems],
+  );
+
+  const facet = useMoleculeFacetSelection({
+    basePath: MOLECULES_BROWSE_PATH,
+    tagLabels,
+  });
+
+  const browseFilters = useMemo(
+    () => moleculeFacetSelectionToBrowseFilters(facet.selection),
+    [facet.selection],
+  );
+
   const [sortBy, setSortBy] = useState<MoleculeSortKey>("favorites");
-  const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [viewMode, setViewMode] = useState<"compact" | "spacious">("compact");
-
-  const tagIdsArray = useMemo(
-    () =>
-      tagsParamRaw
-        ? tagsParamRaw
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-            .sort()
-        : [],
-    [tagsParamRaw],
-  );
-
-  const tagIdsKey = useMemo(() => tagIdsArray.join(","), [tagIdsArray]);
-
-  const selectedTagIds = useMemo(
-    () => new Set<string>(tagIdsArray),
-    [tagIdsArray],
-  );
-
-  const updateTagsInUrl = useCallback(
-    (newTagIds: Set<string>) => {
-      setCurrentPage((prev) => (prev === 1 ? prev : 1));
-      const params = new URLSearchParams();
-      if (debouncedQuery) {
-        params.set("q", debouncedQuery);
-      }
-      if (newTagIds.size > 0) {
-        params.set("tags", [...newTagIds].sort().join(","));
-      }
-      const newUrl = `/browse/molecules${params.toString() ? `?${params.toString()}` : ""}`;
-      const currentUrl = `${window.location.pathname}${window.location.search}`;
-      if (currentUrl === newUrl) return;
-      router.replace(newUrl, { scroll: false });
-    },
-    [debouncedQuery, router],
-  );
-
-  // Debounce search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query);
-      setCurrentPage((prev) => (prev === 1 ? prev : 1));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query]);
 
   useLayoutEffect(() => {
     const savedViewMode = localStorage.getItem("moleculeViewMode");
@@ -144,56 +111,25 @@ function MoleculesBrowseContent() {
     }
   }, []);
 
-  // Save view mode to localStorage when it changes
   useEffect(() => {
     localStorage.setItem("moleculeViewMode", viewMode);
   }, [viewMode]);
 
-  // Reset to first page when sort, items per page, or tag selection changes
   useEffect(() => {
-    setCurrentPage((prev) => (prev === 1 ? prev : 1));
-  }, [sortBy, itemsPerPage, tagIdsKey]);
+    facet.setCurrentPage(1);
+  }, [sortBy, itemsPerPage, facet.setCurrentPage]);
 
-  // Update URL when query or page changes; preserve tags from URL
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (debouncedQuery) {
-      params.set("q", debouncedQuery);
-    }
-    if (currentPage > 1) {
-      params.set("page", currentPage.toString());
-    }
-    if (tagIdsKey) {
-      params.set("tags", tagIdsKey);
-    }
-
-    const desiredUrl = `/browse/molecules${params.toString() ? `?${params.toString()}` : ""}`;
-
-    const currentParams = new URLSearchParams();
-    if (qParamRaw) currentParams.set("q", qParamRaw);
-    if (pageParamRaw && pageParamRaw !== "1") {
-      currentParams.set("page", pageParamRaw);
-    }
-    if (tagIdsKey) currentParams.set("tags", tagIdsKey);
-
-    const currentUrl = `/browse/molecules${currentParams.toString() ? `?${currentParams.toString()}` : ""}`;
-    if (currentUrl === desiredUrl) return;
-    if (lastSyncedUrlRef.current === desiredUrl) return;
-    lastSyncedUrlRef.current = desiredUrl;
-
-    router.replace(desiredUrl, { scroll: false });
-  }, [debouncedQuery, currentPage, tagIdsKey, qParamRaw, pageParamRaw, router]);
-
-  const hasSearchQuery = debouncedQuery.trim().length > 0;
+  const hasSearchQuery = facet.debouncedQuery.trim().length > 0;
+  const queryEnabled = facet.urlSynced;
 
   const searchData = trpc.molecules.autosuggest.useQuery(
     {
-      query: debouncedQuery,
+      query: facet.debouncedQuery,
       limit: itemsPerPage,
-      tagIds: tagIdsArray,
+      ...browseFilters,
     },
     {
-      enabled: hasSearchQuery,
+      enabled: queryEnabled && hasSearchQuery,
       staleTime: 30000,
       placeholderData: (previousData) => previousData,
       refetchOnWindowFocus: false,
@@ -204,12 +140,12 @@ function MoleculesBrowseContent() {
   const allData = trpc.molecules.getAllPaginated.useQuery(
     {
       limit: itemsPerPage,
-      offset: (currentPage - 1) * itemsPerPage,
+      offset: (facet.currentPage - 1) * itemsPerPage,
       sortBy,
-      tagIds: tagIdsArray,
+      ...browseFilters,
     },
     {
-      enabled: !hasSearchQuery,
+      enabled: queryEnabled && !hasSearchQuery,
       staleTime: 30000,
       placeholderData: (previousData) => previousData,
       refetchOnWindowFocus: false,
@@ -277,14 +213,76 @@ function MoleculesBrowseContent() {
   );
   const molecules = normalizedData.molecules;
 
-  const handleMoleculeCreated = () => {
+  const handleMoleculeCreated = useCallback(() => {
     void searchData.refetch();
     void allData.refetch();
-  };
+  }, [searchData, allData]);
+
+  const handleClearAll = useCallback(() => {
+    facet.clearAll();
+    facet.setQuery("");
+  }, [facet]);
 
   const subtitle = hasSearchQuery
-    ? `Search results for "${debouncedQuery}"`
+    ? `Search results for "${facet.debouncedQuery}"`
     : "Explore all molecules in the X-ray Atlas database.";
+
+  const viewToggleSegmentClass =
+    "text-muted hover:text-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground h-10 min-h-10 w-10 min-w-10 transition-colors";
+
+  const viewToggle = (
+    <ToggleButtonGroup
+      aria-label="View mode"
+      selectionMode="single"
+      disallowEmptySelection
+      selectedKeys={new Set([viewMode])}
+      onSelectionChange={(keys) => {
+        const next = [...keys][0];
+        if (next === "compact" || next === "spacious") {
+          setViewMode(next);
+        }
+      }}
+      className="border-border bg-surface h-12 min-h-12 w-fit min-w-[5.25rem] shrink-0 rounded-lg border p-1"
+    >
+      <Tooltip delay={0}>
+        <Tooltip.Trigger className="inline-flex">
+          <ToggleButton
+            id="compact"
+            isIconOnly
+            aria-label="Compact list view"
+            className={`${viewToggleSegmentClass} rounded-l-md rounded-r-none`}
+          >
+            <ListBulletIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
+          </ToggleButton>
+        </Tooltip.Trigger>
+        <Tooltip.Content
+          placement="top"
+          className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
+        >
+          Compact list
+        </Tooltip.Content>
+      </Tooltip>
+      <Tooltip delay={0}>
+        <Tooltip.Trigger className="inline-flex">
+          <ToggleButton
+            id="spacious"
+            isIconOnly
+            aria-label="Spacious grid view"
+            className={`${viewToggleSegmentClass} rounded-l-none rounded-r-md`}
+          >
+            <ToggleButtonGroup.Separator />
+            <Squares2X2Icon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
+          </ToggleButton>
+        </Tooltip.Trigger>
+        <Tooltip.Content
+          placement="top"
+          className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
+        >
+          Spacious grid
+        </Tooltip.Content>
+      </Tooltip>
+    </ToggleButtonGroup>
+  );
 
   return (
     <BrowsePageLayout title="Browse Molecules" subtitle={subtitle}>
@@ -292,129 +290,34 @@ function MoleculesBrowseContent() {
 
       <div className="space-y-6">
         <BrowseHeader
-          searchValue={query}
-          onSearchChange={setQuery}
-          searchPlaceholder="Search molecules..."
-        >
-          <TagsDropdown
-            selectedTagIds={selectedTagIds}
-            onSelectionChange={updateTagsInUrl}
-          />
-          {!hasSearchQuery ? (
-            <PopoverMenu
-              contentClassName="w-[220px]"
-              renderTrigger={({ triggerProps, isOpen }) => (
-                <button
-                  {...triggerProps}
-                  aria-label="Sort molecules"
-                  className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                >
-                  <ArrowsUpDownIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
-                  <span className="text-sm font-medium">Sort</span>
-                  <span className="sr-only">
-                    {isOpen ? "Close sort options" : "Open sort options"}
-                  </span>
-                </button>
-              )}
-              renderContent={({ contentPositionClassName, contentProps, close }) => (
-                <PopoverMenuContent
-                  {...contentProps}
-                  className={`${contentPositionClassName} w-[220px] rounded-xl py-1`}
-                >
-                  <div className="space-y-0.5 p-1">
-                    {MOLECULE_SORT_OPTIONS.map((option) => {
-                      const isSelected = option.key === sortBy;
-                      return (
-                        <button
-                          key={option.key}
-                          type="button"
-                          onClick={() => {
-                            setSortBy(option.key);
-                            close();
-                          }}
-                          className={`focus-visible:ring-accent flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
-                            isSelected
-                              ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
-                              : "text-muted hover:bg-default hover:text-foreground"
-                          }`}
-                          aria-label={`Sort by ${option.label}`}
-                        >
-                          <span className="flex min-w-0 items-center gap-2">
-                            {option.icon}
-                            <span className="truncate">{option.label}</span>
-                          </span>
-                          {isSelected ? (
-                            <CheckIcon
-                              className="text-accent h-4 w-4 shrink-0"
-                              aria-hidden
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </PopoverMenuContent>
-              )}
+          searchChrome={
+            <MoleculeSearchBar
+              facet={facet}
+              tagFacetItems={tagFacetItems}
+              placeholder="Search catalog..."
             />
-          ) : null}
-          <Tooltip delay={0}>
-            <div className="h-12 min-h-12">
-              <Tabs
-                selectedKey={viewMode}
-                onSelectionChange={(key) =>
-                  setViewMode(key as "compact" | "spacious")
-                }
-                className="w-fit"
-              >
-                <Tabs.ListContainer>
-                  <Tabs.List
-                    aria-label="View mode"
-                    className="border-border bg-surface text-muted !flex !h-12 !min-h-12 !w-fit min-w-[5.25rem] flex-row items-center gap-1 rounded-lg border p-1"
-                  >
-                    <Tabs.Tab
-                      id="compact"
-                      aria-label="Compact list view"
-                      className="text-muted hover:text-foreground data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground relative z-10 flex h-10 min-h-10 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
-                    >
-                      <ListBulletIcon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5] text-current" />
-                      <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
-                    </Tabs.Tab>
-                    <Tabs.Tab
-                      id="spacious"
-                      aria-label="Spacious grid view"
-                      className="text-muted hover:text-foreground data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground relative z-10 flex h-10 min-h-10 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
-                    >
-                      <Squares2X2Icon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5] text-current" />
-                      <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
-                    </Tabs.Tab>
-                  </Tabs.List>
-                </Tabs.ListContainer>
-              </Tabs>
-            </div>
-            <Tooltip.Content
-              placement="top"
-              className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
-            >
-              Display molecules in a compact list or spacious grid view
-            </Tooltip.Content>
-          </Tooltip>
-        </BrowseHeader>
-
-        <TagFilterBar
-          selectedTagIds={selectedTagIds}
-          onRemove={(tagId) => {
-            const next = new Set(selectedTagIds);
-            next.delete(tagId);
-            updateTagsInUrl(next);
-          }}
+          }
+          trailing={
+            <>
+              {!hasSearchQuery ? (
+                <BrowseSortButton
+                  options={MOLECULE_SORT_OPTIONS}
+                  value={sortBy}
+                  onChange={setSortBy}
+                  contentWidth="w-[220px]"
+                />
+              ) : null}
+              {viewToggle}
+            </>
+          }
         />
 
-        <div className="min-w-0">
+        <div>
           {isLoading && (
             <div
               className={
                 viewMode === "compact"
-                  ? "w-full space-y-3"
+                  ? "space-y-3"
                   : "grid w-full grid-cols-1 gap-6 md:grid-cols-2"
               }
             >
@@ -445,15 +348,14 @@ function MoleculesBrowseContent() {
                 <BrowseEmptyState
                   message={
                     hasSearchQuery
-                      ? `No molecules found for "${debouncedQuery}".`
-                      : "No molecules found in the database."
+                      ? `No molecules found for "${facet.debouncedQuery}".`
+                      : "No molecules match the current filters."
                   }
-                  hasSearchQuery={hasSearchQuery}
-                  browseAllHref="/browse/molecules"
-                  onClearSearch={() => {
-                    setQuery("");
-                    setDebouncedQuery("");
-                  }}
+                  hasSearchQuery={
+                    hasSearchQuery || facet.tokens.length > 0
+                  }
+                  browseAllHref={MOLECULES_BROWSE_PATH}
+                  onClearSearch={handleClearAll}
                 >
                   <AddMoleculeButton
                     className="min-h-[140px]"
@@ -463,9 +365,9 @@ function MoleculesBrowseContent() {
               ) : (
                 <>
                   {viewMode === "compact" ? (
-                    <div className="w-full space-y-3 [&>div]:[contain-intrinsic-size:0_80px] [&>div]:[content-visibility:auto]">
+                    <div className="space-y-3" aria-label="Molecule results">
                       <AddMoleculeButton
-                        className="min-h-[140px]"
+                        className="min-h-[140px] w-full"
                         onCreated={handleMoleculeCreated}
                       />
                       {molecules.map((molecule) => {
@@ -473,12 +375,11 @@ function MoleculesBrowseContent() {
                         if (!displayMolecule) return null;
 
                         return (
-                          <div key={molecule.id}>
-                            <MoleculeDisplayCompact
-                              molecule={displayMolecule}
-                              enableRealtime={false}
-                            />
-                          </div>
+                          <MoleculeDisplayCompact
+                            key={molecule.id}
+                            molecule={displayMolecule}
+                            enableRealtime={false}
+                          />
                         );
                       })}
                     </div>
@@ -506,7 +407,6 @@ function MoleculesBrowseContent() {
                 </>
               )}
 
-              {/* Pagination */}
               <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <ItemsPerPageSelect
                   value={itemsPerPage}
@@ -517,10 +417,12 @@ function MoleculesBrowseContent() {
                     <Pagination.Content className="gap-2">
                       <Pagination.Item>
                         <Pagination.Previous
-                          isDisabled={currentPage <= 1}
+                          isDisabled={facet.currentPage <= 1}
                           aria-label="Previous page"
                           onPress={() =>
-                            setCurrentPage((p) => Math.max(1, p - 1))
+                            facet.setCurrentPage(
+                              Math.max(1, facet.currentPage - 1),
+                            )
                           }
                           className="rounded-lg border border-border bg-surface"
                         >
@@ -534,10 +436,10 @@ function MoleculesBrowseContent() {
                           ).map((p) => (
                             <Pagination.Item key={p}>
                               <Pagination.Link
-                                isActive={p === currentPage}
-                                onPress={() => setCurrentPage(p)}
+                                isActive={p === facet.currentPage}
+                                onPress={() => facet.setCurrentPage(p)}
                                 className={`rounded-lg border border-border bg-surface text-foreground ${
-                                  p === currentPage
+                                  p === facet.currentPage
                                     ? "border-accent bg-accent text-accent-foreground"
                                     : ""
                                 }`}
@@ -550,17 +452,17 @@ function MoleculesBrowseContent() {
                       {totalPages > 20 ? (
                         <Pagination.Item>
                           <span className="text-muted px-2 text-xs tabular-nums">
-                            {currentPage} / {totalPages}
+                            {facet.currentPage} / {totalPages}
                           </span>
                         </Pagination.Item>
                       ) : null}
                       <Pagination.Item>
                         <Pagination.Next
-                          isDisabled={currentPage >= totalPages}
+                          isDisabled={facet.currentPage >= totalPages}
                           aria-label="Next page"
                           onPress={() =>
-                            setCurrentPage((p) =>
-                              Math.min(totalPages, p + 1),
+                            facet.setCurrentPage(
+                              Math.min(totalPages, facet.currentPage + 1),
                             )
                           }
                           className="rounded-lg border border-border bg-surface"

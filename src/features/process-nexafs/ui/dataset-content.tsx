@@ -77,7 +77,21 @@ import type {
 } from "~/components/plots/types";
 import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
-import { NexafsSampleInformationSection } from "~/components/forms";
+import {
+  NexafsSampleInformationSection,
+  SampleAuxAccordion,
+} from "~/components/forms";
+import type { AuxFileKind } from "~/lib/aux-file-client";
+import { setNexafsAuxUploadDefaults } from "~/lib/nexafs-aux-upload-defaults";
+import {
+  DatasetAttributionEditor,
+  type DatasetAttributionChange,
+} from "./dataset-attribution-editor";
+import { SourcePaperPublicationsEditor } from "./source-paper-publications-editor";
+import {
+  DatasetAuxFilesTab,
+  type AuxDropTargetsActive,
+} from "./dataset-persisted-aux-files";
 import {
   VisualizationToggle,
   type VisualizationMode,
@@ -901,9 +915,13 @@ function DatasetSpectrumTable({
   );
 }
 
+type DatasetStatePatch =
+  | Partial<DatasetState>
+  | ((dataset: DatasetState) => Partial<DatasetState>);
+
 interface DatasetContentProps {
   dataset: DatasetState;
-  onDatasetUpdate: (datasetId: string, updates: Partial<DatasetState>) => void;
+  onDatasetUpdate: (datasetId: string, updates: DatasetStatePatch) => void;
   onReloadData?: () => void;
   instrumentOptions: Array<{ id: string; name: string; facilityName?: string }>;
   edgeOptions: Array<{ id: string; targetatom: string; corestate: string }>;
@@ -913,6 +931,7 @@ interface DatasetContentProps {
   isLoadingEdges: boolean;
   isLoadingCalibrations: boolean;
   isLoadingVendors: boolean;
+  onAuxDropTargetsChange?: (active: AuxDropTargetsActive) => void;
 }
 
 export function DatasetContent({
@@ -927,6 +946,7 @@ export function DatasetContent({
   isLoadingEdges: _isLoadingEdges,
   isLoadingCalibrations: _isLoadingCalibrations,
   isLoadingVendors,
+  onAuxDropTargetsChange,
 }: DatasetContentProps) {
   const [showAddMoleculeModal, setShowAddMoleculeModal] = useState(false);
   const [showAddFacilityModal, setShowAddFacilityModal] = useState(false);
@@ -958,8 +978,33 @@ export function DatasetContent({
   const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
   const [kkConsentContinuation, setKkConsentContinuation] =
     useState<KkBrowserConsentContinuation | null>(null);
+  const [auxUploadKind, setAuxUploadKind] = useState<AuxFileKind>("other");
+  const [auxUploadDescription, setAuxUploadDescription] = useState("");
+
+  useEffect(() => {
+    setNexafsAuxUploadDefaults({
+      kind: auxUploadKind,
+      description: auxUploadDescription,
+    });
+  }, [auxUploadDescription, auxUploadKind]);
+
+  useEffect(() => {
+    if (visualizationMode !== "aux") {
+      onAuxDropTargetsChange?.({ experiment: false, sample: false });
+    }
+  }, [onAuxDropTargetsChange, visualizationMode]);
+
   const [kkUploadBusy, setKkUploadBusy] = useState(false);
   const [geometryEditMode, setGeometryEditMode] = useState(false);
+  const handleVisualizationModeChange = useCallback(
+    (mode: VisualizationMode) => {
+      setVisualizationMode(mode);
+      if (mode !== "table") {
+        setGeometryEditMode(false);
+      }
+    },
+    [],
+  );
   const [deleteConfirmGeometry, setDeleteConfirmGeometry] = useState<{
     theta: number | undefined;
     phi: number | undefined;
@@ -2366,25 +2411,65 @@ export function DatasetContent({
     return Array.from(set).sort((a, b) => a - b);
   }, [plotPoints]);
 
+  const handleAttributionsChange = useCallback(
+    (change: DatasetAttributionChange) => {
+      onDatasetUpdate(dataset.id, (current) => ({
+        attributions:
+          typeof change === "function"
+            ? change(current.attributions)
+            : change,
+      }));
+    },
+    [dataset.id, onDatasetUpdate],
+  );
+
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
-      <div className="flex w-full shrink-0 flex-col">
+      <div className="py-0.5">
+        <SourcePaperPublicationsEditor
+          publications={dataset.sourcePaperPublications}
+          onChange={(next) => {
+            onDatasetUpdate(dataset.id, {
+              sourcePaperPublications: next,
+            });
+          }}
+        />
+      </div>
+
+      <div className="flex w-full flex-col">
         <VisualizationToggle
           mode={visualizationMode}
           graphStyle={graphStyle}
-          onModeChange={setVisualizationMode}
+          onModeChange={handleVisualizationModeChange}
           onGraphStyleChange={setGraphStyle}
           showEditButton={visualizationMode === "table"}
           editMode={geometryEditMode}
           onEditModeChange={setGeometryEditMode}
         />
-        <div className="mt-3 flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-          <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+        <div className="mt-3 w-full">
+          <div className="w-full min-w-0">
+            {visualizationMode === "aux" ? (
+              <DatasetAuxFilesTab
+                variant={
+                  dataset.persistedExperimentId ? "persisted" : "draft"
+                }
+                dataset={dataset}
+                pendingKind={auxUploadKind}
+                pendingDescription={auxUploadDescription}
+                onPendingKindChange={setAuxUploadKind}
+                onPendingDescriptionChange={setAuxUploadDescription}
+                onDatasetUpdate={onDatasetUpdate}
+                onValidationError={(message) => showToast(message, "error")}
+                onUploadComplete={(message, type) => showToast(message, type)}
+                onDropTargetsChange={onAuxDropTargetsChange}
+                auxTabActive={visualizationMode === "aux"}
+              />
+            ) : visualizationMode === "graph" || visualizationMode === "table" ? (
             <div
               className={`border-border bg-surface w-full border p-6 shadow-sm ${
                 visualizationMode === "table"
                   ? "flex flex-col rounded-lg"
-                  : "flex min-h-[840px] min-w-0 flex-1 flex-col rounded-xl"
+                  : "flex min-h-[840px] min-w-0 flex-col rounded-xl"
               }`}
             >
               {visualizationMode === "graph" && plotPoints.length > 0 ? (
@@ -2569,9 +2654,12 @@ export function DatasetContent({
                 </div>
               )}
             </div>
+            ) : null}
 
             {/* Selection Mode Toast */}
-            {isPlotNormalizationMode && normalizationSelectionTarget && (
+            {visualizationMode !== "aux" &&
+            isPlotNormalizationMode &&
+            normalizationSelectionTarget ? (
               <div
                 className={`rounded-lg border p-3 text-sm ${
                   normalizationSelectionTarget === "pre"
@@ -2588,10 +2676,12 @@ export function DatasetContent({
                   </span>
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Peak Drag Toast - only show when manual peak mode is active */}
-            {dataset.peaks.length > 0 && isManualPeakMode && (
+            {visualizationMode !== "aux" &&
+            dataset.peaks.length > 0 &&
+            isManualPeakMode ? (
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
                 <div className="flex items-center gap-2">
                   <PencilIcon className="h-4 w-4" />
@@ -2600,10 +2690,15 @@ export function DatasetContent({
                   </span>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
+
+      <DatasetAttributionEditor
+        attributions={dataset.attributions}
+        onChange={handleAttributionsChange}
+      />
 
       {/* Sample Information */}
       <div>
@@ -2660,6 +2755,15 @@ export function DatasetContent({
           isLoadingVendors={isLoadingVendors}
         />
       </div>
+
+      <SampleAuxAccordion
+        value={dataset.sampleAux}
+        processMethod={dataset.sampleInfo.processMethod}
+        onChange={(next) => {
+          onDatasetUpdate(dataset.id, { sampleAux: next });
+        }}
+      />
+
       <div className="border-border bg-surface rounded-lg border p-4">
         <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col gap-2 text-sm">

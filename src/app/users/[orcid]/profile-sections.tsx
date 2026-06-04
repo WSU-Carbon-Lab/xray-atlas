@@ -35,7 +35,6 @@ import { SimpleDialog } from "@/components/ui/dialog";
 import { cn } from "@heroui/styles";
 import {
   MoleculeDisplayCompact,
-  type DisplayMolecule,
 } from "@/components/molecules/molecule-display";
 import {
   LoadingSkeleton,
@@ -48,6 +47,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
 import { trpc } from "~/trpc/client";
 import { moleculeContributorUsers } from "~/lib/molecule-contributor-users";
+import { moleculeContributionTypeLabel } from "~/lib/molecule-contribution-types";
 import { ToastContainer, useToast } from "@/components/ui/toast";
 import { ProfileDangerZoneRail } from "@/components/profile/profile-danger-zone-rail";
 import {
@@ -897,12 +897,8 @@ export function ProfilePasskeysSection({
   );
 }
 
-type ProfileMoleculeContribution = "creator" | "contributor";
-
-type ProfileMoleculeListItem = {
-  molecule: DisplayMolecule;
-  contributions: ProfileMoleculeContribution[];
-};
+type ProfileMoleculeListItem =
+  inferRouterOutputs<AppRouter>["users"]["listProfileMolecules"]["items"][number];
 
 type ProfileExperimentGroup =
   inferRouterOutputs<AppRouter>["users"]["listProfileExperiments"]["groups"][number];
@@ -922,6 +918,25 @@ const profileMoleculeListClassName =
 
 const PROFILE_MOLECULES_PAGE_SIZE = 12;
 const PROFILE_NEXAFS_PAGE_SIZE = 12;
+
+function ProfileMoleculeContributionChips({
+  contributions,
+}: {
+  contributions: ProfileMoleculeListItem["contributions"];
+}) {
+  if (contributions.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5 px-1">
+      {contributions.map((role) => (
+        <Chip key={role} size="sm" variant="soft">
+          {moleculeContributionTypeLabel(role)}
+        </Chip>
+      ))}
+    </div>
+  );
+}
 
 const profileContributionsPaginationLinkClassName =
   "rounded-lg border border-border bg-surface text-foreground";
@@ -1357,7 +1372,7 @@ export function ProfileContributionsSection({
                 Molecules
               </h2>
               <p className="text-muted mt-1 text-sm">
-                Molecules you created or appear on as a contributor, in one list.
+                Molecules you linked to X-ray Atlas or edited.
               </p>
             </div>
             <AccentNavChip
@@ -2355,15 +2370,13 @@ function ProfileMoleculesList({
     }
   };
 
-  const ownsAnyMolecule = molecules.some((item) =>
-    item.contributions.includes("creator"),
-  );
+  const ownsAnyMolecule = molecules.some((item) => item.isOwner);
   const showDangerZone = isOwnProfile && ownsAnyMolecule;
 
-  const creatorMoleculeIds = useMemo(
+  const ownerMoleculeIds = useMemo(
     () =>
       molecules
-        .filter((item) => item.contributions.includes("creator"))
+        .filter((item) => item.isOwner)
         .map((item) => item.molecule.id),
     [molecules],
   );
@@ -2373,8 +2386,8 @@ function ProfileMoleculesList({
       setExpandedManageMoleculeIds(new Set());
       return;
     }
-    setExpandedManageMoleculeIds(new Set(creatorMoleculeIds));
-  }, [dangerZoneOpen, creatorMoleculeIds]);
+    setExpandedManageMoleculeIds(new Set(ownerMoleculeIds));
+  }, [dangerZoneOpen, ownerMoleculeIds]);
 
   if (isLoading) {
     return <ProfileMoleculeGridSkeleton />;
@@ -2462,11 +2475,11 @@ function ProfileMoleculesList({
 
   const moleculeList = (
     <div className={profileMoleculeListClassName}>
-        {molecules.map(({ molecule, contributions }) => {
+        {molecules.map(({ molecule, contributions, isOwner }) => {
           const canManage =
             dangerZoneOpen &&
             isOwnProfile &&
-            contributions.includes("creator");
+            isOwner;
           const manageExpanded = expandedManageMoleculeIds.has(molecule.id);
 
           if (canManage && manageExpanded) {
@@ -2489,6 +2502,9 @@ function ProfileMoleculesList({
                       molecule={molecule}
                       enableRealtime={false}
                     />
+                    <ProfileMoleculeContributionChips
+                      contributions={contributions}
+                    />
                   </div>
                 </div>
               </div>
@@ -2503,6 +2519,9 @@ function ProfileMoleculesList({
                     molecule={molecule}
                     enableRealtime={false}
                   />
+                  <ProfileMoleculeContributionChips
+                    contributions={contributions}
+                  />
                   <Button
                     isIconOnly
                     aria-label={`Manage molecule ${molecule.name}`}
@@ -2516,10 +2535,15 @@ function ProfileMoleculesList({
                   </Button>
                 </div>
               ) : (
-                <MoleculeDisplayCompact
-                  molecule={molecule}
-                  enableRealtime={false}
-                />
+                <>
+                  <MoleculeDisplayCompact
+                    molecule={molecule}
+                    enableRealtime={false}
+                  />
+                  <ProfileMoleculeContributionChips
+                    contributions={contributions}
+                  />
+                </>
               )}
             </div>
           );

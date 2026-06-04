@@ -36,24 +36,28 @@ model session {
 model user {
   name                          String?
   image                         String?
-  contributionAgreementAccepted Boolean                @default(false)
-  contributionAgreementDate     DateTime?              @db.Timestamptz(6)
-  contributionAgreementVersion  String?                @map("contribution_agreement_version")
-  disabledAt                    DateTime?              @db.Timestamptz(6)
+  contributionAgreementAccepted Boolean                  @default(false)
+  contributionAgreementDate     DateTime?                @db.Timestamptz(6)
+  id                            String                   @id(map: "users_pkey") @db.VarChar(19)
+  contributionAgreementVersion  String?                  @map("contribution_agreement_version")
+  disabledAt                    DateTime?                @db.Timestamptz(6)
   disabledReason                String?
-  lastActivityAt                DateTime?              @db.Timestamptz(6)
-  mfaEnforcedAt                 DateTime?              @db.Timestamptz(6)
-  id                            String                 @id(map: "users_pkey") @db.VarChar(19)
-  consentReceipts               ConsentReceipt[]
+  lastActivityAt                DateTime?                @db.Timestamptz(6)
+  mfaEnforcedAt                 DateTime?                @db.Timestamptz(6)
+  autoAcceptMode                String                   @default("off") @map("auto_accept_mode") @db.Text
+  attributionDisplayPreferences Json                     @default("{\"pending\":\"orcid_only\",\"accepted\":\"name_and_avatar\",\"unclaimed\":\"orcid_only\"}") @map("attribution_display_preferences")
   authenticator                 Authenticator[]
   account                       account[]
+  consentReceipts               ConsentReceipt[]
   session                       session[]
   userAppRoles                  UserAppRole[]
+  experimentcontributors        experimentcontributors[]
   experimentfavorites           experimentfavorites[]
   moleculecontributors          moleculecontributors[]
-  experimentcontributors        experimentcontributors[]
   moleculefavorites             moleculefavorites[]
   moleculeviews                 moleculeviews[]
+  attributionteams              attributionteam[]
+  attributionteammembers        attributionteammember[]
 
   @@schema("next_auth")
 }
@@ -180,13 +184,13 @@ model SessionAssurance {
 /// WebAuthn authenticator rows aligned with Auth.js `@auth/prisma-adapter` (credentialID primary key).
 model Authenticator {
   credentialID         String    @id @db.VarChar(1024)
-  providerAccountId    String    @db.VarChar(1024)
-  credentialPublicKey  String    @db.Text
   counter              BigInt
   credentialDeviceType String
   credentialBackedUp   Boolean
   transports           String?
   userId               String?   @db.VarChar(19)
+  credentialPublicKey  String
+  providerAccountId    String    @db.VarChar(1024)
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   lastUsedAt           DateTime? @map("last_used_at") @db.Timestamptz(6)
   revokedAt            DateTime? @map("revoked_at") @db.Timestamptz(6)

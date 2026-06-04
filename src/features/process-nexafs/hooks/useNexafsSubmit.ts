@@ -2,7 +2,14 @@
 
 import { useState, useCallback } from "react";
 import { trpc } from "~/trpc/client";
+import type { ToastType } from "@/components/ui/toast";
+import { uploadQueuedAuxFiles } from "~/hooks/useAuxFileUpload";
+import { sampleAuxFieldsHasData } from "~/components/forms/SampleAuxAccordion";
 import type { DatasetState } from "../types";
+import {
+  collectorOrcidsFromAttributions,
+  filterValidOrcidAttributions,
+} from "~/lib/nexafs-attribution";
 import {
   buildSpectrumPointsWithDerivedForUpload,
   extractGeometryPairs,
@@ -16,17 +23,28 @@ export type SubmitStatus =
   | { type: "error"; message: string }
   | undefined;
 
+export type DatasetPersistedIds = {
+  experimentId: string;
+  sampleId: string;
+};
+
 export function useNexafsSubmit(
   datasets: DatasetState[],
   options?: {
     onSuccess?: () => void;
+    onDatasetPersisted?: (
+      datasetId: string,
+      ids: DatasetPersistedIds,
+    ) => void;
     requestKkConsent?: () => Promise<boolean>;
+    showToast?: (message: string, type?: ToastType) => void;
   },
 ) {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(undefined);
   const utils = trpc.useUtils();
   const createNexafsMutation =
     trpc.experiments.createWithSpectrum.useMutation();
+  const sampleAuxUpsertMutation = trpc.sampleAux.upsert.useMutation();
 
   const submit = useCallback(
     async (event?: React.FormEvent<HTMLFormElement>) => {
@@ -41,7 +59,19 @@ export function useNexafsSubmit(
         return;
       }
 
-      for (const dataset of datasets) {
+      const datasetsToSubmit = datasets.filter(
+        (dataset) => !dataset.persistedExperimentId,
+      );
+      if (datasetsToSubmit.length === 0) {
+        setSubmitStatus({
+          type: "error",
+          message:
+            "Every open dataset is already submitted. Clear the form or add a new dataset tab.",
+        });
+        return;
+      }
+
+      for (const dataset of datasetsToSubmit) {
         if (!dataset.moleculeId) {
           setSubmitStatus({
             type: "error",
@@ -70,6 +100,19 @@ export function useNexafsSubmit(
           });
           return;
         }
+        const attributionRows = filterValidOrcidAttributions(
+          dataset.attributions,
+        );
+        const uploaderCount = attributionRows.filter(
+          (row) => row.role === "DataCurator",
+        ).length;
+        if (uploaderCount !== 1) {
+          setSubmitStatus({
+            type: "error",
+            message: `Dataset "${dataset.fileName}": Add exactly one data curator (uploader) in Researcher attribution.`,
+          });
+          return;
+        }
         const hasThetaMapping = Boolean(dataset.columnMappings.theta);
         const hasPhiMapping = Boolean(dataset.columnMappings.phi);
         if (hasThetaMapping !== hasPhiMapping) {
@@ -88,7 +131,7 @@ export function useNexafsSubmit(
         }
       }
 
-      const needsKk = datasets.some((d) => d.computeKkDeltaOnSubmit);
+      const needsKk = datasetsToSubmit.some((d) => d.computeKkDeltaOnSubmit);
       if (needsKk) {
         if (!options?.requestKkConsent) {
           setSubmitStatus({
@@ -110,8 +153,12 @@ export function useNexafsSubmit(
       }
 
       try {
-        for (const dataset of datasets) {
+        for (const dataset of datasetsToSubmit) {
           if (!dataset.moleculeId) return;
+
+          const attributionRows = filterValidOrcidAttributions(
+            dataset.attributions,
+          );
 
           const geometryInput =
             dataset.columnMappings.theta && dataset.columnMappings.phi
@@ -180,7 +227,7 @@ export function useNexafsSubmit(
             }
           }
 
-          await createNexafsMutation.mutateAsync({
+          const createResult = await createNexafsMutation.mutateAsync({
             sample: {
               moleculeId: dataset.moleculeId,
               identifier: crypto.randomUUID(),
@@ -248,10 +295,87 @@ export function useNexafsSubmit(
               points: spectrumPoints,
             },
             peaksets: dataset.peaks.length > 0 ? dataset.peaks : undefined,
-            collectedByUserIds:
-              dataset.collectedByUserIds.length > 0
-                ? dataset.collectedByUserIds
+            attributions:
+              attributionRows.length > 0
+                ? attributionRows.map((row) => ({
+                    orcid: row.orcid,
+                    role: row.role,
+                  }))
                 : undefined,
+            collectedByUserIds: (() => {
+              const fromAttributions =
+                collectorOrcidsFromAttributions(attributionRows);
+              if (fromAttributions.length > 0) {
+                return fromAttributions;
+              }
+              return undefined;
+            })(),
+            sourcePaperDois: dataset.sourcePaperPublications.map(
+              (publication) => publication.doi,
+            ),
+          });
+
+          const sampleId = createResult.sample.id;
+          const experimentId = createResult.experiments[0]?.experiment.id;
+          if (!experimentId) {
+            throw new Error(
+              `Dataset "${dataset.fileName}": Experiment was not created.`,
+            );
+          }
+
+          if (sampleAuxFieldsHasData(dataset.sampleAux)) {
+            try {
+              await sampleAuxUpsertMutation.mutateAsync({
+                sampleId,
+                data: dataset.sampleAux,
+              });
+            } catch (auxError) {
+              console.error("Failed to save extended sample metadata", auxError);
+              options?.showToast?.(
+                `Dataset "${dataset.fileName}" was created, but extended sample preparation could not be saved. Edit the sample later from your dataset.`,
+                "warning",
+              );
+            }
+          }
+
+          const auxWarnings: string[] = [];
+
+          if (dataset.pendingExperimentAuxFiles.length > 0) {
+            const experimentUpload = await uploadQueuedAuxFiles(utils, {
+              scope: "experiment",
+              subjectId: experimentId,
+              files: dataset.pendingExperimentAuxFiles,
+            });
+            if (experimentUpload.failed.length > 0) {
+              auxWarnings.push(
+                `${experimentUpload.failed.length} experiment file(s) failed to upload. Retry from the dataset edit page.`,
+              );
+            }
+          }
+
+          if (dataset.pendingSampleAuxFiles.length > 0) {
+            const sampleUpload = await uploadQueuedAuxFiles(utils, {
+              scope: "sample",
+              subjectId: sampleId,
+              files: dataset.pendingSampleAuxFiles,
+            });
+            if (sampleUpload.failed.length > 0) {
+              auxWarnings.push(
+                `${sampleUpload.failed.length} sample file(s) failed to upload. Retry from the dataset edit page.`,
+              );
+            }
+          }
+
+          for (const warning of auxWarnings) {
+            options?.showToast?.(
+              `${dataset.fileName}: ${warning}`,
+              "warning",
+            );
+          }
+
+          options?.onDatasetPersisted?.(dataset.id, {
+            experimentId,
+            sampleId,
           });
         }
 
@@ -268,7 +392,7 @@ export function useNexafsSubmit(
         });
       }
     },
-    [datasets, options, utils.client],
+    [createNexafsMutation, datasets, options, sampleAuxUpsertMutation, utils],
   );
 
   return {

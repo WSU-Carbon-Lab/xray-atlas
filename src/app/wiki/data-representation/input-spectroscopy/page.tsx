@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonVariants, cn } from "@heroui/styles";
 import { site } from "~/app/brand";
+import { NEXAFS_UPLOAD_TEMPLATE_COLUMNS } from "~/lib/nexafs-upload-template-columns";
 
 export const metadata: Metadata = {
   title: "Input spectroscopy",
@@ -15,25 +16,28 @@ export const metadata: Metadata = {
   },
 };
 
-const exampleColumns: readonly {
-  readonly column: string;
-  readonly required: string;
-  readonly mapsTo: string;
-}[] = [
-  { column: "energy_eV", required: "Yes", mapsTo: "spectrumpoints.energyev (strictly ascending)" },
-  {
-    column: "mu (or mapped absorption column)",
-    required: "Yes",
-    mapsTo: "spectrumpoints.rawabs (primary upload trace)",
-  },
-  { column: "i0", required: "No", mapsTo: "spectrumpoints.i0" },
-  { column: "theta_deg", required: "No", mapsTo: "polarization geometry (theta)" },
-  { column: "phi_deg", required: "No", mapsTo: "polarization geometry (phi)" },
-  { column: "od", required: "No", mapsTo: "spectrumpoints.od" },
-  { column: "mass_absorption", required: "No", mapsTo: "spectrumpoints.massabsorption" },
-  { column: "beta", required: "No", mapsTo: "spectrumpoints.beta" },
-  { column: "delta", required: "No", mapsTo: "spectrumpoints.delta" },
-];
+const exampleColumns = NEXAFS_UPLOAD_TEMPLATE_COLUMNS.map((col) => ({
+  column: col.label,
+  required: col.required ? "Yes" : "No",
+  mapsTo:
+    col.key === "energy_eV"
+      ? "spectrumpoints.energyev (strictly ascending)"
+      : col.key === "mu"
+        ? "spectrumpoints.rawabs (primary upload trace via Absorption mapping)"
+        : col.key === "mu_err"
+          ? "spectrumpoints.rawabserr"
+          : col.key === "theta_deg" || col.key === "phi_deg"
+            ? "polarization geometry"
+            : col.key === "od_err"
+              ? "spectrumpoints.oderr"
+              : col.key === "mass_absorption_err"
+                ? "spectrumpoints.massabsorptionerr"
+                : col.key === "beta_err"
+                  ? "spectrumpoints.betaerr"
+                  : col.key === "delta_err"
+                    ? "spectrumpoints.deltaerr"
+                    : `spectrumpoints.${col.key.replace(/_deg$/, "").replace(/_absorption$/, "absorption")}`,
+}));
 
 export default function WikiInputSpectroscopyPage() {
   return (

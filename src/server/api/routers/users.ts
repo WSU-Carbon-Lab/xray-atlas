@@ -19,11 +19,18 @@ import {
 import {
   CONTRIBUTION_AGREEMENT_VERSION,
 } from "~/lib/contribution-agreement";
+import { userHasCurrentContributionAgreement } from "~/lib/nexafs-attribution";
+import { legacyProfileContributionSlug } from "~/lib/datacite-contributor-types";
+import { profileMoleculeContributionsFromRows } from "~/lib/molecule-contribution-types";
 import { orcidUserIdSchema } from "~/lib/orcid";
 import { resolveUserIdFromRouteSegment } from "~/lib/user-route";
 import { toMoleculeView } from "~/server/api/routers/molecules-view";
 import { fetchNexafsBrowseGrouped } from "~/server/nexafs/nexafsBrowseGroups";
 import { decryptOAuthToken } from "~/server/auth/oauth-token-crypto";
+import {
+  researcherSearchHitSchema,
+  searchResearchersForAttribution,
+} from "~/server/nexafs/searchResearchersForAttribution";
 
 const contributionAgreementStatusSchema = z.object({
   accepted: z.boolean(),
@@ -48,11 +55,22 @@ const userPublicProfileSchema = z.object({
   id: orcidUserIdSchema,
   name: z.string().nullable(),
   image: z.string().nullable(),
+  hasContributionAgreement: z.boolean(),
   roles: z.array(userProfileRoleSchema),
   github: userPublicGitHubSchema.nullable(),
 });
 
 const userRouteIdSchema = z.string().min(1).max(64);
+
+const attributionSearchInputSchema = z.object({
+  query: z.string().trim().min(1).max(120),
+  limit: z.number().int().min(1).max(25).default(15),
+});
+
+const attributionSearchOutputSchema = z.object({
+  results: z.array(researcherSearchHitSchema),
+  orcidSearchUnavailable: z.boolean(),
+});
 
 const profileContributionStatsSchema = z.object({
   moleculesByYear: z.array(
@@ -74,8 +92,6 @@ const profileContributionStatsSchema = z.object({
     spectraThisYear: z.number().int().nonnegative(),
   }),
 });
-
-type ProfileMoleculeContribution = "creator" | "contributor";
 
 /**
  * Fills missing calendar years between the first and last observed year with zero counts.
@@ -287,6 +303,8 @@ export const usersRouter = createTRPCRouter({
           id: true,
           name: true,
           image: true,
+          contributionAgreementAccepted: true,
+          contributionAgreementVersion: true,
           userAppRoles: {
             select: {
               role: {
@@ -336,10 +354,31 @@ export const usersRouter = createTRPCRouter({
         id: user.id,
         name: user.name,
         image: user.image,
+        hasContributionAgreement: userHasCurrentContributionAgreement(user),
         roles,
         github,
       };
     }),
+
+  /**
+   * Unified attribution picker search: full or partial ORCID iD, name, or institution keywords.
+   */
+  searchForAttribution: publicProcedure
+    .input(attributionSearchInputSchema)
+    .output(attributionSearchOutputSchema)
+    .query(async ({ ctx, input }) =>
+      searchResearchersForAttribution(ctx.db, input),
+    ),
+
+  /**
+   * @deprecated Use `searchForAttribution` — kept for older clients.
+   */
+  searchResearchers: publicProcedure
+    .input(attributionSearchInputSchema)
+    .output(attributionSearchOutputSchema)
+    .query(async ({ ctx, input }) =>
+      searchResearchersForAttribution(ctx.db, input),
+    ),
 
   /**
    * Lists molecules where the user created the record or appears in `molecule_contributors`.
@@ -424,19 +463,22 @@ export const usersRouter = createTRPCRouter({
       }
 
       const items = moleculesWithSortedSynonyms.map((mol) => {
-        const isCreator = mol.createdby === userId;
-        const isContributor = mol.moleculecontributors.some(
-          (row) => row.userid === userId,
-        );
-        const contributions: ProfileMoleculeContribution[] = [];
-        if (isCreator) contributions.push("creator");
-        if (isContributor) contributions.push("contributor");
+        const contributorTypes = mol.moleculecontributors
+          .filter((row) => row.userid === userId)
+          .map((row) => row.contributiontype);
+        const contributions = profileMoleculeContributionsFromRows({
+          userId,
+          createdby: mol.createdby,
+          contributorTypes,
+        });
+        const isOwner = mol.createdby === userId;
 
         return {
           molecule: toMoleculeView(mol, {
             userHasFavorited: favoritedSet.has(mol.id),
           }),
           contributions,
+          isOwner,
         };
       });
 
@@ -486,22 +528,24 @@ export const usersRouter = createTRPCRouter({
                 role: true,
               },
             });
-      const contributionByExperimentId = new Map<string, Set<string>>();
+      const contributionByExperimentId = new Map<
+        string,
+        Set<"creator" | "collector">
+      >();
       for (const row of ownershipRows) {
-        const roles = contributionByExperimentId.get(row.experimentid) ?? new Set();
-        roles.add(row.role);
+        const slug = legacyProfileContributionSlug(row.role);
+        if (!slug) continue;
+        const roles =
+          contributionByExperimentId.get(row.experimentid) ?? new Set();
+        roles.add(slug);
         contributionByExperimentId.set(row.experimentid, roles);
       }
 
       const enrichedGroups = groups.map((group) => {
         const roles = contributionByExperimentId.get(group.experimentId);
-        const profileContributions: Array<"creator" | "collector"> = [];
-        if (roles?.has("owner")) {
-          profileContributions.push("creator");
-        }
-        if (roles?.has("collector")) {
-          profileContributions.push("collector");
-        }
+        const profileContributions: Array<"creator" | "collector"> = roles
+          ? [...roles]
+          : [];
         return { ...group, profileContributions };
       });
 

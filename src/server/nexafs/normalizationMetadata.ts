@@ -39,6 +39,8 @@ export type ValidationSummary = {
     bypassed: boolean;
     reason: string | null;
   };
+  /** Maintainer-applied Atlas team verification; drives browse badge tier when true. */
+  atlasTeamVerified?: boolean;
 };
 
 export type QualityScoreComponent = {

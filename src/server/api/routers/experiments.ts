@@ -1,11 +1,27 @@
 import { z } from "zod";
 import {
+  adminProcedure,
   contributeWriteProcedure,
   createTRPCRouter,
   privilegedWriteProcedure,
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
+import { normalizeDoi } from "~/lib/doi";
+import {
+  lookupPublicationDoi as fetchPublicationDoiLookup,
+  resolvePublicationDoi,
+} from "~/server/nexafs/lookupPublicationDoi";
+import {
+  addExperimentSourcePublication,
+  clearExperimentSourcePaperDoi,
+  listExperimentSourcePublications,
+  removeExperimentSourcePublication,
+  syncExperimentSourcePaperDoi,
+  syncExperimentSourcePublications,
+} from "~/server/nexafs/syncExperimentSourcePaperDoi";
+import type { PublicationCitation } from "~/lib/publication-citation";
+import { dataCiteContributorTypeSchema } from "~/lib/datacite-contributor-types";
 import { orcidUserIdSchema } from "~/lib/orcid";
 import { TRPCError } from "@trpc/server";
 import { Prisma, ExperimentType, ProcessMethod } from "~/prisma/client";
@@ -34,6 +50,13 @@ import {
   parseKkDeltaMetadata,
 } from "~/server/nexafs/kkDeltaMetadata";
 import { SPECTRUMPOINTS_SERVER_SCAN_CAP } from "~/server/nexafs/spectrumpointLimits";
+import {
+  buildAtlasTeamVerificationSummary,
+  clearAtlasTeamVerificationSummary,
+  isAtlasTeamVerifiedSummary,
+  userMayManageAtlasTeamVerification,
+  validationSummaryToPrismaJson,
+} from "~/server/nexafs/atlasTeamVerification";
 
 const nexafsBrowseSortBySchema = z
   .enum([
@@ -54,11 +77,61 @@ const nexafsBrowseSortBySchema = z
 const nexafsVerificationSourceSchema = z
   .enum(["either", "publication", "atlas"])
   .default("either");
+
+const sourcePaperDoiInputSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(512)
+  .transform((value, ctx) => {
+    const normalized = normalizeDoi(value);
+    if (!normalized) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invalid DOI",
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  });
+
+const publicationCitationOutputSchema = z.object({
+  doi: z.string(),
+  title: z.string(),
+  journal: z.string().nullable(),
+  year: z.number().nullable(),
+  authors: z.array(z.string()),
+});
+
+function mapPublicationCitationToOutput(citation: PublicationCitation) {
+  return publicationCitationOutputSchema.parse(citation);
+}
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 import {
   userMayDeleteExperiment,
   userMayTransferExperimentOwnership,
 } from "~/server/nexafs/experimentManageAuthz";
+import {
+  assertValidCreateAttributions,
+  buildContributorInsertRows,
+  ensureUploaderOwnerAttribution,
+  mergeContributorRowsWithExistingClaimState,
+  resolveKnownCollectorUserIds,
+  mapContributorRowsToDto,
+  normalizeAttributionInputs,
+  type ExperimentAttributionInput,
+} from "~/server/nexafs/experimentAttributions";
+import { contributorFlagsForClaimStatus } from "~/lib/dataset-attribution-claim";
+import {
+  assertUserMayEditExperiment,
+  userMayEditExperiment,
+} from "~/server/nexafs/experimentEditAuthz";
+
+const experimentAttributionRoleSchema = z.union([
+  dataCiteContributorTypeSchema,
+  z.literal("owner"),
+  z.literal("collector"),
+]);
 
 const emptyDerivedScalars = (): {
   od: Array<number | null>;
@@ -188,6 +261,7 @@ export const experimentsRouter = createTRPCRouter({
           kkdeltametadata: true,
           samples: {
             select: {
+              id: true,
               molecules: { select: { chemicalformula: true } },
             },
           },
@@ -200,6 +274,7 @@ export const experimentsRouter = createTRPCRouter({
         Boolean(userId && row?.createdby && row.createdby === userId) ||
         (Boolean(userId) && (await hasPrivilegedRole(ctx.db, userId)));
       return {
+        sampleId: row?.samples?.id ?? null,
         chemicalFormula: raw.length > 0 ? raw : null,
         normalizationScope: row?.normalizationscope ?? null,
         normalizationRanges: row?.normalizationranges ?? null,
@@ -338,9 +413,14 @@ export const experimentsRouter = createTRPCRouter({
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
+        moleculeIds: z.array(z.string().uuid()).optional(),
+        edgeIds: z.array(z.string().uuid()).optional(),
+        instrumentIds: z.array(z.string()).optional(),
+        contributorOrcids: z.array(z.string()).optional(),
         experimentType: z.nativeEnum(ExperimentType).optional(),
         verifiedOnly: z.boolean().default(false),
         verificationSource: nexafsVerificationSourceSchema,
+        sourcePaperDoi: sourcePaperDoiInputSchema.optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -350,9 +430,14 @@ export const experimentsRouter = createTRPCRouter({
           moleculeId: input.moleculeId,
           edgeId: input.edgeId,
           instrumentId: input.instrumentId,
+          moleculeIds: input.moleculeIds,
+          edgeIds: input.edgeIds,
+          instrumentIds: input.instrumentIds,
+          contributorOrcids: input.contributorOrcids,
           experimentType: input.experimentType,
           verifiedOnly: input.verifiedOnly,
           verificationSource: input.verificationSource,
+          sourcePaperDoi: input.sourcePaperDoi,
         },
         searchQuery: null,
         sortBy: input.sortBy,
@@ -377,9 +462,14 @@ export const experimentsRouter = createTRPCRouter({
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
+        moleculeIds: z.array(z.string().uuid()).optional(),
+        edgeIds: z.array(z.string().uuid()).optional(),
+        instrumentIds: z.array(z.string()).optional(),
+        contributorOrcids: z.array(z.string()).optional(),
         experimentType: z.nativeEnum(ExperimentType).optional(),
         verifiedOnly: z.boolean().default(false),
         verificationSource: nexafsVerificationSourceSchema,
+        sourcePaperDoi: sourcePaperDoiInputSchema.optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -389,9 +479,14 @@ export const experimentsRouter = createTRPCRouter({
           moleculeId: input.moleculeId,
           edgeId: input.edgeId,
           instrumentId: input.instrumentId,
+          moleculeIds: input.moleculeIds,
+          edgeIds: input.edgeIds,
+          instrumentIds: input.instrumentIds,
+          contributorOrcids: input.contributorOrcids,
           experimentType: input.experimentType,
           verifiedOnly: input.verifiedOnly,
           verificationSource: input.verificationSource,
+          sourcePaperDoi: input.sourcePaperDoi,
         },
         searchQuery: input.query.trim(),
         sortBy: input.sortBy,
@@ -632,6 +727,217 @@ export const experimentsRouter = createTRPCRouter({
       return { comments };
     }),
 
+  /**
+   * Returns the top-N most-measured values for each facet dimension, ordered
+   * by experiment count descending. Used to populate the popularity panel in
+   * the unified search bar dropdown.
+   *
+   * All counts reflect total experiments in the catalog with no active filters.
+   * Results are capped at 30 per facet to keep the payload small.
+   */
+  facetCounts: publicProcedure.query(async ({ ctx }) => {
+    type EdgeRow = { id: string; targetatom: string; corestate: string; count: bigint };
+    type InstrumentRow = { id: string; name: string; facility_name: string | null; count: bigint };
+    type MolRow = { id: string; name: string; count: bigint };
+    type ContributorRow = { orcid_id: string; name: string | null; count: bigint };
+
+    const [edgeRows, instRows, molRows, contRows] = await Promise.all([
+      ctx.db.$queryRaw<EdgeRow[]>`
+        SELECT ed.id, ed.targetatom, ed.corestate, COUNT(e.id)::bigint AS count
+        FROM edges ed
+        INNER JOIN experiments e ON e.edgeid = ed.id
+        GROUP BY ed.id, ed.targetatom, ed.corestate
+        ORDER BY count DESC, ed.targetatom ASC, ed.corestate ASC
+        LIMIT 30
+      `,
+      ctx.db.$queryRaw<InstrumentRow[]>`
+        SELECT i.id, i.name, f.name AS facility_name, COUNT(e.id)::bigint AS count
+        FROM instruments i
+        INNER JOIN experiments e ON e.instrumentid = i.id
+        LEFT JOIN facilities f ON f.id = i.facilityid
+        GROUP BY i.id, i.name, f.name
+        ORDER BY count DESC, i.name ASC
+        LIMIT 30
+      `,
+      ctx.db.$queryRaw<MolRow[]>`
+        SELECT m.id, COALESCE(ms.synonym, m.iupacname) AS name, COUNT(e.id)::bigint AS count
+        FROM molecules m
+        INNER JOIN samples s ON s.moleculeid = m.id
+        INNER JOIN experiments e ON e.sampleid = s.id
+        LEFT JOIN LATERAL (
+          SELECT ms2.synonym FROM moleculesynonyms ms2
+          WHERE ms2.moleculeid = m.id
+          ORDER BY ms2."order" ASC NULLS LAST, ms2.synonym ASC
+          LIMIT 1
+        ) ms ON TRUE
+        GROUP BY m.id, m.iupacname, ms.synonym
+        ORDER BY count DESC, name ASC
+        LIMIT 30
+      `,
+      ctx.db.$queryRaw<ContributorRow[]>`
+        SELECT
+          ec.orcid_id,
+          CASE
+            WHEN u.name IS NOT NULL AND ec.claim_status = 'accepted' AND ec.is_public_profile_visible
+              THEN u.name
+            ELSE ec.orcid_id
+          END AS name,
+          COUNT(DISTINCT ec.experiment_id)::bigint AS count
+        FROM experiment_contributors ec
+        LEFT JOIN next_auth."user" u ON u.id = ec.user_id
+        WHERE ec.claim_status NOT IN ('declined', 'unclaimed')
+        GROUP BY ec.orcid_id, u.name, ec.claim_status, ec.is_public_profile_visible
+        ORDER BY count DESC
+        LIMIT 30
+      `,
+    ]);
+
+    return {
+      edges: edgeRows.map((r) => ({
+        id: r.id,
+        label: `${r.targetatom} ${r.corestate}`,
+        count: Number(r.count),
+      })),
+      instruments: instRows.map((r) => ({
+        id: r.id,
+        label: r.facility_name ? `${r.name} (${r.facility_name})` : r.name,
+        count: Number(r.count),
+      })),
+      molecules: molRows.map((r) => ({
+        id: r.id,
+        label: r.name,
+        count: Number(r.count),
+      })),
+      contributors: contRows.map((r) => ({
+        id: r.orcid_id,
+        label: r.name ?? r.orcid_id,
+        count: Number(r.count),
+      })),
+    };
+  }),
+
+  /**
+   * Returns grouped typeahead matches across all four facet dimensions for a
+   * given free-text query. Used to populate the unified search bar dropdown as
+   * the user types.
+   *
+   * Matches molecule names and synonyms, edge by `targetatom`+`corestate`,
+   * instrument by name and facility name, and contributor by display name or
+   * ORCID iD. Each group is capped at `limitPerGroup` (default 5).
+   *
+   * @param input.query - Non-empty search string.
+   * @param input.limitPerGroup - Maximum matches per facet group (1-20, default 5).
+   */
+  searchEntities: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1).max(200),
+        limitPerGroup: z.number().min(1).max(20).default(5),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const pattern = `%${input.query.trim()}%`;
+      const lim = input.limitPerGroup;
+
+      type EdgeRow = { id: string; targetatom: string; corestate: string; count: bigint };
+      type InstrumentRow = { id: string; name: string; facility_name: string | null; count: bigint };
+      type MolRow = { id: string; name: string; count: bigint };
+      type ContributorRow = { orcid_id: string; name: string | null; count: bigint };
+
+      const [edgeRows, instRows, molRows, contRows] = await Promise.all([
+        ctx.db.$queryRaw<EdgeRow[]>`
+          SELECT ed.id, ed.targetatom, ed.corestate, COUNT(e.id)::bigint AS count
+          FROM edges ed
+          LEFT JOIN experiments e ON e.edgeid = ed.id
+          WHERE ed.targetatom ILIKE ${pattern}
+            OR ed.corestate ILIKE ${pattern}
+            OR (ed.targetatom || ' ' || ed.corestate) ILIKE ${pattern}
+          GROUP BY ed.id, ed.targetatom, ed.corestate
+          ORDER BY count DESC, ed.targetatom ASC
+          LIMIT ${lim}
+        `,
+        ctx.db.$queryRaw<InstrumentRow[]>`
+          SELECT i.id, i.name, f.name AS facility_name, COUNT(e.id)::bigint AS count
+          FROM instruments i
+          LEFT JOIN facilities f ON f.id = i.facilityid
+          LEFT JOIN experiments e ON e.instrumentid = i.id
+          WHERE i.name ILIKE ${pattern} OR COALESCE(f.name, '') ILIKE ${pattern}
+          GROUP BY i.id, i.name, f.name
+          ORDER BY count DESC, i.name ASC
+          LIMIT ${lim}
+        `,
+        ctx.db.$queryRaw<MolRow[]>`
+          SELECT m.id, COALESCE(ms.synonym, m.iupacname) AS name, COUNT(e.id)::bigint AS count
+          FROM molecules m
+          INNER JOIN samples s ON s.moleculeid = m.id
+          LEFT JOIN experiments e ON e.sampleid = s.id
+          LEFT JOIN LATERAL (
+            SELECT ms2.synonym FROM moleculesynonyms ms2
+            WHERE ms2.moleculeid = m.id
+            ORDER BY ms2."order" ASC NULLS LAST, ms2.synonym ASC
+            LIMIT 1
+          ) ms ON TRUE
+          WHERE m.iupacname ILIKE ${pattern}
+            OR m.chemicalformula ILIKE ${pattern}
+            OR EXISTS (
+              SELECT 1 FROM moleculesynonyms ms3
+              WHERE ms3.moleculeid = m.id AND ms3.synonym ILIKE ${pattern}
+            )
+          GROUP BY m.id, m.iupacname, ms.synonym
+          ORDER BY count DESC, name ASC
+          LIMIT ${lim}
+        `,
+        ctx.db.$queryRaw<ContributorRow[]>`
+          SELECT
+            ec.orcid_id,
+            CASE
+              WHEN u.name IS NOT NULL AND ec.claim_status = 'accepted' AND ec.is_public_profile_visible
+                THEN u.name
+              ELSE ec.orcid_id
+            END AS name,
+            COUNT(DISTINCT ec.experiment_id)::bigint AS count
+          FROM experiment_contributors ec
+          LEFT JOIN next_auth."user" u ON u.id = ec.user_id
+          WHERE ec.claim_status NOT IN ('declined', 'unclaimed')
+            AND (
+              ec.orcid_id ILIKE ${pattern}
+              OR (
+                u.name IS NOT NULL
+                AND ec.claim_status = 'accepted'
+                AND ec.is_public_profile_visible
+                AND u.name ILIKE ${pattern}
+              )
+            )
+          GROUP BY ec.orcid_id, u.name, ec.claim_status, ec.is_public_profile_visible
+          ORDER BY count DESC
+          LIMIT ${lim}
+        `,
+      ]);
+
+      return {
+        edges: edgeRows.map((r) => ({
+          id: r.id,
+          label: `${r.targetatom} ${r.corestate}`,
+          count: Number(r.count),
+        })),
+        instruments: instRows.map((r) => ({
+          id: r.id,
+          label: r.facility_name ? `${r.name} (${r.facility_name})` : r.name,
+          count: Number(r.count),
+        })),
+        molecules: molRows.map((r) => ({
+          id: r.id,
+          label: r.name,
+          count: Number(r.count),
+        })),
+        contributors: contRows.map((r) => ({
+          id: r.orcid_id,
+          label: r.name ?? r.orcid_id,
+          count: Number(r.count),
+        })),
+      };
+    }),
+
   listEdges: publicProcedure.query(async ({ ctx }) => {
     const edges = await ctx.db.edges.findMany();
     const priorityRank = (e: { targetatom: string; corestate: string }) => {
@@ -660,6 +966,88 @@ export const experimentsRouter = createTRPCRouter({
       });
     });
     return { edges };
+  }),
+
+  /**
+   * Returns edge catalog statistics derived from spectrum point data in the
+   * database. Only edges that have at least one linked experiment with
+   * measured spectrum points are included.
+   *
+   * Used by the periodic-edge modal to:
+   * - Determine which elements are truly "in catalog" (have measurements).
+   * - Drive the energy density chart (histogram + per-edge energy ranges).
+   *
+   * The histogram uses 80 equal-width bins spanning 100–800 eV. Bins 1..80
+   * map to the half-open intervals [100 + (i-1)*8.75, 100 + i*8.75).
+   */
+  edgeCatalogStats: publicProcedure.query(async ({ ctx }) => {
+    type CatalogEdgeRow = {
+      id: string;
+      targetatom: string;
+      corestate: string;
+      min_ev: number | null;
+      max_ev: number | null;
+      experiment_count: bigint;
+    };
+    type HistBucketRow = {
+      bucket: number;
+      count: bigint;
+    };
+
+    const HIST_MIN = 100;
+    const HIST_MAX = 800;
+    const HIST_BINS = 80;
+
+    const [catalogRows, histRows] = await Promise.all([
+      ctx.db.$queryRaw<CatalogEdgeRow[]>`
+        SELECT
+          e.id,
+          e.targetatom,
+          e.corestate,
+          MIN(sp.energyev)::float AS min_ev,
+          MAX(sp.energyev)::float AS max_ev,
+          COUNT(DISTINCT exp.id)::bigint AS experiment_count
+        FROM edges e
+        INNER JOIN experiments exp ON exp.edgeid = e.id
+        INNER JOIN spectrumpoints sp ON sp.experimentid = exp.id
+        GROUP BY e.id, e.targetatom, e.corestate
+      `,
+      ctx.db.$queryRaw<HistBucketRow[]>`
+        SELECT
+          width_bucket(sp.energyev::float, ${HIST_MIN}::float, ${HIST_MAX}::float, ${HIST_BINS}::int) AS bucket,
+          COUNT(*)::bigint AS count
+        FROM spectrumpoints sp
+        INNER JOIN experiments exp ON sp.experimentid = exp.id
+        WHERE sp.energyev BETWEEN ${HIST_MIN} AND ${HIST_MAX}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+    ]);
+
+    const buckets = new Array<number>(HIST_BINS).fill(0);
+    for (const row of histRows) {
+      const idx = row.bucket - 1;
+      if (idx >= 0 && idx < HIST_BINS) {
+        buckets[idx] = Number(row.count);
+      }
+    }
+
+    return {
+      edgesInCatalog: catalogRows.map((r) => ({
+        id: r.id,
+        targetatom: r.targetatom,
+        corestate: r.corestate,
+        minEv: r.min_ev,
+        maxEv: r.max_ev,
+        experimentCount: Number(r.experiment_count),
+      })),
+      energyHistogram: {
+        bucketMinEv: HIST_MIN,
+        bucketMaxEv: HIST_MAX,
+        bins: HIST_BINS,
+        buckets,
+      },
+    };
   }),
 
   listCalibrationMethods: publicProcedure.query(async ({ ctx }) => {
@@ -896,6 +1284,16 @@ export const experimentsRouter = createTRPCRouter({
           .optional(),
         collectedByUserIds: z.array(orcidUserIdSchema).optional(),
         collectedByOrcidIds: z.array(orcidUserIdSchema).optional(),
+        attributions: z
+          .array(
+            z.object({
+              orcid: orcidUserIdSchema,
+              role: experimentAttributionRoleSchema,
+            }),
+          )
+          .optional(),
+        sourcePaperDoi: sourcePaperDoiInputSchema.optional(),
+        sourcePaperDois: z.array(sourcePaperDoiInputSchema).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -906,7 +1304,35 @@ export const experimentsRouter = createTRPCRouter({
         spectrum: spectrumInput,
         collectedByUserIds,
         collectedByOrcidIds,
+        attributions: attributionsInput,
+        sourcePaperDoi: sourcePaperDoiInput,
+        sourcePaperDois: sourcePaperDoisInput,
       } = input;
+
+      const sourceDoiCandidates = [
+        ...(sourcePaperDoisInput ?? []),
+        ...(sourcePaperDoiInput ? [sourcePaperDoiInput] : []),
+      ];
+      const uniqueSourceDois = [
+        ...new Set(
+          sourceDoiCandidates
+            .map((value) => normalizeDoi(value))
+            .filter((value): value is string => value != null),
+        ),
+      ];
+
+      const sourcePaperCitations: PublicationCitation[] = [];
+      for (const doi of uniqueSourceDois) {
+        const citation = await resolvePublicationDoi(doi);
+        if (!citation) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Source publication DOI was not found in Crossref or DataCite. Check the identifier or try again later.",
+          });
+        }
+        sourcePaperCitations.push(citation);
+      }
       const normalizationScope: NormalizationScope =
         experimentInput.normalization?.scope ?? "none";
       const normalizationRanges: NormalizationRanges =
@@ -918,9 +1344,15 @@ export const experimentsRouter = createTRPCRouter({
         ]),
       );
       const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
-      const requestedCollectedBy = [...new Set(collectedByUserIds ?? [])];
+      const requestedCollectedBy = [
+        ...new Set((collectedByUserIds ?? []).filter((id) =>
+          orcidUserIdSchema.safeParse(id).success,
+        )),
+      ];
       const requestedCollectedByOrcid = [
-        ...new Set(collectedByOrcidIds ?? []),
+        ...new Set((collectedByOrcidIds ?? []).filter((id) =>
+          orcidUserIdSchema.safeParse(id).success,
+        )),
       ];
       if (
         !isPrivilegedUser &&
@@ -1040,6 +1472,43 @@ export const experimentsRouter = createTRPCRouter({
           const normalizedCollectorOrcidIds = [
             ...new Set([...normalizedCollectedBy, ...requestedCollectedByOrcid]),
           ];
+
+          let attributionRows: ExperimentAttributionInput[] =
+            attributionsInput != null && attributionsInput.length > 0
+              ? normalizeAttributionInputs(attributionsInput)
+              : [];
+          if (attributionRows.length === 0) {
+            if (ctx.userId) {
+              attributionRows.push({ orcid: ctx.userId, role: "DataCurator" });
+            }
+            for (const collectorOrcid of normalizedCollectorOrcidIds) {
+              if (ctx.userId && collectorOrcid === ctx.userId) {
+                continue;
+              }
+              attributionRows.push({
+                orcid: collectorOrcid,
+                role: "DataCollector",
+              });
+            }
+          }
+          attributionRows = ensureUploaderOwnerAttribution(
+            attributionRows,
+            ctx.userId,
+          );
+          assertValidCreateAttributions(attributionRows);
+          const contributorInsertRows = await buildContributorInsertRows(
+            tx,
+            attributionRows,
+            ctx.userId,
+          );
+          const collectedByFromAttributions = await resolveKnownCollectorUserIds(
+            tx,
+            attributionRows,
+          );
+          const normalizedCollectedByForExperiment =
+            collectedByFromAttributions.length > 0
+              ? collectedByFromAttributions
+              : normalizedCollectedBy;
 
           // Resolve vendor
           let vendorId: string | null =
@@ -1195,7 +1664,7 @@ export const experimentsRouter = createTRPCRouter({
             points: spectrumInput.points,
             ranges: normalizationRanges,
             scope: normalizationScope,
-            doiPresent: false,
+            doiPresent: sourcePaperCitations.length > 0,
           });
           const hasDerivedValues = {
             od: derivedByGroup.some((group) =>
@@ -1273,7 +1742,7 @@ export const experimentsRouter = createTRPCRouter({
               createdby: ctx.userId ?? undefined,
               experimenttype: experimentInput.experimentType,
               nexafsexperimentkindid: kind?.id ?? null,
-              collectedbyuserids: normalizedCollectedBy,
+              collectedbyuserids: normalizedCollectedByForExperiment,
               normalizationscope: normalizationScope,
               normalizationranges:
                 normalizationRanges as unknown as Prisma.InputJsonValue,
@@ -1296,56 +1765,18 @@ export const experimentsRouter = createTRPCRouter({
             },
           });
 
-          const contributorRows = new Map<
-            string,
-            {
-              orcidid: string;
-              userid: string | null;
-              role: "owner" | "collector";
-              isclaimed: boolean;
-              ispublicprofilevisible: boolean;
-              claimedat: Date | null;
-            }
-          >();
-          if (ctx.userId) {
-            contributorRows.set(`owner:${ctx.userId}`, {
-              orcidid: ctx.userId,
-              userid: ctx.userId,
-              role: "owner",
-              isclaimed: true,
-              ispublicprofilevisible: true,
-              claimedat: new Date(),
-            });
-          }
-          for (const collectorOrcid of normalizedCollectorOrcidIds) {
-            const rowKey = `collector:${collectorOrcid}`;
-            if (!contributorRows.has(rowKey)) {
-              contributorRows.set(rowKey, {
-                orcidid: collectorOrcid,
-                userid: normalizedCollectedBy.includes(collectorOrcid)
-                  ? collectorOrcid
-                  : null,
-                role: "collector",
-                isclaimed: normalizedCollectedBy.includes(collectorOrcid),
-                ispublicprofilevisible: normalizedCollectedBy.includes(
-                  collectorOrcid,
-                ),
-                claimedat: normalizedCollectedBy.includes(collectorOrcid)
-                  ? new Date()
-                  : null,
-              });
-            }
-          }
-          if (contributorRows.size > 0) {
+          if (contributorInsertRows.length > 0) {
             await tx.experimentcontributors.createMany({
-              data: Array.from(contributorRows.values()).map((row) => ({
+              data: contributorInsertRows.map((row) => ({
                 experimentid: experiment.id,
                 orcidid: row.orcidid,
                 userid: row.userid,
                 role: row.role,
+                claimstatus: row.claimstatus,
                 isclaimed: row.isclaimed,
                 ispublicprofilevisible: row.ispublicprofilevisible,
                 claimedat: row.claimedat,
+                detachedat: row.detachedat,
               })),
               skipDuplicates: true,
             });
@@ -1409,6 +1840,14 @@ export const experimentsRouter = createTRPCRouter({
             await tx.peaksets.createMany({ data: peaksetsData });
           }
 
+          if (sourcePaperCitations.length > 0) {
+            await syncExperimentSourcePublications(
+              tx,
+              experiment.id,
+              sourcePaperCitations,
+            );
+          }
+
           return {
             sample,
             experiments: [
@@ -1425,11 +1864,165 @@ export const experimentsRouter = createTRPCRouter({
       return transactionResult;
     }),
 
+  canEditExperiment: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const canManageAtlasVerification = ctx.userId
+        ? await userMayManageAtlasTeamVerification(ctx.db, ctx.userId)
+        : false;
+      return {
+        canEdit: await userMayEditExperiment(
+          ctx.db,
+          ctx.userId,
+          input.experimentId,
+        ),
+        canManageAtlasVerification,
+      };
+    }),
+
+  setAtlasTeamVerification: contributeWriteProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        verified: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const mayManageAtlas = await userMayManageAtlasTeamVerification(
+        ctx.db,
+        ctx.userId,
+      );
+      if (!mayManageAtlas) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Administrator or maintainer access is required to change Atlas team verification.",
+        });
+      }
+
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { validationsummary: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      const nextSummary = input.verified
+        ? buildAtlasTeamVerificationSummary()
+        : clearAtlasTeamVerificationSummary(experiment.validationsummary);
+
+      await ctx.db.experiments.update({
+        where: { id: input.experimentId },
+        data: {
+          validationsummary: validationSummaryToPrismaJson(nextSummary),
+        },
+      });
+
+      return {
+        experimentId: input.experimentId,
+        atlasTeamVerified: isAtlasTeamVerifiedSummary(nextSummary),
+      };
+    }),
+
+  listAttributions: protectedProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
+      const rows = await ctx.db.experimentcontributors.findMany({
+        where: { experimentid: input.experimentId },
+        orderBy: [{ role: "asc" }, { createdat: "asc" }],
+        include: {
+          user: {
+            select: {
+              name: true,
+              image: true,
+              contributionAgreementAccepted: true,
+              contributionAgreementVersion: true,
+              autoAcceptMode: true,
+              attributionDisplayPreferences: true,
+            },
+          },
+        },
+      });
+      return mapContributorRowsToDto(ctx.db, rows);
+    }),
+
+  setAttributions: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        attributions: z.array(
+          z.object({
+            orcid: orcidUserIdSchema,
+            role: experimentAttributionRoleSchema,
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
+      const attributionRows = normalizeAttributionInputs(input.attributions);
+      assertValidCreateAttributions(attributionRows);
+
+      const existingRows = await ctx.db.experimentcontributors.findMany({
+        where: { experimentid: input.experimentId },
+        select: {
+          orcidid: true,
+          role: true,
+          userid: true,
+          claimstatus: true,
+          isclaimed: true,
+          ispublicprofilevisible: true,
+          claimedat: true,
+          detachedat: true,
+        },
+      });
+      const contributorInsertRows = mergeContributorRowsWithExistingClaimState(
+        await buildContributorInsertRows(ctx.db, attributionRows, ctx.userId),
+        existingRows,
+      );
+      const collectedByFromAttributions = await resolveKnownCollectorUserIds(
+        ctx.db,
+        attributionRows,
+      );
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.experimentcontributors.deleteMany({
+          where: { experimentid: input.experimentId },
+        });
+        if (contributorInsertRows.length > 0) {
+          await tx.experimentcontributors.createMany({
+            data: contributorInsertRows.map((row) => ({
+              experimentid: input.experimentId,
+              orcidid: row.orcidid,
+              userid: row.userid,
+              role: row.role,
+              claimstatus: row.claimstatus,
+              isclaimed: row.isclaimed,
+              ispublicprofilevisible: row.ispublicprofilevisible,
+              claimedat: row.claimedat,
+              detachedat: row.detachedat,
+            })),
+          });
+        }
+        await tx.experiments.update({
+          where: { id: input.experimentId },
+          data: { collectedbyuserids: collectedByFromAttributions },
+        });
+      });
+
+      return { updatedCount: contributorInsertRows.length };
+    }),
+
   listMyUnclaimedContributions: protectedProcedure.query(async ({ ctx }) => {
     const rows = await ctx.db.experimentcontributors.findMany({
       where: {
         orcidid: ctx.userId,
-        OR: [{ userid: null }, { isclaimed: false }],
+        claimstatus: "pending",
       },
       orderBy: [{ createdat: "desc" }],
       include: {
@@ -1495,22 +2088,16 @@ export const experimentsRouter = createTRPCRouter({
         return { updatedCount: 0 };
       }
       const targetIds = targetRows.map((row) => row.id);
-      const now = new Date();
       const update = await ctx.db.experimentcontributors.updateMany({
         where: { id: { in: targetIds } },
         data: input.claim
           ? {
-              userid: ctx.userId,
-              isclaimed: true,
-              ispublicprofilevisible: true,
-              detachedat: null,
-              claimedat: now,
+              claimstatus: "accepted",
+              ...contributorFlagsForClaimStatus("accepted", ctx.userId),
             }
           : {
-              userid: null,
-              isclaimed: false,
-              ispublicprofilevisible: false,
-              detachedat: now,
+              claimstatus: "unclaimed",
+              ...contributorFlagsForClaimStatus("unclaimed", ctx.userId),
             },
       });
       return { updatedCount: update.count };
@@ -1523,18 +2110,14 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const now = new Date();
       const update = await ctx.db.experimentcontributors.updateMany({
         where: {
           experimentid: { in: input.experimentIds },
           orcidid: ctx.userId,
         },
         data: {
-          userid: ctx.userId,
-          isclaimed: true,
-          ispublicprofilevisible: true,
-          detachedat: null,
-          claimedat: now,
+          claimstatus: "accepted",
+          ...contributorFlagsForClaimStatus("accepted", ctx.userId),
         },
       });
       return { updatedCount: update.count };
@@ -1552,7 +2135,7 @@ export const experimentsRouter = createTRPCRouter({
       const targetRows = await ctx.db.experimentcontributors.findMany({
         where: {
           experimentid: { in: input.experimentIds },
-          role: "collector",
+          role: { in: ["DataCollector", "collector"] },
         },
         include: {
           experiments: {
@@ -1934,5 +2517,295 @@ export const experimentsRouter = createTRPCRouter({
       });
 
       return { success: true };
+    }),
+
+  lookupPublicationDoi: publicProcedure
+    .input(z.object({ query: z.string().trim().min(1).max(512) }))
+    .query(async ({ input }) => {
+      const result = await fetchPublicationDoiLookup(input.query);
+      if (result.kind === "resolved") {
+        return {
+          kind: "resolved" as const,
+          citation: mapPublicationCitationToOutput(result.citation),
+        };
+      }
+      if (result.kind === "suggestions") {
+        return {
+          kind: "suggestions" as const,
+          suggestions: result.suggestions.map(mapPublicationCitationToOutput),
+        };
+      }
+      return { kind: "not_found" as const };
+    }),
+
+  getSourcePaperDoi: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const metrics = await ctx.db.experimentmetrics.findUnique({
+        where: { experimentid: input.experimentId },
+        select: {
+          originaldatadoi: true,
+          hasoriginaldatadoi: true,
+          sourcepaperdoiverified: true,
+        },
+      });
+      const rows = await listExperimentSourcePublications(
+        ctx.db,
+        input.experimentId,
+      );
+      const publications = rows.map((row) => mapPublicationCitationToOutput(row));
+      const primaryDoi = metrics?.originaldatadoi?.trim() ?? publications[0]?.doi ?? "";
+      const primaryCitation =
+        publications.find((publication) => publication.doi === primaryDoi) ??
+        publications[0] ??
+        null;
+
+      if (!primaryDoi) {
+        return {
+          experimentId: input.experimentId,
+          doi: null,
+          citation: null,
+          publications,
+          hasOriginalDataDoi: false,
+          sourcePaperDoiVerified: false,
+        };
+      }
+
+      return {
+        experimentId: input.experimentId,
+        doi: primaryDoi,
+        citation: primaryCitation,
+        publications,
+        hasOriginalDataDoi: metrics?.hasoriginaldatadoi ?? true,
+        sourcePaperDoiVerified: metrics?.sourcepaperdoiverified ?? false,
+      };
+    }),
+
+  listSourcePublications: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const rows = await listExperimentSourcePublications(
+        ctx.db,
+        input.experimentId,
+      );
+      return {
+        experimentId: input.experimentId,
+        publications: rows.map((row) => mapPublicationCitationToOutput(row)),
+      };
+    }),
+
+  addSourcePublication: contributeWriteProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        doi: sourcePaperDoiInputSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+
+      const citation = await resolvePublicationDoi(input.doi);
+      if (!citation) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Source publication DOI was not found in Crossref or DataCite. Check the identifier or try again later.",
+        });
+      }
+
+      const primaryDoi = await addExperimentSourcePublication(
+        ctx.db,
+        input.experimentId,
+        citation,
+      );
+      const rows = await listExperimentSourcePublications(
+        ctx.db,
+        input.experimentId,
+      );
+
+      return {
+        experimentId: input.experimentId,
+        primaryDoi,
+        publications: rows.map((row) => mapPublicationCitationToOutput(row)),
+        citation: mapPublicationCitationToOutput(citation),
+      };
+    }),
+
+  removeSourcePublication: contributeWriteProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        doi: sourcePaperDoiInputSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+
+      const primaryDoi = await removeExperimentSourcePublication(
+        ctx.db,
+        input.experimentId,
+        input.doi,
+      );
+      const rows = await listExperimentSourcePublications(
+        ctx.db,
+        input.experimentId,
+      );
+
+      return {
+        experimentId: input.experimentId,
+        primaryDoi,
+        publications: rows.map((row) => mapPublicationCitationToOutput(row)),
+      };
+    }),
+
+  setSourcePaperDoi: contributeWriteProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        doi: sourcePaperDoiInputSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+
+      const citation = await resolvePublicationDoi(input.doi);
+      if (!citation) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Source publication DOI was not found in Crossref or DataCite. Check the identifier or try again later.",
+        });
+      }
+
+      await syncExperimentSourcePaperDoi(
+        ctx.db,
+        input.experimentId,
+        citation,
+      );
+
+      const metrics = await ctx.db.experimentmetrics.findUnique({
+        where: { experimentid: input.experimentId },
+        select: {
+          originaldatadoi: true,
+          hasoriginaldatadoi: true,
+          sourcepaperdoiverified: true,
+        },
+      });
+
+      return {
+        experimentId: input.experimentId,
+        originalDataDoi: metrics?.originaldatadoi ?? citation.doi,
+        hasOriginalDataDoi: metrics?.hasoriginaldatadoi ?? true,
+        sourcePaperDoiVerified: metrics?.sourcepaperdoiverified ?? false,
+        citation: mapPublicationCitationToOutput(citation),
+      };
+    }),
+
+  clearSourcePaperDoi: contributeWriteProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+
+      await clearExperimentSourcePaperDoi(ctx.db, input.experimentId);
+
+      return {
+        experimentId: input.experimentId,
+        originalDataDoi: null,
+        hasOriginalDataDoi: false,
+        sourcePaperDoiVerified: false,
+        citation: null,
+      };
+    }),
+
+  verifySourcePaperDoi: adminProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const metrics = await ctx.db.experimentmetrics.findUnique({
+        where: { experimentid: input.experimentId },
+        select: { originaldatadoi: true },
+      });
+      if (!metrics?.originaldatadoi) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Experiment has no source paper DOI to verify",
+        });
+      }
+
+      const updated = await ctx.db.experimentmetrics.update({
+        where: { experimentid: input.experimentId },
+        data: {
+          sourcepaperdoiverified: true,
+          sourcepaperdoiverifiedat: new Date(),
+          sourcepaperdoiverifiedby: ctx.userId,
+        },
+      });
+
+      return {
+        experimentId: input.experimentId,
+        sourcePaperDoiVerified: updated.sourcepaperdoiverified,
+        sourcePaperDoiVerifiedAt:
+          updated.sourcepaperdoiverifiedat?.toISOString() ?? null,
+        sourcePaperDoiVerifiedBy: updated.sourcepaperdoiverifiedby,
+      };
     }),
 });

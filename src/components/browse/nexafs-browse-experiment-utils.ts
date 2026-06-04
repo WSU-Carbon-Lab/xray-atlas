@@ -1,5 +1,18 @@
 import { ExperimentType } from "~/prisma/browser";
 
+/**
+ * Verification source filter for browse.  `"either"` passes experiments
+ * verified by Atlas staff or linked to a third-party publication;
+ * `"publication"` and `"atlas"` restrict to one source exclusively.
+ */
+export type VerificationSource = "either" | "publication" | "atlas";
+
+export const VERIFICATION_SOURCE_LABELS: Record<VerificationSource, string> = {
+  either: "Atlas or publication",
+  publication: "Third-party publication only",
+  atlas: "Xray Atlas internal review only",
+};
+
 export const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
   TOTAL_ELECTRON_YIELD: "Total electron yield",
   PARTIAL_ELECTRON_YIELD: "Partial electron yield",
@@ -62,4 +75,34 @@ export function parseExperimentTypeParam(
   if (!raw) return undefined;
   const values = Object.values(ExperimentType) as string[];
   return values.includes(raw) ? (raw as ExperimentType) : undefined;
+}
+
+/**
+ * Parses `verificationSource` from URL search params; unknown values map to `"either"`.
+ */
+export function parseVerificationSourceParam(
+  raw: string | null,
+): VerificationSource {
+  if (
+    raw === "publication" ||
+    raw === "atlas" ||
+    raw === "either"
+  ) {
+    return raw;
+  }
+  return "either";
+}
+
+/**
+ * Parses legacy `verified` URL flag (`1`, `true`, or presence of `verificationSource`).
+ */
+export function parseVerifiedOnlyParam(
+  sp: URLSearchParams,
+): boolean {
+  const verified = sp.get("verified");
+  if (verified === "1" || verified === "true") return true;
+  if (sp.has("verificationSource") && sp.get("verificationSource") !== "either") {
+    return true;
+  }
+  return false;
 }

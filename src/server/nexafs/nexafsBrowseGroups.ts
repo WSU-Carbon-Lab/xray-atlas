@@ -4,17 +4,39 @@ import {
   buildNexafsBrowseDatasetMetricsCardModel,
   type NexafsBrowseDatasetMetricsCardModel,
 } from "~/lib/nexafs-dataset-metric-display-model";
-import type { NexafsBrowseLinkedPublication } from "~/types/nexafs-browse";
+import type {
+  NexafsBrowseLinkedPublication,
+  NexafsBrowseSourcePublication,
+} from "~/types/nexafs-browse";
+import { normalizeStoredContributorRole } from "~/lib/datacite-contributor-types";
+import {
+  dedupeNexafsContributorsByOrcid,
+  type NexafsContributorPerson,
+  type DataCiteContributorType,
+} from "~/lib/nexafs-contributors";
 
 export type NexafsBrowseGroupFilters = {
+  /** @deprecated Use `moleculeIds` for multi-select. Normalized to a one-element array internally. */
   moleculeId?: string;
+  /** @deprecated Use `edgeIds` for multi-select. Normalized to a one-element array internally. */
   edgeId?: string;
+  /** @deprecated Use `instrumentIds` for multi-select. Normalized to a one-element array internally. */
   instrumentId?: string;
+  /** Multi-select molecule UUIDs; OR-combined within field. */
+  moleculeIds?: string[];
+  /** Multi-select edge UUIDs; OR-combined within field. */
+  edgeIds?: string[];
+  /** Multi-select instrument IDs; OR-combined within field. */
+  instrumentIds?: string[];
+  /** Multi-select contributor ORCID iDs; OR-combined within field. */
+  contributorOrcids?: string[];
   experimentType?: ExperimentType;
   verifiedOnly?: boolean;
   verificationSource?: "either" | "publication" | "atlas";
-  /** ORCID iD: experiments with an attribution record for this contributor. */
+  /** @deprecated Use `contributorOrcids`. Single ORCID iD for backward compatibility. */
   contributorUserId?: string;
+  /** Normalized DOI exact match on `experiment_metrics.original_data_doi`. */
+  sourcePaperDoi?: string;
 };
 
 export function buildNexafsBrowseWhereSql(
@@ -23,26 +45,63 @@ export function buildNexafsBrowseWhereSql(
 ): Prisma.Sql {
   const parts: Prisma.Sql[] = [];
 
-  if (filters.moleculeId) {
-    parts.push(Prisma.sql`s.moleculeid = ${filters.moleculeId}::uuid`);
+  const moleculeIds = filters.moleculeIds ?? (filters.moleculeId ? [filters.moleculeId] : []);
+  const edgeIds = filters.edgeIds ?? (filters.edgeId ? [filters.edgeId] : []);
+  const instrumentIds = filters.instrumentIds ?? (filters.instrumentId ? [filters.instrumentId] : []);
+  const contributorOrcids = filters.contributorOrcids ?? (filters.contributorUserId ? [filters.contributorUserId] : []);
+
+  if (moleculeIds.length === 1) {
+    parts.push(Prisma.sql`s.moleculeid = ${moleculeIds[0]}::uuid`);
+  } else if (moleculeIds.length > 1) {
+    const joined = Prisma.join(moleculeIds.map((id) => Prisma.sql`${id}::uuid`));
+    parts.push(Prisma.sql`s.moleculeid = ANY(ARRAY[${joined}])`);
   }
-  if (filters.edgeId) {
-    parts.push(Prisma.sql`e.edgeid = ${filters.edgeId}::uuid`);
+
+  if (edgeIds.length === 1) {
+    parts.push(Prisma.sql`e.edgeid = ${edgeIds[0]}::uuid`);
+  } else if (edgeIds.length > 1) {
+    const joined = Prisma.join(edgeIds.map((id) => Prisma.sql`${id}::uuid`));
+    parts.push(Prisma.sql`e.edgeid = ANY(ARRAY[${joined}])`);
   }
-  if (filters.instrumentId) {
-    parts.push(Prisma.sql`e.instrumentid = ${filters.instrumentId}`);
+
+  if (instrumentIds.length === 1) {
+    parts.push(Prisma.sql`e.instrumentid = ${instrumentIds[0]}`);
+  } else if (instrumentIds.length > 1) {
+    const joined = Prisma.join(instrumentIds.map((id) => Prisma.sql`${id}`));
+    parts.push(Prisma.sql`e.instrumentid = ANY(ARRAY[${joined}])`);
   }
+
   if (filters.experimentType) {
     parts.push(
       Prisma.sql`e.experimenttype = ${filters.experimentType}::"ExperimentType"`,
     );
   }
-  if (filters.contributorUserId) {
+
+  if (contributorOrcids.length === 1) {
     parts.push(Prisma.sql`EXISTS (
       SELECT 1
       FROM experiment_contributors ecf
       WHERE ecf.experiment_id = e.id
-        AND ecf.orcid_id = ${filters.contributorUserId}
+        AND ecf.orcid_id = ${contributorOrcids[0]}
+    )`);
+  } else if (contributorOrcids.length > 1) {
+    const joined = Prisma.join(contributorOrcids.map((o) => Prisma.sql`${o}`));
+    parts.push(Prisma.sql`EXISTS (
+      SELECT 1
+      FROM experiment_contributors ecf
+      WHERE ecf.experiment_id = e.id
+        AND ecf.orcid_id = ANY(ARRAY[${joined}])
+    )`);
+  }
+
+  if (filters.sourcePaperDoi) {
+    parts.push(Prisma.sql`EXISTS (
+      SELECT 1
+      FROM experimentpublications ep_doi
+      INNER JOIN publications pub_doi ON pub_doi.id = ep_doi.publicationid
+      WHERE ep_doi.experimentid = e.id
+        AND ep_doi.role = 'source'
+        AND pub_doi.doi = ${filters.sourcePaperDoi}
     )`);
   }
   if (filters.verifiedOnly) {
@@ -53,10 +112,12 @@ export function buildNexafsBrowseWhereSql(
         WHERE epv.experiment_id = e.id
       )`);
     } else if (filters.verificationSource === "atlas") {
-      parts.push(Prisma.sql`(COALESCE(vs.validation_summary->>'passed', 'false') = 'true')`);
+      parts.push(
+        Prisma.sql`(COALESCE(vs.validation_summary->>'atlasTeamVerified', 'false') = 'true')`,
+      );
     } else {
       parts.push(Prisma.sql`(
-        COALESCE(vs.validation_summary->>'passed', 'false') = 'true'
+        COALESCE(vs.validation_summary->>'atlasTeamVerified', 'false') = 'true'
         OR EXISTS (
           SELECT 1
           FROM experiment_publications epv
@@ -159,21 +220,14 @@ export type NexafsBrowseGroupRow = {
   polarization_geometry_count: bigint;
   publication_link_count: bigint;
   linked_publications_json: unknown;
+  source_publications_json: unknown;
   ingest_verified: boolean;
   experiment_metrics_header_json: unknown;
   experiment_metrics_channels_json: unknown;
   dataset_quality_score: number | null;
 };
 
-export type NexafsBrowseContributorUser = {
-  id: string;
-  userId: string | null;
-  orcid: string;
-  name: string | null;
-  image: string | null;
-  isClaimed: boolean;
-  isPublicProfileVisible: boolean;
-};
+export type NexafsBrowseContributorUser = NexafsContributorPerson;
 
 export type NexafsBrowseGroupDto = {
   experimentId: string;
@@ -183,6 +237,7 @@ export type NexafsBrowseGroupDto = {
   experimenttype: ExperimentType | null;
   polarizationCount: number;
   linkedPublications: NexafsBrowseLinkedPublication[];
+  sourcePublications: NexafsBrowseSourcePublication[];
   ingestVerified: boolean;
   contributorLabels: string | null;
   contributorUsers: NexafsBrowseContributorUser[];
@@ -203,6 +258,11 @@ export type NexafsBrowseGroupDto = {
   datasetMetrics: NexafsBrowseDatasetMetricsCardModel;
 };
 
+function parseContributorRole(raw: unknown): DataCiteContributorType | null {
+  if (typeof raw !== "string") return null;
+  return normalizeStoredContributorRole(raw);
+}
+
 function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
   if (!raw || !Array.isArray(raw)) return [];
   const out: NexafsBrowseContributorUser[] = [];
@@ -215,6 +275,7 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
     const userId = userIdRaw.length > 0 ? userIdRaw : null;
     const isClaimed = Boolean(o.isClaimed);
     const isPublicProfileVisible = Boolean(o.isPublicProfileVisible);
+    const role = parseContributorRole(o.role);
     out.push({
       id: orcid,
       userId,
@@ -229,12 +290,13 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
           : null,
       isClaimed,
       isPublicProfileVisible,
+      roles: role ? [role] : [],
     });
   }
-  return out;
+  return dedupeNexafsContributorsByOrcid(out);
 }
 
-function parseLinkedPublicationsJson(
+function parsePublicationsJson(
   raw: unknown,
 ): NexafsBrowseLinkedPublication[] {
   if (!Array.isArray(raw)) return [];
@@ -269,7 +331,8 @@ export function mapNexafsBrowseGroupRow(
     createdat: row.createdat,
     experimenttype: row.experimenttype,
     polarizationCount: Number(row.polarization_geometry_count),
-    linkedPublications: parseLinkedPublicationsJson(row.linked_publications_json),
+    linkedPublications: parsePublicationsJson(row.linked_publications_json),
+    sourcePublications: parsePublicationsJson(row.source_publications_json),
     ingestVerified: Boolean(row.ingest_verified),
     contributorLabels: row.contributor_labels,
     contributorUsers: parseContributorUsers(row.contributor_users),
@@ -374,7 +437,7 @@ export async function fetchNexafsBrowseGrouped(
         ed.corestate,
         i.name AS instrument_name,
         f.name AS facility_name,
-        (e.validation_summary IS NOT NULL) AS ingest_verified
+        (COALESCE(e.validation_summary->>'atlasTeamVerified', 'false') = 'true') AS ingest_verified
       FROM experiments e
       INNER JOIN samples s ON s.id = e.sampleid
       INNER JOIN molecules m ON m.id = s.moleculeid
@@ -420,6 +483,7 @@ export async function fetchNexafsBrowseGrouped(
           SELECT COUNT(*)::bigint
           FROM experimentpublications ep
           WHERE ep.experimentid = b.experiment_id
+            AND ep.role <> 'source'
         ) AS publication_link_count,
         (
           SELECT COALESCE(
@@ -438,19 +502,56 @@ export async function fetchNexafsBrowseGrouped(
           FROM experimentpublications ep
           INNER JOIN publications pub ON pub.id = ep.publicationid
           WHERE ep.experimentid = b.experiment_id
+            AND ep.role <> 'source'
         ) AS linked_publications_json,
+        (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'doi', pub.doi,
+                'title', pub.title,
+                'journal', pub.journal,
+                'year', pub.year,
+                'authors', pub.authors
+              )
+              ORDER BY pub.year DESC NULLS LAST, pub.title ASC
+            ),
+            '[]'::json
+          )
+          FROM experimentpublications ep
+          INNER JOIN publications pub ON pub.id = ep.publicationid
+          WHERE ep.experimentid = b.experiment_id
+            AND ep.role = 'source'
+        ) AS source_publications_json,
         (
           SELECT string_agg(sub.n, ' | ' ORDER BY sub.n)
           FROM (
             SELECT DISTINCT
               CASE
-                WHEN ec.is_public_profile_visible AND u.name IS NOT NULL AND trim(u.name) <> '' THEN u.name
+                WHEN ec.claim_status = 'accepted'
+                  AND ec.is_public_profile_visible
+                  AND u.name IS NOT NULL
+                  AND trim(u.name) <> '' THEN u.name
+                WHEN ec.claim_status = 'pending'
+                  AND (
+                    COALESCE(u.attribution_display_preferences->>'pending', 'orcid_only') IN ('name_only', 'name_and_avatar')
+                    OR EXISTS (
+                      SELECT 1
+                      FROM next_auth.user_app_role uar
+                      INNER JOIN next_auth.app_role ar ON ar.id = uar.role_id
+                      WHERE uar.user_id = ec.orcid_id
+                        AND ar.slug IN ('administrator', 'maintainer')
+                    )
+                  )
+                  AND u.name IS NOT NULL
+                  AND trim(u.name) <> '' THEN u.name
                 ELSE ec.orcid_id
               END AS n
             FROM experiment_contributors ec
-            LEFT JOIN "next_auth"."user" u
+            LEFT JOIN next_auth."user" u
               ON u.id = ec.user_id
             WHERE ec.experiment_id = b.experiment_id
+              AND ec.claim_status NOT IN ('declined', 'unclaimed')
           ) sub
           WHERE sub.n IS NOT NULL AND trim(sub.n) <> ''
         ) AS contributor_labels,
@@ -460,29 +561,69 @@ export async function fetchNexafsBrowseGrouped(
               json_build_object(
                 'orcid', ec.orcid_id,
                 'userId', ec.user_id,
+                'role', ec.role,
+                'claimStatus', ec.claim_status,
                 'name', CASE
-                  WHEN ec.is_public_profile_visible THEN u.name
+                  WHEN ec.claim_status = 'accepted'
+                    AND ec.is_public_profile_visible THEN u.name
+                  WHEN ec.claim_status = 'pending'
+                    AND (
+                      COALESCE(u.attribution_display_preferences->>'pending', 'orcid_only') IN ('name_only', 'name_and_avatar')
+                      OR EXISTS (
+                        SELECT 1
+                        FROM next_auth.user_app_role uar
+                        INNER JOIN next_auth.app_role ar ON ar.id = uar.role_id
+                        WHERE uar.user_id = ec.orcid_id
+                          AND ar.slug IN ('administrator', 'maintainer')
+                      )
+                    ) THEN u.name
                   ELSE NULL
                 END,
                 'image', CASE
-                  WHEN ec.is_public_profile_visible THEN u.image
+                  WHEN ec.claim_status = 'accepted'
+                    AND ec.is_public_profile_visible THEN u.image
+                  WHEN ec.claim_status = 'pending'
+                    AND EXISTS (
+                      SELECT 1
+                      FROM next_auth.user_app_role uar
+                      INNER JOIN next_auth.app_role ar ON ar.id = uar.role_id
+                      WHERE uar.user_id = ec.orcid_id
+                        AND ar.slug IN ('administrator', 'maintainer')
+                    ) THEN u.image
                   ELSE NULL
                 END,
-                'isClaimed', ec.is_claimed,
-                'isPublicProfileVisible', ec.is_public_profile_visible
+                'isClaimed', ec.claim_status = 'accepted',
+                'isPublicProfileVisible', CASE
+                  WHEN ec.claim_status = 'accepted' THEN ec.is_public_profile_visible
+                  WHEN ec.claim_status = 'pending'
+                    AND EXISTS (
+                      SELECT 1
+                      FROM next_auth.user_app_role uar
+                      INNER JOIN next_auth.app_role ar ON ar.id = uar.role_id
+                      WHERE uar.user_id = ec.orcid_id
+                        AND ar.slug IN ('administrator', 'maintainer')
+                    ) THEN true
+                  ELSE false
+                END
               )
               ORDER BY
                 CASE
-                  WHEN ec.is_public_profile_visible AND u.name IS NOT NULL THEN u.name
+                  WHEN ec.claim_status = 'accepted'
+                    AND ec.is_public_profile_visible
+                    AND u.name IS NOT NULL THEN u.name
+                  WHEN ec.claim_status = 'pending'
+                    AND COALESCE(u.attribution_display_preferences->>'pending', 'orcid_only') IN ('name_only', 'name_and_avatar')
+                    AND u.name IS NOT NULL THEN u.name
                   ELSE ec.orcid_id
                 END
             ),
             '[]'::json
           )
           FROM experiment_contributors ec
-          LEFT JOIN "next_auth"."user" u
+          LEFT JOIN next_auth."user" u
             ON u.id = ec.user_id
           WHERE ec.experiment_id = b.experiment_id
+            AND ec.claim_status NOT IN ('declined', 'unclaimed')
         ) AS contributor_users,
         (
           SELECT json_build_object(

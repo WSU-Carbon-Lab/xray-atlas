@@ -9,6 +9,11 @@ import {
   type CSVColumnMappings,
   type ExperimentTypeOption,
 } from "../types";
+import {
+  collectorOrcidsFromAttributions,
+  dedupeDatasetAttributions,
+  filterValidOrcidAttributions,
+} from "~/lib/nexafs-attribution";
 import { findMatchingVendorId } from "~/lib/nexafsVendorLabel";
 import {
   parseNexafsFilename,
@@ -64,9 +69,21 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
   } | null>(null);
 
   const updateDataset = useCallback(
-    (datasetId: string, updates: Partial<DatasetState>) => {
+    (
+      datasetId: string,
+      updates:
+        | Partial<DatasetState>
+        | ((dataset: DatasetState) => Partial<DatasetState>),
+    ) => {
       setDatasets((prev) =>
-        prev.map((d) => (d.id === datasetId ? { ...d, ...updates } : d)),
+        prev.map((d) => {
+          if (d.id !== datasetId) {
+            return d;
+          }
+          const patch =
+            typeof updates === "function" ? updates(d) : updates;
+          return { ...d, ...patch };
+        }),
       );
     },
     [],
@@ -291,15 +308,30 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
               ...detectAuxiliarySpectrumColumnNames(columns),
             };
 
-            updateDataset(dataset.id, {
-              ...updates,
-              csvColumns: columns,
-              csvRawData: rawData,
-              columnMappings,
-              spectrumPoints,
-              sampleInfo: autofill.sampleInfo,
-              collectedByUserIds: autofill.collectedByUserIds,
-            });
+            setDatasets((prev) =>
+              prev.map((d) => {
+                if (d.id !== dataset.id) return d;
+                return {
+                  ...d,
+                  ...updates,
+                  csvColumns: columns,
+                  csvRawData: rawData,
+                  columnMappings,
+                  spectrumPoints,
+                  sampleInfo: autofill.sampleInfo,
+                  attributions: dedupeDatasetAttributions([
+                    ...filterValidOrcidAttributions(d.attributions),
+                    ...autofill.attributions,
+                  ]),
+                  collectedByUserIds: collectorOrcidsFromAttributions(
+                    dedupeDatasetAttributions([
+                      ...filterValidOrcidAttributions(d.attributions),
+                      ...autofill.attributions,
+                    ]),
+                  ),
+                };
+              }),
+            );
 
             if (spectrumPoints.length > 0) {
               setTimeout(() => processDatasetDataRef.current(dataset.id), 50);
@@ -364,14 +396,29 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 baseSampleInfo,
               });
 
-              updateDataset(dataset.id, {
-                ...updates,
-                csvColumns: columns,
-                csvRawData: Array.isArray(parsed.data) ? parsed.data : [],
-                columnMappings,
-                sampleInfo: autofill.sampleInfo,
-                collectedByUserIds: autofill.collectedByUserIds,
-              });
+              setDatasets((prev) =>
+                prev.map((d) => {
+                  if (d.id !== dataset.id) return d;
+                  return {
+                    ...d,
+                    ...updates,
+                    csvColumns: columns,
+                    csvRawData: Array.isArray(parsed.data) ? parsed.data : [],
+                    columnMappings,
+                    sampleInfo: autofill.sampleInfo,
+                    attributions: dedupeDatasetAttributions([
+                      ...filterValidOrcidAttributions(d.attributions),
+                      ...autofill.attributions,
+                    ]),
+                    collectedByUserIds: collectorOrcidsFromAttributions(
+                      dedupeDatasetAttributions([
+                        ...filterValidOrcidAttributions(d.attributions),
+                        ...autofill.attributions,
+                      ]),
+                    ),
+                  };
+                }),
+              );
 
               if (missingColumns.length > 0) {
                 showToast(

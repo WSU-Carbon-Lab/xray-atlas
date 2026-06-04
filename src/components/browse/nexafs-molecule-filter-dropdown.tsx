@@ -5,13 +5,20 @@ import { Input } from "@heroui/react";
 import { BeakerIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { trpc } from "~/trpc/client";
 import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
+import { BrowseFilterTrigger } from "./browse-filter-trigger";
 
 const searchInputClass =
   "border-border bg-surface text-foreground placeholder:text-muted w-full rounded-lg border px-3 py-2 text-sm focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20";
 
-const triggerBase =
-  "border-border bg-surface text-muted focus-visible:ring-accent flex h-12 max-w-[min(100%,220px)] min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
-
+/**
+ * Filter popover for restricting NEXAFS browse results to a single molecule.
+ *
+ * Includes a debounced search input that queries `experiments.browseMoleculeOptions`
+ * for molecules that have at least one NEXAFS experiment.
+ *
+ * @param moleculeId - Currently selected molecule UUID, or `undefined` for no filter.
+ * @param onMoleculeChange - Called with the selected molecule UUID, or `undefined` to clear.
+ */
 export type NexafsMoleculeFilterDropdownProps = {
   moleculeId: string | undefined;
   onMoleculeChange: (id: string | undefined) => void;
@@ -50,24 +57,20 @@ export function NexafsMoleculeFilterDropdown({
       contentClassName="w-[min(100vw-2rem,320px)]"
       onOpenChange={setMenuOpen}
       renderTrigger={({ triggerProps, isOpen }) => (
-        <button
+        <BrowseFilterTrigger
           {...triggerProps}
           aria-label="Filter by molecule"
           aria-pressed={hasSelection}
-          type="button"
-          className={`${triggerBase} ${hasSelection ? "border-accent/40 bg-accent-soft text-accent hover:text-accent" : ""}`}
+          active={hasSelection}
+          activeLabel={displayName}
+          icon={<BeakerIcon aria-hidden />}
+          label="Molecule"
+          className="max-w-[min(100%,220px)]"
         >
-          <BeakerIcon
-            className="h-5 w-5 shrink-0 stroke-[1.5] text-current"
-            aria-hidden
-          />
-          <span className="truncate text-left text-sm font-medium">
-            {hasSelection && displayName ? displayName : "Molecule"}
-          </span>
           <span className="sr-only">
             {isOpen ? "Close molecule filter" : "Open molecule filter"}
           </span>
-        </button>
+        </BrowseFilterTrigger>
       )}
       renderContent={({ contentPositionClassName, contentProps, close }) => (
         <PopoverMenuContent
@@ -109,7 +112,9 @@ export function NexafsMoleculeFilterDropdown({
             {isLoading ? (
               <div className="text-muted px-3 py-2 text-sm">Loading…</div>
             ) : options.length === 0 ? (
-              <div className="text-muted px-3 py-2 text-sm">No molecules match</div>
+              <div className="text-muted px-3 py-2 text-sm">
+                No molecules match
+              </div>
             ) : (
               options.map((m) => (
                 <button
@@ -121,7 +126,9 @@ export function NexafsMoleculeFilterDropdown({
                   }}
                   className="hover:bg-default flex w-full min-w-0 flex-col gap-0.5 px-3 py-1.5 text-left transition-colors"
                 >
-                  <span className="truncate text-sm font-medium">{m.iupacname}</span>
+                  <span className="truncate text-sm font-medium">
+                    {m.iupacname}
+                  </span>
                   <span className="text-muted font-mono text-xs tabular-nums">
                     {m.chemicalformula}
                   </span>

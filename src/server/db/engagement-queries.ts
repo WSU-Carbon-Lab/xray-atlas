@@ -1,4 +1,5 @@
 import type { Prisma } from "~/prisma/client";
+import type { MoleculeContributionType } from "~/lib/molecule-contribution-types";
 import type { db } from "~/server/db";
 
 type Db = typeof db | Prisma.TransactionClient;
@@ -23,21 +24,31 @@ export async function findMoleculeContributor(
   });
 }
 
+/**
+ * Inserts a molecule contributor row for `contributionType` when missing.
+ *
+ * Allows one `linked` and one `edited` row per `(molecule, user)`; repeated calls are idempotent.
+ *
+ * @param prisma Prisma client or transaction.
+ * @param moleculeId Target molecule id.
+ * @param userId Contributor ORCID user id.
+ * @param contributionType Canonical role (`linked` or `edited`).
+ */
 export async function upsertMoleculeContributor(
   prisma: Pick<typeof db, "moleculecontributors">,
   moleculeId: string,
   userId: string,
-  contributionType: "creator" | "editor" | "contributor",
+  contributionType: MoleculeContributionType,
 ): Promise<void> {
   const existing = await prisma.moleculecontributors.findFirst({
-    where: moleculeUserLink(moleculeId, userId),
+    where: {
+      moleculeid: moleculeId,
+      userid: userId,
+      contributiontype: contributionType,
+    },
     select: { id: true },
   });
   if (existing) {
-    await prisma.moleculecontributors.update({
-      where: { id: existing.id },
-      data: { contributiontype: contributionType },
-    });
     return;
   }
   await prisma.moleculecontributors.create({

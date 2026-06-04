@@ -2,21 +2,13 @@
 
 import {
   useState,
-  useEffect,
-  useLayoutEffect,
   useMemo,
-  type ReactNode,
 } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import type { ExperimentType } from "~/prisma/browser";
 import { trpc } from "~/trpc/client";
-import { cn } from "@heroui/styles";
 import { ErrorState } from "@/components/feedback/error-state";
 import {
-  ArrowsUpDownIcon,
   CalendarDaysIcon,
   CheckBadgeIcon,
-  CheckIcon,
   CircleStackIcon,
   EyeIcon,
   HeartIcon,
@@ -26,30 +18,21 @@ import { BrowseTabs } from "@/components/layout/browse-tabs";
 import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseHeader } from "@/components/browse/browse-header";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
+import { BrowseSortButton, type BrowseSortOption } from "@/components/browse/browse-sort-button";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
+import { NexafsExperimentCompactSkeleton } from "@/components/feedback/loading-state";
 import { NexafsExperimentCompactCard } from "@/components/nexafs/nexafs-display";
-import { NexafsBrowseActiveFilters } from "@/components/browse/nexafs-browse-active-filters";
-import { NexafsMoleculeFilterDropdown } from "@/components/browse/nexafs-molecule-filter-dropdown";
-import { NexafsEdgeFilterDropdown } from "@/components/browse/nexafs-edge-filter-dropdown";
-import { NexafsInstrumentFilterDropdown } from "@/components/browse/nexafs-instrument-filter-dropdown";
-import { NexafsAcquisitionFilterDropdown } from "@/components/browse/nexafs-acquisition-filter-dropdown";
 import { AddNexafsCard } from "@/components/contribute";
 import { Pagination } from "@heroui/react";
-import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
-import {
-  EXPERIMENT_TYPE_LABELS,
-  NEXAFS_SORT_LABELS,
-  parseSortParam,
-  parseExperimentTypeParam,
-  type NexafsBrowseSortKey,
-} from "./nexafs-browse-experiment-utils";
+import { NEXAFS_SORT_LABELS, type NexafsBrowseSortKey } from "./nexafs-browse-experiment-utils";
 import { mapNexafsBrowseGroupToCard } from "./nexafs-browse-map-group";
+import {
+  useFacetSelection,
+  UnifiedSearchBar,
+  type FacetData,
+} from "./unified-search";
 
-const NEXAFS_SORT_OPTIONS: Array<{
-  key: NexafsBrowseSortKey;
-  label: string;
-  icon: ReactNode;
-}> = [
+const NEXAFS_SORT_OPTIONS: Array<BrowseSortOption<NexafsBrowseSortKey>> = [
   {
     key: "quality",
     label: NEXAFS_SORT_LABELS.quality,
@@ -89,14 +72,18 @@ const NEXAFS_SORT_OPTIONS: Array<{
   },
 ];
 
-type VerificationSource = "either" | "publication" | "atlas";
-
-const VERIFICATION_SOURCE_LABELS: Record<VerificationSource, string> = {
-  either: "Atlas or publication",
-  publication: "Third-party publication only",
-  atlas: "Xray Atlas internal review only",
-};
-
+/**
+ * Props for `NexafsBrowseExperimentSection`.
+ *
+ * @param basePath - URL path prefix used when writing search params.
+ * @param contributeNexafsHref - Href for the "Add dataset" card.
+ * @param showMoleculeFilter - When `true`, the molecule facet is visible in the unified bar.
+ * @param lockedMoleculeId - When set, locks the molecule facet to this UUID (embed mode).
+ * @param emptyStateBrowseAllHref - Link shown on the empty state when no results are found.
+ * @param itemsPerPageLabelId - `id` of the external label element for the items-per-page select.
+ * @param emptyListMessage - Copy shown when the catalog is empty and no search is active.
+ * @param variant - `"fullPage"` wraps in page chrome; `"embedded"` renders controls only.
+ */
 export interface NexafsBrowseExperimentSectionProps {
   basePath: string;
   contributeNexafsHref: string;
@@ -104,127 +91,103 @@ export interface NexafsBrowseExperimentSectionProps {
   lockedMoleculeId?: string;
   emptyStateBrowseAllHref?: string;
   itemsPerPageLabelId?: string;
-  /** Shown when the catalog list is empty and the user is not searching (e.g. molecule-scoped copy). */
   emptyListMessage?: string;
-  /**
-   * When `"fullPage"`, wraps content in `BrowsePageLayout` and `BrowseTabs` with the same titles as `/browse/nexafs`.
-   * When `"embedded"`, renders only the browse controls and list (for molecule detail).
-   */
   variant?: "fullPage" | "embedded";
 }
 
 export function NexafsBrowseExperimentSection({
   basePath,
   contributeNexafsHref,
-  showMoleculeFilter,
+  showMoleculeFilter: _showMoleculeFilter,
   lockedMoleculeId,
   emptyStateBrowseAllHref = "/browse/nexafs",
   itemsPerPageLabelId = "nexafs-items-per-page",
   emptyListMessage,
   variant = "embedded",
 }: NexafsBrowseExperimentSectionProps) {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const [urlSynced, setUrlSynced] = useState(false);
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sortBy, setSortBy] = useState<NexafsBrowseSortKey>("quality");
-  const [moleculeId, setMoleculeId] = useState<string | undefined>(undefined);
-  const [edgeId, setEdgeId] = useState<string | undefined>(undefined);
-  const [instrumentId, setInstrumentId] = useState<string | undefined>(
-    undefined,
-  );
-  const [experimentType, setExperimentType] = useState<
-    ExperimentType | undefined
-  >(undefined);
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [verificationSource, setVerificationSource] =
-    useState<VerificationSource>("either");
-  const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
-  const urlKey = searchParams.toString();
 
-  const effectiveMoleculeId = lockedMoleculeId ?? moleculeId;
+  const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
+    staleTime: 120000,
+  });
 
-  useLayoutEffect(() => {
-    const sp = new URLSearchParams(urlKey);
-    const q = sp.get("q") ?? "";
-    setQuery(q);
-    setDebouncedQuery(q);
-    setSortBy(parseSortParam(sp.get("sort")));
-    if (!lockedMoleculeId) {
-      setMoleculeId(sp.get("molecule") ?? undefined);
-    }
-    setEdgeId(sp.get("edge") ?? undefined);
-    setInstrumentId(sp.get("instrument") ?? undefined);
-    setExperimentType(parseExperimentTypeParam(sp.get("type")));
-    setVerifiedOnly(sp.get("verified") === "1");
-    const source = sp.get("verifiedSource");
-    setVerificationSource(
-      source === "publication" || source === "atlas" ? source : "either",
-    );
-    const p = sp.get("page");
-    const n = p ? parseInt(p, 10) : 1;
-    setCurrentPage(Number.isFinite(n) && n > 0 ? n : 1);
-    setUrlSynced(true);
-  }, [urlKey, lockedMoleculeId]);
+  const facetData = useMemo<FacetData | null>(() => {
+    const d = facetCountsQuery.data;
+    if (!d) return null;
+    return {
+      edges: d.edges,
+      instruments: d.instruments,
+      molecules: d.molecules,
+      contributors: d.contributors,
+    };
+  }, [facetCountsQuery.data]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query);
-      setCurrentPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    sortBy,
-    itemsPerPage,
-    moleculeId,
-    edgeId,
-    instrumentId,
-    experimentType,
-    verifiedOnly,
-    verificationSource,
-    lockedMoleculeId,
-  ]);
-
-  useEffect(() => {
-    if (!urlSynced) return;
-    const params = new URLSearchParams();
-    if (debouncedQuery) params.set("q", debouncedQuery);
-    if (currentPage > 1) params.set("page", currentPage.toString());
-    if (sortBy !== "quality") params.set("sort", sortBy);
-    if (!lockedMoleculeId && moleculeId) params.set("molecule", moleculeId);
-    if (edgeId) params.set("edge", edgeId);
-    if (instrumentId) params.set("instrument", instrumentId);
-    if (experimentType) params.set("type", experimentType);
-    if (verifiedOnly) params.set("verified", "1");
-    if (verifiedOnly && verificationSource !== "either") {
-      params.set("verifiedSource", verificationSource);
-    }
-    const qs = params.toString();
-    const path = `${basePath}${qs ? `?${qs}` : ""}`;
-    router.replace(path, { scroll: false });
-  }, [
-    urlSynced,
+  const {
+    selection,
+    catalogFilters,
+    tokens,
+    query,
     debouncedQuery,
+    urlSynced,
+    setQuery,
+    add,
+    remove,
+    toggle: _toggle,
+    clearAll: clearFacets,
+    setExperimentType,
+    setVerification,
     currentPage,
-    sortBy,
-    moleculeId,
-    edgeId,
-    instrumentId,
-    experimentType,
-    verifiedOnly,
-    verificationSource,
-    router,
+    setCurrentPage,
+  } = useFacetSelection({
     basePath,
     lockedMoleculeId,
-  ]);
+    facetData: facetData ?? undefined,
+  });
+
+  const searchEntitiesQuery = trpc.experiments.searchEntities.useQuery(
+    { query: debouncedQuery.trim(), limitPerGroup: 5 },
+    {
+      enabled: debouncedQuery.trim().length > 0,
+      staleTime: 30000,
+    },
+  );
+
+  const searchResults = useMemo<FacetData | null>(() => {
+    const d = searchEntitiesQuery.data;
+    if (!d) return null;
+    return {
+      edges: d.edges,
+      instruments: d.instruments,
+      molecules: d.molecules,
+      contributors: d.contributors,
+    };
+  }, [searchEntitiesQuery.data]);
+
+  const edgesQuery = trpc.experiments.listEdges.useQuery(undefined, {
+    staleTime: 120000,
+  });
+
+  const edgeOptions = useMemo(
+    () => edgesQuery.data?.edges ?? [],
+    [edgesQuery.data?.edges],
+  );
 
   const hasSearchQuery = debouncedQuery.trim().length > 0;
+
+  const effectiveMoleculeIds: string[] = lockedMoleculeId
+    ? [lockedMoleculeId]
+    : selection.mol;
+
+  const commonFilters = {
+    moleculeIds: effectiveMoleculeIds.length > 0 ? effectiveMoleculeIds : undefined,
+    edgeIds: selection.edge.length > 0 ? selection.edge : undefined,
+    instrumentIds: selection.instrument.length > 0 ? selection.instrument : undefined,
+    contributorOrcids: selection.contributor.length > 0 ? selection.contributor : undefined,
+    experimentType: catalogFilters.experimentType,
+    verifiedOnly: catalogFilters.verifiedOnly,
+    verificationSource: catalogFilters.verificationSource,
+  };
 
   const searchData = trpc.experiments.browseSearch.useQuery(
     {
@@ -232,12 +195,7 @@ export function NexafsBrowseExperimentSection({
       limit: itemsPerPage,
       offset: (currentPage - 1) * itemsPerPage,
       sortBy,
-      moleculeId: effectiveMoleculeId,
-      edgeId,
-      instrumentId,
-      experimentType,
-      verifiedOnly,
-      verificationSource,
+      ...commonFilters,
     },
     {
       enabled: urlSynced && hasSearchQuery,
@@ -250,12 +208,7 @@ export function NexafsBrowseExperimentSection({
       limit: itemsPerPage,
       offset: (currentPage - 1) * itemsPerPage,
       sortBy,
-      moleculeId: effectiveMoleculeId,
-      edgeId,
-      instrumentId,
-      experimentType,
-      verifiedOnly,
-      verificationSource,
+      ...commonFilters,
     },
     {
       enabled: urlSynced && !hasSearchQuery,
@@ -263,32 +216,9 @@ export function NexafsBrowseExperimentSection({
     },
   );
 
-  const edgesQuery = trpc.experiments.listEdges.useQuery(undefined, {
-    staleTime: 120000,
-  });
-
-  const instrumentsQuery = trpc.instruments.list.useQuery(
-    { limit: 200, status: "active" },
-    { staleTime: 120000 },
-  );
-
-  const moleculeSummaryQuery = trpc.experiments.browseMoleculeSummary.useQuery(
-    { id: moleculeId! },
-    {
-      enabled: showMoleculeFilter && !!moleculeId,
-      staleTime: 60_000,
-    },
-  );
-
   const data = hasSearchQuery
-    ? {
-        groups: searchData.data?.groups ?? [],
-        total: searchData.data?.total ?? 0,
-      }
-    : {
-        groups: allData.data?.groups ?? [],
-        total: allData.data?.total ?? 0,
-      };
+    ? { groups: searchData.data?.groups ?? [], total: searchData.data?.total ?? 0 }
+    : { groups: allData.data?.groups ?? [], total: allData.data?.total ?? 0 };
 
   const isLoading =
     !urlSynced || (hasSearchQuery ? searchData.isLoading : allData.isLoading);
@@ -297,270 +227,64 @@ export function NexafsBrowseExperimentSection({
 
   const totalPages = Math.max(1, Math.ceil((data.total ?? 0) / itemsPerPage));
 
-  const edgeOptions = useMemo(
-    () => edgesQuery.data?.edges ?? [],
-    [edgesQuery.data?.edges],
-  );
-
-  const instrumentOptions = useMemo(
-    () => instrumentsQuery.data?.instruments ?? [],
-    [instrumentsQuery.data?.instruments],
-  );
-
-  const instrumentFilterOptions = useMemo(
-    () =>
-      instrumentOptions.map((inst) => ({
-        id: inst.id,
-        name: inst.name,
-        facilityName: inst.facilities?.name ?? null,
-      })),
-    [instrumentOptions],
-  );
-
-  const activeMoleculeLabel =
-    showMoleculeFilter && moleculeId
-      ? moleculeSummaryQuery.isSuccess && !moleculeSummaryQuery.data
-        ? "Unknown molecule"
-        : (moleculeSummaryQuery.data?.iupacname ?? null)
-      : null;
-
-  const activeEdgeLabel = useMemo(() => {
-    if (!edgeId) return null;
-    const e = edgeOptions.find((x) => x.id === edgeId);
-    return e ? `${e.targetatom} ${e.corestate}` : null;
-  }, [edgeId, edgeOptions]);
-
-  const activeInstrumentLabel = useMemo(() => {
-    if (!instrumentId) return null;
-    const i = instrumentOptions.find((x) => x.id === instrumentId);
-    if (!i) return null;
-    return i.facilities?.name ? `${i.name} (${i.facilities.name})` : i.name;
-  }, [instrumentId, instrumentOptions]);
-
-  const activeAcquisitionLabel = useMemo(
-    () =>
-      experimentType ? (EXPERIMENT_TYPE_LABELS[experimentType] ?? null) : null,
-    [experimentType],
-  );
-  const activeVerificationLabel = verifiedOnly
-    ? VERIFICATION_SOURCE_LABELS[verificationSource]
-    : null;
-
-  const sortLabelCurrent = NEXAFS_SORT_LABELS[sortBy];
-
-  const handleClearFilters = () => {
-    if (!lockedMoleculeId) setMoleculeId(undefined);
-    setEdgeId(undefined);
-    setInstrumentId(undefined);
-    setExperimentType(undefined);
-    setVerifiedOnly(false);
-    setVerificationSource("either");
+  const handleClearAll = () => {
+    clearFacets();
+    setQuery("");
   };
+
+  const hasAnyFilter =
+    tokens.length > 0 || debouncedQuery.trim().length > 0;
 
   const pageSubtitle = hasSearchQuery
     ? `Search results for "${debouncedQuery}"`
-    : "Filter by molecule, edge, instrument, or acquisition mode, search the catalog, or change sort order.";
+    : "Filter by molecule, edge, instrument, acquisition, verification, or search the catalog.";
 
   const inner = (
     <div className="space-y-6">
       <BrowseHeader
-        searchValue={query}
-        onSearchChange={setQuery}
-        searchPlaceholder="Search catalog…"
-      >
-        {showMoleculeFilter ? (
-          <div className="shrink-0">
-            <NexafsMoleculeFilterDropdown
-              moleculeId={moleculeId}
-              onMoleculeChange={setMoleculeId}
-            />
-          </div>
-        ) : null}
-        <div className="shrink-0">
-          <NexafsEdgeFilterDropdown
-            edgeId={edgeId}
-            edges={edgeOptions}
-            onEdgeChange={setEdgeId}
-          />
-        </div>
-        <div className="shrink-0">
-          <NexafsInstrumentFilterDropdown
-            instrumentId={instrumentId}
-            instruments={instrumentFilterOptions}
-            onInstrumentChange={setInstrumentId}
-          />
-        </div>
-        <div className="shrink-0">
-          <NexafsAcquisitionFilterDropdown
-            experimentType={experimentType}
+        searchChrome={
+          <UnifiedSearchBar
+            tokens={tokens}
+            query={query}
+            onQueryChange={setQuery}
+            onAdd={add}
+            onRemove={remove}
+            onClearAll={handleClearAll}
+            catalogFilters={catalogFilters}
             onExperimentTypeChange={setExperimentType}
+            onVerificationChange={setVerification}
+            facetCounts={facetData}
+            searchResults={searchResults}
+            edges={edgeOptions}
+            selectedEdgeIds={selection.edge}
+            onEdgesChange={(ids) => {
+              const toAdd = ids.filter((id) => !selection.edge.includes(id));
+              const toRemove = selection.edge.filter(
+                (id) => !ids.includes(id),
+              );
+              for (const id of toRemove) remove("edge", id);
+              for (const id of toAdd) add("edge", id);
+            }}
           />
-        </div>
-        <PopoverMenu
-          contentClassName="w-[min(100vw-2rem,320px)]"
-          renderTrigger={({ triggerProps, isOpen }) => (
-            <button
-              {...triggerProps}
-              type="button"
-              aria-label={`Verification filter; current ${verifiedOnly ? VERIFICATION_SOURCE_LABELS[verificationSource] : "all datasets"}`}
-              className={cn(
-                "border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                verifiedOnly ? "ring-accent/35 ring-1 text-foreground" : "",
-              )}
-            >
-              <CheckBadgeIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
-              <span className="text-sm font-medium">Verified</span>
-              <span className="sr-only">
-                {isOpen
-                  ? "Close verification filter"
-                  : "Open verification filter"}
-              </span>
-            </button>
-          )}
-          renderContent={({ contentPositionClassName, contentProps, close }) => (
-            <PopoverMenuContent
-              {...contentProps}
-              className={`${contentPositionClassName} w-[min(100vw-2rem,320px)] rounded-xl py-1`}
-            >
-              <div className="space-y-2 p-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVerifiedOnly((prev) => !prev);
-                  }}
-                  className={cn(
-                    "focus-visible:ring-accent flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2",
-                    verifiedOnly
-                      ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
-                      : "text-muted hover:bg-default hover:text-foreground",
-                  )}
-                >
-                  <span className="font-medium">Only verified datasets</span>
-                  {verifiedOnly ? (
-                    <CheckIcon className="text-accent h-4 w-4 shrink-0" aria-hidden />
-                  ) : null}
-                </button>
-                <div className="border-border-default space-y-1 rounded-md border p-1">
-                  {(["either", "publication", "atlas"] as const).map((option) => {
-                    const selected = verificationSource === option;
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        disabled={!verifiedOnly}
-                        onClick={() => {
-                          setVerificationSource(option);
-                          close();
-                        }}
-                        className={cn(
-                          "focus-visible:ring-accent flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2",
-                          !verifiedOnly
-                            ? "text-zinc-500/70"
-                            : selected
-                              ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
-                              : "text-muted hover:bg-default hover:text-foreground",
-                        )}
-                      >
-                        <span>{VERIFICATION_SOURCE_LABELS[option]}</span>
-                        {verifiedOnly && selected ? (
-                          <CheckIcon className="text-accent h-4 w-4 shrink-0" aria-hidden />
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </PopoverMenuContent>
-          )}
-        />
-        {!hasSearchQuery ? (
-          <PopoverMenu
-            contentClassName="w-[min(100vw-2rem,300px)]"
-            renderTrigger={({ triggerProps, isOpen }) => (
-              <button
-                {...triggerProps}
-                type="button"
-                aria-label={`Sort experiments; current order is ${sortLabelCurrent}`}
-                className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              >
-                <ArrowsUpDownIcon
-                  className="h-5 w-5 shrink-0 stroke-[1.5]"
-                  aria-hidden
-                />
-                <span className="text-sm font-medium">Sort</span>
-                <span className="sr-only">
-                  {isOpen ? "Close sort options" : "Open sort options"}
-                </span>
-              </button>
-            )}
-            renderContent={({ contentPositionClassName, contentProps, close }) => (
-              <PopoverMenuContent
-                {...contentProps}
-                className={`${contentPositionClassName} w-[min(100vw-2rem,300px)] rounded-xl py-1`}
-              >
-                <div className="space-y-0.5 p-1">
-                  {NEXAFS_SORT_OPTIONS.map((option) => {
-                    const isSelected = option.key === sortBy;
-                    return (
-                      <button
-                        key={option.key}
-                        type="button"
-                        onClick={() => {
-                          setSortBy(option.key);
-                          close();
-                        }}
-                        className={`focus-visible:ring-accent flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
-                          isSelected
-                            ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
-                            : "text-muted hover:bg-default hover:text-foreground"
-                        }`}
-                        aria-label={`Sort by ${option.label}`}
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          {option.icon}
-                          <span className="truncate">{option.label}</span>
-                        </span>
-                        {isSelected ? (
-                          <CheckIcon
-                            className="text-accent h-4 w-4 shrink-0"
-                            aria-hidden
-                          />
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </PopoverMenuContent>
-            )}
-          />
-        ) : null}
-      </BrowseHeader>
-
-      <NexafsBrowseActiveFilters
-        moleculeLabel={activeMoleculeLabel}
-        edgeLabel={activeEdgeLabel}
-        instrumentLabel={activeInstrumentLabel}
-        acquisitionLabel={activeAcquisitionLabel}
-        verificationLabel={activeVerificationLabel}
-        onRemoveMolecule={() => setMoleculeId(undefined)}
-        onRemoveEdge={() => setEdgeId(undefined)}
-        onRemoveInstrument={() => setInstrumentId(undefined)}
-        onRemoveAcquisition={() => setExperimentType(undefined)}
-        onRemoveVerification={() => {
-          setVerifiedOnly(false);
-          setVerificationSource("either");
-        }}
-        onClearAll={handleClearFilters}
+        }
+        trailing={
+          !hasSearchQuery ? (
+            <BrowseSortButton
+              options={NEXAFS_SORT_OPTIONS}
+              value={sortBy}
+              onChange={setSortBy}
+              ariaLabel={`Sort experiments; current order is ${NEXAFS_SORT_LABELS[sortBy]}`}
+              contentWidth="w-[min(100vw-2rem,300px)]"
+            />
+          ) : null
+        }
       />
 
       <div>
         {isLoading && (
-          <div className="space-y-3">
+          <div className="space-y-3" aria-busy aria-label="Loading NEXAFS experiments">
             {Array.from({ length: itemsPerPage }).map((_, i) => (
-              <div
-                key={i}
-                className="border-border bg-surface h-32 animate-pulse rounded-xl border shadow-lg"
-              />
+              <NexafsExperimentCompactSkeleton key={i} />
             ))}
           </div>
         )}
@@ -586,11 +310,11 @@ export function NexafsBrowseExperimentSection({
                     : (emptyListMessage ??
                       "No NEXAFS experiments in the database yet.")
                 }
-                hasSearchQuery={hasSearchQuery}
+                hasSearchQuery={hasSearchQuery || hasAnyFilter}
                 browseAllHref={emptyStateBrowseAllHref}
                 onClearSearch={() => {
                   setQuery("");
-                  setDebouncedQuery("");
+                  handleClearAll();
                 }}
               >
                 <AddNexafsCard
@@ -625,7 +349,7 @@ export function NexafsBrowseExperimentSection({
                         isDisabled={currentPage <= 1}
                         aria-label="Previous page"
                         onPress={() =>
-                          setCurrentPage((p) => Math.max(1, p - 1))
+                          setCurrentPage(Math.max(1, currentPage - 1))
                         }
                         className="rounded-lg border border-border bg-surface"
                       >
@@ -664,9 +388,7 @@ export function NexafsBrowseExperimentSection({
                         isDisabled={currentPage >= totalPages}
                         aria-label="Next page"
                         onPress={() =>
-                          setCurrentPage((p) =>
-                            Math.min(totalPages, p + 1),
-                          )
+                          setCurrentPage(Math.min(totalPages, currentPage + 1))
                         }
                         className="rounded-lg border border-border bg-surface"
                       >

@@ -79,4 +79,17 @@ describe("buildNexafsSpectrumExportCsv", () => {
     expect(header).toContain("beta");
     expect(result.omittedDerivedColumns).toBe(true);
   });
+
+  it("omits bare-atom headers when includeBareAtom is false", async () => {
+    const result = await buildNexafsSpectrumExportCsv(samplePoints, {
+      stoichiometryFormula: "C72H14O2",
+      includeBareAtom: false,
+    });
+    const header = result.csv.split("\n")[0] ?? "";
+    expect(header).toContain("energy_eV");
+    expect(header).toContain("delta");
+    expect(header.includes("bare_atom_mu")).toBe(false);
+    expect(result.omittedBareAtomColumns).toBe(true);
+  });
+
 });

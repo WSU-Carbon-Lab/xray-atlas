@@ -7,28 +7,6 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 
-const TRACK_VIEW_THROTTLE_WINDOW_MS = 60_000;
-const TRACK_VIEW_MAX_PER_WINDOW = 5;
-
-const trackViewThrottle = new Map<
-  string,
-  { count: number; windowEnd: number }
->();
-
-function checkTrackViewThrottle(key: string): boolean {
-  const now = Date.now();
-  const entry = trackViewThrottle.get(key);
-  if (!entry || now > entry.windowEnd) {
-    trackViewThrottle.set(key, {
-      count: 1,
-      windowEnd: now + TRACK_VIEW_THROTTLE_WINDOW_MS,
-    });
-    return true;
-  }
-  if (entry.count >= TRACK_VIEW_MAX_PER_WINDOW) return false;
-  entry.count += 1;
-  return true;
-}
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "~/prisma/client";
 import {
@@ -40,13 +18,24 @@ import type { db } from "~/server/db";
 import { orcidUserIdSchema } from "~/lib/orcid";
 import { pickRandomTagHex } from "~/lib/tag-colors";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
+import { recordMoleculeView } from "~/server/engagement/record-molecule-view";
 import { toMoleculeView } from "./molecules-view";
 import { queryMoleculeIdsByPopularityRank } from "./molecules-popularity-ranking";
+import {
+  normalizeMoleculeContributionType,
+  type MoleculeContributionType,
+} from "~/lib/molecule-contribution-types";
 import {
   findMoleculeContributor,
   findMoleculeFavorite,
   upsertMoleculeContributor,
 } from "~/server/db/engagement-queries";
+import {
+  moleculeBrowseFiltersSchema,
+  normalizeMoleculeBrowseFilters,
+  prismaMoleculeBrowseWhere,
+  sqlMoleculeBrowseFilters,
+} from "~/server/molecules/molecule-browse-filters";
 
 function slugifyTagName(name: string): string {
   const base = name
@@ -82,7 +71,7 @@ async function ensureContributor(
   prisma: Pick<typeof db, "moleculecontributors">,
   moleculeId: string,
   userId: string,
-  contributionType: "creator" | "editor" | "contributor",
+  contributionType: MoleculeContributionType,
 ): Promise<void> {
   await upsertMoleculeContributor(
     prisma,
@@ -95,11 +84,12 @@ async function ensureContributor(
 export const moleculesRouter = createTRPCRouter({
   autosuggest: publicProcedure
     .input(
-      z.object({
-        query: z.string().min(1, "Query is required"),
-        limit: z.number().min(1).max(50).default(10),
-        tagIds: z.array(z.string().uuid()).optional().default([]),
-      }),
+      z
+        .object({
+          query: z.string().min(1, "Query is required"),
+          limit: z.number().min(1).max(50).default(10),
+        })
+        .merge(moleculeBrowseFiltersSchema),
     )
     .query(async ({ ctx, input }) => {
       const searchTerm = input.query.trim();
@@ -109,6 +99,9 @@ export const moleculesRouter = createTRPCRouter({
           results: [],
         };
       }
+
+      const browseFilters = normalizeMoleculeBrowseFilters(input);
+      const browseFilterSql = sqlMoleculeBrowseFilters(browseFilters, "m");
 
       const searchTermLower = searchTerm.toLowerCase();
       const searchPattern = `${searchTermLower}%`;
@@ -158,6 +151,7 @@ export const moleculesRouter = createTRPCRouter({
                     @@ plainto_tsquery('english', ${searchTerm})
               )
             )
+            AND (${browseFilterSql})
           LIMIT ${input.limit * 3}
         ),
         scored AS (
@@ -542,7 +536,7 @@ export const moleculesRouter = createTRPCRouter({
             : {}),
         },
       });
-      await ensureContributor(ctx.db, molecule.id, ctx.userId, "creator");
+      await ensureContributor(ctx.db, molecule.id, ctx.userId, "linked");
 
       return {
         success: true,
@@ -1163,14 +1157,15 @@ export const moleculesRouter = createTRPCRouter({
 
   getAllPaginated: publicProcedure
     .input(
-      z.object({
-        limit: z.number().min(1).max(100).default(12),
-        offset: z.number().min(0).default(0),
-        sortBy: z
-          .enum(["favorites", "created", "name", "views", "datasets"])
-          .default("favorites"),
-        tagIds: z.array(z.string().uuid()).optional().default([]),
-      }),
+      z
+        .object({
+          limit: z.number().min(1).max(100).default(12),
+          offset: z.number().min(0).default(0),
+          sortBy: z
+            .enum(["favorites", "created", "name", "views", "datasets"])
+            .default("favorites"),
+        })
+        .merge(moleculeBrowseFiltersSchema),
     )
     .query(async ({ ctx, input }) => {
       let molecules: Awaited<
@@ -1193,10 +1188,9 @@ export const moleculesRouter = createTRPCRouter({
         >
       >;
 
-      const tagFilter =
-        input.tagIds.length > 0
-          ? { moleculetags: { some: { tagid: { in: input.tagIds } } } }
-          : {};
+      const browseFilters = normalizeMoleculeBrowseFilters(input);
+      const tagFilter = prismaMoleculeBrowseWhere(browseFilters);
+      const browseFilterSql = sqlMoleculeBrowseFilters(browseFilters, "m");
 
       if (input.sortBy === "datasets") {
         const orderedIds = await ctx.db.$queryRaw<Array<{ id: string }>>`
@@ -1204,15 +1198,7 @@ export const moleculesRouter = createTRPCRouter({
           FROM public.molecules m
           LEFT JOIN public.samples s ON s.moleculeid = m.id
           LEFT JOIN public.experiments e ON e.sampleid = s.id
-          WHERE
-            (
-              cardinality(${input.tagIds}::uuid[]) = 0
-              OR EXISTS (
-                SELECT 1 FROM public.molecule_tags mt
-                WHERE mt.molecule_id = m.id
-                AND mt.tag_id = ANY(${input.tagIds}::uuid[])
-              )
-            )
+          WHERE (${browseFilterSql})
           GROUP BY m.id
           ORDER BY COUNT(DISTINCT e.id) DESC, m.createdat DESC
           LIMIT ${input.limit}
@@ -1247,15 +1233,7 @@ export const moleculesRouter = createTRPCRouter({
         const orderedIds = await ctx.db.$queryRaw<Array<{ id: string }>>`
           SELECT m.id
           FROM public.molecules m
-          WHERE
-            (
-              cardinality(${input.tagIds}::uuid[]) = 0
-              OR EXISTS (
-                SELECT 1 FROM public.molecule_tags mt
-                WHERE mt.molecule_id = m.id
-                AND mt.tag_id = ANY(${input.tagIds}::uuid[])
-              )
-            )
+          WHERE (${browseFilterSql})
           ORDER BY LOWER(
             COALESCE(
               (
@@ -1404,13 +1382,21 @@ export const moleculesRouter = createTRPCRouter({
         },
         orderBy: [{ contributiontype: "asc" }, { contributedat: "asc" }],
       });
-      return contributors.map((c) => ({
-        id: c.id,
-        userId: c.userid,
-        contributionType: c.contributiontype,
-        contributedAt: c.contributedat,
-        user: c.user,
-      }));
+      return contributors.flatMap((c) => {
+        const contributionType = normalizeMoleculeContributionType(
+          c.contributiontype,
+        );
+        if (!contributionType) return [];
+        return [
+          {
+            id: c.id,
+            userId: c.userid,
+            contributionType,
+            contributedAt: c.contributedat,
+            user: c.user,
+          },
+        ];
+      });
     }),
 
   addContributor: protectedProcedure
@@ -1418,9 +1404,7 @@ export const moleculesRouter = createTRPCRouter({
       z.object({
         moleculeId: z.string().uuid(),
         userId: z.string().uuid(),
-        contributionType: z
-          .enum(["creator", "editor", "contributor"])
-          .default("contributor"),
+        contributionType: z.enum(["linked", "edited"]).default("linked"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -1480,6 +1464,33 @@ export const moleculesRouter = createTRPCRouter({
       name: t.name,
       slug: t.slug,
       color: t.color,
+    }));
+  }),
+
+  browseTagCounts: publicProcedure.query(async ({ ctx }) => {
+    const rows = await ctx.db.$queryRaw<
+      Array<{
+        id: string;
+        name: string;
+        color: string | null;
+        count: bigint;
+      }>
+    >`
+      SELECT
+        t.id,
+        t.name,
+        t.color,
+        COUNT(mt.molecule_id)::bigint AS count
+      FROM public.tags t
+      LEFT JOIN public.molecule_tags mt ON mt.tag_id = t.id
+      GROUP BY t.id, t.name, t.color
+      ORDER BY count DESC, t.name ASC
+    `;
+    return rows.map((row) => ({
+      id: row.id,
+      label: row.name,
+      color: row.color,
+      count: Number(row.count),
     }));
   }),
 
@@ -1617,47 +1628,13 @@ export const moleculesRouter = createTRPCRouter({
     .input(
       z.object({
         moleculeId: z.string().uuid(),
-        sessionId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const throttleKey =
-        input.sessionId ??
-        ctx.userId ??
-        ctx.clientIp ??
-        "anon";
-      if (!checkTrackViewThrottle(throttleKey)) return { recorded: false };
-      const molecule = await ctx.db.molecules.findUnique({
-        where: { id: input.moleculeId },
+      return recordMoleculeView(ctx.db, {
+        moleculeId: input.moleculeId,
+        userId: ctx.userId,
       });
-      if (!molecule) return { recorded: false };
-      const effectiveUserId = ctx.userId ?? null;
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      const dedupWhere = effectiveUserId
-        ? { userid: effectiveUserId }
-        : input.sessionId
-          ? { userid: null, sessionid: input.sessionId }
-          : { userid: null, sessionid: null };
-      const existingView = await ctx.db.moleculeviews.findFirst({
-        where: {
-          moleculeid: input.moleculeId,
-          viewedat: { gte: oneHourAgo },
-          ...dedupWhere,
-        },
-      });
-      if (existingView) return { recorded: false };
-      await ctx.db.moleculeviews.create({
-        data: {
-          moleculeid: input.moleculeId,
-          userid: effectiveUserId,
-          sessionid: input.sessionId ?? null,
-        },
-      });
-      await ctx.db.molecules.update({
-        where: { id: input.moleculeId },
-        data: { viewcount: { increment: 1 } },
-      });
-      return { recorded: true };
     }),
 
   getByCreator: publicProcedure
@@ -1895,7 +1872,7 @@ export const moleculesRouter = createTRPCRouter({
         },
       });
 
-      await ensureContributor(ctx.db, moleculeId, ctx.userId, "editor");
+      await ensureContributor(ctx.db, moleculeId, ctx.userId, "edited");
 
       return {
         success: true,
@@ -2014,9 +1991,9 @@ export const moleculesRouter = createTRPCRouter({
           tx,
           input.moleculeId,
           input.newCreatorId,
-          "creator",
+          "linked",
         );
-        await ensureContributor(tx, input.moleculeId, ctx.userId, "editor");
+        await ensureContributor(tx, input.moleculeId, ctx.userId, "edited");
       });
 
       return { success: true };

@@ -5,10 +5,14 @@ import {
   formatNexafsVendorLabel,
 } from "~/lib/nexafsVendorLabel";
 import {
-  collectorUserIdsForResearchGroupToken,
-  mergeUniqueCollectorUserIds,
+  collectorOrcidsForResearchGroupToken,
+  mergeUniqueCollectorOrcids,
 } from "~/lib/nexafsResearchGroupCollectors";
 import { resolveNexafsDefaultSubstrate } from "~/lib/resolveNexafsDefaultSubstrate";
+import {
+  dedupeDatasetAttributions,
+  type DatasetAttributionEntry,
+} from "~/lib/nexafs-attribution";
 import type { DatasetState, ExperimentTypeOption } from "../types";
 import type { ParsedFilename, InstrumentMatchOption } from "./filenameParser";
 import type { NexafsJsonDocumentMetadata } from "./jsonParser";
@@ -30,7 +34,7 @@ export function buildNexafsUploadAutofill(params: {
   experimentType: ExperimentTypeOption | undefined;
   instrumentId: string | undefined;
   baseSampleInfo: DatasetState["sampleInfo"];
-}): Pick<DatasetState, "sampleInfo" | "collectedByUserIds"> {
+}): Pick<DatasetState, "sampleInfo" | "collectedByUserIds" | "attributions"> {
   const {
     parsedFilename,
     documentMetadata,
@@ -72,9 +76,9 @@ export function buildNexafsUploadAutofill(params: {
     documentMetadata?.sample?.preparation_method?.method,
   );
 
-  const collectors = mergeUniqueCollectorUserIds(
-    collectorUserIdsForResearchGroupToken(parsedFilename.experimenter),
-    collectorUserIdsForResearchGroupToken(
+  const collectors = mergeUniqueCollectorOrcids(
+    collectorOrcidsForResearchGroupToken(parsedFilename.experimenter),
+    collectorOrcidsForResearchGroupToken(
       documentMetadata?.user?.group ?? undefined,
     ),
   );
@@ -95,8 +99,22 @@ export function buildNexafsUploadAutofill(params: {
     }
   }
 
+  const collectorAttributions: DatasetAttributionEntry[] = collectors.map(
+    (orcid) => ({
+      clientId: crypto.randomUUID(),
+      orcid,
+      role: "DataCollector",
+      displayName: null,
+      userId: null,
+      isClaimed: false,
+      hasContributionAgreement: false,
+      imageUrl: null,
+    }),
+  );
+
   return {
     sampleInfo,
     collectedByUserIds: collectors,
+    attributions: dedupeDatasetAttributions(collectorAttributions),
   };
 }

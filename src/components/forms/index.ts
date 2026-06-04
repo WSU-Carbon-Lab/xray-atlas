@@ -1,3 +1,21 @@
+export {
+  AuxFileDropZone,
+  AuxUploadDefaultsRow,
+  type AuxPersistedDisplayFile,
+} from "./AuxFileDropZone";
+export {
+  AuxFileVisualIcon,
+  StackedFileIcons,
+  StackedPageDropVisual,
+  type StackedPageStackAccent,
+  type StackedFileEntry,
+  type StackedPageQueuedFile,
+} from "./StackedFileIcons";
+export {
+  SampleAuxAccordion,
+  emptySampleAuxFields,
+  sampleAuxFieldsHasData,
+} from "./SampleAuxAccordion";
 export { FACILITY_TYPE_OPTIONS, INSTRUMENT_STATUS_OPTIONS } from "./constants";
 export { FacilityIdentitySection } from "./facility-identity-section";
 export { InstrumentFieldsBlock } from "./instrument-fields-block";

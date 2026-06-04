@@ -7,6 +7,9 @@ model experimentmetrics {
   viewcount                  Int                        @default(0) @map("view_count")
   hasoriginaldatadoi         Boolean                    @default(false) @map("has_original_data_doi")
   originaldatadoi            String?                    @map("original_data_doi") @db.VarChar(256)
+  sourcepaperdoiverified     Boolean                    @default(false) @map("source_paper_doi_verified")
+  sourcepaperdoiverifiedat   DateTime?                  @map("source_paper_doi_verified_at") @db.Timestamptz(6)
+  sourcepaperdoiverifiedby   String?                    @map("source_paper_doi_verified_by") @db.VarChar(19)
   qualityaggregatescore      Float?                     @map("quality_aggregate_score")
   normalizationrangespresent Boolean                    @default(false) @map("normalization_ranges_present")
   metricscomputedat          DateTime?                  @map("metrics_computed_at") @db.Timestamptz(6)
@@ -14,6 +17,7 @@ model experimentmetrics {
   experiments                experiments                @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
   experimentmetricschannels  experimentmetricschannel[] @relation("ExperimentMetricsChannelHeader")
 
+  @@index([originaldatadoi], map: "idx_experiment_metrics_original_data_doi", where: raw("(original_data_doi IS NOT NULL)"))
   @@map("experiment_metrics")
   @@schema("public")
 }
@@ -30,8 +34,8 @@ model experimentmetricschannel {
   normpreendev                Float?            @map("norm_pre_end_ev")
   normpoststartev             Float?            @map("norm_post_start_ev")
   normpostendev               Float?            @map("norm_post_end_ev")
-  experiments                 experiments       @relation("ExperimentMetricsChannelHeader", fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "experiment_metrics_channel_experiment_id_fkey")
-  experimentmetrics           experimentmetrics @relation("ExperimentMetricsChannelHeader", fields: [experimentid], references: [experimentid], onDelete: Cascade, onUpdate: NoAction, map: "experiment_metrics_channel_metrics_header_fkey")
+  experiments                 experiments       @relation("ExperimentMetricsChannelHeader", fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "experiment_metrics_channel_experiment_id_experiments_fkey")
+  experimentmetrics           experimentmetrics @relation("ExperimentMetricsChannelHeader", fields: [experimentid], references: [experimentid], onDelete: Cascade, onUpdate: NoAction, map: "experiment_metrics_channel_experiment_id_metrics_fkey")
 
   @@id([experimentid, channel])
   @@index([experimentid], map: "idx_experiment_metrics_channel_experiment")

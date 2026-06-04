@@ -18,6 +18,7 @@
     "db:backfill-validation-summary": "bun scripts/backfill-experiment-validation-summary.ts",
     "db:backfill-kk-delta-metadata": "bun scripts/backfill-experiment-kk-delta-metadata.ts",
     "db:audit-orcid-pk": "bun scripts/migrate-user-orcid-pk-audit.ts",
+    "db:reset-engagement-metrics": "bun scripts/reset-view-and-favorite-counts.ts",
     "dev": "next dev --turbo",
     "dev:webpack": "next dev",
     "dev:tunnel": "concurrently --kill-others \"next dev --turbo\" \"sleep 3 && ngrok http 3000\"",
@@ -78,6 +79,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "sharp": "^0.34.5",
+    "tar-stream": "^3.2.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -90,6 +92,7 @@
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/tar-stream": "^3.1.4",
     "baseline-browser-mapping": "^2.10.8",
     "concurrently": "^9.2.1",
     "eslint": "^9.39.4",
