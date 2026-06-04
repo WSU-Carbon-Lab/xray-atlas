@@ -2418,62 +2418,6 @@ export function DatasetContent({
         />
       </div>
 
-      <section className="flex flex-col gap-3" aria-labelledby="aux-files-heading">
-        <div>
-          <h2
-            id="aux-files-heading"
-            className="text-muted text-sm font-medium leading-none"
-          >
-            Auxiliary files
-          </h2>
-          <p className="text-muted mt-1 text-xs leading-snug">
-            Attach experiment protocols or sample preparation files. Drag onto
-            the matching target or browse per zone.
-          </p>
-        </div>
-        <AuxUploadDefaultsRow
-          pendingKind={auxUploadKind}
-          pendingDescription={auxUploadDescription}
-          onPendingKindChange={setAuxUploadKind}
-          onPendingDescriptionChange={setAuxUploadDescription}
-        />
-        <div className="grid gap-3 md:grid-cols-2 md:items-stretch">
-          <AuxFileDropZone
-            variant="compact"
-            hideUploadDefaults
-            pendingKind={auxUploadKind}
-            pendingDescription={auxUploadDescription}
-            scope="experiment"
-            title="Experiment files"
-            description="Protocols, raw beamline data (up to 500 MB each)."
-            globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
-            files={dataset.pendingExperimentAuxFiles}
-            onFilesChange={(next) => {
-              onDatasetUpdate(dataset.id, { pendingExperimentAuxFiles: next });
-            }}
-            onValidationError={(message) => showToast(message, "error")}
-          />
-          <AuxFileDropZone
-            variant="compact"
-            hideUploadDefaults
-            pendingKind={auxUploadKind}
-            pendingDescription={auxUploadDescription}
-            scope="sample"
-            title="Sample files"
-            description="Images and prep notes (up to 50 MB each)."
-            globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX}
-            files={dataset.pendingSampleAuxFiles}
-            onFilesChange={(next) => {
-              onDatasetUpdate(dataset.id, { pendingSampleAuxFiles: next });
-            }}
-            onValidationError={(message) => showToast(message, "error")}
-          />
-        </div>
-      </section>
-      <DatasetAttributionEditor
-        attributions={dataset.attributions}
-        onChange={handleAttributionsChange}
-      />
       <div className="flex w-full shrink-0 flex-col">
         <VisualizationToggle
           mode={visualizationMode}
@@ -2710,6 +2654,63 @@ export function DatasetContent({
           </div>
         </div>
       </div>
+
+      <section className="flex flex-col gap-3" aria-labelledby="aux-files-heading">
+        <div>
+          <h2
+            id="aux-files-heading"
+            className="text-muted text-sm font-medium leading-none"
+          >
+            Auxiliary files
+          </h2>
+          <p className="text-muted mt-1 text-xs leading-snug">
+            Attach experiment protocols or sample preparation files. Drag onto
+            the matching target or browse per zone.
+          </p>
+        </div>
+        <AuxUploadDefaultsRow
+          pendingKind={auxUploadKind}
+          pendingDescription={auxUploadDescription}
+          onPendingKindChange={setAuxUploadKind}
+          onPendingDescriptionChange={setAuxUploadDescription}
+        />
+        <div className="grid gap-3 md:grid-cols-2 md:items-stretch">
+          <AuxFileDropZone
+            variant="compact"
+            hideUploadDefaults
+            pendingKind={auxUploadKind}
+            pendingDescription={auxUploadDescription}
+            scope="experiment"
+            title="Experiment files"
+            description="Protocols, raw beamline data (up to 500 MB each)."
+            globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
+            files={dataset.pendingExperimentAuxFiles}
+            onFilesChange={(next) => {
+              onDatasetUpdate(dataset.id, { pendingExperimentAuxFiles: next });
+            }}
+            onValidationError={(message) => showToast(message, "error")}
+          />
+          <AuxFileDropZone
+            variant="compact"
+            hideUploadDefaults
+            pendingKind={auxUploadKind}
+            pendingDescription={auxUploadDescription}
+            scope="sample"
+            title="Sample files"
+            description="Images and prep notes (up to 50 MB each)."
+            globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX}
+            files={dataset.pendingSampleAuxFiles}
+            onFilesChange={(next) => {
+              onDatasetUpdate(dataset.id, { pendingSampleAuxFiles: next });
+            }}
+            onValidationError={(message) => showToast(message, "error")}
+          />
+        </div>
+      </section>
+      <DatasetAttributionEditor
+        attributions={dataset.attributions}
+        onChange={handleAttributionsChange}
+      />
 
       {/* Sample Information */}
       <div>
