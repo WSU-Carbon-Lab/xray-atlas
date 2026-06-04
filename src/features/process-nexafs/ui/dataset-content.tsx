@@ -9,7 +9,7 @@ import {
   type Key as SelectionKey,
 } from "react";
 import { skipToken } from "@tanstack/react-query";
-import { ChevronDownIcon, PencilIcon } from "@heroicons/react/24/outline";
+import { PencilIcon } from "@heroicons/react/24/outline";
 import {
   ChevronDown,
   ClipboardPaste,
@@ -79,11 +79,8 @@ import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
 import {
   NexafsSampleInformationSection,
-  AuxFileDropZone,
-  AuxUploadDefaultsRow,
   SampleAuxAccordion,
 } from "~/components/forms";
-import { GLOBAL_DROP_ZONE_IDS } from "~/hooks/useGlobalFileDropZone";
 import type { AuxFileKind } from "~/lib/aux-file-client";
 import { setNexafsAuxUploadDefaults } from "~/lib/nexafs-aux-upload-defaults";
 import {
@@ -92,8 +89,8 @@ import {
 } from "./dataset-attribution-editor";
 import { SourcePaperPublicationsEditor } from "./source-paper-publications-editor";
 import {
-  DatasetPersistedAuxFilesAccordion,
-  type PersistedAuxAccordionExpanded,
+  DatasetAuxFilesTab,
+  type AuxDropTargetsActive,
 } from "./dataset-persisted-aux-files";
 import {
   VisualizationToggle,
@@ -922,151 +919,6 @@ type DatasetStatePatch =
   | Partial<DatasetState>
   | ((dataset: DatasetState) => Partial<DatasetState>);
 
-const DRAFT_EXPERIMENT_AUX_ACCORDION_ID = "draft-experiment-aux";
-const DRAFT_SAMPLE_AUX_ACCORDION_ID = "draft-sample-aux";
-
-function DraftDatasetAuxFilesSection({
-  dataset,
-  auxUploadKind,
-  auxUploadDescription,
-  onPendingKindChange,
-  onPendingDescriptionChange,
-  onDatasetUpdate,
-  onExpandedChange,
-}: {
-  dataset: DatasetState;
-  auxUploadKind: AuxFileKind;
-  auxUploadDescription: string;
-  onPendingKindChange: (kind: AuxFileKind) => void;
-  onPendingDescriptionChange: (description: string) => void;
-  onDatasetUpdate: (datasetId: string, updates: DatasetStatePatch) => void;
-  onExpandedChange?: (expanded: PersistedAuxAccordionExpanded) => void;
-}) {
-  const [expandedKeys, setExpandedKeys] = useState(
-    () =>
-      new Set([DRAFT_EXPERIMENT_AUX_ACCORDION_ID, DRAFT_SAMPLE_AUX_ACCORDION_ID]),
-  );
-  const experimentExpanded = expandedKeys.has(DRAFT_EXPERIMENT_AUX_ACCORDION_ID);
-  const sampleExpanded = expandedKeys.has(DRAFT_SAMPLE_AUX_ACCORDION_ID);
-
-  useEffect(() => {
-    onExpandedChange?.({
-      experiment: experimentExpanded,
-      sample: sampleExpanded,
-    });
-  }, [experimentExpanded, onExpandedChange, sampleExpanded]);
-
-  return (
-    <section className="flex flex-col gap-3" aria-labelledby="aux-files-heading">
-      <div>
-        <h2
-          id="aux-files-heading"
-          className="text-muted text-sm font-medium leading-none"
-        >
-          Auxiliary files
-        </h2>
-        <p className="text-muted mt-1 text-xs leading-snug">
-          Queued files upload when you submit this dataset. Expand a section to
-          drag files onto that target.
-        </p>
-      </div>
-      <AuxUploadDefaultsRow
-        pendingKind={auxUploadKind}
-        pendingDescription={auxUploadDescription}
-        onPendingKindChange={onPendingKindChange}
-        onPendingDescriptionChange={onPendingDescriptionChange}
-      />
-      <Accordion
-        allowsMultipleExpanded
-        variant="surface"
-        aria-label="Draft auxiliary files"
-        className="border-border w-full rounded-lg border"
-        expandedKeys={expandedKeys}
-        onExpandedChange={(keys) => {
-          setExpandedKeys(new Set([...keys].map(String)));
-        }}
-      >
-        <Accordion.Item id={DRAFT_EXPERIMENT_AUX_ACCORDION_ID}>
-          <Accordion.Heading>
-            <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
-              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
-                Experiment files
-              </span>
-              <span className="text-muted shrink-0 text-xs tabular-nums">
-                {dataset.pendingExperimentAuxFiles.length}
-              </span>
-              <Accordion.Indicator className="text-muted shrink-0 [&>svg]:size-4">
-                <ChevronDownIcon className="h-4 w-4" aria-hidden />
-              </Accordion.Indicator>
-            </Accordion.Trigger>
-          </Accordion.Heading>
-          <Accordion.Panel>
-            <Accordion.Body className="pt-0">
-              {experimentExpanded ? (
-                <AuxFileDropZone
-                  variant="compact"
-                  hideUploadDefaults
-                  pendingKind={auxUploadKind}
-                  pendingDescription={auxUploadDescription}
-                  scope="experiment"
-                  title="Experiment files"
-                  description="Protocols, raw beamline data (up to 500 MB each)."
-                  globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
-                  files={dataset.pendingExperimentAuxFiles}
-                  onFilesChange={(next) => {
-                    onDatasetUpdate(dataset.id, {
-                      pendingExperimentAuxFiles: next,
-                    });
-                  }}
-                  onValidationError={(message) => showToast(message, "error")}
-                />
-              ) : null}
-            </Accordion.Body>
-          </Accordion.Panel>
-        </Accordion.Item>
-        <Accordion.Item id={DRAFT_SAMPLE_AUX_ACCORDION_ID}>
-          <Accordion.Heading>
-            <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
-              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
-                Sample files
-              </span>
-              <span className="text-muted shrink-0 text-xs tabular-nums">
-                {dataset.pendingSampleAuxFiles.length}
-              </span>
-              <Accordion.Indicator className="text-muted shrink-0 [&>svg]:size-4">
-                <ChevronDownIcon className="h-4 w-4" aria-hidden />
-              </Accordion.Indicator>
-            </Accordion.Trigger>
-          </Accordion.Heading>
-          <Accordion.Panel>
-            <Accordion.Body className="pt-0">
-              {sampleExpanded ? (
-                <AuxFileDropZone
-                  variant="compact"
-                  hideUploadDefaults
-                  pendingKind={auxUploadKind}
-                  pendingDescription={auxUploadDescription}
-                  scope="sample"
-                  title="Sample files"
-                  description="Images and prep notes (up to 50 MB each)."
-                  globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX}
-                  files={dataset.pendingSampleAuxFiles}
-                  onFilesChange={(next) => {
-                    onDatasetUpdate(dataset.id, {
-                      pendingSampleAuxFiles: next,
-                    });
-                  }}
-                  onValidationError={(message) => showToast(message, "error")}
-                />
-              ) : null}
-            </Accordion.Body>
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
-    </section>
-  );
-}
-
 interface DatasetContentProps {
   dataset: DatasetState;
   onDatasetUpdate: (datasetId: string, updates: DatasetStatePatch) => void;
@@ -1079,7 +931,7 @@ interface DatasetContentProps {
   isLoadingEdges: boolean;
   isLoadingCalibrations: boolean;
   isLoadingVendors: boolean;
-  onPersistedAuxExpandedChange?: (expanded: PersistedAuxAccordionExpanded) => void;
+  onAuxDropTargetsChange?: (active: AuxDropTargetsActive) => void;
 }
 
 export function DatasetContent({
@@ -1094,7 +946,7 @@ export function DatasetContent({
   isLoadingEdges: _isLoadingEdges,
   isLoadingCalibrations: _isLoadingCalibrations,
   isLoadingVendors,
-  onPersistedAuxExpandedChange,
+  onAuxDropTargetsChange,
 }: DatasetContentProps) {
   const [showAddMoleculeModal, setShowAddMoleculeModal] = useState(false);
   const [showAddFacilityModal, setShowAddFacilityModal] = useState(false);
@@ -1135,6 +987,12 @@ export function DatasetContent({
       description: auxUploadDescription,
     });
   }, [auxUploadDescription, auxUploadKind]);
+
+  useEffect(() => {
+    if (visualizationMode !== "aux") {
+      onAuxDropTargetsChange?.({ experiment: false, sample: false });
+    }
+  }, [onAuxDropTargetsChange, visualizationMode]);
 
   const [kkUploadBusy, setKkUploadBusy] = useState(false);
   const [geometryEditMode, setGeometryEditMode] = useState(false);
@@ -2581,6 +2439,23 @@ export function DatasetContent({
         />
         <div className="mt-3 flex min-h-0 w-full flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+            {visualizationMode === "aux" ? (
+              <DatasetAuxFilesTab
+                variant={
+                  dataset.persistedExperimentId ? "persisted" : "draft"
+                }
+                dataset={dataset}
+                pendingKind={auxUploadKind}
+                pendingDescription={auxUploadDescription}
+                onPendingKindChange={setAuxUploadKind}
+                onPendingDescriptionChange={setAuxUploadDescription}
+                onDatasetUpdate={onDatasetUpdate}
+                onValidationError={(message) => showToast(message, "error")}
+                onUploadComplete={(message, type) => showToast(message, type)}
+                onDropTargetsChange={onAuxDropTargetsChange}
+                auxTabActive
+              />
+            ) : (
             <div
               className={`border-border bg-surface w-full border p-6 shadow-sm ${
                 visualizationMode === "table"
@@ -2770,9 +2645,12 @@ export function DatasetContent({
                 </div>
               )}
             </div>
+            )}
 
             {/* Selection Mode Toast */}
-            {isPlotNormalizationMode && normalizationSelectionTarget && (
+            {visualizationMode !== "aux" &&
+            isPlotNormalizationMode &&
+            normalizationSelectionTarget ? (
               <div
                 className={`rounded-lg border p-3 text-sm ${
                   normalizationSelectionTarget === "pre"
@@ -2789,10 +2667,12 @@ export function DatasetContent({
                   </span>
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Peak Drag Toast - only show when manual peak mode is active */}
-            {dataset.peaks.length > 0 && isManualPeakMode && (
+            {visualizationMode !== "aux" &&
+            dataset.peaks.length > 0 &&
+            isManualPeakMode ? (
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
                 <div className="flex items-center gap-2">
                   <PencilIcon className="h-4 w-4" />
@@ -2801,34 +2681,11 @@ export function DatasetContent({
                   </span>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
 
-      {dataset.persistedExperimentId ? (
-        <DatasetPersistedAuxFilesAccordion
-          experimentId={dataset.persistedExperimentId}
-          sampleId={dataset.persistedSampleId}
-          pendingKind={auxUploadKind}
-          pendingDescription={auxUploadDescription}
-          onPendingKindChange={setAuxUploadKind}
-          onPendingDescriptionChange={setAuxUploadDescription}
-          onValidationError={(message) => showToast(message, "error")}
-          onUploadComplete={(message, type) => showToast(message, type)}
-          onExpandedChange={onPersistedAuxExpandedChange}
-        />
-      ) : (
-        <DraftDatasetAuxFilesSection
-          dataset={dataset}
-          auxUploadKind={auxUploadKind}
-          auxUploadDescription={auxUploadDescription}
-          onPendingKindChange={setAuxUploadKind}
-          onPendingDescriptionChange={setAuxUploadDescription}
-          onDatasetUpdate={onDatasetUpdate}
-          onExpandedChange={onPersistedAuxExpandedChange}
-        />
-      )}
       <DatasetAttributionEditor
         attributions={dataset.attributions}
         onChange={handleAttributionsChange}

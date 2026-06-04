@@ -37,7 +37,7 @@ import {
   setNexafsAuxUploadDefaults,
 } from "~/lib/nexafs-aux-upload-defaults";
 import { usePersistedAuxUpload } from "~/features/process-nexafs/hooks/usePersistedAuxUpload";
-import type { PersistedAuxAccordionExpanded } from "~/features/process-nexafs/ui/dataset-persisted-aux-files";
+import type { AuxDropTargetsActive } from "~/features/process-nexafs/ui/dataset-persisted-aux-files";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -153,9 +153,9 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     [onAuxValidationError],
   );
 
-  const [auxAccordionExpanded, setAuxAccordionExpanded] =
-    useState<PersistedAuxAccordionExpanded>({
-      experiment: true,
+  const [auxDropTargetsActive, setAuxDropTargetsActive] =
+    useState<AuxDropTargetsActive>({
+      experiment: false,
       sample: false,
     });
 
@@ -171,7 +171,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
 
   const queueExperimentAux = useCallback(
     (files: File[]) => {
-      if (!activeDatasetId) {
+      if (!activeDatasetId || !auxDropTargetsActive.experiment) {
         return;
       }
       const defaults = getNexafsAuxUploadDefaults();
@@ -180,7 +180,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
         setNexafsAuxUploadDefaults({ ...defaults, kind: batchKind });
       }
       if (persistedExperimentId) {
-        if (!auxAccordionExpanded.experiment) {
+        if (!auxDropTargetsActive.experiment) {
           return;
         }
         void persistedAuxUpload.uploadExperimentFiles(
@@ -203,7 +203,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     },
     [
       activeDatasetId,
-      auxAccordionExpanded.experiment,
+      auxDropTargetsActive.experiment,
       persistedAuxUpload,
       persistedExperimentId,
       reportAuxError,
@@ -213,7 +213,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
 
   const queueSampleAux = useCallback(
     (files: File[]) => {
-      if (!activeDatasetId) {
+      if (!activeDatasetId || !auxDropTargetsActive.sample) {
         return;
       }
       const defaults = getNexafsAuxUploadDefaults();
@@ -222,7 +222,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
         setNexafsAuxUploadDefaults({ ...defaults, kind: batchKind });
       }
       if (persistedExperimentId && persistedSampleId) {
-        if (!auxAccordionExpanded.sample) {
+        if (!auxDropTargetsActive.sample) {
           return;
         }
         void persistedAuxUpload.uploadSampleFiles(
@@ -245,7 +245,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     },
     [
       activeDatasetId,
-      auxAccordionExpanded.sample,
+      auxDropTargetsActive.sample,
       persistedAuxUpload,
       persistedExperimentId,
       persistedSampleId,
@@ -321,7 +321,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
                   key={activeDataset.id}
                   dataset={activeDataset}
                   onDatasetUpdate={updateDataset}
-                  onPersistedAuxExpandedChange={setAuxAccordionExpanded}
+                  onAuxDropTargetsChange={setAuxDropTargetsActive}
                   onReloadData={() => processDatasetData(activeDataset.id)}
                   instrumentOptions={instrumentOptions}
                   edgeOptions={edgeOptions}

@@ -1,139 +1,70 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDownIcon } from "@heroicons/react/24/outline";
-import { Accordion, Button, Spinner } from "@heroui/react";
+import { Spinner } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { FileIcon, Trash2 } from "lucide-react";
 import {
   AuxFileDropZone,
   AuxUploadDefaultsRow,
 } from "~/components/forms";
 import { GLOBAL_DROP_ZONE_IDS } from "~/hooks/useGlobalFileDropZone";
-import {
-  AUX_FILE_KIND_LABELS,
-  formatAuxFileSize,
-  type AuxFileKind,
-} from "~/lib/aux-file-client";
-import type { PendingAuxFile } from "~/features/process-nexafs/types";
+import type { AuxFileKind } from "~/lib/aux-file-client";
+import type { DatasetState, PendingAuxFile } from "~/features/process-nexafs/types";
 import { usePersistedAuxUpload } from "~/features/process-nexafs/hooks/usePersistedAuxUpload";
 import { trpc } from "~/trpc/client";
+import {
+  DatasetAuxExplorer,
+  type AuxExplorerFile,
+} from "./dataset-aux-explorer";
 
-const EXPERIMENT_AUX_ACCORDION_ID = "persisted-experiment-aux";
-const SAMPLE_AUX_ACCORDION_ID = "persisted-sample-aux";
-
-type SerializedAuxFile = {
-  id: string;
-  originalFilename: string;
-  sizeBytes: number;
-  kind: string;
-  description: string | null;
-};
-
-type PersistedAuxFileListProps = {
-  files: SerializedAuxFile[];
-  canEdit: boolean;
-  deletingFileId: string | null;
-  onDelete: (fileId: string) => void;
-  emptyMessage: string;
-};
-
-function PersistedAuxFileList({
-  files,
-  canEdit,
-  deletingFileId,
-  onDelete,
-  emptyMessage,
-}: PersistedAuxFileListProps) {
-  if (files.length === 0) {
-    return (
-      <p className="text-muted text-xs leading-snug">{emptyMessage}</p>
-    );
-  }
-
-  return (
-    <ul className="flex flex-col gap-1.5">
-      {files.map((file) => {
-        const kindLabel =
-          file.kind in AUX_FILE_KIND_LABELS
-            ? AUX_FILE_KIND_LABELS[file.kind as AuxFileKind]
-            : file.kind;
-        const isDeleting = deletingFileId === file.id;
-        return (
-          <li
-            key={file.id}
-            className="border-border bg-field-background flex items-center gap-2 rounded-lg border px-2.5 py-2"
-          >
-            <FileIcon className="text-muted size-4 shrink-0" aria-hidden />
-            <div className="min-w-0 flex-1">
-              <p className="text-foreground truncate text-sm font-medium">
-                {file.originalFilename}
-              </p>
-              <p className="text-muted text-xs">
-                {kindLabel}
-                {file.description ? ` · ${file.description}` : ""}
-                {" · "}
-                {formatAuxFileSize(file.sizeBytes)}
-              </p>
-            </div>
-            {canEdit ? (
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                aria-label={`Remove ${file.originalFilename}`}
-                isDisabled={isDeleting}
-                onPress={() => onDelete(file.id)}
-              >
-                {isDeleting ? (
-                  <Spinner size="sm" color="current" />
-                ) : (
-                  <Trash2 className="size-4" aria-hidden />
-                )}
-              </Button>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
-  );
-};
-
-export type PersistedAuxAccordionExpanded = {
+/** When true, global experiment or sample aux drop handlers accept file drops. */
+export type AuxDropTargetsActive = {
   experiment: boolean;
   sample: boolean;
 };
 
-export type DatasetPersistedAuxFilesAccordionProps = {
-  experimentId: string;
-  sampleId: string | null;
+/** @deprecated Use {@link AuxDropTargetsActive}. */
+export type PersistedAuxAccordionExpanded = AuxDropTargetsActive;
+
+type DatasetStatePatch =
+  | Partial<DatasetState>
+  | ((dataset: DatasetState) => Partial<DatasetState>);
+
+export type DatasetAuxFilesTabProps = {
+  variant: "draft" | "persisted";
+  dataset: DatasetState;
   pendingKind: AuxFileKind;
   pendingDescription: string;
   onPendingKindChange: (kind: AuxFileKind) => void;
   onPendingDescriptionChange: (description: string) => void;
+  onDatasetUpdate?: (datasetId: string, updates: DatasetStatePatch) => void;
   onValidationError?: (message: string) => void;
   onUploadComplete?: (message: string, type: "success" | "warning") => void;
-  onExpandedChange?: (expanded: PersistedAuxAccordionExpanded) => void;
+  onDropTargetsChange?: (active: AuxDropTargetsActive) => void;
+  auxTabActive: boolean;
 };
 
 /**
- * Accordion below the dataset plot for uploading and listing committed experiment
- * and sample auxiliary files after the experiment row exists in the database.
+ * Two-column auxiliary-files tab: directory explorer on the left and compact
+ * upload drop zones on the right (when the user may edit or the tab is draft).
  */
-export function DatasetPersistedAuxFilesAccordion({
-  experimentId,
-  sampleId,
+export function DatasetAuxFilesTab({
+  variant,
+  dataset,
   pendingKind,
   pendingDescription,
   onPendingKindChange,
   onPendingDescriptionChange,
+  onDatasetUpdate,
   onValidationError,
   onUploadComplete,
-  onExpandedChange,
-}: DatasetPersistedAuxFilesAccordionProps) {
-  const [expandedKeys, setExpandedKeys] = useState(
-    () => new Set([EXPERIMENT_AUX_ACCORDION_ID]),
-  );
+  onDropTargetsChange,
+  auxTabActive,
+}: DatasetAuxFilesTabProps) {
+  const isPersisted = variant === "persisted";
+  const experimentId = dataset.persistedExperimentId ?? "";
+  const sampleId = dataset.persistedSampleId;
+
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [experimentQueue, setExperimentQueue] = useState<PendingAuxFile[]>([]);
   const [sampleQueue, setSampleQueue] = useState<PendingAuxFile[]>([]);
@@ -141,17 +72,18 @@ export function DatasetPersistedAuxFilesAccordion({
 
   const canEditQuery = trpc.experiments.canEditExperiment.useQuery(
     { experimentId },
-    { enabled: Boolean(experimentId) },
+    { enabled: isPersisted && Boolean(experimentId) },
   );
-  const canEdit = canEditQuery.data?.canEdit ?? false;
+  const canEdit = isPersisted ? (canEditQuery.data?.canEdit ?? false) : true;
+  const showUploadPanel = !isPersisted || canEdit;
 
   const experimentListQuery = trpc.experimentFile.list.useQuery(
     { experimentId },
-    { enabled: Boolean(experimentId) },
+    { enabled: isPersisted && Boolean(experimentId) },
   );
   const sampleListQuery = trpc.sampleFile.list.useQuery(
     { sampleId: sampleId ?? "" },
-    { enabled: Boolean(sampleId) },
+    { enabled: isPersisted && Boolean(sampleId) },
   );
 
   const experimentSoftDelete = trpc.experimentFile.softDelete.useMutation({
@@ -169,24 +101,31 @@ export function DatasetPersistedAuxFilesAccordion({
 
   const { uploadProgress, uploadExperimentFiles, uploadSampleFiles } =
     usePersistedAuxUpload({
-      experimentId,
-      sampleId,
+      experimentId: isPersisted ? experimentId : null,
+      sampleId: isPersisted ? sampleId : null,
       onValidationError,
     });
 
-  const experimentExpanded = expandedKeys.has(EXPERIMENT_AUX_ACCORDION_ID);
-  const sampleExpanded = expandedKeys.has(SAMPLE_AUX_ACCORDION_ID);
-
   useEffect(() => {
-    onExpandedChange?.({
-      experiment: experimentExpanded,
-      sample: sampleExpanded,
+    if (!auxTabActive) {
+      onDropTargetsChange?.({ experiment: false, sample: false });
+      return;
+    }
+    onDropTargetsChange?.({
+      experiment: showUploadPanel,
+      sample: showUploadPanel && (isPersisted ? Boolean(sampleId) : true),
     });
-  }, [experimentExpanded, onExpandedChange, sampleExpanded]);
+  }, [
+    auxTabActive,
+    isPersisted,
+    onDropTargetsChange,
+    sampleId,
+    showUploadPanel,
+  ]);
 
   const runExperimentUpload = useCallback(
     async (files: File[]) => {
-      if (!canEdit || files.length === 0) {
+      if (!isPersisted || !canEdit || files.length === 0) {
         return;
       }
       setUploadBusy(true);
@@ -220,6 +159,7 @@ export function DatasetPersistedAuxFilesAccordion({
     },
     [
       canEdit,
+      isPersisted,
       onUploadComplete,
       pendingDescription,
       pendingKind,
@@ -229,7 +169,7 @@ export function DatasetPersistedAuxFilesAccordion({
 
   const runSampleUpload = useCallback(
     async (files: File[]) => {
-      if (!canEdit || !sampleId || files.length === 0) {
+      if (!isPersisted || !canEdit || !sampleId || files.length === 0) {
         return;
       }
       setUploadBusy(true);
@@ -263,6 +203,7 @@ export function DatasetPersistedAuxFilesAccordion({
     },
     [
       canEdit,
+      isPersisted,
       onUploadComplete,
       pendingDescription,
       pendingKind,
@@ -273,36 +214,57 @@ export function DatasetPersistedAuxFilesAccordion({
 
   const handleExperimentQueueChange = useCallback(
     (next: PendingAuxFile[]) => {
-      const added = next.filter(
-        (entry) =>
-          !experimentQueue.some((row) => row.clientKey === entry.clientKey),
-      );
-      setExperimentQueue(next);
-      if (added.length > 0) {
-        void runExperimentUpload(added.map((row) => row.file));
+      if (isPersisted) {
+        const added = next.filter(
+          (entry) =>
+            !experimentQueue.some((row) => row.clientKey === entry.clientKey),
+        );
+        setExperimentQueue(next);
+        if (added.length > 0) {
+          void runExperimentUpload(added.map((row) => row.file));
+        }
+        return;
       }
+      onDatasetUpdate?.(dataset.id, {
+        pendingExperimentAuxFiles: next,
+      });
     },
-    [experimentQueue, runExperimentUpload],
+    [
+      dataset.id,
+      experimentQueue,
+      isPersisted,
+      onDatasetUpdate,
+      runExperimentUpload,
+    ],
   );
 
   const handleSampleQueueChange = useCallback(
     (next: PendingAuxFile[]) => {
-      const added = next.filter(
-        (entry) =>
-          !sampleQueue.some((row) => row.clientKey === entry.clientKey),
-      );
-      setSampleQueue(next);
-      if (added.length > 0) {
-        void runSampleUpload(added.map((row) => row.file));
+      if (isPersisted) {
+        const added = next.filter(
+          (entry) =>
+            !sampleQueue.some((row) => row.clientKey === entry.clientKey),
+        );
+        setSampleQueue(next);
+        if (added.length > 0) {
+          void runSampleUpload(added.map((row) => row.file));
+        }
+        return;
       }
+      onDatasetUpdate?.(dataset.id, {
+        pendingSampleAuxFiles: next,
+      });
     },
-    [runSampleUpload, sampleQueue],
+    [dataset.id, isPersisted, onDatasetUpdate, runSampleUpload, sampleQueue],
   );
 
-  const experimentFiles = experimentListQuery.data ?? [];
-  const sampleFiles = sampleListQuery.data ?? [];
+  const experimentFiles: AuxExplorerFile[] = experimentListQuery.data ?? [];
+  const sampleFiles: AuxExplorerFile[] = sampleListQuery.data ?? [];
 
   const readOnlyHint = useMemo(() => {
+    if (!isPersisted) {
+      return null;
+    }
     if (canEditQuery.isLoading) {
       return "Checking edit permissions…";
     }
@@ -310,166 +272,118 @@ export function DatasetPersistedAuxFilesAccordion({
       return "You can view auxiliary files on this dataset but cannot add or remove them.";
     }
     return null;
-  }, [canEdit, canEditQuery.isLoading]);
+  }, [canEdit, canEditQuery.isLoading, isPersisted]);
+
+  const experimentDropFiles = isPersisted
+    ? experimentQueue
+    : dataset.pendingExperimentAuxFiles;
+  const sampleDropFiles = isPersisted
+    ? sampleQueue
+    : dataset.pendingSampleAuxFiles;
 
   return (
     <section
-      className="flex flex-col gap-3"
-      aria-labelledby="persisted-aux-files-heading"
+      className="flex min-h-0 w-full flex-1 flex-col gap-3"
+      aria-labelledby="dataset-aux-files-heading"
     >
       <div>
         <h2
-          id="persisted-aux-files-heading"
+          id="dataset-aux-files-heading"
           className="text-muted text-sm font-medium leading-none"
         >
           Auxiliary files
         </h2>
-        <p className="text-muted mt-1 text-xs leading-snug">
-          Upload attaches files to this dataset immediately. Expand a section to
-          enable drag-and-drop for that target.
-        </p>
         {readOnlyHint ? (
           <p className="text-muted mt-1 text-xs leading-snug">{readOnlyHint}</p>
         ) : null}
       </div>
 
-      {canEdit ? (
-        <AuxUploadDefaultsRow
-          pendingKind={pendingKind}
-          pendingDescription={pendingDescription}
-          onPendingKindChange={onPendingKindChange}
-          onPendingDescriptionChange={onPendingDescriptionChange}
-          disabled={uploadBusy}
-        />
-      ) : null}
-
-      <Accordion
-        allowsMultipleExpanded
-        variant="surface"
-        aria-label="Persisted auxiliary files"
-        className="border-border w-full rounded-lg border"
-        expandedKeys={expandedKeys}
-        onExpandedChange={(keys) => {
-          setExpandedKeys(new Set([...keys].map(String)));
-        }}
+      <div
+        className={cn(
+          "grid min-h-[400px] w-full gap-4",
+          showUploadPanel ? "lg:grid-cols-2" : "grid-cols-1",
+        )}
       >
-        <Accordion.Item id={EXPERIMENT_AUX_ACCORDION_ID}>
-          <Accordion.Heading>
-            <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
-              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
-                Experiment files
-              </span>
-              <span className="text-muted shrink-0 text-xs tabular-nums">
-                {experimentFiles.length}
-              </span>
-              <Accordion.Indicator className="text-muted shrink-0 [&>svg]:size-4">
-                <ChevronDownIcon className="h-4 w-4" aria-hidden />
-              </Accordion.Indicator>
-            </Accordion.Trigger>
-          </Accordion.Heading>
-          <Accordion.Panel>
-            <Accordion.Body className="flex flex-col gap-3 pt-0">
-              <PersistedAuxFileList
-                files={experimentFiles}
-                canEdit={canEdit}
-                deletingFileId={deletingFileId}
-                onDelete={(fileId) => {
+        <DatasetAuxExplorer
+          variant={variant}
+          experimentFiles={experimentFiles}
+          sampleFiles={sampleFiles}
+          sampleLinked={isPersisted ? Boolean(sampleId) : true}
+          experimentLoading={experimentListQuery.isLoading}
+          sampleLoading={sampleListQuery.isLoading}
+          draftPendingExperiment={dataset.pendingExperimentAuxFiles}
+          draftPendingSample={dataset.pendingSampleAuxFiles}
+          canEdit={canEdit}
+          deletingFileId={deletingFileId}
+          onDeleteExperimentFile={
+            isPersisted && canEdit
+              ? (fileId) => {
                   setDeletingFileId(fileId);
                   experimentSoftDelete.mutate({ experimentId, fileId });
-                }}
-                emptyMessage="No experiment auxiliary files uploaded yet."
-              />
-              {canEdit && experimentExpanded ? (
-                <AuxFileDropZone
-                  variant="compact"
-                  hideUploadDefaults
-                  pendingKind={pendingKind}
-                  pendingDescription={pendingDescription}
-                  scope="experiment"
-                  title="Add experiment files"
-                  description="Protocols, raw beamline data (up to 500 MB each)."
-                  globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
-                  files={experimentQueue}
-                  onFilesChange={handleExperimentQueueChange}
-                  disabled={uploadBusy}
-                  uploadProgress={uploadProgress}
-                  onValidationError={onValidationError}
-                />
-              ) : null}
-            </Accordion.Body>
-          </Accordion.Panel>
-        </Accordion.Item>
+                }
+              : undefined
+          }
+          onDeleteSampleFile={
+            isPersisted && canEdit && sampleId
+              ? (fileId) => {
+                  setDeletingFileId(fileId);
+                  sampleSoftDelete.mutate({ sampleId, fileId });
+                }
+              : undefined
+          }
+        />
 
-        <Accordion.Item id={SAMPLE_AUX_ACCORDION_ID}>
-          <Accordion.Heading>
-            <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
-              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
-                Sample files
-              </span>
-              <span className="text-muted shrink-0 text-xs tabular-nums">
-                {sampleId ? sampleFiles.length : "—"}
-              </span>
-              <Accordion.Indicator className="text-muted shrink-0 [&>svg]:size-4">
-                <ChevronDownIcon className="h-4 w-4" aria-hidden />
-              </Accordion.Indicator>
-            </Accordion.Trigger>
-          </Accordion.Heading>
-          <Accordion.Panel>
-            <Accordion.Body className="flex flex-col gap-3 pt-0">
-              {!sampleId ? (
-                <p className="text-muted text-xs leading-snug">
-                  No sample is linked to this experiment.
-                </p>
-              ) : (
-                <>
-                  <PersistedAuxFileList
-                    files={sampleFiles}
-                    canEdit={canEdit}
-                    deletingFileId={deletingFileId}
-                    onDelete={(fileId) => {
-                      if (!sampleId) {
-                        return;
-                      }
-                      setDeletingFileId(fileId);
-                      sampleSoftDelete.mutate({ sampleId, fileId });
-                    }}
-                    emptyMessage="No sample auxiliary files uploaded yet."
-                  />
-                  {canEdit && sampleExpanded ? (
-                    <AuxFileDropZone
-                      variant="compact"
-                      hideUploadDefaults
-                      pendingKind={pendingKind}
-                      pendingDescription={pendingDescription}
-                      scope="sample"
-                      title="Add sample files"
-                      description="Images and prep notes (up to 50 MB each)."
-                      globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX}
-                      files={sampleQueue}
-                      onFilesChange={handleSampleQueueChange}
-                      disabled={uploadBusy}
-                      uploadProgress={uploadProgress}
-                      onValidationError={onValidationError}
-                    />
-                  ) : null}
-                </>
-              )}
-            </Accordion.Body>
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
-
-      {uploadBusy ? (
-        <p
-          className={cn(
-            "text-muted flex items-center gap-2 text-xs",
-          )}
-          role="status"
-        >
-          <Spinner size="sm" color="current" />
-          Uploading auxiliary files…
-        </p>
-      ) : null}
+        {showUploadPanel ? (
+          <div className="flex min-h-[360px] flex-col gap-3">
+            <AuxUploadDefaultsRow
+              pendingKind={pendingKind}
+              pendingDescription={pendingDescription}
+              onPendingKindChange={onPendingKindChange}
+              onPendingDescriptionChange={onPendingDescriptionChange}
+              disabled={uploadBusy}
+            />
+            <AuxFileDropZone
+              variant="compact"
+              hideUploadDefaults
+              pendingKind={pendingKind}
+              pendingDescription={pendingDescription}
+              scope="experiment"
+              title="Experiment files"
+              description="Protocols, raw beamline data (up to 500 MB each)."
+              globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
+              files={experimentDropFiles}
+              onFilesChange={handleExperimentQueueChange}
+              disabled={uploadBusy}
+              uploadProgress={isPersisted ? uploadProgress : undefined}
+              onValidationError={onValidationError}
+            />
+            <AuxFileDropZone
+              variant="compact"
+              hideUploadDefaults
+              pendingKind={pendingKind}
+              pendingDescription={pendingDescription}
+              scope="sample"
+              title="Sample files"
+              description="Images and prep notes (up to 50 MB each)."
+              globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX}
+              files={sampleDropFiles}
+              onFilesChange={handleSampleQueueChange}
+              disabled={uploadBusy}
+              uploadProgress={isPersisted ? uploadProgress : undefined}
+              onValidationError={onValidationError}
+            />
+            {uploadBusy ? (
+              <p
+                className="text-muted flex items-center gap-2 text-xs"
+                role="status"
+              >
+                <Spinner size="sm" color="current" />
+                Uploading auxiliary files…
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }

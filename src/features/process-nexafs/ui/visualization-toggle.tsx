@@ -1,12 +1,17 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { TableCellsIcon, ChartBarIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
+import {
+  TableCellsIcon,
+  ChartBarIcon,
+  PencilSquareIcon,
+  FolderIcon,
+} from "@heroicons/react/24/outline";
 import { ChartLine, ChartArea, ChartScatter } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { plotToolbarTooltipContentClass } from "~/components/plots/toolbars";
 
-export type VisualizationMode = "graph" | "table";
+export type VisualizationMode = "graph" | "table" | "aux";
 export type GraphStyle = "line" | "scatter" | "area";
 
 const inactiveButtonClass =
@@ -80,6 +85,20 @@ export function VisualizationToggle({
           </button>
           <Tooltip.Content className={plotToolbarTooltipContentClass}>
             Show table: View every point in a sortable grid.
+          </Tooltip.Content>
+        </Tooltip>
+        <Tooltip delay={0}>
+          <button
+            type="button"
+            onClick={() => onModeChange("aux")}
+            className={mode === "aux" ? activeButtonClass : inactiveButtonClass}
+          >
+            <FolderIcon className="h-4 w-4" />
+            <span>Auxiliary files</span>
+          </button>
+          <Tooltip.Content className={plotToolbarTooltipContentClass}>
+            Auxiliary files: Browse experiment and sample attachments and upload
+            supporting data.
           </Tooltip.Content>
         </Tooltip>
       </div>
