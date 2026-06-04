@@ -275,8 +275,8 @@ export function PeriodicEdgeModal({
       </div>
 
       {/* Energy density chart */}
-      <div className="mt-4 border-t border-border pt-3">
-        <p className="text-muted mb-2 text-xs font-semibold uppercase tracking-wide">
+      <div className="mt-3 border-t border-border pt-2">
+        <p className="text-muted mb-1 text-xs font-medium tracking-wide">
           Catalog photon energy coverage
         </p>
         {catalogStatsQuery.data ? (
