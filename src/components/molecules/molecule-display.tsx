@@ -105,7 +105,8 @@ function CopyButton({
   const [showCheck, setShowCheck] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
     onCopy(text, label);
     setShowCheck(true);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -524,13 +525,29 @@ function CompactMoleculeCopyRow({
   onCopy: (text: string, label: string) => void;
 }) {
   const shown = displayText ?? text;
+  const copyIconVisibilityClass =
+    "pointer-events-none opacity-0 motion-safe:transition-opacity group-hover/copyline:pointer-events-auto group-hover/copyline:opacity-100 group-focus-within/copyline:pointer-events-auto group-focus-within/copyline:opacity-100";
   return (
     <div
-      className="group/copyline flex min-w-0 max-w-full items-center gap-0.5"
-      onClick={(e) => e.stopPropagation()}
+      role="group"
+      aria-label={`Copy ${label}`}
+      className="group/copyline relative inline-flex w-fit max-w-full cursor-pointer items-center rounded-md px-1 py-0.5 -mx-1 hover:bg-muted/40 focus-within:bg-muted/40 motion-safe:transition-colors"
+      onClick={(e) => {
+        e.stopPropagation();
+        onCopy(text, label);
+      }}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          onCopy(text, label);
+        }
+      }}
+      tabIndex={0}
     >
       <span
-        className="text-text-tertiary min-w-0 flex-1 truncate font-mono text-[10px] leading-snug tabular-nums sm:text-[11px]"
+        className="text-text-tertiary min-w-0 truncate pr-6 font-mono text-[10px] leading-snug tabular-nums sm:text-[11px]"
         title={shown}
       >
         {shown}
@@ -541,7 +558,7 @@ function CompactMoleculeCopyRow({
         copiedLabel={copiedLabel}
         onCopy={onCopy}
         size="inline"
-        className="pointer-events-none opacity-0 motion-safe:transition-opacity group-hover/copyline:pointer-events-auto group-hover/copyline:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+        className={`absolute top-1/2 right-0 -translate-y-1/2 ${copyIconVisibilityClass}`}
       />
     </div>
   );
