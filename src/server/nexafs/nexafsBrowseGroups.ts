@@ -16,13 +16,24 @@ import {
 } from "~/lib/nexafs-contributors";
 
 export type NexafsBrowseGroupFilters = {
+  /** @deprecated Use `moleculeIds` for multi-select. Normalized to a one-element array internally. */
   moleculeId?: string;
+  /** @deprecated Use `edgeIds` for multi-select. Normalized to a one-element array internally. */
   edgeId?: string;
+  /** @deprecated Use `instrumentIds` for multi-select. Normalized to a one-element array internally. */
   instrumentId?: string;
+  /** Multi-select molecule UUIDs; OR-combined within field. */
+  moleculeIds?: string[];
+  /** Multi-select edge UUIDs; OR-combined within field. */
+  edgeIds?: string[];
+  /** Multi-select instrument IDs; OR-combined within field. */
+  instrumentIds?: string[];
+  /** Multi-select contributor ORCID iDs; OR-combined within field. */
+  contributorOrcids?: string[];
   experimentType?: ExperimentType;
   verifiedOnly?: boolean;
   verificationSource?: "either" | "publication" | "atlas";
-  /** ORCID iD: experiments with an attribution record for this contributor. */
+  /** @deprecated Use `contributorOrcids`. Single ORCID iD for backward compatibility. */
   contributorUserId?: string;
   /** Normalized DOI exact match on `experiment_metrics.original_data_doi`. */
   sourcePaperDoi?: string;
@@ -34,28 +45,55 @@ export function buildNexafsBrowseWhereSql(
 ): Prisma.Sql {
   const parts: Prisma.Sql[] = [];
 
-  if (filters.moleculeId) {
-    parts.push(Prisma.sql`s.moleculeid = ${filters.moleculeId}::uuid`);
+  const moleculeIds = filters.moleculeIds ?? (filters.moleculeId ? [filters.moleculeId] : []);
+  const edgeIds = filters.edgeIds ?? (filters.edgeId ? [filters.edgeId] : []);
+  const instrumentIds = filters.instrumentIds ?? (filters.instrumentId ? [filters.instrumentId] : []);
+  const contributorOrcids = filters.contributorOrcids ?? (filters.contributorUserId ? [filters.contributorUserId] : []);
+
+  if (moleculeIds.length === 1) {
+    parts.push(Prisma.sql`s.moleculeid = ${moleculeIds[0]}::uuid`);
+  } else if (moleculeIds.length > 1) {
+    const joined = Prisma.join(moleculeIds.map((id) => Prisma.sql`${id}::uuid`));
+    parts.push(Prisma.sql`s.moleculeid = ANY(ARRAY[${joined}])`);
   }
-  if (filters.edgeId) {
-    parts.push(Prisma.sql`e.edgeid = ${filters.edgeId}::uuid`);
+
+  if (edgeIds.length === 1) {
+    parts.push(Prisma.sql`e.edgeid = ${edgeIds[0]}::uuid`);
+  } else if (edgeIds.length > 1) {
+    const joined = Prisma.join(edgeIds.map((id) => Prisma.sql`${id}::uuid`));
+    parts.push(Prisma.sql`e.edgeid = ANY(ARRAY[${joined}])`);
   }
-  if (filters.instrumentId) {
-    parts.push(Prisma.sql`e.instrumentid = ${filters.instrumentId}`);
+
+  if (instrumentIds.length === 1) {
+    parts.push(Prisma.sql`e.instrumentid = ${instrumentIds[0]}`);
+  } else if (instrumentIds.length > 1) {
+    const joined = Prisma.join(instrumentIds.map((id) => Prisma.sql`${id}`));
+    parts.push(Prisma.sql`e.instrumentid = ANY(ARRAY[${joined}])`);
   }
+
   if (filters.experimentType) {
     parts.push(
       Prisma.sql`e.experimenttype = ${filters.experimentType}::"ExperimentType"`,
     );
   }
-  if (filters.contributorUserId) {
+
+  if (contributorOrcids.length === 1) {
     parts.push(Prisma.sql`EXISTS (
       SELECT 1
       FROM experiment_contributors ecf
       WHERE ecf.experiment_id = e.id
-        AND ecf.orcid_id = ${filters.contributorUserId}
+        AND ecf.orcid_id = ${contributorOrcids[0]}
+    )`);
+  } else if (contributorOrcids.length > 1) {
+    const joined = Prisma.join(contributorOrcids.map((o) => Prisma.sql`${o}`));
+    parts.push(Prisma.sql`EXISTS (
+      SELECT 1
+      FROM experiment_contributors ecf
+      WHERE ecf.experiment_id = e.id
+        AND ecf.orcid_id = ANY(ARRAY[${joined}])
     )`);
   }
+
   if (filters.sourcePaperDoi) {
     parts.push(Prisma.sql`EXISTS (
       SELECT 1

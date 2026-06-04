@@ -413,6 +413,10 @@ export const experimentsRouter = createTRPCRouter({
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
+        moleculeIds: z.array(z.string().uuid()).optional(),
+        edgeIds: z.array(z.string().uuid()).optional(),
+        instrumentIds: z.array(z.string()).optional(),
+        contributorOrcids: z.array(z.string()).optional(),
         experimentType: z.nativeEnum(ExperimentType).optional(),
         verifiedOnly: z.boolean().default(false),
         verificationSource: nexafsVerificationSourceSchema,
@@ -426,6 +430,10 @@ export const experimentsRouter = createTRPCRouter({
           moleculeId: input.moleculeId,
           edgeId: input.edgeId,
           instrumentId: input.instrumentId,
+          moleculeIds: input.moleculeIds,
+          edgeIds: input.edgeIds,
+          instrumentIds: input.instrumentIds,
+          contributorOrcids: input.contributorOrcids,
           experimentType: input.experimentType,
           verifiedOnly: input.verifiedOnly,
           verificationSource: input.verificationSource,
@@ -454,6 +462,10 @@ export const experimentsRouter = createTRPCRouter({
         moleculeId: z.string().uuid().optional(),
         edgeId: z.string().uuid().optional(),
         instrumentId: z.string().optional(),
+        moleculeIds: z.array(z.string().uuid()).optional(),
+        edgeIds: z.array(z.string().uuid()).optional(),
+        instrumentIds: z.array(z.string()).optional(),
+        contributorOrcids: z.array(z.string()).optional(),
         experimentType: z.nativeEnum(ExperimentType).optional(),
         verifiedOnly: z.boolean().default(false),
         verificationSource: nexafsVerificationSourceSchema,
@@ -467,6 +479,10 @@ export const experimentsRouter = createTRPCRouter({
           moleculeId: input.moleculeId,
           edgeId: input.edgeId,
           instrumentId: input.instrumentId,
+          moleculeIds: input.moleculeIds,
+          edgeIds: input.edgeIds,
+          instrumentIds: input.instrumentIds,
+          contributorOrcids: input.contributorOrcids,
           experimentType: input.experimentType,
           verifiedOnly: input.verifiedOnly,
           verificationSource: input.verificationSource,
@@ -709,6 +725,217 @@ export const experimentsRouter = createTRPCRouter({
         data: { comments },
       });
       return { comments };
+    }),
+
+  /**
+   * Returns the top-N most-measured values for each facet dimension, ordered
+   * by experiment count descending. Used to populate the popularity panel in
+   * the unified search bar dropdown.
+   *
+   * All counts reflect total experiments in the catalog with no active filters.
+   * Results are capped at 30 per facet to keep the payload small.
+   */
+  facetCounts: publicProcedure.query(async ({ ctx }) => {
+    type EdgeRow = { id: string; targetatom: string; corestate: string; count: bigint };
+    type InstrumentRow = { id: string; name: string; facility_name: string | null; count: bigint };
+    type MolRow = { id: string; name: string; count: bigint };
+    type ContributorRow = { orcid_id: string; name: string | null; count: bigint };
+
+    const [edgeRows, instRows, molRows, contRows] = await Promise.all([
+      ctx.db.$queryRaw<EdgeRow[]>`
+        SELECT ed.id, ed.targetatom, ed.corestate, COUNT(e.id)::bigint AS count
+        FROM edges ed
+        INNER JOIN experiments e ON e.edgeid = ed.id
+        GROUP BY ed.id, ed.targetatom, ed.corestate
+        ORDER BY count DESC, ed.targetatom ASC, ed.corestate ASC
+        LIMIT 30
+      `,
+      ctx.db.$queryRaw<InstrumentRow[]>`
+        SELECT i.id, i.name, f.name AS facility_name, COUNT(e.id)::bigint AS count
+        FROM instruments i
+        INNER JOIN experiments e ON e.instrumentid = i.id
+        LEFT JOIN facilities f ON f.id = i.facilityid
+        GROUP BY i.id, i.name, f.name
+        ORDER BY count DESC, i.name ASC
+        LIMIT 30
+      `,
+      ctx.db.$queryRaw<MolRow[]>`
+        SELECT m.id, COALESCE(ms.synonym, m.iupacname) AS name, COUNT(e.id)::bigint AS count
+        FROM molecules m
+        INNER JOIN samples s ON s.moleculeid = m.id
+        INNER JOIN experiments e ON e.sampleid = s.id
+        LEFT JOIN LATERAL (
+          SELECT ms2.synonym FROM moleculesynonyms ms2
+          WHERE ms2.moleculeid = m.id
+          ORDER BY ms2."order" ASC NULLS LAST, ms2.synonym ASC
+          LIMIT 1
+        ) ms ON TRUE
+        GROUP BY m.id, m.iupacname, ms.synonym
+        ORDER BY count DESC, name ASC
+        LIMIT 30
+      `,
+      ctx.db.$queryRaw<ContributorRow[]>`
+        SELECT
+          ec.orcid_id,
+          CASE
+            WHEN u.name IS NOT NULL AND ec.claim_status = 'accepted' AND ec.is_public_profile_visible
+              THEN u.name
+            ELSE ec.orcid_id
+          END AS name,
+          COUNT(DISTINCT ec.experiment_id)::bigint AS count
+        FROM experiment_contributors ec
+        LEFT JOIN next_auth."user" u ON u.id = ec.user_id
+        WHERE ec.claim_status NOT IN ('declined', 'unclaimed')
+        GROUP BY ec.orcid_id, u.name, ec.claim_status, ec.is_public_profile_visible
+        ORDER BY count DESC
+        LIMIT 30
+      `,
+    ]);
+
+    return {
+      edges: edgeRows.map((r) => ({
+        id: r.id,
+        label: `${r.targetatom} ${r.corestate}`,
+        count: Number(r.count),
+      })),
+      instruments: instRows.map((r) => ({
+        id: r.id,
+        label: r.facility_name ? `${r.name} (${r.facility_name})` : r.name,
+        count: Number(r.count),
+      })),
+      molecules: molRows.map((r) => ({
+        id: r.id,
+        label: r.name,
+        count: Number(r.count),
+      })),
+      contributors: contRows.map((r) => ({
+        id: r.orcid_id,
+        label: r.name ?? r.orcid_id,
+        count: Number(r.count),
+      })),
+    };
+  }),
+
+  /**
+   * Returns grouped typeahead matches across all four facet dimensions for a
+   * given free-text query. Used to populate the unified search bar dropdown as
+   * the user types.
+   *
+   * Matches molecule names and synonyms, edge by `targetatom`+`corestate`,
+   * instrument by name and facility name, and contributor by display name or
+   * ORCID iD. Each group is capped at `limitPerGroup` (default 5).
+   *
+   * @param input.query - Non-empty search string.
+   * @param input.limitPerGroup - Maximum matches per facet group (1-20, default 5).
+   */
+  searchEntities: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1).max(200),
+        limitPerGroup: z.number().min(1).max(20).default(5),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const pattern = `%${input.query.trim()}%`;
+      const lim = input.limitPerGroup;
+
+      type EdgeRow = { id: string; targetatom: string; corestate: string; count: bigint };
+      type InstrumentRow = { id: string; name: string; facility_name: string | null; count: bigint };
+      type MolRow = { id: string; name: string; count: bigint };
+      type ContributorRow = { orcid_id: string; name: string | null; count: bigint };
+
+      const [edgeRows, instRows, molRows, contRows] = await Promise.all([
+        ctx.db.$queryRaw<EdgeRow[]>`
+          SELECT ed.id, ed.targetatom, ed.corestate, COUNT(e.id)::bigint AS count
+          FROM edges ed
+          LEFT JOIN experiments e ON e.edgeid = ed.id
+          WHERE ed.targetatom ILIKE ${pattern}
+            OR ed.corestate ILIKE ${pattern}
+            OR (ed.targetatom || ' ' || ed.corestate) ILIKE ${pattern}
+          GROUP BY ed.id, ed.targetatom, ed.corestate
+          ORDER BY count DESC, ed.targetatom ASC
+          LIMIT ${lim}
+        `,
+        ctx.db.$queryRaw<InstrumentRow[]>`
+          SELECT i.id, i.name, f.name AS facility_name, COUNT(e.id)::bigint AS count
+          FROM instruments i
+          LEFT JOIN facilities f ON f.id = i.facilityid
+          LEFT JOIN experiments e ON e.instrumentid = i.id
+          WHERE i.name ILIKE ${pattern} OR COALESCE(f.name, '') ILIKE ${pattern}
+          GROUP BY i.id, i.name, f.name
+          ORDER BY count DESC, i.name ASC
+          LIMIT ${lim}
+        `,
+        ctx.db.$queryRaw<MolRow[]>`
+          SELECT m.id, COALESCE(ms.synonym, m.iupacname) AS name, COUNT(e.id)::bigint AS count
+          FROM molecules m
+          INNER JOIN samples s ON s.moleculeid = m.id
+          LEFT JOIN experiments e ON e.sampleid = s.id
+          LEFT JOIN LATERAL (
+            SELECT ms2.synonym FROM moleculesynonyms ms2
+            WHERE ms2.moleculeid = m.id
+            ORDER BY ms2."order" ASC NULLS LAST, ms2.synonym ASC
+            LIMIT 1
+          ) ms ON TRUE
+          WHERE m.iupacname ILIKE ${pattern}
+            OR m.chemicalformula ILIKE ${pattern}
+            OR EXISTS (
+              SELECT 1 FROM moleculesynonyms ms3
+              WHERE ms3.moleculeid = m.id AND ms3.synonym ILIKE ${pattern}
+            )
+          GROUP BY m.id, m.iupacname, ms.synonym
+          ORDER BY count DESC, name ASC
+          LIMIT ${lim}
+        `,
+        ctx.db.$queryRaw<ContributorRow[]>`
+          SELECT
+            ec.orcid_id,
+            CASE
+              WHEN u.name IS NOT NULL AND ec.claim_status = 'accepted' AND ec.is_public_profile_visible
+                THEN u.name
+              ELSE ec.orcid_id
+            END AS name,
+            COUNT(DISTINCT ec.experiment_id)::bigint AS count
+          FROM experiment_contributors ec
+          LEFT JOIN next_auth."user" u ON u.id = ec.user_id
+          WHERE ec.claim_status NOT IN ('declined', 'unclaimed')
+            AND (
+              ec.orcid_id ILIKE ${pattern}
+              OR (
+                u.name IS NOT NULL
+                AND ec.claim_status = 'accepted'
+                AND ec.is_public_profile_visible
+                AND u.name ILIKE ${pattern}
+              )
+            )
+          GROUP BY ec.orcid_id, u.name, ec.claim_status, ec.is_public_profile_visible
+          ORDER BY count DESC
+          LIMIT ${lim}
+        `,
+      ]);
+
+      return {
+        edges: edgeRows.map((r) => ({
+          id: r.id,
+          label: `${r.targetatom} ${r.corestate}`,
+          count: Number(r.count),
+        })),
+        instruments: instRows.map((r) => ({
+          id: r.id,
+          label: r.facility_name ? `${r.name} (${r.facility_name})` : r.name,
+          count: Number(r.count),
+        })),
+        molecules: molRows.map((r) => ({
+          id: r.id,
+          label: r.name,
+          count: Number(r.count),
+        })),
+        contributors: contRows.map((r) => ({
+          id: r.orcid_id,
+          label: r.name ?? r.orcid_id,
+          count: Number(r.count),
+        })),
+      };
     }),
 
   listEdges: publicProcedure.query(async ({ ctx }) => {
