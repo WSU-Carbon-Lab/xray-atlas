@@ -167,6 +167,7 @@ export function AuxFileDropZone({
   const [localKind, setLocalKind] = useState<AuxFileKind>("other");
   const [localDescription, setLocalDescription] = useState("");
   const [isHovering, setIsHovering] = useState(false);
+  const [isStackHovered, setIsStackHovered] = useState(false);
   const [pointer, setPointer] = useState({ x: 50, y: 50 });
 
   const globalDropState = useOptionalGlobalFileDropZoneContext();
@@ -275,6 +276,18 @@ export function AuxFileDropZone({
   });
 
   const hasQueuedInStack = isCompact && stackedPageFiles.length > 0;
+  const hasMultiFile = isCompact && files.length >= 2;
+  const stackAccent = scope === "experiment" ? "danger" : "accent";
+  const experimentDangerZone =
+    isCompact &&
+    scope === "experiment" &&
+    !showGlobalOverlay &&
+    (hasMultiFile || (isHovering && files.length > 0));
+  const sampleFilledZone =
+    isCompact &&
+    scope === "sample" &&
+    !showGlobalOverlay &&
+    hasMultiFile;
 
   const dropTargetProps = globalDropZoneId
     ? globalDropZoneProps(globalDropZoneId)
@@ -299,8 +312,12 @@ export function AuxFileDropZone({
         isCompact
           ? "border-border min-h-[6.75rem] flex-1 px-3 py-3"
           : "border-border min-h-[8.5rem] px-4 py-5 gap-2",
-        (showGlobalOverlay || isHovering) && "border-accent/70 bg-accent/5",
+        (showGlobalOverlay ||
+          (isHovering && !experimentDangerZone) ||
+          sampleFilledZone) &&
+          "border-accent/70 bg-accent/5",
         showGlobalOverlay && "border-accent bg-accent/8",
+        experimentDangerZone && "border-danger/70 bg-danger/5",
         disabled && "cursor-not-allowed opacity-60",
       )}
       onClick={() => {
@@ -332,21 +349,36 @@ export function AuxFileDropZone({
           visualKind={dragVisualKind}
         />
       ) : null}
-      <StackedPageDropVisual
-        visualKind={dragVisualKind}
-        dropTypeLabel={
-          showGlobalOverlay ? (globalDropState?.fileTypeLabel ?? null) : null
-        }
-        isActive={isHovering || showGlobalOverlay}
-        isDragHighlight={showGlobalOverlay}
-        pointerX={pointer.x}
-        pointerY={pointer.y}
-        files={isCompact ? stackedPageFiles : undefined}
+      <div
         className={cn(
-          "motion-safe:transition-opacity motion-safe:duration-200",
+          "relative flex w-full justify-center",
+          isStackHovered && hasQueuedInStack && "min-h-[5.5rem]",
           showGlobalOverlay && "opacity-0",
         )}
-      />
+        onMouseEnter={() => {
+          if (hasQueuedInStack) {
+            setIsStackHovered(true);
+          }
+        }}
+        onMouseLeave={() => setIsStackHovered(false)}
+      >
+        <StackedPageDropVisual
+          visualKind={dragVisualKind}
+          dropTypeLabel={
+            showGlobalOverlay ? (globalDropState?.fileTypeLabel ?? null) : null
+          }
+          isActive={isHovering || showGlobalOverlay}
+          isDragHighlight={showGlobalOverlay}
+          filledStack={hasMultiFile}
+          stackAccent={stackAccent}
+          expandToGridOnHover={hasQueuedInStack}
+          isStackHovered={isStackHovered}
+          pointerX={pointer.x}
+          pointerY={pointer.y}
+          files={isCompact ? stackedPageFiles : undefined}
+          className="motion-safe:transition-opacity motion-safe:duration-200"
+        />
+      </div>
       <p
         className={cn(
           "text-foreground font-medium",

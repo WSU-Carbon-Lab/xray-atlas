@@ -6,6 +6,7 @@ export {
   AuxFileVisualIcon,
   StackedFileIcons,
   StackedPageDropVisual,
+  type StackedPageStackAccent,
   type StackedFileEntry,
   type StackedPageQueuedFile,
 } from "./StackedFileIcons";
