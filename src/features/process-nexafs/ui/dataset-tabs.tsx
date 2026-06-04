@@ -16,9 +16,11 @@ import {
   parseNexafsFilename,
 } from "~/features/process-nexafs/utils/filenameParser";
 import { useDatasetStatus } from "./hooks/use-dataset-status";
+import { ContributionFileDropOverlay } from "@/components/contribute";
 import {
   globalDropZoneProps,
   GLOBAL_DROP_ZONE_IDS,
+  useGlobalFileDropZoneContext,
 } from "~/hooks/useGlobalFileDropZone";
 import { trpc } from "~/trpc/client";
 import {
@@ -301,6 +303,9 @@ export function DatasetTabs({
   edgeOptions,
   updateDataset,
 }: DatasetTabsProps) {
+  const dropState = useGlobalFileDropZoneContext();
+  const newDatasetZoneId = GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET;
+
   const [modalType, setModalType] = useState<DescriptorModalType>(null);
   const [datasetIdForModal, setDatasetIdForModal] = useState<string | null>(
     null,
@@ -405,9 +410,16 @@ export function DatasetTabs({
   return (
     <>
       <div
-        {...globalDropZoneProps(GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET)}
-        className="border-border bg-surface/50 mb-6 flex min-w-0 items-center gap-3 rounded-xl border px-4 py-3 shadow-sm"
+        {...globalDropZoneProps(newDatasetZoneId)}
+        className="border-border bg-surface/50 relative mb-6 flex min-w-0 items-center gap-3 rounded-xl border px-4 py-3 shadow-sm"
       >
+        <ContributionFileDropOverlay
+          variant="inset"
+          isDragging={dropState.showOverlayForZone(newDatasetZoneId)}
+          fileKind={dropState.spectrumFileKind ?? "mixed"}
+          fileName={dropState.fileName}
+          messageOverride={dropState.messageForZone(newDatasetZoneId)}
+        />
         <div className="min-w-0 flex-1 overflow-x-auto">
           <Tabs
             selectedKey={validKey}

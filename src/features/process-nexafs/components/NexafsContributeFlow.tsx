@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, type ReactNode } from "react";
 import { Form } from "@heroui/react";
 import {
   CheckIcon,
@@ -24,7 +24,12 @@ import {
 import { Button as HeroButton } from "@heroui/react";
 import type { DatasetState, CSVColumnMappings } from "../types";
 import type { SubmitStatus } from "../hooks/useNexafsSubmit";
-import { useGlobalFileDropZone, globalDropZoneProps, GLOBAL_DROP_ZONE_IDS } from "~/hooks/useGlobalFileDropZone";
+import {
+  GlobalFileDropZoneProvider,
+  useGlobalFileDropZoneContext,
+  globalDropZoneProps,
+  GLOBAL_DROP_ZONE_IDS,
+} from "~/hooks/useGlobalFileDropZone";
 import { appendPendingAuxFiles } from "~/lib/pending-aux-file";
 import { getNexafsAuxUploadDefaults } from "~/lib/nexafs-aux-upload-defaults";
 
@@ -180,22 +185,23 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     [activeDatasetId, reportAuxError, updateDataset],
   );
 
-  const spectrumOverlay = useGlobalFileDropZone({
-    spectrumDropEnabled: true,
-    onSpectrumFiles: (files) => {
-      void handleFilesSelected(files);
-    },
-    onExperimentAuxFiles: queueExperimentAux,
-    onSampleAuxFiles: queueSampleAux,
-  });
-
   const activeDataset = datasets.find((d) => d.id === activeDatasetId);
   const columnMappingDataset = columnMappingFile
     ? datasets.find((d) => d.id === columnMappingFile.datasetId)
     : null;
 
   return (
-    <>
+    <GlobalFileDropZoneProvider
+      spectrumDropEnabled
+      newDatasetUploadLabel={
+        datasets.length > 0 ? "a new dataset" : ""
+      }
+      onSpectrumFiles={(files) => {
+        void handleFilesSelected(files);
+      }}
+      onExperimentAuxFiles={queueExperimentAux}
+      onSampleAuxFiles={queueSampleAux}
+    >
       <ColumnMappingModal
         isOpen={!!columnMappingFile}
         onClose={handleColumnMappingClose}
@@ -212,12 +218,6 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
             : "mx-auto flex w-full max-w-7xl flex-col"
         }
       >
-        <ContributionFileDropOverlay
-          isDragging={spectrumOverlay.isDragging}
-          fileKind={spectrumOverlay.fileKind}
-          fileName={spectrumOverlay.fileName}
-        />
-
         <Form
           className={
             datasets.length > 0
@@ -227,9 +227,9 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           onSubmit={submit}
         >
           {datasets.length === 0 && (
-            <div {...globalDropZoneProps(GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET)}>
+            <EmptyDatasetDropZone>
               <NexafsUploadPortal onFilesSelected={handleFilesSelected} />
-            </div>
+            </EmptyDatasetDropZone>
           )}
 
           {datasets.length > 0 && (
@@ -316,6 +316,27 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           )}
         </Form>
       </div>
-    </>
+    </GlobalFileDropZoneProvider>
+  );
+}
+
+function EmptyDatasetDropZone({ children }: { children: ReactNode }) {
+  const dropState = useGlobalFileDropZoneContext();
+  const zoneId = GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET;
+
+  return (
+    <div
+      {...globalDropZoneProps(zoneId)}
+      className="relative"
+    >
+      {children}
+      <ContributionFileDropOverlay
+        variant="inset"
+        isDragging={dropState.showOverlayForZone(zoneId)}
+        fileKind={dropState.spectrumFileKind ?? "mixed"}
+        fileName={dropState.fileName}
+        messageOverride={dropState.messageForZone(zoneId)}
+      />
+    </div>
   );
 }

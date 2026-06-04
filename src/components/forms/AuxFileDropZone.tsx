@@ -28,8 +28,10 @@ import {
 } from "~/lib/aux-file-client";
 import { appendPendingAuxFiles } from "~/lib/pending-aux-file";
 import type { PendingAuxFile } from "~/features/process-nexafs/types";
+import { ContributionFileDropOverlay } from "@/components/contribute";
 import {
   globalDropZoneProps,
+  useOptionalGlobalFileDropZoneContext,
   type GlobalDropZoneId,
 } from "~/hooks/useGlobalFileDropZone";
 import { StackedFileIcons } from "./StackedFileIcons";
@@ -161,7 +163,12 @@ export function AuxFileDropZone({
   const inputRef = useRef<HTMLInputElement>(null);
   const [localKind, setLocalKind] = useState<AuxFileKind>("other");
   const [localDescription, setLocalDescription] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
+
+  const globalDropState = useOptionalGlobalFileDropZoneContext();
+  const showGlobalOverlay = Boolean(
+    globalDropZoneId &&
+      globalDropState?.showOverlayForZone(globalDropZoneId),
+  );
 
   const pendingKind = pendingKindProp ?? localKind;
   const pendingDescription = pendingDescriptionProp ?? localDescription;
@@ -235,28 +242,15 @@ export function AuxFileDropZone({
   const dropTarget = (
     <div
       {...dropTargetProps}
-      onDragEnter={(event) => {
-        event.preventDefault();
-        if (!disabled) {
-          setIsDragging(true);
-        }
-      }}
       onDragOver={(event) => {
         event.preventDefault();
       }}
-      onDragLeave={(event) => {
-        event.preventDefault();
-        if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          return;
-        }
-        setIsDragging(false);
-      }}
       className={cn(
-        "flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-center transition-colors",
+        "relative flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-center transition-colors",
         isCompact
           ? "border-border min-h-[5.5rem] flex-1 px-3 py-3"
           : "border-border min-h-[7.5rem] px-4 py-5 gap-2",
-        isDragging && "border-accent bg-accent/5",
+        showGlobalOverlay && "border-accent bg-accent/5",
         disabled && "cursor-not-allowed opacity-60",
       )}
       onClick={() => {
@@ -277,8 +271,20 @@ export function AuxFileDropZone({
       aria-disabled={disabled}
       aria-label={`Upload ${scope} auxiliary files, up to ${capLabel} each`}
     >
+      {showGlobalOverlay && globalDropZoneId && globalDropState ? (
+        <ContributionFileDropOverlay
+          variant="inset"
+          isDragging
+          fileKind="mixed"
+          fileName={globalDropState.fileName}
+          messageOverride={globalDropState.messageForZone(globalDropZoneId)}
+        />
+      ) : null}
       <Upload
-        className={cn(isCompact ? "size-4" : "size-5", isDragging ? "text-accent" : "text-muted")}
+        className={cn(
+          isCompact ? "size-4" : "size-5",
+          showGlobalOverlay ? "text-accent" : "text-muted",
+        )}
         aria-hidden
       />
       <p
