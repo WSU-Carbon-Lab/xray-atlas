@@ -359,8 +359,8 @@ export function AuxFileDropZone({
       ) : null}
       <div
         className={cn(
-          "relative flex w-full justify-center",
-          isStackHovered && hasQueuedInStack && "min-h-[6.75rem]",
+          "relative flex w-full justify-center motion-safe:transition-[min-height] motion-safe:duration-250 motion-safe:ease-out motion-reduce:transition-none",
+          isStackHovered && hasQueuedInStack && "min-h-[7.25rem]",
           showGlobalOverlay && "opacity-0",
         )}
         onMouseEnter={() => {
@@ -384,7 +384,6 @@ export function AuxFileDropZone({
           pointerX={pointer.x}
           pointerY={pointer.y}
           files={isCompact ? stackedPageFiles : undefined}
-          className="motion-safe:transition-opacity motion-safe:duration-200"
         />
       </div>
       <p
@@ -392,6 +391,7 @@ export function AuxFileDropZone({
           "text-foreground font-medium",
           isCompact ? "text-xs" : "text-sm",
           hasQueuedInStack && "text-[11px]",
+          hasQueuedInStack && isStackHovered && "mt-2",
           showGlobalOverlay && "opacity-0",
         )}
       >
@@ -401,16 +401,18 @@ export function AuxFileDropZone({
             : "Drop or click to browse"
           : "Drop files or click to browse"}
       </p>
-      <p
-        className={cn(
-          "text-muted",
-          isCompact ? "text-[11px]" : "text-xs",
-          hasQueuedInStack && isCompact && "text-[10px]",
-          showGlobalOverlay && "opacity-0",
-        )}
-      >
-        Up to {capLabel} per file
-      </p>
+      {!(isCompact && isStackHovered && hasQueuedInStack) ? (
+        <p
+          className={cn(
+            "text-muted",
+            isCompact ? "text-[11px]" : "text-xs",
+            hasQueuedInStack && isCompact && "text-[10px]",
+            showGlobalOverlay && "opacity-0",
+          )}
+        >
+          Up to {capLabel} per file
+        </p>
+      ) : null}
       <input
         ref={inputRef}
         id={inputId}

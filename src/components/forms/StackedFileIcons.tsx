@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { Button } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import {
@@ -106,17 +107,14 @@ function truncateStackFilename(name: string, maxChars = 22): string {
   return `${name.slice(0, head)}…${name.slice(-tail)}`;
 }
 
-function gridColumnsForCount(count: number): number {
-  if (count <= 1) {
-    return 1;
-  }
-  if (count <= 4) {
-    return 2;
-  }
-  if (count <= 9) {
-    return 3;
-  }
-  return 4;
+const COMPACT_GRID_MAX_COLUMNS = 6;
+const COMPACT_GRID_MIN_CELL_REM = 4.75;
+
+/** Minimum block height (rem) for the expanded hover grid from file count. */
+function compactGridMinHeightRem(fileCount: number): number {
+  const rows = Math.ceil(fileCount / COMPACT_GRID_MAX_COLUMNS);
+  const rowHeightRem = 4.5;
+  return Math.max(4.75, rows * rowHeightRem + 0.25);
 }
 
 type StackedPageDropVisualProps = {
@@ -302,7 +300,7 @@ function StackedPageFileGridCell({
 
   return (
     <div
-      className="group/layer pointer-events-auto flex min-w-0 flex-col items-center gap-0.5"
+      className="group/layer pointer-events-auto flex min-w-0 w-full flex-col items-center gap-1"
       title={file.filename}
       onClick={(event) => {
         event.stopPropagation();
@@ -344,15 +342,15 @@ function StackedPageFileGrid({
   stackAccent: StackedPageStackAccent;
   className?: string;
 }) {
-  const columns = gridColumnsForCount(files.length);
-
   return (
     <div
       className={cn(
-        "pointer-events-auto grid justify-center gap-1.5 motion-safe:transition-[opacity,transform] motion-safe:duration-200 motion-reduce:transition-none",
+        "pointer-events-auto grid w-full gap-3 px-0.5 motion-safe:transition-[opacity,transform] motion-safe:duration-250 motion-safe:ease-out motion-reduce:transition-none",
         className,
       )}
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 4.75rem))` }}
+      style={{
+        gridTemplateColumns: `repeat(auto-fill, minmax(${COMPACT_GRID_MIN_CELL_REM}rem, 1fr))`,
+      }}
       onClick={(event) => {
         event.stopPropagation();
       }}
@@ -434,21 +432,30 @@ export function StackedPageDropVisual({
     pointerRotate,
   };
 
+  const gridMinHeightRem = compactGridMinHeightRem(files.length);
+
   return (
     <div
       className={cn(
-        "relative mx-auto flex items-center justify-center",
-        showGrid ? "min-h-[6.5rem] w-full max-w-[15rem]" : "h-12 w-[4.75rem]",
+        "relative mx-auto flex w-full items-center justify-center",
+        showGrid ? "min-h-[var(--stacked-grid-min-h)]" : "h-12 w-[4.75rem]",
         className,
       )}
+      style={
+        showGrid
+          ? ({
+              "--stacked-grid-min-h": `${gridMinHeightRem}rem`,
+            } as CSSProperties)
+          : undefined
+      }
       aria-hidden={!hasQueuedFiles}
     >
       <div
         className={cn(
           "relative flex h-12 w-[4.75rem] items-center justify-center",
-          "motion-safe:transition-[opacity,transform] motion-safe:duration-200 motion-reduce:transition-none",
+          "motion-safe:transition-[opacity,transform] motion-safe:duration-250 motion-safe:ease-out motion-reduce:transition-none",
           showGrid
-            ? "pointer-events-none absolute inset-0 scale-95 opacity-0"
+            ? "pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[0.92] opacity-0"
             : "opacity-100",
         )}
       >
@@ -486,11 +493,11 @@ export function StackedPageDropVisual({
       {expandToGridOnHover ? (
         <div
           className={cn(
-            "absolute inset-0 flex items-center justify-center",
-            "motion-safe:transition-[opacity,transform] motion-safe:duration-200 motion-reduce:transition-none",
+            "absolute inset-0 flex w-full items-center justify-center py-0.5",
+            "motion-safe:transition-[opacity,transform] motion-safe:duration-250 motion-safe:ease-out motion-reduce:transition-none",
             showGrid
               ? "pointer-events-auto scale-100 opacity-100"
-              : "pointer-events-none scale-95 opacity-0",
+              : "pointer-events-none scale-[0.97] opacity-0",
           )}
         >
           <StackedPageFileGrid files={files} stackAccent={stackAccent} />
