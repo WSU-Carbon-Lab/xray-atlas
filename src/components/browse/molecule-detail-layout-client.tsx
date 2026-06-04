@@ -66,17 +66,6 @@ export function MoleculeDetailLayoutClient({
               <li aria-hidden className="text-gray-400 dark:text-gray-600">
                 /
               </li>
-              <li>
-                <Link
-                  href="/wiki/home"
-                  className="hover:text-accent dark:hover:text-accent-light"
-                >
-                  NEXAFS wiki
-                </Link>
-              </li>
-              <li aria-hidden className="text-gray-400 dark:text-gray-600">
-                /
-              </li>
               <li
                 className="text-gray-900 dark:text-gray-100"
                 aria-current="page"
