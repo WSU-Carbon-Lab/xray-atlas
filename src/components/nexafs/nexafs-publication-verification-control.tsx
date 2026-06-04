@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -11,7 +12,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { BadgeCheck, BookOpen, Shield } from "lucide-react";
+import { BadgeCheck, BookOpen, Shield, Trash2, X } from "lucide-react";
 import { Button } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { site } from "~/app/brand";
@@ -29,6 +30,8 @@ import type {
 
 const POPOVER_CLOSE_DELAY_MS = 120;
 const POPOVER_VERTICAL_OFFSET_PX = 8;
+const POPOVER_VIEWPORT_PADDING_PX = 12;
+const POPOVER_FALLBACK_WIDTH_PX = 352;
 
 const verificationPopoverShellClassName =
   "relative w-[min(22rem,calc(100vw-1.5rem))] max-w-[min(22rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-surface p-2.5 text-left shadow-xl ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)]";
@@ -224,8 +227,32 @@ function VerificationPopoverSurface({
   );
 }
 
+/**
+ * Clamps a center-anchored popover (`-translate-x-1/2`) within the viewport and returns
+ * the arrow offset needed to keep the caret aligned with the trigger center.
+ */
+function clampVerificationPopoverAnchor(
+  triggerCenterX: number,
+  panelWidth: number,
+  padding: number,
+): { left: number; arrowOffsetPx: number } {
+  const halfWidth = panelWidth / 2;
+  const minLeft = padding + halfWidth;
+  const maxLeft = window.innerWidth - padding - halfWidth;
+  const left =
+    minLeft <= maxLeft
+      ? Math.min(Math.max(triggerCenterX, minLeft), maxLeft)
+      : window.innerWidth / 2;
+  return {
+    left,
+    arrowOffsetPx: triggerCenterX - left,
+  };
+}
+
 function useVerificationPopoverPosition(
   triggerRef: RefObject<HTMLElement | null>,
+  contentRef: RefObject<HTMLElement | null>,
+  isOpen: boolean,
 ) {
   const [position, setPosition] = useState({ left: 0, top: 0, arrowOffsetPx: 0 });
 
@@ -233,12 +260,29 @@ function useVerificationPopoverPosition(
     const el = triggerRef.current;
     if (!el || typeof window === "undefined") return;
     const rect = el.getBoundingClientRect();
+    const triggerCenterX = rect.left + rect.width / 2;
+    const measuredWidth = contentRef.current?.getBoundingClientRect().width;
+    const panelWidth =
+      measuredWidth && measuredWidth > 0
+        ? measuredWidth
+        : Math.min(POPOVER_FALLBACK_WIDTH_PX, window.innerWidth - 24);
+    const { left, arrowOffsetPx } = clampVerificationPopoverAnchor(
+      triggerCenterX,
+      panelWidth,
+      POPOVER_VIEWPORT_PADDING_PX,
+    );
     setPosition({
-      left: rect.left + rect.width / 2,
+      left,
       top: rect.top - POPOVER_VERTICAL_OFFSET_PX,
-      arrowOffsetPx: 0,
+      arrowOffsetPx,
     });
-  }, [triggerRef]);
+  }, [contentRef, triggerRef]);
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      updatePosition();
+    }
+  }, [isOpen, updatePosition]);
 
   return { position, updatePosition };
 }
@@ -260,9 +304,9 @@ function DoiResolverLink({ doi }: { doi: string }) {
 
 function useInvalidateBrowseSourcePublications(experimentId: string | undefined) {
   const utils = trpc.useUtils();
-  return useCallback(async () => {
+  return useCallback(() => {
     if (!experimentId) return;
-    await Promise.all([
+    void Promise.all([
       utils.experiments.getSourcePaperDoi.invalidate({ experimentId }),
       utils.experiments.listSourcePublications.invalidate({ experimentId }),
       utils.experiments.browseList.invalidate(),
@@ -275,22 +319,39 @@ function AtlasVerificationSection({
   experimentId,
   atlasTeamVerified,
   canManageAtlasVerification,
+  onAtlasTeamVerifiedChange,
 }: {
   experimentId: string;
   atlasTeamVerified: boolean;
   canManageAtlasVerification: boolean;
+  onAtlasTeamVerifiedChange: (verified: boolean) => void;
 }) {
   const invalidateBrowse = useInvalidateBrowseSourcePublications(experimentId);
 
   const atlasMutation = trpc.experiments.setAtlasTeamVerification.useMutation({
-    onSuccess: async () => {
-      await invalidateBrowse();
+    onSuccess: () => {
+      invalidateBrowse();
       showToast("Atlas team verification updated", "success");
     },
     onError: (error) => {
       showToast(error.message, "error");
     },
   });
+
+  const setVerifiedOptimistic = useCallback(
+    (nextVerified: boolean) => {
+      onAtlasTeamVerifiedChange(nextVerified);
+      atlasMutation.mutate(
+        { experimentId, verified: nextVerified },
+        {
+          onError: () => {
+            onAtlasTeamVerifiedChange(!nextVerified);
+          },
+        },
+      );
+    },
+    [atlasMutation, experimentId, onAtlasTeamVerifiedChange],
+  );
 
   return (
     <section>
@@ -300,18 +361,17 @@ function AtlasVerificationSection({
           atlasTeamVerified ? (
             <Button
               type="button"
+              isIconOnly
               size="sm"
               variant="ghost"
-              className="text-danger h-7 min-h-7 shrink-0 px-2 text-xs"
+              className="text-danger min-h-7 min-w-7 shrink-0"
+              aria-label="Remove Atlas team verification"
               isDisabled={atlasMutation.isPending}
               onPress={() => {
-                atlasMutation.mutate({
-                  experimentId,
-                  verified: false,
-                });
+                setVerifiedOptimistic(false);
               }}
             >
-              Remove
+              <Trash2 className="size-3.5" aria-hidden />
             </Button>
           ) : (
             <Button
@@ -321,10 +381,7 @@ function AtlasVerificationSection({
               className="h-7 min-h-7 shrink-0 px-2 text-xs"
               isDisabled={atlasMutation.isPending}
               onPress={() => {
-                atlasMutation.mutate({
-                  experimentId,
-                  verified: true,
-                });
+                setVerifiedOptimistic(true);
               }}
             >
               Add verification
@@ -341,16 +398,32 @@ function AtlasVerificationSection({
   );
 }
 
+function sourcePublicationFromCitation(
+  citation: NonNullable<SourcePaperDoiFieldValue["citation"]>,
+): NexafsBrowseSourcePublication {
+  return {
+    doi: citation.doi,
+    title: citation.title ?? "",
+    journal: citation.journal ?? null,
+    year: citation.year ?? null,
+    authors: citation.authors,
+  };
+}
+
 function SourcePublicationSection({
   experimentId,
   sourcePublications,
   canEditSourcePublications,
   showTopBorder,
+  onSourcePublicationsChange,
 }: {
   experimentId: string;
   sourcePublications: NexafsBrowseSourcePublication[];
   canEditSourcePublications: boolean;
   showTopBorder: boolean;
+  onSourcePublicationsChange: (
+    next: NexafsBrowseSourcePublication[],
+  ) => void;
 }) {
   const invalidateBrowse = useInvalidateBrowseSourcePublications(experimentId);
   const [draft, setDraft] = useState<SourcePaperDoiFieldValue>({
@@ -359,9 +432,8 @@ function SourcePublicationSection({
   });
 
   const addMutation = trpc.experiments.addSourcePublication.useMutation({
-    onSuccess: async () => {
-      await invalidateBrowse();
-      setDraft({ doi: "", citation: null });
+    onSuccess: () => {
+      invalidateBrowse();
       showToast("Source publication added", "success");
     },
     onError: (error) => {
@@ -370,8 +442,8 @@ function SourcePublicationSection({
   });
 
   const removeMutation = trpc.experiments.removeSourcePublication.useMutation({
-    onSuccess: async () => {
-      await invalidateBrowse();
+    onSuccess: () => {
+      invalidateBrowse();
       showToast("Source publication removed", "success");
     },
     onError: (error) => {
@@ -393,8 +465,27 @@ function SourcePublicationSection({
       showToast("That source publication is already linked", "error");
       return;
     }
-    addMutation.mutate({ experimentId, doi: draft.citation.doi });
-  }, [addMutation, draft.citation, existingDois, experimentId]);
+    const citation = draft.citation;
+    const previous = sourcePublications;
+    const optimistic = sourcePublicationFromCitation(citation);
+    onSourcePublicationsChange([...previous, optimistic]);
+    setDraft({ doi: "", citation: null });
+    addMutation.mutate(
+      { experimentId, doi: citation.doi },
+      {
+        onError: () => {
+          onSourcePublicationsChange(previous);
+        },
+      },
+    );
+  }, [
+    addMutation,
+    draft.citation,
+    existingDois,
+    experimentId,
+    onSourcePublicationsChange,
+    sourcePublications,
+  ]);
 
   return (
     <section className={showTopBorder ? "border-separator border-t pt-2.5" : undefined}>
@@ -419,18 +510,28 @@ function SourcePublicationSection({
                 {canEditSourcePublications ? (
                   <Button
                     type="button"
+                    isIconOnly
                     size="sm"
                     variant="ghost"
-                    className="text-danger h-7 min-h-7 shrink-0 px-2 text-xs"
+                    className="text-muted hover:text-danger min-h-7 min-w-7 shrink-0"
+                    aria-label={`Remove source publication ${publication.doi}`}
                     isDisabled={removeMutation.isPending}
                     onPress={() => {
-                      removeMutation.mutate({
-                        experimentId,
-                        doi: publication.doi,
-                      });
+                      const previous = sourcePublications;
+                      onSourcePublicationsChange(
+                        previous.filter((row) => row.doi !== publication.doi),
+                      );
+                      removeMutation.mutate(
+                        { experimentId, doi: publication.doi },
+                        {
+                          onError: () => {
+                            onSourcePublicationsChange(previous);
+                          },
+                        },
+                      );
                     }}
                   >
-                    Remove
+                    <X className="size-3" aria-hidden />
                   </Button>
                 ) : null}
               </li>
@@ -476,12 +577,18 @@ function VerificationPopoverContent({
   atlasTeamVerified,
   canEditSourcePublications,
   canManageAtlasVerification,
+  onAtlasTeamVerifiedChange,
+  onSourcePublicationsChange,
 }: {
   experimentId: string | undefined;
   sourcePublications: NexafsBrowseSourcePublication[];
   atlasTeamVerified: boolean;
   canEditSourcePublications: boolean;
   canManageAtlasVerification: boolean;
+  onAtlasTeamVerifiedChange: (verified: boolean) => void;
+  onSourcePublicationsChange: (
+    next: NexafsBrowseSourcePublication[],
+  ) => void;
 }) {
   const showAtlasSection =
     atlasTeamVerified || canManageAtlasVerification;
@@ -501,6 +608,7 @@ function VerificationPopoverContent({
           experimentId={experimentId}
           atlasTeamVerified={atlasTeamVerified}
           canManageAtlasVerification={canManageAtlasVerification}
+          onAtlasTeamVerifiedChange={onAtlasTeamVerifiedChange}
         />
       ) : showAtlasSection ? (
         <section>
@@ -516,6 +624,7 @@ function VerificationPopoverContent({
           sourcePublications={sourcePublications}
           canEditSourcePublications={canEditSourcePublications}
           showTopBorder={showAtlasSection}
+          onSourcePublicationsChange={onSourcePublicationsChange}
         />
       ) : showSourceSection ? (
         <section className={showAtlasSection ? "border-separator border-t pt-2.5" : undefined}>
@@ -553,8 +662,21 @@ export function NexafsPublicationVerificationControl({
 }: NexafsPublicationVerificationControlProps) {
   const n = linkedPublications.length;
   const hasLinkedDoi = n > 0;
-  const hasSource = sourcePublications.length > 0;
-  const hasAtlas = ingestVerified;
+
+  const [localIngestVerified, setLocalIngestVerified] = useState(ingestVerified);
+  const [localSourcePublications, setLocalSourcePublications] =
+    useState(sourcePublications);
+
+  useEffect(() => {
+    setLocalIngestVerified(ingestVerified);
+  }, [experimentId, ingestVerified]);
+
+  useEffect(() => {
+    setLocalSourcePublications(sourcePublications);
+  }, [experimentId, sourcePublications]);
+
+  const hasSource = localSourcePublications.length > 0;
+  const hasAtlas = localIngestVerified;
 
   const canEditQuery = trpc.experiments.canEditExperiment.useQuery(
     { experimentId: experimentId ?? "" },
@@ -571,7 +693,11 @@ export function NexafsPublicationVerificationControl({
   const contentRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { position, updatePosition } = useVerificationPopoverPosition(triggerRef);
+  const { position, updatePosition } = useVerificationPopoverPosition(
+    triggerRef,
+    contentRef,
+    isOpen,
+  );
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -599,6 +725,16 @@ export function NexafsPublicationVerificationControl({
       clearCloseTimer();
     };
   }, [clearCloseTimer]);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    updatePosition();
+  }, [
+    isOpen,
+    localIngestVerified,
+    localSourcePublications.length,
+    updatePosition,
+  ]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -692,10 +828,12 @@ export function NexafsPublicationVerificationControl({
               >
                 <VerificationPopoverContent
                   experimentId={experimentId}
-                  sourcePublications={sourcePublications}
-                  atlasTeamVerified={hasAtlas}
+                  sourcePublications={localSourcePublications}
+                  atlasTeamVerified={localIngestVerified}
                   canEditSourcePublications={canEditSourcePublications}
                   canManageAtlasVerification={canManageAtlasVerification}
+                  onAtlasTeamVerifiedChange={setLocalIngestVerified}
+                  onSourcePublicationsChange={setLocalSourcePublications}
                 />
               </VerificationPopoverSurface>
             </div>,
