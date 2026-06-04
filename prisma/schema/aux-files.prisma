@@ -1,6 +1,14 @@
 /// Extended sample preparation metadata (1:1 with `samples`).
 model sampleaux {
   sampleid                     String   @id @map("sample_id") @db.Uuid
+  processingmode               String?  @map("processing_mode") @db.VarChar(16)
+  wetmethod                    String?  @map("wet_method") @db.VarChar(16)
+  drymethod                    String?  @map("dry_method") @db.VarChar(16)
+  wetmethodother               String?  @map("wet_method_other")
+  drymethodother               String?  @map("dry_method_other")
+  vasethicknessnm              Float?   @map("vase_thickness_nm")
+  roughnessnm                  Float?   @map("roughness_nm")
+  orientationnotes             String?  @map("orientation_notes")
   spinspeedrpm                 Float?   @map("spin_speed_rpm")
   spinaccelerationrpmperS      Float?   @map("spin_acceleration_rpm_per_s")
   spindurations                Float?   @map("spin_duration_s")

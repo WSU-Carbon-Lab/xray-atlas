@@ -3,6 +3,11 @@ import type {
   SpectrumSelection,
 } from "~/components/plots/types";
 import type { AuxFileKind } from "~/lib/aux-file-client";
+import type {
+  SampleDryMethod,
+  SampleProcessingMode,
+  SampleWetMethod,
+} from "~/lib/sample-aux-preparation";
 import type { DatasetAttributionEntry } from "~/lib/nexafs-attribution";
 import type { PublicationCitation } from "~/lib/publication-citation";
 import type { ProcessMethod } from "~/prisma/browser";
@@ -209,6 +214,14 @@ export type SampleInfo = {
 };
 
 export type SampleAuxFields = {
+  processingMode?: SampleProcessingMode;
+  wetMethod?: SampleWetMethod;
+  dryMethod?: SampleDryMethod;
+  wetMethodOther?: string;
+  dryMethodOther?: string;
+  vaseThicknessNm?: number;
+  roughnessNm?: number;
+  orientationNotes?: string;
   spinSpeedRpm?: number;
   spinAccelerationRpmPerS?: number;
   spinDurationS?: number;

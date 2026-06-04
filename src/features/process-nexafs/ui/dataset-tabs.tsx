@@ -16,6 +16,10 @@ import {
   parseNexafsFilename,
 } from "~/features/process-nexafs/utils/filenameParser";
 import { useDatasetStatus } from "./hooks/use-dataset-status";
+import {
+  globalDropZoneProps,
+  GLOBAL_DROP_ZONE_IDS,
+} from "~/hooks/useGlobalFileDropZone";
 import { trpc } from "~/trpc/client";
 import {
   MoleculeSelectModal,
@@ -400,7 +404,10 @@ export function DatasetTabs({
 
   return (
     <>
-      <div className="border-border bg-surface/50 mb-6 flex min-w-0 items-center gap-3 rounded-xl border px-4 py-3 shadow-sm">
+      <div
+        {...globalDropZoneProps(GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET)}
+        className="border-border bg-surface/50 mb-6 flex min-w-0 items-center gap-3 rounded-xl border px-4 py-3 shadow-sm"
+      >
         <div className="min-w-0 flex-1 overflow-x-auto">
           <Tabs
             selectedKey={validKey}

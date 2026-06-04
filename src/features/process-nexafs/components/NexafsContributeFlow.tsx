@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback } from "react";
 import { Form } from "@heroui/react";
 import {
   CheckIcon,
@@ -24,6 +24,8 @@ import {
 import { Button as HeroButton } from "@heroui/react";
 import type { DatasetState, CSVColumnMappings } from "../types";
 import type { SubmitStatus } from "../hooks/useNexafsSubmit";
+import { useGlobalFileDropZone } from "~/hooks/useGlobalFileDropZone";
+import { appendPendingAuxFiles } from "~/lib/pending-aux-file";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -65,6 +67,7 @@ export type NexafsContributeFlowProps = {
   submitStatus: SubmitStatus;
   setSubmitStatus: (status: SubmitStatus) => void;
   isPending: boolean;
+  onAuxValidationError?: (message: string) => void;
 };
 
 function DatasetMissingFieldsMessage({ dataset }: { dataset: DatasetState }) {
@@ -128,90 +131,62 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     submit,
     submitStatus,
     isPending,
+    onAuxValidationError,
   } = props;
 
-  const [isDragging, setIsDragging] = useState(false);
-  const [draggedFileType, setDraggedFileType] = useState<
-    "csv" | "json" | "mixed" | null
-  >(null);
-  const [draggedFileName, setDraggedFileName] = useState<string | null>(null);
-  const dragCounterRef = useRef(0);
+  const reportAuxError = useCallback(
+    (message: string) => {
+      onAuxValidationError?.(message);
+    },
+    [onAuxValidationError],
+  );
 
-  useEffect(() => {
-    const handleDragEnter = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounterRef.current++;
-      if (e.dataTransfer?.types.includes("Files")) {
-        setIsDragging(true);
-        if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
-          const items = Array.from(e.dataTransfer.items);
-          const firstFile = items
-            .find((item) => item.kind === "file")
-            ?.getAsFile();
-          if (firstFile?.name) setDraggedFileName(firstFile.name);
-          const fileTypes = items
-            .filter((item) => item.kind === "file")
-            .map((item) => {
-              const mimeType = item.type.toLowerCase();
-              if (mimeType === "application/json" || mimeType === "text/json")
-                return "json";
-              if (mimeType === "text/csv" || mimeType === "application/csv")
-                return "csv";
-              return null;
-            })
-            .filter((type): type is "csv" | "json" => type !== null);
-          if (fileTypes.length > 0) {
-            const uniqueTypes = Array.from(new Set(fileTypes));
-            setDraggedFileType(
-              uniqueTypes.length === 1 ? uniqueTypes[0]! : "mixed",
-            );
-          }
-        }
+  const queueExperimentAux = useCallback(
+    (files: File[]) => {
+      if (!activeDatasetId) {
+        return;
       }
-    };
+      updateDataset(activeDatasetId, (dataset) => ({
+        pendingExperimentAuxFiles: appendPendingAuxFiles(
+          dataset.pendingExperimentAuxFiles,
+          files,
+          "experiment",
+          "other",
+          undefined,
+          reportAuxError,
+        ),
+      }));
+    },
+    [activeDatasetId, reportAuxError, updateDataset],
+  );
 
-    const handleDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    const handleDragLeave = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounterRef.current--;
-      if (dragCounterRef.current === 0) {
-        setIsDragging(false);
-        setDraggedFileType(null);
-        setDraggedFileName(null);
+  const queueSampleAux = useCallback(
+    (files: File[]) => {
+      if (!activeDatasetId) {
+        return;
       }
-    };
+      updateDataset(activeDatasetId, (dataset) => ({
+        pendingSampleAuxFiles: appendPendingAuxFiles(
+          dataset.pendingSampleAuxFiles,
+          files,
+          "sample",
+          "other",
+          undefined,
+          reportAuxError,
+        ),
+      }));
+    },
+    [activeDatasetId, reportAuxError, updateDataset],
+  );
 
-    const handleDrop = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounterRef.current = 0;
-      setIsDragging(false);
-      setDraggedFileType(null);
-      setDraggedFileName(null);
-      const files = Array.from(e.dataTransfer?.files ?? []).filter((file) => {
-        const name = file.name.toLowerCase();
-        return name.endsWith(".csv") || name.endsWith(".json");
-      });
-      if (files.length > 0) void handleFilesSelected(files);
-    };
-
-    window.addEventListener("dragenter", handleDragEnter);
-    window.addEventListener("dragover", handleDragOver);
-    window.addEventListener("dragleave", handleDragLeave);
-    window.addEventListener("drop", handleDrop);
-    return () => {
-      window.removeEventListener("dragenter", handleDragEnter);
-      window.removeEventListener("dragover", handleDragOver);
-      window.removeEventListener("dragleave", handleDragLeave);
-      window.removeEventListener("drop", handleDrop);
-    };
-  }, [handleFilesSelected]);
+  const spectrumOverlay = useGlobalFileDropZone({
+    spectrumDropEnabled: datasets.length > 0,
+    onSpectrumFiles: (files) => {
+      void handleFilesSelected(files);
+    },
+    onExperimentAuxFiles: queueExperimentAux,
+    onSampleAuxFiles: queueSampleAux,
+  });
 
   const activeDataset = datasets.find((d) => d.id === activeDatasetId);
   const columnMappingDataset = columnMappingFile
@@ -237,9 +212,9 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
         }
       >
         <ContributionFileDropOverlay
-          isDragging={isDragging}
-          fileKind={draggedFileType ?? "mixed"}
-          fileName={draggedFileName}
+          isDragging={spectrumOverlay.isDragging}
+          fileKind={spectrumOverlay.fileKind}
+          fileName={spectrumOverlay.fileName}
         />
 
         <Form

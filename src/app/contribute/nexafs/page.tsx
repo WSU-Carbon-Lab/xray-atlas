@@ -277,6 +277,7 @@ export default function NEXAFSContributePage() {
               submitStatus={submitStatus}
               setSubmitStatus={setSubmitStatus}
               isPending={isPending}
+              onAuxValidationError={(message) => showToast(message, "error")}
             />
           </div>
           ) : null}

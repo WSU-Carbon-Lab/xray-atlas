@@ -9,8 +9,21 @@ import {
   assertUserMayEditSample,
   userMayEditSample,
 } from "~/server/nexafs/experimentEditAuthz";
+import {
+  sampleDryMethodSchema,
+  sampleProcessingModeSchema,
+  sampleWetMethodSchema,
+} from "~/lib/sample-aux-preparation";
 
 const sampleAuxFieldsSchema = z.object({
+  processingMode: sampleProcessingModeSchema.optional(),
+  wetMethod: sampleWetMethodSchema.optional(),
+  dryMethod: sampleDryMethodSchema.optional(),
+  wetMethodOther: z.string().trim().max(512).optional(),
+  dryMethodOther: z.string().trim().max(512).optional(),
+  vaseThicknessNm: z.number().finite().optional(),
+  roughnessNm: z.number().finite().optional(),
+  orientationNotes: z.string().trim().max(2000).optional(),
   spinSpeedRpm: z.number().finite().optional(),
   spinAccelerationRpmPerS: z.number().finite().optional(),
   spinDurationS: z.number().finite().optional(),
@@ -42,6 +55,14 @@ const sampleAuxFieldsSchema = z.object({
 
 function toSampleAuxPrismaData(input: z.infer<typeof sampleAuxFieldsSchema>) {
   return {
+    processingmode: input.processingMode,
+    wetmethod: input.wetMethod,
+    drymethod: input.dryMethod,
+    wetmethodother: input.wetMethodOther,
+    drymethodother: input.dryMethodOther,
+    vasethicknessnm: input.vaseThicknessNm,
+    roughnessnm: input.roughnessNm,
+    orientationnotes: input.orientationNotes,
     spinspeedrpm: input.spinSpeedRpm,
     spinaccelerationrpmperS: input.spinAccelerationRpmPerS,
     spindurations: input.spinDurationS,
@@ -74,6 +95,14 @@ function toSampleAuxPrismaData(input: z.infer<typeof sampleAuxFieldsSchema>) {
 
 function fromSampleAuxRow(row: {
   sampleid: string;
+  processingmode: string | null;
+  wetmethod: string | null;
+  drymethod: string | null;
+  wetmethodother: string | null;
+  drymethodother: string | null;
+  vasethicknessnm: number | null;
+  roughnessnm: number | null;
+  orientationnotes: string | null;
   spinspeedrpm: number | null;
   spinaccelerationrpmperS: number | null;
   spindurations: number | null;
@@ -104,6 +133,16 @@ function fromSampleAuxRow(row: {
 }) {
   return {
     sampleId: row.sampleid,
+    processingMode: row.processingmode as
+      | z.infer<typeof sampleProcessingModeSchema>
+      | null,
+    wetMethod: row.wetmethod as z.infer<typeof sampleWetMethodSchema> | null,
+    dryMethod: row.drymethod as z.infer<typeof sampleDryMethodSchema> | null,
+    wetMethodOther: row.wetmethodother,
+    dryMethodOther: row.drymethodother,
+    vaseThicknessNm: row.vasethicknessnm,
+    roughnessNm: row.roughnessnm,
+    orientationNotes: row.orientationnotes,
     spinSpeedRpm: row.spinspeedrpm,
     spinAccelerationRpmPerS: row.spinaccelerationrpmperS,
     spinDurationS: row.spindurations,

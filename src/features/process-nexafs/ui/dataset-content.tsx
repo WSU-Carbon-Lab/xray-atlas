@@ -77,7 +77,12 @@ import type {
 } from "~/components/plots/types";
 import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
-import { NexafsSampleInformationSection, AuxFileDropZone, SampleAuxAccordion } from "~/components/forms";
+import {
+  NexafsSampleInformationSection,
+  AuxFileDropZone,
+  SampleAuxAccordion,
+} from "~/components/forms";
+import { GLOBAL_DROP_ZONE_IDS } from "~/hooks/useGlobalFileDropZone";
 import {
   DatasetAttributionEditor,
   type DatasetAttributionChange,
@@ -2389,7 +2394,7 @@ export function DatasetContent({
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="py-0.5">
         <SourcePaperPublicationsEditor
           publications={dataset.sourcePaperPublications}
           onChange={(next) => {
@@ -2398,13 +2403,30 @@ export function DatasetContent({
             });
           }}
         />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 md:items-start">
         <AuxFileDropZone
+          variant="compact"
           scope="experiment"
           title="Experiment files"
-          description="Protocols, raw beamline data, and other files tied to this dataset (up to 500 MB each)."
+          description="Protocols, raw beamline data, and other dataset attachments (up to 500 MB each)."
+          globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
           files={dataset.pendingExperimentAuxFiles}
           onFilesChange={(next) => {
             onDatasetUpdate(dataset.id, { pendingExperimentAuxFiles: next });
+          }}
+          onValidationError={(message) => showToast(message, "error")}
+        />
+        <AuxFileDropZone
+          variant="compact"
+          scope="sample"
+          title="Sample files"
+          description="Images, preparation notes, and sample-specific attachments (up to 50 MB each)."
+          globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX}
+          files={dataset.pendingSampleAuxFiles}
+          onFilesChange={(next) => {
+            onDatasetUpdate(dataset.id, { pendingSampleAuxFiles: next });
           }}
           onValidationError={(message) => showToast(message, "error")}
         />
@@ -2708,20 +2730,10 @@ export function DatasetContent({
 
       <SampleAuxAccordion
         value={dataset.sampleAux}
+        processMethod={dataset.sampleInfo.processMethod}
         onChange={(next) => {
           onDatasetUpdate(dataset.id, { sampleAux: next });
         }}
-      />
-
-      <AuxFileDropZone
-        scope="sample"
-        title="Sample files"
-        description="Images, preparation notes, and other sample-specific attachments (up to 50 MB each)."
-        files={dataset.pendingSampleAuxFiles}
-        onFilesChange={(next) => {
-          onDatasetUpdate(dataset.id, { pendingSampleAuxFiles: next });
-        }}
-        onValidationError={(message) => showToast(message, "error")}
       />
 
       <div className="border-border bg-surface rounded-lg border p-4">
