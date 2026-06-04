@@ -228,50 +228,60 @@ function MoleculesBrowseContent() {
     : "Explore all molecules in the X-ray Atlas database.";
 
   const viewToggleSegmentClass =
-    "text-muted hover:text-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground h-10 min-h-10 w-10 min-w-10 rounded-md transition-colors";
+    "text-muted hover:text-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground h-10 min-h-10 w-10 min-w-10 transition-colors";
 
   const viewToggle = (
-    <Tooltip delay={0}>
-      <Tooltip.Trigger className="inline-flex h-12 min-h-12 shrink-0">
-        <ToggleButtonGroup
-          aria-label="View mode"
-          selectionMode="single"
-          disallowEmptySelection
-          selectedKeys={new Set([viewMode])}
-          onSelectionChange={(keys) => {
-            const next = [...keys][0];
-            if (next === "compact" || next === "spacious") {
-              setViewMode(next);
-            }
-          }}
-          className="border-border bg-surface h-12 min-h-12 w-fit min-w-[5.25rem] rounded-lg border p-1"
-        >
+    <ToggleButtonGroup
+      aria-label="View mode"
+      selectionMode="single"
+      disallowEmptySelection
+      selectedKeys={new Set([viewMode])}
+      onSelectionChange={(keys) => {
+        const next = [...keys][0];
+        if (next === "compact" || next === "spacious") {
+          setViewMode(next);
+        }
+      }}
+      className="border-border bg-surface h-12 min-h-12 w-fit min-w-[5.25rem] shrink-0 rounded-lg border p-1"
+    >
+      <Tooltip delay={0}>
+        <Tooltip.Trigger className="inline-flex">
           <ToggleButton
             id="compact"
             isIconOnly
             aria-label="Compact list view"
-            className={viewToggleSegmentClass}
+            className={`${viewToggleSegmentClass} rounded-l-md rounded-r-none`}
           >
-            <ListBulletIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
+            <ListBulletIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
           </ToggleButton>
-          <ToggleButtonGroup.Separator />
+        </Tooltip.Trigger>
+        <Tooltip.Content
+          placement="top"
+          className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
+        >
+          Compact list
+        </Tooltip.Content>
+      </Tooltip>
+      <Tooltip delay={0}>
+        <Tooltip.Trigger className="inline-flex">
           <ToggleButton
             id="spacious"
             isIconOnly
             aria-label="Spacious grid view"
-            className={viewToggleSegmentClass}
+            className={`${viewToggleSegmentClass} rounded-l-none rounded-r-md`}
           >
-            <Squares2X2Icon className="h-5 w-5 shrink-0 stroke-[1.5]" />
+            <ToggleButtonGroup.Separator />
+            <Squares2X2Icon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
           </ToggleButton>
-        </ToggleButtonGroup>
-      </Tooltip.Trigger>
-      <Tooltip.Content
-        placement="top"
-        className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
-      >
-        Display molecules in a compact list or spacious grid view
-      </Tooltip.Content>
-    </Tooltip>
+        </Tooltip.Trigger>
+        <Tooltip.Content
+          placement="top"
+          className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
+        >
+          Spacious grid
+        </Tooltip.Content>
+      </Tooltip>
+    </ToggleButtonGroup>
   );
 
   return (
