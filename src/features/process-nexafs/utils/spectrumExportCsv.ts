@@ -187,18 +187,29 @@ export async function buildNexafsSpectrumExportCsv(
   ) {
     const targetEnergyEv = strictlyAscendingUniqueEnergies(points);
     if (targetEnergyEv.length >= 2) {
-      const matrix = await buildBareAtomRepresentationMatrix(
-        formula,
-        targetEnergyEv,
-      );
-      if (matrix) {
-        bareAtomMaps = bareAtomChannelMaps(matrix);
-        omittedBareAtomColumns = BARE_ATOM_OVERLAY_MATRIX_CHANNEL_IDS.every(
-          (id) => !bareAtomMaps[id]?.size,
+      try {
+        const matrix = await buildBareAtomRepresentationMatrix(
+          formula,
+          targetEnergyEv,
+        );
+        if (matrix) {
+          bareAtomMaps = bareAtomChannelMaps(matrix);
+          omittedBareAtomColumns = BARE_ATOM_OVERLAY_MATRIX_CHANNEL_IDS.every(
+            (id) => !bareAtomMaps[id]?.size,
+          );
+        }
+      } catch (error) {
+        console.warn(
+          "[buildNexafsSpectrumExportCsv] Skipping bare-atom columns:",
+          error instanceof Error ? error.message : String(error),
         );
       }
     }
   }
+
+  const bareAtomChannelIds = omittedBareAtomColumns
+    ? ([] as const)
+    : BARE_ATOM_OVERLAY_MATRIX_CHANNEL_IDS;
 
   const baseHeaders = [
     "energy_eV",
@@ -209,9 +220,7 @@ export async function buildNexafsSpectrumExportCsv(
     "beta",
     ...(hasDelta ? (["delta"] as const) : []),
     ...EXPORT_DERIVED_CHANNEL_IDS.map((id) => DERIVED_CHANNEL_CSV_HEADERS[id]),
-    ...BARE_ATOM_OVERLAY_MATRIX_CHANNEL_IDS.map(
-      (id) => BARE_ATOM_CHANNEL_CSV_HEADERS[id],
-    ),
+    ...bareAtomChannelIds.map((id) => BARE_ATOM_CHANNEL_CSV_HEADERS[id]),
     "i0",
     "theta_deg",
     "phi_deg",
@@ -230,9 +239,7 @@ export async function buildNexafsSpectrumExportCsv(
       ...EXPORT_DERIVED_CHANNEL_IDS.map((id) =>
         lookupCsv(derivedMaps[id], energy),
       ),
-      ...BARE_ATOM_OVERLAY_MATRIX_CHANNEL_IDS.map((id) =>
-        lookupCsv(bareAtomMaps[id], energy),
-      ),
+      ...bareAtomChannelIds.map((id) => lookupCsv(bareAtomMaps[id], energy)),
       fmtOpt(p.i0),
       fmtOpt(p.theta),
       fmtOpt(p.phi),

@@ -76,6 +76,7 @@ export async function buildDatasetAllDataBundle(
   const points = mapDbSpectrumRowsToPoints(spectrumRows);
   const csvResult = await buildNexafsSpectrumExportCsv(points, {
     stoichiometryFormula: chemicalFormula,
+    includeBareAtom: false,
   });
 
   const entries: TarGzEntry[] = [
