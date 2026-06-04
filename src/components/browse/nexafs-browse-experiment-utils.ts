@@ -76,3 +76,33 @@ export function parseExperimentTypeParam(
   const values = Object.values(ExperimentType) as string[];
   return values.includes(raw) ? (raw as ExperimentType) : undefined;
 }
+
+/**
+ * Parses `verificationSource` from URL search params; unknown values map to `"either"`.
+ */
+export function parseVerificationSourceParam(
+  raw: string | null,
+): VerificationSource {
+  if (
+    raw === "publication" ||
+    raw === "atlas" ||
+    raw === "either"
+  ) {
+    return raw;
+  }
+  return "either";
+}
+
+/**
+ * Parses legacy `verified` URL flag (`1`, `true`, or presence of `verificationSource`).
+ */
+export function parseVerifiedOnlyParam(
+  sp: URLSearchParams,
+): boolean {
+  const verified = sp.get("verified");
+  if (verified === "1" || verified === "true") return true;
+  if (sp.has("verificationSource") && sp.get("verificationSource") !== "either") {
+    return true;
+  }
+  return false;
+}

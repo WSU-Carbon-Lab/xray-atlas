@@ -6,6 +6,7 @@ import { Tooltip } from "@heroui/react";
 import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import { BrowseFilterTrigger } from "./browse-filter-trigger";
 import { EXPERIMENT_TYPE_LABELS } from "./nexafs-browse-experiment-utils";
+import { ACQUISITION_MODE_OPTIONS } from "./nexafs-filter-options";
 
 /**
  * Filter popover for restricting NEXAFS browse results to a specific acquisition mode.
@@ -17,10 +18,6 @@ export type NexafsAcquisitionFilterDropdownProps = {
   experimentType: ExperimentType | undefined;
   onExperimentTypeChange: (value: ExperimentType | undefined) => void;
 };
-
-const MODES = Object.entries(EXPERIMENT_TYPE_LABELS) as Array<
-  [ExperimentType, string]
->;
 
 export function NexafsAcquisitionFilterDropdown({
   experimentType,
@@ -80,7 +77,7 @@ export function NexafsAcquisitionFilterDropdown({
                 >
                   Any mode
                 </button>
-                {MODES.map(([value, text]) => {
+                {ACQUISITION_MODE_OPTIONS.map(([value, text]) => {
                   const selected = value === experimentType;
                   return (
                     <button

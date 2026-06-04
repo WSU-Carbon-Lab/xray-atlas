@@ -4,7 +4,6 @@ import {
   useState,
   useMemo,
 } from "react";
-import type { ExperimentType } from "~/prisma/browser";
 import { trpc } from "~/trpc/client";
 import { ErrorState } from "@/components/feedback/error-state";
 import {
@@ -20,21 +19,12 @@ import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseHeader } from "@/components/browse/browse-header";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { BrowseSortButton, type BrowseSortOption } from "@/components/browse/browse-sort-button";
-import { BrowseActiveFilters, type ActiveFilterItem } from "@/components/browse/browse-active-filters";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { NexafsExperimentCompactSkeleton } from "@/components/feedback/loading-state";
 import { NexafsExperimentCompactCard } from "@/components/nexafs/nexafs-display";
-import { NexafsAcquisitionFilterDropdown } from "@/components/browse/nexafs-acquisition-filter-dropdown";
-import { NexafsVerificationFilterDropdown } from "@/components/browse/nexafs-verification-filter-dropdown";
 import { AddNexafsCard } from "@/components/contribute";
 import { Pagination } from "@heroui/react";
-import {
-  EXPERIMENT_TYPE_LABELS,
-  NEXAFS_SORT_LABELS,
-  VERIFICATION_SOURCE_LABELS,
-  type NexafsBrowseSortKey,
-  type VerificationSource,
-} from "./nexafs-browse-experiment-utils";
+import { NEXAFS_SORT_LABELS, type NexafsBrowseSortKey } from "./nexafs-browse-experiment-utils";
 import { mapNexafsBrowseGroupToCard } from "./nexafs-browse-map-group";
 import {
   useFacetSelection,
@@ -116,9 +106,6 @@ export function NexafsBrowseExperimentSection({
   variant = "embedded",
 }: NexafsBrowseExperimentSectionProps) {
   const [sortBy, setSortBy] = useState<NexafsBrowseSortKey>("quality");
-  const [experimentType, setExperimentType] = useState<ExperimentType | undefined>(undefined);
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [verificationSource, setVerificationSource] = useState<VerificationSource>("either");
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
   const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
@@ -138,6 +125,7 @@ export function NexafsBrowseExperimentSection({
 
   const {
     selection,
+    catalogFilters,
     tokens,
     query,
     debouncedQuery,
@@ -147,6 +135,9 @@ export function NexafsBrowseExperimentSection({
     remove,
     toggle: _toggle,
     clearAll: clearFacets,
+    setExperimentType,
+    setVerifiedOnly,
+    setVerificationSource,
     currentPage,
     setCurrentPage,
   } = useFacetSelection({
@@ -194,9 +185,9 @@ export function NexafsBrowseExperimentSection({
     edgeIds: selection.edge.length > 0 ? selection.edge : undefined,
     instrumentIds: selection.instrument.length > 0 ? selection.instrument : undefined,
     contributorOrcids: selection.contributor.length > 0 ? selection.contributor : undefined,
-    experimentType,
-    verifiedOnly,
-    verificationSource,
+    experimentType: catalogFilters.experimentType,
+    verifiedOnly: catalogFilters.verifiedOnly,
+    verificationSource: catalogFilters.verificationSource,
   };
 
   const searchData = trpc.experiments.browseSearch.useQuery(
@@ -237,60 +228,17 @@ export function NexafsBrowseExperimentSection({
 
   const totalPages = Math.max(1, Math.ceil((data.total ?? 0) / itemsPerPage));
 
-  const activeAcquisitionLabel = useMemo(
-    () => (experimentType ? (EXPERIMENT_TYPE_LABELS[experimentType] ?? null) : null),
-    [experimentType],
-  );
-  const activeVerificationLabel = verifiedOnly
-    ? VERIFICATION_SOURCE_LABELS[verificationSource]
-    : null;
-
   const handleClearAll = () => {
     clearFacets();
-    setExperimentType(undefined);
-    setVerifiedOnly(false);
-    setVerificationSource("either");
+    setQuery("");
   };
 
-  const activeFilterItems = useMemo<ActiveFilterItem[]>(() => {
-    const items: ActiveFilterItem[] = [];
-    if (activeAcquisitionLabel) {
-      items.push({
-        id: "acquisition",
-        category: "Acquisition",
-        label: activeAcquisitionLabel,
-        onRemove: () => setExperimentType(undefined),
-      });
-    }
-    if (activeVerificationLabel) {
-      items.push({
-        id: "verification",
-        category: "Verified",
-        label: activeVerificationLabel,
-        onRemove: () => {
-          setVerifiedOnly(false);
-          setVerificationSource("either");
-        },
-      });
-    }
-    return items;
-  }, [activeAcquisitionLabel, activeVerificationLabel]);
-
   const hasAnyFilter =
-    tokens.length > 0 ||
-    activeFilterItems.length > 0 ||
-    debouncedQuery.trim().length > 0;
+    tokens.length > 0 || debouncedQuery.trim().length > 0;
 
   const pageSubtitle = hasSearchQuery
     ? `Search results for "${debouncedQuery}"`
-    : "Filter by molecule, edge, instrument, or contributor, or search the catalog.";
-
-  const filterSeparator = (
-    <span
-      className="border-border/50 mx-0.5 h-6 w-px shrink-0 self-center border-l"
-      aria-hidden
-    />
-  );
+    : "Filter by molecule, edge, instrument, acquisition, verification, or search the catalog.";
 
   const inner = (
     <div className="space-y-6">
@@ -303,6 +251,10 @@ export function NexafsBrowseExperimentSection({
             onAdd={add}
             onRemove={remove}
             onClearAll={handleClearAll}
+            catalogFilters={catalogFilters}
+            onExperimentTypeChange={setExperimentType}
+            onVerifiedOnlyChange={setVerifiedOnly}
+            onVerificationSourceChange={setVerificationSource}
             facetCounts={facetData}
             searchResults={searchResults}
             edges={edgeOptions}
@@ -328,44 +280,7 @@ export function NexafsBrowseExperimentSection({
             />
           ) : null
         }
-        filters={
-          <>
-            <NexafsAcquisitionFilterDropdown
-              experimentType={experimentType}
-              onExperimentTypeChange={setExperimentType}
-            />
-            {filterSeparator}
-            <NexafsVerificationFilterDropdown
-              verifiedOnly={verifiedOnly}
-              verificationSource={verificationSource}
-              onVerifiedOnlyChange={setVerifiedOnly}
-              onVerificationSourceChange={setVerificationSource}
-            />
-          </>
-        }
       />
-
-      {(tokens.length > 0 || activeFilterItems.length > 0) && (
-        <BrowseActiveFilters
-          items={[
-            ...tokens.map((t) => ({
-              id: `${t.field}-${t.id}`,
-              category:
-                t.field === "edge"
-                  ? "Edge"
-                  : t.field === "mol"
-                    ? "Molecule"
-                    : t.field === "instrument"
-                      ? "Instrument"
-                      : "Contributor",
-              label: t.label,
-              onRemove: () => remove(t.field, t.id),
-            })),
-            ...activeFilterItems,
-          ]}
-          onClearAll={handleClearAll}
-        />
-      )}
 
       <div>
         {isLoading && (

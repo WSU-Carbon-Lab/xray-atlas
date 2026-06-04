@@ -5,10 +5,14 @@ import {
 } from "bun:test";
 import {
   emptyFacetSelection,
+  emptyNexafsCatalogFilters,
   readFacetParams,
+  readNexafsCatalogFilterParams,
   writeFacetParams,
+  writeNexafsCatalogFilterParams,
 } from "./url-state";
-import type { FacetSelection } from "./types";
+import type { FacetSelection, NexafsCatalogFilters } from "./types";
+import { ExperimentType } from "~/prisma/browser";
 
 type Matchers = {
   toEqual: (expected: unknown) => void;
@@ -135,5 +139,53 @@ describe("readFacetParams", () => {
     const sel = readFacetParams(sp);
     expect(sel.edge).toEqual([UUID_A]);
     expect(sel.mol).toEqual([]);
+  });
+});
+
+describe("readNexafsCatalogFilterParams / writeNexafsCatalogFilterParams", () => {
+  it("round-trips acquisition and verification filters", () => {
+    const original: NexafsCatalogFilters = {
+      experimentType: ExperimentType.TOTAL_ELECTRON_YIELD,
+      verifiedOnly: true,
+      verificationSource: "publication",
+    };
+    const sp = new URLSearchParams();
+    writeNexafsCatalogFilterParams(sp, original);
+    expect(sp.get("experimentType")).toBe(ExperimentType.TOTAL_ELECTRON_YIELD);
+    expect(sp.get("verified")).toBe("1");
+    expect(sp.get("verificationSource")).toBe("publication");
+    expect(readNexafsCatalogFilterParams(sp)).toEqual(original);
+  });
+
+  it("omits verificationSource when verified with either source", () => {
+    const sp = new URLSearchParams();
+    writeNexafsCatalogFilterParams(sp, {
+      verifiedOnly: true,
+      verificationSource: "either",
+    });
+    expect(sp.get("verified")).toBe("1");
+    expect(sp.has("verificationSource")).toBe(false);
+  });
+
+  it("clears catalog keys when filters are empty", () => {
+    const sp = new URLSearchParams(
+      "experimentType=TRANSMISSION&verified=1&verificationSource=atlas",
+    );
+    writeNexafsCatalogFilterParams(sp, emptyNexafsCatalogFilters());
+    expect(sp.has("experimentType")).toBe(false);
+    expect(sp.has("verified")).toBe(false);
+    expect(sp.has("verificationSource")).toBe(false);
+  });
+
+  it("treats verificationSource without verified as verified-only (legacy)", () => {
+    const sp = new URLSearchParams("verificationSource=atlas");
+    const filters = readNexafsCatalogFilterParams(sp);
+    expect(filters.verifiedOnly).toBe(true);
+    expect(filters.verificationSource).toBe("atlas");
+  });
+
+  it("returns empty filters when params absent", () => {
+    const filters = readNexafsCatalogFilterParams(new URLSearchParams());
+    expect(filters).toEqual(emptyNexafsCatalogFilters());
   });
 });

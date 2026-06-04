@@ -3,14 +3,10 @@
 /**
  * URL-synchronized multi-select facet state for the unified NEXAFS search bar.
  *
- * Reads initial state from `URLSearchParams` via `readFacetParams`, mirrors
- * every change back to the URL via `router.replace` (no scroll), and debounces
- * the free-text query exactly as the legacy single-select section does (300 ms).
+ * Reads initial state from `URLSearchParams` via `readFacetParams` and
+ * `readNexafsCatalogFilterParams`, mirrors every change back to the URL via
+ * `router.replace` (no scroll), and debounces the free-text query (300 ms).
  * Resetting any filter or clearing all filters resets the page to 1.
- *
- * Labels for active tokens are resolved from `facetData` (edge, instrument,
- * molecule, contributor maps). Pass `null` while data is loading; tokens for
- * unresolved ids fall back to the raw id string.
  */
 
 import {
@@ -22,12 +18,27 @@ import {
   useRef,
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import type { ExperimentType } from "~/prisma/browser";
+import {
+  EXPERIMENT_TYPE_LABELS,
+  VERIFICATION_SOURCE_LABELS,
+  type VerificationSource,
+} from "../nexafs-browse-experiment-utils";
 import {
   readFacetParams,
   writeFacetParams,
   emptyFacetSelection,
+  readNexafsCatalogFilterParams,
+  writeNexafsCatalogFilterParams,
+  emptyNexafsCatalogFilters,
 } from "./url-state";
-import type { FacetData, FacetField, FacetSelection, FacetToken } from "./types";
+import type {
+  CatalogToken,
+  FacetData,
+  FacetField,
+  FacetSelection,
+  NexafsCatalogFilters,
+} from "./types";
 
 export interface UseFacetSelectionOptions {
   basePath: string;
@@ -39,16 +50,20 @@ export interface UseFacetSelectionOptions {
 
 export interface UseFacetSelectionReturn {
   selection: FacetSelection;
-  tokens: FacetToken[];
+  catalogFilters: NexafsCatalogFilters;
+  tokens: CatalogToken[];
   query: string;
   debouncedQuery: string;
   urlSynced: boolean;
   setQuery: (q: string) => void;
   add: (field: FacetField, id: string) => void;
-  remove: (field: FacetField, id: string) => void;
+  remove: (field: CatalogToken["field"], id: string) => void;
   toggle: (field: FacetField, id: string) => void;
   clearField: (field: FacetField) => void;
   clearAll: () => void;
+  setExperimentType: (value: ExperimentType | undefined) => void;
+  setVerifiedOnly: (value: boolean) => void;
+  setVerificationSource: (source: VerificationSource) => void;
   currentPage: number;
   setCurrentPage: (page: number) => void;
 }
@@ -70,12 +85,28 @@ function resolveLabel(
   return list.find((item) => item.id === id)?.label ?? id;
 }
 
+function catalogFilterTokens(filters: NexafsCatalogFilters): CatalogToken[] {
+  const out: CatalogToken[] = [];
+  if (filters.experimentType) {
+    out.push({
+      field: "acquisition",
+      id: filters.experimentType,
+      label:
+        EXPERIMENT_TYPE_LABELS[filters.experimentType] ?? filters.experimentType,
+    });
+  }
+  if (filters.verifiedOnly) {
+    out.push({
+      field: "verification",
+      id: filters.verificationSource,
+      label: VERIFICATION_SOURCE_LABELS[filters.verificationSource],
+    });
+  }
+  return out;
+}
+
 /**
- * Manages `FacetSelection` state synchronized to the browser URL.
- *
- * The hook owns URL reading (on mount via `useLayoutEffect`), URL writing
- * (on any selection or debounced-query change), the debounced free-text query,
- * and page-reset side effects. It does not own sort or items-per-page state.
+ * Manages facet selection and catalog filters synchronized to the browser URL.
  *
  * @param options.basePath - Path prefix used when constructing the push URL.
  * @param options.lockedMoleculeId - Molecule id locked by the embed context; excluded from URL.
@@ -92,6 +123,9 @@ export function useFacetSelection({
 
   const [urlSynced, setUrlSynced] = useState(false);
   const [selection, setSelection] = useState<FacetSelection>(emptyFacetSelection);
+  const [catalogFilters, setCatalogFilters] = useState<NexafsCatalogFilters>(
+    emptyNexafsCatalogFilters,
+  );
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -105,6 +139,7 @@ export function useFacetSelection({
       parsed.mol = [lockedMoleculeId];
     }
     setSelection(parsed);
+    setCatalogFilters(readNexafsCatalogFilterParams(sp));
     const q = sp.get("q") ?? "";
     setQuery(q);
     setDebouncedQuery(q);
@@ -129,11 +164,20 @@ export function useFacetSelection({
     if (!urlSynced || !isMounted.current) return;
     const sp = new URLSearchParams();
     writeFacetParams(sp, selection);
+    writeNexafsCatalogFilterParams(sp, catalogFilters);
     if (debouncedQuery) sp.set("q", debouncedQuery);
     if (currentPage > 1) sp.set("page", currentPage.toString());
     const qs = sp.toString();
     router.replace(`${basePath}${qs ? `?${qs}` : ""}`, { scroll: false });
-  }, [urlSynced, selection, debouncedQuery, currentPage, basePath, router]);
+  }, [
+    urlSynced,
+    selection,
+    catalogFilters,
+    debouncedQuery,
+    currentPage,
+    basePath,
+    router,
+  ]);
 
   const add = useCallback(
     (field: FacetField, id: string) => {
@@ -147,7 +191,25 @@ export function useFacetSelection({
   );
 
   const remove = useCallback(
-    (field: FacetField, id: string) => {
+    (field: CatalogToken["field"], id: string) => {
+      if (field === "acquisition") {
+        setCatalogFilters((prev) =>
+          prev.experimentType === id
+            ? { ...prev, experimentType: undefined }
+            : prev,
+        );
+        resetPage();
+        return;
+      }
+      if (field === "verification") {
+        setCatalogFilters((prev) => ({
+          ...prev,
+          verifiedOnly: false,
+          verificationSource: "either",
+        }));
+        resetPage();
+        return;
+      }
       setSelection((prev) => ({
         ...prev,
         [field]: prev[field].filter((x) => x !== id),
@@ -185,11 +247,40 @@ export function useFacetSelection({
         ? { ...emptyFacetSelection(), mol: [lockedMoleculeId] }
         : emptyFacetSelection(),
     );
+    setCatalogFilters(emptyNexafsCatalogFilters());
     resetPage();
   }, [lockedMoleculeId, resetPage]);
 
-  const tokens = useMemo<FacetToken[]>(() => {
-    const out: FacetToken[] = [];
+  const setExperimentType = useCallback(
+    (value: ExperimentType | undefined) => {
+      setCatalogFilters((prev) => ({ ...prev, experimentType: value }));
+      resetPage();
+    },
+    [resetPage],
+  );
+
+  const setVerifiedOnly = useCallback(
+    (value: boolean) => {
+      setCatalogFilters((prev) => ({
+        ...prev,
+        verifiedOnly: value,
+        verificationSource: value ? prev.verificationSource : "either",
+      }));
+      resetPage();
+    },
+    [resetPage],
+  );
+
+  const setVerificationSource = useCallback(
+    (source: VerificationSource) => {
+      setCatalogFilters((prev) => ({ ...prev, verificationSource: source }));
+      resetPage();
+    },
+    [resetPage],
+  );
+
+  const tokens = useMemo<CatalogToken[]>(() => {
+    const out: CatalogToken[] = [];
     const fields: FacetField[] = ["edge", "mol", "instrument", "contributor"];
     for (const field of fields) {
       if (field === "mol" && lockedMoleculeId) continue;
@@ -197,11 +288,13 @@ export function useFacetSelection({
         out.push({ field, id, label: resolveLabel(field, id, facetData) });
       }
     }
+    out.push(...catalogFilterTokens(catalogFilters));
     return out;
-  }, [selection, facetData, lockedMoleculeId]);
+  }, [selection, catalogFilters, facetData, lockedMoleculeId]);
 
   return {
     selection,
+    catalogFilters,
     tokens,
     query,
     debouncedQuery,
@@ -212,6 +305,9 @@ export function useFacetSelection({
     toggle,
     clearField,
     clearAll,
+    setExperimentType,
+    setVerifiedOnly,
+    setVerificationSource,
     currentPage,
     setCurrentPage,
   };

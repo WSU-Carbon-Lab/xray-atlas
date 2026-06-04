@@ -5,10 +5,11 @@ import { Tooltip } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import { BrowseFilterTrigger } from "./browse-filter-trigger";
+import type { VerificationSource } from "./nexafs-browse-experiment-utils";
 import {
   VERIFICATION_SOURCE_LABELS,
-  type VerificationSource,
-} from "./nexafs-browse-experiment-utils";
+  VERIFICATION_SOURCE_OPTIONS,
+} from "./nexafs-filter-options";
 
 export type { VerificationSource };
 
@@ -86,7 +87,7 @@ export function NexafsVerificationFilterDropdown({
                   ) : null}
                 </button>
                 <div className="border-border-default space-y-1 rounded-md border p-1">
-                  {(["either", "publication", "atlas"] as const).map(
+                  {VERIFICATION_SOURCE_OPTIONS.map(
                     (option) => {
                       const selected = verificationSource === option;
                       return (

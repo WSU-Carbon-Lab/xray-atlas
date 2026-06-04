@@ -31,24 +31,42 @@ import {
   XMarkIcon,
   TableCellsIcon,
 } from "@heroicons/react/24/outline";
-import type { FacetData, FacetField, FacetItem, FacetToken } from "./types";
+import type { ExperimentType } from "~/prisma/browser";
+import {
+  NexafsAcquisitionFilterPanel,
+  NexafsVerificationFilterPanel,
+} from "../nexafs-catalog-filter-panels";
+import type { VerificationSource } from "../nexafs-browse-experiment-utils";
+import type {
+  CatalogToken,
+  FacetData,
+  FacetField,
+  FacetItem,
+  NexafsCatalogFilters,
+} from "./types";
 import { PeriodicEdgeModal } from "./periodic-edge-modal";
 import type { EdgeOption } from "./periodic-edge-modal";
 
-const FIELD_LABELS: Record<FacetField, string> = {
+const FIELD_LABELS: Record<CatalogToken["field"], string> = {
   edge: "Edge",
   mol: "Molecule",
   instrument: "Instrument",
   contributor: "Contributor",
+  acquisition: "Acquisition",
+  verification: "Verified",
 };
 
-const FIELD_CHIP_CLASSES: Record<FacetField, string> = {
+const FIELD_CHIP_CLASSES: Record<CatalogToken["field"], string> = {
   edge: "bg-[color-mix(in_oklch,var(--accent)_15%,transparent)] text-accent border-[color-mix(in_oklch,var(--accent)_30%,transparent)]",
   mol: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/25",
   instrument:
     "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/25",
   contributor:
     "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/25",
+  acquisition:
+    "bg-[color-mix(in_oklch,var(--accent)_12%,transparent)] text-accent border-[color-mix(in_oklch,var(--accent)_28%,transparent)]",
+  verification:
+    "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25",
 };
 
 const FIELD_PANEL_LABEL_CLASSES: Record<FacetField, string> = {
@@ -66,18 +84,26 @@ interface PopularitySection {
 }
 
 export interface UnifiedSearchBarProps {
-  /** Active tokens to render as chips in the input area. */
-  tokens: FacetToken[];
+  /** Active facet and catalog filter tokens in the input area. */
+  tokens: CatalogToken[];
   /** Current free-text query value. */
   query: string;
   /** Called when the text input value changes. */
   onQueryChange: (q: string) => void;
   /** Add a facet selection value. */
   onAdd: (field: FacetField, id: string) => void;
-  /** Remove a facet selection value. */
-  onRemove: (field: FacetField, id: string) => void;
+  /** Remove a facet or catalog filter token. */
+  onRemove: (field: CatalogToken["field"], id: string) => void;
   /** Remove all active tokens and clear the query. */
   onClearAll: () => void;
+  /** Acquisition and verification filter state. */
+  catalogFilters: NexafsCatalogFilters;
+  /** Called when the user selects or clears an acquisition mode. */
+  onExperimentTypeChange: (value: ExperimentType | undefined) => void;
+  /** Called when the verified-only toggle changes. */
+  onVerifiedOnlyChange: (value: boolean) => void;
+  /** Called when the verification source sub-filter changes. */
+  onVerificationSourceChange: (source: VerificationSource) => void;
   /** Facet popularity data for the panel shown on empty focus. */
   facetCounts?: FacetData | null;
   /** Grouped typeahead results for the current query. */
@@ -122,6 +148,10 @@ export function UnifiedSearchBar({
   onAdd,
   onRemove,
   onClearAll,
+  catalogFilters,
+  onExperimentTypeChange,
+  onVerifiedOnlyChange,
+  onVerificationSourceChange,
   facetCounts,
   searchResults,
   edges,
@@ -180,10 +210,7 @@ export function UnifiedSearchBar({
   }, [hasQuery, searchResults]);
 
   const showDropdown =
-    isOpen &&
-    (hasQuery
-      ? typeaheadCandidates.length > 0
-      : popularitySections.length > 0);
+    isOpen && (hasQuery ? typeaheadCandidates.length > 0 : true);
 
   useEffect(() => {
     setHighlightedIndex(-1);
@@ -484,6 +511,28 @@ export function UnifiedSearchBar({
                   </div>
                 </div>
               ))}
+
+              <div className="mt-2">
+                <p className="text-accent mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide">
+                  Acquisition
+                </p>
+                <NexafsAcquisitionFilterPanel
+                  experimentType={catalogFilters.experimentType}
+                  onExperimentTypeChange={onExperimentTypeChange}
+                />
+              </div>
+
+              <div className="mt-2">
+                <p className="text-blue-600 dark:text-blue-400 mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide">
+                  Verification
+                </p>
+                <NexafsVerificationFilterPanel
+                  verifiedOnly={catalogFilters.verifiedOnly}
+                  verificationSource={catalogFilters.verificationSource}
+                  onVerifiedOnlyChange={onVerifiedOnlyChange}
+                  onVerificationSourceChange={onVerificationSourceChange}
+                />
+              </div>
             </div>
           )}
         </div>
