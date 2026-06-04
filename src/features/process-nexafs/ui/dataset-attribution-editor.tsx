@@ -6,13 +6,13 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import { useSession } from "next-auth/react";
-import { Button, ErrorMessage } from "@heroui/react";
+import { ErrorMessage } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { Plus, Trash2, Users } from "lucide-react";
-import { ORCIDIcon } from "~/components/icons";
+import { Plus, Users } from "lucide-react";
+import { ContributorAvatarGroup } from "~/components/attribution/contributor-avatar-group";
+import { contributorRoleLabelsForDisplay } from "~/lib/contributor-avatar-display";
 import {
   ATTRIBUTION_NESTED_OVERLAY_SELECTOR,
   datasetAttributionsForAvatarDisplay,
@@ -27,16 +27,13 @@ import {
 } from "~/lib/nexafs-attribution";
 import { attributionResearcherAvatarProps } from "~/lib/dataset-attribution-claim";
 import type { ResolvedAttributionPublicDisplay } from "~/lib/dataset-attribution-claim";
-import type { DataCiteContributorType } from "~/lib/datacite-contributor-types";
 import { isValidOrcidUserId } from "~/lib/orcid";
 import { AddResearcherAttributionForm } from "./add-researcher-attribution-form";
 import { ApplyTeamAttributionForm } from "./apply-team-attribution-form";
 import {
   AttributionAvatarRowSkeleton,
-  AvatarGroup,
   avatarGroupStackWidthPx,
   normalizeProfileImageUrl,
-  ResearcherAvatar,
   type UserWithOrcid,
 } from "~/components/ui/avatar";
 import {
@@ -57,10 +54,6 @@ type DatasetAttributionEditorProps = {
   showLabel?: boolean;
 };
 
-function roleLabelsForDisplay(roles: DataCiteContributorType[]): string {
-  return roles.map((role) => contributorRoleLabel(role)).join(", ");
-}
-
 function resolvedFromAvatarDisplay(
   display: AttributionAvatarDisplay,
 ): ResolvedAttributionPublicDisplay {
@@ -76,7 +69,8 @@ function resolvedFromAvatarDisplay(
 
 function avatarDisplayToUser(
   display: AttributionAvatarDisplay,
-  sessionOrcid: string | null = null,
+  sessionOrcid: string | null,
+  rowsForOrcid: DatasetAttributionEntry[],
 ): UserWithOrcid {
   const orcid = display.orcid.trim();
   const profileId = display.profileUserId.trim();
@@ -101,128 +95,16 @@ function avatarDisplayToUser(
           isClaimed: display.isClaimed,
           hasContributionAgreement: display.hasContributionAgreement,
         }),
-    tooltipSubtitle: roleLabelsForDisplay(display.roles),
+    tooltipSubtitle: contributorRoleLabelsForDisplay(display.roles),
+    hoverRoleLabel: contributorRoleLabelsForDisplay(display.roles),
     avatarStackKey: display.stackKey,
+    contributorRemoveRows: rowsForOrcid.map((row) => ({
+      rowKey: row.clientId,
+      roleLabel: contributorRoleLabel(row.role),
+      removeDisabled:
+        isUploaderContributorRole(row.role) && row.orcid === sessionOrcid,
+    })),
   };
-}
-
-function ContributorAvatarPopover({
-  display,
-  sessionOrcid,
-  rowsForOrcid,
-  onRemove,
-  avatar,
-}: {
-  display: AttributionAvatarDisplay;
-  sessionOrcid: string | null;
-  rowsForOrcid: DatasetAttributionEntry[];
-  onRemove: (row: DatasetAttributionEntry) => void;
-  avatar: ReactNode;
-}) {
-  const roleText = roleLabelsForDisplay(display.roles);
-  const avatarProps = attributionResearcherAvatarProps({
-    orcid: display.orcid,
-    resolved: resolvedFromAvatarDisplay(display),
-  });
-
-  return (
-    <PopoverMenu
-      align="start"
-      placement="auto"
-      renderTrigger={({ triggerProps, isOpen }) => (
-        <button
-          type="button"
-          {...triggerProps}
-          className={cn(
-            "focus-visible:ring-accent inline-flex size-8 shrink-0 items-center justify-center rounded-full p-0 leading-none focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-            isOpen && "ring-accent ring-2 ring-offset-2",
-          )}
-          aria-label={`Attribution for ${display.displayName}`}
-          title={`${display.displayName} - ${roleText}`}
-        >
-          {avatar}
-        </button>
-      )}
-      renderContent={({ close, contentProps, contentPositionClassName }) => (
-        <PopoverMenuContent
-          {...contentProps}
-          className={cn(
-            contentPositionClassName,
-            "border-border bg-surface w-64 rounded-lg border p-3 shadow-lg",
-          )}
-        >
-          <div className="space-y-2">
-            <div className="flex items-start gap-2">
-              <ResearcherAvatar
-                displayName={avatarProps.displayName}
-                imageUrl={avatarProps.imageUrl}
-                identitySeed={display.orcid}
-                isAtlasProfile={avatarProps.isAtlasProfile}
-                placeholder={avatarProps.placeholder}
-                size="sm"
-                className="h-8 w-8 shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-foreground truncate text-sm font-semibold">
-                  {display.isOrcidOnlyDisplay ? (
-                    <span className="text-muted font-mono text-xs tabular-nums">
-                      {display.orcid}
-                    </span>
-                  ) : (
-                    display.displayName
-                  )}
-                </p>
-                <p className="text-muted text-xs">{roleText}</p>
-                <a
-                  href={`https://orcid.org/${display.orcid}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted hover:text-accent mt-1 inline-flex items-center gap-1 font-mono text-xs tabular-nums"
-                >
-                  <ORCIDIcon
-                    className="h-3 w-3 shrink-0"
-                    authenticated={display.isClaimed}
-                  />
-                  {display.orcid}
-                </a>
-                {!display.isClaimed ? (
-                  <p className="text-muted mt-1 text-xs">Unclaimed on Atlas</p>
-                ) : null}
-              </div>
-            </div>
-            <ul className="space-y-1">
-              {rowsForOrcid.map((row) => (
-                <li
-                  key={row.clientId}
-                  className="flex items-center justify-between gap-2"
-                >
-                  <span className="text-muted text-xs">
-                    {contributorRoleLabel(row.role)}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    isDisabled={
-                      isUploaderContributorRole(row.role) &&
-                      row.orcid === sessionOrcid
-                    }
-                    onPress={() => {
-                      onRemove(row);
-                      close();
-                    }}
-                    aria-label={`Remove ${row.orcid} as ${row.role}`}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </PopoverMenuContent>
-      )}
-    />
-  );
 }
 
 export function DatasetAttributionEditor({
@@ -248,9 +130,27 @@ export function DatasetAttributionEditor({
     [validAttributions],
   );
 
+  const rowsByOrcid = useMemo(() => {
+    const map = new Map<string, DatasetAttributionEntry[]>();
+    for (const row of validAttributions) {
+      const key = row.orcid.trim();
+      const list = map.get(key) ?? [];
+      list.push(row);
+      map.set(key, list);
+    }
+    return map;
+  }, [validAttributions]);
+
   const avatarUsers = useMemo(
-    () => avatarDisplays.map((display) => avatarDisplayToUser(display, sessionOrcid)),
-    [avatarDisplays, sessionOrcid],
+    () =>
+      avatarDisplays.map((display) =>
+        avatarDisplayToUser(
+          display,
+          sessionOrcid,
+          rowsByOrcid.get(display.orcid) ?? [],
+        ),
+      ),
+    [avatarDisplays, rowsByOrcid, sessionOrcid],
   );
 
   const avatarStackWidthPx = useMemo(
@@ -306,44 +206,32 @@ export function DatasetAttributionEditor({
     [],
   );
 
-  const handleRemove = useCallback(
-    (row: DatasetAttributionEntry) => {
-      onChangeRef.current((previous) => {
-        const valid = filterValidOrcidAttributions(previous);
-        if (isUploaderContributorRole(row.role)) {
-          const uploaderCount = valid.filter((item) =>
-            isUploaderContributorRole(item.role),
-          ).length;
-          if (uploaderCount <= 1) {
-            setOrcidError("At least one data curator (uploader) is required");
-            return previous;
-          }
+  const handleRemove = useCallback((row: DatasetAttributionEntry) => {
+    onChangeRef.current((previous) => {
+      const valid = filterValidOrcidAttributions(previous);
+      if (isUploaderContributorRole(row.role)) {
+        const uploaderCount = valid.filter((item) =>
+          isUploaderContributorRole(item.role),
+        ).length;
+        if (uploaderCount <= 1) {
+          setOrcidError("At least one data curator (uploader) is required");
+          return previous;
         }
-        setOrcidError(null);
-        return valid.filter((item) => item.clientId !== row.clientId);
-      });
+      }
+      setOrcidError(null);
+      return valid.filter((item) => item.clientId !== row.clientId);
+    });
+  }, []);
+
+  const handleRemoveContributorRow = useCallback(
+    ({ rowKey }: { user: UserWithOrcid; rowKey: string }) => {
+      const row = validAttributions.find((item) => item.clientId === rowKey);
+      if (row) {
+        handleRemove(row);
+      }
     },
-    [],
+    [handleRemove, validAttributions],
   );
-
-  const rowsByOrcid = useMemo(() => {
-    const map = new Map<string, DatasetAttributionEntry[]>();
-    for (const row of validAttributions) {
-      const key = row.orcid.trim();
-      const list = map.get(key) ?? [];
-      list.push(row);
-      map.set(key, list);
-    }
-    return map;
-  }, [validAttributions]);
-
-  const displaysByOrcid = useMemo(() => {
-    const map = new Map<string, AttributionAvatarDisplay>();
-    for (const display of avatarDisplays) {
-      map.set(display.orcid, display);
-    }
-    return map;
-  }, [avatarDisplays]);
 
   const handleApplyTeamAttributions = useCallback(
     (rows: DatasetAttributionEntry[]) => {
@@ -455,38 +343,15 @@ export function DatasetAttributionEditor({
                 trailingSlotCount={2}
               />
             ) : (
-              <AvatarGroup
+              <ContributorAvatarGroup
                 key={avatarUsers
                   .map((user) => user.avatarStackKey ?? user.orcid ?? user.id)
                   .join("|")}
                 users={avatarUsers}
                 size="sm"
                 max={8}
-                tooltipVariant="name"
                 trailingSlot={addResearcherControl}
-                wrapAvatarTrigger={({ user, avatar }) => {
-                  const orcidKey =
-                    user.orcid?.trim() ?? user.avatarStackKey?.trim();
-                  const display = orcidKey
-                    ? displaysByOrcid.get(orcidKey)
-                    : undefined;
-                  if (!display) {
-                    return (
-                      <span className="inline-flex size-8 shrink-0 items-center justify-center">
-                        {avatar}
-                      </span>
-                    );
-                  }
-                  return (
-                    <ContributorAvatarPopover
-                      display={display}
-                      sessionOrcid={sessionOrcid}
-                      rowsForOrcid={rowsByOrcid.get(display.orcid) ?? []}
-                      onRemove={handleRemove}
-                      avatar={avatar}
-                    />
-                  );
-                }}
+                onRemoveContributorRow={handleRemoveContributorRow}
               />
             )}
           </div>

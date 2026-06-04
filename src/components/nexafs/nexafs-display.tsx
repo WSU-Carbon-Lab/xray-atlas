@@ -17,11 +17,9 @@ import {
 import { MoleculeImageSVG } from "~/components/molecules/molecule-image-svg";
 import { MoleculeImageModal } from "~/components/molecules/molecule-display";
 import { getPreviewGradient } from "~/components/molecules/category-tags";
-import { AvatarGroup, type UserWithOrcid } from "~/components/ui/avatar";
-import {
-  dedupeNexafsContributorsByOrcid,
-  type NexafsContributorPerson,
-} from "~/lib/nexafs-contributors";
+import { ContributorAvatarGroup } from "~/components/attribution/contributor-avatar-group";
+import { nexafsContributorAvatarUsers } from "~/lib/contributor-avatar-display";
+import type { NexafsContributorPerson } from "~/lib/nexafs-contributors";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
@@ -274,44 +272,16 @@ export function NexafsExperimentCompactCard({
     setSpectrumExpanded((open) => !open);
   }, []);
 
-  const dedupedContributorUsers = dedupeNexafsContributorsByOrcid(
+  const readOnlyContributorUsers = nexafsContributorAvatarUsers(
     experimentContributorUsers,
   );
-  const visibleContributorUsers: UserWithOrcid[] = dedupedContributorUsers
-    .filter((contributor) => contributor.isPublicProfileVisible)
-    .map((contributor) => ({
-      id: contributor.orcid,
-      orcid: contributor.orcid,
-      name: contributor.name,
-      image: contributor.image,
-    }));
-  const hiddenContributors = dedupedContributorUsers.filter(
-    (contributor) => !contributor.isPublicProfileVisible,
-  );
-
-  const readOnlyContributorUsers: UserWithOrcid[] = [
-    ...visibleContributorUsers,
-    ...hiddenContributors.map((contributor) => ({
-      id: contributor.orcid,
-      orcid: contributor.orcid,
-      name: contributor.orcid,
-      image: null,
-      isAtlasProfile: false,
-      avatarPlaceholder: "person" as const,
-      tooltipSubtitle: contributor.isClaimed
-        ? "ORCID-only attribution"
-        : "Unclaimed on Atlas",
-    })),
-  ];
 
   const readOnlyContributorAvatars =
     readOnlyContributorUsers.length > 0 ? (
-      <AvatarGroup
+      <ContributorAvatarGroup
         users={readOnlyContributorUsers}
         size="sm"
         max={8}
-        tooltipVariant="name-orcid"
-        tooltipMode="shared"
       />
     ) : null;
 
@@ -479,7 +449,7 @@ export function NexafsExperimentCompactCard({
             enabled
             variant="inline"
             readOnlyFallback={readOnlyContributorAvatars}
-            skeletonAvatarCount={Math.max(1, dedupedContributorUsers.length)}
+            skeletonAvatarCount={Math.max(1, readOnlyContributorUsers.length)}
             skeletonTrailingSlotCount={2}
           />
         </div>
