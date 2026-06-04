@@ -31,7 +31,11 @@ import {
   GLOBAL_DROP_ZONE_IDS,
 } from "~/hooks/useGlobalFileDropZone";
 import { appendPendingAuxFiles } from "~/lib/pending-aux-file";
-import { getNexafsAuxUploadDefaults } from "~/lib/nexafs-aux-upload-defaults";
+import { inferAuxFileKindFromBatch } from "~/lib/aux-file-client";
+import {
+  getNexafsAuxUploadDefaults,
+  setNexafsAuxUploadDefaults,
+} from "~/lib/nexafs-aux-upload-defaults";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -152,13 +156,18 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
       if (!activeDatasetId) {
         return;
       }
+      const defaults = getNexafsAuxUploadDefaults();
+      const batchKind = inferAuxFileKindFromBatch(files).kind;
+      if (batchKind !== defaults.kind) {
+        setNexafsAuxUploadDefaults({ ...defaults, kind: batchKind });
+      }
       updateDataset(activeDatasetId, (dataset) => ({
         pendingExperimentAuxFiles: appendPendingAuxFiles(
           dataset.pendingExperimentAuxFiles,
           files,
           "experiment",
-          getNexafsAuxUploadDefaults().kind,
-          getNexafsAuxUploadDefaults().description,
+          batchKind,
+          defaults.description,
           reportAuxError,
         ),
       }));
@@ -171,13 +180,18 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
       if (!activeDatasetId) {
         return;
       }
+      const defaults = getNexafsAuxUploadDefaults();
+      const batchKind = inferAuxFileKindFromBatch(files).kind;
+      if (batchKind !== defaults.kind) {
+        setNexafsAuxUploadDefaults({ ...defaults, kind: batchKind });
+      }
       updateDataset(activeDatasetId, (dataset) => ({
         pendingSampleAuxFiles: appendPendingAuxFiles(
           dataset.pendingSampleAuxFiles,
           files,
           "sample",
-          getNexafsAuxUploadDefaults().kind,
-          getNexafsAuxUploadDefaults().description,
+          batchKind,
+          defaults.description,
           reportAuxError,
         ),
       }));

@@ -17,6 +17,7 @@ import {
   AUX_FILE_KINDS,
   auxFileVisualKindFromAuxKind,
   formatAuxFileSize,
+  inferAuxFileKindFromBatch,
   inferAuxFileVisualKindFromDropLabel,
   type AuxFileKind,
   type AuxFileScope,
@@ -219,11 +220,17 @@ export function AuxFileDropZone({
       if (disabled) {
         return;
       }
+      const list = Array.from(incoming);
+      const batchKind =
+        list.length > 0 ? inferAuxFileKindFromBatch(list).kind : pendingKind;
+      if (list.length > 0 && batchKind !== pendingKind) {
+        setPendingKind(batchKind);
+      }
       const next = appendPendingAuxFiles(
         files,
         incoming,
         scope,
-        pendingKind,
+        batchKind,
         pendingDescription,
         reportError,
       );
@@ -243,6 +250,7 @@ export function AuxFileDropZone({
       pendingKind,
       reportError,
       scope,
+      setPendingKind,
     ],
   );
 
@@ -352,7 +360,7 @@ export function AuxFileDropZone({
       <div
         className={cn(
           "relative flex w-full justify-center",
-          isStackHovered && hasQueuedInStack && "min-h-[5.5rem]",
+          isStackHovered && hasQueuedInStack && "min-h-[6.75rem]",
           showGlobalOverlay && "opacity-0",
         )}
         onMouseEnter={() => {

@@ -82,22 +82,28 @@ function stackAccentLayerClasses(
   text: string;
   border: string;
   bg: string;
-  ring: string;
 } {
   if (accent === "danger") {
     return {
-      text: emphasized ? "text-danger" : "text-foreground",
-      border: emphasized ? "border-danger/55" : "border-border",
-      bg: emphasized ? "bg-danger/10" : "bg-surface",
-      ring: "ring-danger/25",
+      text: "text-foreground",
+      border: emphasized ? "border-danger" : "border-border",
+      bg: "bg-surface",
     };
   }
   return {
-    text: emphasized ? "text-accent" : "text-foreground",
-    border: emphasized ? "border-accent/55" : "border-border",
-    bg: emphasized ? "bg-accent/10" : "bg-surface",
-    ring: "ring-accent/25",
+    text: "text-foreground",
+    border: emphasized ? "border-accent" : "border-border",
+    bg: "bg-surface",
   };
+}
+
+function truncateStackFilename(name: string, maxChars = 22): string {
+  if (name.length <= maxChars) {
+    return name;
+  }
+  const head = Math.ceil((maxChars - 1) / 2);
+  const tail = Math.floor((maxChars - 1) / 2);
+  return `${name.slice(0, head)}…${name.slice(-tail)}`;
 }
 
 function gridColumnsForCount(count: number): number {
@@ -184,14 +190,10 @@ function StackedPageRemoveButton({
   filename,
   disabled,
   onRemove,
-  showAlways,
-  variant,
 }: {
   filename: string;
   disabled?: boolean;
   onRemove?: () => void;
-  showAlways: boolean;
-  variant: "stack" | "grid";
 }) {
   if (!onRemove) {
     return null;
@@ -204,14 +206,8 @@ function StackedPageRemoveButton({
       size="sm"
       variant="ghost"
       className={cn(
-        "text-muted hover:text-danger bg-surface/95 border-border absolute z-10 rounded-full border p-0 shadow-sm",
-        "motion-safe:transition-opacity motion-reduce:transition-none",
-        variant === "stack"
-          ? "-top-0.5 -right-0.5 h-4 w-4 min-h-4 min-w-4"
-          : "top-0 right-0 h-3.5 w-3.5 min-h-3.5 min-w-3.5 rounded-sm",
-        showAlways
-          ? "opacity-100"
-          : "opacity-0 group-hover/layer:opacity-100 focus:opacity-100",
+        "text-muted hover:text-danger bg-surface border-border absolute top-0 right-0 z-10 h-3.5 w-3.5 min-h-3.5 min-w-3.5 rounded-sm border p-0 shadow-sm",
+        "opacity-100",
       )}
       aria-label={`Remove ${filename}`}
       isDisabled={disabled}
@@ -220,11 +216,7 @@ function StackedPageRemoveButton({
         event.stopPropagation();
       }}
     >
-      <X
-        className={variant === "stack" ? "size-2" : "size-1.5"}
-        strokeWidth={variant === "grid" ? 2.5 : 2}
-        aria-hidden
-      />
+      <X className="size-1.5" strokeWidth={2.5} aria-hidden />
     </Button>
   );
 }
@@ -255,7 +247,7 @@ function StackedPageLayer({
   isDecorative: boolean;
 }) {
   const active = isActive || isDragHighlight;
-  const emphasized = active || filledStack;
+  const emphasized = active || (filledStack && Boolean(file));
   const accentClasses = stackAccentLayerClasses(stackAccent, emphasized);
   const kind = file?.visualKind ?? visualKind;
   const transform = layerTransformForSlot(
@@ -271,44 +263,18 @@ function StackedPageLayer({
   return (
     <span
       className={cn(
-        "group/layer absolute flex h-11 w-[2.35rem] items-center justify-center rounded-md border shadow-sm",
-        "motion-safe:transition-[transform,opacity,box-shadow] motion-safe:duration-300 motion-reduce:transition-none",
-        isFront ? "shadow-md" : "shadow-sm",
+        "absolute flex h-11 w-[2.35rem] items-center justify-center rounded-md border shadow-sm",
+        "motion-safe:transition-transform motion-safe:duration-300 motion-reduce:transition-none",
         isDecorative && !file
           ? isFront
             ? "border-border bg-surface text-muted"
-            : cn(
-                "border-border/80 bg-surface-2",
-                active ? "opacity-90" : "opacity-70",
-              )
+            : "border-border bg-surface-2 text-muted"
           : file
-            ? cn(
-                accentClasses.border,
-                accentClasses.bg,
-                isFront
-                  ? cn(
-                      accentClasses.text,
-                      emphasized && "motion-safe:shadow-lg",
-                    )
-                  : emphasized
-                    ? "opacity-95"
-                    : "opacity-85",
-              )
+            ? cn(accentClasses.border, accentClasses.bg, accentClasses.text)
             : cn(
-                isFront
-                  ? "border-border bg-surface"
-                  : "border-border/80 bg-surface-2",
-                isFront
-                  ? active
-                    ? cn(accentClasses.text, "motion-safe:shadow-lg")
-                    : "text-muted"
-                  : active
-                    ? "opacity-95"
-                    : "opacity-80",
+                isFront ? "border-border bg-surface" : "border-border bg-surface-2",
+                isFront ? (active ? "text-foreground" : "text-muted") : "text-muted",
               ),
-        isDragHighlight &&
-          isFront &&
-          cn(accentClasses.ring, "ring-2"),
         file && "pointer-events-auto",
       )}
       style={{ transform }}
@@ -318,15 +284,8 @@ function StackedPageLayer({
         kind={kind}
         className={cn(
           isFront && emphasized ? "size-5" : "size-4",
-          "text-current",
+          "text-muted",
         )}
-      />
-      <StackedPageRemoveButton
-        filename={file?.filename ?? ""}
-        disabled={file?.removeDisabled}
-        onRemove={file?.onRemove}
-        showAlways={Boolean(file?.onRemove) && emphasized}
-        variant="stack"
       />
     </span>
   );
@@ -343,13 +302,7 @@ function StackedPageFileGridCell({
 
   return (
     <div
-      className={cn(
-        "group/layer relative flex h-10 w-10 items-center justify-center rounded-md border shadow-sm",
-        accentClasses.border,
-        accentClasses.bg,
-        accentClasses.text,
-        "pointer-events-auto",
-      )}
+      className="group/layer pointer-events-auto flex min-w-0 flex-col items-center gap-0.5"
       title={file.filename}
       onClick={(event) => {
         event.stopPropagation();
@@ -358,14 +311,26 @@ function StackedPageFileGridCell({
         event.stopPropagation();
       }}
     >
-      <AuxFileVisualIcon kind={file.visualKind} className="size-4 text-current" />
-      <StackedPageRemoveButton
-        filename={file.filename}
-        disabled={file.removeDisabled}
-        onRemove={file.onRemove}
-        showAlways
-        variant="grid"
-      />
+      <div
+        className={cn(
+          "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border shadow-sm",
+          accentClasses.border,
+          accentClasses.bg,
+        )}
+      >
+        <AuxFileVisualIcon
+          kind={file.visualKind}
+          className="text-muted size-4"
+        />
+        <StackedPageRemoveButton
+          filename={file.filename}
+          disabled={file.removeDisabled}
+          onRemove={file.onRemove}
+        />
+      </div>
+      <p className="text-foreground line-clamp-2 w-full max-w-[4.75rem] text-center text-[9px] leading-tight font-medium break-all">
+        {truncateStackFilename(file.filename)}
+      </p>
     </div>
   );
 }
@@ -387,7 +352,7 @@ function StackedPageFileGrid({
         "pointer-events-auto grid justify-center gap-1.5 motion-safe:transition-[opacity,transform] motion-safe:duration-200 motion-reduce:transition-none",
         className,
       )}
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 2.5rem))` }}
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 4.75rem))` }}
       onClick={(event) => {
         event.stopPropagation();
       }}
@@ -438,10 +403,6 @@ export function StackedPageDropVisual({
   const visibleFiles = hasQueuedFiles
     ? files.slice(-maxStackLayers)
     : [];
-  const overflowCount = hasQueuedFiles
-    ? files.length - visibleFiles.length
-    : 0;
-
   const showGrid =
     expandToGridOnHover && isStackHovered && hasQueuedFiles && !isDragHighlight;
 
@@ -477,7 +438,7 @@ export function StackedPageDropVisual({
     <div
       className={cn(
         "relative mx-auto flex items-center justify-center",
-        showGrid ? "min-h-[5.25rem] w-full max-w-[11rem]" : "h-12 w-[4.75rem]",
+        showGrid ? "min-h-[6.5rem] w-full max-w-[15rem]" : "h-12 w-[4.75rem]",
         className,
       )}
       aria-hidden={!hasQueuedFiles}
@@ -509,16 +470,16 @@ export function StackedPageDropVisual({
           isDecorative={!slotFiles.front}
           {...layerProps}
         />
-        {overflowCount > 0 ? (
+        {hasQueuedFiles && !showGrid ? (
           <span
             className={cn(
-              "border-border bg-surface text-muted pointer-events-none absolute -top-0.5 -right-1 z-20 rounded-full border px-1 py-px text-[9px] font-semibold leading-none shadow-sm",
-              filledStack && stackAccent === "danger" && "border-danger/40 text-danger",
-              filledStack && stackAccent === "accent" && "border-accent/40 text-accent",
+              "border-border bg-surface text-foreground pointer-events-none absolute -top-1 -right-1 z-20 flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[9px] font-semibold leading-none tabular-nums shadow-sm",
+              stackAccent === "danger" && "border-danger text-danger",
+              stackAccent === "accent" && "border-accent text-accent",
             )}
-            aria-hidden
+            aria-label={`${files.length} queued files`}
           >
-            +{overflowCount}
+            {files.length}
           </span>
         ) : null}
       </div>

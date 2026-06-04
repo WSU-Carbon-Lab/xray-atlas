@@ -283,6 +283,143 @@ export function formatDropOverlayMessage(
   return `Drop ${subject} here to upload ${target}`;
 }
 
+const RAW_DATA_EXTENSIONS = new Set([
+  "hdf",
+  "h5",
+  "hd5",
+  "hdf5",
+  "fits",
+  "fit",
+  "tsv",
+  "tab",
+  "bin",
+  "raw",
+  "dat",
+  "nc",
+]);
+
+const SPREADSHEET_EXTENSIONS = new Set([
+  "csv",
+  "xlsx",
+  "xls",
+  "xlsm",
+  "ods",
+]);
+
+const IMAGE_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "tif",
+  "tiff",
+]);
+
+const DOCUMENT_EXTENSIONS = new Set([
+  "txt",
+  "md",
+  "markdown",
+  "pdf",
+  "json",
+  "xml",
+  "doc",
+  "docx",
+  "cif",
+  "pdb",
+]);
+
+const AUX_FILE_KIND_INFERENCE_PRIORITY: AuxFileKind[] = [
+  "raw_data",
+  "spreadsheet",
+  "image",
+  "protocol",
+  "document",
+  "other",
+];
+
+/**
+ * Returns the lowercase extension without a leading dot, or an empty string when absent.
+ */
+export function auxFileExtensionFromName(fileName: string): string {
+  const trimmed = fileName.trim().toLowerCase();
+  const dot = trimmed.lastIndexOf(".");
+  if (dot < 0 || dot === trimmed.length - 1) {
+    return "";
+  }
+  return trimmed.slice(dot + 1);
+}
+
+/**
+ * Maps a filename extension to the persisted aux `kind` enum used on upload.
+ */
+export function inferAuxFileKindFromFileName(fileName: string): AuxFileKind {
+  const ext = auxFileExtensionFromName(fileName);
+  if (ext === "") {
+    return "other";
+  }
+  if (RAW_DATA_EXTENSIONS.has(ext)) {
+    return "raw_data";
+  }
+  if (SPREADSHEET_EXTENSIONS.has(ext)) {
+    return "spreadsheet";
+  }
+  if (IMAGE_EXTENSIONS.has(ext)) {
+    return "image";
+  }
+  if (DOCUMENT_EXTENSIONS.has(ext)) {
+    return "document";
+  }
+  return "other";
+}
+
+/**
+ * Infers aux `kind` from a browser `File` using its name (extension-first).
+ */
+export function inferAuxFileKindFromFile(file: File): AuxFileKind {
+  return inferAuxFileKindFromFileName(file.name);
+}
+
+export type AuxFileKindBatchInference = {
+  kind: AuxFileKind;
+  /** True when the incoming list contains more than one distinct inferred kind. */
+  mixed: boolean;
+};
+
+/**
+ * Picks one aux `kind` for a multi-file drop: unanimous kind wins; otherwise the kind
+ * with the highest count, breaking ties by {@link AUX_FILE_KIND_INFERENCE_PRIORITY}.
+ */
+export function inferAuxFileKindFromBatch(
+  files: readonly File[],
+): AuxFileKindBatchInference {
+  if (files.length === 0) {
+    return { kind: "other", mixed: false };
+  }
+
+  const counts = new Map<AuxFileKind, number>();
+  for (const file of files) {
+    const kind = inferAuxFileKindFromFile(file);
+    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+  }
+
+  const distinctKinds = [...counts.keys()];
+  const mixed = distinctKinds.length > 1;
+
+  if (distinctKinds.length === 1) {
+    return { kind: distinctKinds[0]!, mixed: false };
+  }
+
+  const maxCount = Math.max(...counts.values());
+  const leaders = distinctKinds.filter((kind) => counts.get(kind) === maxCount);
+  const kind =
+    AUX_FILE_KIND_INFERENCE_PRIORITY.find((candidate) =>
+      leaders.includes(candidate),
+    ) ?? "other";
+
+  return { kind, mixed };
+}
+
 const AUX_KIND_TO_VISUAL: Record<AuxFileKind, AuxFileVisualKind> = {
   protocol: "document",
   raw_data: "data",
