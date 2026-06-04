@@ -19,7 +19,10 @@ import {
   filterValidOrcidAttributions,
   type DatasetAttributionEntry,
 } from "~/lib/nexafs-attribution";
-import { normalizeProfileImageUrl } from "~/components/ui/avatar";
+import {
+  AttributionAvatarRowSkeleton,
+  normalizeProfileImageUrl,
+} from "~/components/ui/avatar";
 import { trpc } from "~/trpc/client";
 
 type ApplyTeamAttributionFormProps = {
@@ -173,10 +176,12 @@ export function ApplyTeamAttributionForm({
       )}
 
       {selectedTeamId && teamDetailQuery.isFetching ? (
-        <div className="text-muted flex items-center gap-2 text-xs">
-          <Spinner size="sm" />
-          Loading members...
-        </div>
+        <AttributionAvatarRowSkeleton
+          avatarCount={Math.max(3, previewMembers.length)}
+          max={8}
+          size="sm"
+          trailingSlotCount={0}
+        />
       ) : null}
 
       {previewMembers.length > 0 ? (

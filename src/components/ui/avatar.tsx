@@ -608,6 +608,94 @@ const avatarSizeClasses = {
   md: "h-9 w-9",
   lg: "h-10 w-10",
 } as const;
+
+const avatarStackSizePx = {
+  sm: 32,
+  md: 36,
+  lg: 40,
+} as const;
+
+/** Horizontal overlap between stacked avatars (`-space-x-2.5`). */
+const AVATAR_STACK_OVERLAP_PX = 10;
+
+/**
+ * Computes the pixel width of a stacked avatar row so loading placeholders match the final `AvatarGroup` footprint.
+ */
+export function avatarGroupStackWidthPx(params: {
+  avatarCount: number;
+  max?: number;
+  size?: keyof typeof avatarStackSizePx;
+  trailingSlotCount?: number;
+  includeOverflowSlot?: boolean;
+}): number {
+  const sizePx = avatarStackSizePx[params.size ?? "sm"];
+  const max = params.max ?? 5;
+  const count = Math.max(params.avatarCount, 0);
+  const visible = Math.min(count, max);
+  const overflow =
+    params.includeOverflowSlot && count > max ? 1 : 0;
+  const trailing = params.trailingSlotCount ?? 0;
+  const slotCount = visible + overflow + trailing;
+  if (slotCount <= 0) {
+    return sizePx;
+  }
+  return sizePx + (slotCount - 1) * (sizePx - AVATAR_STACK_OVERLAP_PX);
+}
+
+export type AttributionAvatarRowSkeletonProps = {
+  avatarCount?: number;
+  max?: number;
+  size?: keyof typeof avatarSizeClasses;
+  trailingSlotCount?: number;
+  includeOverflowSlot?: boolean;
+  className?: string;
+};
+
+/**
+ * Renders overlapping circular placeholders sized like `AvatarGroup` to prevent horizontal layout shift while collaborator data loads.
+ */
+export function AttributionAvatarRowSkeleton({
+  avatarCount = 3,
+  max = 8,
+  size = "sm",
+  trailingSlotCount = 0,
+  includeOverflowSlot = false,
+  className,
+}: AttributionAvatarRowSkeletonProps) {
+  const sizeClass = avatarSizeClasses[size];
+  const widthPx = avatarGroupStackWidthPx({
+    avatarCount,
+    max,
+    size,
+    trailingSlotCount,
+    includeOverflowSlot,
+  });
+  const visible = Math.min(Math.max(avatarCount, 1), max);
+  const overflow =
+    includeOverflowSlot && avatarCount > max ? 1 : 0;
+  const slotCount = visible + overflow + trailingSlotCount;
+
+  return (
+    <div
+      className={cn("inline-flex shrink-0 items-center", className)}
+      style={{ width: widthPx, minWidth: widthPx }}
+      aria-hidden
+    >
+      <div className="flex items-center -space-x-2.5">
+        {Array.from({ length: slotCount }, (_, index) => (
+          <span
+            key={index}
+            className={cn(
+              "bg-surface-2/60 ring-background animate-pulse rounded-full ring-2",
+              sizeClass,
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const overflowCountTextSizeClasses = {
   sm: "text-[10px]",
   md: "text-xs",

@@ -22,7 +22,6 @@ import {
   dedupeNexafsContributorsByOrcid,
   type NexafsContributorPerson,
 } from "~/lib/nexafs-contributors";
-import { ORCIDIcon } from "~/components/icons";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
@@ -290,51 +289,30 @@ export function NexafsExperimentCompactCard({
     (contributor) => !contributor.isPublicProfileVisible,
   );
 
+  const readOnlyContributorUsers: UserWithOrcid[] = [
+    ...visibleContributorUsers,
+    ...hiddenContributors.map((contributor) => ({
+      id: contributor.orcid,
+      orcid: contributor.orcid,
+      name: contributor.orcid,
+      image: null,
+      isAtlasProfile: false,
+      avatarPlaceholder: "person" as const,
+      tooltipSubtitle: contributor.isClaimed
+        ? "ORCID-only attribution"
+        : "Unclaimed on Atlas",
+    })),
+  ];
+
   const readOnlyContributorAvatars =
-    visibleContributorUsers.length > 0 ||
-    hiddenContributors.length > 0 ? (
-      <>
-        {visibleContributorUsers.length > 0 ? (
-          <AvatarGroup
-            users={visibleContributorUsers}
-            size="sm"
-            tooltipVariant="name-orcid"
-            tooltipMode="shared"
-          />
-        ) : null}
-        {hiddenContributors.slice(0, 2).map((contributor) => (
-          <Tooltip key={`${contributor.orcid}-hidden`} delay={0}>
-            <Tooltip.Trigger className="inline-flex shrink-0">
-              <Chip
-                size="sm"
-                variant="soft"
-                className="border-warning/45 bg-warning/12 text-warning h-8"
-              >
-                <ORCIDIcon
-                  className="h-4 w-4 shrink-0"
-                  authenticated={false}
-                  aria-hidden
-                />
-                <Chip.Label className="tabular-nums text-[11px] font-semibold">
-                  {contributor.orcid}
-                </Chip.Label>
-              </Chip>
-            </Tooltip.Trigger>
-            <Tooltip.Content placement="top">
-              {contributor.isClaimed
-                ? "Detached profile: ORCID-only attribution"
-                : "Unclaimed contributor: ORCID-only attribution"}
-            </Tooltip.Content>
-          </Tooltip>
-        ))}
-        {hiddenContributors.length > 2 ? (
-          <Chip size="sm" variant="soft" className="h-8">
-            <Chip.Label className="text-xs font-semibold">
-              +{hiddenContributors.length - 2} ORCID
-            </Chip.Label>
-          </Chip>
-        ) : null}
-      </>
+    readOnlyContributorUsers.length > 0 ? (
+      <AvatarGroup
+        users={readOnlyContributorUsers}
+        size="sm"
+        max={8}
+        tooltipVariant="name-orcid"
+        tooltipMode="shared"
+      />
     ) : null;
 
   const facilityLine = facilityName ?? "Facility unknown";
@@ -501,6 +479,8 @@ export function NexafsExperimentCompactCard({
             enabled
             variant="inline"
             readOnlyFallback={readOnlyContributorAvatars}
+            skeletonAvatarCount={Math.max(1, dedupedContributorUsers.length)}
+            skeletonTrailingSlotCount={2}
           />
         </div>
         <CompactCardMetricsColumn className="relative z-40">

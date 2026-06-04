@@ -19,6 +19,7 @@ import {
   filterValidOrcidAttributions,
   type DatasetAttributionEntry,
 } from "~/lib/nexafs-attribution";
+import { AttributionAvatarRowSkeleton } from "~/components/ui/avatar";
 import {
   DatasetAttributionEditor,
   type DatasetAttributionChange,
@@ -31,6 +32,10 @@ type ExperimentAttributionEditSectionProps = {
   variant?: "panel" | "inline";
   /** Shown when the viewer cannot edit or while edit permission is still loading. */
   readOnlyFallback?: ReactNode;
+  /** Reserved avatar slots while edit permission or attributions load (browse card contributor count). */
+  skeletonAvatarCount?: number;
+  /** Trailing add/team controls on the contribute editor row (`Users`, `+`). */
+  skeletonTrailingSlotCount?: number;
 };
 
 /**
@@ -41,6 +46,8 @@ export function ExperimentAttributionEditSection({
   enabled,
   variant = "panel",
   readOnlyFallback = null,
+  skeletonAvatarCount = 3,
+  skeletonTrailingSlotCount = 0,
 }: ExperimentAttributionEditSectionProps) {
   const isInline = variant === "inline";
   const utils = trpc.useUtils();
@@ -142,8 +149,18 @@ export function ExperimentAttributionEditSection({
     return readOnlyFallback;
   }
 
+  const loadingPlaceholder = (
+    <AttributionAvatarRowSkeleton
+      avatarCount={skeletonAvatarCount}
+      max={8}
+      size="sm"
+      trailingSlotCount={skeletonTrailingSlotCount}
+      className={isInline ? undefined : "py-1"}
+    />
+  );
+
   if (canEditQuery.isLoading) {
-    return readOnlyFallback;
+    return loadingPlaceholder;
   }
 
   if (!canEdit) {
@@ -151,16 +168,7 @@ export function ExperimentAttributionEditSection({
   }
 
   if (attributionsQuery.isLoading || !hydratedFromServer) {
-    return (
-      <div
-        className={
-          isInline
-            ? "bg-surface-2/40 h-8 w-36 animate-pulse rounded-full"
-            : "border-border bg-surface-2/40 h-10 animate-pulse rounded-lg border"
-        }
-        aria-hidden
-      />
-    );
+    return loadingPlaceholder;
   }
 
   if (attributionsQuery.isError) {

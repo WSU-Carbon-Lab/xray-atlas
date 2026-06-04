@@ -32,7 +32,9 @@ import { isValidOrcidUserId } from "~/lib/orcid";
 import { AddResearcherAttributionForm } from "./add-researcher-attribution-form";
 import { ApplyTeamAttributionForm } from "./apply-team-attribution-form";
 import {
+  AttributionAvatarRowSkeleton,
   AvatarGroup,
+  avatarGroupStackWidthPx,
   normalizeProfileImageUrl,
   ResearcherAvatar,
   type UserWithOrcid,
@@ -251,6 +253,17 @@ export function DatasetAttributionEditor({
     [avatarDisplays, sessionOrcid],
   );
 
+  const avatarStackWidthPx = useMemo(
+    () =>
+      avatarGroupStackWidthPx({
+        avatarCount: avatarUsers.length,
+        max: 8,
+        size: "sm",
+        trailingSlotCount: 2,
+      }),
+    [avatarUsers.length],
+  );
+
   const [orcidError, setOrcidError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -430,36 +443,53 @@ export function DatasetAttributionEditor({
             ? { role: "group" as const, "aria-label": "Researchers" }
             : {})}
         >
-          <AvatarGroup
-            key={avatarUsers.map((user) => user.avatarStackKey ?? user.orcid ?? user.id).join("|")}
-            users={avatarUsers}
-            size="sm"
-            max={8}
-            tooltipVariant="name"
-            trailingSlot={addResearcherControl}
-            wrapAvatarTrigger={({ user, avatar }) => {
-              const orcidKey = user.orcid?.trim() ?? user.avatarStackKey?.trim();
-              const display = orcidKey
-                ? displaysByOrcid.get(orcidKey)
-                : undefined;
-              if (!display) {
-                return (
-                  <span className="inline-flex size-8 shrink-0 items-center justify-center">
-                    {avatar}
-                  </span>
-                );
-              }
-              return (
-                <ContributorAvatarPopover
-                  display={display}
-                  sessionOrcid={sessionOrcid}
-                  rowsForOrcid={rowsByOrcid.get(display.orcid) ?? []}
-                  onRemove={handleRemove}
-                  avatar={avatar}
-                />
-              );
-            }}
-          />
+          <div
+            className="flex shrink-0 items-center overflow-visible"
+            style={{ minWidth: avatarStackWidthPx }}
+          >
+            {avatarUsers.length === 0 ? (
+              <AttributionAvatarRowSkeleton
+                avatarCount={1}
+                max={8}
+                size="sm"
+                trailingSlotCount={2}
+              />
+            ) : (
+              <AvatarGroup
+                key={avatarUsers
+                  .map((user) => user.avatarStackKey ?? user.orcid ?? user.id)
+                  .join("|")}
+                users={avatarUsers}
+                size="sm"
+                max={8}
+                tooltipVariant="name"
+                trailingSlot={addResearcherControl}
+                wrapAvatarTrigger={({ user, avatar }) => {
+                  const orcidKey =
+                    user.orcid?.trim() ?? user.avatarStackKey?.trim();
+                  const display = orcidKey
+                    ? displaysByOrcid.get(orcidKey)
+                    : undefined;
+                  if (!display) {
+                    return (
+                      <span className="inline-flex size-8 shrink-0 items-center justify-center">
+                        {avatar}
+                      </span>
+                    );
+                  }
+                  return (
+                    <ContributorAvatarPopover
+                      display={display}
+                      sessionOrcid={sessionOrcid}
+                      rowsForOrcid={rowsByOrcid.get(display.orcid) ?? []}
+                      onRemove={handleRemove}
+                      avatar={avatar}
+                    />
+                  );
+                }}
+              />
+            )}
+          </div>
         </div>
       </div>
       {orcidError && avatarDisplays.length > 0 ? (
