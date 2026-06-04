@@ -213,11 +213,11 @@ function densityAreaPath(
 }
 
 function densityStrokePath(pts: Array<{ x: number; y: number }>): string {
-  if (pts.length === 0) return "";
-  const [first, ...rest] = pts;
+  const first = pts[0];
+  if (first === undefined) return "";
   return [
     `M ${first.x.toFixed(1)},${first.y.toFixed(1)}`,
-    ...rest.map((p) => `L ${p.x.toFixed(1)},${p.y.toFixed(1)}`),
+    ...pts.slice(1).map((p) => `L ${p.x.toFixed(1)},${p.y.toFixed(1)}`),
   ].join(" ");
 }
 
