@@ -20,17 +20,28 @@ import { ORCIDIcon } from "~/components/icons";
 import { Avatar, Badge, Button } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import type { ResearcherAttributionBadgeStatus } from "~/lib/nexafs-attribution";
+import { ContributorHoverCard } from "~/components/attribution/contributor-hover-card";
+
+export type ContributorHoverRemoveRow = {
+  rowKey: string;
+  roleLabel: string;
+  removeDisabled?: boolean;
+};
 
 export type UserWithOrcid = NextAuthUser & {
   orcid?: string | null;
   canManageUsers?: boolean;
   canAccessLabs?: boolean;
   tooltipSubtitle?: string | null;
+  /** Primary role line in contributor hover cards (falls back to `tooltipSubtitle`). */
+  hoverRoleLabel?: string | null;
   isAtlasProfile?: boolean;
   avatarPlaceholder?: ResearcherAvatarPlaceholder;
   /** Stable React key for stacked avatars when one ORCID has multiple roles. */
   avatarStackKey?: string;
   attributionBadgeStatus?: ResearcherAttributionBadgeStatus;
+  /** Per-role remove rows when the viewer may edit experiment attributions. */
+  contributorRemoveRows?: ReadonlyArray<ContributorHoverRemoveRow>;
 };
 
 /** Returns a profile image URL suitable for display, or null when missing. */
@@ -598,6 +609,13 @@ interface AvatarGroupProps extends React.ComponentProps<typeof Avatar> {
     index: number;
     avatar: React.ReactNode;
   }) => React.ReactNode;
+  /** Invoked when the viewer removes a contributor role from the hover card (experiment edit flows). */
+  onRemoveContributorRow?: (params: {
+    user: UserWithOrcid;
+    rowKey: string;
+  }) => void;
+  /** When true, renders `ResearcherAvatar` stacks (badges, ORCID-only placeholders) instead of `CustomAvatar`. */
+  contributorAvatars?: boolean;
 }
 
 export type AvatarTooltipVariant = "name" | "name-orcid";
@@ -710,11 +728,6 @@ function userDisplayName(user: UserWithOrcid): string {
   return user.name ?? "User";
 }
 
-function userOrcid(user: UserWithOrcid): string | null {
-  const value = user.id?.trim();
-  return value && value.length > 0 ? value : null;
-}
-
 function firstNonEmptyOrcidOrId(
   ...values: (string | null | undefined)[]
 ): string {
@@ -749,66 +762,32 @@ function AvatarIdentityTooltipContent({
   showArrow = true,
   onMouseEnter,
   onMouseLeave,
+  onRemoveContributorRow,
 }: {
   user: UserWithOrcid;
   arrowOffsetPx?: number;
   showArrow?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  onRemoveContributorRow?: (params: {
+    user: UserWithOrcid;
+    rowKey: string;
+  }) => void;
 }) {
-  const name = userDisplayName(user);
-  const orcidValue = userOrcid(user);
-
   return (
-    <div
-      className="relative w-[min(15rem,calc(100vw-1rem))] rounded-2xl border border-zinc-700/80 bg-zinc-900/95 px-2.5 py-2 shadow-2xl backdrop-blur-sm"
+    <ContributorHoverCard
+      user={user}
+      arrowOffsetPx={arrowOffsetPx}
+      showArrow={showArrow}
+      removeRows={user.contributorRemoveRows}
+      onRemoveRow={
+        onRemoveContributorRow
+          ? (rowKey) => onRemoveContributorRow({ user, rowKey })
+          : undefined
+      }
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-    >
-      <div className="flex min-w-0 flex-col gap-0.5">
-        {user.id ? (
-          <Link
-            href={`/users/${user.id}`}
-            className="focus-visible:ring-accent block truncate rounded-sm text-sm font-semibold text-zinc-100 transition-colors hover:text-accent dark:hover:text-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
-            aria-label={`View ${name}'s profile`}
-            title={name}
-          >
-            {name}
-          </Link>
-        ) : (
-          <p className="truncate text-sm font-semibold text-zinc-100" title={name}>
-            {name}
-          </p>
-        )}
-        {user.tooltipSubtitle ? (
-          <p className="text-zinc-400 truncate text-xs">{user.tooltipSubtitle}</p>
-        ) : null}
-        {orcidValue ? (
-          <a
-            href={`https://orcid.org/${orcidValue}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="focus-visible:ring-accent inline-flex min-w-0 items-center gap-1.5 rounded-sm font-mono text-sm text-zinc-300 tabular-nums transition-colors hover:text-accent dark:hover:text-accent-light focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
-            aria-label={`Open ORCID profile ${orcidValue}`}
-            title={orcidValue}
-          >
-            <ORCIDIcon className="h-3.5 w-3.5 shrink-0" authenticated />
-            <span className="min-w-0 truncate">{orcidValue}</span>
-          </a>
-        ) : (
-          <p className="inline-flex min-w-0 items-center gap-1.5 font-mono text-sm text-zinc-400 tabular-nums">
-            <ORCIDIcon className="h-3.5 w-3.5 shrink-0 opacity-70" authenticated />
-            <span className="min-w-0 truncate">Not linked</span>
-          </p>
-        )}
-      </div>
-      {showArrow ? (
-        <div
-          className="absolute top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b border-zinc-700/80 bg-zinc-900/95 transition-[left] duration-150 ease-out"
-          style={{ left: `calc(50% + ${arrowOffsetPx}px)` }}
-        />
-      ) : null}
-    </div>
+    />
   );
 }
 
@@ -936,6 +915,7 @@ function AvatarTrigger({
   size,
   onActivate,
   onDeactivate,
+  avatarContent,
 }: {
   user: UserWithOrcid;
   avatarWrapperClass: string;
@@ -943,9 +923,10 @@ function AvatarTrigger({
   size: "sm" | "md" | "lg";
   onActivate: (user: UserWithOrcid, triggerEl: HTMLSpanElement) => void;
   onDeactivate: () => void;
+  avatarContent?: React.ReactNode;
 }) {
   const userName = userDisplayName(user);
-  const avatarElement = (
+  const avatarElement = avatarContent ?? (
     <span className={avatarWrapperClass}>
       <CustomAvatar size={size} user={user} className={constrainedClass} />
     </span>
@@ -983,6 +964,8 @@ export function AvatarGroup({
   tooltipMode = "individual",
   trailingSlot,
   wrapAvatarTrigger,
+  onRemoveContributorRow,
+  contributorAvatars = false,
 }: AvatarGroupProps) {
   const sizeClass = avatarSizeClasses[size] ?? avatarSizeClasses.md;
   const overflowTextClass =
@@ -1106,37 +1089,59 @@ export function AvatarGroup({
         <div className="flex items-center -space-x-2.5 overflow-visible">
           {displayUsers.map((user, index) => {
           const userKey = avatarGroupUserReactKey(user, index);
-          if (wrapAvatarTrigger) {
-            return (
-              <span
+          if (wrapAvatarTrigger || contributorAvatars) {
+            const researcherAvatarNode = (
+              <span className={researcherAvatarWrapperClass}>
+                <ResearcherAvatar
+                  displayName={user.name}
+                  imageUrl={user.image}
+                  identitySeed={firstNonEmptyOrcidOrId(
+                    user.orcid,
+                    user.id,
+                    user.avatarStackKey,
+                    user.name,
+                  )}
+                  isAtlasProfile={
+                    user.isAtlasProfile ?? Boolean(user.id?.trim())
+                  }
+                  placeholder={
+                    user.avatarPlaceholder ??
+                    (user.isAtlasProfile !== false ? "initials" : "person")
+                  }
+                  attributionBadgeStatus={user.attributionBadgeStatus}
+                  size={size}
+                  className={constrainedClass}
+                />
+              </span>
+            );
+            if (wrapAvatarTrigger) {
+              return (
+                <span
+                  key={userKey}
+                  className={`inline-flex shrink-0 items-center justify-center ${sizeClass}`}
+                >
+                  {wrapAvatarTrigger({
+                    user,
+                    index,
+                    avatar: researcherAvatarNode,
+                  })}
+                </span>
+              );
+            }
+            return useSharedTooltip ? (
+              <AvatarTrigger
                 key={userKey}
-                className={`inline-flex shrink-0 items-center justify-center ${sizeClass}`}
-              >
-                {wrapAvatarTrigger({
-                  user,
-                  index,
-                  avatar: (
-                    <span className={researcherAvatarWrapperClass}>
-                      <ResearcherAvatar
-                        displayName={user.name}
-                        imageUrl={user.image}
-                        identitySeed={firstNonEmptyOrcidOrId(
-                          user.orcid,
-                          user.id,
-                          user.avatarStackKey,
-                          user.name,
-                        )}
-                        isAtlasProfile={
-                          user.isAtlasProfile ?? Boolean(user.id?.trim())
-                        }
-                        placeholder={user.avatarPlaceholder ?? "person"}
-                        attributionBadgeStatus={user.attributionBadgeStatus}
-                        size={size}
-                        className={constrainedClass}
-                      />
-                    </span>
-                  ),
-                })}
+                user={user}
+                avatarWrapperClass={researcherAvatarWrapperClass}
+                constrainedClass={constrainedClass}
+                size={size}
+                onActivate={openSharedTooltip}
+                onDeactivate={scheduleSharedTooltipClose}
+                avatarContent={researcherAvatarNode}
+              />
+            ) : (
+              <span key={userKey} className="inline-flex shrink-0">
+                {researcherAvatarNode}
               </span>
             );
           }
@@ -1192,6 +1197,7 @@ export function AvatarGroup({
                 arrowOffsetPx={sharedTooltipPosition.arrowOffset}
                 onMouseEnter={clearCloseTimer}
                 onMouseLeave={scheduleSharedTooltipClose}
+                onRemoveContributorRow={onRemoveContributorRow}
               />
             </div>,
             document.body,
