@@ -45,24 +45,28 @@ function SourcePaperCitationPreview({
 }) {
   const authors = formatPublicationAuthorsPreview(citation);
   const href = nexafsPublicationDoiHref(citation.doi);
+  const meta = [
+    citation.journal,
+    citation.year != null ? String(citation.year) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const secondaryLine = [authors, meta].filter(Boolean).join(" · ");
   return (
-    <div className="border-border bg-surface-2/60 rounded-lg border p-3">
-      <p className="text-foreground text-sm font-medium leading-snug">
+    <div className="border-border/60 bg-surface-2/40 rounded-md border px-2.5 py-2">
+      <p className="text-foreground line-clamp-2 text-xs font-medium leading-snug">
         {citation.title}
       </p>
-      {authors ? (
-        <p className="text-muted mt-1 text-xs leading-snug">{authors}</p>
+      {secondaryLine ? (
+        <p className="text-muted mt-0.5 text-[11px] leading-snug">
+          {secondaryLine}
+        </p>
       ) : null}
-      <p className="text-muted mt-1 text-xs">
-        {[citation.journal, citation.year != null ? String(citation.year) : null]
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
       <a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-accent mt-2 inline-block text-xs font-medium hover:underline"
+        className="focus-visible:ring-accent text-accent mt-1 inline-block font-mono text-[10px] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
       >
         {citation.doi}
       </a>
@@ -78,7 +82,7 @@ export function SourcePaperDoiField({
   onChange,
   disabled = false,
   showLabel = true,
-  helperText = "Link this dataset to the peer-reviewed paper that reports the original measurement.",
+  helperText = "Link the peer-reviewed paper that reports the original measurement.",
   showCitationPreview = true,
 }: SourcePaperDoiFieldProps) {
   const [query, setQuery] = useState(value.doi);
@@ -223,9 +227,11 @@ export function SourcePaperDoiField({
     <div className="flex flex-col gap-2">
       {showLabel ? (
         <div>
-          <Label htmlFor="source-paper-doi-search">Source publication</Label>
+          <Label htmlFor="source-paper-doi-search" className="text-muted text-sm font-medium">
+            Source publication
+          </Label>
           {helperText ? (
-            <p className="text-muted mt-0.5 text-xs">{helperText}</p>
+            <p className="text-muted mt-1 text-xs leading-snug">{helperText}</p>
           ) : null}
         </div>
       ) : null}
@@ -313,11 +319,12 @@ export function SourcePaperDoiField({
           <Button
             type="button"
             size="sm"
-            variant="tertiary"
+            variant="ghost"
+            className="text-muted h-7 min-h-7 self-end px-2 text-xs"
             isDisabled={disabled}
             onPress={handleClear}
           >
-            Clear source publication
+            Clear selection
           </Button>
         </div>
       ) : null}
