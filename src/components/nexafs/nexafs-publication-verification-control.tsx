@@ -12,7 +12,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { BadgeCheck, BookOpen, Shield } from "lucide-react";
-import { Button, Checkbox, Separator } from "@heroui/react";
+import { Button } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { site } from "~/app/brand";
 import { trpc } from "~/trpc/client";
@@ -31,10 +31,7 @@ const POPOVER_CLOSE_DELAY_MS = 120;
 const POPOVER_VERTICAL_OFFSET_PX = 8;
 
 const verificationPopoverShellClassName =
-  "relative flex max-h-[min(70vh,32rem)] w-[min(24rem,calc(100vw-1.5rem))] max-w-[min(24rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl border border-border bg-surface p-3 text-left shadow-xl ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)]";
-
-const verificationPopoverScrollClassName =
-  "min-h-0 flex-1 overflow-y-auto overscroll-contain";
+  "relative w-[min(22rem,calc(100vw-1.5rem))] max-w-[min(22rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-surface p-2.5 text-left shadow-xl ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)]";
 
 export const nexafsSourcePublicationBadgeClassName =
   "text-blue-600 dark:text-blue-400";
@@ -191,7 +188,7 @@ function verificationAriaLabel(
 
 function SectionTitle({ children }: { children: string }) {
   return (
-    <p className="text-foreground text-xs font-semibold tracking-wide uppercase">
+    <p className="text-foreground text-[11px] font-semibold tracking-wide uppercase">
       {children}
     </p>
   );
@@ -217,7 +214,7 @@ function VerificationPopoverSurface({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <div className={verificationPopoverScrollClassName}>{children}</div>
+      {children}
       <div
         className="border-border bg-surface absolute top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b transition-[left] duration-150 ease-out"
         style={{ left: `calc(50% + ${arrowOffsetPx}px)` }}
@@ -253,7 +250,7 @@ function DoiResolverLink({ doi }: { doi: string }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="focus-visible:ring-accent text-accent mt-1 inline-block font-mono text-[11px] break-all hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+      className="focus-visible:ring-accent text-accent inline-block font-mono text-[10px] break-all hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
       onClick={(e) => e.stopPropagation()}
     >
       {doi}
@@ -274,152 +271,16 @@ function useInvalidateBrowseSourcePublications(experimentId: string | undefined)
   }, [experimentId, utils.experiments]);
 }
 
-function VerificationStatusSections({
-  hasAtlas,
-  hasLinkedDoi,
-  hasSource,
-  linkedPublications,
-  sourcePublications,
-}: {
-  hasAtlas: boolean;
-  hasLinkedDoi: boolean;
-  hasSource: boolean;
-  linkedPublications: NexafsBrowseLinkedPublication[];
-  sourcePublications: NexafsBrowseSourcePublication[];
-}) {
-  const n = linkedPublications.length;
-  const sourceCount = sourcePublications.length;
-
-  if (!hasAtlas && !hasLinkedDoi && !hasSource) {
-    return (
-      <section>
-        <SectionTitle>Verification status</SectionTitle>
-        <p className="text-muted mt-1 text-xs leading-snug">
-          No Atlas team verification or source publication linked yet.
-        </p>
-      </section>
-    );
-  }
-
-  const atlasSection = hasAtlas ? (
-    <section>
-      <SectionTitle>Atlas verification</SectionTitle>
-      <p className="text-muted mt-1 text-xs leading-snug">
-        Peer-reviewed by the {site.name} team (dataset quality review, not the
-        original measurement paper).
-      </p>
-    </section>
-  ) : null;
-
-  const linkedSection =
-    !hasLinkedDoi ? null : n === 1 ? (
-      (() => {
-        const pub = linkedPublications[0]!;
-        const cite = formatNexafsBrowseMinimalCitation(pub);
-        return (
-          <section className={hasAtlas ? "border-separator border-t pt-3" : undefined}>
-            <SectionTitle>Linked publication</SectionTitle>
-            <p className="text-muted mt-1 text-xs leading-snug">
-              Additional literature reference linked to this dataset.
-            </p>
-            <p className="text-foreground mt-1 text-sm leading-snug">{cite}</p>
-            <DoiResolverLink doi={pub.doi} />
-          </section>
-        );
-      })()
-    ) : (
-      <section className={hasAtlas ? "border-separator border-t pt-3" : undefined}>
-        <SectionTitle>Linked publications</SectionTitle>
-        <p className="text-muted mt-1 text-xs leading-snug">
-          {n} additional DOIs linked.
-        </p>
-        <ul className="mt-2 space-y-2">
-          {linkedPublications.map((p) => {
-            const cite = formatNexafsBrowseMinimalCitation(p);
-            return (
-              <li key={p.doi}>
-                <p className="text-foreground text-sm leading-snug">{cite}</p>
-                <DoiResolverLink doi={p.doi} />
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-    );
-
-  const sourceSection =
-    sourceCount === 0 ? null : sourceCount === 1 ? (
-      (() => {
-        const pub = sourcePublications[0]!;
-        const cite = formatNexafsBrowseMinimalCitation(pub);
-        return (
-          <section
-            className={
-              hasAtlas || hasLinkedDoi ? "border-separator border-t pt-3" : undefined
-            }
-          >
-            <SectionTitle>Source publication</SectionTitle>
-            <p className="text-muted mt-1 text-xs leading-snug">
-              Peer-reviewed paper reporting the original measurement.
-            </p>
-            <p className="text-foreground mt-1 text-sm leading-snug">{cite}</p>
-            <DoiResolverLink doi={pub.doi} />
-          </section>
-        );
-      })()
-    ) : (
-      <section
-        className={
-          hasAtlas || hasLinkedDoi ? "border-separator border-t pt-3" : undefined
-        }
-      >
-        <SectionTitle>Source publications</SectionTitle>
-        <p className="text-muted mt-1 text-xs leading-snug">
-          {sourceCount} peer-reviewed source papers linked.
-        </p>
-        <ul className="mt-2 space-y-2">
-          {sourcePublications.map((p) => {
-            const cite = formatNexafsBrowseMinimalCitation(p);
-            return (
-              <li key={p.doi}>
-                <p className="text-foreground text-sm leading-snug">{cite}</p>
-                <DoiResolverLink doi={p.doi} />
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-    );
-
-  return (
-    <div className="flex flex-col gap-3">
-      {atlasSection}
-      {linkedSection}
-      {sourceSection}
-    </div>
-  );
-}
-
-function VerificationEditorSections({
+function AtlasVerificationSection({
   experimentId,
-  sourcePublications,
   atlasTeamVerified,
-  canEditSourcePublications,
   canManageAtlasVerification,
-  onClose,
 }: {
   experimentId: string;
-  sourcePublications: NexafsBrowseSourcePublication[];
   atlasTeamVerified: boolean;
-  canEditSourcePublications: boolean;
   canManageAtlasVerification: boolean;
-  onClose: () => void;
 }) {
   const invalidateBrowse = useInvalidateBrowseSourcePublications(experimentId);
-  const [draft, setDraft] = useState<SourcePaperDoiFieldValue>({
-    doi: "",
-    citation: null,
-  });
 
   const atlasMutation = trpc.experiments.setAtlasTeamVerification.useMutation({
     onSuccess: async () => {
@@ -429,6 +290,72 @@ function VerificationEditorSections({
     onError: (error) => {
       showToast(error.message, "error");
     },
+  });
+
+  return (
+    <section>
+      <div className="flex items-center justify-between gap-2">
+        <SectionTitle>Atlas Verification</SectionTitle>
+        {canManageAtlasVerification ? (
+          atlasTeamVerified ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="text-danger h-7 min-h-7 shrink-0 px-2 text-xs"
+              isDisabled={atlasMutation.isPending}
+              onPress={() => {
+                atlasMutation.mutate({
+                  experimentId,
+                  verified: false,
+                });
+              }}
+            >
+              Remove
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="h-7 min-h-7 shrink-0 px-2 text-xs"
+              isDisabled={atlasMutation.isPending}
+              onPress={() => {
+                atlasMutation.mutate({
+                  experimentId,
+                  verified: true,
+                });
+              }}
+            >
+              Add verification
+            </Button>
+          )
+        ) : null}
+      </div>
+      {atlasTeamVerified ? (
+        <p className="text-muted mt-0.5 text-xs leading-snug">
+          Verified by the {site.name} team
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function SourcePublicationSection({
+  experimentId,
+  sourcePublications,
+  canEditSourcePublications,
+  showTopBorder,
+}: {
+  experimentId: string;
+  sourcePublications: NexafsBrowseSourcePublication[];
+  canEditSourcePublications: boolean;
+  showTopBorder: boolean;
+}) {
+  const invalidateBrowse = useInvalidateBrowseSourcePublications(experimentId);
+  const [draft, setDraft] = useState<SourcePaperDoiFieldValue>({
+    doi: "",
+    citation: null,
   });
 
   const addMutation = trpc.experiments.addSourcePublication.useMutation({
@@ -469,66 +396,32 @@ function VerificationEditorSections({
     addMutation.mutate({ experimentId, doi: draft.citation.doi });
   }, [addMutation, draft.citation, existingDois, experimentId]);
 
-  const showAtlasSection = canManageAtlasVerification;
-  const showSourceSection = canEditSourcePublications;
-
-  if (!showAtlasSection && !showSourceSection) {
-    return null;
-  }
-
   return (
-    <div className="border-separator mt-3 border-t pt-3">
-      {showAtlasSection ? (
-        <section className="mb-3">
-          <SectionTitle>Atlas team</SectionTitle>
-          <Checkbox
-            className="mt-2"
-            isSelected={atlasTeamVerified}
-            isDisabled={atlasMutation.isPending}
-            onChange={() => {
-              atlasMutation.mutate({
-                experimentId,
-                verified: !atlasTeamVerified,
-              });
-            }}
-          >
-            <Checkbox.Control>
-              <Checkbox.Indicator />
-            </Checkbox.Control>
-            <Checkbox.Content>
-              <span className="text-foreground text-sm">
-                Verified by the {site.name} team
-              </span>
-            </Checkbox.Content>
-          </Checkbox>
-        </section>
-      ) : null}
-
-      {showAtlasSection && showSourceSection ? (
-        <Separator className="bg-separator mb-3" />
-      ) : null}
-
-      {showSourceSection ? (
-        <section>
-          <SectionTitle>Source publications</SectionTitle>
-          <p className="text-muted mb-3 mt-1 text-xs leading-snug">
-            Link peer-reviewed papers reporting the original measurement.
-          </p>
-          {sourcePublications.length > 0 ? (
-            <ul className="mb-3 space-y-2">
-              {sourcePublications.map((publication) => (
-                <li
-                  key={publication.doi}
-                  className="border-border bg-surface-secondary flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5"
-                >
-                  <span className="text-foreground min-w-0 font-mono text-[11px] break-all">
-                    {publication.doi}
-                  </span>
+    <section className={showTopBorder ? "border-separator border-t pt-2.5" : undefined}>
+      <SectionTitle>Source Publication</SectionTitle>
+      {sourcePublications.length > 0 ? (
+        <ul className="mt-1 space-y-1.5">
+          {sourcePublications.map((publication) => {
+            const title = publication.title?.trim();
+            return (
+              <li
+                key={publication.doi}
+                className="flex items-start justify-between gap-2"
+              >
+                <div className="min-w-0">
+                  {title ? (
+                    <p className="text-foreground line-clamp-1 text-xs leading-snug">
+                      {truncateTitle(title, 72)}
+                    </p>
+                  ) : null}
+                  <DoiResolverLink doi={publication.doi} />
+                </div>
+                {canEditSourcePublications ? (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="text-danger shrink-0"
+                    className="text-danger h-7 min-h-7 shrink-0 px-2 text-xs"
                     isDisabled={removeMutation.isPending}
                     onPress={() => {
                       removeMutation.mutate({
@@ -539,32 +432,109 @@ function VerificationEditorSections({
                   >
                     Remove
                   </Button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      {canEditSourcePublications ? (
+        <div className={sourcePublications.length > 0 ? "mt-2" : "mt-1"}>
           <div data-attribution-nested-overlay="true">
             <SourcePaperDoiField
               value={draft}
               onChange={setDraft}
               disabled={addMutation.isPending}
               showLabel={false}
+              helperText=""
+              showCitationPreview={false}
             />
           </div>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button type="button" size="sm" variant="tertiary" onPress={onClose}>
-              Close
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="primary"
-              isDisabled={addMutation.isPending}
-              onPress={handleAdd}
-            >
-              Add publication
-            </Button>
-          </div>
+          {draft.citation ? (
+            <div className="mt-1.5 flex justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="h-7 min-h-7 px-2 text-xs"
+                isDisabled={addMutation.isPending}
+                onPress={handleAdd}
+              >
+                Add
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function VerificationPopoverContent({
+  experimentId,
+  sourcePublications,
+  atlasTeamVerified,
+  canEditSourcePublications,
+  canManageAtlasVerification,
+}: {
+  experimentId: string | undefined;
+  sourcePublications: NexafsBrowseSourcePublication[];
+  atlasTeamVerified: boolean;
+  canEditSourcePublications: boolean;
+  canManageAtlasVerification: boolean;
+}) {
+  const showAtlasSection =
+    atlasTeamVerified || canManageAtlasVerification;
+  const showSourceSection =
+    sourcePublications.length > 0 || canEditSourcePublications;
+
+  if (!showAtlasSection && !showSourceSection) {
+    return (
+      <p className="text-muted text-xs leading-snug">No verification on record.</p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      {showAtlasSection && experimentId ? (
+        <AtlasVerificationSection
+          experimentId={experimentId}
+          atlasTeamVerified={atlasTeamVerified}
+          canManageAtlasVerification={canManageAtlasVerification}
+        />
+      ) : showAtlasSection ? (
+        <section>
+          <SectionTitle>Atlas Verification</SectionTitle>
+          <p className="text-muted mt-0.5 text-xs leading-snug">
+            Verified by the {site.name} team
+          </p>
+        </section>
+      ) : null}
+      {showSourceSection && experimentId ? (
+        <SourcePublicationSection
+          experimentId={experimentId}
+          sourcePublications={sourcePublications}
+          canEditSourcePublications={canEditSourcePublications}
+          showTopBorder={showAtlasSection}
+        />
+      ) : showSourceSection ? (
+        <section className={showAtlasSection ? "border-separator border-t pt-2.5" : undefined}>
+          <SectionTitle>Source Publication</SectionTitle>
+          <ul className="mt-1 space-y-1.5">
+            {sourcePublications.map((publication) => {
+              const title = publication.title?.trim();
+              return (
+                <li key={publication.doi} className="min-w-0">
+                  {title ? (
+                    <p className="text-foreground line-clamp-1 text-xs leading-snug">
+                      {truncateTitle(title, 72)}
+                    </p>
+                  ) : null}
+                  <DoiResolverLink doi={publication.doi} />
+                </li>
+              );
+            })}
+          </ul>
         </section>
       ) : null}
     </div>
@@ -680,34 +650,6 @@ export function NexafsPublicationVerificationControl({
 
   const ariaLabel = verificationAriaLabel(hasAtlas, hasLinkedDoi, hasSource);
 
-  const popoverBody = (
-    <>
-      <p className="text-foreground mb-1 text-sm font-semibold">
-        Dataset verification
-      </p>
-      <p className="text-muted mb-3 text-xs leading-snug">
-        Reasons to trust this dataset on {site.name}.
-      </p>
-      <VerificationStatusSections
-        hasAtlas={hasAtlas}
-        hasLinkedDoi={hasLinkedDoi}
-        hasSource={hasSource}
-        linkedPublications={linkedPublications}
-        sourcePublications={sourcePublications}
-      />
-      {experimentId && hasEditorAccess ? (
-        <VerificationEditorSections
-          experimentId={experimentId}
-          sourcePublications={sourcePublications}
-          atlasTeamVerified={hasAtlas}
-          canEditSourcePublications={canEditSourcePublications}
-          canManageAtlasVerification={canManageAtlasVerification}
-          onClose={() => setIsOpen(false)}
-        />
-      ) : null}
-    </>
-  );
-
   return (
     <>
       <button
@@ -748,7 +690,13 @@ export function NexafsPublicationVerificationControl({
                 onMouseEnter={openPopover}
                 onMouseLeave={scheduleClosePopover}
               >
-                {popoverBody}
+                <VerificationPopoverContent
+                  experimentId={experimentId}
+                  sourcePublications={sourcePublications}
+                  atlasTeamVerified={hasAtlas}
+                  canEditSourcePublications={canEditSourcePublications}
+                  canManageAtlasVerification={canManageAtlasVerification}
+                />
               </VerificationPopoverSurface>
             </div>,
             document.body,

@@ -34,6 +34,8 @@ type SourcePaperDoiFieldProps = {
   disabled?: boolean;
   showLabel?: boolean;
   helperText?: string;
+  /** When false, omits the resolved citation preview block below the ComboBox. */
+  showCitationPreview?: boolean;
 };
 
 function SourcePaperCitationPreview({
@@ -77,6 +79,7 @@ export function SourcePaperDoiField({
   disabled = false,
   showLabel = true,
   helperText = "Link this dataset to the peer-reviewed paper that reports the original measurement.",
+  showCitationPreview = true,
 }: SourcePaperDoiFieldProps) {
   const [query, setQuery] = useState(value.doi);
   const [debouncedQuery, setDebouncedQuery] = useState(value.doi);
@@ -304,7 +307,7 @@ export function SourcePaperDoiField({
 
       {lookupError ? <ErrorMessage>{lookupError}</ErrorMessage> : null}
 
-      {value.citation ? (
+      {showCitationPreview && value.citation ? (
         <div className="flex flex-col gap-2">
           <SourcePaperCitationPreview citation={value.citation} />
           <Button
