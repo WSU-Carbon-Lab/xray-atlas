@@ -108,7 +108,7 @@ export interface NexafsBrowseExperimentSectionProps {
 export function NexafsBrowseExperimentSection({
   basePath,
   contributeNexafsHref,
-  showMoleculeFilter,
+  showMoleculeFilter: _showMoleculeFilter,
   lockedMoleculeId,
   emptyStateBrowseAllHref = "/browse/nexafs",
   itemsPerPageLabelId = "nexafs-items-per-page",
@@ -295,9 +295,28 @@ export function NexafsBrowseExperimentSection({
   const inner = (
     <div className="space-y-6">
       <BrowseHeader
-        searchValue={query}
-        onSearchChange={setQuery}
-        searchPlaceholder="Search catalog..."
+        searchChrome={
+          <UnifiedSearchBar
+            tokens={tokens}
+            query={query}
+            onQueryChange={setQuery}
+            onAdd={add}
+            onRemove={remove}
+            onClearAll={handleClearAll}
+            facetCounts={facetData}
+            searchResults={searchResults}
+            edges={edgeOptions}
+            selectedEdgeIds={selection.edge}
+            onEdgesChange={(ids) => {
+              const toAdd = ids.filter((id) => !selection.edge.includes(id));
+              const toRemove = selection.edge.filter(
+                (id) => !ids.includes(id),
+              );
+              for (const id of toRemove) remove("edge", id);
+              for (const id of toAdd) add("edge", id);
+            }}
+          />
+        }
         trailing={
           !hasSearchQuery ? (
             <BrowseSortButton
@@ -311,30 +330,6 @@ export function NexafsBrowseExperimentSection({
         }
         filters={
           <>
-            <UnifiedSearchBar
-              tokens={tokens}
-              query={query}
-              onQueryChange={setQuery}
-              onAdd={add}
-              onRemove={remove}
-              onClearAll={handleClearAll}
-              facetCounts={facetData}
-              searchResults={searchResults}
-              edges={edgeOptions}
-              selectedEdgeIds={selection.edge}
-              onEdgesChange={(ids) => {
-                const toAdd = ids.filter((id) => !selection.edge.includes(id));
-                const toRemove = selection.edge.filter((id) => !ids.includes(id));
-                for (const id of toRemove) remove("edge", id);
-                for (const id of toAdd) add("edge", id);
-              }}
-              placeholder={
-                showMoleculeFilter
-                  ? "Filter by edge, molecule, instrument... (Cmd+K)"
-                  : "Filter by edge, instrument, contributor... (Cmd+K)"
-              }
-            />
-            {filterSeparator}
             <NexafsAcquisitionFilterDropdown
               experimentType={experimentType}
               onExperimentTypeChange={setExperimentType}

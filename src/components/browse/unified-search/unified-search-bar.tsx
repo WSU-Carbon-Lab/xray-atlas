@@ -1,17 +1,21 @@
 "use client";
 
 /**
- * Unified NEXAFS search bar with multi-select facet tokens, popularity panel,
- * grouped typeahead, and periodic table launcher.
+ * Unified NEXAFS search chrome with multi-select facet tokens, popularity
+ * panel, grouped typeahead, and an inline periodic-table launcher.
+ *
+ * Designed for use as the `searchChrome` prop of `BrowseHeader`. It manages
+ * its own ⌘K global focus shortcut so callers do not need to wire keyboard
+ * handling separately.
  *
  * On focus with empty query: shows the popularity panel (top-N facet chips
  * per dimension from `facetCounts`).
- * On type: shows grouped typeahead results from `searchEntities`.
+ * On type: shows grouped typeahead results from `searchResults`.
  * Keyboard: ArrowDown/Up navigate candidates; Enter adds highlighted match;
  * Escape clears query and closes; Backspace on empty input removes last token.
  *
- * The "Periodic" button is always visible so edges are reachable without
- * opening the dropdown.
+ * The Periodic button is a trailing segment inside the input container so
+ * edges are always reachable without a second UI row.
  */
 
 import {
@@ -22,7 +26,6 @@ import {
   useEffect,
   useId,
 } from "react";
-import { Button } from "@heroui/react";
 import {
   MagnifyingGlassIcon,
   XMarkIcon,
@@ -40,10 +43,8 @@ const FIELD_LABELS: Record<FacetField, string> = {
 };
 
 const FIELD_CHIP_CLASSES: Record<FacetField, string> = {
-  edge:
-    "bg-[color-mix(in_oklch,var(--accent)_15%,transparent)] text-accent border-[color-mix(in_oklch,var(--accent)_30%,transparent)]",
-  mol:
-    "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/25",
+  edge: "bg-[color-mix(in_oklch,var(--accent)_15%,transparent)] text-accent border-[color-mix(in_oklch,var(--accent)_30%,transparent)]",
+  mol: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/25",
   instrument:
     "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/25",
   contributor:
@@ -92,25 +93,27 @@ export interface UnifiedSearchBarProps {
 }
 
 /**
- * Renders the unified multi-facet search bar for the NEXAFS browse catalog.
+ * Renders the unified multi-facet search chrome for the NEXAFS browse catalog.
  *
- * Active tokens appear as colored chips before the text cursor. The dropdown
- * opens automatically on focus and switches between popularity panel and
- * typeahead depending on query content. Keyboard interactions follow standard
- * combobox accessibility patterns (aria-expanded, aria-activedescendant, role=listbox).
+ * Active tokens appear as colored chips before the text cursor. The Periodic
+ * button is a trailing segment inside the bar separated by a visual divider.
+ * The dropdown opens automatically on focus and switches between popularity
+ * panel and typeahead depending on query content. Keyboard interactions follow
+ * standard combobox accessibility patterns (aria-expanded, aria-activedescendant,
+ * role=listbox). A ⌘K global handler focuses the input from anywhere on the page.
  *
- * @param tokens - Active facet tokens to render as chips.
+ * @param tokens - Active facet tokens rendered as dismissible chips.
  * @param query - Free-text query string.
  * @param onQueryChange - Callback for text input changes.
  * @param onAdd - Add a facet id.
  * @param onRemove - Remove a facet id.
  * @param onClearAll - Clear all tokens and query.
- * @param facetCounts - Popularity panel data.
+ * @param facetCounts - Popularity panel data shown on empty focus.
  * @param searchResults - Typeahead data for the current query.
- * @param edges - All edges for the periodic modal.
+ * @param edges - All edges available for the periodic modal.
  * @param selectedEdgeIds - Currently selected edge UUIDs.
- * @param onEdgesChange - Called when periodic modal changes edges.
- * @param placeholder - Input placeholder.
+ * @param onEdgesChange - Called when periodic modal changes the edge set.
+ * @param placeholder - Input placeholder; defaults to `"Search catalog..."`.
  */
 export function UnifiedSearchBar({
   tokens,
@@ -124,7 +127,7 @@ export function UnifiedSearchBar({
   edges,
   selectedEdgeIds,
   onEdgesChange,
-  placeholder = "Search catalog... (Cmd+K)",
+  placeholder = "Search catalog...",
 }: UnifiedSearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -134,6 +137,7 @@ export function UnifiedSearchBar({
   const [periodicOpen, setPeriodicOpen] = useState(false);
 
   const hasQuery = query.trim().length > 0;
+  const isEmpty = tokens.length === 0 && query === "";
 
   const popularitySections = useMemo<PopularitySection[]>(() => {
     if (!facetCounts) return [];
@@ -145,10 +149,16 @@ export function UnifiedSearchBar({
       sections.push({ field: "mol", items: facetCounts.molecules.slice(0, 6) });
     }
     if (facetCounts.instruments.length > 0) {
-      sections.push({ field: "instrument", items: facetCounts.instruments.slice(0, 5) });
+      sections.push({
+        field: "instrument",
+        items: facetCounts.instruments.slice(0, 5),
+      });
     }
     if (facetCounts.contributors.length > 0) {
-      sections.push({ field: "contributor", items: facetCounts.contributors.slice(0, 5) });
+      sections.push({
+        field: "contributor",
+        items: facetCounts.contributors.slice(0, 5),
+      });
     }
     return sections;
   }, [facetCounts]);
@@ -169,7 +179,11 @@ export function UnifiedSearchBar({
     });
   }, [hasQuery, searchResults]);
 
-  const showDropdown = isOpen && (hasQuery ? typeaheadCandidates.length > 0 : popularitySections.length > 0);
+  const showDropdown =
+    isOpen &&
+    (hasQuery
+      ? typeaheadCandidates.length > 0
+      : popularitySections.length > 0);
 
   useEffect(() => {
     setHighlightedIndex(-1);
@@ -177,7 +191,12 @@ export function UnifiedSearchBar({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key.toLowerCase() === "k" &&
+        !e.altKey &&
+        !e.shiftKey
+      ) {
         e.preventDefault();
         inputRef.current?.focus();
         setIsOpen(true);
@@ -203,7 +222,11 @@ export function UnifiedSearchBar({
       }
       if (e.key === "Enter") {
         e.preventDefault();
-        if (hasQuery && highlightedIndex >= 0 && typeaheadCandidates[highlightedIndex]) {
+        if (
+          hasQuery &&
+          highlightedIndex >= 0 &&
+          typeaheadCandidates[highlightedIndex]
+        ) {
           const c = typeaheadCandidates[highlightedIndex];
           onAdd(c.field, c.id);
           onQueryChange("");
@@ -216,6 +239,7 @@ export function UnifiedSearchBar({
         onQueryChange("");
         setIsOpen(false);
         setHighlightedIndex(-1);
+        inputRef.current?.blur();
         return;
       }
       if (e.key === "Backspace" && query === "" && tokens.length > 0) {
@@ -223,12 +247,25 @@ export function UnifiedSearchBar({
         if (last) onRemove(last.field, last.id);
       }
     },
-    [showDropdown, hasQuery, typeaheadCandidates, highlightedIndex, query, tokens, onAdd, onQueryChange, onRemove],
+    [
+      showDropdown,
+      hasQuery,
+      typeaheadCandidates,
+      highlightedIndex,
+      query,
+      tokens,
+      onAdd,
+      onQueryChange,
+      onRemove,
+    ],
   );
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
         setHighlightedIndex(-1);
       }
@@ -238,16 +275,21 @@ export function UnifiedSearchBar({
   }, []);
 
   return (
-    <div ref={containerRef} className="relative flex-1">
+    <div ref={containerRef} className="relative w-full">
       <div
         className={[
-          "border-border bg-field-background flex min-h-10 flex-wrap items-center gap-1.5 rounded-xl border px-3 py-1.5 transition-shadow",
-          isOpen ? "ring-accent ring-2 ring-offset-0" : "hover:border-border",
+          "border-border bg-surface flex min-h-12 w-full flex-wrap items-center gap-1.5 rounded-lg border px-3 py-1.5 transition-shadow",
+          isOpen
+            ? "ring-accent ring-2 ring-offset-0"
+            : "hover:border-border/80",
         ].join(" ")}
         onClick={() => inputRef.current?.focus()}
         onFocus={() => setIsOpen(true)}
       >
-        <MagnifyingGlassIcon className="text-muted h-4 w-4 shrink-0" aria-hidden />
+        <MagnifyingGlassIcon
+          className="text-muted h-4 w-4 shrink-0"
+          aria-hidden
+        />
 
         {tokens.map((token) => (
           <span
@@ -281,6 +323,8 @@ export function UnifiedSearchBar({
           aria-haspopup="listbox"
           aria-autocomplete="list"
           aria-controls={listboxId}
+          aria-label="Search catalog"
+          aria-keyshortcuts="Meta+K"
           aria-activedescendant={
             highlightedIndex >= 0 && typeaheadCandidates[highlightedIndex]
               ? `candidate-${highlightedIndex}`
@@ -291,10 +335,10 @@ export function UnifiedSearchBar({
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={tokens.length === 0 ? placeholder : ""}
-          className="text-foreground placeholder:text-muted min-w-[140px] flex-1 bg-transparent text-sm outline-none"
+          className="text-foreground placeholder:text-muted min-w-[120px] flex-1 bg-transparent text-sm outline-none"
         />
 
-        {(tokens.length > 0 || query) && (
+        {!isEmpty ? (
           <button
             type="button"
             aria-label="Clear all filters and search"
@@ -308,19 +352,35 @@ export function UnifiedSearchBar({
           >
             <XMarkIcon className="h-4 w-4" aria-hidden />
           </button>
-        )}
-      </div>
+        ) : !isOpen ? (
+          <kbd
+            className="border-border bg-default text-muted flex shrink-0 items-center gap-0.5 rounded-md border px-2 py-1 font-sans text-[11px] font-medium tabular-nums shadow-sm"
+            aria-hidden
+          >
+            <span>⌘</span>
+            <span>K</span>
+          </kbd>
+        ) : null}
 
-      <Button
-        size="sm"
-        variant="ghost"
-        onPress={() => setPeriodicOpen(true)}
-        aria-label="Open periodic table to select absorption edges"
-        className="text-muted hover:text-foreground ml-2 shrink-0 gap-1 text-xs"
-      >
-        <TableCellsIcon className="h-4 w-4" aria-hidden />
-        Periodic
-      </Button>
+        <span
+          className="border-border/60 mx-0.5 h-5 w-px shrink-0 self-center border-l"
+          aria-hidden
+        />
+
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.stopPropagation();
+            setPeriodicOpen(true);
+          }}
+          aria-label="Open periodic table to select absorption edges"
+          className="text-muted hover:text-foreground focus-visible:ring-accent flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium focus:outline-none focus-visible:ring-1"
+        >
+          <TableCellsIcon className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="hidden sm:inline">Periodic</span>
+        </button>
+      </div>
 
       {showDropdown ? (
         <div
@@ -360,8 +420,12 @@ export function UnifiedSearchBar({
                   >
                     {FIELD_LABELS[c.field]}
                   </span>
-                  <span className="text-foreground min-w-0 flex-1 truncate">{c.label}</span>
-                  <span className="text-muted shrink-0 tabular-nums text-xs">{c.count}</span>
+                  <span className="text-foreground min-w-0 flex-1 truncate">
+                    {c.label}
+                  </span>
+                  <span className="text-muted shrink-0 tabular-nums text-xs">
+                    {c.count}
+                  </span>
                 </button>
               ))}
             </div>
@@ -376,8 +440,13 @@ export function UnifiedSearchBar({
                 }}
                 className="hover:bg-default flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
               >
-                <TableCellsIcon className="text-accent h-4 w-4 shrink-0" aria-hidden />
-                <span className="text-foreground font-medium">Periodic table</span>
+                <TableCellsIcon
+                  className="text-accent h-4 w-4 shrink-0"
+                  aria-hidden
+                />
+                <span className="text-foreground font-medium">
+                  Periodic table
+                </span>
                 <span className="text-muted text-xs">pick edges by element</span>
               </button>
 
@@ -407,7 +476,9 @@ export function UnifiedSearchBar({
                         ].join(" ")}
                       >
                         {item.label}
-                        <span className="opacity-60 tabular-nums">{item.count}</span>
+                        <span className="opacity-60 tabular-nums">
+                          {item.count}
+                        </span>
                       </button>
                     ))}
                   </div>
