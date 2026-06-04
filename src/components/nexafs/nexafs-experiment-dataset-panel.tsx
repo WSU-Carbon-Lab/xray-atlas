@@ -10,7 +10,11 @@ import {
 } from "react";
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { PencilIcon } from "@heroicons/react/24/outline";
+import {
+  LockClosedIcon,
+  LockOpenIcon,
+  PencilIcon,
+} from "@heroicons/react/24/outline";
 import { ChevronsDownUp, ChevronsUpDown, RotateCcw, Save } from "lucide-react";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import {
@@ -89,6 +93,11 @@ import type {
   VisualizationMode,
   GraphStyle,
 } from "~/features/process-nexafs/ui/visualization-toggle";
+import {
+  browseAuxDatasetRef,
+  DatasetAuxFilesPanel,
+} from "~/features/process-nexafs/ui/dataset-persisted-aux-files";
+import type { AuxFileKind } from "~/lib/aux-file-client";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import {
@@ -246,6 +255,9 @@ export function NexafsExperimentDatasetPanel({
   const [visualizationMode, setVisualizationMode] =
     useState<VisualizationMode>("graph");
   const [graphStyle, setGraphStyle] = useState<GraphStyle>("line");
+  const [auxUploadDropEnabled, setAuxUploadDropEnabled] = useState(false);
+  const [auxUploadKind, setAuxUploadKind] = useState<AuxFileKind>("other");
+  const [auxUploadDescription, setAuxUploadDescription] = useState("");
   const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
   const [differenceSpectra, setDifferenceSpectra] = useState<
     DifferenceSpectrum[]
@@ -1217,6 +1229,47 @@ export function NexafsExperimentDatasetPanel({
     ],
   );
 
+  const browseAuxDataset = useMemo(
+    () => browseAuxDatasetRef(experimentId, sampleId),
+    [experimentId, sampleId],
+  );
+
+  const auxUploadLockTrailing = useMemo(
+    () =>
+      visualizationMode === "aux" ? (
+        <PlotToolbarRichHint
+          title={
+            auxUploadDropEnabled
+              ? "Drag and drop enabled"
+              : "Drag and drop locked"
+          }
+          description={
+            auxUploadDropEnabled
+              ? "Lock to prevent accidental file drops on this dataset."
+              : "Unlock to add or remove auxiliary files via drag and drop."
+          }
+          placement="bottom"
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="border-border bg-surface text-foreground h-8 min-w-8 rounded-lg border px-2"
+            aria-pressed={auxUploadDropEnabled}
+            aria-label="Allow drag and drop uploads"
+            onPress={() => setAuxUploadDropEnabled((prev) => !prev)}
+          >
+            {auxUploadDropEnabled ? (
+              <LockOpenIcon className="h-4 w-4" aria-hidden />
+            ) : (
+              <LockClosedIcon className="h-4 w-4" aria-hidden />
+            )}
+          </Button>
+        </PlotToolbarRichHint>
+      ) : null,
+    [auxUploadDropEnabled, visualizationMode],
+  );
+
   const spectrumCsvContextMenu = useMemo(
     () => ({
       disabled: spectrumRailCsvMenusDisabled,
@@ -1635,9 +1688,25 @@ export function NexafsExperimentDatasetPanel({
         onModeChange={setVisualizationMode}
         onGraphStyleChange={setGraphStyle}
         showEditButton={false}
+        trailingSlot={auxUploadLockTrailing}
       />
 
-      {visualizationMode === "graph" ? (
+      {visualizationMode === "aux" ? (
+        <div className="border-border bg-surface flex min-h-[420px] w-full flex-col rounded-xl border p-4">
+          <DatasetAuxFilesPanel
+            variant="persisted"
+            dataset={browseAuxDataset}
+            pendingKind={auxUploadKind}
+            pendingDescription={auxUploadDescription}
+            onPendingKindChange={setAuxUploadKind}
+            onPendingDescriptionChange={setAuxUploadDescription}
+            onValidationError={(message) => showToast(message, "error")}
+            onUploadComplete={(message, type) => showToast(message, type)}
+            auxTabActive
+            uploadDropEnabled={auxUploadDropEnabled}
+          />
+        </div>
+      ) : visualizationMode === "graph" ? (
         isSpectrumLoading ? (
           <NexafsExperimentPlotSkeleton />
         ) : (
@@ -1731,20 +1800,22 @@ export function NexafsExperimentDatasetPanel({
             ) : null}
           </div>
         )
-      ) : isSpectrumLoading ? (
-        <NexafsExperimentTableSkeleton />
-      ) : (
-        <NexafsBrowseGroupedSpectrumTable
-          idPrefix={experimentId}
-          tree={groupedTree}
-          showOdCol={showOdCol}
-          showMassCol={showMassCol}
-          showBetaCol={showBetaCol}
-          showDeltaCol={showDeltaCol}
-          showI0Col={showI0Col}
-          csvExportOptions={spectrumCsvExportOptions}
-        />
-      )}
+      ) : visualizationMode === "table" ? (
+        isSpectrumLoading ? (
+          <NexafsExperimentTableSkeleton />
+        ) : (
+          <NexafsBrowseGroupedSpectrumTable
+            idPrefix={experimentId}
+            tree={groupedTree}
+            showOdCol={showOdCol}
+            showMassCol={showMassCol}
+            showBetaCol={showBetaCol}
+            showDeltaCol={showDeltaCol}
+            showI0Col={showI0Col}
+            csvExportOptions={spectrumCsvExportOptions}
+          />
+        )
+      ) : null}
     </div>
   );
 }

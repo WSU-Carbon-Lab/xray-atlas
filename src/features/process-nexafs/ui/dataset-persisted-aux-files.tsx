@@ -26,9 +26,35 @@ type DatasetStatePatch =
   | Partial<DatasetState>
   | ((dataset: DatasetState) => Partial<DatasetState>);
 
-export type DatasetAuxFilesTabProps = {
+/** Minimal dataset fields required by the auxiliary-files panel. */
+export type DatasetAuxFilesDatasetRef = Pick<
+  DatasetState,
+  | "id"
+  | "persistedExperimentId"
+  | "persistedSampleId"
+  | "pendingExperimentAuxFiles"
+  | "pendingSampleAuxFiles"
+>;
+
+/**
+ * Builds a dataset ref for browse panels that only need persisted aux file ids.
+ */
+export function browseAuxDatasetRef(
+  experimentId: string,
+  sampleId: string | null,
+): DatasetAuxFilesDatasetRef {
+  return {
+    id: experimentId,
+    persistedExperimentId: experimentId,
+    persistedSampleId: sampleId,
+    pendingExperimentAuxFiles: [],
+    pendingSampleAuxFiles: [],
+  };
+}
+
+export type DatasetAuxFilesPanelProps = {
   variant: "draft" | "persisted";
-  dataset: DatasetState;
+  dataset: DatasetAuxFilesDatasetRef;
   pendingKind: AuxFileKind;
   pendingDescription: string;
   onPendingKindChange: (kind: AuxFileKind) => void;
@@ -38,13 +64,15 @@ export type DatasetAuxFilesTabProps = {
   onUploadComplete?: (message: string, type: "success" | "warning") => void;
   onDropTargetsChange?: (active: AuxDropTargetsActive) => void;
   auxTabActive: boolean;
+  /** When false, drop zones and global drop targets stay off (browse upload lock). */
+  uploadDropEnabled?: boolean;
 };
 
 /**
- * Two-column auxiliary-files tab: experiment and sample compact upload panels
+ * Two-column auxiliary-files panel: experiment and sample compact upload panels
  * each list queued (draft or in-flight) and persisted files in the stack UI.
  */
-export function DatasetAuxFilesTab({
+export function DatasetAuxFilesPanel({
   variant,
   dataset,
   pendingKind,
@@ -56,7 +84,8 @@ export function DatasetAuxFilesTab({
   onUploadComplete,
   onDropTargetsChange,
   auxTabActive,
-}: DatasetAuxFilesTabProps) {
+  uploadDropEnabled = true,
+}: DatasetAuxFilesPanelProps) {
   const isPersisted = variant === "persisted";
   const experimentId = dataset.persistedExperimentId ?? "";
   const sampleId = dataset.persistedSampleId;
@@ -71,7 +100,8 @@ export function DatasetAuxFilesTab({
     { enabled: isPersisted && Boolean(experimentId) },
   );
   const canEdit = isPersisted ? (canEditQuery.data?.canEdit ?? false) : true;
-  const canUpload = canEdit;
+  const canUpload = canEdit && uploadDropEnabled;
+  const canMutateFiles = canEdit && uploadDropEnabled;
 
   const experimentListQuery = trpc.experimentFile.list.useQuery(
     { experimentId },
@@ -328,7 +358,7 @@ export function DatasetAuxFilesTab({
             isPersisted ? persistedExperimentFiles : undefined
           }
           onPersistedFileRemove={
-            isPersisted && canEdit
+            isPersisted && canMutateFiles
               ? (fileId) => {
                   setDeletingFileId(fileId);
                   experimentSoftDelete.mutate({ experimentId, fileId });
@@ -357,7 +387,7 @@ export function DatasetAuxFilesTab({
           files={sampleDropFiles}
           persistedFiles={isPersisted ? persistedSampleFiles : undefined}
           onPersistedFileRemove={
-            isPersisted && canEdit && sampleId
+            isPersisted && canMutateFiles && sampleId
               ? (fileId) => {
                   setDeletingFileId(fileId);
                   sampleSoftDelete.mutate({ sampleId, fileId });
@@ -384,3 +414,9 @@ export function DatasetAuxFilesTab({
     </section>
   );
 }
+
+/** @deprecated Prefer {@link DatasetAuxFilesPanel}. */
+export type DatasetAuxFilesTabProps = DatasetAuxFilesPanelProps;
+
+/** @deprecated Prefer {@link DatasetAuxFilesPanel}. */
+export const DatasetAuxFilesTab = DatasetAuxFilesPanel;
