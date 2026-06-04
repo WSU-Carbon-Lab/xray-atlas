@@ -32,6 +32,7 @@ import {
   type GlobalDropZoneId,
 } from "~/hooks/useGlobalFileDropZone";
 import {
+  COMPACT_AUX_DROP_VISUAL_SLOT_HEIGHT_CLASS,
   StackedPageDropVisual,
   type StackedPageQueuedFile,
 } from "./StackedFileIcons";
@@ -318,7 +319,7 @@ export function AuxFileDropZone({
       className={cn(
         "relative flex cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed text-center transition-colors",
         isCompact
-          ? "border-border min-h-[6.75rem] flex-1 px-3 py-3"
+          ? "border-border flex-1 px-3 py-3"
           : "border-border min-h-[8.5rem] px-4 py-5 gap-2",
         (showGlobalOverlay ||
           (isHovering && !experimentDangerZone) ||
@@ -357,61 +358,111 @@ export function AuxFileDropZone({
           visualKind={dragVisualKind}
         />
       ) : null}
-      <div
-        className={cn(
-          "relative flex w-full justify-center",
-          hasQueuedInStack && "h-[5.25rem]",
-          showGlobalOverlay && "opacity-0",
-        )}
-        onMouseEnter={() => {
-          if (hasQueuedInStack) {
-            setIsStackHovered(true);
-          }
-        }}
-        onMouseLeave={() => setIsStackHovered(false)}
-      >
-        <StackedPageDropVisual
-          visualKind={dragVisualKind}
-          dropTypeLabel={
-            showGlobalOverlay ? (globalDropState?.fileTypeLabel ?? null) : null
-          }
-          isActive={isHovering || showGlobalOverlay}
-          isDragHighlight={showGlobalOverlay}
-          filledStack={hasMultiFile}
-          stackAccent={stackAccent}
-          expandToGridOnHover={hasQueuedInStack}
-          isStackHovered={isStackHovered}
-          pointerX={pointer.x}
-          pointerY={pointer.y}
-          files={isCompact ? stackedPageFiles : undefined}
-        />
-      </div>
-      <p
-        className={cn(
-          "text-foreground font-medium",
-          isCompact ? "text-xs" : "text-sm",
-          hasQueuedInStack && "text-[11px]",
-          showGlobalOverlay && "opacity-0",
-        )}
-      >
-        {isCompact
-          ? hasQueuedInStack
-            ? "Add more files"
-            : "Drop or click to browse"
-          : "Drop files or click to browse"}
-      </p>
-      {!(isCompact && isStackHovered && hasQueuedInStack) ? (
-        <p
-          className={cn(
-            "text-muted",
-            isCompact ? "text-[11px]" : "text-xs",
-            hasQueuedInStack && isCompact && "text-[10px]",
-            showGlobalOverlay && "opacity-0",
-          )}
-        >
-          Up to {capLabel} per file
-        </p>
-      ) : null}
+      {isCompact ? (
+        <>
+          <div
+            className={cn(
+              "relative w-full shrink-0",
+              COMPACT_AUX_DROP_VISUAL_SLOT_HEIGHT_CLASS,
+              showGlobalOverlay && "opacity-0",
+            )}
+            onMouseEnter={() => {
+              if (hasQueuedInStack) {
+                setIsStackHovered(true);
+              }
+            }}
+            onMouseLeave={() => setIsStackHovered(false)}
+          >
+            <StackedPageDropVisual
+              slotFill
+              className="absolute inset-0 h-full w-full min-w-0"
+              visualKind={dragVisualKind}
+              dropTypeLabel={
+                showGlobalOverlay
+                  ? (globalDropState?.fileTypeLabel ?? null)
+                  : null
+              }
+              isActive={isHovering || showGlobalOverlay}
+              isDragHighlight={showGlobalOverlay}
+              filledStack={hasMultiFile}
+              stackAccent={stackAccent}
+              expandToGridOnHover={hasQueuedInStack}
+              isStackHovered={isStackHovered}
+              pointerX={pointer.x}
+              pointerY={pointer.y}
+              files={stackedPageFiles}
+            />
+          </div>
+          <div
+            className={cn(
+              "flex w-full min-h-[2.375rem] shrink-0 flex-col items-center justify-center gap-0.5",
+              showGlobalOverlay && "opacity-0",
+            )}
+          >
+            <p
+              className={cn(
+                "text-foreground font-medium",
+                hasQueuedInStack ? "text-[11px]" : "text-xs",
+              )}
+            >
+              {hasQueuedInStack
+                ? "Add more files"
+                : "Drop or click to browse"}
+            </p>
+            <p
+              className={cn(
+                "text-muted text-[10px] leading-tight",
+                isStackHovered &&
+                  hasQueuedInStack &&
+                  "pointer-events-none invisible",
+              )}
+              aria-hidden={isStackHovered && hasQueuedInStack}
+            >
+              Up to {capLabel} per file
+            </p>
+          </div>
+        </>
+      ) : (
+        <>
+          <div
+            className={cn(
+              "relative flex w-full justify-center",
+              showGlobalOverlay && "opacity-0",
+            )}
+          >
+            <StackedPageDropVisual
+              visualKind={dragVisualKind}
+              dropTypeLabel={
+                showGlobalOverlay
+                  ? (globalDropState?.fileTypeLabel ?? null)
+                  : null
+              }
+              isActive={isHovering || showGlobalOverlay}
+              isDragHighlight={showGlobalOverlay}
+              filledStack={hasMultiFile}
+              stackAccent={stackAccent}
+              pointerX={pointer.x}
+              pointerY={pointer.y}
+            />
+          </div>
+          <p
+            className={cn(
+              "text-foreground text-sm font-medium",
+              showGlobalOverlay && "opacity-0",
+            )}
+          >
+            Drop files or click to browse
+          </p>
+          <p
+            className={cn(
+              "text-muted text-xs",
+              showGlobalOverlay && "opacity-0",
+            )}
+          >
+            Up to {capLabel} per file
+          </p>
+        </>
+      )}
       <input
         ref={inputRef}
         id={inputId}

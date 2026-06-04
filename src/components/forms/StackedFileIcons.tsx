@@ -107,11 +107,13 @@ function truncateStackFilename(name: string, maxChars = 22): string {
   return `${name.slice(0, head)}…${name.slice(-tail)}`;
 }
 
-/** Fixed visual slot height when hover expands queued files into a horizontal scroller. */
-const COMPACT_EXPANDED_VISUAL_HEIGHT_CLASS = "h-[5.25rem]";
+/** Fixed compact aux drop-zone visual slot (stack, badge, hover scroller). */
+export const COMPACT_AUX_DROP_VISUAL_SLOT_HEIGHT_CLASS = "h-[5.25rem]";
+
 const COMPACT_SCROLLER_CELL_WIDTH_CLASS = "w-[4.75rem]";
-const COMPACT_SCROLLER_ICON_TILE_CLASS = "h-12 w-12";
-const COMPACT_SCROLLER_ICON_CLASS = "size-7";
+const COMPACT_SCROLLER_ICON_TILE_CLASS = "h-11 w-11";
+const COMPACT_SCROLLER_ICON_CLASS = "size-6";
+const COMPACT_STACK_LAYER_SIZE_CLASS = "h-10 w-[2.15rem]";
 const STACK_LAYER_ICON_EMPHASIZED_CLASS = "size-6";
 const STACK_LAYER_ICON_CLASS = "size-5";
 
@@ -179,6 +181,8 @@ type StackedPageDropVisualProps = {
   /** Hovering the visual expands queued files into a horizontal removable scroller. */
   expandToGridOnHover?: boolean;
   isStackHovered?: boolean;
+  /** Fill a parent slot with fixed height; stack and scroller use absolute inset-0. */
+  slotFill?: boolean;
 };
 
 type LayerSlot = "backLeft" | "backRight" | "front";
@@ -310,7 +314,8 @@ function StackedPageLayer({
   return (
     <span
       className={cn(
-        "absolute flex h-11 w-[2.35rem] items-center justify-center rounded-md border shadow-sm",
+        "absolute flex items-center justify-center rounded-md border shadow-sm",
+        COMPACT_STACK_LAYER_SIZE_CLASS,
         "motion-safe:transition-[transform,opacity] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none",
         exitingToScroller && "opacity-0",
         isDecorative && !file
@@ -478,6 +483,7 @@ export function StackedPageDropVisual({
   stackAccent = "accent",
   expandToGridOnHover = false,
   isStackHovered = false,
+  slotFill = false,
 }: StackedPageDropVisualProps) {
   const fallbackVisualKind =
     visualKindProp ??
@@ -494,7 +500,6 @@ export function StackedPageDropVisual({
     : [];
   const showScroller =
     expandToGridOnHover && isStackHovered && hasQueuedFiles && !isDragHighlight;
-  const useExpandedVisualSlot = expandToGridOnHover && hasQueuedFiles;
 
   const slotFiles: Record<LayerSlot, StackedPageQueuedFile | undefined> = {
     backLeft: undefined,
@@ -524,63 +529,97 @@ export function StackedPageDropVisual({
     pointerRotate,
   };
 
+  const stackLayers = (
+    <div
+      className={cn(
+        "relative flex h-12 w-[4.75rem] items-center justify-center",
+        "motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none",
+        showScroller && "pointer-events-none opacity-0",
+      )}
+    >
+      <StackedPageLayer
+        slot="backLeft"
+        file={slotFiles.backLeft}
+        isDecorative={!slotFiles.backLeft}
+        exitingToScroller={showScroller}
+        {...layerProps}
+      />
+      <StackedPageLayer
+        slot="backRight"
+        file={slotFiles.backRight}
+        isDecorative={!slotFiles.backRight}
+        exitingToScroller={showScroller}
+        {...layerProps}
+      />
+      <StackedPageLayer
+        slot="front"
+        file={slotFiles.front}
+        isDecorative={!slotFiles.front}
+        exitingToScroller={showScroller}
+        {...layerProps}
+      />
+      {hasQueuedFiles && !showScroller ? (
+        <span
+          className={cn(
+            "border-border bg-surface text-foreground pointer-events-none absolute -top-1 -right-1 z-20 flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[9px] font-semibold leading-none tabular-nums shadow-sm",
+            stackAccent === "danger" && "border-danger text-danger",
+            stackAccent === "accent" && "border-accent text-accent",
+          )}
+          aria-label={`${files.length} queued files`}
+        >
+          {files.length}
+        </span>
+      ) : null}
+    </div>
+  );
+
+  if (slotFill) {
+    return (
+      <div
+        className={cn(
+          "relative h-full w-full min-w-0 overflow-hidden",
+          className,
+        )}
+        aria-hidden={!hasQueuedFiles}
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          {stackLayers}
+        </div>
+        {expandToGridOnHover ? (
+          <div
+            className={cn(
+              "absolute inset-0 flex w-full items-center justify-center overflow-hidden",
+              "motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none",
+              showScroller
+                ? "pointer-events-auto scale-100 opacity-100"
+                : "pointer-events-none scale-[0.96] opacity-0",
+            )}
+          >
+            <StackedPageFileScroller
+              files={files}
+              stackAccent={stackAccent}
+              showScroller={showScroller}
+            />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
-        "relative mx-auto flex items-center justify-center",
-        useExpandedVisualSlot
-          ? cn(COMPACT_EXPANDED_VISUAL_HEIGHT_CLASS, "w-full min-w-0")
-          : "h-12 w-[4.75rem]",
+        "relative mx-auto flex h-12 w-[4.75rem] items-center justify-center",
+        expandToGridOnHover && hasQueuedFiles && "h-[5.25rem] w-full min-w-0",
         className,
       )}
       aria-hidden={!hasQueuedFiles}
     >
-      <div
-        className={cn(
-          "relative flex h-12 w-[4.75rem] items-center justify-center",
-          "motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none",
-          showScroller &&
-            "pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-        )}
-      >
-        <StackedPageLayer
-          slot="backLeft"
-          file={slotFiles.backLeft}
-          isDecorative={!slotFiles.backLeft}
-          exitingToScroller={showScroller}
-          {...layerProps}
-        />
-        <StackedPageLayer
-          slot="backRight"
-          file={slotFiles.backRight}
-          isDecorative={!slotFiles.backRight}
-          exitingToScroller={showScroller}
-          {...layerProps}
-        />
-        <StackedPageLayer
-          slot="front"
-          file={slotFiles.front}
-          isDecorative={!slotFiles.front}
-          exitingToScroller={showScroller}
-          {...layerProps}
-        />
-        {hasQueuedFiles && !showScroller ? (
-          <span
-            className={cn(
-              "border-border bg-surface text-foreground pointer-events-none absolute -top-1 -right-1 z-20 flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[9px] font-semibold leading-none tabular-nums shadow-sm",
-              stackAccent === "danger" && "border-danger text-danger",
-              stackAccent === "accent" && "border-accent text-accent",
-            )}
-            aria-label={`${files.length} queued files`}
-          >
-            {files.length}
-          </span>
-        ) : null}
-      </div>
+      {stackLayers}
       {expandToGridOnHover ? (
         <div
           className={cn(
-            "absolute inset-0 flex w-full items-center justify-center",
+            "absolute inset-0 flex w-full items-center justify-center overflow-hidden",
             "motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none",
             showScroller
               ? "pointer-events-auto scale-100 opacity-100"
