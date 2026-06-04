@@ -110,7 +110,10 @@ function truncateStackFilename(name: string, maxChars = 22): string {
 /** Fixed visual slot height when hover expands queued files into a horizontal scroller. */
 const COMPACT_EXPANDED_VISUAL_HEIGHT_CLASS = "h-[5.25rem]";
 const COMPACT_SCROLLER_CELL_WIDTH_CLASS = "w-[4.75rem]";
-const COMPACT_SCROLLER_ICON_TILE_CLASS = "h-14 w-14";
+const COMPACT_SCROLLER_ICON_TILE_CLASS = "h-12 w-12";
+const COMPACT_SCROLLER_ICON_CLASS = "size-7";
+const STACK_LAYER_ICON_EMPHASIZED_CLASS = "size-6";
+const STACK_LAYER_ICON_CLASS = "size-5";
 
 function useHorizontalScrollEdgeFades(
   scrollRef: RefObject<HTMLDivElement | null>,
@@ -328,7 +331,9 @@ function StackedPageLayer({
       <AuxFileVisualIcon
         kind={kind}
         className={cn(
-          isFront && emphasized ? "size-5" : "size-4",
+          isFront && emphasized
+            ? STACK_LAYER_ICON_EMPHASIZED_CLASS
+            : STACK_LAYER_ICON_CLASS,
           "text-muted",
         )}
       />
@@ -380,7 +385,7 @@ function StackedPageFileScrollerCell({
       >
         <AuxFileVisualIcon
           kind={file.visualKind}
-          className="text-muted size-5"
+          className={cn("text-muted", COMPACT_SCROLLER_ICON_CLASS)}
         />
         <StackedPageRemoveButton
           filename={file.filename}
