@@ -7,14 +7,16 @@ import {
   useRef,
   useState,
   type MouseEvent,
+  type ReactNode,
+  type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import { BadgeCheck, BookOpen, Shield } from "lucide-react";
 import { Button, Checkbox, Separator } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { site } from "~/app/brand";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
-import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import {
   SourcePaperDoiField,
   type SourcePaperDoiFieldValue,
@@ -26,6 +28,13 @@ import type {
 } from "~/types/nexafs-browse";
 
 const POPOVER_CLOSE_DELAY_MS = 120;
+const POPOVER_VERTICAL_OFFSET_PX = 8;
+
+const verificationPopoverShellClassName =
+  "relative flex max-h-[min(70vh,32rem)] w-[min(24rem,calc(100vw-1.5rem))] max-w-[min(24rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl border border-border bg-surface p-3 text-left shadow-xl ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)]";
+
+const verificationPopoverScrollClassName =
+  "min-h-0 flex-1 overflow-y-auto overscroll-contain";
 
 export const nexafsSourcePublicationBadgeClassName =
   "text-blue-600 dark:text-blue-400";
@@ -186,6 +195,55 @@ function SectionTitle({ children }: { children: string }) {
       {children}
     </p>
   );
+}
+
+function VerificationPopoverSurface({
+  arrowOffsetPx,
+  contentRef,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}: {
+  arrowOffsetPx: number;
+  contentRef: RefObject<HTMLDivElement | null>;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      ref={contentRef}
+      className={`pointer-events-auto ${verificationPopoverShellClassName}`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className={verificationPopoverScrollClassName}>{children}</div>
+      <div
+        className="border-border bg-surface absolute top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b transition-[left] duration-150 ease-out"
+        style={{ left: `calc(50% + ${arrowOffsetPx}px)` }}
+        aria-hidden
+      />
+    </div>
+  );
+}
+
+function useVerificationPopoverPosition(
+  triggerRef: RefObject<HTMLElement | null>,
+) {
+  const [position, setPosition] = useState({ left: 0, top: 0, arrowOffsetPx: 0 });
+
+  const updatePosition = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el || typeof window === "undefined") return;
+    const rect = el.getBoundingClientRect();
+    setPosition({
+      left: rect.left + rect.width / 2,
+      top: rect.top - POPOVER_VERTICAL_OFFSET_PX,
+      arrowOffsetPx: 0,
+    });
+  }, [triggerRef]);
+
+  return { position, updatePosition };
 }
 
 function DoiResolverLink({ doi }: { doi: string }) {
@@ -539,8 +597,11 @@ export function NexafsPublicationVerificationControl({
     Boolean(experimentId) &&
     (canEditSourcePublications || canManageAtlasVerification);
 
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { position, updatePosition } = useVerificationPopoverPosition(triggerRef);
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -550,9 +611,10 @@ export function NexafsPublicationVerificationControl({
   }, []);
 
   const openPopover = useCallback(() => {
+    updatePosition();
     clearCloseTimer();
     setIsOpen(true);
-  }, [clearCloseTimer]);
+  }, [clearCloseTimer, updatePosition]);
 
   const scheduleClosePopover = useCallback(() => {
     clearCloseTimer();
@@ -567,6 +629,54 @@ export function NexafsPublicationVerificationControl({
       clearCloseTimer();
     };
   }, [clearCloseTimer]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleReposition = () => {
+      updatePosition();
+    };
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    return () => {
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [isOpen, updatePosition]);
+
+  useEffect(() => {
+    if (!isOpen || !hasEditorAccess) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (
+        triggerRef.current?.contains(target) ||
+        contentRef.current?.contains(target)
+      ) {
+        return;
+      }
+      if (
+        target instanceof Element &&
+        target.closest(ATTRIBUTION_NESTED_OVERLAY_SELECTOR)
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [hasEditorAccess, isOpen]);
 
   const ariaLabel = verificationAriaLabel(hasAtlas, hasLinkedDoi, hasSource);
 
@@ -599,57 +709,51 @@ export function NexafsPublicationVerificationControl({
   );
 
   return (
-    <PopoverMenu
-      isOpen={isOpen}
-      onOpenChange={setIsOpen}
-      placement="bottom-start"
-      rootClassName="inline-flex shrink-0"
-      ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
-      renderTrigger={({ triggerProps }) => {
-        const { onClick, onPointerDown, ...restTriggerProps } = triggerProps;
-        return (
-          <button
-            {...restTriggerProps}
-            type="button"
-            aria-label={ariaLabel}
-            aria-haspopup="dialog"
-            aria-expanded={isOpen}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              onPointerDown?.(event);
-            }}
-            onMouseEnter={openPopover}
-            onMouseLeave={scheduleClosePopover}
-            onFocus={openPopover}
-            onBlur={scheduleClosePopover}
-            onClick={(event: MouseEvent<HTMLButtonElement>) => {
-              event.stopPropagation();
-              clearCloseTimer();
-              setIsOpen((prev) => !prev);
-              onClick?.(event);
-            }}
-            className={cn(
-              "focus-visible:ring-accent inline-flex shrink-0 cursor-default items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-              isOpen && "ring-accent/40 ring-1 ring-offset-1",
-            )}
-          >
-            <VerificationBadgeStack hasAtlas={hasAtlas} hasSource={hasSource} />
-          </button>
-        );
-      }}
-      renderContent={({ contentProps, contentPositionClassName }) => (
-        <PopoverMenuContent
-          {...contentProps}
-          className={cn(
-            contentPositionClassName,
-            "border-border bg-surface z-tooltip w-[min(24rem,calc(100vw-1.5rem))] rounded-xl border p-3 shadow-xl",
-          )}
-          onMouseEnter={openPopover}
-          onMouseLeave={scheduleClosePopover}
-        >
-          {popoverBody}
-        </PopoverMenuContent>
-      )}
-    />
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+        onMouseEnter={openPopover}
+        onMouseLeave={scheduleClosePopover}
+        onFocus={openPopover}
+        onBlur={scheduleClosePopover}
+        onClick={(event: MouseEvent<HTMLButtonElement>) => {
+          event.stopPropagation();
+          clearCloseTimer();
+          updatePosition();
+          setIsOpen((prev) => !prev);
+        }}
+        className={cn(
+          "focus-visible:ring-accent inline-flex shrink-0 cursor-default items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+          isOpen && "ring-accent/40 ring-1 ring-offset-1",
+        )}
+      >
+        <VerificationBadgeStack hasAtlas={hasAtlas} hasSource={hasSource} />
+      </button>
+      {isOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="z-tooltip pointer-events-none fixed -translate-x-1/2 -translate-y-full"
+              style={{ left: position.left, top: position.top }}
+            >
+              <VerificationPopoverSurface
+                arrowOffsetPx={position.arrowOffsetPx}
+                contentRef={contentRef}
+                onMouseEnter={openPopover}
+                onMouseLeave={scheduleClosePopover}
+              >
+                {popoverBody}
+              </VerificationPopoverSurface>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
