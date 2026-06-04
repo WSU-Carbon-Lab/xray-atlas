@@ -1,5 +1,18 @@
 import { ExperimentType } from "~/prisma/browser";
 
+/**
+ * Verification source filter for browse.  `"either"` passes experiments
+ * verified by Atlas staff or linked to a third-party publication;
+ * `"publication"` and `"atlas"` restrict to one source exclusively.
+ */
+export type VerificationSource = "either" | "publication" | "atlas";
+
+export const VERIFICATION_SOURCE_LABELS: Record<VerificationSource, string> = {
+  either: "Atlas or publication",
+  publication: "Third-party publication only",
+  atlas: "Xray Atlas internal review only",
+};
+
 export const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
   TOTAL_ELECTRON_YIELD: "Total electron yield",
   PARTIAL_ELECTRON_YIELD: "Partial electron yield",

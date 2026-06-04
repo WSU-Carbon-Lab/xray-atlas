@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { BoltIcon } from "@heroicons/react/24/outline";
-import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import { Tooltip } from "@heroui/react";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
+import { BrowseFilterTrigger } from "./browse-filter-trigger";
 
 export type NexafsEdgeOption = {
   id: string;
@@ -11,14 +12,18 @@ export type NexafsEdgeOption = {
   corestate: string;
 };
 
+/**
+ * Filter popover for restricting NEXAFS browse results to a specific absorption edge.
+ *
+ * @param edgeId - Currently selected edge UUID, or `undefined` for no filter.
+ * @param edges - List of available edges to display in the panel.
+ * @param onEdgeChange - Called with the selected edge UUID, or `undefined` to clear.
+ */
 export type NexafsEdgeFilterDropdownProps = {
   edgeId: string | undefined;
   edges: NexafsEdgeOption[];
   onEdgeChange: (id: string | undefined) => void;
 };
-
-const triggerBase =
-  "border-border bg-surface text-muted focus-visible:ring-accent flex h-12 max-w-[min(100%,200px)] min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
 
 export function NexafsEdgeFilterDropdown({
   edgeId,
@@ -40,31 +45,31 @@ export function NexafsEdgeFilterDropdown({
           align="end"
           contentClassName="w-[260px]"
           renderTrigger={({ triggerProps, isOpen }) => (
-            <button
+            <BrowseFilterTrigger
               {...triggerProps}
-              type="button"
               aria-label="Filter by absorption edge"
               aria-pressed={hasSelection}
-              className={`${triggerBase} ${hasSelection ? "border-accent/40 bg-accent-soft text-accent hover:text-accent" : ""}`}
+              active={hasSelection}
+              activeLabel={summaryLabel}
+              icon={<BoltIcon aria-hidden />}
+              label="Edge"
+              className="max-w-[min(100%,200px)]"
             >
-              <BoltIcon
-                className="h-5 w-5 shrink-0 stroke-[1.5] text-current"
-                aria-hidden
-              />
-              <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">
-                {hasSelection && summaryLabel ? summaryLabel : "Edge"}
-              </span>
               <span className="sr-only">
                 {isOpen ? "Close edge filter" : "Open edge filter"}
               </span>
-            </button>
+            </BrowseFilterTrigger>
           )}
           renderContent={({ contentPositionClassName, contentProps, close }) => (
             <PopoverMenuContent
               {...contentProps}
               className={`${contentPositionClassName} max-h-[min(280px,50vh)] overflow-y-auto rounded-xl py-1`}
             >
-              <div className="space-y-0.5 p-1" role="listbox" aria-label="Absorption edge">
+              <div
+                className="space-y-0.5 p-1"
+                role="listbox"
+                aria-label="Absorption edge"
+              >
                 <button
                   type="button"
                   onClick={() => {
@@ -111,7 +116,8 @@ export function NexafsEdgeFilterDropdown({
         placement="top"
         className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-left shadow-lg"
       >
-        Limit results to a specific X-ray absorption edge (element and core level).
+        Limit results to a specific X-ray absorption edge (element and core
+        level).
       </Tooltip.Content>
     </Tooltip>
   );

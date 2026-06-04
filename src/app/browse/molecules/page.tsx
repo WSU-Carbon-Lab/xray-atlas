@@ -8,7 +8,6 @@ import {
   useCallback,
   useRef,
   Suspense,
-  type ReactNode,
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
@@ -26,12 +25,10 @@ import { BrowseTabs } from "@/components/layout/browse-tabs";
 import {
   Squares2X2Icon,
   ListBulletIcon,
-  ArrowsUpDownIcon,
   HeartIcon,
   EyeIcon,
   CalendarDaysIcon,
   CircleStackIcon,
-  CheckIcon,
 } from "@heroicons/react/24/outline";
 import { AddMoleculeButton } from "@/components/contribute";
 import { BrowseHeader } from "@/components/browse/browse-header";
@@ -40,16 +37,12 @@ import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { TagFilterBar } from "@/components/browse/tag-filter-bar";
 import { TagsDropdown } from "@/components/browse/tags-dropdown";
+import { BrowseSortButton, type BrowseSortOption } from "@/components/browse/browse-sort-button";
 import { Pagination, Tabs, Tooltip } from "@heroui/react";
-import { PopoverMenu, PopoverMenuContent } from "@/components/ui/popover-menu";
 
 type MoleculeSortKey = "favorites" | "created" | "name" | "views" | "datasets";
 
-const MOLECULE_SORT_OPTIONS: Array<{
-  key: MoleculeSortKey;
-  label: string;
-  icon: ReactNode;
-}> = [
+const MOLECULE_SORT_OPTIONS: Array<BrowseSortOption<MoleculeSortKey>> = [
   {
     key: "favorites",
     label: "Most Favorited",
@@ -128,7 +121,6 @@ function MoleculesBrowseContent() {
     [debouncedQuery, router],
   );
 
-  // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query);
@@ -144,17 +136,14 @@ function MoleculesBrowseContent() {
     }
   }, []);
 
-  // Save view mode to localStorage when it changes
   useEffect(() => {
     localStorage.setItem("moleculeViewMode", viewMode);
   }, [viewMode]);
 
-  // Reset to first page when sort, items per page, or tag selection changes
   useEffect(() => {
     setCurrentPage((prev) => (prev === 1 ? prev : 1));
   }, [sortBy, itemsPerPage, tagIdsKey]);
 
-  // Update URL when query or page changes; preserve tags from URL
   useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedQuery) {
@@ -286,6 +275,50 @@ function MoleculesBrowseContent() {
     ? `Search results for "${debouncedQuery}"`
     : "Explore all molecules in the X-ray Atlas database.";
 
+  const viewToggle = (
+    <Tooltip delay={0}>
+      <div className="h-12 min-h-12 shrink-0">
+        <Tabs
+          selectedKey={viewMode}
+          onSelectionChange={(key) =>
+            setViewMode(key as "compact" | "spacious")
+          }
+          className="w-fit"
+        >
+          <Tabs.ListContainer>
+            <Tabs.List
+              aria-label="View mode"
+              className="border-border bg-surface text-muted !flex !h-12 !min-h-12 !w-fit min-w-[5.25rem] flex-row items-center gap-1 rounded-lg border p-1"
+            >
+              <Tabs.Tab
+                id="compact"
+                aria-label="Compact list view"
+                className="text-muted hover:text-foreground data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground relative z-10 flex h-10 min-h-10 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
+              >
+                <ListBulletIcon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5] text-current" />
+                <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
+              </Tabs.Tab>
+              <Tabs.Tab
+                id="spacious"
+                aria-label="Spacious grid view"
+                className="text-muted hover:text-foreground data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground relative z-10 flex h-10 min-h-10 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
+              >
+                <Squares2X2Icon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5] text-current" />
+                <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
+              </Tabs.Tab>
+            </Tabs.List>
+          </Tabs.ListContainer>
+        </Tabs>
+      </div>
+      <Tooltip.Content
+        placement="top"
+        className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
+      >
+        Display molecules in a compact list or spacious grid view
+      </Tooltip.Content>
+    </Tooltip>
+  );
+
   return (
     <BrowsePageLayout title="Browse Molecules" subtitle={subtitle}>
       <BrowseTabs />
@@ -295,118 +328,26 @@ function MoleculesBrowseContent() {
           searchValue={query}
           onSearchChange={setQuery}
           searchPlaceholder="Search molecules..."
-          toolbarTrailing={
+          trailing={
             <>
               {!hasSearchQuery ? (
-                <PopoverMenu
-                  contentClassName="w-[220px]"
-                  renderTrigger={({ triggerProps, isOpen }) => (
-                    <button
-                      {...triggerProps}
-                      aria-label="Sort molecules"
-                      className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                    >
-                      <ArrowsUpDownIcon className="h-5 w-5 shrink-0 stroke-[1.5]" />
-                      <span className="text-sm font-medium">Sort</span>
-                      <span className="sr-only">
-                        {isOpen ? "Close sort options" : "Open sort options"}
-                      </span>
-                    </button>
-                  )}
-                  renderContent={({
-                    contentPositionClassName,
-                    contentProps,
-                    close,
-                  }) => (
-                    <PopoverMenuContent
-                      {...contentProps}
-                      className={`${contentPositionClassName} w-[220px] rounded-xl py-1`}
-                    >
-                      <div className="space-y-0.5 p-1">
-                        {MOLECULE_SORT_OPTIONS.map((option) => {
-                          const isSelected = option.key === sortBy;
-                          return (
-                            <button
-                              key={option.key}
-                              type="button"
-                              onClick={() => {
-                                setSortBy(option.key);
-                                close();
-                              }}
-                              className={`focus-visible:ring-accent flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
-                                isSelected
-                                  ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
-                                  : "text-muted hover:bg-default hover:text-foreground"
-                              }`}
-                              aria-label={`Sort by ${option.label}`}
-                            >
-                              <span className="flex min-w-0 items-center gap-2">
-                                {option.icon}
-                                <span className="truncate">{option.label}</span>
-                              </span>
-                              {isSelected ? (
-                                <CheckIcon
-                                  className="text-accent h-4 w-4 shrink-0"
-                                  aria-hidden
-                                />
-                              ) : null}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </PopoverMenuContent>
-                  )}
+                <BrowseSortButton
+                  options={MOLECULE_SORT_OPTIONS}
+                  value={sortBy}
+                  onChange={setSortBy}
+                  contentWidth="w-[220px]"
                 />
               ) : null}
-              <Tooltip delay={0}>
-                <div className="h-12 min-h-12 shrink-0">
-                  <Tabs
-                    selectedKey={viewMode}
-                    onSelectionChange={(key) =>
-                      setViewMode(key as "compact" | "spacious")
-                    }
-                    className="w-fit"
-                  >
-                    <Tabs.ListContainer>
-                      <Tabs.List
-                        aria-label="View mode"
-                        className="border-border bg-surface text-muted !flex !h-12 !min-h-12 !w-fit min-w-[5.25rem] flex-row items-center gap-1 rounded-lg border p-1"
-                      >
-                        <Tabs.Tab
-                          id="compact"
-                          aria-label="Compact list view"
-                          className="text-muted hover:text-foreground data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground relative z-10 flex h-10 min-h-10 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
-                        >
-                          <ListBulletIcon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5] text-current" />
-                          <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
-                        </Tabs.Tab>
-                        <Tabs.Tab
-                          id="spacious"
-                          aria-label="Spacious grid view"
-                          className="text-muted hover:text-foreground data-[selected=true]:text-accent-foreground data-[selected=true]:hover:text-accent-foreground relative z-10 flex h-10 min-h-10 flex-1 basis-0 items-center justify-center rounded-md p-0 text-sm leading-none font-normal transition-colors outline-none"
-                        >
-                          <Squares2X2Icon className="relative z-10 block h-5 w-5 shrink-0 stroke-[1.5] text-current" />
-                          <Tabs.Indicator className="bg-accent rounded-md shadow-none ring-0" />
-                        </Tabs.Tab>
-                      </Tabs.List>
-                    </Tabs.ListContainer>
-                  </Tabs>
-                </div>
-                <Tooltip.Content
-                  placement="top"
-                  className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg"
-                >
-                  Display molecules in a compact list or spacious grid view
-                </Tooltip.Content>
-              </Tooltip>
+              {viewToggle}
             </>
           }
-        >
-          <TagsDropdown
-            selectedTagIds={selectedTagIds}
-            onSelectionChange={updateTagsInUrl}
-          />
-        </BrowseHeader>
+          filters={
+            <TagsDropdown
+              selectedTagIds={selectedTagIds}
+              onSelectionChange={updateTagsInUrl}
+            />
+          }
+        />
 
         <TagFilterBar
           selectedTagIds={selectedTagIds}
@@ -514,7 +455,6 @@ function MoleculesBrowseContent() {
                 </>
               )}
 
-              {/* Pagination */}
               <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <ItemsPerPageSelect
                   value={itemsPerPage}

@@ -5,18 +5,14 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
-  type ReactNode,
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { ExperimentType } from "~/prisma/browser";
 import { trpc } from "~/trpc/client";
-import { cn } from "@heroui/styles";
 import { ErrorState } from "@/components/feedback/error-state";
 import {
-  ArrowsUpDownIcon,
   CalendarDaysIcon,
   CheckBadgeIcon,
-  CheckIcon,
   CircleStackIcon,
   EyeIcon,
   HeartIcon,
@@ -26,30 +22,29 @@ import { BrowseTabs } from "@/components/layout/browse-tabs";
 import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseHeader } from "@/components/browse/browse-header";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
+import { BrowseSortButton, type BrowseSortOption } from "@/components/browse/browse-sort-button";
+import { BrowseActiveFilters, type ActiveFilterItem } from "@/components/browse/browse-active-filters";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { NexafsExperimentCompactCard } from "@/components/nexafs/nexafs-display";
-import { NexafsBrowseActiveFilters } from "@/components/browse/nexafs-browse-active-filters";
 import { NexafsMoleculeFilterDropdown } from "@/components/browse/nexafs-molecule-filter-dropdown";
 import { NexafsEdgeFilterDropdown } from "@/components/browse/nexafs-edge-filter-dropdown";
 import { NexafsInstrumentFilterDropdown } from "@/components/browse/nexafs-instrument-filter-dropdown";
 import { NexafsAcquisitionFilterDropdown } from "@/components/browse/nexafs-acquisition-filter-dropdown";
+import { NexafsVerificationFilterDropdown } from "@/components/browse/nexafs-verification-filter-dropdown";
 import { AddNexafsCard } from "@/components/contribute";
 import { Pagination } from "@heroui/react";
-import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import {
   EXPERIMENT_TYPE_LABELS,
   NEXAFS_SORT_LABELS,
   parseSortParam,
   parseExperimentTypeParam,
+  VERIFICATION_SOURCE_LABELS,
   type NexafsBrowseSortKey,
+  type VerificationSource,
 } from "./nexafs-browse-experiment-utils";
 import { mapNexafsBrowseGroupToCard } from "./nexafs-browse-map-group";
 
-const NEXAFS_SORT_OPTIONS: Array<{
-  key: NexafsBrowseSortKey;
-  label: string;
-  icon: ReactNode;
-}> = [
+const NEXAFS_SORT_OPTIONS: Array<BrowseSortOption<NexafsBrowseSortKey>> = [
   {
     key: "quality",
     label: NEXAFS_SORT_LABELS.quality,
@@ -88,14 +83,6 @@ const NEXAFS_SORT_OPTIONS: Array<{
     icon: <CalendarDaysIcon className="h-4 w-4 shrink-0" />,
   },
 ];
-
-type VerificationSource = "either" | "publication" | "atlas";
-
-const VERIFICATION_SOURCE_LABELS: Record<VerificationSource, string> = {
-  either: "Atlas or publication",
-  publication: "Third-party publication only",
-  atlas: "Xray Atlas internal review only",
-};
 
 export interface NexafsBrowseExperimentSectionProps {
   basePath: string;
@@ -346,8 +333,6 @@ export function NexafsBrowseExperimentSection({
     ? VERIFICATION_SOURCE_LABELS[verificationSource]
     : null;
 
-  const sortLabelCurrent = NEXAFS_SORT_LABELS[sortBy];
-
   const handleClearFilters = () => {
     if (!lockedMoleculeId) setMoleculeId(undefined);
     setEdgeId(undefined);
@@ -357,9 +342,70 @@ export function NexafsBrowseExperimentSection({
     setVerificationSource("either");
   };
 
+  const activeFilterItems = useMemo<ActiveFilterItem[]>(() => {
+    const items: ActiveFilterItem[] = [];
+    if (activeMoleculeLabel) {
+      items.push({
+        id: "molecule",
+        category: "Molecule",
+        label: activeMoleculeLabel,
+        onRemove: () => setMoleculeId(undefined),
+      });
+    }
+    if (activeEdgeLabel) {
+      items.push({
+        id: "edge",
+        category: "Edge",
+        label: activeEdgeLabel,
+        onRemove: () => setEdgeId(undefined),
+      });
+    }
+    if (activeInstrumentLabel) {
+      items.push({
+        id: "instrument",
+        category: "Instrument",
+        label: activeInstrumentLabel,
+        onRemove: () => setInstrumentId(undefined),
+      });
+    }
+    if (activeAcquisitionLabel) {
+      items.push({
+        id: "acquisition",
+        category: "Acquisition",
+        label: activeAcquisitionLabel,
+        onRemove: () => setExperimentType(undefined),
+      });
+    }
+    if (activeVerificationLabel) {
+      items.push({
+        id: "verification",
+        category: "Verified",
+        label: activeVerificationLabel,
+        onRemove: () => {
+          setVerifiedOnly(false);
+          setVerificationSource("either");
+        },
+      });
+    }
+    return items;
+  }, [
+    activeMoleculeLabel,
+    activeEdgeLabel,
+    activeInstrumentLabel,
+    activeAcquisitionLabel,
+    activeVerificationLabel,
+  ]);
+
   const pageSubtitle = hasSearchQuery
     ? `Search results for "${debouncedQuery}"`
     : "Filter by molecule, edge, instrument, or acquisition mode, search the catalog, or change sort order.";
+
+  const filterSeparator = (
+    <span
+      className="border-border/50 mx-0.5 h-6 w-px shrink-0 self-center border-l"
+      aria-hidden
+    />
+  );
 
   const inner = (
     <div className="space-y-6">
@@ -367,187 +413,55 @@ export function NexafsBrowseExperimentSection({
         searchValue={query}
         onSearchChange={setQuery}
         searchPlaceholder="Search catalog…"
-        toolbarTrailing={
+        trailing={
           !hasSearchQuery ? (
-            <PopoverMenu
-              contentClassName="w-[min(100vw-2rem,300px)]"
-              renderTrigger={({ triggerProps, isOpen }) => (
-                <button
-                  {...triggerProps}
-                  type="button"
-                  aria-label={`Sort experiments; current order is ${sortLabelCurrent}`}
-                  className="border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                >
-                  <ArrowsUpDownIcon
-                    className="h-5 w-5 shrink-0 stroke-[1.5]"
-                    aria-hidden
-                  />
-                  <span className="text-sm font-medium">Sort</span>
-                  <span className="sr-only">
-                    {isOpen ? "Close sort options" : "Open sort options"}
-                  </span>
-                </button>
-              )}
-              renderContent={({
-                contentPositionClassName,
-                contentProps,
-                close,
-              }) => (
-                <PopoverMenuContent
-                  {...contentProps}
-                  className={`${contentPositionClassName} w-[min(100vw-2rem,300px)] rounded-xl py-1`}
-                >
-                  <div className="space-y-0.5 p-1">
-                    {NEXAFS_SORT_OPTIONS.map((option) => {
-                      const isSelected = option.key === sortBy;
-                      return (
-                        <button
-                          key={option.key}
-                          type="button"
-                          onClick={() => {
-                            setSortBy(option.key);
-                            close();
-                          }}
-                          className={`focus-visible:ring-accent flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 ${
-                            isSelected
-                              ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
-                              : "text-muted hover:bg-default hover:text-foreground"
-                          }`}
-                          aria-label={`Sort by ${option.label}`}
-                        >
-                          <span className="flex min-w-0 items-center gap-2">
-                            {option.icon}
-                            <span className="truncate">{option.label}</span>
-                          </span>
-                          {isSelected ? (
-                            <CheckIcon
-                              className="text-accent h-4 w-4 shrink-0"
-                              aria-hidden
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </PopoverMenuContent>
-              )}
+            <BrowseSortButton
+              options={NEXAFS_SORT_OPTIONS}
+              value={sortBy}
+              onChange={setSortBy}
+              ariaLabel={`Sort experiments; current order is ${NEXAFS_SORT_LABELS[sortBy]}`}
+              contentWidth="w-[min(100vw-2rem,300px)]"
             />
           ) : null
         }
-      >
-        {showMoleculeFilter ? (
-          <NexafsMoleculeFilterDropdown
-            moleculeId={moleculeId}
-            onMoleculeChange={setMoleculeId}
-          />
-        ) : null}
-        <NexafsEdgeFilterDropdown
-          edgeId={edgeId}
-          edges={edgeOptions}
-          onEdgeChange={setEdgeId}
-        />
-        <NexafsInstrumentFilterDropdown
-          instrumentId={instrumentId}
-          instruments={instrumentFilterOptions}
-          onInstrumentChange={setInstrumentId}
-        />
-        <NexafsAcquisitionFilterDropdown
-          experimentType={experimentType}
-          onExperimentTypeChange={setExperimentType}
-        />
-        <PopoverMenu
-          contentClassName="w-[min(100vw-2rem,320px)]"
-          renderTrigger={({ triggerProps, isOpen }) => (
-            <button
-              {...triggerProps}
-              type="button"
-              aria-label={`Verification filter; current ${verifiedOnly ? VERIFICATION_SOURCE_LABELS[verificationSource] : "all datasets"}`}
-              className={cn(
-                "border-border bg-surface text-muted focus-visible:ring-accent hover:bg-default hover:text-foreground flex h-12 min-h-12 shrink-0 items-center gap-2 rounded-lg border px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                verifiedOnly ? "ring-accent/35 ring-1 text-foreground" : "",
-              )}
-            >
-              <CheckBadgeIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
-              <span className="text-sm font-medium">Verified</span>
-              <span className="sr-only">
-                {isOpen
-                  ? "Close verification filter"
-                  : "Open verification filter"}
-              </span>
-            </button>
-          )}
-          renderContent={({ contentPositionClassName, contentProps, close }) => (
-            <PopoverMenuContent
-              {...contentProps}
-              className={`${contentPositionClassName} w-[min(100vw-2rem,320px)] rounded-xl py-1`}
-            >
-              <div className="space-y-2 p-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVerifiedOnly((prev) => !prev);
-                  }}
-                  className={cn(
-                    "focus-visible:ring-accent flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2",
-                    verifiedOnly
-                      ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
-                      : "text-muted hover:bg-default hover:text-foreground",
-                  )}
-                >
-                  <span className="font-medium">Only verified datasets</span>
-                  {verifiedOnly ? (
-                    <CheckIcon className="text-accent h-4 w-4 shrink-0" aria-hidden />
-                  ) : null}
-                </button>
-                <div className="border-border-default space-y-1 rounded-md border p-1">
-                  {(["either", "publication", "atlas"] as const).map((option) => {
-                    const selected = verificationSource === option;
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        disabled={!verifiedOnly}
-                        onClick={() => {
-                          setVerificationSource(option);
-                          close();
-                        }}
-                        className={cn(
-                          "focus-visible:ring-accent flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2",
-                          !verifiedOnly
-                            ? "text-zinc-500/70"
-                            : selected
-                              ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
-                              : "text-muted hover:bg-default hover:text-foreground",
-                        )}
-                      >
-                        <span>{VERIFICATION_SOURCE_LABELS[option]}</span>
-                        {verifiedOnly && selected ? (
-                          <CheckIcon className="text-accent h-4 w-4 shrink-0" aria-hidden />
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </PopoverMenuContent>
-          )}
-        />
-      </BrowseHeader>
+        filters={
+          <>
+            {showMoleculeFilter ? (
+              <>
+                <NexafsMoleculeFilterDropdown
+                  moleculeId={moleculeId}
+                  onMoleculeChange={setMoleculeId}
+                />
+                {filterSeparator}
+              </>
+            ) : null}
+            <NexafsEdgeFilterDropdown
+              edgeId={edgeId}
+              edges={edgeOptions}
+              onEdgeChange={setEdgeId}
+            />
+            <NexafsInstrumentFilterDropdown
+              instrumentId={instrumentId}
+              instruments={instrumentFilterOptions}
+              onInstrumentChange={setInstrumentId}
+            />
+            <NexafsAcquisitionFilterDropdown
+              experimentType={experimentType}
+              onExperimentTypeChange={setExperimentType}
+            />
+            {filterSeparator}
+            <NexafsVerificationFilterDropdown
+              verifiedOnly={verifiedOnly}
+              verificationSource={verificationSource}
+              onVerifiedOnlyChange={setVerifiedOnly}
+              onVerificationSourceChange={setVerificationSource}
+            />
+          </>
+        }
+      />
 
-      <NexafsBrowseActiveFilters
-        moleculeLabel={activeMoleculeLabel}
-        edgeLabel={activeEdgeLabel}
-        instrumentLabel={activeInstrumentLabel}
-        acquisitionLabel={activeAcquisitionLabel}
-        verificationLabel={activeVerificationLabel}
-        onRemoveMolecule={() => setMoleculeId(undefined)}
-        onRemoveEdge={() => setEdgeId(undefined)}
-        onRemoveInstrument={() => setInstrumentId(undefined)}
-        onRemoveAcquisition={() => setExperimentType(undefined)}
-        onRemoveVerification={() => {
-          setVerifiedOnly(false);
-          setVerificationSource("either");
-        }}
+      <BrowseActiveFilters
+        items={activeFilterItems}
         onClearAll={handleClearFilters}
       />
 

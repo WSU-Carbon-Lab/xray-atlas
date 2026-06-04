@@ -3,15 +3,30 @@
 import { useEffect, useRef } from "react";
 import { ScrollShadow, SearchField } from "@heroui/react";
 
+/**
+ * Top-of-page search + filter toolbar shared across all browse modes.
+ *
+ * Layout: `[search] [filters (scrollable)] [trailing (sort, view toggle)]`
+ *
+ * - `filters` renders in a horizontal `ScrollShadow` rail that scrolls on narrow
+ *   viewports.  Pass filter trigger components here (edge, instrument, tags, etc.).
+ * - `trailing` is pinned to the right end and never wraps alone.  Pass sort and
+ *   view-mode toggles here.
+ *
+ * @param searchValue - Controlled search input value.
+ * @param onSearchChange - Called on every keystroke with the new value.
+ * @param searchPlaceholder - Placeholder text for the search input.
+ * @param searchShortcutKey - Keyboard shortcut key paired with Meta/Ctrl; defaults to `"K"`.
+ * @param filters - Filter trigger nodes rendered in the scrollable rail.
+ * @param trailing - Nodes pinned at the trailing edge (sort button, view toggle).
+ */
 export interface BrowseHeaderProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
   searchShortcutKey?: string;
-  /** Filter controls; scroll horizontally when they do not fit the row. */
-  children?: React.ReactNode;
-  /** Controls pinned at the trailing edge (for example Sort) so they do not orphan on wrap. */
-  toolbarTrailing?: React.ReactNode;
+  filters?: React.ReactNode;
+  trailing?: React.ReactNode;
 }
 
 export function BrowseHeader({
@@ -19,8 +34,8 @@ export function BrowseHeader({
   onSearchChange,
   searchPlaceholder,
   searchShortcutKey = "K",
-  children,
-  toolbarTrailing,
+  filters,
+  trailing,
 }: BrowseHeaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,8 +59,8 @@ export function BrowseHeader({
   }, [searchShortcutKey]);
 
   const hasToolbar =
-    (children != null && children !== false) ||
-    (toolbarTrailing != null && toolbarTrailing !== false);
+    (filters != null && filters !== false) ||
+    (trailing != null && trailing !== false);
 
   return (
     <div className="flex w-full flex-col gap-3 py-2 sm:flex-row sm:items-center sm:gap-4">
@@ -87,8 +102,8 @@ export function BrowseHeader({
         </SearchField>
       </div>
       {hasToolbar ? (
-        <div className="flex min-h-12 min-w-0 w-full items-center gap-2 sm:min-w-0 sm:flex-1 sm:gap-3">
-          {children != null && children !== false ? (
+        <div className="flex min-h-12 w-full min-w-0 items-center gap-2 sm:min-w-0 sm:flex-1 sm:gap-3">
+          {filters != null && filters !== false ? (
             <ScrollShadow
               orientation="horizontal"
               className="min-w-0 flex-1"
@@ -96,13 +111,13 @@ export function BrowseHeader({
               aria-label="Browse filters"
             >
               <div className="flex w-max max-w-full flex-nowrap items-center gap-2 sm:gap-3">
-                {children}
+                {filters}
               </div>
             </ScrollShadow>
           ) : null}
-          {toolbarTrailing != null && toolbarTrailing !== false ? (
+          {trailing != null && trailing !== false ? (
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-              {toolbarTrailing}
+              {trailing}
             </div>
           ) : null}
         </div>
@@ -110,8 +125,3 @@ export function BrowseHeader({
     </div>
   );
 }
-
-const selectClasses =
-  "border-border bg-surface text-foreground focus:border-accent focus:ring-accent min-w-[9rem] rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none";
-
-export { selectClasses };

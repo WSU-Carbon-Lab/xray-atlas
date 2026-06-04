@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { CpuChipIcon } from "@heroicons/react/24/outline";
-import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import { Tooltip } from "@heroui/react";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
+import { BrowseFilterTrigger } from "./browse-filter-trigger";
 
 export type NexafsInstrumentOption = {
   id: string;
@@ -11,14 +12,18 @@ export type NexafsInstrumentOption = {
   facilityName: string | null;
 };
 
+/**
+ * Filter popover for restricting NEXAFS browse results to a specific beamline or instrument.
+ *
+ * @param instrumentId - Currently selected instrument UUID, or `undefined` for no filter.
+ * @param instruments - List of available instruments to display.
+ * @param onInstrumentChange - Called with the selected instrument UUID, or `undefined` to clear.
+ */
 export type NexafsInstrumentFilterDropdownProps = {
   instrumentId: string | undefined;
   instruments: NexafsInstrumentOption[];
   onInstrumentChange: (id: string | undefined) => void;
 };
-
-const triggerBase =
-  "border-border bg-surface text-muted focus-visible:ring-accent flex h-12 max-w-[min(100%,200px)] min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
 
 function formatInstrumentLabel(inst: NexafsInstrumentOption): string {
   return inst.facilityName ? `${inst.name} (${inst.facilityName})` : inst.name;
@@ -44,33 +49,33 @@ export function NexafsInstrumentFilterDropdown({
           align="end"
           contentClassName="w-[min(100vw-2rem,320px)]"
           renderTrigger={({ triggerProps, isOpen }) => (
-            <button
+            <BrowseFilterTrigger
               {...triggerProps}
-              type="button"
               aria-label={
                 selectedDescription
                   ? `Instrument filter, ${selectedDescription} selected`
                   : "Filter by instrument"
               }
               aria-pressed={hasSelection}
-              className={`${triggerBase} ${hasSelection ? "border-accent/40 bg-accent-soft text-accent hover:text-accent" : ""}`}
+              active={hasSelection}
+              icon={<CpuChipIcon aria-hidden />}
+              label="Instrument"
             >
-              <CpuChipIcon
-                className="h-5 w-5 shrink-0 stroke-[1.5] text-current"
-                aria-hidden
-              />
-              <span className="text-sm font-medium">Instrument</span>
               <span className="sr-only">
                 {isOpen ? "Close instrument filter" : "Open instrument filter"}
               </span>
-            </button>
+            </BrowseFilterTrigger>
           )}
           renderContent={({ contentPositionClassName, contentProps, close }) => (
             <PopoverMenuContent
               {...contentProps}
               className={`${contentPositionClassName} max-h-[min(320px,50vh)] overflow-y-auto rounded-xl py-1`}
             >
-              <div className="space-y-0.5 p-1" role="listbox" aria-label="Instrument">
+              <div
+                className="space-y-0.5 p-1"
+                role="listbox"
+                aria-label="Instrument"
+              >
                 <button
                   type="button"
                   onClick={() => {

@@ -1,9 +1,11 @@
 "use client";
 
-import { selectClasses } from "@/components/browse/browse-header";
 import { Tooltip } from "@heroui/react";
 
 const OPTIONS = [12, 24, 48, 96] as const;
+
+const selectClasses =
+  "border-border bg-surface text-foreground focus:border-accent focus:ring-accent min-w-[9rem] rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none";
 
 type ItemsPerPageSelectProps = {
   value: number;
