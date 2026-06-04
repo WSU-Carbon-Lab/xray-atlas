@@ -7,6 +7,7 @@ export {
   StackedFileIcons,
   StackedPageDropVisual,
   type StackedFileEntry,
+  type StackedPageQueuedFile,
 } from "./StackedFileIcons";
 export {
   SampleAuxAccordion,

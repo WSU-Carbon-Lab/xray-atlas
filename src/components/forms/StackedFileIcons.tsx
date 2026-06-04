@@ -29,7 +29,18 @@ export type StackedFileEntry = {
   removeDisabled?: boolean;
 };
 
+/** Queued file represented as one layer in {@link StackedPageDropVisual}. */
+export type StackedPageQueuedFile = {
+  id: string;
+  filename: string;
+  visualKind: AuxFileVisualKind;
+  onRemove?: () => void;
+  removeDisabled?: boolean;
+};
+
 const kindIconClass = "size-3.5 shrink-0";
+
+const DEFAULT_MAX_STACK_LAYERS = 3;
 
 /**
  * Renders a Lucide icon for a stacked-file or drop-zone visual category.
@@ -70,10 +81,136 @@ type StackedPageDropVisualProps = {
   className?: string;
   pointerX?: number;
   pointerY?: number;
+  /** When set, replaces the decorative stack with queued file layers (newest on top). */
+  files?: StackedPageQueuedFile[];
+  maxStackLayers?: number;
 };
+
+type LayerSlot = "backLeft" | "backRight" | "front";
+
+const layerTransforms: Record<
+  LayerSlot,
+  { idle: (px: number, py: number, rot: number) => string; active: string }
+> = {
+  backLeft: {
+    idle: (px, py) =>
+      `translate(calc(-0.25rem + ${px}px), calc(${py}px)) rotate(-9deg)`,
+    active: "translate(-0.65rem, -0.125rem) rotate(-14deg) scale(1.02)",
+  },
+  backRight: {
+    idle: (px, py) =>
+      `translate(calc(0.25rem + ${px}px), calc(${py}px)) rotate(7deg)`,
+    active: "translate(0.65rem, -0.25rem) rotate(12deg) scale(1.03)",
+  },
+  front: {
+    idle: (px, py, rot) =>
+      `translate(${px}px, ${py}px) rotate(${rot}deg)`,
+    active: "translateY(-0.375rem) scale(1.05)",
+  },
+};
+
+function StackedPageLayer({
+  slot,
+  file,
+  visualKind,
+  isActive,
+  isDragHighlight,
+  pointerOffsetX,
+  pointerOffsetY,
+  pointerRotate,
+  isDecorative,
+}: {
+  slot: LayerSlot;
+  file?: StackedPageQueuedFile;
+  visualKind: AuxFileVisualKind;
+  isActive: boolean;
+  isDragHighlight: boolean;
+  pointerOffsetX: number;
+  pointerOffsetY: number;
+  pointerRotate: number;
+  isDecorative: boolean;
+}) {
+  const active = isActive || isDragHighlight;
+  const kind = file?.visualKind ?? visualKind;
+  const transform = active
+    ? layerTransforms[slot].active
+    : layerTransforms[slot].idle(
+        pointerOffsetX,
+        pointerOffsetY,
+        pointerRotate,
+      );
+  const isFront = slot === "front";
+
+  return (
+    <span
+      className={cn(
+        "group/layer absolute flex h-11 w-[2.35rem] items-center justify-center rounded-md border shadow-sm",
+        "motion-safe:transition-[transform,opacity,box-shadow] motion-safe:duration-300 motion-reduce:transition-none",
+        isFront
+          ? "border-border bg-surface shadow-md"
+          : "border-border/80 bg-surface-2",
+        isDecorative && !file
+          ? isFront
+            ? "text-muted"
+            : active
+              ? "opacity-90"
+              : "opacity-70"
+          : file
+            ? isFront
+              ? active
+                ? "text-accent motion-safe:shadow-lg"
+                : "text-foreground"
+              : active
+                ? "opacity-95"
+                : "opacity-85"
+            : isFront
+              ? active
+                ? "text-accent motion-safe:shadow-lg"
+                : "text-muted"
+              : active
+                ? "opacity-95"
+                : "opacity-80",
+        isDragHighlight && isFront && "border-accent/60 ring-accent/20 ring-2",
+        file && "pointer-events-auto",
+      )}
+      style={{ transform }}
+      title={file ? file.filename : undefined}
+    >
+      <AuxFileVisualIcon
+        kind={kind}
+        className={cn(
+          isFront && active ? "size-5" : "size-4",
+          "text-current",
+        )}
+      />
+      {file?.onRemove ? (
+        <Button
+          type="button"
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          className={cn(
+            "text-muted hover:text-danger bg-surface/95 border-border absolute -top-1 -right-1 z-10 min-h-5 min-w-5 rounded-full border p-0 shadow-sm",
+            "opacity-0 group-hover/layer:opacity-100 focus:opacity-100",
+            "motion-safe:transition-opacity motion-reduce:transition-none",
+          )}
+          aria-label={`Remove ${file.filename}`}
+          isDisabled={file.removeDisabled}
+          onPress={() => file.onRemove?.()}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          <X className="size-2.5" aria-hidden />
+        </Button>
+      ) : null}
+    </span>
+  );
+}
 
 /**
  * Animated stacked document layers for aux upload drop targets; tilts toward pointer when active.
+ * With `files`, queued uploads replace the decorative stack (newest on top, up to `maxStackLayers`).
  */
 export function StackedPageDropVisual({
   visualKind: visualKindProp,
@@ -83,67 +220,87 @@ export function StackedPageDropVisual({
   className,
   pointerX = 50,
   pointerY = 50,
+  files = [],
+  maxStackLayers = DEFAULT_MAX_STACK_LAYERS,
 }: StackedPageDropVisualProps) {
-  const visualKind =
+  const fallbackVisualKind =
     visualKindProp ??
     (dropTypeLabel
       ? inferAuxFileVisualKindFromDropLabel(dropTypeLabel)
       : "generic");
-  const active = isActive || isDragHighlight;
   const pointerOffsetX = (pointerX - 50) * 0.08;
   const pointerOffsetY = (pointerY - 50) * 0.06;
   const pointerRotate = (pointerX - 50) * 0.14;
 
-  const backLeftTransform = active
-    ? "translate(-0.65rem, -0.125rem) rotate(-14deg) scale(1.02)"
-    : `translate(calc(-0.25rem + ${pointerOffsetX}px), calc(${pointerOffsetY}px)) rotate(-9deg)`;
-  const backRightTransform = active
-    ? "translate(0.65rem, -0.25rem) rotate(12deg) scale(1.03)"
-    : `translate(calc(0.25rem + ${pointerOffsetX}px), calc(${pointerOffsetY}px)) rotate(7deg)`;
-  const frontTransform = active
-    ? "translateY(-0.375rem) scale(1.05)"
-    : `translate(${pointerOffsetX}px, ${pointerOffsetY}px) rotate(${pointerRotate}deg)`;
+  const hasQueuedFiles = files.length > 0;
+  const visibleFiles = hasQueuedFiles
+    ? files.slice(-maxStackLayers)
+    : [];
+  const overflowCount = hasQueuedFiles
+    ? files.length - visibleFiles.length
+    : 0;
+
+  const slotFiles: Record<LayerSlot, StackedPageQueuedFile | undefined> = {
+    backLeft: undefined,
+    backRight: undefined,
+    front: undefined,
+  };
+
+  if (visibleFiles.length === 1) {
+    slotFiles.front = visibleFiles[0];
+  } else if (visibleFiles.length === 2) {
+    slotFiles.backLeft = visibleFiles[0];
+    slotFiles.front = visibleFiles[1];
+  } else if (visibleFiles.length >= 3) {
+    slotFiles.backLeft = visibleFiles[0];
+    slotFiles.backRight = visibleFiles[1];
+    slotFiles.front = visibleFiles[2];
+  }
+
+  const layerProps = {
+    visualKind: fallbackVisualKind,
+    isActive,
+    isDragHighlight,
+    pointerOffsetX,
+    pointerOffsetY,
+    pointerRotate,
+  };
 
   return (
     <div
       className={cn(
-        "pointer-events-none relative mx-auto flex h-12 w-[4.75rem] items-center justify-center",
+        "relative mx-auto flex h-12 w-[4.75rem] items-center justify-center",
+        "pointer-events-none",
         className,
       )}
-      aria-hidden
+      aria-hidden={!hasQueuedFiles}
     >
-      <span
-        className={cn(
-          "border-border/80 bg-surface-2 absolute h-11 w-[2.35rem] rounded-md border shadow-sm",
-          "motion-safe:transition-[transform,opacity] motion-safe:duration-300 motion-reduce:transition-none",
-          active ? "opacity-90" : "opacity-70",
-        )}
-        style={{ transform: backLeftTransform }}
+      <StackedPageLayer
+        slot="backLeft"
+        file={slotFiles.backLeft}
+        isDecorative={!slotFiles.backLeft}
+        {...layerProps}
       />
-      <span
-        className={cn(
-          "border-border/80 bg-surface-2 absolute h-11 w-[2.35rem] rounded-md border shadow-sm",
-          "motion-safe:transition-[transform,opacity] motion-safe:duration-300 motion-reduce:transition-none",
-          active ? "opacity-95" : "opacity-80",
-        )}
-        style={{ transform: backRightTransform }}
+      <StackedPageLayer
+        slot="backRight"
+        file={slotFiles.backRight}
+        isDecorative={!slotFiles.backRight}
+        {...layerProps}
       />
-      <span
-        className={cn(
-          "border-border bg-surface relative flex h-11 w-[2.35rem] items-center justify-center rounded-md border shadow-md",
-          "motion-safe:transition-[transform,box-shadow] motion-safe:duration-300 motion-reduce:transition-none",
-          active
-            ? "text-accent motion-safe:shadow-lg"
-            : "text-muted",
-          isDragHighlight && "border-accent/60 ring-accent/20 ring-2",
-        )}
-        style={{ transform: frontTransform }}
-      >
-        <AuxFileVisualIcon
-          kind={visualKind}
-          className={cn(active ? "size-5" : "size-4", "text-current")}
-        />
-      </span>
+      <StackedPageLayer
+        slot="front"
+        file={slotFiles.front}
+        isDecorative={!slotFiles.front}
+        {...layerProps}
+      />
+      {overflowCount > 0 ? (
+        <span
+          className="border-border bg-surface text-muted pointer-events-none absolute -top-0.5 -right-1 z-20 rounded-full border px-1 py-px text-[9px] font-semibold leading-none shadow-sm"
+          aria-hidden
+        >
+          +{overflowCount}
+        </span>
+      ) : null}
     </div>
   );
 }

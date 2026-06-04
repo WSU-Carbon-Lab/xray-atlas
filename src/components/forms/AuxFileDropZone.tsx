@@ -30,7 +30,10 @@ import {
   useOptionalGlobalFileDropZoneContext,
   type GlobalDropZoneId,
 } from "~/hooks/useGlobalFileDropZone";
-import { StackedFileIcons, StackedPageDropVisual } from "./StackedFileIcons";
+import {
+  StackedPageDropVisual,
+  type StackedPageQueuedFile,
+} from "./StackedFileIcons";
 
 type AuxFileDropZoneProps = {
   scope: AuxFileScope;
@@ -259,6 +262,20 @@ export function AuxFileDropZone({
     [files, onFilesChange],
   );
 
+  const stackedPageFiles: StackedPageQueuedFile[] = files.map((entry) => {
+    const progress = uploadProgress?.[entry.clientKey];
+    const isUploading = progress != null && progress > 0 && progress < 100;
+    return {
+      id: entry.clientKey,
+      filename: entry.file.name,
+      visualKind: auxFileVisualKindFromAuxKind(entry.kind),
+      onRemove: () => removeFile(entry.clientKey),
+      removeDisabled: disabled || isUploading,
+    };
+  });
+
+  const hasQueuedInStack = isCompact && stackedPageFiles.length > 0;
+
   const dropTargetProps = globalDropZoneId
     ? globalDropZoneProps(globalDropZoneId)
     : {};
@@ -324,6 +341,7 @@ export function AuxFileDropZone({
         isDragHighlight={showGlobalOverlay}
         pointerX={pointer.x}
         pointerY={pointer.y}
+        files={isCompact ? stackedPageFiles : undefined}
         className={cn(
           "motion-safe:transition-opacity motion-safe:duration-200",
           showGlobalOverlay && "opacity-0",
@@ -333,15 +351,21 @@ export function AuxFileDropZone({
         className={cn(
           "text-foreground font-medium",
           isCompact ? "text-xs" : "text-sm",
+          hasQueuedInStack && "text-[11px]",
           showGlobalOverlay && "opacity-0",
         )}
       >
-        {isCompact ? "Drop or click to browse" : "Drop files or click to browse"}
+        {isCompact
+          ? hasQueuedInStack
+            ? "Add more files"
+            : "Drop or click to browse"
+          : "Drop files or click to browse"}
       </p>
       <p
         className={cn(
           "text-muted",
           isCompact ? "text-[11px]" : "text-xs",
+          hasQueuedInStack && isCompact && "text-[10px]",
           showGlobalOverlay && "opacity-0",
         )}
       >
@@ -357,23 +381,6 @@ export function AuxFileDropZone({
         onChange={handleInputChange}
       />
     </div>
-  );
-
-  const stackedQueue = (
-    <StackedFileIcons
-      files={files.map((entry) => {
-        const progress = uploadProgress?.[entry.clientKey];
-        const isUploading = progress != null && progress > 0 && progress < 100;
-        return {
-          clientKey: entry.clientKey,
-          name: entry.file.name,
-          size: entry.file.size,
-          kind: entry.kind,
-          onRemove: () => removeFile(entry.clientKey),
-          removeDisabled: disabled || isUploading,
-        };
-      })}
-    />
   );
 
   const detailedQueue =
@@ -460,7 +467,6 @@ export function AuxFileDropZone({
           />
         ) : null}
         {dropTarget}
-        {stackedQueue}
       </section>
     );
   }
