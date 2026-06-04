@@ -106,7 +106,7 @@ export default function NEXAFSContributePage() {
 
   const { submit, submitStatus, setSubmitStatus, isPending } = useNexafsSubmit(
     datasets,
-    { onSuccess: clearDatasets, requestKkConsent },
+    { onSuccess: clearDatasets, requestKkConsent, showToast },
   );
 
   const [showEdgeDialog, setShowEdgeDialog] = useState(false);

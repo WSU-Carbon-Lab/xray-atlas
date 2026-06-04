@@ -77,7 +77,7 @@ import type {
 } from "~/components/plots/types";
 import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
-import { NexafsSampleInformationSection } from "~/components/forms";
+import { NexafsSampleInformationSection, AuxFileDropZone, SampleAuxAccordion } from "~/components/forms";
 import {
   DatasetAttributionEditor,
   type DatasetAttributionChange,
@@ -2389,14 +2389,26 @@ export function DatasetContent({
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
-      <SourcePaperPublicationsEditor
-        publications={dataset.sourcePaperPublications}
-        onChange={(next) => {
-          onDatasetUpdate(dataset.id, {
-            sourcePaperPublications: next,
-          });
-        }}
-      />
+      <div className="grid gap-4 md:grid-cols-2">
+        <SourcePaperPublicationsEditor
+          publications={dataset.sourcePaperPublications}
+          onChange={(next) => {
+            onDatasetUpdate(dataset.id, {
+              sourcePaperPublications: next,
+            });
+          }}
+        />
+        <AuxFileDropZone
+          scope="experiment"
+          title="Experiment files"
+          description="Protocols, raw beamline data, and other files tied to this dataset (up to 500 MB each)."
+          files={dataset.pendingExperimentAuxFiles}
+          onFilesChange={(next) => {
+            onDatasetUpdate(dataset.id, { pendingExperimentAuxFiles: next });
+          }}
+          onValidationError={(message) => showToast(message, "error")}
+        />
+      </div>
       <DatasetAttributionEditor
         attributions={dataset.attributions}
         onChange={handleAttributionsChange}
@@ -2693,6 +2705,25 @@ export function DatasetContent({
           isLoadingVendors={isLoadingVendors}
         />
       </div>
+
+      <SampleAuxAccordion
+        value={dataset.sampleAux}
+        onChange={(next) => {
+          onDatasetUpdate(dataset.id, { sampleAux: next });
+        }}
+      />
+
+      <AuxFileDropZone
+        scope="sample"
+        title="Sample files"
+        description="Images, preparation notes, and other sample-specific attachments (up to 50 MB each)."
+        files={dataset.pendingSampleAuxFiles}
+        onFilesChange={(next) => {
+          onDatasetUpdate(dataset.id, { pendingSampleAuxFiles: next });
+        }}
+        onValidationError={(message) => showToast(message, "error")}
+      />
+
       <div className="border-border bg-surface rounded-lg border p-4">
         <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col gap-2 text-sm">

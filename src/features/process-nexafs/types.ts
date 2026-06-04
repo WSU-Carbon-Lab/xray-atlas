@@ -2,6 +2,7 @@ import type {
   SpectrumPoint,
   SpectrumSelection,
 } from "~/components/plots/types";
+import type { AuxFileKind } from "~/lib/aux-file-client";
 import type { DatasetAttributionEntry } from "~/lib/nexafs-attribution";
 import type { PublicationCitation } from "~/lib/publication-citation";
 import type { ProcessMethod } from "~/prisma/browser";
@@ -207,6 +208,44 @@ export type SampleInfo = {
   newVendorUrl: string;
 };
 
+export type SampleAuxFields = {
+  spinSpeedRpm?: number;
+  spinAccelerationRpmPerS?: number;
+  spinDurationS?: number;
+  bladeSpeedMmPerS?: number;
+  bladeGapUm?: number;
+  bladeTemperatureC?: number;
+  depositionRateAngstromPerS?: number;
+  basePressureTorr?: number;
+  workingPressureTorr?: number;
+  sourceTemperatureC?: number;
+  substrateTemperatureC?: number;
+  concentrationMgPerMl?: number;
+  solutionStirringTimeH?: number;
+  solutionStirringTemperatureC?: number;
+  filterSizeUm?: number;
+  substrateOrientation?: string;
+  substrateLot?: string;
+  oxideThicknessNm?: number;
+  depositionAtmosphere?: string;
+  gloveboxO2Ppm?: number;
+  gloveboxH2oPpm?: number;
+  annealingTemperatureC?: number;
+  annealingTimeMin?: number;
+  annealingAtmosphere?: string;
+  annealingRampCPerMin?: number;
+  preparationDescription?: string;
+  notes?: string;
+};
+
+export type PendingAuxFile = {
+  id: string;
+  file: File;
+  kind: AuxFileKind;
+  description?: string;
+  clientKey: string;
+};
+
 export type NormalizationType = "bare-atom" | "zero-one";
 
 export type DatasetViewNormalizationTypes = {
@@ -260,6 +299,9 @@ export type DatasetState = {
   attributions: DatasetAttributionEntry[];
   computeKkDeltaOnSubmit: boolean;
   sourcePaperPublications: PublicationCitation[];
+  sampleAux: SampleAuxFields;
+  pendingExperimentAuxFiles: PendingAuxFile[];
+  pendingSampleAuxFiles: PendingAuxFile[];
 };
 
 export function createEmptyDatasetState(file: File): DatasetState {
@@ -307,5 +349,8 @@ export function createEmptyDatasetState(file: File): DatasetState {
     attributions: [],
     computeKkDeltaOnSubmit: false,
     sourcePaperPublications: [],
+    sampleAux: {},
+    pendingExperimentAuxFiles: [],
+    pendingSampleAuxFiles: [],
   };
 }
