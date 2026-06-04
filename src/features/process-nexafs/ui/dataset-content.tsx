@@ -2436,7 +2436,7 @@ export function DatasetContent({
         />
       </div>
 
-      <div className="flex w-full shrink-0 flex-col">
+      <div className="flex w-full flex-col">
         <VisualizationToggle
           mode={visualizationMode}
           graphStyle={graphStyle}
@@ -2446,8 +2446,8 @@ export function DatasetContent({
           editMode={geometryEditMode}
           onEditModeChange={setGeometryEditMode}
         />
-        <div className="mt-3 flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-          <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+        <div className="mt-3 w-full">
+          <div className="w-full min-w-0">
             {visualizationMode === "aux" ? (
               <DatasetAuxFilesTab
                 variant={
@@ -2469,7 +2469,7 @@ export function DatasetContent({
               className={`border-border bg-surface w-full border p-6 shadow-sm ${
                 visualizationMode === "table"
                   ? "flex flex-col rounded-lg"
-                  : "flex min-h-[840px] min-w-0 flex-1 flex-col rounded-xl"
+                  : "flex min-h-[840px] min-w-0 flex-col rounded-xl"
               }`}
             >
               {visualizationMode === "graph" && plotPoints.length > 0 ? (

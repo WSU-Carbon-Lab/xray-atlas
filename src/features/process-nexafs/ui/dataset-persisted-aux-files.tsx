@@ -283,24 +283,28 @@ export function DatasetAuxFilesTab({
 
   return (
     <section
-      className="flex min-h-0 w-full flex-1 flex-col gap-3"
+      className="flex w-full flex-col gap-4"
       aria-labelledby="dataset-aux-files-heading"
     >
-      <div>
-        <h2
-          id="dataset-aux-files-heading"
-          className="text-muted text-sm font-medium leading-none"
-        >
-          Auxiliary files
-        </h2>
-        {readOnlyHint ? (
-          <p className="text-muted mt-1 text-xs leading-snug">{readOnlyHint}</p>
-        ) : null}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2
+            id="dataset-aux-files-heading"
+            className="text-foreground text-sm font-semibold leading-none"
+          >
+            Auxiliary files
+          </h2>
+          {readOnlyHint ? (
+            <p className="text-muted mt-1 text-xs leading-snug">
+              {readOnlyHint}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <div
         className={cn(
-          "grid min-h-[400px] w-full gap-4",
+          "grid w-full items-start gap-4",
           showUploadPanel ? "lg:grid-cols-2" : "grid-cols-1",
         )}
       >
@@ -334,7 +338,7 @@ export function DatasetAuxFilesTab({
         />
 
         {showUploadPanel ? (
-          <div className="flex min-h-[360px] flex-col gap-3">
+          <div className="flex flex-col gap-3">
             <AuxUploadDefaultsRow
               pendingKind={pendingKind}
               pendingDescription={pendingDescription}
