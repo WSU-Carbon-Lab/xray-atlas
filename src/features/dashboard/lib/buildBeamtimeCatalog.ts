@@ -10,7 +10,6 @@ import {
   isAllowedStxmFilename,
   validateStxmFilePair,
   validateStxmFileSize,
-  validateStxmHdrMetadata,
 } from "~/lib/stxm/validateStxmFile";
 import { readHdr } from "~/lib/stxm/readHdr";
 import {
@@ -36,6 +35,9 @@ export const BEAMTIME_CATALOG_STALL_TIMEOUT_MS = 30_000;
 export const BEAMTIME_CATALOG_BUILD_TIMEOUT_MS = BEAMTIME_CATALOG_STALL_TIMEOUT_MS;
 
 const DEFAULT_CATALOG_BATCH_FLUSH_MS = 50;
+
+/** Concurrent `.hdr` metadata reads during phase-2 catalog enrichment. */
+export const HDR_PARSE_CONCURRENCY = 6;
 
 export type StreamBeamtimeCatalogPhase =
   | "cache"
@@ -109,18 +111,100 @@ export type EnrichCatalogThumbnailsOptions = {
   onProgress?: (entries: StxmCatalogEntry[]) => void;
 };
 
-async function readHdrEntry(
-  ref: StxmFileRef,
-): Promise<{ hdrText: string; hdrByteLength: number } | null> {
+async function readHdrText(ref: StxmFileRef): Promise<string | null> {
   try {
     const hdrFile = await ref.handle.getFile();
     validateStxmFileSize(hdrFile.size, "hdr");
     const hdrText = await hdrFile.text();
-    validateStxmHdrMetadata(readHdr(hdrText));
-    return { hdrText, hdrByteLength: hdrFile.size };
+    readHdr(hdrText);
+    return hdrText;
   } catch {
     return null;
   }
+}
+
+function buildFallbackParsedEntry(ref: StxmFileRef): StxmCatalogEntry {
+  return {
+    ...buildPlaceholderCatalogEntry(ref),
+    scanType: "Unknown",
+    enrichmentStatus: "parsed",
+  };
+}
+
+function applyParsedCatalogRow(
+  entries: StxmCatalogEntry[],
+  parsed: StxmCatalogEntry,
+): void {
+  const index = entries.findIndex(
+    (row) => row.relativePath === parsed.relativePath,
+  );
+  if (index >= 0) {
+    entries[index] = parsed;
+    return;
+  }
+  insertCatalogEntrySorted(entries, parsed);
+}
+
+/**
+ * Parses placeholder catalog rows with bounded parallelism; leaves non-placeholder rows unchanged.
+ */
+export async function parsePlaceholderCatalogEntries(
+  refs: StxmFileRef[],
+  entries: StxmCatalogEntry[],
+  options?: {
+    signal?: AbortSignal;
+    concurrency?: number;
+    onRowParsed?: () => void;
+  },
+): Promise<void> {
+  const concurrency = options?.concurrency ?? HDR_PARSE_CONCURRENCY;
+  const pending = refs.filter((ref) => {
+    const existing = entries.find((row) => row.relativePath === ref.relativePath);
+    return (
+      !existing || catalogEntryEnrichmentStatus(existing) === "placeholder"
+    );
+  });
+  if (pending.length === 0) {
+    return;
+  }
+
+  let cursor = 0;
+  const worker = async () => {
+    while (true) {
+      if (options?.signal?.aborted) {
+        return;
+      }
+      const index = cursor;
+      cursor += 1;
+      if (index >= pending.length) {
+        return;
+      }
+      const ref = pending[index];
+      if (!ref) {
+        return;
+      }
+      const hdrText = await readHdrText(ref);
+      const parsed = hdrText
+        ? {
+            ...buildCatalogEntryFromHdr(
+              ref.name,
+              ref.relativePath,
+              hdrText,
+              null,
+            ),
+            enrichmentStatus: "parsed" as const,
+          }
+        : buildFallbackParsedEntry(ref);
+      applyParsedCatalogRow(entries, parsed);
+      options?.onRowParsed?.();
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, pending.length) }, () =>
+      worker(),
+    ),
+  );
 }
 
 /**
@@ -224,8 +308,13 @@ export async function streamBeamtimeCatalogFast(
     const diskPaths = new Set<string>();
     refs = [];
 
-    for await (const ref of walkHdrFileRefs(experimentDir)) {
-      if (options?.signal?.aborted || stalled) {
+    for await (const ref of walkHdrFileRefs(experimentDir, "", {
+      onTraverse: touchProgress,
+    })) {
+      if (options?.signal?.aborted) {
+        break;
+      }
+      if (stalled) {
         break;
       }
       if (!isAllowedStxmFilename(ref.name) || diskPaths.has(ref.relativePath)) {
@@ -255,7 +344,7 @@ export async function streamBeamtimeCatalogFast(
     }
     flushProgress();
 
-    if (options?.signal?.aborted || stalled) {
+    if (options?.signal?.aborted) {
       return {
         entries: entries.map((entry) => ({ ...entry })),
         complete: false,
@@ -266,46 +355,15 @@ export async function streamBeamtimeCatalogFast(
     phase = "parsing";
     flushProgress();
 
-    const entryIndexByPath = new Map(
-      entries.map((entry, index) => [entry.relativePath, index]),
-    );
-
-    for (const ref of refs) {
-      if (options?.signal?.aborted || stalled) {
-        break;
-      }
-      const index = entryIndexByPath.get(ref.relativePath);
-      const existing = index !== undefined ? entries[index] : undefined;
-      if (
-        existing &&
-        catalogEntryEnrichmentStatus(existing) !== "placeholder"
-      ) {
-        continue;
-      }
-      touchProgress();
-      const hdr = await readHdrEntry(ref);
-      if (!hdr) {
-        continue;
-      }
-      const parsed = {
-        ...buildCatalogEntryFromHdr(
-          ref.name,
-          ref.relativePath,
-          hdr.hdrText,
-          null,
-        ),
-        enrichmentStatus: "parsed" as const,
-      };
-      if (index !== undefined) {
-        entries[index] = parsed;
-      } else {
-        insertCatalogEntrySorted(entries, parsed);
-      }
-      scheduleFlush();
-      touchProgress();
-    }
+    await parsePlaceholderCatalogEntries(refs, entries, {
+      signal: options?.signal,
+      onRowParsed: () => {
+        touchProgress();
+        scheduleFlush();
+      },
+    });
     phase = "complete";
-    complete = !stalled && !options?.signal?.aborted;
+    complete = !options?.signal?.aborted;
 
     if (complete) {
       void writeStxmCatalogCheckpoint(

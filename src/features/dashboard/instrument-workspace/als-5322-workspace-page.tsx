@@ -275,6 +275,21 @@ export function Als5322WorkspacePage() {
               setCatalog(progress.entries);
               setCatalogScanPhase(progress.phase);
               setCatalogFromCache(progress.fromCache);
+              if (progress.discoveredCount > 0) {
+                setBeamtimes((previous) =>
+                  previous.map((row) =>
+                    row.name === experimentName
+                      ? {
+                          ...row,
+                          scanCount: Math.max(
+                            row.scanCount,
+                            progress.discoveredCount,
+                          ),
+                        }
+                      : row,
+                  ),
+                );
+              }
             },
           },
         );

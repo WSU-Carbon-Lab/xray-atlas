@@ -37,14 +37,21 @@ export async function pickStxmRootDirectory(): Promise<StxmDirectoryHandle> {
   return picker({ mode: "read" });
 }
 
+export type WalkHdrFileRefsOptions = {
+  /** Invoked for every directory entry visited so long walks can reset stall timers. */
+  onTraverse?: () => void;
+};
+
 /**
  * Depth-first async iterator over `.hdr` file handles; yields each ref as soon as it is discovered.
  */
 export async function* walkHdrFileRefs(
   directory: StxmDirectoryHandle,
   prefix = "",
+  options?: WalkHdrFileRefsOptions,
 ): AsyncGenerator<StxmFileRef> {
   for await (const [name, handle] of directory.entries()) {
+    options?.onTraverse?.();
     const relativePath = prefix ? `${prefix}/${name}` : name;
     if (
       handle.kind === "file" &&
@@ -56,6 +63,7 @@ export async function* walkHdrFileRefs(
       yield* walkHdrFileRefs(
         handle as StxmFileSystemDirectoryHandle,
         relativePath,
+        options,
       );
     }
   }

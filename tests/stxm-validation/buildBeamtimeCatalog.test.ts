@@ -6,6 +6,7 @@ import {
 import {
   insertCatalogEntrySorted,
   mergeCatalogEntries,
+  parsePlaceholderCatalogEntries,
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import {
   applyParsedCatalogEntry,
@@ -90,6 +91,57 @@ describe("buildPlaceholderCatalogEntry", () => {
     expect(row.basename).toBe("line.hdr");
     expect(row.enrichmentStatus).toBe("placeholder");
     expect(catalogEntryEnrichmentStatus(row)).toBe("placeholder");
+  });
+});
+
+describe("parsePlaceholderCatalogEntries", () => {
+  it("replaces placeholder rows with parsed fallback when hdr read fails", async () => {
+    const placeholder = buildPlaceholderCatalogEntry({
+      name: "line.hdr",
+      relativePath: "folder/line.hdr",
+    });
+    const entries = [placeholder];
+    const failingHandle = {
+      getFile: async () => {
+        throw new Error("read denied");
+      },
+    };
+    await parsePlaceholderCatalogEntries(
+      [
+        {
+          name: "line.hdr",
+          relativePath: "folder/line.hdr",
+          handle: failingHandle as never,
+        },
+      ],
+      entries,
+    );
+    expect(entries).toHaveLength(1);
+    expect(catalogEntryEnrichmentStatus(entries[0]!)).toBe("parsed");
+    expect(entries[0]?.scanType).toBe("Unknown");
+  });
+
+  it("skips rows that are already parsed", async () => {
+    const parsed = {
+      ...catalogEntry("ready.hdr"),
+      enrichmentStatus: "parsed" as const,
+    };
+    const entries = [parsed];
+    await parsePlaceholderCatalogEntries(
+      [
+        {
+          name: "ready.hdr",
+          relativePath: "ready.hdr",
+          handle: {
+            getFile: async () => {
+              throw new Error("should not read");
+            },
+          } as never,
+        },
+      ],
+      entries,
+    );
+    expect(entries[0]?.scanType).toBe("NEXAFS Line Scan");
   });
 });
 
