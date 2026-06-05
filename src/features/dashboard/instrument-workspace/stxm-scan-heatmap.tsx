@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { StxmRegionBounds } from "~/lib/dashboard-processing-session";
-import { downsampleHeatmap } from "~/lib/stxm/heatmap";
+import { downsampleHeatmap, percentile, valueToGrayscaleByte } from "~/lib/stxm/heatmap";
 
 type StxmScanHeatmapProps = {
   image: Float64Array[];
@@ -10,15 +10,6 @@ type StxmScanHeatmapProps = {
   bounds?: StxmRegionBounds;
   className?: string;
 };
-
-function colorForValue(value: number, min: number, max: number): string {
-  const span = max - min || 1;
-  const t = Math.min(1, Math.max(0, (value - min) / span));
-  const r = Math.round(20 + t * 200);
-  const g = Math.round(30 + t * 80);
-  const b = Math.round(80 + (1 - t) * 120);
-  return `rgb(${r}, ${g}, ${b})`;
-}
 
 /**
  * Renders a downsampled STXM line-scan heatmap on canvas with optional region bounds.
@@ -40,9 +31,13 @@ export function StxmScanHeatmap({
     if (values.length === 0) {
       return;
     }
-    const flat = values.flat();
-    const min = Math.min(...flat);
-    const max = Math.max(...flat);
+    const flat = values.flat().filter(Number.isFinite);
+    let vmin = percentile(flat, 2);
+    let vmax = percentile(flat, 98);
+    if (!Number.isFinite(vmin) || !Number.isFinite(vmax) || vmin >= vmax) {
+      vmin = Math.min(...flat);
+      vmax = Math.max(...flat);
+    }
     const rows = values.length;
     const cols = values[0]?.length ?? 0;
     const width = canvas.clientWidth || 480;
@@ -58,7 +53,8 @@ export function StxmScanHeatmap({
     ctx.clearRect(0, 0, width, height);
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < cols; col += 1) {
-        ctx.fillStyle = colorForValue(values[row]?.[col] ?? 0, min, max);
+        const gray = valueToGrayscaleByte(values[row]?.[col] ?? 0, vmin, vmax);
+        ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
         ctx.fillRect(col * cellW, row * cellH, cellW + 1, cellH + 1);
       }
     }

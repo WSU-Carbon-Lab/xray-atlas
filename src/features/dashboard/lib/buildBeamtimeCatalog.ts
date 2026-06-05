@@ -1,9 +1,16 @@
 import {
   buildCatalogEntryFromHdr,
-  lineScanThumbnailDataUrl,
+  scanThumbnailDataUrl,
   type StxmCatalogEntry,
   ximBasenamesForHdrBasename,
 } from "~/lib/stxm";
+import {
+  isAllowedStxmFilename,
+  validateStxmFilePair,
+  validateStxmFileSize,
+  validateStxmHdrMetadata,
+} from "~/lib/stxm/validateStxmFile";
+import { readHdr } from "~/lib/stxm/readHdr";
 import {
   collectHdrFileRefs,
   countHdrFilesInDirectory,
@@ -27,13 +34,37 @@ export async function buildBeamtimeCatalog(
   const entries: StxmCatalogEntry[] = [];
 
   for (const ref of hdrRefs) {
-    const hdrFile = await ref.handle.getFile();
+    if (!isAllowedStxmFilename(ref.name)) {
+      continue;
+    }
+    let hdrFile: File;
+    try {
+      hdrFile = await ref.handle.getFile();
+      validateStxmFileSize(hdrFile.size, "hdr");
+    } catch {
+      continue;
+    }
     const hdrText = await hdrFile.text();
+    try {
+      validateStxmHdrMetadata(readHdr(hdrText));
+    } catch {
+      continue;
+    }
     const ximNames = ximBasenamesForHdrBasename(ref.name);
     const ximHandle = await findXimFileForHdr(ref, ximNames, experimentDir);
     let ximBuffer: ArrayBuffer | null = null;
     if (ximHandle) {
-      ximBuffer = await (await ximHandle.getFile()).arrayBuffer();
+      try {
+        const ximFile = await ximHandle.getFile();
+        if (!isAllowedStxmFilename(ximFile.name)) {
+          ximBuffer = null;
+        } else {
+          validateStxmFileSize(ximFile.size, "xim");
+          ximBuffer = await ximFile.arrayBuffer();
+        }
+      } catch {
+        ximBuffer = null;
+      }
     }
     const entry = buildCatalogEntryFromHdr(
       ref.name,
@@ -41,8 +72,12 @@ export async function buildBeamtimeCatalog(
       hdrText,
       ximBuffer,
     );
-    if (withThumbnails && entry.isNexafsLineScan && ximBuffer) {
-      entry.thumbnailDataUrl = await lineScanThumbnailDataUrl(hdrText, ximBuffer);
+    if (withThumbnails && ximBuffer) {
+      entry.thumbnailDataUrl = await scanThumbnailDataUrl(
+        hdrText,
+        ximBuffer,
+        hdrFile.size,
+      );
     }
     entries.push(entry);
   }
@@ -98,6 +133,7 @@ export async function loadScanFilesFromCatalogEntry(
       try {
         const ximHandle = await directory.getFileHandle(candidate);
         const ximFile = await ximHandle.getFile();
+        validateStxmFilePair(hdrFile, ximFile);
         return { hdrFile, ximFile };
       } catch {
         continue;

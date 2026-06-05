@@ -1,3 +1,4 @@
+import { isAllowedStxmFilename } from "~/lib/stxm/validateStxmFile";
 import type {
   StxmDirectoryHandle,
   StxmFileSystemDirectoryHandle,
@@ -46,7 +47,11 @@ export async function collectHdrFileRefs(
   const refs: StxmFileRef[] = [];
   for await (const [name, handle] of directory.entries()) {
     const relativePath = prefix ? `${prefix}/${name}` : name;
-    if (handle.kind === "file" && name.toLowerCase().endsWith(".hdr")) {
+    if (
+      handle.kind === "file" &&
+      isAllowedStxmFilename(name) &&
+      name.toLowerCase().endsWith(".hdr")
+    ) {
       refs.push({ name, relativePath, handle: handle as StxmFileSystemFileHandle });
     } else if (handle.kind === "directory") {
       refs.push(

@@ -11,6 +11,12 @@ export type RecentStxmFolder = {
   lastOpenedAt: string;
 };
 
+export type DirectoryReadPermissionState =
+  | "granted"
+  | "denied"
+  | "prompt"
+  | "unsupported";
+
 function openDirectoryDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -111,16 +117,32 @@ export function touchRecentFolder(
 }
 
 /**
- * Requests read permission on a stored handle when the browser requires re-authorization.
+ * Queries read permission without prompting. Safe to call on mount or reload checks.
  */
-export async function ensureDirectoryReadPermission(
+export async function queryDirectoryReadPermission(
+  handle: StxmDirectoryHandle,
+): Promise<DirectoryReadPermissionState> {
+  if (!handle.queryPermission) {
+    return "unsupported";
+  }
+  const state = await handle.queryPermission({ mode: "read" });
+  if (state === "granted") {
+    return "granted";
+  }
+  if (state === "denied") {
+    return "denied";
+  }
+  return "prompt";
+}
+
+/**
+ * Requests read permission; must only run inside a user activation handler (click).
+ */
+export async function requestDirectoryReadPermission(
   handle: StxmDirectoryHandle,
 ): Promise<boolean> {
-  if (!handle.queryPermission) {
-    return true;
-  }
-  const current = await handle.queryPermission({ mode: "read" });
-  if (current === "granted") {
+  const queried = await queryDirectoryReadPermission(handle);
+  if (queried === "granted" || queried === "unsupported") {
     return true;
   }
   if (!handle.requestPermission) {
@@ -128,4 +150,22 @@ export async function ensureDirectoryReadPermission(
   }
   const requested = await handle.requestPermission({ mode: "read" });
   return requested === "granted";
+}
+
+/**
+ * @deprecated Use {@link queryDirectoryReadPermission} or {@link requestDirectoryReadPermission}.
+ */
+export async function ensureDirectoryReadPermission(
+  handle: StxmDirectoryHandle,
+  options?: { allowRequest?: boolean },
+): Promise<boolean> {
+  const allowRequest = options?.allowRequest ?? false;
+  const queried = await queryDirectoryReadPermission(handle);
+  if (queried === "granted" || queried === "unsupported") {
+    return true;
+  }
+  if (!allowRequest) {
+    return false;
+  }
+  return requestDirectoryReadPermission(handle);
 }

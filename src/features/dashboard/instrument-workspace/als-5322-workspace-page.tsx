@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@heroui/react";
 import { ArrowLeft, FlaskConical } from "lucide-react";
 import {
   ALS_5322_INSTRUMENT_LABEL,
@@ -33,9 +34,10 @@ import {
   type StxmDirectoryLayout,
 } from "~/features/dashboard/lib/resolveDirectoryLayout";
 import {
-  ensureDirectoryReadPermission,
   loadDirectoryHandle,
   loadRecentFolders,
+  queryDirectoryReadPermission,
+  requestDirectoryReadPermission,
   storeDirectoryHandle,
   touchRecentFolder,
   type RecentStxmFolder,
@@ -103,6 +105,10 @@ export function Als5322WorkspacePage() {
     null,
   );
   const [catalogLoadError, setCatalogLoadError] = useState<string | null>(null);
+  const [pendingFolderAccess, setPendingFolderAccess] = useState<{
+    handleKey: string;
+    displayName: string;
+  } | null>(null);
 
   const stepMetadata =
     sessionQuery.data?.stepMetadata ?? defaultDashboardStepMetadata();
@@ -297,11 +303,15 @@ export function Als5322WorkspacePage() {
       if (cancelled || !handle) {
         return;
       }
-      const allowed = await ensureDirectoryReadPermission(handle);
-      if (cancelled || !allowed) {
-        if (!allowed) {
-          showToast("Re-select the folder to restore read permission.", "error");
-        }
+      const permission = await queryDirectoryReadPermission(handle);
+      if (cancelled) {
+        return;
+      }
+      if (permission !== "granted" && permission !== "unsupported") {
+        setPendingFolderAccess({
+          handleKey,
+          displayName: workspace?.folderRootName ?? handle.name,
+        });
         return;
       }
       setRootHandle(handle);
@@ -333,11 +343,12 @@ export function Als5322WorkspacePage() {
 
   const bindRootHandle = useCallback(
     async (handle: StxmDirectoryHandle, key: string) => {
-      const allowed = await ensureDirectoryReadPermission(handle);
+      const allowed = await requestDirectoryReadPermission(handle);
       if (!allowed) {
         showToast("Read permission denied for this folder.", "error");
         return;
       }
+      setPendingFolderAccess(null);
       setRootHandle(handle);
       setFolderHandleKey(key);
       setFolderRootName(handle.name);
@@ -364,6 +375,19 @@ export function Als5322WorkspacePage() {
     },
     [ensureSession, persistWorkspace, refreshBeamtimes],
   );
+
+  const grantStoredFolderAccess = useCallback(async () => {
+    if (!pendingFolderAccess) {
+      return;
+    }
+    const handle = await loadDirectoryHandle(pendingFolderAccess.handleKey);
+    if (!handle) {
+      showToast("Recent folder unavailable. Select it again.", "error");
+      setPendingFolderAccess(null);
+      return;
+    }
+    await bindRootHandle(handle, pendingFolderAccess.handleKey);
+  }, [bindRootHandle, pendingFolderAccess]);
 
   const handlePickFolder = useCallback(async () => {
     setIsPicking(true);
@@ -444,6 +468,17 @@ export function Als5322WorkspacePage() {
     if (!rootHandle) {
       return;
     }
+    const allowed = await requestDirectoryReadPermission(rootHandle);
+    if (!allowed) {
+      if (folderHandleKey && folderRootName) {
+        setPendingFolderAccess({
+          handleKey: folderHandleKey,
+          displayName: folderRootName,
+        });
+      }
+      showToast("Re-grant folder access to reload.", "error");
+      return;
+    }
     setIsReloading(true);
     try {
       const layout = await refreshBeamtimes(rootHandle, false);
@@ -454,7 +489,7 @@ export function Als5322WorkspacePage() {
     } finally {
       setIsReloading(false);
     }
-  }, [loadCatalog, refreshBeamtimes, rootHandle, selectedBeamtime]);
+  }, [folderHandleKey, folderRootName, loadCatalog, refreshBeamtimes, rootHandle, selectedBeamtime]);
 
   const persistRegions = useCallback(
     async (regions: DashboardRegionsStepMetadata) => {
@@ -507,6 +542,14 @@ export function Als5322WorkspacePage() {
   const tabPanel = useMemo(() => {
     switch (activeTab) {
       case "experiment":
+        if (pendingFolderAccess && !rootHandle) {
+          return (
+            <p className="text-muted text-sm">
+              Use the button above to re-grant folder access, or select a new data
+              folder.
+            </p>
+          );
+        }
         if (!rootHandle) {
           return (
             <FolderPickerPrompt
@@ -597,7 +640,7 @@ export function Als5322WorkspacePage() {
     catalog,
     beamtimeLoadError,
     catalogLoadError,
-    directoryLayout,
+    grantStoredFolderAccess,
     handlePickFolder,
     handleSelectBeamtime,
     handleSelectScan,
@@ -606,6 +649,7 @@ export function Als5322WorkspacePage() {
     isPicking,
     persistReduce,
     persistRegions,
+    pendingFolderAccess,
     refreshBeamtimes,
     rootHandle,
     selectedBeamtime,
@@ -646,6 +690,19 @@ export function Als5322WorkspacePage() {
         folders={recentFolders}
         onOpen={(key) => void handleOpenRecent(key)}
       />
+
+      {pendingFolderAccess ? (
+        <div className="border-border bg-default/30 flex flex-col items-start gap-3 rounded-lg border px-4 py-4">
+          <p className="text-foreground text-sm">
+            Read access to{" "}
+            <span className="font-medium">{pendingFolderAccess.displayName}</span>{" "}
+            requires your confirmation after reload.
+          </p>
+          <Button size="sm" onPress={() => void grantStoredFolderAccess()}>
+            Re-grant folder access
+          </Button>
+        </div>
+      ) : null}
 
       {rootHandle ? (
         <WorkspaceChrome

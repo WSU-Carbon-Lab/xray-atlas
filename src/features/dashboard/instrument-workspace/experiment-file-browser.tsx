@@ -1,12 +1,11 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
-import { Button, ScrollShadow, Spinner } from "@heroui/react";
+import { memo, useCallback, useMemo } from "react";
+import { Accordion, ScrollShadow, Spinner } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import {
   groupCatalogEntries,
   scanCategoryLabel,
-  STXM_SCAN_CATEGORY_ORDER,
   type StxmCatalogEntry,
   type StxmScanCategory,
 } from "~/lib/stxm";
@@ -16,6 +15,23 @@ type ExperimentFileBrowserProps = {
   selectedRelativePath: string | null;
   loading: boolean;
   onSelect: (entry: StxmCatalogEntry) => void;
+};
+
+const ACCORDION_CATEGORIES: StxmScanCategory[] = [
+  "image_scan",
+  "focus_scan",
+  "fixed_point",
+  "stack",
+  "other",
+];
+
+const ACCORDION_LABELS: Record<StxmScanCategory, string> = {
+  line_scan: "Line scans",
+  image_scan: "Image scans",
+  focus_scan: "Focus scans",
+  fixed_point: "Fixed point",
+  stack: "Stacks",
+  other: "Other",
 };
 
 function formatEnergy(entry: StxmCatalogEntry): string | null {
@@ -75,73 +91,84 @@ const ScanCard = memo(function ScanCard({
   );
 });
 
-type ScanGroupProps = {
-  category: StxmScanCategory;
+type HorizontalScanRowProps = {
   entries: StxmCatalogEntry[];
   selectedRelativePath: string | null;
   onSelect: (entry: StxmCatalogEntry) => void;
 };
 
-function ScanGroup({
-  category,
+function HorizontalScanRow({
   entries,
   selectedRelativePath,
   onSelect,
-}: ScanGroupProps) {
-  const [expanded, setExpanded] = useState(false);
-  const visible = expanded ? entries : entries.slice(0, 6);
+}: HorizontalScanRowProps) {
+  return (
+    <ScrollShadow
+      orientation="horizontal"
+      className="max-w-full min-w-0 overflow-x-auto pb-1"
+    >
+      <div className="flex w-max min-w-full gap-3 pr-2">
+        {entries.map((entry) => (
+          <ScanCard
+            key={entry.relativePath}
+            entry={entry}
+            selected={entry.relativePath === selectedRelativePath}
+            onSelect={onSelect}
+          />
+        ))}
+      </div>
+    </ScrollShadow>
+  );
+}
 
-  if (entries.length === 0) {
+type AccordionScanGroupsProps = {
+  grouped: Map<StxmScanCategory, StxmCatalogEntry[]>;
+  selectedRelativePath: string | null;
+  onSelect: (entry: StxmCatalogEntry) => void;
+};
+
+function AccordionScanGroups({
+  grouped,
+  selectedRelativePath,
+  onSelect,
+}: AccordionScanGroupsProps) {
+  const sections = ACCORDION_CATEGORIES.flatMap((category) => {
+    const entries = grouped.get(category) ?? [];
+    if (entries.length === 0) {
+      return [];
+    }
+    return [{ category, entries }];
+  });
+
+  if (sections.length === 0) {
     return null;
   }
 
   return (
-    <section className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-muted text-xs font-semibold tracking-wide uppercase">
-          {scanCategoryLabel(category)} ({entries.length})
-        </h3>
-        {entries.length > 6 ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onPress={() => setExpanded((value) => !value)}
-          >
-            {expanded ? "Show less" : `Show all (${entries.length})`}
-          </Button>
-        ) : null}
-      </div>
-      {expanded ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-          {visible.map((entry) => (
-            <ScanCard
-              key={entry.relativePath}
-              entry={entry}
-              selected={entry.relativePath === selectedRelativePath}
+    <Accordion allowsMultipleExpanded variant="surface" className="min-w-0">
+      {sections.map(({ category, entries }) => (
+        <Accordion.Item key={category} id={category}>
+          <Accordion.Heading>
+            <Accordion.Trigger>
+              {ACCORDION_LABELS[category]} ({entries.length})
+              <Accordion.Indicator />
+            </Accordion.Trigger>
+          </Accordion.Heading>
+          <Accordion.Panel className="min-w-0 overflow-x-auto pb-2">
+            <HorizontalScanRow
+              entries={entries}
+              selectedRelativePath={selectedRelativePath}
               onSelect={onSelect}
             />
-          ))}
-        </div>
-      ) : (
-        <ScrollShadow orientation="horizontal" className="w-full pb-1">
-          <div className="flex gap-3">
-            {visible.map((entry) => (
-              <ScanCard
-                key={entry.relativePath}
-                entry={entry}
-                selected={entry.relativePath === selectedRelativePath}
-                onSelect={onSelect}
-              />
-            ))}
-          </div>
-        </ScrollShadow>
-      )}
-    </section>
+          </Accordion.Panel>
+        </Accordion.Item>
+      ))}
+    </Accordion>
   );
 }
 
 /**
- * Finder-style grouped scan browser with horizontal scroll and expandable groups.
+ * Finder-style scan browser: line scans primary; other types in collapsed accordion groups.
  */
 export function ExperimentFileBrowser({
   entries,
@@ -150,6 +177,7 @@ export function ExperimentFileBrowser({
   onSelect,
 }: ExperimentFileBrowserProps) {
   const grouped = useMemo(() => groupCatalogEntries(entries), [entries]);
+  const lineScans = grouped.get("line_scan") ?? [];
 
   if (loading) {
     return (
@@ -166,16 +194,24 @@ export function ExperimentFileBrowser({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {STXM_SCAN_CATEGORY_ORDER.map((category) => (
-        <ScanGroup
-          key={category}
-          category={category}
-          entries={grouped.get(category) ?? []}
-          selectedRelativePath={selectedRelativePath}
-          onSelect={onSelect}
-        />
-      ))}
+    <div className="flex min-w-0 flex-col gap-6">
+      {lineScans.length > 0 ? (
+        <section className="min-w-0">
+          <h3 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">
+            {scanCategoryLabel("line_scan")} ({lineScans.length})
+          </h3>
+          <HorizontalScanRow
+            entries={lineScans}
+            selectedRelativePath={selectedRelativePath}
+            onSelect={onSelect}
+          />
+        </section>
+      ) : null}
+      <AccordionScanGroups
+        grouped={grouped}
+        selectedRelativePath={selectedRelativePath}
+        onSelect={onSelect}
+      />
     </div>
   );
 }

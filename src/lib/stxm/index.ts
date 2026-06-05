@@ -1,7 +1,7 @@
 export { regionMeanAndSigma, type RegionMeanSigmaResult, type StxmWeightingMode } from "./estimators";
 export { isNexafsLineScanType, NEXAFS_LINE_SCAN_TYPE } from "./isNexafsLineScan";
 export { loadStxm } from "./loadStxm";
-export { downsampleHeatmap } from "./heatmap";
+export { downsampleHeatmap, percentile, valueToGrayscaleByte } from "./heatmap";
 export {
   buildCatalogEntryFromHdr,
   groupCatalogEntries,
@@ -30,7 +30,20 @@ export {
   STXM_SCAN_CATEGORY_ORDER,
   type StxmScanCategory,
 } from "./scanType";
-export { lineScanThumbnailDataUrl } from "./lineScanThumbnail";
+export { lineScanThumbnailDataUrl, scanThumbnailDataUrl } from "./scanThumbnail";
+export {
+  isAllowedStxmFilename,
+  stxmFileKindFromName,
+  StxmValidationError,
+  STXM_ALLOWED_EXTENSIONS,
+  STXM_MAX_HDR_BYTES,
+  STXM_MAX_XIM_BYTES,
+  STXM_MAX_AXIS_POINTS,
+  validateStxmFilePair,
+  validateStxmFileSize,
+  validateStxmHdrMetadata,
+  validateStxmXimValueCount,
+} from "./validateStxmFile";
 export { orientScan } from "./orientScan";
 export { readHdr } from "./readHdr";
 export { readXim } from "./readXim";

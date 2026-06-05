@@ -27,3 +27,35 @@ export function downsampleHeatmap(
     colCount: values[0]?.length ?? 0,
   };
 }
+
+/**
+ * Computes the p-th percentile of finite values in `samples`.
+ */
+export function percentile(samples: number[], p: number): number {
+  const finite = samples.filter(Number.isFinite).sort((a, b) => a - b);
+  if (finite.length === 0) {
+    return Number.NaN;
+  }
+  const idx = (p / 100) * (finite.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) {
+    return finite[lo] ?? Number.NaN;
+  }
+  const weight = idx - lo;
+  return (finite[lo] ?? 0) * (1 - weight) + (finite[hi] ?? 0) * weight;
+}
+
+/**
+ * Maps a linear intensity to an 8-bit grayscale byte using inclusive `[vmin, vmax]`.
+ */
+export function valueToGrayscaleByte(
+  value: number,
+  vmin: number,
+  vmax: number,
+): number {
+  const span = vmax - vmin || 1;
+  const normalized = (value - vmin) / span;
+  const clamped = Math.max(0, Math.min(1, normalized));
+  return Math.round(clamped * 255);
+}
