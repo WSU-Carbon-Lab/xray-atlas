@@ -1,5 +1,6 @@
 import {
   buildCatalogEntryFromHdr,
+  buildPlaceholderCatalogEntry,
   scanThumbnailDataUrl,
   type StxmCatalogEntry,
   ximBasenamesForHdrBasename,
@@ -14,7 +15,7 @@ import { readHdr } from "~/lib/stxm/readHdr";
 import {
   countHdrFilesInDirectory,
   findXimFileForHdr,
-  walkHdrFileRefs,
+  listHdrFileRefsFast,
   type StxmDirectoryHandle,
   type StxmFileRef,
 } from "./localDirectoryBrowser";
@@ -29,9 +30,12 @@ export const BEAMTIME_CATALOG_BUILD_TIMEOUT_MS = BEAMTIME_CATALOG_STALL_TIMEOUT_
 
 const DEFAULT_CATALOG_BATCH_FLUSH_MS = 50;
 
+export type StreamBeamtimeCatalogPhase = "listing" | "parsing" | "complete";
+
 export type StreamBeamtimeCatalogProgress = {
   entries: StxmCatalogEntry[];
   discoveredCount: number;
+  phase: StreamBeamtimeCatalogPhase;
 };
 
 export type StreamBeamtimeCatalogOptions = {
@@ -132,15 +136,15 @@ export async function streamBeamtimeCatalogFast(
   options?: StreamBeamtimeCatalogOptions,
 ): Promise<StreamBeamtimeCatalogResult> {
   const experimentDir = await getExperimentDirectory(root, layout, experimentName);
-  const entries: StxmCatalogEntry[] = [];
-  const seenPaths = new Set<string>();
   const batchFlushMs = options?.batchFlushMs ?? DEFAULT_CATALOG_BATCH_FLUSH_MS;
   const stallTimeoutMs = options?.stallTimeoutMs ?? BEAMTIME_CATALOG_STALL_TIMEOUT_MS;
   let lastProgressAt = Date.now();
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
   let stalled = false;
   let complete = false;
-  let fatalStallError: Error | null = null;
+  let phase: StreamBeamtimeCatalogPhase = "listing";
+  let entries: StxmCatalogEntry[] = [];
+  let refs: StxmFileRef[] = [];
 
   const touchProgress = () => {
     lastProgressAt = Date.now();
@@ -154,6 +158,7 @@ export async function streamBeamtimeCatalogFast(
     options?.onProgress?.({
       entries: entries.map((entry) => ({ ...entry })),
       discoveredCount: entries.length,
+      phase,
     });
     touchProgress();
   };
@@ -175,34 +180,61 @@ export async function streamBeamtimeCatalogFast(
       return;
     }
     stalled = true;
-    if (entries.length === 0) {
-      fatalStallError = new Error(
-        `Scan listing timed out after ${stallTimeoutMs / 1000}s with no scans found`,
-      );
-    }
   }, 500);
 
   try {
-    for await (const ref of walkHdrFileRefs(experimentDir)) {
+    touchProgress();
+    refs = (await listHdrFileRefsFast(experimentDir)).filter((ref) =>
+      isAllowedStxmFilename(ref.name),
+    );
+    touchProgress();
+
+    entries = refs.map((ref) => buildPlaceholderCatalogEntry(ref));
+    flushProgress();
+
+    if (options?.signal?.aborted || stalled) {
+      return {
+        entries: entries.map((entry) => ({ ...entry })),
+        complete: false,
+        stalled,
+      };
+    }
+
+    phase = "parsing";
+    flushProgress();
+
+    const entryIndexByPath = new Map(
+      entries.map((entry, index) => [entry.relativePath, index]),
+    );
+
+    for (const ref of refs) {
       if (options?.signal?.aborted || stalled) {
         break;
       }
-      if (!isAllowedStxmFilename(ref.name) || seenPaths.has(ref.relativePath)) {
-        continue;
-      }
-      seenPaths.add(ref.relativePath);
       touchProgress();
       const hdr = await readHdrEntry(ref);
       if (!hdr) {
         continue;
       }
-      insertCatalogEntrySorted(
-        entries,
-        buildCatalogEntryFromHdr(ref.name, ref.relativePath, hdr.hdrText, null),
-      );
+      const parsed = {
+        ...buildCatalogEntryFromHdr(
+          ref.name,
+          ref.relativePath,
+          hdr.hdrText,
+          null,
+        ),
+        enrichmentStatus: "parsed" as const,
+      };
+      const index = entryIndexByPath.get(ref.relativePath);
+      if (index !== undefined) {
+        entries[index] = parsed;
+      } else {
+        insertCatalogEntrySorted(entries, parsed);
+      }
       scheduleFlush();
       touchProgress();
     }
+    phase = "complete";
     complete = !stalled && !options?.signal?.aborted;
   } finally {
     clearInterval(stallTimer);
@@ -212,8 +244,10 @@ export async function streamBeamtimeCatalogFast(
     flushProgress();
   }
 
-  if (fatalStallError) {
-    throw fatalStallError;
+  if (stalled && entries.length === 0) {
+    throw new Error(
+      `Scan listing timed out after ${stallTimeoutMs / 1000}s with no scans found`,
+    );
   }
 
   return { entries: entries.map((entry) => ({ ...entry })), complete, stalled };
@@ -277,6 +311,7 @@ export async function enrichBeamtimeCatalogThumbnails(
       updated[index] = {
         ...enriched,
         thumbnailDataUrl,
+        enrichmentStatus: "thumbnail",
       };
       options?.onProgress?.(updated.slice());
     } catch {

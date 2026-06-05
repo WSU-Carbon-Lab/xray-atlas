@@ -9,9 +9,13 @@ export { isNexafsLineScanType, NEXAFS_LINE_SCAN_TYPE } from "./isNexafsLineScan"
 export { loadStxm } from "./loadStxm";
 export { downsampleHeatmap, percentile, valueToGrayscaleByte } from "./heatmap";
 export {
+  applyParsedCatalogEntry,
   buildCatalogEntryFromHdr,
+  buildPlaceholderCatalogEntry,
+  catalogEntryEnrichmentStatus,
   groupCatalogEntries,
   ximBasenamesForHdrBasename,
+  type StxmCatalogEnrichmentStatus,
   type StxmCatalogEntry,
 } from "./catalogEntry";
 export {

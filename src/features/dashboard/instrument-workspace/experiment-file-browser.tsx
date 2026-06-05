@@ -1,9 +1,11 @@
 "use client";
 
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo, type CSSProperties } from "react";
 import { Accordion, ScrollShadow, Spinner } from "@heroui/react";
 import { cn } from "@heroui/styles";
+import { FileImage } from "lucide-react";
 import {
+  catalogEntryEnrichmentStatus,
   groupCatalogEntries,
   scanCategoryLabel,
   type StxmCatalogEntry,
@@ -35,6 +37,9 @@ const ACCORDION_LABELS: Record<StxmScanCategory, string> = {
   other: "Other",
 };
 
+const MAX_STAGGER_INDEX = 12;
+const STAGGER_MS = 35;
+
 function formatEnergy(entry: StxmCatalogEntry): string | null {
   if (entry.energyMinEv !== null && entry.energyMaxEv !== null) {
     if (Math.abs(entry.energyMinEv - entry.energyMaxEv) < 0.05) {
@@ -45,49 +50,115 @@ function formatEnergy(entry: StxmCatalogEntry): string | null {
   return null;
 }
 
+function staggerStyle(index: number): CSSProperties | undefined {
+  if (index <= 0) {
+    return undefined;
+  }
+  return {
+    animationDelay: `${Math.min(index, MAX_STAGGER_INDEX) * STAGGER_MS}ms`,
+  };
+}
+
+type ScanPreviewProps = {
+  entry: StxmCatalogEntry;
+};
+
+function ScanPreview({ entry }: ScanPreviewProps) {
+  const status = catalogEntryEnrichmentStatus(entry);
+  const hasThumbnail = Boolean(entry.thumbnailDataUrl);
+
+  return (
+    <div className="bg-default/80 relative flex h-24 w-full items-center justify-center overflow-hidden rounded-md">
+      {status === "placeholder" ? (
+        <div
+          className="text-muted flex h-full w-full flex-col items-center justify-center gap-1.5"
+          aria-hidden
+        >
+          <FileImage className="h-7 w-7 opacity-40" strokeWidth={1.25} />
+          <span
+            className="bg-default h-1.5 w-12 rounded-full"
+            style={{
+              backgroundImage:
+                "linear-gradient(90deg, var(--color-default) 0%, color-mix(in oklch, var(--color-muted) 35%, transparent) 50%, var(--color-default) 100%)",
+              backgroundSize: "200% 100%",
+              animation: "skeleton-shimmer 1.4s ease-in-out infinite",
+            }}
+          />
+        </div>
+      ) : (
+        <>
+          {!hasThumbnail ? (
+            <span className="text-muted px-2 text-center text-[10px]">
+              No preview
+            </span>
+          ) : null}
+          {hasThumbnail ? (
+            <img
+              src={entry.thumbnailDataUrl ?? undefined}
+              alt=""
+              className={cn(
+                "absolute inset-0 h-full w-full object-contain transition-opacity duration-300",
+                status === "thumbnail" ? "fade-in opacity-100" : "opacity-0",
+              )}
+            />
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
 type ScanCardProps = {
   entry: StxmCatalogEntry;
   selected: boolean;
+  animationIndex: number;
   onSelect: (entry: StxmCatalogEntry) => void;
 };
 
 const ScanCard = memo(function ScanCard({
   entry,
   selected,
+  animationIndex,
   onSelect,
 }: ScanCardProps) {
   const energy = formatEnergy(entry);
+  const status = catalogEntryEnrichmentStatus(entry);
   const handleClick = useCallback(() => onSelect(entry), [entry, onSelect]);
+  const scanTypeLabel =
+    status === "placeholder"
+      ? "Loading metadata..."
+      : entry.scanType || "Unknown scan";
 
   return (
     <button
       type="button"
       onClick={handleClick}
+      style={staggerStyle(animationIndex)}
       className={cn(
-        "group flex w-28 shrink-0 flex-col items-center gap-1.5 rounded-lg border p-2 text-left transition-colors",
+        "animate-in slide-in-from-bottom group flex w-28 shrink-0 flex-col items-center gap-1.5 rounded-lg border p-2 text-left transition-colors",
         selected
           ? "border-accent bg-accent/5 ring-accent/30 ring-1"
           : "border-border bg-surface hover:bg-default/40",
+        status === "placeholder" && "opacity-90",
       )}
       title={entry.basename}
+      aria-busy={status === "placeholder"}
     >
-      <div className="bg-default/80 relative flex h-24 w-full items-center justify-center overflow-hidden rounded-md">
-        {entry.thumbnailDataUrl ? (
-          <img
-            src={entry.thumbnailDataUrl}
-            alt=""
-            className="h-full w-full object-contain"
-          />
-        ) : (
-          <span className="text-muted px-2 text-center text-[10px]">No preview</span>
-        )}
-      </div>
+      <ScanPreview entry={entry} />
       <span className="text-foreground w-full truncate font-mono text-[11px] leading-tight">
         {entry.basename}
       </span>
       {energy ? (
         <span className="text-muted w-full truncate text-[10px]">{energy}</span>
-      ) : null}
+      ) : status !== "placeholder" ? (
+        <span className="text-muted w-full truncate text-[10px]">
+          {scanTypeLabel}
+        </span>
+      ) : (
+        <span className="text-muted w-full truncate text-[10px] italic">
+          {scanTypeLabel}
+        </span>
+      )}
     </button>
   );
 });
@@ -96,12 +167,14 @@ type HorizontalScanRowProps = {
   entries: StxmCatalogEntry[];
   selectedRelativePath: string | null;
   onSelect: (entry: StxmCatalogEntry) => void;
+  animateFromIndex?: number;
 };
 
 function HorizontalScanRow({
   entries,
   selectedRelativePath,
   onSelect,
+  animateFromIndex = 0,
 }: HorizontalScanRowProps) {
   return (
     <ScrollShadow
@@ -109,10 +182,11 @@ function HorizontalScanRow({
       className="max-w-full min-w-0 overflow-x-auto pb-1"
     >
       <div className="flex w-max min-w-full gap-3 pr-2">
-        {entries.map((entry) => (
+        {entries.map((entry, index) => (
           <ScanCard
             key={entry.relativePath}
             entry={entry}
+            animationIndex={animateFromIndex + index}
             selected={entry.relativePath === selectedRelativePath}
             onSelect={onSelect}
           />
@@ -126,50 +200,75 @@ type AccordionScanGroupsProps = {
   grouped: Map<StxmScanCategory, StxmCatalogEntry[]>;
   selectedRelativePath: string | null;
   onSelect: (entry: StxmCatalogEntry) => void;
+  animateFromIndex?: number;
 };
 
 function AccordionScanGroups({
   grouped,
   selectedRelativePath,
   onSelect,
+  animateFromIndex = 0,
 }: AccordionScanGroupsProps) {
   const sections = ACCORDION_CATEGORIES.flatMap((category) => {
-    const entries = grouped.get(category) ?? [];
-    if (entries.length === 0) {
+    const categoryEntries = grouped.get(category) ?? [];
+    if (categoryEntries.length === 0) {
       return [];
     }
-    return [{ category, entries }];
+    return [{ category, entries: categoryEntries }];
   });
 
   if (sections.length === 0) {
     return null;
   }
 
+  let runningIndex = animateFromIndex;
+
   return (
     <Accordion allowsMultipleExpanded variant="surface" className="min-w-0">
-      {sections.map(({ category, entries }) => (
-        <Accordion.Item key={category} id={category}>
-          <Accordion.Heading>
-            <Accordion.Trigger>
-              {ACCORDION_LABELS[category]} ({entries.length})
-              <Accordion.Indicator />
-            </Accordion.Trigger>
-          </Accordion.Heading>
-          <Accordion.Panel className="min-w-0 overflow-x-auto pb-2">
-            <HorizontalScanRow
-              entries={entries}
-              selectedRelativePath={selectedRelativePath}
-              onSelect={onSelect}
-            />
-          </Accordion.Panel>
-        </Accordion.Item>
-      ))}
+      {sections.map(({ category, entries }) => {
+        const sectionStart = runningIndex;
+        runningIndex += entries.length;
+        return (
+          <Accordion.Item key={category} id={category}>
+            <Accordion.Heading>
+              <Accordion.Trigger>
+                {ACCORDION_LABELS[category]} ({entries.length})
+                <Accordion.Indicator />
+              </Accordion.Trigger>
+            </Accordion.Heading>
+            <Accordion.Panel className="min-w-0 overflow-x-auto pb-2">
+              <HorizontalScanRow
+                entries={entries}
+                selectedRelativePath={selectedRelativePath}
+                onSelect={onSelect}
+                animateFromIndex={sectionStart}
+              />
+            </Accordion.Panel>
+          </Accordion.Item>
+        );
+      })}
     </Accordion>
   );
 }
 
+function partitionCatalogEntries(entries: StxmCatalogEntry[]): {
+  placeholders: StxmCatalogEntry[];
+  parsed: StxmCatalogEntry[];
+} {
+  const placeholders: StxmCatalogEntry[] = [];
+  const parsed: StxmCatalogEntry[] = [];
+  for (const entry of entries) {
+    if (catalogEntryEnrichmentStatus(entry) === "placeholder") {
+      placeholders.push(entry);
+    } else {
+      parsed.push(entry);
+    }
+  }
+  return { placeholders, parsed };
+}
+
 /**
- * Finder-style scan browser: line scans primary; other types in collapsed accordion groups.
+ * Finder-style scan browser: placeholders in one group, then categorized rows as metadata arrives.
  */
 export function ExperimentFileBrowser({
   entries,
@@ -178,21 +277,30 @@ export function ExperimentFileBrowser({
   enriching = false,
   onSelect,
 }: ExperimentFileBrowserProps) {
-  const grouped = useMemo(() => groupCatalogEntries(entries), [entries]);
+  const { placeholders, parsed } = useMemo(
+    () => partitionCatalogEntries(entries),
+    [entries],
+  );
+  const grouped = useMemo(() => groupCatalogEntries(parsed), [parsed]);
   const lineScans = grouped.get("line_scan") ?? [];
+  const allPlaceholderPhase =
+    entries.length > 0 && placeholders.length === entries.length;
+  const metadataPending = placeholders.length > 0;
 
   if (loading && entries.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-10">
         <Spinner size="lg" />
-        <p className="text-muted text-sm">Scanning for `.hdr` files...</p>
+        <p className="text-muted text-sm">Discovering `.hdr` files...</p>
       </div>
     );
   }
 
   if (entries.length === 0) {
     return (
-      <p className="text-muted text-sm">No `.hdr` scans found in this beamtime folder.</p>
+      <p className="text-muted text-sm">
+        No `.hdr` scans found in this beamtime folder.
+      </p>
     );
   }
 
@@ -201,7 +309,9 @@ export function ExperimentFileBrowser({
       {loading ? (
         <div className="text-muted flex items-center gap-2 text-xs">
           <Spinner size="sm" />
-          Found {entries.length} scan{entries.length === 1 ? "" : "s"}...
+          {allPlaceholderPhase
+            ? `Found ${entries.length} scan${entries.length === 1 ? "" : "s"}`
+            : `Loading metadata for ${placeholders.length} scan${placeholders.length === 1 ? "" : "s"}...`}
         </div>
       ) : null}
       {enriching ? (
@@ -210,6 +320,33 @@ export function ExperimentFileBrowser({
           Loading scan previews...
         </div>
       ) : null}
+
+      {allPlaceholderPhase ? (
+        <section className="min-w-0">
+          <h3 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">
+            All scans ({entries.length})
+          </h3>
+          <HorizontalScanRow
+            entries={entries}
+            selectedRelativePath={selectedRelativePath}
+            onSelect={onSelect}
+          />
+        </section>
+      ) : null}
+
+      {metadataPending && !allPlaceholderPhase ? (
+        <section className="min-w-0">
+          <h3 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">
+            Loading metadata ({placeholders.length})
+          </h3>
+          <HorizontalScanRow
+            entries={placeholders}
+            selectedRelativePath={selectedRelativePath}
+            onSelect={onSelect}
+          />
+        </section>
+      ) : null}
+
       {lineScans.length > 0 ? (
         <section className="min-w-0">
           <h3 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">
@@ -219,6 +356,7 @@ export function ExperimentFileBrowser({
             entries={lineScans}
             selectedRelativePath={selectedRelativePath}
             onSelect={onSelect}
+            animateFromIndex={placeholders.length}
           />
         </section>
       ) : null}
@@ -226,6 +364,7 @@ export function ExperimentFileBrowser({
         grouped={grouped}
         selectedRelativePath={selectedRelativePath}
         onSelect={onSelect}
+        animateFromIndex={placeholders.length + lineScans.length}
       />
     </div>
   );

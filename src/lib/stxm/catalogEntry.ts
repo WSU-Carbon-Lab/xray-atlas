@@ -8,6 +8,9 @@ import {
 } from "./scanType";
 import { candidateXimNamesForHdr } from "./pairStxmFiles";
 
+/** Progressive scan-grid enrichment phase for a catalog row. */
+export type StxmCatalogEnrichmentStatus = "placeholder" | "parsed" | "thumbnail";
+
 export type StxmCatalogEntry = {
   basename: string;
   relativePath: string;
@@ -19,7 +22,84 @@ export type StxmCatalogEntry = {
   energyMinEv: number | null;
   energyMaxEv: number | null;
   thumbnailDataUrl: string | null;
+  /** Omitted on legacy rows; inferred as parsed or thumbnail from thumbnail data. */
+  enrichmentStatus?: StxmCatalogEnrichmentStatus;
 };
+
+/**
+ * Resolves the enrichment phase for UI grouping and icon transitions.
+ */
+export function catalogEntryEnrichmentStatus(
+  entry: StxmCatalogEntry,
+): StxmCatalogEnrichmentStatus {
+  if (entry.enrichmentStatus) {
+    return entry.enrichmentStatus;
+  }
+  return entry.thumbnailDataUrl ? "thumbnail" : "parsed";
+}
+
+/**
+ * Builds a placeholder catalog row from a directory listing ref before `.hdr` parsing.
+ */
+export function buildPlaceholderCatalogEntry(input: {
+  name: string;
+  relativePath: string;
+}): StxmCatalogEntry {
+  return {
+    basename: input.name,
+    relativePath: input.relativePath,
+    scanType: "",
+    category: "other",
+    isNexafsLineScan: false,
+    paxisCount: null,
+    qaxisCount: null,
+    energyMinEv: null,
+    energyMaxEv: null,
+    thumbnailDataUrl: null,
+    enrichmentStatus: "placeholder",
+  };
+}
+
+/**
+ * Replaces the row at `relativePath` with `parsed` when present; otherwise inserts sorted.
+ */
+export function applyParsedCatalogEntry(
+  entries: StxmCatalogEntry[],
+  parsed: StxmCatalogEntry,
+): StxmCatalogEntry[] {
+  const next = parsed.enrichmentStatus
+    ? parsed
+    : { ...parsed, enrichmentStatus: "parsed" as const };
+  const index = entries.findIndex(
+    (row) => row.relativePath === next.relativePath,
+  );
+  if (index >= 0) {
+    const merged = entries.map((row) => ({ ...row }));
+    merged[index] = next;
+    return merged;
+  }
+  const merged = entries.map((row) => ({ ...row }));
+  insertCatalogEntrySortedInPlace(merged, next);
+  return merged;
+}
+
+function insertCatalogEntrySortedInPlace(
+  entries: StxmCatalogEntry[],
+  entry: StxmCatalogEntry,
+): void {
+  let low = 0;
+  let high = entries.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    const midPath = entries[mid]?.relativePath ?? "";
+    if (midPath.localeCompare(entry.relativePath) < 0) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  entries.splice(low, 0, entry);
+}
 
 function energyFromHeader(hdrText: string): {
   energyMinEv: number | null;

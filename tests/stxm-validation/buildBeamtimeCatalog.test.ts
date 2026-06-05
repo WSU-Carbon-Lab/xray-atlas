@@ -7,7 +7,12 @@ import {
   insertCatalogEntrySorted,
   mergeCatalogEntries,
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
-import type { StxmCatalogEntry } from "~/lib/stxm";
+import {
+  applyParsedCatalogEntry,
+  buildPlaceholderCatalogEntry,
+  catalogEntryEnrichmentStatus,
+  type StxmCatalogEntry,
+} from "~/lib/stxm";
 
 type ExpectAssertions = {
   toBe: (expected: unknown) => void;
@@ -72,6 +77,46 @@ describe("mergeCatalogEntries", () => {
       "a/scan.hdr",
       "b/scan.hdr",
       "c/scan.hdr",
+    ]);
+  });
+});
+
+describe("buildPlaceholderCatalogEntry", () => {
+  it("marks rows as placeholder enrichment status", () => {
+    const row = buildPlaceholderCatalogEntry({
+      name: "line.hdr",
+      relativePath: "folder/line.hdr",
+    });
+    expect(row.basename).toBe("line.hdr");
+    expect(row.enrichmentStatus).toBe("placeholder");
+    expect(catalogEntryEnrichmentStatus(row)).toBe("placeholder");
+  });
+});
+
+describe("applyParsedCatalogEntry", () => {
+  it("replaces a placeholder row in place", () => {
+    const placeholder = buildPlaceholderCatalogEntry({
+      name: "line.hdr",
+      relativePath: "folder/line.hdr",
+    });
+    const parsed = {
+      ...catalogEntry("folder/line.hdr"),
+      enrichmentStatus: "parsed" as const,
+    };
+    const next = applyParsedCatalogEntry([placeholder], parsed);
+    expect(next).toHaveLength(1);
+    expect(next[0]?.enrichmentStatus).toBe("parsed");
+    expect(next[0]?.scanType).toBe("NEXAFS Line Scan");
+  });
+
+  it("inserts parsed rows when no placeholder exists", () => {
+    const next = applyParsedCatalogEntry(
+      [catalogEntry("a/scan.hdr")],
+      catalogEntry("b/scan.hdr"),
+    );
+    expect(next.map((row) => row.relativePath)).toEqual([
+      "a/scan.hdr",
+      "b/scan.hdr",
     ]);
   });
 });

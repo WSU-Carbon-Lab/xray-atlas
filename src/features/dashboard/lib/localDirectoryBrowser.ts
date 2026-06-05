@@ -62,6 +62,17 @@ export async function* walkHdrFileRefs(
 }
 
 /**
+ * Lists every `.hdr` file ref under `directory` without reading file contents.
+ *
+ * Returns paths sorted by `relativePath` so phase-1 grids can paint the full list in one batch.
+ */
+export async function listHdrFileRefsFast(
+  directory: StxmDirectoryHandle,
+): Promise<StxmFileRef[]> {
+  return collectHdrFileRefs(directory);
+}
+
+/**
  * Recursively collects `.hdr` file handles under a directory handle.
  */
 export async function collectHdrFileRefs(
