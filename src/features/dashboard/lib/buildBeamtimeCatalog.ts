@@ -248,6 +248,13 @@ export async function streamBeamtimeCatalogFast(
   };
 
   const flushProgress = () => {
+    if (options?.signal?.aborted) {
+      if (flushTimer !== null) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      return;
+    }
     if (flushTimer !== null) {
       clearTimeout(flushTimer);
       flushTimer = null;
@@ -266,6 +273,10 @@ export async function streamBeamtimeCatalogFast(
       return;
     }
     flushTimer = setTimeout(() => {
+      if (options?.signal?.aborted) {
+        flushTimer = null;
+        return;
+      }
       flushProgress();
     }, batchFlushMs);
   };
@@ -375,8 +386,11 @@ export async function streamBeamtimeCatalogFast(
     clearInterval(stallTimer);
     if (flushTimer !== null) {
       clearTimeout(flushTimer);
+      flushTimer = null;
     }
-    flushProgress();
+    if (!options?.signal?.aborted) {
+      flushProgress();
+    }
   }
 
   if (stalled && entries.length === 0) {

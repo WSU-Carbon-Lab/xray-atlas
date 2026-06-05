@@ -143,6 +143,32 @@ describe("parsePlaceholderCatalogEntries", () => {
     );
     expect(entries[0]?.scanType).toBe("NEXAFS Line Scan");
   });
+
+  it("stops parsing when the abort signal is already set", async () => {
+    const placeholder = buildPlaceholderCatalogEntry({
+      name: "line.hdr",
+      relativePath: "folder/line.hdr",
+    });
+    const entries = [placeholder];
+    const controller = new AbortController();
+    controller.abort();
+    await parsePlaceholderCatalogEntries(
+      [
+        {
+          name: "line.hdr",
+          relativePath: "folder/line.hdr",
+          handle: {
+            getFile: async () => {
+              throw new Error("should not read");
+            },
+          } as never,
+        },
+      ],
+      entries,
+      { signal: controller.signal },
+    );
+    expect(catalogEntryEnrichmentStatus(entries[0]!)).toBe("placeholder");
+  });
 });
 
 describe("applyParsedCatalogEntry", () => {
