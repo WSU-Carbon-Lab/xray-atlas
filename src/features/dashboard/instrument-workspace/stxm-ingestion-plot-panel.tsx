@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
-import { Spinner, Button } from "@heroui/react";
+import { Spinner } from "@heroui/react";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
 import {
   buildStxmSpectrumPlotModel,
@@ -84,14 +84,12 @@ type StxmIngestionPlotPanelProps = {
   regions: StxmSampleRegion[];
   izero: StxmIzeroBounds;
   imageScaleMode: StxmPlotScaleMode;
-  pureRegionId: string | null;
   onRegionsChange: (regions: StxmSampleRegion[]) => void;
   onRegionChange: (index: number, region: StxmSampleRegion) => void;
   onIzeroChange: (izero: StxmIzeroBounds) => void;
   onRegionDragStart: () => void;
   onRegionDragEnd: () => void;
   onAutoSuggestRegions: () => void;
-  onSetPureRegion: (regionId: string) => void;
   regionTrayOpen: boolean;
   onRegionTrayOpenChange: (open: boolean) => void;
 };
@@ -157,14 +155,12 @@ export function StxmIngestionPlotPanel({
   regions,
   izero,
   imageScaleMode,
-  pureRegionId,
   onRegionsChange,
   onRegionChange,
   onIzeroChange,
   onRegionDragStart,
   onRegionDragEnd,
   onAutoSuggestRegions,
-  onSetPureRegion,
   regionTrayOpen,
   onRegionTrayOpenChange,
 }: StxmIngestionPlotPanelProps) {
@@ -488,8 +484,11 @@ export function StxmIngestionPlotPanel({
       <div className="flex min-h-0 min-w-0 flex-1 items-stretch gap-2">
         {regionTrayOpen ? (
           <aside
-            className="flex shrink-0 flex-col gap-2"
-            style={{ width: STXM_REGION_EDITOR_MAX_WIDTH_PX }}
+            className="flex shrink-0 flex-col"
+            style={{
+              width: STXM_REGION_EDITOR_MAX_WIDTH_PX,
+              height,
+            }}
           >
             <StxmMultiRegionEditor
               image={imageMatrix}
@@ -497,6 +496,7 @@ export function StxmIngestionPlotPanel({
               regions={regions}
               izero={izero}
               imageScaleMode={imageScaleMode}
+              height={height}
               onRegionsChange={onRegionsChange}
               onRegionChange={onRegionChange}
               onIzeroChange={onIzeroChange}
@@ -506,18 +506,6 @@ export function StxmIngestionPlotPanel({
               regionTrayOpen={regionTrayOpen}
               onRegionTrayOpenChange={onRegionTrayOpenChange}
             />
-            <div className="flex flex-wrap gap-1">
-              {regions.map((region) => (
-                <Button
-                  key={region.id}
-                  size="sm"
-                  variant={pureRegionId === region.id ? "primary" : "secondary"}
-                  onPress={() => onSetPureRegion(region.id)}
-                >
-                  I0/sample: {region.spotLabel || "region"}
-                </Button>
-              ))}
-            </div>
           </aside>
         ) : (
           <div className="flex shrink-0 items-start pt-1">

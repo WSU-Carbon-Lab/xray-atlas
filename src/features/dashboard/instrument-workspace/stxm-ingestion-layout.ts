@@ -1,12 +1,13 @@
 /**
  * Shared pixel layout for the STXM ingestion plot and region editor.
  *
- * Keeps spectrum SVG height and region-editor column width in one place so
- * `StxmMultiRegionEditor` and `StxmIngestionPlotPanel` stay aligned without
- * importing each other.
+ * Keeps spectrum plot widget height and region-editor column width in one place
+ * so `StxmMultiRegionEditor` and `StxmIngestionPlotPanel` stay aligned without
+ * importing each other. The region heatmap canvas fills the editor body below
+ * its toolbar via `ResizeObserver`, within this shared total height.
  */
 
-/** SVG height for the ingestion spectrum plot; matches the region heatmap canvas. */
+/** Total height for the ingestion spectrum plot widget and region editor column. */
 export const STXM_INGESTION_SPECTRUM_HEIGHT_PX = 600;
 
 /** Total width of the region editor column (heatmap plus row-sum trace). */
