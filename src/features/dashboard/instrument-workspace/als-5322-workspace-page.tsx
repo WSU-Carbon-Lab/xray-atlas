@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Spinner } from "@heroui/react";
@@ -26,10 +26,7 @@ import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import {
   countHdrFilesInExperiments,
-  enrichBeamtimeCatalogThumbnails,
   loadScanFilesFromCatalogEntry,
-  streamBeamtimeCatalogFast,
-  type StreamBeamtimeCatalogPhase,
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import {
   pickStxmRootDirectory,
@@ -51,6 +48,7 @@ import {
 import type { StxmDirectoryHandle } from "~/features/dashboard/lib/fileSystemAccessTypes";
 import { BeamtimeScroller } from "./beamtime-scroller";
 import { ExperimentFileBrowser } from "./experiment-file-browser";
+import { useExperimentCatalogLoad } from "./useExperimentCatalogLoad";
 import {
   FolderPickerPrompt,
   RecentFolderPills,
@@ -94,7 +92,6 @@ export function Als5322WorkspacePage() {
     ReturnType<typeof summarizeBeamtimeFolders>
   >([]);
   const [selectedBeamtime, setSelectedBeamtime] = useState<string | null>(null);
-  const [catalog, setCatalog] = useState<StxmCatalogEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<StxmCatalogEntry | null>(
     null,
   );
@@ -105,29 +102,59 @@ export function Als5322WorkspacePage() {
   const [activeTab, setActiveTab] = useState<DashboardWorkspaceTab>("experiment");
   const [isPicking, setIsPicking] = useState(false);
   const [isLoadingBeamtimes, setIsLoadingBeamtimes] = useState(false);
-  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
-  const [isEnrichingCatalog, setIsEnrichingCatalog] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [directoryLayout, setDirectoryLayout] =
     useState<StxmDirectoryLayout | null>(null);
   const [beamtimeLoadError, setBeamtimeLoadError] = useState<string | null>(
     null,
   );
-  const [catalogLoadError, setCatalogLoadError] = useState<string | null>(null);
-  const [catalogListingIncomplete, setCatalogListingIncomplete] = useState(false);
-  const [catalogScanPhase, setCatalogScanPhase] =
-    useState<StreamBeamtimeCatalogPhase | null>(null);
-  const [catalogFromCache, setCatalogFromCache] = useState(false);
   const [pendingFolderAccess, setPendingFolderAccess] = useState<{
     handleKey: string;
     displayName: string;
   } | null>(null);
-  const catalogGenerationRef = useRef(0);
-  const catalogLoadAbortRef = useRef<AbortController | null>(null);
-  const catalogExperimentRef = useRef<string | null>(null);
   const [computeConsentGranted, setComputeConsentGranted] = useState(false);
   const [folderRestoreAttempted, setFolderRestoreAttempted] = useState(false);
   const [isRestoringFolder, setIsRestoringFolder] = useState(false);
+
+  const applyBeamtimeScanCounts = useCallback(
+    (experimentName: string, scanCount: number, nexafsLineScanCount: number) => {
+      setBeamtimes((previous) =>
+        previous.map((row) =>
+          row.name === experimentName
+            ? {
+                ...row,
+                scanCount: Math.max(row.scanCount, scanCount),
+                nexafsLineScanCount: Math.max(
+                  row.nexafsLineScanCount,
+                  nexafsLineScanCount,
+                ),
+              }
+            : row,
+        ),
+      );
+    },
+    [],
+  );
+
+  const { snapshot: catalogSnapshot, loadCatalog, clearCatalog, readCheckpointScanCounts } =
+    useExperimentCatalogLoad({
+      rootHandle,
+      directoryLayout,
+      folderHandleKey,
+      folderRootName,
+      onScanCountUpdate: applyBeamtimeScanCounts,
+      onPendingFolderAccess: (handleKey, displayName) => {
+        setPendingFolderAccess({ handleKey, displayName });
+      },
+    });
+
+  const catalog = catalogSnapshot.entries;
+  const isLoadingCatalog = catalogSnapshot.isLoading;
+  const isEnrichingCatalog = catalogSnapshot.isEnriching;
+  const catalogLoadError = catalogSnapshot.error;
+  const catalogListingIncomplete = catalogSnapshot.listingIncomplete;
+  const catalogScanPhase = catalogSnapshot.phase;
+  const catalogFromCache = catalogSnapshot.fromCache;
 
   const stepMetadata =
     sessionQuery.data?.stepMetadata ?? defaultDashboardStepMetadata();
@@ -139,9 +166,6 @@ export function Als5322WorkspacePage() {
   useEffect(() => {
     setRecentFolders(loadRecentFolders());
     setComputeConsentGranted(readStxmComputeConsentGranted());
-    return () => {
-      catalogLoadAbortRef.current?.abort();
-    };
   }, []);
 
   useEffect(() => {
@@ -213,6 +237,23 @@ export function Als5322WorkspacePage() {
           ? [layout.displayName]
           : layout.experimentNames;
       try {
+        const checkpointCounts = await readCheckpointScanCounts(names);
+        setBeamtimes((previous) =>
+          previous.map((row) => {
+            const cached = checkpointCounts.get(row.name);
+            if (!cached || cached.total === 0) {
+              return row;
+            }
+            return {
+              ...row,
+              scanCount: Math.max(row.scanCount, cached.total),
+              nexafsLineScanCount: Math.max(
+                row.nexafsLineScanCount,
+                cached.nexafs,
+              ),
+            };
+          }),
+        );
         const hdrCounts = await countHdrFilesInExperiments(
           handle,
           layout,
@@ -228,150 +269,7 @@ export function Als5322WorkspacePage() {
         // counts are optional; listing already rendered
       }
     },
-    [],
-  );
-
-  const loadCatalog = useCallback(
-    async (
-      handle: StxmDirectoryHandle,
-      layout: StxmDirectoryLayout,
-      experimentName: string,
-    ) => {
-      catalogLoadAbortRef.current?.abort();
-      const loadAbort = new AbortController();
-      catalogLoadAbortRef.current = loadAbort;
-      const generation = catalogGenerationRef.current + 1;
-      catalogGenerationRef.current = generation;
-      catalogExperimentRef.current = experimentName;
-
-      setIsLoadingCatalog(true);
-      setIsEnrichingCatalog(false);
-      setCatalogLoadError(null);
-      setCatalogListingIncomplete(false);
-      setCatalogScanPhase(null);
-      setCatalogFromCache(false);
-      setCatalog([]);
-
-      const isStale = () =>
-        generation !== catalogGenerationRef.current ||
-        catalogExperimentRef.current !== experimentName ||
-        loadAbort.signal.aborted;
-
-      const permission = await queryDirectoryReadPermission(handle);
-      if (isStale()) {
-        return;
-      }
-      if (permission === "denied" || permission === "prompt") {
-        const message = "Folder read permission is required to list scan files.";
-        setCatalogLoadError(message);
-        setIsLoadingCatalog(false);
-        if (folderHandleKey && folderRootName) {
-          setPendingFolderAccess({
-            handleKey: folderHandleKey,
-            displayName: folderRootName,
-          });
-        }
-        showToast(message, "error");
-        return;
-      }
-
-      let entries: StxmCatalogEntry[] = [];
-      try {
-        const result = await streamBeamtimeCatalogFast(
-          handle,
-          layout,
-          experimentName,
-          {
-            signal: loadAbort.signal,
-            onProgress: (progress) => {
-              if (isStale()) {
-                return;
-              }
-              setCatalog(progress.entries);
-              setCatalogScanPhase(progress.phase);
-              setCatalogFromCache(progress.fromCache);
-              if (progress.discoveredCount > 0) {
-                setBeamtimes((previous) =>
-                  previous.map((row) =>
-                    row.name === experimentName
-                      ? {
-                          ...row,
-                          scanCount: Math.max(
-                            row.scanCount,
-                            progress.discoveredCount,
-                          ),
-                        }
-                      : row,
-                  ),
-                );
-              }
-            },
-          },
-        );
-        if (isStale()) {
-          return;
-        }
-        entries = result.entries;
-        setCatalog(entries);
-        setCatalogScanPhase(result.complete ? "complete" : "parsing");
-        setCatalogFromCache(false);
-        if (result.stalled && entries.length > 0) {
-          setCatalogListingIncomplete(true);
-        }
-      } catch (error) {
-        if (isStale()) {
-          return;
-        }
-        const message =
-          error instanceof Error ? error.message : "Failed to load scans";
-        setCatalogLoadError(message);
-        if (entries.length > 0) {
-          setCatalog(entries);
-        } else {
-          setCatalog([]);
-        }
-        showToast(message, "error");
-      } finally {
-        if (!isStale()) {
-          setIsLoadingCatalog(false);
-          if (entries.length > 0) {
-            setCatalogScanPhase("complete");
-          }
-        }
-      }
-
-      if (isStale() || entries.length === 0) {
-        return;
-      }
-
-      setIsEnrichingCatalog(true);
-      void enrichBeamtimeCatalogThumbnails(
-        handle,
-        layout,
-        experimentName,
-        entries,
-        {
-          signal: loadAbort.signal,
-          onProgress: (progressEntries) => {
-            if (isStale()) {
-              return;
-            }
-            setCatalog(progressEntries);
-          },
-        },
-      )
-        .then((enriched) => {
-          if (!isStale()) {
-            setCatalog(enriched);
-          }
-        })
-        .finally(() => {
-          if (!isStale()) {
-            setIsEnrichingCatalog(false);
-          }
-        });
-    },
-    [folderHandleKey, folderRootName],
+    [readCheckpointScanCounts],
   );
 
   const refreshBeamtimes = useCallback(
@@ -397,7 +295,7 @@ export function Als5322WorkspacePage() {
             setSelectedBeamtime(layout.displayName);
             setSelectedEntry(null);
             setSelectedFiles(null);
-            void loadCatalog(handle, layout, layout.displayName);
+            void loadCatalog(layout.displayName);
           }
           return layout;
         }
@@ -413,7 +311,7 @@ export function Als5322WorkspacePage() {
             setSelectedBeamtime(first);
             setSelectedEntry(null);
             setSelectedFiles(null);
-            void loadCatalog(handle, layout, first);
+            void loadCatalog(first);
           }
         }
         return layout;
@@ -472,7 +370,7 @@ export function Als5322WorkspacePage() {
         const savedBeamtime = workspace?.beamtimeName;
         if (savedBeamtime) {
           setSelectedBeamtime(savedBeamtime);
-          await loadCatalog(handle, layout, savedBeamtime);
+          await loadCatalog(savedBeamtime);
         }
         if (workspace?.activeTab) {
           setActiveTab(workspace.activeTab);
@@ -507,13 +405,12 @@ export function Als5322WorkspacePage() {
       setFolderHandleKey(key);
       setFolderRootName(handle.name);
       setSelectedBeamtime(null);
-      setCatalog([]);
+      clearCatalog();
       setSelectedEntry(null);
       setSelectedFiles(null);
       setActiveTab("experiment");
       setDirectoryLayout(null);
       setBeamtimeLoadError(null);
-      setCatalogLoadError(null);
       setRecentFolders(touchRecentFolder(key, handle.name));
       void storeDirectoryHandle(key, handle);
       void ensureSession(handle.name);
@@ -527,7 +424,7 @@ export function Als5322WorkspacePage() {
         activeTab: "experiment",
       });
     },
-    [ensureSession, persistWorkspace, refreshBeamtimes],
+    [clearCatalog, ensureSession, persistWorkspace, refreshBeamtimes],
   );
 
   const grantStoredFolderAccess = useCallback(async () => {
@@ -583,7 +480,7 @@ export function Als5322WorkspacePage() {
       setSelectedBeamtime(name);
       setSelectedEntry(null);
       setSelectedFiles(null);
-      void loadCatalog(rootHandle, directoryLayout, name);
+      void loadCatalog(name);
       void persistWorkspace({ beamtimeName: name, activeTab: "experiment" });
     },
     [directoryLayout, loadCatalog, persistWorkspace, rootHandle],
@@ -642,7 +539,7 @@ export function Als5322WorkspacePage() {
     try {
       const layout = await refreshBeamtimes(rootHandle, false);
       if (layout && selectedBeamtime) {
-        await loadCatalog(rootHandle, layout, selectedBeamtime);
+        await loadCatalog(selectedBeamtime, { forceRefresh: true });
       }
       showToast("Reloaded folder contents", "success");
     } finally {
