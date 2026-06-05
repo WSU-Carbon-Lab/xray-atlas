@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Spinner } from "@heroui/react";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
 import type { ReferenceCurve } from "~/components/plots/types";
 import type { DifferenceSpectrum } from "~/components/plots/types";
@@ -36,7 +37,20 @@ type StxmIngestionPlotPanelProps = {
   bareAtomCurve: ReferenceCurve | null;
   showRegionOverlays: boolean;
   height?: number;
+  isComputing?: boolean;
 };
+
+function PlotComputingOverlay() {
+  return (
+    <div
+      className="bg-surface/60 pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-md backdrop-blur-[1px]"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <Spinner size="md" aria-label="Computing spectra" />
+    </div>
+  );
+}
 
 function channelToYAxisQuantity(
   channel: StxmIngestionPlotChannel,
@@ -120,6 +134,7 @@ export function StxmIngestionPlotPanel({
   bareAtomCurve,
   showRegionOverlays,
   height = 320,
+  isComputing = false,
 }: StxmIngestionPlotPanelProps) {
   const useSpectrumPlot =
     result !== null &&
@@ -169,54 +184,91 @@ export function StxmIngestionPlotPanel({
   }, [channel, regionSpectra, showRegionOverlays, yScale]);
 
   if (!result) {
+    if (regionSpectra.length > 0) {
+      const enabledTraces = displayChannelToTraceIds(channel);
+      return (
+        <div className="relative">
+          <IngestionSpectrumChart
+            result={null}
+            enabledTraces={
+              ingestionChannelUsesRawSignal(channel) ? enabledTraces : new Set()
+            }
+            yScale={yScale}
+            height={height}
+            regionOverlaySpectra={showRegionOverlays ? regionSpectra : []}
+            channel={channel}
+            standards={standards}
+          />
+          {isComputing ? <PlotComputingOverlay /> : null}
+        </div>
+      );
+    }
     return (
-      <p className="text-muted text-sm">
-        Adjust regions, then click Recompute spectra.
-      </p>
+      <div
+        className="border-border bg-default/20 relative flex items-center justify-center rounded-md border"
+        style={{ minHeight: height }}
+      >
+        {isComputing ? (
+          <Spinner size="md" aria-label="Computing spectra" />
+        ) : (
+          <p className="text-muted px-4 text-center text-sm">
+            Configure sample and izero regions to compute spectra.
+          </p>
+        )}
+      </div>
     );
   }
 
   if (useSpectrumPlot) {
     const points = buildMainPoints(result, channel, false);
     return (
-      <SpectrumPlot
-        points={points}
-        height={height}
-        yAxisQuantity={channelToYAxisQuantity(channel)}
-        referenceCurves={referenceCurves}
-        companionSpectra={companionSpectra}
-        showNormalizationShading
-        normalizationRegions={{
-          pre: [result.normalization.preLo, result.normalization.preHi],
-          post: [result.normalization.postLo, result.normalization.postHi],
-        }}
-        emptyStateMessage="Recompute spectra to preview this channel."
-      />
+      <div className="relative">
+        <SpectrumPlot
+          points={points}
+          height={height}
+          yAxisQuantity={channelToYAxisQuantity(channel)}
+          referenceCurves={referenceCurves}
+          companionSpectra={companionSpectra}
+          showNormalizationShading
+          normalizationRegions={{
+            pre: [result.normalization.preLo, result.normalization.preHi],
+            post: [result.normalization.postLo, result.normalization.postHi],
+          }}
+          emptyStateMessage="Computing spectra for this channel."
+        />
+        {isComputing ? <PlotComputingOverlay /> : null}
+      </div>
     );
   }
 
   const enabledTraces = displayChannelToTraceIds(channel);
   if (ingestionChannelUsesRawSignal(channel) && showRegionOverlays) {
     return (
+      <div className="relative">
+        <IngestionSpectrumChart
+          result={result}
+          enabledTraces={enabledTraces}
+          yScale={yScale}
+          height={height}
+          regionOverlaySpectra={regionSpectra}
+          channel={channel}
+          standards={standards}
+        />
+        {isComputing ? <PlotComputingOverlay /> : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
       <IngestionSpectrumChart
         result={result}
         enabledTraces={enabledTraces}
         yScale={yScale}
         height={height}
-        regionOverlaySpectra={regionSpectra}
-        channel={channel}
         standards={standards}
       />
-    );
-  }
-
-  return (
-    <IngestionSpectrumChart
-      result={result}
-      enabledTraces={enabledTraces}
-      yScale={yScale}
-      height={height}
-      standards={standards}
-    />
+      {isComputing ? <PlotComputingOverlay /> : null}
+    </div>
   );
 }

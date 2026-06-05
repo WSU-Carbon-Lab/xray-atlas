@@ -43,7 +43,7 @@ const TRACE_COLORS: Record<IngestionSpectrumTraceId, string> = {
 };
 
 type IngestionSpectrumChartProps = {
-  result: StxmIngestionResult;
+  result: StxmIngestionResult | null;
   enabledTraces: ReadonlySet<IngestionSpectrumTraceId>;
   yScale: "linear" | "log";
   height?: number;
@@ -108,13 +108,15 @@ export function IngestionSpectrumChart({
       yMinLocal = Math.min(yMinLocal, plotY);
       yMaxLocal = Math.max(yMaxLocal, plotY);
     };
-    for (const id of enabledTraces) {
-      const yValues = traceValues(result, id);
-      if (!yValues) {
-        continue;
-      }
-      for (let i = 0; i < result.energyEv.length; i += 1) {
-        includeY(result.energyEv[i] ?? 0, yValues[i] ?? Number.NaN);
+    if (result) {
+      for (const id of enabledTraces) {
+        const yValues = traceValues(result, id);
+        if (!yValues) {
+          continue;
+        }
+        for (let i = 0; i < result.energyEv.length; i += 1) {
+          includeY(result.energyEv[i] ?? 0, yValues[i] ?? Number.NaN);
+        }
       }
     }
     for (const series of regionOverlaySpectra ?? []) {
@@ -217,7 +219,8 @@ export function IngestionSpectrumChart({
               />
             );
           })}
-        {([...enabledTraces] as IngestionSpectrumTraceId[]).map((id) => {
+        {result
+          ? ([...enabledTraces] as IngestionSpectrumTraceId[]).map((id) => {
           const yValues = traceValues(result, id);
           if (!yValues) {
             return null;
@@ -244,7 +247,8 @@ export function IngestionSpectrumChart({
               points={points}
             />
           );
-        })}
+        })
+          : null}
         <text x={padding} y={18} className="fill-muted text-[10px]">
           Energy (eV) vs {yScale === "log" ? "log10(y)" : "y"}
         </text>
@@ -270,15 +274,17 @@ export function IngestionSpectrumChart({
               {standard.label}
             </li>
           ))}
-        {([...enabledTraces] as IngestionSpectrumTraceId[]).map((id) => (
-          <li key={id} className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-2 w-4 rounded-sm"
-              style={{ backgroundColor: TRACE_COLORS[id] }}
-            />
-            {INGESTION_TRACE_LABELS[id]}
-          </li>
-        ))}
+        {result
+          ? ([...enabledTraces] as IngestionSpectrumTraceId[]).map((id) => (
+              <li key={id} className="flex items-center gap-1.5">
+                <span
+                  className="inline-block h-2 w-4 rounded-sm"
+                  style={{ backgroundColor: TRACE_COLORS[id] }}
+                />
+                {INGESTION_TRACE_LABELS[id]}
+              </li>
+            ))
+          : null}
       </ul>
     </div>
   );

@@ -66,6 +66,9 @@ const WEIGHTING_OPTIONS: Array<{ id: StxmWeightingMode; label: string }> = [
   { id: "empirical", label: "Empirical" },
 ];
 
+const RAW_SPECTRA_DEBOUNCE_MS = 300;
+const PIPELINE_DEBOUNCE_MS = 400;
+
 type IngestionTabProps = {
   hdrFile: File;
   ximFile: File;
@@ -153,7 +156,7 @@ export function IngestionTab({
   onPersistReduce,
   onPersistIngestion,
   onPersistPreview,
-  isSaving,
+  isSaving: _isSaving,
 }: IngestionTabProps) {
   const [loaded, setLoaded] = useState<Awaited<
     ReturnType<typeof parseLocalStxmPair>
@@ -197,6 +200,9 @@ export function IngestionTab({
   const pendingRecomputeRef = useRef(false);
   const debouncePersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRawRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncePipelineRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDraggingRef = useRef(false);
+  const pipelineGenerationRef = useRef(0);
 
   const inferredEdge = useMemo(
     () => inferStxmEdgeFromEnergyRange(energyMinEv, energyMaxEv),
@@ -317,7 +323,7 @@ export function IngestionTab({
     debounceRawRef.current = setTimeout(() => {
       recomputeRawSpectra();
       schedulePersistRegions();
-    }, 300);
+    }, RAW_SPECTRA_DEBOUNCE_MS);
     return () => {
       if (debounceRawRef.current) {
         clearTimeout(debounceRawRef.current);
@@ -329,6 +335,8 @@ export function IngestionTab({
     if (!loaded || !izero || regions.length === 0 || !normalization) {
       return;
     }
+    const generation = pipelineGenerationRef.current + 1;
+    pipelineGenerationRef.current = generation;
     setIsReducing(true);
     try {
       const bounds = multiRegionToLegacyBounds(regions, izero, pureRegionId);
@@ -344,6 +352,9 @@ export function IngestionTab({
         thicknessCm: Number.isFinite(thickness) && thickness > 0 ? thickness : 1e-4,
         runKkDelta: Boolean(formula.trim()),
       });
+      if (generation !== pipelineGenerationRef.current) {
+        return;
+      }
       setResult(pipelineResult);
       await onPersistIngestion(ingestionResultToPersisted(pipelineResult, scanId));
       const { sampleMask, izeroMask } = sampleIzeroMasks(
@@ -361,6 +372,9 @@ export function IngestionTab({
         "sample",
         weightingMode,
       );
+      if (generation !== pipelineGenerationRef.current) {
+        return;
+      }
       await onPersistReduce({
         scanId,
         spectra: [regionSpectrumToRecord(spectrum)],
@@ -368,8 +382,10 @@ export function IngestionTab({
         method: "two_region",
       });
       recomputeRawSpectra();
-      showToast("Spectra recomputed", "success");
     } catch (error) {
+      if (generation !== pipelineGenerationRef.current) {
+        return;
+      }
       if (error instanceof Error && error.message === "KK_CONSENT_REQUIRED") {
         if (readStxmComputeConsentGranted() || readKkBrowserConsentGranted()) {
           showToast(
@@ -387,7 +403,9 @@ export function IngestionTab({
         "error",
       );
     } finally {
-      setIsReducing(false);
+      if (generation === pipelineGenerationRef.current) {
+        setIsReducing(false);
+      }
     }
   }, [
     formula,
@@ -403,6 +421,55 @@ export function IngestionTab({
     thicknessCm,
     weightingMode,
   ]);
+
+  const schedulePipeline = useCallback(() => {
+    if (!loaded || !izero || regions.length === 0 || !normalization) {
+      return;
+    }
+    if (isDraggingRef.current) {
+      return;
+    }
+    if (debouncePipelineRef.current) {
+      clearTimeout(debouncePipelineRef.current);
+    }
+    debouncePipelineRef.current = setTimeout(() => {
+      debouncePipelineRef.current = null;
+      void runPipeline();
+    }, PIPELINE_DEBOUNCE_MS);
+  }, [izero, loaded, normalization, regions.length, runPipeline]);
+
+  useEffect(() => {
+    schedulePipeline();
+    return () => {
+      if (debouncePipelineRef.current) {
+        clearTimeout(debouncePipelineRef.current);
+      }
+    };
+  }, [
+    formula,
+    izero,
+    loaded,
+    normalization,
+    pureRegionId,
+    regions,
+    schedulePipeline,
+    thicknessCm,
+    weightingMode,
+  ]);
+
+  const handleRegionDragStart = useCallback(() => {
+    isDraggingRef.current = true;
+  }, []);
+
+  const handleRegionDragEnd = useCallback(() => {
+    isDraggingRef.current = false;
+    recomputeRawSpectra();
+    if (debouncePipelineRef.current) {
+      clearTimeout(debouncePipelineRef.current);
+      debouncePipelineRef.current = null;
+    }
+    void runPipeline();
+  }, [recomputeRawSpectra, runPipeline]);
 
   const handleAutoSuggest = useCallback(() => {
     if (!loaded) {
@@ -593,21 +660,6 @@ export function IngestionTab({
           Auto norm windows
         </Button>
         <Button
-          variant="primary"
-          size="sm"
-          isDisabled={isSaving || isReducing}
-          onPress={() => void runPipeline()}
-        >
-          {isReducing ? (
-            <>
-              <Spinner size="sm" />
-              Recomputing...
-            </>
-          ) : (
-            "Recompute spectra"
-          )}
-        </Button>
-        <Button
           variant="secondary"
           size="sm"
           isDisabled={!result}
@@ -629,6 +681,8 @@ export function IngestionTab({
             onRegionsChange={setRegions}
             onRegionChange={handleRegionChange}
             onIzeroChange={setIzero}
+            onDragStart={handleRegionDragStart}
+            onDragEnd={handleRegionDragEnd}
           />
           <div className="flex flex-wrap gap-2">
             {regions.map((region) => (
@@ -654,6 +708,7 @@ export function IngestionTab({
             bareAtomCurve={null}
             showRegionOverlays
             height={360}
+            isComputing={isReducing}
           />
         </div>
       </div>
