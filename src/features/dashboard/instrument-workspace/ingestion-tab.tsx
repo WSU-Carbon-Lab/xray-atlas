@@ -801,7 +801,7 @@ export function IngestionTab({
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
+    <div className="flex min-h-0 flex-col gap-6">
       {!readStxmComputeConsentGranted() ? (
         <KkBrowserConsentDialog
           isOpen={kkConsentOpen}
@@ -825,6 +825,26 @@ export function IngestionTab({
         scanLabel={scanLabel}
         onClose={() => setUploadOpen(false)}
         onKeepInCache={() => void handleKeepInCache()}
+      />
+
+      {sessionId ? (
+        <StxmIngestionContextPanel
+          linkedMolecule={linkedMolecule}
+          onLinkedMoleculeChange={setLinkedMolecule}
+          attributions={attributions}
+          onAttributionsChange={handleAttributionsChange}
+          sampleInfo={sampleInfo}
+          onSampleInfoChange={setSampleInfo}
+          thicknessCm={thicknessCm}
+          onThicknessCmChange={setThicknessCm}
+        />
+      ) : null}
+
+      <StxmStandardsPicker
+        edgeLabel={inferredEdge?.label ?? null}
+        overlays={standardOverlays}
+        onOverlaysChange={setStandardOverlays}
+        onPlotStandardsChange={setPlotStandards}
       />
 
       <StxmIngestionPlotPanel
@@ -861,26 +881,6 @@ export function IngestionTab({
         onAutoSuggestRegions={handleAutoSuggest}
         regionTrayOpen={regionEditorTrayOpen}
         onRegionTrayOpenChange={setRegionEditorTrayOpen}
-      />
-
-      {sessionId ? (
-        <StxmIngestionContextPanel
-          linkedMolecule={linkedMolecule}
-          onLinkedMoleculeChange={setLinkedMolecule}
-          attributions={attributions}
-          onAttributionsChange={handleAttributionsChange}
-          sampleInfo={sampleInfo}
-          onSampleInfoChange={setSampleInfo}
-          thicknessCm={thicknessCm}
-          onThicknessCmChange={setThicknessCm}
-        />
-      ) : null}
-
-      <StxmStandardsPicker
-        edgeLabel={inferredEdge?.label ?? null}
-        overlays={standardOverlays}
-        onOverlaysChange={setStandardOverlays}
-        onPlotStandardsChange={setPlotStandards}
       />
 
       {reduceMetadata?.spectra.length ? (
