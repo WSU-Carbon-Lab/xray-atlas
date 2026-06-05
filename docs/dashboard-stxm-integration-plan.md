@@ -3,16 +3,39 @@
 Technical roadmap for opening the X-ray Atlas dashboard to beamline-local STXM line-scan processing, porting numerics from the Python `stxm` package, and connecting outputs to Atlas NEXAFS contribute, attribution teams, and publication workflows.
 
 **Branch:** `feat/dashboard-stxm-5322`  
-**Status:** Phase 0–1 complete; Phase 2–3 implemented on branch (experiment link, aux ingest, regions, browser reduction).
+**Status:** Phase 0–3 on branch; **facility-first STXM folder browser UX** (local File System Access API, no upfront experiment link).
 
 ---
 
-## Storage architecture (Phase 2)
+## UX flow (2026-06-04 redesign)
+
+1. **Dashboard home** — "Analysis instruments" grid with **ALS Beamline 5.3.2.2 (STXM)** card (no "Start session" CTA).
+2. **`/dashboard/instruments/als-5322`** — Select local STXM data root via `showDirectoryPicker` (Chromium); recent folder pills in sessionStorage.
+3. **Experiment tab** — Horizontal beamtime cards from subfolders matching `YYYY-MM(Month)` / `YYYY_MM(Month)`; click beamtime → Finder-style grouped scan grid (LINE / IMAGE / FOCUS / OTHER).
+4. **Select line scan** — Thumbnail + filename; switches to **Ingestion** tab with heatmap, region bounds, weighting toggles, Recompute spectra.
+5. **Export (later)** — Optional Atlas experiment link and aux upload; processing is standalone until export phase.
+
+**Experiment linking:** Not required for ingest/regions/reduce. `linked_experiment_id` remains on session for future export only. Step gating uses `hasSelectedLocalScan`, not experiment link.
+
+**Local storage:**
 
 | Layer | What | Where |
 |-------|------|--------|
-| **Raw STXM** | `.hdr` / `.xim` bytes | Supabase `experiment-aux` bucket; `experiment_file` rows (same as contribute aux) |
-| **Session manifest** | Parse summaries, file ids, active scan, storage mode | `dashboard_processing_session.step_metadata.ingest` JSON |
+| Raw STXM | `.hdr` / `.xim` on disk | User folder via File System Access API (browser only) |
+| Directory handle | Re-open same root | IndexedDB `xray-atlas-stxm` / `directory-handles` |
+| Recent roots | Display names + handle keys | sessionStorage `xray-atlas:stxm-recent-folders:v1` |
+| Session metadata | Workspace context, regions, reduce | `dashboard_processing_session.step_metadata` (auto-created on folder pick) |
+
+**File System Access API limitations:** Chromium-only; Safari/Firefox show fallback message. Handles require re-permission after reload or new tab; IndexedDB persistence is best-effort within the same browser profile.
+
+---
+
+## Storage architecture (Phase 2 — Atlas aux path, optional export)
+
+| Layer | What | Where |
+|-------|------|--------|
+| **Raw STXM (export)** | `.hdr` / `.xim` bytes | Supabase `experiment-aux` bucket when user links experiment at export |
+| **Session manifest** | Workspace folder/beamtime/scan, parse summaries | `step_metadata.workspace` + `ingest` JSON |
 | **Regions** | Sample/izero bounds, weighting mode | `step_metadata.regions` JSON |
 | **Reduction outputs** | OD spectra + diagnostics per region | `step_metadata.reduce` JSON |
 | **Future promote** | Canonical `spectrumpoints` on Atlas experiment | Phase 5 export/upload workflow |
@@ -102,8 +125,11 @@ Reference architecture from `stxm/tmp/PLAN.md`: io → estimators → reduction/
 - [x] `/dashboard/instruments/als-5322` workspace with stepper shell
 - [x] Browser STXM I/O spike (`src/lib/stxm/`)
 - [x] Ingest step: parse `.hdr`/`.xim`, persist summaries on session
-- [x] Dashboard home: recent sessions + start-session CTA
-- [x] Full experiment-aux upload when experiment linked (Phase 2)
+- [x] Dashboard home: **Analysis instruments** facility card + optional compact recent sessions
+- [x] ALS 5322 workspace: local folder picker, beamtime browser, grouped file grid, Ingestion tab
+- [x] Auto-create session on folder pick; workspace context in `step_metadata.workspace`
+- [x] Step gating without experiment-link prerequisite
+- [ ] Full experiment-aux upload when user opts into export (Phase 5)
 - [x] `linked_experiment_id` on session + link/unlink tRPC
 - [x] Experiment picker UI; aux file browser + multi-file ingest
 - [x] Regions step with auto-suggest bounds and heatmap overlay

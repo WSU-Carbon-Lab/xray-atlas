@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { StxmRegionBounds } from "~/lib/dashboard-processing-session";
-import { downsampleHeatmap } from "~/features/dashboard/hooks/useStxmScanLoader";
+import { downsampleHeatmap } from "~/lib/stxm/heatmap";
 
 type StxmScanHeatmapProps = {
   image: Float64Array[];

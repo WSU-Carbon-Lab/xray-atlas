@@ -77,7 +77,7 @@ export const stxmRegionBoundsSchema = z.object({
 export type StxmRegionBounds = z.infer<typeof stxmRegionBoundsSchema>;
 
 export const dashboardRegionsStepMetadataSchema = z.object({
-  scanId: z.string().uuid().nullable().optional(),
+  scanId: z.string().min(1).nullable().optional(),
   bounds: stxmRegionBoundsSchema.optional(),
   autoSuggested: z.boolean().optional(),
   weightingMode: z
@@ -103,7 +103,7 @@ export const regionSpectrumRecordSchema = z.object({
 export type RegionSpectrumRecord = z.infer<typeof regionSpectrumRecordSchema>;
 
 export const dashboardReduceStepMetadataSchema = z.object({
-  scanId: z.string().uuid(),
+  scanId: z.string().min(1),
   spectra: z.array(regionSpectrumRecordSchema).default([]),
   computedAt: z.string().min(1),
   method: z.enum(["two_region", "thickness_regression"]).default("two_region"),
@@ -113,7 +113,30 @@ export type DashboardReduceStepMetadata = z.infer<
   typeof dashboardReduceStepMetadataSchema
 >;
 
+export const DASHBOARD_WORKSPACE_TABS = [
+  "experiment",
+  "ingestion",
+  "preview_spectra",
+  "lcf",
+] as const;
+
+export type DashboardWorkspaceTab = (typeof DASHBOARD_WORKSPACE_TABS)[number];
+
+export const dashboardWorkspaceContextSchema = z.object({
+  folderRootName: z.string().optional(),
+  folderHandleKey: z.string().optional(),
+  beamtimeName: z.string().nullable().optional(),
+  selectedScanRelativePath: z.string().nullable().optional(),
+  selectedScanBasename: z.string().nullable().optional(),
+  activeTab: z.enum(DASHBOARD_WORKSPACE_TABS).default("experiment"),
+});
+
+export type DashboardWorkspaceContext = z.infer<
+  typeof dashboardWorkspaceContextSchema
+>;
+
 export const dashboardStepMetadataSchema = z.object({
+  workspace: dashboardWorkspaceContextSchema.optional(),
   activeStep: z.enum(DASHBOARD_WORKSPACE_STEPS).optional(),
   ingest: dashboardIngestStepMetadataSchema.optional(),
   regions: dashboardRegionsStepMetadataSchema.optional(),
@@ -127,6 +150,12 @@ export type DashboardStepMetadata = z.infer<typeof dashboardStepMetadataSchema>;
 /** Builds default step metadata for a newly created processing session. */
 export function defaultDashboardStepMetadata(): DashboardStepMetadata {
   return {
+    workspace: {
+      activeTab: "experiment",
+      beamtimeName: null,
+      selectedScanRelativePath: null,
+      selectedScanBasename: null,
+    },
     activeStep: "ingest",
     ingest: {
       scans: [],
@@ -167,31 +196,40 @@ export const DASHBOARD_WORKSPACE_STEP_LABELS: Record<
   export: "Export",
 };
 
+/** Human-readable labels for workspace tab navigation. */
+export const DASHBOARD_WORKSPACE_TAB_LABELS: Record<
+  DashboardWorkspaceTab,
+  string
+> = {
+  experiment: "Experiment",
+  ingestion: "Ingestion",
+  preview_spectra: "Preview spectra",
+  lcf: "LC fitting",
+};
+
 export type DashboardStepGateState = {
-  linkedExperimentId: string | null;
   stepMetadata: DashboardStepMetadata;
+  hasSelectedLocalScan: boolean;
 };
 
 /**
- * Returns whether a workspace step is reachable given session link and ingest progress.
+ * Returns whether a legacy workspace step is reachable (local-folder flow; no experiment link).
  */
 export function isDashboardStepEnabled(
   step: DashboardWorkspaceStep,
   state: DashboardStepGateState,
 ): boolean {
-  const scans = state.stepMetadata.ingest?.scans ?? [];
-  const hasExperiment = Boolean(state.linkedExperimentId);
-  const hasScans = scans.length > 0;
   const hasBounds = Boolean(state.stepMetadata.regions?.bounds);
   const hasReduction = (state.stepMetadata.reduce?.spectra.length ?? 0) > 0;
+  const hasScan = state.hasSelectedLocalScan;
 
   switch (step) {
     case "ingest":
-      return hasExperiment;
+      return hasScan;
     case "regions":
-      return hasExperiment && hasScans;
+      return hasScan;
     case "reduce":
-      return hasExperiment && hasScans && hasBounds;
+      return hasScan && hasBounds;
     case "fit":
       return hasReduction;
     case "export":
@@ -211,9 +249,8 @@ export function dashboardStepLockReason(
   }
   switch (step) {
     case "ingest":
-      return "Link an Atlas experiment before ingesting line scans.";
     case "regions":
-      return "Ingest at least one line scan before defining regions.";
+      return "Select a line scan from your beamtime folder.";
     case "reduce":
       return "Define sample and izero regions before reducing spectra.";
     case "fit":

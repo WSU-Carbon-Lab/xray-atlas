@@ -1,6 +1,21 @@
 export { regionMeanAndSigma, type RegionMeanSigmaResult, type StxmWeightingMode } from "./estimators";
 export { isNexafsLineScanType, NEXAFS_LINE_SCAN_TYPE } from "./isNexafsLineScan";
 export { loadStxm } from "./loadStxm";
+export { downsampleHeatmap } from "./heatmap";
+export {
+  buildCatalogEntryFromHdr,
+  groupCatalogEntries,
+  ximBasenamesForHdrBasename,
+  type StxmCatalogEntry,
+} from "./catalogEntry";
+export {
+  EXPERIMENT_FOLDER_PATTERN,
+  experimentSortKey,
+  isExperimentFolderName,
+  sortExperimentFolderNames,
+  summarizeBeamtimeFolders,
+  type BeamtimeFolderSummary,
+} from "./experimentFolder";
 export {
   candidateXimNamesForHdr,
   discoverStxmPairsFromAuxFiles,
@@ -8,7 +23,14 @@ export {
   type DiscoveredStxmPair,
   type StxmAuxFileRef,
 } from "./pairStxmFiles";
-export { nexafsBeerLambert, type NexafsBeerLambertResult } from "./nexafs";
+export {
+  parseHdrScanTypeFromText,
+  scanCategoryLabel,
+  scanTypeCategory,
+  STXM_SCAN_CATEGORY_ORDER,
+  type StxmScanCategory,
+} from "./scanType";
+export { lineScanThumbnailDataUrl } from "./lineScanThumbnail";
 export { orientScan } from "./orientScan";
 export { readHdr } from "./readHdr";
 export { readXim } from "./readXim";

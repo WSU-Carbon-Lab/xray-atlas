@@ -2,8 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Button, Spinner } from "@heroui/react";
+import { Spinner } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
 import {
   Clock,
@@ -11,13 +10,8 @@ import {
   LayoutDashboard,
   Users,
 } from "lucide-react";
-import {
-  ALS_5322_INSTRUMENT_SLUG,
-  DASHBOARD_WORKSPACE_STEP_LABELS,
-  type DashboardWorkspaceStep,
-} from "~/lib/dashboard-processing-session";
+import { ALS_5322_INSTRUMENT_LABEL } from "~/lib/dashboard-processing-session";
 import { trpc } from "~/trpc/client";
-import { showToast } from "~/components/ui/toast";
 
 type DashboardSectionProps = {
   title: string;
@@ -51,39 +45,13 @@ function DashboardSection({
   );
 }
 
-function sessionStatusLabel(status: string): string {
-  switch (status) {
-    case "draft":
-      return "Draft";
-    case "processing":
-      return "Processing";
-    case "ready":
-      return "Ready";
-    case "archived":
-      return "Archived";
-    default:
-      return status;
-  }
-}
-
 /**
- * Landing surface for the contributor dashboard with recent processing sessions.
+ * Facility-first dashboard landing with analysis software entry points.
  */
 export function DashboardHomePage() {
-  const router = useRouter();
   const sessionsQuery = trpc.dashboardSessions.list.useQuery(undefined, {
     staleTime: 30_000,
   });
-
-  const createSession = trpc.dashboardSessions.create.useMutation({
-    onSuccess: ({ id }) => {
-      router.push(`/dashboard/instruments/als-5322?session=${id}`);
-    },
-    onError: (error) => {
-      showToast(error.message, "error");
-    },
-  });
-
   const recentSessions = sessionsQuery.data ?? [];
 
   return (
@@ -97,90 +65,68 @@ export function DashboardHomePage() {
           Dashboard
         </h1>
         <p className="text-muted max-w-2xl text-sm leading-relaxed">
-          Process beamline data, revisit recent work, and connect results to
-          attribution teams before publishing to X-ray Atlas.
+          Open beamline analysis workspaces to process local STXM data in your
+          browser, then export results to X-ray Atlas when you are ready.
         </p>
       </header>
 
       <div className="flex flex-col gap-5">
         <DashboardSection
-          title="Instrument processing"
-          description="STXM NEXAFS line-scan extraction and reduction for ALS Beamline 5.3.2.2."
+          title="Analysis instruments"
+          description="Facilities with built-in spectroscopy processing software."
           icon={<FlaskConical className="h-4 w-4" />}
         >
-          <p className="text-muted text-sm">
-            Upload raw line scans, define sample and izero regions, and extract
-            normalized spectra. Blend fitting and Atlas upload follow in later
-            phases.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Button
-              variant="primary"
-              size="sm"
-              isDisabled={createSession.isPending}
-              onPress={() => {
-                createSession.mutate({ instrumentSlug: ALS_5322_INSTRUMENT_SLUG });
-              }}
-            >
-              {createSession.isPending ? (
-                <>
-                  <Spinner size="sm" />
-                  Starting...
-                </>
-              ) : (
-                "Start ALS 5.3.2.2 session"
-              )}
-            </Button>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Link
               href="/dashboard/instruments/als-5322"
-              className={cn(
-                buttonVariants({ variant: "secondary", size: "sm" }),
-              )}
+              className="border-border bg-default/20 hover:bg-default/40 flex flex-col gap-2 rounded-lg border px-4 py-4 transition-colors"
             >
-              Open workspace
+              <p className="text-foreground text-sm font-semibold">
+                ALS — Beamline 5.3.2.2 (STXM)
+              </p>
+              <p className="text-muted text-sm leading-snug">
+                Browse local beamtime folders, extract NEXAFS line-scan spectra,
+                and define sample and izero regions in-browser.
+              </p>
+              <span
+                className={cn(
+                  buttonVariants({ variant: "primary", size: "sm" }),
+                  "mt-2 w-fit",
+                )}
+              >
+                Open workspace
+              </span>
             </Link>
           </div>
         </DashboardSection>
 
-        <DashboardSection
-          title="Recent sessions"
-          description="Resume in-progress reduction or review completed runs."
-          icon={<Clock className="h-4 w-4" />}
-        >
-          {sessionsQuery.isLoading ? (
-            <div className="flex justify-center py-6">
-              <Spinner size="md" />
-            </div>
-          ) : recentSessions.length === 0 ? (
-            <p className="text-muted text-sm">
-              No processing sessions yet. Start an ALS 5.3.2.2 session to ingest
-              STXM line scans.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {recentSessions.map((session) => {
-                const activeStep: DashboardWorkspaceStep =
-                  session.stepMetadata.activeStep ?? "ingest";
-                const scanCount = session.stepMetadata.ingest?.scans.length ?? 0;
-                return (
+        {recentSessions.length > 0 ? (
+          <DashboardSection
+            title="Resume recent work"
+            description="Optional shortcuts to prior local-folder processing sessions."
+            icon={<Clock className="h-4 w-4" />}
+          >
+            {sessionsQuery.isLoading ? (
+              <div className="flex justify-center py-4">
+                <Spinner size="md" />
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {recentSessions.slice(0, 5).map((session) => (
                   <li key={session.id}>
                     <Link
                       href={`/dashboard/instruments/als-5322?session=${session.id}`}
-                      className="border-border hover:bg-default/40 flex flex-col gap-1 rounded-md border px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between"
+                      className="border-border hover:bg-default/40 flex items-center justify-between gap-3 rounded-md border px-4 py-3 transition-colors"
                     >
                       <div className="min-w-0">
                         <p className="text-foreground truncate text-sm font-medium">
-                          {session.title ?? "Untitled session"}
+                          {session.stepMetadata.workspace?.folderRootName ??
+                            session.title ??
+                            "Untitled session"}
                         </p>
                         <p className="text-muted text-xs">
-                          {sessionStatusLabel(session.status)} · Step{" "}
-                          {DASHBOARD_WORKSPACE_STEP_LABELS[activeStep]} ·{" "}
-                          {scanCount} scan{scanCount === 1 ? "" : "s"}
-                          {session.linkedExperiment?.moleculeLabel
-                            ? ` · ${session.linkedExperiment.moleculeLabel}`
-                            : session.linkedExperiment?.canonicalSlug
-                              ? ` · ${session.linkedExperiment.canonicalSlug}`
-                              : ""}
+                          {session.stepMetadata.workspace?.beamtimeName ??
+                            ALS_5322_INSTRUMENT_LABEL}
                         </p>
                       </div>
                       <time
@@ -191,11 +137,11 @@ export function DashboardHomePage() {
                       </time>
                     </Link>
                   </li>
-                );
-              })}
-            </ul>
-          )}
-        </DashboardSection>
+                ))}
+              </ul>
+            )}
+          </DashboardSection>
+        ) : null}
 
         <DashboardSection
           title="Attribution"
@@ -204,8 +150,6 @@ export function DashboardHomePage() {
         >
           <p className="text-muted text-sm">
             Create or manage attribution teams before exporting spectra to Atlas.
-            Processed datasets can inherit roster members as experiment
-            contributors in Phase 6.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
