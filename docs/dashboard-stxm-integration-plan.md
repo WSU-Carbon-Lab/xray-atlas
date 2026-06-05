@@ -185,17 +185,23 @@ Reference architecture from `stxm/tmp/PLAN.md`: io → estimators → reduction/
 
 ### Delivered on branch
 
-- Manual bounds editor + `autoSampleIzeroRegions` auto-suggest
-- **Draggable region bands** on heatmap (`stxm-region-heatmap.tsx`) with debounced session persist
+- **Multi-region editor** (`stxm-multi-region-editor.tsx`): N sample regions, izero band, row-sum side profile, gap **+** insert, click-to-rename labels, linked linear/log heatmap scale
+- Manual bounds editor + `autoSampleIzeroRegions` auto-suggest (legacy two-bar metadata still supported via `multi-region-state.ts`)
+- **Draggable region bands** on heatmap with debounced session persist (`sampleRegions`, `izeroBounds`, `pureRegionId` in `step_metadata.regions`)
 - `estimators.ts`, `nexafs.ts`, `reduction.ts`, **`normalization.ts`**, **`absorption.ts`** in `src/lib/stxm/`
 - **`computeStxmIngestion`** orchestrator: region means → Beer-Lambert OD → pre/post normalization → bare-atom mass absorption / beta (`calculateBareAtomAbsorption`) → optional KK delta (`computeDeltaFromBetaKkcalcStyle` + session consent)
-- Ingestion tab: left heatmap + regions, right multi-trace spectrum chart; channel toggles (I0, sample, OD, norm OD, mass abs, beta, delta); linear/log y-axis; formula + thickness + norm window inputs
+- Ingestion tab: left heatmap + regions, right **`SpectrumPlot`** (reduced channels) or extended **`IngestionSpectrumChart`** (raw/log overlays); channel toggles through f1/chi/bare-atom labels; linked linear/log y-axis; formula + thickness + norm window inputs
+- **Reference standards** picker (`stxm-standards-picker.tsx`): edge inference from hdr energy range, `experiments.browseList` + `spectrumpoints.getByExperiment` overlays
+- **Preview spectra** tab: session cache of kept scans + per-scan downsampled ingestion (`step_metadata.preview`)
+- **Upload gate** (`stxm-upload-dialog.tsx`): keep in cache vs navigate to `/contribute/nexafs` (full `createWithSpectrum` + aux prefill deferred)
 - Full channel arrays downsampled into `step_metadata.ingestion`; legacy `step_metadata.reduce` OD record retained for step gating
 
 ### Remaining for full Phase 3
 
 - GMM / multi-sample segmentation from Python `regions.py`
 - Plot brush for pre/post windows (numeric inputs only today)
+- Bare-atom reference curve on `SpectrumPlot` from live Henke fetch (overlay wiring stubbed)
+- Contribute prefill from dashboard session (molecule, edge, spectrum CSV, aux `.hdr`/`.xim`)
 - Python golden-file parity CI job
 
 ### Done when

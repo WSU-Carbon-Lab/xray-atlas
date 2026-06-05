@@ -87,9 +87,30 @@ export type StxmNormalizationWindows = z.infer<
   typeof stxmNormalizationWindowsSchema
 >;
 
+export const stxmSampleRegionSchema = z.object({
+  id: z.string().uuid(),
+  sampleLo: z.number(),
+  sampleHi: z.number(),
+  spotLabel: z.string(),
+  role: z.enum(["pure", "edge", "custom"]).default("custom"),
+});
+
+export type StxmSampleRegionRecord = z.infer<typeof stxmSampleRegionSchema>;
+
+export const stxmIzeroBoundsSchema = z.object({
+  izeroLo: z.number(),
+  izeroHi: z.number(),
+});
+
+export type StxmIzeroBoundsRecord = z.infer<typeof stxmIzeroBoundsSchema>;
+
 export const dashboardRegionsStepMetadataSchema = z.object({
   scanId: z.string().min(1).nullable().optional(),
   bounds: stxmRegionBoundsSchema.optional(),
+  sampleRegions: z.array(stxmSampleRegionSchema).optional(),
+  izeroBounds: stxmIzeroBoundsSchema.optional(),
+  pureRegionId: z.string().uuid().optional(),
+  plotScaleMode: z.enum(["linear", "log"]).optional(),
   autoSuggested: z.boolean().optional(),
   weightingMode: z
     .enum(["inverse_count", "poisson_mle", "empirical"])
@@ -151,6 +172,41 @@ export type DashboardIngestionResult = z.infer<
   typeof dashboardIngestionResultSchema
 >;
 
+export const dashboardPreviewSpectrumEntrySchema = z.object({
+  scanId: z.string().min(1),
+  scanLabel: z.string().min(1),
+  keptAt: z.string().min(1),
+  edgeLabel: z.string().optional(),
+  hdrFileName: z.string().optional(),
+  ximFileName: z.string().optional(),
+});
+
+export type DashboardPreviewSpectrumEntry = z.infer<
+  typeof dashboardPreviewSpectrumEntrySchema
+>;
+
+export const dashboardStandardOverlaySchema = z.object({
+  experimentId: z.string().uuid(),
+  label: z.string().min(1),
+  enabled: z.boolean().default(true),
+});
+
+export type DashboardStandardOverlay = z.infer<
+  typeof dashboardStandardOverlaySchema
+>;
+
+export const dashboardPreviewStepMetadataSchema = z.object({
+  spectra: z.array(dashboardPreviewSpectrumEntrySchema).default([]),
+  standardOverlays: z.array(dashboardStandardOverlaySchema).default([]),
+  ingestionCache: z
+    .record(z.string(), dashboardIngestionResultSchema)
+    .optional(),
+});
+
+export type DashboardPreviewStepMetadata = z.infer<
+  typeof dashboardPreviewStepMetadataSchema
+>;
+
 export const DASHBOARD_WORKSPACE_TABS = [
   "experiment",
   "ingestion",
@@ -180,6 +236,7 @@ export const dashboardStepMetadataSchema = z.object({
   regions: dashboardRegionsStepMetadataSchema.optional(),
   reduce: dashboardReduceStepMetadataSchema.optional(),
   ingestion: dashboardIngestionResultSchema.optional(),
+  preview: dashboardPreviewStepMetadataSchema.optional(),
   fit: z.record(z.string(), z.unknown()).optional(),
   export: z.record(z.string(), z.unknown()).optional(),
 });

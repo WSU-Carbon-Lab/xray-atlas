@@ -10,6 +10,7 @@ import {
   ALS_5322_INSTRUMENT_SLUG,
   defaultDashboardStepMetadata,
   type DashboardIngestionResult,
+  type DashboardPreviewStepMetadata,
   type DashboardReduceStepMetadata,
   type DashboardRegionsStepMetadata,
   type DashboardStepMetadata,
@@ -53,11 +54,8 @@ import {
   FolderPickerPrompt,
   RecentFolderPills,
 } from "./folder-picker-prompt";
-import {
-  IngestionTab,
-  LcfPlaceholder,
-  PreviewSpectraPlaceholder,
-} from "./ingestion-tab";
+import { IngestionTab, LcfPlaceholder } from "./ingestion-tab";
+import { PreviewSpectraTab } from "./preview-spectra-tab";
 import { WorkspaceChrome } from "./workspace-chrome";
 
 const BL5322_BREADCRUMB = "BL5322";
@@ -630,6 +628,25 @@ export function Als5322WorkspacePage() {
     [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
   );
 
+  const persistPreview = useCallback(
+    async (preview: DashboardPreviewStepMetadata) => {
+      if (!sessionId) {
+        return;
+      }
+      const next: DashboardStepMetadata = {
+        ...stepMetadata,
+        preview,
+      };
+      await updateSession.mutateAsync({
+        sessionId,
+        status: "ready",
+        stepMetadata: next,
+      });
+      void utils.dashboardSessions.getById.invalidate({ sessionId });
+    },
+    [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
+  );
+
   const breadcrumb = useMemo(() => {
     const parts = [BL5322_BREADCRUMB];
     if (folderRootName) {
@@ -726,17 +743,50 @@ export function Als5322WorkspacePage() {
             hdrFile={selectedFiles.hdrFile}
             ximFile={selectedFiles.ximFile}
             scanLabel={selectedEntry?.relativePath ?? selectedFiles.hdrFile.name}
+            scanId={selectedEntry?.relativePath ?? selectedFiles.hdrFile.name}
+            energyMinEv={selectedEntry?.energyMinEv ?? null}
+            energyMaxEv={selectedEntry?.energyMaxEv ?? null}
             regionsMetadata={stepMetadata.regions}
             reduceMetadata={stepMetadata.reduce}
             ingestionMetadata={stepMetadata.ingestion}
+            previewMetadata={stepMetadata.preview}
             onPersistRegions={persistRegions}
             onPersistReduce={persistReduce}
             onPersistIngestion={persistIngestion}
+            onPersistPreview={persistPreview}
             isSaving={updateSession.isPending}
           />
         );
       case "preview_spectra":
-        return <PreviewSpectraPlaceholder />;
+        return (
+          <PreviewSpectraTab
+            entries={stepMetadata.preview?.spectra ?? []}
+            activeScanId={selectedEntry?.relativePath ?? null}
+            ingestionByScanId={stepMetadata.preview?.ingestionCache ?? {}}
+            onSelectScan={(scanId) => {
+              const entry = catalog.find((row) => row.relativePath === scanId);
+              if (entry) {
+                void handleSelectScan(entry);
+              } else {
+                setActiveTab("ingestion");
+                void persistWorkspace({ activeTab: "ingestion" });
+              }
+            }}
+            onRemoveEntry={(scanId) => {
+              const preview = stepMetadata.preview;
+              if (!preview) {
+                return;
+              }
+              const nextCache = { ...(preview.ingestionCache ?? {}) };
+              delete nextCache[scanId];
+              void persistPreview({
+                ...preview,
+                spectra: preview.spectra.filter((row) => row.scanId !== scanId),
+                ingestionCache: nextCache,
+              });
+            }}
+          />
+        );
       case "lcf":
         return <LcfPlaceholder />;
       default:
@@ -758,7 +808,9 @@ export function Als5322WorkspacePage() {
     isPicking,
     persistReduce,
     persistIngestion,
+    persistPreview,
     persistRegions,
+    persistWorkspace,
     pendingFolderAccess,
     refreshBeamtimes,
     rootHandle,
@@ -766,6 +818,7 @@ export function Als5322WorkspacePage() {
     selectedEntry,
     selectedFiles,
     stepMetadata.ingestion,
+    stepMetadata.preview,
     stepMetadata.reduce,
     stepMetadata.regions,
     updateSession.isPending,

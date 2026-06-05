@@ -3,6 +3,12 @@
 import { useMemo } from "react";
 import type { StxmIngestionDisplayChannel } from "~/features/dashboard/lib/computeStxmIngestion";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
+import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
+import {
+  regionSpectrumChannelValue,
+  type StxmIngestionPlotChannel,
+} from "~/lib/stxm/stxm-ingestion-display";
+import type { StxmPlotStandardOverlay } from "./stxm-ingestion-plot-panel";
 
 export type IngestionSpectrumTraceId =
   | "i0"
@@ -41,6 +47,9 @@ type IngestionSpectrumChartProps = {
   enabledTraces: ReadonlySet<IngestionSpectrumTraceId>;
   yScale: "linear" | "log";
   height?: number;
+  regionOverlaySpectra?: StxmRegionSpectrumSeries[];
+  channel?: StxmIngestionPlotChannel;
+  standards?: StxmPlotStandardOverlay[];
 };
 
 function traceValues(
@@ -77,6 +86,9 @@ export function IngestionSpectrumChart({
   enabledTraces,
   yScale,
   height = 280,
+  regionOverlaySpectra,
+  channel = "od",
+  standards = [],
 }: IngestionSpectrumChartProps) {
   const width = 640;
   const padding = 40;
@@ -86,22 +98,39 @@ export function IngestionSpectrumChart({
     let xMaxLocal = -Infinity;
     let yMinLocal = Infinity;
     let yMaxLocal = -Infinity;
+    const includeY = (energy: number, y: number) => {
+      if (!Number.isFinite(y)) {
+        return;
+      }
+      const plotY = yScale === "log" ? Math.log10(Math.max(y, 1e-30)) : y;
+      xMinLocal = Math.min(xMinLocal, energy);
+      xMaxLocal = Math.max(xMaxLocal, energy);
+      yMinLocal = Math.min(yMinLocal, plotY);
+      yMaxLocal = Math.max(yMaxLocal, plotY);
+    };
     for (const id of enabledTraces) {
       const yValues = traceValues(result, id);
       if (!yValues) {
         continue;
       }
       for (let i = 0; i < result.energyEv.length; i += 1) {
-        const x = result.energyEv[i] ?? 0;
-        const y = yValues[i] ?? Number.NaN;
-        if (!Number.isFinite(y)) {
-          continue;
-        }
-        const plotY = yScale === "log" ? Math.log10(Math.max(y, 1e-30)) : y;
-        xMinLocal = Math.min(xMinLocal, x);
-        xMaxLocal = Math.max(xMaxLocal, x);
-        yMinLocal = Math.min(yMinLocal, plotY);
-        yMaxLocal = Math.max(yMaxLocal, plotY);
+        includeY(result.energyEv[i] ?? 0, yValues[i] ?? Number.NaN);
+      }
+    }
+    for (const series of regionOverlaySpectra ?? []) {
+      for (let i = 0; i < series.energyEv.length; i += 1) {
+        includeY(
+          series.energyEv[i] ?? 0,
+          regionSpectrumChannelValue(series, channel, i),
+        );
+      }
+    }
+    for (const standard of standards) {
+      if (!standard.enabled) {
+        continue;
+      }
+      for (let i = 0; i < standard.energyEv.length; i += 1) {
+        includeY(standard.energyEv[i] ?? 0, standard.values[i] ?? Number.NaN);
       }
     }
     if (!Number.isFinite(xMinLocal)) {
@@ -113,7 +142,7 @@ export function IngestionSpectrumChart({
       yMin: yMinLocal,
       yMax: yMaxLocal,
     };
-  }, [enabledTraces, result, yScale]);
+  }, [channel, enabledTraces, regionOverlaySpectra, result, standards, yScale]);
 
   const xSpan = xMax - xMin || 1;
   const ySpan = yMax - yMin || 1;
@@ -137,6 +166,57 @@ export function IngestionSpectrumChart({
         role="img"
         aria-label="STXM ingestion spectra"
       >
+        {(regionOverlaySpectra ?? []).map((series) => {
+          const points = series.energyEv
+            .map((energy, index) => {
+              const y = regionSpectrumChannelValue(series, channel, index);
+              if (!Number.isFinite(y)) {
+                return null;
+              }
+              return mapPoint(energy, y);
+            })
+            .filter((point): point is string => point !== null)
+            .join(" ");
+          if (!points) {
+            return null;
+          }
+          return (
+            <polyline
+              key={series.regionId}
+              fill="none"
+              stroke={series.color}
+              strokeWidth={2}
+              points={points}
+            />
+          );
+        })}
+        {standards
+          .filter((standard) => standard.enabled)
+          .map((standard) => {
+            const points = standard.energyEv
+              .map((energy, index) => {
+                const y = standard.values[index] ?? Number.NaN;
+                if (!Number.isFinite(y)) {
+                  return null;
+                }
+                return mapPoint(energy, y);
+              })
+              .filter((point): point is string => point !== null)
+              .join(" ");
+            if (!points) {
+              return null;
+            }
+            return (
+              <polyline
+                key={standard.id}
+                fill="none"
+                stroke={standard.color}
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                points={points}
+              />
+            );
+          })}
         {([...enabledTraces] as IngestionSpectrumTraceId[]).map((id) => {
           const yValues = traceValues(result, id);
           if (!yValues) {
@@ -170,6 +250,26 @@ export function IngestionSpectrumChart({
         </text>
       </svg>
       <ul className="flex flex-wrap gap-3 text-xs">
+        {(regionOverlaySpectra ?? []).map((series) => (
+          <li key={series.regionId} className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2 w-4 rounded-sm"
+              style={{ backgroundColor: series.color }}
+            />
+            {series.spotLabel}
+          </li>
+        ))}
+        {standards
+          .filter((standard) => standard.enabled)
+          .map((standard) => (
+            <li key={standard.id} className="flex items-center gap-1.5">
+              <span
+                className="inline-block h-2 w-4 rounded-sm border border-dashed"
+                style={{ borderColor: standard.color }}
+              />
+              {standard.label}
+            </li>
+          ))}
         {([...enabledTraces] as IngestionSpectrumTraceId[]).map((id) => (
           <li key={id} className="flex items-center gap-1.5">
             <span

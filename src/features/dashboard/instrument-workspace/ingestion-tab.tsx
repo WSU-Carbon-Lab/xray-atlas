@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
-  Checkbox,
   Input,
   Label,
   Spinner,
@@ -11,35 +10,54 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@heroui/react";
-import { Wand2 } from "lucide-react";
+import { Upload, Wand2 } from "lucide-react";
 import { KkBrowserConsentDialog } from "~/features/kk-calc/kk-browser-consent-dialog";
 import {
   computeStxmIngestion,
   grantKkBrowserConsent,
   readKkBrowserConsentGranted,
-  type StxmIngestionDisplayChannel,
   type StxmIngestionResult,
 } from "~/features/dashboard/lib/computeStxmIngestion";
 import { ingestionResultToPersisted } from "~/features/dashboard/lib/downsampleIngestionResult";
 import { parseLocalStxmPair } from "~/features/dashboard/hooks/useStxmScanLoader";
 import type {
   DashboardIngestionResult,
+  DashboardPreviewSpectrumEntry,
+  DashboardPreviewStepMetadata,
   DashboardReduceStepMetadata,
   DashboardRegionsStepMetadata,
+  DashboardStandardOverlay,
   StxmNormalizationWindows,
-  StxmRegionBounds,
 } from "~/lib/dashboard-processing-session";
 import { suggestNormalizationWindows } from "~/lib/stxm/normalization";
-import { autoSampleIzeroRegions, sampleIzeroMasks } from "~/lib/stxm/regions";
 import { regionSpectrumToRecord, reduceTwoRegion } from "~/lib/stxm/reduction";
+import { sampleIzeroMasks } from "~/lib/stxm/regions";
 import type { StxmWeightingMode } from "~/lib/stxm/estimators";
-import { showToast } from "~/components/ui/toast";
+import { float64ImageToMatrix } from "~/lib/stxm/image-matrix";
+import { inferStxmEdgeFromEnergyRange } from "~/lib/stxm/infer-edge-from-energy";
 import {
-  displayChannelToTraces,
-  IngestionSpectrumChart,
-  type IngestionSpectrumTraceId,
-} from "./ingestion-spectrum-chart";
-import { StxmRegionHeatmap } from "./stxm-region-heatmap";
+  autoMultiRegionFromImage,
+  legacyBoundsToMultiRegion,
+  multiRegionToLegacyBounds,
+} from "~/lib/stxm/multi-region-state";
+import { regionRawSpectraFromScan } from "~/lib/stxm/raw-spectrum";
+import { setPureRegionRole } from "~/lib/stxm/region-editor-utils";
+import { STXM_INGESTION_CHANNEL_OPTIONS } from "~/lib/stxm/stxm-ingestion-display";
+import type {
+  StxmIzeroBounds,
+  StxmPlotScaleMode,
+  StxmRegionSpectrumSeries,
+  StxmSampleRegion,
+} from "~/lib/stxm/stxm-region-types";
+import { showToast } from "~/components/ui/toast";
+import { StxmMultiRegionEditor } from "./stxm-multi-region-editor";
+import {
+  StxmIngestionPlotPanel,
+  type StxmPlotStandardOverlay,
+} from "./stxm-ingestion-plot-panel";
+import { StxmStandardsPicker } from "./stxm-standards-picker";
+import { StxmUploadDialog } from "./stxm-upload-dialog";
+import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
 
 const WEIGHTING_OPTIONS: Array<{ id: StxmWeightingMode; label: string }> = [
   { id: "poisson_mle", label: "Poisson MLE" },
@@ -47,42 +65,23 @@ const WEIGHTING_OPTIONS: Array<{ id: StxmWeightingMode; label: string }> = [
   { id: "empirical", label: "Empirical" },
 ];
 
-const CHANNEL_OPTIONS: Array<{ id: StxmIngestionDisplayChannel; label: string }> =
-  [
-    { id: "signal_i0", label: "I0" },
-    { id: "signal_sample", label: "Sample" },
-    { id: "signal_inv_i0", label: "1/I0" },
-    { id: "od", label: "OD" },
-    { id: "od_normalized", label: "Norm OD" },
-    { id: "mass_absorption", label: "Mass abs" },
-    { id: "beta", label: "Beta" },
-    { id: "delta", label: "Delta" },
-  ];
-
 type IngestionTabProps = {
   hdrFile: File;
   ximFile: File;
   scanLabel: string;
+  scanId: string;
+  energyMinEv: number | null;
+  energyMaxEv: number | null;
   regionsMetadata: DashboardRegionsStepMetadata | undefined;
   reduceMetadata: DashboardReduceStepMetadata | undefined;
   ingestionMetadata: DashboardIngestionResult | undefined;
+  previewMetadata: DashboardPreviewStepMetadata | undefined;
   onPersistRegions: (regions: DashboardRegionsStepMetadata) => Promise<void>;
   onPersistReduce: (reduce: DashboardReduceStepMetadata) => Promise<void>;
   onPersistIngestion: (ingestion: DashboardIngestionResult) => Promise<void>;
+  onPersistPreview: (preview: DashboardPreviewStepMetadata) => Promise<void>;
   isSaving: boolean;
 };
-
-function defaultBounds(spatial: Float64Array): StxmRegionBounds {
-  const yMin = spatial[0] ?? 0;
-  const yMax = spatial[spatial.length - 1] ?? 1;
-  const span = yMax - yMin || 1;
-  return {
-    sampleLo: yMin + span * 0.55,
-    sampleHi: yMax - span * 0.05,
-    izeroLo: yMin + span * 0.05,
-    izeroHi: yMin + span * 0.35,
-  };
-}
 
 function persistedToRuntime(
   persisted: DashboardIngestionResult,
@@ -112,19 +111,47 @@ function persistedToRuntime(
   };
 }
 
+function initialMultiRegion(
+  regionsMetadata: DashboardRegionsStepMetadata | undefined,
+  spatial: Float64Array,
+  image: Float64Array[],
+): {
+  regions: StxmSampleRegion[];
+  izero: StxmIzeroBounds;
+  pureRegionId: string;
+} {
+  if (regionsMetadata?.sampleRegions?.length && regionsMetadata.izeroBounds) {
+    return {
+      regions: regionsMetadata.sampleRegions,
+      izero: regionsMetadata.izeroBounds,
+      pureRegionId:
+        regionsMetadata.pureRegionId ?? regionsMetadata.sampleRegions[0]!.id,
+    };
+  }
+  if (regionsMetadata?.bounds) {
+    return legacyBoundsToMultiRegion(regionsMetadata.bounds);
+  }
+  return autoMultiRegionFromImage(image, spatial);
+}
+
 /**
- * Ingestion tab: draggable regions, full optical-constants pipeline, and spectrum comparison.
+ * Ingestion tab with multi-region editor, linked plot scaling, standards overlays, and upload gate.
  */
 export function IngestionTab({
   hdrFile,
   ximFile,
   scanLabel,
+  scanId,
+  energyMinEv,
+  energyMaxEv,
   regionsMetadata,
   reduceMetadata,
   ingestionMetadata,
+  previewMetadata,
   onPersistRegions,
   onPersistReduce,
   onPersistIngestion,
+  onPersistPreview,
   isSaving,
 }: IngestionTabProps) {
   const [loaded, setLoaded] = useState<Awaited<
@@ -135,9 +162,14 @@ export function IngestionTab({
   const [weightingMode, setWeightingMode] = useState<StxmWeightingMode>(
     regionsMetadata?.weightingMode ?? "poisson_mle",
   );
-  const [bounds, setBounds] = useState<StxmRegionBounds | null>(
-    regionsMetadata?.bounds ?? null,
+  const [regions, setRegions] = useState<StxmSampleRegion[]>([]);
+  const [izero, setIzero] = useState<StxmIzeroBounds | null>(null);
+  const [pureRegionId, setPureRegionId] = useState<string | null>(null);
+  const [plotScaleMode, setPlotScaleMode] = useState<StxmPlotScaleMode>(
+    regionsMetadata?.plotScaleMode ?? "log",
   );
+  const [displayChannel, setDisplayChannel] =
+    useState<StxmIngestionPlotChannel>("od");
   const [normalization, setNormalization] =
     useState<StxmNormalizationWindows | null>(
       regionsMetadata?.normalization ?? null,
@@ -146,17 +178,29 @@ export function IngestionTab({
   const [thicknessCm, setThicknessCm] = useState(
     String(regionsMetadata?.thicknessCm ?? 1e-4),
   );
-  const [displayChannel, setDisplayChannel] =
-    useState<StxmIngestionDisplayChannel>("od");
-  const [yScale, setYScale] = useState<"linear" | "log">("linear");
-  const [compareOverlay, setCompareOverlay] = useState(false);
   const [result, setResult] = useState<StxmIngestionResult | null>(
     ingestionMetadata ? persistedToRuntime(ingestionMetadata) : null,
   );
+  const [regionSpectra, setRegionSpectra] = useState<StxmRegionSpectrumSeries[]>(
+    [],
+  );
+  const [standardOverlays, setStandardOverlays] = useState<
+    DashboardStandardOverlay[]
+  >(previewMetadata?.standardOverlays ?? []);
+  const [plotStandards, setPlotStandards] = useState<StxmPlotStandardOverlay[]>(
+    [],
+  );
   const [isReducing, setIsReducing] = useState(false);
   const [kkConsentOpen, setKkConsentOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const pendingRecomputeRef = useRef(false);
   const debouncePersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceRawRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const inferredEdge = useMemo(
+    () => inferStxmEdgeFromEnergyRange(energyMinEv, energyMaxEv),
+    [energyMaxEv, energyMinEv],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -164,16 +208,22 @@ export function IngestionTab({
     setLoadError(null);
     void parseLocalStxmPair(hdrFile, ximFile)
       .then((parseResult) => {
-        if (!cancelled) {
-          setLoaded(parseResult);
-          if (!regionsMetadata?.bounds) {
-            setBounds(defaultBounds(parseResult.oriented.spatial));
-          }
-          if (!regionsMetadata?.normalization) {
-            setNormalization(
-              suggestNormalizationWindows(parseResult.oriented.energyEv),
-            );
-          }
+        if (cancelled) {
+          return;
+        }
+        setLoaded(parseResult);
+        const initial = initialMultiRegion(
+          regionsMetadata,
+          parseResult.oriented.spatial,
+          parseResult.oriented.image,
+        );
+        setRegions(initial.regions);
+        setIzero(initial.izero);
+        setPureRegionId(initial.pureRegionId);
+        if (!regionsMetadata?.normalization) {
+          setNormalization(
+            suggestNormalizationWindows(parseResult.oriented.energyEv),
+          );
         }
       })
       .catch((error) => {
@@ -191,49 +241,96 @@ export function IngestionTab({
     return () => {
       cancelled = true;
     };
-  }, [hdrFile, regionsMetadata?.bounds, regionsMetadata?.normalization, ximFile]);
+  }, [hdrFile, regionsMetadata, ximFile]);
 
-  const schedulePersistRegions = useCallback(
-    (nextBounds: StxmRegionBounds) => {
-      if (debouncePersistRef.current) {
-        clearTimeout(debouncePersistRef.current);
+  const imageMatrix = useMemo(
+    () => (loaded ? float64ImageToMatrix(loaded.oriented.image) : []),
+    [loaded],
+  );
+
+  const qaxisPoints = useMemo(
+    () => (loaded ? Array.from(loaded.oriented.spatial) : []),
+    [loaded],
+  );
+
+  const schedulePersistRegions = useCallback(() => {
+    if (!izero || regions.length === 0) {
+      return;
+    }
+    if (debouncePersistRef.current) {
+      clearTimeout(debouncePersistRef.current);
+    }
+    debouncePersistRef.current = setTimeout(() => {
+      void onPersistRegions({
+        scanId,
+        bounds: multiRegionToLegacyBounds(regions, izero, pureRegionId),
+        sampleRegions: regions,
+        izeroBounds: izero,
+        pureRegionId: pureRegionId ?? undefined,
+        plotScaleMode,
+        weightingMode,
+        formula: formula.trim() || undefined,
+        thicknessCm: Number.parseFloat(thicknessCm) || undefined,
+        normalization: normalization ?? undefined,
+      });
+    }, 600);
+  }, [
+    formula,
+    izero,
+    normalization,
+    onPersistRegions,
+    plotScaleMode,
+    pureRegionId,
+    regions,
+    scanId,
+    thicknessCm,
+    weightingMode,
+  ]);
+
+  const recomputeRawSpectra = useCallback(() => {
+    if (!loaded || !izero || regions.length === 0) {
+      return;
+    }
+    try {
+      const spectra = regionRawSpectraFromScan(
+        loaded.oriented.image,
+        loaded.oriented.energyEv,
+        loaded.oriented.spatial,
+        regions,
+        izero,
+        weightingMode,
+      );
+      setRegionSpectra(spectra);
+    } catch {
+      setRegionSpectra([]);
+    }
+  }, [izero, loaded, regions, weightingMode]);
+
+  useEffect(() => {
+    if (!loaded || !izero) {
+      return;
+    }
+    if (debounceRawRef.current) {
+      clearTimeout(debounceRawRef.current);
+    }
+    debounceRawRef.current = setTimeout(() => {
+      recomputeRawSpectra();
+      schedulePersistRegions();
+    }, 300);
+    return () => {
+      if (debounceRawRef.current) {
+        clearTimeout(debounceRawRef.current);
       }
-      debouncePersistRef.current = setTimeout(() => {
-        void onPersistRegions({
-          scanId: regionsMetadata?.scanId ?? scanLabel,
-          bounds: nextBounds,
-          weightingMode,
-          formula: formula.trim() || undefined,
-          thicknessCm: Number.parseFloat(thicknessCm) || undefined,
-          normalization: normalization ?? undefined,
-        });
-      }, 600);
-    },
-    [
-      formula,
-      normalization,
-      onPersistRegions,
-      regionsMetadata?.scanId,
-      scanLabel,
-      thicknessCm,
-      weightingMode,
-    ],
-  );
-
-  const handleBoundsChange = useCallback(
-    (nextBounds: StxmRegionBounds) => {
-      setBounds(nextBounds);
-      schedulePersistRegions(nextBounds);
-    },
-    [schedulePersistRegions],
-  );
+    };
+  }, [izero, loaded, recomputeRawSpectra, regions, schedulePersistRegions, weightingMode]);
 
   const runPipeline = useCallback(async () => {
-    if (!loaded || !bounds || !normalization) {
+    if (!loaded || !izero || regions.length === 0 || !normalization) {
       return;
     }
     setIsReducing(true);
     try {
+      const bounds = multiRegionToLegacyBounds(regions, izero, pureRegionId);
       const thickness = Number.parseFloat(thicknessCm);
       const pipelineResult = await computeStxmIngestion({
         image: loaded.oriented.image,
@@ -247,7 +344,6 @@ export function IngestionTab({
         runKkDelta: Boolean(formula.trim()),
       });
       setResult(pipelineResult);
-      const scanId = regionsMetadata?.scanId ?? scanLabel;
       await onPersistIngestion(ingestionResultToPersisted(pipelineResult, scanId));
       const { sampleMask, izeroMask } = sampleIzeroMasks(
         loaded.oriented.spatial,
@@ -270,6 +366,7 @@ export function IngestionTab({
         computedAt: new Date().toISOString(),
         method: "two_region",
       });
+      recomputeRawSpectra();
       showToast("Spectra recomputed", "success");
     } catch (error) {
       if (error instanceof Error && error.message === "KK_CONSENT_REQUIRED") {
@@ -285,14 +382,16 @@ export function IngestionTab({
       setIsReducing(false);
     }
   }, [
-    bounds,
     formula,
+    izero,
     loaded,
     normalization,
     onPersistIngestion,
     onPersistReduce,
-    regionsMetadata?.scanId,
-    scanLabel,
+    pureRegionId,
+    recomputeRawSpectra,
+    regions,
+    scanId,
     thicknessCm,
     weightingMode,
   ]);
@@ -301,15 +400,15 @@ export function IngestionTab({
     if (!loaded) {
       return;
     }
-    const [sampleLo, sampleHi, izeroLo, izeroHi] = autoSampleIzeroRegions(
+    const initial = autoMultiRegionFromImage(
       loaded.oriented.image,
       loaded.oriented.spatial,
     );
-    const next = { sampleLo, sampleHi, izeroLo, izeroHi };
-    setBounds(next);
-    schedulePersistRegions(next);
+    setRegions(initial.regions);
+    setIzero(initial.izero);
+    setPureRegionId(initial.pureRegionId);
     showToast("Auto-suggested region bounds", "success");
-  }, [loaded, schedulePersistRegions]);
+  }, [loaded]);
 
   const handleAutoNorm = useCallback(() => {
     if (!loaded) {
@@ -319,16 +418,61 @@ export function IngestionTab({
     showToast("Auto-suggested normalization windows", "success");
   }, [loaded]);
 
-  const enabledTraces = useMemo(() => {
-    const traces = new Set<IngestionSpectrumTraceId>(
-      displayChannelToTraces(displayChannel),
-    );
-    if (compareOverlay) {
-      traces.add("i0");
-      traces.add("iSample");
+  const handleKeepInCache = useCallback(async () => {
+    const entry: DashboardPreviewSpectrumEntry = {
+      scanId,
+      scanLabel,
+      keptAt: new Date().toISOString(),
+      edgeLabel: inferredEdge?.label,
+      hdrFileName: hdrFile.name,
+      ximFileName: ximFile.name,
+    };
+    const existing = previewMetadata?.spectra ?? [];
+    const nextSpectra = [
+      ...existing.filter((row) => row.scanId !== scanId),
+      entry,
+    ];
+    const ingestionCache = {
+      ...(previewMetadata?.ingestionCache ?? {}),
+    };
+    if (result) {
+      ingestionCache[scanId] = ingestionResultToPersisted(result, scanId);
     }
-    return traces;
-  }, [compareOverlay, displayChannel]);
+    await onPersistPreview({
+      spectra: nextSpectra,
+      standardOverlays,
+      ingestionCache,
+    });
+  }, [
+    hdrFile.name,
+    inferredEdge?.label,
+    onPersistPreview,
+    previewMetadata?.ingestionCache,
+    previewMetadata?.spectra,
+    result,
+    scanId,
+    scanLabel,
+    standardOverlays,
+    ximFile.name,
+  ]);
+
+  const handleRegionChange = useCallback(
+    (index: number, region: StxmSampleRegion) => {
+      setRegions((current) => {
+        const next = [...current];
+        next[index] = region;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleSetPureRegion = useCallback((regionId: string) => {
+    setPureRegionId(regionId);
+    setRegions((current) => setPureRegionRole(current, regionId));
+  }, []);
+
+  const yScale = plotScaleMode;
 
   if (isLoading) {
     return (
@@ -338,7 +482,7 @@ export function IngestionTab({
     );
   }
 
-  if (loadError || !loaded || !bounds || !normalization) {
+  if (loadError || !loaded || !izero || !normalization) {
     return (
       <p className="text-danger text-sm">{loadError ?? "Unable to load scan."}</p>
     );
@@ -360,6 +504,13 @@ export function IngestionTab({
             void runPipeline();
           }
         }}
+      />
+
+      <StxmUploadDialog
+        isOpen={uploadOpen}
+        scanLabel={scanLabel}
+        onClose={() => setUploadOpen(false)}
+        onKeepInCache={() => void handleKeepInCache()}
       />
 
       <div className="flex flex-wrap items-center gap-2">
@@ -391,13 +542,13 @@ export function IngestionTab({
             const key = [...keys][0];
             if (
               typeof key === "string" &&
-              CHANNEL_OPTIONS.some((option) => option.id === key)
+              STXM_INGESTION_CHANNEL_OPTIONS.some((option) => option.id === key)
             ) {
-              setDisplayChannel(key as StxmIngestionDisplayChannel);
+              setDisplayChannel(key as StxmIngestionPlotChannel);
             }
           }}
         >
-          {CHANNEL_OPTIONS.map((option) => (
+          {STXM_INGESTION_CHANNEL_OPTIONS.map((option) => (
             <ToggleButton key={option.id} id={option.id} size="sm">
               {option.label}
             </ToggleButton>
@@ -406,11 +557,11 @@ export function IngestionTab({
 
         <ToggleButtonGroup
           selectionMode="single"
-          selectedKeys={[yScale]}
+          selectedKeys={[plotScaleMode]}
           onSelectionChange={(keys) => {
             const key = [...keys][0];
             if (key === "linear" || key === "log") {
-              setYScale(key);
+              setPlotScaleMode(key);
             }
           }}
         >
@@ -446,60 +597,63 @@ export function IngestionTab({
             "Recompute spectra"
           )}
         </Button>
-        <Checkbox isSelected={compareOverlay} onChange={setCompareOverlay}>
-          Overlay I0 + sample
-        </Checkbox>
+        <Button
+          variant="secondary"
+          size="sm"
+          isDisabled={!result}
+          onPress={() => setUploadOpen(true)}
+        >
+          <Upload className="h-3.5 w-3.5" aria-hidden />
+          Upload / keep
+        </Button>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="flex flex-col gap-3">
-          <StxmRegionHeatmap
-            image={loaded.oriented.image}
-            spatialAxis={loaded.oriented.spatial}
-            bounds={bounds}
-            onBoundsChange={handleBoundsChange}
+          <StxmMultiRegionEditor
+            image={imageMatrix}
+            qaxisPoints={qaxisPoints}
+            regions={regions}
+            izero={izero}
+            imageScaleMode={plotScaleMode}
+            onRegionsChange={setRegions}
+            onRegionChange={handleRegionChange}
+            onIzeroChange={setIzero}
           />
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {(
-              [
-                ["sampleLo", "Sample low"],
-                ["sampleHi", "Sample high"],
-                ["izeroLo", "Izero low"],
-                ["izeroHi", "Izero high"],
-              ] as const
-            ).map(([key, label]) => (
-              <TextField key={key}>
-                <Label>{label}</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={String(bounds[key])}
-                  onChange={(event) => {
-                    const parsed = Number.parseFloat(event.target.value);
-                    if (Number.isFinite(parsed)) {
-                      handleBoundsChange({ ...bounds, [key]: parsed });
-                    }
-                  }}
-                />
-              </TextField>
+          <div className="flex flex-wrap gap-2">
+            {regions.map((region) => (
+              <Button
+                key={region.id}
+                size="sm"
+                variant={pureRegionId === region.id ? "primary" : "secondary"}
+                onPress={() => handleSetPureRegion(region.id)}
+              >
+                I0/sample: {region.spotLabel || "region"}
+              </Button>
             ))}
           </div>
         </div>
 
         <div className="flex flex-col gap-3">
-          {result ? (
-            <IngestionSpectrumChart
-              result={result}
-              enabledTraces={enabledTraces}
-              yScale={yScale}
-            />
-          ) : (
-            <p className="text-muted text-sm">
-              Drag region handles on the heatmap, then click Recompute spectra.
-            </p>
-          )}
+          <StxmIngestionPlotPanel
+            result={result}
+            regionSpectra={regionSpectra}
+            channel={displayChannel}
+            yScale={yScale}
+            standards={plotStandards}
+            bareAtomCurve={null}
+            showRegionOverlays
+            height={360}
+          />
         </div>
       </div>
+
+      <StxmStandardsPicker
+        edgeLabel={inferredEdge?.label ?? null}
+        overlays={standardOverlays}
+        onOverlaysChange={setStandardOverlays}
+        onPlotStandardsChange={setPlotStandards}
+      />
 
       <div className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
         <TextField>
@@ -561,7 +715,7 @@ export function PreviewSpectraPlaceholder() {
     <div className="border-border bg-default/30 rounded-lg border border-dashed px-5 py-8">
       <p className="text-foreground text-sm font-medium">Preview spectra</p>
       <p className="text-muted mt-2 text-sm">
-        Multi-scan spectrum comparison arrives in a later phase.
+        Keep scans from Ingestion to list them here.
       </p>
     </div>
   );
