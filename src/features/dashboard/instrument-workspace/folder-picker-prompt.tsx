@@ -51,7 +51,7 @@ export function FolderPickerPrompt({
   );
 }
 
-type RecentFolderPillsProps = {
+export type RecentFolderPillsProps = {
   folders: Array<{ handleKey: string; displayName: string }>;
   onOpen: (handleKey: string) => void;
   className?: string;

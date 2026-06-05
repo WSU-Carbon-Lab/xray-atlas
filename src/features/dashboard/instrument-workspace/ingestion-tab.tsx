@@ -18,6 +18,7 @@ import {
   readKkBrowserConsentGranted,
   type StxmIngestionResult,
 } from "~/features/dashboard/lib/computeStxmIngestion";
+import { readStxmComputeConsentGranted } from "~/lib/stxm/compute-consent";
 import { ingestionResultToPersisted } from "~/features/dashboard/lib/downsampleIngestionResult";
 import { parseLocalStxmPair } from "~/features/dashboard/hooks/useStxmScanLoader";
 import type {
@@ -370,6 +371,13 @@ export function IngestionTab({
       showToast("Spectra recomputed", "success");
     } catch (error) {
       if (error instanceof Error && error.message === "KK_CONSENT_REQUIRED") {
+        if (readStxmComputeConsentGranted() || readKkBrowserConsentGranted()) {
+          showToast(
+            "KK calculation blocked despite session consent; reload and try again.",
+            "error",
+          );
+          return;
+        }
         pendingRecomputeRef.current = true;
         setKkConsentOpen(true);
         return;
@@ -490,21 +498,23 @@ export function IngestionTab({
 
   return (
     <div className="flex flex-col gap-5">
-      <KkBrowserConsentDialog
-        isOpen={kkConsentOpen}
-        onDismiss={() => {
-          setKkConsentOpen(false);
-          pendingRecomputeRef.current = false;
-        }}
-        onAccept={() => {
-          grantKkBrowserConsent();
-          setKkConsentOpen(false);
-          if (pendingRecomputeRef.current) {
+      {!readStxmComputeConsentGranted() ? (
+        <KkBrowserConsentDialog
+          isOpen={kkConsentOpen}
+          onDismiss={() => {
+            setKkConsentOpen(false);
             pendingRecomputeRef.current = false;
-            void runPipeline();
-          }
-        }}
-      />
+          }}
+          onAccept={() => {
+            grantKkBrowserConsent();
+            setKkConsentOpen(false);
+            if (pendingRecomputeRef.current) {
+              pendingRecomputeRef.current = false;
+              void runPipeline();
+            }
+          }}
+        />
+      ) : null}
 
       <StxmUploadDialog
         isOpen={uploadOpen}

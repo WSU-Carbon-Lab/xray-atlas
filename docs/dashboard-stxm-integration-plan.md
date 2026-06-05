@@ -194,6 +194,7 @@ Reference architecture from `stxm/tmp/PLAN.md`: io → estimators → reduction/
 - **Reference standards** picker (`stxm-standards-picker.tsx`): edge inference from hdr energy range, `experiments.browseList` + `spectrumpoints.getByExperiment` overlays
 - **Preview spectra** tab: session cache of kept scans + per-scan downsampled ingestion (`step_metadata.preview`)
 - **Upload gate** (`stxm-upload-dialog.tsx`): keep in cache vs navigate to `/contribute/nexafs` (full `createWithSpectrum` + aux prefill deferred)
+- **Entry consent gate** (`stxm-workspace-onboarding.tsx`): folder picker + local compute acknowledgment (`sessionStorage` `xray-atlas:stxm-workspace-compute-consent:v1`, also grants KK consent); skipped when tab session already has compute consent and a saved folder handle (re-grant banner only when permission prompt returns)
 - Full channel arrays downsampled into `step_metadata.ingestion`; legacy `step_metadata.reduce` OD record retained for step gating
 
 ### Remaining for full Phase 3

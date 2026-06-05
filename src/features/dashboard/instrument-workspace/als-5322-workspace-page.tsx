@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@heroui/react";
+import { Button, Spinner } from "@heroui/react";
 import { ArrowLeft, FlaskConical } from "lucide-react";
 import {
   ALS_5322_INSTRUMENT_LABEL,
@@ -54,8 +54,13 @@ import {
   FolderPickerPrompt,
   RecentFolderPills,
 } from "./folder-picker-prompt";
+import {
+  grantStxmComputeConsent,
+  readStxmComputeConsentGranted,
+} from "~/lib/stxm/compute-consent";
 import { IngestionTab, LcfPlaceholder } from "./ingestion-tab";
 import { PreviewSpectraTab } from "./preview-spectra-tab";
+import { StxmWorkspaceOnboarding } from "./stxm-workspace-onboarding";
 import { WorkspaceChrome } from "./workspace-chrome";
 
 const BL5322_BREADCRUMB = "BL5322";
@@ -114,12 +119,20 @@ export function Als5322WorkspacePage() {
   } | null>(null);
   const catalogGenerationRef = useRef(0);
   const thumbnailAbortRef = useRef<AbortController | null>(null);
+  const [computeConsentGranted, setComputeConsentGranted] = useState(false);
+  const [folderRestoreAttempted, setFolderRestoreAttempted] = useState(false);
+  const [isRestoringFolder, setIsRestoringFolder] = useState(false);
 
   const stepMetadata =
     sessionQuery.data?.stepMetadata ?? defaultDashboardStepMetadata();
 
+  const folderAccessReady = Boolean(rootHandle) || Boolean(pendingFolderAccess);
+  const workspaceUnlocked = computeConsentGranted && folderAccessReady;
+  const showOnboarding = folderRestoreAttempted && !workspaceUnlocked;
+
   useEffect(() => {
     setRecentFolders(loadRecentFolders());
+    setComputeConsentGranted(readStxmComputeConsentGranted());
   }, []);
 
   useEffect(() => {
@@ -378,40 +391,53 @@ export function Als5322WorkspacePage() {
   useEffect(() => {
     const workspace = sessionQuery.data?.stepMetadata?.workspace;
     const handleKey = workspace?.folderHandleKey;
-    if (!handleKey || rootHandle || isLoadingBeamtimes) {
+    if (!handleKey) {
+      setFolderRestoreAttempted(true);
+      return;
+    }
+    if (rootHandle || isLoadingBeamtimes) {
+      setFolderRestoreAttempted(true);
       return;
     }
     let cancelled = false;
+    setIsRestoringFolder(true);
     void (async () => {
-      const handle = await loadDirectoryHandle(handleKey);
-      if (cancelled || !handle) {
-        return;
-      }
-      const permission = await queryDirectoryReadPermission(handle);
-      if (cancelled) {
-        return;
-      }
-      if (permission !== "granted" && permission !== "unsupported") {
-        setPendingFolderAccess({
-          handleKey,
-          displayName: workspace?.folderRootName ?? handle.name,
-        });
-        return;
-      }
-      setRootHandle(handle);
-      setFolderHandleKey(handleKey);
-      setFolderRootName(workspace?.folderRootName ?? handle.name);
-      const layout = await refreshBeamtimes(handle, false);
-      if (cancelled || !layout) {
-        return;
-      }
-      const savedBeamtime = workspace?.beamtimeName;
-      if (savedBeamtime) {
-        setSelectedBeamtime(savedBeamtime);
-        await loadCatalog(handle, layout, savedBeamtime);
-      }
-      if (workspace?.activeTab) {
-        setActiveTab(workspace.activeTab);
+      try {
+        const handle = await loadDirectoryHandle(handleKey);
+        if (cancelled || !handle) {
+          return;
+        }
+        const permission = await queryDirectoryReadPermission(handle);
+        if (cancelled) {
+          return;
+        }
+        if (permission !== "granted" && permission !== "unsupported") {
+          setPendingFolderAccess({
+            handleKey,
+            displayName: workspace?.folderRootName ?? handle.name,
+          });
+          return;
+        }
+        setRootHandle(handle);
+        setFolderHandleKey(handleKey);
+        setFolderRootName(workspace?.folderRootName ?? handle.name);
+        const layout = await refreshBeamtimes(handle, false);
+        if (cancelled || !layout) {
+          return;
+        }
+        const savedBeamtime = workspace?.beamtimeName;
+        if (savedBeamtime) {
+          setSelectedBeamtime(savedBeamtime);
+          await loadCatalog(handle, layout, savedBeamtime);
+        }
+        if (workspace?.activeTab) {
+          setActiveTab(workspace.activeTab);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsRestoringFolder(false);
+          setFolderRestoreAttempted(true);
+        }
       }
     })();
     return () => {
@@ -472,6 +498,11 @@ export function Als5322WorkspacePage() {
     }
     await bindRootHandle(handle, pendingFolderAccess.handleKey);
   }, [bindRootHandle, pendingFolderAccess]);
+
+  const handleGrantCompute = useCallback(() => {
+    grantStxmComputeConsent();
+    setComputeConsentGranted(true);
+  }, []);
 
   const handlePickFolder = useCallback(async () => {
     setIsPicking(true);
@@ -673,6 +704,14 @@ export function Als5322WorkspacePage() {
           );
         }
         if (!rootHandle) {
+          if (pendingFolderAccess) {
+            return (
+              <p className="text-muted text-sm">
+                Confirm folder read access using the banner above, then browse
+                experiments here.
+              </p>
+            );
+          }
           return (
             <FolderPickerPrompt
               onPickFolder={() => void handlePickFolder()}
@@ -824,31 +863,67 @@ export function Als5322WorkspacePage() {
     updateSession.isPending,
   ]);
 
+  const workspaceHeader = (
+    <header className="flex flex-col gap-3">
+      <Link
+        href="/dashboard"
+        className="text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        Dashboard
+      </Link>
+      <div className="flex items-start gap-3">
+        <span
+          className="text-accent bg-accent/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-md"
+          aria-hidden
+        >
+          <FlaskConical className="h-5 w-5" />
+        </span>
+        <div>
+          <p className="text-muted text-sm">{ALS_5322_INSTRUMENT_LABEL}</p>
+          <h1 className="text-foreground text-2xl font-semibold tracking-tight">
+            {ALS_5322_INSTRUMENT_LABEL}
+          </h1>
+        </div>
+      </div>
+    </header>
+  );
+
+  if (!folderRestoreAttempted) {
+    return (
+      <div className="flex flex-col gap-6">
+        {workspaceHeader}
+        <div className="flex justify-center py-16">
+          <Spinner size="lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (showOnboarding) {
+    return (
+      <div className="flex flex-col gap-6">
+        {workspaceHeader}
+        <StxmWorkspaceOnboarding
+          folderSelected={folderAccessReady}
+          folderDisplayName={
+            folderRootName ?? pendingFolderAccess?.displayName ?? null
+          }
+          computeConsentGranted={computeConsentGranted}
+          isPicking={isPicking}
+          isRestoringFolder={isRestoringFolder}
+          onPickFolder={() => void handlePickFolder()}
+          onGrantCompute={handleGrantCompute}
+          recentFolders={recentFolders}
+          onOpenRecentFolder={(key) => void handleOpenRecent(key)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3">
-        <Link
-          href="/dashboard"
-          className="text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-          Dashboard
-        </Link>
-        <div className="flex items-start gap-3">
-          <span
-            className="text-accent bg-accent/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-md"
-            aria-hidden
-          >
-            <FlaskConical className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-muted text-sm">{ALS_5322_INSTRUMENT_LABEL}</p>
-            <h1 className="text-foreground text-2xl font-semibold tracking-tight">
-              {ALS_5322_INSTRUMENT_LABEL}
-            </h1>
-          </div>
-        </div>
-      </header>
+      {workspaceHeader}
 
       <RecentFolderPills
         folders={recentFolders}
