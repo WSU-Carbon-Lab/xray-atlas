@@ -40,8 +40,8 @@ import type {
   StxmSampleRegion,
 } from "~/lib/stxm/stxm-region-types";
 import { showToast } from "~/components/ui/toast";
+import { STXM_INGESTION_SPECTRUM_HEIGHT_PX } from "./stxm-ingestion-layout";
 import {
-  STXM_INGESTION_SPECTRUM_HEIGHT_PX,
   StxmIngestionPlotPanel,
   type StxmPlotStandardOverlay,
 } from "./stxm-ingestion-plot-panel";

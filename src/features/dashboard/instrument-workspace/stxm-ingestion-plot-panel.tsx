@@ -40,13 +40,11 @@ import { StxmIngestionPlotDataRail } from "./stxm-ingestion-plot-data-rail";
 import { StxmIngestionAnalysisRail } from "./stxm-ingestion-analysis-rail";
 import { StxmIngestionSpectrumTable } from "./stxm-ingestion-spectrum-table";
 import {
+  STXM_INGESTION_SPECTRUM_HEIGHT_PX,
   STXM_REGION_EDITOR_MAX_WIDTH_PX,
-  StxmMultiRegionEditor,
-} from "./stxm-multi-region-editor";
+} from "./stxm-ingestion-layout";
+import { StxmMultiRegionEditor } from "./stxm-multi-region-editor";
 import type { RegionDragTarget } from "~/lib/stxm/region-editor-utils";
-
-/** SVG height for the ingestion spectrum plot; keep aligned with the region heatmap canvas. */
-export const STXM_INGESTION_SPECTRUM_HEIGHT_PX = 600;
 
 const STXM_VISUALIZATION_MODES: VisualizationMode[] = ["graph", "table"];
 

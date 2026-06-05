@@ -23,12 +23,13 @@ import {
 import { createRegionInGap } from "~/lib/stxm/multi-region-state";
 import { STXM_IZERO_COLOR, stxmRegionSeriesColor } from "~/lib/stxm/region-colors";
 import {
+  STXM_INGESTION_SPECTRUM_HEIGHT_PX,
+  STXM_REGION_EDITOR_MAX_WIDTH_PX,
+} from "./stxm-ingestion-layout";
+import {
   STXM_ROW_SUM_TRACE_WIDTH,
   StxmRowSumTrace,
 } from "./stxm-row-sum-trace";
-import { STXM_INGESTION_SPECTRUM_HEIGHT_PX } from "./stxm-ingestion-plot-panel";
-
-export const STXM_REGION_EDITOR_MAX_WIDTH_PX = 180;
 const HEATMAP_WIDTH = STXM_REGION_EDITOR_MAX_WIDTH_PX - STXM_ROW_SUM_TRACE_WIDTH;
 const CANVAS_HEIGHT = STXM_INGESTION_SPECTRUM_HEIGHT_PX;
 const HIT_MARGIN_FRACTION = 0.015;
