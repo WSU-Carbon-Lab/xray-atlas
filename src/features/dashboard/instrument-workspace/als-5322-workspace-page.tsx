@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Spinner } from "@heroui/react";
 import { ArrowLeft, FlaskConical } from "lucide-react";
+import type { StxmExportStepMetadata } from "~/features/dashboard/lib/stxm-export-metadata";
 import {
   ALS_5322_INSTRUMENT_LABEL,
   ALS_5322_INSTRUMENT_SLUG,
@@ -678,6 +679,27 @@ export function Als5322WorkspacePage() {
     [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
   );
 
+  const persistExport = useCallback(
+    async (exportMeta: StxmExportStepMetadata) => {
+      if (!sessionId) {
+        return;
+      }
+      const next: DashboardStepMetadata = {
+        ...stepMetadata,
+        export: exportMeta,
+      };
+      await updateSession.mutateAsync({ sessionId, stepMetadata: next });
+      void utils.dashboardSessions.getById.invalidate({ sessionId });
+    },
+    [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
+  );
+
+  const refreshSession = useCallback(() => {
+    if (sessionId) {
+      void utils.dashboardSessions.getById.invalidate({ sessionId });
+    }
+  }, [sessionId, utils.dashboardSessions.getById]);
+
   const breadcrumb = useMemo(() => {
     const parts = [BL5322_BREADCRUMB];
     if (folderRootName) {
@@ -779,6 +801,9 @@ export function Als5322WorkspacePage() {
         }
         return (
           <IngestionTab
+            sessionId={sessionId}
+            linkedExperiment={sessionQuery.data?.linkedExperiment ?? null}
+            exportMetadata={stepMetadata.export}
             hdrFile={selectedFiles.hdrFile}
             ximFile={selectedFiles.ximFile}
             scanLabel={selectedEntry?.relativePath ?? selectedFiles.hdrFile.name}
@@ -793,6 +818,8 @@ export function Als5322WorkspacePage() {
             onPersistReduce={persistReduce}
             onPersistIngestion={persistIngestion}
             onPersistPreview={persistPreview}
+            onPersistExport={persistExport}
+            onSessionRefresh={refreshSession}
             isSaving={updateSession.isPending}
           />
         );
@@ -860,6 +887,11 @@ export function Als5322WorkspacePage() {
     stepMetadata.preview,
     stepMetadata.reduce,
     stepMetadata.regions,
+    stepMetadata.export,
+    sessionId,
+    sessionQuery.data?.linkedExperiment,
+    persistExport,
+    refreshSession,
     updateSession.isPending,
   ]);
 
