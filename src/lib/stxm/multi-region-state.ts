@@ -1,4 +1,4 @@
-import { autoSampleIzeroRegions } from "./regions";
+import { barBoundsFromThreeRegions } from "./regions";
 import type { StxmIzeroBounds, StxmSampleRegion } from "./stxm-region-types";
 import type { StxmRegionBounds } from "~/lib/dashboard-processing-session";
 
@@ -72,7 +72,7 @@ export function autoMultiRegionFromImage(
   izero: StxmIzeroBounds;
   pureRegionId: string;
 } {
-  const [sampleLo, sampleHi, izeroLo, izeroHi] = autoSampleIzeroRegions(
+  const [sampleLo, sampleHi, izeroLo, izeroHi] = barBoundsFromThreeRegions(
     image,
     spatial,
   );
