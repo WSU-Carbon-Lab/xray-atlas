@@ -1,6 +1,7 @@
 import {
   buildCatalogEntryFromHdr,
   buildPlaceholderCatalogEntry,
+  catalogEntryEnrichmentStatus,
   scanThumbnailDataUrl,
   type StxmCatalogEntry,
   ximBasenamesForHdrBasename,
@@ -15,12 +16,18 @@ import { readHdr } from "~/lib/stxm/readHdr";
 import {
   countHdrFilesInDirectory,
   findXimFileForHdr,
-  listHdrFileRefsFast,
+  walkHdrFileRefs,
   type StxmDirectoryHandle,
   type StxmFileRef,
 } from "./localDirectoryBrowser";
 import type { StxmDirectoryLayout } from "./resolveDirectoryLayout";
 import { getExperimentDirectory } from "./resolveDirectoryLayout";
+import {
+  buildStxmCatalogCheckpoint,
+  catalogEntryFromCheckpointEntry,
+  readStxmCatalogCheckpoint,
+  writeStxmCatalogCheckpoint,
+} from "./stxm-catalog-checkpoint";
 
 /** Milliseconds without catalog progress before treating the walk as stalled. */
 export const BEAMTIME_CATALOG_STALL_TIMEOUT_MS = 30_000;
@@ -30,12 +37,17 @@ export const BEAMTIME_CATALOG_BUILD_TIMEOUT_MS = BEAMTIME_CATALOG_STALL_TIMEOUT_
 
 const DEFAULT_CATALOG_BATCH_FLUSH_MS = 50;
 
-export type StreamBeamtimeCatalogPhase = "listing" | "parsing" | "complete";
+export type StreamBeamtimeCatalogPhase =
+  | "cache"
+  | "listing"
+  | "parsing"
+  | "complete";
 
 export type StreamBeamtimeCatalogProgress = {
   entries: StxmCatalogEntry[];
   discoveredCount: number;
   phase: StreamBeamtimeCatalogPhase;
+  fromCache: boolean;
 };
 
 export type StreamBeamtimeCatalogOptions = {
@@ -145,6 +157,7 @@ export async function streamBeamtimeCatalogFast(
   let phase: StreamBeamtimeCatalogPhase = "listing";
   let entries: StxmCatalogEntry[] = [];
   let refs: StxmFileRef[] = [];
+  let fromCache = false;
 
   const touchProgress = () => {
     lastProgressAt = Date.now();
@@ -159,6 +172,7 @@ export async function streamBeamtimeCatalogFast(
       entries: entries.map((entry) => ({ ...entry })),
       discoveredCount: entries.length,
       phase,
+      fromCache,
     });
     touchProgress();
   };
@@ -184,12 +198,61 @@ export async function streamBeamtimeCatalogFast(
 
   try {
     touchProgress();
-    refs = (await listHdrFileRefsFast(experimentDir)).filter((ref) =>
-      isAllowedStxmFilename(ref.name),
-    );
-    touchProgress();
+    const checkpoint = await readStxmCatalogCheckpoint(experimentDir);
+    if (
+      checkpoint &&
+      checkpoint.experimentName === experimentName &&
+      checkpoint.entries.length > 0
+    ) {
+      fromCache = true;
+      phase = "cache";
+      entries = checkpoint.entries.map((row) => ({
+        ...row,
+        thumbnailDataUrl: null,
+        enrichmentStatus: "parsed" as const,
+      }));
+      flushProgress();
+    }
 
-    entries = refs.map((ref) => buildPlaceholderCatalogEntry(ref));
+    phase = "listing";
+    fromCache = false;
+    const checkpointByPath = new Map(
+      checkpoint?.experimentName === experimentName
+        ? checkpoint.entries.map((row) => [row.relativePath, row])
+        : [],
+    );
+    const diskPaths = new Set<string>();
+    refs = [];
+
+    for await (const ref of walkHdrFileRefs(experimentDir)) {
+      if (options?.signal?.aborted || stalled) {
+        break;
+      }
+      if (!isAllowedStxmFilename(ref.name) || diskPaths.has(ref.relativePath)) {
+        continue;
+      }
+      diskPaths.add(ref.relativePath);
+      refs.push(ref);
+      touchProgress();
+
+      if (entries.some((row) => row.relativePath === ref.relativePath)) {
+        scheduleFlush();
+        continue;
+      }
+
+      const cached = checkpointByPath.get(ref.relativePath);
+      insertCatalogEntrySorted(
+        entries,
+        cached
+          ? catalogEntryFromCheckpointEntry(cached)
+          : buildPlaceholderCatalogEntry(ref),
+      );
+      scheduleFlush();
+    }
+
+    if (diskPaths.size > 0) {
+      entries = entries.filter((entry) => diskPaths.has(entry.relativePath));
+    }
     flushProgress();
 
     if (options?.signal?.aborted || stalled) {
@@ -211,6 +274,14 @@ export async function streamBeamtimeCatalogFast(
       if (options?.signal?.aborted || stalled) {
         break;
       }
+      const index = entryIndexByPath.get(ref.relativePath);
+      const existing = index !== undefined ? entries[index] : undefined;
+      if (
+        existing &&
+        catalogEntryEnrichmentStatus(existing) !== "placeholder"
+      ) {
+        continue;
+      }
       touchProgress();
       const hdr = await readHdrEntry(ref);
       if (!hdr) {
@@ -225,7 +296,6 @@ export async function streamBeamtimeCatalogFast(
         ),
         enrichmentStatus: "parsed" as const,
       };
-      const index = entryIndexByPath.get(ref.relativePath);
       if (index !== undefined) {
         entries[index] = parsed;
       } else {
@@ -236,6 +306,13 @@ export async function streamBeamtimeCatalogFast(
     }
     phase = "complete";
     complete = !stalled && !options?.signal?.aborted;
+
+    if (complete) {
+      void writeStxmCatalogCheckpoint(
+        experimentDir,
+        buildStxmCatalogCheckpoint(experimentName, entries),
+      );
+    }
   } finally {
     clearInterval(stallTimer);
     if (flushTimer !== null) {

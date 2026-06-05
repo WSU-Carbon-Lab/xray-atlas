@@ -29,6 +29,7 @@ import {
   enrichBeamtimeCatalogThumbnails,
   loadScanFilesFromCatalogEntry,
   streamBeamtimeCatalogFast,
+  type StreamBeamtimeCatalogPhase,
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import {
   pickStxmRootDirectory,
@@ -114,6 +115,9 @@ export function Als5322WorkspacePage() {
   );
   const [catalogLoadError, setCatalogLoadError] = useState<string | null>(null);
   const [catalogListingIncomplete, setCatalogListingIncomplete] = useState(false);
+  const [catalogScanPhase, setCatalogScanPhase] =
+    useState<StreamBeamtimeCatalogPhase | null>(null);
+  const [catalogFromCache, setCatalogFromCache] = useState(false);
   const [pendingFolderAccess, setPendingFolderAccess] = useState<{
     handleKey: string;
     displayName: string;
@@ -254,6 +258,8 @@ export function Als5322WorkspacePage() {
       setIsLoadingCatalog(true);
       setCatalogLoadError(null);
       setCatalogListingIncomplete(false);
+      setCatalogScanPhase(null);
+      setCatalogFromCache(false);
       setCatalog([]);
       let entries: StxmCatalogEntry[] = [];
       try {
@@ -267,6 +273,8 @@ export function Als5322WorkspacePage() {
                 return;
               }
               setCatalog(progress.entries);
+              setCatalogScanPhase(progress.phase);
+              setCatalogFromCache(progress.fromCache);
             },
           },
         );
@@ -275,6 +283,8 @@ export function Als5322WorkspacePage() {
         }
         entries = result.entries;
         setCatalog(entries);
+        setCatalogScanPhase(result.complete ? "complete" : "parsing");
+        setCatalogFromCache(false);
         if (result.stalled && entries.length > 0) {
           setCatalogListingIncomplete(true);
         }
@@ -294,6 +304,9 @@ export function Als5322WorkspacePage() {
       } finally {
         if (generation === catalogGenerationRef.current) {
           setIsLoadingCatalog(false);
+          if (entries.length > 0) {
+            setCatalogScanPhase("complete");
+          }
         }
       }
 
@@ -806,6 +819,8 @@ export function Als5322WorkspacePage() {
                   selectedRelativePath={selectedEntry?.relativePath ?? null}
                   loading={isLoadingCatalog}
                   enriching={isEnrichingCatalog}
+                  scanPhase={catalogScanPhase}
+                  fromCache={catalogFromCache}
                   onSelect={(entry) => void handleSelectScan(entry)}
                 />
               </section>
@@ -896,6 +911,8 @@ export function Als5322WorkspacePage() {
     beamtimeLoadError,
     catalogLoadError,
     catalogListingIncomplete,
+    catalogScanPhase,
+    catalogFromCache,
     grantStoredFolderAccess,
     handlePickFolder,
     handleSelectBeamtime,

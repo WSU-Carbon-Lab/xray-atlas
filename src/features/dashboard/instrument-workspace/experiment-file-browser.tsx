@@ -4,6 +4,7 @@ import { memo, useCallback, useMemo, type CSSProperties } from "react";
 import { Accordion, ScrollShadow, Spinner } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { FileImage } from "lucide-react";
+import type { StreamBeamtimeCatalogPhase } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import {
   catalogEntryEnrichmentStatus,
   groupCatalogEntries,
@@ -17,6 +18,8 @@ type ExperimentFileBrowserProps = {
   selectedRelativePath: string | null;
   loading: boolean;
   enriching?: boolean;
+  scanPhase?: StreamBeamtimeCatalogPhase | null;
+  fromCache?: boolean;
   onSelect: (entry: StxmCatalogEntry) => void;
 };
 
@@ -135,7 +138,7 @@ const ScanCard = memo(function ScanCard({
       onClick={handleClick}
       style={staggerStyle(animationIndex)}
       className={cn(
-        "animate-in slide-in-from-bottom group flex w-28 shrink-0 flex-col items-center gap-1.5 rounded-lg border p-2 text-left transition-colors",
+        "animate-in slide-in-from-bottom group flex w-28 shrink-0 flex-col items-center gap-1.5 rounded-lg border p-2 text-left transition-colors motion-reduce:animate-none",
         selected
           ? "border-accent bg-accent/5 ring-accent/30 ring-1"
           : "border-border bg-surface hover:bg-default/40",
@@ -267,6 +270,32 @@ function partitionCatalogEntries(entries: StxmCatalogEntry[]): {
   return { placeholders, parsed };
 }
 
+function catalogProgressLabel(input: {
+  loading: boolean;
+  scanPhase: StreamBeamtimeCatalogPhase | null | undefined;
+  fromCache: boolean;
+  entryCount: number;
+  placeholderCount: number;
+  allPlaceholderPhase: boolean;
+}): string | null {
+  if (!input.loading) {
+    return null;
+  }
+  if (input.scanPhase === "cache" || input.fromCache) {
+    return `Loaded ${input.entryCount} scan${input.entryCount === 1 ? "" : "s"} from cache…`;
+  }
+  if (input.allPlaceholderPhase) {
+    return `Found ${input.entryCount} scan${input.entryCount === 1 ? "" : "s"}…`;
+  }
+  if (input.scanPhase === "parsing" || input.placeholderCount > 0) {
+    return `Reading metadata for ${input.placeholderCount} scan${input.placeholderCount === 1 ? "" : "s"}…`;
+  }
+  if (input.scanPhase === "listing") {
+    return "Listing scans…";
+  }
+  return `Found ${input.entryCount} scan${input.entryCount === 1 ? "" : "s"}…`;
+}
+
 /**
  * Finder-style scan browser: placeholders in one group, then categorized rows as metadata arrives.
  */
@@ -275,6 +304,8 @@ export function ExperimentFileBrowser({
   selectedRelativePath,
   loading,
   enriching = false,
+  scanPhase = null,
+  fromCache = false,
   onSelect,
 }: ExperimentFileBrowserProps) {
   const { placeholders, parsed } = useMemo(
@@ -286,6 +317,15 @@ export function ExperimentFileBrowser({
   const allPlaceholderPhase =
     entries.length > 0 && placeholders.length === entries.length;
   const metadataPending = placeholders.length > 0;
+  const showCategorizedLayout = !allPlaceholderPhase && parsed.length > 0;
+  const progressLabel = catalogProgressLabel({
+    loading,
+    scanPhase,
+    fromCache,
+    entryCount: entries.length,
+    placeholderCount: placeholders.length,
+    allPlaceholderPhase,
+  });
 
   if (loading && entries.length === 0) {
     return (
@@ -306,12 +346,10 @@ export function ExperimentFileBrowser({
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      {loading ? (
+      {progressLabel ? (
         <div className="text-muted flex items-center gap-2 text-xs">
           <Spinner size="sm" />
-          {allPlaceholderPhase
-            ? `Found ${entries.length} scan${entries.length === 1 ? "" : "s"}`
-            : `Loading metadata for ${placeholders.length} scan${placeholders.length === 1 ? "" : "s"}...`}
+          {progressLabel}
         </div>
       ) : null}
       {enriching ? (
@@ -347,25 +385,29 @@ export function ExperimentFileBrowser({
         </section>
       ) : null}
 
-      {lineScans.length > 0 ? (
-        <section className="min-w-0">
-          <h3 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">
-            {scanCategoryLabel("line_scan")} ({lineScans.length})
-          </h3>
-          <HorizontalScanRow
-            entries={lineScans}
+      {showCategorizedLayout ? (
+        <div className="animate-in fade-in flex min-w-0 flex-col gap-6 duration-300 motion-reduce:animate-none">
+          {lineScans.length > 0 ? (
+            <section className="min-w-0">
+              <h3 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">
+                {scanCategoryLabel("line_scan")} ({lineScans.length})
+              </h3>
+              <HorizontalScanRow
+                entries={lineScans}
+                selectedRelativePath={selectedRelativePath}
+                onSelect={onSelect}
+                animateFromIndex={placeholders.length}
+              />
+            </section>
+          ) : null}
+          <AccordionScanGroups
+            grouped={grouped}
             selectedRelativePath={selectedRelativePath}
             onSelect={onSelect}
-            animateFromIndex={placeholders.length}
+            animateFromIndex={placeholders.length + lineScans.length}
           />
-        </section>
+        </div>
       ) : null}
-      <AccordionScanGroups
-        grouped={grouped}
-        selectedRelativePath={selectedRelativePath}
-        onSelect={onSelect}
-        animateFromIndex={placeholders.length + lineScans.length}
-      />
     </div>
   );
 }
