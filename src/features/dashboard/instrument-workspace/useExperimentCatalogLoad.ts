@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   enrichBeamtimeCatalogThumbnails,
   hydrateBeamtimeCatalogFromCheckpoint,
+  mergeCatalogEntriesPreservingThumbnails,
   readCheckpointScanCountsForExperiments,
   streamBeamtimeCatalogFast,
   type StreamBeamtimeCatalogPhase,
@@ -113,6 +114,7 @@ export function useExperimentCatalogLoad(
   const sessionGenerationRef = useRef(0);
   const loadAbortRef = useRef<AbortController | null>(null);
   const activeExperimentRef = useRef<string | null>(null);
+  const thumbnailEnrichmentRunRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -222,6 +224,84 @@ export function useExperimentCatalogLoad(
 
       let entries: StxmCatalogEntry[] = [];
       let checkpointPainted = false;
+      let activeThumbnailEnrichment: Promise<StxmCatalogEntry[]> | null = null;
+
+      const scheduleThumbnailEnrichment = (
+        seed: StxmCatalogEntry[],
+        finalizeWhenDone: boolean,
+      ) => {
+        if (!isActiveSession(generation, experimentName) || seed.length === 0) {
+          return null;
+        }
+        const runId = thumbnailEnrichmentRunRef.current + 1;
+        thumbnailEnrichmentRunRef.current = runId;
+        patchSnapshot(generation, experimentName, {
+          state: "enriching",
+          isEnriching: true,
+        });
+        const promise = enrichBeamtimeCatalogThumbnails(
+          rootHandle,
+          directoryLayout,
+          experimentName,
+          seed,
+          {
+            signal: loadAbort.signal,
+            onProgress: (progressEntries) => {
+              if (
+                runId !== thumbnailEnrichmentRunRef.current ||
+                !isActiveSession(generation, experimentName)
+              ) {
+                return;
+              }
+              patchSnapshot(generation, experimentName, {
+                entries: progressEntries,
+              });
+            },
+          },
+        );
+        activeThumbnailEnrichment = promise;
+        void promise
+          .then((enriched) => {
+            if (
+              runId !== thumbnailEnrichmentRunRef.current ||
+              !isActiveSession(generation, experimentName)
+            ) {
+              return;
+            }
+            if (finalizeWhenDone) {
+              finalizeSession(generation, experimentName, {
+                entries: enriched,
+                state: "ready",
+                phase: "complete",
+                isEnriching: false,
+              });
+              return;
+            }
+            patchSnapshot(generation, experimentName, {
+              entries: enriched,
+              isEnriching: false,
+            });
+          })
+          .catch(() => {
+            if (
+              runId !== thumbnailEnrichmentRunRef.current ||
+              !isActiveSession(generation, experimentName)
+            ) {
+              return;
+            }
+            if (finalizeWhenDone) {
+              finalizeSession(generation, experimentName, {
+                isEnriching: false,
+                state: "ready",
+              });
+              return;
+            }
+            patchSnapshot(generation, experimentName, {
+              isEnriching: false,
+            });
+          });
+        return promise;
+      };
 
       if (!loadOptions?.forceRefresh) {
         const hydrated = await hydrateBeamtimeCatalogFromCheckpoint(
@@ -252,6 +332,7 @@ export function useExperimentCatalogLoad(
             listingIncomplete: false,
           });
           applyScanCounts(entries);
+          scheduleThumbnailEnrichment(entries, false);
         }
       }
 
@@ -274,7 +355,10 @@ export function useExperimentCatalogLoad(
               );
               setSnapshot((previous) => ({
                 ...previous,
-                entries: progress.entries,
+                entries: mergeCatalogEntriesPreservingThumbnails(
+                  previous.entries,
+                  progress.entries,
+                ),
                 discoveredCount: progress.discoveredCount,
                 parsedCount,
                 phase: progress.phase,
@@ -304,7 +388,19 @@ export function useExperimentCatalogLoad(
           return;
         }
 
-        entries = result.entries;
+        if (activeThumbnailEnrichment) {
+          try {
+            const enrichedSoFar = await activeThumbnailEnrichment;
+            entries = mergeCatalogEntriesPreservingThumbnails(
+              enrichedSoFar,
+              result.entries,
+            );
+          } catch {
+            entries = result.entries;
+          }
+        } else {
+          entries = result.entries;
+        }
         const parsedCount = countParsedEntries(entries);
         finalizeSession(generation, experimentName, {
           entries,
@@ -344,38 +440,7 @@ export function useExperimentCatalogLoad(
         return;
       }
 
-      patchSnapshot(generation, experimentName, {
-        state: "enriching",
-        isEnriching: true,
-      });
-      void enrichBeamtimeCatalogThumbnails(
-        rootHandle,
-        directoryLayout,
-        experimentName,
-        entries,
-        {
-          signal: loadAbort.signal,
-          onProgress: (progressEntries) => {
-            patchSnapshot(generation, experimentName, {
-              entries: progressEntries,
-            });
-          },
-        },
-      )
-        .then((enriched) => {
-          finalizeSession(generation, experimentName, {
-            entries: enriched,
-            state: "ready",
-            phase: "complete",
-            isEnriching: false,
-          });
-        })
-        .catch(() => {
-          finalizeSession(generation, experimentName, {
-            isEnriching: false,
-            state: "ready",
-          });
-        });
+      scheduleThumbnailEnrichment(entries, true);
     },
     [
       directoryLayout,

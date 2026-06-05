@@ -6,6 +6,7 @@ import {
 import {
   insertCatalogEntrySorted,
   mergeCatalogEntries,
+  mergeCatalogEntriesPreservingThumbnails,
   parsePlaceholderCatalogEntries,
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import {
@@ -63,6 +64,28 @@ describe("insertCatalogEntrySorted", () => {
       false,
     );
     expect(entries).toHaveLength(1);
+  });
+});
+
+describe("mergeCatalogEntriesPreservingThumbnails", () => {
+  it("keeps thumbnail fields when stream progress replaces parsed rows", () => {
+    const previous = [
+      {
+        ...catalogEntry("folder/line.hdr"),
+        thumbnailDataUrl: "data:image/png;base64,abc",
+        enrichmentStatus: "thumbnail" as const,
+      },
+    ];
+    const incoming = [
+      {
+        ...catalogEntry("folder/line.hdr"),
+        scanType: "NEXAFS Line Scan",
+        enrichmentStatus: "parsed" as const,
+      },
+    ];
+    const merged = mergeCatalogEntriesPreservingThumbnails(previous, incoming);
+    expect(merged[0]?.thumbnailDataUrl).toBe("data:image/png;base64,abc");
+    expect(merged[0]?.enrichmentStatus).toBe("thumbnail");
   });
 });
 

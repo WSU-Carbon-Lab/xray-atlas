@@ -115,6 +115,62 @@ export type EnrichCatalogThumbnailsOptions = {
   onProgress?: (entries: StxmCatalogEntry[]) => void;
 };
 
+/**
+ * Merges `incoming` catalog rows with thumbnail fields from `previous` when paths match.
+ */
+export function mergeCatalogEntriesPreservingThumbnails(
+  previous: StxmCatalogEntry[],
+  incoming: StxmCatalogEntry[],
+): StxmCatalogEntry[] {
+  const enrichedByPath = new Map(
+    previous
+      .filter((row) => row.thumbnailDataUrl)
+      .map((row) => [row.relativePath, row] as const),
+  );
+  return incoming.map((row) => {
+    const kept = enrichedByPath.get(row.relativePath);
+    if (!kept?.thumbnailDataUrl) {
+      return row;
+    }
+    return {
+      ...row,
+      thumbnailDataUrl: kept.thumbnailDataUrl,
+      enrichmentStatus:
+        kept.enrichmentStatus === "thumbnail"
+          ? ("thumbnail" as const)
+          : row.enrichmentStatus,
+    };
+  });
+}
+
+function thumbnailEnrichmentSortKey(entry: StxmCatalogEntry): number {
+  if (entry.category === "line_scan" || entry.isNexafsLineScan) {
+    return 0;
+  }
+  if (entry.category === "image_scan") {
+    return 1;
+  }
+  return 2;
+}
+
+function indicesNeedingThumbnailEnrichment(
+  entries: StxmCatalogEntry[],
+): number[] {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => !entry.thumbnailDataUrl)
+    .sort((left, right) => {
+      const priority =
+        thumbnailEnrichmentSortKey(left.entry) -
+        thumbnailEnrichmentSortKey(right.entry);
+      if (priority !== 0) {
+        return priority;
+      }
+      return left.entry.relativePath.localeCompare(right.entry.relativePath);
+    })
+    .map(({ index }) => index);
+}
+
 async function readHdrText(ref: StxmFileRef): Promise<string | null> {
   try {
     const hdrFile = await ref.handle.getFile();
@@ -486,8 +542,9 @@ export async function enrichBeamtimeCatalogThumbnails(
 ): Promise<StxmCatalogEntry[]> {
   const experimentDir = await getExperimentDirectory(root, layout, experimentName);
   const updated = entries.map((entry) => ({ ...entry }));
+  const pendingIndices = indicesNeedingThumbnailEnrichment(updated);
 
-  for (let index = 0; index < updated.length; index += 1) {
+  for (const index of pendingIndices) {
     if (options?.signal?.aborted) {
       break;
     }
@@ -508,7 +565,7 @@ export async function enrichBeamtimeCatalogThumbnails(
       const hdrText = await hdrFile.text();
       const ximNames = ximBasenamesForHdrBasename(hdrName);
       const hdrRef = { name: hdrName, relativePath: entry.relativePath, handle: hdrHandle };
-      const ximHandle = await findXimFileForHdr(hdrRef, ximNames, directory);
+      const ximHandle = await findXimFileForHdr(hdrRef, ximNames, experimentDir);
       if (!ximHandle) {
         continue;
       }
