@@ -27,15 +27,21 @@ import {
 } from "~/features/dashboard/lib/stxm-export-metadata";
 import { trpc } from "~/trpc/client";
 
-export type StxmIngestionContextPanelProps = {
+export type StxmMoleculeFieldProps = {
   linkedMolecule: MoleculeSearchResult | null;
   onLinkedMoleculeChange: (molecule: MoleculeSearchResult | null) => void;
-  attributions: DatasetAttributionEntry[];
-  onAttributionsChange: (rows: DatasetAttributionChange) => void;
+};
+
+export type StxmIngestionSampleSectionProps = {
   sampleInfo: StxmSampleInfo;
   onSampleInfoChange: (info: StxmSampleInfo) => void;
   thicknessCm: string;
   onThicknessCmChange: (value: string) => void;
+};
+
+export type StxmIngestionAttributionSectionProps = {
+  attributions: DatasetAttributionEntry[];
+  onAttributionsChange: (rows: DatasetAttributionChange) => void;
 };
 
 const formLabelClass =
@@ -68,79 +74,17 @@ function moleculeSearchResultFromRow(row: {
 }
 
 /**
- * Molecule link, NEXAFS-style sample metadata, and upload attribution for STXM ingestion.
+ * Compact required molecule picker for STXM ingestion; opens Atlas molecule search modal.
  */
-export function StxmIngestionContextPanel({
+export function StxmMoleculeField({
   linkedMolecule,
   onLinkedMoleculeChange,
-  attributions,
-  onAttributionsChange,
-  sampleInfo,
-  onSampleInfoChange,
-  thicknessCm,
-  onThicknessCmChange,
-}: StxmIngestionContextPanelProps) {
-  const { data: session } = useSession();
-  const sessionOrcid = session?.user?.id ?? null;
-  const sessionName = session?.user?.name ?? null;
-  const sessionImage = session?.user?.image ?? null;
-
-  const [initialized, setInitialized] = useState(false);
+}: StxmMoleculeFieldProps) {
   const [moleculeModalOpen, setMoleculeModalOpen] = useState(false);
 
   const utils = trpc.useUtils();
-  const vendorsQuery = trpc.vendors.list.useQuery({ limit: 100 });
   const linkedMoleculeQuery = trpc.molecules.getById.useQuery(
     linkedMolecule ? { id: linkedMolecule.id } : skipToken,
-  );
-
-  const nexafsSample = useMemo(
-    () => stxmSampleInfoForNexafsForm(sampleInfo),
-    [sampleInfo],
-  );
-
-  const vendors = useMemo(
-    () =>
-      (vendorsQuery.data?.vendors ?? []).map((vendor) => ({
-        id: vendor.id,
-        name: vendor.name ?? "Unnamed vendor",
-      })),
-    [vendorsQuery.data?.vendors],
-  );
-
-  useEffect(() => {
-    if (initialized || attributions.length > 0) {
-      return;
-    }
-    if (!sessionOrcid) {
-      return;
-    }
-    onAttributionsChange([
-      defaultUploaderAttribution({
-        orcid: sessionOrcid,
-        displayName: sessionName,
-        imageUrl: sessionImage,
-      }),
-    ]);
-    setInitialized(true);
-  }, [
-    attributions.length,
-    initialized,
-    onAttributionsChange,
-    sessionImage,
-    sessionName,
-    sessionOrcid,
-  ]);
-
-  const handleAttributionChange = useCallback(
-    (rows: DatasetAttributionChange) => {
-      const next =
-        typeof rows === "function"
-          ? rows(filterValidOrcidAttributions(attributions))
-          : rows;
-      onAttributionsChange(filterValidOrcidAttributions(next));
-    },
-    [attributions, onAttributionsChange],
   );
 
   const handleMoleculeSelect = useCallback(
@@ -162,62 +106,90 @@ export function StxmIngestionContextPanel({
   const moleculeDetail = linkedMoleculeQuery.data;
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="space-y-2">
-        <h2 className="text-foreground text-lg font-semibold">Dataset context</h2>
-        <p className="text-muted text-sm">
-          Link an Atlas molecule for bare-atom reference, sample metadata, and
-          export attribution.
-        </p>
-      </section>
-
-      <section className="space-y-2">
-        <Label className="text-foreground text-sm font-medium">Molecule</Label>
-        <button
-          type="button"
-          onClick={() => setMoleculeModalOpen(true)}
-          className="border-border bg-surface hover:bg-default focus-visible:ring-accent w-full rounded-lg border px-4 py-3 text-left transition focus:outline-none focus-visible:ring-2"
-          title="Click to select molecule (required)"
-        >
-          {moleculeLabel ? (
-            <span className="flex flex-col gap-0.5">
-              <span className="text-foreground font-mono text-sm font-semibold">
-                {moleculeLabel}
-              </span>
-              <span className="text-muted truncate text-xs">
-                {linkedMolecule?.commonName ?? linkedMolecule?.iupacName}
-                {moleculeDetail?.casNumber
-                  ? ` · CAS ${moleculeDetail.casNumber}`
-                  : ""}
-              </span>
+    <section className="space-y-2">
+      <Label className="text-foreground text-sm font-medium">Molecule</Label>
+      <button
+        type="button"
+        onClick={() => setMoleculeModalOpen(true)}
+        className="border-border bg-surface hover:bg-default focus-visible:ring-accent w-full rounded-lg border px-4 py-3 text-left transition focus:outline-none focus-visible:ring-2"
+        title="Click to select molecule (required)"
+      >
+        {moleculeLabel ? (
+          <span className="flex flex-col gap-0.5">
+            <span className="text-foreground font-mono text-sm font-semibold">
+              {moleculeLabel}
             </span>
-          ) : (
-            <span className="text-warning text-sm underline decoration-dotted decoration-from-font underline-offset-2">
-              Molecule (required)
+            <span className="text-muted truncate text-xs">
+              {linkedMolecule?.commonName ?? linkedMolecule?.iupacName}
+              {moleculeDetail?.casNumber
+                ? ` · CAS ${moleculeDetail.casNumber}`
+                : ""}
             </span>
-          )}
-        </button>
-        {!linkedMolecule ? (
-          <ErrorMessage className="text-danger text-xs">
-            Select an Atlas molecule to enable bare-atom reference and mass
-            absorption.
-          </ErrorMessage>
-        ) : linkedMolecule.chemicalFormula ? (
-          <p className="text-muted text-xs">
-            Formula {linkedMolecule.chemicalFormula} from linked molecule.
-          </p>
+          </span>
         ) : (
-          <ErrorMessage className="text-danger text-xs">
-            Linked molecule has no chemical formula on record.
-          </ErrorMessage>
+          <span className="text-warning text-sm underline decoration-dotted decoration-from-font underline-offset-2">
+            Select molecule (required)
+          </span>
         )}
-      </section>
-
+      </button>
+      {!linkedMolecule ? (
+        <ErrorMessage className="text-danger text-xs">
+          Select an Atlas molecule to enable bare-atom reference and mass
+          absorption.
+        </ErrorMessage>
+      ) : linkedMolecule.chemicalFormula ? (
+        <p className="text-muted text-xs">
+          Formula {linkedMolecule.chemicalFormula} from linked molecule.
+        </p>
+      ) : (
+        <ErrorMessage className="text-danger text-xs">
+          Linked molecule has no chemical formula on record.
+        </ErrorMessage>
+      )}
       <MoleculeSelectModal
         isOpen={moleculeModalOpen}
         onClose={() => setMoleculeModalOpen(false)}
         onSelect={(id) => void handleMoleculeSelect(id)}
       />
+    </section>
+  );
+}
+
+/**
+ * NEXAFS-style sample metadata and STXM thickness fields for export and reduction.
+ */
+export function StxmIngestionSampleSection({
+  sampleInfo,
+  onSampleInfoChange,
+  thicknessCm,
+  onThicknessCmChange,
+}: StxmIngestionSampleSectionProps) {
+  const vendorsQuery = trpc.vendors.list.useQuery({ limit: 100 });
+
+  const nexafsSample = useMemo(
+    () => stxmSampleInfoForNexafsForm(sampleInfo),
+    [sampleInfo],
+  );
+
+  const vendors = useMemo(
+    () =>
+      (vendorsQuery.data?.vendors ?? []).map((vendor) => ({
+        id: vendor.id,
+        name: vendor.name ?? "Unnamed vendor",
+      })),
+    [vendorsQuery.data?.vendors],
+  );
+
+  return (
+    <div className="flex flex-col gap-6">
+      <section className="space-y-2">
+        <h2 className="text-foreground text-lg font-semibold">
+          Sample information
+        </h2>
+        <p className="text-muted text-sm">
+          Preparation and vendor metadata stored with the reduced spectrum export.
+        </p>
+      </section>
 
       <NexafsSampleInformationSection
         processMethod={nexafsSample.processMethod}
@@ -264,7 +236,9 @@ export function StxmIngestionContextPanel({
           variant="secondary"
           fullWidth
         >
-          <Label className={formLabelClass}>Thickness (cm) for mass absorption</Label>
+          <Label className={formLabelClass}>
+            Thickness (cm) for mass absorption
+          </Label>
           <InputGroup variant="secondary" fullWidth>
             <InputGroup.Input type="number" step="any" min={0} />
           </InputGroup>
@@ -305,15 +279,67 @@ export function StxmIngestionContextPanel({
           </TextField>
         </div>
       </section>
-
-      <section className="space-y-2">
-        <Label className="text-foreground text-sm font-medium">Researchers</Label>
-        <DatasetAttributionEditor
-          attributions={attributions}
-          onChange={handleAttributionChange}
-          showLabel={false}
-        />
-      </section>
     </div>
+  );
+}
+
+/**
+ * ORCID researcher attribution editor for STXM export metadata.
+ */
+export function StxmIngestionAttributionSection({
+  attributions,
+  onAttributionsChange,
+}: StxmIngestionAttributionSectionProps) {
+  const { data: session } = useSession();
+  const sessionOrcid = session?.user?.id ?? null;
+  const sessionName = session?.user?.name ?? null;
+  const sessionImage = session?.user?.image ?? null;
+
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (initialized || attributions.length > 0) {
+      return;
+    }
+    if (!sessionOrcid) {
+      return;
+    }
+    onAttributionsChange([
+      defaultUploaderAttribution({
+        orcid: sessionOrcid,
+        displayName: sessionName,
+        imageUrl: sessionImage,
+      }),
+    ]);
+    setInitialized(true);
+  }, [
+    attributions.length,
+    initialized,
+    onAttributionsChange,
+    sessionImage,
+    sessionName,
+    sessionOrcid,
+  ]);
+
+  const handleAttributionChange = useCallback(
+    (rows: DatasetAttributionChange) => {
+      const next =
+        typeof rows === "function"
+          ? rows(filterValidOrcidAttributions(attributions))
+          : rows;
+      onAttributionsChange(filterValidOrcidAttributions(next));
+    },
+    [attributions, onAttributionsChange],
+  );
+
+  return (
+    <section className="space-y-2">
+      <Label className="text-foreground text-sm font-medium">Researchers</Label>
+      <DatasetAttributionEditor
+        attributions={attributions}
+        onChange={handleAttributionChange}
+        showLabel={false}
+      />
+    </section>
   );
 }

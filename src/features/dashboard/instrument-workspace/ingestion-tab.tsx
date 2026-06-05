@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Spinner } from "@heroui/react";
+import { Button, ErrorMessage, Spinner } from "@heroui/react";
 import { KkBrowserConsentDialog } from "~/features/kk-calc/kk-browser-consent-dialog";
 import {
   computeStxmIngestion,
@@ -46,7 +46,11 @@ import {
 } from "./stxm-ingestion-plot-panel";
 import { StxmStandardsPicker } from "./stxm-standards-picker";
 import { StxmUploadDialog } from "./stxm-upload-dialog";
-import { StxmIngestionContextPanel } from "./stxm-ingestion-context-panel";
+import {
+  StxmIngestionAttributionSection,
+  StxmIngestionSampleSection,
+  StxmMoleculeField,
+} from "./stxm-ingestion-context-panel";
 import {
   attributionsFromStxmExportMetadata,
   buildStxmExportStepMetadata,
@@ -828,24 +832,11 @@ export function IngestionTab({
       />
 
       {sessionId ? (
-        <StxmIngestionContextPanel
+        <StxmMoleculeField
           linkedMolecule={linkedMolecule}
           onLinkedMoleculeChange={setLinkedMolecule}
-          attributions={attributions}
-          onAttributionsChange={handleAttributionsChange}
-          sampleInfo={sampleInfo}
-          onSampleInfoChange={setSampleInfo}
-          thicknessCm={thicknessCm}
-          onThicknessCmChange={setThicknessCm}
         />
       ) : null}
-
-      <StxmStandardsPicker
-        edgeLabel={inferredEdge?.label ?? null}
-        overlays={standardOverlays}
-        onOverlaysChange={setStandardOverlays}
-        onPlotStandardsChange={setPlotStandards}
-      />
 
       <StxmIngestionPlotPanel
         result={result}
@@ -883,6 +874,29 @@ export function IngestionTab({
         onRegionTrayOpenChange={setRegionEditorTrayOpen}
       />
 
+      {sessionId ? (
+        <StxmIngestionSampleSection
+          sampleInfo={sampleInfo}
+          onSampleInfoChange={setSampleInfo}
+          thicknessCm={thicknessCm}
+          onThicknessCmChange={setThicknessCm}
+        />
+      ) : null}
+
+      {sessionId ? (
+        <StxmIngestionAttributionSection
+          attributions={attributions}
+          onAttributionsChange={handleAttributionsChange}
+        />
+      ) : null}
+
+      <StxmStandardsPicker
+        edgeLabel={inferredEdge?.label ?? null}
+        overlays={standardOverlays}
+        onOverlaysChange={setStandardOverlays}
+        onPlotStandardsChange={setPlotStandards}
+      />
+
       {reduceMetadata?.spectra.length ? (
         <p className="text-muted text-xs">
           Last reduce: {reduceMetadata.computedAt.slice(0, 19).replace("T", " ")}
@@ -890,6 +904,34 @@ export function IngestionTab({
             ? ` | KK: ${result.kkEngineLabel}`
             : null}
         </p>
+      ) : null}
+
+      {sessionId ? (
+        <section className="border-border flex flex-col gap-3 border-t pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-foreground text-sm font-medium">
+                Upload reduced spectrum
+              </p>
+              <p className="text-muted text-xs">
+                Keep in session cache or continue to Atlas contribute with
+                molecule, instrument, and attribution.
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              onPress={() => setUploadOpen(true)}
+              isDisabled={!linkedMolecule || isReducing}
+            >
+              Upload to Atlas
+            </Button>
+          </div>
+          {!linkedMolecule ? (
+            <ErrorMessage className="text-danger text-xs">
+              Link a molecule before uploading to Atlas.
+            </ErrorMessage>
+          ) : null}
+        </section>
       ) : null}
     </div>
   );
