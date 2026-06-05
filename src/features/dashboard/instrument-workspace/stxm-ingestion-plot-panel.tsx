@@ -4,8 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import { Spinner } from "@heroui/react";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
-import { buildStxmSpectrumPlotModel } from "~/features/dashboard/lib/stxm-to-spectrum-plot";
-import type { ReferenceCurve } from "~/components/plots/types";
+import {
+  buildStxmSpectrumPlotModel,
+  type StxmCompareOverlay,
+} from "~/features/dashboard/lib/stxm-to-spectrum-plot";
+import type {
+  NormalizationRegionEdgeId,
+  NormalizationRegions,
+  Peak,
+  ReferenceCurve,
+} from "~/components/plots/types";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
 import {
@@ -13,6 +21,7 @@ import {
   type GraphStyle,
   type VisualizationMode,
 } from "~/features/process-nexafs/ui/dataset-visualization-shell";
+import type { StxmNormalizationWindows } from "~/lib/dashboard-processing-session";
 import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
 import {
   ingestionChannelUsesRawSignal,
@@ -24,10 +33,10 @@ import {
   buildStxmBareAtomReferenceCurve,
   stxmBareAtomOverlaySupportedForChannel,
 } from "~/features/dashboard/lib/stxm-bare-atom-overlay";
-import type { StxmWeightingMode } from "~/lib/stxm/estimators";
+import { suggestNormalizationWindows } from "~/lib/stxm/normalization";
 import { StxmIngestionPlotDataRail } from "./stxm-ingestion-plot-data-rail";
+import { StxmIngestionAnalysisRail } from "./stxm-ingestion-analysis-rail";
 import { StxmIngestionSpectrumTable } from "./stxm-ingestion-spectrum-table";
-import { StxmIngestionWeightingToolbar } from "./stxm-ingestion-weighting-toolbar";
 
 /** SVG height for the ingestion spectrum plot; keep aligned with the region heatmap canvas. */
 export const STXM_INGESTION_SPECTRUM_HEIGHT_PX = 600;
@@ -50,12 +59,15 @@ type StxmIngestionPlotPanelProps = {
   onChannelChange: (channel: StxmIngestionPlotChannel) => void;
   i0PlotScale: StxmI0PlotScaleMode;
   onI0PlotScaleChange: (mode: StxmI0PlotScaleMode) => void;
-  weightingMode: StxmWeightingMode;
-  onWeightingModeChange: (mode: StxmWeightingMode) => void;
+  normalization: StxmNormalizationWindows;
+  onNormalizationChange: (windows: StxmNormalizationWindows) => void;
   standards: StxmPlotStandardOverlay[];
   chemicalFormula: string | null;
   formulaLoading?: boolean;
   showRegionOverlays: boolean;
+  compareOverlays?: StxmCompareOverlay[];
+  peaks: Peak[];
+  onPeaksChange: (peaks: Peak[]) => void;
   height?: number;
   isComputing?: boolean;
   primaryTraceLabel?: string;
@@ -70,6 +82,15 @@ function plotHasDisplayableData(
     return true;
   }
   return regionSpectra.length > 0;
+}
+
+function stxmWindowsToPlotRegions(
+  windows: StxmNormalizationWindows,
+): NormalizationRegions {
+  return {
+    pre: [windows.preLo, windows.preHi],
+    post: [windows.postLo, windows.postHi],
+  };
 }
 
 function PlotComputingOverlay() {
@@ -94,12 +115,15 @@ export function StxmIngestionPlotPanel({
   onChannelChange,
   i0PlotScale,
   onI0PlotScaleChange,
-  weightingMode,
-  onWeightingModeChange,
+  normalization,
+  onNormalizationChange,
   standards,
   chemicalFormula,
   formulaLoading = false,
   showRegionOverlays,
+  compareOverlays = [],
+  peaks,
+  onPeaksChange,
   height = STXM_INGESTION_SPECTRUM_HEIGHT_PX,
   isComputing = false,
   primaryTraceLabel,
@@ -112,6 +136,12 @@ export function StxmIngestionPlotPanel({
   const [graphStyle, setGraphStyle] = useState<GraphStyle>("line");
   const [showBareAtomOverlay, setShowBareAtomOverlay] = useState(false);
   const [bareAtomCurve, setBareAtomCurve] = useState<ReferenceCurve | null>(null);
+  const [linkImaginaryReal, setLinkImaginaryReal] = useState(false);
+  const [isPlotNormalizationMode, setIsPlotNormalizationMode] = useState(false);
+  const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
+    useState<"pre" | "post">("pre");
+  const [isPeakSetMode, setIsPeakSetMode] = useState(false);
+  const [selectedPeakId, setSelectedPeakId] = useState<string | null>(null);
 
   const hasRawSpectra = regionSpectra.length > 0;
   const hasReducedResult = result !== null;
@@ -172,6 +202,50 @@ export function StxmIngestionPlotPanel({
     [channel, onChannelChange, onI0PlotScaleChange],
   );
 
+  const normalizationRegionsForPlot = useMemo(
+    () => stxmWindowsToPlotRegions(normalization),
+    [normalization],
+  );
+
+  const handleNormalizationEdgeEnergyChange = useCallback(
+    (edge: NormalizationRegionEdgeId, energy: number) => {
+      const rounded = Math.round(energy * 100) / 100;
+      const sortPair = (a: number, b: number): [number, number] =>
+        a <= b ? [a, b] : [b, a];
+      if (edge === "preMin" || edge === "preMax") {
+        const next =
+          edge === "preMin"
+            ? sortPair(rounded, normalization.preHi)
+            : sortPair(normalization.preLo, rounded);
+        onNormalizationChange({
+          ...normalization,
+          preLo: next[0],
+          preHi: next[1],
+        });
+        return;
+      }
+      const next =
+        edge === "postMin"
+          ? sortPair(rounded, normalization.postHi)
+          : sortPair(normalization.postLo, rounded);
+      onNormalizationChange({
+        ...normalization,
+        postLo: next[0],
+        postHi: next[1],
+      });
+    },
+    [normalization, onNormalizationChange],
+  );
+
+  const handleResetNormalizationRegions = useCallback(() => {
+    if (energyEv.length < 2) {
+      return;
+    }
+    onNormalizationChange(
+      suggestNormalizationWindows(Float64Array.from(energyEv)),
+    );
+  }, [energyEv, onNormalizationChange]);
+
   const plotModel = useMemo(
     () =>
       buildStxmSpectrumPlotModel({
@@ -183,13 +257,19 @@ export function StxmIngestionPlotPanel({
         bareAtomCurve,
         showBareAtomOverlay,
         showRegionOverlays,
+        linkImaginaryReal,
+        compareOverlays,
+        normalizationOverride: normalizationRegionsForPlot,
         primaryTraceLabel,
         pureRegionLabel,
       }),
     [
       bareAtomCurve,
       channel,
+      compareOverlays,
       i0PlotScale,
+      linkImaginaryReal,
+      normalizationRegionsForPlot,
       primaryTraceLabel,
       pureRegionLabel,
       regionSpectra,
@@ -209,6 +289,8 @@ export function StxmIngestionPlotPanel({
         hasReducedResult={hasReducedResult}
         i0PlotScale={i0PlotScale}
         onI0PlotScaleChange={handleI0PlotScaleChange}
+        linkImaginaryReal={linkImaginaryReal}
+        onLinkImaginaryRealChange={setLinkImaginaryReal}
         showBareAtomOverlay={showBareAtomOverlay}
         onShowBareAtomOverlayChange={setShowBareAtomOverlay}
         bareAtomOverlayDisabled={bareAtomOverlayDisabled}
@@ -225,16 +307,53 @@ export function StxmIngestionPlotPanel({
       hasRawSpectra,
       hasReducedResult,
       i0PlotScale,
+      linkImaginaryReal,
       onChannelChange,
       showBareAtomOverlay,
     ],
   );
 
+  const plotAnalysisRail = useMemo(
+    () => (
+      <StxmIngestionAnalysisRail
+        isNormalizationMode={isPlotNormalizationMode}
+        onNormalizationModeChange={setIsPlotNormalizationMode}
+        activeEdge={normalizationSelectionTarget}
+        onActiveEdgeChange={setNormalizationSelectionTarget}
+        onResetNormalizationRegions={handleResetNormalizationRegions}
+        hasData={Boolean(plotModel?.points.length)}
+        isPeakSetMode={isPeakSetMode}
+        onPeakSetModeChange={setIsPeakSetMode}
+        peakCount={peaks.length}
+        onResetAllPeaks={() => onPeaksChange([])}
+      />
+    ),
+    [
+      handleResetNormalizationRegions,
+      isPeakSetMode,
+      isPlotNormalizationMode,
+      normalizationSelectionTarget,
+      onPeaksChange,
+      peaks.length,
+      plotModel?.points.length,
+    ],
+  );
+
+  const plotContext = useMemo(() => {
+    if (isPlotNormalizationMode) {
+      return { kind: "normalize" as const, target: normalizationSelectionTarget };
+    }
+    if (isPeakSetMode) {
+      return { kind: "peak-edit" as const };
+    }
+    return { kind: "explore" as const };
+  }, [isPeakSetMode, isPlotNormalizationMode, normalizationSelectionTarget]);
+
   const showComputingOverlay =
     isComputing && !plotHasDisplayableData(result, regionSpectra);
 
   const graphContent = (
-    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-[var(--border-default)] p-4">
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-visible rounded-xl border border-[var(--border-default)] p-3">
       {plotModel ? (
         <SpectrumPlot
           points={plotModel.points}
@@ -245,11 +364,70 @@ export function StxmIngestionPlotPanel({
           companionSpectra={plotModel.companionSpectra}
           showNormalizationShading={plotModel.showNormalizationShading}
           normalizationRegions={plotModel.normalizationRegions}
+          normalizationEdgeHandlesEnabled={
+            isPlotNormalizationMode && plotModel.showNormalizationShading
+          }
+          onNormalizationEdgeEnergyChange={handleNormalizationEdgeEnergyChange}
           primaryTraceLabel={plotModel.primaryTraceLabel}
           headerRight={plotLeftRail}
+          headerAnalysis={plotAnalysisRail}
           suppressAnalysisRailLeadingGrip
           cursorMode={cursorMode}
           onCursorModeChange={setCursorMode}
+          plotContext={plotContext}
+          peaks={peaks}
+          selectedPeakId={selectedPeakId}
+          onPeakSelect={setSelectedPeakId}
+          onPeakUpdate={(peakId, energy) => {
+            const roundedEnergy = Math.round(energy * 100) / 100;
+            onPeaksChange(
+              peaks.map((peak, index) => {
+                const id = peak.id ?? `peak-${index}-${peak.energy}`;
+                if (id !== peakId) {
+                  return peak;
+                }
+                return { ...peak, id, energy: roundedEnergy };
+              }),
+            );
+          }}
+          onPeakPatch={(peakId, patch) => {
+            onPeaksChange(
+              peaks.map((peak, index) => {
+                const id = peak.id ?? `peak-${index}-${peak.energy}`;
+                if (id !== peakId) {
+                  return peak;
+                }
+                const next = { ...peak, id };
+                if (patch.energy !== undefined) {
+                  next.energy = Math.round(patch.energy * 100) / 100;
+                }
+                if (patch.peakKind !== undefined) {
+                  next.peakKind = patch.peakKind;
+                }
+                return next;
+              }),
+            );
+          }}
+          onPeakAdd={(energy) => {
+            const roundedEnergy = Math.round(energy * 100) / 100;
+            const id = `peak-${Date.now()}-${roundedEnergy}`;
+            onPeaksChange([
+              ...peaks,
+              { id, energy: roundedEnergy, peakKind: "pi-star" },
+            ]);
+            setSelectedPeakId(id);
+          }}
+          onPeakDelete={(peakId) => {
+            onPeaksChange(
+              peaks.filter((peak, index) => {
+                const id = peak.id ?? `peak-${index}-${peak.energy}`;
+                return id !== peakId;
+              }),
+            );
+            if (selectedPeakId === peakId) {
+              setSelectedPeakId(null);
+            }
+          }}
           emptyStateMessage="Computing spectra for this channel."
         />
       ) : (
@@ -271,19 +449,13 @@ export function StxmIngestionPlotPanel({
   );
 
   return (
-    <div className="border-border bg-surface flex h-[min(70vh,640px)] min-h-[560px] min-w-0 flex-col gap-3 overflow-hidden rounded-xl border p-4 shadow-sm">
+    <div className="border-border bg-surface flex min-h-0 min-w-0 flex-1 flex-col gap-3 rounded-xl border p-3 shadow-sm">
       <DatasetVisualizationShell
         modes={STXM_VISUALIZATION_MODES}
         mode={visualizationMode}
         onModeChange={setVisualizationMode}
         graphStyle={graphStyle}
         onGraphStyleChange={setGraphStyle}
-        leadingSlot={
-          <StxmIngestionWeightingToolbar
-            weightingMode={weightingMode}
-            onWeightingModeChange={onWeightingModeChange}
-          />
-        }
         graph={graphContent}
         table={
           <StxmIngestionSpectrumTable

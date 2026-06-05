@@ -6,7 +6,7 @@ import type { SpectrumYAxisQuantity } from "~/components/plots/types";
 import type { StxmIngestionPlotChannel } from "./stxm-ingestion-display";
 
 export type StxmIngestionPlotTrayId =
-  | "i0_signal"
+  | "raw_signal"
   | "spectroscopy"
   | "imaginary"
   | "real";
@@ -20,19 +20,18 @@ const TRAY_META: Record<
     defaultChannelId: StxmIngestionPlotChannel;
   }
 > = {
-  i0_signal: {
-    trayGlyph: "I0",
-    trayLabel: "I0 signal",
+  raw_signal: {
+    trayGlyph: "Rw",
+    trayLabel: "Raw signal",
     trayDescription:
-      "Per-region mean detector counts: izero (I0), sample transmission, or 1/I0.",
+      "I0, sample transmission, reciprocal I0, and Beer-Lambert OD from region sums.",
     defaultChannelId: "signal_i0",
   },
   spectroscopy: {
-    trayGlyph: "Rw",
+    trayGlyph: "Sp",
     trayLabel: "Spectroscopy",
-    trayDescription:
-      "Beer-Lambert optical density, edge-normalized OD, or mass absorption.",
-    defaultChannelId: "od",
+    trayDescription: "Edge-normalized OD and mass absorption.",
+    defaultChannelId: "od_normalized",
   },
   imaginary: {
     trayGlyph: "β",
@@ -94,10 +93,10 @@ const CHANNEL_TRAY: Record<
   (typeof RAIL_CHANNEL_IDS)[number],
   StxmIngestionPlotTrayId
 > = {
-  signal_i0: "i0_signal",
-  signal_sample: "i0_signal",
-  signal_inv_i0: "i0_signal",
-  od: "spectroscopy",
+  signal_i0: "raw_signal",
+  signal_sample: "raw_signal",
+  signal_inv_i0: "raw_signal",
+  od: "raw_signal",
   od_normalized: "spectroscopy",
   mass_absorption: "spectroscopy",
   beta: "imaginary",
@@ -112,15 +111,15 @@ const CHANNEL_COPY: Record<
 > = {
   signal_i0: {
     label: "I0",
-    description: "Mean izero-region detector signal versus energy.",
+    description: "Summed izero-region detector signal versus energy.",
   },
   signal_sample: {
     label: "Sample",
-    description: "Mean sample-region detector signal versus energy.",
+    description: "Summed sample-region detector signal versus energy.",
   },
   signal_inv_i0: {
     label: "1/I0",
-    description: "Reciprocal izero mean signal (log-friendly raw view).",
+    description: "Reciprocal izero sum signal (log-friendly raw view).",
   },
   od: {
     label: "OD",
@@ -159,13 +158,13 @@ for (const meta of Object.values(TRAY_META)) {
   assertGlyphLength(meta.trayGlyph, "STXM ingestion tray");
 }
 
-/** Vertical data-view rail layout for STXM ingestion (I0, spectroscopy Rw, beta, delta trays). */
+/** Vertical data-view rail layout for STXM ingestion (raw signal, spectroscopy, optical constants). */
 export const STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION: PlotDataRailDefinition<
   StxmIngestionPlotChannel,
   StxmIngestionPlotTrayId
 > = {
   trays: (
-    ["i0_signal", "spectroscopy", "imaginary", "real"] as const
+    ["raw_signal", "spectroscopy", "imaginary", "real"] as const
   ).map((id) => ({
     id,
     trayGlyph: TRAY_META[id].trayGlyph,

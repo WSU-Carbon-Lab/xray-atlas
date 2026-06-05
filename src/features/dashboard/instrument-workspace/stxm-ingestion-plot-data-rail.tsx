@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { ToggleButton, ToggleButtonGroup, Toolbar } from "@heroui/react";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
+import { PlotDataViewRail } from "~/components/plots/data-rail";
 import { PlotToolbarGroupSeparator } from "~/components/plots/toolbars";
 import {
   plotToolbarAttachedToggleGroupVerticalClass,
@@ -10,13 +11,19 @@ import {
   plotToolbarGlyphToggleGroupItemVerticalClass,
   PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
-import { SpectrumYChannelRail } from "~/components/plots/toolbars/spectrum-y-channel-rail";
 import { STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION } from "~/lib/stxm/stxm-ingestion-plot-data-rail-config";
 import {
   ingestionChannelUsesRawSignal,
   type StxmI0PlotScaleMode,
   type StxmIngestionPlotChannel,
 } from "~/lib/stxm/stxm-ingestion-display";
+import {
+  isStxmImaginaryChannel,
+  isStxmRealChannel,
+  resolveStxmLinkedCompanionChannel,
+  STXM_IMAGINARY_REAL_LINK_ID,
+  STXM_LINKED_IMAGINARY_TO_REAL,
+} from "~/lib/stxm/stxm-optical-link";
 import { StxmI0PlotScaleToggle } from "./stxm-i0-plot-scale-toggle";
 
 export type StxmIngestionPlotDataRailProps = {
@@ -26,6 +33,8 @@ export type StxmIngestionPlotDataRailProps = {
   hasReducedResult: boolean;
   i0PlotScale: StxmI0PlotScaleMode;
   onI0PlotScaleChange: (mode: StxmI0PlotScaleMode) => void;
+  linkImaginaryReal: boolean;
+  onLinkImaginaryRealChange: (linked: boolean) => void;
   showBareAtomOverlay: boolean;
   onShowBareAtomOverlayChange: (show: boolean) => void;
   bareAtomOverlayDisabled: boolean;
@@ -34,7 +43,7 @@ export type StxmIngestionPlotDataRailProps = {
 };
 
 /**
- * STXM ingestion left vertical rail: I0 signal tray, spectroscopy Rw, optical constants, bare-atom toggle.
+ * STXM ingestion left vertical rail: raw signal tray, spectroscopy, optical constants, and link toggle.
  */
 export function StxmIngestionPlotDataRail({
   displayChannel,
@@ -43,6 +52,8 @@ export function StxmIngestionPlotDataRail({
   hasReducedResult,
   i0PlotScale,
   onI0PlotScaleChange,
+  linkImaginaryReal,
+  onLinkImaginaryRealChange,
   showBareAtomOverlay,
   onShowBareAtomOverlayChange,
   bareAtomOverlayDisabled,
@@ -67,6 +78,31 @@ export function StxmIngestionPlotDataRail({
     }
     return bareAtomOverlayDisabledReason;
   }, [bareAtomOverlayDisabledReason, formulaLoading]);
+
+  const links = useMemo(
+    () => [
+      {
+        id: STXM_IMAGINARY_REAL_LINK_ID,
+        insertAfterTrayId: "imaginary" as const,
+        title: "Link real and imaginary",
+        descriptionLinked:
+          "Overlay the paired channel (for example delta with beta) on the same plot.",
+        descriptionUnlinked: "Plot only the active tray channel.",
+        whenDisabledDescription:
+          "Select an imaginary or real optical constant to enable linking.",
+        isLinkEnabled: (id: StxmIngestionPlotChannel) =>
+          isStxmImaginaryChannel(id) || isStxmRealChannel(id),
+        resolveCompanionId: (id: StxmIngestionPlotChannel) =>
+          resolveStxmLinkedCompanionChannel(id, true) ??
+          (isStxmRealChannel(id)
+            ? (Object.entries(STXM_LINKED_IMAGINARY_TO_REAL).find(
+                ([, real]) => real === id,
+              )?.[0] as StxmIngestionPlotChannel | undefined) ?? null
+            : null),
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="pointer-events-auto flex flex-col items-center gap-2">
@@ -112,13 +148,16 @@ export function StxmIngestionPlotDataRail({
 
       <PlotToolbarGroupSeparator orientation="horizontal" />
 
-      <SpectrumYChannelRail
+      <PlotDataViewRail
         definition={STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION}
         activeChannelId={displayChannel}
         onActiveChannelChange={onDisplayChannelChange}
         isChannelAvailable={isChannelAvailable}
-        ariaLabel="STXM spectrum Y channels"
+        links={links}
+        linkState={{ [STXM_IMAGINARY_REAL_LINK_ID]: linkImaginaryReal }}
+        onLinkStateChange={(_id, linked) => onLinkImaginaryRealChange(linked)}
         hintPlacement="right"
+        ariaLabel="STXM spectrum Y channels"
       />
 
       {showI0ScaleToggle ? (

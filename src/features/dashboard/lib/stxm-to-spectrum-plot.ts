@@ -6,6 +6,7 @@ import type {
   SpectrumYAxisQuantity,
 } from "~/components/plots/types";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
+import type { DashboardIngestionResult } from "~/lib/dashboard-processing-session";
 import { channelDefinitionById } from "~/components/plots/data-rail";
 import {
   ingestionChannelUsesRawSignal,
@@ -17,7 +18,43 @@ import {
 } from "~/lib/stxm/stxm-ingestion-display";
 import { stxmBareAtomOverlaySupportedForChannel } from "~/features/dashboard/lib/stxm-bare-atom-overlay";
 import { STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION } from "~/lib/stxm/stxm-ingestion-plot-data-rail-config";
+import { resolveStxmLinkedCompanionChannel } from "~/lib/stxm/stxm-optical-link";
 import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
+
+export type StxmCompareOverlay = {
+  id: string;
+  label: string;
+  ingestion: DashboardIngestionResult;
+  color: string;
+};
+
+function persistedIngestionToRuntime(
+  persisted: DashboardIngestionResult,
+): StxmIngestionResult {
+  return {
+    energyEv: persisted.energyEv,
+    i0: persisted.i0 ?? [],
+    i0Err: [],
+    iSample: persisted.iSample ?? [],
+    iSampleErr: [],
+    od: persisted.od,
+    odErr: persisted.odErr,
+    odNormalized: persisted.odNormalized ?? persisted.od,
+    massAbsorption: persisted.massAbsorption ?? null,
+    massAbsorptionErr: null,
+    beta: persisted.beta ?? null,
+    betaErr: null,
+    delta: persisted.delta ?? null,
+    normalization: persisted.normalization,
+    normalizationScale: persisted.normalizationScale ?? 1,
+    bareAtomScale: null,
+    bareAtomOffset: null,
+    thicknessCm: persisted.thicknessCm ?? 1e-4,
+    formula: persisted.formula ?? null,
+    weightingMode: persisted.weightingMode,
+    kkEngineLabel: persisted.kkEngineLabel ?? null,
+  };
+}
 
 export type StxmSpectrumStandardOverlay = {
   id: string;
@@ -47,6 +84,9 @@ export type BuildStxmSpectrumPlotModelParams = {
   bareAtomCurve: ReferenceCurve | null;
   showBareAtomOverlay: boolean;
   showRegionOverlays: boolean;
+  linkImaginaryReal?: boolean;
+  compareOverlays?: StxmCompareOverlay[];
+  normalizationOverride?: NormalizationRegions | null;
   primaryTraceLabel?: string;
   pureRegionLabel?: string;
 };
@@ -233,6 +273,67 @@ function resolvePrimaryRegionSeries(
   return regionSpectra.find((series) => !series.isIzero) ?? regionSpectra[0] ?? null;
 }
 
+function buildLinkedOpticalCompanion(
+  result: StxmIngestionResult | null,
+  regionSpectra: StxmRegionSpectrumSeries[],
+  channel: StxmIngestionPlotChannel,
+  i0PlotScale: StxmI0PlotScaleMode,
+  linkImaginaryReal: boolean,
+): DifferenceSpectrum | null {
+  if (!linkImaginaryReal) {
+    return null;
+  }
+  const companionChannel = resolveStxmLinkedCompanionChannel(channel, true);
+  if (!companionChannel) {
+    return null;
+  }
+  const companionLabel = channelDefinitionById(
+    STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
+    companionChannel,
+  ).label;
+  let points: SpectrumPoint[] = [];
+  if (result && result.energyEv.length > 0) {
+    points = pointsFromResult(result, companionChannel, i0PlotScale);
+  } else {
+    const series = resolvePrimaryRegionSeries(regionSpectra, companionChannel);
+    if (series) {
+      points = pointsFromRegionSeries(series, companionChannel, i0PlotScale);
+    }
+  }
+  points = points.filter((point) => Number.isFinite(point.absorption));
+  if (points.length === 0) {
+    return null;
+  }
+  return {
+    label: `${companionLabel} (linked)`,
+    preferred: false,
+    points,
+  };
+}
+
+function buildCompareCompanionSpectra(
+  compareOverlays: StxmCompareOverlay[],
+  channel: StxmIngestionPlotChannel,
+  i0PlotScale: StxmI0PlotScaleMode,
+): DifferenceSpectrum[] {
+  if (compareOverlays.length === 0) {
+    return [];
+  }
+  return compareOverlays
+    .map((overlay) => {
+      const runtime = persistedIngestionToRuntime(overlay.ingestion);
+      const points = pointsFromResult(runtime, channel, i0PlotScale).filter(
+        (point) => Number.isFinite(point.absorption),
+      );
+      return {
+        label: overlay.label,
+        preferred: false,
+        points,
+      };
+    })
+    .filter((spectrum) => spectrum.points.length > 0);
+}
+
 function buildCompanionSpectra(
   regionSpectra: StxmRegionSpectrumSeries[],
   channel: StxmIngestionPlotChannel,
@@ -327,6 +428,9 @@ export function buildStxmSpectrumPlotModel(
     bareAtomCurve,
     showBareAtomOverlay,
     showRegionOverlays,
+    linkImaginaryReal = false,
+    compareOverlays = [],
+    normalizationOverride,
     primaryTraceLabel,
     pureRegionLabel,
   } = params;
@@ -359,20 +463,40 @@ export function buildStxmSpectrumPlotModel(
     return null;
   }
 
-  const companionSpectra = buildCompanionSpectra(
+  const regionCompanions = buildCompanionSpectra(
     regionSpectra,
     channel,
     i0PlotScale,
     showRegionOverlays,
     primaryRegionId,
   );
+  const linkedCompanion = buildLinkedOpticalCompanion(
+    result,
+    regionSpectra,
+    channel,
+    i0PlotScale,
+    linkImaginaryReal,
+  );
+  const compareCompanions = buildCompareCompanionSpectra(
+    compareOverlays,
+    channel,
+    i0PlotScale,
+  );
+  const companionSpectra = [
+    ...regionCompanions,
+    ...(linkedCompanion ? [linkedCompanion] : []),
+    ...compareCompanions,
+  ];
 
   const showNormalizationShading =
     result != null &&
-    (channel === "od" || channel === "od_normalized");
+    (channel === "od" ||
+      channel === "od_normalized" ||
+      channel === "mass_absorption");
 
   const normalizationRegions =
-    showNormalizationShading && result
+    normalizationOverride ??
+    (showNormalizationShading && result
       ? {
           pre: [result.normalization.preLo, result.normalization.preHi] as [
             number,
@@ -383,7 +507,7 @@ export function buildStxmSpectrumPlotModel(
             number,
           ],
         }
-      : undefined;
+      : undefined);
 
   return {
     points,
