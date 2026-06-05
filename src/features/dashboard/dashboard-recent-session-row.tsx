@@ -76,27 +76,24 @@ export function DashboardRecentSessionRow({
           >
             {new Date(session.updatedAt).toLocaleString()}
           </time>
-          <div
-            className="shrink-0"
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            isIconOnly
+            aria-label="Delete processing session"
+            data-testid="dashboard-recent-session-delete"
+            isDisabled={deleteMutation.isPending}
+            className={cn(
+              "text-muted border-border shrink-0",
+              "hover:border-danger hover:bg-danger/10 hover:text-danger",
+            )}
+            onPress={() => setConfirmOpen(true)}
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              isIconOnly
-              aria-label="Delete processing session"
-              isDisabled={deleteMutation.isPending}
-              className={cn(
-                "text-(--text-secondary) hover:text-danger hover:bg-danger/10",
-                "min-h-8 min-w-8 border border-(--border-default)",
-              )}
-              onPress={() => setConfirmOpen(true)}
-            >
-              <Trash2 className="size-4" aria-hidden />
-            </Button>
-          </div>
+            <Trash2 className="size-4" aria-hidden />
+          </Button>
         </div>
       </div>
 

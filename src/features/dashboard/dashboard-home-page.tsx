@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { Spinner } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Users,
 } from "lucide-react";
+import { selectRecentWorkspaceSessions } from "~/lib/dashboard-processing-session";
 import { trpc } from "~/trpc/client";
 import { DashboardRecentSessionRow } from "./dashboard-recent-session-row";
 
@@ -49,10 +50,29 @@ function DashboardSection({
  * Facility-first dashboard landing with analysis software entry points.
  */
 export function DashboardHomePage() {
+  const utils = trpc.useUtils();
+  const hasPrunedDuplicatesRef = useRef(false);
   const sessionsQuery = trpc.dashboardSessions.list.useQuery(undefined, {
     staleTime: 30_000,
   });
-  const recentSessions = sessionsQuery.data ?? [];
+  const { mutate: dedupeWorkspaceSessions } =
+    trpc.dashboardSessions.dedupeWorkspaceSessions.useMutation({
+      onSettled: async () => {
+        await utils.dashboardSessions.list.invalidate();
+      },
+    });
+
+  useEffect(() => {
+    if (sessionsQuery.isSuccess && !hasPrunedDuplicatesRef.current) {
+      hasPrunedDuplicatesRef.current = true;
+      dedupeWorkspaceSessions();
+    }
+  }, [sessionsQuery.isSuccess, dedupeWorkspaceSessions]);
+
+  const recentSessions = useMemo(
+    () => selectRecentWorkspaceSessions(sessionsQuery.data ?? [], 5),
+    [sessionsQuery.data],
+  );
 
   return (
     <div className="flex w-full flex-col gap-8">

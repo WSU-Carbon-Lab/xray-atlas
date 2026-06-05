@@ -7,6 +7,7 @@ import {
   defaultDashboardSessionTitle,
   defaultDashboardStepMetadata,
   parseDashboardStepMetadata,
+  workspaceSessionDuplicateIdsToDelete,
   type DashboardStepMetadata,
 } from "~/lib/dashboard-processing-session";
 import {
@@ -231,6 +232,38 @@ export const dashboardSessionsRouter = createTRPCRouter({
       });
       return { ok: true as const };
     }),
+
+  /**
+   * Deletes older processing sessions that duplicate the same workspace shortcut.
+   *
+   * Keeps the newest `updatedAt` row per instrument, folder handle, and beamtime
+   * combination for the signed-in user.
+   */
+  dedupeWorkspaceSessions: protectedProcedure.mutation(async ({ ctx }) => {
+    const rows = await ctx.db.dashboardprocessingsession.findMany({
+      where: { userid: ctx.userId },
+      select: {
+        id: true,
+        instrumentslug: true,
+        stepmetadata: true,
+        updatedat: true,
+      },
+    });
+    const sessions = rows.map((row) => ({
+      id: row.id,
+      instrumentSlug: row.instrumentslug,
+      stepMetadata: parseDashboardStepMetadata(row.stepmetadata),
+      updatedAt: row.updatedat,
+    }));
+    const idsToDelete = workspaceSessionDuplicateIdsToDelete(sessions);
+    if (idsToDelete.length === 0) {
+      return { deletedCount: 0 };
+    }
+    await ctx.db.dashboardprocessingsession.deleteMany({
+      where: { id: { in: idsToDelete }, userid: ctx.userId },
+    });
+    return { deletedCount: idsToDelete.length };
+  }),
 
   /** Lists experiments the session user may edit, optionally filtered by slug or molecule name. */
   searchLinkableExperiments: protectedProcedure

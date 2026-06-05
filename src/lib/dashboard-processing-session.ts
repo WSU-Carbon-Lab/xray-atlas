@@ -356,3 +356,93 @@ export function dashboardStepLockReason(
       return "Complete prior steps first.";
   }
 }
+
+/** Minimal session fields used to group workspace shortcut duplicates. */
+export type DashboardWorkspaceSessionRef = {
+  id: string;
+  instrumentSlug: string;
+  stepMetadata: DashboardStepMetadata;
+  updatedAt: Date | string;
+};
+
+/**
+ * Builds a stable workspace identity key for recent-work deduplication.
+ *
+ * Sessions sharing instrument, folder handle (or root name), and beamtime
+ * folder name are treated as the same shortcut; empty beamtime groups
+ * multiple opens of the same root folder.
+ */
+export function dashboardWorkspaceShortcutKey(
+  session: Pick<DashboardWorkspaceSessionRef, "instrumentSlug" | "stepMetadata">,
+): string {
+  const workspace = session.stepMetadata.workspace;
+  const folderKey =
+    workspace?.folderHandleKey?.trim() ??
+    workspace?.folderRootName?.trim() ??
+    "";
+  const beamtime = workspace?.beamtimeName?.trim() ?? "";
+  return `${session.instrumentSlug}\u0000${folderKey}\u0000${beamtime}`;
+}
+
+function sessionUpdatedAtMs(updatedAt: Date | string): number {
+  return new Date(updatedAt).getTime();
+}
+
+/**
+ * Returns the newest session per workspace shortcut key, ordered by recency.
+ */
+export function selectRecentWorkspaceSessions<T extends DashboardWorkspaceSessionRef>(
+  sessions: T[],
+  limit: number,
+): T[] {
+  const newestByKey = new Map<string, T>();
+  const sorted = [...sessions].sort(
+    (left, right) =>
+      sessionUpdatedAtMs(right.updatedAt) - sessionUpdatedAtMs(left.updatedAt),
+  );
+  for (const session of sorted) {
+    const key = dashboardWorkspaceShortcutKey(session);
+    if (!newestByKey.has(key)) {
+      newestByKey.set(key, session);
+    }
+  }
+  return [...newestByKey.values()]
+    .sort(
+      (left, right) =>
+        sessionUpdatedAtMs(right.updatedAt) -
+        sessionUpdatedAtMs(left.updatedAt),
+    )
+    .slice(0, limit);
+}
+
+/**
+ * Lists session ids to delete when multiple rows share a workspace shortcut key.
+ *
+ * Keeps the row with the latest `updatedAt` in each duplicate group.
+ */
+export function workspaceSessionDuplicateIdsToDelete<
+  T extends DashboardWorkspaceSessionRef,
+>(sessions: T[]): string[] {
+  const groups = new Map<string, T[]>();
+  for (const session of sessions) {
+    const key = dashboardWorkspaceShortcutKey(session);
+    const group = groups.get(key) ?? [];
+    group.push(session);
+    groups.set(key, group);
+  }
+  const idsToDelete: string[] = [];
+  for (const group of groups.values()) {
+    if (group.length <= 1) {
+      continue;
+    }
+    const sorted = [...group].sort(
+      (left, right) =>
+        sessionUpdatedAtMs(right.updatedAt) -
+        sessionUpdatedAtMs(left.updatedAt),
+    );
+    for (const row of sorted.slice(1)) {
+      idsToDelete.push(row.id);
+    }
+  }
+  return idsToDelete;
+}
