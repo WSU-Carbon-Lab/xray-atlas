@@ -7,8 +7,6 @@ import {
   Label,
   Spinner,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
 } from "@heroui/react";
 import { Upload, Wand2 } from "lucide-react";
 import { KkBrowserConsentDialog } from "~/features/kk-calc/kk-browser-consent-dialog";
@@ -43,7 +41,6 @@ import {
 } from "~/lib/stxm/multi-region-state";
 import { regionRawSpectraFromScan } from "~/lib/stxm/raw-spectrum";
 import { setPureRegionRole } from "~/lib/stxm/region-editor-utils";
-import { STXM_INGESTION_CHANNEL_OPTIONS } from "~/lib/stxm/stxm-ingestion-display";
 import type {
   StxmIzeroBounds,
   StxmPlotScaleMode,
@@ -53,18 +50,13 @@ import type {
 import { showToast } from "~/components/ui/toast";
 import { StxmMultiRegionEditor } from "./stxm-multi-region-editor";
 import {
+  STXM_INGESTION_SPECTRUM_HEIGHT_PX,
   StxmIngestionPlotPanel,
   type StxmPlotStandardOverlay,
 } from "./stxm-ingestion-plot-panel";
 import { StxmStandardsPicker } from "./stxm-standards-picker";
 import { StxmUploadDialog } from "./stxm-upload-dialog";
 import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
-
-const WEIGHTING_OPTIONS: Array<{ id: StxmWeightingMode; label: string }> = [
-  { id: "poisson_mle", label: "Poisson MLE" },
-  { id: "inverse_count", label: "Inverse count" },
-  { id: "empirical", label: "Empirical" },
-];
 
 const RAW_SPECTRA_DEBOUNCE_MS = 300;
 const PIPELINE_DEBOUNCE_MS = 400;
@@ -591,7 +583,7 @@ export function IngestionTab({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-h-0 flex-col gap-3">
       {!readStxmComputeConsentGranted() ? (
         <KkBrowserConsentDialog
           isOpen={kkConsentOpen}
@@ -618,67 +610,6 @@ export function IngestionTab({
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <ToggleButtonGroup
-          selectionMode="single"
-          selectedKeys={[weightingMode]}
-          onSelectionChange={(keys) => {
-            const key = [...keys][0];
-            if (
-              key === "poisson_mle" ||
-              key === "inverse_count" ||
-              key === "empirical"
-            ) {
-              setWeightingMode(key);
-            }
-          }}
-        >
-          {WEIGHTING_OPTIONS.map((option) => (
-            <ToggleButton key={option.id} id={option.id} size="sm">
-              {option.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-
-        <ToggleButtonGroup
-          selectionMode="single"
-          selectedKeys={[displayChannel]}
-          onSelectionChange={(keys) => {
-            const key = [...keys][0];
-            if (
-              typeof key === "string" &&
-              STXM_INGESTION_CHANNEL_OPTIONS.some((option) => option.id === key)
-            ) {
-              setDisplayChannel(key as StxmIngestionPlotChannel);
-            }
-          }}
-        >
-          {STXM_INGESTION_CHANNEL_OPTIONS.map((option) => (
-            <ToggleButton key={option.id} id={option.id} size="sm">
-              {option.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-
-        <ToggleButtonGroup
-          selectionMode="single"
-          selectedKeys={[plotScaleMode]}
-          onSelectionChange={(keys) => {
-            const key = [...keys][0];
-            if (key === "linear" || key === "log") {
-              setPlotScaleMode(key);
-            }
-          }}
-        >
-          <ToggleButton id="linear" size="sm">
-            Linear
-          </ToggleButton>
-          <ToggleButton id="log" size="sm">
-            Log
-          </ToggleButton>
-        </ToggleButtonGroup>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
         <Button variant="secondary" size="sm" onPress={handleAutoSuggest}>
           <Wand2 className="h-3.5 w-3.5" aria-hidden />
           Auto regions
@@ -697,7 +628,7 @@ export function IngestionTab({
         </Button>
       </div>
 
-      <div className="grid min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(220px,2fr)_minmax(0,3fr)] md:items-start">
+      <div className="grid min-h-0 grid-cols-1 gap-3 md:grid-cols-[minmax(220px,2fr)_minmax(0,3fr)] md:items-stretch">
         <div className="flex min-h-0 min-w-0 flex-col gap-2">
           <StxmMultiRegionEditor
             image={imageMatrix}
@@ -730,11 +661,15 @@ export function IngestionTab({
             result={result}
             regionSpectra={regionSpectra}
             channel={displayChannel}
+            onChannelChange={setDisplayChannel}
             yScale={yScale}
+            onYScaleChange={setPlotScaleMode}
+            weightingMode={weightingMode}
+            onWeightingModeChange={setWeightingMode}
             standards={plotStandards}
             bareAtomCurve={null}
             showRegionOverlays
-            height={480}
+            height={STXM_INGESTION_SPECTRUM_HEIGHT_PX}
             isComputing={isReducing}
             pureRegionLabel={pureRegionLabel}
           />

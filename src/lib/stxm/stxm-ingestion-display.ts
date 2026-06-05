@@ -1,16 +1,24 @@
 import type { StxmIngestionDisplayChannel } from "~/features/dashboard/lib/computeStxmIngestion";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
+import type { StxmWeightingMode } from "./estimators";
 import type { StxmRegionSpectrumSeries } from "./stxm-region-types";
 
 export type StxmIngestionPlotChannel = StxmIngestionDisplayChannel | "f1" | "chi" | "bare_atom";
 
-export const STXM_INGESTION_CHANNEL_OPTIONS: Array<{
+export type StxmIngestionChannelOption = {
   id: StxmIngestionPlotChannel;
   label: string;
-}> = [
+};
+
+/** Raw mean-signal views from per-region spectra (recomputed on weighting change). */
+export const STXM_INGESTION_SIGNAL_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
   { id: "signal_i0", label: "I0" },
   { id: "signal_sample", label: "Sample" },
   { id: "signal_inv_i0", label: "1/I0" },
+];
+
+/** Reduced pipeline channels (OD, optical constants, bare atom). */
+export const STXM_INGESTION_REDUCED_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
   { id: "od", label: "OD" },
   { id: "od_normalized", label: "Norm OD" },
   { id: "mass_absorption", label: "Mass abs" },
@@ -19,6 +27,21 @@ export const STXM_INGESTION_CHANNEL_OPTIONS: Array<{
   { id: "f1", label: "f1" },
   { id: "chi", label: "chi" },
   { id: "bare_atom", label: "Bare atom" },
+];
+
+export const STXM_INGESTION_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
+  ...STXM_INGESTION_SIGNAL_CHANNEL_OPTIONS,
+  ...STXM_INGESTION_REDUCED_CHANNEL_OPTIONS,
+];
+
+/** Weighting estimators for raw region spectra (Poisson MLE, inverse count, empirical). */
+export const STXM_INGESTION_WEIGHTING_OPTIONS: Array<{
+  id: StxmWeightingMode;
+  label: string;
+}> = [
+  { id: "poisson_mle", label: "Poisson MLE" },
+  { id: "inverse_count", label: "Inverse count" },
+  { id: "empirical", label: "Empirical" },
 ];
 
 const SIGNAL_INVERSE_MIN = 1e-12;

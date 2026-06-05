@@ -26,10 +26,11 @@ import {
   STXM_ROW_SUM_TRACE_WIDTH,
   StxmRowSumTrace,
 } from "./stxm-row-sum-trace";
+import { STXM_INGESTION_SPECTRUM_HEIGHT_PX } from "./stxm-ingestion-plot-panel";
 
 const PLOT_WIDTH = 300;
 const HEATMAP_WIDTH = PLOT_WIDTH - STXM_ROW_SUM_TRACE_WIDTH;
-const CANVAS_HEIGHT = 480;
+const CANVAS_HEIGHT = STXM_INGESTION_SPECTRUM_HEIGHT_PX;
 const HIT_MARGIN_FRACTION = 0.015;
 
 type StxmMultiRegionEditorProps = {

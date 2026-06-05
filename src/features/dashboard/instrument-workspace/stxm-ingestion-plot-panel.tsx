@@ -19,6 +19,12 @@ import {
   IngestionSpectrumChart,
   type IngestionSpectrumTraceId,
 } from "./ingestion-spectrum-chart";
+import { StxmIngestionPlotRail } from "./stxm-ingestion-plot-rail";
+import type { StxmWeightingMode } from "~/lib/stxm/estimators";
+import type { StxmPlotScaleMode } from "~/lib/stxm/stxm-region-types";
+
+/** SVG height for the ingestion spectrum plot; keep aligned with the region heatmap canvas. */
+export const STXM_INGESTION_SPECTRUM_HEIGHT_PX = 600;
 
 export type StxmPlotStandardOverlay = {
   id: string;
@@ -33,7 +39,11 @@ type StxmIngestionPlotPanelProps = {
   result: StxmIngestionResult | null;
   regionSpectra: StxmRegionSpectrumSeries[];
   channel: StxmIngestionPlotChannel;
+  onChannelChange: (channel: StxmIngestionPlotChannel) => void;
   yScale: "linear" | "log";
+  onYScaleChange: (scale: StxmPlotScaleMode) => void;
+  weightingMode: StxmWeightingMode;
+  onWeightingModeChange: (mode: StxmWeightingMode) => void;
   standards: StxmPlotStandardOverlay[];
   bareAtomCurve: ReferenceCurve | null;
   showRegionOverlays: boolean;
@@ -151,7 +161,7 @@ function displayChannelToTraceIds(
 /**
  * Wraps NEXAFS `SpectrumPlot` for reduced channels and falls back to the ingestion chart for log/raw overlays.
  */
-export function StxmIngestionPlotPanel({
+function StxmIngestionPlotBody({
   result,
   regionSpectra,
   channel,
@@ -159,11 +169,23 @@ export function StxmIngestionPlotPanel({
   standards,
   bareAtomCurve,
   showRegionOverlays,
-  height = 320,
-  isComputing = false,
+  height,
+  isComputing,
   primaryTraceLabel,
   pureRegionLabel,
-}: StxmIngestionPlotPanelProps) {
+}: {
+  result: StxmIngestionResult | null;
+  regionSpectra: StxmRegionSpectrumSeries[];
+  channel: StxmIngestionPlotChannel;
+  yScale: "linear" | "log";
+  standards: StxmPlotStandardOverlay[];
+  bareAtomCurve: ReferenceCurve | null;
+  showRegionOverlays: boolean;
+  height: number;
+  isComputing: boolean;
+  primaryTraceLabel?: string;
+  pureRegionLabel?: string;
+}) {
   const resolvedPrimaryTraceLabel = useMemo(() => {
     if (primaryTraceLabel?.trim()) {
       return primaryTraceLabel.trim();
@@ -311,6 +333,56 @@ export function StxmIngestionPlotPanel({
         standards={standards}
       />
       {showComputingOverlay ? <PlotComputingOverlay /> : null}
+    </div>
+  );
+}
+
+/**
+ * Spectrum plot card with attached channel, weighting, and scale rails for STXM ingestion.
+ */
+export function StxmIngestionPlotPanel({
+  result,
+  regionSpectra,
+  channel,
+  onChannelChange,
+  yScale,
+  onYScaleChange,
+  weightingMode,
+  onWeightingModeChange,
+  standards,
+  bareAtomCurve,
+  showRegionOverlays,
+  height = STXM_INGESTION_SPECTRUM_HEIGHT_PX,
+  isComputing = false,
+  primaryTraceLabel,
+  pureRegionLabel,
+}: StxmIngestionPlotPanelProps) {
+  return (
+    <div className="border-border bg-surface flex h-[min(70vh,640px)] min-h-[560px] flex-col overflow-hidden rounded-lg border">
+      <StxmIngestionPlotRail
+        displayChannel={channel}
+        onDisplayChannelChange={onChannelChange}
+        weightingMode={weightingMode}
+        onWeightingModeChange={onWeightingModeChange}
+        plotScaleMode={yScale}
+        onPlotScaleModeChange={onYScaleChange}
+        hasReducedResult={result !== null}
+      />
+      <div className="relative min-h-0 flex-1 px-1 pb-1">
+        <StxmIngestionPlotBody
+          result={result}
+          regionSpectra={regionSpectra}
+          channel={channel}
+          yScale={yScale}
+          standards={standards}
+          bareAtomCurve={bareAtomCurve}
+          showRegionOverlays={showRegionOverlays}
+          height={height}
+          isComputing={isComputing}
+          primaryTraceLabel={primaryTraceLabel}
+          pureRegionLabel={pureRegionLabel}
+        />
+      </div>
     </div>
   );
 }
