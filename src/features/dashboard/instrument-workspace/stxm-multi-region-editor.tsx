@@ -44,6 +44,8 @@ type StxmMultiRegionEditorProps = {
   onIzeroChange: (izero: StxmIzeroBounds) => void;
   onDragStart?: (target: RegionDragTarget) => void;
   onDragEnd?: () => void;
+  /** Runs automatic region placement from the line-scan image; omit to hide Auto regions. */
+  onAutoSuggest?: () => void;
 };
 
 /**
@@ -60,6 +62,7 @@ export function StxmMultiRegionEditor({
   onIzeroChange,
   onDragStart,
   onDragEnd,
+  onAutoSuggest,
 }: StxmMultiRegionEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragRef = useRef<RegionDragState>(null);
@@ -484,13 +487,23 @@ export function StxmMultiRegionEditor({
         </div>
       </div>
       <div className="border-border space-y-1 border-t p-2">
-        <div className="flex items-center justify-between gap-1">
+        <div className="flex flex-col gap-1">
           <h3 className="text-muted text-[10px] font-semibold uppercase tracking-wide">
             Regions
           </h3>
-          <Button size="sm" variant="secondary" onPress={addRegionFallback}>
-            Add region
-          </Button>
+          <div className="flex flex-wrap items-center gap-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={onAutoSuggest}
+              isDisabled={onAutoSuggest == null}
+            >
+              Auto regions
+            </Button>
+            <Button size="sm" variant="secondary" onPress={addRegionFallback}>
+              Add region
+            </Button>
+          </div>
         </div>
         <p className="text-muted text-[10px] leading-snug">
           Click a label to rename. Drag lines to adjust bounds.

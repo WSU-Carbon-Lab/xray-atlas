@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
-import { Spinner } from "@heroui/react";
+import { Spinner, ToggleButton, Button } from "@heroui/react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
 import {
   buildStxmSpectrumPlotModel,
@@ -22,7 +23,12 @@ import {
   type VisualizationMode,
 } from "~/features/process-nexafs/ui/dataset-visualization-shell";
 import type { StxmNormalizationWindows } from "~/lib/dashboard-processing-session";
-import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
+import type {
+  StxmIzeroBounds,
+  StxmPlotScaleMode,
+  StxmRegionSpectrumSeries,
+  StxmSampleRegion,
+} from "~/lib/stxm/stxm-region-types";
 import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
 import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
 import {
@@ -33,6 +39,11 @@ import { suggestNormalizationWindows } from "~/lib/stxm/normalization";
 import { StxmIngestionPlotDataRail } from "./stxm-ingestion-plot-data-rail";
 import { StxmIngestionAnalysisRail } from "./stxm-ingestion-analysis-rail";
 import { StxmIngestionSpectrumTable } from "./stxm-ingestion-spectrum-table";
+import {
+  STXM_REGION_EDITOR_MAX_WIDTH_PX,
+  StxmMultiRegionEditor,
+} from "./stxm-multi-region-editor";
+import type { RegionDragTarget } from "~/lib/stxm/region-editor-utils";
 
 /** SVG height for the ingestion spectrum plot; keep aligned with the region heatmap canvas. */
 export const STXM_INGESTION_SPECTRUM_HEIGHT_PX = 600;
@@ -70,6 +81,21 @@ type StxmIngestionPlotPanelProps = {
   isComputing?: boolean;
   primaryTraceLabel?: string;
   pureRegionLabel?: string;
+  imageMatrix: number[][];
+  qaxisPoints: number[];
+  regions: StxmSampleRegion[];
+  izero: StxmIzeroBounds;
+  imageScaleMode: StxmPlotScaleMode;
+  pureRegionId: string | null;
+  onRegionsChange: (regions: StxmSampleRegion[]) => void;
+  onRegionChange: (index: number, region: StxmSampleRegion) => void;
+  onIzeroChange: (izero: StxmIzeroBounds) => void;
+  onRegionDragStart: () => void;
+  onRegionDragEnd: () => void;
+  onAutoSuggestRegions: () => void;
+  onSetPureRegion: (regionId: string) => void;
+  regionTrayOpen: boolean;
+  onRegionTrayOpenChange: (open: boolean) => void;
 };
 
 function plotHasDisplayableData(
@@ -128,6 +154,21 @@ export function StxmIngestionPlotPanel({
   isComputing = false,
   primaryTraceLabel,
   pureRegionLabel,
+  imageMatrix,
+  qaxisPoints,
+  regions,
+  izero,
+  imageScaleMode,
+  pureRegionId,
+  onRegionsChange,
+  onRegionChange,
+  onIzeroChange,
+  onRegionDragStart,
+  onRegionDragEnd,
+  onAutoSuggestRegions,
+  onSetPureRegion,
+  regionTrayOpen,
+  onRegionTrayOpenChange,
 }: StxmIngestionPlotPanelProps) {
   const { resolvedTheme } = useTheme();
   const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
@@ -346,99 +387,163 @@ export function StxmIngestionPlotPanel({
   const showComputingOverlay =
     isComputing && !plotHasDisplayableData(result, regionSpectra);
 
+  const handleRegionDragStartWithTarget = useCallback(
+    (_target: RegionDragTarget) => {
+      onRegionDragStart();
+    },
+    [onRegionDragStart],
+  );
+
+  const plotBody = plotModel ? (
+    <SpectrumPlot
+      points={plotModel.points}
+      height={height}
+      graphStyle={graphStyle}
+      yAxisQuantity={plotModel.yAxisQuantity}
+      referenceCurves={plotModel.referenceCurves}
+      companionSpectra={plotModel.companionSpectra}
+      showNormalizationShading={plotModel.showNormalizationShading}
+      normalizationRegions={plotModel.normalizationRegions}
+      normalizationEdgeHandlesEnabled={
+        isPlotNormalizationMode && plotModel.showNormalizationShading
+      }
+      onNormalizationEdgeEnergyChange={handleNormalizationEdgeEnergyChange}
+      primaryTraceLabel={plotModel.primaryTraceLabel}
+      headerRight={plotLeftRail}
+      headerAnalysis={plotAnalysisRail}
+      suppressAnalysisRailLeadingGrip
+      cursorMode={cursorMode}
+      onCursorModeChange={setCursorMode}
+      plotContext={plotContext}
+      peaks={peaks}
+      selectedPeakId={selectedPeakId}
+      onPeakSelect={setSelectedPeakId}
+      onPeakUpdate={(peakId, energy) => {
+        const roundedEnergy = Math.round(energy * 100) / 100;
+        onPeaksChange(
+          peaks.map((peak, index) => {
+            const id = peak.id ?? `peak-${index}-${peak.energy}`;
+            if (id !== peakId) {
+              return peak;
+            }
+            return { ...peak, id, energy: roundedEnergy };
+          }),
+        );
+      }}
+      onPeakPatch={(peakId, patch) => {
+        onPeaksChange(
+          peaks.map((peak, index) => {
+            const id = peak.id ?? `peak-${index}-${peak.energy}`;
+            if (id !== peakId) {
+              return peak;
+            }
+            const next = { ...peak, id };
+            if (patch.energy !== undefined) {
+              next.energy = Math.round(patch.energy * 100) / 100;
+            }
+            if (patch.peakKind !== undefined) {
+              next.peakKind = patch.peakKind;
+            }
+            return next;
+          }),
+        );
+      }}
+      onPeakAdd={(energy) => {
+        const roundedEnergy = Math.round(energy * 100) / 100;
+        const id = `peak-${Date.now()}-${roundedEnergy}`;
+        onPeaksChange([
+          ...peaks,
+          { id, energy: roundedEnergy, peakKind: "pi-star" },
+        ]);
+        setSelectedPeakId(id);
+      }}
+      onPeakDelete={(peakId) => {
+        onPeaksChange(
+          peaks.filter((peak, index) => {
+            const id = peak.id ?? `peak-${index}-${peak.energy}`;
+            return id !== peakId;
+          }),
+        );
+        if (selectedPeakId === peakId) {
+          setSelectedPeakId(null);
+        }
+      }}
+      emptyStateMessage="Computing spectra for this channel."
+    />
+  ) : (
+    <div
+      className="border-border bg-default/20 flex flex-1 items-center justify-center rounded-md border"
+      style={{ minHeight: height }}
+    >
+      {showComputingOverlay ? (
+        <Spinner size="md" aria-label="Computing spectra" />
+      ) : (
+        <p className="text-muted px-4 text-center text-sm">
+          Configure sample and izero regions to compute spectra.
+        </p>
+      )}
+    </div>
+  );
+
   const graphContent = (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-visible rounded-xl border border-[var(--border-default)] p-3">
-      {plotModel ? (
-        <SpectrumPlot
-          points={plotModel.points}
-          height={height}
-          graphStyle={graphStyle}
-          yAxisQuantity={plotModel.yAxisQuantity}
-          referenceCurves={plotModel.referenceCurves}
-          companionSpectra={plotModel.companionSpectra}
-          showNormalizationShading={plotModel.showNormalizationShading}
-          normalizationRegions={plotModel.normalizationRegions}
-          normalizationEdgeHandlesEnabled={
-            isPlotNormalizationMode && plotModel.showNormalizationShading
-          }
-          onNormalizationEdgeEnergyChange={handleNormalizationEdgeEnergyChange}
-          primaryTraceLabel={plotModel.primaryTraceLabel}
-          headerRight={plotLeftRail}
-          headerAnalysis={plotAnalysisRail}
-          suppressAnalysisRailLeadingGrip
-          cursorMode={cursorMode}
-          onCursorModeChange={setCursorMode}
-          plotContext={plotContext}
-          peaks={peaks}
-          selectedPeakId={selectedPeakId}
-          onPeakSelect={setSelectedPeakId}
-          onPeakUpdate={(peakId, energy) => {
-            const roundedEnergy = Math.round(energy * 100) / 100;
-            onPeaksChange(
-              peaks.map((peak, index) => {
-                const id = peak.id ?? `peak-${index}-${peak.energy}`;
-                if (id !== peakId) {
-                  return peak;
-                }
-                return { ...peak, id, energy: roundedEnergy };
-              }),
-            );
-          }}
-          onPeakPatch={(peakId, patch) => {
-            onPeaksChange(
-              peaks.map((peak, index) => {
-                const id = peak.id ?? `peak-${index}-${peak.energy}`;
-                if (id !== peakId) {
-                  return peak;
-                }
-                const next = { ...peak, id };
-                if (patch.energy !== undefined) {
-                  next.energy = Math.round(patch.energy * 100) / 100;
-                }
-                if (patch.peakKind !== undefined) {
-                  next.peakKind = patch.peakKind;
-                }
-                return next;
-              }),
-            );
-          }}
-          onPeakAdd={(energy) => {
-            const roundedEnergy = Math.round(energy * 100) / 100;
-            const id = `peak-${Date.now()}-${roundedEnergy}`;
-            onPeaksChange([
-              ...peaks,
-              { id, energy: roundedEnergy, peakKind: "pi-star" },
-            ]);
-            setSelectedPeakId(id);
-          }}
-          onPeakDelete={(peakId) => {
-            onPeaksChange(
-              peaks.filter((peak, index) => {
-                const id = peak.id ?? `peak-${index}-${peak.energy}`;
-                return id !== peakId;
-              }),
-            );
-            if (selectedPeakId === peakId) {
-              setSelectedPeakId(null);
+      <div className="flex min-h-0 min-w-0 flex-1 items-stretch gap-2">
+        <div className="border-border flex shrink-0 flex-col items-center gap-1 border-r pr-2">
+          <ToggleButton
+            isIconOnly
+            aria-label={
+              regionTrayOpen
+                ? "Hide line scan region editor"
+                : "Show line scan region editor"
             }
-          }}
-          emptyStateMessage="Computing spectra for this channel."
-        />
-      ) : (
-        <div
-          className="border-border bg-default/20 flex flex-1 items-center justify-center rounded-md border"
-          style={{ minHeight: height }}
-        >
-          {showComputingOverlay ? (
-            <Spinner size="md" aria-label="Computing spectra" />
-          ) : (
-            <p className="text-muted px-4 text-center text-sm">
-              Configure sample and izero regions to compute spectra.
-            </p>
-          )}
+            isSelected={regionTrayOpen}
+            onChange={onRegionTrayOpenChange}
+            className="h-9 w-9 min-w-9"
+          >
+            {regionTrayOpen ? (
+              <PanelLeftClose className="h-4 w-4" aria-hidden />
+            ) : (
+              <PanelLeftOpen className="h-4 w-4" aria-hidden />
+            )}
+          </ToggleButton>
         </div>
-      )}
-      {showComputingOverlay && plotModel ? <PlotComputingOverlay /> : null}
+        {regionTrayOpen ? (
+          <aside
+            className="flex shrink-0 flex-col gap-2"
+            style={{ width: STXM_REGION_EDITOR_MAX_WIDTH_PX }}
+          >
+            <StxmMultiRegionEditor
+              image={imageMatrix}
+              qaxisPoints={qaxisPoints}
+              regions={regions}
+              izero={izero}
+              imageScaleMode={imageScaleMode}
+              onRegionsChange={onRegionsChange}
+              onRegionChange={onRegionChange}
+              onIzeroChange={onIzeroChange}
+              onDragStart={handleRegionDragStartWithTarget}
+              onDragEnd={onRegionDragEnd}
+              onAutoSuggest={onAutoSuggestRegions}
+            />
+            <div className="flex flex-wrap gap-1">
+              {regions.map((region) => (
+                <Button
+                  key={region.id}
+                  size="sm"
+                  variant={pureRegionId === region.id ? "primary" : "secondary"}
+                  onPress={() => onSetPureRegion(region.id)}
+                >
+                  I0/sample: {region.spotLabel || "region"}
+                </Button>
+              ))}
+            </div>
+          </aside>
+        ) : null}
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+          {plotBody}
+          {showComputingOverlay && plotModel ? <PlotComputingOverlay /> : null}
+        </div>
+      </div>
     </div>
   );
 

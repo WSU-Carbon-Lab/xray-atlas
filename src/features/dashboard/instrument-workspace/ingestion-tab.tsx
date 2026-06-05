@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Spinner } from "@heroui/react";
-import { Upload, Wand2 } from "lucide-react";
+import { Spinner } from "@heroui/react";
 import { KkBrowserConsentDialog } from "~/features/kk-calc/kk-browser-consent-dialog";
 import {
   computeStxmIngestion,
@@ -41,7 +40,6 @@ import type {
   StxmSampleRegion,
 } from "~/lib/stxm/stxm-region-types";
 import { showToast } from "~/components/ui/toast";
-import { StxmMultiRegionEditor } from "./stxm-multi-region-editor";
 import {
   STXM_INGESTION_SPECTRUM_HEIGHT_PX,
   StxmIngestionPlotPanel,
@@ -207,6 +205,9 @@ export function IngestionTab({
     );
   const [displayChannel, setDisplayChannel] =
     useState<StxmIngestionPlotChannel>("od");
+  const [regionEditorTrayOpen, setRegionEditorTrayOpen] = useState(
+    () => regionsMetadata?.regionEditorTrayOpen ?? false,
+  );
   const [normalization, setNormalization] =
     useState<StxmNormalizationWindows | null>(
       regionsMetadata?.normalization ?? null,
@@ -393,6 +394,7 @@ export function IngestionTab({
         formula: formula.trim() || undefined,
         thicknessCm: Number.parseFloat(thicknessCm) || undefined,
         normalization: normalization ?? undefined,
+        regionEditorTrayOpen,
       });
     }, 600);
   }, [
@@ -403,6 +405,7 @@ export function IngestionTab({
     rawSignalTransform,
     plotScaleMode,
     pureRegionId,
+    regionEditorTrayOpen,
     regions,
     scanId,
     thicknessCm,
@@ -462,6 +465,10 @@ export function IngestionTab({
       }
     };
   }, [izero, loaded, recomputeRawSpectra, regions, schedulePersistRegions, weightingMode]);
+
+  useEffect(() => {
+    schedulePersistRegions();
+  }, [regionEditorTrayOpen, schedulePersistRegions]);
 
   const runPipeline = useCallback(async () => {
     if (!loaded || !izero || regions.length === 0 || !normalization) {
@@ -687,14 +694,6 @@ export function IngestionTab({
     showToast("Auto-suggested region bounds", "success");
   }, [loaded]);
 
-  const handleAutoNorm = useCallback(() => {
-    if (!loaded) {
-      return;
-    }
-    setNormalization(suggestNormalizationWindows(loaded.oriented.energyEv));
-    showToast("Auto-suggested normalization windows", "success");
-  }, [loaded]);
-
   const handleKeepInCache = useCallback(async () => {
     const entry: DashboardPreviewSpectrumEntry = {
       scanId,
@@ -824,78 +823,43 @@ export function IngestionTab({
         onKeepInCache={() => void handleKeepInCache()}
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" size="sm" onPress={handleAutoSuggest}>
-          <Wand2 className="h-3.5 w-3.5" aria-hidden />
-          Auto regions
-        </Button>
-        <Button variant="secondary" size="sm" onPress={handleAutoNorm}>
-          Auto norm windows
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          isDisabled={!result}
-          onPress={() => setUploadOpen(true)}
-        >
-          <Upload className="h-3.5 w-3.5" aria-hidden />
-          Upload / keep
-        </Button>
-      </div>
-
-      <div className="grid min-h-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,180px)_minmax(0,1fr)] md:items-stretch">
-        <div className="flex min-h-0 w-full min-w-0 max-w-[180px] flex-col gap-2 md:max-w-[180px]">
-          <StxmMultiRegionEditor
-            image={imageMatrix}
-            qaxisPoints={qaxisPoints}
-            regions={regions}
-            izero={izero}
-            imageScaleMode={plotScaleMode}
-            onRegionsChange={setRegions}
-            onRegionChange={handleRegionChange}
-            onIzeroChange={setIzero}
-            onDragStart={handleRegionDragStart}
-            onDragEnd={handleRegionDragEnd}
-          />
-          <div className="flex flex-wrap gap-2">
-            {regions.map((region) => (
-              <Button
-                key={region.id}
-                size="sm"
-                variant={pureRegionId === region.id ? "primary" : "secondary"}
-                onPress={() => handleSetPureRegion(region.id)}
-              >
-                I0/sample: {region.spotLabel || "region"}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col md:min-w-0">
-          <StxmIngestionPlotPanel
-            result={result}
-            regionSpectra={regionSpectra}
-            channel={displayChannel}
-            onChannelChange={setDisplayChannel}
-            rawSignalTransform={rawSignalTransform}
-            onRawSignalTransformChange={setRawSignalTransform}
-            isTeyExperiment={isTeyExperiment}
-            hasIeData={hasIeData}
-            normalization={normalization}
-            onNormalizationChange={setNormalization}
-            standards={plotStandards}
-            chemicalFormula={resolvedFormula}
-            formulaLoading={linkedMoleculeQuery.isLoading}
-            showRegionOverlays
-            compareOverlays={compareOverlays}
-            peaks={peaks}
-            onPeaksChange={setPeaks}
-            height={STXM_INGESTION_SPECTRUM_HEIGHT_PX}
-            isComputing={isReducing}
-            pureRegionLabel={pureRegionLabel}
-          />
-        </div>
-      </div>
+      <StxmIngestionPlotPanel
+        result={result}
+        regionSpectra={regionSpectra}
+        channel={displayChannel}
+        onChannelChange={setDisplayChannel}
+        rawSignalTransform={rawSignalTransform}
+        onRawSignalTransformChange={setRawSignalTransform}
+        isTeyExperiment={isTeyExperiment}
+        hasIeData={hasIeData}
+        normalization={normalization}
+        onNormalizationChange={setNormalization}
+        standards={plotStandards}
+        chemicalFormula={resolvedFormula}
+        formulaLoading={linkedMoleculeQuery.isLoading}
+        showRegionOverlays
+        compareOverlays={compareOverlays}
+        peaks={peaks}
+        onPeaksChange={setPeaks}
+        height={STXM_INGESTION_SPECTRUM_HEIGHT_PX}
+        isComputing={isReducing}
+        pureRegionLabel={pureRegionLabel}
+        imageMatrix={imageMatrix}
+        qaxisPoints={qaxisPoints}
+        regions={regions}
+        izero={izero}
+        imageScaleMode={plotScaleMode}
+        pureRegionId={pureRegionId}
+        onRegionsChange={setRegions}
+        onRegionChange={handleRegionChange}
+        onIzeroChange={setIzero}
+        onRegionDragStart={handleRegionDragStart}
+        onRegionDragEnd={handleRegionDragEnd}
+        onAutoSuggestRegions={handleAutoSuggest}
+        onSetPureRegion={handleSetPureRegion}
+        regionTrayOpen={regionEditorTrayOpen}
+        onRegionTrayOpenChange={setRegionEditorTrayOpen}
+      />
 
       {sessionId ? (
         <StxmIngestionContextPanel

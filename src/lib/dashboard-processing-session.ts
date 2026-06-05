@@ -122,6 +122,7 @@ export const dashboardRegionsStepMetadataSchema = z.object({
   formula: z.string().optional(),
   thicknessCm: z.number().positive().optional(),
   normalization: stxmNormalizationWindowsSchema.optional(),
+  regionEditorTrayOpen: z.boolean().optional(),
 });
 
 export type DashboardRegionsStepMetadata = z.infer<
