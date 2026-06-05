@@ -12,15 +12,81 @@ import {
 } from "~/lib/stxm/validateStxmFile";
 import { readHdr } from "~/lib/stxm/readHdr";
 import {
-  collectHdrFileRefs,
   countHdrFilesInDirectory,
   findXimFileForHdr,
+  walkHdrFileRefs,
   type StxmDirectoryHandle,
+  type StxmFileRef,
 } from "./localDirectoryBrowser";
 import type { StxmDirectoryLayout } from "./resolveDirectoryLayout";
 import { getExperimentDirectory } from "./resolveDirectoryLayout";
 
-export const BEAMTIME_CATALOG_BUILD_TIMEOUT_MS = 30_000;
+/** Milliseconds without catalog progress before treating the walk as stalled. */
+export const BEAMTIME_CATALOG_STALL_TIMEOUT_MS = 30_000;
+
+/** @deprecated Use {@link BEAMTIME_CATALOG_STALL_TIMEOUT_MS}. */
+export const BEAMTIME_CATALOG_BUILD_TIMEOUT_MS = BEAMTIME_CATALOG_STALL_TIMEOUT_MS;
+
+const DEFAULT_CATALOG_BATCH_FLUSH_MS = 50;
+
+export type StreamBeamtimeCatalogProgress = {
+  entries: StxmCatalogEntry[];
+  discoveredCount: number;
+};
+
+export type StreamBeamtimeCatalogOptions = {
+  signal?: AbortSignal;
+  batchFlushMs?: number;
+  stallTimeoutMs?: number;
+  onProgress?: (progress: StreamBeamtimeCatalogProgress) => void;
+};
+
+export type StreamBeamtimeCatalogResult = {
+  entries: StxmCatalogEntry[];
+  complete: boolean;
+  stalled: boolean;
+};
+
+/**
+ * Inserts `entry` into `entries` sorted by `relativePath` when that path is not already present.
+ *
+ * @returns `true` when `entry` was inserted; `false` when a row with the same `relativePath` exists.
+ */
+export function insertCatalogEntrySorted(
+  entries: StxmCatalogEntry[],
+  entry: StxmCatalogEntry,
+): boolean {
+  if (entries.some((row) => row.relativePath === entry.relativePath)) {
+    return false;
+  }
+  let low = 0;
+  let high = entries.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    const midPath = entries[mid]?.relativePath ?? "";
+    if (midPath.localeCompare(entry.relativePath) < 0) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  entries.splice(low, 0, entry);
+  return true;
+}
+
+/**
+ * Merges `additions` into `entries` by `relativePath`, preserving sorted `relativePath` order.
+ */
+export function mergeCatalogEntries(
+  entries: StxmCatalogEntry[],
+  additions: StxmCatalogEntry[],
+): StxmCatalogEntry[] {
+  const merged = entries.map((entry) => ({ ...entry }));
+  for (const entry of additions) {
+    insertCatalogEntrySorted(merged, entry);
+  }
+  return merged;
+}
 
 export type EnrichCatalogThumbnailsOptions = {
   signal?: AbortSignal;
@@ -28,7 +94,7 @@ export type EnrichCatalogThumbnailsOptions = {
 };
 
 async function readHdrEntry(
-  ref: Awaited<ReturnType<typeof collectHdrFileRefs>>[number],
+  ref: StxmFileRef,
 ): Promise<{ hdrText: string; hdrByteLength: number } | null> {
   try {
     const hdrFile = await ref.handle.getFile();
@@ -49,24 +115,108 @@ export async function buildBeamtimeCatalogFast(
   layout: StxmDirectoryLayout,
   experimentName: string,
 ): Promise<StxmCatalogEntry[]> {
-  const experimentDir = await getExperimentDirectory(root, layout, experimentName);
-  const hdrRefs = await collectHdrFileRefs(experimentDir);
-  const entries: StxmCatalogEntry[] = [];
+  const result = await streamBeamtimeCatalogFast(root, layout, experimentName);
+  return result.entries;
+}
 
-  for (const ref of hdrRefs) {
-    if (!isAllowedStxmFilename(ref.name)) {
-      continue;
+/**
+ * Walks an experiment folder and reports `.hdr` catalog rows incrementally while parsing continues.
+ *
+ * Stalls only fail the walk when no rows have been discovered within `stallTimeoutMs`; partial
+ * catalogs resolve successfully with `complete: false` and `stalled: true`.
+ */
+export async function streamBeamtimeCatalogFast(
+  root: StxmDirectoryHandle,
+  layout: StxmDirectoryLayout,
+  experimentName: string,
+  options?: StreamBeamtimeCatalogOptions,
+): Promise<StreamBeamtimeCatalogResult> {
+  const experimentDir = await getExperimentDirectory(root, layout, experimentName);
+  const entries: StxmCatalogEntry[] = [];
+  const seenPaths = new Set<string>();
+  const batchFlushMs = options?.batchFlushMs ?? DEFAULT_CATALOG_BATCH_FLUSH_MS;
+  const stallTimeoutMs = options?.stallTimeoutMs ?? BEAMTIME_CATALOG_STALL_TIMEOUT_MS;
+  let lastProgressAt = Date.now();
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
+  let stalled = false;
+  let complete = false;
+  let fatalStallError: Error | null = null;
+
+  const touchProgress = () => {
+    lastProgressAt = Date.now();
+  };
+
+  const flushProgress = () => {
+    if (flushTimer !== null) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
     }
-    const hdr = await readHdrEntry(ref);
-    if (!hdr) {
-      continue;
+    options?.onProgress?.({
+      entries: entries.map((entry) => ({ ...entry })),
+      discoveredCount: entries.length,
+    });
+    touchProgress();
+  };
+
+  const scheduleFlush = () => {
+    if (flushTimer !== null) {
+      return;
     }
-    entries.push(
-      buildCatalogEntryFromHdr(ref.name, ref.relativePath, hdr.hdrText, null),
-    );
+    flushTimer = setTimeout(() => {
+      flushProgress();
+    }, batchFlushMs);
+  };
+
+  const stallTimer = setInterval(() => {
+    if (options?.signal?.aborted) {
+      return;
+    }
+    if (Date.now() - lastProgressAt < stallTimeoutMs) {
+      return;
+    }
+    stalled = true;
+    if (entries.length === 0) {
+      fatalStallError = new Error(
+        `Scan listing timed out after ${stallTimeoutMs / 1000}s with no scans found`,
+      );
+    }
+  }, 500);
+
+  try {
+    for await (const ref of walkHdrFileRefs(experimentDir)) {
+      if (options?.signal?.aborted || stalled) {
+        break;
+      }
+      if (!isAllowedStxmFilename(ref.name) || seenPaths.has(ref.relativePath)) {
+        continue;
+      }
+      seenPaths.add(ref.relativePath);
+      touchProgress();
+      const hdr = await readHdrEntry(ref);
+      if (!hdr) {
+        continue;
+      }
+      insertCatalogEntrySorted(
+        entries,
+        buildCatalogEntryFromHdr(ref.name, ref.relativePath, hdr.hdrText, null),
+      );
+      scheduleFlush();
+      touchProgress();
+    }
+    complete = !stalled && !options?.signal?.aborted;
+  } finally {
+    clearInterval(stallTimer);
+    if (flushTimer !== null) {
+      clearTimeout(flushTimer);
+    }
+    flushProgress();
   }
 
-  return entries;
+  if (fatalStallError) {
+    throw fatalStallError;
+  }
+
+  return { entries: entries.map((entry) => ({ ...entry })), complete, stalled };
 }
 
 /**

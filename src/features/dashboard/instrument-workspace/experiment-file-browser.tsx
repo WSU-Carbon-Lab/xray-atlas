@@ -183,8 +183,9 @@ export function ExperimentFileBrowser({
 
   if (loading && entries.length === 0) {
     return (
-      <div className="flex justify-center py-10">
+      <div className="flex flex-col items-center gap-3 py-10">
         <Spinner size="lg" />
+        <p className="text-muted text-sm">Scanning for `.hdr` files...</p>
       </div>
     );
   }
@@ -197,6 +198,12 @@ export function ExperimentFileBrowser({
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
+      {loading ? (
+        <div className="text-muted flex items-center gap-2 text-xs">
+          <Spinner size="sm" />
+          Found {entries.length} scan{entries.length === 1 ? "" : "s"}...
+        </div>
+      ) : null}
       {enriching ? (
         <div className="text-muted flex items-center gap-2 text-xs">
           <Spinner size="sm" />

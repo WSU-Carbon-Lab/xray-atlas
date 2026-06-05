@@ -25,11 +25,10 @@ import {
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import {
-  BEAMTIME_CATALOG_BUILD_TIMEOUT_MS,
-  buildBeamtimeCatalogFast,
   countHdrFilesInExperiments,
   enrichBeamtimeCatalogThumbnails,
   loadScanFilesFromCatalogEntry,
+  streamBeamtimeCatalogFast,
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import {
   pickStxmRootDirectory,
@@ -114,6 +113,7 @@ export function Als5322WorkspacePage() {
     null,
   );
   const [catalogLoadError, setCatalogLoadError] = useState<string | null>(null);
+  const [catalogListingIncomplete, setCatalogListingIncomplete] = useState(false);
   const [pendingFolderAccess, setPendingFolderAccess] = useState<{
     handleKey: string;
     displayName: string;
@@ -253,27 +253,31 @@ export function Als5322WorkspacePage() {
 
       setIsLoadingCatalog(true);
       setCatalogLoadError(null);
+      setCatalogListingIncomplete(false);
+      setCatalog([]);
       let entries: StxmCatalogEntry[] = [];
       try {
-        const buildPromise = buildBeamtimeCatalogFast(
+        const result = await streamBeamtimeCatalogFast(
           handle,
           layout,
           experimentName,
+          {
+            onProgress: (progress) => {
+              if (generation !== catalogGenerationRef.current) {
+                return;
+              }
+              setCatalog(progress.entries);
+            },
+          },
         );
-        const timeoutPromise = new Promise<StxmCatalogEntry[]>((_, reject) => {
-          window.setTimeout(() => {
-            reject(
-              new Error(
-                `Scan listing timed out after ${BEAMTIME_CATALOG_BUILD_TIMEOUT_MS / 1000}s`,
-              ),
-            );
-          }, BEAMTIME_CATALOG_BUILD_TIMEOUT_MS);
-        });
-        entries = await Promise.race([buildPromise, timeoutPromise]);
         if (generation !== catalogGenerationRef.current) {
           return;
         }
+        entries = result.entries;
         setCatalog(entries);
+        if (result.stalled && entries.length > 0) {
+          setCatalogListingIncomplete(true);
+        }
       } catch (error) {
         if (generation !== catalogGenerationRef.current) {
           return;
@@ -779,6 +783,24 @@ export function Als5322WorkspacePage() {
                     </button>
                   </div>
                 ) : null}
+                {catalogListingIncomplete && !catalogLoadError ? (
+                  <div className="border-border bg-default/30 mb-3 flex flex-col items-start gap-2 rounded-lg border px-4 py-3">
+                    <p className="text-muted text-sm">
+                      Found {catalog.length} scan
+                      {catalog.length === 1 ? "" : "s"} so far. Still scanning
+                      deeper folders, or listing paused before completion.
+                    </p>
+                    <button
+                      type="button"
+                      className="text-accent text-sm font-medium hover:underline"
+                      onClick={() =>
+                        void handleSelectBeamtime(selectedBeamtime)
+                      }
+                    >
+                      Continue scan listing
+                    </button>
+                  </div>
+                ) : null}
                 <ExperimentFileBrowser
                   entries={catalog}
                   selectedRelativePath={selectedEntry?.relativePath ?? null}
@@ -873,6 +895,7 @@ export function Als5322WorkspacePage() {
     catalog,
     beamtimeLoadError,
     catalogLoadError,
+    catalogListingIncomplete,
     grantStoredFolderAccess,
     handlePickFolder,
     handleSelectBeamtime,

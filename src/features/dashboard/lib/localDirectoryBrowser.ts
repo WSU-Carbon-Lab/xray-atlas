@@ -38,13 +38,12 @@ export async function pickStxmRootDirectory(): Promise<StxmDirectoryHandle> {
 }
 
 /**
- * Recursively collects `.hdr` file handles under a directory handle.
+ * Depth-first async iterator over `.hdr` file handles; yields each ref as soon as it is discovered.
  */
-export async function collectHdrFileRefs(
+export async function* walkHdrFileRefs(
   directory: StxmDirectoryHandle,
   prefix = "",
-): Promise<StxmFileRef[]> {
-  const refs: StxmFileRef[] = [];
+): AsyncGenerator<StxmFileRef> {
   for await (const [name, handle] of directory.entries()) {
     const relativePath = prefix ? `${prefix}/${name}` : name;
     if (
@@ -52,15 +51,26 @@ export async function collectHdrFileRefs(
       isAllowedStxmFilename(name) &&
       name.toLowerCase().endsWith(".hdr")
     ) {
-      refs.push({ name, relativePath, handle: handle as StxmFileSystemFileHandle });
+      yield { name, relativePath, handle: handle as StxmFileSystemFileHandle };
     } else if (handle.kind === "directory") {
-      refs.push(
-        ...(await collectHdrFileRefs(
-          handle as StxmFileSystemDirectoryHandle,
-          relativePath,
-        )),
+      yield* walkHdrFileRefs(
+        handle as StxmFileSystemDirectoryHandle,
+        relativePath,
       );
     }
+  }
+}
+
+/**
+ * Recursively collects `.hdr` file handles under a directory handle.
+ */
+export async function collectHdrFileRefs(
+  directory: StxmDirectoryHandle,
+  prefix = "",
+): Promise<StxmFileRef[]> {
+  const refs: StxmFileRef[] = [];
+  for await (const ref of walkHdrFileRefs(directory, prefix)) {
+    refs.push(ref);
   }
   return refs.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 }
