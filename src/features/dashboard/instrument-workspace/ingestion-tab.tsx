@@ -32,7 +32,6 @@ import {
   multiRegionToLegacyBounds,
 } from "~/lib/stxm/multi-region-state";
 import { regionRawSpectraFromScan } from "~/lib/stxm/raw-spectrum";
-import { setPureRegionRole } from "~/lib/stxm/region-editor-utils";
 import type {
   StxmIzeroBounds,
   StxmPlotScaleMode,
@@ -75,7 +74,14 @@ import type { DatasetAttributionChange } from "~/features/process-nexafs/ui/data
 
 const RAW_SPECTRA_DEBOUNCE_MS = 300;
 const PIPELINE_DEBOUNCE_MS = 400;
+/** Throttled preview interval while region or izero bounds are dragged. */
+const DRAG_PREVIEW_THROTTLE_MS = 75;
 const POISSON_WEIGHTING = "poisson_mle" as const;
+
+type RunPipelineOptions = {
+  /** When true, updates plot state only; skips session ingestion/reduce persistence. */
+  previewOnly?: boolean;
+};
 
 const COMPARE_OVERLAY_COLORS = [
   "var(--chart-2)",
@@ -375,6 +381,9 @@ export function IngestionTab({
   );
 
   const schedulePersistRegions = useCallback(() => {
+    if (isDraggingRef.current) {
+      return;
+    }
     if (!izero || regions.length === 0) {
       return;
     }
@@ -455,10 +464,15 @@ export function IngestionTab({
     if (debounceRawRef.current) {
       clearTimeout(debounceRawRef.current);
     }
+    const rawDelay = isDraggingRef.current
+      ? DRAG_PREVIEW_THROTTLE_MS
+      : RAW_SPECTRA_DEBOUNCE_MS;
     debounceRawRef.current = setTimeout(() => {
       recomputeRawSpectra();
-      schedulePersistRegions();
-    }, RAW_SPECTRA_DEBOUNCE_MS);
+      if (!isDraggingRef.current) {
+        schedulePersistRegions();
+      }
+    }, rawDelay);
     return () => {
       if (debounceRawRef.current) {
         clearTimeout(debounceRawRef.current);
@@ -470,14 +484,19 @@ export function IngestionTab({
     schedulePersistRegions();
   }, [regionEditorTrayOpen, schedulePersistRegions]);
 
-  const runPipeline = useCallback(async () => {
+  const runPipeline = useCallback(async (options?: RunPipelineOptions) => {
+    const previewOnly = options?.previewOnly ?? false;
     if (!loaded || !izero || regions.length === 0 || !normalization) {
       return;
     }
-    pipelineInflightRef.current += 1;
+    if (!previewOnly) {
+      pipelineInflightRef.current += 1;
+      setIsReducing(true);
+    }
     const generation = pipelineGenerationRef.current + 1;
     pipelineGenerationRef.current = generation;
-    setIsReducing(true);
+    const kkConsentGranted =
+      readStxmComputeConsentGranted() || readKkBrowserConsentGranted();
     try {
       const bounds = multiRegionToLegacyBounds(regions, izero, pureRegionId);
       const thickness = Number.parseFloat(thicknessCm);
@@ -490,7 +509,8 @@ export function IngestionTab({
         normalization,
         formula: resolvedFormula,
         thicknessCm: Number.isFinite(thickness) && thickness > 0 ? thickness : 1e-4,
-        runKkDelta: Boolean(resolvedFormula),
+        runKkDelta:
+          Boolean(resolvedFormula) && (!previewOnly || kkConsentGranted),
         hdrText: loaded.header.raw,
         hdrFileName: hdrFile.name,
       });
@@ -499,6 +519,9 @@ export function IngestionTab({
       }
       setResult(pipelineResult);
       recomputeRawSpectra();
+      if (previewOnly) {
+        return;
+      }
       const persisted = ingestionResultToPersisted(pipelineResult, scanId);
       const { sampleMask, izeroMask } = sampleIzeroMasks(
         loaded.oriented.spatial,
@@ -544,7 +567,10 @@ export function IngestionTab({
         return;
       }
       if (error instanceof Error && error.message === "KK_CONSENT_REQUIRED") {
-        if (readStxmComputeConsentGranted() || readKkBrowserConsentGranted()) {
+        if (previewOnly) {
+          return;
+        }
+        if (kkConsentGranted) {
           showToast(
             "KK calculation blocked despite session consent; reload and try again.",
             "error",
@@ -555,15 +581,19 @@ export function IngestionTab({
         setKkConsentOpen(true);
         return;
       }
-      showToast(
-        error instanceof Error ? error.message : "Reduction failed",
-        "error",
-      );
+      if (!previewOnly) {
+        showToast(
+          error instanceof Error ? error.message : "Reduction failed",
+          "error",
+        );
+      }
     } finally {
-      pipelineInflightRef.current -= 1;
-      if (pipelineInflightRef.current <= 0) {
-        pipelineInflightRef.current = 0;
-        setIsReducing(false);
+      if (!previewOnly) {
+        pipelineInflightRef.current -= 1;
+        if (pipelineInflightRef.current <= 0) {
+          pipelineInflightRef.current = 0;
+          setIsReducing(false);
+        }
       }
     }
   }, [
@@ -635,16 +665,15 @@ export function IngestionTab({
     if (!loaded || !izero || regions.length === 0 || !normalization) {
       return;
     }
-    if (isDraggingRef.current) {
-      return;
-    }
+    const previewOnly = isDraggingRef.current;
+    const delay = previewOnly ? DRAG_PREVIEW_THROTTLE_MS : PIPELINE_DEBOUNCE_MS;
     if (debouncePipelineRef.current) {
       clearTimeout(debouncePipelineRef.current);
     }
     debouncePipelineRef.current = setTimeout(() => {
       debouncePipelineRef.current = null;
-      void runPipeline();
-    }, PIPELINE_DEBOUNCE_MS);
+      void runPipeline({ previewOnly });
+    }, delay);
   }, [izero, loaded, normalization, regions.length, runPipeline]);
 
   useEffect(() => {
@@ -672,13 +701,18 @@ export function IngestionTab({
 
   const handleRegionDragEnd = useCallback(() => {
     isDraggingRef.current = false;
-    recomputeRawSpectra();
+    if (debounceRawRef.current) {
+      clearTimeout(debounceRawRef.current);
+      debounceRawRef.current = null;
+    }
     if (debouncePipelineRef.current) {
       clearTimeout(debouncePipelineRef.current);
       debouncePipelineRef.current = null;
     }
+    recomputeRawSpectra();
+    schedulePersistRegions();
     void runPipeline();
-  }, [recomputeRawSpectra, runPipeline]);
+  }, [recomputeRawSpectra, runPipeline, schedulePersistRegions]);
 
   const handleAutoSuggest = useCallback(() => {
     if (!loaded) {
@@ -743,11 +777,6 @@ export function IngestionTab({
     },
     [],
   );
-
-  const handleSetPureRegion = useCallback((regionId: string) => {
-    setPureRegionId(regionId);
-    setRegions((current) => setPureRegionRole(current, regionId));
-  }, []);
 
   const compareOverlays = useMemo((): StxmCompareOverlay[] => {
     const compareIds = previewMetadata?.compareScanIds ?? [];
@@ -849,14 +878,12 @@ export function IngestionTab({
         regions={regions}
         izero={izero}
         imageScaleMode={plotScaleMode}
-        pureRegionId={pureRegionId}
         onRegionsChange={setRegions}
         onRegionChange={handleRegionChange}
         onIzeroChange={setIzero}
         onRegionDragStart={handleRegionDragStart}
         onRegionDragEnd={handleRegionDragEnd}
         onAutoSuggestRegions={handleAutoSuggest}
-        onSetPureRegion={handleSetPureRegion}
         regionTrayOpen={regionEditorTrayOpen}
         onRegionTrayOpenChange={setRegionEditorTrayOpen}
       />

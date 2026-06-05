@@ -1,7 +1,7 @@
 "use client";
 
 import { Minus, Plus, Wand2 } from "lucide-react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import {
   PlotToolbarRichHint,
@@ -36,7 +36,6 @@ import {
   StxmRowSumTrace,
 } from "./stxm-row-sum-trace";
 const HEATMAP_WIDTH = STXM_REGION_EDITOR_MAX_WIDTH_PX - STXM_ROW_SUM_TRACE_WIDTH;
-const CANVAS_HEIGHT = STXM_INGESTION_SPECTRUM_HEIGHT_PX;
 const HIT_MARGIN_FRACTION = 0.015;
 
 type StxmMultiRegionEditorProps = {
@@ -45,6 +44,8 @@ type StxmMultiRegionEditorProps = {
   regions: StxmSampleRegion[];
   izero: StxmIzeroBounds;
   imageScaleMode: StxmPlotScaleMode;
+  /** Total editor height; must match the adjacent spectrum plot widget height. */
+  height?: number;
   onRegionsChange: (regions: StxmSampleRegion[]) => void;
   onRegionChange: (index: number, region: StxmSampleRegion) => void;
   onIzeroChange: (izero: StxmIzeroBounds) => void;
@@ -65,6 +66,7 @@ export function StxmMultiRegionEditor({
   regions,
   izero,
   imageScaleMode,
+  height = STXM_INGESTION_SPECTRUM_HEIGHT_PX,
   onRegionsChange,
   onRegionChange,
   onIzeroChange,
@@ -75,10 +77,11 @@ export function StxmMultiRegionEditor({
   onRegionTrayOpenChange,
 }: StxmMultiRegionEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasAreaRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<RegionDragState>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverDragTarget, setHoverDragTarget] = useState<RegionDragState>(null);
-  const regionListId = useId();
+  const [canvasHeight, setCanvasHeight] = useState(height);
   const [editingRegionIndex, setEditingRegionIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const editInputRef = useRef<HTMLInputElement | null>(null);
@@ -120,6 +123,32 @@ export function StxmMultiRegionEditor({
     () => computeRegionGaps(regions, izero, sampleMin, sampleMax, minGap),
     [regions, izero, sampleMin, sampleMax, minGap],
   );
+
+  const endDrag = useCallback(() => {
+    if (!dragRef.current) {
+      return;
+    }
+    dragRef.current = null;
+    setIsDragging(false);
+    onDragEnd?.();
+  }, [onDragEnd]);
+
+  useEffect(() => {
+    const canvasArea = canvasAreaRef.current;
+    if (!canvasArea) {
+      return;
+    }
+    const syncCanvasHeight = () => {
+      const nextHeight = Math.floor(canvasArea.clientHeight);
+      if (nextHeight > 0) {
+        setCanvasHeight(nextHeight);
+      }
+    };
+    syncCanvasHeight();
+    const observer = new ResizeObserver(syncCanvasHeight);
+    observer.observe(canvasArea);
+    return () => observer.disconnect();
+  }, [height]);
 
   useEffect(() => {
     if (!isDragging) {
@@ -166,9 +195,7 @@ export function StxmMultiRegionEditor({
       });
     };
     const handleUp = () => {
-      dragRef.current = null;
-      setIsDragging(false);
-      onDragEnd?.();
+      endDrag();
     };
     window.addEventListener("pointermove", handleMove);
     window.addEventListener("pointerup", handleUp);
@@ -180,7 +207,7 @@ export function StxmMultiRegionEditor({
     isDragging,
     izero,
     minGap,
-    onDragEnd,
+    endDrag,
     onIzeroChange,
     onRegionChange,
     pxToSample,
@@ -377,10 +404,10 @@ export function StxmMultiRegionEditor({
   return (
     <div
       className="border-border bg-surface flex w-full max-w-[180px] flex-col overflow-hidden rounded-lg border"
-      style={{ minHeight: CANVAS_HEIGHT }}
+      style={{ height }}
     >
       <div
-        className="border-border flex shrink-0 items-center gap-0.5 border-b px-1 py-0.5"
+        className="border-border flex shrink-0 items-center gap-1 border-b px-2 py-1"
         aria-label="Line scan region tools"
       >
         <StxmRegionTrayToggle
@@ -425,18 +452,16 @@ export function StxmMultiRegionEditor({
         </PlotToolbarRichHint>
       </div>
       <div
+        ref={canvasAreaRef}
         className={`flex min-h-0 flex-1 ${isDragging || hoverDragTarget ? "cursor-ns-resize" : "cursor-crosshair"}`}
         onPointerDown={beginDrag}
         onPointerMove={updateHoverFromEvent}
         onPointerLeave={() => setHoverDragTarget(null)}
-        onPointerUp={() => {
-          dragRef.current = null;
-          setIsDragging(false);
-        }}
+        onPointerUp={endDrag}
       >
         <StxmRowSumTrace
           image={image}
-          height={CANVAS_HEIGHT}
+          height={canvasHeight}
           qaxisPoints={qaxisPoints}
           sampleMin={sampleMin}
           yToPx={yToPx}
@@ -447,15 +472,15 @@ export function StxmMultiRegionEditor({
           <canvas
             ref={canvasRef}
             width={HEATMAP_WIDTH}
-            height={CANVAS_HEIGHT}
+            height={canvasHeight}
             className="pointer-events-none relative z-0 block w-full"
-            style={{ height: CANVAS_HEIGHT, width: HEATMAP_WIDTH }}
+            style={{ height: canvasHeight, width: HEATMAP_WIDTH }}
           />
           {!isDragging ? (
             <>
               {regions.map((region, index) => {
                 const mid = (region.sampleLo + region.sampleHi) / 2;
-                const topPct = (yToPx(mid, CANVAS_HEIGHT) / CANVAS_HEIGHT) * 100;
+                const topPct = (yToPx(mid, canvasHeight) / canvasHeight) * 100;
                 const label = regionDisplayLabel(region, index);
                 const color = stxmRegionSeriesColor(index);
                 const isEditing = editingRegionIndex === index;
@@ -521,7 +546,7 @@ export function StxmMultiRegionEditor({
               })}
               {regionGaps.map((gap) => {
                 const mid = (gap.lo + gap.hi) / 2;
-                const topPct = (yToPx(mid, CANVAS_HEIGHT) / CANVAS_HEIGHT) * 100;
+                const topPct = (yToPx(mid, canvasHeight) / canvasHeight) * 100;
                 return (
                   <button
                     key={`${gap.lo}-${gap.hi}`}
@@ -540,54 +565,6 @@ export function StxmMultiRegionEditor({
             </>
           ) : null}
         </div>
-      </div>
-      <div className="border-border space-y-1 border-t p-2">
-        <h3 className="text-muted text-[10px] font-semibold uppercase tracking-wide">
-          Regions
-        </h3>
-        <p className="text-muted text-[10px] leading-snug">
-          Click a label to rename. Drag lines to adjust bounds.
-        </p>
-        <ul
-          id={regionListId}
-          className="max-h-28 space-y-0.5 overflow-y-auto"
-          aria-label="Sample regions"
-        >
-          {regions.map((region, index) => {
-            const color = stxmRegionSeriesColor(index);
-            const label = regionDisplayLabel(region, index);
-            const canRemove = regions.length > 1;
-            return (
-              <li
-                key={region.id}
-                className="hover:bg-default/40 flex min-h-0 items-center gap-1 rounded px-1 py-0.5"
-              >
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: color }}
-                  aria-hidden="true"
-                />
-                <span
-                  className="text-foreground min-w-0 flex-1 truncate text-xs font-medium"
-                  title={label}
-                >
-                  {label}
-                  {region.role === "pure" ? " (pure)" : null}
-                </span>
-                {canRemove ? (
-                  <button
-                    type="button"
-                    className="text-muted hover:text-danger flex h-5 w-5 shrink-0 items-center justify-center rounded"
-                    aria-label={`Remove ${label}`}
-                    onClick={() => removeRegion(index)}
-                  >
-                    <Minus className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
       </div>
     </div>
   );
