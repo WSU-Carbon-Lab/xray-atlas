@@ -186,18 +186,22 @@ Reference architecture from `stxm/tmp/PLAN.md`: io → estimators → reduction/
 ### Delivered on branch
 
 - Manual bounds editor + `autoSampleIzeroRegions` auto-suggest
-- `estimators.ts`, `nexafs.ts`, `reduction.ts` in `src/lib/stxm/`
-- Reduce step UI with OD spectrum preview; results in `step_metadata.reduce`
+- **Draggable region bands** on heatmap (`stxm-region-heatmap.tsx`) with debounced session persist
+- `estimators.ts`, `nexafs.ts`, `reduction.ts`, **`normalization.ts`**, **`absorption.ts`** in `src/lib/stxm/`
+- **`computeStxmIngestion`** orchestrator: region means → Beer-Lambert OD → pre/post normalization → bare-atom mass absorption / beta (`calculateBareAtomAbsorption`) → optional KK delta (`computeDeltaFromBetaKkcalcStyle` + session consent)
+- Ingestion tab: left heatmap + regions, right multi-trace spectrum chart; channel toggles (I0, sample, OD, norm OD, mass abs, beta, delta); linear/log y-axis; formula + thickness + norm window inputs
+- Full channel arrays downsampled into `step_metadata.ingestion`; legacy `step_metadata.reduce` OD record retained for step gating
 
 ### Remaining for full Phase 3
 
 - GMM / multi-sample segmentation from Python `regions.py`
-- Normalization UI bridge to contribute OD/mu/beta channels
+- Plot brush for pre/post windows (numeric inputs only today)
 - Python golden-file parity CI job
 
 ### Done when
 
-- [x] User defines sample/izero regions on line scan, extracts spectrum, sees OD plot with uncertainties
+- [x] User defines sample/izero regions on line scan (drag handles + numeric), extracts spectrum, compares OD / norm OD / mu / beta / delta
+- [x] Unit tests for normalization and absorption (`tests/stxm-validation/stxm-normalization-absorption.test.ts`)
 - [ ] Numerics match Python reference within tolerance on shared fixtures (`tests/stxm-validation/` mirroring kk-calc-validation layout)
 
 ---

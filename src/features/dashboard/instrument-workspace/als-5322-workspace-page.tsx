@@ -9,6 +9,7 @@ import {
   ALS_5322_INSTRUMENT_LABEL,
   ALS_5322_INSTRUMENT_SLUG,
   defaultDashboardStepMetadata,
+  type DashboardIngestionResult,
   type DashboardReduceStepMetadata,
   type DashboardRegionsStepMetadata,
   type DashboardStepMetadata,
@@ -525,6 +526,25 @@ export function Als5322WorkspacePage() {
     [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
   );
 
+  const persistIngestion = useCallback(
+    async (ingestion: DashboardIngestionResult) => {
+      if (!sessionId) {
+        return;
+      }
+      const next: DashboardStepMetadata = {
+        ...stepMetadata,
+        ingestion,
+      };
+      await updateSession.mutateAsync({
+        sessionId,
+        status: "ready",
+        stepMetadata: next,
+      });
+      void utils.dashboardSessions.getById.invalidate({ sessionId });
+    },
+    [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
+  );
+
   const breadcrumb = useMemo(() => {
     const parts = [BL5322_BREADCRUMB];
     if (folderRootName) {
@@ -622,8 +642,10 @@ export function Als5322WorkspacePage() {
             scanLabel={selectedEntry?.relativePath ?? selectedFiles.hdrFile.name}
             regionsMetadata={stepMetadata.regions}
             reduceMetadata={stepMetadata.reduce}
+            ingestionMetadata={stepMetadata.ingestion}
             onPersistRegions={persistRegions}
             onPersistReduce={persistReduce}
+            onPersistIngestion={persistIngestion}
             isSaving={updateSession.isPending}
           />
         );
@@ -648,6 +670,7 @@ export function Als5322WorkspacePage() {
     isLoadingCatalog,
     isPicking,
     persistReduce,
+    persistIngestion,
     persistRegions,
     pendingFolderAccess,
     refreshBeamtimes,
@@ -655,6 +678,7 @@ export function Als5322WorkspacePage() {
     selectedBeamtime,
     selectedEntry,
     selectedFiles,
+    stepMetadata.ingestion,
     stepMetadata.reduce,
     stepMetadata.regions,
     updateSession.isPending,

@@ -51,6 +51,26 @@ export {
   autoSampleIzeroRegions,
   sampleIzeroMasks,
 } from "./regions";
+export { nexafsBeerLambert, type NexafsBeerLambertResult } from "./nexafs";
+export {
+  bareAtomBetaFromMassAbsorption,
+  betaFromNormalizedMassAbsorption,
+  fitBareAtomBackground,
+  massAbsorptionFromOdFit,
+  odErrToBetaErr,
+  odToBeta,
+  type BareAtomBackgroundFit,
+} from "./absorption";
+export {
+  energyRegionMask,
+  normalizeNexafsOd,
+  preEdgeSubtract,
+  postEdgeNormalize,
+  suggestNormalizationWindows,
+  HC_EV_CM,
+  type StxmNormalizationMetadata,
+  type StxmNormalizationWindows,
+} from "./normalization";
 export {
   reduceByRegression,
   reduceLoadedScanTwoRegion,

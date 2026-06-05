@@ -76,6 +76,17 @@ export const stxmRegionBoundsSchema = z.object({
 
 export type StxmRegionBounds = z.infer<typeof stxmRegionBoundsSchema>;
 
+export const stxmNormalizationWindowsSchema = z.object({
+  preLo: z.number(),
+  preHi: z.number(),
+  postLo: z.number(),
+  postHi: z.number(),
+});
+
+export type StxmNormalizationWindows = z.infer<
+  typeof stxmNormalizationWindowsSchema
+>;
+
 export const dashboardRegionsStepMetadataSchema = z.object({
   scanId: z.string().min(1).nullable().optional(),
   bounds: stxmRegionBoundsSchema.optional(),
@@ -83,6 +94,9 @@ export const dashboardRegionsStepMetadataSchema = z.object({
   weightingMode: z
     .enum(["inverse_count", "poisson_mle", "empirical"])
     .default("poisson_mle"),
+  formula: z.string().optional(),
+  thicknessCm: z.number().positive().optional(),
+  normalization: stxmNormalizationWindowsSchema.optional(),
 });
 
 export type DashboardRegionsStepMetadata = z.infer<
@@ -113,6 +127,30 @@ export type DashboardReduceStepMetadata = z.infer<
   typeof dashboardReduceStepMetadataSchema
 >;
 
+export const dashboardIngestionResultSchema = z.object({
+  scanId: z.string().min(1),
+  computedAt: z.string().min(1),
+  weightingMode: z.enum(["inverse_count", "poisson_mle", "empirical"]),
+  formula: z.string().nullable().optional(),
+  thicknessCm: z.number().optional(),
+  normalization: stxmNormalizationWindowsSchema,
+  normalizationScale: z.number().optional(),
+  energyEv: z.array(z.number()),
+  i0: z.array(z.number()).optional(),
+  iSample: z.array(z.number()).optional(),
+  od: z.array(z.number()),
+  odErr: z.array(z.number()),
+  odNormalized: z.array(z.number()).optional(),
+  massAbsorption: z.array(z.number()).optional(),
+  beta: z.array(z.number()).optional(),
+  delta: z.array(z.number()).optional(),
+  kkEngineLabel: z.string().nullable().optional(),
+});
+
+export type DashboardIngestionResult = z.infer<
+  typeof dashboardIngestionResultSchema
+>;
+
 export const DASHBOARD_WORKSPACE_TABS = [
   "experiment",
   "ingestion",
@@ -141,6 +179,7 @@ export const dashboardStepMetadataSchema = z.object({
   ingest: dashboardIngestStepMetadataSchema.optional(),
   regions: dashboardRegionsStepMetadataSchema.optional(),
   reduce: dashboardReduceStepMetadataSchema.optional(),
+  ingestion: dashboardIngestionResultSchema.optional(),
   fit: z.record(z.string(), z.unknown()).optional(),
   export: z.record(z.string(), z.unknown()).optional(),
 });
