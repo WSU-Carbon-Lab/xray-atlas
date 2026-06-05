@@ -1,8 +1,12 @@
 "use client";
 
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
+import {
+  PlotToolbarRichHint,
+  plotToolbarCompactIconToolClass,
+} from "~/components/plots/toolbars";
 import type { StxmIzeroBounds, StxmPlotScaleMode, StxmSampleRegion } from "~/lib/stxm/stxm-region-types";
 import {
   lineScanImageDisplayScale,
@@ -26,6 +30,7 @@ import {
   STXM_INGESTION_SPECTRUM_HEIGHT_PX,
   STXM_REGION_EDITOR_MAX_WIDTH_PX,
 } from "./stxm-ingestion-layout";
+import { StxmRegionTrayToggle } from "./stxm-region-tray-toggle";
 import {
   STXM_ROW_SUM_TRACE_WIDTH,
   StxmRowSumTrace,
@@ -45,8 +50,10 @@ type StxmMultiRegionEditorProps = {
   onIzeroChange: (izero: StxmIzeroBounds) => void;
   onDragStart?: (target: RegionDragTarget) => void;
   onDragEnd?: () => void;
-  /** Runs automatic region placement from the line-scan image; omit to hide Auto regions. */
+  /** Runs automatic region placement from the line-scan image. */
   onAutoSuggest?: () => void;
+  regionTrayOpen: boolean;
+  onRegionTrayOpenChange: (open: boolean) => void;
 };
 
 /**
@@ -64,6 +71,8 @@ export function StxmMultiRegionEditor({
   onDragStart,
   onDragEnd,
   onAutoSuggest,
+  regionTrayOpen,
+  onRegionTrayOpenChange,
 }: StxmMultiRegionEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragRef = useRef<RegionDragState>(null);
@@ -371,6 +380,51 @@ export function StxmMultiRegionEditor({
       style={{ minHeight: CANVAS_HEIGHT }}
     >
       <div
+        className="border-border flex shrink-0 items-center gap-0.5 border-b px-1 py-0.5"
+        aria-label="Line scan region tools"
+      >
+        <StxmRegionTrayToggle
+          regionTrayOpen={regionTrayOpen}
+          onRegionTrayOpenChange={onRegionTrayOpenChange}
+          hintPlacement="right"
+        />
+        <PlotToolbarRichHint
+          title="Add region"
+          description="Insert a sample region in the largest gap, or after the last region."
+          placement="right"
+        >
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label="Add region"
+            className={plotToolbarCompactIconToolClass}
+            onPress={addRegionFallback}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+          </Button>
+        </PlotToolbarRichHint>
+        <PlotToolbarRichHint
+          title="Auto regions"
+          description="Suggest sample and izero bounds from the line-scan image."
+          placement="right"
+          disabled={onAutoSuggest == null}
+          whenDisabledDescription="Automatic region placement is unavailable for this scan."
+        >
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label="Auto-suggest regions"
+            className={plotToolbarCompactIconToolClass}
+            isDisabled={onAutoSuggest == null}
+            onPress={onAutoSuggest}
+          >
+            <Wand2 className="h-4 w-4" aria-hidden />
+          </Button>
+        </PlotToolbarRichHint>
+      </div>
+      <div
         className={`flex min-h-0 flex-1 ${isDragging || hoverDragTarget ? "cursor-ns-resize" : "cursor-crosshair"}`}
         onPointerDown={beginDrag}
         onPointerMove={updateHoverFromEvent}
@@ -488,24 +542,9 @@ export function StxmMultiRegionEditor({
         </div>
       </div>
       <div className="border-border space-y-1 border-t p-2">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-muted text-[10px] font-semibold uppercase tracking-wide">
-            Regions
-          </h3>
-          <div className="flex flex-wrap items-center gap-1">
-            <Button
-              size="sm"
-              variant="secondary"
-              onPress={onAutoSuggest}
-              isDisabled={onAutoSuggest == null}
-            >
-              Auto regions
-            </Button>
-            <Button size="sm" variant="secondary" onPress={addRegionFallback}>
-              Add region
-            </Button>
-          </div>
-        </div>
+        <h3 className="text-muted text-[10px] font-semibold uppercase tracking-wide">
+          Regions
+        </h3>
         <p className="text-muted text-[10px] leading-snug">
           Click a label to rename. Drag lines to adjust bounds.
         </p>

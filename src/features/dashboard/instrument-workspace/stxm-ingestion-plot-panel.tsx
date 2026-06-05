@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
-import { Spinner, ToggleButton, Button } from "@heroui/react";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Spinner, Button } from "@heroui/react";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
 import {
   buildStxmSpectrumPlotModel,
@@ -44,6 +43,7 @@ import {
   STXM_REGION_EDITOR_MAX_WIDTH_PX,
 } from "./stxm-ingestion-layout";
 import { StxmMultiRegionEditor } from "./stxm-multi-region-editor";
+import { StxmRegionTrayToggle } from "./stxm-region-tray-toggle";
 import type { RegionDragTarget } from "~/lib/stxm/region-editor-utils";
 
 const STXM_VISUALIZATION_MODES: VisualizationMode[] = ["graph", "table"];
@@ -486,25 +486,6 @@ export function StxmIngestionPlotPanel({
   const graphContent = (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-visible rounded-xl border border-[var(--border-default)] p-3">
       <div className="flex min-h-0 min-w-0 flex-1 items-stretch gap-2">
-        <div className="border-border flex shrink-0 flex-col items-center gap-1 border-r pr-2">
-          <ToggleButton
-            isIconOnly
-            aria-label={
-              regionTrayOpen
-                ? "Hide line scan region editor"
-                : "Show line scan region editor"
-            }
-            isSelected={regionTrayOpen}
-            onChange={onRegionTrayOpenChange}
-            className="h-9 w-9 min-w-9"
-          >
-            {regionTrayOpen ? (
-              <PanelLeftClose className="h-4 w-4" aria-hidden />
-            ) : (
-              <PanelLeftOpen className="h-4 w-4" aria-hidden />
-            )}
-          </ToggleButton>
-        </div>
         {regionTrayOpen ? (
           <aside
             className="flex shrink-0 flex-col gap-2"
@@ -522,6 +503,8 @@ export function StxmIngestionPlotPanel({
               onDragStart={handleRegionDragStartWithTarget}
               onDragEnd={onRegionDragEnd}
               onAutoSuggest={onAutoSuggestRegions}
+              regionTrayOpen={regionTrayOpen}
+              onRegionTrayOpenChange={onRegionTrayOpenChange}
             />
             <div className="flex flex-wrap gap-1">
               {regions.map((region) => (
@@ -536,7 +519,15 @@ export function StxmIngestionPlotPanel({
               ))}
             </div>
           </aside>
-        ) : null}
+        ) : (
+          <div className="flex shrink-0 items-start pt-1">
+            <StxmRegionTrayToggle
+              regionTrayOpen={regionTrayOpen}
+              onRegionTrayOpenChange={onRegionTrayOpenChange}
+              hintPlacement="right"
+            />
+          </div>
+        )}
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           {plotBody}
           {showComputingOverlay && plotModel ? <PlotComputingOverlay /> : null}
