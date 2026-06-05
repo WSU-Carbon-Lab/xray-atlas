@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@heroui/react";
+import { cn } from "@heroui/styles";
 import { Trash2 } from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
 import { SimpleDialog } from "~/components/ui/dialog";
@@ -55,7 +56,7 @@ export function DashboardRecentSessionRow({
 
   return (
     <>
-      <div className="border-border hover:bg-default/40 flex items-center justify-between gap-3 rounded-md border px-4 py-3 transition-colors">
+      <div className="border-border hover:bg-default/40 flex items-center gap-3 rounded-md border px-4 py-3 transition-colors">
         <Link
           href={`/dashboard/instruments/als-5322?session=${session.id}`}
           className="min-w-0 flex-1"
@@ -68,23 +69,35 @@ export function DashboardRecentSessionRow({
               ALS_5322_INSTRUMENT_LABEL}
           </p>
         </Link>
-        <time
-          className="text-muted hidden shrink-0 text-xs tabular-nums sm:block"
-          dateTime={new Date(session.updatedAt).toISOString()}
-        >
-          {new Date(session.updatedAt).toLocaleString()}
-        </time>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          isIconOnly
-          aria-label={`Delete session ${sessionLabel}`}
-          isDisabled={deleteMutation.isPending}
-          onPress={() => setConfirmOpen(true)}
-        >
-          <Trash2 className="size-3.5" aria-hidden />
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <time
+            className="text-muted text-xs tabular-nums"
+            dateTime={new Date(session.updatedAt).toISOString()}
+          >
+            {new Date(session.updatedAt).toLocaleString()}
+          </time>
+          <div
+            className="shrink-0"
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              isIconOnly
+              aria-label="Delete processing session"
+              isDisabled={deleteMutation.isPending}
+              className={cn(
+                "text-(--text-secondary) hover:text-danger hover:bg-danger/10",
+                "min-h-8 min-w-8 border border-(--border-default)",
+              )}
+              onPress={() => setConfirmOpen(true)}
+            >
+              <Trash2 className="size-4" aria-hidden />
+            </Button>
+          </div>
+        </div>
       </div>
 
       <SimpleDialog
