@@ -262,6 +262,10 @@ export type SpectrumPlotProps = {
    */
   emptyStateMessage?: string;
   /**
+   * Overrides the default "Fixed Geometry" legend label when the primary trace has no θ/φ metadata (for example STXM ingestion reduced spectra).
+   */
+  primaryTraceLabel?: string;
+  /**
    * When set, right-click opens a minimal CSV context menu on the plot and Copy is hijacked to place total-dataset CSV on the clipboard (toolbar dropdown still handles per-geometry export).
    */
   spectrumCsvContextMenu?: SpectrumCsvContextMenuConfig;

@@ -12,6 +12,7 @@ import {
   ingestionChannelUsesRawSignal,
   ingestionResultChannelValue,
   regionSpectrumChannelValue,
+  STXM_INGESTION_CHANNEL_OPTIONS,
   type StxmIngestionPlotChannel,
 } from "~/lib/stxm/stxm-ingestion-display";
 import {
@@ -38,7 +39,32 @@ type StxmIngestionPlotPanelProps = {
   showRegionOverlays: boolean;
   height?: number;
   isComputing?: boolean;
+  /** Label for the primary reduced trace (for example `OD (pure)`). */
+  primaryTraceLabel?: string;
+  /** Active pure/sample region display name when `primaryTraceLabel` is omitted. */
+  pureRegionLabel?: string;
 };
+
+function buildPrimaryTraceLabel(
+  channel: StxmIngestionPlotChannel,
+  pureRegionLabel: string,
+): string {
+  const channelLabel =
+    STXM_INGESTION_CHANNEL_OPTIONS.find((option) => option.id === channel)
+      ?.label ?? channel;
+  const regionLabel = pureRegionLabel.trim() || "sample";
+  return `${channelLabel} (${regionLabel})`;
+}
+
+function plotHasDisplayableData(
+  result: StxmIngestionResult | null,
+  regionSpectra: StxmRegionSpectrumSeries[],
+): boolean {
+  if (result && result.energyEv.length > 0) {
+    return true;
+  }
+  return regionSpectra.length > 0;
+}
 
 function PlotComputingOverlay() {
   return (
@@ -135,7 +161,22 @@ export function StxmIngestionPlotPanel({
   showRegionOverlays,
   height = 320,
   isComputing = false,
+  primaryTraceLabel,
+  pureRegionLabel,
 }: StxmIngestionPlotPanelProps) {
+  const resolvedPrimaryTraceLabel = useMemo(() => {
+    if (primaryTraceLabel?.trim()) {
+      return primaryTraceLabel.trim();
+    }
+    if (pureRegionLabel?.trim()) {
+      return buildPrimaryTraceLabel(channel, pureRegionLabel);
+    }
+    return undefined;
+  }, [channel, primaryTraceLabel, pureRegionLabel]);
+
+  const showComputingOverlay =
+    isComputing && !plotHasDisplayableData(result, regionSpectra);
+
   const useSpectrumPlot =
     result !== null &&
     !ingestionChannelUsesRawSignal(channel) &&
@@ -199,7 +240,7 @@ export function StxmIngestionPlotPanel({
             channel={channel}
             standards={standards}
           />
-          {isComputing ? <PlotComputingOverlay /> : null}
+          {showComputingOverlay ? <PlotComputingOverlay /> : null}
         </div>
       );
     }
@@ -208,7 +249,7 @@ export function StxmIngestionPlotPanel({
         className="border-border bg-default/20 relative flex items-center justify-center rounded-md border"
         style={{ minHeight: height }}
       >
-        {isComputing ? (
+        {showComputingOverlay ? (
           <Spinner size="md" aria-label="Computing spectra" />
         ) : (
           <p className="text-muted px-4 text-center text-sm">
@@ -235,8 +276,9 @@ export function StxmIngestionPlotPanel({
             post: [result.normalization.postLo, result.normalization.postHi],
           }}
           emptyStateMessage="Computing spectra for this channel."
+          primaryTraceLabel={resolvedPrimaryTraceLabel}
         />
-        {isComputing ? <PlotComputingOverlay /> : null}
+        {showComputingOverlay ? <PlotComputingOverlay /> : null}
       </div>
     );
   }
@@ -254,7 +296,7 @@ export function StxmIngestionPlotPanel({
           channel={channel}
           standards={standards}
         />
-        {isComputing ? <PlotComputingOverlay /> : null}
+        {showComputingOverlay ? <PlotComputingOverlay /> : null}
       </div>
     );
   }
@@ -268,7 +310,7 @@ export function StxmIngestionPlotPanel({
         height={height}
         standards={standards}
       />
-      {isComputing ? <PlotComputingOverlay /> : null}
+      {showComputingOverlay ? <PlotComputingOverlay /> : null}
     </div>
   );
 }

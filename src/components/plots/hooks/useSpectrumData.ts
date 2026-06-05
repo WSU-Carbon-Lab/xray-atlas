@@ -68,6 +68,7 @@ export function useSpectrumData(
   showPhiData: boolean,
   differenceSpectra: DifferenceSpectrum[],
   isDark = true,
+  primaryTraceLabel?: string,
 ): SpectrumDataResult {
   const palette = isDark ? SPECTRUM_TRACE_GRADIENT_DARK : SPECTRUM_TRACE_GRADIENT_LIGHT;
   return useMemo(() => {
@@ -80,7 +81,16 @@ export function useSpectrumData(
       ? filterSpectrumPointsForGroupedPlot(points, showThetaData, showPhiData)
       : [];
 
-    const groups = groupPointsByGeometry(filteredPoints);
+    let groups = groupPointsByGeometry(filteredPoints);
+    const fixedLabel = primaryTraceLabel?.trim();
+    if (fixedLabel && groups.has("fixed")) {
+      const nextGroups = new Map(groups);
+      const fixedGroup = nextGroups.get("fixed");
+      if (fixedGroup) {
+        nextGroups.set("fixed", { ...fixedGroup, label: fixedLabel });
+      }
+      groups = nextGroups;
+    }
     const ordered = sortedGeometryGroupEntries(groups);
     const traceCount = ordered.length;
 
@@ -90,10 +100,14 @@ export function useSpectrumData(
         index,
         traceCount,
       );
+      const label =
+        key === "fixed" && primaryTraceLabel?.trim()
+          ? primaryTraceLabel.trim()
+          : group.label || key;
       return {
         type: "scattergl" as const,
         mode: "lines+markers" as const,
-        name: group.label || key,
+        name: label,
         x: group.energies,
         y: group.absorptions,
         theta: group.theta,
@@ -108,7 +122,7 @@ export function useSpectrumData(
           width: SPECTRUM_TRACE_LINE_WIDTH,
         },
         hovertemplate:
-          `<b>${group.label || key}</b><br>` +
+          `<b>${label}</b><br>` +
           "Energy: %{x:.3f} eV<br>Intensity: %{y:.4f}" +
           "<extra></extra>",
       };
@@ -119,5 +133,5 @@ export function useSpectrumData(
       keys: ordered.map(([k]) => k),
       groups,
     };
-  }, [points, showThetaData, showPhiData, differenceSpectra, palette]);
+  }, [points, showThetaData, showPhiData, differenceSpectra, palette, primaryTraceLabel]);
 }

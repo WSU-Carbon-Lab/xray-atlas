@@ -203,6 +203,7 @@ export function IngestionTab({
   const debouncePipelineRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDraggingRef = useRef(false);
   const pipelineGenerationRef = useRef(0);
+  const pipelineInflightRef = useRef(0);
 
   const inferredEdge = useMemo(
     () => inferStxmEdgeFromEnergyRange(energyMinEv, energyMaxEv),
@@ -335,6 +336,7 @@ export function IngestionTab({
     if (!loaded || !izero || regions.length === 0 || !normalization) {
       return;
     }
+    pipelineInflightRef.current += 1;
     const generation = pipelineGenerationRef.current + 1;
     pipelineGenerationRef.current = generation;
     setIsReducing(true);
@@ -356,7 +358,8 @@ export function IngestionTab({
         return;
       }
       setResult(pipelineResult);
-      await onPersistIngestion(ingestionResultToPersisted(pipelineResult, scanId));
+      recomputeRawSpectra();
+      const persisted = ingestionResultToPersisted(pipelineResult, scanId);
       const { sampleMask, izeroMask } = sampleIzeroMasks(
         loaded.oriented.spatial,
         bounds.sampleLo,
@@ -372,16 +375,30 @@ export function IngestionTab({
         "sample",
         weightingMode,
       );
-      if (generation !== pipelineGenerationRef.current) {
-        return;
-      }
-      await onPersistReduce({
-        scanId,
-        spectra: [regionSpectrumToRecord(spectrum)],
-        computedAt: new Date().toISOString(),
-        method: "two_region",
-      });
-      recomputeRawSpectra();
+      void (async () => {
+        try {
+          await onPersistIngestion(persisted);
+          if (generation !== pipelineGenerationRef.current) {
+            return;
+          }
+          await onPersistReduce({
+            scanId,
+            spectra: [regionSpectrumToRecord(spectrum)],
+            computedAt: new Date().toISOString(),
+            method: "two_region",
+          });
+        } catch (persistError) {
+          if (generation !== pipelineGenerationRef.current) {
+            return;
+          }
+          showToast(
+            persistError instanceof Error
+              ? persistError.message
+              : "Failed to save spectra",
+            "error",
+          );
+        }
+      })();
     } catch (error) {
       if (generation !== pipelineGenerationRef.current) {
         return;
@@ -403,7 +420,9 @@ export function IngestionTab({
         "error",
       );
     } finally {
-      if (generation === pipelineGenerationRef.current) {
+      pipelineInflightRef.current -= 1;
+      if (pipelineInflightRef.current <= 0) {
+        pipelineInflightRef.current = 0;
         setIsReducing(false);
       }
     }
@@ -549,6 +568,14 @@ export function IngestionTab({
 
   const yScale = plotScaleMode;
 
+  const pureRegionLabel = useMemo(() => {
+    const pure =
+      regions.find(
+        (region) => region.id === pureRegionId || region.role === "pure",
+      ) ?? regions[0];
+    return pure?.spotLabel?.trim() ?? "sample";
+  }, [pureRegionId, regions]);
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -670,8 +697,8 @@ export function IngestionTab({
         </Button>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="flex flex-col gap-3">
+      <div className="grid min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(220px,2fr)_minmax(0,3fr)] md:items-start">
+        <div className="flex min-h-0 min-w-0 flex-col gap-2">
           <StxmMultiRegionEditor
             image={imageMatrix}
             qaxisPoints={qaxisPoints}
@@ -698,7 +725,7 @@ export function IngestionTab({
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex min-h-0 min-w-0 flex-col">
           <StxmIngestionPlotPanel
             result={result}
             regionSpectra={regionSpectra}
@@ -707,8 +734,9 @@ export function IngestionTab({
             standards={plotStandards}
             bareAtomCurve={null}
             showRegionOverlays
-            height={360}
+            height={480}
             isComputing={isReducing}
+            pureRegionLabel={pureRegionLabel}
           />
         </div>
       </div>

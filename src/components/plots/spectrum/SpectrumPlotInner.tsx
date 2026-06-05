@@ -145,6 +145,7 @@ export function SpectrumPlotInner({
   cursorMode: externalCursorMode,
   onCursorModeChange,
   spectrumCsvContextMenu,
+  primaryTraceLabel,
 }: SpectrumPlotInnerProps) {
   const opticalLinkConfig = opticalLink ?? betaDeltaLinkLegacy;
   const { resolvedTheme } = useTheme();
@@ -163,6 +164,7 @@ export function SpectrumPlotInner({
     showPhiData,
     differenceSpectra,
     isDark,
+    primaryTraceLabel,
   );
   const linkedOptical = useLinkedOpticalTraces(
     groupedTraces.traces,
