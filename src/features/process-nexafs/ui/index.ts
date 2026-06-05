@@ -21,6 +21,7 @@ export {
   type VisualizationMode,
   type GraphStyle,
 } from "./visualization-toggle";
+export { DatasetVisualizationShell } from "./dataset-visualization-shell";
 export { useDatasetStatus } from "./hooks/use-dataset-status";
 export type {
   DatasetStatus,
