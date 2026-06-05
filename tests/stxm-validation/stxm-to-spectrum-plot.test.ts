@@ -53,9 +53,10 @@ describe("buildStxmSpectrumPlotModel", () => {
       result: sampleResult,
       regionSpectra: [],
       channel: "signal_i0",
-      yScale: "linear",
+      i0PlotScale: "linear",
       standards: [],
       bareAtomCurve: null,
+      showBareAtomOverlay: false,
       showRegionOverlays: false,
     });
     expect(model !== null).toBe(true);
@@ -70,9 +71,10 @@ describe("buildStxmSpectrumPlotModel", () => {
       result: sampleResult,
       regionSpectra: [],
       channel: "signal_sample",
-      yScale: "log",
+      i0PlotScale: "log_i",
       standards: [],
       bareAtomCurve: null,
+      showBareAtomOverlay: false,
       showRegionOverlays: false,
     });
     expect(model?.points[0]?.absorption).toBeCloseTo(Math.log10(500), 8);
@@ -83,9 +85,10 @@ describe("buildStxmSpectrumPlotModel", () => {
       result: sampleResult,
       regionSpectra: [],
       channel: "od",
-      yScale: "linear",
+      i0PlotScale: "linear",
       standards: [],
       bareAtomCurve: null,
+      showBareAtomOverlay: false,
       showRegionOverlays: false,
     });
     expect(model?.showNormalizationShading).toBe(true);

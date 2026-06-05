@@ -10,38 +10,25 @@ import {
   plotToolbarGlyphToggleGroupItemHorizontalClass,
 } from "~/components/plots/toolbars";
 import type { StxmWeightingMode } from "~/lib/stxm/estimators";
-import {
-  STXM_INGESTION_WEIGHTING_OPTIONS,
-  ingestionChannelAllowsLogY,
-  type StxmIngestionPlotChannel,
-} from "~/lib/stxm/stxm-ingestion-display";
-import type { StxmPlotScaleMode } from "~/lib/stxm/stxm-region-types";
+import { STXM_INGESTION_WEIGHTING_OPTIONS } from "~/lib/stxm/stxm-ingestion-display";
 
 const plotToolbarHeaderToggleClass = cn(
   plotToolbarGlyphToggleGroupItemHorizontalClass,
   "h-8 min-w-8 w-auto px-2.5 text-xs font-medium",
 );
 
-export type StxmIngestionPlotHeaderProps = {
-  displayChannel: StxmIngestionPlotChannel;
+export type StxmIngestionWeightingToolbarProps = {
   weightingMode: StxmWeightingMode;
   onWeightingModeChange: (mode: StxmWeightingMode) => void;
-  plotScaleMode: StxmPlotScaleMode;
-  onPlotScaleModeChange: (mode: StxmPlotScaleMode) => void;
 };
 
 /**
- * Plot header row for STXM ingestion: error-kind weighting and linear/log Y scale (browse-style attached toggles).
+ * Compact error-weighting control for STXM region raw spectra (Poisson MLE, inverse count, empirical).
  */
-export function StxmIngestionPlotHeader({
-  displayChannel,
+export function StxmIngestionWeightingToolbar({
   weightingMode,
   onWeightingModeChange,
-  plotScaleMode,
-  onPlotScaleModeChange,
-}: StxmIngestionPlotHeaderProps) {
-  const logScaleDisabled = !ingestionChannelAllowsLogY(displayChannel);
-
+}: StxmIngestionWeightingToolbarProps) {
   return (
     <div className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
       <span className="text-muted shrink-0 text-xs font-medium">Error kind</span>
@@ -87,50 +74,6 @@ export function StxmIngestionPlotHeader({
           ))}
         </ToggleButtonGroup>
       </Toolbar>
-
-      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
-        <span className="text-muted shrink-0 text-xs font-medium">Y scale</span>
-        <Toolbar
-          isAttached
-          orientation="horizontal"
-          aria-label="Spectrum Y axis scale"
-          className={plotToolbarAttachedToolbarHorizontalClass}
-        >
-          <ToggleButtonGroup
-            selectionMode="single"
-            orientation="horizontal"
-            disallowEmptySelection
-            className={plotToolbarAttachedToggleGroupHorizontalClass}
-            selectedKeys={[plotScaleMode]}
-            onSelectionChange={(keys) => {
-              const key = [...keys][0];
-              if (key === "linear" || key === "log") {
-                onPlotScaleModeChange(key);
-              }
-            }}
-          >
-            <ToggleButton id="linear" className={plotToolbarHeaderToggleClass}>
-              Linear
-            </ToggleButton>
-            <ToggleButtonGroup.Separator />
-            <PlotToolbarRichHint
-              title="Log scale"
-              description="Log10 axis for raw I0, sample, and 1/I0 channels."
-              whenDisabledDescription="Log scale applies to raw signal channels only."
-              placement="bottom"
-              disabled={logScaleDisabled}
-            >
-              <ToggleButton
-                id="log"
-                isDisabled={logScaleDisabled}
-                className={plotToolbarHeaderToggleClass}
-              >
-                Log
-              </ToggleButton>
-            </PlotToolbarRichHint>
-          </ToggleButtonGroup>
-        </Toolbar>
-      </div>
     </div>
   );
 }

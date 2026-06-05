@@ -56,12 +56,37 @@ import {
 } from "./stxm-ingestion-plot-panel";
 import { StxmStandardsPicker } from "./stxm-standards-picker";
 import { StxmUploadDialog } from "./stxm-upload-dialog";
-import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
+import { StxmIngestionContextPanel } from "./stxm-ingestion-context-panel";
+import {
+  attributionsFromStxmExportMetadata,
+  parseStxmExportStepMetadata,
+  stxmExportMetadataFromAttributions,
+  type StxmExportStepMetadata,
+} from "~/features/dashboard/lib/stxm-export-metadata";
+import type { DatasetAttributionEntry } from "~/lib/nexafs-attribution";
+import { trpc } from "~/trpc/client";
+import type {
+  StxmI0PlotScaleMode,
+  StxmIngestionPlotChannel,
+} from "~/lib/stxm/stxm-ingestion-display";
+import type { DatasetAttributionChange } from "~/features/process-nexafs/ui/dataset-attribution-editor";
 
 const RAW_SPECTRA_DEBOUNCE_MS = 300;
 const PIPELINE_DEBOUNCE_MS = 400;
 
+type LinkedExperimentDto = {
+  id: string;
+  canonicalSlug: string | null;
+  instrumentName: string | null;
+  moleculeLabel: string | null;
+  browseHref: string;
+  contributeHref: string;
+};
+
 type IngestionTabProps = {
+  sessionId: string | null;
+  linkedExperiment: LinkedExperimentDto | null;
+  exportMetadata: unknown;
   hdrFile: File;
   ximFile: File;
   scanLabel: string;
@@ -76,6 +101,8 @@ type IngestionTabProps = {
   onPersistReduce: (reduce: DashboardReduceStepMetadata) => Promise<void>;
   onPersistIngestion: (ingestion: DashboardIngestionResult) => Promise<void>;
   onPersistPreview: (preview: DashboardPreviewStepMetadata) => Promise<void>;
+  onPersistExport: (exportMeta: StxmExportStepMetadata) => Promise<void>;
+  onSessionRefresh: () => void;
   isSaving: boolean;
 };
 
@@ -134,6 +161,9 @@ function initialMultiRegion(
  * Ingestion tab with multi-region editor, linked plot scaling, standards overlays, and upload gate.
  */
 export function IngestionTab({
+  sessionId,
+  linkedExperiment,
+  exportMetadata,
   hdrFile,
   ximFile,
   scanLabel,
@@ -148,6 +178,8 @@ export function IngestionTab({
   onPersistReduce,
   onPersistIngestion,
   onPersistPreview,
+  onPersistExport,
+  onSessionRefresh,
   isSaving: _isSaving,
 }: IngestionTabProps) {
   const [loaded, setLoaded] = useState<Awaited<
@@ -161,8 +193,11 @@ export function IngestionTab({
   const [regions, setRegions] = useState<StxmSampleRegion[]>([]);
   const [izero, setIzero] = useState<StxmIzeroBounds | null>(null);
   const [pureRegionId, setPureRegionId] = useState<string | null>(null);
-  const [plotScaleMode, setPlotScaleMode] = useState<StxmPlotScaleMode>(
+  const [plotScaleMode] = useState<StxmPlotScaleMode>(
     regionsMetadata?.plotScaleMode ?? "log",
+  );
+  const [i0PlotScale, setI0PlotScale] = useState<StxmI0PlotScaleMode>(
+    regionsMetadata?.i0PlotScale ?? "log_i",
   );
   const [displayChannel, setDisplayChannel] =
     useState<StxmIngestionPlotChannel>("od");
@@ -189,6 +224,27 @@ export function IngestionTab({
   const [isReducing, setIsReducing] = useState(false);
   const [kkConsentOpen, setKkConsentOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [attributions, setAttributions] = useState<DatasetAttributionEntry[]>(
+    () =>
+      attributionsFromStxmExportMetadata(
+        parseStxmExportStepMetadata(exportMetadata),
+      ),
+  );
+
+  const moleculeFormulaQuery =
+    trpc.experiments.moleculeFormulaForExperiment.useQuery(
+      { experimentId: linkedExperiment?.id ?? "" },
+      { enabled: Boolean(linkedExperiment?.id) },
+    );
+
+  const linkedFormula = moleculeFormulaQuery.data?.chemicalFormula ?? null;
+  const resolvedFormula = useMemo(() => {
+    const manual = formula.trim();
+    if (linkedFormula) {
+      return linkedFormula;
+    }
+    return manual.length > 0 ? manual : null;
+  }, [formula, linkedFormula]);
   const pendingRecomputeRef = useRef(false);
   const debouncePersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRawRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -268,6 +324,7 @@ export function IngestionTab({
         izeroBounds: izero,
         pureRegionId: pureRegionId ?? undefined,
         plotScaleMode,
+        i0PlotScale,
         weightingMode,
         formula: formula.trim() || undefined,
         thicknessCm: Number.parseFloat(thicknessCm) || undefined,
@@ -279,6 +336,7 @@ export function IngestionTab({
     izero,
     normalization,
     onPersistRegions,
+    i0PlotScale,
     plotScaleMode,
     pureRegionId,
     regions,
@@ -342,9 +400,9 @@ export function IngestionTab({
         bounds,
         weightingMode,
         normalization,
-        formula: formula.trim() || null,
+        formula: resolvedFormula,
         thicknessCm: Number.isFinite(thickness) && thickness > 0 ? thickness : 1e-4,
-        runKkDelta: Boolean(formula.trim()),
+        runKkDelta: Boolean(resolvedFormula),
       });
       if (generation !== pipelineGenerationRef.current) {
         return;
@@ -419,7 +477,6 @@ export function IngestionTab({
       }
     }
   }, [
-    formula,
     izero,
     loaded,
     normalization,
@@ -428,10 +485,40 @@ export function IngestionTab({
     pureRegionId,
     recomputeRawSpectra,
     regions,
+    resolvedFormula,
     scanId,
     thicknessCm,
     weightingMode,
   ]);
+
+  useEffect(() => {
+    if (linkedFormula) {
+      setFormula(linkedFormula);
+    }
+  }, [linkedFormula]);
+
+  const schedulePersistExport = useCallback(() => {
+    if (!sessionId) {
+      return;
+    }
+    void onPersistExport(stxmExportMetadataFromAttributions(attributions));
+  }, [attributions, onPersistExport, sessionId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      schedulePersistExport();
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [schedulePersistExport]);
+
+  const handleAttributionsChange = useCallback(
+    (rows: DatasetAttributionChange) => {
+      setAttributions((current) =>
+        typeof rows === "function" ? rows(current) : rows,
+      );
+    },
+    [],
+  );
 
   const schedulePipeline = useCallback(() => {
     if (!loaded || !izero || regions.length === 0 || !normalization) {
@@ -457,12 +544,12 @@ export function IngestionTab({
       }
     };
   }, [
-    formula,
     izero,
     loaded,
     normalization,
     pureRegionId,
     regions,
+    resolvedFormula,
     schedulePipeline,
     thicknessCm,
     weightingMode,
@@ -558,8 +645,6 @@ export function IngestionTab({
     setRegions((current) => setPureRegionRole(current, regionId));
   }, []);
 
-  const yScale = plotScaleMode;
-
   const pureRegionLabel = useMemo(() => {
     const pure =
       regions.find(
@@ -628,8 +713,8 @@ export function IngestionTab({
         </Button>
       </div>
 
-      <div className="grid min-h-0 grid-cols-1 gap-3 md:grid-cols-[minmax(220px,2fr)_minmax(0,3fr)] md:items-stretch">
-        <div className="flex min-h-0 min-w-0 flex-col gap-2">
+      <div className="grid min-h-0 grid-cols-1 gap-3 md:grid-cols-[minmax(160px,1fr)_minmax(0,4fr)] md:items-stretch">
+        <div className="flex min-h-0 w-full min-w-0 max-w-[220px] flex-col gap-2 md:max-w-none">
           <StxmMultiRegionEditor
             image={imageMatrix}
             qaxisPoints={qaxisPoints}
@@ -662,12 +747,13 @@ export function IngestionTab({
             regionSpectra={regionSpectra}
             channel={displayChannel}
             onChannelChange={setDisplayChannel}
-            yScale={yScale}
-            onYScaleChange={setPlotScaleMode}
+            i0PlotScale={i0PlotScale}
+            onI0PlotScaleChange={setI0PlotScale}
             weightingMode={weightingMode}
             onWeightingModeChange={setWeightingMode}
             standards={plotStandards}
-            bareAtomCurve={null}
+            chemicalFormula={resolvedFormula}
+            formulaLoading={moleculeFormulaQuery.isLoading}
             showRegionOverlays
             height={STXM_INGESTION_SPECTRUM_HEIGHT_PX}
             isComputing={isReducing}
@@ -675,6 +761,19 @@ export function IngestionTab({
           />
         </div>
       </div>
+
+      {sessionId ? (
+        <StxmIngestionContextPanel
+          sessionId={sessionId}
+          linkedExperiment={linkedExperiment}
+          attributions={attributions}
+          onAttributionsChange={handleAttributionsChange}
+          manualFormula={formula}
+          onManualFormulaChange={setFormula}
+          resolvedFormula={resolvedFormula}
+          onSessionRefresh={onSessionRefresh}
+        />
+      ) : null}
 
       <StxmStandardsPicker
         edgeLabel={inferredEdge?.label ?? null}
@@ -684,14 +783,6 @@ export function IngestionTab({
       />
 
       <div className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
-        <TextField>
-          <Label>Formula (bare atom / KK)</Label>
-          <Input
-            value={formula}
-            onChange={(event) => setFormula(event.target.value)}
-            placeholder="e.g. C8H8"
-          />
-        </TextField>
         <TextField>
           <Label>Thickness (cm)</Label>
           <Input

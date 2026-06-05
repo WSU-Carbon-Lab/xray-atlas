@@ -1,9 +1,19 @@
 import type { StxmIngestionDisplayChannel } from "~/features/dashboard/lib/computeStxmIngestion";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
 import type { StxmWeightingMode } from "./estimators";
-import type { StxmRegionSpectrumSeries } from "./stxm-region-types";
+import type {
+  StxmPlotScaleMode,
+  StxmRegionSpectrumSeries,
+} from "./stxm-region-types";
 
-export type StxmIngestionPlotChannel = StxmIngestionDisplayChannel | "f1" | "chi" | "bare_atom";
+export type StxmIngestionPlotChannel =
+  | StxmIngestionDisplayChannel
+  | "f1"
+  | "chi"
+  | "bare_atom";
+
+/** I0 raw-signal plot scaling modes (in-plot rail, not global header). */
+export type StxmI0PlotScaleMode = "linear" | "log_i" | "log_inv";
 
 export type StxmIngestionChannelOption = {
   id: StxmIngestionPlotChannel;
@@ -26,7 +36,6 @@ export const STXM_INGESTION_REDUCED_CHANNEL_OPTIONS: StxmIngestionChannelOption[
   { id: "delta", label: "Delta" },
   { id: "f1", label: "f1" },
   { id: "chi", label: "chi" },
-  { id: "bare_atom", label: "Bare atom" },
 ];
 
 export const STXM_INGESTION_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
@@ -60,6 +69,47 @@ export function ingestionChannelAllowsLogY(
   channel: StxmIngestionPlotChannel,
 ): boolean {
   return ingestionChannelUsesRawSignal(channel);
+}
+
+/**
+ * Resolves the SpectrumPlot Y scale for a channel and I0 in-plot scale mode.
+ */
+export function resolveStxmPlotYScale(
+  channel: StxmIngestionPlotChannel,
+  i0PlotScale: StxmI0PlotScaleMode,
+): StxmPlotScaleMode {
+  if (!ingestionChannelUsesRawSignal(channel)) {
+    return "linear";
+  }
+  if (channel === "signal_inv_i0") {
+    return i0PlotScale === "log_inv" ? "log" : "linear";
+  }
+  return i0PlotScale === "log_i" ? "log" : "linear";
+}
+
+/**
+ * Picks the signal channel that matches the active I0 plot scale mode.
+ */
+export function stxmSignalChannelForI0PlotScale(
+  i0PlotScale: StxmI0PlotScaleMode,
+  currentChannel: StxmIngestionPlotChannel,
+): StxmIngestionPlotChannel {
+  if (i0PlotScale === "log_inv") {
+    return "signal_inv_i0";
+  }
+  if (
+    currentChannel === "signal_i0" ||
+    currentChannel === "signal_sample" ||
+    currentChannel === "signal_inv_i0"
+  ) {
+    if (i0PlotScale === "log_i" && currentChannel === "signal_inv_i0") {
+      return "signal_i0";
+    }
+    return currentChannel === "signal_inv_i0"
+      ? "signal_i0"
+      : currentChannel;
+  }
+  return "signal_i0";
 }
 
 export function ingestionChannelYAxisLabel(channel: StxmIngestionPlotChannel): string {

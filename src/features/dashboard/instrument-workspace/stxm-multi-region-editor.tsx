@@ -28,8 +28,8 @@ import {
 } from "./stxm-row-sum-trace";
 import { STXM_INGESTION_SPECTRUM_HEIGHT_PX } from "./stxm-ingestion-plot-panel";
 
-const PLOT_WIDTH = 300;
-const HEATMAP_WIDTH = PLOT_WIDTH - STXM_ROW_SUM_TRACE_WIDTH;
+const MAX_EDITOR_WIDTH_PX = 220;
+const HEATMAP_WIDTH = MAX_EDITOR_WIDTH_PX - STXM_ROW_SUM_TRACE_WIDTH;
 const CANVAS_HEIGHT = STXM_INGESTION_SPECTRUM_HEIGHT_PX;
 const HIT_MARGIN_FRACTION = 0.015;
 
@@ -362,7 +362,7 @@ export function StxmMultiRegionEditor({
   };
 
   return (
-    <div className="border-border bg-surface flex w-full max-w-[300px] flex-col overflow-hidden rounded-lg border">
+    <div className="border-border bg-surface flex w-full max-w-[220px] flex-col overflow-hidden rounded-lg border">
       <div
         className={`flex ${isDragging || hoverDragTarget ? "cursor-ns-resize" : "cursor-crosshair"}`}
         onPointerDown={beginDrag}
