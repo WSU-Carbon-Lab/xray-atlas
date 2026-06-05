@@ -13,17 +13,16 @@ import type { StxmWeightingMode } from "~/lib/stxm/estimators";
 import {
   STXM_INGESTION_WEIGHTING_OPTIONS,
   ingestionChannelAllowsLogY,
-  ingestionChannelUsesRawSignal,
   type StxmIngestionPlotChannel,
 } from "~/lib/stxm/stxm-ingestion-display";
 import type { StxmPlotScaleMode } from "~/lib/stxm/stxm-region-types";
 
-const plotToolbarCompactTextToggleClass = cn(
+const plotToolbarHeaderToggleClass = cn(
   plotToolbarGlyphToggleGroupItemHorizontalClass,
-  "h-8 min-w-8 w-auto px-2 text-[11px] font-medium",
+  "h-8 min-w-8 w-auto px-2.5 text-xs font-medium",
 );
 
-export type StxmIngestionPlotSecondaryControlsProps = {
+export type StxmIngestionPlotHeaderProps = {
   displayChannel: StxmIngestionPlotChannel;
   weightingMode: StxmWeightingMode;
   onWeightingModeChange: (mode: StxmWeightingMode) => void;
@@ -32,31 +31,27 @@ export type StxmIngestionPlotSecondaryControlsProps = {
 };
 
 /**
- * Compact weighting and Y-scale controls for STXM ingestion (secondary to the left Y-channel rail).
+ * Plot header row for STXM ingestion: error-kind weighting and linear/log Y scale (browse-style attached toggles).
  */
-export function StxmIngestionPlotSecondaryControls({
+export function StxmIngestionPlotHeader({
   displayChannel,
   weightingMode,
   onWeightingModeChange,
   plotScaleMode,
   onPlotScaleModeChange,
-}: StxmIngestionPlotSecondaryControlsProps) {
+}: StxmIngestionPlotHeaderProps) {
   const logScaleDisabled = !ingestionChannelAllowsLogY(displayChannel);
-  const onRawSignalChannel = ingestionChannelUsesRawSignal(displayChannel);
 
   return (
-    <div className="pointer-events-none flex shrink-0 flex-wrap items-center gap-2 px-2 py-1.5">
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
+      <span className="text-muted shrink-0 text-xs font-medium">Error kind</span>
       <Toolbar
         isAttached
         orientation="horizontal"
-        aria-label="STXM raw weighting and Y scale"
-        className={cn(
-          plotToolbarAttachedToolbarHorizontalClass,
-          "pointer-events-auto",
-        )}
+        aria-label="Region spectrum error weighting"
+        className={plotToolbarAttachedToolbarHorizontalClass}
       >
         <ToggleButtonGroup
-          aria-label="Raw spectrum weighting"
           selectionMode="single"
           orientation="horizontal"
           disallowEmptySelection
@@ -78,12 +73,12 @@ export function StxmIngestionPlotSecondaryControls({
               {index > 0 ? <ToggleButtonGroup.Separator /> : null}
               <PlotToolbarRichHint
                 title={option.label}
-                description="Recomputes per-region raw spectra before the reduction pipeline."
+                description="Recomputes per-region raw spectra and error bars before reduction."
                 placement="bottom"
               >
                 <ToggleButton
                   id={option.id}
-                  className={plotToolbarCompactTextToggleClass}
+                  className={plotToolbarHeaderToggleClass}
                 >
                   {option.label}
                 </ToggleButton>
@@ -91,46 +86,51 @@ export function StxmIngestionPlotSecondaryControls({
             </Fragment>
           ))}
         </ToggleButtonGroup>
-
-        <ToggleButtonGroup
-          aria-label="Y axis scale"
-          selectionMode="single"
-          orientation="horizontal"
-          disallowEmptySelection
-          className={plotToolbarAttachedToggleGroupHorizontalClass}
-          selectedKeys={[plotScaleMode]}
-          onSelectionChange={(keys) => {
-            const key = [...keys][0];
-            if (key === "linear" || key === "log") {
-              onPlotScaleModeChange(key);
-            }
-          }}
-        >
-          <ToggleButton id="linear" className={plotToolbarCompactTextToggleClass}>
-            Linear
-          </ToggleButton>
-          <ToggleButtonGroup.Separator />
-          <PlotToolbarRichHint
-            title="Log scale"
-            description="Log10 axis for raw I0, sample, and 1/I0 channels."
-            whenDisabledDescription={
-              !onRawSignalChannel
-                ? "Log scale applies to raw signal channels only."
-                : "This channel cannot use a log Y axis."
-            }
-            placement="bottom"
-            disabled={logScaleDisabled}
-          >
-            <ToggleButton
-              id="log"
-              isDisabled={logScaleDisabled}
-              className={plotToolbarCompactTextToggleClass}
-            >
-              Log
-            </ToggleButton>
-          </PlotToolbarRichHint>
-        </ToggleButtonGroup>
       </Toolbar>
+
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+        <span className="text-muted shrink-0 text-xs font-medium">Y scale</span>
+        <Toolbar
+          isAttached
+          orientation="horizontal"
+          aria-label="Spectrum Y axis scale"
+          className={plotToolbarAttachedToolbarHorizontalClass}
+        >
+          <ToggleButtonGroup
+            selectionMode="single"
+            orientation="horizontal"
+            disallowEmptySelection
+            className={plotToolbarAttachedToggleGroupHorizontalClass}
+            selectedKeys={[plotScaleMode]}
+            onSelectionChange={(keys) => {
+              const key = [...keys][0];
+              if (key === "linear" || key === "log") {
+                onPlotScaleModeChange(key);
+              }
+            }}
+          >
+            <ToggleButton id="linear" className={plotToolbarHeaderToggleClass}>
+              Linear
+            </ToggleButton>
+            <ToggleButtonGroup.Separator />
+            <PlotToolbarRichHint
+              title="Log scale"
+              description="Log10 axis for raw I0, sample, and 1/I0 channels."
+              whenDisabledDescription="Log scale applies to raw signal channels only."
+              placement="bottom"
+              disabled={logScaleDisabled}
+            >
+              <ToggleButton
+                id="log"
+                isDisabled={logScaleDisabled}
+                className={plotToolbarHeaderToggleClass}
+              >
+                Log
+              </ToggleButton>
+            </PlotToolbarRichHint>
+          </ToggleButtonGroup>
+        </Toolbar>
+      </div>
     </div>
   );
 }
