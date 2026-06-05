@@ -66,7 +66,10 @@ export const PlotToolbar = memo(function PlotToolbar({
       role="toolbar"
       aria-label="Plot tools"
     >
-      <PlotToolbarRichHint title="Pan" description="Drag horizontally after zooming in.">
+      <PlotToolbarRichHint
+        title="Pan"
+        description="Drag after zooming energy or absorption to shift the visible window."
+      >
         <Button
           variant={currentMode === "pan" ? "primary" : "ghost"}
           isIconOnly

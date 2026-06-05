@@ -26,12 +26,12 @@ const MODE_CONFIG: Record<
   pan: {
     icon: HandRaisedIcon,
     label: "Pan",
-    tooltip: "Pan horizontally (drag left/right)",
+    tooltip: "Pan zoomed energy or absorption axes",
   },
   zoom: {
     icon: MagnifyingGlassIcon,
     label: "Zoom",
-    tooltip: "Zoom with marquee selection (Shift+drag)",
+    tooltip: "Drag for energy zoom; Shift+drag for absorption zoom",
   },
   select: {
     icon: CursorArrowRaysIcon,
