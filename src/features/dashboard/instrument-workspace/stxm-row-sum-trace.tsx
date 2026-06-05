@@ -9,7 +9,7 @@ import {
   rowSumTraceLimits,
 } from "~/lib/stxm/plot-scale";
 
-export const STXM_ROW_SUM_TRACE_WIDTH = 52;
+export const STXM_ROW_SUM_TRACE_WIDTH = 44;
 
 type StxmRowSumTraceProps = {
   image: number[][];
@@ -144,8 +144,8 @@ export function StxmRowSumTrace({
       ref={canvasRef}
       width={width}
       height={height}
-      className="pointer-events-none block h-auto shrink-0"
-      style={{ width }}
+      className="pointer-events-none block shrink-0"
+      style={{ width, height }}
       aria-hidden="true"
     />
   );

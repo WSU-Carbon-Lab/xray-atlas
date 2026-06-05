@@ -1,4 +1,10 @@
-export { regionMeanAndSigma, type RegionMeanSigmaResult, type StxmWeightingMode } from "./estimators";
+export {
+  regionMeanAndSigma,
+  regionSumAndSigma,
+  type RegionMeanSigmaResult,
+  type RegionSumSigmaResult,
+  type StxmWeightingMode,
+} from "./estimators";
 export { isNexafsLineScanType, NEXAFS_LINE_SCAN_TYPE } from "./isNexafsLineScan";
 export { loadStxm } from "./loadStxm";
 export { downsampleHeatmap, percentile, valueToGrayscaleByte } from "./heatmap";

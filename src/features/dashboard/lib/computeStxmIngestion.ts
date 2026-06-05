@@ -6,7 +6,7 @@ import {
 import { computeDeltaFromBetaKkcalcStyle } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
 import { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
 import type { StxmWeightingMode } from "~/lib/stxm/estimators";
-import { regionMeanAndSigma } from "~/lib/stxm/estimators";
+import { regionSumAndSigma } from "~/lib/stxm/estimators";
 import { nexafsBeerLambert } from "~/lib/stxm/nexafs";
 import {
   bareAtomBetaFromMassAbsorption,
@@ -218,8 +218,8 @@ export function computeRegionSignalSpectra(
     bounds.izeroHi,
   );
   return {
-    i0: regionMeanAndSigma(image, izeroMask, weightingMode).mean,
-    iSample: regionMeanAndSigma(image, sampleMask, weightingMode).mean,
+    i0: regionSumAndSigma(image, izeroMask, weightingMode).sum,
+    iSample: regionSumAndSigma(image, sampleMask, weightingMode).sum,
   };
 }
 

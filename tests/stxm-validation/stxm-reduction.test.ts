@@ -3,7 +3,7 @@ import {
   expect as bunExpect,
   it as bunIt,
 } from "bun:test";
-import { regionMeanAndSigma } from "~/lib/stxm/estimators";
+import { regionSumAndSigma } from "~/lib/stxm/estimators";
 import { nexafsBeerLambert } from "~/lib/stxm/nexafs";
 import { reduceTwoRegion } from "~/lib/stxm/reduction";
 
@@ -16,14 +16,14 @@ const describe = bunDescribe as (name: string, fn: () => void) => void;
 const it = bunIt as (name: string, fn: () => void | Promise<void>) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
-describe("regionMeanAndSigma", () => {
-  it("matches Poisson MLE error scaling", () => {
+describe("regionSumAndSigma", () => {
+  it("sums masked rows and applies Poisson counting error on the sum", () => {
     const image = [Float64Array.from([4, 8]), Float64Array.from([4, 8])];
     const mask = [true, true];
-    const result = regionMeanAndSigma(image, mask, "poisson_mle");
+    const result = regionSumAndSigma(image, mask, "poisson_mle");
     expect(result.n).toBe(2);
-    expect(result.mean[0]).toBeCloseTo(4, 6);
-    expect(result.sigma[0]).toBeCloseTo(Math.sqrt(2), 6);
+    expect(result.sum[0]).toBeCloseTo(8, 6);
+    expect(result.sigma[0]).toBeCloseTo(Math.sqrt(8), 6);
   });
 });
 

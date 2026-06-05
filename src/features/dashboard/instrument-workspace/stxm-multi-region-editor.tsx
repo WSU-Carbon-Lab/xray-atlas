@@ -28,8 +28,8 @@ import {
 } from "./stxm-row-sum-trace";
 import { STXM_INGESTION_SPECTRUM_HEIGHT_PX } from "./stxm-ingestion-plot-panel";
 
-const MAX_EDITOR_WIDTH_PX = 220;
-const HEATMAP_WIDTH = MAX_EDITOR_WIDTH_PX - STXM_ROW_SUM_TRACE_WIDTH;
+export const STXM_REGION_EDITOR_MAX_WIDTH_PX = 180;
+const HEATMAP_WIDTH = STXM_REGION_EDITOR_MAX_WIDTH_PX - STXM_ROW_SUM_TRACE_WIDTH;
 const CANVAS_HEIGHT = STXM_INGESTION_SPECTRUM_HEIGHT_PX;
 const HIT_MARGIN_FRACTION = 0.015;
 
@@ -362,9 +362,12 @@ export function StxmMultiRegionEditor({
   };
 
   return (
-    <div className="border-border bg-surface flex w-full max-w-[220px] flex-col overflow-hidden rounded-lg border">
+    <div
+      className="border-border bg-surface flex w-full max-w-[180px] flex-col overflow-hidden rounded-lg border"
+      style={{ minHeight: CANVAS_HEIGHT }}
+    >
       <div
-        className={`flex ${isDragging || hoverDragTarget ? "cursor-ns-resize" : "cursor-crosshair"}`}
+        className={`flex min-h-0 flex-1 ${isDragging || hoverDragTarget ? "cursor-ns-resize" : "cursor-crosshair"}`}
         onPointerDown={beginDrag}
         onPointerMove={updateHoverFromEvent}
         onPointerLeave={() => setHoverDragTarget(null)}
@@ -387,7 +390,8 @@ export function StxmMultiRegionEditor({
             ref={canvasRef}
             width={HEATMAP_WIDTH}
             height={CANVAS_HEIGHT}
-            className="pointer-events-none relative z-0 block h-auto w-full"
+            className="pointer-events-none relative z-0 block w-full"
+            style={{ height: CANVAS_HEIGHT, width: HEATMAP_WIDTH }}
           />
           {!isDragging ? (
             <>

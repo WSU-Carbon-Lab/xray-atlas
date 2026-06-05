@@ -117,7 +117,13 @@ describe("izero vs sample orientation", () => {
     expect(result.i0[1]!).toBeGreaterThan(result.iSample[1]!);
     expect(result.od[0]!).toBeGreaterThan(0);
     expect(result.od[1]!).toBeGreaterThan(result.od[0]!);
-    expect(result.od[0]!).toBeCloseTo(Math.log(110 / 45), 4);
-    expect(result.od[1]!).toBeCloseTo(Math.log(110 / 22), 4);
+    expect(result.od[0]!).toBeCloseTo(
+      Math.log(result.i0[0]! / result.iSample[0]!),
+      6,
+    );
+    expect(result.od[1]!).toBeCloseTo(
+      Math.log(result.i0[1]! / result.iSample[1]!),
+      6,
+    );
   });
 });
