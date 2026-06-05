@@ -1,6 +1,6 @@
 "use client";
 
-import { ScrollShadow, Spinner } from "@heroui/react";
+import { Button, ScrollShadow, Spinner } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { FolderOpen } from "lucide-react";
 import type { BeamtimeFolderSummary } from "~/lib/stxm/experimentFolder";
@@ -10,6 +10,8 @@ type BeamtimeScrollerProps = {
   selectedName: string | null;
   onSelect: (name: string) => void;
   loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 };
 
 /**
@@ -20,6 +22,8 @@ export function BeamtimeScroller({
   selectedName,
   onSelect,
   loading = false,
+  error = null,
+  onRetry,
 }: BeamtimeScrollerProps) {
   if (loading) {
     return (
@@ -29,11 +33,25 @@ export function BeamtimeScroller({
     );
   }
 
+  if (error) {
+    return (
+      <div className="border-border bg-default/30 flex flex-col items-start gap-3 rounded-lg border px-4 py-4">
+        <p className="text-foreground text-sm">{error}</p>
+        {onRetry ? (
+          <Button size="sm" variant="secondary" onPress={onRetry}>
+            Retry folder scan
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
+
   if (beamtimes.length === 0) {
     return (
       <p className="text-muted text-sm">
-        No beamtime subfolders found. Expected names like{" "}
-        <span className="font-mono">2025_10(October)</span>.
+        No experiment folders found. Pick a beamtime root such as{" "}
+        <span className="font-mono">BL5321 (New STXM)</span> or a month folder
+        like <span className="font-mono">2026-03(March)</span>.
       </p>
     );
   }

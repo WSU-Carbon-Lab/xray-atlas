@@ -1,34 +1,36 @@
 import {
   buildCatalogEntryFromHdr,
-  isExperimentFolderName,
-  isNexafsLineScanType,
   lineScanThumbnailDataUrl,
   type StxmCatalogEntry,
   ximBasenamesForHdrBasename,
 } from "~/lib/stxm";
 import {
   collectHdrFileRefs,
+  countHdrFilesInDirectory,
   findXimFileForHdr,
   type StxmDirectoryHandle,
 } from "./localDirectoryBrowser";
+import type { StxmDirectoryLayout } from "./resolveDirectoryLayout";
+import { getExperimentDirectory } from "./resolveDirectoryLayout";
 
 /**
- * Builds a scan catalog for one beamtime subdirectory with optional line-scan thumbnails.
+ * Builds a scan catalog for one experiment directory with optional line-scan thumbnails.
  */
 export async function buildBeamtimeCatalog(
   root: StxmDirectoryHandle,
-  beamtimeName: string,
+  layout: StxmDirectoryLayout,
+  experimentName: string,
   withThumbnails = true,
 ): Promise<StxmCatalogEntry[]> {
-  const beamtimeDir = await root.getDirectoryHandle(beamtimeName);
-  const hdrRefs = await collectHdrFileRefs(beamtimeDir);
+  const experimentDir = await getExperimentDirectory(root, layout, experimentName);
+  const hdrRefs = await collectHdrFileRefs(experimentDir);
   const entries: StxmCatalogEntry[] = [];
 
   for (const ref of hdrRefs) {
     const hdrFile = await ref.handle.getFile();
     const hdrText = await hdrFile.text();
     const ximNames = ximBasenamesForHdrBasename(ref.name);
-    const ximHandle = await findXimFileForHdr(ref, ximNames, beamtimeDir);
+    const ximHandle = await findXimFileForHdr(ref, ximNames, experimentDir);
     let ximBuffer: ArrayBuffer | null = null;
     if (ximHandle) {
       ximBuffer = await (await ximHandle.getFile()).arrayBuffer();
@@ -49,47 +51,42 @@ export async function buildBeamtimeCatalog(
 }
 
 /**
- * Counts scans and NEXAFS line scans per immediate beamtime child folder (fast hdr-only pass).
+ * Counts `.hdr` files per experiment folder without parsing header contents.
  */
-export async function countScansInBeamtimes(
+export async function countHdrFilesInExperiments(
   root: StxmDirectoryHandle,
-  beamtimeNames: string[],
-): Promise<Map<string, { total: number; nexafs: number }>> {
-  const counts = new Map<string, { total: number; nexafs: number }>();
-  for (const name of beamtimeNames) {
-    if (!isExperimentFolderName(name)) {
-      continue;
-    }
+  layout: StxmDirectoryLayout,
+  experimentNames: string[],
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (layout.mode === "single-experiment") {
+    counts.set(layout.displayName, await countHdrFilesInDirectory(root));
+    return counts;
+  }
+  for (const name of experimentNames) {
     try {
-      const beamtimeDir = await root.getDirectoryHandle(name);
-      const hdrRefs = await collectHdrFileRefs(beamtimeDir);
-      let nexafs = 0;
-      for (const ref of hdrRefs) {
-        const hdrText = await (await ref.handle.getFile()).text();
-        if (isNexafsLineScanType(hdrText)) {
-          nexafs += 1;
-        }
-      }
-      counts.set(name, { total: hdrRefs.length, nexafs });
+      const experimentDir = await root.getDirectoryHandle(name);
+      counts.set(name, await countHdrFilesInDirectory(experimentDir));
     } catch {
-      counts.set(name, { total: 0, nexafs: 0 });
+      counts.set(name, 0);
     }
   }
   return counts;
 }
 
 /**
- * Loads paired `.hdr` and `.xim` files for a catalog entry from a beamtime folder.
+ * Loads paired `.hdr` and `.xim` files for a catalog entry from an experiment folder.
  */
 export async function loadScanFilesFromCatalogEntry(
   root: StxmDirectoryHandle,
-  beamtimeName: string,
+  layout: StxmDirectoryLayout,
+  experimentName: string,
   entry: StxmCatalogEntry,
 ): Promise<{ hdrFile: File; ximFile: File } | null> {
-  const beamtimeDir = await root.getDirectoryHandle(beamtimeName);
+  const experimentDir = await getExperimentDirectory(root, layout, experimentName);
   const parts = entry.relativePath.split("/");
   const hdrName = parts.pop() ?? entry.basename;
-  let directory = beamtimeDir;
+  let directory = experimentDir;
   for (const segment of parts) {
     directory = await directory.getDirectoryHandle(segment);
   }

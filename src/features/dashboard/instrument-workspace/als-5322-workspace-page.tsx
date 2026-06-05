@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Spinner } from "@heroui/react";
 import { ArrowLeft, FlaskConical } from "lucide-react";
 import {
   ALS_5322_INSTRUMENT_LABEL,
@@ -16,8 +15,6 @@ import {
   type DashboardWorkspaceTab,
 } from "~/lib/dashboard-processing-session";
 import {
-  isExperimentFolderName,
-  sortExperimentFolderNames,
   summarizeBeamtimeFolders,
   type StxmCatalogEntry,
 } from "~/lib/stxm";
@@ -25,13 +22,16 @@ import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import {
   buildBeamtimeCatalog,
-  countScansInBeamtimes,
+  countHdrFilesInExperiments,
   loadScanFilesFromCatalogEntry,
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import {
-  listChildDirectoryNames,
   pickStxmRootDirectory,
 } from "~/features/dashboard/lib/localDirectoryBrowser";
+import {
+  resolveStxmDirectoryLayout,
+  type StxmDirectoryLayout,
+} from "~/features/dashboard/lib/resolveDirectoryLayout";
 import {
   ensureDirectoryReadPermission,
   loadDirectoryHandle,
@@ -97,6 +97,12 @@ export function Als5322WorkspacePage() {
   const [isLoadingBeamtimes, setIsLoadingBeamtimes] = useState(false);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
+  const [directoryLayout, setDirectoryLayout] =
+    useState<StxmDirectoryLayout | null>(null);
+  const [beamtimeLoadError, setBeamtimeLoadError] = useState<string | null>(
+    null,
+  );
+  const [catalogLoadError, setCatalogLoadError] = useState<string | null>(null);
 
   const stepMetadata =
     sessionQuery.data?.stepMetadata ?? defaultDashboardStepMetadata();
@@ -167,46 +173,163 @@ export function Als5322WorkspacePage() {
     [createSession, router, sessionId],
   );
 
-  const refreshBeamtimes = useCallback(
-    async (handle: StxmDirectoryHandle) => {
-      setIsLoadingBeamtimes(true);
+  const enrichScanCounts = useCallback(
+    async (handle: StxmDirectoryHandle, layout: StxmDirectoryLayout) => {
+      const names =
+        layout.mode === "single-experiment"
+          ? [layout.displayName]
+          : layout.experimentNames;
       try {
-        const childNames = await listChildDirectoryNames(handle);
-        const beamtimeNames = sortExperimentFolderNames(
-          childNames.filter(isExperimentFolderName),
+        const hdrCounts = await countHdrFilesInExperiments(
+          handle,
+          layout,
+          names,
         );
-        const counts = await countScansInBeamtimes(handle, beamtimeNames);
-        setBeamtimes(summarizeBeamtimeFolders(beamtimeNames, counts));
-      } catch (error) {
-        showToast(
-          error instanceof Error ? error.message : "Failed to list beamtimes",
-          "error",
+        setBeamtimes((previous) =>
+          previous.map((row) => ({
+            ...row,
+            scanCount: hdrCounts.get(row.name) ?? row.scanCount,
+          })),
         );
-      } finally {
-        setIsLoadingBeamtimes(false);
+      } catch {
+        // counts are optional; listing already rendered
       }
     },
     [],
   );
 
   const loadCatalog = useCallback(
-    async (handle: StxmDirectoryHandle, beamtimeName: string) => {
+    async (
+      handle: StxmDirectoryHandle,
+      layout: StxmDirectoryLayout,
+      experimentName: string,
+    ) => {
       setIsLoadingCatalog(true);
+      setCatalogLoadError(null);
       try {
-        const entries = await buildBeamtimeCatalog(handle, beamtimeName, true);
+        const entries = await buildBeamtimeCatalog(
+          handle,
+          layout,
+          experimentName,
+          true,
+        );
         setCatalog(entries);
       } catch (error) {
-        showToast(
-          error instanceof Error ? error.message : "Failed to load scans",
-          "error",
-        );
+        const message =
+          error instanceof Error ? error.message : "Failed to load scans";
+        setCatalogLoadError(message);
         setCatalog([]);
+        showToast(message, "error");
       } finally {
         setIsLoadingCatalog(false);
       }
     },
     [],
   );
+
+  const refreshBeamtimes = useCallback(
+    async (handle: StxmDirectoryHandle, autoSelectFirst = true) => {
+      setIsLoadingBeamtimes(true);
+      setBeamtimeLoadError(null);
+      try {
+        const layout = await resolveStxmDirectoryLayout(handle);
+        setDirectoryLayout(layout);
+
+        if (layout.mode === "single-experiment") {
+          const rows = [
+            {
+              name: layout.displayName,
+              scanCount: 0,
+              nexafsLineScanCount: 0,
+            },
+          ];
+          setBeamtimes(rows);
+          setIsLoadingBeamtimes(false);
+          void enrichScanCounts(handle, layout);
+          if (autoSelectFirst) {
+            setSelectedBeamtime(layout.displayName);
+            setSelectedEntry(null);
+            setSelectedFiles(null);
+            void loadCatalog(handle, layout, layout.displayName);
+          }
+          return layout;
+        }
+
+        const rows = summarizeBeamtimeFolders(layout.experimentNames, new Map());
+        setBeamtimes(rows);
+        setIsLoadingBeamtimes(false);
+        void enrichScanCounts(handle, layout);
+
+        if (autoSelectFirst && rows.length > 0) {
+          const first = rows[0]?.name;
+          if (first) {
+            setSelectedBeamtime(first);
+            setSelectedEntry(null);
+            setSelectedFiles(null);
+            void loadCatalog(handle, layout, first);
+          }
+        }
+        return layout;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to list experiments";
+        setBeamtimeLoadError(message);
+        setBeamtimes([]);
+        setDirectoryLayout(null);
+        showToast(message, "error");
+        return null;
+      } finally {
+        setIsLoadingBeamtimes(false);
+      }
+    },
+    [enrichScanCounts, loadCatalog],
+  );
+
+  useEffect(() => {
+    const workspace = sessionQuery.data?.stepMetadata?.workspace;
+    const handleKey = workspace?.folderHandleKey;
+    if (!handleKey || rootHandle || isLoadingBeamtimes) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const handle = await loadDirectoryHandle(handleKey);
+      if (cancelled || !handle) {
+        return;
+      }
+      const allowed = await ensureDirectoryReadPermission(handle);
+      if (cancelled || !allowed) {
+        if (!allowed) {
+          showToast("Re-select the folder to restore read permission.", "error");
+        }
+        return;
+      }
+      setRootHandle(handle);
+      setFolderHandleKey(handleKey);
+      setFolderRootName(workspace?.folderRootName ?? handle.name);
+      const layout = await refreshBeamtimes(handle, false);
+      if (cancelled || !layout) {
+        return;
+      }
+      const savedBeamtime = workspace?.beamtimeName;
+      if (savedBeamtime) {
+        setSelectedBeamtime(savedBeamtime);
+        await loadCatalog(handle, layout, savedBeamtime);
+      }
+      if (workspace?.activeTab) {
+        setActiveTab(workspace.activeTab);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isLoadingBeamtimes,
+    loadCatalog,
+    refreshBeamtimes,
+    rootHandle,
+    sessionQuery.data?.stepMetadata?.workspace,
+  ]);
 
   const bindRootHandle = useCallback(
     async (handle: StxmDirectoryHandle, key: string) => {
@@ -223,9 +346,12 @@ export function Als5322WorkspacePage() {
       setSelectedEntry(null);
       setSelectedFiles(null);
       setActiveTab("experiment");
+      setDirectoryLayout(null);
+      setBeamtimeLoadError(null);
+      setCatalogLoadError(null);
       setRecentFolders(touchRecentFolder(key, handle.name));
-      await storeDirectoryHandle(key, handle);
-      await ensureSession(handle.name);
+      void storeDirectoryHandle(key, handle);
+      void ensureSession(handle.name);
       await refreshBeamtimes(handle);
       void persistWorkspace({
         folderRootName: handle.name,
@@ -268,27 +394,28 @@ export function Als5322WorkspacePage() {
 
   const handleSelectBeamtime = useCallback(
     async (name: string) => {
-      if (!rootHandle) {
+      if (!rootHandle || !directoryLayout) {
         return;
       }
       setSelectedBeamtime(name);
       setSelectedEntry(null);
       setSelectedFiles(null);
-      await loadCatalog(rootHandle, name);
+      await loadCatalog(rootHandle, directoryLayout, name);
       void persistWorkspace({ beamtimeName: name, activeTab: "experiment" });
     },
-    [loadCatalog, persistWorkspace, rootHandle],
+    [directoryLayout, loadCatalog, persistWorkspace, rootHandle],
   );
 
   const handleSelectScan = useCallback(
     async (entry: StxmCatalogEntry) => {
-      if (!rootHandle || !selectedBeamtime) {
+      if (!rootHandle || !selectedBeamtime || !directoryLayout) {
         return;
       }
       setSelectedEntry(entry);
       if (entry.isNexafsLineScan) {
         const files = await loadScanFilesFromCatalogEntry(
           rootHandle,
+          directoryLayout,
           selectedBeamtime,
           entry,
         );
@@ -310,7 +437,7 @@ export function Als5322WorkspacePage() {
         );
       }
     },
-    [persistWorkspace, rootHandle, selectedBeamtime],
+    [directoryLayout, persistWorkspace, rootHandle, selectedBeamtime],
   );
 
   const handleReload = useCallback(async () => {
@@ -319,9 +446,9 @@ export function Als5322WorkspacePage() {
     }
     setIsReloading(true);
     try {
-      await refreshBeamtimes(rootHandle);
-      if (selectedBeamtime) {
-        await loadCatalog(rootHandle, selectedBeamtime);
+      const layout = await refreshBeamtimes(rootHandle, false);
+      if (layout && selectedBeamtime) {
+        await loadCatalog(rootHandle, layout, selectedBeamtime);
       }
       showToast("Reloaded folder contents", "success");
     } finally {
@@ -399,6 +526,12 @@ export function Als5322WorkspacePage() {
                 selectedName={selectedBeamtime}
                 onSelect={(name) => void handleSelectBeamtime(name)}
                 loading={isLoadingBeamtimes}
+                error={beamtimeLoadError}
+                onRetry={
+                  rootHandle
+                    ? () => void refreshBeamtimes(rootHandle)
+                    : undefined
+                }
               />
             </section>
             {selectedBeamtime ? (
@@ -406,6 +539,20 @@ export function Als5322WorkspacePage() {
                 <h2 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">
                   Experiment files
                 </h2>
+                {catalogLoadError ? (
+                  <div className="border-border bg-default/30 mb-3 flex flex-col items-start gap-2 rounded-lg border px-4 py-3">
+                    <p className="text-foreground text-sm">{catalogLoadError}</p>
+                    <button
+                      type="button"
+                      className="text-accent text-sm font-medium hover:underline"
+                      onClick={() =>
+                        void handleSelectBeamtime(selectedBeamtime)
+                      }
+                    >
+                      Retry loading scans
+                    </button>
+                  </div>
+                ) : null}
                 <ExperimentFileBrowser
                   entries={catalog}
                   selectedRelativePath={selectedEntry?.relativePath ?? null}
@@ -448,6 +595,9 @@ export function Als5322WorkspacePage() {
     activeTab,
     beamtimes,
     catalog,
+    beamtimeLoadError,
+    catalogLoadError,
+    directoryLayout,
     handlePickFolder,
     handleSelectBeamtime,
     handleSelectScan,
@@ -456,6 +606,7 @@ export function Als5322WorkspacePage() {
     isPicking,
     persistReduce,
     persistRegions,
+    refreshBeamtimes,
     rootHandle,
     selectedBeamtime,
     selectedEntry,
@@ -512,13 +663,7 @@ export function Als5322WorkspacePage() {
       ) : null}
 
       <section className="border-border bg-surface rounded-lg border px-5 py-5">
-        {sessionQuery.isLoading && sessionId ? (
-          <div className="flex justify-center py-8">
-            <Spinner size="md" />
-          </div>
-        ) : (
-          tabPanel
-        )}
+        {tabPanel}
       </section>
     </div>
   );

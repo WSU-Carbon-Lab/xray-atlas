@@ -76,6 +76,47 @@ export async function listChildDirectoryNames(
 }
 
 /**
+ * Returns true when at least one `.hdr` file exists under `directory` (search stops after the first hit).
+ */
+export async function directoryHasHdrFiles(
+  directory: StxmDirectoryHandle,
+): Promise<boolean> {
+  for await (const [name, handle] of directory.entries()) {
+    if (handle.kind === "file" && name.toLowerCase().endsWith(".hdr")) {
+      return true;
+    }
+    if (handle.kind === "directory") {
+      const nested = await directoryHasHdrFiles(
+        handle as StxmFileSystemDirectoryHandle,
+      );
+      if (nested) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Counts `.hdr` files under `directory` without reading file contents.
+ */
+export async function countHdrFilesInDirectory(
+  directory: StxmDirectoryHandle,
+): Promise<number> {
+  let count = 0;
+  for await (const [name, handle] of directory.entries()) {
+    if (handle.kind === "file" && name.toLowerCase().endsWith(".hdr")) {
+      count += 1;
+    } else if (handle.kind === "directory") {
+      count += await countHdrFilesInDirectory(
+        handle as StxmFileSystemDirectoryHandle,
+      );
+    }
+  }
+  return count;
+}
+
+/**
  * Finds a sibling `.xim` file for a `.hdr` basename within the same directory tree leaf folder.
  */
 export async function findXimFileForHdr(
