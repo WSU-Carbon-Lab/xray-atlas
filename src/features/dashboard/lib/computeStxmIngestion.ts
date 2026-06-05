@@ -22,11 +22,15 @@ import {
   type StxmNormalizationWindows,
 } from "~/lib/stxm/normalization";
 import { sampleIzeroMasks } from "~/lib/stxm/regions";
+import {
+  parseTeyDrainSeriesFromHdr,
+  stxmIeChannelAvailable,
+} from "~/lib/stxm/stxm-tey-intensity";
 
 export type StxmIngestionDisplayChannel =
   | "signal_i0"
-  | "signal_sample"
-  | "signal_inv_i0"
+  | "signal_it"
+  | "signal_ie"
   | "od"
   | "od_normalized"
   | "mass_absorption"
@@ -39,6 +43,9 @@ export type StxmIngestionResult = {
   i0Err: number[];
   iSample: number[];
   iSampleErr: number[];
+  /** TEY drain-current sum per energy when hdr exposes a monitor column; otherwise null. */
+  iTe: number[] | null;
+  iTeErr: number[] | null;
   od: number[];
   odErr: number[];
   odNormalized: number[];
@@ -73,6 +80,8 @@ export type ComputeStxmIngestionParams = {
   thicknessCm?: number;
   bareAtomIncludeOffset?: boolean;
   runKkDelta?: boolean;
+  hdrText?: string;
+  hdrFileName?: string;
 };
 
 function toNumberArray(values: Float64Array): number[] {
@@ -184,6 +193,18 @@ export async function computeStxmIngestion(
     i0Err: toNumberArray(beer.sigmaI0),
     iSample: toNumberArray(beer.iSample),
     iSampleErr: toNumberArray(beer.sigmaI),
+    iTe: (() => {
+      const hdr = params.hdrText ?? "";
+      const drain = parseTeyDrainSeriesFromHdr(hdr);
+      const energyCount = params.energyEv.length;
+      if (
+        !stxmIeChannelAvailable(hdr, params.hdrFileName, energyCount, drain)
+      ) {
+        return null;
+      }
+      return drain;
+    })(),
+    iTeErr: null,
     od: toNumberArray(beer.od),
     odErr: toNumberArray(beer.sigmaOd),
     odNormalized: toNumberArray(odNormalized),

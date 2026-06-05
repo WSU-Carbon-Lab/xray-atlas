@@ -51,6 +51,9 @@ export type StxmRegionSpectrumSeries = {
   delta?: number[];
   color: string;
   isIzero?: boolean;
+  /** Optional TEY drain-current per energy when parsed from scan metadata. */
+  teyDrain?: number[];
+  teyDrainErr?: number[];
 };
 
 /** Atlas reference standard overlay trace loaded from browse API. */

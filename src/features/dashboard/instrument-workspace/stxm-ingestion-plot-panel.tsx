@@ -23,12 +23,8 @@ import {
 } from "~/features/process-nexafs/ui/dataset-visualization-shell";
 import type { StxmNormalizationWindows } from "~/lib/dashboard-processing-session";
 import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
-import {
-  ingestionChannelUsesRawSignal,
-  stxmSignalChannelForI0PlotScale,
-  type StxmI0PlotScaleMode,
-  type StxmIngestionPlotChannel,
-} from "~/lib/stxm/stxm-ingestion-display";
+import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
+import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
 import {
   buildStxmBareAtomReferenceCurve,
   stxmBareAtomOverlaySupportedForChannel,
@@ -57,8 +53,10 @@ type StxmIngestionPlotPanelProps = {
   regionSpectra: StxmRegionSpectrumSeries[];
   channel: StxmIngestionPlotChannel;
   onChannelChange: (channel: StxmIngestionPlotChannel) => void;
-  i0PlotScale: StxmI0PlotScaleMode;
-  onI0PlotScaleChange: (mode: StxmI0PlotScaleMode) => void;
+  rawSignalTransform: StxmRawSignalTransformMode;
+  onRawSignalTransformChange: (mode: StxmRawSignalTransformMode) => void;
+  isTeyExperiment: boolean;
+  hasIeData: boolean;
   normalization: StxmNormalizationWindows;
   onNormalizationChange: (windows: StxmNormalizationWindows) => void;
   standards: StxmPlotStandardOverlay[];
@@ -113,8 +111,10 @@ export function StxmIngestionPlotPanel({
   regionSpectra,
   channel,
   onChannelChange,
-  i0PlotScale,
-  onI0PlotScaleChange,
+  rawSignalTransform,
+  onRawSignalTransformChange,
+  isTeyExperiment,
+  hasIeData,
   normalization,
   onNormalizationChange,
   standards,
@@ -192,16 +192,6 @@ export function StxmIngestionPlotPanel({
     }
   }, [chemicalFormula]);
 
-  const handleI0PlotScaleChange = useCallback(
-    (mode: StxmI0PlotScaleMode) => {
-      onI0PlotScaleChange(mode);
-      if (ingestionChannelUsesRawSignal(channel)) {
-        onChannelChange(stxmSignalChannelForI0PlotScale(mode, channel));
-      }
-    },
-    [channel, onChannelChange, onI0PlotScaleChange],
-  );
-
   const normalizationRegionsForPlot = useMemo(
     () => stxmWindowsToPlotRegions(normalization),
     [normalization],
@@ -252,7 +242,7 @@ export function StxmIngestionPlotPanel({
         result,
         regionSpectra,
         channel,
-        i0PlotScale,
+        rawSignalTransform,
         standards,
         bareAtomCurve,
         showBareAtomOverlay,
@@ -267,7 +257,7 @@ export function StxmIngestionPlotPanel({
       bareAtomCurve,
       channel,
       compareOverlays,
-      i0PlotScale,
+      rawSignalTransform,
       linkImaginaryReal,
       normalizationRegionsForPlot,
       primaryTraceLabel,
@@ -287,8 +277,10 @@ export function StxmIngestionPlotPanel({
         onDisplayChannelChange={onChannelChange}
         hasRawSpectra={hasRawSpectra}
         hasReducedResult={hasReducedResult}
-        i0PlotScale={i0PlotScale}
-        onI0PlotScaleChange={handleI0PlotScaleChange}
+        rawSignalTransform={rawSignalTransform}
+        onRawSignalTransformChange={onRawSignalTransformChange}
+        isTeyExperiment={isTeyExperiment}
+        hasIeData={hasIeData}
         linkImaginaryReal={linkImaginaryReal}
         onLinkImaginaryRealChange={setLinkImaginaryReal}
         showBareAtomOverlay={showBareAtomOverlay}
@@ -303,10 +295,12 @@ export function StxmIngestionPlotPanel({
       bareAtomOverlayDisabledReason,
       channel,
       formulaLoading,
-      handleI0PlotScaleChange,
+      rawSignalTransform,
+      isTeyExperiment,
+      hasIeData,
+      onRawSignalTransformChange,
       hasRawSpectra,
       hasReducedResult,
-      i0PlotScale,
       linkImaginaryReal,
       onChannelChange,
       showBareAtomOverlay,

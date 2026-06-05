@@ -24,6 +24,8 @@ const sampleResult: StxmIngestionResult = {
   i0Err: [10, 10, 10],
   iSample: [500, 400, 300],
   iSampleErr: [5, 5, 5],
+  iTe: null,
+  iTeErr: null,
   od: [0.69, 0.92, 1.22],
   odErr: [0.01, 0.02, 0.03],
   odNormalized: [0.1, 0.5, 1.0],
@@ -53,7 +55,7 @@ describe("buildStxmSpectrumPlotModel", () => {
       result: sampleResult,
       regionSpectra: [],
       channel: "signal_i0",
-      i0PlotScale: "linear",
+      rawSignalTransform: "signal",
       standards: [],
       bareAtomCurve: null,
       showBareAtomOverlay: false,
@@ -66,18 +68,18 @@ describe("buildStxmSpectrumPlotModel", () => {
     expect(model?.yAxisQuantity).toBe("intensity");
   });
 
-  it("applies log10 transform for raw sample channel", () => {
+  it("applies reciprocal transform for raw It channel", () => {
     const model = buildStxmSpectrumPlotModel({
       result: sampleResult,
       regionSpectra: [],
-      channel: "signal_sample",
-      i0PlotScale: "log_i",
+      channel: "signal_it",
+      rawSignalTransform: "reciprocal",
       standards: [],
       bareAtomCurve: null,
       showBareAtomOverlay: false,
       showRegionOverlays: false,
     });
-    expect(model?.points[0]?.absorption).toBeCloseTo(Math.log10(500), 8);
+    expect(model?.points[0]?.absorption).toBeCloseTo(0.002, 8);
   });
 
   it("enables normalization shading for OD channel", () => {
@@ -85,7 +87,7 @@ describe("buildStxmSpectrumPlotModel", () => {
       result: sampleResult,
       regionSpectra: [],
       channel: "od",
-      i0PlotScale: "linear",
+      rawSignalTransform: "signal",
       standards: [],
       bareAtomCurve: null,
       showBareAtomOverlay: false,

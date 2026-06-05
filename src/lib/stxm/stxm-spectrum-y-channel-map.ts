@@ -6,8 +6,8 @@ const STXM_TO_SPECTRUM_Y_CHANNEL: Record<
   SpectrumYChannelId
 > = {
   signal_i0: "i0",
-  signal_sample: "sample",
-  signal_inv_i0: "inv-i0",
+  signal_it: "it",
+  signal_ie: "ie",
   od: "od",
   od_normalized: "norm-od",
   mass_absorption: "mass-abs",
@@ -23,8 +23,10 @@ const SPECTRUM_Y_CHANNEL_TO_STXM: Record<
   StxmIngestionPlotChannel
 > = {
   i0: "signal_i0",
-  sample: "signal_sample",
-  "inv-i0": "signal_inv_i0",
+  it: "signal_it",
+  ie: "signal_ie",
+  sample: "signal_it",
+  "inv-i0": "signal_i0",
   od: "od",
   "norm-od": "od_normalized",
   "mass-abs": "mass_absorption",

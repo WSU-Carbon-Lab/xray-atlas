@@ -8,32 +8,32 @@ import {
   plotToolbarAttachedToolbarHorizontalClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
 } from "~/components/plots/toolbars";
-import type { StxmI0PlotScaleMode } from "~/lib/stxm/stxm-ingestion-display";
+import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
 
 const toggleClass = cn(
   plotToolbarGlyphToggleGroupItemHorizontalClass,
-  "h-7 min-w-7 w-auto px-2 text-[10px] font-medium",
+  "h-7 min-w-7 w-auto px-1.5 text-[10px] font-medium",
 );
 
-export type StxmI0PlotScaleToggleProps = {
-  mode: StxmI0PlotScaleMode;
-  onModeChange: (mode: StxmI0PlotScaleMode) => void;
+export type StxmRawSignalTransformToggleProps = {
+  mode: StxmRawSignalTransformMode;
+  onModeChange: (mode: StxmRawSignalTransformMode) => void;
   disabled?: boolean;
 };
 
 /**
- * In-plot I0 signal scale toggle: linear mean signal, log10(I), or log10(1/I).
+ * Horizontal transform group for raw intensity channels: linear signal, reciprocal, log reciprocal.
  */
-export function StxmI0PlotScaleToggle({
+export function StxmRawSignalTransformToggle({
   mode,
   onModeChange,
   disabled = false,
-}: StxmI0PlotScaleToggleProps) {
+}: StxmRawSignalTransformToggleProps) {
   return (
     <Toolbar
       isAttached
       orientation="horizontal"
-      aria-label="I0 signal Y scale"
+      aria-label="Raw intensity transform"
       className={plotToolbarAttachedToolbarHorizontalClass}
     >
       <ToggleButtonGroup
@@ -45,41 +45,45 @@ export function StxmI0PlotScaleToggle({
         selectedKeys={[mode]}
         onSelectionChange={(keys) => {
           const key = [...keys][0];
-          if (key === "linear" || key === "log_i" || key === "log_inv") {
+          if (
+            key === "signal" ||
+            key === "reciprocal" ||
+            key === "log_reciprocal"
+          ) {
             onModeChange(key);
           }
         }}
       >
         <PlotToolbarRichHint
-          title="Linear"
-          description="Plot mean detector counts on a linear axis."
+          title="Signal"
+          description="Plot raw summed intensity on a linear axis."
           placement="right"
           disabled={disabled}
         >
-          <ToggleButton id="linear" className={toggleClass}>
-            Lin
+          <ToggleButton id="signal" className={toggleClass}>
+            Sig
           </ToggleButton>
         </PlotToolbarRichHint>
         <ToggleButtonGroup.Separator />
         <PlotToolbarRichHint
-          title="Log I"
-          description="Log10 axis for I0 or sample mean signal."
+          title="Reciprocal"
+          description="Plot 1/s for the active I0, It, or Ie channel."
           placement="right"
           disabled={disabled}
         >
-          <ToggleButton id="log_i" className={toggleClass}>
-            log I
+          <ToggleButton id="reciprocal" className={toggleClass}>
+            1/s
           </ToggleButton>
         </PlotToolbarRichHint>
         <ToggleButtonGroup.Separator />
         <PlotToolbarRichHint
-          title="Log 1/I"
-          description="Log10 axis for reciprocal izero mean (1/I0)."
+          title="Log reciprocal"
+          description="Plot log10(1/s) for the active raw intensity channel."
           placement="right"
           disabled={disabled}
         >
-          <ToggleButton id="log_inv" className={toggleClass}>
-            log 1/I
+          <ToggleButton id="log_reciprocal" className={toggleClass}>
+            log
           </ToggleButton>
         </PlotToolbarRichHint>
       </ToggleButtonGroup>

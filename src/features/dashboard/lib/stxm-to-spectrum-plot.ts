@@ -9,16 +9,17 @@ import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIn
 import type { DashboardIngestionResult } from "~/lib/dashboard-processing-session";
 import { channelDefinitionById } from "~/components/plots/data-rail";
 import {
-  ingestionChannelUsesRawSignal,
+  ingestionChannelUsesRawIntensity,
   ingestionResultChannelValue,
   regionSpectrumChannelValue,
-  resolveStxmPlotYScale,
-  type StxmI0PlotScaleMode,
+  transformStxmRawIntensityErrorY,
+  transformStxmRawIntensityY,
   type StxmIngestionPlotChannel,
 } from "~/lib/stxm/stxm-ingestion-display";
 import { stxmBareAtomOverlaySupportedForChannel } from "~/features/dashboard/lib/stxm-bare-atom-overlay";
 import { STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION } from "~/lib/stxm/stxm-ingestion-plot-data-rail-config";
 import { resolveStxmLinkedCompanionChannel } from "~/lib/stxm/stxm-optical-link";
+import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
 import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
 
 export type StxmCompareOverlay = {
@@ -37,6 +38,8 @@ function persistedIngestionToRuntime(
     i0Err: [],
     iSample: persisted.iSample ?? [],
     iSampleErr: [],
+    iTe: null,
+    iTeErr: null,
     od: persisted.od,
     odErr: persisted.odErr,
     odNormalized: persisted.odNormalized ?? persisted.od,
@@ -79,7 +82,7 @@ export type BuildStxmSpectrumPlotModelParams = {
   result: StxmIngestionResult | null;
   regionSpectra: StxmRegionSpectrumSeries[];
   channel: StxmIngestionPlotChannel;
-  i0PlotScale: StxmI0PlotScaleMode;
+  rawSignalTransform: StxmRawSignalTransformMode;
   standards: StxmSpectrumStandardOverlay[];
   bareAtomCurve: ReferenceCurve | null;
   showBareAtomOverlay: boolean;
@@ -91,53 +94,6 @@ export type BuildStxmSpectrumPlotModelParams = {
   pureRegionLabel?: string;
 };
 
-function applyLogY(value: number): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    return Number.NaN;
-  }
-  return Math.log10(value);
-}
-
-function transformY(
-  value: number,
-  channel: StxmIngestionPlotChannel,
-  i0PlotScale: StxmI0PlotScaleMode,
-): number {
-  const yScale = resolveStxmPlotYScale(channel, i0PlotScale);
-  if (yScale === "log" && ingestionChannelUsesRawSignal(channel)) {
-    return applyLogY(value);
-  }
-  return value;
-}
-
-function transformErrorY(
-  error: number | undefined,
-  value: number,
-  channel: StxmIngestionPlotChannel,
-  i0PlotScale: StxmI0PlotScaleMode,
-): number | undefined {
-  if (error === undefined || !Number.isFinite(error)) {
-    return undefined;
-  }
-  const yScale = resolveStxmPlotYScale(channel, i0PlotScale);
-  if (yScale === "log" && ingestionChannelUsesRawSignal(channel)) {
-    if (!Number.isFinite(value) || value <= 0) {
-      return undefined;
-    }
-    const logErr = error / (value * Math.LN10);
-    return Number.isFinite(logErr) ? Math.abs(logErr) : undefined;
-  }
-  return error;
-}
-
-function signalInverseError(signal: number, signalErr: number): number | undefined {
-  if (!Number.isFinite(signal) || !Number.isFinite(signalErr) || signal <= 0) {
-    return undefined;
-  }
-  const err = signalErr / (signal * signal);
-  return Number.isFinite(err) ? err : undefined;
-}
-
 function ingestionResultChannelError(
   result: StxmIngestionResult,
   channel: StxmIngestionPlotChannel,
@@ -148,14 +104,13 @@ function ingestionResultChannelError(
       const err = result.i0Err[index];
       return Number.isFinite(err) ? err : undefined;
     }
-    case "signal_sample": {
+    case "signal_it": {
       const err = result.iSampleErr[index];
       return Number.isFinite(err) ? err : undefined;
     }
-    case "signal_inv_i0": {
-      const signal = result.i0[index] ?? Number.NaN;
-      const err = result.i0Err[index] ?? Number.NaN;
-      return signalInverseError(signal, err);
+    case "signal_ie": {
+      const err = result.iTeErr?.[index];
+      return err != null && Number.isFinite(err) ? err : undefined;
     }
     case "od": {
       const err = result.odErr[index];
@@ -181,13 +136,13 @@ function regionSpectrumChannelError(
   channel: StxmIngestionPlotChannel,
   index: number,
 ): number | undefined {
-  if (channel === "signal_i0" || channel === "signal_sample" || channel === "signal_inv_i0") {
-    const signal = series.signal[index] ?? Number.NaN;
+  if (channel === "signal_i0" || channel === "signal_it") {
     const err = series.signalErr[index] ?? Number.NaN;
-    if (channel === "signal_inv_i0") {
-      return signalInverseError(signal, err);
-    }
     return Number.isFinite(err) ? err : undefined;
+  }
+  if (channel === "signal_ie") {
+    const err = series.teyDrainErr?.[index];
+    return err != null && Number.isFinite(err) ? err : undefined;
   }
   if (channel === "od") {
     const err = series.odErr?.[index];
@@ -207,17 +162,26 @@ function regionSpectrumChannelError(
 function seriesToPoints(
   energyEv: number[],
   channel: StxmIngestionPlotChannel,
-  i0PlotScale: StxmI0PlotScaleMode,
+  rawSignalTransform: StxmRawSignalTransformMode,
   readValue: (index: number) => number,
   readError?: (index: number) => number | undefined,
 ): SpectrumPoint[] {
   return energyEv.map((energy, index) => {
     const rawValue = readValue(index);
-    const absorption = transformY(rawValue, channel, i0PlotScale);
+    const absorption = transformStxmRawIntensityY(
+      rawValue,
+      channel,
+      rawSignalTransform,
+    );
     const rawError = readError?.(index);
     const rawabsError =
       rawError !== undefined
-        ? transformErrorY(rawError, rawValue, channel, i0PlotScale)
+        ? transformStxmRawIntensityErrorY(
+            rawError,
+            rawValue,
+            channel,
+            rawSignalTransform,
+          )
         : undefined;
     return {
       energy,
@@ -230,12 +194,12 @@ function seriesToPoints(
 function pointsFromResult(
   result: StxmIngestionResult,
   channel: StxmIngestionPlotChannel,
-  i0PlotScale: StxmI0PlotScaleMode,
+  rawSignalTransform: StxmRawSignalTransformMode,
 ): SpectrumPoint[] {
   return seriesToPoints(
     result.energyEv,
     channel,
-    i0PlotScale,
+    rawSignalTransform,
     (index) => ingestionResultChannelValue(result, channel, index),
     (index) => ingestionResultChannelError(result, channel, index),
   );
@@ -244,12 +208,12 @@ function pointsFromResult(
 function pointsFromRegionSeries(
   series: StxmRegionSpectrumSeries,
   channel: StxmIngestionPlotChannel,
-  i0PlotScale: StxmI0PlotScaleMode,
+  rawSignalTransform: StxmRawSignalTransformMode,
 ): SpectrumPoint[] {
   return seriesToPoints(
     series.energyEv,
     channel,
-    i0PlotScale,
+    rawSignalTransform,
     (index) => regionSpectrumChannelValue(series, channel, index),
     (index) => regionSpectrumChannelError(series, channel, index),
   );
@@ -265,7 +229,7 @@ function resolvePrimaryRegionSeries(
   if (channel === "signal_i0") {
     return regionSpectra.find((series) => series.isIzero) ?? regionSpectra[0] ?? null;
   }
-  if (channel === "signal_sample" || channel === "signal_inv_i0") {
+  if (channel === "signal_it" || channel === "signal_ie") {
     return (
       regionSpectra.find((series) => !series.isIzero) ?? regionSpectra[0] ?? null
     );
@@ -277,7 +241,7 @@ function buildLinkedOpticalCompanion(
   result: StxmIngestionResult | null,
   regionSpectra: StxmRegionSpectrumSeries[],
   channel: StxmIngestionPlotChannel,
-  i0PlotScale: StxmI0PlotScaleMode,
+  rawSignalTransform: StxmRawSignalTransformMode,
   linkImaginaryReal: boolean,
 ): DifferenceSpectrum | null {
   if (!linkImaginaryReal) {
@@ -293,11 +257,11 @@ function buildLinkedOpticalCompanion(
   ).label;
   let points: SpectrumPoint[] = [];
   if (result && result.energyEv.length > 0) {
-    points = pointsFromResult(result, companionChannel, i0PlotScale);
+    points = pointsFromResult(result, companionChannel, rawSignalTransform);
   } else {
     const series = resolvePrimaryRegionSeries(regionSpectra, companionChannel);
     if (series) {
-      points = pointsFromRegionSeries(series, companionChannel, i0PlotScale);
+      points = pointsFromRegionSeries(series, companionChannel, rawSignalTransform);
     }
   }
   points = points.filter((point) => Number.isFinite(point.absorption));
@@ -314,7 +278,7 @@ function buildLinkedOpticalCompanion(
 function buildCompareCompanionSpectra(
   compareOverlays: StxmCompareOverlay[],
   channel: StxmIngestionPlotChannel,
-  i0PlotScale: StxmI0PlotScaleMode,
+  rawSignalTransform: StxmRawSignalTransformMode,
 ): DifferenceSpectrum[] {
   if (compareOverlays.length === 0) {
     return [];
@@ -322,7 +286,7 @@ function buildCompareCompanionSpectra(
   return compareOverlays
     .map((overlay) => {
       const runtime = persistedIngestionToRuntime(overlay.ingestion);
-      const points = pointsFromResult(runtime, channel, i0PlotScale).filter(
+      const points = pointsFromResult(runtime, channel, rawSignalTransform).filter(
         (point) => Number.isFinite(point.absorption),
       );
       return {
@@ -337,7 +301,7 @@ function buildCompareCompanionSpectra(
 function buildCompanionSpectra(
   regionSpectra: StxmRegionSpectrumSeries[],
   channel: StxmIngestionPlotChannel,
-  i0PlotScale: StxmI0PlotScaleMode,
+  rawSignalTransform: StxmRawSignalTransformMode,
   showRegionOverlays: boolean,
   primaryRegionId: string | null,
 ): DifferenceSpectrum[] {
@@ -349,7 +313,7 @@ function buildCompanionSpectra(
       if (series.regionId === primaryRegionId) {
         return false;
       }
-      if (ingestionChannelUsesRawSignal(channel)) {
+      if (ingestionChannelUsesRawIntensity(channel)) {
         return !series.isIzero || channel === "signal_i0";
       }
       return true;
@@ -357,8 +321,8 @@ function buildCompanionSpectra(
     .map((series, index) => ({
       label: series.spotLabel,
       preferred: index === 0,
-      points: pointsFromRegionSeries(series, channel, i0PlotScale).filter((point) =>
-        Number.isFinite(point.absorption),
+      points: pointsFromRegionSeries(series, channel, rawSignalTransform).filter(
+        (point) => Number.isFinite(point.absorption),
       ),
     }))
     .filter((spectrum) => spectrum.points.length > 0);
@@ -423,7 +387,7 @@ export function buildStxmSpectrumPlotModel(
     result,
     regionSpectra,
     channel,
-    i0PlotScale,
+    rawSignalTransform,
     standards,
     bareAtomCurve,
     showBareAtomOverlay,
@@ -444,16 +408,16 @@ export function buildStxmSpectrumPlotModel(
   let primaryRegionId: string | null = null;
 
   if (result && result.energyEv.length > 0) {
-    points = pointsFromResult(result, channel, i0PlotScale);
+    points = pointsFromResult(result, channel, rawSignalTransform);
   } else {
     const primarySeries = resolvePrimaryRegionSeries(regionSpectra, channel);
     if (primarySeries) {
       primaryRegionId = primarySeries.regionId;
-      points = pointsFromRegionSeries(primarySeries, channel, i0PlotScale);
+      points = pointsFromRegionSeries(primarySeries, channel, rawSignalTransform);
     }
   }
 
-  if (result && ingestionChannelUsesRawSignal(channel)) {
+  if (result && ingestionChannelUsesRawIntensity(channel)) {
     const primarySeries = resolvePrimaryRegionSeries(regionSpectra, channel);
     primaryRegionId = primarySeries?.regionId ?? null;
   }
@@ -466,7 +430,7 @@ export function buildStxmSpectrumPlotModel(
   const regionCompanions = buildCompanionSpectra(
     regionSpectra,
     channel,
-    i0PlotScale,
+    rawSignalTransform,
     showRegionOverlays,
     primaryRegionId,
   );
@@ -474,13 +438,13 @@ export function buildStxmSpectrumPlotModel(
     result,
     regionSpectra,
     channel,
-    i0PlotScale,
+    rawSignalTransform,
     linkImaginaryReal,
   );
   const compareCompanions = buildCompareCompanionSpectra(
     compareOverlays,
     channel,
-    i0PlotScale,
+    rawSignalTransform,
   );
   const companionSpectra = [
     ...regionCompanions,

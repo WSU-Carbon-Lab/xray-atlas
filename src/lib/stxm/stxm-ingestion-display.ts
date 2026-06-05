@@ -5,6 +5,14 @@ import type {
   StxmPlotScaleMode,
   StxmRegionSpectrumSeries,
 } from "./stxm-region-types";
+import {
+  applyStxmRawSignalTransform,
+  applyStxmRawSignalTransformError,
+  type StxmRawSignalTransformMode,
+} from "./stxm-raw-signal-transform";
+
+export type { StxmRawSignalTransformMode } from "./stxm-raw-signal-transform";
+export { migrateStxmRawSignalTransformMode } from "./stxm-raw-signal-transform";
 
 export type StxmIngestionPlotChannel =
   | StxmIngestionDisplayChannel
@@ -12,39 +20,33 @@ export type StxmIngestionPlotChannel =
   | "chi"
   | "bare_atom";
 
-/** I0 raw-signal plot scaling modes (in-plot rail, not global header). */
-export type StxmI0PlotScaleMode = "linear" | "log_i" | "log_inv";
-
 export type StxmIngestionChannelOption = {
   id: StxmIngestionPlotChannel;
   label: string;
 };
 
-/** Raw summed-intensity views from per-region spectra (I0 rail tray). */
-export const STXM_INGESTION_SIGNAL_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
-  { id: "signal_i0", label: "I0" },
-  { id: "signal_sample", label: "Sample" },
-  { id: "signal_inv_i0", label: "1/I0" },
-];
-
-/** Spectroscopy tray: reduced OD and mass-absorption channels. */
-export const STXM_INGESTION_SPECTROSCOPY_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
-  { id: "od", label: "OD" },
-  { id: "od_normalized", label: "Norm OD" },
-  { id: "mass_absorption", label: "Mass abs" },
-];
+/** Raw spectroscopy tray: incident, transmitted, TEY drain, and reduced OD views. */
+export const STXM_INGESTION_RAW_SPECTROSCOPY_CHANNEL_OPTIONS: StxmIngestionChannelOption[] =
+  [
+    { id: "signal_i0", label: "I0" },
+    { id: "signal_it", label: "It" },
+    { id: "signal_ie", label: "Ie" },
+    { id: "od", label: "OD" },
+    { id: "od_normalized", label: "Norm OD" },
+    { id: "mass_absorption", label: "Mass abs" },
+  ];
 
 /** Optical-constant and bare-atom reduced channels. */
-export const STXM_INGESTION_REDUCED_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
-  ...STXM_INGESTION_SPECTROSCOPY_CHANNEL_OPTIONS,
-  { id: "beta", label: "Beta" },
-  { id: "delta", label: "Delta" },
-  { id: "f1", label: "f1" },
-  { id: "chi", label: "chi" },
-];
+export const STXM_INGESTION_REDUCED_CHANNEL_OPTIONS: StxmIngestionChannelOption[] =
+  [
+    { id: "beta", label: "Beta" },
+    { id: "delta", label: "Delta" },
+    { id: "f1", label: "f1" },
+    { id: "chi", label: "chi" },
+  ];
 
 export const STXM_INGESTION_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
-  ...STXM_INGESTION_SIGNAL_CHANNEL_OPTIONS,
+  ...STXM_INGESTION_RAW_SPECTROSCOPY_CHANNEL_OPTIONS,
   ...STXM_INGESTION_REDUCED_CHANNEL_OPTIONS,
 ];
 
@@ -58,72 +60,53 @@ export const STXM_INGESTION_WEIGHTING_OPTIONS: Array<{
   { id: "empirical", label: "Empirical" },
 ];
 
-const SIGNAL_INVERSE_MIN = 1e-12;
-
-export function ingestionChannelUsesRawSignal(
+/**
+ * Returns true when the channel is a raw summed intensity (I0, It, or Ie) that accepts
+ * the signal / reciprocal / log-reciprocal transform group.
+ */
+export function ingestionChannelUsesRawIntensity(
   channel: StxmIngestionPlotChannel,
 ): boolean {
   return (
     channel === "signal_i0" ||
-    channel === "signal_sample" ||
-    channel === "signal_inv_i0"
+    channel === "signal_it" ||
+    channel === "signal_ie"
   );
 }
 
-export function ingestionChannelAllowsLogY(
+/** @deprecated Use {@link ingestionChannelUsesRawIntensity}. */
+export function ingestionChannelUsesRawSignal(
   channel: StxmIngestionPlotChannel,
 ): boolean {
-  return ingestionChannelUsesRawSignal(channel);
+  return ingestionChannelUsesRawIntensity(channel);
 }
 
-/**
- * Resolves the SpectrumPlot Y scale for a channel and I0 in-plot scale mode.
- */
+/** Raw intensity channels always plot on a linear axis; transforms apply to Y values directly. */
 export function resolveStxmPlotYScale(
   channel: StxmIngestionPlotChannel,
-  i0PlotScale: StxmI0PlotScaleMode,
+  _rawSignalTransform: StxmRawSignalTransformMode,
 ): StxmPlotScaleMode {
-  if (!ingestionChannelUsesRawSignal(channel)) {
+  if (ingestionChannelUsesRawIntensity(channel)) {
     return "linear";
   }
-  if (channel === "signal_inv_i0") {
-    return i0PlotScale === "log_inv" ? "log" : "linear";
-  }
-  return i0PlotScale === "log_i" ? "log" : "linear";
+  return "linear";
 }
 
-/**
- * Picks the signal channel that matches the active I0 plot scale mode.
- */
-export function stxmSignalChannelForI0PlotScale(
-  i0PlotScale: StxmI0PlotScaleMode,
-  currentChannel: StxmIngestionPlotChannel,
-): StxmIngestionPlotChannel {
-  if (i0PlotScale === "log_inv") {
-    return "signal_inv_i0";
-  }
-  if (
-    currentChannel === "signal_i0" ||
-    currentChannel === "signal_sample" ||
-    currentChannel === "signal_inv_i0"
-  ) {
-    if (i0PlotScale === "log_i" && currentChannel === "signal_inv_i0") {
-      return "signal_i0";
+export function ingestionChannelYAxisLabel(
+  channel: StxmIngestionPlotChannel,
+  rawSignalTransform: StxmRawSignalTransformMode = "signal",
+): string {
+  if (ingestionChannelUsesRawIntensity(channel)) {
+    switch (rawSignalTransform) {
+      case "reciprocal":
+        return "1 / signal";
+      case "log_reciprocal":
+        return "log10(1 / signal)";
+      default:
+        return "Signal (counts)";
     }
-    return currentChannel === "signal_inv_i0"
-      ? "signal_i0"
-      : currentChannel;
   }
-  return "signal_i0";
-}
-
-export function ingestionChannelYAxisLabel(channel: StxmIngestionPlotChannel): string {
   switch (channel) {
-    case "signal_i0":
-    case "signal_sample":
-      return "Mean signal";
-    case "signal_inv_i0":
-      return "1 / mean signal";
     case "od":
       return "OD (ln I0/I)";
     case "od_normalized":
@@ -145,13 +128,6 @@ export function ingestionChannelYAxisLabel(channel: StxmIngestionPlotChannel): s
   }
 }
 
-function signalInverse(signal: number): number {
-  if (!Number.isFinite(signal)) {
-    return Number.NaN;
-  }
-  return 1 / Math.max(signal, SIGNAL_INVERSE_MIN);
-}
-
 /**
  * Reads the scalar Y value for a reduced ingestion result at one energy index.
  */
@@ -163,10 +139,10 @@ export function ingestionResultChannelValue(
   switch (channel) {
     case "signal_i0":
       return result.i0[index] ?? Number.NaN;
-    case "signal_sample":
+    case "signal_it":
       return result.iSample[index] ?? Number.NaN;
-    case "signal_inv_i0":
-      return signalInverse(result.i0[index] ?? Number.NaN);
+    case "signal_ie":
+      return result.iTe?.[index] ?? Number.NaN;
     case "od":
       return result.od[index] ?? Number.NaN;
     case "od_normalized":
@@ -196,12 +172,15 @@ export function regionSpectrumChannelValue(
   channel: StxmIngestionPlotChannel,
   index: number,
 ): number {
-  if (channel === "signal_i0" || channel === "signal_sample" || channel === "signal_inv_i0") {
-    const signal = series.signal[index] ?? Number.NaN;
-    if (channel === "signal_inv_i0") {
-      return signalInverse(signal);
+  if (
+    channel === "signal_i0" ||
+    channel === "signal_it" ||
+    channel === "signal_ie"
+  ) {
+    if (channel === "signal_ie") {
+      return series.teyDrain?.[index] ?? Number.NaN;
     }
-    return signal;
+    return series.signal[index] ?? Number.NaN;
   }
   if (channel === "od") {
     return series.od?.[index] ?? Number.NaN;
@@ -219,4 +198,33 @@ export function regionSpectrumChannelValue(
     return series.delta?.[index] ?? Number.NaN;
   }
   return series.signal[index] ?? Number.NaN;
+}
+
+/**
+ * Applies raw-intensity transform to a scalar value when the channel is I0, It, or Ie.
+ */
+export function transformStxmRawIntensityY(
+  value: number,
+  channel: StxmIngestionPlotChannel,
+  rawSignalTransform: StxmRawSignalTransformMode,
+): number {
+  if (!ingestionChannelUsesRawIntensity(channel)) {
+    return value;
+  }
+  return applyStxmRawSignalTransform(value, rawSignalTransform);
+}
+
+/**
+ * Propagates error through raw-intensity transform when the channel is I0, It, or Ie.
+ */
+export function transformStxmRawIntensityErrorY(
+  error: number | undefined,
+  value: number,
+  channel: StxmIngestionPlotChannel,
+  rawSignalTransform: StxmRawSignalTransformMode,
+): number | undefined {
+  if (!ingestionChannelUsesRawIntensity(channel)) {
+    return error;
+  }
+  return applyStxmRawSignalTransformError(value, error, rawSignalTransform);
 }

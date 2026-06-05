@@ -63,10 +63,16 @@ import type { MoleculeSearchResult } from "~/features/process-nexafs/types";
 import type { DatasetAttributionEntry } from "~/lib/nexafs-attribution";
 import type { Peak } from "~/components/plots/types";
 import { trpc } from "~/trpc/client";
-import type {
-  StxmI0PlotScaleMode,
-  StxmIngestionPlotChannel,
-} from "~/lib/stxm/stxm-ingestion-display";
+import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
+import {
+  migrateStxmRawSignalTransformMode,
+  type StxmRawSignalTransformMode,
+} from "~/lib/stxm/stxm-raw-signal-transform";
+import {
+  inferStxmTeyExperiment,
+  parseTeyDrainSeriesFromHdr,
+  stxmIeChannelAvailable,
+} from "~/lib/stxm/stxm-tey-intensity";
 import type { DatasetAttributionChange } from "~/features/process-nexafs/ui/dataset-attribution-editor";
 
 const RAW_SPECTRA_DEBOUNCE_MS = 300;
@@ -110,6 +116,8 @@ function persistedToRuntime(
     i0Err: [],
     iSample: persisted.iSample ?? [],
     iSampleErr: [],
+    iTe: null,
+    iTeErr: null,
     od: persisted.od,
     odErr: persisted.odErr,
     odNormalized: persisted.odNormalized ?? persisted.od,
@@ -191,9 +199,12 @@ export function IngestionTab({
   const [plotScaleMode] = useState<StxmPlotScaleMode>(
     regionsMetadata?.plotScaleMode ?? "log",
   );
-  const [i0PlotScale, setI0PlotScale] = useState<StxmI0PlotScaleMode>(
-    regionsMetadata?.i0PlotScale ?? "log_i",
-  );
+  const [rawSignalTransform, setRawSignalTransform] =
+    useState<StxmRawSignalTransformMode>(() =>
+      migrateStxmRawSignalTransformMode(
+        regionsMetadata?.rawSignalTransform ?? regionsMetadata?.i0PlotScale,
+      ),
+    );
   const [displayChannel, setDisplayChannel] =
     useState<StxmIngestionPlotChannel>("od");
   const [normalization, setNormalization] =
@@ -345,6 +356,23 @@ export function IngestionTab({
     [loaded],
   );
 
+  const isTeyExperiment = useMemo(
+    () =>
+      loaded
+        ? inferStxmTeyExperiment(loaded.header.raw, hdrFile.name)
+        : false,
+    [hdrFile.name, loaded],
+  );
+
+  const hasIeData = useMemo(
+    () =>
+      Boolean(
+        result?.iTe != null &&
+          result.iTe.length === (result.energyEv.length ?? 0),
+      ),
+    [result],
+  );
+
   const schedulePersistRegions = useCallback(() => {
     if (!izero || regions.length === 0) {
       return;
@@ -360,7 +388,7 @@ export function IngestionTab({
         izeroBounds: izero,
         pureRegionId: pureRegionId ?? undefined,
         plotScaleMode,
-        i0PlotScale,
+        rawSignalTransform,
         weightingMode,
         formula: formula.trim() || undefined,
         thicknessCm: Number.parseFloat(thicknessCm) || undefined,
@@ -372,7 +400,7 @@ export function IngestionTab({
     izero,
     normalization,
     onPersistRegions,
-    i0PlotScale,
+    rawSignalTransform,
     plotScaleMode,
     pureRegionId,
     regions,
@@ -394,11 +422,28 @@ export function IngestionTab({
         izero,
         weightingMode,
       );
-      setRegionSpectra(spectra);
+      const hdrText = loaded.header.raw;
+      const drain = parseTeyDrainSeriesFromHdr(hdrText);
+      const energyCount = loaded.oriented.energyEv.length;
+      const ieAvailable = stxmIeChannelAvailable(
+        hdrText,
+        hdrFile.name,
+        energyCount,
+        drain,
+      );
+      const enriched =
+        ieAvailable && drain
+          ? spectra.map((series) =>
+              series.isIzero
+                ? series
+                : { ...series, teyDrain: drain, teyDrainErr: [] },
+            )
+          : spectra;
+      setRegionSpectra(enriched);
     } catch {
       setRegionSpectra([]);
     }
-  }, [izero, loaded, regions, weightingMode]);
+  }, [hdrFile.name, izero, loaded, regions, weightingMode]);
 
   useEffect(() => {
     if (!loaded || !izero) {
@@ -439,6 +484,8 @@ export function IngestionTab({
         formula: resolvedFormula,
         thicknessCm: Number.isFinite(thickness) && thickness > 0 ? thickness : 1e-4,
         runKkDelta: Boolean(resolvedFormula),
+        hdrText: loaded.header.raw,
+        hdrFileName: hdrFile.name,
       });
       if (generation !== pipelineGenerationRef.current) {
         return;
@@ -830,8 +877,10 @@ export function IngestionTab({
             regionSpectra={regionSpectra}
             channel={displayChannel}
             onChannelChange={setDisplayChannel}
-            i0PlotScale={i0PlotScale}
-            onI0PlotScaleChange={setI0PlotScale}
+            rawSignalTransform={rawSignalTransform}
+            onRawSignalTransformChange={setRawSignalTransform}
+            isTeyExperiment={isTeyExperiment}
+            hasIeData={hasIeData}
             normalization={normalization}
             onNormalizationChange={setNormalization}
             standards={plotStandards}

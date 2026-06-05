@@ -3,7 +3,7 @@ import type { SpectrumYAxisQuantity } from "./types";
 /**
  * Raw detector signal channels shared across STXM ingestion and future NEXAFS raw views.
  */
-export type SpectrumRawSignalChannelId = "i0" | "sample" | "inv-i0";
+export type SpectrumRawSignalChannelId = "i0" | "it" | "ie" | "sample" | "inv-i0";
 
 /**
  * Edge-normalized spectroscopy channels (OD family and mass absorption).

@@ -111,6 +111,9 @@ export const dashboardRegionsStepMetadataSchema = z.object({
   izeroBounds: stxmIzeroBoundsSchema.optional(),
   pureRegionId: z.string().uuid().optional(),
   plotScaleMode: z.enum(["linear", "log"]).optional(),
+  rawSignalTransform: z
+    .enum(["signal", "reciprocal", "log_reciprocal"])
+    .optional(),
   i0PlotScale: z.enum(["linear", "log_i", "log_inv"]).optional(),
   autoSuggested: z.boolean().optional(),
   weightingMode: z

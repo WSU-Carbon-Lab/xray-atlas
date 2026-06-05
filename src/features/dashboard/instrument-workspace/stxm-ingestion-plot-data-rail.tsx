@@ -13,8 +13,7 @@ import {
 } from "~/components/plots/toolbars";
 import { STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION } from "~/lib/stxm/stxm-ingestion-plot-data-rail-config";
 import {
-  ingestionChannelUsesRawSignal,
-  type StxmI0PlotScaleMode,
+  ingestionChannelUsesRawIntensity,
   type StxmIngestionPlotChannel,
 } from "~/lib/stxm/stxm-ingestion-display";
 import {
@@ -24,15 +23,18 @@ import {
   STXM_IMAGINARY_REAL_LINK_ID,
   STXM_LINKED_IMAGINARY_TO_REAL,
 } from "~/lib/stxm/stxm-optical-link";
-import { StxmI0PlotScaleToggle } from "./stxm-i0-plot-scale-toggle";
+import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
+import { StxmRawSignalTransformToggle } from "./stxm-raw-signal-transform-toggle";
 
 export type StxmIngestionPlotDataRailProps = {
   displayChannel: StxmIngestionPlotChannel;
   onDisplayChannelChange: (channel: StxmIngestionPlotChannel) => void;
   hasRawSpectra: boolean;
   hasReducedResult: boolean;
-  i0PlotScale: StxmI0PlotScaleMode;
-  onI0PlotScaleChange: (mode: StxmI0PlotScaleMode) => void;
+  hasIeData: boolean;
+  isTeyExperiment: boolean;
+  rawSignalTransform: StxmRawSignalTransformMode;
+  onRawSignalTransformChange: (mode: StxmRawSignalTransformMode) => void;
   linkImaginaryReal: boolean;
   onLinkImaginaryRealChange: (linked: boolean) => void;
   showBareAtomOverlay: boolean;
@@ -43,15 +45,17 @@ export type StxmIngestionPlotDataRailProps = {
 };
 
 /**
- * STXM ingestion left vertical rail: raw intensities, spectroscopy OD, optical constants, and link toggle.
+ * STXM ingestion left vertical rail: unified raw spectroscopy tray, optical constants, and link toggle.
  */
 export function StxmIngestionPlotDataRail({
   displayChannel,
   onDisplayChannelChange,
   hasRawSpectra,
   hasReducedResult,
-  i0PlotScale,
-  onI0PlotScaleChange,
+  hasIeData,
+  isTeyExperiment,
+  rawSignalTransform,
+  onRawSignalTransformChange,
   linkImaginaryReal,
   onLinkImaginaryRealChange,
   showBareAtomOverlay,
@@ -62,15 +66,32 @@ export function StxmIngestionPlotDataRail({
 }: StxmIngestionPlotDataRailProps) {
   const isChannelAvailable = useCallback(
     (id: StxmIngestionPlotChannel) => {
-      if (ingestionChannelUsesRawSignal(id)) {
+      if (id === "signal_ie") {
+        return hasRawSpectra && isTeyExperiment && hasIeData;
+      }
+      if (ingestionChannelUsesRawIntensity(id)) {
         return hasRawSpectra;
       }
       return hasReducedResult;
     },
-    [hasRawSpectra, hasReducedResult],
+    [hasIeData, hasRawSpectra, hasReducedResult, isTeyExperiment],
   );
 
-  const showI0ScaleToggle = ingestionChannelUsesRawSignal(displayChannel);
+  const channelUnavailableDescription = useCallback(
+    (id: StxmIngestionPlotChannel) => {
+      if (id !== "signal_ie") {
+        return undefined;
+      }
+      if (!isTeyExperiment) {
+        return "Ie is available only for TEY experiments.";
+      }
+      if (!hasIeData) {
+        return "No TEY drain-current monitor column in this scan header.";
+      }
+      return undefined;
+    },
+    [hasIeData, isTeyExperiment],
+  );
 
   const bareAtomHint = useMemo(() => {
     if (formulaLoading) {
@@ -102,6 +123,24 @@ export function StxmIngestionPlotDataRail({
       },
     ],
     [],
+  );
+
+  const renderTrayPopoverTrailing = useCallback(
+    (trayId: "spectroscopy" | "imaginary" | "real") => {
+      if (trayId !== "spectroscopy") {
+        return null;
+      }
+      if (!ingestionChannelUsesRawIntensity(displayChannel)) {
+        return null;
+      }
+      return (
+        <StxmRawSignalTransformToggle
+          mode={rawSignalTransform}
+          onModeChange={onRawSignalTransformChange}
+        />
+      );
+    },
+    [displayChannel, onRawSignalTransformChange, rawSignalTransform],
   );
 
   return (
@@ -153,22 +192,14 @@ export function StxmIngestionPlotDataRail({
         activeChannelId={displayChannel}
         onActiveChannelChange={onDisplayChannelChange}
         isChannelAvailable={isChannelAvailable}
+        channelUnavailableDescription={channelUnavailableDescription}
+        renderTrayPopoverTrailing={renderTrayPopoverTrailing}
         links={links}
         linkState={{ [STXM_IMAGINARY_REAL_LINK_ID]: linkImaginaryReal }}
         onLinkStateChange={(_id, linked) => onLinkImaginaryRealChange(linked)}
         hintPlacement="right"
         ariaLabel="STXM spectrum Y channels"
       />
-
-      {showI0ScaleToggle ? (
-        <>
-          <PlotToolbarGroupSeparator orientation="horizontal" />
-          <StxmI0PlotScaleToggle
-            mode={i0PlotScale}
-            onModeChange={onI0PlotScaleChange}
-          />
-        </>
-      ) : null}
     </div>
   );
 }

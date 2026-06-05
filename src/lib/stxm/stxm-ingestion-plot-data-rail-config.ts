@@ -5,11 +5,7 @@ import {
 import type { SpectrumYAxisQuantity } from "~/components/plots/types";
 import type { StxmIngestionPlotChannel } from "./stxm-ingestion-display";
 
-export type StxmIngestionPlotTrayId =
-  | "raw_signal"
-  | "spectroscopy"
-  | "imaginary"
-  | "real";
+export type StxmIngestionPlotTrayId = "spectroscopy" | "imaginary" | "real";
 
 const TRAY_META: Record<
   StxmIngestionPlotTrayId,
@@ -20,19 +16,12 @@ const TRAY_META: Record<
     defaultChannelId: StxmIngestionPlotChannel;
   }
 > = {
-  raw_signal: {
-    trayGlyph: "Rw",
-    trayLabel: "Raw signal",
-    trayDescription:
-      "Summed izero, sample, and reciprocal-I0 detector intensities versus energy.",
-    defaultChannelId: "signal_i0",
-  },
   spectroscopy: {
-    trayGlyph: "OD",
-    trayLabel: "Spectroscopy",
+    trayGlyph: "Rw",
+    trayLabel: "Raw spectroscopy",
     trayDescription:
-      "Beer-Lambert OD, edge-normalized OD, and mass absorption from the reduced pipeline.",
-    defaultChannelId: "od",
+      "Incident, transmitted, and TEY drain intensities plus Beer-Lambert OD, normalized OD, and mass absorption.",
+    defaultChannelId: "signal_i0",
   },
   imaginary: {
     trayGlyph: "β",
@@ -50,8 +39,8 @@ const TRAY_META: Record<
 
 const RAIL_CHANNEL_IDS = [
   "signal_i0",
-  "signal_sample",
-  "signal_inv_i0",
+  "signal_it",
+  "signal_ie",
   "od",
   "od_normalized",
   "mass_absorption",
@@ -62,10 +51,10 @@ const RAIL_CHANNEL_IDS = [
 ] as const satisfies readonly StxmIngestionPlotChannel[];
 
 const CHANNEL_GLYPH: Record<(typeof RAIL_CHANNEL_IDS)[number], string> = {
-  signal_i0: "I0",
-  signal_sample: "Sm",
-  signal_inv_i0: "/I",
-  od: "OD",
+  signal_i0: "I₀",
+  signal_it: "Iₜ",
+  signal_ie: "Iₑ",
+  od: "Rw",
   od_normalized: "01",
   mass_absorption: "μ",
   beta: "β",
@@ -79,8 +68,8 @@ const CHANNEL_Y_AXIS: Record<
   SpectrumYAxisQuantity
 > = {
   signal_i0: "intensity",
-  signal_sample: "intensity",
-  signal_inv_i0: "intensity",
+  signal_it: "intensity",
+  signal_ie: "intensity",
   od: "optical-density",
   od_normalized: "optical-density",
   mass_absorption: "mass-absorption",
@@ -94,9 +83,9 @@ const CHANNEL_TRAY: Record<
   (typeof RAIL_CHANNEL_IDS)[number],
   StxmIngestionPlotTrayId
 > = {
-  signal_i0: "raw_signal",
-  signal_sample: "raw_signal",
-  signal_inv_i0: "raw_signal",
+  signal_i0: "spectroscopy",
+  signal_it: "spectroscopy",
+  signal_ie: "spectroscopy",
   od: "spectroscopy",
   od_normalized: "spectroscopy",
   mass_absorption: "spectroscopy",
@@ -112,15 +101,16 @@ const CHANNEL_COPY: Record<
 > = {
   signal_i0: {
     label: "I0",
-    description: "Summed izero-region detector signal versus energy.",
+    description: "Summed izero-region incident transmission versus energy.",
   },
-  signal_sample: {
-    label: "Sample",
-    description: "Summed sample-region detector signal versus energy.",
+  signal_it: {
+    label: "It",
+    description: "Summed pure/sample-region transmitted intensity through the film.",
   },
-  signal_inv_i0: {
-    label: "1/I0",
-    description: "Reciprocal izero sum signal (log-friendly raw view).",
+  signal_ie: {
+    label: "Ie",
+    description:
+      "TEY drain-current intensity when the scan header exposes a monitor column; otherwise unavailable.",
   },
   od: {
     label: "OD",
@@ -159,14 +149,12 @@ for (const meta of Object.values(TRAY_META)) {
   assertGlyphLength(meta.trayGlyph, "STXM ingestion tray");
 }
 
-/** Vertical data-view rail layout for STXM ingestion (raw signal, spectroscopy, optical constants). */
+/** Vertical data-view rail layout for STXM ingestion (NEXAFS-aligned three trays). */
 export const STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION: PlotDataRailDefinition<
   StxmIngestionPlotChannel,
   StxmIngestionPlotTrayId
 > = {
-  trays: (
-    ["raw_signal", "spectroscopy", "imaginary", "real"] as const
-  ).map((id) => ({
+  trays: (["spectroscopy", "imaginary", "real"] as const).map((id) => ({
     id,
     trayGlyph: TRAY_META[id].trayGlyph,
     trayLabel: TRAY_META[id].trayLabel,
@@ -182,3 +170,8 @@ export const STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION: PlotDataRailDefinition<
     yAxisQuantity: CHANNEL_Y_AXIS[id],
   })),
 };
+
+/** All channel ids in the unified raw spectroscopy tray popover. */
+export const STXM_RAW_SPECTROSCOPY_TRAY_CHANNEL_IDS = RAIL_CHANNEL_IDS.filter(
+  (id) => CHANNEL_TRAY[id] === "spectroscopy",
+);

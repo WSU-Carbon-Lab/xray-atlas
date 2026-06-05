@@ -73,6 +73,16 @@ export interface PlotDataViewRailProps<
   readonly middleSlot?: ReactNode;
   readonly hintPlacement?: "left" | "right" | "top" | "bottom";
   readonly ariaLabel?: string;
+  /**
+   * Optional content rendered flush right of a tray popover channel picker (for example STXM
+   * raw-intensity transform toggles beside the spectroscopy tray).
+   */
+  readonly renderTrayPopoverTrailing?: (
+    trayId: TTrayId,
+    closePicker: () => void,
+  ) => ReactNode;
+  /** Per-channel disabled tooltip when `isChannelAvailable` is false. */
+  readonly channelUnavailableDescription?: (id: TChannelId) => string | undefined;
 }
 
 export function assertGlyphLength(glyph: string, context: string): void {

@@ -123,6 +123,8 @@ function PlotDataRailTrayTrigger<
   segmentClassName,
   links,
   linkState,
+  renderPopoverTrailing,
+  channelUnavailableDescription,
 }: {
   trayId: TTrayId;
   definition: PlotDataViewRailProps<TChannelId, TTrayId>["definition"];
@@ -136,6 +138,8 @@ function PlotDataRailTrayTrigger<
   segmentClassName: string;
   links: PlotDataViewRailProps<TChannelId, TTrayId>["links"];
   linkState: PlotDataViewRailProps<TChannelId, TTrayId>["linkState"];
+  renderPopoverTrailing?: ReactNode;
+  channelUnavailableDescription?: (id: TChannelId) => string | undefined;
 }) {
   const tray = definition.trays.find((t) => t.id === trayId);
   const popoverRows = useMemo(
@@ -289,7 +293,10 @@ function PlotDataRailTrayTrigger<
 
   const pickerShellClass = isLinkedPopover
     ? cn(plotToolbarAttachedToolbarVerticalClass, "gap-0 rounded-2xl")
-    : plotToolbarAttachedHorizontalPickerShellClass;
+    : cn(
+        plotToolbarAttachedHorizontalPickerShellClass,
+        renderPopoverTrailing != null && "flex flex-row items-center gap-1",
+      );
 
   const pickerPortal =
     isTrayOpen &&
@@ -324,7 +331,10 @@ function PlotDataRailTrayTrigger<
                           title={ch.label}
                           description={ch.description}
                           placement={hintPlacement ?? "right"}
-                          whenDisabledDescription="Not available for this dataset."
+                          whenDisabledDescription={
+                            channelUnavailableDescription?.(ch.id) ??
+                            "Not available for this dataset."
+                          }
                           disabled={!available}
                         >
                           <ToggleButton
@@ -349,6 +359,7 @@ function PlotDataRailTrayTrigger<
                   })}
                 </ToggleButtonGroup>
               ))}
+              {renderPopoverTrailing}
             </div>
           </div>,
           document.body,
@@ -482,6 +493,8 @@ export function PlotDataViewRail<
   middleSlot,
   hintPlacement = "right",
   ariaLabel = "Data view trays",
+  renderTrayPopoverTrailing,
+  channelUnavailableDescription,
 }: PlotDataViewRailProps<TChannelId, TTrayId>) {
   const [openTrayId, setOpenTrayId] = useState<TTrayId | null>(null);
 
@@ -594,6 +607,11 @@ export function PlotDataViewRail<
                   }
                 }}
                 segmentClassName={segmentClassName}
+                renderPopoverTrailing={
+                  renderTrayPopoverTrailing?.(trayId, () => setOpenTrayId(null)) ??
+                  null
+                }
+                channelUnavailableDescription={channelUnavailableDescription}
               />
             );
           }
