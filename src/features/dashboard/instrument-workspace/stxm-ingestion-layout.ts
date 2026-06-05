@@ -4,7 +4,9 @@
  * Keeps spectrum plot widget height and region-editor column width in one place
  * so `StxmMultiRegionEditor` and `StxmIngestionPlotPanel` stay aligned without
  * importing each other. The region heatmap canvas fills the editor body below
- * its toolbar via `ResizeObserver`, within this shared total height.
+ * its toolbar via `ResizeObserver` on the heatmap container, within this shared
+ * total height. Canvas width follows the measured heatmap column, not a fixed
+ * constant, so flex layout cannot collapse the drawable area.
  */
 
 /** Total height for the ingestion spectrum plot widget and region editor column. */

@@ -66,6 +66,12 @@ export function StxmRowSumTrace({
     const plotLeft = 4;
     const plotRight = width - 2;
     const plotWidth = plotRight - plotLeft;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.floor(width * dpr));
+    canvas.height = Math.max(1, Math.floor(height * dpr));
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     context.clearRect(0, 0, width, height);
     context.fillStyle = "var(--surface-2, #f4f4f5)";
@@ -142,10 +148,8 @@ export function StxmRowSumTrace({
   return (
     <canvas
       ref={canvasRef}
-      width={width}
-      height={height}
-      className="pointer-events-none block shrink-0"
-      style={{ width, height }}
+      className="pointer-events-none block shrink-0 self-stretch"
+      style={{ width, minWidth: width, height }}
       aria-hidden="true"
     />
   );

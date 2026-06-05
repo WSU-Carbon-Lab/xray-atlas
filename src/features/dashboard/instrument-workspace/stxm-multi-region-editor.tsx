@@ -31,12 +31,28 @@ import {
   STXM_REGION_EDITOR_MAX_WIDTH_PX,
 } from "./stxm-ingestion-layout";
 import { StxmRegionTrayToggle } from "./stxm-region-tray-toggle";
-import {
-  STXM_ROW_SUM_TRACE_WIDTH,
-  StxmRowSumTrace,
-} from "./stxm-row-sum-trace";
-const HEATMAP_WIDTH = STXM_REGION_EDITOR_MAX_WIDTH_PX - STXM_ROW_SUM_TRACE_WIDTH;
+import { StxmRowSumTrace } from "./stxm-row-sum-trace";
+
 const HIT_MARGIN_FRACTION = 0.015;
+
+type CanvasDisplaySize = {
+  width: number;
+  height: number;
+};
+
+/** Maps canvas bitmap resolution to CSS layout size using device pixel ratio. */
+function applyCanvasDisplaySize(
+  canvas: HTMLCanvasElement,
+  context: CanvasRenderingContext2D,
+  size: CanvasDisplaySize,
+): void {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.floor(size.width * dpr));
+  canvas.height = Math.max(1, Math.floor(size.height * dpr));
+  canvas.style.width = `${size.width}px`;
+  canvas.style.height = `${size.height}px`;
+  context.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
 
 type StxmMultiRegionEditorProps = {
   image: number[][];
@@ -77,11 +93,14 @@ export function StxmMultiRegionEditor({
   onRegionTrayOpenChange,
 }: StxmMultiRegionEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const canvasAreaRef = useRef<HTMLDivElement | null>(null);
+  const heatmapAreaRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<RegionDragState>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverDragTarget, setHoverDragTarget] = useState<RegionDragState>(null);
-  const [canvasHeight, setCanvasHeight] = useState(height);
+  const [canvasSize, setCanvasSize] = useState<CanvasDisplaySize>({
+    width: 0,
+    height,
+  });
   const [editingRegionIndex, setEditingRegionIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const editInputRef = useRef<HTMLInputElement | null>(null);
@@ -134,21 +153,29 @@ export function StxmMultiRegionEditor({
   }, [onDragEnd]);
 
   useEffect(() => {
-    const canvasArea = canvasAreaRef.current;
-    if (!canvasArea) {
+    const heatmapArea = heatmapAreaRef.current;
+    if (!heatmapArea) {
       return;
     }
-    const syncCanvasHeight = () => {
-      const nextHeight = Math.floor(canvasArea.clientHeight);
-      if (nextHeight > 0) {
-        setCanvasHeight(nextHeight);
+    const syncCanvasSize = () => {
+      const nextWidth = Math.floor(heatmapArea.clientWidth);
+      const nextHeight = Math.floor(heatmapArea.clientHeight);
+      if (nextWidth <= 0 || nextHeight <= 0) {
+        return;
       }
+      setCanvasSize((current) =>
+        current.width === nextWidth && current.height === nextHeight
+          ? current
+          : { width: nextWidth, height: nextHeight },
+      );
     };
-    syncCanvasHeight();
-    const observer = new ResizeObserver(syncCanvasHeight);
-    observer.observe(canvasArea);
+    syncCanvasSize();
+    const observer = new ResizeObserver(() => {
+      syncCanvasSize();
+    });
+    observer.observe(heatmapArea);
     return () => observer.disconnect();
-  }, [height]);
+  }, [height, regionTrayOpen]);
 
   useEffect(() => {
     if (!isDragging) {
@@ -218,15 +245,21 @@ export function StxmMultiRegionEditor({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || image.length === 0) {
+    if (
+      !canvas ||
+      image.length === 0 ||
+      canvasSize.width <= 0 ||
+      canvasSize.height <= 0
+    ) {
       return;
     }
     const context = canvas.getContext("2d");
     if (!context) {
       return;
     }
-    const width = canvas.width;
-    const height = canvas.height;
+    applyCanvasDisplaySize(canvas, context, canvasSize);
+    const width = canvasSize.width;
+    const height = canvasSize.height;
     const finite = image.flat().filter((value) => Number.isFinite(value));
     const dataMin = finite.length > 0 ? Math.min(...finite) : 0;
     const dataMax = finite.length > 0 ? Math.max(...finite) : 1;
@@ -273,7 +306,7 @@ export function StxmMultiRegionEditor({
       drawHorizontalLine(context, yToPx(region.sampleLo, height), width);
       drawHorizontalLine(context, yToPx(region.sampleHi, height), width);
     });
-  }, [image, imageScaleMode, izero, regions, rowBandPx, yToPx]);
+  }, [canvasSize, image, imageScaleMode, izero, regions, rowBandPx, yToPx]);
 
   useEffect(() => {
     if (editingRegionIndex === null) {
@@ -403,8 +436,8 @@ export function StxmMultiRegionEditor({
 
   return (
     <div
-      className="border-border bg-surface flex w-full max-w-[180px] flex-col overflow-hidden rounded-lg border"
-      style={{ height }}
+      className="border-border bg-surface flex w-full flex-col overflow-hidden rounded-lg border"
+      style={{ height, width: STXM_REGION_EDITOR_MAX_WIDTH_PX }}
     >
       <div
         className="border-border flex shrink-0 items-center gap-1 border-b px-2 py-1"
@@ -452,8 +485,7 @@ export function StxmMultiRegionEditor({
         </PlotToolbarRichHint>
       </div>
       <div
-        ref={canvasAreaRef}
-        className={`flex min-h-0 flex-1 ${isDragging || hoverDragTarget ? "cursor-ns-resize" : "cursor-crosshair"}`}
+        className={`flex min-h-0 w-full min-w-0 flex-1 ${isDragging || hoverDragTarget ? "cursor-ns-resize" : "cursor-crosshair"}`}
         onPointerDown={beginDrag}
         onPointerMove={updateHoverFromEvent}
         onPointerLeave={() => setHoverDragTarget(null)}
@@ -461,26 +493,29 @@ export function StxmMultiRegionEditor({
       >
         <StxmRowSumTrace
           image={image}
-          height={canvasHeight}
+          height={canvasSize.height}
           qaxisPoints={qaxisPoints}
           sampleMin={sampleMin}
           yToPx={yToPx}
           izero={izero}
           regions={regions}
         />
-        <div className="relative min-w-0 flex-1">
+        <div
+          ref={heatmapAreaRef}
+          className="relative h-full min-h-0 flex-1 overflow-hidden"
+        >
           <canvas
             ref={canvasRef}
-            width={HEATMAP_WIDTH}
-            height={canvasHeight}
-            className="pointer-events-none relative z-0 block w-full"
-            style={{ height: canvasHeight, width: HEATMAP_WIDTH }}
+            className="pointer-events-none relative z-0 block h-full w-full"
           />
           {!isDragging ? (
             <>
               {regions.map((region, index) => {
                 const mid = (region.sampleLo + region.sampleHi) / 2;
-                const topPct = (yToPx(mid, canvasHeight) / canvasHeight) * 100;
+                const topPct =
+                  canvasSize.height > 0
+                    ? (yToPx(mid, canvasSize.height) / canvasSize.height) * 100
+                    : 0;
                 const label = regionDisplayLabel(region, index);
                 const color = stxmRegionSeriesColor(index);
                 const isEditing = editingRegionIndex === index;
@@ -546,7 +581,10 @@ export function StxmMultiRegionEditor({
               })}
               {regionGaps.map((gap) => {
                 const mid = (gap.lo + gap.hi) / 2;
-                const topPct = (yToPx(mid, canvasHeight) / canvasHeight) * 100;
+                const topPct =
+                  canvasSize.height > 0
+                    ? (yToPx(mid, canvasSize.height) / canvasSize.height) * 100
+                    : 0;
                 return (
                   <button
                     key={`${gap.lo}-${gap.hi}`}
