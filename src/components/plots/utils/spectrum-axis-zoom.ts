@@ -89,3 +89,15 @@ export function panAxisDomain(
   }
   return [constrainedLo, constrainedHi];
 }
+
+/**
+ * Pans a vertically oriented plot axis whose scale range increases downward in pixel space.
+ */
+export function panVerticalAxisDomain(
+  startDomain: [number, number],
+  dataBounds: [number, number],
+  pixelDelta: number,
+  plotPixelSpan: number,
+): [number, number] | null {
+  return panAxisDomain(startDomain, dataBounds, -pixelDelta, plotPixelSpan);
+}

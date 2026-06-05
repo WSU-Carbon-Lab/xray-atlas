@@ -77,6 +77,7 @@ import { NexafsSpectrumPlotContextMenu } from "~/components/nexafs/nexafs-spectr
 import {
   clampSpectrumAxisDomain,
   panAxisDomain,
+  panVerticalAxisDomain,
   spectrumAxisMinZoomSpan,
   wheelZoomAxisDomain,
 } from "../utils/spectrum-axis-zoom";
@@ -1121,7 +1122,7 @@ export function SpectrumPlotInner({
       }
       const startYDomain = panStartYDomainRef.current;
       if (startYDomain != null && yAxisZoomPanEnabled) {
-        const nextY = panAxisDomain(
+        const nextY = panVerticalAxisDomain(
           startYDomain,
           dataYBounds,
           totalDeltaY,
@@ -1212,10 +1213,9 @@ export function SpectrumPlotInner({
 
   const handlePlotWheel = useCallback(
     (event: React.WheelEvent<SVGSVGElement>) => {
-      if (!yAxisZoomPanEnabled || !event.shiftKey) {
+      if (!yAxisZoomPanEnabled) {
         return;
       }
-      event.preventDefault();
       const svg = svgRef.current;
       if (!svg) return;
       const rect = svg.getBoundingClientRect();
@@ -1223,12 +1223,21 @@ export function SpectrumPlotInner({
         event.clientX - rect.left - interactionPlot.dimensions.margins.left;
       const plotY =
         event.clientY - rect.top - interactionPlot.dimensions.margins.top;
-      if (
-        plotX < 0 ||
-        plotX > mainPlotWidth ||
-        plotY < 0 ||
-        plotY > mainPlotHeight
-      ) {
+      const inYGutter =
+        plotX < 0 &&
+        plotX >= -interactionPlot.dimensions.margins.left &&
+        plotY >= 0 &&
+        plotY <= mainPlotHeight;
+      const inPlotInterior =
+        plotX >= 0 &&
+        plotX <= mainPlotWidth &&
+        plotY >= 0 &&
+        plotY <= mainPlotHeight;
+      if (!inYGutter && (!inPlotInterior || !event.shiftKey)) {
+        return;
+      }
+      event.preventDefault();
+      if (!inYGutter && !inPlotInterior) {
         return;
       }
       const currentY = zoomedYDomain ?? dataYBounds;
@@ -1605,6 +1614,11 @@ export function SpectrumPlotInner({
                 onReset={handleResetZoom}
                 allowPlotInteractionsBelow={zoomedXDomain != null}
                 enableVerticalMarqueeWithShift={yAxisZoomPanEnabled}
+                yAxisGutterWidth={
+                  yAxisZoomPanEnabled
+                    ? mainPlot.dimensions.margins.left
+                    : 0
+                }
               />
             )}
             {effectiveCursorMode === "pan" && isAxisZoomed && (

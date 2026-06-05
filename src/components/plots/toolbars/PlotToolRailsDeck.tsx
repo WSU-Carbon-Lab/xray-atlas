@@ -209,7 +209,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
             </PlotToolbarRichHint>
             <PlotToolbarRichHint
               title="Zoom"
-              description="Drag horizontally to magnify energy; Shift+drag vertically to magnify absorption."
+              description="Drag horizontally to magnify energy. Drag the left y-axis or Shift+drag vertically to magnify absorption; wheel over the y-axis also zooms absorption."
               whenDisabledDescription="Exit normalization region editing to use plot cursors."
             >
               <ToggleButton
@@ -229,7 +229,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               whenDisabledDescription={
                 isCursorDisabled
                   ? "Exit normalization region editing to use plot cursors."
-                  : "Zoom in on energy or Shift+drag on absorption, then pan."
+                  : "Zoom energy or absorption (y-axis drag, Shift+drag, or wheel on y-axis), then pan."
               }
               disabled={isCursorDisabled || isPanDisabled}
             >

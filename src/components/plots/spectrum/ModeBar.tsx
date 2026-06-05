@@ -31,7 +31,7 @@ const MODE_CONFIG: Record<
   zoom: {
     icon: MagnifyingGlassIcon,
     label: "Zoom",
-    tooltip: "Drag for energy zoom; Shift+drag for absorption zoom",
+    tooltip: "Drag for energy zoom; y-axis or Shift+drag for absorption zoom",
   },
   select: {
     icon: CursorArrowRaysIcon,

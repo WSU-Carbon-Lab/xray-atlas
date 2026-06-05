@@ -24,10 +24,10 @@ type BrushZoomProps = {
   onZoom: (xDomain: [number, number], yDomain: [number, number]) => void;
   onReset?: () => void;
   /**
-   * When true, the brush hit-target does not capture pointer events so clicks
-   * reach the plot below (inspect pins, tooltips, etc.). Use once a horizontal
-   * zoom is already applied; further zoom-in uses the toolbar buttons until
-   * the view is reset.
+   * When true, horizontal marquee zoom on the plot interior is suppressed so clicks
+   * reach the plot below (inspect pins, tooltips, etc.). Vertical absorption zoom
+   * remains available via the y-axis gutter or Shift+drag when
+   * `enableVerticalMarqueeWithShift` is set.
    */
   allowPlotInteractionsBelow?: boolean;
   /**
@@ -35,6 +35,11 @@ type BrushZoomProps = {
    * even when `zoomMode` is horizontal.
    */
   enableVerticalMarqueeWithShift?: boolean;
+  /**
+   * Width of the left y-axis margin (pixels) where drag always performs vertical zoom
+   * without holding Shift.
+   */
+  yAxisGutterWidth?: number;
 };
 
 function resolveActiveZoomMode(
@@ -59,6 +64,7 @@ export function BrushZoom({
   onReset: _onReset,
   allowPlotInteractionsBelow = false,
   enableVerticalMarqueeWithShift = false,
+  yAxisGutterWidth = 0,
 }: BrushZoomProps) {
   const themeColors = themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
 
@@ -68,6 +74,35 @@ export function BrushZoom({
     dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
   const left = dimensions.margins.left;
   const top = dimensions.margins.top;
+
+  const [shiftKeyHeld, setShiftKeyHeld] = useState(false);
+
+  useEffect(() => {
+    if (!enableVerticalMarqueeWithShift || !allowPlotInteractionsBelow) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        setShiftKeyHeld(true);
+      }
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        setShiftKeyHeld(false);
+      }
+    };
+    const onBlur = () => {
+      setShiftKeyHeld(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [allowPlotInteractionsBelow, enableVerticalMarqueeWithShift]);
 
   const [marquee, setMarquee] = useState<{
     start: MarqueePoint;
@@ -214,24 +249,8 @@ export function BrushZoom({
     commitZoom,
   ]);
 
-  const handlePointerDown = useCallback(
-    (event: React.PointerEvent) => {
-      const svg = svgRef.current;
-      if (!svg) return;
-      const pt = eventToPlotCoords(
-        event.nativeEvent,
-        svg,
-        left,
-        top,
-      );
-      if (!pt) return;
-      const x = Math.max(0, Math.min(plotWidth, pt.x));
-      const y = Math.max(0, Math.min(plotHeight, pt.y));
-      const mode = resolveActiveZoomMode(
-        zoomMode,
-        event.shiftKey,
-        enableVerticalMarqueeWithShift,
-      );
+  const beginMarquee = useCallback(
+    (x: number, y: number, mode: ZoomMode) => {
       if (mode === "vertical") {
         setMarquee({
           start: { x: 0, y },
@@ -254,8 +273,74 @@ export function BrushZoom({
         mode,
       });
     },
-    [left, top, plotWidth, plotHeight, zoomMode, enableVerticalMarqueeWithShift],
+    [plotWidth, plotHeight],
   );
+
+  const handlePlotPointerDown = useCallback(
+    (event: React.PointerEvent) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const pt = eventToPlotCoords(
+        event.nativeEvent,
+        svg,
+        left,
+        top,
+      );
+      if (!pt) return;
+      const x = Math.max(0, Math.min(plotWidth, pt.x));
+      const y = Math.max(0, Math.min(plotHeight, pt.y));
+      const mode = resolveActiveZoomMode(
+        zoomMode,
+        event.shiftKey,
+        enableVerticalMarqueeWithShift,
+      );
+      if (
+        allowPlotInteractionsBelow &&
+        mode === "horizontal"
+      ) {
+        return;
+      }
+      beginMarquee(x, y, mode);
+    },
+    [
+      left,
+      top,
+      plotWidth,
+      plotHeight,
+      zoomMode,
+      enableVerticalMarqueeWithShift,
+      allowPlotInteractionsBelow,
+      beginMarquee,
+    ],
+  );
+
+  const handleYGutterPointerDown = useCallback(
+    (event: React.PointerEvent) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const pt = eventToPlotCoords(
+        event.nativeEvent,
+        svg,
+        left,
+        top,
+      );
+      if (!pt) return;
+      const y = Math.max(0, Math.min(plotHeight, pt.y));
+      beginMarquee(0, y, "vertical");
+    },
+    [left, top, plotHeight, beginMarquee],
+  );
+
+  const showYGutter =
+    enableVerticalMarqueeWithShift && yAxisGutterWidth > 0;
+  const mainPlotPointerEvents =
+    allowPlotInteractionsBelow && !shiftKeyHeld ? "none" : "auto";
+  const mainPlotCursor =
+    allowPlotInteractionsBelow && !shiftKeyHeld
+      ? "default"
+      : shiftKeyHeld && enableVerticalMarqueeWithShift
+        ? "ns-resize"
+        : "crosshair";
 
   const selectionStyle = {
     fill: themeColors.hoverBg,
@@ -290,15 +375,29 @@ export function BrushZoom({
 
   return (
     <g ref={setSvgRef} transform={`translate(${left}, ${top})`}>
+      {showYGutter ? (
+        <rect
+          x={-yAxisGutterWidth}
+          y={0}
+          width={yAxisGutterWidth}
+          height={plotHeight}
+          fill="transparent"
+          style={{ cursor: "ns-resize", pointerEvents: "auto" }}
+          onPointerDown={handleYGutterPointerDown}
+          aria-hidden
+        />
+      ) : null}
       <rect
         width={plotWidth}
         height={plotHeight}
         fill="transparent"
         style={{
-          cursor: allowPlotInteractionsBelow ? "default" : "crosshair",
-          pointerEvents: allowPlotInteractionsBelow ? "none" : "auto",
+          cursor: mainPlotCursor,
+          pointerEvents: mainPlotPointerEvents,
         }}
-        onPointerDown={allowPlotInteractionsBelow ? undefined : handlePointerDown}
+        onPointerDown={
+          mainPlotPointerEvents === "auto" ? handlePlotPointerDown : undefined
+        }
       />
       {selectionRect ? (
         <rect
