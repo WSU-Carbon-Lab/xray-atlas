@@ -428,4 +428,30 @@ No attribution on NEXAFS browse plot — STXM adds it for **export readiness**, 
 
 ---
 
-*Phase 0 complete. No UI implementation in this pass.*
+---
+
+## Implementation status (2026-06-04, branch `feat/dashboard-stxm-5322`)
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 1 Shared shell + layout | **Done** | `VisualizationToggle.modes`, `DatasetVisualizationShell`, STXM graph/table only; region column ~220px / 80% plot; error kind in shell `leadingSlot`; `StxmIngestionPlotHeader` removed |
+| 2 Channel rail refactor | **Done** | Rw tray = OD spectroscopy; I0 tray with I0/Sm//I; `StxmI0PlotScaleToggle` (linear, log(I), log(1/I)) in plot overlay; rail config + `i0PlotScale` persisted |
+| 3 Bare atom + molecule gate | **Done** | `ExperimentLinkCard` + `moleculeFormulaForExperiment`; bare-atom step-edge overlay via `buildStxmBareAtomReferenceCurve`; manual formula fallback when unlinked |
+| 4 Table mode | **Done** | `StxmIngestionSpectrumTable` (energy + I0/sample/OD/norm OD/mass abs/beta/delta) |
+| 5 Attribution | **Done** | `DatasetAttributionEditor` in context panel; export metadata in `step_metadata.export`; `persistExport` on workspace page |
+| 6 Code quality | **Done** | Adapter tests (`stxm-ingestion-display`, `visualization-toggle-modes`, updated `stxm-to-spectrum-plot`); `tsc` + scoped eslint clean; 51 STXM tests pass |
+
+### Defaults chosen (open questions)
+
+1. **Error kind:** `leadingSlot` above plot in `DatasetVisualizationShell` (weighting toolbar).
+2. **Formula:** Linked experiment molecule formula wins; manual formula allowed when unlinked (not browse-strict for all reduced channels).
+3. **Table:** Single wide table with region columns deferred; one spectrum table from reduced result.
+4. **Experiment preview:** Local STXM ingestion only; link card points to browse/contribute hrefs.
+
+### Residual / follow-up
+
+- Optional: refactor `nexafs-experiment-dataset-panel` to consume `DatasetVisualizationShell` (not required for STXM parity).
+- Optional: per-region table rows when multi-region export UX is defined.
+- Heatmap `plotScaleMode` still persisted but no in-UI toggle (editor contrast only).
+
+*Phases 1–6 implemented on `feat/dashboard-stxm-5322`.*
