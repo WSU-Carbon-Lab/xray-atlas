@@ -25,6 +25,7 @@ import {
   buildStxmCatalogCheckpoint,
   catalogEntryFromCheckpointEntry,
   readStxmCatalogCheckpoint,
+  summarizeCheckpointEntryCounts,
   writeStxmCatalogCheckpoint,
 } from "./stxm-catalog-checkpoint";
 
@@ -48,6 +49,7 @@ export type StreamBeamtimeCatalogPhase =
 export type StreamBeamtimeCatalogProgress = {
   entries: StxmCatalogEntry[];
   discoveredCount: number;
+  parsedCount: number;
   phase: StreamBeamtimeCatalogPhase;
   fromCache: boolean;
 };
@@ -56,6 +58,8 @@ export type StreamBeamtimeCatalogOptions = {
   signal?: AbortSignal;
   batchFlushMs?: number;
   stallTimeoutMs?: number;
+  /** When true, skips checkpoint hydration because the caller already painted cache rows. */
+  skipInitialCheckpoint?: boolean;
   onProgress?: (progress: StreamBeamtimeCatalogProgress) => void;
 };
 
@@ -207,6 +211,67 @@ export async function parsePlaceholderCatalogEntries(
   );
 }
 
+function countParsedCatalogEntries(entries: StxmCatalogEntry[]): number {
+  return entries.filter(
+    (entry) => catalogEntryEnrichmentStatus(entry) !== "placeholder",
+  ).length;
+}
+
+/**
+ * Hydrates catalog rows from a checkpoint file without walking the experiment tree.
+ */
+export async function hydrateBeamtimeCatalogFromCheckpoint(
+  root: StxmDirectoryHandle,
+  layout: StxmDirectoryLayout,
+  experimentName: string,
+): Promise<StxmCatalogEntry[]> {
+  const experimentDir = await getExperimentDirectory(root, layout, experimentName);
+  const checkpoint = await readStxmCatalogCheckpoint(experimentDir);
+  if (
+    checkpoint?.experimentName !== experimentName ||
+    (checkpoint?.entries.length ?? 0) === 0
+  ) {
+    return [];
+  }
+  return checkpoint.entries.map((row) => catalogEntryFromCheckpointEntry(row));
+}
+
+/**
+ * Reads checkpoint scan counts for experiment folders when checkpoints exist.
+ */
+export async function readCheckpointScanCountsForExperiments(
+  root: StxmDirectoryHandle,
+  layout: StxmDirectoryLayout,
+  experimentNames: string[],
+): Promise<Map<string, { total: number; nexafs: number }>> {
+  const counts = new Map<string, { total: number; nexafs: number }>();
+  if (layout.mode === "single-experiment") {
+    const experimentDir = await getExperimentDirectory(
+      root,
+      layout,
+      layout.displayName,
+    );
+    const checkpoint = await readStxmCatalogCheckpoint(experimentDir);
+    counts.set(
+      layout.displayName,
+      summarizeCheckpointEntryCounts(checkpoint),
+    );
+    return counts;
+  }
+  await Promise.all(
+    experimentNames.map(async (name) => {
+      try {
+        const experimentDir = await root.getDirectoryHandle(name);
+        const checkpoint = await readStxmCatalogCheckpoint(experimentDir);
+        counts.set(name, summarizeCheckpointEntryCounts(checkpoint));
+      } catch {
+        counts.set(name, { total: 0, nexafs: 0 });
+      }
+    }),
+  );
+  return counts;
+}
+
 /**
  * Lists scan catalog entries from `.hdr` metadata only (no `.xim` reads or thumbnails).
  */
@@ -242,6 +307,7 @@ export async function streamBeamtimeCatalogFast(
   let entries: StxmCatalogEntry[] = [];
   let refs: StxmFileRef[] = [];
   let fromCache = false;
+  let hadCheckpoint = false;
 
   const touchProgress = () => {
     lastProgressAt = Date.now();
@@ -261,7 +327,8 @@ export async function streamBeamtimeCatalogFast(
     }
     options?.onProgress?.({
       entries: entries.map((entry) => ({ ...entry })),
-      discoveredCount: entries.length,
+      discoveredCount: refs.length > 0 ? refs.length : entries.length,
+      parsedCount: countParsedCatalogEntries(entries),
       phase,
       fromCache,
     });
@@ -293,24 +360,24 @@ export async function streamBeamtimeCatalogFast(
 
   try {
     touchProgress();
-    const checkpoint = await readStxmCatalogCheckpoint(experimentDir);
+    const checkpoint = options?.skipInitialCheckpoint
+      ? null
+      : await readStxmCatalogCheckpoint(experimentDir);
     if (
-      checkpoint &&
-      checkpoint.experimentName === experimentName &&
-      checkpoint.entries.length > 0
+      checkpoint?.experimentName === experimentName &&
+      (checkpoint.entries.length ?? 0) > 0
     ) {
       fromCache = true;
+      hadCheckpoint = true;
       phase = "cache";
       entries = checkpoint.entries.map((row) => ({
-        ...row,
+        ...catalogEntryFromCheckpointEntry(row),
         thumbnailDataUrl: null,
-        enrichmentStatus: "parsed" as const,
       }));
       flushProgress();
     }
 
     phase = "listing";
-    fromCache = false;
     const checkpointByPath = new Map(
       checkpoint?.experimentName === experimentName
         ? checkpoint.entries.map((row) => [row.relativePath, row])
@@ -321,6 +388,7 @@ export async function streamBeamtimeCatalogFast(
 
     for await (const ref of walkHdrFileRefs(experimentDir, "", {
       onTraverse: touchProgress,
+      signal: options?.signal,
     })) {
       if (options?.signal?.aborted) {
         break;
@@ -364,6 +432,9 @@ export async function streamBeamtimeCatalogFast(
     }
 
     phase = "parsing";
+    if (hadCheckpoint) {
+      fromCache = true;
+    }
     flushProgress();
 
     await parsePlaceholderCatalogEntries(refs, entries, {
@@ -375,6 +446,7 @@ export async function streamBeamtimeCatalogFast(
     });
     phase = "complete";
     complete = !options?.signal?.aborted;
+    fromCache = hadCheckpoint && complete;
 
     if (complete) {
       void writeStxmCatalogCheckpoint(

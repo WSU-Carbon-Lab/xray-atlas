@@ -222,6 +222,19 @@ export function mergeParsedCatalogEntries(
 }
 
 /**
+ * Summarizes total and NEXAFS line-scan counts from checkpoint rows for beamtime pills.
+ */
+export function summarizeCheckpointEntryCounts(
+  checkpoint: StxmCatalogCheckpoint | null,
+): { total: number; nexafs: number } {
+  if (!checkpoint || checkpoint.entries.length === 0) {
+    return { total: 0, nexafs: 0 };
+  }
+  const nexafs = checkpoint.entries.filter((entry) => entry.isNexafsLineScan).length;
+  return { total: checkpoint.entries.length, nexafs };
+}
+
+/**
  * Reads {@link STXM_CATALOG_CHECKPOINT_FILENAME} from `directory`; returns `null` when missing or invalid.
  */
 export async function readStxmCatalogCheckpoint(

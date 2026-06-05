@@ -40,6 +40,8 @@ export async function pickStxmRootDirectory(): Promise<StxmDirectoryHandle> {
 export type WalkHdrFileRefsOptions = {
   /** Invoked for every directory entry visited so long walks can reset stall timers. */
   onTraverse?: () => void;
+  /** When aborted, the walk stops before the next directory entry. */
+  signal?: AbortSignal;
 };
 
 /**
@@ -50,7 +52,13 @@ export async function* walkHdrFileRefs(
   prefix = "",
   options?: WalkHdrFileRefsOptions,
 ): AsyncGenerator<StxmFileRef> {
+  if (options?.signal?.aborted) {
+    return;
+  }
   for await (const [name, handle] of directory.entries()) {
+    if (options?.signal?.aborted) {
+      return;
+    }
     options?.onTraverse?.();
     const relativePath = prefix ? `${prefix}/${name}` : name;
     if (
