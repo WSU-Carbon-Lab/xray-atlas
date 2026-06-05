@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ProcessMethod } from "~/prisma/browser";
 import type { MoleculeSearchResult } from "~/features/process-nexafs/types";
 import type { DatasetAttributionEntry } from "~/lib/nexafs-attribution";
 
@@ -13,8 +14,17 @@ const attributionRowSchema = z.object({
   imageUrl: z.string().nullable().optional(),
 });
 
+const processMethodSchema = z.enum(["DRY", "SOLVENT"]);
+
 export const stxmSampleInfoSchema = z.object({
+  processMethod: processMethodSchema.nullable().optional(),
   substrate: z.string().default(""),
+  solvent: z.string().default(""),
+  thicknessNm: z.number().nullable().optional(),
+  molecularWeight: z.number().nullable().optional(),
+  vendorId: z.string().default(""),
+  newVendorName: z.string().default(""),
+  newVendorUrl: z.string().default(""),
   preparationDate: z.string().default(""),
   preparationNotes: z.string().default(""),
 });
@@ -41,8 +51,15 @@ export const stxmExportStepMetadataSchema = z.object({
 
 export type StxmExportStepMetadata = z.infer<typeof stxmExportStepMetadataSchema>;
 
-const defaultSampleInfo = (): StxmSampleInfo => ({
+export const defaultStxmSampleInfo = (): StxmSampleInfo => ({
+  processMethod: null,
   substrate: "",
+  solvent: "",
+  thicknessNm: null,
+  molecularWeight: null,
+  vendorId: "",
+  newVendorName: "",
+  newVendorUrl: "",
   preparationDate: "",
   preparationNotes: "",
 });
@@ -57,14 +74,14 @@ export function parseStxmExportStepMetadata(
   if (parsed.success) {
     return {
       ...parsed.data,
-      sampleInfo: parsed.data.sampleInfo ?? defaultSampleInfo(),
+      sampleInfo: parsed.data.sampleInfo ?? defaultStxmSampleInfo(),
       peaks: parsed.data.peaks ?? [],
     };
   }
   return {
     attributions: [],
     peaks: [],
-    sampleInfo: defaultSampleInfo(),
+    sampleInfo: defaultStxmSampleInfo(),
   };
 }
 
@@ -86,7 +103,7 @@ export function stxmExportMetadataFromAttributions(
       imageUrl: row.imageUrl,
     })),
     peaks: [],
-    sampleInfo: defaultSampleInfo(),
+    sampleInfo: defaultStxmSampleInfo(),
   };
 }
 
@@ -96,7 +113,6 @@ export function stxmExportMetadataFromAttributions(
 export function buildStxmExportStepMetadata(args: {
   attributions: DatasetAttributionEntry[];
   linkedMolecule: MoleculeSearchResult | null;
-  manualFormula: string;
   sampleInfo: StxmSampleInfo;
   peaks: StxmPeak[];
 }): StxmExportStepMetadata {
@@ -109,7 +125,6 @@ export function buildStxmExportStepMetadata(args: {
       args.linkedMolecule?.iupacName ??
       null,
     linkedMoleculeFormula: args.linkedMolecule?.chemicalFormula ?? null,
-    manualFormula: args.manualFormula.trim() || undefined,
     sampleInfo: args.sampleInfo,
     peaks: args.peaks,
   };
@@ -131,4 +146,29 @@ export function attributionsFromStxmExportMetadata(
     hasContributionAgreement: row.hasContributionAgreement,
     imageUrl: row.imageUrl ?? null,
   }));
+}
+
+/**
+ * Normalizes persisted sample info for NEXAFS sample form controls.
+ */
+export function stxmSampleInfoForNexafsForm(info: StxmSampleInfo): {
+  processMethod: ProcessMethod | null;
+  substrate: string;
+  solvent: string;
+  thickness: number | null;
+  molecularWeight: number | null;
+  vendorId: string;
+  newVendorName: string;
+  newVendorUrl: string;
+} {
+  return {
+    processMethod: info.processMethod ?? null,
+    substrate: info.substrate,
+    solvent: info.solvent,
+    thickness: info.thicknessNm ?? null,
+    molecularWeight: info.molecularWeight ?? null,
+    vendorId: info.vendorId,
+    newVendorName: info.newVendorName,
+    newVendorUrl: info.newVendorUrl,
+  };
 }

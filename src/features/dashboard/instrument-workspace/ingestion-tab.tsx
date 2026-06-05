@@ -50,6 +50,7 @@ import { StxmIngestionContextPanel } from "./stxm-ingestion-context-panel";
 import {
   attributionsFromStxmExportMetadata,
   buildStxmExportStepMetadata,
+  defaultStxmSampleInfo,
   parseStxmExportStepMetadata,
   type StxmExportStepMetadata,
   type StxmPeak,
@@ -218,7 +219,6 @@ export function IngestionTab({
     useState<StxmNormalizationWindows | null>(
       regionsMetadata?.normalization ?? null,
     );
-  const [formula, setFormula] = useState(regionsMetadata?.formula ?? "C");
   const [thicknessCm, setThicknessCm] = useState(
     String(regionsMetadata?.thicknessCm ?? 1e-4),
   );
@@ -243,12 +243,7 @@ export function IngestionTab({
   const [linkedMolecule, setLinkedMolecule] =
     useState<MoleculeSearchResult | null>(null);
   const [sampleInfo, setSampleInfo] = useState<StxmSampleInfo>(
-    () =>
-      parsedExport.sampleInfo ?? {
-        substrate: "",
-        preparationDate: "",
-        preparationNotes: "",
-      },
+    () => parsedExport.sampleInfo ?? defaultStxmSampleInfo(),
   );
   const [peaks, setPeaks] = useState<Peak[]>(() =>
     (parsedExport.peaks ?? []).map((peak, index) => ({
@@ -285,20 +280,8 @@ export function IngestionTab({
     });
   }, [linkedMolecule, linkedMoleculeId, linkedMoleculeQuery.data]);
 
-  useEffect(() => {
-    if (parsedExport.manualFormula && !linkedMoleculeId) {
-      setFormula(parsedExport.manualFormula);
-    }
-  }, [linkedMoleculeId, parsedExport.manualFormula]);
-
-  const linkedFormula = linkedMolecule?.chemicalFormula ?? null;
-  const resolvedFormula = useMemo(() => {
-    const manual = formula.trim();
-    if (linkedFormula) {
-      return linkedFormula;
-    }
-    return manual.length > 0 ? manual : null;
-  }, [formula, linkedFormula]);
+  const linkedFormula = linkedMolecule?.chemicalFormula?.trim() ?? null;
+  const resolvedFormula = linkedFormula;
   const pendingRecomputeRef = useRef(false);
   const debouncePersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRawRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -400,15 +383,15 @@ export function IngestionTab({
         plotScaleMode,
         rawSignalTransform,
         weightingMode,
-        formula: formula.trim() || undefined,
+        formula: linkedFormula ?? undefined,
         thicknessCm: Number.parseFloat(thicknessCm) || undefined,
         normalization: normalization ?? undefined,
         regionEditorTrayOpen,
       });
     }, 600);
   }, [
-    formula,
     izero,
+    linkedFormula,
     normalization,
     onPersistRegions,
     rawSignalTransform,
@@ -611,12 +594,6 @@ export function IngestionTab({
     weightingMode,
   ]);
 
-  useEffect(() => {
-    if (linkedFormula) {
-      setFormula(linkedFormula);
-    }
-  }, [linkedFormula]);
-
   const schedulePersistExport = useCallback(() => {
     if (!sessionId) {
       return;
@@ -630,14 +607,12 @@ export function IngestionTab({
       buildStxmExportStepMetadata({
         attributions,
         linkedMolecule,
-        manualFormula: formula,
         sampleInfo,
         peaks: peakRows,
       }),
     );
   }, [
     attributions,
-    formula,
     linkedMolecule,
     onPersistExport,
     peaks,
@@ -894,9 +869,6 @@ export function IngestionTab({
           onLinkedMoleculeChange={setLinkedMolecule}
           attributions={attributions}
           onAttributionsChange={handleAttributionsChange}
-          manualFormula={formula}
-          onManualFormulaChange={setFormula}
-          resolvedFormula={resolvedFormula}
           sampleInfo={sampleInfo}
           onSampleInfoChange={setSampleInfo}
           thicknessCm={thicknessCm}
