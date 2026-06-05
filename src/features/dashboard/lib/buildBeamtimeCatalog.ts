@@ -20,14 +20,34 @@ import {
 import type { StxmDirectoryLayout } from "./resolveDirectoryLayout";
 import { getExperimentDirectory } from "./resolveDirectoryLayout";
 
+export const BEAMTIME_CATALOG_BUILD_TIMEOUT_MS = 30_000;
+
+export type EnrichCatalogThumbnailsOptions = {
+  signal?: AbortSignal;
+  onProgress?: (entries: StxmCatalogEntry[]) => void;
+};
+
+async function readHdrEntry(
+  ref: Awaited<ReturnType<typeof collectHdrFileRefs>>[number],
+): Promise<{ hdrText: string; hdrByteLength: number } | null> {
+  try {
+    const hdrFile = await ref.handle.getFile();
+    validateStxmFileSize(hdrFile.size, "hdr");
+    const hdrText = await hdrFile.text();
+    validateStxmHdrMetadata(readHdr(hdrText));
+    return { hdrText, hdrByteLength: hdrFile.size };
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Builds a scan catalog for one experiment directory with optional line-scan thumbnails.
+ * Lists scan catalog entries from `.hdr` metadata only (no `.xim` reads or thumbnails).
  */
-export async function buildBeamtimeCatalog(
+export async function buildBeamtimeCatalogFast(
   root: StxmDirectoryHandle,
   layout: StxmDirectoryLayout,
   experimentName: string,
-  withThumbnails = true,
 ): Promise<StxmCatalogEntry[]> {
   const experimentDir = await getExperimentDirectory(root, layout, experimentName);
   const hdrRefs = await collectHdrFileRefs(experimentDir);
@@ -37,52 +57,100 @@ export async function buildBeamtimeCatalog(
     if (!isAllowedStxmFilename(ref.name)) {
       continue;
     }
-    let hdrFile: File;
-    try {
-      hdrFile = await ref.handle.getFile();
-      validateStxmFileSize(hdrFile.size, "hdr");
-    } catch {
+    const hdr = await readHdrEntry(ref);
+    if (!hdr) {
       continue;
     }
-    const hdrText = await hdrFile.text();
-    try {
-      validateStxmHdrMetadata(readHdr(hdrText));
-    } catch {
-      continue;
-    }
-    const ximNames = ximBasenamesForHdrBasename(ref.name);
-    const ximHandle = await findXimFileForHdr(ref, ximNames, experimentDir);
-    let ximBuffer: ArrayBuffer | null = null;
-    if (ximHandle) {
-      try {
-        const ximFile = await ximHandle.getFile();
-        if (!isAllowedStxmFilename(ximFile.name)) {
-          ximBuffer = null;
-        } else {
-          validateStxmFileSize(ximFile.size, "xim");
-          ximBuffer = await ximFile.arrayBuffer();
-        }
-      } catch {
-        ximBuffer = null;
-      }
-    }
-    const entry = buildCatalogEntryFromHdr(
-      ref.name,
-      ref.relativePath,
-      hdrText,
-      ximBuffer,
+    entries.push(
+      buildCatalogEntryFromHdr(ref.name, ref.relativePath, hdr.hdrText, null),
     );
-    if (withThumbnails && ximBuffer) {
-      entry.thumbnailDataUrl = await scanThumbnailDataUrl(
+  }
+
+  return entries;
+}
+
+/**
+ * Loads `.xim` previews for catalog rows in the background and reports progressive updates.
+ */
+export async function enrichBeamtimeCatalogThumbnails(
+  root: StxmDirectoryHandle,
+  layout: StxmDirectoryLayout,
+  experimentName: string,
+  entries: StxmCatalogEntry[],
+  options?: EnrichCatalogThumbnailsOptions,
+): Promise<StxmCatalogEntry[]> {
+  const experimentDir = await getExperimentDirectory(root, layout, experimentName);
+  const updated = entries.map((entry) => ({ ...entry }));
+
+  for (let index = 0; index < updated.length; index += 1) {
+    if (options?.signal?.aborted) {
+      break;
+    }
+    const entry = updated[index];
+    if (!entry || entry.thumbnailDataUrl) {
+      continue;
+    }
+    const parts = entry.relativePath.split("/");
+    const hdrName = parts.pop() ?? entry.basename;
+    let directory = experimentDir;
+    try {
+      for (const segment of parts) {
+        directory = await directory.getDirectoryHandle(segment);
+      }
+      const hdrHandle = await directory.getFileHandle(hdrName);
+      const hdrFile = await hdrHandle.getFile();
+      validateStxmFileSize(hdrFile.size, "hdr");
+      const hdrText = await hdrFile.text();
+      const ximNames = ximBasenamesForHdrBasename(hdrName);
+      const hdrRef = { name: hdrName, relativePath: entry.relativePath, handle: hdrHandle };
+      const ximHandle = await findXimFileForHdr(hdrRef, ximNames, directory);
+      if (!ximHandle) {
+        continue;
+      }
+      const ximFile = await ximHandle.getFile();
+      if (!isAllowedStxmFilename(ximFile.name)) {
+        continue;
+      }
+      validateStxmFileSize(ximFile.size, "xim");
+      const ximBuffer = await ximFile.arrayBuffer();
+      const enriched = buildCatalogEntryFromHdr(
+        entry.basename,
+        entry.relativePath,
+        hdrText,
+        ximBuffer,
+      );
+      const thumbnailDataUrl = await scanThumbnailDataUrl(
         hdrText,
         ximBuffer,
         hdrFile.size,
       );
+      updated[index] = {
+        ...enriched,
+        thumbnailDataUrl,
+      };
+      options?.onProgress?.(updated.slice());
+    } catch {
+      continue;
     }
-    entries.push(entry);
   }
 
-  return entries;
+  return updated;
+}
+
+/**
+ * Builds a scan catalog for one experiment directory with optional line-scan thumbnails.
+ */
+export async function buildBeamtimeCatalog(
+  root: StxmDirectoryHandle,
+  layout: StxmDirectoryLayout,
+  experimentName: string,
+  withThumbnails = true,
+): Promise<StxmCatalogEntry[]> {
+  const entries = await buildBeamtimeCatalogFast(root, layout, experimentName);
+  if (!withThumbnails) {
+    return entries;
+  }
+  return enrichBeamtimeCatalogThumbnails(root, layout, experimentName, entries);
 }
 
 /**

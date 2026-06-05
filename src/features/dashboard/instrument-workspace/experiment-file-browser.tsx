@@ -14,6 +14,7 @@ type ExperimentFileBrowserProps = {
   entries: StxmCatalogEntry[];
   selectedRelativePath: string | null;
   loading: boolean;
+  enriching?: boolean;
   onSelect: (entry: StxmCatalogEntry) => void;
 };
 
@@ -174,12 +175,13 @@ export function ExperimentFileBrowser({
   entries,
   selectedRelativePath,
   loading,
+  enriching = false,
   onSelect,
 }: ExperimentFileBrowserProps) {
   const grouped = useMemo(() => groupCatalogEntries(entries), [entries]);
   const lineScans = grouped.get("line_scan") ?? [];
 
-  if (loading) {
+  if (loading && entries.length === 0) {
     return (
       <div className="flex justify-center py-10">
         <Spinner size="lg" />
@@ -195,6 +197,12 @@ export function ExperimentFileBrowser({
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
+      {enriching ? (
+        <div className="text-muted flex items-center gap-2 text-xs">
+          <Spinner size="sm" />
+          Loading scan previews...
+        </div>
+      ) : null}
       {lineScans.length > 0 ? (
         <section className="min-w-0">
           <h3 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">

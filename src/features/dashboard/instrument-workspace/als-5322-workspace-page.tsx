@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@heroui/react";
@@ -23,8 +23,10 @@ import {
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import {
-  buildBeamtimeCatalog,
+  BEAMTIME_CATALOG_BUILD_TIMEOUT_MS,
+  buildBeamtimeCatalogFast,
   countHdrFilesInExperiments,
+  enrichBeamtimeCatalogThumbnails,
   loadScanFilesFromCatalogEntry,
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import {
@@ -39,6 +41,7 @@ import {
   loadRecentFolders,
   queryDirectoryReadPermission,
   requestDirectoryReadPermission,
+  resolveFolderHandleKey,
   storeDirectoryHandle,
   touchRecentFolder,
   type RecentStxmFolder,
@@ -99,6 +102,7 @@ export function Als5322WorkspacePage() {
   const [isPicking, setIsPicking] = useState(false);
   const [isLoadingBeamtimes, setIsLoadingBeamtimes] = useState(false);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
+  const [isEnrichingCatalog, setIsEnrichingCatalog] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [directoryLayout, setDirectoryLayout] =
     useState<StxmDirectoryLayout | null>(null);
@@ -110,6 +114,8 @@ export function Als5322WorkspacePage() {
     handleKey: string;
     displayName: string;
   } | null>(null);
+  const catalogGenerationRef = useRef(0);
+  const thumbnailAbortRef = useRef<AbortController | null>(null);
 
   const stepMetadata =
     sessionQuery.data?.stepMetadata ?? defaultDashboardStepMetadata();
@@ -211,27 +217,106 @@ export function Als5322WorkspacePage() {
       layout: StxmDirectoryLayout,
       experimentName: string,
     ) => {
+      const permission = await queryDirectoryReadPermission(handle);
+      if (permission === "denied" || permission === "prompt") {
+        const message = "Folder read permission is required to list scan files.";
+        setCatalogLoadError(message);
+        setIsLoadingCatalog(false);
+        if (folderHandleKey && folderRootName) {
+          setPendingFolderAccess({
+            handleKey: folderHandleKey,
+            displayName: folderRootName,
+          });
+        }
+        showToast(message, "error");
+        return;
+      }
+
+      thumbnailAbortRef.current?.abort();
+      setIsEnrichingCatalog(false);
+      const thumbnailAbort = new AbortController();
+      thumbnailAbortRef.current = thumbnailAbort;
+      const generation = catalogGenerationRef.current + 1;
+      catalogGenerationRef.current = generation;
+
       setIsLoadingCatalog(true);
       setCatalogLoadError(null);
+      let entries: StxmCatalogEntry[] = [];
       try {
-        const entries = await buildBeamtimeCatalog(
+        const buildPromise = buildBeamtimeCatalogFast(
           handle,
           layout,
           experimentName,
-          true,
         );
+        const timeoutPromise = new Promise<StxmCatalogEntry[]>((_, reject) => {
+          window.setTimeout(() => {
+            reject(
+              new Error(
+                `Scan listing timed out after ${BEAMTIME_CATALOG_BUILD_TIMEOUT_MS / 1000}s`,
+              ),
+            );
+          }, BEAMTIME_CATALOG_BUILD_TIMEOUT_MS);
+        });
+        entries = await Promise.race([buildPromise, timeoutPromise]);
+        if (generation !== catalogGenerationRef.current) {
+          return;
+        }
         setCatalog(entries);
       } catch (error) {
+        if (generation !== catalogGenerationRef.current) {
+          return;
+        }
         const message =
           error instanceof Error ? error.message : "Failed to load scans";
         setCatalogLoadError(message);
-        setCatalog([]);
+        if (entries.length > 0) {
+          setCatalog(entries);
+        } else {
+          setCatalog([]);
+        }
         showToast(message, "error");
       } finally {
-        setIsLoadingCatalog(false);
+        if (generation === catalogGenerationRef.current) {
+          setIsLoadingCatalog(false);
+        }
       }
+
+      if (
+        generation !== catalogGenerationRef.current ||
+        entries.length === 0 ||
+        thumbnailAbort.signal.aborted
+      ) {
+        return;
+      }
+
+      setIsEnrichingCatalog(true);
+      void enrichBeamtimeCatalogThumbnails(
+        handle,
+        layout,
+        experimentName,
+        entries,
+        {
+          signal: thumbnailAbort.signal,
+          onProgress: (progressEntries) => {
+            if (generation !== catalogGenerationRef.current) {
+              return;
+            }
+            setCatalog(progressEntries);
+          },
+        },
+      )
+        .then((enriched) => {
+          if (generation === catalogGenerationRef.current) {
+            setCatalog(enriched);
+          }
+        })
+        .finally(() => {
+          if (generation === catalogGenerationRef.current) {
+            setIsEnrichingCatalog(false);
+          }
+        });
     },
-    [],
+    [folderHandleKey, folderRootName],
   );
 
   const refreshBeamtimes = useCallback(
@@ -394,7 +479,7 @@ export function Als5322WorkspacePage() {
     setIsPicking(true);
     try {
       const handle = await pickStxmRootDirectory();
-      const key = crypto.randomUUID();
+      const key = resolveFolderHandleKey(handle.name);
       await bindRootHandle(handle, key);
     } catch (error) {
       if (error instanceof Error && error.name !== "AbortError") {
@@ -620,6 +705,7 @@ export function Als5322WorkspacePage() {
                   entries={catalog}
                   selectedRelativePath={selectedEntry?.relativePath ?? null}
                   loading={isLoadingCatalog}
+                  enriching={isEnrichingCatalog}
                   onSelect={(entry) => void handleSelectScan(entry)}
                 />
               </section>
@@ -667,6 +753,7 @@ export function Als5322WorkspacePage() {
     handleSelectBeamtime,
     handleSelectScan,
     isLoadingBeamtimes,
+    isEnrichingCatalog,
     isLoadingCatalog,
     isPicking,
     persistReduce,

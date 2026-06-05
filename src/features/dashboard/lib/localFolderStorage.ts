@@ -5,6 +5,9 @@ const DB_NAME = "xray-atlas-stxm";
 const DB_VERSION = 1;
 const HANDLE_STORE = "directory-handles";
 
+/** Maximum recent folders shown in the workspace picker. */
+export const RECENT_FOLDERS_MAX = 5;
+
 export type RecentStxmFolder = {
   handleKey: string;
   displayName: string;
@@ -16,6 +19,41 @@ export type DirectoryReadPermissionState =
   | "denied"
   | "prompt"
   | "unsupported";
+
+/**
+ * Normalizes a folder display name for stable deduplication across sessions.
+ */
+export function normalizeRecentFolderDisplayName(displayName: string): string {
+  return displayName.trim().toLowerCase();
+}
+
+/**
+ * Collapses duplicate recent folders by normalized display name, keeping the newest row.
+ */
+export function dedupeRecentFolders(
+  folders: RecentStxmFolder[],
+  max = RECENT_FOLDERS_MAX,
+): RecentStxmFolder[] {
+  const seenDisplayNames = new Set<string>();
+  const seenHandleKeys = new Set<string>();
+  const out: RecentStxmFolder[] = [];
+  for (const folder of folders) {
+    const normalizedName = normalizeRecentFolderDisplayName(folder.displayName);
+    if (
+      seenDisplayNames.has(normalizedName) ||
+      seenHandleKeys.has(folder.handleKey)
+    ) {
+      continue;
+    }
+    seenDisplayNames.add(normalizedName);
+    seenHandleKeys.add(folder.handleKey);
+    out.push(folder);
+    if (out.length >= max) {
+      break;
+    }
+  }
+  return out;
+}
 
 function openDirectoryDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -70,7 +108,7 @@ export async function loadDirectoryHandle(
   return handle;
 }
 
-/** Loads versioned recent folder records from sessionStorage. */
+/** Loads versioned recent folder records from sessionStorage with deduplication applied. */
 export function loadRecentFolders(): RecentStxmFolder[] {
   if (typeof window === "undefined") {
     return [];
@@ -81,7 +119,10 @@ export function loadRecentFolders(): RecentStxmFolder[] {
       return [];
     }
     const parsed = JSON.parse(raw) as RecentStxmFolder[];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return dedupeRecentFolders(parsed);
   } catch {
     return [];
   }
@@ -93,25 +134,58 @@ export function saveRecentFolders(folders: RecentStxmFolder[]): void {
     return;
   }
   try {
-    sessionStorage.setItem(RECENT_FOLDERS_KEY, JSON.stringify(folders.slice(0, 8)));
+    sessionStorage.setItem(
+      RECENT_FOLDERS_KEY,
+      JSON.stringify(dedupeRecentFolders(folders)),
+    );
   } catch {
     // quota or private mode
   }
 }
 
 /**
- * Promotes a folder to the front of the recent list and returns the updated array.
+ * Returns an existing handle key when the same display name was opened before.
+ */
+export function findRecentFolderHandleKey(displayName: string): string | null {
+  const normalized = normalizeRecentFolderDisplayName(displayName);
+  const match = loadRecentFolders().find(
+    (row) => normalizeRecentFolderDisplayName(row.displayName) === normalized,
+  );
+  return match?.handleKey ?? null;
+}
+
+/**
+ * Resolves a stable handle key for a folder, reusing a prior key when the display name matches.
+ */
+export function resolveFolderHandleKey(
+  displayName: string,
+  proposedKey?: string,
+): string {
+  return (
+    findRecentFolderHandleKey(displayName) ??
+    proposedKey ??
+    crypto.randomUUID()
+  );
+}
+
+/**
+ * Promotes a folder to the front of the recent list and returns the deduplicated array.
  */
 export function touchRecentFolder(
   handleKey: string,
   displayName: string,
 ): RecentStxmFolder[] {
   const now = new Date().toISOString();
-  const existing = loadRecentFolders().filter((row) => row.handleKey !== handleKey);
-  const next: RecentStxmFolder[] = [
+  const normalized = normalizeRecentFolderDisplayName(displayName);
+  const existing = loadRecentFolders().filter(
+    (row) =>
+      row.handleKey !== handleKey &&
+      normalizeRecentFolderDisplayName(row.displayName) !== normalized,
+  );
+  const next: RecentStxmFolder[] = dedupeRecentFolders([
     { handleKey, displayName, lastOpenedAt: now },
     ...existing,
-  ].slice(0, 8);
+  ]);
   saveRecentFolders(next);
   return next;
 }

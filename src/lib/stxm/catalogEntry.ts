@@ -65,16 +65,20 @@ export function buildCatalogEntryFromHdr(
   let energyMinEv: number | null = null;
   let energyMaxEv: number | null = null;
 
-  if (isNexafsLineScanType(hdrText) && ximBuffer) {
-    try {
-      const loaded = loadStxm(hdrText, ximBuffer);
-      isNexafsLineScan = loaded.isNexafsLineScan;
-      paxisCount = loaded.header.paxisCount;
-      qaxisCount = loaded.header.qaxisCount;
-      energyMinEv = loaded.energyMinEv;
-      energyMaxEv = loaded.energyMaxEv;
-    } catch {
-      isNexafsLineScan = false;
+  if (isNexafsLineScanType(hdrText)) {
+    if (ximBuffer) {
+      try {
+        const loaded = loadStxm(hdrText, ximBuffer);
+        isNexafsLineScan = loaded.isNexafsLineScan;
+        paxisCount = loaded.header.paxisCount;
+        qaxisCount = loaded.header.qaxisCount;
+        energyMinEv = loaded.energyMinEv;
+        energyMaxEv = loaded.energyMaxEv;
+      } catch {
+        isNexafsLineScan = false;
+      }
+    } else {
+      isNexafsLineScan = true;
     }
   }
 
