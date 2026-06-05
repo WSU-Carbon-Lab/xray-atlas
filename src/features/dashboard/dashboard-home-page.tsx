@@ -10,8 +10,8 @@ import {
   LayoutDashboard,
   Users,
 } from "lucide-react";
-import { ALS_5322_INSTRUMENT_LABEL } from "~/lib/dashboard-processing-session";
 import { trpc } from "~/trpc/client";
+import { DashboardRecentSessionRow } from "./dashboard-recent-session-row";
 
 type DashboardSectionProps = {
   title: string;
@@ -114,28 +114,7 @@ export function DashboardHomePage() {
               <ul className="flex flex-col gap-2">
                 {recentSessions.slice(0, 5).map((session) => (
                   <li key={session.id}>
-                    <Link
-                      href={`/dashboard/instruments/als-5322?session=${session.id}`}
-                      className="border-border hover:bg-default/40 flex items-center justify-between gap-3 rounded-md border px-4 py-3 transition-colors"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-foreground truncate text-sm font-medium">
-                          {session.stepMetadata.workspace?.folderRootName ??
-                            session.title ??
-                            "Untitled session"}
-                        </p>
-                        <p className="text-muted text-xs">
-                          {session.stepMetadata.workspace?.beamtimeName ??
-                            ALS_5322_INSTRUMENT_LABEL}
-                        </p>
-                      </div>
-                      <time
-                        className="text-muted shrink-0 text-xs tabular-nums"
-                        dateTime={new Date(session.updatedAt).toISOString()}
-                      >
-                        {new Date(session.updatedAt).toLocaleString()}
-                      </time>
-                    </Link>
+                    <DashboardRecentSessionRow session={session} />
                   </li>
                 ))}
               </ul>
