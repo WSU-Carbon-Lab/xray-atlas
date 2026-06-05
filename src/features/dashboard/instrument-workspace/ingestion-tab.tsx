@@ -217,7 +217,7 @@ export function IngestionTab({
   const [displayChannel, setDisplayChannel] =
     useState<StxmIngestionPlotChannel>("od");
   const [regionEditorTrayOpen, setRegionEditorTrayOpen] = useState(
-    () => regionsMetadata?.regionEditorTrayOpen ?? false,
+    () => regionsMetadata?.regionEditorTrayOpen ?? true,
   );
   const [normalization, setNormalization] =
     useState<StxmNormalizationWindows | null>(
