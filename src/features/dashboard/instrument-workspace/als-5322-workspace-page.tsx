@@ -802,7 +802,6 @@ export function Als5322WorkspacePage() {
         return (
           <IngestionTab
             sessionId={sessionId}
-            linkedExperiment={sessionQuery.data?.linkedExperiment ?? null}
             exportMetadata={stepMetadata.export}
             hdrFile={selectedFiles.hdrFile}
             ximFile={selectedFiles.ximFile}
@@ -819,7 +818,6 @@ export function Als5322WorkspacePage() {
             onPersistIngestion={persistIngestion}
             onPersistPreview={persistPreview}
             onPersistExport={persistExport}
-            onSessionRefresh={refreshSession}
             isSaving={updateSession.isPending}
           />
         );
@@ -829,6 +827,17 @@ export function Als5322WorkspacePage() {
             entries={stepMetadata.preview?.spectra ?? []}
             activeScanId={selectedEntry?.relativePath ?? null}
             ingestionByScanId={stepMetadata.preview?.ingestionCache ?? {}}
+            compareScanIds={stepMetadata.preview?.compareScanIds ?? []}
+            onCompareScanIdsChange={(scanIds) => {
+              const preview = stepMetadata.preview;
+              if (!preview) {
+                return;
+              }
+              void persistPreview({
+                ...preview,
+                compareScanIds: scanIds,
+              });
+            }}
             onSelectScan={(scanId) => {
               const entry = catalog.find((row) => row.relativePath === scanId);
               if (entry) {
@@ -889,7 +898,6 @@ export function Als5322WorkspacePage() {
     stepMetadata.regions,
     stepMetadata.export,
     sessionId,
-    sessionQuery.data?.linkedExperiment,
     persistExport,
     refreshSession,
     updateSession.isPending,

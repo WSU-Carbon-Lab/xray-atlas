@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Button,
-  Input,
-  Label,
-  Spinner,
-  TextField,
-} from "@heroui/react";
+import { Button, Spinner } from "@heroui/react";
 import { Upload, Wand2 } from "lucide-react";
 import { KkBrowserConsentDialog } from "~/features/kk-calc/kk-browser-consent-dialog";
 import {
@@ -31,7 +25,6 @@ import type {
 import { suggestNormalizationWindows } from "~/lib/stxm/normalization";
 import { regionSpectrumToRecord, reduceTwoRegion } from "~/lib/stxm/reduction";
 import { sampleIzeroMasks } from "~/lib/stxm/regions";
-import type { StxmWeightingMode } from "~/lib/stxm/estimators";
 import { float64ImageToMatrix } from "~/lib/stxm/image-matrix";
 import { inferStxmEdgeFromEnergyRange } from "~/lib/stxm/infer-edge-from-energy";
 import {
@@ -59,11 +52,16 @@ import { StxmUploadDialog } from "./stxm-upload-dialog";
 import { StxmIngestionContextPanel } from "./stxm-ingestion-context-panel";
 import {
   attributionsFromStxmExportMetadata,
+  buildStxmExportStepMetadata,
   parseStxmExportStepMetadata,
-  stxmExportMetadataFromAttributions,
   type StxmExportStepMetadata,
+  type StxmPeak,
+  type StxmSampleInfo,
 } from "~/features/dashboard/lib/stxm-export-metadata";
+import type { StxmCompareOverlay } from "~/features/dashboard/lib/stxm-to-spectrum-plot";
+import type { MoleculeSearchResult } from "~/features/process-nexafs/types";
 import type { DatasetAttributionEntry } from "~/lib/nexafs-attribution";
+import type { Peak } from "~/components/plots/types";
 import { trpc } from "~/trpc/client";
 import type {
   StxmI0PlotScaleMode,
@@ -73,19 +71,17 @@ import type { DatasetAttributionChange } from "~/features/process-nexafs/ui/data
 
 const RAW_SPECTRA_DEBOUNCE_MS = 300;
 const PIPELINE_DEBOUNCE_MS = 400;
+const POISSON_WEIGHTING = "poisson_mle" as const;
 
-type LinkedExperimentDto = {
-  id: string;
-  canonicalSlug: string | null;
-  instrumentName: string | null;
-  moleculeLabel: string | null;
-  browseHref: string;
-  contributeHref: string;
-};
+const COMPARE_OVERLAY_COLORS = [
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
 
 type IngestionTabProps = {
   sessionId: string | null;
-  linkedExperiment: LinkedExperimentDto | null;
   exportMetadata: unknown;
   hdrFile: File;
   ximFile: File;
@@ -102,7 +98,6 @@ type IngestionTabProps = {
   onPersistIngestion: (ingestion: DashboardIngestionResult) => Promise<void>;
   onPersistPreview: (preview: DashboardPreviewStepMetadata) => Promise<void>;
   onPersistExport: (exportMeta: StxmExportStepMetadata) => Promise<void>;
-  onSessionRefresh: () => void;
   isSaving: boolean;
 };
 
@@ -162,7 +157,6 @@ function initialMultiRegion(
  */
 export function IngestionTab({
   sessionId,
-  linkedExperiment,
   exportMetadata,
   hdrFile,
   ximFile,
@@ -179,7 +173,6 @@ export function IngestionTab({
   onPersistIngestion,
   onPersistPreview,
   onPersistExport,
-  onSessionRefresh,
   isSaving: _isSaving,
 }: IngestionTabProps) {
   const [loaded, setLoaded] = useState<Awaited<
@@ -187,8 +180,10 @@ export function IngestionTab({
   > | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [weightingMode, setWeightingMode] = useState<StxmWeightingMode>(
-    regionsMetadata?.weightingMode ?? "poisson_mle",
+  const weightingMode = POISSON_WEIGHTING;
+  const parsedExport = useMemo(
+    () => parseStxmExportStepMetadata(exportMetadata),
+    [exportMetadata],
   );
   const [regions, setRegions] = useState<StxmSampleRegion[]>([]);
   const [izero, setIzero] = useState<StxmIzeroBounds | null>(null);
@@ -225,19 +220,60 @@ export function IngestionTab({
   const [kkConsentOpen, setKkConsentOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [attributions, setAttributions] = useState<DatasetAttributionEntry[]>(
+    () => attributionsFromStxmExportMetadata(parsedExport),
+  );
+  const [linkedMolecule, setLinkedMolecule] =
+    useState<MoleculeSearchResult | null>(null);
+  const [sampleInfo, setSampleInfo] = useState<StxmSampleInfo>(
     () =>
-      attributionsFromStxmExportMetadata(
-        parseStxmExportStepMetadata(exportMetadata),
-      ),
+      parsedExport.sampleInfo ?? {
+        substrate: "",
+        preparationDate: "",
+        preparationNotes: "",
+      },
+  );
+  const [peaks, setPeaks] = useState<Peak[]>(() =>
+    (parsedExport.peaks ?? []).map((peak, index) => ({
+      ...peak,
+      id: peak.id ?? `peak-${index}-${peak.energy}`,
+    })),
   );
 
-  const moleculeFormulaQuery =
-    trpc.experiments.moleculeFormulaForExperiment.useQuery(
-      { experimentId: linkedExperiment?.id ?? "" },
-      { enabled: Boolean(linkedExperiment?.id) },
-    );
+  const linkedMoleculeId = parsedExport.linkedMoleculeId;
+  const linkedMoleculeQuery = trpc.molecules.getById.useQuery(
+    { id: linkedMoleculeId ?? "" },
+    { enabled: Boolean(linkedMoleculeId) && linkedMolecule == null },
+  );
 
-  const linkedFormula = moleculeFormulaQuery.data?.chemicalFormula ?? null;
+  useEffect(() => {
+    if (!linkedMoleculeId || linkedMolecule) {
+      return;
+    }
+    const row = linkedMoleculeQuery.data;
+    if (!row) {
+      return;
+    }
+    setLinkedMolecule({
+      id: row.id,
+      iupacName: row.iupacName,
+      commonName: row.name,
+      synonyms: row.commonName ?? [],
+      inchi: row.InChI,
+      smiles: row.SMILES,
+      chemicalFormula: row.chemicalFormula,
+      casNumber: row.casNumber ?? null,
+      pubChemCid: row.pubChemCid ?? null,
+      imageUrl: row.imageUrl,
+    });
+  }, [linkedMolecule, linkedMoleculeId, linkedMoleculeQuery.data]);
+
+  useEffect(() => {
+    if (parsedExport.manualFormula && !linkedMoleculeId) {
+      setFormula(parsedExport.manualFormula);
+    }
+  }, [linkedMoleculeId, parsedExport.manualFormula]);
+
+  const linkedFormula = linkedMolecule?.chemicalFormula ?? null;
   const resolvedFormula = useMemo(() => {
     const manual = formula.trim();
     if (linkedFormula) {
@@ -501,8 +537,29 @@ export function IngestionTab({
     if (!sessionId) {
       return;
     }
-    void onPersistExport(stxmExportMetadataFromAttributions(attributions));
-  }, [attributions, onPersistExport, sessionId]);
+    const peakRows: StxmPeak[] = peaks.map((peak, index) => ({
+      id: peak.id ?? `peak-${index}-${peak.energy}`,
+      energy: peak.energy,
+      peakKind: peak.peakKind ?? null,
+    }));
+    void onPersistExport(
+      buildStxmExportStepMetadata({
+        attributions,
+        linkedMolecule,
+        manualFormula: formula,
+        sampleInfo,
+        peaks: peakRows,
+      }),
+    );
+  }, [
+    attributions,
+    formula,
+    linkedMolecule,
+    onPersistExport,
+    peaks,
+    sampleInfo,
+    sessionId,
+  ]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -614,6 +671,7 @@ export function IngestionTab({
     await onPersistPreview({
       spectra: nextSpectra,
       standardOverlays,
+      compareScanIds: previewMetadata?.compareScanIds ?? [],
       ingestionCache,
     });
   }, [
@@ -644,6 +702,31 @@ export function IngestionTab({
     setPureRegionId(regionId);
     setRegions((current) => setPureRegionRole(current, regionId));
   }, []);
+
+  const compareOverlays = useMemo((): StxmCompareOverlay[] => {
+    const compareIds = previewMetadata?.compareScanIds ?? [];
+    const cache = previewMetadata?.ingestionCache ?? {};
+    const entries = previewMetadata?.spectra ?? [];
+    return compareIds
+      .filter((id) => id !== scanId && cache[id])
+      .map((id, index) => {
+        const label =
+          entries.find((row) => row.scanId === id)?.scanLabel ?? id;
+        return {
+          id,
+          label,
+          ingestion: cache[id]!,
+          color:
+            COMPARE_OVERLAY_COLORS[index % COMPARE_OVERLAY_COLORS.length] ??
+            "var(--chart-2)",
+        };
+      });
+  }, [
+    previewMetadata?.compareScanIds,
+    previewMetadata?.ingestionCache,
+    previewMetadata?.spectra,
+    scanId,
+  ]);
 
   const pureRegionLabel = useMemo(() => {
     const pure =
@@ -713,8 +796,8 @@ export function IngestionTab({
         </Button>
       </div>
 
-      <div className="grid min-h-0 grid-cols-1 gap-3 md:grid-cols-[minmax(160px,1fr)_minmax(0,4fr)] md:items-stretch">
-        <div className="flex min-h-0 w-full min-w-0 max-w-[220px] flex-col gap-2 md:max-w-none">
+      <div className="grid min-h-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,180px)_minmax(0,1fr)] md:items-stretch">
+        <div className="flex min-h-0 w-full min-w-0 max-w-[180px] flex-col gap-2 md:max-w-[180px]">
           <StxmMultiRegionEditor
             image={imageMatrix}
             qaxisPoints={qaxisPoints}
@@ -741,7 +824,7 @@ export function IngestionTab({
           </div>
         </div>
 
-        <div className="flex min-h-0 min-w-0 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col md:min-w-0">
           <StxmIngestionPlotPanel
             result={result}
             regionSpectra={regionSpectra}
@@ -749,12 +832,15 @@ export function IngestionTab({
             onChannelChange={setDisplayChannel}
             i0PlotScale={i0PlotScale}
             onI0PlotScaleChange={setI0PlotScale}
-            weightingMode={weightingMode}
-            onWeightingModeChange={setWeightingMode}
+            normalization={normalization}
+            onNormalizationChange={setNormalization}
             standards={plotStandards}
             chemicalFormula={resolvedFormula}
-            formulaLoading={moleculeFormulaQuery.isLoading}
+            formulaLoading={linkedMoleculeQuery.isLoading}
             showRegionOverlays
+            compareOverlays={compareOverlays}
+            peaks={peaks}
+            onPeaksChange={setPeaks}
             height={STXM_INGESTION_SPECTRUM_HEIGHT_PX}
             isComputing={isReducing}
             pureRegionLabel={pureRegionLabel}
@@ -764,14 +850,17 @@ export function IngestionTab({
 
       {sessionId ? (
         <StxmIngestionContextPanel
-          sessionId={sessionId}
-          linkedExperiment={linkedExperiment}
+          linkedMolecule={linkedMolecule}
+          onLinkedMoleculeChange={setLinkedMolecule}
           attributions={attributions}
           onAttributionsChange={handleAttributionsChange}
           manualFormula={formula}
           onManualFormulaChange={setFormula}
           resolvedFormula={resolvedFormula}
-          onSessionRefresh={onSessionRefresh}
+          sampleInfo={sampleInfo}
+          onSampleInfoChange={setSampleInfo}
+          thicknessCm={thicknessCm}
+          onThicknessCmChange={setThicknessCm}
         />
       ) : null}
 
@@ -781,41 +870,6 @@ export function IngestionTab({
         onOverlaysChange={setStandardOverlays}
         onPlotStandardsChange={setPlotStandards}
       />
-
-      <div className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
-        <TextField>
-          <Label>Thickness (cm)</Label>
-          <Input
-            type="number"
-            step="any"
-            value={thicknessCm}
-            onChange={(event) => setThicknessCm(event.target.value)}
-          />
-        </TextField>
-        {(
-          [
-            ["preLo", "Pre-edge low"],
-            ["preHi", "Pre-edge high"],
-            ["postLo", "Post-edge low"],
-            ["postHi", "Post-edge high"],
-          ] as const
-        ).map(([key, label]) => (
-          <TextField key={key}>
-            <Label>{label} (eV)</Label>
-            <Input
-              type="number"
-              step="any"
-              value={String(normalization[key])}
-              onChange={(event) => {
-                const parsed = Number.parseFloat(event.target.value);
-                if (Number.isFinite(parsed)) {
-                  setNormalization({ ...normalization, [key]: parsed });
-                }
-              }}
-            />
-          </TextField>
-        ))}
-      </div>
 
       {reduceMetadata?.spectra.length ? (
         <p className="text-muted text-xs">

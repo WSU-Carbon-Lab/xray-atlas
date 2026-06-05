@@ -199,6 +199,7 @@ export type DashboardStandardOverlay = z.infer<
 export const dashboardPreviewStepMetadataSchema = z.object({
   spectra: z.array(dashboardPreviewSpectrumEntrySchema).default([]),
   standardOverlays: z.array(dashboardStandardOverlaySchema).default([]),
+  compareScanIds: z.array(z.string()).default([]),
   ingestionCache: z
     .record(z.string(), dashboardIngestionResultSchema)
     .optional(),
