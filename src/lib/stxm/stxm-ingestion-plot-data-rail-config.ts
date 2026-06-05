@@ -24,14 +24,15 @@ const TRAY_META: Record<
     trayGlyph: "Rw",
     trayLabel: "Raw signal",
     trayDescription:
-      "I0, sample transmission, reciprocal I0, and Beer-Lambert OD from region sums.",
+      "Summed izero, sample, and reciprocal-I0 detector intensities versus energy.",
     defaultChannelId: "signal_i0",
   },
   spectroscopy: {
-    trayGlyph: "Sp",
+    trayGlyph: "OD",
     trayLabel: "Spectroscopy",
-    trayDescription: "Edge-normalized OD and mass absorption.",
-    defaultChannelId: "od_normalized",
+    trayDescription:
+      "Beer-Lambert OD, edge-normalized OD, and mass absorption from the reduced pipeline.",
+    defaultChannelId: "od",
   },
   imaginary: {
     trayGlyph: "β",
@@ -96,7 +97,7 @@ const CHANNEL_TRAY: Record<
   signal_i0: "raw_signal",
   signal_sample: "raw_signal",
   signal_inv_i0: "raw_signal",
-  od: "raw_signal",
+  od: "spectroscopy",
   od_normalized: "spectroscopy",
   mass_absorption: "spectroscopy",
   beta: "imaginary",

@@ -20,18 +20,23 @@ export type StxmIngestionChannelOption = {
   label: string;
 };
 
-/** Raw mean-signal views from per-region spectra (recomputed on weighting change). */
+/** Raw summed-intensity views from per-region spectra (I0 rail tray). */
 export const STXM_INGESTION_SIGNAL_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
   { id: "signal_i0", label: "I0" },
   { id: "signal_sample", label: "Sample" },
   { id: "signal_inv_i0", label: "1/I0" },
 ];
 
-/** Reduced pipeline channels (OD, optical constants, bare atom). */
-export const STXM_INGESTION_REDUCED_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
+/** Spectroscopy tray: reduced OD and mass-absorption channels. */
+export const STXM_INGESTION_SPECTROSCOPY_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
   { id: "od", label: "OD" },
   { id: "od_normalized", label: "Norm OD" },
   { id: "mass_absorption", label: "Mass abs" },
+];
+
+/** Optical-constant and bare-atom reduced channels. */
+export const STXM_INGESTION_REDUCED_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
+  ...STXM_INGESTION_SPECTROSCOPY_CHANNEL_OPTIONS,
   { id: "beta", label: "Beta" },
   { id: "delta", label: "Delta" },
   { id: "f1", label: "f1" },

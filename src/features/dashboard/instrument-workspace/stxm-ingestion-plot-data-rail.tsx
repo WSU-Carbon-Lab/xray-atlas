@@ -43,7 +43,7 @@ export type StxmIngestionPlotDataRailProps = {
 };
 
 /**
- * STXM ingestion left vertical rail: raw signal tray, spectroscopy, optical constants, and link toggle.
+ * STXM ingestion left vertical rail: raw intensities, spectroscopy OD, optical constants, and link toggle.
  */
 export function StxmIngestionPlotDataRail({
   displayChannel,
