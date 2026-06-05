@@ -164,14 +164,20 @@ export function StxmWorkspaceOnboarding({
                 ) : (
                   <>
                     <Checkbox
+                      id="stxm-compute-consent"
+                      variant="secondary"
+                      className="items-start gap-3"
                       isSelected={computeAcknowledged}
                       onChange={setComputeAcknowledged}
                     >
-                      <Checkbox.Control>
-                        <Checkbox.Indicator />
+                      <Checkbox.Control className="border-2 border-border bg-surface ring-offset-surface data-[selected=true]:border-accent data-[selected=true]:bg-accent data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-accent">
+                        <Checkbox.Indicator className="text-accent-foreground" />
                       </Checkbox.Control>
                       <Checkbox.Content>
-                        <Label>
+                        <Label
+                          htmlFor="stxm-compute-consent"
+                          className="text-foreground cursor-pointer text-sm font-normal leading-snug"
+                        >
                           I understand processing runs on this device and may be
                           CPU-intensive
                         </Label>
