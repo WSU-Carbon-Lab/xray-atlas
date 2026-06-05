@@ -19,7 +19,8 @@ import {
   IngestionSpectrumChart,
   type IngestionSpectrumTraceId,
 } from "./ingestion-spectrum-chart";
-import { StxmIngestionPlotRail } from "./stxm-ingestion-plot-rail";
+import { StxmIngestionPlotDataRail } from "./stxm-ingestion-plot-data-rail";
+import { StxmIngestionPlotSecondaryControls } from "./stxm-ingestion-plot-secondary-controls";
 import type { StxmWeightingMode } from "~/lib/stxm/estimators";
 import type { StxmPlotScaleMode } from "~/lib/stxm/stxm-region-types";
 
@@ -357,31 +358,44 @@ export function StxmIngestionPlotPanel({
   primaryTraceLabel,
   pureRegionLabel,
 }: StxmIngestionPlotPanelProps) {
+  const hasRawSpectra = regionSpectra.length > 0;
+  const hasReducedResult = result !== null;
+
   return (
-    <div className="border-border bg-surface flex h-[min(70vh,640px)] min-h-[560px] flex-col overflow-hidden rounded-lg border">
-      <StxmIngestionPlotRail
-        displayChannel={channel}
-        onDisplayChannelChange={onChannelChange}
-        weightingMode={weightingMode}
-        onWeightingModeChange={onWeightingModeChange}
-        plotScaleMode={yScale}
-        onPlotScaleModeChange={onYScaleChange}
-        hasReducedResult={result !== null}
-      />
-      <div className="relative min-h-0 flex-1 px-1 pb-1">
-        <StxmIngestionPlotBody
-          result={result}
-          regionSpectra={regionSpectra}
-          channel={channel}
-          yScale={yScale}
-          standards={standards}
-          bareAtomCurve={bareAtomCurve}
-          showRegionOverlays={showRegionOverlays}
-          height={height}
-          isComputing={isComputing}
-          primaryTraceLabel={primaryTraceLabel}
-          pureRegionLabel={pureRegionLabel}
+    <div className="border-border bg-surface flex h-[min(70vh,640px)] min-h-[560px] min-w-0 overflow-hidden rounded-lg border">
+      <div className="pointer-events-none flex w-12 shrink-0 items-center justify-center py-2 pl-1 sm:w-14">
+        <div className="pointer-events-auto">
+          <StxmIngestionPlotDataRail
+            displayChannel={channel}
+            onDisplayChannelChange={onChannelChange}
+            hasRawSpectra={hasRawSpectra}
+            hasReducedResult={hasReducedResult}
+          />
+        </div>
+      </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <StxmIngestionPlotSecondaryControls
+          displayChannel={channel}
+          weightingMode={weightingMode}
+          onWeightingModeChange={onWeightingModeChange}
+          plotScaleMode={yScale}
+          onPlotScaleModeChange={onYScaleChange}
         />
+        <div className="relative min-h-0 flex-1 px-1 pb-1">
+          <StxmIngestionPlotBody
+            result={result}
+            regionSpectra={regionSpectra}
+            channel={channel}
+            yScale={yScale}
+            standards={standards}
+            bareAtomCurve={bareAtomCurve}
+            showRegionOverlays={showRegionOverlays}
+            height={height}
+            isComputing={isComputing}
+            primaryTraceLabel={primaryTraceLabel}
+            pureRegionLabel={pureRegionLabel}
+          />
+        </div>
       </div>
     </div>
   );
