@@ -4,8 +4,9 @@ import {
   it as bunIt,
 } from "bun:test";
 import {
-  sanitizeStxmSignalSampleForDisplay,
-  sanitizeStxmSpectrumPointsForDisplay,
+  isStxmRawSampleValid,
+  maskStxmDisplaySample,
+  maskStxmSpectrumPointsForDisplay,
   stxmSpectrumPointsHaveFiniteAbsorption,
 } from "~/lib/stxm/sanitize-stxm-signal-points";
 
@@ -19,33 +20,57 @@ const describe = bunDescribe as (name: string, fn: () => void) => void;
 const it = bunIt as (name: string, fn: () => void) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
-describe("sanitizeStxmSignalSampleForDisplay", () => {
-  it("maps negative values to NaN", () => {
-    expect(sanitizeStxmSignalSampleForDisplay(-1)).toBeNaN();
-    expect(sanitizeStxmSignalSampleForDisplay(-0.001)).toBeNaN();
+describe("isStxmRawSampleValid", () => {
+  it("rejects non-positive or non-finite I0", () => {
+    expect(isStxmRawSampleValid(0)).toBe(false);
+    expect(isStxmRawSampleValid(-1)).toBe(false);
+    expect(isStxmRawSampleValid(Number.NaN)).toBe(false);
   });
 
-  it("preserves zero and positive finite values", () => {
-    expect(sanitizeStxmSignalSampleForDisplay(0)).toBe(0);
-    expect(sanitizeStxmSignalSampleForDisplay(42.5)).toBe(42.5);
+  it("accepts positive finite I0 when It is omitted", () => {
+    expect(isStxmRawSampleValid(42.5)).toBe(true);
   });
 
-  it("passes through non-finite inputs unchanged", () => {
-    expect(sanitizeStxmSignalSampleForDisplay(Number.NaN)).toBeNaN();
-    expect(sanitizeStxmSignalSampleForDisplay(Number.POSITIVE_INFINITY)).toBe(
-      Number.POSITIVE_INFINITY,
-    );
+  it("rejects non-positive It when supplied", () => {
+    expect(isStxmRawSampleValid(1000, 0)).toBe(false);
+    expect(isStxmRawSampleValid(1000, -5)).toBe(false);
+    expect(isStxmRawSampleValid(1000, Number.NaN)).toBe(false);
+  });
+
+  it("accepts positive I0 and It together", () => {
+    expect(isStxmRawSampleValid(1000, 500)).toBe(true);
+  });
+
+  it("rejects non-positive Ie when supplied for TEY", () => {
+    expect(isStxmRawSampleValid(1000, 500, 0)).toBe(false);
+    expect(isStxmRawSampleValid(1000, 500, -0.1)).toBe(false);
+    expect(isStxmRawSampleValid(1000, 500, 12)).toBe(true);
   });
 });
 
-describe("sanitizeStxmSpectrumPointsForDisplay", () => {
-  it("replaces negative absorption with NaN while keeping energy samples", () => {
-    const sanitized = sanitizeStxmSpectrumPointsForDisplay([
-      { energy: 280, absorption: 1.2 },
-      { energy: 281, absorption: -0.5, rawabsError: 0.01 },
-      { energy: 282, absorption: 0 },
-    ]);
-    expect(sanitized).toEqual([
+describe("maskStxmDisplaySample", () => {
+  it("maps invalid energies to NaN regardless of y sign", () => {
+    expect(maskStxmDisplaySample(-0.5, false)).toBeNaN();
+    expect(maskStxmDisplaySample(1.2, false)).toBeNaN();
+  });
+
+  it("preserves y values at valid energies including negative derived values", () => {
+    expect(maskStxmDisplaySample(-0.5, true)).toBe(-0.5);
+    expect(maskStxmDisplaySample(42.5, true)).toBe(42.5);
+  });
+});
+
+describe("maskStxmSpectrumPointsForDisplay", () => {
+  it("masks invalid indices while keeping energy samples", () => {
+    const masked = maskStxmSpectrumPointsForDisplay(
+      [
+        { energy: 280, absorption: 1.2 },
+        { energy: 281, absorption: -0.5, rawabsError: 0.01 },
+        { energy: 282, absorption: 0 },
+      ],
+      [true, false, true],
+    );
+    expect(masked).toEqual([
       { energy: 280, absorption: 1.2 },
       { energy: 281, absorption: Number.NaN },
       { energy: 282, absorption: 0 },

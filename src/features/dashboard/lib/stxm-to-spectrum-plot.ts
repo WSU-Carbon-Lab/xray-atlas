@@ -27,7 +27,8 @@ import { resolveStxmLinkedCompanionChannel } from "~/lib/stxm/stxm-optical-link"
 import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
 import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
 import {
-  sanitizeStxmSignalSampleForDisplay,
+  isStxmRawSampleValid,
+  maskStxmDisplaySample,
   stxmSpectrumPointsHaveFiniteAbsorption,
 } from "~/lib/stxm/sanitize-stxm-signal-points";
 
@@ -196,15 +197,61 @@ function regionSpectrumChannelError(
   return undefined;
 }
 
+function ingestionValidityAtIndex(
+  result: StxmIngestionResult,
+  channel: StxmIngestionPlotChannel,
+  index: number,
+): boolean {
+  const i0 = result.i0[index] ?? Number.NaN;
+  const it = result.iSample[index] ?? Number.NaN;
+  const ie = result.iTe?.[index];
+  switch (channel) {
+    case "signal_i0":
+      return isStxmRawSampleValid(i0);
+    case "signal_it":
+      return isStxmRawSampleValid(i0, it);
+    case "signal_ie":
+      return isStxmRawSampleValid(i0, it, ie);
+    default:
+      return isStxmRawSampleValid(i0, it);
+  }
+}
+
+function regionValidityAtIndex(
+  series: StxmRegionSpectrumSeries,
+  channel: StxmIngestionPlotChannel,
+  index: number,
+  izero: StxmRegionSpectrumSeries | null,
+): boolean {
+  if (channel === "signal_i0") {
+    return isStxmRawSampleValid(series.signal[index] ?? Number.NaN);
+  }
+  const i0 = izero?.signal[index] ?? Number.NaN;
+  const it = series.isIzero ? undefined : (series.signal[index] ?? Number.NaN);
+  if (channel === "signal_it") {
+    return isStxmRawSampleValid(i0, it);
+  }
+  if (channel === "signal_ie") {
+    const ie = series.teyDrain?.[index];
+    return isStxmRawSampleValid(i0, it, ie);
+  }
+  if (series.isIzero) {
+    return isStxmRawSampleValid(i0);
+  }
+  return isStxmRawSampleValid(i0, it);
+}
+
 function seriesToPoints(
   energyEv: number[],
   channel: StxmIngestionPlotChannel,
   rawSignalTransform: StxmRawSignalTransformMode,
   readValue: (index: number) => number,
   readError?: (index: number) => number | undefined,
+  isValidAtIndex?: (index: number) => boolean,
 ): SpectrumPoint[] {
   const points = energyEv.map((energy, index) => {
-    const rawValue = sanitizeStxmSignalSampleForDisplay(readValue(index));
+    const isEnergyValid = isValidAtIndex?.(index) ?? true;
+    const rawValue = maskStxmDisplaySample(readValue(index), isEnergyValid);
     const absorption = transformStxmRawIntensityY(
       rawValue,
       channel,
@@ -250,6 +297,8 @@ function pointsFromResult(
       channel,
       rawSignalTransform,
       (index) => derived[index] ?? Number.NaN,
+      undefined,
+      (index) => ingestionValidityAtIndex(result, channel, index),
     );
   }
   return seriesToPoints(
@@ -258,6 +307,7 @@ function pointsFromResult(
     rawSignalTransform,
     (index) => ingestionResultChannelValue(result, channel, index),
     (index) => ingestionResultChannelError(result, channel, index),
+    (index) => ingestionValidityAtIndex(result, channel, index),
   );
 }
 
@@ -266,7 +316,10 @@ function pointsFromRegionSeries(
   channel: StxmIngestionPlotChannel,
   rawSignalTransform: StxmRawSignalTransformMode,
   formula: string | null | undefined,
+  izero: StxmRegionSpectrumSeries | null,
 ): SpectrumPoint[] {
+  const validity = (index: number) =>
+    regionValidityAtIndex(series, channel, index, izero);
   if (isStxmDerivedOpticalPlotChannel(channel)) {
     const derived = deriveStxmOpticalChannelSeries(
       channel,
@@ -283,6 +336,8 @@ function pointsFromRegionSeries(
       channel,
       rawSignalTransform,
       (index) => derived[index] ?? Number.NaN,
+      undefined,
+      validity,
     );
   }
   return seriesToPoints(
@@ -291,6 +346,7 @@ function pointsFromRegionSeries(
     rawSignalTransform,
     (index) => regionSpectrumChannelValue(series, channel, index, formula),
     (index) => regionSpectrumChannelError(series, channel, index),
+    validity,
   );
 }
 
@@ -431,7 +487,14 @@ function computeOdPointsFromRegionRaw(
     sample.signalErr,
   );
   return izero.energyEv.map((energy, index) => {
-    const odValue = sanitizeStxmSignalSampleForDisplay(od[index] ?? Number.NaN);
+    const isEnergyValid = isStxmRawSampleValid(
+      izero.signal[index] ?? Number.NaN,
+      sample.signal[index] ?? Number.NaN,
+    );
+    const odValue = maskStxmDisplaySample(
+      od[index] ?? Number.NaN,
+      isEnergyValid,
+    );
     const sigmaOd = odErr[index] ?? 0;
     const absorption = transformStxmRawIntensityY(
       odValue,
@@ -466,7 +529,13 @@ function pointsFromRegionSeriesForChannel(
   if (channel === "od" && izero != null && !series.isIzero) {
     return computeOdPointsFromRegionRaw(izero, series, rawSignalTransform);
   }
-  return pointsFromRegionSeries(series, channel, rawSignalTransform, formula);
+  return pointsFromRegionSeries(
+    series,
+    channel,
+    rawSignalTransform,
+    formula,
+    izero,
+  );
 }
 
 function buildLinkedOpticalCompanion(
@@ -499,6 +568,7 @@ function buildLinkedOpticalCompanion(
         companionChannel,
         rawSignalTransform,
         formula,
+        izeroRegionSeries(regionSpectra),
       );
     }
   }

@@ -75,13 +75,13 @@ describe("buildStxmSpectrumPlotModel", () => {
     expect(model?.yAxisQuantity).toBe("intensity");
   });
 
-  it("omits negative signal samples as NaN gaps while preserving energy alignment", () => {
-    const resultWithNegative: StxmIngestionResult = {
+  it("masks non-positive I0 as NaN gaps while preserving energy alignment", () => {
+    const resultWithInvalidI0: StxmIngestionResult = {
       ...sampleResult,
-      i0: [1000, -50, 1020],
+      i0: [1000, 0, 1020],
     };
     const model = buildStxmSpectrumPlotModel({
-      result: resultWithNegative,
+      result: resultWithInvalidI0,
       regionSpectra: [],
       channel: "signal_i0",
       rawSignalTransform: "signal",
@@ -98,7 +98,7 @@ describe("buildStxmSpectrumPlotModel", () => {
     expect(model?.points[1]?.rawabsError === undefined).toBe(true);
   });
 
-  it("omits negative OD samples as NaN gaps", () => {
+  it("keeps negative OD when raw I0 and It remain valid", () => {
     const resultWithNegativeOd: StxmIngestionResult = {
       ...sampleResult,
       od: [0.5, -0.1, 1.0],
@@ -114,9 +114,82 @@ describe("buildStxmSpectrumPlotModel", () => {
       showRegionOverlays: false,
     });
     expect(model?.points).toHaveLength(3);
-    expect(Number.isNaN(model?.points[1]?.absorption ?? 0)).toBe(true);
+    expect(model?.points[1]?.absorption).toBe(-0.1);
     expect(model?.points[0]?.absorption).toBe(0.5);
     expect(model?.points[2]?.absorption).toBe(1.0);
+  });
+
+  it("masks derived OD when It is non-positive at the same energy", () => {
+    const resultWithInvalidIt: StxmIngestionResult = {
+      ...sampleResult,
+      iSample: [500, 0, 300],
+    };
+    const model = buildStxmSpectrumPlotModel({
+      result: resultWithInvalidIt,
+      regionSpectra: [],
+      channel: "od",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: false,
+    });
+    expect(model?.points).toHaveLength(3);
+    expect(Number.isNaN(model?.points[1]?.absorption ?? 0)).toBe(true);
+    expect(model?.points[0]?.absorption).toBe(0.69);
+    expect(model?.points[2]?.absorption).toBe(1.22);
+  });
+
+  it("masks sample-region traces when izero I0 is non-positive", () => {
+    const regionSpectra: StxmRegionSpectrumSeries[] = [
+      {
+        spotLabel: "izero",
+        regionId: "izero",
+        sampleLo: 0,
+        sampleHi: 1,
+        energyEv: [280, 281],
+        signal: [2000, 0],
+        signalErr: [10, 10],
+        color: "#888",
+        isIzero: true,
+      },
+      {
+        spotLabel: "pure",
+        regionId: "pure-id",
+        sampleLo: 2,
+        sampleHi: 3,
+        energyEv: [280, 281],
+        signal: [500, 400],
+        signalErr: [5, 5],
+        color: "#f00",
+        od: [0.69, 0.92],
+      },
+    ];
+    const itModel = buildStxmSpectrumPlotModel({
+      result: sampleResult,
+      regionSpectra,
+      channel: "signal_it",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: true,
+    });
+    expect(itModel?.points[0]?.absorption).toBe(500);
+    expect(Number.isNaN(itModel?.points[1]?.absorption ?? 0)).toBe(true);
+
+    const odModel = buildStxmSpectrumPlotModel({
+      result: sampleResult,
+      regionSpectra,
+      channel: "od",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: true,
+    });
+    expect(odModel?.points[0]?.absorption).toBeCloseTo(Math.log(2000 / 500), 2);
+    expect(Number.isNaN(odModel?.points[1]?.absorption ?? 0)).toBe(true);
   });
 
   it("applies reciprocal transform for raw It channel", () => {
