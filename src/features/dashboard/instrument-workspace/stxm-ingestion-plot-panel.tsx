@@ -9,9 +9,10 @@ import {
 } from "~/components/plots/data-rail";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
 import {
-  buildStxmSpectrumPlotModel,
-  type StxmCompareOverlay,
-} from "~/features/dashboard/lib/stxm-to-spectrum-plot";
+  buildStxmIngestionPlotModel,
+  type StxmIngestionPlotModel,
+} from "~/features/dashboard/lib/stxm-plot-model";
+import type { StxmCompareOverlay } from "~/features/dashboard/lib/stxm-to-spectrum-plot";
 import type {
   NormalizationRegionEdgeId,
   NormalizationRegions,
@@ -91,6 +92,8 @@ type StxmIngestionPlotPanelProps = {
   isComputing?: boolean;
   primaryTraceLabel?: string;
   pureRegionLabel?: string;
+  regionSpectraEpoch?: number;
+  pipelineEpoch?: number;
   imageMatrix: number[][];
   qaxisPoints: number[];
   regions: StxmSampleRegion[];
@@ -195,6 +198,8 @@ export function StxmIngestionPlotPanel({
   isComputing = false,
   primaryTraceLabel,
   pureRegionLabel,
+  regionSpectraEpoch = 0,
+  pipelineEpoch = 0,
   imageMatrix,
   qaxisPoints,
   regions,
@@ -305,6 +310,10 @@ export function StxmIngestionPlotPanel({
     if (channelCanRender) {
       return;
     }
+    const hasSampleRegions = regionSpectra.some((series) => !series.isIzero);
+    if (hasSampleRegions) {
+      return;
+    }
     const trayId = trayIdForChannel(
       STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
       channel,
@@ -334,6 +343,7 @@ export function StxmIngestionPlotPanel({
     channelCanRender,
     isChannelAvailableForRail,
     onChannelChange,
+    regionSpectra,
   ]);
 
   const bareAtomOverlayDisabled =
@@ -425,9 +435,9 @@ export function StxmIngestionPlotPanel({
     );
   }, [energyEv, onNormalizationChange]);
 
-  const plotModel = useMemo(
-    () =>
-      buildStxmSpectrumPlotModel({
+  const plotBuild = useMemo(
+    (): StxmIngestionPlotModel =>
+      buildStxmIngestionPlotModel({
         result,
         regionSpectra,
         channel,
@@ -441,6 +451,8 @@ export function StxmIngestionPlotPanel({
         normalizationOverride: normalizationRegionsForPlot,
         primaryTraceLabel,
         pureRegionLabel,
+        regionSpectraEpoch,
+        pipelineEpoch,
       }),
     [
       bareAtomCurve,
@@ -449,15 +461,18 @@ export function StxmIngestionPlotPanel({
       rawSignalTransform,
       linkImaginaryReal,
       normalizationRegionsForPlot,
+      pipelineEpoch,
       primaryTraceLabel,
       pureRegionLabel,
       regionSpectra,
+      regionSpectraEpoch,
       result,
       showBareAtomOverlay,
       showRegionOverlays,
       standards,
     ],
   );
+  const plotModel = plotBuild.model;
 
   const plotLeftRail = useMemo(
     () => (

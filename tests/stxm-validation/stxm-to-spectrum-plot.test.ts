@@ -490,4 +490,53 @@ describe("buildStxmSpectrumPlotModel", () => {
     expect(normModel?.regionScopedTraces).toBe(true);
     expect(normModel?.companionSpectra[0]?.points[0]?.absorption).toBe(0.2);
   });
+
+  it("prefers region-scoped OD traces over aggregated legacy when sample regions exist", () => {
+    const regionSpectra: StxmRegionSpectrumSeries[] = [
+      {
+        spotLabel: "izero",
+        regionId: "izero",
+        sampleLo: 0,
+        sampleHi: 1,
+        energyEv: [280, 281],
+        signal: [2000, 2100],
+        signalErr: [10, 10],
+        color: "#888",
+        isIzero: true,
+      },
+      {
+        spotLabel: "pure",
+        regionId: "pure-id",
+        sampleLo: 2,
+        sampleHi: 3,
+        energyEv: [280, 281],
+        signal: [500, 400],
+        signalErr: [5, 5],
+        color: "#f00",
+      },
+      {
+        spotLabel: "edge",
+        regionId: "edge-id",
+        sampleLo: 4,
+        sampleHi: 5,
+        energyEv: [280, 281],
+        signal: [300, 250],
+        signalErr: [4, 4],
+        color: "#0f0",
+      },
+    ];
+    expect(shouldUseStxmRegionScopedTraces(regionSpectra, "beta")).toBe(true);
+    const betaModel = buildStxmSpectrumPlotModel({
+      result: sampleResult,
+      regionSpectra,
+      channel: "beta",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: true,
+      pureRegionLabel: "pure",
+    });
+    expect(betaModel).toBeNull();
+  });
 });

@@ -352,6 +352,9 @@ export function IngestionTab({
   const isDraggingRef = useRef(false);
   const pipelineGenerationRef = useRef(0);
   const pipelineInflightRef = useRef(0);
+  const regionSpectraGenerationRef = useRef(0);
+  const [regionSpectraEpoch, setRegionSpectraEpoch] = useState(0);
+  const [pipelineEpoch, setPipelineEpoch] = useState(0);
   const activeScanIdRef = useRef(scanId);
 
   const inferredEdge = useMemo(
@@ -366,6 +369,9 @@ export function IngestionTab({
       scanIngestionMetadata ? persistedToRuntime(scanIngestionMetadata) : null,
     );
     setRegionSpectra([]);
+    setRegionSpectraEpoch(0);
+    setPipelineEpoch(0);
+    regionSpectraGenerationRef.current = 0;
     setIsReducing(false);
     pipelineInflightRef.current = 0;
     setPlotScaleMode(scanRegionsMetadata?.plotScaleMode ?? "log");
@@ -495,6 +501,8 @@ export function IngestionTab({
     if (!loaded || !izero || regions.length === 0) {
       return;
     }
+    const generation = regionSpectraGenerationRef.current + 1;
+    regionSpectraGenerationRef.current = generation;
     try {
       const spectra = regionRawSpectraFromScan(
         loaded.oriented.image,
@@ -533,9 +541,15 @@ export function IngestionTab({
             (readStxmComputeConsentGranted() || readKkBrowserConsentGranted()),
         });
       }
+      if (generation !== regionSpectraGenerationRef.current) {
+        return;
+      }
       setRegionSpectra(enriched);
+      setRegionSpectraEpoch(generation);
     } catch {
-      setRegionSpectra([]);
+      if (generation !== regionSpectraGenerationRef.current) {
+        return;
+      }
     }
   }, [
     hdrFile.name,
@@ -608,7 +622,12 @@ export function IngestionTab({
       if (generation !== pipelineGenerationRef.current) {
         return;
       }
+      await recomputeRawSpectra();
+      if (generation !== pipelineGenerationRef.current) {
+        return;
+      }
       setResult(pipelineResult);
+      setPipelineEpoch(generation);
       const glitches = detectStxmIntensityGlitches(
         pipelineResult.i0,
         pipelineResult.iSample,
@@ -623,7 +642,6 @@ export function IngestionTab({
         }),
       );
       setIntensityGlitches(glitches);
-      void recomputeRawSpectra();
       if (previewOnly) {
         return;
       }
@@ -989,6 +1007,8 @@ export function IngestionTab({
         height={STXM_INGESTION_SPECTRUM_HEIGHT_PX}
         isComputing={isReducing}
         pureRegionLabel={pureRegionLabel}
+        regionSpectraEpoch={regionSpectraEpoch}
+        pipelineEpoch={pipelineEpoch}
         imageMatrix={imageMatrix}
         qaxisPoints={qaxisPoints}
         regions={regions}
