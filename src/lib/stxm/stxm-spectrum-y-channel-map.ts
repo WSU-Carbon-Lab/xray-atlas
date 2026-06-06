@@ -12,9 +12,13 @@ const STXM_TO_SPECTRUM_Y_CHANNEL: Record<
   od_normalized: "norm-od",
   mass_absorption: "mass-abs",
   beta: "beta",
+  f2: "f2",
+  "im-epsilon": "im-epsilon",
+  "im-chi": "im-chi",
   delta: "delta",
   f1: "f1",
-  chi: "chi",
+  "re-epsilon": "re-epsilon",
+  "re-chi": "re-chi",
   bare_atom: "bare-atom",
 };
 
@@ -31,9 +35,13 @@ const SPECTRUM_Y_CHANNEL_TO_STXM: Record<
   "norm-od": "od_normalized",
   "mass-abs": "mass_absorption",
   beta: "beta",
+  f2: "f2",
+  "im-epsilon": "im-epsilon",
+  "im-chi": "im-chi",
   delta: "delta",
   f1: "f1",
-  chi: "chi",
+  "re-epsilon": "re-epsilon",
+  "re-chi": "re-chi",
   "bare-atom": "bare_atom",
 };
 

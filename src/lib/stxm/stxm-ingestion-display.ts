@@ -1,6 +1,11 @@
 import type { StxmIngestionDisplayChannel } from "~/features/dashboard/lib/computeStxmIngestion";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
 import type { StxmWeightingMode } from "./estimators";
+import {
+  deriveStxmOpticalChannelSeries,
+  isStxmDerivedOpticalPlotChannel,
+  type StxmDerivedOpticalChannelId,
+} from "./stxm-derived-optical-channels";
 import type {
   StxmPlotScaleMode,
   StxmRegionSpectrumSeries,
@@ -13,11 +18,17 @@ import {
 
 export type { StxmRawSignalTransformMode } from "./stxm-raw-signal-transform";
 export { migrateStxmRawSignalTransformMode } from "./stxm-raw-signal-transform";
+export type { StxmDerivedOpticalChannelId } from "./stxm-derived-optical-channels";
+export {
+  deriveStxmOpticalChannelSeries,
+  isStxmDerivedOpticalPlotChannel,
+  migrateStxmIngestionPlotChannel,
+  stxmDerivedOpticalChannelsAvailable,
+} from "./stxm-derived-optical-channels";
 
 export type StxmIngestionPlotChannel =
   | StxmIngestionDisplayChannel
-  | "f1"
-  | "chi"
+  | StxmDerivedOpticalChannelId
   | "bare_atom";
 
 export type StxmIngestionChannelOption = {
@@ -40,9 +51,13 @@ export const STXM_INGESTION_RAW_SPECTROSCOPY_CHANNEL_OPTIONS: StxmIngestionChann
 export const STXM_INGESTION_REDUCED_CHANNEL_OPTIONS: StxmIngestionChannelOption[] =
   [
     { id: "beta", label: "Beta" },
+    { id: "f2", label: "f₂" },
+    { id: "im-epsilon", label: "Im(ε)" },
+    { id: "im-chi", label: "Im(χ)" },
     { id: "delta", label: "Delta" },
-    { id: "f1", label: "f1" },
-    { id: "chi", label: "chi" },
+    { id: "f1", label: "f₁" },
+    { id: "re-epsilon", label: "Re(ε)" },
+    { id: "re-chi", label: "Re(χ)" },
   ];
 
 export const STXM_INGESTION_CHANNEL_OPTIONS: StxmIngestionChannelOption[] = [
@@ -115,17 +130,38 @@ export function ingestionChannelYAxisLabel(
       return "Mass abs (g/cm^2)";
     case "beta":
       return "Beta";
+    case "f2":
+      return "f₂";
+    case "im-epsilon":
+      return "Im(ε)";
+    case "im-chi":
+      return "Im(χ)";
     case "delta":
       return "Delta";
     case "f1":
-      return "f1 (KK delta)";
-    case "chi":
-      return "chi (beta proxy)";
+      return "f₁";
+    case "re-epsilon":
+      return "Re(ε)";
+    case "re-chi":
+      return "Re(χ)";
     case "bare_atom":
       return "Bare atom mass abs";
     default:
       return "Intensity";
   }
+}
+
+function derivedIngestionSeries(
+  result: StxmIngestionResult,
+  channel: StxmDerivedOpticalChannelId,
+): number[] | null {
+  return deriveStxmOpticalChannelSeries(
+    channel,
+    result.energyEv,
+    result.beta,
+    result.delta,
+    result.formula,
+  );
 }
 
 /**
@@ -136,6 +172,10 @@ export function ingestionResultChannelValue(
   channel: StxmIngestionPlotChannel,
   index: number,
 ): number {
+  if (isStxmDerivedOpticalPlotChannel(channel)) {
+    const series = derivedIngestionSeries(result, channel);
+    return series?.[index] ?? Number.NaN;
+  }
   switch (channel) {
     case "signal_i0":
       return result.i0[index] ?? Number.NaN;
@@ -153,10 +193,6 @@ export function ingestionResultChannelValue(
       return result.beta?.[index] ?? Number.NaN;
     case "delta":
       return result.delta?.[index] ?? Number.NaN;
-    case "f1":
-      return result.delta?.[index] ?? Number.NaN;
-    case "chi":
-      return result.beta?.[index] ?? Number.NaN;
     case "bare_atom":
       return result.massAbsorption?.[index] ?? Number.NaN;
     default:
@@ -171,7 +207,18 @@ export function regionSpectrumChannelValue(
   series: StxmRegionSpectrumSeries,
   channel: StxmIngestionPlotChannel,
   index: number,
+  formula: string | null | undefined = null,
 ): number {
+  if (isStxmDerivedOpticalPlotChannel(channel)) {
+    const derived = deriveStxmOpticalChannelSeries(
+      channel,
+      series.energyEv,
+      series.beta,
+      series.delta,
+      formula,
+    );
+    return derived?.[index] ?? Number.NaN;
+  }
   if (
     channel === "signal_i0" ||
     channel === "signal_it" ||
@@ -191,10 +238,10 @@ export function regionSpectrumChannelValue(
   if (channel === "mass_absorption" || channel === "bare_atom") {
     return series.massAbsorption?.[index] ?? Number.NaN;
   }
-  if (channel === "beta" || channel === "chi") {
+  if (channel === "beta") {
     return series.beta?.[index] ?? Number.NaN;
   }
-  if (channel === "delta" || channel === "f1") {
+  if (channel === "delta") {
     return series.delta?.[index] ?? Number.NaN;
   }
   return series.signal[index] ?? Number.NaN;

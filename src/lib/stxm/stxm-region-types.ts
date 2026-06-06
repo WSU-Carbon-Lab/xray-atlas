@@ -29,7 +29,11 @@ export type StxmIngestionYDisplayMode =
   | "beta"
   | "delta"
   | "f1"
-  | "chi"
+  | "f2"
+  | "im-epsilon"
+  | "re-epsilon"
+  | "im-chi"
+  | "re-chi"
   | "bare_atom";
 
 /** Per-region raw or reduced spectrum series for ingestion plots. */

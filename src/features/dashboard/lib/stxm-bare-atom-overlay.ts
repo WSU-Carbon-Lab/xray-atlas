@@ -9,9 +9,13 @@ const STXM_BARE_ATOM_CHANNEL_MAP: Partial<
 > = {
   mass_absorption: "mass-absorption",
   beta: "beta",
+  f2: "f2",
+  "im-epsilon": "im-epsilon",
+  "im-chi": "im-chi",
   delta: "delta",
   f1: "f1",
-  chi: "im-chi",
+  "re-epsilon": "re-epsilon",
+  "re-chi": "re-chi",
 };
 
 /**

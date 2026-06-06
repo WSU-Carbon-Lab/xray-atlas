@@ -15,10 +15,18 @@ export type SpectrumSpectroscopyChannelId =
   | "bare-atom";
 
 /** Imaginary optical-constant channels. */
-export type SpectrumImaginaryChannelId = "beta" | "chi";
+export type SpectrumImaginaryChannelId =
+  | "beta"
+  | "f2"
+  | "im-epsilon"
+  | "im-chi";
 
 /** Real optical-constant channels. */
-export type SpectrumRealChannelId = "delta" | "f1";
+export type SpectrumRealChannelId =
+  | "delta"
+  | "f1"
+  | "re-epsilon"
+  | "re-chi";
 
 /**
  * Canonical Y-channel identifiers for spectrum plot data rails (STXM ingestion today;

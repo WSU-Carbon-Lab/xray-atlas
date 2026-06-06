@@ -26,13 +26,13 @@ const TRAY_META: Record<
   imaginary: {
     trayGlyph: "β",
     trayLabel: "Imaginary optical constants",
-    trayDescription: "Beta and chi (beta proxy) from the reduced pipeline.",
+    trayDescription: "β, atomic f₂, Im(ε), and Im(χ) from reduced spectrum data.",
     defaultChannelId: "beta",
   },
   real: {
     trayGlyph: "δ",
     trayLabel: "Real optical constants",
-    trayDescription: "Delta and atomic f1 (KK delta) from the reduced pipeline.",
+    trayDescription: "δ, atomic f₁, Re(ε), and Re(χ) from reduced spectrum data.",
     defaultChannelId: "delta",
   },
 };
@@ -45,9 +45,13 @@ const RAIL_CHANNEL_IDS = [
   "od_normalized",
   "mass_absorption",
   "beta",
+  "f2",
+  "im-epsilon",
+  "im-chi",
   "delta",
   "f1",
-  "chi",
+  "re-epsilon",
+  "re-chi",
 ] as const satisfies readonly StxmIngestionPlotChannel[];
 
 const CHANNEL_GLYPH: Record<(typeof RAIL_CHANNEL_IDS)[number], string> = {
@@ -58,9 +62,13 @@ const CHANNEL_GLYPH: Record<(typeof RAIL_CHANNEL_IDS)[number], string> = {
   od_normalized: "01",
   mass_absorption: "μ",
   beta: "β",
+  f2: "f₂",
+  "im-epsilon": "εᵢ",
+  "im-chi": "χᵢ",
   delta: "δ",
   f1: "f₁",
-  chi: "χ",
+  "re-epsilon": "εᵣ",
+  "re-chi": "χᵣ",
 };
 
 const CHANNEL_Y_AXIS: Record<
@@ -74,9 +82,13 @@ const CHANNEL_Y_AXIS: Record<
   od_normalized: "optical-density",
   mass_absorption: "mass-absorption",
   beta: "beta",
+  f2: "scattering-f2",
+  "im-epsilon": "permittivity-im",
+  "im-chi": "susceptibility-im",
   delta: "delta",
   f1: "scattering-f1",
-  chi: "beta",
+  "re-epsilon": "permittivity-re",
+  "re-chi": "susceptibility-re",
 };
 
 const CHANNEL_TRAY: Record<
@@ -90,9 +102,13 @@ const CHANNEL_TRAY: Record<
   od_normalized: "spectroscopy",
   mass_absorption: "spectroscopy",
   beta: "imaginary",
-  chi: "imaginary",
+  f2: "imaginary",
+  "im-epsilon": "imaginary",
+  "im-chi": "imaginary",
   delta: "real",
   f1: "real",
+  "re-epsilon": "real",
+  "re-chi": "real",
 };
 
 const CHANNEL_COPY: Record<
@@ -128,17 +144,37 @@ const CHANNEL_COPY: Record<
     label: "Beta",
     description: "Imaginary refractive index beta from KK reduction.",
   },
+  f2: {
+    label: "f₂",
+    description:
+      "Imaginary atomic scattering factor from stored beta and stoichiometry (1 g/cm³).",
+  },
+  "im-epsilon": {
+    label: "Im(ε)",
+    description: "Imaginary part of dielectric permittivity from stored beta and delta.",
+  },
+  "im-chi": {
+    label: "Im(χ)",
+    description:
+      "Imaginary susceptibility χ = n² − 1 with n = 1 − δ + iβ: Im(χ) = 2β(1 − δ).",
+  },
   delta: {
     label: "Delta",
-    description: "Real refractive index delta from KK reduction.",
+    description: "Real refractive index decrement delta from KK reduction.",
   },
   f1: {
-    label: "f1",
-    description: "Atomic f1 scattering factor (KK delta proxy).",
+    label: "f₁",
+    description:
+      "Real atomic scattering factor from stored delta and stoichiometry (1 g/cm³).",
   },
-  chi: {
-    label: "chi",
-    description: "Susceptibility chi proxy from stored beta.",
+  "re-epsilon": {
+    label: "Re(ε)",
+    description: "Real part of dielectric permittivity from stored beta and delta.",
+  },
+  "re-chi": {
+    label: "Re(χ)",
+    description:
+      "Real susceptibility χ = n² − 1 with n = 1 − δ + iβ: Re(χ) = (1 − δ)² − β² − 1.",
   },
 };
 

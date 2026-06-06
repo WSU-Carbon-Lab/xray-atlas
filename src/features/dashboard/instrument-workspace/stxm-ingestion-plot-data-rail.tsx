@@ -14,6 +14,7 @@ import {
 import { STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION } from "~/lib/stxm/stxm-ingestion-plot-data-rail-config";
 import {
   ingestionChannelUsesRawIntensity,
+  isStxmDerivedOpticalPlotChannel,
   type StxmIngestionPlotChannel,
 } from "~/lib/stxm/stxm-ingestion-display";
 import {
@@ -31,6 +32,7 @@ export type StxmIngestionPlotDataRailProps = {
   onDisplayChannelChange: (channel: StxmIngestionPlotChannel) => void;
   hasRawSpectra: boolean;
   hasReducedResult: boolean;
+  derivedOpticalAvailable: boolean;
   hasIeData: boolean;
   isTeyExperiment: boolean;
   rawSignalTransform: StxmRawSignalTransformMode;
@@ -52,6 +54,7 @@ export function StxmIngestionPlotDataRail({
   onDisplayChannelChange,
   hasRawSpectra,
   hasReducedResult,
+  derivedOpticalAvailable,
   hasIeData,
   isTeyExperiment,
   rawSignalTransform,
@@ -72,13 +75,21 @@ export function StxmIngestionPlotDataRail({
       if (ingestionChannelUsesRawIntensity(id)) {
         return hasRawSpectra;
       }
+      if (isStxmDerivedOpticalPlotChannel(id)) {
+        return hasReducedResult && derivedOpticalAvailable;
+      }
       return hasReducedResult;
     },
-    [hasIeData, hasRawSpectra, hasReducedResult, isTeyExperiment],
+    [derivedOpticalAvailable, hasIeData, hasRawSpectra, hasReducedResult, isTeyExperiment],
   );
 
   const channelUnavailableDescription = useCallback(
     (id: StxmIngestionPlotChannel) => {
+      if (isStxmDerivedOpticalPlotChannel(id) && !derivedOpticalAvailable) {
+        return hasReducedResult
+          ? "Set a chemical formula and run KK reduction to unlock f, epsilon, and chi views."
+          : "Run reduction with beta and delta to unlock derived optical constants.";
+      }
       if (id !== "signal_ie") {
         return undefined;
       }
@@ -90,7 +101,7 @@ export function StxmIngestionPlotDataRail({
       }
       return undefined;
     },
-    [hasIeData, isTeyExperiment],
+    [derivedOpticalAvailable, hasIeData, hasReducedResult, isTeyExperiment],
   );
 
   const bareAtomHint = useMemo(() => {
