@@ -65,6 +65,9 @@ import type { MoleculeSearchResult } from "~/features/process-nexafs/types";
 import type { DatasetAttributionEntry } from "~/lib/nexafs-attribution";
 import type { Peak } from "~/components/plots/types";
 import { trpc } from "~/trpc/client";
+import type { StreamBeamtimeCatalogPhase } from "~/features/dashboard/lib/buildBeamtimeCatalog";
+import { LineScanBrowserStrip } from "./line-scan-browser-strip";
+import type { StxmCatalogEntry } from "~/lib/stxm";
 import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
 import {
   migrateStxmRawSignalTransformMode,
@@ -104,6 +107,14 @@ type IngestionTabProps = {
   scanId: string;
   energyMinEv: number | null;
   energyMaxEv: number | null;
+  catalogEntries: StxmCatalogEntry[];
+  selectedScanRelativePath: string | null;
+  catalogLoading?: boolean;
+  catalogEnriching?: boolean;
+  catalogScanPhase?: StreamBeamtimeCatalogPhase | null;
+  isSelectingScan?: boolean;
+  selectingScanRelativePath?: string | null;
+  onSelectCatalogScan: (entry: StxmCatalogEntry) => void;
   regionsMetadata: DashboardRegionsStepMetadata | undefined;
   reduceMetadata: DashboardReduceStepMetadata | undefined;
   ingestionMetadata: DashboardIngestionResult | undefined;
@@ -115,6 +126,32 @@ type IngestionTabProps = {
   onPersistExport: (exportMeta: StxmExportStepMetadata) => Promise<void>;
   isSaving: boolean;
 };
+
+function regionsMetadataForScan(
+  regionsMetadata: DashboardRegionsStepMetadata | undefined,
+  scanId: string,
+): DashboardRegionsStepMetadata | undefined {
+  if (!regionsMetadata) {
+    return undefined;
+  }
+  if (regionsMetadata.scanId && regionsMetadata.scanId !== scanId) {
+    return undefined;
+  }
+  return regionsMetadata;
+}
+
+function ingestionMetadataForScan(
+  ingestionMetadata: DashboardIngestionResult | undefined,
+  scanId: string,
+): DashboardIngestionResult | undefined {
+  if (!ingestionMetadata) {
+    return undefined;
+  }
+  if (ingestionMetadata.scanId !== scanId) {
+    return undefined;
+  }
+  return ingestionMetadata;
+}
 
 function persistedToRuntime(
   persisted: DashboardIngestionResult,
@@ -181,6 +218,14 @@ export function IngestionTab({
   scanId,
   energyMinEv,
   energyMaxEv,
+  catalogEntries,
+  selectedScanRelativePath,
+  catalogLoading = false,
+  catalogEnriching = false,
+  catalogScanPhase = null,
+  isSelectingScan = false,
+  selectingScanRelativePath = null,
+  onSelectCatalogScan,
   regionsMetadata,
   reduceMetadata,
   ingestionMetadata,
@@ -192,6 +237,14 @@ export function IngestionTab({
   onPersistExport,
   isSaving: _isSaving,
 }: IngestionTabProps) {
+  const scanRegionsMetadata = useMemo(
+    () => regionsMetadataForScan(regionsMetadata, scanId),
+    [regionsMetadata, scanId],
+  );
+  const scanIngestionMetadata = useMemo(
+    () => ingestionMetadataForScan(ingestionMetadata, scanId),
+    [ingestionMetadata, scanId],
+  );
   const [loaded, setLoaded] = useState<Awaited<
     ReturnType<typeof parseLocalStxmPair>
   > | null>(null);
@@ -205,29 +258,29 @@ export function IngestionTab({
   const [regions, setRegions] = useState<StxmSampleRegion[]>([]);
   const [izero, setIzero] = useState<StxmIzeroBounds | null>(null);
   const [pureRegionId, setPureRegionId] = useState<string | null>(null);
-  const [plotScaleMode] = useState<StxmPlotScaleMode>(
-    regionsMetadata?.plotScaleMode ?? "log",
+  const [plotScaleMode, setPlotScaleMode] = useState<StxmPlotScaleMode>(
+    scanRegionsMetadata?.plotScaleMode ?? "log",
   );
   const [rawSignalTransform, setRawSignalTransform] =
     useState<StxmRawSignalTransformMode>(() =>
       migrateStxmRawSignalTransformMode(
-        regionsMetadata?.rawSignalTransform ?? regionsMetadata?.i0PlotScale,
+        scanRegionsMetadata?.rawSignalTransform ?? scanRegionsMetadata?.i0PlotScale,
       ),
     );
   const [displayChannel, setDisplayChannel] =
     useState<StxmIngestionPlotChannel>("od");
   const [regionEditorTrayOpen, setRegionEditorTrayOpen] = useState(
-    () => regionsMetadata?.regionEditorTrayOpen ?? true,
+    () => scanRegionsMetadata?.regionEditorTrayOpen ?? true,
   );
   const [normalization, setNormalization] =
     useState<StxmNormalizationWindows | null>(
-      regionsMetadata?.normalization ?? null,
+      scanRegionsMetadata?.normalization ?? null,
     );
   const [thicknessCm, setThicknessCm] = useState(
-    String(regionsMetadata?.thicknessCm ?? 1e-4),
+    String(scanRegionsMetadata?.thicknessCm ?? 1e-4),
   );
   const [result, setResult] = useState<StxmIngestionResult | null>(
-    ingestionMetadata ? persistedToRuntime(ingestionMetadata) : null,
+    scanIngestionMetadata ? persistedToRuntime(scanIngestionMetadata) : null,
   );
   const [regionSpectra, setRegionSpectra] = useState<StxmRegionSpectrumSeries[]>(
     [],
@@ -293,6 +346,7 @@ export function IngestionTab({
   const isDraggingRef = useRef(false);
   const pipelineGenerationRef = useRef(0);
   const pipelineInflightRef = useRef(0);
+  const activeScanIdRef = useRef(scanId);
 
   const inferredEdge = useMemo(
     () => inferStxmEdgeFromEnergyRange(energyMinEv, energyMaxEv),
@@ -300,45 +354,66 @@ export function IngestionTab({
   );
 
   useEffect(() => {
+    activeScanIdRef.current = scanId;
+    pipelineGenerationRef.current += 1;
+    setResult(
+      scanIngestionMetadata ? persistedToRuntime(scanIngestionMetadata) : null,
+    );
+    setRegionSpectra([]);
+    setIsReducing(false);
+    pipelineInflightRef.current = 0;
+    setPlotScaleMode(scanRegionsMetadata?.plotScaleMode ?? "log");
+    setRawSignalTransform(
+      migrateStxmRawSignalTransformMode(
+        scanRegionsMetadata?.rawSignalTransform ?? scanRegionsMetadata?.i0PlotScale,
+      ),
+    );
+    setRegionEditorTrayOpen(scanRegionsMetadata?.regionEditorTrayOpen ?? true);
+    setThicknessCm(String(scanRegionsMetadata?.thicknessCm ?? 1e-4));
+  }, [scanId, scanIngestionMetadata, scanRegionsMetadata]);
+
+  useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setLoadError(null);
     void parseLocalStxmPair(hdrFile, ximFile)
       .then((parseResult) => {
-        if (cancelled) {
+        if (cancelled || activeScanIdRef.current !== scanId) {
           return;
         }
         setLoaded(parseResult);
         const initial = initialMultiRegion(
-          regionsMetadata,
+          scanRegionsMetadata,
           parseResult.oriented.spatial,
           parseResult.oriented.image,
         );
         setRegions(initial.regions);
         setIzero(initial.izero);
         setPureRegionId(initial.pureRegionId);
-        if (!regionsMetadata?.normalization) {
+        if (!scanRegionsMetadata?.normalization) {
           setNormalization(
             suggestNormalizationWindows(parseResult.oriented.energyEv),
           );
+        } else {
+          setNormalization(scanRegionsMetadata.normalization ?? null);
         }
       })
       .catch((error) => {
-        if (!cancelled) {
+        if (!cancelled && activeScanIdRef.current === scanId) {
           setLoadError(
             error instanceof Error ? error.message : "Failed to load scan",
           );
         }
       })
       .finally(() => {
-        if (!cancelled) {
+        if (!cancelled && activeScanIdRef.current === scanId) {
           setIsLoading(false);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [hdrFile, regionsMetadata, ximFile]);
+  }, [hdrFile, scanId, scanRegionsMetadata, ximFile]);
 
   const imageMatrix = useMemo(
     () => (loaded ? float64ImageToMatrix(loaded.oriented.image) : []),
@@ -361,8 +436,7 @@ export function IngestionTab({
   const hasIeData = useMemo(
     () =>
       Boolean(
-        result?.iTe != null &&
-          result.iTe.length === (result.energyEv.length ?? 0),
+        result?.iTe?.length === (result?.energyEv.length ?? 0),
       ),
     [result],
   );
@@ -829,6 +903,17 @@ export function IngestionTab({
         scanLabel={scanLabel}
         onClose={() => setUploadOpen(false)}
         onKeepInCache={() => void handleKeepInCache()}
+      />
+
+      <LineScanBrowserStrip
+        entries={catalogEntries}
+        selectedRelativePath={selectedScanRelativePath}
+        loading={catalogLoading}
+        enriching={catalogEnriching}
+        scanPhase={catalogScanPhase}
+        isSelectingScan={isSelectingScan}
+        selectingRelativePath={selectingScanRelativePath}
+        onSelect={onSelectCatalogScan}
       />
 
       {sessionId ? (

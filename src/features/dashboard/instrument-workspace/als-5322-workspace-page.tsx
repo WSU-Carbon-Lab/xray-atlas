@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Spinner } from "@heroui/react";
@@ -115,6 +115,11 @@ export function Als5322WorkspacePage() {
   const [computeConsentGranted, setComputeConsentGranted] = useState(false);
   const [folderRestoreAttempted, setFolderRestoreAttempted] = useState(false);
   const [isRestoringFolder, setIsRestoringFolder] = useState(false);
+  const [isSelectingScan, setIsSelectingScan] = useState(false);
+  const [selectingScanRelativePath, setSelectingScanRelativePath] = useState<
+    string | null
+  >(null);
+  const scanSelectGenerationRef = useRef(0);
 
   const applyBeamtimeScanCounts = useCallback(
     (experimentName: string, scanCount: number, nexafsLineScanCount: number) => {
@@ -491,33 +496,56 @@ export function Als5322WorkspacePage() {
       if (!rootHandle || !selectedBeamtime || !directoryLayout) {
         return;
       }
+      if (entry.relativePath === selectedEntry?.relativePath) {
+        return;
+      }
+      const generation = scanSelectGenerationRef.current + 1;
+      scanSelectGenerationRef.current = generation;
+      setSelectingScanRelativePath(entry.relativePath);
+      setIsSelectingScan(true);
       setSelectedEntry(entry);
-      if (entry.isNexafsLineScan) {
-        const files = await loadScanFilesFromCatalogEntry(
-          rootHandle,
-          directoryLayout,
-          selectedBeamtime,
-          entry,
-        );
-        if (!files) {
-          showToast("Missing paired .xim file for this line scan.", "error");
-          return;
+      try {
+        if (entry.isNexafsLineScan) {
+          const files = await loadScanFilesFromCatalogEntry(
+            rootHandle,
+            directoryLayout,
+            selectedBeamtime,
+            entry,
+          );
+          if (generation !== scanSelectGenerationRef.current) {
+            return;
+          }
+          if (!files) {
+            showToast("Missing paired .xim file for this line scan.", "error");
+            return;
+          }
+          setSelectedFiles(files);
+          setActiveTab("ingestion");
+          void persistWorkspace({
+            selectedScanRelativePath: entry.relativePath,
+            selectedScanBasename: entry.basename,
+            activeTab: "ingestion",
+          });
+        } else {
+          showToast(
+            `${entry.scanType} preview only; select a NEXAFS line scan for ingestion.`,
+            "success",
+          );
         }
-        setSelectedFiles(files);
-        setActiveTab("ingestion");
-        void persistWorkspace({
-          selectedScanRelativePath: entry.relativePath,
-          selectedScanBasename: entry.basename,
-          activeTab: "ingestion",
-        });
-      } else {
-        showToast(
-          `${entry.scanType} preview only; select a NEXAFS line scan for ingestion.`,
-          "success",
-        );
+      } finally {
+        if (generation === scanSelectGenerationRef.current) {
+          setIsSelectingScan(false);
+          setSelectingScanRelativePath(null);
+        }
       }
     },
-    [directoryLayout, persistWorkspace, rootHandle, selectedBeamtime],
+    [
+      directoryLayout,
+      persistWorkspace,
+      rootHandle,
+      selectedBeamtime,
+      selectedEntry?.relativePath,
+    ],
   );
 
   const handleReload = useCallback(async () => {
@@ -769,6 +797,14 @@ export function Als5322WorkspacePage() {
             scanId={selectedEntry?.relativePath ?? selectedFiles.hdrFile.name}
             energyMinEv={selectedEntry?.energyMinEv ?? null}
             energyMaxEv={selectedEntry?.energyMaxEv ?? null}
+            catalogEntries={catalog}
+            selectedScanRelativePath={selectedEntry?.relativePath ?? null}
+            catalogLoading={isLoadingCatalog}
+            catalogEnriching={isEnrichingCatalog}
+            catalogScanPhase={catalogScanPhase}
+            isSelectingScan={isSelectingScan}
+            selectingScanRelativePath={selectingScanRelativePath}
+            onSelectCatalogScan={(entry) => void handleSelectScan(entry)}
             regionsMetadata={stepMetadata.regions}
             reduceMetadata={stepMetadata.reduce}
             ingestionMetadata={stepMetadata.ingestion}
@@ -864,6 +900,8 @@ export function Als5322WorkspacePage() {
     persistExport,
     refreshSession,
     updateSession.isPending,
+    isSelectingScan,
+    selectingScanRelativePath,
   ]);
 
   const workspaceHeader = (

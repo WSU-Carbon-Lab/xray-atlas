@@ -1,17 +1,16 @@
 "use client";
 
-import { memo, useCallback, useMemo, type CSSProperties } from "react";
-import { Accordion, ScrollShadow, Spinner } from "@heroui/react";
-import { cn } from "@heroui/styles";
-import { FileImage } from "lucide-react";
+import { useMemo } from "react";
+import { Accordion, Spinner } from "@heroui/react";
 import type { StreamBeamtimeCatalogPhase } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import {
-  catalogEntryEnrichmentStatus,
   groupCatalogEntries,
   scanCategoryLabel,
   type StxmCatalogEntry,
   type StxmScanCategory,
 } from "~/lib/stxm";
+import { partitionCatalogEntries } from "~/features/dashboard/lib/line-scan-catalog";
+import { HorizontalScanCatalogRow } from "./scan-catalog-cards";
 
 type ExperimentFileBrowserProps = {
   entries: StxmCatalogEntry[];
@@ -40,163 +39,33 @@ const ACCORDION_LABELS: Record<StxmScanCategory, string> = {
   other: "Other",
 };
 
-const MAX_STAGGER_INDEX = 12;
-const STAGGER_MS = 35;
-
-function formatEnergy(entry: StxmCatalogEntry): string | null {
-  if (entry.energyMinEv !== null && entry.energyMaxEv !== null) {
-    if (Math.abs(entry.energyMinEv - entry.energyMaxEv) < 0.05) {
-      return `${entry.energyMinEv.toFixed(1)} eV`;
-    }
-    return `${entry.energyMinEv.toFixed(0)}–${entry.energyMaxEv.toFixed(0)} eV`;
+function catalogProgressLabel(input: {
+  loading: boolean;
+  scanPhase: StreamBeamtimeCatalogPhase | null | undefined;
+  fromCache: boolean;
+  entryCount: number;
+  placeholderCount: number;
+  allPlaceholderPhase: boolean;
+}): string | null {
+  if (!input.loading) {
+    return null;
   }
-  return null;
-}
-
-function staggerStyle(index: number): CSSProperties | undefined {
-  if (index <= 0) {
-    return undefined;
+  if (input.entryCount > 0 && (input.scanPhase === "cache" || input.fromCache)) {
+    return `Refreshing ${input.entryCount} cached scan${input.entryCount === 1 ? "" : "s"}…`;
   }
-  return {
-    animationDelay: `${Math.min(index, MAX_STAGGER_INDEX) * STAGGER_MS}ms`,
-  };
-}
-
-type ScanPreviewProps = {
-  entry: StxmCatalogEntry;
-};
-
-function ScanPreview({ entry }: ScanPreviewProps) {
-  const status = catalogEntryEnrichmentStatus(entry);
-  const hasThumbnail = Boolean(entry.thumbnailDataUrl);
-
-  return (
-    <div className="bg-default/80 relative flex h-24 w-full items-center justify-center overflow-hidden rounded-md">
-      {status === "placeholder" ? (
-        <div
-          className="text-muted flex h-full w-full flex-col items-center justify-center gap-1.5"
-          aria-hidden
-        >
-          <FileImage className="h-7 w-7 opacity-40" strokeWidth={1.25} />
-          <span
-            className="bg-default h-1.5 w-12 rounded-full"
-            style={{
-              backgroundImage:
-                "linear-gradient(90deg, var(--color-default) 0%, color-mix(in oklch, var(--color-muted) 35%, transparent) 50%, var(--color-default) 100%)",
-              backgroundSize: "200% 100%",
-              animation: "skeleton-shimmer 1.4s ease-in-out infinite",
-            }}
-          />
-        </div>
-      ) : (
-        <>
-          {!hasThumbnail ? (
-            <span className="text-muted px-2 text-center text-[10px]">
-              No preview
-            </span>
-          ) : null}
-          {hasThumbnail ? (
-            <img
-              src={entry.thumbnailDataUrl ?? undefined}
-              alt=""
-              className={cn(
-                "absolute inset-0 h-full w-full object-contain transition-opacity duration-300",
-                status === "thumbnail" ? "fade-in opacity-100" : "opacity-0",
-              )}
-            />
-          ) : null}
-        </>
-      )}
-    </div>
-  );
-}
-
-type ScanCardProps = {
-  entry: StxmCatalogEntry;
-  selected: boolean;
-  animationIndex: number;
-  onSelect: (entry: StxmCatalogEntry) => void;
-};
-
-const ScanCard = memo(function ScanCard({
-  entry,
-  selected,
-  animationIndex,
-  onSelect,
-}: ScanCardProps) {
-  const energy = formatEnergy(entry);
-  const status = catalogEntryEnrichmentStatus(entry);
-  const handleClick = useCallback(() => onSelect(entry), [entry, onSelect]);
-  const scanTypeLabel =
-    status === "placeholder"
-      ? "Loading metadata..."
-      : entry.scanType || "Unknown scan";
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      style={staggerStyle(animationIndex)}
-      className={cn(
-        "animate-in slide-in-from-bottom group flex w-28 shrink-0 flex-col items-center gap-1.5 rounded-lg border p-2 text-left transition-colors motion-reduce:animate-none",
-        selected
-          ? "border-accent bg-accent/5 ring-accent/30 ring-1"
-          : "border-border bg-surface hover:bg-default/40",
-        status === "placeholder" && "opacity-90",
-      )}
-      title={entry.basename}
-      aria-busy={status === "placeholder"}
-    >
-      <ScanPreview entry={entry} />
-      <span className="text-foreground w-full truncate font-mono text-[11px] leading-tight">
-        {entry.basename}
-      </span>
-      {energy ? (
-        <span className="text-muted w-full truncate text-[10px]">{energy}</span>
-      ) : status !== "placeholder" ? (
-        <span className="text-muted w-full truncate text-[10px]">
-          {scanTypeLabel}
-        </span>
-      ) : (
-        <span className="text-muted w-full truncate text-[10px] italic">
-          {scanTypeLabel}
-        </span>
-      )}
-    </button>
-  );
-});
-
-type HorizontalScanRowProps = {
-  entries: StxmCatalogEntry[];
-  selectedRelativePath: string | null;
-  onSelect: (entry: StxmCatalogEntry) => void;
-  animateFromIndex?: number;
-};
-
-function HorizontalScanRow({
-  entries,
-  selectedRelativePath,
-  onSelect,
-  animateFromIndex = 0,
-}: HorizontalScanRowProps) {
-  return (
-    <ScrollShadow
-      orientation="horizontal"
-      className="max-w-full min-w-0 overflow-x-auto pb-1"
-    >
-      <div className="flex w-max min-w-full gap-3 pr-2">
-        {entries.map((entry, index) => (
-          <ScanCard
-            key={entry.relativePath}
-            entry={entry}
-            animationIndex={animateFromIndex + index}
-            selected={entry.relativePath === selectedRelativePath}
-            onSelect={onSelect}
-          />
-        ))}
-      </div>
-    </ScrollShadow>
-  );
+  if (input.scanPhase === "cache" || input.fromCache) {
+    return `Loaded ${input.entryCount} scan${input.entryCount === 1 ? "" : "s"} from cache…`;
+  }
+  if (input.allPlaceholderPhase) {
+    return `Found ${input.entryCount} scan${input.entryCount === 1 ? "" : "s"}…`;
+  }
+  if (input.scanPhase === "parsing" || input.placeholderCount > 0) {
+    return `Reading metadata for ${input.placeholderCount} scan${input.placeholderCount === 1 ? "" : "s"}…`;
+  }
+  if (input.scanPhase === "listing") {
+    return "Listing scans…";
+  }
+  return `Found ${input.entryCount} scan${input.entryCount === 1 ? "" : "s"}…`;
 }
 
 type AccordionScanGroupsProps = {
@@ -240,7 +109,7 @@ function AccordionScanGroups({
               </Accordion.Trigger>
             </Accordion.Heading>
             <Accordion.Panel className="min-w-0 overflow-x-auto pb-2">
-              <HorizontalScanRow
+              <HorizontalScanCatalogRow
                 entries={entries}
                 selectedRelativePath={selectedRelativePath}
                 onSelect={onSelect}
@@ -252,51 +121,6 @@ function AccordionScanGroups({
       })}
     </Accordion>
   );
-}
-
-function partitionCatalogEntries(entries: StxmCatalogEntry[]): {
-  placeholders: StxmCatalogEntry[];
-  parsed: StxmCatalogEntry[];
-} {
-  const placeholders: StxmCatalogEntry[] = [];
-  const parsed: StxmCatalogEntry[] = [];
-  for (const entry of entries) {
-    if (catalogEntryEnrichmentStatus(entry) === "placeholder") {
-      placeholders.push(entry);
-    } else {
-      parsed.push(entry);
-    }
-  }
-  return { placeholders, parsed };
-}
-
-function catalogProgressLabel(input: {
-  loading: boolean;
-  scanPhase: StreamBeamtimeCatalogPhase | null | undefined;
-  fromCache: boolean;
-  entryCount: number;
-  placeholderCount: number;
-  allPlaceholderPhase: boolean;
-}): string | null {
-  if (!input.loading) {
-    return null;
-  }
-  if (input.entryCount > 0 && (input.scanPhase === "cache" || input.fromCache)) {
-    return `Refreshing ${input.entryCount} cached scan${input.entryCount === 1 ? "" : "s"}…`;
-  }
-  if (input.scanPhase === "cache" || input.fromCache) {
-    return `Loaded ${input.entryCount} scan${input.entryCount === 1 ? "" : "s"} from cache…`;
-  }
-  if (input.allPlaceholderPhase) {
-    return `Found ${input.entryCount} scan${input.entryCount === 1 ? "" : "s"}…`;
-  }
-  if (input.scanPhase === "parsing" || input.placeholderCount > 0) {
-    return `Reading metadata for ${input.placeholderCount} scan${input.placeholderCount === 1 ? "" : "s"}…`;
-  }
-  if (input.scanPhase === "listing") {
-    return "Listing scans…";
-  }
-  return `Found ${input.entryCount} scan${input.entryCount === 1 ? "" : "s"}…`;
 }
 
 /**
@@ -367,7 +191,7 @@ export function ExperimentFileBrowser({
           <h3 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">
             All scans ({entries.length})
           </h3>
-          <HorizontalScanRow
+          <HorizontalScanCatalogRow
             entries={entries}
             selectedRelativePath={selectedRelativePath}
             onSelect={onSelect}
@@ -380,7 +204,7 @@ export function ExperimentFileBrowser({
           <h3 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">
             Loading metadata ({placeholders.length})
           </h3>
-          <HorizontalScanRow
+          <HorizontalScanCatalogRow
             entries={placeholders}
             selectedRelativePath={selectedRelativePath}
             onSelect={onSelect}
@@ -395,7 +219,7 @@ export function ExperimentFileBrowser({
               <h3 className="text-muted mb-3 text-xs font-semibold tracking-wide uppercase">
                 {scanCategoryLabel("line_scan")} ({lineScans.length})
               </h3>
-              <HorizontalScanRow
+              <HorizontalScanCatalogRow
                 entries={lineScans}
                 selectedRelativePath={selectedRelativePath}
                 onSelect={onSelect}
