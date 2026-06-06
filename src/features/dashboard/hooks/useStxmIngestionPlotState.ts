@@ -190,11 +190,6 @@ export function useStxmIngestionPlotState(
     standards,
   ]);
 
-  const freshBuild = useMemo(
-    () => buildStxmIngestionPlotModel(buildParams),
-    [buildParams],
-  );
-
   const cacheKey = stxmIngestionPlotDisplayCacheKey(
     channel,
     regionSpectraEpoch,
@@ -206,6 +201,23 @@ export function useStxmIngestionPlotState(
       cacheRef.current = { scopeKey: plotScopeKey, cache: null };
     }
     const previous = cacheRef.current.cache;
+    const channelPrefix = `${channel}:`;
+    const hasMatchingCache =
+      previous != null && previous.cacheKey.startsWith(channelPrefix);
+
+    if (
+      hasSampleRegions &&
+      regionSpectra.length === 0 &&
+      hasMatchingCache
+    ) {
+      cacheRef.current = {
+        scopeKey: plotScopeKey,
+        cache: previous,
+      };
+      return previous.build;
+    }
+
+    const freshBuild = buildStxmIngestionPlotModel(buildParams);
     const resolved = resolveStxmIngestionPlotDisplay(freshBuild, {
       hasSampleRegions,
       channel,
@@ -218,11 +230,12 @@ export function useStxmIngestionPlotState(
     };
     return resolved.display;
   }, [
+    buildParams,
     cacheKey,
     channel,
-    freshBuild,
     hasSampleRegions,
     plotScopeKey,
+    regionSpectra.length,
   ]);
 
   return {

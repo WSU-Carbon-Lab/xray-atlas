@@ -60,15 +60,6 @@ export function buildStxmIngestionPlotModel(
     hasStxmMultiRegionLineScanData(params.regionSpectra) ||
     params.hasSampleRegions === true
   ) {
-    if (
-      process.env.NODE_ENV === "development" &&
-      params.hasSampleRegions === true &&
-      model != null
-    ) {
-      throw new Error(
-        "STXM ingestion plot invariant: sample regions exist but plot model is not region-scoped",
-      );
-    }
     return { kind: "empty", model: null };
   }
   return { kind: "aggregatedLegacy", model };

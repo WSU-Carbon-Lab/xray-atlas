@@ -182,4 +182,21 @@ describe("buildStxmIngestionPlotModel", () => {
       expect(build.model?.regionScopedTraces).toBe(true);
     }
   });
+
+  it("returns empty without throwing when sample regions exist but regionSpectra is empty", () => {
+    const build = buildStxmIngestionPlotModel({
+      result: sampleResult,
+      regionSpectra: [],
+      channel: "od",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: true,
+      pureRegionLabel: "pure",
+      hasSampleRegions: true,
+    });
+    expect(build.kind).toBe("empty");
+    expect(build.model).toBe(null);
+  });
 });

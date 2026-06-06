@@ -218,4 +218,24 @@ describe("resolveStxmIngestionPlotDisplay", () => {
     expect(pipelineResolved.display.kind).toBe("regionMultiTrace");
     expect(pipelineResolved.display.model?.regionScopedTraces).toBe(true);
   });
+
+  it("returns empty with no cache when sample regions exist but regionSpectra is empty", () => {
+    const freshEmpty = buildStxmIngestionPlotModel({
+      result: sampleResult,
+      regionSpectra: [],
+      channel: "od",
+      ...plotParams,
+    });
+    expect(freshEmpty.kind).toBe("empty");
+
+    const resolved = resolveStxmIngestionPlotDisplay(freshEmpty, {
+      hasSampleRegions: true,
+      channel: "od",
+      cacheKey: "od:0:1",
+      previous: null,
+    });
+    expect(resolved.display.kind).toBe("empty");
+    expect(resolved.display.model).toBe(null);
+    expect(resolved.nextCache).toBe(null);
+  });
 });
