@@ -1303,6 +1303,7 @@ export function SpectrumPlotInner({
       dataYBounds,
       interactionPlot.dimensions.margins.bottom,
       interactionPlot.dimensions.margins.left,
+      interactionPlot.dimensions.margins.top,
       mainPlotHeight,
       mainPlotWidth,
       minYZoomSpan,

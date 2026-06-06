@@ -12,7 +12,15 @@ import { eventToPlotCoords } from "../utils/svgPlotPointer";
 
 export type ZoomMode = "horizontal" | "vertical" | "default";
 
+const MARQUEE_DRAG_THRESHOLD_PX = 4;
+
 type MarqueePoint = { x: number; y: number };
+
+type MarqueeState = {
+  start: MarqueePoint;
+  end: MarqueePoint;
+  mode: ZoomMode | "pending";
+};
 
 type BrushZoomProps = {
   xScale: ScaleLinear<number, number>;
@@ -20,37 +28,52 @@ type BrushZoomProps = {
   dimensions: PlotDimensions;
   isDark: boolean;
   themeColors?: ChartThemeColors;
+  /** Fallback axis when directional picking is off. */
   zoomMode: ZoomMode;
   onZoom: (xDomain: [number, number], yDomain: [number, number]) => void;
   onReset?: () => void;
   /**
-   * When true, horizontal marquee zoom on the plot interior is suppressed so clicks
-   * reach the plot below (inspect pins, tooltips, etc.). Vertical absorption zoom
-   * remains available via the y-axis gutter or Shift+drag when
-   * `enableVerticalMarqueeWithShift` is set.
+   * When true, drag direction picks the axis: horizontal drag zooms energy, vertical drag
+   * zooms absorption. Matches the primary SpectrumPlot interaction model for both axes.
    */
-  allowPlotInteractionsBelow?: boolean;
+  enableDirectionalMarquee?: boolean;
+  /** Enables vertical (absorption) marquee when directional picking or vertical mode is active. */
+  enableVerticalMarquee?: boolean;
   /**
-   * When true, holding Shift while dragging uses a vertical marquee for the y-axis
-   * even when `zoomMode` is horizontal.
-   */
-  enableVerticalMarqueeWithShift?: boolean;
-  /**
-   * Width of the left y-axis margin (pixels) where drag always performs vertical zoom
-   * without holding Shift.
+   * Width of the left y-axis margin (pixels) where drag or wheel targets absorption zoom
+   * without requiring a vertical plot drag first.
    */
   yAxisGutterWidth?: number;
+  /**
+   * Height of the bottom x-axis margin (pixels) where drag or wheel targets energy zoom
+   * without requiring a horizontal plot drag first.
+   */
+  xAxisGutterHeight?: number;
 };
 
-function resolveActiveZoomMode(
-  baseMode: ZoomMode,
-  shiftKey: boolean,
-  enableVerticalMarqueeWithShift: boolean,
-): ZoomMode {
-  if (enableVerticalMarqueeWithShift && shiftKey) {
-    return "vertical";
+function resolveLockedZoomMode(
+  dx: number,
+  dy: number,
+  enableDirectionalMarquee: boolean,
+  enableVerticalMarquee: boolean,
+  fallbackMode: ZoomMode,
+): ZoomMode | null {
+  if (
+    Math.abs(dx) < MARQUEE_DRAG_THRESHOLD_PX &&
+    Math.abs(dy) < MARQUEE_DRAG_THRESHOLD_PX
+  ) {
+    return null;
   }
-  return baseMode;
+  if (enableDirectionalMarquee) {
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      return "horizontal";
+    }
+    return enableVerticalMarquee ? "vertical" : "horizontal";
+  }
+  if (fallbackMode === "vertical" && !enableVerticalMarquee) {
+    return "horizontal";
+  }
+  return fallbackMode;
 }
 
 export function BrushZoom({
@@ -62,9 +85,10 @@ export function BrushZoom({
   zoomMode,
   onZoom,
   onReset: _onReset,
-  allowPlotInteractionsBelow = false,
-  enableVerticalMarqueeWithShift = false,
+  enableDirectionalMarquee = false,
+  enableVerticalMarquee = false,
   yAxisGutterWidth = 0,
+  xAxisGutterHeight = 0,
 }: BrushZoomProps) {
   const themeColors = themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
 
@@ -75,40 +99,7 @@ export function BrushZoom({
   const left = dimensions.margins.left;
   const top = dimensions.margins.top;
 
-  const [shiftKeyHeld, setShiftKeyHeld] = useState(false);
-
-  useEffect(() => {
-    if (!enableVerticalMarqueeWithShift || !allowPlotInteractionsBelow) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Shift") {
-        setShiftKeyHeld(true);
-      }
-    };
-    const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === "Shift") {
-        setShiftKeyHeld(false);
-      }
-    };
-    const onBlur = () => {
-      setShiftKeyHeld(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onBlur);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onBlur);
-    };
-  }, [allowPlotInteractionsBelow, enableVerticalMarqueeWithShift]);
-
-  const [marquee, setMarquee] = useState<{
-    start: MarqueePoint;
-    end: MarqueePoint;
-    mode: ZoomMode;
-  } | null>(null);
+  const [marquee, setMarquee] = useState<MarqueeState | null>(null);
   const marqueeRef = useRef<typeof marquee>(null);
   marqueeRef.current = marquee;
 
@@ -160,6 +151,35 @@ export function BrushZoom({
       const y = Math.max(0, Math.min(plotHeight, pt.y));
       setMarquee((prev) => {
         if (!prev) return null;
+        if (prev.mode === "pending") {
+          const dx = x - prev.start.x;
+          const dy = y - prev.start.y;
+          const locked = resolveLockedZoomMode(
+            dx,
+            dy,
+            enableDirectionalMarquee,
+            enableVerticalMarquee,
+            zoomMode,
+          );
+          if (locked == null) {
+            return { ...prev, end: { x, y } };
+          }
+          if (locked === "vertical") {
+            return {
+              start: { x: 0, y: prev.start.y },
+              end: { x: plotWidth, y },
+              mode: "vertical",
+            };
+          }
+          if (locked === "horizontal") {
+            return {
+              start: { x: prev.start.x, y: 0 },
+              end: { x, y: plotHeight },
+              mode: "horizontal",
+            };
+          }
+          return { ...prev, end: { x, y }, mode: locked };
+        }
         if (prev.mode === "vertical") {
           return { ...prev, end: { ...prev.end, y } };
         }
@@ -173,6 +193,10 @@ export function BrushZoom({
     const handlePointerUp = (e: PointerEvent) => {
       const current = marqueeRef.current;
       if (!current) return;
+      if (current.mode === "pending") {
+        setMarquee(null);
+        return;
+      }
       const pt = eventToPlotCoords(e, svg, left, top);
       const endX = pt
         ? Math.max(0, Math.min(plotWidth, pt.x))
@@ -247,10 +271,21 @@ export function BrushZoom({
     xScale,
     yScale,
     commitZoom,
+    enableDirectionalMarquee,
+    enableVerticalMarquee,
+    zoomMode,
   ]);
 
   const beginMarquee = useCallback(
-    (x: number, y: number, mode: ZoomMode) => {
+    (x: number, y: number, mode: ZoomMode | "pending") => {
+      if (mode === "pending") {
+        setMarquee({
+          start: { x, y },
+          end: { x, y },
+          mode: "pending",
+        });
+        return;
+      }
       if (mode === "vertical") {
         setMarquee({
           start: { x: 0, y },
@@ -289,17 +324,12 @@ export function BrushZoom({
       if (!pt) return;
       const x = Math.max(0, Math.min(plotWidth, pt.x));
       const y = Math.max(0, Math.min(plotHeight, pt.y));
-      const mode = resolveActiveZoomMode(
-        zoomMode,
-        event.shiftKey,
-        enableVerticalMarqueeWithShift,
-      );
-      if (
-        allowPlotInteractionsBelow &&
-        mode === "horizontal"
-      ) {
+      if (enableDirectionalMarquee) {
+        beginMarquee(x, y, "pending");
         return;
       }
+      const mode =
+        zoomMode === "vertical" && !enableVerticalMarquee ? "horizontal" : zoomMode;
       beginMarquee(x, y, mode);
     },
     [
@@ -308,14 +338,15 @@ export function BrushZoom({
       plotWidth,
       plotHeight,
       zoomMode,
-      enableVerticalMarqueeWithShift,
-      allowPlotInteractionsBelow,
+      enableDirectionalMarquee,
+      enableVerticalMarquee,
       beginMarquee,
     ],
   );
 
   const handleYGutterPointerDown = useCallback(
     (event: React.PointerEvent) => {
+      if (!enableVerticalMarquee) return;
       const svg = svgRef.current;
       if (!svg) return;
       const pt = eventToPlotCoords(
@@ -328,19 +359,43 @@ export function BrushZoom({
       const y = Math.max(0, Math.min(plotHeight, pt.y));
       beginMarquee(0, y, "vertical");
     },
-    [left, top, plotHeight, beginMarquee],
+    [left, top, plotHeight, enableVerticalMarquee, beginMarquee],
   );
 
-  const showYGutter =
-    enableVerticalMarqueeWithShift && yAxisGutterWidth > 0;
-  const mainPlotPointerEvents =
-    allowPlotInteractionsBelow && !shiftKeyHeld ? "none" : "auto";
+  const handleXGutterPointerDown = useCallback(
+    (event: React.PointerEvent) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const pt = eventToPlotCoords(
+        event.nativeEvent,
+        svg,
+        left,
+        top,
+      );
+      if (!pt) return;
+      const x = Math.max(0, Math.min(plotWidth, pt.x));
+      beginMarquee(x, 0, "horizontal");
+    },
+    [left, top, plotWidth, beginMarquee],
+  );
+
+  const showYGutter = enableVerticalMarquee && yAxisGutterWidth > 0;
+  const showXGutter = xAxisGutterHeight > 0;
+
+  const activeMode =
+    marquee?.mode === "pending"
+      ? null
+      : marquee?.mode ?? null;
   const mainPlotCursor =
-    allowPlotInteractionsBelow && !shiftKeyHeld
-      ? "default"
-      : shiftKeyHeld && enableVerticalMarqueeWithShift
-        ? "ns-resize"
-        : "crosshair";
+    activeMode === "vertical"
+      ? "ns-resize"
+      : activeMode === "horizontal"
+        ? "ew-resize"
+        : enableDirectionalMarquee
+          ? "crosshair"
+          : zoomMode === "vertical"
+            ? "ns-resize"
+            : "crosshair";
 
   const selectionStyle = {
     fill: themeColors.hoverBg,
@@ -350,7 +405,7 @@ export function BrushZoom({
     strokeDasharray: "4 4",
   };
 
-  const selectionRect = marquee
+  const selectionRect = marquee && marquee.mode !== "pending"
     ? marquee.mode === "vertical"
       ? {
           x: 0,
@@ -387,17 +442,27 @@ export function BrushZoom({
           aria-hidden
         />
       ) : null}
+      {showXGutter ? (
+        <rect
+          x={0}
+          y={plotHeight}
+          width={plotWidth}
+          height={xAxisGutterHeight}
+          fill="transparent"
+          style={{ cursor: "ew-resize", pointerEvents: "auto" }}
+          onPointerDown={handleXGutterPointerDown}
+          aria-hidden
+        />
+      ) : null}
       <rect
         width={plotWidth}
         height={plotHeight}
         fill="transparent"
         style={{
           cursor: mainPlotCursor,
-          pointerEvents: mainPlotPointerEvents,
+          pointerEvents: "auto",
         }}
-        onPointerDown={
-          mainPlotPointerEvents === "auto" ? handlePlotPointerDown : undefined
-        }
+        onPointerDown={handlePlotPointerDown}
       />
       {selectionRect ? (
         <rect

@@ -101,3 +101,49 @@ export function panVerticalAxisDomain(
 ): [number, number] | null {
   return panAxisDomain(startDomain, dataBounds, -pixelDelta, plotPixelSpan);
 }
+
+/**
+ * Narrows the visible axis window around its center by `inFactor`, clamped to `dataBounds` and `minSpan`.
+ */
+export function stepZoomInAxisDomain(
+  zoomedDomain: [number, number] | null,
+  dataBounds: [number, number],
+  minSpan: number,
+  inFactor = 0.9,
+): [number, number] | null {
+  const [loBound, hiBound] = dataBounds;
+  const [xMin, xMax] = zoomedDomain ?? dataBounds;
+  const center = (xMin + xMax) / 2;
+  const half = Math.max(minSpan / 2, ((xMax - xMin) / 2) * inFactor);
+  const newMin = Math.max(loBound, center - half);
+  const newMax = Math.min(hiBound, center + half);
+  if (newMax - newMin >= minSpan) {
+    return [newMin, newMax];
+  }
+  return null;
+}
+
+/**
+ * Widens the visible axis window around its center by `outFactor`; returns null when the full data span is reached.
+ */
+export function stepZoomOutAxisDomain(
+  zoomedDomain: [number, number] | null,
+  dataBounds: [number, number],
+  minSpan: number,
+  outFactor = 1.25,
+): [number, number] | null {
+  const [loBound, hiBound] = dataBounds;
+  const fullSpan = hiBound - loBound;
+  const [xMin, xMax] = zoomedDomain ?? dataBounds;
+  const center = (xMin + xMax) / 2;
+  const half = Math.min(
+    fullSpan / 2,
+    Math.max(minSpan / 2, ((xMax - xMin) / 2) * outFactor),
+  );
+  const newMin = Math.max(loBound, center - half);
+  const newMax = Math.min(hiBound, center + half);
+  if (newMax - newMin >= fullSpan - 1e-6) {
+    return null;
+  }
+  return [newMin, newMax];
+}

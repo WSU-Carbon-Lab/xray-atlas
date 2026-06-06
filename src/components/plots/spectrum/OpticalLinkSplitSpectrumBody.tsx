@@ -575,7 +575,7 @@ export function OpticalLinkSplitSpectrumBody({
           />
         )}
 
-        {effectiveCursorMode === "pan" && (
+        {effectiveCursorMode === "pan" && zoomedXDomain != null && (
           <g
             ref={panOverlayRef}
             transform={`translate(${imaginaryPlot.dimensions.margins.left}, ${imaginaryPlot.dimensions.margins.top})`}
