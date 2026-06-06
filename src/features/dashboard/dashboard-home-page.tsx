@@ -8,6 +8,7 @@ import {
   Clock,
   FlaskConical,
   LayoutDashboard,
+  LineChart,
   Users,
 } from "lucide-react";
 import { selectRecentWorkspaceSessions } from "~/lib/dashboard-processing-session";
@@ -91,6 +92,33 @@ export function DashboardHomePage() {
       </header>
 
       <div className="flex flex-col gap-5">
+        <DashboardSection
+          title="Catalog tools"
+          description="Compare published NEXAFS datasets from the Atlas catalog on one plot."
+          icon={<LineChart className="h-4 w-4" />}
+        >
+          <Link
+            href="/dashboard/plot"
+            className="border-border bg-default/20 hover:bg-default/40 flex flex-col gap-2 rounded-lg border px-4 py-4 transition-colors"
+          >
+            <p className="text-foreground text-sm font-semibold">
+              Compare spectra
+            </p>
+            <p className="text-muted text-sm leading-snug">
+              Search and facet Atlas experiments, pick channels and polarization
+              geometries, and overlay multiple traces on a shared spectrum plot.
+            </p>
+            <span
+              className={cn(
+                buttonVariants({ variant: "primary", size: "sm" }),
+                "mt-2 w-fit",
+              )}
+            >
+              Open plot viewer
+            </span>
+          </Link>
+        </DashboardSection>
+
         <DashboardSection
           title="Analysis instruments"
           description="Facilities with built-in spectroscopy processing software."
