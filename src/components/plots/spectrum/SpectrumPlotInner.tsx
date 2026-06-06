@@ -162,6 +162,9 @@ export function SpectrumPlotInner({
   primaryTraceLabel,
   hideGeometryLegend = false,
   primaryTraceColor,
+  primaryTraceLegendId,
+  primaryRegionSpotLabel,
+  channelLegendGlyph: channelLegendGlyphProp,
 }: SpectrumPlotInnerProps) {
   const opticalLinkConfig = opticalLink ?? betaDeltaLinkLegacy;
   const { resolvedTheme } = useTheme();
@@ -251,7 +254,12 @@ export function SpectrumPlotInner({
     if (hideGeometryLegend) {
       return groupedTraces.traces.map((trace, index) => ({
         ...trace,
-        legendId: `region-primary-${index}`,
+        legendId:
+          index === 0 && primaryTraceLegendId
+            ? primaryTraceLegendId
+            : `region-primary-${index}`,
+        regionSpotLabel:
+          index === 0 ? primaryRegionSpotLabel : trace.regionSpotLabel,
         showlegend: true,
       }));
     }
@@ -268,6 +276,8 @@ export function SpectrumPlotInner({
     linkedOptical.active,
     groupedTraces.traces,
     groupedTraces.keys,
+    primaryTraceLegendId,
+    primaryRegionSpotLabel,
   ]);
 
   const primarySpectrumTraces = linkedOptical.active
@@ -369,12 +379,13 @@ export function SpectrumPlotInner({
         continue;
       }
       rows.push({
-        geometryKey: `region-${traceIndex}`,
+        geometryKey: trace.legendId ?? `region-${traceIndex}`,
         color: trace.line?.color ?? trace.marker?.color ?? "#6b7280",
         angleLabel:
-          typeof trace.name === "string" && trace.name.length > 0
+          trace.regionSpotLabel ??
+          (typeof trace.name === "string" && trace.name.length > 0
             ? trace.name
-            : `Trace ${traceIndex + 1}`,
+            : `Trace ${traceIndex + 1}`),
         traceId: trace.legendId ?? traceVisibilityId(trace, traceIndex),
         lineDash: "solid",
       });
@@ -385,12 +396,13 @@ export function SpectrumPlotInner({
       : referenceData.companionTraces;
     for (const trace of companionTraces) {
       rows.push({
-        geometryKey: `region-${traceIndex}`,
+        geometryKey: trace.legendId ?? `region-${traceIndex}`,
         color: trace.line?.color ?? "#6b7280",
         angleLabel:
-          typeof trace.name === "string" && trace.name.length > 0
+          trace.regionSpotLabel ??
+          (typeof trace.name === "string" && trace.name.length > 0
             ? trace.name
-            : `Trace ${traceIndex + 1}`,
+            : `Trace ${traceIndex + 1}`),
         traceId: trace.legendId ?? traceVisibilityId(trace, traceIndex),
         lineDash: "solid",
       });
@@ -468,9 +480,9 @@ export function SpectrumPlotInner({
           ? linkedOptical.legendRows.length > 0
           : singleGeometryLegend.rows.length > 0);
 
-  const channelLegendGlyph = spectrumChannelGlyphForQuantity(
-    yAxisQuantity ?? "intensity",
-  );
+  const channelLegendGlyph =
+    channelLegendGlyphProp ??
+    spectrumChannelGlyphForQuantity(yAxisQuantity ?? "intensity");
 
   const contentHeight = height;
 

@@ -152,7 +152,10 @@ export function useReferenceData(
         type: "scattergl",
         mode: "lines",
         name: spec.label,
-        legendId: spec.color ? `region-companion-${index}` : undefined,
+        legendId:
+          spec.legendId ??
+          (spec.color ? `region-companion-${index}` : undefined),
+        regionSpotLabel: spec.regionSpotLabel,
         x: spec.points.map((point) => point.energy),
         y: spec.points.map((point) => point.absorption),
         line: {

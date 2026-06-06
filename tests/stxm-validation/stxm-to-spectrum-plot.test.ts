@@ -4,7 +4,9 @@ import {
   it as bunIt,
 } from "bun:test";
 import {
+  buildStxmRegionLegendSpotLabel,
   buildStxmRegionTraceLabel,
+  buildStxmRegionTraceLegendId,
   buildStxmSpectrumPlotModel,
   shouldUseStxmRegionScopedTraces,
 } from "~/features/dashboard/lib/stxm-to-spectrum-plot";
@@ -109,6 +111,17 @@ describe("buildStxmSpectrumPlotModel", () => {
     expect(buildStxmRegionTraceLabel("od", "film")).toBe("OD (film)");
   });
 
+  it("buildStxmRegionLegendSpotLabel returns trimmed spot label only", () => {
+    expect(buildStxmRegionLegendSpotLabel("pure")).toBe("pure");
+    expect(buildStxmRegionLegendSpotLabel("  edge  ")).toBe("edge");
+    expect(buildStxmRegionLegendSpotLabel("")).toBe("region");
+  });
+
+  it("buildStxmRegionTraceLegendId uses stable region id keys", () => {
+    expect(buildStxmRegionTraceLegendId("pure-id")).toBe("stxm-region-pure-id");
+    expect(buildStxmRegionTraceLegendId("")).toBe("stxm-region-unknown");
+  });
+
   it("plots one trace per sample region for raw It with region-scoped labels", () => {
     const regionSpectra: StxmRegionSpectrumSeries[] = [
       {
@@ -156,8 +169,13 @@ describe("buildStxmSpectrumPlotModel", () => {
     });
     expect(model?.regionScopedTraces).toBe(true);
     expect(model?.primaryTraceLabel).toBe("It (pure)");
+    expect(model?.primaryRegionSpotLabel).toBe("pure");
+    expect(model?.primaryTraceLegendId).toBe("stxm-region-pure-id");
+    expect(model?.channelLegendGlyph).toBe("It");
     expect(model?.companionSpectra).toHaveLength(1);
     expect(model?.companionSpectra[0]?.label).toBe("It (edge)");
+    expect(model?.companionSpectra[0]?.regionSpotLabel).toBe("edge");
+    expect(model?.companionSpectra[0]?.legendId).toBe("stxm-region-edge-id");
     expect(model?.points[0]?.absorption).toBe(500);
     expect(model?.companionSpectra[0]?.points[0]?.absorption).toBe(300);
   });

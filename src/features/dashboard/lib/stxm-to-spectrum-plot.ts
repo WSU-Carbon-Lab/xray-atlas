@@ -86,6 +86,12 @@ export type StxmSpectrumPlotModel = {
   regionScopedTraces?: boolean;
   /** Stroke color for the primary region trace when {@link regionScopedTraces} is true. */
   primaryTraceColor?: string;
+  /** Stable visibility id for the primary region trace when {@link regionScopedTraces} is true. */
+  primaryTraceLegendId?: string;
+  /** Region spot label for the primary trace row when {@link regionScopedTraces} is true. */
+  primaryRegionSpotLabel?: string;
+  /** Short channel header glyph for region-scoped legend mode. */
+  channelLegendGlyph?: string;
 };
 
 export type StxmTraceStackPanel = {
@@ -306,8 +312,24 @@ export function buildStxmRegionTraceLabel(
     STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
     channel,
   ).label;
-  const regionLabel = spotLabel.trim() || "region";
+  const regionLabel = buildStxmRegionLegendSpotLabel(spotLabel);
   return `${channelLabel} (${regionLabel})`;
+}
+
+/**
+ * Returns the region-only legend label (spot name) for region-scoped plot legend rows.
+ */
+export function buildStxmRegionLegendSpotLabel(spotLabel: string): string {
+  const trimmed = spotLabel.trim();
+  return trimmed.length > 0 ? trimmed : "region";
+}
+
+/**
+ * Builds a stable trace visibility id for one STXM region line in region-scoped plot mode.
+ */
+export function buildStxmRegionTraceLegendId(regionId: string): string {
+  const trimmed = regionId.trim();
+  return trimmed.length > 0 ? `stxm-region-${trimmed}` : "stxm-region-unknown";
 }
 
 function regionSeriesHasReducedChannel(
@@ -519,6 +541,8 @@ function buildRegionScopedChannelTraces(
   points: SpectrumPoint[];
   primaryTraceLabel: string;
   primaryTraceColor?: string;
+  primaryTraceLegendId: string;
+  primaryRegionSpotLabel: string;
   companionSpectra: DifferenceSpectrum[];
   primaryRegionId: string | null;
 } | null {
@@ -542,6 +566,8 @@ function buildRegionScopedChannelTraces(
       return {
         regionId: series.regionId,
         label: buildStxmRegionTraceLabel(channel, series.spotLabel),
+        regionSpotLabel: buildStxmRegionLegendSpotLabel(series.spotLabel),
+        legendId: buildStxmRegionTraceLegendId(series.regionId),
         points,
         color: series.color,
       };
@@ -560,10 +586,14 @@ function buildRegionScopedChannelTraces(
     primaryTraceLabel: primary.label,
     primaryTraceColor: primary.color,
     primaryRegionId: primary.regionId,
+    primaryTraceLegendId: primary.legendId,
+    primaryRegionSpotLabel: primary.regionSpotLabel,
     companionSpectra: rest.map((entry) => ({
       label: entry.label,
       preferred: false,
       color: entry.color,
+      legendId: entry.legendId,
+      regionSpotLabel: entry.regionSpotLabel,
       points: entry.points,
     })),
   };
@@ -586,6 +616,8 @@ function buildLegacyRegionCompanionSpectra(
       label: buildStxmRegionTraceLabel(channel, series.spotLabel),
       preferred: false,
       color: series.color,
+      legendId: buildStxmRegionTraceLegendId(series.regionId),
+      regionSpotLabel: buildStxmRegionLegendSpotLabel(series.spotLabel),
       points: pointsFromRegionSeriesForChannel(
         series,
         channel,
@@ -651,6 +683,8 @@ type ChannelPointsResult = {
   primaryRegionId: string | null;
   primaryTraceLabel?: string;
   primaryTraceColor?: string;
+  primaryTraceLegendId?: string;
+  primaryRegionSpotLabel?: string;
   regionCompanionSpectra?: DifferenceSpectrum[];
   regionScoped: boolean;
 };
@@ -675,6 +709,8 @@ function buildChannelPoints(
         primaryRegionId: scoped.primaryRegionId,
         primaryTraceLabel: scoped.primaryTraceLabel,
         primaryTraceColor: scoped.primaryTraceColor,
+        primaryTraceLegendId: scoped.primaryTraceLegendId,
+        primaryRegionSpotLabel: scoped.primaryRegionSpotLabel,
         regionCompanionSpectra: scoped.companionSpectra,
         regionScoped: true,
       };
@@ -811,6 +847,16 @@ function buildSingleChannelPlotModel(
       ? channelPoints.primaryTraceLabel
       : resolvePrimaryTraceLabel(channel, primaryTraceLabel, pureRegionLabel),
     primaryTraceColor: regionScoped ? channelPoints.primaryTraceColor : undefined,
+    primaryTraceLegendId: regionScoped
+      ? channelPoints.primaryTraceLegendId
+      : undefined,
+    primaryRegionSpotLabel: regionScoped
+      ? channelPoints.primaryRegionSpotLabel
+      : undefined,
+    channelLegendGlyph: channelDefinitionById(
+      STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
+      channel,
+    ).label,
     normalizationRegions,
     showNormalizationShading,
     regionScopedTraces: regionScoped,

@@ -488,24 +488,22 @@ export function StxmIngestionPlotPanel({
     [
       bareAtomOverlayDisabled,
       bareAtomOverlayDisabledReason,
-      channel,
-      formulaLoading,
-      rawSignalTransform,
-      isTeyExperiment,
-      hasIeData,
-      onRawSignalTransformChange,
       betaSeries,
+      channel,
       chemicalFormula,
       deltaSeries,
       derivedOpticalAvailable,
       energyEv,
+      formulaLoading,
       hasIeData,
       hasLinkedMolecule,
       hasReducedResult,
       isTeyExperiment,
       linkImaginaryReal,
-      regionSpectra,
       onChannelChange,
+      onRawSignalTransformChange,
+      rawSignalTransform,
+      regionSpectra,
       showBareAtomOverlay,
     ],
   );
@@ -572,6 +570,9 @@ export function StxmIngestionPlotPanel({
       onNormalizationEdgeEnergyChange={handleNormalizationEdgeEnergyChange}
       primaryTraceLabel={plotModel.primaryTraceLabel}
       primaryTraceColor={plotModel.primaryTraceColor}
+      primaryTraceLegendId={plotModel.primaryTraceLegendId}
+      primaryRegionSpotLabel={plotModel.primaryRegionSpotLabel}
+      channelLegendGlyph={plotModel.channelLegendGlyph}
       hideGeometryLegend={plotModel.regionScopedTraces === true}
       headerRight={plotLeftRail}
       headerAnalysis={plotAnalysisRail}

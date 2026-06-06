@@ -112,6 +112,12 @@ export type DifferenceSpectrum = {
   preferred?: boolean;
   /** When set, overrides the default companion trace palette color (for example STXM region colors). */
   color?: string;
+  /**
+   * Stable visibility key for in-plot legend toggles; when set, overrides index-based companion ids.
+   */
+  legendId?: string;
+  /** Region spot label for region-scoped legend rows (without channel prefix). */
+  regionSpotLabel?: string;
   lowerAngle?: number;
   higherAngle?: number;
   mode?: "theta" | "phi";
@@ -289,6 +295,14 @@ export type SpectrumPlotProps = {
    */
   primaryTraceColor?: string;
   /**
+   * Stable visibility id for the primary trace in region-scoped legend mode; must match companion {@link DifferenceSpectrum.legendId} keys.
+   */
+  primaryTraceLegendId?: string;
+  /** Region spot label for the primary trace legend row (without channel prefix). */
+  primaryRegionSpotLabel?: string;
+  /** Short channel header for region-scoped legend mode (for example `OD`, `Norm OD`, `β`). */
+  channelLegendGlyph?: string;
+  /**
    * When set, right-click opens a minimal CSV context menu on the plot and Copy is hijacked to place total-dataset CSV on the clipboard (toolbar dropdown still handles per-geometry export).
    */
   spectrumCsvContextMenu?: SpectrumCsvContextMenuConfig;
@@ -314,6 +328,8 @@ export type TraceData = {
    * Stable id for legend visibility toggles; when set, overrides trace `name` for visibility keys.
    */
   legendId?: string;
+  /** Region spot label for region-scoped in-plot legend rows (without channel prefix). */
+  regionSpotLabel?: string;
   name?: string;
   x: number[];
   y: number[];
