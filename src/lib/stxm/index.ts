@@ -54,6 +54,13 @@ export {
   validateStxmHdrMetadata,
   validateStxmXimValueCount,
 } from "./validateStxmFile";
+export {
+  buildStxmEnergyValidityMask,
+  detectStxmIntensityGlitches,
+  type DetectStxmIntensityGlitchesOptions,
+  type StxmIntensityGlitch,
+  type StxmIntensityGlitchReason,
+} from "./detect-stxm-intensity-glitches";
 export { orientScan } from "./orientScan";
 export { readHdr } from "./readHdr";
 export { readXim } from "./readXim";

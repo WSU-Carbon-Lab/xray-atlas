@@ -4,6 +4,7 @@ import {
   it as bunIt,
 } from "bun:test";
 import {
+  isStxmEnergyValidAtIndex,
   isStxmRawSampleValid,
   maskStxmDisplaySample,
   maskStxmSpectrumPointsForDisplay,
@@ -75,6 +76,16 @@ describe("maskStxmSpectrumPointsForDisplay", () => {
       { energy: 281, absorption: Number.NaN },
       { energy: 282, absorption: 0 },
     ]);
+  });
+});
+
+describe("isStxmEnergyValidAtIndex", () => {
+  it("rejects paired terminal intensity glitch indices", () => {
+    const i0 = [1000, 1010, 40];
+    const it = [500, 480, 900];
+    expect(isStxmEnergyValidAtIndex(0, i0, it)).toBe(true);
+    expect(isStxmEnergyValidAtIndex(1, i0, it)).toBe(true);
+    expect(isStxmEnergyValidAtIndex(2, i0, it)).toBe(false);
   });
 });
 

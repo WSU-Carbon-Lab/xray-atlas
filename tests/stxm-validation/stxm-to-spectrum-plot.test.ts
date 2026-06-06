@@ -98,7 +98,7 @@ describe("buildStxmSpectrumPlotModel", () => {
     expect(model?.points[1]?.rawabsError === undefined).toBe(true);
   });
 
-  it("keeps negative OD when raw I0 and It remain valid", () => {
+  it("keeps mildly negative OD when intensities stay neighbor-consistent", () => {
     const resultWithNegativeOd: StxmIngestionResult = {
       ...sampleResult,
       od: [0.5, -0.1, 1.0],
@@ -117,6 +117,31 @@ describe("buildStxmSpectrumPlotModel", () => {
     expect(model?.points[1]?.absorption).toBe(-0.1);
     expect(model?.points[0]?.absorption).toBe(0.5);
     expect(model?.points[2]?.absorption).toBe(1.0);
+  });
+
+  it("masks terminal negative OD from I0 collapse and It surge glitch", () => {
+    const resultWithTerminalGlitch: StxmIngestionResult = {
+      ...sampleResult,
+      energyEv: [388, 389, 390],
+      i0: [1000, 1010, 40],
+      iSample: [500, 480, 900],
+      od: [0.69, 0.75, -3.1],
+      odErr: [0.01, 0.02, 0.03],
+    };
+    const model = buildStxmSpectrumPlotModel({
+      result: resultWithTerminalGlitch,
+      regionSpectra: [],
+      channel: "od",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: false,
+    });
+    expect(model?.points).toHaveLength(3);
+    expect(model?.points[2]?.energy).toBe(390);
+    expect(Number.isNaN(model?.points[2]?.absorption ?? 0)).toBe(true);
+    expect(model?.points[1]?.absorption).toBe(0.75);
   });
 
   it("masks derived OD when It is non-positive at the same energy", () => {

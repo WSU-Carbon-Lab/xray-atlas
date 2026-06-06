@@ -19,6 +19,7 @@ import type {
   DashboardPreviewStepMetadata,
   DashboardReduceStepMetadata,
   DashboardRegionsStepMetadata,
+  StxmIntensityGlitchRecord,
   DashboardStandardOverlay,
   StxmNormalizationWindows,
 } from "~/lib/dashboard-processing-session";
@@ -32,6 +33,7 @@ import {
   legacyBoundsToMultiRegion,
   multiRegionToLegacyBounds,
 } from "~/lib/stxm/multi-region-state";
+import { detectStxmIntensityGlitches } from "~/lib/stxm/detect-stxm-intensity-glitches";
 import { regionRawSpectraFromScan } from "~/lib/stxm/raw-spectrum";
 import type {
   StxmIzeroBounds,
@@ -286,6 +288,9 @@ export function IngestionTab({
   const [regionSpectra, setRegionSpectra] = useState<StxmRegionSpectrumSeries[]>(
     [],
   );
+  const [intensityGlitches, setIntensityGlitches] = useState<
+    StxmIntensityGlitchRecord[]
+  >(scanRegionsMetadata?.intensityGlitches ?? []);
   const [standardOverlays, setStandardOverlays] = useState<
     DashboardStandardOverlay[]
   >(previewMetadata?.standardOverlays ?? []);
@@ -466,9 +471,12 @@ export function IngestionTab({
         thicknessCm: Number.parseFloat(thicknessCm) || undefined,
         normalization: normalization ?? undefined,
         regionEditorTrayOpen,
+        intensityGlitches:
+          intensityGlitches.length > 0 ? intensityGlitches : undefined,
       });
     }, 600);
   }, [
+    intensityGlitches,
     izero,
     linkedFormula,
     normalization,
@@ -601,6 +609,20 @@ export function IngestionTab({
         return;
       }
       setResult(pipelineResult);
+      const glitches = detectStxmIntensityGlitches(
+        pipelineResult.i0,
+        pipelineResult.iSample,
+        pipelineResult.energyEv,
+      ).map(
+        (glitch): StxmIntensityGlitchRecord => ({
+          energyIndex: glitch.energyIndex,
+          energyEv: glitch.energyEv,
+          reason: glitch.reason,
+          i0: glitch.i0,
+          it: glitch.it,
+        }),
+      );
+      setIntensityGlitches(glitches);
       void recomputeRawSpectra();
       if (previewOnly) {
         return;

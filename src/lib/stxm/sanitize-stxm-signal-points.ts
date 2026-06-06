@@ -1,4 +1,18 @@
 import type { SpectrumPoint } from "~/components/plots/types";
+import {
+  buildStxmEnergyValidityMask,
+  detectStxmIntensityGlitches,
+  type DetectStxmIntensityGlitchesOptions,
+  type StxmIntensityGlitch,
+} from "./detect-stxm-intensity-glitches";
+
+export {
+  buildStxmEnergyValidityMask,
+  detectStxmIntensityGlitches,
+  type DetectStxmIntensityGlitchesOptions,
+  type StxmIntensityGlitch,
+  type StxmIntensityGlitchReason,
+} from "./detect-stxm-intensity-glitches";
 
 /**
  * Returns false when any supplied raw intensity at one energy is non-finite or non-positive.
@@ -31,6 +45,19 @@ export function isStxmRawSampleValid(
     }
   }
   return true;
+}
+
+/**
+ * Returns false when raw intensities fail positivity checks or match an intensity glitch rule.
+ */
+export function isStxmEnergyValidAtIndex(
+  index: number,
+  i0: readonly number[],
+  it?: readonly number[],
+  ie?: readonly number[],
+  glitchOptions?: DetectStxmIntensityGlitchesOptions,
+): boolean {
+  return buildStxmEnergyValidityMask(i0, it, ie, glitchOptions)[index] ?? false;
 }
 
 /**

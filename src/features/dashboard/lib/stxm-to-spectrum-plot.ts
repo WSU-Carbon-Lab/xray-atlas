@@ -27,6 +27,8 @@ import { resolveStxmLinkedCompanionChannel } from "~/lib/stxm/stxm-optical-link"
 import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
 import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
 import {
+  buildStxmEnergyValidityMask,
+  isStxmEnergyValidAtIndex,
   isStxmRawSampleValid,
   maskStxmDisplaySample,
   stxmSpectrumPointsHaveFiniteAbsorption,
@@ -197,11 +199,24 @@ function regionSpectrumChannelError(
   return undefined;
 }
 
+function ingestionValidityMask(result: StxmIngestionResult): boolean[] {
+  return buildStxmEnergyValidityMask(
+    result.i0,
+    result.iSample,
+    result.iTe ?? undefined,
+  );
+}
+
 function ingestionValidityAtIndex(
   result: StxmIngestionResult,
   channel: StxmIngestionPlotChannel,
   index: number,
+  validityMask: readonly boolean[],
 ): boolean {
+  const isEnergyValid = validityMask[index] ?? false;
+  if (!isEnergyValid) {
+    return false;
+  }
   const i0 = result.i0[index] ?? Number.NaN;
   const it = result.iSample[index] ?? Number.NaN;
   const ie = result.iTe?.[index];
@@ -217,12 +232,32 @@ function ingestionValidityAtIndex(
   }
 }
 
+function regionValidityMask(
+  izero: StxmRegionSpectrumSeries | null,
+  sample: StxmRegionSpectrumSeries | null,
+  ieSeries?: readonly number[] | null,
+): boolean[] {
+  if (!izero) {
+    return [];
+  }
+  return buildStxmEnergyValidityMask(
+    izero.signal,
+    sample?.signal,
+    ieSeries ?? undefined,
+  );
+}
+
 function regionValidityAtIndex(
   series: StxmRegionSpectrumSeries,
   channel: StxmIngestionPlotChannel,
   index: number,
   izero: StxmRegionSpectrumSeries | null,
+  validityMask: readonly boolean[],
 ): boolean {
+  const isEnergyValid = validityMask[index] ?? true;
+  if (!isEnergyValid) {
+    return false;
+  }
   if (channel === "signal_i0") {
     return isStxmRawSampleValid(series.signal[index] ?? Number.NaN);
   }
@@ -281,6 +316,7 @@ function pointsFromResult(
   channel: StxmIngestionPlotChannel,
   rawSignalTransform: StxmRawSignalTransformMode,
 ): SpectrumPoint[] {
+  const validityMask = ingestionValidityMask(result);
   if (isStxmDerivedOpticalPlotChannel(channel)) {
     const derived = deriveStxmOpticalChannelSeries(
       channel,
@@ -298,7 +334,7 @@ function pointsFromResult(
       rawSignalTransform,
       (index) => derived[index] ?? Number.NaN,
       undefined,
-      (index) => ingestionValidityAtIndex(result, channel, index),
+      (index) => ingestionValidityAtIndex(result, channel, index, validityMask),
     );
   }
   return seriesToPoints(
@@ -307,7 +343,7 @@ function pointsFromResult(
     rawSignalTransform,
     (index) => ingestionResultChannelValue(result, channel, index),
     (index) => ingestionResultChannelError(result, channel, index),
-    (index) => ingestionValidityAtIndex(result, channel, index),
+    (index) => ingestionValidityAtIndex(result, channel, index, validityMask),
   );
 }
 
@@ -317,9 +353,10 @@ function pointsFromRegionSeries(
   rawSignalTransform: StxmRawSignalTransformMode,
   formula: string | null | undefined,
   izero: StxmRegionSpectrumSeries | null,
+  validityMask: readonly boolean[],
 ): SpectrumPoint[] {
   const validity = (index: number) =>
-    regionValidityAtIndex(series, channel, index, izero);
+    regionValidityAtIndex(series, channel, index, izero, validityMask);
   if (isStxmDerivedOpticalPlotChannel(channel)) {
     const derived = deriveStxmOpticalChannelSeries(
       channel,
@@ -354,6 +391,15 @@ function izeroRegionSeries(
   regionSpectra: StxmRegionSpectrumSeries[],
 ): StxmRegionSpectrumSeries | null {
   return regionSpectra.find((series) => series.isIzero) ?? null;
+}
+
+function regionSeriesValidityMask(
+  regionSpectra: StxmRegionSpectrumSeries[],
+  series: StxmRegionSpectrumSeries,
+): boolean[] {
+  const izero = izeroRegionSeries(regionSpectra);
+  const sample = series.isIzero ? null : series;
+  return regionValidityMask(izero, sample, series.teyDrain);
 }
 
 function sampleRegionSeriesList(
@@ -487,9 +533,10 @@ function computeOdPointsFromRegionRaw(
     sample.signalErr,
   );
   return izero.energyEv.map((energy, index) => {
-    const isEnergyValid = isStxmRawSampleValid(
-      izero.signal[index] ?? Number.NaN,
-      sample.signal[index] ?? Number.NaN,
+    const isEnergyValid = isStxmEnergyValidAtIndex(
+      index,
+      izero.signal,
+      sample.signal,
     );
     const odValue = maskStxmDisplaySample(
       od[index] ?? Number.NaN,
@@ -525,6 +572,7 @@ function pointsFromRegionSeriesForChannel(
   rawSignalTransform: StxmRawSignalTransformMode,
   izero: StxmRegionSpectrumSeries | null,
   formula: string | null,
+  validityMask: readonly boolean[],
 ): SpectrumPoint[] {
   if (channel === "od" && izero != null && !series.isIzero) {
     return computeOdPointsFromRegionRaw(izero, series, rawSignalTransform);
@@ -535,6 +583,7 @@ function pointsFromRegionSeriesForChannel(
     rawSignalTransform,
     formula,
     izero,
+    validityMask,
   );
 }
 
@@ -563,12 +612,14 @@ function buildLinkedOpticalCompanion(
   } else {
     const series = resolvePrimaryRegionSeries(regionSpectra, companionChannel);
     if (series) {
+      const validityMask = regionSeriesValidityMask(regionSpectra, series);
       points = pointsFromRegionSeries(
         series,
         companionChannel,
         rawSignalTransform,
         formula,
         izeroRegionSeries(regionSpectra),
+        validityMask,
       );
     }
   }
@@ -624,12 +675,14 @@ function buildRegionScopedChannelTraces(
   const izero = izeroRegionSeries(regionSpectra);
   const traceEntries = regions
     .map((series) => {
+      const validityMask = regionSeriesValidityMask(regionSpectra, series);
       const points = pointsFromRegionSeriesForChannel(
         series,
         channel,
         rawSignalTransform,
         izero,
         formula,
+        validityMask,
       );
       if (!stxmSpectrumPointsHaveFiniteAbsorption(points)) {
         return null;
@@ -683,20 +736,24 @@ function buildLegacyRegionCompanionSpectra(
   }
   return regionSpectra
     .filter((series) => series.regionId !== primaryRegionId)
-    .map((series) => ({
-      label: buildStxmRegionTraceLabel(channel, series.spotLabel),
-      preferred: false,
-      color: series.color,
-      legendId: buildStxmRegionTraceLegendId(series.regionId),
-      regionSpotLabel: buildStxmRegionLegendSpotLabel(series.spotLabel),
-      points: pointsFromRegionSeriesForChannel(
-        series,
-        channel,
-        rawSignalTransform,
-        izeroRegionSeries(regionSpectra),
-        formula,
-      ),
-    }))
+    .map((series) => {
+      const validityMask = regionSeriesValidityMask(regionSpectra, series);
+      return {
+        label: buildStxmRegionTraceLabel(channel, series.spotLabel),
+        preferred: false,
+        color: series.color,
+        legendId: buildStxmRegionTraceLegendId(series.regionId),
+        regionSpotLabel: buildStxmRegionLegendSpotLabel(series.spotLabel),
+        points: pointsFromRegionSeriesForChannel(
+          series,
+          channel,
+          rawSignalTransform,
+          izeroRegionSeries(regionSpectra),
+          formula,
+          validityMask,
+        ),
+      };
+    })
     .filter((spectrum) => stxmSpectrumPointsHaveFiniteAbsorption(spectrum.points));
 }
 
@@ -797,12 +854,14 @@ function buildChannelPoints(
     const primarySeries = resolvePrimaryRegionSeries(regionSpectra, channel);
     if (primarySeries) {
       primaryRegionId = primarySeries.regionId;
+      const validityMask = regionSeriesValidityMask(regionSpectra, primarySeries);
       points = pointsFromRegionSeriesForChannel(
         primarySeries,
         channel,
         rawSignalTransform,
         izeroRegionSeries(regionSpectra),
         formula,
+        validityMask,
       );
     }
   }

@@ -104,6 +104,23 @@ export const stxmIzeroBoundsSchema = z.object({
 
 export type StxmIzeroBoundsRecord = z.infer<typeof stxmIzeroBoundsSchema>;
 
+export const stxmIntensityGlitchRecordSchema = z.object({
+  energyIndex: z.number().int().nonnegative(),
+  energyEv: z.number().nullable(),
+  reason: z.enum([
+    "it_exceeds_i0",
+    "i0_below_neighbor_median",
+    "it_above_neighbor_median",
+    "paired_i0_it_spike",
+  ]),
+  i0: z.number(),
+  it: z.number(),
+});
+
+export type StxmIntensityGlitchRecord = z.infer<
+  typeof stxmIntensityGlitchRecordSchema
+>;
+
 export const dashboardRegionsStepMetadataSchema = z.object({
   scanId: z.string().min(1).nullable().optional(),
   bounds: stxmRegionBoundsSchema.optional(),
@@ -123,6 +140,7 @@ export const dashboardRegionsStepMetadataSchema = z.object({
   thicknessCm: z.number().positive().optional(),
   normalization: stxmNormalizationWindowsSchema.optional(),
   regionEditorTrayOpen: z.boolean().optional(),
+  intensityGlitches: z.array(stxmIntensityGlitchRecordSchema).optional(),
 });
 
 export type DashboardRegionsStepMetadata = z.infer<
