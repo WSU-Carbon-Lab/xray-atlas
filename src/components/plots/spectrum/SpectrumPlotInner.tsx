@@ -79,6 +79,8 @@ import {
   panAxisDomain,
   panVerticalAxisDomain,
   spectrumAxisMinZoomSpan,
+  stepZoomInAxisDomain,
+  stepZoomOutAxisDomain,
   wheelZoomAxisDomain,
 } from "../utils/spectrum-axis-zoom";
 
@@ -533,6 +535,7 @@ export function SpectrumPlotInner({
   );
 
   useEffect(() => {
+    setZoomedXDomain(null);
     setZoomedYDomain(null);
   }, [yAxisQuantity]);
 
@@ -604,29 +607,50 @@ export function SpectrumPlotInner({
   );
 
   const handleZoomIn = useCallback(() => {
-    const [xMin, xMax] = zoomedXDomain ?? dataXBounds;
-    const center = (xMin + xMax) / 2;
-    const half = Math.max(minZoomSpan / 2, ((xMax - xMin) / 2) * 0.9);
-    const newMin = Math.max(dataXBounds[0], center - half);
-    const newMax = Math.min(dataXBounds[1], center + half);
-    if (newMax - newMin >= minZoomSpan) setZoomedXDomain([newMin, newMax]);
-  }, [zoomedXDomain, dataXBounds, minZoomSpan]);
+    const nextX = stepZoomInAxisDomain(zoomedXDomain, dataXBounds, minZoomSpan);
+    if (nextX != null) {
+      setZoomedXDomain(nextX);
+    }
+    if (yAxisZoomPanEnabled) {
+      const nextY = stepZoomInAxisDomain(
+        zoomedYDomain,
+        dataYBounds,
+        minYZoomSpan,
+      );
+      if (nextY != null) {
+        setZoomedYDomain(nextY);
+      }
+    }
+  }, [
+    dataXBounds,
+    dataYBounds,
+    minYZoomSpan,
+    minZoomSpan,
+    yAxisZoomPanEnabled,
+    zoomedXDomain,
+    zoomedYDomain,
+  ]);
 
   const handleZoomOut = useCallback(() => {
-    const [xMin, xMax] = zoomedXDomain ?? dataXBounds;
-    const center = (xMin + xMax) / 2;
-    const half = Math.min(
-      (dataXBounds[1] - dataXBounds[0]) / 2,
-      Math.max(minZoomSpan / 2, ((xMax - xMin) / 2) * 1.25),
-    );
-    const newMin = Math.max(dataXBounds[0], center - half);
-    const newMax = Math.min(dataXBounds[1], center + half);
-    setZoomedXDomain(
-      newMax - newMin >= dataXBounds[1] - dataXBounds[0] - 1e-6
-        ? null
-        : [newMin, newMax],
-    );
-  }, [zoomedXDomain, dataXBounds, minZoomSpan]);
+    const nextX = stepZoomOutAxisDomain(zoomedXDomain, dataXBounds, minZoomSpan);
+    setZoomedXDomain(nextX);
+    if (yAxisZoomPanEnabled) {
+      const nextY = stepZoomOutAxisDomain(
+        zoomedYDomain,
+        dataYBounds,
+        minYZoomSpan,
+      );
+      setZoomedYDomain(nextY);
+    }
+  }, [
+    dataXBounds,
+    dataYBounds,
+    minYZoomSpan,
+    minZoomSpan,
+    yAxisZoomPanEnabled,
+    zoomedXDomain,
+    zoomedYDomain,
+  ]);
 
   const handleMarqueeZoom = useCallback(
     (xDomain: [number, number], yDomain: [number, number]) => {
@@ -675,15 +699,9 @@ export function SpectrumPlotInner({
   const isManualPeakMode = plotContext?.kind === "peak-edit";
 
   const cursorMode = externalCursorMode ?? "inspect";
-  const isAxisZoomed =
-    zoomedXDomain != null || (yAxisZoomPanEnabled && zoomedYDomain != null);
 
   const effectiveCursorMode =
-    selectionTarget != null
-      ? "select"
-      : cursorMode === "pan" && !isAxisZoomed
-        ? "inspect"
-        : cursorMode;
+    selectionTarget != null ? "select" : cursorMode;
 
   const handleCursorModeChange = useCallback(
     (mode: "pan" | "zoom" | "select" | "peak" | "inspect") => {
@@ -1077,16 +1095,17 @@ export function SpectrumPlotInner({
 
   const handlePanStart = useCallback(
     (e: React.PointerEvent<SVGGElement>) => {
-      if (effectiveCursorMode !== "pan" || !isAxisZoomed) return;
+      if (effectiveCursorMode !== "pan") return;
       if (e.button !== 0) return;
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       if (x >= 0 && x <= mainPlotWidth && y >= 0 && y <= mainPlotHeight) {
         panStartRef.current = { x, y };
-        panStartXDomainRef.current = zoomedXDomain;
-        panStartYDomainRef.current =
-          yAxisZoomPanEnabled && zoomedYDomain != null ? zoomedYDomain : null;
+        panStartXDomainRef.current = zoomedXDomain ?? dataXBounds;
+        panStartYDomainRef.current = yAxisZoomPanEnabled
+          ? (zoomedYDomain ?? dataYBounds)
+          : null;
         setIsPanDragging(true);
         e.currentTarget.style.cursor = "grabbing";
         svgRef.current?.classList.add(PAN_DRAG_CLASS);
@@ -1096,8 +1115,9 @@ export function SpectrumPlotInner({
       }
     },
     [
+      dataXBounds,
+      dataYBounds,
       effectiveCursorMode,
-      isAxisZoomed,
       mainPlotHeight,
       mainPlotWidth,
       yAxisZoomPanEnabled,
@@ -1213,9 +1233,6 @@ export function SpectrumPlotInner({
 
   const handlePlotWheel = useCallback(
     (event: React.WheelEvent<SVGSVGElement>) => {
-      if (!yAxisZoomPanEnabled) {
-        return;
-      }
       const svg = svgRef.current;
       if (!svg) return;
       const rect = svg.getBoundingClientRect();
@@ -1223,47 +1240,76 @@ export function SpectrumPlotInner({
         event.clientX - rect.left - interactionPlot.dimensions.margins.left;
       const plotY =
         event.clientY - rect.top - interactionPlot.dimensions.margins.top;
+      const leftMargin = interactionPlot.dimensions.margins.left;
+      const bottomMargin = interactionPlot.dimensions.margins.bottom;
       const inYGutter =
+        yAxisZoomPanEnabled &&
         plotX < 0 &&
-        plotX >= -interactionPlot.dimensions.margins.left &&
+        plotX >= -leftMargin &&
         plotY >= 0 &&
         plotY <= mainPlotHeight;
+      const inXGutter =
+        plotY > mainPlotHeight &&
+        plotY <= mainPlotHeight + bottomMargin &&
+        plotX >= 0 &&
+        plotX <= mainPlotWidth;
       const inPlotInterior =
         plotX >= 0 &&
         plotX <= mainPlotWidth &&
         plotY >= 0 &&
         plotY <= mainPlotHeight;
-      if (!inYGutter && (!inPlotInterior || !event.shiftKey)) {
+      if (!inYGutter && !inXGutter && !inPlotInterior) {
         return;
       }
       event.preventDefault();
-      if (!inYGutter && !inPlotInterior) {
+
+      if (inYGutter) {
+        const currentY = zoomedYDomain ?? dataYBounds;
+        const anchor = zoomedYScale.invert(plotY);
+        const nextY = wheelZoomAxisDomain(
+          currentY,
+          dataYBounds,
+          minYZoomSpan,
+          anchor,
+          event.deltaY,
+        );
+        if (nextY == null) {
+          setZoomedYDomain(null);
+          return;
+        }
+        setZoomedYDomain(clampYDomainToMinSpan(nextY));
         return;
       }
-      const currentY = zoomedYDomain ?? dataYBounds;
-      const anchor = zoomedYScale.invert(plotY);
-      const nextY = wheelZoomAxisDomain(
-        currentY,
-        dataYBounds,
-        minYZoomSpan,
-        anchor,
+
+      const currentX = zoomedXDomain ?? dataXBounds;
+      const anchorX = zoomedXScale.invert(plotX);
+      const nextX = wheelZoomAxisDomain(
+        currentX,
+        dataXBounds,
+        minZoomSpan,
+        anchorX,
         event.deltaY,
       );
-      if (nextY == null) {
-        setZoomedYDomain(null);
+      if (nextX == null) {
+        setZoomedXDomain(null);
         return;
       }
-      setZoomedYDomain(clampYDomainToMinSpan(nextY));
+      setZoomedXDomain(clampXDomainToMinSpan(nextX));
     },
     [
+      clampXDomainToMinSpan,
       clampYDomainToMinSpan,
+      dataXBounds,
       dataYBounds,
+      interactionPlot.dimensions.margins.bottom,
       interactionPlot.dimensions.margins.left,
-      interactionPlot.dimensions.margins.top,
       mainPlotHeight,
       mainPlotWidth,
       minYZoomSpan,
+      minZoomSpan,
       yAxisZoomPanEnabled,
+      zoomedXDomain,
+      zoomedXScale,
       zoomedYDomain,
       zoomedYScale,
     ],
@@ -1281,6 +1327,7 @@ export function SpectrumPlotInner({
   }, [tooltipData, effectiveCursorMode]);
 
   const zoomMode: ZoomMode = "horizontal";
+  const xAxisGutterHeight = mainPlot.dimensions.margins.bottom;
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
@@ -1612,16 +1659,17 @@ export function SpectrumPlotInner({
                 zoomMode={zoomMode}
                 onZoom={handleMarqueeZoom}
                 onReset={handleResetZoom}
-                allowPlotInteractionsBelow={zoomedXDomain != null}
-                enableVerticalMarqueeWithShift={yAxisZoomPanEnabled}
+                enableDirectionalMarquee={yAxisZoomPanEnabled}
+                enableVerticalMarquee={yAxisZoomPanEnabled}
                 yAxisGutterWidth={
                   yAxisZoomPanEnabled
                     ? mainPlot.dimensions.margins.left
                     : 0
                 }
+                xAxisGutterHeight={xAxisGutterHeight}
               />
             )}
-            {effectiveCursorMode === "pan" && isAxisZoomed && (
+            {effectiveCursorMode === "pan" && (
               <g
                 ref={panOverlayRef}
                 transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
@@ -1809,7 +1857,7 @@ export function SpectrumPlotInner({
             railInsets={railInsets}
             currentMode={effectiveCursorMode}
             isCursorDisabled={plotContext?.kind === "normalize"}
-            isPanDisabled={!isAxisZoomed}
+            isPanDisabled={false}
             onCursorModeChange={handleCursorModeChange}
             onResetZoom={handleResetZoom}
             onExportClick={

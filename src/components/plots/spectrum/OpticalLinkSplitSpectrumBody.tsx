@@ -571,11 +571,11 @@ export function OpticalLinkSplitSpectrumBody({
             zoomMode={zoomMode}
             onZoom={onMarqueeZoom}
             onReset={onResetZoom}
-            allowPlotInteractionsBelow={zoomedXDomain != null}
+            xAxisGutterHeight={realPlot.dimensions.margins.bottom}
           />
         )}
 
-        {effectiveCursorMode === "pan" && zoomedXDomain != null && (
+        {effectiveCursorMode === "pan" && (
           <g
             ref={panOverlayRef}
             transform={`translate(${imaginaryPlot.dimensions.margins.left}, ${imaginaryPlot.dimensions.margins.top})`}
