@@ -26,6 +26,10 @@ import { STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION } from "~/lib/stxm/stxm-ingest
 import { resolveStxmLinkedCompanionChannel } from "~/lib/stxm/stxm-optical-link";
 import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
 import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
+import {
+  sanitizeStxmSignalSampleForDisplay,
+  stxmSpectrumPointsHaveFiniteAbsorption,
+} from "~/lib/stxm/sanitize-stxm-signal-points";
 
 export type StxmCompareOverlay = {
   id: string;
@@ -199,8 +203,8 @@ function seriesToPoints(
   readValue: (index: number) => number,
   readError?: (index: number) => number | undefined,
 ): SpectrumPoint[] {
-  return energyEv.map((energy, index) => {
-    const rawValue = readValue(index);
+  const points = energyEv.map((energy, index) => {
+    const rawValue = sanitizeStxmSignalSampleForDisplay(readValue(index));
     const absorption = transformStxmRawIntensityY(
       rawValue,
       channel,
@@ -208,7 +212,7 @@ function seriesToPoints(
     );
     const rawError = readError?.(index);
     const rawabsError =
-      rawError !== undefined
+      rawError !== undefined && Number.isFinite(rawValue)
         ? transformStxmRawIntensityErrorY(
             rawError,
             rawValue,
@@ -222,6 +226,7 @@ function seriesToPoints(
       ...(rawabsError !== undefined ? { rawabsError } : {}),
     };
   });
+  return points;
 }
 
 function pointsFromResult(
@@ -426,15 +431,16 @@ function computeOdPointsFromRegionRaw(
     sample.signalErr,
   );
   return izero.energyEv.map((energy, index) => {
-    const odValue = od[index] ?? Number.NaN;
+    const odValue = sanitizeStxmSignalSampleForDisplay(od[index] ?? Number.NaN);
     const sigmaOd = odErr[index] ?? 0;
-    const absorption = transformStxmRawIntensityY(odValue, "od", rawSignalTransform);
-    const rawabsError = transformStxmRawIntensityErrorY(
-      sigmaOd,
+    const absorption = transformStxmRawIntensityY(
       odValue,
       "od",
       rawSignalTransform,
     );
+    const rawabsError = Number.isFinite(odValue)
+      ? transformStxmRawIntensityErrorY(sigmaOd, odValue, "od", rawSignalTransform)
+      : undefined;
     return {
       energy,
       absorption,
@@ -458,9 +464,7 @@ function pointsFromRegionSeriesForChannel(
   formula: string | null,
 ): SpectrumPoint[] {
   if (channel === "od" && izero != null && !series.isIzero) {
-    return computeOdPointsFromRegionRaw(izero, series, rawSignalTransform).filter(
-      (point) => Number.isFinite(point.absorption),
-    );
+    return computeOdPointsFromRegionRaw(izero, series, rawSignalTransform);
   }
   return pointsFromRegionSeries(series, channel, rawSignalTransform, formula);
 }
@@ -498,8 +502,7 @@ function buildLinkedOpticalCompanion(
       );
     }
   }
-  points = points.filter((point) => Number.isFinite(point.absorption));
-  if (points.length === 0) {
+  if (!stxmSpectrumPointsHaveFiniteAbsorption(points)) {
     return null;
   }
   return {
@@ -520,16 +523,14 @@ function buildCompareCompanionSpectra(
   return compareOverlays
     .map((overlay) => {
       const runtime = persistedIngestionToRuntime(overlay.ingestion);
-      const points = pointsFromResult(runtime, channel, rawSignalTransform).filter(
-        (point) => Number.isFinite(point.absorption),
-      );
+      const points = pointsFromResult(runtime, channel, rawSignalTransform);
       return {
         label: overlay.label,
         preferred: false,
         points,
       };
     })
-    .filter((spectrum) => spectrum.points.length > 0);
+    .filter((spectrum) => stxmSpectrumPointsHaveFiniteAbsorption(spectrum.points));
 }
 
 function buildRegionScopedChannelTraces(
@@ -559,8 +560,8 @@ function buildRegionScopedChannelTraces(
         rawSignalTransform,
         izero,
         formula,
-      ).filter((point) => Number.isFinite(point.absorption));
-      if (points.length === 0) {
+      );
+      if (!stxmSpectrumPointsHaveFiniteAbsorption(points)) {
         return null;
       }
       return {
@@ -624,9 +625,9 @@ function buildLegacyRegionCompanionSpectra(
         rawSignalTransform,
         izeroRegionSeries(regionSpectra),
         formula,
-      ).filter((point) => Number.isFinite(point.absorption)),
+      ),
     }))
-    .filter((spectrum) => spectrum.points.length > 0);
+    .filter((spectrum) => stxmSpectrumPointsHaveFiniteAbsorption(spectrum.points));
 }
 
 function buildReferenceCurves(
@@ -741,7 +742,6 @@ function buildChannelPoints(
     primaryRegionId = primarySeries?.regionId ?? null;
   }
 
-  points = points.filter((point) => Number.isFinite(point.absorption));
   return { points, primaryRegionId, regionScoped: false };
 }
 
@@ -779,7 +779,7 @@ function buildSingleChannelPlotModel(
   );
   const { points, primaryRegionId, regionScoped } = channelPoints;
 
-  if (points.length === 0) {
+  if (!stxmSpectrumPointsHaveFiniteAbsorption(points)) {
     return null;
   }
 

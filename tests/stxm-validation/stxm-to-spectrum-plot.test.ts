@@ -75,6 +75,50 @@ describe("buildStxmSpectrumPlotModel", () => {
     expect(model?.yAxisQuantity).toBe("intensity");
   });
 
+  it("omits negative signal samples as NaN gaps while preserving energy alignment", () => {
+    const resultWithNegative: StxmIngestionResult = {
+      ...sampleResult,
+      i0: [1000, -50, 1020],
+    };
+    const model = buildStxmSpectrumPlotModel({
+      result: resultWithNegative,
+      regionSpectra: [],
+      channel: "signal_i0",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: false,
+    });
+    expect(model?.points).toHaveLength(3);
+    expect(model?.points[0]?.energy).toBe(280);
+    expect(model?.points[1]?.energy).toBe(281);
+    expect(Number.isNaN(model?.points[1]?.absorption ?? 0)).toBe(true);
+    expect(model?.points[2]?.absorption).toBe(1020);
+    expect(model?.points[1]?.rawabsError === undefined).toBe(true);
+  });
+
+  it("omits negative OD samples as NaN gaps", () => {
+    const resultWithNegativeOd: StxmIngestionResult = {
+      ...sampleResult,
+      od: [0.5, -0.1, 1.0],
+    };
+    const model = buildStxmSpectrumPlotModel({
+      result: resultWithNegativeOd,
+      regionSpectra: [],
+      channel: "od",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: false,
+    });
+    expect(model?.points).toHaveLength(3);
+    expect(Number.isNaN(model?.points[1]?.absorption ?? 0)).toBe(true);
+    expect(model?.points[0]?.absorption).toBe(0.5);
+    expect(model?.points[2]?.absorption).toBe(1.0);
+  });
+
   it("applies reciprocal transform for raw It channel", () => {
     const model = buildStxmSpectrumPlotModel({
       result: sampleResult,
