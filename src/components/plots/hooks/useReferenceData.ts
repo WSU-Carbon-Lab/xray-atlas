@@ -141,21 +141,24 @@ export function useReferenceData(
       ? SPECTRUM_TRACE_GRADIENT_DARK
       : SPECTRUM_TRACE_GRADIENT_LIGHT;
     return companionSpectra.map((spec, index) => {
-      const color = spectrumTraceColorAlongGradient(
-        palette,
-        index,
-        Math.max(1, companionSpectra.length),
-      );
+      const color =
+        spec.color ??
+        spectrumTraceColorAlongGradient(
+          palette,
+          index,
+          Math.max(1, companionSpectra.length),
+        );
       return {
         type: "scattergl",
         mode: "lines",
         name: spec.label,
+        legendId: spec.color ? `region-companion-${index}` : undefined,
         x: spec.points.map((point) => point.energy),
         y: spec.points.map((point) => point.absorption),
         line: {
           color,
           width: 1.8,
-          dash: "dashdot",
+          dash: spec.color ? "solid" : "dashdot",
         },
         hovertemplate:
           `<b>${spec.label}</b><br>` +

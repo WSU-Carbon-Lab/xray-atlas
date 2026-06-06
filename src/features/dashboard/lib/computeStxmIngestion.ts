@@ -22,6 +22,7 @@ import {
   type StxmNormalizationWindows,
 } from "~/lib/stxm/normalization";
 import { sampleIzeroMasks } from "~/lib/stxm/regions";
+import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
 import {
   parseTeyDrainSeriesFromHdr,
   stxmIeChannelAvailable,
@@ -245,3 +246,154 @@ export function computeRegionSignalSpectra(
 }
 
 export { grantKkBrowserConsent, readKkBrowserConsentGranted };
+
+/**
+ * Computes Beer-Lambert OD and uncertainty from pre-summed izero and sample intensities.
+ */
+export function beerLambertFromSummedSignals(
+  i0: readonly number[],
+  i0Err: readonly number[],
+  iSample: readonly number[],
+  iSampleErr: readonly number[],
+  eps = 1e-10,
+): { od: number[]; odErr: number[] } {
+  const od: number[] = [];
+  const odErr: number[] = [];
+  for (let index = 0; index < i0.length; index += 1) {
+    const i0Value = Math.max(i0[index] ?? eps, eps);
+    const iSampleValue = Math.max(iSample[index] ?? eps, eps);
+    od.push(Math.log(i0Value / iSampleValue));
+    const sigmaI0 = i0Err[index] ?? 0;
+    const sigmaI = iSampleErr[index] ?? 0;
+    odErr.push(Math.sqrt((sigmaI0 / i0Value) ** 2 + (sigmaI / iSampleValue) ** 2));
+  }
+  return { od, odErr };
+}
+
+export type EnrichRegionSpectraWithReductionOptions = {
+  normalization: StxmNormalizationWindows;
+  formula?: string | null;
+  thicknessCm?: number;
+  runKkDelta?: boolean;
+  bareAtomIncludeOffset?: boolean;
+};
+
+/**
+ * Attaches per-sample-region OD, normalized OD, mass absorption, beta, and optional KK delta to raw region spectra using shared izero and ingestion normalization settings.
+ */
+export async function enrichRegionSpectraWithReduction(
+  regionSpectra: StxmRegionSpectrumSeries[],
+  options: EnrichRegionSpectraWithReductionOptions,
+): Promise<StxmRegionSpectrumSeries[]> {
+  const izero = regionSpectra.find((series) => series.isIzero);
+  if (!izero || izero.energyEv.length === 0) {
+    return regionSpectra;
+  }
+  const energyEv = Float64Array.from(izero.energyEv);
+  const formulaRaw = options.formula?.trim();
+  const formula = formulaRaw?.length ? formulaRaw : null;
+  const thicknessCm = options.thicknessCm ?? 1e-4;
+
+  let muMassAbs: Float64Array | null = null;
+  if (formula) {
+    const spectrumPoints = izero.energyEv.map((energy) => ({
+      energy,
+      absorption: 0,
+    }));
+    const bareMuPoints = await calculateBareAtomAbsorption(
+      formula,
+      spectrumPoints,
+    );
+    muMassAbs = Float64Array.from(
+      bareMuPoints.map((point) => point.absorption),
+    );
+  }
+
+  return Promise.all(
+    regionSpectra.map(async (series) => {
+      if (series.isIzero) {
+        return series;
+      }
+      const { od, odErr } = beerLambertFromSummedSignals(
+        izero.signal,
+        izero.signalErr,
+        series.signal,
+        series.signalErr,
+      );
+      const { odNormalized } = normalizeNexafsOd(
+        energyEv,
+        Float64Array.from(od),
+        options.normalization,
+      );
+
+      let massAbsorption: number[] | null = null;
+      let massAbsorptionErr: number[] | null = null;
+      let beta: number[] | null = null;
+      let betaErr: number[] | null = null;
+      let delta: number[] | null = null;
+
+      if (formula && muMassAbs) {
+        const fit = fitBareAtomBackground(
+          energyEv,
+          Float64Array.from(od),
+          muMassAbs,
+          5,
+          options.bareAtomIncludeOffset ?? true,
+        );
+        const mass = massAbsorptionFromOdFit(
+          Float64Array.from(od),
+          Float64Array.from(odErr),
+          fit,
+        );
+        massAbsorption = toNumberArray(mass.massAbsorption);
+        massAbsorptionErr = toNumberArray(mass.massAbsorptionErr);
+        const betaBare = bareAtomBetaFromMassAbsorption(energyEv, muMassAbs);
+        beta = toNumberArray(
+          betaFromNormalizedMassAbsorption(
+            mass.massAbsorption,
+            muMassAbs,
+            betaBare,
+          ),
+        );
+        betaErr = toNumberArray(
+          betaFromNormalizedMassAbsorption(
+            mass.massAbsorptionErr,
+            muMassAbs,
+            betaBare,
+          ),
+        );
+        if (options.runKkDelta !== false && beta.length >= 4) {
+          if (readKkBrowserConsentGranted()) {
+            delta = computeDeltaFromBetaKkcalcStyle({
+              energyEv: izero.energyEv,
+              beta,
+              stoichiometryFormula: formula,
+              densityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
+              henkeMergeDomain: [
+                options.normalization.preLo,
+                options.normalization.postHi,
+              ],
+            });
+          }
+        }
+      } else {
+        beta = toNumberArray(odToBeta(energyEv, Float64Array.from(od), thicknessCm));
+        betaErr = toNumberArray(
+          odErrToBetaErr(energyEv, Float64Array.from(odErr), thicknessCm),
+        );
+      }
+
+      return {
+        ...series,
+        od,
+        odErr,
+        odNormalized: toNumberArray(odNormalized),
+        massAbsorption: massAbsorption ?? undefined,
+        massAbsorptionErr: massAbsorptionErr ?? undefined,
+        beta: beta ?? undefined,
+        betaErr: betaErr ?? undefined,
+        delta: delta ?? undefined,
+      };
+    }),
+  );
+}

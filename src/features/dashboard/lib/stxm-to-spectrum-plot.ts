@@ -5,12 +5,17 @@ import type {
   SpectrumPoint,
   SpectrumYAxisQuantity,
 } from "~/components/plots/types";
-import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
+import {
+  beerLambertFromSummedSignals,
+  type StxmIngestionResult,
+} from "~/features/dashboard/lib/computeStxmIngestion";
 import type { DashboardIngestionResult } from "~/lib/dashboard-processing-session";
 import { channelDefinitionById } from "~/components/plots/data-rail";
 import {
+  deriveStxmOpticalChannelSeries,
   ingestionChannelUsesRawIntensity,
   ingestionResultChannelValue,
+  isStxmDerivedOpticalPlotChannel,
   regionSpectrumChannelValue,
   transformStxmRawIntensityErrorY,
   transformStxmRawIntensityY,
@@ -79,6 +84,8 @@ export type StxmSpectrumPlotModel = {
   traceStackPanels?: StxmTraceStackPanel[];
   /** When true, the plot uses region-named traces instead of θ/φ geometry legend chrome. */
   regionScopedTraces?: boolean;
+  /** Stroke color for the primary region trace when {@link regionScopedTraces} is true. */
+  primaryTraceColor?: string;
 };
 
 export type StxmTraceStackPanel = {
@@ -132,11 +139,17 @@ function ingestionResultChannelError(
       const err = result.massAbsorptionErr?.[index];
       return err != null && Number.isFinite(err) ? err : undefined;
     }
-    case "beta":
-    case "chi": {
+    case "beta": {
       const err = result.betaErr?.[index];
       return err != null && Number.isFinite(err) ? err : undefined;
     }
+    case "f2":
+    case "im-epsilon":
+    case "im-chi":
+    case "f1":
+    case "re-epsilon":
+    case "re-chi":
+      return undefined;
     default:
       return undefined;
   }
@@ -163,9 +176,12 @@ function regionSpectrumChannelError(
     const err = series.massAbsorptionErr?.[index];
     return err != null && Number.isFinite(err) ? err : undefined;
   }
-  if (channel === "beta" || channel === "chi") {
+  if (channel === "beta") {
     const err = series.betaErr?.[index];
     return err != null && Number.isFinite(err) ? err : undefined;
+  }
+  if (isStxmDerivedOpticalPlotChannel(channel) || channel === "delta") {
+    return undefined;
   }
   return undefined;
 }
@@ -207,6 +223,24 @@ function pointsFromResult(
   channel: StxmIngestionPlotChannel,
   rawSignalTransform: StxmRawSignalTransformMode,
 ): SpectrumPoint[] {
+  if (isStxmDerivedOpticalPlotChannel(channel)) {
+    const derived = deriveStxmOpticalChannelSeries(
+      channel,
+      result.energyEv,
+      result.beta,
+      result.delta,
+      result.formula,
+    );
+    if (!derived) {
+      return [];
+    }
+    return seriesToPoints(
+      result.energyEv,
+      channel,
+      rawSignalTransform,
+      (index) => derived[index] ?? Number.NaN,
+    );
+  }
   return seriesToPoints(
     result.energyEv,
     channel,
@@ -220,12 +254,31 @@ function pointsFromRegionSeries(
   series: StxmRegionSpectrumSeries,
   channel: StxmIngestionPlotChannel,
   rawSignalTransform: StxmRawSignalTransformMode,
+  formula: string | null | undefined,
 ): SpectrumPoint[] {
+  if (isStxmDerivedOpticalPlotChannel(channel)) {
+    const derived = deriveStxmOpticalChannelSeries(
+      channel,
+      series.energyEv,
+      series.beta,
+      series.delta,
+      formula,
+    );
+    if (!derived) {
+      return [];
+    }
+    return seriesToPoints(
+      series.energyEv,
+      channel,
+      rawSignalTransform,
+      (index) => derived[index] ?? Number.NaN,
+    );
+  }
   return seriesToPoints(
     series.energyEv,
     channel,
     rawSignalTransform,
-    (index) => regionSpectrumChannelValue(series, channel, index),
+    (index) => regionSpectrumChannelValue(series, channel, index, formula),
     (index) => regionSpectrumChannelError(series, channel, index),
   );
 }
@@ -270,11 +323,19 @@ function regionSeriesHasReducedChannel(
   if (channel === "mass_absorption" || channel === "bare_atom") {
     return series.massAbsorption != null && series.massAbsorption.length > 0;
   }
-  if (channel === "beta" || channel === "chi") {
+  if (channel === "beta") {
     return series.beta != null && series.beta.length > 0;
   }
-  if (channel === "delta" || channel === "f1") {
+  if (channel === "delta") {
     return series.delta != null && series.delta.length > 0;
+  }
+  if (isStxmDerivedOpticalPlotChannel(channel)) {
+    return (
+      series.beta != null &&
+      series.beta.length > 0 &&
+      series.delta != null &&
+      series.delta.length > 0
+    );
   }
   return false;
 }
@@ -292,10 +353,17 @@ export function shouldUseStxmRegionScopedTraces(
   if (channel === "signal_i0") {
     return izeroRegionSeries(regionSpectra) != null;
   }
-  if (ingestionChannelUsesRawIntensity(channel) || channel === "od") {
-    return sampleRegionSeriesList(regionSpectra).length > 0;
+  const sampleRegions = sampleRegionSeriesList(regionSpectra);
+  if (sampleRegions.length === 0) {
+    return false;
   }
-  return sampleRegionSeriesList(regionSpectra).some((series) =>
+  if (ingestionChannelUsesRawIntensity(channel)) {
+    return true;
+  }
+  if (channel === "od" || channel === "od_normalized") {
+    return izeroRegionSeries(regionSpectra) != null;
+  }
+  return sampleRegions.some((series) =>
     regionSeriesHasReducedChannel(series, channel),
   );
 }
@@ -329,18 +397,19 @@ function computeOdPointsFromRegionRaw(
   sample: StxmRegionSpectrumSeries,
   rawSignalTransform: StxmRawSignalTransformMode,
 ): SpectrumPoint[] {
-  const eps = 1e-10;
+  const { od, odErr } = beerLambertFromSummedSignals(
+    izero.signal,
+    izero.signalErr,
+    sample.signal,
+    sample.signalErr,
+  );
   return izero.energyEv.map((energy, index) => {
-    const i0 = Math.max(izero.signal[index] ?? eps, eps);
-    const iSample = Math.max(sample.signal[index] ?? eps, eps);
-    const od = Math.log(i0 / iSample);
-    const sigmaI0 = izero.signalErr[index] ?? 0;
-    const sigmaI = sample.signalErr[index] ?? 0;
-    const sigmaOd = Math.sqrt((sigmaI0 / i0) ** 2 + (sigmaI / iSample) ** 2);
-    const absorption = transformStxmRawIntensityY(od, "od", rawSignalTransform);
+    const odValue = od[index] ?? Number.NaN;
+    const sigmaOd = odErr[index] ?? 0;
+    const absorption = transformStxmRawIntensityY(odValue, "od", rawSignalTransform);
     const rawabsError = transformStxmRawIntensityErrorY(
       sigmaOd,
-      od,
+      odValue,
       "od",
       rawSignalTransform,
     );
@@ -352,18 +421,26 @@ function computeOdPointsFromRegionRaw(
   });
 }
 
+function plotFormulaFromResult(
+  result: StxmIngestionResult | null,
+): string | null {
+  const trimmed = result?.formula?.trim();
+  return trimmed?.length ? trimmed : null;
+}
+
 function pointsFromRegionSeriesForChannel(
   series: StxmRegionSpectrumSeries,
   channel: StxmIngestionPlotChannel,
   rawSignalTransform: StxmRawSignalTransformMode,
   izero: StxmRegionSpectrumSeries | null,
+  formula: string | null,
 ): SpectrumPoint[] {
   if (channel === "od" && izero != null && !series.isIzero) {
     return computeOdPointsFromRegionRaw(izero, series, rawSignalTransform).filter(
       (point) => Number.isFinite(point.absorption),
     );
   }
-  return pointsFromRegionSeries(series, channel, rawSignalTransform);
+  return pointsFromRegionSeries(series, channel, rawSignalTransform, formula);
 }
 
 function buildLinkedOpticalCompanion(
@@ -372,6 +449,7 @@ function buildLinkedOpticalCompanion(
   channel: StxmIngestionPlotChannel,
   rawSignalTransform: StxmRawSignalTransformMode,
   linkImaginaryReal: boolean,
+  formula: string | null,
 ): DifferenceSpectrum | null {
   if (!linkImaginaryReal) {
     return null;
@@ -390,7 +468,12 @@ function buildLinkedOpticalCompanion(
   } else {
     const series = resolvePrimaryRegionSeries(regionSpectra, companionChannel);
     if (series) {
-      points = pointsFromRegionSeries(series, companionChannel, rawSignalTransform);
+      points = pointsFromRegionSeries(
+        series,
+        companionChannel,
+        rawSignalTransform,
+        formula,
+      );
     }
   }
   points = points.filter((point) => Number.isFinite(point.absorption));
@@ -431,9 +514,11 @@ function buildRegionScopedChannelTraces(
   regionSpectra: StxmRegionSpectrumSeries[],
   channel: StxmIngestionPlotChannel,
   rawSignalTransform: StxmRawSignalTransformMode,
+  formula: string | null,
 ): {
   points: SpectrumPoint[];
   primaryTraceLabel: string;
+  primaryTraceColor?: string;
   companionSpectra: DifferenceSpectrum[];
   primaryRegionId: string | null;
 } | null {
@@ -449,6 +534,7 @@ function buildRegionScopedChannelTraces(
         channel,
         rawSignalTransform,
         izero,
+        formula,
       ).filter((point) => Number.isFinite(point.absorption));
       if (points.length === 0) {
         return null;
@@ -457,6 +543,7 @@ function buildRegionScopedChannelTraces(
         regionId: series.regionId,
         label: buildStxmRegionTraceLabel(channel, series.spotLabel),
         points,
+        color: series.color,
       };
     })
     .filter((entry): entry is NonNullable<typeof entry> => entry != null);
@@ -471,10 +558,12 @@ function buildRegionScopedChannelTraces(
   return {
     points: primary.points,
     primaryTraceLabel: primary.label,
+    primaryTraceColor: primary.color,
     primaryRegionId: primary.regionId,
-    companionSpectra: rest.map((entry, index) => ({
+    companionSpectra: rest.map((entry) => ({
       label: entry.label,
-      preferred: index === 0,
+      preferred: false,
+      color: entry.color,
       points: entry.points,
     })),
   };
@@ -486,20 +575,23 @@ function buildLegacyRegionCompanionSpectra(
   rawSignalTransform: StxmRawSignalTransformMode,
   showRegionOverlays: boolean,
   primaryRegionId: string | null,
+  formula: string | null,
 ): DifferenceSpectrum[] {
   if (!showRegionOverlays) {
     return [];
   }
   return regionSpectra
     .filter((series) => series.regionId !== primaryRegionId)
-    .map((series, index) => ({
+    .map((series) => ({
       label: buildStxmRegionTraceLabel(channel, series.spotLabel),
-      preferred: index === 0,
+      preferred: false,
+      color: series.color,
       points: pointsFromRegionSeriesForChannel(
         series,
         channel,
         rawSignalTransform,
         izeroRegionSeries(regionSpectra),
+        formula,
       ).filter((point) => Number.isFinite(point.absorption)),
     }))
     .filter((spectrum) => spectrum.points.length > 0);
@@ -558,6 +650,7 @@ type ChannelPointsResult = {
   points: SpectrumPoint[];
   primaryRegionId: string | null;
   primaryTraceLabel?: string;
+  primaryTraceColor?: string;
   regionCompanionSpectra?: DifferenceSpectrum[];
   regionScoped: boolean;
 };
@@ -568,17 +661,20 @@ function buildChannelPoints(
   channel: StxmIngestionPlotChannel,
   rawSignalTransform: StxmRawSignalTransformMode,
 ): ChannelPointsResult {
+  const formula = plotFormulaFromResult(result);
   if (shouldUseStxmRegionScopedTraces(regionSpectra, channel)) {
     const scoped = buildRegionScopedChannelTraces(
       regionSpectra,
       channel,
       rawSignalTransform,
+      formula,
     );
     if (scoped) {
       return {
         points: scoped.points,
         primaryRegionId: scoped.primaryRegionId,
         primaryTraceLabel: scoped.primaryTraceLabel,
+        primaryTraceColor: scoped.primaryTraceColor,
         regionCompanionSpectra: scoped.companionSpectra,
         regionScoped: true,
       };
@@ -599,6 +695,7 @@ function buildChannelPoints(
         channel,
         rawSignalTransform,
         izeroRegionSeries(regionSpectra),
+        formula,
       );
     }
   }
@@ -631,6 +728,8 @@ function buildSingleChannelPlotModel(
     pureRegionLabel,
   } = params;
 
+  const formula = plotFormulaFromResult(result);
+
   const yAxisQuantity = channelDefinitionById(
     STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
     channel,
@@ -656,6 +755,7 @@ function buildSingleChannelPlotModel(
         rawSignalTransform,
         showRegionOverlays,
         primaryRegionId,
+        formula,
       );
   const linkedCompanion = buildLinkedOpticalCompanion(
     result,
@@ -663,6 +763,7 @@ function buildSingleChannelPlotModel(
     channel,
     rawSignalTransform,
     linkImaginaryReal,
+    formula,
   );
   const compareCompanions = buildCompareCompanionSpectra(
     compareOverlays,
@@ -709,6 +810,7 @@ function buildSingleChannelPlotModel(
     primaryTraceLabel: regionScoped
       ? channelPoints.primaryTraceLabel
       : resolvePrimaryTraceLabel(channel, primaryTraceLabel, pureRegionLabel),
+    primaryTraceColor: regionScoped ? channelPoints.primaryTraceColor : undefined,
     normalizationRegions,
     showNormalizationShading,
     regionScopedTraces: regionScoped,

@@ -46,6 +46,7 @@ import { buildLinkedOpticalAreaBands } from "../utils/linked-optical-area-bands"
 import {
   buildSingleSpectrumGeometryLegendRows,
   spectrumChannelGlyphForQuantity,
+  type SingleSpectrumGeometryLegendRow,
 } from "./spectrum-geometry-legend-types";
 import { ExportPlotModal } from "./ExportPlotModal";
 import { ChartCrosshairAndDots } from "./ChartCrosshairAndDots";
@@ -160,6 +161,7 @@ export function SpectrumPlotInner({
   spectrumCsvContextMenu,
   primaryTraceLabel,
   hideGeometryLegend = false,
+  primaryTraceColor,
 }: SpectrumPlotInnerProps) {
   const opticalLinkConfig = opticalLink ?? betaDeltaLinkLegacy;
   const { resolvedTheme } = useTheme();
@@ -179,6 +181,7 @@ export function SpectrumPlotInner({
     differenceSpectra,
     isDark,
     primaryTraceLabel,
+    primaryTraceColor,
   );
   const linkedOptical = useLinkedOpticalTraces(
     groupedTraces.traces,
@@ -246,8 +249,9 @@ export function SpectrumPlotInner({
       return groupedTraces.traces;
     }
     if (hideGeometryLegend) {
-      return groupedTraces.traces.map((trace) => ({
+      return groupedTraces.traces.map((trace, index) => ({
         ...trace,
+        legendId: `region-primary-${index}`,
         showlegend: true,
       }));
     }
@@ -354,6 +358,53 @@ export function SpectrumPlotInner({
     visibleTraceIds,
   ]);
 
+  const regionLegendRows = useMemo((): SingleSpectrumGeometryLegendRow[] => {
+    if (!hideGeometryLegend) {
+      return [];
+    }
+    const rows: SingleSpectrumGeometryLegendRow[] = [];
+    let traceIndex = 0;
+    for (const trace of primarySpectrumTraces) {
+      if (isBareAtomTraceName(trace)) {
+        continue;
+      }
+      rows.push({
+        geometryKey: `region-${traceIndex}`,
+        color: trace.line?.color ?? trace.marker?.color ?? "#6b7280",
+        angleLabel:
+          typeof trace.name === "string" && trace.name.length > 0
+            ? trace.name
+            : `Trace ${traceIndex + 1}`,
+        traceId: trace.legendId ?? traceVisibilityId(trace, traceIndex),
+        lineDash: "solid",
+      });
+      traceIndex += 1;
+    }
+    const companionTraces = linkedOptical.active
+      ? linkedOptical.companionTraces
+      : referenceData.companionTraces;
+    for (const trace of companionTraces) {
+      rows.push({
+        geometryKey: `region-${traceIndex}`,
+        color: trace.line?.color ?? "#6b7280",
+        angleLabel:
+          typeof trace.name === "string" && trace.name.length > 0
+            ? trace.name
+            : `Trace ${traceIndex + 1}`,
+        traceId: trace.legendId ?? traceVisibilityId(trace, traceIndex),
+        lineDash: "solid",
+      });
+      traceIndex += 1;
+    }
+    return rows;
+  }, [
+    hideGeometryLegend,
+    linkedOptical.active,
+    linkedOptical.companionTraces,
+    primarySpectrumTraces,
+    referenceData.companionTraces,
+  ]);
+
   const toggleGeometryLegend = useCallback(
     (geometryKey: string) => {
       if (linkedOptical.active) {
@@ -378,9 +429,9 @@ export function SpectrumPlotInner({
         });
         return;
       }
-      const row = singleGeometryLegend.rows.find(
-        (r) => r.geometryKey === geometryKey,
-      );
+      const row = (
+        regionLegendRows.length > 0 ? regionLegendRows : singleGeometryLegend.rows
+      ).find((r) => r.geometryKey === geometryKey);
       if (!row) {
         return;
       }
@@ -398,19 +449,24 @@ export function SpectrumPlotInner({
       allTraceIds,
       linkedOptical.active,
       linkedOptical.legendRows,
+      regionLegendRows,
       singleGeometryLegend.rows,
     ],
   );
 
   const geometryLegendAngleTitle = linkedOptical.active
     ? linkedOptical.angleColumnTitle
-    : singleGeometryLegend.angleColumnTitle;
+    : regionLegendRows.length > 0
+      ? "Region"
+      : singleGeometryLegend.angleColumnTitle;
 
   const showGeometryLegend =
-    !hideGeometryLegend &&
-    (linkedOptical.active && opticalLinkConfig
-      ? linkedOptical.legendRows.length > 0
-      : singleGeometryLegend.rows.length > 0);
+    regionLegendRows.length > 0
+      ? true
+      : !hideGeometryLegend &&
+        (linkedOptical.active && opticalLinkConfig
+          ? linkedOptical.legendRows.length > 0
+          : singleGeometryLegend.rows.length > 0);
 
   const channelLegendGlyph = spectrumChannelGlyphForQuantity(
     yAxisQuantity ?? "intensity",
@@ -1744,7 +1800,11 @@ export function SpectrumPlotInner({
                 ) : (
                   <PlotSpectrumGeometryLegend
                     mode="single"
-                    rows={singleGeometryLegend.rows}
+                    rows={
+                      regionLegendRows.length > 0
+                        ? regionLegendRows
+                        : singleGeometryLegend.rows
+                    }
                     visibleTraceIds={visibleTraceIds}
                     onToggleGeometry={toggleGeometryLegend}
                     themeColors={themeColors}

@@ -214,4 +214,120 @@ describe("buildStxmSpectrumPlotModel", () => {
       true,
     );
   });
+
+  const multiRegionSpectra = (): StxmRegionSpectrumSeries[] => [
+    {
+      spotLabel: "izero",
+      regionId: "izero",
+      sampleLo: 0,
+      sampleHi: 1,
+      energyEv: [280, 281],
+      signal: [2000, 2100],
+      signalErr: [10, 10],
+      color: "#2563eb",
+      isIzero: true,
+    },
+    {
+      spotLabel: "pure",
+      regionId: "pure-id",
+      sampleLo: 2,
+      sampleHi: 3,
+      energyEv: [280, 281],
+      signal: [500, 400],
+      signalErr: [5, 5],
+      color: "#16a34a",
+      od: [0.69, 0.92],
+      odErr: [0.01, 0.02],
+      odNormalized: [0.1, 0.5],
+      beta: [0.001, 0.002],
+      betaErr: [0.0001, 0.0001],
+      delta: [0.01, 0.02],
+    },
+    {
+      spotLabel: "edge",
+      regionId: "edge-id",
+      sampleLo: 4,
+      sampleHi: 5,
+      energyEv: [280, 281],
+      signal: [300, 250],
+      signalErr: [4, 4],
+      color: "#0891b2",
+      od: [0.8, 1.0],
+      odErr: [0.01, 0.02],
+      odNormalized: [0.2, 0.6],
+      beta: [0.0015, 0.0025],
+      betaErr: [0.0001, 0.0001],
+      delta: [0.015, 0.025],
+    },
+  ];
+
+  it("plots one OD trace per sample region with region colors and labels", () => {
+    const regionSpectra = multiRegionSpectra();
+    expect(shouldUseStxmRegionScopedTraces(regionSpectra, "od")).toBe(true);
+    const model = buildStxmSpectrumPlotModel({
+      result: sampleResult,
+      regionSpectra,
+      channel: "od",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: true,
+    });
+    expect(model?.regionScopedTraces).toBe(true);
+    expect(model?.primaryTraceLabel).toBe("OD (pure)");
+    expect(model?.primaryTraceColor).toBe("#16a34a");
+    expect(model?.companionSpectra).toHaveLength(1);
+    expect(model?.companionSpectra[0]?.label).toBe("OD (edge)");
+    expect(model?.companionSpectra[0]?.color).toBe("#0891b2");
+  });
+
+  it("plots beta and delta traces per sample region when region series include optical constants", () => {
+    const regionSpectra = multiRegionSpectra();
+    expect(shouldUseStxmRegionScopedTraces(regionSpectra, "beta")).toBe(true);
+    expect(shouldUseStxmRegionScopedTraces(regionSpectra, "delta")).toBe(true);
+    expect(shouldUseStxmRegionScopedTraces(regionSpectra, "od_normalized")).toBe(
+      true,
+    );
+
+    const betaModel = buildStxmSpectrumPlotModel({
+      result: sampleResult,
+      regionSpectra,
+      channel: "beta",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: true,
+    });
+    expect(betaModel?.regionScopedTraces).toBe(true);
+    expect(betaModel?.primaryTraceLabel).toBe("Beta (pure)");
+    expect(betaModel?.companionSpectra[0]?.label).toBe("Beta (edge)");
+
+    const deltaModel = buildStxmSpectrumPlotModel({
+      result: sampleResult,
+      regionSpectra,
+      channel: "delta",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: true,
+    });
+    expect(deltaModel?.regionScopedTraces).toBe(true);
+    expect(deltaModel?.companionSpectra[0]?.points[0]?.absorption).toBe(0.015);
+
+    const normModel = buildStxmSpectrumPlotModel({
+      result: sampleResult,
+      regionSpectra,
+      channel: "od_normalized",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: true,
+    });
+    expect(normModel?.regionScopedTraces).toBe(true);
+    expect(normModel?.companionSpectra[0]?.points[0]?.absorption).toBe(0.2);
+  });
 });

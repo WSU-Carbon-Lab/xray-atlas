@@ -5,6 +5,7 @@ import { Button, ErrorMessage, Spinner } from "@heroui/react";
 import { KkBrowserConsentDialog } from "~/features/kk-calc/kk-browser-consent-dialog";
 import {
   computeStxmIngestion,
+  enrichRegionSpectraWithReduction,
   grantKkBrowserConsent,
   readKkBrowserConsentGranted,
   type StxmIngestionResult,
@@ -482,7 +483,7 @@ export function IngestionTab({
     weightingMode,
   ]);
 
-  const recomputeRawSpectra = useCallback(() => {
+  const recomputeRawSpectra = useCallback(async () => {
     if (!loaded || !izero || regions.length === 0) {
       return;
     }
@@ -504,7 +505,7 @@ export function IngestionTab({
         energyCount,
         drain,
       );
-      const enriched =
+      let enriched: StxmRegionSpectrumSeries[] =
         ieAvailable && drain
           ? spectra.map((series) =>
               series.isIzero
@@ -512,11 +513,32 @@ export function IngestionTab({
                 : { ...series, teyDrain: drain, teyDrainErr: [] },
             )
           : spectra;
+      if (normalization) {
+        const thickness = Number.parseFloat(thicknessCm);
+        enriched = await enrichRegionSpectraWithReduction(enriched, {
+          normalization,
+          formula: resolvedFormula,
+          thicknessCm:
+            Number.isFinite(thickness) && thickness > 0 ? thickness : 1e-4,
+          runKkDelta:
+            Boolean(resolvedFormula) &&
+            (readStxmComputeConsentGranted() || readKkBrowserConsentGranted()),
+        });
+      }
       setRegionSpectra(enriched);
     } catch {
       setRegionSpectra([]);
     }
-  }, [hdrFile.name, izero, loaded, regions, weightingMode]);
+  }, [
+    hdrFile.name,
+    izero,
+    loaded,
+    normalization,
+    regions,
+    resolvedFormula,
+    thicknessCm,
+    weightingMode,
+  ]);
 
   useEffect(() => {
     if (!loaded || !izero) {
@@ -529,7 +551,7 @@ export function IngestionTab({
       ? DRAG_PREVIEW_THROTTLE_MS
       : RAW_SPECTRA_DEBOUNCE_MS;
     debounceRawRef.current = setTimeout(() => {
-      recomputeRawSpectra();
+      void recomputeRawSpectra();
       if (!isDraggingRef.current) {
         schedulePersistRegions();
       }
@@ -539,7 +561,7 @@ export function IngestionTab({
         clearTimeout(debounceRawRef.current);
       }
     };
-  }, [izero, loaded, recomputeRawSpectra, regions, schedulePersistRegions, weightingMode]);
+  }, [izero, loaded, normalization, recomputeRawSpectra, regions, resolvedFormula, schedulePersistRegions, thicknessCm, weightingMode]);
 
   useEffect(() => {
     schedulePersistRegions();
@@ -579,7 +601,7 @@ export function IngestionTab({
         return;
       }
       setResult(pipelineResult);
-      recomputeRawSpectra();
+      void recomputeRawSpectra();
       if (previewOnly) {
         return;
       }
@@ -762,7 +784,7 @@ export function IngestionTab({
       clearTimeout(debouncePipelineRef.current);
       debouncePipelineRef.current = null;
     }
-    recomputeRawSpectra();
+    void recomputeRawSpectra();
     schedulePersistRegions();
     void runPipeline();
   }, [recomputeRawSpectra, runPipeline, schedulePersistRegions]);

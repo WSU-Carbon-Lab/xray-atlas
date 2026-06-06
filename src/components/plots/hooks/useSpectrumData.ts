@@ -69,6 +69,7 @@ export function useSpectrumData(
   differenceSpectra: DifferenceSpectrum[],
   isDark = true,
   primaryTraceLabel?: string,
+  primaryTraceColor?: string,
 ): SpectrumDataResult {
   const palette = isDark ? SPECTRUM_TRACE_GRADIENT_DARK : SPECTRUM_TRACE_GRADIENT_LIGHT;
   return useMemo(() => {
@@ -95,11 +96,10 @@ export function useSpectrumData(
     const traceCount = ordered.length;
 
     const traces: TraceData[] = ordered.map(([key, group], index) => {
-      const color = spectrumTraceColorAlongGradient(
-        palette,
-        index,
-        traceCount,
-      );
+      const color =
+        index === 0 && primaryTraceColor
+          ? primaryTraceColor
+          : spectrumTraceColorAlongGradient(palette, index, traceCount);
       const label =
         key === "fixed" && primaryTraceLabel?.trim()
           ? primaryTraceLabel.trim()
@@ -133,5 +133,13 @@ export function useSpectrumData(
       keys: ordered.map(([k]) => k),
       groups,
     };
-  }, [points, showThetaData, showPhiData, differenceSpectra, palette, primaryTraceLabel]);
+  }, [
+    points,
+    showThetaData,
+    showPhiData,
+    differenceSpectra,
+    palette,
+    primaryTraceLabel,
+    primaryTraceColor,
+  ]);
 }

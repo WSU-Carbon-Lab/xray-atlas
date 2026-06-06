@@ -29,6 +29,7 @@ import type {
   StxmSampleRegion,
 } from "~/lib/stxm/stxm-region-types";
 import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
+import { stxmDerivedOpticalChannelsAvailable } from "~/lib/stxm/stxm-ingestion-display";
 import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
 import {
   buildStxmBareAtomReferenceCurve,
@@ -181,6 +182,16 @@ export function StxmIngestionPlotPanel({
   const hasRawSpectra = regionSpectra.length > 0;
   const hasReducedResult = result !== null;
   const energyEv = result?.energyEv ?? regionSpectra[0]?.energyEv ?? [];
+  const derivedOpticalAvailable = useMemo(
+    () =>
+      stxmDerivedOpticalChannelsAvailable(
+        energyEv,
+        result?.beta ?? regionSpectra.find((series) => series.beta)?.beta,
+        result?.delta ?? regionSpectra.find((series) => series.delta)?.delta,
+        chemicalFormula ?? result?.formula,
+      ),
+    [chemicalFormula, energyEv, regionSpectra, result?.beta, result?.delta, result?.formula],
+  );
 
   const bareAtomOverlayDisabled =
     !chemicalFormula || !stxmBareAtomOverlaySupportedForChannel(channel);
@@ -312,6 +323,7 @@ export function StxmIngestionPlotPanel({
         onDisplayChannelChange={onChannelChange}
         hasRawSpectra={hasRawSpectra}
         hasReducedResult={hasReducedResult}
+        derivedOpticalAvailable={derivedOpticalAvailable}
         rawSignalTransform={rawSignalTransform}
         onRawSignalTransformChange={onRawSignalTransformChange}
         isTeyExperiment={isTeyExperiment}
@@ -334,6 +346,7 @@ export function StxmIngestionPlotPanel({
       isTeyExperiment,
       hasIeData,
       onRawSignalTransformChange,
+      derivedOpticalAvailable,
       hasRawSpectra,
       hasReducedResult,
       linkImaginaryReal,
@@ -403,6 +416,7 @@ export function StxmIngestionPlotPanel({
       }
       onNormalizationEdgeEnergyChange={handleNormalizationEdgeEnergyChange}
       primaryTraceLabel={plotModel.primaryTraceLabel}
+      primaryTraceColor={plotModel.primaryTraceColor}
       hideGeometryLegend={plotModel.regionScopedTraces === true}
       headerRight={plotLeftRail}
       headerAnalysis={plotAnalysisRail}

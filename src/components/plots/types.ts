@@ -110,6 +110,8 @@ export type DifferenceSpectrum = {
   label: string;
   points: SpectrumPoint[];
   preferred?: boolean;
+  /** When set, overrides the default companion trace palette color (for example STXM region colors). */
+  color?: string;
   lowerAngle?: number;
   higherAngle?: number;
   mode?: "theta" | "phi";
@@ -279,9 +281,13 @@ export type SpectrumPlotProps = {
    */
   primaryTraceLabel?: string;
   /**
-   * When true, hides the in-plot θ/φ geometry legend and shows trace names on the standard plot legend instead (for example STXM multi-region line scans).
+   * When true, hides θ/φ geometry legend rows and renders a region-name legend from primary plus companion trace labels (STXM multi-region line scans).
    */
   hideGeometryLegend?: boolean;
+  /**
+   * Overrides the primary trace stroke color when the plot has no θ/φ geometry metadata (for example the first STXM sample region color).
+   */
+  primaryTraceColor?: string;
   /**
    * When set, right-click opens a minimal CSV context menu on the plot and Copy is hijacked to place total-dataset CSV on the clipboard (toolbar dropdown still handles per-geometry export).
    */
