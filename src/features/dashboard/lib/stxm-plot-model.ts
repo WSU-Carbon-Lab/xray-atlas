@@ -25,6 +25,11 @@ export type BuildStxmIngestionPlotModelParams = BuildStxmSpectrumPlotModelParams
   regionSpectraEpoch?: number;
   /** Monotonic epoch from full ingestion pipeline completion. */
   pipelineEpoch?: number;
+  /**
+   * When true, the line-scan editor has at least one sample region; aggregated legacy traces are forbidden
+   * even if per-region spectra are momentarily empty during async recompute.
+   */
+  hasSampleRegions?: boolean;
 };
 
 /**
@@ -51,7 +56,19 @@ export function buildStxmIngestionPlotModel(
   if (model.regionScopedTraces === true) {
     return { kind: "regionMultiTrace", model };
   }
-  if (hasStxmMultiRegionLineScanData(params.regionSpectra)) {
+  if (
+    hasStxmMultiRegionLineScanData(params.regionSpectra) ||
+    params.hasSampleRegions === true
+  ) {
+    if (
+      process.env.NODE_ENV === "development" &&
+      params.hasSampleRegions === true &&
+      model != null
+    ) {
+      throw new Error(
+        "STXM ingestion plot invariant: sample regions exist but plot model is not region-scoped",
+      );
+    }
     return { kind: "empty", model: null };
   }
   return { kind: "aggregatedLegacy", model };

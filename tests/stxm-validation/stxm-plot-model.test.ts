@@ -146,4 +146,40 @@ describe("buildStxmIngestionPlotModel", () => {
     expect(build.model?.regionScopedTraces === true).toBe(false);
     expect(build.model?.primaryTraceLabel).toBe("OD (pure)");
   });
+
+  it("never returns aggregated legacy when hasSampleRegions is true but regionSpectra is empty", () => {
+    const build = buildStxmIngestionPlotModel({
+      result: sampleResult,
+      regionSpectra: [],
+      channel: "od",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: true,
+      pureRegionLabel: "pure",
+      hasSampleRegions: true,
+    });
+    expect(build.kind).toBe("empty");
+  });
+
+  it("plot invariant: sample regions require regionMultiTrace or empty, never aggregated legacy", () => {
+    const spectra = rawMultiRegionSpectra();
+    const build = buildStxmIngestionPlotModel({
+      result: sampleResult,
+      regionSpectra: spectra,
+      channel: "od",
+      rawSignalTransform: "signal",
+      standards: [],
+      bareAtomCurve: null,
+      showBareAtomOverlay: false,
+      showRegionOverlays: true,
+      pureRegionLabel: "pure",
+      hasSampleRegions: true,
+    });
+    expect(build.kind === "regionMultiTrace" || build.kind === "empty").toBe(true);
+    if (build.kind === "regionMultiTrace") {
+      expect(build.model?.regionScopedTraces).toBe(true);
+    }
+  });
 });

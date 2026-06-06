@@ -1009,6 +1009,7 @@ export function IngestionTab({
         pureRegionLabel={pureRegionLabel}
         regionSpectraEpoch={regionSpectraEpoch}
         pipelineEpoch={pipelineEpoch}
+        plotScopeKey={scanId}
         imageMatrix={imageMatrix}
         qaxisPoints={qaxisPoints}
         regions={regions}

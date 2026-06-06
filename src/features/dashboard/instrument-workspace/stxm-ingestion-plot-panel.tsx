@@ -8,10 +8,7 @@ import {
   trayIdForChannel,
 } from "~/components/plots/data-rail";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
-import {
-  buildStxmIngestionPlotModel,
-  type StxmIngestionPlotModel,
-} from "~/features/dashboard/lib/stxm-plot-model";
+import { useStxmIngestionPlotState } from "~/features/dashboard/hooks/useStxmIngestionPlotState";
 import type { StxmCompareOverlay } from "~/features/dashboard/lib/stxm-to-spectrum-plot";
 import type {
   NormalizationRegionEdgeId,
@@ -94,6 +91,8 @@ type StxmIngestionPlotPanelProps = {
   pureRegionLabel?: string;
   regionSpectraEpoch?: number;
   pipelineEpoch?: number;
+  /** Scope key (for example active scan id) that invalidates stale plot cache on switch. */
+  plotScopeKey: string;
   imageMatrix: number[][];
   qaxisPoints: number[];
   regions: StxmSampleRegion[];
@@ -200,6 +199,7 @@ export function StxmIngestionPlotPanel({
   pureRegionLabel,
   regionSpectraEpoch = 0,
   pipelineEpoch = 0,
+  plotScopeKey,
   imageMatrix,
   qaxisPoints,
   regions,
@@ -435,44 +435,25 @@ export function StxmIngestionPlotPanel({
     );
   }, [energyEv, onNormalizationChange]);
 
-  const plotBuild = useMemo(
-    (): StxmIngestionPlotModel =>
-      buildStxmIngestionPlotModel({
-        result,
-        regionSpectra,
-        channel,
-        rawSignalTransform,
-        standards,
-        bareAtomCurve,
-        showBareAtomOverlay,
-        showRegionOverlays,
-        linkImaginaryReal,
-        compareOverlays,
-        normalizationOverride: normalizationRegionsForPlot,
-        primaryTraceLabel,
-        pureRegionLabel,
-        regionSpectraEpoch,
-        pipelineEpoch,
-      }),
-    [
-      bareAtomCurve,
-      channel,
-      compareOverlays,
-      rawSignalTransform,
-      linkImaginaryReal,
-      normalizationRegionsForPlot,
-      pipelineEpoch,
-      primaryTraceLabel,
-      pureRegionLabel,
-      regionSpectra,
-      regionSpectraEpoch,
-      result,
-      showBareAtomOverlay,
-      showRegionOverlays,
-      standards,
-    ],
-  );
-  const plotModel = plotBuild.model;
+  const { plotModel } = useStxmIngestionPlotState({
+    result,
+    regionSpectra,
+    regions,
+    channel,
+    rawSignalTransform,
+    standards,
+    bareAtomCurve,
+    showBareAtomOverlay,
+    showRegionOverlays,
+    linkImaginaryReal,
+    compareOverlays,
+    normalizationOverride: normalizationRegionsForPlot,
+    primaryTraceLabel,
+    pureRegionLabel,
+    regionSpectraEpoch,
+    pipelineEpoch,
+    plotScopeKey,
+  });
 
   const plotLeftRail = useMemo(
     () => (
