@@ -25,6 +25,13 @@ export type SpectrumPoint = {
   rawabs?: number;
 };
 
+/** One stacked subplot in {@link SpectrumPlotProps.traceStackPanels}. */
+export type TraceStackPanel = {
+  readonly label: string;
+  readonly points: readonly SpectrumPoint[];
+  readonly yAxisQuantity: SpectrumYAxisQuantity;
+};
+
 export type SpectrumSelection = {
   energyMin: number;
   energyMax: number;
@@ -202,6 +209,12 @@ export type SpectrumPlotProps = {
    */
   opticalLinkSplitView?: boolean;
   /**
+   * When true with {@link traceStackPanels}, stacks each panel on its own y-range sharing one energy axis.
+   */
+  traceStackSplitView?: boolean;
+  /** Per-panel points for multi-channel STXM (or similar) stacked split view. */
+  traceStackPanels?: readonly TraceStackPanel[];
+  /**
    * @deprecated Pass split/coalesce controls via `headerAnalysis` on the right analysis rail.
    */
   opticalLinkSplitToggle?: ReactNode;
@@ -265,6 +278,10 @@ export type SpectrumPlotProps = {
    * Overrides the default "Fixed Geometry" legend label when the primary trace has no θ/φ metadata (for example STXM ingestion reduced spectra).
    */
   primaryTraceLabel?: string;
+  /**
+   * When true, hides the in-plot θ/φ geometry legend and shows trace names on the standard plot legend instead (for example STXM multi-region line scans).
+   */
+  hideGeometryLegend?: boolean;
   /**
    * When set, right-click opens a minimal CSV context menu on the plot and Copy is hijacked to place total-dataset CSV on the clipboard (toolbar dropdown still handles per-geometry export).
    */

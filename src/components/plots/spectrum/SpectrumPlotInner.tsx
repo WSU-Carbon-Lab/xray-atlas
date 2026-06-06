@@ -159,6 +159,7 @@ export function SpectrumPlotInner({
   onCursorModeChange,
   spectrumCsvContextMenu,
   primaryTraceLabel,
+  hideGeometryLegend = false,
 }: SpectrumPlotInnerProps) {
   const opticalLinkConfig = opticalLink ?? betaDeltaLinkLegacy;
   const { resolvedTheme } = useTheme();
@@ -244,6 +245,12 @@ export function SpectrumPlotInner({
     if (linkedOptical.active) {
       return groupedTraces.traces;
     }
+    if (hideGeometryLegend) {
+      return groupedTraces.traces.map((trace) => ({
+        ...trace,
+        showlegend: true,
+      }));
+    }
     return groupedTraces.traces.map((trace, index) => {
       const key = groupedTraces.keys[index] ?? `idx-${index}`;
       return {
@@ -252,7 +259,12 @@ export function SpectrumPlotInner({
         showlegend: false,
       };
     });
-  }, [linkedOptical.active, groupedTraces.traces, groupedTraces.keys]);
+  }, [
+    hideGeometryLegend,
+    linkedOptical.active,
+    groupedTraces.traces,
+    groupedTraces.keys,
+  ]);
 
   const primarySpectrumTraces = linkedOptical.active
     ? linkedOptical.primaryTraces
@@ -395,9 +407,10 @@ export function SpectrumPlotInner({
     : singleGeometryLegend.angleColumnTitle;
 
   const showGeometryLegend =
-    linkedOptical.active && opticalLinkConfig
+    !hideGeometryLegend &&
+    (linkedOptical.active && opticalLinkConfig
       ? linkedOptical.legendRows.length > 0
-      : singleGeometryLegend.rows.length > 0;
+      : singleGeometryLegend.rows.length > 0);
 
   const channelLegendGlyph = spectrumChannelGlyphForQuantity(
     yAxisQuantity ?? "intensity",

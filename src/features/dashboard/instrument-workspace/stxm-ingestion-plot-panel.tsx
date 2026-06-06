@@ -403,6 +403,7 @@ export function StxmIngestionPlotPanel({
       }
       onNormalizationEdgeEnergyChange={handleNormalizationEdgeEnergyChange}
       primaryTraceLabel={plotModel.primaryTraceLabel}
+      hideGeometryLegend={plotModel.regionScopedTraces === true}
       headerRight={plotLeftRail}
       headerAnalysis={plotAnalysisRail}
       suppressAnalysisRailLeadingGrip

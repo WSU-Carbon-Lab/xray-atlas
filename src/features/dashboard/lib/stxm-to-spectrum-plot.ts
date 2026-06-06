@@ -76,12 +76,23 @@ export type StxmSpectrumPlotModel = {
   primaryTraceLabel?: string;
   normalizationRegions?: NormalizationRegions;
   showNormalizationShading: boolean;
+  traceStackPanels?: StxmTraceStackPanel[];
+  /** When true, the plot uses region-named traces instead of θ/φ geometry legend chrome. */
+  regionScopedTraces?: boolean;
+};
+
+export type StxmTraceStackPanel = {
+  label: string;
+  points: SpectrumPoint[];
+  yAxisQuantity: SpectrumYAxisQuantity;
 };
 
 export type BuildStxmSpectrumPlotModelParams = {
   result: StxmIngestionResult | null;
   regionSpectra: StxmRegionSpectrumSeries[];
   channel: StxmIngestionPlotChannel;
+  /** When set with length > 1, plots each channel as primary plus companions (spectroscopy multi-select). */
+  channels?: readonly StxmIngestionPlotChannel[];
   rawSignalTransform: StxmRawSignalTransformMode;
   standards: StxmSpectrumStandardOverlay[];
   bareAtomCurve: ReferenceCurve | null;
@@ -219,6 +230,76 @@ function pointsFromRegionSeries(
   );
 }
 
+function izeroRegionSeries(
+  regionSpectra: StxmRegionSpectrumSeries[],
+): StxmRegionSpectrumSeries | null {
+  return regionSpectra.find((series) => series.isIzero) ?? null;
+}
+
+function sampleRegionSeriesList(
+  regionSpectra: StxmRegionSpectrumSeries[],
+): StxmRegionSpectrumSeries[] {
+  return regionSpectra.filter((series) => !series.isIzero);
+}
+
+/**
+ * Builds the legend label `Channel (region)` for one STXM sample or izero region trace.
+ */
+export function buildStxmRegionTraceLabel(
+  channel: StxmIngestionPlotChannel,
+  spotLabel: string,
+): string {
+  const channelLabel = channelDefinitionById(
+    STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
+    channel,
+  ).label;
+  const regionLabel = spotLabel.trim() || "region";
+  return `${channelLabel} (${regionLabel})`;
+}
+
+function regionSeriesHasReducedChannel(
+  series: StxmRegionSpectrumSeries,
+  channel: StxmIngestionPlotChannel,
+): boolean {
+  if (channel === "od") {
+    return series.od != null && series.od.length > 0;
+  }
+  if (channel === "od_normalized") {
+    return series.odNormalized != null && series.odNormalized.length > 0;
+  }
+  if (channel === "mass_absorption" || channel === "bare_atom") {
+    return series.massAbsorption != null && series.massAbsorption.length > 0;
+  }
+  if (channel === "beta" || channel === "chi") {
+    return series.beta != null && series.beta.length > 0;
+  }
+  if (channel === "delta" || channel === "f1") {
+    return series.delta != null && series.delta.length > 0;
+  }
+  return false;
+}
+
+/**
+ * Returns true when per-region spectra should drive plot traces instead of aggregated ingestion result.
+ */
+export function shouldUseStxmRegionScopedTraces(
+  regionSpectra: StxmRegionSpectrumSeries[],
+  channel: StxmIngestionPlotChannel,
+): boolean {
+  if (regionSpectra.length === 0) {
+    return false;
+  }
+  if (channel === "signal_i0") {
+    return izeroRegionSeries(regionSpectra) != null;
+  }
+  if (ingestionChannelUsesRawIntensity(channel) || channel === "od") {
+    return sampleRegionSeriesList(regionSpectra).length > 0;
+  }
+  return sampleRegionSeriesList(regionSpectra).some((series) =>
+    regionSeriesHasReducedChannel(series, channel),
+  );
+}
+
 function resolvePrimaryRegionSeries(
   regionSpectra: StxmRegionSpectrumSeries[],
   channel: StxmIngestionPlotChannel,
@@ -227,14 +308,62 @@ function resolvePrimaryRegionSeries(
     return null;
   }
   if (channel === "signal_i0") {
-    return regionSpectra.find((series) => series.isIzero) ?? regionSpectra[0] ?? null;
+    return izeroRegionSeries(regionSpectra) ?? regionSpectra[0] ?? null;
   }
-  if (channel === "signal_it" || channel === "signal_ie") {
-    return (
-      regionSpectra.find((series) => !series.isIzero) ?? regionSpectra[0] ?? null
+  return sampleRegionSeriesList(regionSpectra)[0] ?? null;
+}
+
+function regionsForChannelTraces(
+  regionSpectra: StxmRegionSpectrumSeries[],
+  channel: StxmIngestionPlotChannel,
+): StxmRegionSpectrumSeries[] {
+  if (channel === "signal_i0") {
+    const izero = izeroRegionSeries(regionSpectra);
+    return izero ? [izero] : [];
+  }
+  return sampleRegionSeriesList(regionSpectra);
+}
+
+function computeOdPointsFromRegionRaw(
+  izero: StxmRegionSpectrumSeries,
+  sample: StxmRegionSpectrumSeries,
+  rawSignalTransform: StxmRawSignalTransformMode,
+): SpectrumPoint[] {
+  const eps = 1e-10;
+  return izero.energyEv.map((energy, index) => {
+    const i0 = Math.max(izero.signal[index] ?? eps, eps);
+    const iSample = Math.max(sample.signal[index] ?? eps, eps);
+    const od = Math.log(i0 / iSample);
+    const sigmaI0 = izero.signalErr[index] ?? 0;
+    const sigmaI = sample.signalErr[index] ?? 0;
+    const sigmaOd = Math.sqrt((sigmaI0 / i0) ** 2 + (sigmaI / iSample) ** 2);
+    const absorption = transformStxmRawIntensityY(od, "od", rawSignalTransform);
+    const rawabsError = transformStxmRawIntensityErrorY(
+      sigmaOd,
+      od,
+      "od",
+      rawSignalTransform,
+    );
+    return {
+      energy,
+      absorption,
+      ...(rawabsError !== undefined ? { rawabsError } : {}),
+    };
+  });
+}
+
+function pointsFromRegionSeriesForChannel(
+  series: StxmRegionSpectrumSeries,
+  channel: StxmIngestionPlotChannel,
+  rawSignalTransform: StxmRawSignalTransformMode,
+  izero: StxmRegionSpectrumSeries | null,
+): SpectrumPoint[] {
+  if (channel === "od" && izero != null && !series.isIzero) {
+    return computeOdPointsFromRegionRaw(izero, series, rawSignalTransform).filter(
+      (point) => Number.isFinite(point.absorption),
     );
   }
-  return regionSpectra.find((series) => !series.isIzero) ?? regionSpectra[0] ?? null;
+  return pointsFromRegionSeries(series, channel, rawSignalTransform);
 }
 
 function buildLinkedOpticalCompanion(
@@ -298,7 +427,60 @@ function buildCompareCompanionSpectra(
     .filter((spectrum) => spectrum.points.length > 0);
 }
 
-function buildCompanionSpectra(
+function buildRegionScopedChannelTraces(
+  regionSpectra: StxmRegionSpectrumSeries[],
+  channel: StxmIngestionPlotChannel,
+  rawSignalTransform: StxmRawSignalTransformMode,
+): {
+  points: SpectrumPoint[];
+  primaryTraceLabel: string;
+  companionSpectra: DifferenceSpectrum[];
+  primaryRegionId: string | null;
+} | null {
+  const regions = regionsForChannelTraces(regionSpectra, channel);
+  if (regions.length === 0) {
+    return null;
+  }
+  const izero = izeroRegionSeries(regionSpectra);
+  const traceEntries = regions
+    .map((series) => {
+      const points = pointsFromRegionSeriesForChannel(
+        series,
+        channel,
+        rawSignalTransform,
+        izero,
+      ).filter((point) => Number.isFinite(point.absorption));
+      if (points.length === 0) {
+        return null;
+      }
+      return {
+        regionId: series.regionId,
+        label: buildStxmRegionTraceLabel(channel, series.spotLabel),
+        points,
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry != null);
+  if (traceEntries.length === 0) {
+    return null;
+  }
+  const primary = traceEntries[0];
+  if (!primary) {
+    return null;
+  }
+  const rest = traceEntries.slice(1);
+  return {
+    points: primary.points,
+    primaryTraceLabel: primary.label,
+    primaryRegionId: primary.regionId,
+    companionSpectra: rest.map((entry, index) => ({
+      label: entry.label,
+      preferred: index === 0,
+      points: entry.points,
+    })),
+  };
+}
+
+function buildLegacyRegionCompanionSpectra(
   regionSpectra: StxmRegionSpectrumSeries[],
   channel: StxmIngestionPlotChannel,
   rawSignalTransform: StxmRawSignalTransformMode,
@@ -309,21 +491,16 @@ function buildCompanionSpectra(
     return [];
   }
   return regionSpectra
-    .filter((series) => {
-      if (series.regionId === primaryRegionId) {
-        return false;
-      }
-      if (ingestionChannelUsesRawIntensity(channel)) {
-        return !series.isIzero || channel === "signal_i0";
-      }
-      return true;
-    })
+    .filter((series) => series.regionId !== primaryRegionId)
     .map((series, index) => ({
-      label: series.spotLabel,
+      label: buildStxmRegionTraceLabel(channel, series.spotLabel),
       preferred: index === 0,
-      points: pointsFromRegionSeries(series, channel, rawSignalTransform).filter(
-        (point) => Number.isFinite(point.absorption),
-      ),
+      points: pointsFromRegionSeriesForChannel(
+        series,
+        channel,
+        rawSignalTransform,
+        izeroRegionSeries(regionSpectra),
+      ).filter((point) => Number.isFinite(point.absorption)),
     }))
     .filter((spectrum) => spectrum.points.length > 0);
 }
@@ -377,16 +554,71 @@ function resolvePrimaryTraceLabel(
   return undefined;
 }
 
-/**
- * Maps STXM ingestion state into the `SpectrumPlot` point, companion, and reference inputs.
- */
-export function buildStxmSpectrumPlotModel(
+type ChannelPointsResult = {
+  points: SpectrumPoint[];
+  primaryRegionId: string | null;
+  primaryTraceLabel?: string;
+  regionCompanionSpectra?: DifferenceSpectrum[];
+  regionScoped: boolean;
+};
+
+function buildChannelPoints(
+  result: StxmIngestionResult | null,
+  regionSpectra: StxmRegionSpectrumSeries[],
+  channel: StxmIngestionPlotChannel,
+  rawSignalTransform: StxmRawSignalTransformMode,
+): ChannelPointsResult {
+  if (shouldUseStxmRegionScopedTraces(regionSpectra, channel)) {
+    const scoped = buildRegionScopedChannelTraces(
+      regionSpectra,
+      channel,
+      rawSignalTransform,
+    );
+    if (scoped) {
+      return {
+        points: scoped.points,
+        primaryRegionId: scoped.primaryRegionId,
+        primaryTraceLabel: scoped.primaryTraceLabel,
+        regionCompanionSpectra: scoped.companionSpectra,
+        regionScoped: true,
+      };
+    }
+  }
+
+  let points: SpectrumPoint[] = [];
+  let primaryRegionId: string | null = null;
+
+  if (result && result.energyEv.length > 0) {
+    points = pointsFromResult(result, channel, rawSignalTransform);
+  } else {
+    const primarySeries = resolvePrimaryRegionSeries(regionSpectra, channel);
+    if (primarySeries) {
+      primaryRegionId = primarySeries.regionId;
+      points = pointsFromRegionSeriesForChannel(
+        primarySeries,
+        channel,
+        rawSignalTransform,
+        izeroRegionSeries(regionSpectra),
+      );
+    }
+  }
+
+  if (result && ingestionChannelUsesRawIntensity(channel)) {
+    const primarySeries = resolvePrimaryRegionSeries(regionSpectra, channel);
+    primaryRegionId = primarySeries?.regionId ?? null;
+  }
+
+  points = points.filter((point) => Number.isFinite(point.absorption));
+  return { points, primaryRegionId, regionScoped: false };
+}
+
+function buildSingleChannelPlotModel(
   params: BuildStxmSpectrumPlotModelParams,
-): StxmSpectrumPlotModel | null {
+  channel: StxmIngestionPlotChannel,
+): Omit<StxmSpectrumPlotModel, "traceStackPanels"> | null {
   const {
     result,
     regionSpectra,
-    channel,
     rawSignalTransform,
     standards,
     bareAtomCurve,
@@ -404,36 +636,27 @@ export function buildStxmSpectrumPlotModel(
     channel,
   ).yAxisQuantity;
 
-  let points: SpectrumPoint[] = [];
-  let primaryRegionId: string | null = null;
+  const channelPoints = buildChannelPoints(
+    result,
+    regionSpectra,
+    channel,
+    rawSignalTransform,
+  );
+  const { points, primaryRegionId, regionScoped } = channelPoints;
 
-  if (result && result.energyEv.length > 0) {
-    points = pointsFromResult(result, channel, rawSignalTransform);
-  } else {
-    const primarySeries = resolvePrimaryRegionSeries(regionSpectra, channel);
-    if (primarySeries) {
-      primaryRegionId = primarySeries.regionId;
-      points = pointsFromRegionSeries(primarySeries, channel, rawSignalTransform);
-    }
-  }
-
-  if (result && ingestionChannelUsesRawIntensity(channel)) {
-    const primarySeries = resolvePrimaryRegionSeries(regionSpectra, channel);
-    primaryRegionId = primarySeries?.regionId ?? null;
-  }
-
-  points = points.filter((point) => Number.isFinite(point.absorption));
   if (points.length === 0) {
     return null;
   }
 
-  const regionCompanions = buildCompanionSpectra(
-    regionSpectra,
-    channel,
-    rawSignalTransform,
-    showRegionOverlays,
-    primaryRegionId,
-  );
+  const regionCompanions = regionScoped
+    ? (channelPoints.regionCompanionSpectra ?? [])
+    : buildLegacyRegionCompanionSpectra(
+        regionSpectra,
+        channel,
+        rawSignalTransform,
+        showRegionOverlays,
+        primaryRegionId,
+      );
   const linkedCompanion = buildLinkedOpticalCompanion(
     result,
     regionSpectra,
@@ -483,12 +706,80 @@ export function buildStxmSpectrumPlotModel(
       showBareAtomOverlay,
     ),
     yAxisQuantity,
-    primaryTraceLabel: resolvePrimaryTraceLabel(
-      channel,
-      primaryTraceLabel,
-      pureRegionLabel,
-    ),
+    primaryTraceLabel: regionScoped
+      ? channelPoints.primaryTraceLabel
+      : resolvePrimaryTraceLabel(channel, primaryTraceLabel, pureRegionLabel),
     normalizationRegions,
     showNormalizationShading,
+    regionScopedTraces: regionScoped,
+  };
+}
+
+/**
+ * Maps STXM ingestion state into the `SpectrumPlot` point, companion, and reference inputs.
+ */
+export function buildStxmSpectrumPlotModel(
+  params: BuildStxmSpectrumPlotModelParams,
+): StxmSpectrumPlotModel | null {
+  const plotChannels =
+    params.channels != null && params.channels.length > 1
+      ? params.channels
+      : [params.channel];
+
+  if (plotChannels.length === 1) {
+    return buildSingleChannelPlotModel(params, plotChannels[0]!);
+  }
+
+  const channelModels = plotChannels
+    .map((ch) => buildSingleChannelPlotModel(params, ch))
+    .filter((model): model is NonNullable<typeof model> => model != null);
+
+  if (channelModels.length === 0) {
+    return null;
+  }
+
+  const primary = channelModels[0];
+  if (primary == null) {
+    return null;
+  }
+  const rest = channelModels.slice(1);
+  const companionSpectra: DifferenceSpectrum[] = [
+    ...rest.map((model, index) => {
+      const ch = plotChannels[index + 1]!;
+      const label = channelDefinitionById(
+        STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
+        ch,
+      ).label;
+      return {
+        label,
+        preferred: index === 0,
+        points: model.points,
+      };
+    }),
+    ...primary.companionSpectra,
+  ];
+
+  const traceStackPanels: StxmTraceStackPanel[] = channelModels.map(
+    (model, index) => {
+      const ch = plotChannels[index]!;
+      return {
+        label: channelDefinitionById(
+          STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
+          ch,
+        ).label,
+        points: model.points,
+        yAxisQuantity: model.yAxisQuantity,
+      };
+    },
+  );
+
+  return {
+    ...primary,
+    companionSpectra,
+    primaryTraceLabel: undefined,
+    showNormalizationShading: false,
+    normalizationRegions: undefined,
+    referenceCurves: [],
+    traceStackPanels,
   };
 }
