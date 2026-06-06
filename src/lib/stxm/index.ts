@@ -59,8 +59,18 @@ export { readHdr } from "./readHdr";
 export { readXim } from "./readXim";
 export {
   autoSampleIzeroRegions,
+  barBoundsFromThreeRegions,
   sampleIzeroMasks,
+  segmentedRegionBoundsFromImage,
+  type StxmSegmentedRegionBounds,
 } from "./regions";
+export {
+  clampDraggedSampleEdgeOutsideIzero,
+  clampSampleEdgeOutsideIzeroInterior,
+  enforceAllSampleRegionsOutsideIzero,
+  enforceSampleRegionOutsideIzero,
+  sampleRangeOverlapsIzeroInterior,
+} from "./region-izero-constraints";
 export { nexafsBeerLambert, type NexafsBeerLambertResult } from "./nexafs";
 export {
   bareAtomBetaFromMassAbsorption,

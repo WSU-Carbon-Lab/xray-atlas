@@ -7,13 +7,17 @@ import { nexafsBeerLambert } from "~/lib/stxm/nexafs";
 import { autoMultiRegionFromImage } from "~/lib/stxm/multi-region-state";
 import { regionRawSpectraFromScan } from "~/lib/stxm/raw-spectrum";
 import {
+  autoMultiRegionFromProfile,
   barBoundsFromThreeRegions,
+  buildLineScanRowSumProfile,
+  detectIzeroRowsFromProfile,
   sampleIzeroMasks,
 } from "~/lib/stxm/regions";
 
 type ExpectAssertions = {
   toBe: (expected: unknown) => void;
   toBeGreaterThan: (expected: number) => void;
+  toBeLessThan: (expected: number) => void;
   toBeCloseTo: (expected: number, precision?: number) => void;
 };
 
@@ -76,6 +80,19 @@ describe("izero vs sample orientation", () => {
     const izeroMean = meanMaskIntensity(image, izeroMask, 0);
     const sampleMean = meanMaskIntensity(image, sampleMask, 0);
     expect(izeroMean).toBeGreaterThan(sampleMean);
+  });
+
+  it("detectIzeroRowsFromProfile picks high-intensity rows on synthetic scan", () => {
+    const { image, spatial } = buildSyntheticFilmLineScan();
+    const profile = buildLineScanRowSumProfile(image);
+    const rows = detectIzeroRowsFromProfile(profile);
+    if (!rows) {
+      throw new Error("expected izero row band");
+    }
+    expect(rows.endRow).toBeLessThan(6);
+    const inferred = autoMultiRegionFromProfile(image, spatial);
+    expect(inferred.izeroHi).toBeGreaterThan(inferred.izeroLo);
+    expect(inferred.sampleRegions.length).toBeGreaterThan(0);
   });
 
   it("autoMultiRegionFromImage yields izero mean above pure sample mean", () => {

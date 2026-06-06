@@ -24,6 +24,11 @@ import {
   type RegionDragTarget,
   type RegionGap,
 } from "~/lib/stxm/region-editor-utils";
+import {
+  applyIzeroBoundaryDrag,
+  applySampleRegionBoundaryDrag,
+  resolveSampleRegionsAfterIzeroChange,
+} from "~/lib/stxm/region-drag-constraints";
 import { createRegionInGap } from "~/lib/stxm/multi-region-state";
 import { STXM_IZERO_COLOR, stxmRegionSeriesColor } from "~/lib/stxm/region-colors";
 import {
@@ -96,6 +101,7 @@ export function StxmMultiRegionEditor({
   const heatmapAreaRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<RegionDragState>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [izeroClampActive, setIzeroClampActive] = useState(false);
   const [hoverDragTarget, setHoverDragTarget] = useState<RegionDragState>(null);
   const [canvasSize, setCanvasSize] = useState<CanvasDisplaySize>({
     width: 0,
@@ -149,6 +155,7 @@ export function StxmMultiRegionEditor({
     }
     dragRef.current = null;
     setIsDragging(false);
+    setIzeroClampActive(false);
     onDragEnd?.();
   }, [onDragEnd]);
 
@@ -192,34 +199,58 @@ export function StxmMultiRegionEditor({
         return;
       }
       if (drag.kind === "izero-lo") {
-        onIzeroChange({
-          ...izero,
-          izeroLo: clampRegionValue(sample, sampleMin, izero.izeroHi - minGap),
-        });
+        const nextIzero = applyIzeroBoundaryDrag(
+          izero,
+          { edge: "lo" },
+          sample,
+          sampleMin,
+          sampleMax,
+          minGap,
+        );
+        const resolved = resolveSampleRegionsAfterIzeroChange(
+          regions,
+          nextIzero,
+          sampleMin,
+          sampleMax,
+          minGap,
+        );
+        setIzeroClampActive(resolved.clampedToIzero);
+        onIzeroChange(nextIzero);
+        onRegionsChange(resolved.regions);
         return;
       }
       if (drag.kind === "izero-hi") {
-        onIzeroChange({
-          ...izero,
-          izeroHi: clampRegionValue(sample, izero.izeroLo + minGap, sampleMax),
-        });
+        const nextIzero = applyIzeroBoundaryDrag(
+          izero,
+          { edge: "hi" },
+          sample,
+          sampleMin,
+          sampleMax,
+          minGap,
+        );
+        const resolved = resolveSampleRegionsAfterIzeroChange(
+          regions,
+          nextIzero,
+          sampleMin,
+          sampleMax,
+          minGap,
+        );
+        setIzeroClampActive(resolved.clampedToIzero);
+        onIzeroChange(nextIzero);
+        onRegionsChange(resolved.regions);
         return;
       }
-      const region = regions[drag.index];
-      if (!region) {
-        return;
-      }
-      if (drag.edge === "lo") {
-        onRegionChange(drag.index, {
-          ...region,
-          sampleLo: clampRegionValue(sample, sampleMin, region.sampleHi - minGap),
-        });
-        return;
-      }
-      onRegionChange(drag.index, {
-        ...region,
-        sampleHi: clampRegionValue(sample, region.sampleLo + minGap, sampleMax),
-      });
+      const result = applySampleRegionBoundaryDrag(
+        regions,
+        izero,
+        { regionIndex: drag.index, edge: drag.edge },
+        sample,
+        sampleMin,
+        sampleMax,
+        minGap,
+      );
+      setIzeroClampActive(result.clampedToIzero);
+      onRegionsChange(result.regions);
     };
     const handleUp = () => {
       endDrag();
@@ -236,7 +267,7 @@ export function StxmMultiRegionEditor({
     minGap,
     endDrag,
     onIzeroChange,
-    onRegionChange,
+    onRegionsChange,
     pxToSample,
     regions,
     sampleMax,
@@ -289,13 +320,13 @@ export function StxmMultiRegionEditor({
     context.font = "11px system-ui, sans-serif";
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.strokeStyle = STXM_IZERO_COLOR;
-    context.lineWidth = 2;
+    context.strokeStyle = izeroClampActive ? "var(--warning)" : STXM_IZERO_COLOR;
+    context.lineWidth = izeroClampActive ? 3 : 2;
     drawHorizontalLine(context, yToPx(izero.izeroLo, height), width);
     drawHorizontalLine(context, yToPx(izero.izeroHi, height), width);
-    context.fillStyle = STXM_IZERO_COLOR;
+    context.fillStyle = izeroClampActive ? "var(--warning)" : STXM_IZERO_COLOR;
     context.fillText(
-      "izero",
+      izeroClampActive ? "izero (exclusive)" : "izero",
       width / 2,
       yToPx((izero.izeroLo + izero.izeroHi) / 2, height),
     );
@@ -306,7 +337,7 @@ export function StxmMultiRegionEditor({
       drawHorizontalLine(context, yToPx(region.sampleLo, height), width);
       drawHorizontalLine(context, yToPx(region.sampleHi, height), width);
     });
-  }, [canvasSize, image, imageScaleMode, izero, regions, rowBandPx, yToPx]);
+  }, [canvasSize, image, imageScaleMode, izero, izeroClampActive, regions, rowBandPx, yToPx]);
 
   useEffect(() => {
     if (editingRegionIndex === null) {
