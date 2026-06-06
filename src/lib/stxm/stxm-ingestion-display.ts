@@ -25,6 +25,17 @@ export {
   migrateStxmIngestionPlotChannel,
   stxmDerivedOpticalChannelsAvailable,
 } from "./stxm-derived-optical-channels";
+export {
+  buildStxmChannelAvailabilityContext,
+  canComputeStxmChannel,
+  describeStxmChannelUnavailableReason,
+  resolveStxmPlotEmptyState,
+  stxmChannelRequirementKind,
+  stxmHasPairedBetaDelta,
+  type StxmChannelAvailabilityContext,
+  type StxmChannelRequirementKind,
+  type StxmPlotEmptyState,
+} from "./stxm-channel-availability";
 
 export type StxmIngestionPlotChannel =
   | StxmIngestionDisplayChannel

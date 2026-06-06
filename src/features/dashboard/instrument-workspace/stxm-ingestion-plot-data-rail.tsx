@@ -13,8 +13,12 @@ import {
 } from "~/components/plots/toolbars";
 import { STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION } from "~/lib/stxm/stxm-ingestion-plot-data-rail-config";
 import {
+  buildStxmChannelAvailabilityContext,
+  canComputeStxmChannel,
+  describeStxmChannelUnavailableReason,
+} from "~/lib/stxm/stxm-channel-availability";
+import {
   ingestionChannelUsesRawIntensity,
-  isStxmDerivedOpticalPlotChannel,
   type StxmIngestionPlotChannel,
 } from "~/lib/stxm/stxm-ingestion-display";
 import {
@@ -25,13 +29,19 @@ import {
   STXM_LINKED_IMAGINARY_TO_REAL,
 } from "~/lib/stxm/stxm-optical-link";
 import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
+import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
 import { StxmRawSignalTransformToggle } from "./stxm-raw-signal-transform-toggle";
 
 export type StxmIngestionPlotDataRailProps = {
   displayChannel: StxmIngestionPlotChannel;
   onDisplayChannelChange: (channel: StxmIngestionPlotChannel) => void;
-  hasRawSpectra: boolean;
+  regionSpectra: StxmRegionSpectrumSeries[];
   hasReducedResult: boolean;
+  hasLinkedMolecule: boolean;
+  chemicalFormula: string | null;
+  energyEv: readonly number[];
+  beta: readonly number[] | null | undefined;
+  delta: readonly number[] | null | undefined;
   derivedOpticalAvailable: boolean;
   hasIeData: boolean;
   isTeyExperiment: boolean;
@@ -52,8 +62,13 @@ export type StxmIngestionPlotDataRailProps = {
 export function StxmIngestionPlotDataRail({
   displayChannel,
   onDisplayChannelChange,
-  hasRawSpectra,
+  regionSpectra,
   hasReducedResult,
+  hasLinkedMolecule,
+  chemicalFormula,
+  energyEv,
+  beta,
+  delta,
   derivedOpticalAvailable,
   hasIeData,
   isTeyExperiment,
@@ -67,41 +82,61 @@ export function StxmIngestionPlotDataRail({
   bareAtomOverlayDisabledReason,
   formulaLoading = false,
 }: StxmIngestionPlotDataRailProps) {
+  const availabilityBase = useMemo(
+    () => ({
+      regionSpectra,
+      hasReducedResult,
+      hasLinkedMolecule,
+      chemicalFormula,
+      energyEv,
+      beta,
+      delta,
+      derivedOpticalAvailable,
+      hasIeData,
+      isTeyExperiment,
+    }),
+    [
+      beta,
+      chemicalFormula,
+      delta,
+      derivedOpticalAvailable,
+      energyEv,
+      hasIeData,
+      hasLinkedMolecule,
+      hasReducedResult,
+      isTeyExperiment,
+      regionSpectra,
+    ],
+  );
+
+  const channelContext = useCallback(
+    (id: StxmIngestionPlotChannel) =>
+      buildStxmChannelAvailabilityContext({
+        ...availabilityBase,
+        channel: id,
+      }),
+    [availabilityBase],
+  );
+
   const isChannelAvailable = useCallback(
-    (id: StxmIngestionPlotChannel) => {
-      if (id === "signal_ie") {
-        return hasRawSpectra && isTeyExperiment && hasIeData;
-      }
-      if (ingestionChannelUsesRawIntensity(id)) {
-        return hasRawSpectra;
-      }
-      if (isStxmDerivedOpticalPlotChannel(id)) {
-        return hasReducedResult && derivedOpticalAvailable;
-      }
-      return hasReducedResult;
-    },
-    [derivedOpticalAvailable, hasIeData, hasRawSpectra, hasReducedResult, isTeyExperiment],
+    (id: StxmIngestionPlotChannel) => canComputeStxmChannel(channelContext(id)),
+    [channelContext],
   );
 
   const channelUnavailableDescription = useCallback(
+    (id: StxmIngestionPlotChannel) =>
+      describeStxmChannelUnavailableReason(channelContext(id)),
+    [channelContext],
+  );
+
+  const handleDisplayChannelChange = useCallback(
     (id: StxmIngestionPlotChannel) => {
-      if (isStxmDerivedOpticalPlotChannel(id) && !derivedOpticalAvailable) {
-        return hasReducedResult
-          ? "Set a chemical formula and run KK reduction to unlock f, epsilon, and chi views."
-          : "Run reduction with beta and delta to unlock derived optical constants.";
+      if (!canComputeStxmChannel(channelContext(id))) {
+        return;
       }
-      if (id !== "signal_ie") {
-        return undefined;
-      }
-      if (!isTeyExperiment) {
-        return "Ie is available only for TEY experiments.";
-      }
-      if (!hasIeData) {
-        return "No TEY drain-current monitor column in this scan header.";
-      }
-      return undefined;
+      onDisplayChannelChange(id);
     },
-    [derivedOpticalAvailable, hasIeData, hasReducedResult, isTeyExperiment],
+    [channelContext, onDisplayChannelChange],
   );
 
   const bareAtomHint = useMemo(() => {
@@ -201,7 +236,7 @@ export function StxmIngestionPlotDataRail({
       <PlotDataViewRail
         definition={STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION}
         activeChannelId={displayChannel}
-        onActiveChannelChange={onDisplayChannelChange}
+        onActiveChannelChange={handleDisplayChannelChange}
         isChannelAvailable={isChannelAvailable}
         channelUnavailableDescription={channelUnavailableDescription}
         renderTrayPopoverTrailing={renderTrayPopoverTrailing}

@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
-import { Spinner } from "@heroui/react";
+import { ErrorMessage, Spinner } from "@heroui/react";
+import {
+  defaultPlotChannelForTray,
+  trayIdForChannel,
+} from "~/components/plots/data-rail";
 import type { StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
 import {
   buildStxmSpectrumPlotModel,
@@ -29,6 +33,12 @@ import type {
   StxmSampleRegion,
 } from "~/lib/stxm/stxm-region-types";
 import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
+import {
+  buildStxmChannelAvailabilityContext,
+  canComputeStxmChannel,
+  resolveStxmPlotEmptyState,
+} from "~/lib/stxm/stxm-channel-availability";
+import { STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION } from "~/lib/stxm/stxm-ingestion-plot-data-rail-config";
 import { stxmDerivedOpticalChannelsAvailable } from "~/lib/stxm/stxm-ingestion-display";
 import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
 import {
@@ -71,6 +81,7 @@ type StxmIngestionPlotPanelProps = {
   onNormalizationChange: (windows: StxmNormalizationWindows) => void;
   standards: StxmPlotStandardOverlay[];
   chemicalFormula: string | null;
+  hasLinkedMolecule: boolean;
   formulaLoading?: boolean;
   showRegionOverlays: boolean;
   compareOverlays?: StxmCompareOverlay[];
@@ -126,6 +137,38 @@ function PlotComputingOverlay() {
   );
 }
 
+function StxmPlotChannelEmptyState({
+  title,
+  detail,
+  actionLabel,
+  height,
+  emphasizeRequirement,
+}: {
+  title: string;
+  detail: string;
+  actionLabel?: string;
+  height: number;
+  emphasizeRequirement: boolean;
+}) {
+  return (
+    <div
+      className="border-border bg-default/20 flex flex-1 flex-col items-center justify-center gap-2 rounded-md border px-6 text-center"
+      style={{ minHeight: height }}
+      role="status"
+    >
+      <p className="text-foreground text-sm font-medium">{title}</p>
+      {emphasizeRequirement ? (
+        <ErrorMessage className="max-w-md text-sm">{detail}</ErrorMessage>
+      ) : (
+        <p className="text-muted max-w-md text-sm">{detail}</p>
+      )}
+      {actionLabel ? (
+        <p className="text-accent text-xs font-medium">{actionLabel}</p>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * STXM ingestion spectrum card with NEXAFS-style Graph/Table shell and in-plot data rails.
  */
@@ -142,6 +185,7 @@ export function StxmIngestionPlotPanel({
   onNormalizationChange,
   standards,
   chemicalFormula,
+  hasLinkedMolecule,
   formulaLoading = false,
   showRegionOverlays,
   compareOverlays = [],
@@ -179,19 +223,118 @@ export function StxmIngestionPlotPanel({
   const [isPeakSetMode, setIsPeakSetMode] = useState(false);
   const [selectedPeakId, setSelectedPeakId] = useState<string | null>(null);
 
-  const hasRawSpectra = regionSpectra.length > 0;
   const hasReducedResult = result !== null;
   const energyEv = result?.energyEv ?? regionSpectra[0]?.energyEv ?? [];
+  const betaSeries =
+    result?.beta ?? regionSpectra.find((series) => series.beta)?.beta;
+  const deltaSeries =
+    result?.delta ?? regionSpectra.find((series) => series.delta)?.delta;
+
   const derivedOpticalAvailable = useMemo(
     () =>
       stxmDerivedOpticalChannelsAvailable(
         energyEv,
-        result?.beta ?? regionSpectra.find((series) => series.beta)?.beta,
-        result?.delta ?? regionSpectra.find((series) => series.delta)?.delta,
+        betaSeries,
+        deltaSeries,
         chemicalFormula ?? result?.formula,
       ),
-    [chemicalFormula, energyEv, regionSpectra, result?.beta, result?.delta, result?.formula],
+    [
+      betaSeries,
+      chemicalFormula,
+      deltaSeries,
+      energyEv,
+      result?.formula,
+    ],
   );
+
+  const availabilityBase = useMemo(
+    () => ({
+      regionSpectra,
+      hasReducedResult,
+      hasLinkedMolecule,
+      chemicalFormula,
+      energyEv,
+      beta: betaSeries,
+      delta: deltaSeries,
+      derivedOpticalAvailable,
+      hasIeData,
+      isTeyExperiment,
+    }),
+    [
+      betaSeries,
+      chemicalFormula,
+      deltaSeries,
+      derivedOpticalAvailable,
+      energyEv,
+      hasIeData,
+      hasLinkedMolecule,
+      hasReducedResult,
+      isTeyExperiment,
+      regionSpectra,
+    ],
+  );
+
+  const activeChannelContext = useMemo(
+    () =>
+      buildStxmChannelAvailabilityContext({
+        ...availabilityBase,
+        channel,
+      }),
+    [availabilityBase, channel],
+  );
+
+  const channelCanRender = canComputeStxmChannel(activeChannelContext);
+
+  const plotEmptyState = useMemo(
+    () => resolveStxmPlotEmptyState(activeChannelContext),
+    [activeChannelContext],
+  );
+
+  const isChannelAvailableForRail = useCallback(
+    (id: StxmIngestionPlotChannel) =>
+      canComputeStxmChannel(
+        buildStxmChannelAvailabilityContext({
+          ...availabilityBase,
+          channel: id,
+        }),
+      ),
+    [availabilityBase],
+  );
+
+  useEffect(() => {
+    if (channelCanRender) {
+      return;
+    }
+    const trayId = trayIdForChannel(
+      STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
+      channel,
+    );
+    const trayFallback = defaultPlotChannelForTray(
+      STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
+      trayId,
+      isChannelAvailableForRail,
+    );
+    if (trayFallback != null && trayFallback !== channel) {
+      onChannelChange(trayFallback);
+      return;
+    }
+    for (const tray of STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION.trays) {
+      const next = defaultPlotChannelForTray(
+        STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
+        tray.id,
+        isChannelAvailableForRail,
+      );
+      if (next != null && next !== channel) {
+        onChannelChange(next);
+        return;
+      }
+    }
+  }, [
+    channel,
+    channelCanRender,
+    isChannelAvailableForRail,
+    onChannelChange,
+  ]);
 
   const bareAtomOverlayDisabled =
     !chemicalFormula || !stxmBareAtomOverlaySupportedForChannel(channel);
@@ -321,8 +464,13 @@ export function StxmIngestionPlotPanel({
       <StxmIngestionPlotDataRail
         displayChannel={channel}
         onDisplayChannelChange={onChannelChange}
-        hasRawSpectra={hasRawSpectra}
+        regionSpectra={regionSpectra}
         hasReducedResult={hasReducedResult}
+        hasLinkedMolecule={hasLinkedMolecule}
+        chemicalFormula={chemicalFormula}
+        energyEv={energyEv}
+        beta={betaSeries}
+        delta={deltaSeries}
         derivedOpticalAvailable={derivedOpticalAvailable}
         rawSignalTransform={rawSignalTransform}
         onRawSignalTransformChange={onRawSignalTransformChange}
@@ -346,10 +494,17 @@ export function StxmIngestionPlotPanel({
       isTeyExperiment,
       hasIeData,
       onRawSignalTransformChange,
+      betaSeries,
+      chemicalFormula,
+      deltaSeries,
       derivedOpticalAvailable,
-      hasRawSpectra,
+      energyEv,
+      hasIeData,
+      hasLinkedMolecule,
       hasReducedResult,
+      isTeyExperiment,
       linkImaginaryReal,
+      regionSpectra,
       onChannelChange,
       showBareAtomOverlay,
     ],
@@ -480,18 +635,27 @@ export function StxmIngestionPlotPanel({
       emptyStateMessage="Computing spectra for this channel."
     />
   ) : (
-    <div
-      className="border-border bg-default/20 flex flex-1 items-center justify-center rounded-md border"
-      style={{ minHeight: height }}
-    >
+    <>
       {showComputingOverlay ? (
-        <Spinner size="md" aria-label="Computing spectra" />
+        <div
+          className="border-border bg-default/20 flex flex-1 items-center justify-center rounded-md border"
+          style={{ minHeight: height }}
+        >
+          <Spinner size="md" aria-label="Computing spectra" />
+        </div>
       ) : (
-        <p className="text-muted px-4 text-center text-sm">
-          Configure sample and izero regions to compute spectra.
-        </p>
+        <StxmPlotChannelEmptyState
+          title={plotEmptyState.title}
+          detail={plotEmptyState.detail}
+          actionLabel={plotEmptyState.actionLabel}
+          height={height}
+          emphasizeRequirement={
+            plotEmptyState.title === "Molecule required" ||
+            plotEmptyState.title === "Chemical formula required"
+          }
+        />
       )}
-    </div>
+    </>
   );
 
   const graphContent = (

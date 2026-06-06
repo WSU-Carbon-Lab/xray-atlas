@@ -958,6 +958,7 @@ export function IngestionTab({
         onNormalizationChange={setNormalization}
         standards={plotStandards}
         chemicalFormula={resolvedFormula}
+        hasLinkedMolecule={linkedMolecule != null}
         formulaLoading={linkedMoleculeQuery.isLoading}
         showRegionOverlays
         compareOverlays={compareOverlays}
