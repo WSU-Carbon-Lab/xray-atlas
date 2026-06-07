@@ -121,9 +121,45 @@ export type DifferenceSpectrum = {
   lowerAngle?: number;
   higherAngle?: number;
   mode?: "theta" | "phi";
+  /** Overrides default companion trace line dash when set. */
+  lineDash?: "solid" | "dash" | "dot" | "dashdot";
+  /** Overrides default companion trace stroke width when set. */
+  lineWidth?: number;
+  /** Optional decimated point marker for line overlays (dashboard style mapping). */
+  markerSymbol?: "none" | "circle" | "square" | "triangle" | "diamond";
+  /** When set, places a marker every N points along line mode traces. */
+  markerEvery?: number;
+  /** Overrides default marker glyph size when set. */
+  markerSize?: number;
 };
 
 export type GraphStyle = "line" | "scatter" | "area";
+
+export type DescriptorTraceLegendSwatch = {
+  color: string;
+  lineDash: "solid" | "dash" | "dot" | "dashdot";
+  markerSymbol?: "none" | "circle" | "square" | "triangle" | "diamond";
+};
+
+export type DescriptorTraceLegendColumn = {
+  id: string;
+  title: string;
+};
+
+export type DescriptorTraceLegendRow = {
+  traceKey: string;
+  channelLabel: string;
+  swatch: DescriptorTraceLegendSwatch;
+  cells: Record<string, string>;
+};
+
+export type DescriptorTraceLegendConfig = {
+  rows: readonly DescriptorTraceLegendRow[];
+  columns: readonly DescriptorTraceLegendColumn[];
+  channelColumnTitle: string;
+  hiddenTraceIds: readonly string[];
+  onToggleTrace: (traceKey: string) => void;
+};
 
 /** Scatter marker glyph for linked imaginary (circle) vs real (square) optical traces. */
 export type TraceMarkerSymbol = "circle" | "square";
@@ -291,9 +327,23 @@ export type SpectrumPlotProps = {
    */
   hideGeometryLegend?: boolean;
   /**
+   * When true, suppresses the draggable in-plot geometry/region legend overlay entirely (for example when an external legend table is shown).
+   */
+  suppressInPlotLegend?: boolean;
+  /**
    * Overrides the primary trace stroke color when the plot has no θ/φ geometry metadata (for example the first STXM sample region color).
    */
   primaryTraceColor?: string;
+  /** Overrides primary trace line dash in region-scoped or single-geometry overlay mode. */
+  primaryTraceLineDash?: "solid" | "dash" | "dot" | "dashdot";
+  /** Decimated point marker on the primary trace when set. */
+  primaryTraceMarkerSymbol?: "circle" | "square" | "triangle" | "diamond";
+  /** Overrides primary trace stroke width in region-scoped or single-geometry overlay mode. */
+  primaryTraceLineWidth?: number;
+  /** When set, places a marker every N points on the primary trace in line mode. */
+  primaryTraceMarkerEvery?: number;
+  /** Overrides primary trace marker glyph size when set. */
+  primaryTraceMarkerSize?: number;
   /**
    * Stable visibility id for the primary trace in region-scoped legend mode; must match companion {@link DifferenceSpectrum.legendId} keys.
    */
@@ -302,6 +352,11 @@ export type SpectrumPlotProps = {
   primaryRegionSpotLabel?: string;
   /** Short channel header for region-scoped legend mode (for example `OD`, `Norm OD`, `β`). */
   channelLegendGlyph?: string;
+  /**
+   * When set with `suppressInPlotLegend={false}`, renders an N-column descriptor trace legend
+   * instead of the geometry/region legend (dashboard plot viewer compare mode).
+   */
+  descriptorTraceLegend?: DescriptorTraceLegendConfig;
   /**
    * When set, right-click opens a minimal CSV context menu on the plot and Copy is hijacked to place total-dataset CSV on the clipboard (toolbar dropdown still handles per-geometry export).
    */
@@ -342,7 +397,8 @@ export type TraceData = {
     color?: string;
     size?: number;
     opacity?: number;
-    symbol?: TraceMarkerSymbol;
+    symbol?: TraceMarkerSymbol | "triangle" | "diamond";
+    every?: number;
   };
   hovertemplate?: string;
   showlegend?: boolean;

@@ -160,9 +160,20 @@ export function useReferenceData(
         y: spec.points.map((point) => point.absorption),
         line: {
           color,
-          width: 1.8,
-          dash: spec.color ? "solid" : "dashdot",
+          width: spec.lineWidth ?? 1.8,
+          dash: spec.lineDash ?? (spec.color ? "solid" : "dashdot"),
         },
+        ...(spec.markerSymbol && spec.markerSymbol !== "none"
+          ? {
+              marker: {
+                color,
+                size: spec.markerSize ?? 5,
+                opacity: 0.85,
+                symbol: spec.markerSymbol,
+                every: spec.markerEvery,
+              },
+            }
+          : {}),
         hovertemplate:
           `<b>${spec.label}</b><br>` +
           "Energy: %{x:.3f} eV<br>Value: %{y:.4f}" +

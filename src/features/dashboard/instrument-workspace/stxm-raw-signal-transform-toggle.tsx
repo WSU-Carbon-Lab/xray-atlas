@@ -12,7 +12,7 @@ import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-tran
 
 const toggleClass = cn(
   plotToolbarGlyphToggleGroupItemHorizontalClass,
-  "h-7 min-w-7 w-auto px-1.5 text-[10px] font-medium",
+  "min-w-9 px-2 text-xs font-medium",
 );
 
 export type StxmRawSignalTransformToggleProps = {

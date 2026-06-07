@@ -11,9 +11,11 @@ export const metadata = {
 };
 
 /**
- * Restricts dashboard routes to signed-in Atlas users. Processing mutations in
- * later phases may additionally require Labs access; the shell remains reachable
- * for any authenticated contributor.
+ * Restricts dashboard routes to signed-in Atlas users and applies a full-width shell.
+ *
+ * Uses the same horizontal breakout as `/wiki/*` so dashboard pages are not capped by
+ * the root `main` `max-w-7xl` constraint. All nested dashboard routes inherit
+ * edge-to-edge width with compact horizontal padding.
  */
 export default async function DashboardLayout({
   children,
@@ -23,7 +25,7 @@ export default async function DashboardLayout({
     redirect("/sign-in");
   }
   return (
-    <div className="container mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+    <div className="relative mx-[calc(-50vw+50%)] box-border flex w-screen max-w-[100vw] min-h-0 flex-1 flex-col px-3 py-4 sm:px-4">
       {children}
     </div>
   );

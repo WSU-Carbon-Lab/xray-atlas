@@ -40,6 +40,7 @@ import { ChartAxes } from "./ChartAxes";
 import { ChartGrid } from "./ChartGrid";
 import { ChartSpectrumLines } from "./ChartSpectrumLines";
 import { PlotToolbar } from "./PlotToolbar";
+import { PlotDescriptorTraceLegend } from "./PlotDescriptorTraceLegend";
 import { PlotSpectrumGeometryLegend } from "./PlotSpectrumGeometryLegend";
 import { useLinkedOpticalTraces } from "../hooks/useLinkedOpticalTraces";
 import { buildLinkedOpticalAreaBands } from "../utils/linked-optical-area-bands";
@@ -161,10 +162,17 @@ export function SpectrumPlotInner({
   spectrumCsvContextMenu,
   primaryTraceLabel,
   hideGeometryLegend = false,
+  suppressInPlotLegend = false,
   primaryTraceColor,
+  primaryTraceLineDash,
+  primaryTraceMarkerSymbol,
+  primaryTraceLineWidth,
+  primaryTraceMarkerEvery,
+  primaryTraceMarkerSize,
   primaryTraceLegendId,
   primaryRegionSpotLabel,
   channelLegendGlyph: channelLegendGlyphProp,
+  descriptorTraceLegend,
 }: SpectrumPlotInnerProps) {
   const opticalLinkConfig = opticalLink ?? betaDeltaLinkLegacy;
   const { resolvedTheme } = useTheme();
@@ -185,6 +193,11 @@ export function SpectrumPlotInner({
     isDark,
     primaryTraceLabel,
     primaryTraceColor,
+    primaryTraceLineDash,
+    primaryTraceMarkerSymbol,
+    primaryTraceLineWidth,
+    primaryTraceMarkerEvery,
+    primaryTraceMarkerSize,
   );
   const linkedOptical = useLinkedOpticalTraces(
     groupedTraces.traces,
@@ -472,13 +485,20 @@ export function SpectrumPlotInner({
       ? "Region"
       : singleGeometryLegend.angleColumnTitle;
 
+  const showDescriptorTraceLegend =
+    !suppressInPlotLegend &&
+    descriptorTraceLegend != null &&
+    descriptorTraceLegend.rows.length > 0;
+
   const showGeometryLegend =
-    regionLegendRows.length > 0
-      ? true
-      : !hideGeometryLegend &&
-        (linkedOptical.active && opticalLinkConfig
-          ? linkedOptical.legendRows.length > 0
-          : singleGeometryLegend.rows.length > 0);
+    suppressInPlotLegend || showDescriptorTraceLegend
+      ? false
+      : regionLegendRows.length > 0
+        ? true
+        : !hideGeometryLegend &&
+          (linkedOptical.active && opticalLinkConfig
+            ? linkedOptical.legendRows.length > 0
+            : singleGeometryLegend.rows.length > 0);
 
   const channelLegendGlyph =
     channelLegendGlyphProp ??
@@ -1790,6 +1810,22 @@ export function SpectrumPlotInner({
             <g
               transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
             >
+              {showDescriptorTraceLegend && descriptorTraceLegend ? (
+                <PlotDescriptorTraceLegend
+                  rows={descriptorTraceLegend.rows}
+                  columns={descriptorTraceLegend.columns}
+                  channelColumnTitle={descriptorTraceLegend.channelColumnTitle}
+                  hiddenTraceIds={descriptorTraceLegend.hiddenTraceIds}
+                  onToggleTrace={descriptorTraceLegend.onToggleTrace}
+                  themeColors={themeColors}
+                  plotWidth={mainPlotWidth}
+                  plotHeight={mainPlotHeight}
+                  plotSvgRef={svgRef}
+                  plotMarginLeft={mainPlot.dimensions.margins.left}
+                  plotMarginTop={mainPlot.dimensions.margins.top}
+                  positionResetKey={geometryLegendPositionResetKey}
+                />
+              ) : null}
               {showGeometryLegend ? (
                 linkedOptical.active && opticalLinkConfig ? (
                   <PlotSpectrumGeometryLegend

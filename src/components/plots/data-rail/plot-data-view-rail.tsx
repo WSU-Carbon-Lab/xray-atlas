@@ -36,6 +36,7 @@ import {
   type PlotDataRailLinkDefinition,
   type PlotDataRailDefinition,
   type PlotDataViewRailProps,
+  trayIdForChannel,
 } from "./plot-data-rail-types";
 
 /**
@@ -125,6 +126,9 @@ function PlotDataRailTrayTrigger<
   linkState,
   renderPopoverTrailing,
   channelUnavailableDescription,
+  multiSelectMode = false,
+  traySelectedChannelIds,
+  onTraySelectedChannelIdsChange,
 }: {
   trayId: TTrayId;
   definition: PlotDataViewRailProps<TChannelId, TTrayId>["definition"];
@@ -140,6 +144,11 @@ function PlotDataRailTrayTrigger<
   linkState: PlotDataViewRailProps<TChannelId, TTrayId>["linkState"];
   renderPopoverTrailing?: ReactNode;
   channelUnavailableDescription?: (id: TChannelId) => string | undefined;
+  multiSelectMode?: boolean;
+  traySelectedChannelIds?: ReadonlySet<TChannelId>;
+  onTraySelectedChannelIdsChange?: (
+    ids: ReadonlySet<TChannelId>,
+  ) => void;
 }) {
   const tray = definition.trays.find((t) => t.id === trayId);
   const popoverRows = useMemo(
@@ -167,6 +176,9 @@ function PlotDataRailTrayTrigger<
   );
 
   const pickerSelectedKeys = useMemo(() => {
+    if (multiSelectMode && traySelectedChannelIds != null) {
+      return new Set([...traySelectedChannelIds].map(String));
+    }
     if (isLinkedPopover) {
       const ids = new Set<string>();
       for (const channelSet of trayHighlights.highlightedChannelIdsByTray.values()) {
@@ -191,6 +203,8 @@ function PlotDataRailTrayTrigger<
     );
     return fallback != null ? new Set([String(fallback)]) : new Set<string>();
   }, [
+    multiSelectMode,
+    traySelectedChannelIds,
     isLinkedPopover,
     definition,
     trayId,
@@ -277,6 +291,23 @@ function PlotDataRailTrayTrigger<
 
   const handleSelectionChange = useCallback(
     (keys: Set<string | number>) => {
+      if (multiSelectMode && onTraySelectedChannelIdsChange != null) {
+        const next = new Set<TChannelId>();
+        for (const key of keys) {
+          if (typeof key === "string") {
+            next.add(key as TChannelId);
+          }
+        }
+        if (next.size === 0) {
+          return;
+        }
+        onTraySelectedChannelIdsChange(next);
+        const last = [...keys].at(-1);
+        if (typeof last === "string") {
+          onSelectChannel(last as TChannelId);
+        }
+        return;
+      }
       const next = keys.values().next().value;
       if (typeof next !== "string") {
         return;
@@ -284,7 +315,12 @@ function PlotDataRailTrayTrigger<
       onSelectChannel(next as TChannelId);
       closePicker();
     },
-    [closePicker, onSelectChannel],
+    [
+      closePicker,
+      multiSelectMode,
+      onSelectChannel,
+      onTraySelectedChannelIdsChange,
+    ],
   );
 
   if (tray == null) {
@@ -315,7 +351,7 @@ function PlotDataRailTrayTrigger<
               {popoverRows.map((row) => (
                 <ToggleButtonGroup
                   key={String(row.trayId)}
-                  selectionMode="single"
+                  selectionMode={multiSelectMode ? "multiple" : "single"}
                   orientation="horizontal"
                   disallowEmptySelection={pickerSelectedKeys.size > 0}
                   className={plotToolbarAttachedToggleGroupHorizontalClass}
@@ -495,12 +531,21 @@ export function PlotDataViewRail<
   ariaLabel = "Data view trays",
   renderTrayPopoverTrailing,
   channelUnavailableDescription,
+  multiSelectTrayIds,
+  traySelectedChannelIds,
+  onTraySelectedChannelIdsChange,
 }: PlotDataViewRailProps<TChannelId, TTrayId>) {
   const [openTrayId, setOpenTrayId] = useState<TTrayId | null>(null);
 
   useEffect(() => {
-    setOpenTrayId(null);
-  }, [activeChannelId]);
+    if (openTrayId == null) {
+      return;
+    }
+    const activeTray = trayIdForChannel(definition, activeChannelId);
+    if (activeTray !== openTrayId) {
+      setOpenTrayId(null);
+    }
+  }, [activeChannelId, definition, openTrayId]);
 
   const trayHighlights = useMemo(
     () =>
@@ -570,13 +615,18 @@ export function PlotDataViewRail<
             const segmentClassName = plotToolbarBasisSegmentClass(
               basisSegmentPosition(basisSegmentIndex++, basisSegmentCount),
             );
+            const isMultiSelectTray = multiSelectTrayIds?.includes(trayId) ?? false;
+            const multiSelectedForTray = traySelectedChannelIds?.[trayId];
             return (
               <PlotDataRailTrayTrigger
                 key={`tray-${trayId}`}
                 trayId={trayId}
                 definition={definition}
                 activeChannelId={activeChannelId}
-                trayHighlighted={trayHighlights.highlightedTrayIds.has(trayId)}
+                trayHighlighted={
+                  trayHighlights.highlightedTrayIds.has(trayId) ||
+                  (isMultiSelectTray && (multiSelectedForTray?.size ?? 0) > 0)
+                }
                 isChannelAvailable={isChannelAvailable}
                 onSelectChannel={onActiveChannelChange}
                 hintPlacement={hintPlacement}
@@ -590,6 +640,7 @@ export function PlotDataViewRail<
                   }
                   setOpenTrayId(trayId);
                   if (
+                    !isMultiSelectTray &&
                     activePlotChannelInTray(
                       definition,
                       trayId,
@@ -612,6 +663,13 @@ export function PlotDataViewRail<
                   null
                 }
                 channelUnavailableDescription={channelUnavailableDescription}
+                multiSelectMode={isMultiSelectTray}
+                traySelectedChannelIds={multiSelectedForTray}
+                onTraySelectedChannelIdsChange={
+                  isMultiSelectTray && onTraySelectedChannelIdsChange != null
+                    ? (ids) => onTraySelectedChannelIdsChange(trayId, ids)
+                    : undefined
+                }
               />
             );
           }

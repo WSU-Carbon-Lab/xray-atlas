@@ -83,6 +83,19 @@ export interface PlotDataViewRailProps<
   ) => ReactNode;
   /** Per-channel disabled tooltip when `isChannelAvailable` is false. */
   readonly channelUnavailableDescription?: (id: TChannelId) => string | undefined;
+  /**
+   * Tray ids whose popover uses multi-select toggles instead of exclusive single-select.
+   * Selection state is read from {@link traySelectedChannelIds} and written via
+   * {@link onTraySelectedChannelIdsChange}.
+   */
+  readonly multiSelectTrayIds?: readonly TTrayId[];
+  readonly traySelectedChannelIds?: Readonly<
+    Partial<Record<TTrayId, ReadonlySet<TChannelId>>>
+  >;
+  readonly onTraySelectedChannelIdsChange?: (
+    trayId: TTrayId,
+    ids: ReadonlySet<TChannelId>,
+  ) => void;
 }
 
 export function assertGlyphLength(glyph: string, context: string): void {

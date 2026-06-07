@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SpectrumPoint } from "~/components/plots/types";
 import { mapDbSpectrumRowsToPoints } from "~/features/process-nexafs/utils/mapDbSpectrumRowsToPoints";
 import { trpc } from "~/trpc/client";
@@ -25,6 +25,8 @@ export function useDashboardPlotSpectra(
 } {
   const utils = trpc.useUtils();
   const selectionKey = selections.map((row) => row.experimentId).join("|");
+  const selectionsRef = useRef(selections);
+  selectionsRef.current = selections;
   const [spectraByExperimentId, setSpectraByExperimentId] = useState<
     Map<string, SpectrumPoint[]>
   >(new Map());
@@ -33,7 +35,8 @@ export function useDashboardPlotSpectra(
 
   useEffect(() => {
     let cancelled = false;
-    if (selections.length === 0) {
+    const currentSelections = selectionsRef.current;
+    if (currentSelections.length === 0) {
       setSpectraByExperimentId(new Map());
       setIsLoading(false);
       setErrorMessage(null);
@@ -44,7 +47,7 @@ export function useDashboardPlotSpectra(
     void (async () => {
       try {
         const entries = await Promise.all(
-          selections.map(async (selection) => {
+          currentSelections.map(async (selection) => {
             const rows = await utils.spectrumpoints.getByExperiment.fetch({
               experimentId: selection.experimentId,
               limit: 10000,
@@ -75,7 +78,7 @@ export function useDashboardPlotSpectra(
     return () => {
       cancelled = true;
     };
-  }, [selectionKey, selections, utils]);
+  }, [selectionKey, utils.spectrumpoints.getByExperiment]);
 
   const datasets = useMemo((): DashboardPlotDatasetInput[] => {
     return selections.map((selection) => ({

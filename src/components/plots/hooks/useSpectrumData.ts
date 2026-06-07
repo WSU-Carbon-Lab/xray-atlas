@@ -70,6 +70,11 @@ export function useSpectrumData(
   isDark = true,
   primaryTraceLabel?: string,
   primaryTraceColor?: string,
+  primaryTraceLineDash?: "solid" | "dash" | "dot" | "dashdot",
+  primaryTraceMarkerSymbol?: "circle" | "square" | "triangle" | "diamond",
+  primaryTraceLineWidth?: number,
+  primaryTraceMarkerEvery?: number,
+  primaryTraceMarkerSize?: number,
 ): SpectrumDataResult {
   const palette = isDark ? SPECTRUM_TRACE_GRADIENT_DARK : SPECTRUM_TRACE_GRADIENT_LIGHT;
   return useMemo(() => {
@@ -114,12 +119,31 @@ export function useSpectrumData(
         phi: group.phi,
         marker: {
           color,
-          size: 4,
-          opacity: 0.7,
+          size:
+            index === 0 && primaryTraceMarkerSize != null
+              ? primaryTraceMarkerSize
+              : 4,
+          opacity:
+            index === 0 && primaryTraceMarkerSymbol ? 0.85 : 0.7,
+          symbol:
+            index === 0 && primaryTraceMarkerSymbol
+              ? primaryTraceMarkerSymbol
+              : undefined,
+          every:
+            index === 0 && primaryTraceMarkerEvery != null
+              ? primaryTraceMarkerEvery
+              : undefined,
         },
         line: {
           color,
-          width: SPECTRUM_TRACE_LINE_WIDTH,
+          width:
+            index === 0 && primaryTraceLineWidth != null
+              ? primaryTraceLineWidth
+              : SPECTRUM_TRACE_LINE_WIDTH,
+          dash:
+            index === 0 && primaryTraceLineDash
+              ? primaryTraceLineDash
+              : undefined,
         },
         hovertemplate:
           `<b>${label}</b><br>` +
@@ -141,5 +165,10 @@ export function useSpectrumData(
     palette,
     primaryTraceLabel,
     primaryTraceColor,
+    primaryTraceLineDash,
+    primaryTraceMarkerSymbol,
+    primaryTraceLineWidth,
+    primaryTraceMarkerEvery,
+    primaryTraceMarkerSize,
   ]);
 }

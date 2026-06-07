@@ -37,6 +37,8 @@ export type NexafsBrowseGroupFilters = {
   contributorUserId?: string;
   /** Normalized DOI exact match on `experiment_metrics.original_data_doi`. */
   sourcePaperDoi?: string;
+  /** Restrict results to these experiment UUIDs; OR-combined within field. */
+  experimentIds?: string[];
 };
 
 export function buildNexafsBrowseWhereSql(
@@ -75,6 +77,15 @@ export function buildNexafsBrowseWhereSql(
     parts.push(
       Prisma.sql`e.experimenttype = ${filters.experimentType}::"ExperimentType"`,
     );
+  }
+
+  if (filters.experimentIds?.length === 1) {
+    parts.push(Prisma.sql`e.id = ${filters.experimentIds[0]}::uuid`);
+  } else if (filters.experimentIds && filters.experimentIds.length > 1) {
+    const joined = Prisma.join(
+      filters.experimentIds.map((id) => Prisma.sql`${id}::uuid`),
+    );
+    parts.push(Prisma.sql`e.id = ANY(ARRAY[${joined}])`);
   }
 
   if (contributorOrcids.length === 1) {
