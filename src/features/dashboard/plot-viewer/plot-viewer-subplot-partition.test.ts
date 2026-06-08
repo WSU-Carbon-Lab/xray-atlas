@@ -3,6 +3,7 @@ import {
   expect as bunExpect,
   it as bunIt,
 } from "bun:test";
+import { filterPlotViewerTracesByHiddenIds } from "./plot-viewer-hidden-traces";
 import { partitionPlotViewerTracesByGeometry } from "./plot-viewer-subplot-partition";
 import type { PlotViewerStyledTrace } from "./plot-viewer-styled-traces";
 
@@ -81,5 +82,28 @@ describe("partitionPlotViewerTracesByGeometry", () => {
     expect(panels[0]?.traces).toHaveLength(2);
     expect(panels[1]?.geometryKey).toBe("55:0");
     expect(panels[1]?.traces).toHaveLength(1);
+  });
+
+  it("partitions only visible traces when hidden ids are applied first", () => {
+    const traces = [
+      styledTrace({
+        traceKey: "a:20:0",
+        geometryKey: "20:0",
+        datasetOrder: 0,
+        angleLabel: "20.0°",
+      }),
+      styledTrace({
+        traceKey: "a:55:0",
+        geometryKey: "55:0",
+        datasetOrder: 0,
+        angleLabel: "55.0°",
+      }),
+    ];
+    const visible = filterPlotViewerTracesByHiddenIds(traces, ["a:55:0"]);
+    const panels = partitionPlotViewerTracesByGeometry(visible);
+    expect(panels).toHaveLength(1);
+    expect(panels[0]?.geometryKey).toBe("20:0");
+    expect(panels[0]?.traces).toHaveLength(1);
+    expect(panels[0]?.traces[0]?.traceKey).toBe("a:20:0");
   });
 });

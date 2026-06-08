@@ -123,6 +123,7 @@ export function StxmAls5322Workspace() {
     string | null
   >(null);
   const scanSelectGenerationRef = useRef(0);
+  const resumeScanAttemptKeyRef = useRef<string | null>(null);
   const [experimentDirectory, setExperimentDirectory] =
     useState<StxmDirectoryHandle | null>(null);
 
@@ -550,6 +551,10 @@ export function StxmAls5322Workspace() {
     void handleSelectBeamtime(selectedBeamtime, { forceRefresh: true });
   }, [handleSelectBeamtime, selectedBeamtime]);
 
+  useEffect(() => {
+    resumeScanAttemptKeyRef.current = null;
+  }, [selectedBeamtime, folderHandleKey]);
+
   const loadScanIntoIngestion = useCallback(
     async (
       entry: StxmCatalogEntry,
@@ -604,6 +609,39 @@ export function StxmAls5322Workspace() {
     },
     [directoryLayout, persistWorkspace, rootHandle, selectedBeamtime, stxmSession],
   );
+
+  useEffect(() => {
+    const savedPath = stepMetadata.workspace?.selectedScanRelativePath?.trim();
+    if (!savedPath || !selectedBeamtime || !rootHandle || !directoryLayout) {
+      return;
+    }
+    if (isLoadingCatalog) {
+      return;
+    }
+    if (selectedFiles && selectedEntry?.relativePath === savedPath) {
+      return;
+    }
+    const resumeKey = `${selectedBeamtime}:${savedPath}`;
+    if (resumeScanAttemptKeyRef.current === resumeKey) {
+      return;
+    }
+    const entry = catalog.find((row) => row.relativePath === savedPath);
+    if (!entry) {
+      return;
+    }
+    resumeScanAttemptKeyRef.current = resumeKey;
+    void loadScanIntoIngestion(entry);
+  }, [
+    catalog,
+    directoryLayout,
+    isLoadingCatalog,
+    loadScanIntoIngestion,
+    rootHandle,
+    selectedBeamtime,
+    selectedEntry?.relativePath,
+    selectedFiles,
+    stepMetadata.workspace?.selectedScanRelativePath,
+  ]);
 
   const handleSelectScan = useCallback(
     async (entry: StxmCatalogEntry) => {
@@ -873,7 +911,7 @@ export function StxmAls5322Workspace() {
             onPersistPreview={stxmSession.persistPreview}
             onPersistExport={persistExportForScan}
             onFlushSession={stxmSession.flushSession}
-            isSaving={stxmSession.isLoading}
+            isSaving={!stxmSession.isReady || stxmSession.isWriting}
           />
         );
       case "preview_spectra":

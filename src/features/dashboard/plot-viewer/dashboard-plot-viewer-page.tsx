@@ -534,8 +534,8 @@ export function DashboardPlotViewerPage() {
   );
 
   const subplotPanels = useMemo(
-    () => partitionPlotViewerTracesByGeometry(styledPlot.traces),
-    [styledPlot.traces],
+    () => partitionPlotViewerTracesByGeometry(visibleTraces),
+    [visibleTraces],
   );
 
   const overlayModel = useMemo(() => {
