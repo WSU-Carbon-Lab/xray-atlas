@@ -1,9 +1,8 @@
 import { z } from "zod";
 import {
-  adminProcedure,
   createTRPCRouter,
-  publicProcedure,
   protectedProcedure,
+  publicProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import {
@@ -15,6 +14,7 @@ import {
   instrumentStewardPublicSelect,
   toInstrumentStewardPublic,
 } from "~/server/instruments/instrument-steward-dto";
+import { assertUserMayManageInstrumentStewards } from "~/server/instruments/instrument-steward-authz";
 
 const instrumentStewardPublicSchema = z.object({
   instrumentId: z.string(),
@@ -297,17 +297,18 @@ export const instrumentsRouter = createTRPCRouter({
     }),
 
   /**
-   * Returns the primary beamline scientist steward for one instrument, or null when none is assigned.
+   * Lists beamline scientist stewards for one instrument (empty when none are assigned).
    */
-  getSteward: publicProcedure
+  listStewardsForInstrument: publicProcedure
     .input(z.object({ instrumentId: z.string().min(1) }))
-    .output(instrumentStewardPublicSchema.nullable())
+    .output(z.array(instrumentStewardPublicSchema))
     .query(async ({ ctx, input }) => {
-      const row = await ctx.db.instrumentsteward.findUnique({
+      const rows = await ctx.db.instrumentsteward.findMany({
         where: { instrumentid: input.instrumentId },
         select: instrumentStewardPublicSelect,
+        orderBy: { assignedat: "asc" },
       });
-      return row ? toInstrumentStewardPublic(row) : null;
+      return rows.map(toInstrumentStewardPublic);
     }),
 
   /**
@@ -315,7 +316,7 @@ export const instrumentsRouter = createTRPCRouter({
    */
   listStewardsForFacility: publicProcedure
     .input(z.object({ facilityId: z.string().uuid() }))
-    .output(z.record(z.string(), instrumentStewardPublicSchema))
+    .output(z.record(z.string(), z.array(instrumentStewardPublicSchema)))
     .query(async ({ ctx, input }) => {
       const rows = await ctx.db.instrumentsteward.findMany({
         where: {
@@ -324,19 +325,26 @@ export const instrumentsRouter = createTRPCRouter({
           },
         },
         select: instrumentStewardPublicSelect,
+        orderBy: { assignedat: "asc" },
       });
-      const stewards: Record<string, z.infer<typeof instrumentStewardPublicSchema>> =
-        {};
+      const stewards: Record<
+        string,
+        z.infer<typeof instrumentStewardPublicSchema>[]
+      > = {};
       for (const row of rows) {
-        stewards[row.instrumentid] = toInstrumentStewardPublic(row);
+        const dto = toInstrumentStewardPublic(row);
+        const bucket = stewards[row.instrumentid] ?? [];
+        bucket.push(dto);
+        stewards[row.instrumentid] = bucket;
       }
       return stewards;
     }),
 
   /**
-   * Assigns or replaces the primary beamline scientist steward for an instrument.
+   * Adds a beamline scientist steward for an instrument when the caller is an administrator
+   * or an existing steward on that instrument.
    */
-  setSteward: adminProcedure
+  addSteward: protectedProcedure
     .input(
       z.object({
         instrumentId: z.string().min(1),
@@ -347,6 +355,12 @@ export const instrumentsRouter = createTRPCRouter({
     )
     .output(instrumentStewardPublicSchema)
     .mutation(async ({ ctx, input }) => {
+      await assertUserMayManageInstrumentStewards(
+        ctx.db,
+        ctx.userId,
+        input.instrumentId,
+      );
+
       const instrument = await ctx.db.instruments.findUnique({
         where: { id: input.instrumentId },
         select: { id: true },
@@ -369,19 +383,24 @@ export const instrumentsRouter = createTRPCRouter({
         });
       }
 
-      const row = await ctx.db.instrumentsteward.upsert({
-        where: { instrumentid: input.instrumentId },
-        create: {
+      const existing = await ctx.db.instrumentsteward.findUnique({
+        where: {
+          instrumentid_userid: {
+            instrumentid: input.instrumentId,
+            userid: input.userId,
+          },
+        },
+        select: instrumentStewardPublicSelect,
+      });
+      if (existing) {
+        return toInstrumentStewardPublic(existing);
+      }
+
+      const row = await ctx.db.instrumentsteward.create({
+        data: {
           instrumentid: input.instrumentId,
           userid: input.userId,
           assignedbyuserid: ctx.userId,
-          claimissueurl: input.claimIssueUrl ?? null,
-          notes: input.notes ?? null,
-        },
-        update: {
-          userid: input.userId,
-          assignedbyuserid: ctx.userId,
-          assignedat: new Date(),
           claimissueurl: input.claimIssueUrl ?? null,
           notes: input.notes ?? null,
         },
@@ -392,24 +411,48 @@ export const instrumentsRouter = createTRPCRouter({
     }),
 
   /**
-   * Clears the primary beamline scientist steward for an instrument.
+   * Removes one beamline scientist steward from an instrument when the caller is an administrator
+   * or an existing steward on that instrument.
    */
-  clearSteward: adminProcedure
-    .input(z.object({ instrumentId: z.string().min(1) }))
+  removeSteward: protectedProcedure
+    .input(
+      z.object({
+        instrumentId: z.string().min(1),
+        userId: orcidUserIdSchema,
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
+      await assertUserMayManageInstrumentStewards(
+        ctx.db,
+        ctx.userId,
+        input.instrumentId,
+      );
+
       const existing = await ctx.db.instrumentsteward.findUnique({
-        where: { instrumentid: input.instrumentId },
+        where: {
+          instrumentid_userid: {
+            instrumentid: input.instrumentId,
+            userid: input.userId,
+          },
+        },
         select: { instrumentid: true },
       });
       if (!existing) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "No steward is assigned for this instrument",
+          message: "That beamline scientist is not assigned to this instrument",
         });
       }
+
       await ctx.db.instrumentsteward.delete({
-        where: { instrumentid: input.instrumentId },
+        where: {
+          instrumentid_userid: {
+            instrumentid: input.instrumentId,
+            userid: input.userId,
+          },
+        },
       });
+
       return { ok: true as const };
     }),
 });

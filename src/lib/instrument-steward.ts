@@ -16,7 +16,7 @@ export type InstrumentStewardPublic = {
 export type InstrumentConnectorSectionViewInput = {
   readiness: DashboardConnectorReadiness;
   workspaceSlug: string | undefined;
-  steward: InstrumentStewardPublic | null | undefined;
+  stewards: InstrumentStewardPublic[];
 };
 
 /** Resolved visibility flags for the facility instrument connector claim section. */
@@ -27,6 +27,13 @@ export type InstrumentConnectorSectionView = {
   showRequestConnector: boolean;
   showNoWorkspaceNarrative: boolean;
   hasWorkspace: boolean;
+};
+
+/** Session inputs for {@link canAddBeamlineScientist}. */
+export type CanAddBeamlineScientistInput = {
+  sessionUserId: string | null | undefined;
+  canManageUsers: boolean;
+  stewards: InstrumentStewardPublic[];
 };
 
 /**
@@ -44,12 +51,30 @@ export function resolveInstrumentConnectorSectionView(
 
   return {
     showWorkspaceLink: hasWorkspaceHref,
-    showSteward: Boolean(input.steward),
+    showSteward: input.stewards.length > 0,
     showClaimBeamline: true,
     showRequestConnector: input.readiness === "not_ready",
     showNoWorkspaceNarrative: !hasWorkspace,
     hasWorkspace,
   };
+}
+
+/**
+ * Resolves whether the signed-in viewer may add beamline scientists via the attribution row.
+ *
+ * Returns true for user administrators and for users already listed as stewards on the instrument.
+ */
+export function canAddBeamlineScientist(
+  input: CanAddBeamlineScientistInput,
+): boolean {
+  if (input.canManageUsers) {
+    return true;
+  }
+  const sessionUserId = input.sessionUserId?.trim() ?? "";
+  if (sessionUserId.length === 0) {
+    return false;
+  }
+  return input.stewards.some((row) => row.userId === sessionUserId);
 }
 
 /**
@@ -66,34 +91,45 @@ function normalizeStewardImageUrl(
   return trimmed.length > 0 ? trimmed : null;
 }
 
-/**
- * Maps assigned beamline stewards to stacked {@link AvatarGroup} users for facility instrument cards.
- *
- * Returns an empty array when no steward is assigned; callers render no public avatar row in that case.
- */
-export function instrumentStewardsForAvatarDisplay(
-  steward: InstrumentStewardPublic | null | undefined,
-): UserWithOrcid[] {
-  if (!steward) {
-    return [];
-  }
-
+function stewardToAvatarUser(steward: InstrumentStewardPublic): UserWithOrcid {
   const trimmedName = steward.name?.trim() ?? "";
   const stewardHasAtlasProfile = trimmedName.length > 0;
   const displayName =
     trimmedName.length > 0 ? trimmedName : steward.userId;
 
-  return [
-    {
-      id: steward.userId,
-      orcid: steward.userId,
-      name: displayName,
-      image: normalizeStewardImageUrl(steward.image),
-      isAtlasProfile: stewardHasAtlasProfile,
-      avatarPlaceholder: stewardHasAtlasProfile ? "initials" : "person",
-      hoverRoleLabel: "Beamline scientist",
-      tooltipSubtitle: "Beamline scientist",
-      avatarStackKey: steward.userId,
-    },
-  ];
+  return {
+    id: steward.userId,
+    orcid: steward.userId,
+    name: displayName,
+    image: normalizeStewardImageUrl(steward.image),
+    isAtlasProfile: stewardHasAtlasProfile,
+    avatarPlaceholder: stewardHasAtlasProfile ? "initials" : "person",
+    hoverRoleLabel: "Beamline scientist",
+    tooltipSubtitle: "Beamline scientist",
+    avatarStackKey: steward.userId,
+  };
+}
+
+/**
+ * Maps assigned beamline stewards to stacked {@link AvatarGroup} users for facility instrument cards.
+ *
+ * Deduplicates by `userId` and preserves first-seen order for stable avatar stacking.
+ */
+export function instrumentStewardsForAvatarDisplay(
+  stewards: InstrumentStewardPublic[] | null | undefined,
+): UserWithOrcid[] {
+  if (!stewards || stewards.length === 0) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const users: UserWithOrcid[] = [];
+  for (const steward of stewards) {
+    if (seen.has(steward.userId)) {
+      continue;
+    }
+    seen.add(steward.userId);
+    users.push(stewardToAvatarUser(steward));
+  }
+  return users;
 }

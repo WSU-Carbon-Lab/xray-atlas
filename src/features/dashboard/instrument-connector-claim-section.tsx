@@ -1,16 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
-import Link from "next/link";
 import { Badge } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
-import { ContributorAvatarGroup } from "~/components/attribution/contributor-avatar-group";
+import Link from "next/link";
 import {
   buildBeamlineClaimIssueUrl,
   buildInstrumentConnectorRequestIssueUrl,
 } from "~/lib/github-beamline-issues";
 import {
-  instrumentStewardsForAvatarDisplay,
   resolveInstrumentConnectorSectionView,
   type InstrumentStewardPublic,
 } from "~/lib/instrument-steward";
@@ -20,11 +17,14 @@ import {
   dashboardInstrumentWorkspaceHref,
 } from "./connectors/registry";
 import type { DashboardConnectorReadiness } from "./connectors/types";
+import { InstrumentBeamlineScientistAttributionRow } from "~/features/facilities/instrument-beamline-scientist-attribution-row";
 
 type InstrumentConnectorClaimSectionProps = {
   facilityName: string;
+  instrumentId: string;
   instrumentName: string;
-  steward?: InstrumentStewardPublic | null;
+  stewards?: InstrumentStewardPublic[];
+  onStewardsChanged?: () => void;
 };
 
 function resolveInstrumentConnectorState(
@@ -51,8 +51,10 @@ function resolveInstrumentConnectorState(
  */
 export function InstrumentConnectorClaimSection({
   facilityName,
+  instrumentId,
   instrumentName,
-  steward = null,
+  stewards = [],
+  onStewardsChanged,
 }: InstrumentConnectorClaimSectionProps) {
   const { readiness, workspaceSlug, badgeLabel } = resolveInstrumentConnectorState(
     facilityName,
@@ -61,7 +63,7 @@ export function InstrumentConnectorClaimSection({
   const sectionView = resolveInstrumentConnectorSectionView({
     readiness,
     workspaceSlug,
-    steward,
+    stewards,
   });
   const claimIssueUrl = buildBeamlineClaimIssueUrl({
     facilityName,
@@ -77,10 +79,6 @@ export function InstrumentConnectorClaimSection({
     sectionView.showWorkspaceLink && workspaceSlug
       ? dashboardInstrumentWorkspaceHref(workspaceSlug)
       : undefined;
-  const stewardAvatarUsers = useMemo(
-    () => instrumentStewardsForAvatarDisplay(steward),
-    [steward],
-  );
 
   return (
     <section
@@ -145,22 +143,6 @@ export function InstrumentConnectorClaimSection({
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
-          {sectionView.showClaimBeamline ? (
-            <a
-              href={claimIssueUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                buttonVariants({
-                  variant: sectionView.hasWorkspace ? "secondary" : "primary",
-                  size: "sm",
-                }),
-              )}
-              aria-label={`Claim ${instrumentName} beamline on GitHub`}
-            >
-              Claim beamline
-            </a>
-          ) : null}
           {sectionView.showRequestConnector ? (
             <a
               href={connectorIssueUrl}
@@ -173,18 +155,14 @@ export function InstrumentConnectorClaimSection({
             </a>
           ) : null}
         </div>
-        {sectionView.showSteward && stewardAvatarUsers.length > 0 ? (
-          <div
-            className="flex shrink-0 items-center overflow-visible"
-            role="group"
-            aria-label={`Beamline scientist for ${instrumentName}`}
-          >
-            <ContributorAvatarGroup
-              users={stewardAvatarUsers}
-              size="sm"
-              max={8}
-            />
-          </div>
+        {sectionView.showClaimBeamline ? (
+          <InstrumentBeamlineScientistAttributionRow
+            instrumentId={instrumentId}
+            instrumentName={instrumentName}
+            stewards={stewards}
+            claimIssueUrl={claimIssueUrl}
+            onStewardsChanged={() => onStewardsChanged?.()}
+          />
         ) : null}
       </div>
     </section>

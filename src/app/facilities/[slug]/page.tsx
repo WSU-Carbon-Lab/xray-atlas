@@ -17,7 +17,6 @@ import {
 } from "@heroicons/react/24/outline";
 import { AddInstrumentButton } from "@/components/contribute";
 import { InstrumentConnectorClaimSection } from "~/features/dashboard/instrument-connector-claim-section";
-import { InstrumentStewardAdminControls } from "~/features/facilities/instrument-steward-admin-controls";
 import { Button, Card, Chip } from "@heroui/react";
 
 export default function FacilityDetailPage({
@@ -234,14 +233,10 @@ export default function FacilityDetailPage({
                           ) : null}
                           <InstrumentConnectorClaimSection
                             facilityName={facility.name}
-                            instrumentName={instrument.name}
-                            steward={stewardsByInstrumentId[instrument.id] ?? null}
-                          />
-                          <InstrumentStewardAdminControls
                             instrumentId={instrument.id}
                             instrumentName={instrument.name}
-                            steward={stewardsByInstrumentId[instrument.id] ?? null}
-                            onStewardChanged={() => {
+                            stewards={stewardsByInstrumentId[instrument.id] ?? []}
+                            onStewardsChanged={() => {
                               void stewardsQuery.refetch();
                             }}
                           />
