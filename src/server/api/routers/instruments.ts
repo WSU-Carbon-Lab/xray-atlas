@@ -379,7 +379,8 @@ export const instrumentsRouter = createTRPCRouter({
       if (!stewardUser) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "User not found",
+          message:
+            "That researcher must sign in to Atlas before they can be assigned as a beamline scientist.",
         });
       }
 

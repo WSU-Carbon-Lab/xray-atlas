@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type Key } from "react";
 import { skipToken } from "@tanstack/react-query";
+import { TRPCClientError } from "@trpc/client";
 import {
   Badge,
   Button,
@@ -62,6 +63,16 @@ function toStewardSearchHit(hit: ResearcherSearchHit): InstrumentStewardSearchHi
   };
 }
 
+function stewardAddErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof TRPCClientError) {
+    return error.message.trim().length > 0 ? error.message : fallback;
+  }
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+  return fallback;
+}
+
 /**
  * Search-and-add popover form for assigning beamline scientist stewards on facility cards.
  *
@@ -83,7 +94,6 @@ export function AddBeamlineScientistForm({
   const [isCommitting, setIsCommitting] = useState(false);
 
   const utils = trpc.useUtils();
-  const addSteward = trpc.instruments.addSteward.useMutation();
 
   const assignedUserIds = useMemo(
     () => new Set(stewards.map((row) => row.userId)),
@@ -168,7 +178,7 @@ export function AddBeamlineScientistForm({
   );
 
   const handleCommitPending = useCallback(async () => {
-    if (pendingStewards.length === 0 || isCommitting || addSteward.isPending) {
+    if (pendingStewards.length === 0 || isCommitting) {
       return;
     }
 
@@ -191,7 +201,7 @@ export function AddBeamlineScientistForm({
 
     const outcomes = await Promise.allSettled(
       hits.map((hit) =>
-        addSteward.mutateAsync({
+        utils.client.instruments.addSteward.mutate({
           instrumentId,
           userId: hit.orcid,
         }),
@@ -201,6 +211,7 @@ export function AddBeamlineScientistForm({
     let cache = previous ?? {};
     const failedHits: InstrumentStewardSearchHit[] = [];
     let successCount = 0;
+    let firstFailureReason: unknown = null;
 
     for (let index = 0; index < outcomes.length; index += 1) {
       const outcome = outcomes[index];
@@ -213,6 +224,9 @@ export function AddBeamlineScientistForm({
         cache = mergeInstrumentStewardIntoFacilityMap(cache, outcome.value);
       } else {
         failedHits.push(hit);
+        if (firstFailureReason == null) {
+          firstFailureReason = outcome.reason;
+        }
       }
     }
 
@@ -231,17 +245,11 @@ export function AddBeamlineScientistForm({
       onClose();
     } else if (successCount > 0) {
       setPendingStewards(failedHits);
-      const firstFailure = outcomes.find(
-        (outcome) => outcome.status === "rejected",
-      );
-      const detail =
-        firstFailure?.status === "rejected"
-          ? firstFailure.reason instanceof Error
-            ? firstFailure.reason.message
-            : "Some researchers could not be added."
-          : "Some researchers could not be added.";
       showToast(
-        `Added ${successCount} of ${hits.length} beamline scientists. ${detail}`,
+        `Added ${successCount} of ${hits.length} beamline scientists. ${stewardAddErrorMessage(
+          firstFailureReason,
+          "Some researchers could not be added.",
+        )}`,
         "error",
       );
     } else {
@@ -251,37 +259,37 @@ export function AddBeamlineScientistForm({
           previous,
         );
       }
-      const firstFailure = outcomes[0];
-      const message =
-        firstFailure?.status === "rejected" &&
-        firstFailure.reason instanceof Error
-          ? firstFailure.reason.message
-          : "Could not add beamline scientists.";
-      showToast(message, "error");
+      showToast(
+        stewardAddErrorMessage(
+          firstFailureReason,
+          "Could not add beamline scientists.",
+        ),
+        "error",
+      );
     }
 
     void utils.instruments.listStewardsForFacility.invalidate({ facilityId });
     setIsCommitting(false);
   }, [
-    addSteward,
     facilityId,
     instrumentId,
     instrumentName,
     isCommitting,
     onClose,
     pendingStewards,
+    utils.client.instruments.addSteward,
     utils.instruments.listStewardsForFacility,
   ]);
 
   const handleCancel = useCallback(() => {
-    if (isCommitting || addSteward.isPending) {
+    if (isCommitting) {
       return;
     }
     setPendingStewards([]);
     setSearchQuery("");
     setDebouncedSearchQuery("");
     onClose();
-  }, [addSteward.isPending, isCommitting, onClose]);
+  }, [isCommitting, onClose]);
 
   const emptyStateMessage = useMemo(() => {
     if (!searchEnabled) {
@@ -314,8 +322,7 @@ export function AddBeamlineScientistForm({
   );
 
   const showResultsList = searchQuery.trim().length > 0;
-  const commitDisabled =
-    pendingStewards.length === 0 || isCommitting || addSteward.isPending;
+  const commitDisabled = pendingStewards.length === 0 || isCommitting;
 
   return (
     <div className="flex flex-col gap-3">
@@ -337,7 +344,7 @@ export function AddBeamlineScientistForm({
           autoComplete="off"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          disabled={isCommitting || addSteward.isPending}
+          disabled={isCommitting}
         />
         {showResultsList ? (
           <div
@@ -370,7 +377,7 @@ export function AddBeamlineScientistForm({
                     <ListBox.Item
                       id={hit.orcid}
                       textValue={`${hit.displayName} ${hit.orcid}`}
-                      isDisabled={isCommitting || addSteward.isPending}
+                      isDisabled={isCommitting}
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
                         <Badge.Anchor className="shrink-0">
@@ -459,7 +466,7 @@ export function AddBeamlineScientistForm({
           size="sm"
           variant="ghost"
           onPress={handleCancel}
-          isDisabled={isCommitting || addSteward.isPending}
+          isDisabled={isCommitting}
         >
           Cancel
         </Button>
@@ -471,7 +478,7 @@ export function AddBeamlineScientistForm({
           }}
           isDisabled={commitDisabled}
         >
-          {isCommitting || addSteward.isPending ? (
+          {isCommitting ? (
             <span className="flex items-center gap-1.5">
               <Spinner size="sm" />
               Adding...
