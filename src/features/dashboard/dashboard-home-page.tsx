@@ -147,7 +147,7 @@ export function DashboardHomePage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {instrumentConnectors.map((connector) => (
                 <DashboardConnectorCard
-                  key={connector.slug}
+                  key={connector.instrumentId ?? connector.slug}
                   connector={connector}
                   badgeLabel={dashboardConnectorReadinessBadge(
                     connector.readiness,

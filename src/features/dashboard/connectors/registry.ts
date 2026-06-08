@@ -23,17 +23,8 @@ const WORKSPACE_LOADERS: Readonly<
     import(
       "~/features/dashboard/instrument-workspace/stxm-als-5322-workspace"
     ).then((module) => ({ default: module.StxmAls5322Workspace })),
-  "als-5321": async () => {
-    throw new Error("ALS 5.3.2.1 workspace is not available yet.");
-  },
-  "als-731": async () => {
-    throw new Error("ALS 7.3.1 workspace is not available yet.");
-  },
   "als-11012": async () => {
     throw new Error("ALS 11.0.1.2 workspace is not available yet.");
-  },
-  "ansto-sxr": async () => {
-    throw new Error("Australian Synchrotron SXR workspace is not available yet.");
   },
 };
 

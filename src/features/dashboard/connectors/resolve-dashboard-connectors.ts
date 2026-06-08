@@ -1,6 +1,5 @@
 import type { PrismaClient } from "~/prisma/client";
 import {
-  listDashboardConnectorBindings,
   matchInstrumentToDashboardBinding,
   resolveDashboardConnectorBinding,
 } from "./bindings";
@@ -23,6 +22,9 @@ export type DashboardConnectorCardDto = {
   readiness: DashboardConnectorReadiness;
 };
 
+const UNMATCHED_INSTRUMENT_DESCRIPTION =
+  "Spectroscopy analysis workspace for this instrument is not available yet.";
+
 function readinessSortRank(readiness: DashboardConnectorReadiness): number {
   switch (readiness) {
     case "ready":
@@ -41,27 +43,18 @@ function connectorCatalogSortKey(card: DashboardConnectorCardDto): string {
 }
 
 /**
- * Lists every registered dashboard connector binding, enriched with matched Atlas instrument
- * rows when present.
+ * Lists one dashboard card per persisted Atlas instrument, enriched with connector binding
+ * overlays when a match rule applies.
  *
- * Unmatched bindings still appear as coming-soon cards using binding default facility and
- * instrument labels. Results sort beta/ready connectors first, then not_ready alphabetically
- * by facility and instrument name.
+ * Cards always use database facility and instrument names. Bindings supply workspace slug,
+ * description, and readiness for implemented connectors; unmatched instruments render as
+ * coming soon. Results sort beta/ready connectors first, then not_ready alphabetically by
+ * facility and instrument name.
  */
 export async function listDashboardConnectorsFromDb(
   db: PrismaClient,
 ): Promise<DashboardConnectorCardDto[]> {
-  const bindings = listDashboardConnectorBindings();
-  const facilityNames = [
-    ...new Set(bindings.map((binding) => binding.match.facilityName)),
-  ];
-
   const instruments = await db.instruments.findMany({
-    where: {
-      facilities: {
-        name: { in: facilityNames },
-      },
-    },
     include: {
       facilities: {
         select: { name: true },
@@ -70,31 +63,20 @@ export async function listDashboardConnectorsFromDb(
     orderBy: [{ facilities: { name: "asc" } }, { name: "asc" }],
   });
 
-  const matchedInstrumentBySlug = new Map<
-    string,
-    (typeof instruments)[number]
-  >();
-
-  for (const instrument of instruments) {
+  const cards = instruments.map((instrument) => {
     const binding = matchInstrumentToDashboardBinding(
       instrument.name,
       instrument.facilities.name,
     );
-    if (!binding) {
-      continue;
-    }
-    matchedInstrumentBySlug.set(binding.slug, instrument);
-  }
+    const readiness = binding?.readiness ?? "not_ready";
 
-  const cards = bindings.map((binding) => {
-    const matched = matchedInstrumentBySlug.get(binding.slug);
     return {
-      slug: binding.slug,
-      instrumentId: matched?.id,
-      facilityLabel: matched?.facilities.name ?? binding.match.facilityName,
-      instrumentLabel: matched?.name ?? binding.fallbackLabel,
-      description: binding.description,
-      readiness: binding.readiness,
+      slug: binding?.slug ?? instrument.id,
+      instrumentId: instrument.id,
+      facilityLabel: instrument.facilities.name,
+      instrumentLabel: instrument.name,
+      description: binding?.description ?? UNMATCHED_INSTRUMENT_DESCRIPTION,
+      readiness,
     };
   });
 

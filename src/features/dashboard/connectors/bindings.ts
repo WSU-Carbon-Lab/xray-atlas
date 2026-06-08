@@ -35,13 +35,9 @@ export type DashboardConnectorBinding = {
 };
 
 const ALS_FACILITY_NAME = "Advanced Light Source";
-const ANSTO_FACILITY_NAME = "The Australian Synchrotron";
 
 /** URL slug for the ALS Beamline 11.0.1.2 instrument workspace placeholder. */
 export const ALS_11012_INSTRUMENT_SLUG = "als-11012";
-
-/** URL slug for the Australian Synchrotron SXR instrument workspace placeholder. */
-export const ANSTO_SXR_INSTRUMENT_SLUG = "ansto-sxr";
 
 const CONNECTOR_BINDINGS: readonly DashboardConnectorBinding[] = [
   {
@@ -56,28 +52,6 @@ const CONNECTOR_BINDINGS: readonly DashboardConnectorBinding[] = [
     readiness: "beta",
   },
   {
-    slug: "als-5321",
-    match: {
-      facilityName: ALS_FACILITY_NAME,
-      instrumentNamePattern: /5\.3\.2\.1/i,
-    },
-    fallbackLabel: "Beamline 5.3.2.1 (STXM)",
-    description:
-      "Next-generation STXM beamline workspace for local folder processing and in-browser spectra reduction.",
-    readiness: "not_ready",
-  },
-  {
-    slug: "als-731",
-    match: {
-      facilityName: ALS_FACILITY_NAME,
-      instrumentNamePattern: /7\.3\.1/i,
-    },
-    fallbackLabel: "Beamline 7.3.1 (STXM)",
-    description:
-      "STXM spectroscopy workspace for ALS Beamline 7.3.1 beamtime folders.",
-    readiness: "not_ready",
-  },
-  {
     slug: ALS_11012_INSTRUMENT_SLUG,
     match: {
       facilityName: ALS_FACILITY_NAME,
@@ -86,17 +60,6 @@ const CONNECTOR_BINDINGS: readonly DashboardConnectorBinding[] = [
     fallbackLabel: "Beamline 11.0.1.2",
     description:
       "Spectroscopy workspace for ALS Beamline 11.0.1.2 local beamtime folders.",
-    readiness: "not_ready",
-  },
-  {
-    slug: ANSTO_SXR_INSTRUMENT_SLUG,
-    match: {
-      facilityName: ANSTO_FACILITY_NAME,
-      instrumentNamePattern: /\bSXR\b/i,
-    },
-    fallbackLabel: "SXR",
-    description:
-      "Soft X-ray spectroscopy workspace for Australian Synchrotron SXR beamtime data.",
     readiness: "not_ready",
   },
 ] as const;
@@ -125,6 +88,14 @@ export function resolveDashboardConnectorBinding(
  * Returns the first binding whose facility and instrument name pattern match `instrumentName`
  * and `facilityName`, or `undefined` when no rule applies.
  */
+function facilityNamesMatch(expected: string, actual: string): boolean {
+  return (
+    expected.trim().localeCompare(actual.trim(), undefined, {
+      sensitivity: "accent",
+    }) === 0
+  );
+}
+
 export function matchInstrumentToDashboardBinding(
   instrumentName: string,
   facilityName: string,
@@ -136,7 +107,7 @@ export function matchInstrumentToDashboardBinding(
   }
 
   for (const binding of CONNECTOR_BINDINGS) {
-    if (binding.match.facilityName !== normalizedFacility) {
+    if (!facilityNamesMatch(binding.match.facilityName, normalizedFacility)) {
       continue;
     }
     if (binding.match.instrumentNamePattern.test(normalizedName)) {
