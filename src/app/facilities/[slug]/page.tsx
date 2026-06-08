@@ -4,8 +4,8 @@ import { use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
-import { ErrorState } from "@/components/feedback/error-state";
 import { PageSkeleton } from "@/components/feedback/loading-state";
+import { BeamDumpErrorPage } from "~/components/feedback/beam-dump-error-page";
 import {
   MapPinIcon,
   BeakerIcon,
@@ -53,12 +53,15 @@ export default function FacilityDetailPage({
 
   if (isError || !facility) {
     return (
-      <ErrorState
-        title="Facility Not Found"
-        message={
-          error?.message ?? "The facility you're looking for doesn't exist."
+      <BeamDumpErrorPage
+        variant="not-found"
+        statusLabel="Facility not found"
+        headline="Oh no, the beam dumped"
+        subcopy={
+          error?.message ??
+          "The facility you're looking for doesn't exist or its URL slug is ambiguous."
         }
-        onRetry={() => window.location.reload()}
+        issueTitle="404: facility not found"
       />
     );
   }
