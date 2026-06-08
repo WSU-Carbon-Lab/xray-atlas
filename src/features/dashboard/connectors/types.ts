@@ -14,9 +14,13 @@ export type DashboardConnectorReadiness = "beta" | "ready" | "not_ready";
  */
 export type DashboardConnectorSummary = {
   slug: string;
-  label: string;
+  /** Persisted `instruments.id` when a binding matches a database row. */
+  instrumentId?: string;
+  /** Reader-facing facility name from the database or binding default. */
+  facilityLabel: string;
+  /** Reader-facing instrument name from the database or binding default. */
+  instrumentLabel: string;
   description: string;
-  facilityLabel?: string;
   readiness: DashboardConnectorReadiness;
 };
 

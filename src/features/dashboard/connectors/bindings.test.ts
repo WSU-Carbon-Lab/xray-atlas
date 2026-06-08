@@ -4,10 +4,13 @@ import {
   it as bunIt,
 } from "bun:test";
 import {
+  ALS_11012_INSTRUMENT_SLUG,
   ALS_5322_INSTRUMENT_SLUG,
+  ANSTO_SXR_INSTRUMENT_SLUG,
   allowedDashboardInstrumentSlugs,
   isAllowedDashboardInstrumentSlug,
   isDashboardWorkspaceAccessible,
+  listDashboardConnectorBindings,
   matchInstrumentToDashboardBinding,
   resolveDashboardConnectorBinding,
 } from "./bindings";
@@ -57,5 +60,19 @@ describe("dashboard connector bindings", () => {
     const slugs = allowedDashboardInstrumentSlugs();
     expect(slugs).toContain(ALS_5322_INSTRUMENT_SLUG);
     expect(slugs.includes("als-5321")).toBe(false);
+    expect(slugs.includes(ALS_11012_INSTRUMENT_SLUG)).toBe(false);
+    expect(slugs.includes(ANSTO_SXR_INSTRUMENT_SLUG)).toBe(false);
+  });
+
+  it("registers 11.0.1.2 and SXR placeholder bindings", () => {
+    const slugs = listDashboardConnectorBindings().map((binding) => binding.slug);
+    expect(slugs).toContain(ALS_11012_INSTRUMENT_SLUG);
+    expect(slugs).toContain(ANSTO_SXR_INSTRUMENT_SLUG);
+    expect(resolveDashboardConnectorBinding(ALS_11012_INSTRUMENT_SLUG)?.readiness).toBe(
+      "not_ready",
+    );
+    expect(resolveDashboardConnectorBinding(ANSTO_SXR_INSTRUMENT_SLUG)?.readiness).toBe(
+      "not_ready",
+    );
   });
 });

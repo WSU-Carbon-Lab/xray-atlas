@@ -21,13 +21,18 @@ export function DashboardConnectorCard({
 }: DashboardConnectorCardProps) {
   const body = (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-foreground text-sm font-semibold">{connector.label}</p>
-        {badgeLabel ? (
-          <Badge variant="secondary" size="sm">
-            {badgeLabel}
-          </Badge>
-        ) : null}
+      <div className="flex flex-col gap-1">
+        <p className="text-muted text-xs leading-snug">{connector.facilityLabel}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-foreground text-sm font-semibold">
+            {connector.instrumentLabel}
+          </p>
+          {badgeLabel ? (
+            <Badge variant="secondary" size="sm">
+              {badgeLabel}
+            </Badge>
+          ) : null}
+        </div>
       </div>
       <p className="text-muted text-sm leading-snug">{connector.description}</p>
       <span

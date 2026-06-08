@@ -17,7 +17,9 @@ export async function generateMetadata({ params }: InstrumentSlugPageProps) {
   if (!connector || !isDashboardWorkspaceAccessible(slug)) {
     return { title: "Instrument workspace" };
   }
-  return { title: connector.label };
+  return {
+    title: `${connector.facilityLabel} — ${connector.instrumentLabel}`,
+  };
 }
 
 function WorkspaceFallback() {

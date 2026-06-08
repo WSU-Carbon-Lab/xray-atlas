@@ -29,6 +29,12 @@ const WORKSPACE_LOADERS: Readonly<
   "als-731": async () => {
     throw new Error("ALS 7.3.1 workspace is not available yet.");
   },
+  "als-11012": async () => {
+    throw new Error("ALS 11.0.1.2 workspace is not available yet.");
+  },
+  "ansto-sxr": async () => {
+    throw new Error("Australian Synchrotron SXR workspace is not available yet.");
+  },
 };
 
 /**
@@ -52,9 +58,9 @@ export function resolveDashboardConnector(
 
   return {
     slug: binding.slug,
-    label: binding.fallbackLabel,
-    description: binding.description,
+    instrumentLabel: binding.fallbackLabel,
     facilityLabel: binding.match.facilityName,
+    description: binding.description,
     readiness: binding.readiness,
     loadWorkspace,
   };

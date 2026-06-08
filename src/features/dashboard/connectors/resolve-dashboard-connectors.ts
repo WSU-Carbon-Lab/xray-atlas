@@ -7,27 +7,46 @@ import {
 import type { DashboardConnectorReadiness } from "./types";
 
 /**
- * Dashboard home card payload merged from a matched Atlas instrument row and connector binding.
+ * Dashboard home card payload merged from a connector binding and optional Atlas instrument row.
  */
 export type DashboardConnectorCardDto = {
   /** Workspace URL slug under `/dashboard/instruments/[slug]`. */
   slug: string;
-  /** Persisted `instruments.id` for the matched row. */
-  instrumentId: string;
-  /** Reader-facing label from `instruments.name`. */
-  label: string;
+  /** Persisted `instruments.id` when a binding matches a database row. */
+  instrumentId?: string;
+  /** Reader-facing facility name from the database or binding default. */
+  facilityLabel: string;
+  /** Reader-facing instrument name from the database or binding default. */
+  instrumentLabel: string;
   /** Short description from the connector binding overlay. */
   description: string;
-  /** Facility display name from `facilities.name`. */
-  facilityLabel: string;
   readiness: DashboardConnectorReadiness;
 };
 
+function readinessSortRank(readiness: DashboardConnectorReadiness): number {
+  switch (readiness) {
+    case "ready":
+      return 0;
+    case "beta":
+      return 1;
+    case "not_ready":
+      return 2;
+    default:
+      return 3;
+  }
+}
+
+function connectorCatalogSortKey(card: DashboardConnectorCardDto): string {
+  return `${card.facilityLabel}\0${card.instrumentLabel}`;
+}
+
 /**
- * Lists dashboard connector cards by matching persisted instruments to registry bindings.
+ * Lists every registered dashboard connector binding, enriched with matched Atlas instrument
+ * rows when present.
  *
- * Only instruments with an active binding rule appear; readiness and descriptions come from
- * the binding overlay while labels and facilities come from the database.
+ * Unmatched bindings still appear as coming-soon cards using binding default facility and
+ * instrument labels. Results sort beta/ready connectors first, then not_ready alphabetically
+ * by facility and instrument name.
  */
 export async function listDashboardConnectorsFromDb(
   db: PrismaClient,
@@ -51,7 +70,10 @@ export async function listDashboardConnectorsFromDb(
     orderBy: [{ facilities: { name: "asc" } }, { name: "asc" }],
   });
 
-  const cards: DashboardConnectorCardDto[] = [];
+  const matchedInstrumentBySlug = new Map<
+    string,
+    (typeof instruments)[number]
+  >();
 
   for (const instrument of instruments) {
     const binding = matchInstrumentToDashboardBinding(
@@ -61,18 +83,31 @@ export async function listDashboardConnectorsFromDb(
     if (!binding) {
       continue;
     }
-
-    cards.push({
-      slug: binding.slug,
-      instrumentId: instrument.id,
-      label: instrument.name,
-      description: binding.description,
-      facilityLabel: instrument.facilities.name,
-      readiness: binding.readiness,
-    });
+    matchedInstrumentBySlug.set(binding.slug, instrument);
   }
 
-  return cards;
+  const cards = bindings.map((binding) => {
+    const matched = matchedInstrumentBySlug.get(binding.slug);
+    return {
+      slug: binding.slug,
+      instrumentId: matched?.id,
+      facilityLabel: matched?.facilities.name ?? binding.match.facilityName,
+      instrumentLabel: matched?.name ?? binding.fallbackLabel,
+      description: binding.description,
+      readiness: binding.readiness,
+    };
+  });
+
+  return [...cards].sort((left, right) => {
+    const readinessDiff =
+      readinessSortRank(left.readiness) - readinessSortRank(right.readiness);
+    if (readinessDiff !== 0) {
+      return readinessDiff;
+    }
+    return connectorCatalogSortKey(left).localeCompare(
+      connectorCatalogSortKey(right),
+    );
+  });
 }
 
 /**

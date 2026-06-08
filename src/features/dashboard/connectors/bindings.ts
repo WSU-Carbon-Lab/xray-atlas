@@ -22,18 +22,26 @@ export type DashboardInstrumentBindingMatch = {
 /**
  * Registry overlay for one dashboard connector: slug, readiness, copy, and DB match rule.
  *
- * Card labels and facility names on the dashboard home page come from matched instrument
- * rows; {@link fallbackLabel} is used only when no row matches or for workspace metadata.
+ * Matched instrument rows supply {@link DashboardConnectorCardDto.facilityLabel} and
+ * {@link DashboardConnectorCardDto.instrumentLabel}; binding defaults fill unmatched slots.
  */
 export type DashboardConnectorBinding = {
   slug: string;
   match: DashboardInstrumentBindingMatch;
   description: string;
+  /** Default instrument label when no Atlas `instruments` row matches. */
   fallbackLabel: string;
   readiness: DashboardConnectorReadiness;
 };
 
 const ALS_FACILITY_NAME = "Advanced Light Source";
+const ANSTO_FACILITY_NAME = "The Australian Synchrotron";
+
+/** URL slug for the ALS Beamline 11.0.1.2 instrument workspace placeholder. */
+export const ALS_11012_INSTRUMENT_SLUG = "als-11012";
+
+/** URL slug for the Australian Synchrotron SXR instrument workspace placeholder. */
+export const ANSTO_SXR_INSTRUMENT_SLUG = "ansto-sxr";
 
 const CONNECTOR_BINDINGS: readonly DashboardConnectorBinding[] = [
   {
@@ -42,7 +50,7 @@ const CONNECTOR_BINDINGS: readonly DashboardConnectorBinding[] = [
       facilityName: ALS_FACILITY_NAME,
       instrumentNamePattern: /5\.3\.2\.2/i,
     },
-    fallbackLabel: ALS_5322_INSTRUMENT_LABEL,
+    fallbackLabel: "Beamline 5.3.2.2",
     description:
       "Browse local beamtime folders, extract NEXAFS line-scan spectra, and define sample and izero regions in-browser.",
     readiness: "beta",
@@ -53,7 +61,7 @@ const CONNECTOR_BINDINGS: readonly DashboardConnectorBinding[] = [
       facilityName: ALS_FACILITY_NAME,
       instrumentNamePattern: /5\.3\.2\.1/i,
     },
-    fallbackLabel: "ALS — Beamline 5.3.2.1 (STXM)",
+    fallbackLabel: "Beamline 5.3.2.1 (STXM)",
     description:
       "Next-generation STXM beamline workspace for local folder processing and in-browser spectra reduction.",
     readiness: "not_ready",
@@ -64,9 +72,31 @@ const CONNECTOR_BINDINGS: readonly DashboardConnectorBinding[] = [
       facilityName: ALS_FACILITY_NAME,
       instrumentNamePattern: /7\.3\.1/i,
     },
-    fallbackLabel: "ALS — Beamline 7.3.1 (STXM)",
+    fallbackLabel: "Beamline 7.3.1 (STXM)",
     description:
       "STXM spectroscopy workspace for ALS Beamline 7.3.1 beamtime folders.",
+    readiness: "not_ready",
+  },
+  {
+    slug: ALS_11012_INSTRUMENT_SLUG,
+    match: {
+      facilityName: ALS_FACILITY_NAME,
+      instrumentNamePattern: /11\.0\.1\.2/i,
+    },
+    fallbackLabel: "Beamline 11.0.1.2",
+    description:
+      "Spectroscopy workspace for ALS Beamline 11.0.1.2 local beamtime folders.",
+    readiness: "not_ready",
+  },
+  {
+    slug: ANSTO_SXR_INSTRUMENT_SLUG,
+    match: {
+      facilityName: ANSTO_FACILITY_NAME,
+      instrumentNamePattern: /\bSXR\b/i,
+    },
+    fallbackLabel: "SXR",
+    description:
+      "Soft X-ray spectroscopy workspace for Australian Synchrotron SXR beamtime data.",
     readiness: "not_ready",
   },
 ] as const;
