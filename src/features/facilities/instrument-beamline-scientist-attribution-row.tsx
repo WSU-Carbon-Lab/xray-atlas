@@ -17,22 +17,22 @@ import {
 import { AddBeamlineScientistForm } from "./add-beamline-scientist-form";
 
 type InstrumentBeamlineScientistAttributionRowProps = {
+  facilityId: string;
   instrumentId: string;
   instrumentName: string;
   stewards: InstrumentStewardPublic[];
   claimIssueUrl: string;
-  onStewardsChanged: () => void;
 };
 
 /**
  * NEXAFS-style overlapping avatar row for beamline scientists with optional add control.
  */
 export function InstrumentBeamlineScientistAttributionRow({
+  facilityId,
   instrumentId,
   instrumentName,
   stewards,
   claimIssueUrl,
-  onStewardsChanged,
 }: InstrumentBeamlineScientistAttributionRowProps) {
   const { data: session } = useSession();
   const canAdd = canAddBeamlineScientist({
@@ -93,10 +93,10 @@ export function InstrumentBeamlineScientistAttributionRow({
               )}
             >
               <AddBeamlineScientistForm
+                facilityId={facilityId}
                 instrumentId={instrumentId}
                 instrumentName={instrumentName}
                 stewards={stewards}
-                onStewardAdded={onStewardsChanged}
                 onClose={close}
               />
             </PopoverMenuContent>

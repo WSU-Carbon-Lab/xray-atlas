@@ -20,11 +20,11 @@ import type { DashboardConnectorReadiness } from "./connectors/types";
 import { InstrumentBeamlineScientistAttributionRow } from "~/features/facilities/instrument-beamline-scientist-attribution-row";
 
 type InstrumentConnectorClaimSectionProps = {
+  facilityId: string;
   facilityName: string;
   instrumentId: string;
   instrumentName: string;
   stewards?: InstrumentStewardPublic[];
-  onStewardsChanged?: () => void;
 };
 
 function resolveInstrumentConnectorState(
@@ -50,11 +50,11 @@ function resolveInstrumentConnectorState(
  * workspace exists yet, request a dashboard connector.
  */
 export function InstrumentConnectorClaimSection({
+  facilityId,
   facilityName,
   instrumentId,
   instrumentName,
   stewards = [],
-  onStewardsChanged,
 }: InstrumentConnectorClaimSectionProps) {
   const { readiness, workspaceSlug, badgeLabel } = resolveInstrumentConnectorState(
     facilityName,
@@ -157,11 +157,11 @@ export function InstrumentConnectorClaimSection({
         </div>
         {sectionView.showClaimBeamline ? (
           <InstrumentBeamlineScientistAttributionRow
+            facilityId={facilityId}
             instrumentId={instrumentId}
             instrumentName={instrumentName}
             stewards={stewards}
             claimIssueUrl={claimIssueUrl}
-            onStewardsChanged={() => onStewardsChanged?.()}
           />
         ) : null}
       </div>

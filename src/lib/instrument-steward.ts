@@ -115,6 +115,49 @@ function stewardToAvatarUser(steward: InstrumentStewardPublic): UserWithOrcid {
  *
  * Deduplicates by `userId` and preserves first-seen order for stable avatar stacking.
  */
+/** Search hit fields used to build an optimistic steward row before the mutation resolves. */
+export type InstrumentStewardSearchHit = {
+  orcid: string;
+  displayName: string;
+  imageUrl: string | null;
+  hasAtlasProfile: boolean;
+};
+
+/**
+ * Builds a provisional steward DTO for optimistic facility cache updates after picker selection.
+ */
+export function buildOptimisticInstrumentSteward(
+  instrumentId: string,
+  hit: InstrumentStewardSearchHit,
+): InstrumentStewardPublic {
+  return {
+    instrumentId,
+    userId: hit.orcid,
+    name: hit.hasAtlasProfile ? hit.displayName : null,
+    image: hit.imageUrl,
+    assignedAt: new Date().toISOString(),
+    claimIssueUrl: null,
+    notes: null,
+  };
+}
+
+/**
+ * Merges one steward into a facility-scoped stewards map without duplicating `userId` rows.
+ */
+export function mergeInstrumentStewardIntoFacilityMap(
+  stewardsByInstrumentId: Record<string, InstrumentStewardPublic[]>,
+  steward: InstrumentStewardPublic,
+): Record<string, InstrumentStewardPublic[]> {
+  const bucket = stewardsByInstrumentId[steward.instrumentId] ?? [];
+  if (bucket.some((row) => row.userId === steward.userId)) {
+    return stewardsByInstrumentId;
+  }
+  return {
+    ...stewardsByInstrumentId,
+    [steward.instrumentId]: [...bucket, steward],
+  };
+}
+
 export function instrumentStewardsForAvatarDisplay(
   stewards: InstrumentStewardPublic[] | null | undefined,
 ): UserWithOrcid[] {

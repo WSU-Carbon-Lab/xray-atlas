@@ -4,9 +4,11 @@ import {
   it as bunIt,
 } from "bun:test";
 import {
+  buildOptimisticInstrumentSteward,
   canAddBeamlineScientist,
   instrumentStewardProfileHref,
   instrumentStewardsForAvatarDisplay,
+  mergeInstrumentStewardIntoFacilityMap,
   resolveInstrumentConnectorSectionView,
   type InstrumentStewardPublic,
 } from "./instrument-steward";
@@ -149,6 +151,52 @@ describe("instrumentStewardProfileHref", () => {
     expect(instrumentStewardProfileHref("0000-0001-2345-6789")).toBe(
       "/users/0000-0001-2345-6789",
     );
+  });
+});
+
+describe("mergeInstrumentStewardIntoFacilityMap", () => {
+  it("appends a steward to the instrument bucket", () => {
+    const merged = mergeInstrumentStewardIntoFacilityMap(
+      { fac_inst: [sampleSteward] },
+      secondSteward,
+    );
+    expect(merged.fac_inst?.length).toBe(2);
+    expect(merged.fac_inst?.[1]?.userId).toBe(secondSteward.userId);
+  });
+
+  it("returns the same map reference content when user id already exists", () => {
+    const initial = { fac_inst: [sampleSteward] };
+    const merged = mergeInstrumentStewardIntoFacilityMap(initial, sampleSteward);
+    expect(merged).toEqual(initial);
+    expect(merged.fac_inst?.length).toBe(1);
+  });
+
+  it("creates a new instrument bucket when none exists", () => {
+    const merged = mergeInstrumentStewardIntoFacilityMap({}, sampleSteward);
+    expect(merged.fac_inst).toEqual([sampleSteward]);
+  });
+});
+
+describe("buildOptimisticInstrumentSteward", () => {
+  it("uses display name for Atlas profiles and null name for ORCID-only hits", () => {
+    const atlasHit = buildOptimisticInstrumentSteward("inst-1", {
+      orcid: sampleSteward.userId,
+      displayName: "Ada Scientist",
+      imageUrl: "https://cdn.example/ada.png",
+      hasAtlasProfile: true,
+    });
+    expect(atlasHit.instrumentId).toBe("inst-1");
+    expect(atlasHit.name).toBe("Ada Scientist");
+    expect(atlasHit.image).toBe("https://cdn.example/ada.png");
+
+    const orcidHit = buildOptimisticInstrumentSteward("inst-1", {
+      orcid: "0000-0003-1111-2222",
+      displayName: "Registry Name",
+      imageUrl: null,
+      hasAtlasProfile: false,
+    });
+    expect(orcidHit.name).toBe(null);
+    expect(orcidHit.userId).toBe("0000-0003-1111-2222");
   });
 });
 
