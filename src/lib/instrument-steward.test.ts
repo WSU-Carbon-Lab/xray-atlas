@@ -5,6 +5,7 @@ import {
 } from "bun:test";
 import {
   instrumentStewardProfileHref,
+  instrumentStewardsForAvatarDisplay,
   resolveInstrumentConnectorSectionView,
 } from "./instrument-steward";
 
@@ -64,5 +65,52 @@ describe("instrumentStewardProfileHref", () => {
     expect(instrumentStewardProfileHref("0000-0001-2345-6789")).toBe(
       "/users/0000-0001-2345-6789",
     );
+  });
+});
+
+describe("instrumentStewardsForAvatarDisplay", () => {
+  it("returns an empty list when no steward is assigned", () => {
+    expect(instrumentStewardsForAvatarDisplay(null)).toEqual([]);
+    expect(instrumentStewardsForAvatarDisplay(undefined)).toEqual([]);
+  });
+
+  it("maps a steward to one stacked avatar user with beamline scientist labels", () => {
+    const users = instrumentStewardsForAvatarDisplay({
+      instrumentId: "fac_inst",
+      userId: "0000-0001-2345-6789",
+      name: "Ada Scientist",
+      image: " https://cdn.example/ada.png ",
+      assignedAt: "2026-06-08T12:00:00.000Z",
+      claimIssueUrl: null,
+      notes: null,
+    });
+    expect(users).toEqual([
+      {
+        id: "0000-0001-2345-6789",
+        orcid: "0000-0001-2345-6789",
+        name: "Ada Scientist",
+        image: "https://cdn.example/ada.png",
+        isAtlasProfile: true,
+        avatarPlaceholder: "initials",
+        hoverRoleLabel: "Beamline scientist",
+        tooltipSubtitle: "Beamline scientist",
+        avatarStackKey: "0000-0001-2345-6789",
+      },
+    ]);
+  });
+
+  it("uses ORCID-only placeholder styling when steward name is missing", () => {
+    const users = instrumentStewardsForAvatarDisplay({
+      instrumentId: "fac_inst",
+      userId: "0000-0001-2345-6789",
+      name: null,
+      image: null,
+      assignedAt: "2026-06-08T12:00:00.000Z",
+      claimIssueUrl: null,
+      notes: null,
+    });
+    expect(users[0]?.name).toBe("0000-0001-2345-6789");
+    expect(users[0]?.isAtlasProfile).toBe(false);
+    expect(users[0]?.avatarPlaceholder).toBe("person");
   });
 });

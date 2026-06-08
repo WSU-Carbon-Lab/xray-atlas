@@ -1,3 +1,4 @@
+import type { UserWithOrcid } from "~/components/ui/avatar";
 import type { DashboardConnectorReadiness } from "~/features/dashboard/connectors/types";
 
 /** Public beamline scientist steward surfaced on facility instrument cards. */
@@ -52,4 +53,43 @@ export function resolveInstrumentConnectorSectionView(
  */
 export function instrumentStewardProfileHref(userId: string): string {
   return `/users/${encodeURIComponent(userId)}`;
+}
+
+function normalizeStewardImageUrl(
+  image: string | null | undefined,
+): string | null {
+  const trimmed = image?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Maps assigned beamline stewards to stacked {@link AvatarGroup} users for facility instrument cards.
+ *
+ * Returns an empty array when no steward is assigned; callers render no public avatar row in that case.
+ */
+export function instrumentStewardsForAvatarDisplay(
+  steward: InstrumentStewardPublic | null | undefined,
+): UserWithOrcid[] {
+  if (!steward) {
+    return [];
+  }
+
+  const trimmedName = steward.name?.trim() ?? "";
+  const stewardHasAtlasProfile = trimmedName.length > 0;
+  const displayName =
+    trimmedName.length > 0 ? trimmedName : steward.userId;
+
+  return [
+    {
+      id: steward.userId,
+      orcid: steward.userId,
+      name: displayName,
+      image: normalizeStewardImageUrl(steward.image),
+      isAtlasProfile: stewardHasAtlasProfile,
+      avatarPlaceholder: stewardHasAtlasProfile ? "initials" : "person",
+      hoverRoleLabel: "Beamline scientist",
+      tooltipSubtitle: "Beamline scientist",
+      avatarStackKey: steward.userId,
+    },
+  ];
 }

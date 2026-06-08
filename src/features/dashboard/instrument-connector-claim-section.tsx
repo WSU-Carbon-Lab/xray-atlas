@@ -1,14 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { Badge } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
+import { ContributorAvatarGroup } from "~/components/attribution/contributor-avatar-group";
 import {
   buildBeamlineClaimIssueUrl,
   buildInstrumentConnectorRequestIssueUrl,
 } from "~/lib/github-beamline-issues";
 import {
-  instrumentStewardProfileHref,
+  instrumentStewardsForAvatarDisplay,
   resolveInstrumentConnectorSectionView,
   type InstrumentStewardPublic,
 } from "~/lib/instrument-steward";
@@ -76,7 +78,10 @@ export function InstrumentConnectorClaimSection({
     sectionView.showWorkspaceLink && workspaceSlug
       ? dashboardInstrumentWorkspaceHref(workspaceSlug)
       : undefined;
-  const stewardLabel = steward?.name?.trim() || steward?.userId;
+  const stewardAvatarUsers = useMemo(
+    () => instrumentStewardsForAvatarDisplay(steward),
+    [steward],
+  );
 
   return (
     <section
@@ -91,18 +96,6 @@ export function InstrumentConnectorClaimSection({
           </Badge>
         ) : null}
       </div>
-
-      {sectionView.showSteward && steward ? (
-        <p className="text-muted mt-2 text-sm leading-snug">
-          Beamline scientist:{" "}
-          <Link
-            href={instrumentStewardProfileHref(steward.userId)}
-            className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
-          >
-            {stewardLabel}
-          </Link>
-        </p>
-      ) : null}
 
       {sectionView.showWorkspaceLink && workspaceHref ? (
         <div className="mt-2 flex flex-col gap-2">
@@ -128,21 +121,22 @@ export function InstrumentConnectorClaimSection({
         </p>
       ) : null}
 
-      <div className="mt-3 flex flex-col gap-3">
-        {sectionView.showNoWorkspaceNarrative ? (
-          <ol className="text-muted list-decimal space-y-1 ps-5 text-sm leading-snug">
-            <li>Submit a claim issue so maintainers can verify your affiliation.</li>
-            <li>
-              After approval, open a connector request with example data, processing code,
-              and a processed CSV derived from your as-is files.
-            </li>
-          </ol>
-        ) : (
-          <p className="text-muted text-sm leading-snug">
-            Claim verification and connector requests stay open for additional beamline
-            staff or updated processing details.
-          </p>
-        )}
+      {sectionView.showNoWorkspaceNarrative ? (
+        <ol className="text-muted mt-3 list-decimal space-y-1 ps-5 text-sm leading-snug">
+          <li>Submit a claim issue so maintainers can verify your affiliation.</li>
+          <li>
+            After approval, open a connector request with example data, processing code,
+            and a processed CSV derived from your as-is files.
+          </li>
+        </ol>
+      ) : (
+        <p className="text-muted mt-3 text-sm leading-snug">
+          Claim verification and connector requests stay open for additional beamline
+          staff or updated processing details.
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <a
             href={claimIssueUrl}
@@ -163,6 +157,19 @@ export function InstrumentConnectorClaimSection({
             Request connector
           </a>
         </div>
+        {sectionView.showSteward && stewardAvatarUsers.length > 0 ? (
+          <div
+            className="flex shrink-0 items-center overflow-visible"
+            role="group"
+            aria-label={`Beamline scientist for ${instrumentName}`}
+          >
+            <ContributorAvatarGroup
+              users={stewardAvatarUsers}
+              size="sm"
+              max={8}
+            />
+          </div>
+        ) : null}
       </div>
     </section>
   );
