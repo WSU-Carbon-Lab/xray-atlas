@@ -16,6 +16,7 @@ import {
 import { cn } from "@heroui/styles";
 import { trpc } from "~/trpc/client";
 import { FacilityIcon } from "~/components/facilities/facility-icon";
+import { showToast } from "~/components/ui/toast";
 import {
   FACILITY_WEBSITE_URL_MAX_LENGTH,
   facilityFaviconPreviewUrl,
@@ -70,6 +71,12 @@ export function FacilityWebsiteAdminCard({
       setFieldError(null);
       await invalidateFacilityQueries();
       onSaved();
+      showToast(
+        updated.websiteurl
+          ? "Facility website saved."
+          : "Facility website removed.",
+        "success",
+      );
     },
   });
 
@@ -78,6 +85,7 @@ export function FacilityWebsiteAdminCard({
       setDraft(updated.websiteurl ?? "");
       await invalidateFacilityQueries();
       onSaved();
+      showToast("Facility favicon refreshed.", "success");
     },
   });
 

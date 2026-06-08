@@ -12,6 +12,8 @@ interface FacilityIconProps {
   faviconUrl?: string | null;
   /** Tile preset; `md` suits browse facility cards. */
   size?: FacilityIconSize;
+  /** When true, hides the tile from assistive tech (use beside visible facility name). */
+  decorative?: boolean;
   className?: string;
   iconClassName?: string;
 }
@@ -43,11 +45,13 @@ const facilityIconTileClass =
 function FacilityBuildingFallback({
   name,
   size,
+  decorative,
   className,
   iconClassName,
 }: {
   name: string;
   size: FacilityIconSize;
+  decorative?: boolean;
   className?: string;
   iconClassName?: string;
 }) {
@@ -62,7 +66,8 @@ function FacilityBuildingFallback({
         sizeStyles.padding,
         className,
       )}
-      aria-label={`${name} icon`}
+      aria-hidden={decorative ? true : undefined}
+      aria-label={decorative ? undefined : `${name} icon`}
     >
       <BuildingOfficeIcon
         className={cn("stroke-[1.5]", sizeStyles.building, iconClassName)}
@@ -81,6 +86,7 @@ export function FacilityIcon({
   name,
   faviconUrl,
   size = "md",
+  decorative = false,
   className,
   iconClassName,
 }: FacilityIconProps) {
@@ -97,6 +103,7 @@ export function FacilityIcon({
       <FacilityBuildingFallback
         name={name}
         size={size}
+        decorative={decorative}
         className={className}
         iconClassName={iconClassName}
       />
@@ -111,7 +118,8 @@ export function FacilityIcon({
         sizeStyles.padding,
         className,
       )}
-      aria-label={`${name} icon`}
+      aria-hidden={decorative ? true : undefined}
+      aria-label={decorative ? undefined : `${name} icon`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

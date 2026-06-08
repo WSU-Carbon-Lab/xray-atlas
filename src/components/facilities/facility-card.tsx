@@ -33,12 +33,14 @@ export function FacilityCardCompact({
   return (
     <Link
       href={facilityDetailHrefFromName(name)}
+      aria-label={`View ${name} facility details`}
       className="group border-border bg-surface flex w-full items-center gap-4 overflow-hidden rounded-xl border p-4 shadow-lg transition-all hover:shadow-xl"
     >
       <FacilityIcon
         name={name}
         faviconUrl={faviconUrl}
         size="md"
+        decorative
         className="group-hover:border-accent/25 group-hover:bg-surface-tertiary group-hover:ring-accent/20"
       />
       <div className="min-w-0 flex-1">
