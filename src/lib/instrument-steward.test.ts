@@ -200,6 +200,54 @@ describe("buildOptimisticInstrumentSteward", () => {
   });
 });
 
+describe("beamline scientist add picker cache flow", () => {
+  it("documents onMutate optimistic merge then onSuccess reconciliation", () => {
+    const searchHit = {
+      orcid: secondSteward.userId,
+      displayName: secondSteward.name ?? secondSteward.userId,
+      imageUrl: null,
+      hasAtlasProfile: true,
+    };
+    const facilityCache = { fac_inst: [sampleSteward] };
+
+    const optimistic = buildOptimisticInstrumentSteward("fac_inst", searchHit);
+    const afterMutate = mergeInstrumentStewardIntoFacilityMap(
+      facilityCache,
+      optimistic,
+    );
+    expect(afterMutate.fac_inst?.length).toBe(2);
+    expect(afterMutate.fac_inst?.[1]?.userId).toBe(secondSteward.userId);
+
+    const serverRow: InstrumentStewardPublic = {
+      ...secondSteward,
+      assignedAt: "2026-06-08T14:00:00.000Z",
+    };
+    const afterSuccess = mergeInstrumentStewardIntoFacilityMap(
+      afterMutate,
+      serverRow,
+    );
+    expect(afterSuccess.fac_inst?.length).toBe(2);
+    expect(afterSuccess).toEqual(afterMutate);
+  });
+
+  it("skips duplicate optimistic rows when the same user is picked twice", () => {
+    const searchHit = {
+      orcid: sampleSteward.userId,
+      displayName: sampleSteward.name ?? sampleSteward.userId,
+      imageUrl: null,
+      hasAtlasProfile: true,
+    };
+    const facilityCache = { fac_inst: [sampleSteward] };
+    const optimistic = buildOptimisticInstrumentSteward("fac_inst", searchHit);
+    const merged = mergeInstrumentStewardIntoFacilityMap(
+      facilityCache,
+      optimistic,
+    );
+    expect(merged).toEqual(facilityCache);
+    expect(merged.fac_inst?.length).toBe(1);
+  });
+});
+
 describe("instrumentStewardsForAvatarDisplay", () => {
   it("returns an empty list when no stewards are assigned", () => {
     expect(instrumentStewardsForAvatarDisplay([])).toEqual([]);

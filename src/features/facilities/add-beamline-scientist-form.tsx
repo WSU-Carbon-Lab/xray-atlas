@@ -1,13 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Key } from "@heroui/react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Key } from "react";
 import { skipToken } from "@tanstack/react-query";
 import {
   Badge,
   Button,
   Chip,
-  ComboBox,
   Input,
   Label,
   ListBox,
@@ -30,7 +28,6 @@ import {
   type ResearcherAttributionBadgeStatus,
 } from "~/lib/nexafs-attribution";
 import {
-  isValidOrcidUserId,
   normalizeOrcidUserInput,
   orcidUserIdSchema,
 } from "~/lib/orcid";
@@ -63,18 +60,11 @@ function toStewardSearchHit(hit: ResearcherSearchHit): InstrumentStewardSearchHi
   };
 }
 
-function resetSearchState(setters: {
-  setSearchQuery: (value: string) => void;
-  setDebouncedSearchQuery: (value: string) => void;
-  setSelectedSearchKey: (value: Key | null) => void;
-}) {
-  setters.setSearchQuery("");
-  setters.setDebouncedSearchQuery("");
-  setters.setSelectedSearchKey(null);
-}
-
 /**
  * Search-and-add popover form for assigning beamline scientist stewards on facility cards.
+ *
+ * Picker rows call `instruments.addSteward` directly on list action; the parent popover stays
+ * open until the mutation succeeds so optimistic cache updates can render the new avatar.
  */
 export function AddBeamlineScientistForm({
   facilityId,
@@ -85,7 +75,6 @@ export function AddBeamlineScientistForm({
 }: AddBeamlineScientistFormProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [selectedSearchKey, setSelectedSearchKey] = useState<Key | null>(null);
   const pendingSearchHitRef = useRef<InstrumentStewardSearchHit | null>(null);
 
   const utils = trpc.useUtils();
@@ -125,11 +114,8 @@ export function AddBeamlineScientistForm({
         mergeInstrumentStewardIntoFacilityMap(current ?? {}, steward),
       );
       showToast(`Added beamline scientist for ${instrumentName}.`, "success");
-      resetSearchState({
-        setSearchQuery,
-        setDebouncedSearchQuery,
-        setSelectedSearchKey,
-      });
+      setSearchQuery("");
+      setDebouncedSearchQuery("");
       pendingSearchHitRef.current = null;
       onClose();
     },
@@ -183,15 +169,16 @@ export function AddBeamlineScientistForm({
     [assignedUserIds, searchData?.results],
   );
 
-  const applySearchHit = useCallback(
+  const addSearchHit = useCallback(
     (hit: ResearcherSearchHit) => {
+      if (addSteward.isPending) {
+        return;
+      }
       if (assignedUserIds.has(hit.orcid)) {
         showToast("That researcher is already a beamline scientist here.", "error");
         return;
       }
       pendingSearchHitRef.current = toStewardSearchHit(hit);
-      setSelectedSearchKey(hit.orcid);
-      setSearchQuery(hit.displayName);
       addSteward.mutate({
         instrumentId,
         userId: hit.orcid,
@@ -202,6 +189,9 @@ export function AddBeamlineScientistForm({
 
   const assignOrcid = useCallback(
     (raw: string, hit?: ResearcherSearchHit) => {
+      if (addSteward.isPending) {
+        return;
+      }
       const normalized = normalizeOrcidUserInput(raw);
       if (!normalized || !orcidUserIdSchema.safeParse(normalized).success) {
         showToast("Select a researcher or enter a valid ORCID iD.", "error");
@@ -228,18 +218,12 @@ export function AddBeamlineScientistForm({
   );
 
   const resolveOrcidForAssign = useCallback((): string | null => {
-    const candidates = [
-      typeof selectedSearchKey === "string" ? selectedSearchKey : null,
-      searchQuery,
-    ];
-    for (const raw of candidates) {
-      const normalized = normalizeOrcidUserInput(raw ?? "");
-      if (normalized && orcidUserIdSchema.safeParse(normalized).success) {
-        return normalized;
-      }
+    const normalized = normalizeOrcidUserInput(searchQuery);
+    if (normalized && orcidUserIdSchema.safeParse(normalized).success) {
+      return normalized;
     }
     return null;
-  }, [searchQuery, selectedSearchKey]);
+  }, [searchQuery]);
 
   const emptyStateMessage = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -270,133 +254,115 @@ export function AddBeamlineScientistForm({
       if (typeof key !== "string") return;
       const hit = searchResults.find((row) => row.orcid === key);
       if (!hit) return;
-      applySearchHit(hit);
+      addSearchHit(hit);
     },
-    [applySearchHit, searchResults],
+    [addSearchHit, searchResults],
   );
+
+  const resolvedOrcidForAssign = resolveOrcidForAssign();
 
   return (
     <div className="flex flex-col gap-3">
       <div>
         <p className="text-foreground text-sm font-medium">Add beamline scientist</p>
         <p className="text-muted mt-1 text-xs leading-snug">
-          Search Atlas or ORCID to list another scientist on {instrumentName}.
+          Search Atlas or ORCID, then pick a row to add them to {instrumentName}.
         </p>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`beamline-scientist-search-${instrumentId}`}>
           Researcher
         </Label>
-        <ComboBox
-          fullWidth
+        <Input
+          id={`beamline-scientist-search-${instrumentId}`}
           aria-label={`Search researchers to add as beamline scientist for ${instrumentName}`}
-          inputValue={searchQuery}
-          onInputChange={(value) => {
-            setSearchQuery(value);
-            setSelectedSearchKey(null);
-            const normalized = normalizeOrcidUserInput(value);
-            if (isValidOrcidUserId(normalized)) {
-              setSelectedSearchKey(normalized);
-            }
-          }}
-          selectedKey={selectedSearchKey}
-          onSelectionChange={(key) => {
-            if (key == null || typeof key !== "string") return;
-            const hit = searchResults.find((row) => row.orcid === key);
-            if (!hit) return;
-            applySearchHit(hit);
-          }}
-          allowsEmptyCollection
-          menuTrigger="input"
+          placeholder="Search by name, institution, or ORCID iD"
+          autoComplete="off"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          disabled={addSteward.isPending}
+        />
+        <div
+          className="border-border bg-surface overflow-hidden rounded-lg border"
+          data-attribution-nested-overlay="true"
         >
-          <ComboBox.InputGroup>
-            <Input
-              id={`beamline-scientist-search-${instrumentId}`}
-              placeholder="Search by name, institution, or ORCID iD"
-              autoComplete="off"
-            />
-            <ComboBox.Trigger />
-          </ComboBox.InputGroup>
-          <ComboBox.Popover>
-            <div data-attribution-nested-overlay="true">
-              <ScrollShadow
-                className="max-h-48 min-h-0"
-                hideScrollBar
-                orientation="vertical"
-              >
-                <ListBox
-                  aria-label="Researcher search results"
-                  items={searchEnabled ? searchResults : []}
-                  onAction={handleListBoxAction}
-                  renderEmptyState={() => (
-                    <div className="text-muted px-3 py-2 text-xs">
-                      {emptyStateMessage}
+          <ScrollShadow
+            className="max-h-48 min-h-0"
+            hideScrollBar
+            orientation="vertical"
+          >
+            <ListBox
+              aria-label="Researcher search results"
+              items={searchEnabled ? searchResults : []}
+              onAction={handleListBoxAction}
+              selectionMode="none"
+              renderEmptyState={() => (
+                <div className="text-muted px-3 py-2 text-xs">
+                  {emptyStateMessage}
+                </div>
+              )}
+            >
+              {(hit) => {
+                const status = researcherAttributionBadgeStatus({
+                  isClaimed: hit.hasAtlasProfile,
+                  hasContributionAgreement: hit.hasContributionAgreement,
+                });
+                return (
+                  <ListBox.Item
+                    id={hit.orcid}
+                    textValue={`${hit.displayName} ${hit.orcid}`}
+                    isDisabled={addSteward.isPending}
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Badge.Anchor className="shrink-0">
+                        <ResearcherAvatar
+                          displayName={hit.displayName}
+                          imageUrl={hit.imageUrl}
+                          identitySeed={hit.orcid}
+                          isAtlasProfile={hit.hasAtlasProfile}
+                          placeholder={
+                            hit.hasAtlasProfile ? "initials" : "person"
+                          }
+                          size="sm"
+                          className="h-8 w-8 shrink-0"
+                        />
+                        <Badge
+                          color={badgeColorForStatus(status)}
+                          size="sm"
+                          placement="bottom-right"
+                          className="size-2.5 min-h-0 min-w-0 rounded-full p-0"
+                        />
+                      </Badge.Anchor>
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-foreground flex min-w-0 items-center gap-1.5 truncate text-sm font-medium">
+                          <span className="truncate">{hit.displayName}</span>
+                          {hit.hasAtlasProfile ? (
+                            <Chip
+                              size="sm"
+                              variant="soft"
+                              color="accent"
+                              className="h-5 shrink-0 px-1.5 text-[10px]"
+                            >
+                              Atlas
+                            </Chip>
+                          ) : null}
+                        </span>
+                        <span className="text-muted font-mono text-xs tabular-nums">
+                          {hit.orcid}
+                        </span>
+                        {hit.affiliation ? (
+                          <span className="text-muted truncate text-xs">
+                            {hit.affiliation}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                  )}
-                >
-                  {(hit) => {
-                    const status = researcherAttributionBadgeStatus({
-                      isClaimed: hit.hasAtlasProfile,
-                      hasContributionAgreement: hit.hasContributionAgreement,
-                    });
-                    return (
-                      <ListBox.Item
-                        id={hit.orcid}
-                        textValue={`${hit.displayName} ${hit.orcid}`}
-                      >
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          <Badge.Anchor className="shrink-0">
-                            <ResearcherAvatar
-                              displayName={hit.displayName}
-                              imageUrl={hit.imageUrl}
-                              identitySeed={hit.orcid}
-                              isAtlasProfile={hit.hasAtlasProfile}
-                              placeholder={
-                                hit.hasAtlasProfile ? "initials" : "person"
-                              }
-                              size="sm"
-                              className="h-8 w-8 shrink-0"
-                            />
-                            <Badge
-                              color={badgeColorForStatus(status)}
-                              size="sm"
-                              placement="bottom-right"
-                              className="size-2.5 min-h-0 min-w-0 rounded-full p-0"
-                            />
-                          </Badge.Anchor>
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <span className="text-foreground flex min-w-0 items-center gap-1.5 truncate text-sm font-medium">
-                              <span className="truncate">{hit.displayName}</span>
-                              {hit.hasAtlasProfile ? (
-                                <Chip
-                                  size="sm"
-                                  variant="soft"
-                                  color="accent"
-                                  className="h-5 shrink-0 px-1.5 text-[10px]"
-                                >
-                                  Atlas
-                                </Chip>
-                              ) : null}
-                            </span>
-                            <span className="text-muted font-mono text-xs tabular-nums">
-                              {hit.orcid}
-                            </span>
-                            {hit.affiliation ? (
-                              <span className="text-muted truncate text-xs">
-                                {hit.affiliation}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                        <ListBox.ItemIndicator />
-                      </ListBox.Item>
-                    );
-                  }}
-                </ListBox>
-              </ScrollShadow>
-            </div>
-          </ComboBox.Popover>
-        </ComboBox>
+                  </ListBox.Item>
+                );
+              }}
+            </ListBox>
+          </ScrollShadow>
+        </div>
         {isSearching ? (
           <p className="text-muted flex items-center gap-1.5 text-xs">
             <Spinner size="sm" />
@@ -411,7 +377,12 @@ export function AddBeamlineScientistForm({
         ) : null}
       </div>
       <div className="flex justify-end gap-2">
-        <Button size="sm" variant="ghost" onPress={onClose}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onPress={onClose}
+          isDisabled={addSteward.isPending}
+        >
           Cancel
         </Button>
         <Button
@@ -423,9 +394,9 @@ export function AddBeamlineScientistForm({
             const hit = searchResults.find((row) => row.orcid === orcid);
             assignOrcid(orcid, hit);
           }}
-          isDisabled={!resolveOrcidForAssign() || addSteward.isPending}
+          isDisabled={!resolvedOrcidForAssign || addSteward.isPending}
         >
-          Add
+          {addSteward.isPending ? "Adding..." : "Add"}
         </Button>
       </div>
     </div>

@@ -14,6 +14,7 @@ import {
   instrumentStewardsForAvatarDisplay,
   type InstrumentStewardPublic,
 } from "~/lib/instrument-steward";
+import { ATTRIBUTION_NESTED_OVERLAY_SELECTOR } from "~/lib/nexafs-attribution";
 import { AddBeamlineScientistForm } from "./add-beamline-scientist-form";
 
 type InstrumentBeamlineScientistAttributionRowProps = {
@@ -71,6 +72,7 @@ export function InstrumentBeamlineScientistAttributionRow({
         <PopoverMenu
           align="end"
           placement="auto"
+          ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
           renderTrigger={({ triggerProps, isOpen }) => (
             <button
               type="button"
