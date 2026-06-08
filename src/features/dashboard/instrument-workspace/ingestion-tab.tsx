@@ -12,16 +12,19 @@ import {
 } from "~/features/dashboard/lib/computeStxmIngestion";
 import { readStxmComputeConsentGranted } from "~/lib/stxm/compute-consent";
 import { ingestionResultToPersisted } from "~/features/dashboard/lib/downsampleIngestionResult";
+import { buildStxmPreviewCacheUpdate } from "./sync-stxm-preview-cache";
+import { previewRegionSpectraToSeries } from "./downsample-region-spectra-for-persist";
 import { parseLocalStxmPair } from "~/features/dashboard/hooks/useStxmScanLoader";
-import type {
-  DashboardIngestionResult,
-  DashboardPreviewSpectrumEntry,
-  DashboardPreviewStepMetadata,
-  DashboardReduceStepMetadata,
-  DashboardRegionsStepMetadata,
-  StxmIntensityGlitchRecord,
-  DashboardStandardOverlay,
-  StxmNormalizationWindows,
+import {
+  mergeLinkedMoleculeIntoRegionsMetadata,
+  resolveLinkedMoleculeForScan,
+  type DashboardIngestionResult,
+  type DashboardPreviewStepMetadata,
+  type DashboardReduceStepMetadata,
+  type DashboardRegionsStepMetadata,
+  type StxmIntensityGlitchRecord,
+  type DashboardStandardOverlay,
+  type StxmNormalizationWindows,
 } from "~/lib/dashboard-processing-session";
 import { suggestNormalizationWindows } from "~/lib/stxm/normalization";
 import { regionSpectrumToRecord, reduceTwoRegion } from "~/lib/stxm/reduction";
@@ -63,13 +66,22 @@ import {
   type StxmPeak,
   type StxmSampleInfo,
 } from "~/features/dashboard/lib/stxm-export-metadata";
-import type { StxmCompareOverlay } from "~/features/dashboard/lib/stxm-to-spectrum-plot";
 import type { MoleculeSearchResult } from "~/features/process-nexafs/types";
 import type { DatasetAttributionEntry } from "~/lib/nexafs-attribution";
 import type { Peak } from "~/components/plots/types";
 import { trpc } from "~/trpc/client";
 import type { StreamBeamtimeCatalogPhase } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import { LineScanBrowserStrip } from "./line-scan-browser-strip";
+import {
+  shouldHydrateNormalizationFromSession,
+  shouldHydrateRegionsFromSession,
+  stxmNormalizationHydrationAfterApply,
+  stxmRegionHydrationAfterApply,
+  stxmSessionHasNormalization,
+  stxmSessionHasRegionBounds,
+  type StxmNormalizationHydrationState,
+  type StxmRegionHydrationState,
+} from "./stxm-region-session-sync";
 import type { StxmCatalogEntry } from "~/lib/stxm";
 import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
 import {
@@ -85,7 +97,7 @@ import type { DatasetAttributionChange } from "~/features/process-nexafs/ui/data
 
 const RAW_SPECTRA_DEBOUNCE_MS = 300;
 const PIPELINE_DEBOUNCE_MS = 400;
-/** Throttled preview interval while region or izero bounds are dragged. */
+/** Throttled preview interval while region, izero, or normalization bounds are dragged. */
 const DRAG_PREVIEW_THROTTLE_MS = 75;
 const POISSON_WEIGHTING = "poisson_mle" as const;
 
@@ -93,13 +105,6 @@ type RunPipelineOptions = {
   /** When true, updates plot state only; skips session ingestion/reduce persistence. */
   previewOnly?: boolean;
 };
-
-const COMPARE_OVERLAY_COLORS = [
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-];
 
 type IngestionTabProps = {
   sessionId: string | null;
@@ -118,43 +123,19 @@ type IngestionTabProps = {
   isSelectingScan?: boolean;
   selectingScanRelativePath?: string | null;
   onSelectCatalogScan: (entry: StxmCatalogEntry) => void;
-  regionsMetadata: DashboardRegionsStepMetadata | undefined;
+  scanRegionsMetadata: DashboardRegionsStepMetadata | undefined;
+  sessionReady: boolean;
   reduceMetadata: DashboardReduceStepMetadata | undefined;
-  ingestionMetadata: DashboardIngestionResult | undefined;
-  previewMetadata: DashboardPreviewStepMetadata | undefined;
+  scanIngestionMetadata: DashboardIngestionResult | undefined;
+  previewMetadata: DashboardPreviewStepMetadata;
   onPersistRegions: (regions: DashboardRegionsStepMetadata) => Promise<void>;
   onPersistReduce: (reduce: DashboardReduceStepMetadata) => Promise<void>;
   onPersistIngestion: (ingestion: DashboardIngestionResult) => Promise<void>;
   onPersistPreview: (preview: DashboardPreviewStepMetadata) => Promise<void>;
   onPersistExport: (exportMeta: StxmExportStepMetadata) => Promise<void>;
+  onFlushSession: () => Promise<void>;
   isSaving: boolean;
 };
-
-function regionsMetadataForScan(
-  regionsMetadata: DashboardRegionsStepMetadata | undefined,
-  scanId: string,
-): DashboardRegionsStepMetadata | undefined {
-  if (!regionsMetadata) {
-    return undefined;
-  }
-  if (regionsMetadata.scanId && regionsMetadata.scanId !== scanId) {
-    return undefined;
-  }
-  return regionsMetadata;
-}
-
-function ingestionMetadataForScan(
-  ingestionMetadata: DashboardIngestionResult | undefined,
-  scanId: string,
-): DashboardIngestionResult | undefined {
-  if (!ingestionMetadata) {
-    return undefined;
-  }
-  if (ingestionMetadata.scanId !== scanId) {
-    return undefined;
-  }
-  return ingestionMetadata;
-}
 
 function persistedToRuntime(
   persisted: DashboardIngestionResult,
@@ -229,24 +210,31 @@ export function IngestionTab({
   isSelectingScan = false,
   selectingScanRelativePath = null,
   onSelectCatalogScan,
-  regionsMetadata,
+  scanRegionsMetadata,
+  sessionReady,
   reduceMetadata,
-  ingestionMetadata,
+  scanIngestionMetadata,
   previewMetadata,
   onPersistRegions,
   onPersistReduce,
   onPersistIngestion,
   onPersistPreview,
   onPersistExport,
+  onFlushSession,
   isSaving: _isSaving,
 }: IngestionTabProps) {
-  const scanRegionsMetadata = useMemo(
-    () => regionsMetadataForScan(regionsMetadata, scanId),
-    [regionsMetadata, scanId],
-  );
-  const scanIngestionMetadata = useMemo(
-    () => ingestionMetadataForScan(ingestionMetadata, scanId),
-    [ingestionMetadata, scanId],
+  const linkedMoleculeSeed = useMemo(
+    () =>
+      resolveLinkedMoleculeForScan(
+        {
+          regionsCache: scanRegionsMetadata
+            ? { [scanId]: scanRegionsMetadata }
+            : undefined,
+          preview: previewMetadata,
+        },
+        scanId,
+      ),
+    [previewMetadata, scanId, scanRegionsMetadata],
   );
   const [loaded, setLoaded] = useState<Awaited<
     ReturnType<typeof parseLocalStxmPair>
@@ -315,33 +303,68 @@ export function IngestionTab({
     })),
   );
 
-  const linkedMoleculeId = parsedExport.linkedMoleculeId;
   const linkedMoleculeQuery = trpc.molecules.getById.useQuery(
-    { id: linkedMoleculeId ?? "" },
-    { enabled: Boolean(linkedMoleculeId) && linkedMolecule == null },
+    { id: linkedMoleculeSeed.linkedMoleculeId ?? "" },
+    {
+      enabled:
+        Boolean(linkedMoleculeSeed.linkedMoleculeId) &&
+        linkedMolecule?.id !== linkedMoleculeSeed.linkedMoleculeId,
+    },
   );
 
   useEffect(() => {
-    if (!linkedMoleculeId || linkedMolecule) {
+    const nextId = linkedMoleculeSeed.linkedMoleculeId;
+    if (!nextId) {
+      setLinkedMolecule(null);
       return;
     }
     const row = linkedMoleculeQuery.data;
-    if (!row) {
+    if (row && row.id === nextId) {
+      setLinkedMolecule((current) => {
+        if (current?.id === nextId) {
+          return current;
+        }
+        return {
+          id: row.id,
+          iupacName: row.iupacName,
+          commonName: row.name,
+          synonyms: row.commonName ?? [],
+          inchi: row.InChI,
+          smiles: row.SMILES,
+          chemicalFormula: row.chemicalFormula,
+          casNumber: row.casNumber ?? null,
+          pubChemCid: row.pubChemCid ?? null,
+          imageUrl: row.imageUrl,
+        };
+      });
       return;
     }
-    setLinkedMolecule({
-      id: row.id,
-      iupacName: row.iupacName,
-      commonName: row.name,
-      synonyms: row.commonName ?? [],
-      inchi: row.InChI,
-      smiles: row.SMILES,
-      chemicalFormula: row.chemicalFormula,
-      casNumber: row.casNumber ?? null,
-      pubChemCid: row.pubChemCid ?? null,
-      imageUrl: row.imageUrl,
-    });
-  }, [linkedMolecule, linkedMoleculeId, linkedMoleculeQuery.data]);
+    if (linkedMoleculeSeed.linkedMoleculeLabel) {
+      setLinkedMolecule((current) => {
+        if (current?.id === nextId) {
+          return current;
+        }
+        return {
+          id: nextId,
+          iupacName: linkedMoleculeSeed.linkedMoleculeLabel ?? "",
+          commonName: linkedMoleculeSeed.linkedMoleculeLabel ?? "",
+          synonyms: [],
+          inchi: "",
+          smiles: "",
+          chemicalFormula: linkedMoleculeSeed.linkedMoleculeFormula ?? "",
+          casNumber: null,
+          pubChemCid: null,
+          imageUrl: undefined,
+        };
+      });
+    }
+  }, [
+    linkedMoleculeQuery.data,
+    linkedMoleculeSeed.linkedMoleculeFormula,
+    linkedMoleculeSeed.linkedMoleculeId,
+    linkedMoleculeSeed.linkedMoleculeLabel,
+    scanId,
+  ]);
 
   const linkedFormula = linkedMolecule?.chemicalFormula?.trim() ?? null;
   const resolvedFormula = linkedFormula;
@@ -350,12 +373,167 @@ export function IngestionTab({
   const debounceRawRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debouncePipelineRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDraggingRef = useRef(false);
+  const regionHydrationRef = useRef<StxmRegionHydrationState>(null);
+  const normalizationHydrationRef = useRef<StxmNormalizationHydrationState>(null);
   const pipelineGenerationRef = useRef(0);
   const pipelineInflightRef = useRef(0);
   const regionSpectraGenerationRef = useRef(0);
   const [regionSpectraEpoch, setRegionSpectraEpoch] = useState(0);
   const [pipelineEpoch, setPipelineEpoch] = useState(0);
   const activeScanIdRef = useRef(scanId);
+  const regionPersistEnabledRef = useRef(false);
+  const buildRegionsPersistPayloadRef = useRef<
+    ((targetScanId: string) => DashboardRegionsStepMetadata | null) | null
+  >(null);
+  const resultRef = useRef(result);
+  resultRef.current = result;
+  const regionSpectraRef = useRef(regionSpectra);
+  regionSpectraRef.current = regionSpectra;
+  const previewMetadataRef = useRef(previewMetadata);
+  previewMetadataRef.current = previewMetadata;
+  const linkedMoleculeRef = useRef(linkedMolecule);
+  linkedMoleculeRef.current = linkedMolecule;
+  const standardOverlaysRef = useRef(standardOverlays);
+  standardOverlaysRef.current = standardOverlays;
+
+  const buildRegionsPersistPayload = useCallback(
+    (targetScanId: string = scanId): DashboardRegionsStepMetadata | null => {
+      const moleculeLabel =
+        linkedMolecule?.commonName?.trim() ??
+        linkedMolecule?.iupacName?.trim() ??
+        undefined;
+      const linkedMoleculeFields = linkedMolecule
+        ? {
+            id: linkedMolecule.id,
+            label: moleculeLabel,
+            formula: linkedMolecule.chemicalFormula?.trim() || undefined,
+          }
+        : null;
+      if (!izero || regions.length === 0) {
+        if (
+          !linkedMoleculeFields &&
+          !scanRegionsMetadata?.linkedMoleculeId
+        ) {
+          return null;
+        }
+        return mergeLinkedMoleculeIntoRegionsMetadata(
+          targetScanId,
+          scanRegionsMetadata,
+          weightingMode,
+          linkedMoleculeFields,
+        );
+      }
+      return mergeLinkedMoleculeIntoRegionsMetadata(
+        targetScanId,
+        {
+          bounds: multiRegionToLegacyBounds(regions, izero, pureRegionId),
+          sampleRegions: regions,
+          izeroBounds: izero,
+          pureRegionId: pureRegionId ?? undefined,
+          plotScaleMode,
+          rawSignalTransform,
+          weightingMode,
+          formula: linkedFormula ?? undefined,
+          thicknessCm: Number.parseFloat(thicknessCm) || undefined,
+          normalization: normalization ?? undefined,
+          regionEditorTrayOpen,
+          intensityGlitches:
+            intensityGlitches.length > 0 ? intensityGlitches : undefined,
+        },
+        weightingMode,
+        linkedMoleculeFields,
+      );
+    },
+    [
+      intensityGlitches,
+      izero,
+      linkedFormula,
+      linkedMolecule?.chemicalFormula,
+      linkedMolecule?.commonName,
+      linkedMolecule?.iupacName,
+      linkedMolecule?.id,
+      normalization,
+      plotScaleMode,
+      pureRegionId,
+      rawSignalTransform,
+      regionEditorTrayOpen,
+      regions,
+      scanId,
+      scanRegionsMetadata,
+      thicknessCm,
+      weightingMode,
+    ],
+  );
+
+  buildRegionsPersistPayloadRef.current = buildRegionsPersistPayload;
+
+  const flushOutgoingScanState = useCallback(
+    (outgoingScanId: string) => {
+      if (debouncePersistRef.current) {
+        clearTimeout(debouncePersistRef.current);
+        debouncePersistRef.current = null;
+      }
+      if (debounceRawRef.current) {
+        clearTimeout(debounceRawRef.current);
+        debounceRawRef.current = null;
+      }
+      if (debouncePipelineRef.current) {
+        clearTimeout(debouncePipelineRef.current);
+        debouncePipelineRef.current = null;
+      }
+      if (!regionPersistEnabledRef.current) {
+        return;
+      }
+      const regionsPayload = buildRegionsPersistPayloadRef.current?.(
+        outgoingScanId,
+      );
+      if (regionsPayload) {
+        void onPersistRegions(regionsPayload);
+      }
+      const outgoingResult = resultRef.current;
+      const outgoingRegionSpectra = regionSpectraRef.current;
+      const molecule = linkedMoleculeRef.current;
+      const previewUpdate = buildStxmPreviewCacheUpdate({
+        scanId: outgoingScanId,
+        scanLabel,
+        edgeLabel: inferStxmEdgeFromEnergyRange(energyMinEv, energyMaxEv)?.label,
+        hdrFileName: hdrFile.name,
+        ximFileName: ximFile.name,
+        moleculeId: molecule?.id,
+        moleculeName:
+          molecule?.commonName?.trim() ??
+          molecule?.iupacName?.trim() ??
+          undefined,
+        previewMetadata: previewMetadataRef.current,
+        ingestionResult: outgoingResult,
+        regionSpectra: outgoingRegionSpectra,
+        standardOverlays: standardOverlaysRef.current,
+        hdrText: loaded?.header.raw,
+      });
+      if (previewUpdate) {
+        previewMetadataRef.current = previewUpdate;
+        void onPersistPreview(previewUpdate);
+      }
+      if (outgoingResult) {
+        void onPersistIngestion(
+          ingestionResultToPersisted(outgoingResult, outgoingScanId),
+        );
+      }
+      void onFlushSession();
+    },
+    [
+      energyMaxEv,
+      energyMinEv,
+      hdrFile.name,
+      loaded?.header.raw,
+      onFlushSession,
+      onPersistIngestion,
+      onPersistPreview,
+      onPersistRegions,
+      scanLabel,
+      ximFile.name,
+    ],
+  );
 
   const inferredEdge = useMemo(
     () => inferStxmEdgeFromEnergyRange(energyMinEv, energyMaxEv),
@@ -363,17 +541,38 @@ export function IngestionTab({
   );
 
   useEffect(() => {
+    const outgoingScanId = scanId;
     activeScanIdRef.current = scanId;
+    regionHydrationRef.current = null;
+    normalizationHydrationRef.current = null;
+    regionPersistEnabledRef.current = false;
     pipelineGenerationRef.current += 1;
-    setResult(
-      scanIngestionMetadata ? persistedToRuntime(scanIngestionMetadata) : null,
-    );
-    setRegionSpectra([]);
     setRegionSpectraEpoch(0);
     setPipelineEpoch(0);
     regionSpectraGenerationRef.current = 0;
     setIsReducing(false);
     pipelineInflightRef.current = 0;
+    const cachedRegionSpectra =
+      previewMetadataRef.current?.regionSpectraCache?.[outgoingScanId];
+    if (cachedRegionSpectra?.length) {
+      const restored = previewRegionSpectraToSeries(cachedRegionSpectra);
+      setRegionSpectra(restored);
+      setRegionSpectraEpoch((epoch) => epoch + 1);
+    } else {
+      setRegionSpectra([]);
+    }
+    return () => {
+      flushOutgoingScanState(outgoingScanId);
+    };
+  }, [flushOutgoingScanState, scanId]);
+
+  useEffect(() => {
+    setResult(
+      scanIngestionMetadata ? persistedToRuntime(scanIngestionMetadata) : null,
+    );
+  }, [scanIngestionMetadata]);
+
+  useEffect(() => {
     setPlotScaleMode(scanRegionsMetadata?.plotScaleMode ?? "log");
     setRawSignalTransform(
       migrateStxmRawSignalTransformMode(
@@ -382,33 +581,19 @@ export function IngestionTab({
     );
     setRegionEditorTrayOpen(scanRegionsMetadata?.regionEditorTrayOpen ?? true);
     setThicknessCm(String(scanRegionsMetadata?.thicknessCm ?? 1e-4));
-  }, [scanId, scanIngestionMetadata, scanRegionsMetadata]);
+  }, [scanId, scanRegionsMetadata]);
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setLoadError(null);
+    setLoaded(null);
     void parseLocalStxmPair(hdrFile, ximFile)
       .then((parseResult) => {
         if (cancelled || activeScanIdRef.current !== scanId) {
           return;
         }
         setLoaded(parseResult);
-        const initial = initialMultiRegion(
-          scanRegionsMetadata,
-          parseResult.oriented.spatial,
-          parseResult.oriented.image,
-        );
-        setRegions(initial.regions);
-        setIzero(initial.izero);
-        setPureRegionId(initial.pureRegionId);
-        if (!scanRegionsMetadata?.normalization) {
-          setNormalization(
-            suggestNormalizationWindows(parseResult.oriented.energyEv),
-          );
-        } else {
-          setNormalization(scanRegionsMetadata.normalization ?? null);
-        }
       })
       .catch((error) => {
         if (!cancelled && activeScanIdRef.current === scanId) {
@@ -425,7 +610,74 @@ export function IngestionTab({
     return () => {
       cancelled = true;
     };
-  }, [hdrFile, scanId, scanRegionsMetadata, ximFile]);
+  }, [hdrFile, scanId, ximFile]);
+
+  const hasSessionRegionBounds = stxmSessionHasRegionBounds(scanRegionsMetadata);
+  const hasSessionNormalization = stxmSessionHasNormalization(scanRegionsMetadata);
+
+  useEffect(() => {
+    if (!loaded || activeScanIdRef.current !== scanId) {
+      return;
+    }
+    const shouldHydrateRegions = shouldHydrateRegionsFromSession({
+      scanId,
+      hydration: regionHydrationRef.current,
+      isInteracting: isDraggingRef.current,
+      sessionReady,
+      hasSessionBounds: hasSessionRegionBounds,
+    });
+    const shouldHydrateNormalization = shouldHydrateNormalizationFromSession({
+      scanId,
+      hydration: normalizationHydrationRef.current,
+      isInteracting: isDraggingRef.current,
+      sessionReady,
+      hasSessionNormalization,
+    });
+    if (!shouldHydrateRegions && !shouldHydrateNormalization) {
+      return;
+    }
+    regionPersistEnabledRef.current = false;
+    if (shouldHydrateRegions) {
+      const initial = initialMultiRegion(
+        scanRegionsMetadata,
+        loaded.oriented.spatial,
+        loaded.oriented.image,
+      );
+      setRegions(initial.regions);
+      setIzero(initial.izero);
+      setPureRegionId(initial.pureRegionId);
+      setIntensityGlitches(scanRegionsMetadata?.intensityGlitches ?? []);
+      regionHydrationRef.current = stxmRegionHydrationAfterApply(
+        scanId,
+        hasSessionRegionBounds,
+        sessionReady,
+      );
+    }
+    if (shouldHydrateNormalization) {
+      if (!scanRegionsMetadata?.normalization) {
+        setNormalization(suggestNormalizationWindows(loaded.oriented.energyEv));
+      } else {
+        setNormalization(scanRegionsMetadata.normalization ?? null);
+      }
+      normalizationHydrationRef.current = stxmNormalizationHydrationAfterApply(
+        scanId,
+        hasSessionNormalization,
+        sessionReady,
+      );
+    }
+    queueMicrotask(() => {
+      if (activeScanIdRef.current === scanId && sessionReady) {
+        regionPersistEnabledRef.current = true;
+      }
+    });
+  }, [
+    hasSessionNormalization,
+    hasSessionRegionBounds,
+    loaded,
+    scanId,
+    scanRegionsMetadata,
+    sessionReady,
+  ]);
 
   const imageMatrix = useMemo(
     () => (loaded ? float64ImageToMatrix(loaded.oriented.image) : []),
@@ -453,53 +705,54 @@ export function IngestionTab({
     [result],
   );
 
+  const flushPersistRegions = useCallback(() => {
+    if (isDraggingRef.current) {
+      return;
+    }
+    if (!regionPersistEnabledRef.current) {
+      return;
+    }
+    if (!sessionReady) {
+      return;
+    }
+    if (debouncePersistRef.current) {
+      clearTimeout(debouncePersistRef.current);
+      debouncePersistRef.current = null;
+    }
+    const payload = buildRegionsPersistPayloadRef.current?.(scanId);
+    if (payload) {
+      void onPersistRegions(payload);
+    }
+  }, [onPersistRegions, scanId, sessionReady]);
+
   const schedulePersistRegions = useCallback(() => {
     if (isDraggingRef.current) {
       return;
     }
-    if (!izero || regions.length === 0) {
+    if (!regionPersistEnabledRef.current) {
+      return;
+    }
+    if (!sessionReady) {
+      return;
+    }
+    const payload = buildRegionsPersistPayload();
+    if (!payload) {
       return;
     }
     if (debouncePersistRef.current) {
       clearTimeout(debouncePersistRef.current);
     }
     debouncePersistRef.current = setTimeout(() => {
-      void onPersistRegions({
-        scanId,
-        bounds: multiRegionToLegacyBounds(regions, izero, pureRegionId),
-        sampleRegions: regions,
-        izeroBounds: izero,
-        pureRegionId: pureRegionId ?? undefined,
-        plotScaleMode,
-        rawSignalTransform,
-        weightingMode,
-        formula: linkedFormula ?? undefined,
-        thicknessCm: Number.parseFloat(thicknessCm) || undefined,
-        normalization: normalization ?? undefined,
-        regionEditorTrayOpen,
-        intensityGlitches:
-          intensityGlitches.length > 0 ? intensityGlitches : undefined,
-      });
+      debouncePersistRef.current = null;
+      flushPersistRegions();
     }, 600);
-  }, [
-    intensityGlitches,
-    izero,
-    linkedFormula,
-    normalization,
-    onPersistRegions,
-    rawSignalTransform,
-    plotScaleMode,
-    pureRegionId,
-    regionEditorTrayOpen,
-    regions,
-    scanId,
-    thicknessCm,
-    weightingMode,
-  ]);
+  }, [buildRegionsPersistPayload, flushPersistRegions, sessionReady]);
 
-  const recomputeRawSpectra = useCallback(async () => {
+  const recomputeRawSpectra = useCallback(async (): Promise<
+    StxmRegionSpectrumSeries[] | null
+  > => {
     if (!loaded || !izero || regions.length === 0) {
-      return;
+      return null;
     }
     const generation = regionSpectraGenerationRef.current + 1;
     regionSpectraGenerationRef.current = generation;
@@ -529,27 +782,38 @@ export function IngestionTab({
                 : { ...series, teyDrain: drain, teyDrainErr: [] },
             )
           : spectra;
+      if (generation === regionSpectraGenerationRef.current) {
+        regionSpectraRef.current = enriched;
+        setRegionSpectra(enriched);
+        setRegionSpectraEpoch(generation);
+      }
       if (normalization) {
         const thickness = Number.parseFloat(thicknessCm);
-        enriched = await enrichRegionSpectraWithReduction(enriched, {
-          normalization,
-          formula: resolvedFormula,
-          thicknessCm:
-            Number.isFinite(thickness) && thickness > 0 ? thickness : 1e-4,
-          runKkDelta:
-            Boolean(resolvedFormula) &&
-            (readStxmComputeConsentGranted() || readKkBrowserConsentGranted()),
-        });
+        try {
+          enriched = await enrichRegionSpectraWithReduction(enriched, {
+            normalization,
+            formula: resolvedFormula,
+            thicknessCm:
+              Number.isFinite(thickness) && thickness > 0 ? thickness : 1e-4,
+            runKkDelta:
+              Boolean(resolvedFormula) &&
+              (readStxmComputeConsentGranted() || readKkBrowserConsentGranted()),
+          });
+        } catch {
+        }
       }
       if (generation !== regionSpectraGenerationRef.current) {
-        return;
+        return null;
       }
+      regionSpectraRef.current = enriched;
       setRegionSpectra(enriched);
       setRegionSpectraEpoch(generation);
+      return enriched;
     } catch {
       if (generation !== regionSpectraGenerationRef.current) {
-        return;
+        return null;
       }
+      return null;
     }
   }, [
     hdrFile.name,
@@ -587,7 +851,40 @@ export function IngestionTab({
 
   useEffect(() => {
     schedulePersistRegions();
-  }, [regionEditorTrayOpen, schedulePersistRegions]);
+  }, [linkedMolecule, normalization, regionEditorTrayOpen, schedulePersistRegions]);
+
+  const schedulePersistPreviewMolecule = useCallback(() => {
+    if (!sessionId || !linkedMolecule || !previewMetadata?.spectra.length) {
+      return;
+    }
+    const existing = previewMetadata.spectra.find((row) => row.scanId === scanId);
+    if (!existing || existing.moleculeId === linkedMolecule.id) {
+      return;
+    }
+    const moleculeName =
+      linkedMolecule.commonName?.trim() ||
+      linkedMolecule.iupacName?.trim() ||
+      undefined;
+    void onPersistPreview({
+      ...previewMetadata,
+      spectra: previewMetadata.spectra.map((row) =>
+        row.scanId === scanId
+          ? {
+              ...row,
+              moleculeId: linkedMolecule.id,
+              moleculeName,
+            }
+          : row,
+      ),
+    });
+  }, [linkedMolecule, onPersistPreview, previewMetadata, scanId, sessionId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      schedulePersistPreviewMolecule();
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [schedulePersistPreviewMolecule]);
 
   const runPipeline = useCallback(async (options?: RunPipelineOptions) => {
     const previewOnly = options?.previewOnly ?? false;
@@ -622,10 +919,11 @@ export function IngestionTab({
       if (generation !== pipelineGenerationRef.current) {
         return;
       }
-      await recomputeRawSpectra();
+      const enrichedSpectra = await recomputeRawSpectra();
       if (generation !== pipelineGenerationRef.current) {
         return;
       }
+      resultRef.current = pipelineResult;
       setResult(pipelineResult);
       setPipelineEpoch(generation);
       const glitches = detectStxmIntensityGlitches(
@@ -673,6 +971,27 @@ export function IngestionTab({
             computedAt: new Date().toISOString(),
             method: "two_region",
           });
+          const previewUpdate = buildStxmPreviewCacheUpdate({
+            scanId,
+            scanLabel,
+            edgeLabel: inferredEdge?.label,
+            hdrFileName: hdrFile.name,
+            ximFileName: ximFile.name,
+            moleculeId: linkedMolecule?.id,
+            moleculeName:
+              linkedMolecule?.commonName?.trim() ||
+              linkedMolecule?.iupacName?.trim() ||
+              undefined,
+            previewMetadata: previewMetadataRef.current,
+            ingestionResult: pipelineResult,
+            regionSpectra: enrichedSpectra ?? regionSpectra,
+            standardOverlays,
+            hdrText: loaded.header.raw,
+          });
+          if (previewUpdate) {
+            previewMetadataRef.current = previewUpdate;
+            await onPersistPreview(previewUpdate);
+          }
         } catch (persistError) {
           if (generation !== pipelineGenerationRef.current) {
             return;
@@ -723,13 +1042,23 @@ export function IngestionTab({
     izero,
     loaded,
     normalization,
+    hdrFile.name,
+    inferredEdge?.label,
+    linkedMolecule?.commonName,
+    linkedMolecule?.iupacName,
+    linkedMolecule?.id,
     onPersistIngestion,
+    onPersistPreview,
     onPersistReduce,
     pureRegionId,
     recomputeRawSpectra,
+    regionSpectra,
+    scanId,
+    scanLabel,
+    standardOverlays,
+    ximFile.name,
     regions,
     resolvedFormula,
-    scanId,
     thicknessCm,
     weightingMode,
   ]);
@@ -825,9 +1154,20 @@ export function IngestionTab({
       debouncePipelineRef.current = null;
     }
     void recomputeRawSpectra();
-    schedulePersistRegions();
+    flushPersistRegions();
     void runPipeline();
-  }, [recomputeRawSpectra, runPipeline, schedulePersistRegions]);
+  }, [flushPersistRegions, recomputeRawSpectra, runPipeline]);
+
+  const handleNormalizationInteractionChange = useCallback(
+    (active: boolean) => {
+      if (active) {
+        isDraggingRef.current = true;
+        return;
+      }
+      handleRegionDragEnd();
+    },
+    [handleRegionDragEnd],
+  );
 
   const handleAutoSuggest = useCallback(() => {
     if (!loaded) {
@@ -844,37 +1184,58 @@ export function IngestionTab({
   }, [loaded]);
 
   const handleKeepInCache = useCallback(async () => {
-    const entry: DashboardPreviewSpectrumEntry = {
+    const regionsPayload = buildRegionsPersistPayload();
+    if (regionsPayload) {
+      await onPersistRegions(regionsPayload);
+    }
+    let spectraForCache = regionSpectra;
+    if (spectraForCache.length === 0) {
+      const computed = await recomputeRawSpectra();
+      if (computed && computed.length > 0) {
+        spectraForCache = computed;
+      }
+    }
+    const previewUpdate = buildStxmPreviewCacheUpdate({
       scanId,
       scanLabel,
-      keptAt: new Date().toISOString(),
       edgeLabel: inferredEdge?.label,
       hdrFileName: hdrFile.name,
       ximFileName: ximFile.name,
-    };
-    const existing = previewMetadata?.spectra ?? [];
-    const nextSpectra = [
-      ...existing.filter((row) => row.scanId !== scanId),
-      entry,
-    ];
-    const ingestionCache = {
-      ...(previewMetadata?.ingestionCache ?? {}),
-    };
-    if (result) {
-      ingestionCache[scanId] = ingestionResultToPersisted(result, scanId);
-    }
-    await onPersistPreview({
-      spectra: nextSpectra,
+      moleculeId: linkedMolecule?.id,
+      moleculeName:
+        linkedMolecule?.commonName?.trim() ||
+        linkedMolecule?.iupacName?.trim() ||
+        undefined,
+      previewMetadata: previewMetadataRef.current,
+      ingestionResult: result,
+      regionSpectra: spectraForCache,
       standardOverlays,
-      compareScanIds: previewMetadata?.compareScanIds ?? [],
-      ingestionCache,
+      hdrText: loaded?.header.raw,
     });
+    if (!previewUpdate) {
+      showToast("Reduce spectra before keeping in preview cache.", "error");
+      return;
+    }
+    if (result) {
+      await onPersistIngestion(
+        ingestionResultToPersisted(result, scanId),
+      );
+    }
+    previewMetadataRef.current = previewUpdate;
+    await onPersistPreview(previewUpdate);
+    showToast("Scan kept in preview cache", "success");
   }, [
+    buildRegionsPersistPayload,
     hdrFile.name,
     inferredEdge?.label,
+    linkedMolecule?.commonName,
+    linkedMolecule?.iupacName,
+    linkedMolecule?.id,
+    onPersistIngestion,
     onPersistPreview,
-    previewMetadata?.ingestionCache,
-    previewMetadata?.spectra,
+    onPersistRegions,
+    recomputeRawSpectra,
+    regionSpectra,
     result,
     scanId,
     scanLabel,
@@ -892,31 +1253,6 @@ export function IngestionTab({
     },
     [],
   );
-
-  const compareOverlays = useMemo((): StxmCompareOverlay[] => {
-    const compareIds = previewMetadata?.compareScanIds ?? [];
-    const cache = previewMetadata?.ingestionCache ?? {};
-    const entries = previewMetadata?.spectra ?? [];
-    return compareIds
-      .filter((id) => id !== scanId && cache[id])
-      .map((id, index) => {
-        const label =
-          entries.find((row) => row.scanId === id)?.scanLabel ?? id;
-        return {
-          id,
-          label,
-          ingestion: cache[id]!,
-          color:
-            COMPARE_OVERLAY_COLORS[index % COMPARE_OVERLAY_COLORS.length] ??
-            "var(--chart-2)",
-        };
-      });
-  }, [
-    previewMetadata?.compareScanIds,
-    previewMetadata?.ingestionCache,
-    previewMetadata?.spectra,
-    scanId,
-  ]);
 
   const pureRegionLabel = useMemo(() => {
     const pure =
@@ -1001,7 +1337,6 @@ export function IngestionTab({
         hasLinkedMolecule={linkedMolecule != null}
         formulaLoading={linkedMoleculeQuery.isLoading}
         showRegionOverlays
-        compareOverlays={compareOverlays}
         peaks={peaks}
         onPeaksChange={setPeaks}
         height={STXM_INGESTION_SPECTRUM_HEIGHT_PX}
@@ -1020,6 +1355,7 @@ export function IngestionTab({
         onIzeroChange={setIzero}
         onRegionDragStart={handleRegionDragStart}
         onRegionDragEnd={handleRegionDragEnd}
+        onNormalizationInteractionChange={handleNormalizationInteractionChange}
         onAutoSuggestRegions={handleAutoSuggest}
         regionTrayOpen={regionEditorTrayOpen}
         onRegionTrayOpenChange={setRegionEditorTrayOpen}

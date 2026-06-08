@@ -39,13 +39,18 @@ export function getValueAtEnergy(
     typeof x0 !== "number" ||
     typeof x1 !== "number" ||
     typeof y0 !== "number" ||
-    typeof y1 !== "number"
+    typeof y1 !== "number" ||
+    !Number.isFinite(x0) ||
+    !Number.isFinite(x1) ||
+    !Number.isFinite(y0) ||
+    !Number.isFinite(y1)
   ) {
     return null;
   }
   const t = (energy - x0) / (x1 - x0);
   if (t < 0 || t > 1) return null;
-  return y0 + t * (y1 - y0);
+  const interpolated = y0 + t * (y1 - y0);
+  return Number.isFinite(interpolated) ? interpolated : null;
 }
 
 export function getTraceLabel(trace: TraceData, index: number): string {

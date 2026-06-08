@@ -61,6 +61,7 @@ export function WorkspaceChrome({
             size="sm"
             isDisabled={isReloading}
             onPress={onReload}
+            aria-label="Reload scans from disk after adding files to the experiment folder"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
             Reload

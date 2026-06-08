@@ -60,7 +60,7 @@ function catalogProgressLabel(input: {
     return `Found ${input.entryCount} scan${input.entryCount === 1 ? "" : "s"}…`;
   }
   if (input.scanPhase === "parsing" || input.placeholderCount > 0) {
-    return `Reading metadata for ${input.placeholderCount} scan${input.placeholderCount === 1 ? "" : "s"}…`;
+    return `Classifying ${input.placeholderCount} scan${input.placeholderCount === 1 ? "" : "s"}…`;
   }
   if (input.scanPhase === "listing") {
     return "Listing scans…";

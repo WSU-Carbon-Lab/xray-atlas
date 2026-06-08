@@ -44,7 +44,9 @@ export function LineScanBrowserStrip({
         <div className="flex items-center gap-2">
           <Spinner size="sm" />
           <p className="text-muted text-xs">
-            {scanPhase === "listing" ? "Listing line scans..." : "Loading scans..."}
+            {scanPhase === "listing"
+              ? "Listing line scans..."
+              : "Classifying line scans..."}
           </p>
         </div>
       </section>

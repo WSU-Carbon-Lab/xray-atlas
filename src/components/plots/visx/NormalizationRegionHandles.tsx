@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useCallback, useRef, type RefObject } from "react";
 import { useTheme } from "next-themes";
 import type { ScaleLinear } from "d3-scale";
 import { NORMALIZATION_COLORS } from "../constants";
@@ -21,6 +21,8 @@ type NormalizationRegionHandlesProps = {
     edge: NormalizationRegionEdgeId,
     energy: number,
   ) => void;
+  /** Fires true while any normalization edge grip is held; false when all grips release. */
+  onInteractionChange?: (active: boolean) => void;
 };
 
 function clampEnergy(
@@ -42,8 +44,19 @@ export function NormalizationRegionHandles({
   plotSvgRef,
   energyDomain,
   onEdgeEnergyChange,
+  onInteractionChange,
 }: NormalizationRegionHandlesProps) {
   const { resolvedTheme } = useTheme();
+  const activeGripsRef = useRef(0);
+  const handleGripActiveChange = useCallback(
+    (active: boolean) => {
+      activeGripsRef.current = active
+        ? activeGripsRef.current + 1
+        : Math.max(0, activeGripsRef.current - 1);
+      onInteractionChange?.(activeGripsRef.current > 0);
+    },
+    [onInteractionChange],
+  );
   const isDark = resolvedTheme === "dark";
   const outline = isDark
     ? "rgba(248,250,252,0.94)"
@@ -120,6 +133,7 @@ export function NormalizationRegionHandles({
             labelTop={undefined}
             hitPadX={22}
             onEnergyChange={makeHandler(id)}
+            onGripPointerActiveChange={handleGripActiveChange}
           />
         ) : null,
       )}

@@ -103,6 +103,7 @@ type StxmIngestionPlotPanelProps = {
   onIzeroChange: (izero: StxmIzeroBounds) => void;
   onRegionDragStart: () => void;
   onRegionDragEnd: () => void;
+  onNormalizationInteractionChange: (active: boolean) => void;
   onAutoSuggestRegions: () => void;
   regionTrayOpen: boolean;
   onRegionTrayOpenChange: (open: boolean) => void;
@@ -210,6 +211,7 @@ export function StxmIngestionPlotPanel({
   onIzeroChange,
   onRegionDragStart,
   onRegionDragEnd,
+  onNormalizationInteractionChange,
   onAutoSuggestRegions,
   regionTrayOpen,
   onRegionTrayOpenChange,
@@ -264,6 +266,8 @@ export function StxmIngestionPlotPanel({
       derivedOpticalAvailable,
       hasIeData,
       isTeyExperiment,
+      configuredSampleRegionCount: regions.length,
+      configuredIzero: izero != null,
     }),
     [
       betaSeries,
@@ -275,7 +279,9 @@ export function StxmIngestionPlotPanel({
       hasLinkedMolecule,
       hasReducedResult,
       isTeyExperiment,
+      izero,
       regionSpectra,
+      regions.length,
     ],
   );
 
@@ -541,7 +547,19 @@ export function StxmIngestionPlotPanel({
   }, [isPeakSetMode, isPlotNormalizationMode, normalizationSelectionTarget]);
 
   const showComputingOverlay =
-    isComputing && !plotHasDisplayableData(result, regionSpectra);
+    (isComputing ||
+      (regions.length > 0 &&
+        izero != null &&
+        regionSpectra.length === 0 &&
+        energyEv.length > 0)) &&
+    !plotHasDisplayableData(result, regionSpectra);
+
+  const awaitingRegionSpectra =
+    regions.length > 0 &&
+    izero != null &&
+    regionSpectra.length === 0 &&
+    energyEv.length > 0 &&
+    !isComputing;
 
   const handleRegionDragStartWithTarget = useCallback(
     (_target: RegionDragTarget) => {
@@ -564,6 +582,7 @@ export function StxmIngestionPlotPanel({
         isPlotNormalizationMode && plotModel.showNormalizationShading
       }
       onNormalizationEdgeEnergyChange={handleNormalizationEdgeEnergyChange}
+      onNormalizationInteractionChange={onNormalizationInteractionChange}
       primaryTraceLabel={plotModel.primaryTraceLabel}
       primaryTraceColor={plotModel.primaryTraceColor}
       primaryTraceLegendId={plotModel.primaryTraceLegendId}
@@ -633,7 +652,7 @@ export function StxmIngestionPlotPanel({
     />
   ) : (
     <>
-      {showComputingOverlay ? (
+      {showComputingOverlay || awaitingRegionSpectra ? (
         <div
           className="border-border bg-default/20 flex flex-1 items-center justify-center rounded-md border"
           style={{ minHeight: height }}

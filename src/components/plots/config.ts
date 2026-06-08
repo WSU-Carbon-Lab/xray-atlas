@@ -49,6 +49,8 @@ export const PLOT_CONFIG = {
   peakPlotHeightRatio: 0.6,
   /** Stacked optical-link split: top imaginary panel height fraction. */
   opticalLinkSplitHeightRatio: 0.5,
+  /** Stacked residual subplot: bottom panel height fraction (LC fitting and similar). */
+  residualSubplotHeightRatio: 0.32,
   energyPaddingFraction: 0.032,
   tooltipSnapThresholdFraction: 0.02,
   interaction: {

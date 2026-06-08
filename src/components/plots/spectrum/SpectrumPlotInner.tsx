@@ -26,6 +26,7 @@ import { eventToPlotCoords } from "../utils/svgPlotPointer";
 import { PLOT_CONFIG, useChartThemeFromCSS } from "../config";
 import { useSubplotLayout } from "./useSubplotLayout";
 import { useOpticalLinkSplitLayout } from "./useOpticalLinkSplitLayout";
+import { useResidualSubplotLayout } from "./useResidualSubplotLayout";
 import { useTraceStackSplitLayout } from "./useTraceStackSplitLayout";
 import {
   OpticalLinkSplitSpectrumBody,
@@ -144,6 +145,8 @@ export function SpectrumPlotInner({
   opticalLinkSplitView = false,
   traceStackSplitView = false,
   traceStackPanels,
+  residualSubplotSplitView = false,
+  residualSubplot,
   betaDeltaLink: betaDeltaLinkLegacy,
   showThetaData = false,
   showPhiData = false,
@@ -157,6 +160,7 @@ export function SpectrumPlotInner({
   showNormalizationShading = false,
   normalizationEdgeHandlesEnabled = false,
   onNormalizationEdgeEnergyChange,
+  onNormalizationInteractionChange,
   cursorMode: externalCursorMode,
   onCursorModeChange,
   spectrumCsvContextMenu,
@@ -305,6 +309,13 @@ export function SpectrumPlotInner({
     traceStackSplitView &&
     (traceStackPanels?.length ?? 0) >= 2 &&
     !opticalSplitActive;
+
+  const residualSplitActive =
+    residualSubplotSplitView === true &&
+    residualSubplot != null &&
+    residualSubplot.points.length > 0 &&
+    !opticalSplitActive &&
+    !traceStackSplitActive;
 
   const linkedOpticalAreaBands = useMemo(() => {
     if (!linkedOptical.active || graphStyle !== "area" || opticalSplitActive) {
@@ -589,18 +600,37 @@ export function SpectrumPlotInner({
     realYAxisQuantity,
   );
 
+  const residualSubplotLayout = useResidualSubplotLayout(
+    width,
+    contentHeight,
+    extents,
+    residualSubplot?.points ?? [],
+    energyStats,
+    yAxisQuantity,
+  );
+
   const subplotLayout = useSubplotLayout(
     width,
     contentHeight,
     extents,
-    peakViz.hasPeakVisualization && !opticalSplitActive && !traceStackSplitActive,
+    peakViz.hasPeakVisualization &&
+      !opticalSplitActive &&
+      !traceStackSplitActive &&
+      !residualSplitActive,
     peakViz.selectedGeometryPoints,
     energyStats,
     absorptionStats,
     yAxisQuantity,
   );
 
-  const { mainPlot, peakPlot, hasSubplot } = subplotLayout;
+  const {
+    mainPlot: defaultMainPlot,
+    peakPlot,
+    hasSubplot,
+  } = subplotLayout;
+  const mainPlot = residualSplitActive
+    ? residualSubplotLayout.mainPlot
+    : defaultMainPlot;
   const interactionPlot = opticalSplitActive
     ? opticalSplitLayout.imaginaryPlot
     : traceStackSplitActive && traceStackSplitLayout.panels[0] != null
@@ -680,6 +710,54 @@ export function SpectrumPlotInner({
     ];
     return opticalSplitLayout.realPlot.yScale.copy().domain(domain);
   }, [opticalSplitLayout.realPlot.yScale]);
+
+  const residualSubplotTrace = useMemo((): TraceData | null => {
+    if (!residualSplitActive || residualSubplot == null) {
+      return null;
+    }
+    return {
+      type: "scattergl",
+      mode: "lines",
+      name: residualSubplot.label,
+      legendId: residualSubplot.legendId,
+      x: residualSubplot.points.map((point) => point.energy),
+      y: residualSubplot.points.map((point) => point.absorption),
+      line: {
+        color: residualSubplot.color ?? "var(--muted)",
+        width: 2,
+        dash: residualSubplot.lineDash ?? "solid",
+      },
+      hovertemplate:
+        `<b>${residualSubplot.label}</b><br>` +
+        "Energy: %{x:.3f} eV<br>Value: %{y:.4f}" +
+        "<extra></extra>",
+      showlegend: false,
+    };
+  }, [residualSplitActive, residualSubplot]);
+
+  const residualPlotMetrics = useMemo(() => {
+    const residualPlot = residualSubplotLayout.residualPlot;
+    const plotWidth =
+      residualPlot.dimensions.width -
+      residualPlot.dimensions.margins.left -
+      residualPlot.dimensions.margins.right;
+    const plotHeight =
+      residualPlot.dimensions.height -
+      residualPlot.dimensions.margins.top -
+      residualPlot.dimensions.margins.bottom;
+    const xScale = zoomedXScale.copy().range([0, plotWidth]);
+    const yScale = residualPlot.yScale.copy().range([plotHeight, 0]);
+    return { xScale, yScale, plotWidth, plotHeight };
+  }, [residualSubplotLayout.residualPlot, zoomedXScale]);
+
+  const residualYAxisPresentation = useMemo(() => {
+    const yDomain = residualSubplotLayout.residualPlot.yScale.domain() as [
+      number,
+      number,
+    ];
+    const q: SpectrumYAxisQuantity = yAxisQuantity ?? "intensity";
+    return spectrumYAxisPresentation(q, yDomain[0] ?? 0, yDomain[1] ?? 1);
+  }, [residualSubplotLayout.residualPlot.yScale, yAxisQuantity]);
 
   const mainPlotScales = useMemo(
     () => ({
@@ -1156,6 +1234,17 @@ export function SpectrumPlotInner({
         bottom: last.bottom,
       };
     }
+    if (residualSplitActive) {
+      const mainMargins = residualSubplotLayout.mainPlot.dimensions.margins;
+      const residualMargins =
+        residualSubplotLayout.residualPlot.dimensions.margins;
+      return {
+        left: mainMargins.left,
+        right: mainMargins.right,
+        top: mainMargins.top,
+        bottom: residualMargins.bottom,
+      };
+    }
     if (hasSubplot && peakPlot) {
       const mainMargins = mainPlot.dimensions.margins;
       const peakMargins = peakPlot.dimensions.margins;
@@ -1171,6 +1260,8 @@ export function SpectrumPlotInner({
   }, [
     opticalSplitActive,
     opticalSplitLayout,
+    residualSplitActive,
+    residualSubplotLayout,
     traceStackSplitActive,
     traceStackSplitLayout.panels,
     hasSubplot,
@@ -1185,6 +1276,7 @@ export function SpectrumPlotInner({
   const panGroupRef = useRef<SVGGElement | null>(null);
   const panOverlayRef = useRef<SVGGElement | null>(null);
   const plotClipId = useId();
+  const residualPlotClipId = useId();
 
   const PAN_DRAG_CLASS = "spectrum-plot-pan-dragging";
 
@@ -1359,7 +1451,20 @@ export function SpectrumPlotInner({
         plotX <= mainPlotWidth &&
         plotY >= 0 &&
         plotY <= mainPlotHeight;
-      if (!inYGutter && !inXGutter && !inPlotInterior) {
+      const inResidualInterior =
+        residualSplitActive &&
+        plotX >= 0 &&
+        plotX <= residualPlotMetrics.plotWidth &&
+        event.clientY - rect.top >= mainPlot.dimensions.height &&
+        event.clientY - rect.top <=
+          mainPlot.dimensions.height +
+            residualSubplotLayout.residualPlot.dimensions.height;
+      if (
+        !inYGutter &&
+        !inXGutter &&
+        !inPlotInterior &&
+        !inResidualInterior
+      ) {
         return;
       }
       event.preventDefault();
@@ -1383,7 +1488,13 @@ export function SpectrumPlotInner({
       }
 
       const currentX = zoomedXDomain ?? dataXBounds;
-      const anchorX = zoomedXScale.invert(plotX);
+      const anchorX = zoomedXScale.invert(
+        inResidualInterior
+          ? event.clientX -
+              rect.left -
+              residualSubplotLayout.residualPlot.dimensions.margins.left
+          : plotX,
+      );
       const nextX = wheelZoomAxisDomain(
         currentX,
         dataXBounds,
@@ -1405,10 +1516,14 @@ export function SpectrumPlotInner({
       interactionPlot.dimensions.margins.bottom,
       interactionPlot.dimensions.margins.left,
       interactionPlot.dimensions.margins.top,
+      mainPlot.dimensions.height,
       mainPlotHeight,
       mainPlotWidth,
       minYZoomSpan,
       minZoomSpan,
+      residualPlotMetrics.plotWidth,
+      residualSplitActive,
+      residualSubplotLayout.residualPlot.dimensions.height,
       yAxisZoomPanEnabled,
       zoomedXDomain,
       zoomedXScale,
@@ -1423,7 +1538,7 @@ export function SpectrumPlotInner({
     return tooltipData.rows
       .filter(
         (r): r is { label: string; value: number; color: string } =>
-          r.value !== null,
+          r.value !== null && Number.isFinite(r.value),
       )
       .map((r) => ({ value: r.value, color: r.color }));
   }, [tooltipData, effectiveCursorMode]);
@@ -1562,6 +1677,16 @@ export function SpectrumPlotInner({
             <clipPath id={plotClipId}>
               <rect x={0} y={0} width={mainPlotWidth} height={mainPlotHeight} />
             </clipPath>
+            {residualSplitActive ? (
+              <clipPath id={residualPlotClipId}>
+                <rect
+                  x={0}
+                  y={0}
+                  width={residualPlotMetrics.plotWidth}
+                  height={residualPlotMetrics.plotHeight}
+                />
+              </clipPath>
+            ) : null}
           </defs>
           <g>
             <rect
@@ -1748,6 +1873,7 @@ export function SpectrumPlotInner({
                     plotSvgRef={svgRef}
                     energyDomain={dataXBounds}
                     onEdgeEnergyChange={onNormalizationEdgeEnergyChange}
+                    onInteractionChange={onNormalizationInteractionChange}
                   />
                 </g>
               )}
@@ -1793,7 +1919,7 @@ export function SpectrumPlotInner({
               scales={mainPlotScales}
               dimensions={mainPlot.dimensions}
               themeColors={themeColors}
-              showXAxisLabel={!hasSubplot}
+              showXAxisLabel={!hasSubplot && !residualSplitActive}
               yAxisLabel={yAxisPrimary.label}
               yTickFormat={(v) => yAxisPrimary.tickFormat(Number(v))}
             />
@@ -1870,6 +1996,65 @@ export function SpectrumPlotInner({
               ) : null}
             </g>
           </g>
+
+          {residualSplitActive &&
+          residualSubplotTrace != null &&
+          residualSubplot != null ? (
+            <g transform={`translate(0, ${mainPlot.dimensions.height})`}>
+              <rect
+                x={residualSubplotLayout.residualPlot.dimensions.margins.left}
+                y={residualSubplotLayout.residualPlot.dimensions.margins.top}
+                width={residualPlotMetrics.plotWidth}
+                height={residualPlotMetrics.plotHeight}
+                fill={themeColors.plot}
+              />
+              <g
+                transform={`translate(${residualSubplotLayout.residualPlot.dimensions.margins.left}, ${residualSubplotLayout.residualPlot.dimensions.margins.top})`}
+              >
+                <ChartGrid
+                  scales={{
+                    xScale: residualPlotMetrics.xScale,
+                    yScale: residualPlotMetrics.yScale,
+                  }}
+                  dimensions={residualSubplotLayout.residualPlot.dimensions}
+                  themeColors={themeColors}
+                />
+                <g clipPath={`url(#${residualPlotClipId})`}>
+                  <ChartSpectrumLines
+                    traces={[residualSubplotTrace]}
+                    scales={{
+                      xScale: residualPlotMetrics.xScale,
+                      yScale: residualPlotMetrics.yScale,
+                    }}
+                    graphStyle={graphStyle}
+                    idPrefix="lcf-residual"
+                  />
+                </g>
+              </g>
+              <ChartAxes
+                scales={{
+                  xScale: residualPlotMetrics.xScale,
+                  yScale: residualPlotMetrics.yScale,
+                }}
+                dimensions={residualSubplotLayout.residualPlot.dimensions}
+                themeColors={themeColors}
+                showXAxisLabel
+                yAxisLabel={residualYAxisPresentation.label}
+                yTickFormat={(value) =>
+                  residualYAxisPresentation.tickFormat(
+                    typeof value === "number" ? value : value.valueOf(),
+                  )
+                }
+              />
+              <text
+                x={residualSubplotLayout.residualPlot.dimensions.margins.left + 4}
+                y={residualSubplotLayout.residualPlot.dimensions.margins.top + 12}
+                className="fill-[var(--text-secondary)] text-[10px] font-medium"
+              >
+                {residualSubplot.label}
+              </text>
+            </g>
+          ) : null}
 
           {hasSubplot && peakPlot && (
             <g transform={`translate(0, ${interactionPlot.dimensions.height})`}>

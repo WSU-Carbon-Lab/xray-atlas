@@ -10,10 +10,7 @@ import {
   ALS_5322_INSTRUMENT_LABEL,
   ALS_5322_INSTRUMENT_SLUG,
   defaultDashboardStepMetadata,
-  type DashboardIngestionResult,
-  type DashboardPreviewStepMetadata,
-  type DashboardReduceStepMetadata,
-  type DashboardRegionsStepMetadata,
+  type DashboardLcfStepMetadata,
   type DashboardStepMetadata,
   type DashboardWorkspaceContext,
   type DashboardWorkspaceTab,
@@ -32,9 +29,11 @@ import {
   pickStxmRootDirectory,
 } from "~/features/dashboard/lib/localDirectoryBrowser";
 import {
+  getExperimentDirectory,
   resolveStxmDirectoryLayout,
   type StxmDirectoryLayout,
 } from "~/features/dashboard/lib/resolveDirectoryLayout";
+import { useStxmSessionFile } from "./use-stxm-session-file";
 import {
   loadDirectoryHandle,
   loadRecentFolders,
@@ -57,10 +56,12 @@ import {
   grantStxmComputeConsent,
   readStxmComputeConsentGranted,
 } from "~/lib/stxm/compute-consent";
-import { IngestionTab, LcfPlaceholder } from "./ingestion-tab";
+import { IngestionTab } from "./ingestion-tab";
+import { LcfFittingTab } from "./lcf-fitting-tab";
 import { PreviewSpectraTab } from "./preview-spectra-tab";
 import { StxmWorkspaceOnboarding } from "./stxm-workspace-onboarding";
 import { WorkspaceChrome } from "./workspace-chrome";
+import { resolveStxmCatalogEntryForScanId } from "./resolve-stxm-catalog-entry";
 
 const BL5322_BREADCRUMB = "BL5322";
 
@@ -120,6 +121,8 @@ export function Als5322WorkspacePage() {
     string | null
   >(null);
   const scanSelectGenerationRef = useRef(0);
+  const [experimentDirectory, setExperimentDirectory] =
+    useState<StxmDirectoryHandle | null>(null);
 
   const applyBeamtimeScanCounts = useCallback(
     (experimentName: string, scanCount: number, nexafsLineScanCount: number) => {
@@ -164,6 +167,12 @@ export function Als5322WorkspacePage() {
   const stepMetadata =
     sessionQuery.data?.stepMetadata ?? defaultDashboardStepMetadata();
 
+  const stxmSession = useStxmSessionFile({
+    experimentDirectory,
+    experimentName: selectedBeamtime,
+    legacyStepMetadata: stepMetadata,
+  });
+
   const folderAccessReady = Boolean(rootHandle) || Boolean(pendingFolderAccess);
   const workspaceUnlocked = computeConsentGranted && folderAccessReady;
   const showOnboarding = folderRestoreAttempted && !workspaceUnlocked;
@@ -178,6 +187,47 @@ export function Als5322WorkspacePage() {
       setSessionId(sessionIdFromUrl);
     }
   }, [sessionIdFromUrl]);
+
+  useEffect(() => {
+    if (!rootHandle || !directoryLayout || !selectedBeamtime) {
+      setExperimentDirectory(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const directory = await getExperimentDirectory(
+          rootHandle,
+          directoryLayout,
+          selectedBeamtime,
+        );
+        if (!cancelled) {
+          setExperimentDirectory(directory);
+        }
+      } catch {
+        if (!cancelled) {
+          setExperimentDirectory(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [directoryLayout, rootHandle, selectedBeamtime]);
+
+  const persistLcf = useCallback(
+    async (lcf: DashboardLcfStepMetadata) => {
+      if (!sessionId) {
+        return;
+      }
+      const next: DashboardStepMetadata = {
+        ...stepMetadata,
+        lcf,
+      };
+      await updateSession.mutateAsync({ sessionId, stepMetadata: next });
+    },
+    [sessionId, stepMetadata, updateSession],
+  );
 
   const persistWorkspace = useCallback(
     async (patch: Partial<DashboardWorkspaceContext>) => {
@@ -491,13 +541,16 @@ export function Als5322WorkspacePage() {
     [directoryLayout, loadCatalog, persistWorkspace, rootHandle],
   );
 
-  const handleSelectScan = useCallback(
-    async (entry: StxmCatalogEntry) => {
+  const loadScanIntoIngestion = useCallback(
+    async (
+      entry: StxmCatalogEntry,
+      options?: { flushSession?: boolean },
+    ): Promise<boolean> => {
       if (!rootHandle || !selectedBeamtime || !directoryLayout) {
-        return;
+        return false;
       }
-      if (entry.relativePath === selectedEntry?.relativePath) {
-        return;
+      if (options?.flushSession !== false) {
+        await stxmSession.flushSession();
       }
       const generation = scanSelectGenerationRef.current + 1;
       scanSelectGenerationRef.current = generation;
@@ -505,33 +558,34 @@ export function Als5322WorkspacePage() {
       setIsSelectingScan(true);
       setSelectedEntry(entry);
       try {
-        if (entry.isNexafsLineScan) {
-          const files = await loadScanFilesFromCatalogEntry(
-            rootHandle,
-            directoryLayout,
-            selectedBeamtime,
-            entry,
-          );
-          if (generation !== scanSelectGenerationRef.current) {
-            return;
-          }
-          if (!files) {
-            showToast("Missing paired .xim file for this line scan.", "error");
-            return;
-          }
-          setSelectedFiles(files);
-          setActiveTab("ingestion");
-          void persistWorkspace({
-            selectedScanRelativePath: entry.relativePath,
-            selectedScanBasename: entry.basename,
-            activeTab: "ingestion",
-          });
-        } else {
+        if (!entry.isNexafsLineScan) {
           showToast(
             `${entry.scanType} preview only; select a NEXAFS line scan for ingestion.`,
             "success",
           );
+          return false;
         }
+        const files = await loadScanFilesFromCatalogEntry(
+          rootHandle,
+          directoryLayout,
+          selectedBeamtime,
+          entry,
+        );
+        if (generation !== scanSelectGenerationRef.current) {
+          return false;
+        }
+        if (!files) {
+          showToast("Missing paired .xim file for this line scan.", "error");
+          return false;
+        }
+        setSelectedFiles(files);
+        setActiveTab("ingestion");
+        void persistWorkspace({
+          selectedScanRelativePath: entry.relativePath,
+          selectedScanBasename: entry.basename,
+          activeTab: "ingestion",
+        });
+        return true;
       } finally {
         if (generation === scanSelectGenerationRef.current) {
           setIsSelectingScan(false);
@@ -539,13 +593,68 @@ export function Als5322WorkspacePage() {
         }
       }
     },
+    [directoryLayout, persistWorkspace, rootHandle, selectedBeamtime, stxmSession],
+  );
+
+  const handleSelectScan = useCallback(
+    async (entry: StxmCatalogEntry) => {
+      if (!rootHandle || !selectedBeamtime || !directoryLayout) {
+        return;
+      }
+      if (entry.relativePath === selectedEntry?.relativePath) {
+        if (!entry.isNexafsLineScan) {
+          showToast(
+            `${entry.scanType} preview only; select a NEXAFS line scan for ingestion.`,
+            "success",
+          );
+          return;
+        }
+        if (selectedFiles) {
+          setActiveTab("ingestion");
+          void persistWorkspace({
+            selectedScanRelativePath: entry.relativePath,
+            selectedScanBasename: entry.basename,
+            activeTab: "ingestion",
+          });
+          return;
+        }
+        await loadScanIntoIngestion(entry);
+        return;
+      }
+      await loadScanIntoIngestion(entry);
+    },
     [
       directoryLayout,
+      loadScanIntoIngestion,
       persistWorkspace,
       rootHandle,
       selectedBeamtime,
       selectedEntry?.relativePath,
+      selectedFiles,
     ],
+  );
+
+  const handleOpenIngestionFromPreview = useCallback(
+    async (scanId: string) => {
+      await stxmSession.flushSession();
+      const previewEntry = stxmSession.previewMetadata.spectra.find(
+        (row) => row.scanId === scanId,
+      );
+      const entry = resolveStxmCatalogEntryForScanId(
+        scanId,
+        catalog,
+        previewEntry,
+      );
+      if (!entry) {
+        showToast(
+          "Scan not found in the experiment catalog. Reload the experiment folder and try again.",
+          "error",
+        );
+        return;
+      }
+      await loadScanIntoIngestion(entry, { flushSession: false });
+    },
+    [catalog, loadScanIntoIngestion, stxmSession],
   );
 
   const handleReload = useCallback(async () => {
@@ -569,97 +678,39 @@ export function Als5322WorkspacePage() {
       if (layout && selectedBeamtime) {
         await loadCatalog(selectedBeamtime, { forceRefresh: true });
       }
-      showToast("Reloaded folder contents", "success");
+      showToast(
+        "Reloaded folder contents. New scans appear after listing and classification; preview spectra require reduce or keep-in-cache.",
+        "success",
+      );
     } finally {
       setIsReloading(false);
     }
   }, [folderHandleKey, folderRootName, loadCatalog, refreshBeamtimes, rootHandle, selectedBeamtime]);
 
-  const persistRegions = useCallback(
-    async (regions: DashboardRegionsStepMetadata) => {
-      if (!sessionId) {
-        return;
-      }
-      const next: DashboardStepMetadata = {
-        ...stepMetadata,
-        regions,
-      };
-      await updateSession.mutateAsync({ sessionId, stepMetadata: next });
-      void utils.dashboardSessions.getById.invalidate({ sessionId });
-    },
-    [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
-  );
+  const activeScanId =
+    selectedEntry?.relativePath ?? selectedFiles?.hdrFile.name ?? null;
 
-  const persistReduce = useCallback(
-    async (reduce: DashboardReduceStepMetadata) => {
-      if (!sessionId) {
-        return;
-      }
-      const next: DashboardStepMetadata = {
-        ...stepMetadata,
-        reduce,
-      };
-      await updateSession.mutateAsync({
-        sessionId,
-        status: "ready",
-        stepMetadata: next,
-      });
-      void utils.dashboardSessions.getById.invalidate({ sessionId });
-    },
-    [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
-  );
+  const resolvedRegionsMetadata = activeScanId
+    ? stxmSession.resolveRegions(activeScanId)
+    : undefined;
+  const resolvedIngestionMetadata = activeScanId
+    ? stxmSession.resolveIngestion(activeScanId)
+    : undefined;
+  const resolvedReduceMetadata = activeScanId
+    ? stxmSession.resolveReduce(activeScanId)
+    : undefined;
+  const resolvedExportMetadata = activeScanId
+    ? stxmSession.resolveExport(activeScanId)
+    : undefined;
 
-  const persistIngestion = useCallback(
-    async (ingestion: DashboardIngestionResult) => {
-      if (!sessionId) {
-        return;
-      }
-      const next: DashboardStepMetadata = {
-        ...stepMetadata,
-        ingestion,
-      };
-      await updateSession.mutateAsync({
-        sessionId,
-        status: "ready",
-        stepMetadata: next,
-      });
-      void utils.dashboardSessions.getById.invalidate({ sessionId });
-    },
-    [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
-  );
-
-  const persistPreview = useCallback(
-    async (preview: DashboardPreviewStepMetadata) => {
-      if (!sessionId) {
-        return;
-      }
-      const next: DashboardStepMetadata = {
-        ...stepMetadata,
-        preview,
-      };
-      await updateSession.mutateAsync({
-        sessionId,
-        status: "ready",
-        stepMetadata: next,
-      });
-      void utils.dashboardSessions.getById.invalidate({ sessionId });
-    },
-    [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
-  );
-
-  const persistExport = useCallback(
+  const persistExportForScan = useCallback(
     async (exportMeta: StxmExportStepMetadata) => {
-      if (!sessionId) {
+      if (!activeScanId) {
         return;
       }
-      const next: DashboardStepMetadata = {
-        ...stepMetadata,
-        export: exportMeta,
-      };
-      await updateSession.mutateAsync({ sessionId, stepMetadata: next });
-      void utils.dashboardSessions.getById.invalidate({ sessionId });
+      await stxmSession.persistExport(activeScanId, exportMeta);
     },
-    [sessionId, stepMetadata, updateSession, utils.dashboardSessions.getById],
+    [activeScanId, stxmSession],
   );
 
   const refreshSession = useCallback(() => {
@@ -790,7 +841,7 @@ export function Als5322WorkspacePage() {
         return (
           <IngestionTab
             sessionId={sessionId}
-            exportMetadata={stepMetadata.export}
+            exportMetadata={resolvedExportMetadata}
             hdrFile={selectedFiles.hdrFile}
             ximFile={selectedFiles.ximFile}
             scanLabel={selectedEntry?.relativePath ?? selectedFiles.hdrFile.name}
@@ -805,61 +856,40 @@ export function Als5322WorkspacePage() {
             isSelectingScan={isSelectingScan}
             selectingScanRelativePath={selectingScanRelativePath}
             onSelectCatalogScan={(entry) => void handleSelectScan(entry)}
-            regionsMetadata={stepMetadata.regions}
-            reduceMetadata={stepMetadata.reduce}
-            ingestionMetadata={stepMetadata.ingestion}
-            previewMetadata={stepMetadata.preview}
-            onPersistRegions={persistRegions}
-            onPersistReduce={persistReduce}
-            onPersistIngestion={persistIngestion}
-            onPersistPreview={persistPreview}
-            onPersistExport={persistExport}
-            isSaving={updateSession.isPending}
+            scanRegionsMetadata={resolvedRegionsMetadata}
+            sessionReady={stxmSession.isReady}
+            reduceMetadata={resolvedReduceMetadata}
+            scanIngestionMetadata={resolvedIngestionMetadata}
+            previewMetadata={stxmSession.previewMetadata}
+            onPersistRegions={stxmSession.persistRegions}
+            onPersistReduce={stxmSession.persistReduce}
+            onPersistIngestion={stxmSession.persistIngestion}
+            onPersistPreview={stxmSession.persistPreview}
+            onPersistExport={persistExportForScan}
+            onFlushSession={stxmSession.flushSession}
+            isSaving={stxmSession.isLoading}
           />
         );
       case "preview_spectra":
         return (
           <PreviewSpectraTab
-            entries={stepMetadata.preview?.spectra ?? []}
+            previewMetadata={stxmSession.previewMetadata}
             activeScanId={selectedEntry?.relativePath ?? null}
-            ingestionByScanId={stepMetadata.preview?.ingestionCache ?? {}}
-            compareScanIds={stepMetadata.preview?.compareScanIds ?? []}
-            onCompareScanIdsChange={(scanIds) => {
-              const preview = stepMetadata.preview;
-              if (!preview) {
-                return;
-              }
-              void persistPreview({
-                ...preview,
-                compareScanIds: scanIds,
-              });
-            }}
+            onPersistPreview={stxmSession.persistPreview}
             onSelectScan={(scanId) => {
-              const entry = catalog.find((row) => row.relativePath === scanId);
-              if (entry) {
-                void handleSelectScan(entry);
-              } else {
-                setActiveTab("ingestion");
-                void persistWorkspace({ activeTab: "ingestion" });
-              }
-            }}
-            onRemoveEntry={(scanId) => {
-              const preview = stepMetadata.preview;
-              if (!preview) {
-                return;
-              }
-              const nextCache = { ...(preview.ingestionCache ?? {}) };
-              delete nextCache[scanId];
-              void persistPreview({
-                ...preview,
-                spectra: preview.spectra.filter((row) => row.scanId !== scanId),
-                ingestionCache: nextCache,
-              });
+              void handleOpenIngestionFromPreview(scanId);
             }}
           />
         );
       case "lcf":
-        return <LcfPlaceholder />;
+        return (
+          <LcfFittingTab
+            previewMetadata={stxmSession.previewMetadata}
+            lcfMetadata={stepMetadata.lcf}
+            onPersistPreview={stxmSession.persistPreview}
+            onPersistLcf={persistLcf}
+          />
+        );
       default:
         return null;
     }
@@ -875,33 +905,32 @@ export function Als5322WorkspacePage() {
     grantStoredFolderAccess,
     handlePickFolder,
     handleSelectBeamtime,
+    handleOpenIngestionFromPreview,
     handleSelectScan,
     isLoadingBeamtimes,
     isEnrichingCatalog,
     isLoadingCatalog,
     isPicking,
-    persistReduce,
-    persistIngestion,
-    persistPreview,
-    persistRegions,
+    persistExportForScan,
+    persistLcf,
     persistWorkspace,
+    stepMetadata.lcf,
     pendingFolderAccess,
     refreshBeamtimes,
     rootHandle,
     selectedBeamtime,
     selectedEntry,
     selectedFiles,
-    stepMetadata.ingestion,
-    stepMetadata.preview,
-    stepMetadata.reduce,
-    stepMetadata.regions,
-    stepMetadata.export,
+    stxmSession,
+    sessionQuery.isSuccess,
     sessionId,
-    persistExport,
     refreshSession,
-    updateSession.isPending,
     isSelectingScan,
     selectingScanRelativePath,
+    resolvedExportMetadata,
+    resolvedIngestionMetadata,
+    resolvedReduceMetadata,
+    resolvedRegionsMetadata,
   ]);
 
   const workspaceHeader = (

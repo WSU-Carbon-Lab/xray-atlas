@@ -259,6 +259,13 @@ export type SpectrumPlotProps = {
   /** Per-panel points for multi-channel STXM (or similar) stacked split view. */
   traceStackPanels?: readonly TraceStackPanel[];
   /**
+   * When true with {@link residualSubplot}, renders the residual trace in a bottom subplot
+   * sharing the main plot energy axis and horizontal zoom domain.
+   */
+  residualSubplotSplitView?: boolean;
+  /** Residual trace for {@link residualSubplotSplitView} (for example target minus fit). */
+  residualSubplot?: DifferenceSpectrum;
+  /**
    * @deprecated Pass split/coalesce controls via `headerAnalysis` on the right analysis rail.
    */
   opticalLinkSplitToggle?: ReactNode;
@@ -314,6 +321,8 @@ export type SpectrumPlotProps = {
     edge: NormalizationRegionEdgeId,
     energy: number,
   ) => void;
+  /** Fires true while any normalization edge handle is dragged; false when all handles release. */
+  onNormalizationInteractionChange?: (active: boolean) => void;
   /**
    * Replaces the default empty-state copy when `points` is empty (for example browse/preview surfaces that do not upload CSV here).
    */
