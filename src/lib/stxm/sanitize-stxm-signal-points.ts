@@ -21,8 +21,8 @@ export {
  * `i0` alone; sample and derived traces supply both `i0` and `it`; TEY Ie traces may
  * also supply `ie` so drain current ≤ 0 is treated as invalid experiment data.
  *
- * @param i0 Incident (izero region) summed intensity at one energy.
- * @param it Optional transmitted (sample region) summed intensity at the same energy.
+ * @param i0 Incident (izero region) mean counts per pixel at one energy.
+ * @param it Optional transmitted (sample region) mean counts per pixel at the same energy.
  * @param ie Optional TEY drain/monitor intensity at the same energy.
  * @returns `true` when every provided intensity is finite and strictly greater than zero.
  */

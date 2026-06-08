@@ -1,4 +1,4 @@
-import { regionSumAndSigma, type StxmWeightingMode } from "./estimators";
+import { regionMeanAndSigma, type StxmWeightingMode } from "./estimators";
 import { stxmIzeroSeriesColor, stxmRegionSeriesColor } from "./region-colors";
 import { sampleIzeroMasks } from "./regions";
 import type { StxmIzeroBounds, StxmRegionSpectrumSeries, StxmSampleRegion } from "./stxm-region-types";
@@ -57,7 +57,7 @@ function toSeries(
 }
 
 /**
- * Computes izero and per-sample-region raw summed spectra from oriented scan arrays.
+ * Computes izero and per-sample-region raw mean-count spectra (counts per pixel per energy) from oriented scan arrays.
  */
 export function regionRawSpectraFromScan(
   image: Float64Array[],
@@ -73,7 +73,7 @@ export function regionRawSpectraFromScan(
   const ctx = buildInMemoryScanContext(image, energyEv, spatial, izero);
   const energyList = Array.from(energyEv);
   const spectra: StxmRegionSpectrumSeries[] = [];
-  const izeroStats = regionSumAndSigma(ctx.image, ctx.izeroMask, weightingMode);
+  const izeroStats = regionMeanAndSigma(ctx.image, ctx.izeroMask, weightingMode);
   spectra.push(
     toSeries(
       "izero",
@@ -81,7 +81,7 @@ export function regionRawSpectraFromScan(
       izero.izeroLo,
       izero.izeroHi,
       energyList,
-      izeroStats.sum,
+      izeroStats.mean,
       izeroStats.sigma,
       stxmIzeroSeriesColor(),
       true,
@@ -98,7 +98,7 @@ export function regionRawSpectraFromScan(
     if (!sampleMask.some(Boolean)) {
       return;
     }
-    const stats = regionSumAndSigma(ctx.image, sampleMask, weightingMode);
+    const stats = regionMeanAndSigma(ctx.image, sampleMask, weightingMode);
     spectra.push(
       toSeries(
         region.spotLabel.trim() || `spot${index + 1}`,
@@ -106,7 +106,7 @@ export function regionRawSpectraFromScan(
         region.sampleLo,
         region.sampleHi,
         energyList,
-        stats.sum,
+        stats.mean,
         stats.sigma,
         stxmRegionSeriesColor(index),
       ),

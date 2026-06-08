@@ -9,6 +9,7 @@ import {
   mergeCatalogEntriesPreservingThumbnails,
   parsePlaceholderCatalogEntries,
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
+import { NEXAFS_LINE_SCAN_TYPE } from "~/lib/stxm/isNexafsLineScan";
 import {
   applyParsedCatalogEntry,
   buildPlaceholderCatalogEntry,
@@ -86,6 +87,40 @@ describe("mergeCatalogEntriesPreservingThumbnails", () => {
     const merged = mergeCatalogEntriesPreservingThumbnails(previous, incoming);
     expect(merged[0]?.thumbnailDataUrl).toBe("data:image/png;base64,abc");
     expect(merged[0]?.enrichmentStatus).toBe("thumbnail");
+  });
+
+  it("retains checkpoint rows while listing progress is partial", () => {
+    const previous = [
+      catalogEntry("a/scan.hdr"),
+      catalogEntry("b/scan.hdr"),
+    ];
+    const incoming = [
+      buildPlaceholderCatalogEntry({
+        name: "scan.hdr",
+        relativePath: "a/scan.hdr",
+      }),
+    ];
+    const merged = mergeCatalogEntriesPreservingThumbnails(previous, incoming);
+    expect(merged.map((row) => row.relativePath)).toEqual([
+      "a/scan.hdr",
+      "b/scan.hdr",
+    ]);
+  });
+
+  it("appends newly discovered paths from incoming listing progress", () => {
+    const previous = [catalogEntry("cached.hdr")];
+    const incoming = [
+      catalogEntry("cached.hdr"),
+      buildPlaceholderCatalogEntry({
+        name: "new.hdr",
+        relativePath: "folder/new.hdr",
+      }),
+    ];
+    const merged = mergeCatalogEntriesPreservingThumbnails(previous, incoming);
+    expect(merged.map((row) => row.relativePath)).toEqual([
+      "cached.hdr",
+      "folder/new.hdr",
+    ]);
   });
 });
 
@@ -165,6 +200,40 @@ describe("parsePlaceholderCatalogEntries", () => {
       entries,
     );
     expect(entries[0]?.scanType).toBe("NEXAFS Line Scan");
+  });
+
+  it("classifies line scans from a header type peek without full axis parsing", async () => {
+    const placeholder = buildPlaceholderCatalogEntry({
+      name: "line.hdr",
+      relativePath: "folder/line.hdr",
+    });
+    const entries = [placeholder];
+    await parsePlaceholderCatalogEntries(
+      [
+        {
+          name: "line.hdr",
+          relativePath: "folder/line.hdr",
+          handle: {
+            getFile: async () => {
+              const hdrText = `${NEXAFS_LINE_SCAN_TYPE}\n`;
+              const blob = {
+                text: async () => hdrText,
+              };
+              return {
+                size: hdrText.length,
+                text: async () => hdrText,
+                slice: () => blob,
+              } as File;
+            },
+          } as never,
+        },
+      ],
+      entries,
+    );
+    expect(entries[0]?.scanType).toBe("NEXAFS Line Scan");
+    expect(entries[0]?.category).toBe("line_scan");
+    expect(entries[0]?.isNexafsLineScan).toBe(true);
+    expect(entries[0]?.energyMinEv).toBe(null);
   });
 
   it("stops parsing when the abort signal is already set", async () => {

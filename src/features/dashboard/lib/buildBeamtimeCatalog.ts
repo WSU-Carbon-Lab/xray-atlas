@@ -1,7 +1,10 @@
 import {
   buildCatalogEntryFromHdr,
+  buildCatalogEntryFromProbe,
   buildPlaceholderCatalogEntry,
   catalogEntryEnrichmentStatus,
+  HDR_SCAN_TYPE_PEEK_BYTES,
+  probeHdrScanFromText,
   scanThumbnailDataUrl,
   type StxmCatalogEntry,
   ximBasenamesForHdrBasename,
@@ -37,8 +40,11 @@ export const BEAMTIME_CATALOG_BUILD_TIMEOUT_MS = BEAMTIME_CATALOG_STALL_TIMEOUT_
 
 const DEFAULT_CATALOG_BATCH_FLUSH_MS = 50;
 
-/** Concurrent `.hdr` metadata reads during phase-2 catalog enrichment. */
-export const HDR_PARSE_CONCURRENCY = 6;
+/** Concurrent lightweight `.hdr` type probes during catalog classification. */
+export const HDR_PROBE_CONCURRENCY = 12;
+
+/** @deprecated Use {@link HDR_PROBE_CONCURRENCY}. */
+export const HDR_PARSE_CONCURRENCY = HDR_PROBE_CONCURRENCY;
 
 export type StreamBeamtimeCatalogPhase =
   | "cache"
@@ -116,19 +122,33 @@ export type EnrichCatalogThumbnailsOptions = {
 };
 
 /**
- * Merges `incoming` catalog rows with thumbnail fields from `previous` when paths match.
+ * Unions `previous` and `incoming` catalog rows by `relativePath`, preferring `incoming`
+ * metadata while preserving thumbnail fields from `previous` when paths match.
+ *
+ * During incremental listing, `incoming` may be a partial walk; rows present only in
+ * `previous` (for example checkpoint-hydrated scans) stay visible until the walk reports them.
  */
 export function mergeCatalogEntriesPreservingThumbnails(
   previous: StxmCatalogEntry[],
   incoming: StxmCatalogEntry[],
 ): StxmCatalogEntry[] {
-  const enrichedByPath = new Map(
-    previous
-      .filter((row) => row.thumbnailDataUrl)
-      .map((row) => [row.relativePath, row] as const),
+  const previousByPath = new Map(
+    previous.map((row) => [row.relativePath, row] as const),
   );
-  return incoming.map((row) => {
-    const kept = enrichedByPath.get(row.relativePath);
+  const incomingByPath = new Map(
+    incoming.map((row) => [row.relativePath, row] as const),
+  );
+  const paths = [
+    ...new Set([...previousByPath.keys(), ...incomingByPath.keys()]),
+  ].sort((left, right) => left.localeCompare(right));
+
+  return paths.map((relativePath) => {
+    const row =
+      incomingByPath.get(relativePath) ?? previousByPath.get(relativePath);
+    if (!row) {
+      throw new Error(`Missing catalog row for ${relativePath}`);
+    }
+    const kept = previousByPath.get(relativePath);
     if (!kept?.thumbnailDataUrl) {
       return row;
     }
@@ -158,7 +178,10 @@ function indicesNeedingThumbnailEnrichment(
 ): number[] {
   return entries
     .map((entry, index) => ({ entry, index }))
-    .filter(({ entry }) => !entry.thumbnailDataUrl)
+    .filter(
+      ({ entry }) =>
+        !entry.thumbnailDataUrl && isLineScanCatalogEntry(entry),
+    )
     .sort((left, right) => {
       const priority =
         thumbnailEnrichmentSortKey(left.entry) -
@@ -171,16 +194,23 @@ function indicesNeedingThumbnailEnrichment(
     .map(({ index }) => index);
 }
 
-async function readHdrText(ref: StxmFileRef): Promise<string | null> {
+async function peekHdrTypeText(ref: StxmFileRef): Promise<string | null> {
   try {
     const hdrFile = await ref.handle.getFile();
     validateStxmFileSize(hdrFile.size, "hdr");
-    const hdrText = await hdrFile.text();
-    readHdr(hdrText);
-    return hdrText;
+    const peekLength = Math.min(hdrFile.size, HDR_SCAN_TYPE_PEEK_BYTES);
+    const peekBlob =
+      peekLength < hdrFile.size
+        ? hdrFile.slice(0, peekLength)
+        : hdrFile;
+    return await peekBlob.text();
   } catch {
     return null;
   }
+}
+
+function isLineScanCatalogEntry(entry: StxmCatalogEntry): boolean {
+  return entry.category === "line_scan" || entry.isNexafsLineScan;
 }
 
 function buildFallbackParsedEntry(ref: StxmFileRef): StxmCatalogEntry {
@@ -206,7 +236,10 @@ function applyParsedCatalogRow(
 }
 
 /**
- * Parses placeholder catalog rows with bounded parallelism; leaves non-placeholder rows unchanged.
+ * Classifies placeholder catalog rows from a `.hdr` type peek with bounded parallelism.
+ *
+ * Line scans are applied to `entries` immediately so the UI can render them first;
+ * other scan kinds are deferred until all line scans are classified.
  */
 export async function parsePlaceholderCatalogEntries(
   refs: StxmFileRef[],
@@ -214,10 +247,10 @@ export async function parsePlaceholderCatalogEntries(
   options?: {
     signal?: AbortSignal;
     concurrency?: number;
-    onRowParsed?: () => void;
+    onRowParsed?: (entry: StxmCatalogEntry) => void;
   },
 ): Promise<void> {
-  const concurrency = options?.concurrency ?? HDR_PARSE_CONCURRENCY;
+  const concurrency = options?.concurrency ?? HDR_PROBE_CONCURRENCY;
   const pending = refs.filter((ref) => {
     const existing = entries.find((row) => row.relativePath === ref.relativePath);
     return (
@@ -228,7 +261,18 @@ export async function parsePlaceholderCatalogEntries(
     return;
   }
 
+  const deferred: StxmCatalogEntry[] = [];
   let cursor = 0;
+
+  const classifyRef = async (ref: StxmFileRef): Promise<StxmCatalogEntry> => {
+    const peek = await peekHdrTypeText(ref);
+    if (!peek) {
+      return buildFallbackParsedEntry(ref);
+    }
+    const probe = probeHdrScanFromText(peek);
+    return buildCatalogEntryFromProbe(ref.name, ref.relativePath, probe);
+  };
+
   const worker = async () => {
     while (true) {
       if (options?.signal?.aborted) {
@@ -243,20 +287,13 @@ export async function parsePlaceholderCatalogEntries(
       if (!ref) {
         return;
       }
-      const hdrText = await readHdrText(ref);
-      const parsed = hdrText
-        ? {
-            ...buildCatalogEntryFromHdr(
-              ref.name,
-              ref.relativePath,
-              hdrText,
-              null,
-            ),
-            enrichmentStatus: "parsed" as const,
-          }
-        : buildFallbackParsedEntry(ref);
-      applyParsedCatalogRow(entries, parsed);
-      options?.onRowParsed?.();
+      const parsed = await classifyRef(ref);
+      if (isLineScanCatalogEntry(parsed)) {
+        applyParsedCatalogRow(entries, parsed);
+        options?.onRowParsed?.(parsed);
+        continue;
+      }
+      deferred.push(parsed);
     }
   };
 
@@ -265,6 +302,21 @@ export async function parsePlaceholderCatalogEntries(
       worker(),
     ),
   );
+
+  if (options?.signal?.aborted) {
+    return;
+  }
+
+  deferred.sort((left, right) =>
+    left.relativePath.localeCompare(right.relativePath),
+  );
+  for (const parsed of deferred) {
+    if (options?.signal?.aborted) {
+      return;
+    }
+    applyParsedCatalogRow(entries, parsed);
+    options?.onRowParsed?.(parsed);
+  }
 }
 
 function countParsedCatalogEntries(entries: StxmCatalogEntry[]): number {

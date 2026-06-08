@@ -1,5 +1,6 @@
 import { isNexafsLineScanType } from "./isNexafsLineScan";
 import { loadStxm } from "./loadStxm";
+import type { HdrScanProbeResult } from "./probeHdrScan";
 import { readHdr } from "./readHdr";
 import {
   parseHdrScanTypeFromText,
@@ -126,6 +127,29 @@ function energyFromHeader(hdrText: string): {
   } catch {
     return { energyMinEv: null, energyMaxEv: null };
   }
+}
+
+/**
+ * Builds a catalog row from a lightweight header probe without reading axis point arrays.
+ */
+export function buildCatalogEntryFromProbe(
+  basename: string,
+  relativePath: string,
+  probe: HdrScanProbeResult,
+): StxmCatalogEntry {
+  return {
+    basename,
+    relativePath,
+    scanType: probe.scanType,
+    category: probe.category,
+    isNexafsLineScan: probe.isNexafsLineScan,
+    paxisCount: null,
+    qaxisCount: null,
+    energyMinEv: null,
+    energyMaxEv: null,
+    thumbnailDataUrl: null,
+    enrichmentStatus: "parsed",
+  };
 }
 
 /**

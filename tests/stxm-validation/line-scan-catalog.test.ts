@@ -77,6 +77,24 @@ describe("filterCatalogLineScans", () => {
     const filtered = filterCatalogLineScans([line, image]);
     expect(filtered.map((row) => row.relativePath)).toEqual(["line.hdr"]);
   });
+
+  it("includes pending placeholders alongside parsed line scans during refresh", () => {
+    const line = catalogRow({
+      relativePath: "line.hdr",
+      category: "line_scan",
+      enrichmentStatus: "parsed",
+    });
+    const newPlaceholder = catalogRow({
+      relativePath: "new-line.hdr",
+      enrichmentStatus: "placeholder",
+      category: "other",
+    });
+    const filtered = filterCatalogLineScans([line, newPlaceholder]);
+    expect(filtered.map((row) => row.relativePath)).toEqual([
+      "new-line.hdr",
+      "line.hdr",
+    ]);
+  });
 });
 
 describe("isCatalogLineScanStripEntry", () => {

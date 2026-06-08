@@ -93,7 +93,10 @@ export function regionSumAndSigma(
 }
 
 /**
- * @deprecated Prefer `regionSumAndSigma`; exposes `mean` as sum divided by row count.
+ * Computes per-energy column means and standard errors over masked spatial rows.
+ *
+ * Poisson MLE uses `sqrt(mean / n)` on the per-pixel mean; empirical and inverse-count
+ * modes derive mean uncertainties from the same masked row block as the standalone STXM app.
  */
 export function regionMeanAndSigma(
   values2d: Float64Array[],

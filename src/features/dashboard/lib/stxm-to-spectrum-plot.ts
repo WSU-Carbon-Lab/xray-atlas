@@ -551,11 +551,13 @@ function buildSingleChannelPlotModel(
     linkImaginaryReal,
     formula,
   );
-  const compareCompanions = buildCompareCompanionSpectra(
-    compareOverlays,
-    channel,
-    rawSignalTransform,
-  );
+  const compareCompanions = regionScoped
+    ? []
+    : buildCompareCompanionSpectra(
+        compareOverlays,
+        channel,
+        rawSignalTransform,
+      );
   const companionSpectra = [
     ...regionCompanions,
     ...(linkedCompanion ? [linkedCompanion] : []),

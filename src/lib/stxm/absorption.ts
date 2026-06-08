@@ -1,10 +1,27 @@
-import { HC_EV_CM } from "./normalization";
+import {
+  energyRegionMask,
+  HC_EV_CM,
+  type StxmNormalizationWindows,
+} from "./normalization";
 
 export type BareAtomBackgroundFit = {
   scale: number;
   offset: number;
   odBare: Float64Array;
   fitMask: boolean[];
+};
+
+/**
+ * Options for {@link fitBareAtomBackground}; when `windows` is set, fit points come from
+ * the inclusive pre- and post-edge energy ranges instead of the scan endpoints.
+ */
+export type FitBareAtomBackgroundOptions = {
+  /** Count of lowest- and highest-energy samples used when `windows` is omitted or yields no points. */
+  nEdge?: number;
+  /** When false, fits `OD ≈ scale * mu` with zero offset. */
+  includeOffset?: boolean;
+  /** Contributor-selected normalization windows; pre and post ranges are unioned for the fit. */
+  windows?: StxmNormalizationWindows;
 };
 
 /**
@@ -48,33 +65,63 @@ export function odErrToBetaErr(
   return out;
 }
 
+function collectEndpointFitIndices(
+  energyCount: number,
+  nEdge: number,
+): number[] {
+  const nLow = Math.min(nEdge, energyCount);
+  const nHigh = Math.min(nEdge, energyCount);
+  const fitIndices: number[] = [];
+  for (let i = 0; i < nLow; i += 1) {
+    fitIndices.push(i);
+  }
+  for (let i = Math.max(energyCount - nHigh, nLow); i < energyCount; i += 1) {
+    if (!fitIndices.includes(i)) {
+      fitIndices.push(i);
+    }
+  }
+  return fitIndices;
+}
+
+function collectWindowFitIndices(
+  energyEv: Float64Array,
+  windows: StxmNormalizationWindows,
+): number[] {
+  const preMask = energyRegionMask(energyEv, windows.preLo, windows.preHi);
+  const postMask = energyRegionMask(energyEv, windows.postLo, windows.postHi);
+  const fitIndices: number[] = [];
+  for (let i = 0; i < energyEv.length; i += 1) {
+    if (preMask[i] || postMask[i]) {
+      fitIndices.push(i);
+    }
+  }
+  return fitIndices;
+}
+
 /**
- * Fits `OD ≈ scale * muMassAbs + offset` on the lowest and highest `nEdge` energy samples.
+ * Fits `OD ≈ scale * muMassAbs + offset` using contributor normalization windows when
+ * supplied, otherwise on the lowest and highest `nEdge` energy samples.
  *
  * @param energyEv - Energy axis in eV.
  * @param od - Optical density samples.
  * @param muMassAbs - Tabulated mass absorption coefficient (cm²/g) at each energy.
- * @param nEdge - Number of points at each edge included in the fit.
- * @param includeOffset - When false, forces offset to zero (scale-only fit).
+ * @param options - Fit windows, endpoint count, and offset policy.
  */
 export function fitBareAtomBackground(
   energyEv: Float64Array,
   od: Float64Array,
   muMassAbs: Float64Array,
-  nEdge = 5,
-  includeOffset = true,
+  options: FitBareAtomBackgroundOptions = {},
 ): BareAtomBackgroundFit {
+  const nEdge = options.nEdge ?? 5;
+  const includeOffset = options.includeOffset ?? true;
   const n = energyEv.length;
-  const nLow = Math.min(nEdge, n);
-  const nHigh = Math.min(nEdge, n);
-  const fitIndices: number[] = [];
-  for (let i = 0; i < nLow; i += 1) {
-    fitIndices.push(i);
-  }
-  for (let i = Math.max(n - nHigh, nLow); i < n; i += 1) {
-    if (!fitIndices.includes(i)) {
-      fitIndices.push(i);
-    }
+  let fitIndices =
+    options.windows != null
+      ? collectWindowFitIndices(energyEv, options.windows)
+      : [];
+  if (fitIndices.length === 0) {
+    fitIndices = collectEndpointFitIndices(n, nEdge);
   }
   const fitMask = Array.from({ length: n }, () => false);
   for (const index of fitIndices) {

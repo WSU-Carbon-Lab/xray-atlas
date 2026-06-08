@@ -141,6 +141,39 @@ describe("summarizeCheckpointEntryCounts", () => {
   });
 });
 
+describe("streamBeamtimeCatalogFast disk reconciliation", () => {
+  it("discovers hdr files absent from the checkpoint when skipInitialCheckpoint is set", async () => {
+    const checkpoint = buildStxmCatalogCheckpoint("2026-03(March)", [
+      parsedEntry("cached.hdr"),
+    ]);
+    const { root, layout } = mockExperimentTree(
+      "2026-03(March)",
+      ["cached.hdr", "new.hdr"],
+      checkpoint,
+    );
+    const progressSnapshots: string[][] = [];
+    const result = await streamBeamtimeCatalogFast(
+      root,
+      layout,
+      "2026-03(March)",
+      {
+        skipInitialCheckpoint: true,
+        onProgress: (progress) => {
+          progressSnapshots.push(
+            progress.entries.map((row) => row.relativePath),
+          );
+        },
+      },
+    );
+    expect(result.complete).toBe(true);
+    expect(result.entries.map((row) => row.relativePath)).toEqual([
+      "cached.hdr",
+      "new.hdr",
+    ]);
+    expect(progressSnapshots.at(-1)).toEqual(["cached.hdr", "new.hdr"]);
+  });
+});
+
 describe("streamBeamtimeCatalogFast abort", () => {
   it("returns partial rows and does not throw when aborted mid-listing", async () => {
     const checkpoint = buildStxmCatalogCheckpoint("2026-03(March)", [

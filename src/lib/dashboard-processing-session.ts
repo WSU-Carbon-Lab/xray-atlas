@@ -139,6 +139,9 @@ export const dashboardRegionsStepMetadataSchema = z.object({
   formula: z.string().optional(),
   thicknessCm: z.number().positive().optional(),
   normalization: stxmNormalizationWindowsSchema.optional(),
+  linkedMoleculeId: z.string().uuid().optional(),
+  linkedMoleculeLabel: z.string().optional(),
+  linkedMoleculeFormula: z.string().optional(),
   regionEditorTrayOpen: z.boolean().optional(),
   intensityGlitches: z.array(stxmIntensityGlitchRecordSchema).optional(),
 });
@@ -202,7 +205,25 @@ export const dashboardPreviewSpectrumEntrySchema = z.object({
   edgeLabel: z.string().optional(),
   hdrFileName: z.string().optional(),
   ximFileName: z.string().optional(),
+  moleculeId: z.string().uuid().optional(),
+  moleculeName: z.string().optional(),
+  /** Incident polarization θ in degrees when known from hdr metadata or scan naming. */
+  incidentThetaDeg: z.number().finite().optional(),
 });
+
+export const dashboardPreviewAtlasEntrySchema = z.object({
+  experimentId: z.string().uuid(),
+  label: z.string().min(1),
+  addedAt: z.string().min(1),
+  moleculeName: z.string().optional(),
+  edgeLabel: z.string().optional(),
+  instrumentName: z.string().optional(),
+  facilityName: z.string().optional(),
+});
+
+export type DashboardPreviewAtlasEntry = z.infer<
+  typeof dashboardPreviewAtlasEntrySchema
+>;
 
 export type DashboardPreviewSpectrumEntry = z.infer<
   typeof dashboardPreviewSpectrumEntrySchema
@@ -218,17 +239,69 @@ export type DashboardStandardOverlay = z.infer<
   typeof dashboardStandardOverlaySchema
 >;
 
+/** Downsampled per-region spectrum series kept in preview session cache. */
+export const dashboardPreviewRegionSpectrumSchema = z.object({
+  regionId: z.string().min(1),
+  spotLabel: z.string(),
+  isIzero: z.boolean().optional(),
+  color: z.string().optional(),
+  energyEv: z.array(z.number()),
+  signal: z.array(z.number()).optional(),
+  signalErr: z.array(z.number()).optional(),
+  od: z.array(z.number()).optional(),
+  odErr: z.array(z.number()).optional(),
+  odNormalized: z.array(z.number()).optional(),
+  massAbsorption: z.array(z.number()).optional(),
+  beta: z.array(z.number()).optional(),
+  delta: z.array(z.number()).optional(),
+});
+
+export type DashboardPreviewRegionSpectrum = z.infer<
+  typeof dashboardPreviewRegionSpectrumSchema
+>;
+
 export const dashboardPreviewStepMetadataSchema = z.object({
   spectra: z.array(dashboardPreviewSpectrumEntrySchema).default([]),
   standardOverlays: z.array(dashboardStandardOverlaySchema).default([]),
   compareScanIds: z.array(z.string()).default([]),
+  compareTraceKeys: z.array(z.string()).default([]),
+  atlasExperiments: z.array(dashboardPreviewAtlasEntrySchema).default([]),
+  atlasGeometryByExperimentId: z.record(z.string(), z.array(z.string())).optional(),
   ingestionCache: z
     .record(z.string(), dashboardIngestionResultSchema)
+    .optional(),
+  regionSpectraCache: z
+    .record(z.string(), z.array(dashboardPreviewRegionSpectrumSchema))
     .optional(),
 });
 
 export type DashboardPreviewStepMetadata = z.infer<
   typeof dashboardPreviewStepMetadataSchema
+>;
+
+export const dashboardLcfFitResultSchema = z.object({
+  fractions: z.array(z.number()),
+  referenceLabels: z.array(z.string()),
+  reducedChiSquare: z.number(),
+  computedAt: z.string().min(1),
+});
+
+export const dashboardLcfStepMetadataSchema = z.object({
+  targetTraceKey: z.string().nullable().optional(),
+  componentTraceKeys: z.array(z.string()).default([]),
+  /** Slider warm-start weights aligned with `componentTraceKeys` (fraction units). */
+  initialWeights: z.array(z.number()).optional(),
+  channel: z
+    .enum(["od", "od_normalized", "mass_absorption", "beta", "delta"])
+    .optional(),
+  energyMinEv: z.number().optional(),
+  energyMaxEv: z.number().optional(),
+  sumToOne: z.boolean().default(true),
+  lastResult: dashboardLcfFitResultSchema.optional(),
+});
+
+export type DashboardLcfStepMetadata = z.infer<
+  typeof dashboardLcfStepMetadataSchema
 >;
 
 export const DASHBOARD_WORKSPACE_TABS = [
@@ -258,9 +331,14 @@ export const dashboardStepMetadataSchema = z.object({
   activeStep: z.enum(DASHBOARD_WORKSPACE_STEPS).optional(),
   ingest: dashboardIngestStepMetadataSchema.optional(),
   regions: dashboardRegionsStepMetadataSchema.optional(),
+  /** Per-scan region locator metadata keyed by scan id (relative path or basename). */
+  regionsCache: z
+    .record(z.string(), dashboardRegionsStepMetadataSchema)
+    .optional(),
   reduce: dashboardReduceStepMetadataSchema.optional(),
   ingestion: dashboardIngestionResultSchema.optional(),
   preview: dashboardPreviewStepMetadataSchema.optional(),
+  lcf: dashboardLcfStepMetadataSchema.optional(),
   fit: z.record(z.string(), z.unknown()).optional(),
   export: z.record(z.string(), z.unknown()).optional(),
 });
@@ -293,6 +371,174 @@ export function defaultDashboardStepMetadata(): DashboardStepMetadata {
 export function defaultDashboardSessionTitle(now: Date = new Date()): string {
   const stamp = now.toISOString().slice(0, 16).replace("T", " ");
   return `STXM session ${stamp}`;
+}
+
+type RegionsMetadataLookup = Pick<
+  DashboardStepMetadata,
+  "regions" | "regionsCache"
+>;
+
+/**
+ * Resolves persisted region locator metadata for one scan from per-scan cache with legacy fallback.
+ *
+ * Reads `regionsCache[scanId]` first. When cache misses, uses top-level `regions` only when its
+ * `scanId` matches `scanId` or is unset. Returns undefined when no stored locators exist for the scan.
+ *
+ * @param metadata - Session step metadata carrying `regionsCache` and legacy `regions`.
+ * @param scanId - Active scan key (catalog relative path or hdr basename).
+ */
+export function resolveRegionsMetadataForScan(
+  metadata: RegionsMetadataLookup | undefined,
+  scanId: string,
+): DashboardRegionsStepMetadata | undefined {
+  const cached = metadata?.regionsCache?.[scanId];
+  if (cached) {
+    return { ...cached, scanId };
+  }
+  const legacy = metadata?.regions;
+  if (!legacy) {
+    return undefined;
+  }
+  if (legacy.scanId && legacy.scanId !== scanId) {
+    return undefined;
+  }
+  return { ...legacy, scanId };
+}
+
+type LinkedMoleculeLookup = Pick<
+  DashboardStepMetadata,
+  "regions" | "regionsCache" | "preview" | "ingestion"
+>;
+
+export type LinkedMoleculePersistFields = {
+  id: string;
+  label?: string;
+  formula?: string;
+};
+
+/**
+ * Merges linked-molecule identity into per-scan regions metadata without dropping existing region locators.
+ *
+ * @param scanId - Active scan key written onto the payload.
+ * @param base - Existing per-scan regions row, if any.
+ * @param weightingMode - Default weighting when `base` omits it.
+ * @param linkedMolecule - Selected Atlas molecule fields, or `null` to clear stored linkage.
+ */
+export function mergeLinkedMoleculeIntoRegionsMetadata(
+  scanId: string,
+  base: DashboardRegionsStepMetadata | undefined,
+  weightingMode: DashboardRegionsStepMetadata["weightingMode"],
+  linkedMolecule: LinkedMoleculePersistFields | null,
+): DashboardRegionsStepMetadata {
+  const next: DashboardRegionsStepMetadata = {
+    weightingMode: base?.weightingMode ?? weightingMode,
+    ...base,
+    scanId,
+  };
+  if (linkedMolecule) {
+    next.linkedMoleculeId = linkedMolecule.id;
+    next.linkedMoleculeLabel = linkedMolecule.label;
+    next.linkedMoleculeFormula = linkedMolecule.formula;
+  } else {
+    delete next.linkedMoleculeId;
+    delete next.linkedMoleculeLabel;
+    delete next.linkedMoleculeFormula;
+  }
+  return next;
+}
+
+/**
+ * Resolves per-scan linked molecule identity from regions cache, preview spectra rows, or legacy export.
+ *
+ * Prefers `regionsCache[scanId]` molecule fields, then the matching preview spectrum entry, then legacy
+ * top-level regions when `scanId` matches. Does not read session-wide export metadata so scan switches do
+ * not bleed molecule selection across line scans.
+ */
+export function resolveLinkedMoleculeForScan(
+  metadata: LinkedMoleculeLookup | undefined,
+  scanId: string,
+): {
+  linkedMoleculeId: string | null;
+  linkedMoleculeLabel: string | null;
+  linkedMoleculeFormula: string | null;
+} {
+  const regionsRow = resolveRegionsMetadataForScan(metadata, scanId);
+  if (regionsRow?.linkedMoleculeId) {
+    return {
+      linkedMoleculeId: regionsRow.linkedMoleculeId,
+      linkedMoleculeLabel: regionsRow.linkedMoleculeLabel ?? null,
+      linkedMoleculeFormula: regionsRow.linkedMoleculeFormula ?? null,
+    };
+  }
+  const previewRow = metadata?.preview?.spectra.find(
+    (entry) => entry.scanId === scanId && entry.moleculeId,
+  );
+  if (previewRow?.moleculeId) {
+    return {
+      linkedMoleculeId: previewRow.moleculeId,
+      linkedMoleculeLabel: previewRow.moleculeName ?? null,
+      linkedMoleculeFormula: null,
+    };
+  }
+  return {
+    linkedMoleculeId: null,
+    linkedMoleculeLabel: null,
+    linkedMoleculeFormula: null,
+  };
+}
+
+type IngestionMetadataLookup = Pick<
+  DashboardStepMetadata,
+  "ingestion" | "preview"
+>;
+
+/**
+ * Resolves persisted ingestion results for one scan from preview cache with legacy top-level fallback.
+ *
+ * Reads `preview.ingestionCache[scanId]` first. When cache misses, uses top-level `ingestion` only when its
+ * `scanId` matches `scanId`. Returns undefined when no stored ingestion exists for the scan.
+ *
+ * @param metadata - Session step metadata carrying `preview.ingestionCache` and legacy `ingestion`.
+ * @param scanId - Active scan key (catalog relative path or hdr basename).
+ */
+export function resolveIngestionMetadataForScan(
+  metadata: IngestionMetadataLookup | undefined,
+  scanId: string,
+): DashboardIngestionResult | undefined {
+  const cached = metadata?.preview?.ingestionCache?.[scanId];
+  if (cached) {
+    return cached;
+  }
+  const legacy = metadata?.ingestion;
+  if (!legacy) {
+    return undefined;
+  }
+  if (legacy.scanId !== scanId) {
+    return undefined;
+  }
+  return legacy;
+}
+
+/**
+ * Merges per-scan region metadata with normalization windows from persisted ingestion when locators omit them.
+ */
+export function resolveRegionsMetadataForScanWithIngestionFallback(
+  metadata: LinkedMoleculeLookup | undefined,
+  scanId: string,
+): DashboardRegionsStepMetadata | undefined {
+  const regionsRow = resolveRegionsMetadataForScan(metadata, scanId);
+  if (regionsRow?.normalization) {
+    return regionsRow;
+  }
+  const ingestion = resolveIngestionMetadataForScan(metadata, scanId);
+  if (!regionsRow && !ingestion?.normalization) {
+    return regionsRow;
+  }
+  return {
+    ...(regionsRow ?? { weightingMode: "poisson_mle" as const }),
+    scanId,
+    normalization: regionsRow?.normalization ?? ingestion?.normalization,
+  };
 }
 
 /** Parses persisted JSON step metadata from the database with safe fallbacks. */

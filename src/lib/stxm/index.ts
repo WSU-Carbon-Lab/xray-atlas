@@ -11,6 +11,7 @@ export { downsampleHeatmap, percentile, valueToGrayscaleByte } from "./heatmap";
 export {
   applyParsedCatalogEntry,
   buildCatalogEntryFromHdr,
+  buildCatalogEntryFromProbe,
   buildPlaceholderCatalogEntry,
   catalogEntryEnrichmentStatus,
   groupCatalogEntries,
@@ -22,6 +23,7 @@ export {
   EXPERIMENT_FOLDER_PATTERN,
   experimentSortKey,
   isExperimentFolderName,
+  listBeamtimeExperimentFolders,
   sortExperimentFolderNames,
   summarizeBeamtimeFolders,
   type BeamtimeFolderSummary,
@@ -62,6 +64,12 @@ export {
   type StxmIntensityGlitchReason,
 } from "./detect-stxm-intensity-glitches";
 export { orientScan } from "./orientScan";
+export {
+  HDR_SCAN_TYPE_PEEK_BYTES,
+  isProbedLineScan,
+  probeHdrScanFromText,
+  type HdrScanProbeResult,
+} from "./probeHdrScan";
 export { readHdr } from "./readHdr";
 export { readXim } from "./readXim";
 export {
@@ -87,6 +95,7 @@ export {
   odErrToBetaErr,
   odToBeta,
   type BareAtomBackgroundFit,
+  type FitBareAtomBackgroundOptions,
 } from "./absorption";
 export {
   energyRegionMask,
@@ -107,6 +116,26 @@ export {
   type RegionSpectrum,
   type StxmReductionMethod,
 } from "./reduction";
+export {
+  parseIncidentThetaDegFromHdrText,
+  parseIncidentThetaDegFromScanLabel,
+  resolveIncidentThetaDegForScan,
+} from "./parse-incident-theta-from-hdr";
+export {
+  commonEnergyGrid,
+  interpolateSpectrumLinear,
+  sigmaWithFloor,
+} from "./lcf-spectrum-grid";
+export {
+  fitLcf,
+  lcfEnergyOverlapRange,
+  prepareLcfGrid,
+  previewLcfModel,
+  type LcfFitOptions,
+  type LcfFitResult,
+  type LcfFractionBound,
+  type LcfSpectrum,
+} from "./lcf";
 export type {
   StxmHdrMetadata,
   StxmLoadSummary,

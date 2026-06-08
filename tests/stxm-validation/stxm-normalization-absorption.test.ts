@@ -5,6 +5,7 @@ import {
 } from "bun:test";
 import {
   fitBareAtomBackground,
+  massAbsorptionFromOdFit,
   odToBeta,
 } from "~/lib/stxm/absorption";
 import {
@@ -19,6 +20,7 @@ type ExpectAssertions = {
   toBeCloseTo: (expected: number, precision?: number) => void;
   toBeGreaterThan: (expected: number) => void;
   toBeLessThan: (expected: number) => void;
+  not: ExpectAssertions;
 };
 
 const describe = bunDescribe as (name: string, fn: () => void) => void;
@@ -79,8 +81,57 @@ describe("stxm absorption", () => {
     const energyEv = new Float64Array([280, 285, 290, 295, 300]);
     const od = new Float64Array([2, 2, 3, 4, 4]);
     const mu = new Float64Array([1, 1, 1, 1, 1]);
-    const fit = fitBareAtomBackground(energyEv, od, mu, 2, false);
+    const fit = fitBareAtomBackground(energyEv, od, mu, {
+      nEdge: 2,
+      includeOffset: false,
+    });
     expect(fit.scale).toBeCloseTo(3, 5);
     expect(fit.offset).toBe(0);
+  });
+
+  it("fitBareAtomBackground uses normalization windows not scan endpoints", () => {
+    const energyEv = new Float64Array([
+      270, 275, 280, 285, 290, 295, 300, 305, 310, 315, 320, 325, 330, 335,
+      340, 345, 350,
+    ]);
+    const mu = Float64Array.from(energyEv, (energy) => 0.01 * energy);
+    const trueScale = 2.5;
+    const trueOffset = 0.15;
+    const od = Float64Array.from(energyEv, (energy, index) => {
+      if (energy >= 320 && energy <= 340) {
+        return trueScale * (mu[index] ?? 0) + trueOffset;
+      }
+      return 12;
+    });
+    const endpointFit = fitBareAtomBackground(energyEv, od, mu, { nEdge: 5 });
+    const windowFit = fitBareAtomBackground(energyEv, od, mu, {
+      windows: {
+        preLo: 320,
+        preHi: 340,
+        postLo: 320,
+        postHi: 340,
+      },
+    });
+    const endpointMass = massAbsorptionFromOdFit(
+      od,
+      new Float64Array(od.length),
+      endpointFit,
+    );
+    const windowMass = massAbsorptionFromOdFit(
+      od,
+      new Float64Array(od.length),
+      windowFit,
+    );
+    const windowIndex = 12;
+    expect(endpointMass.massAbsorption[windowIndex]).not.toBeCloseTo(
+      mu[windowIndex] ?? 0,
+      1,
+    );
+    expect(windowMass.massAbsorption[windowIndex]).toBeCloseTo(
+      mu[windowIndex] ?? 0,
+      4,
+    );
+    expect(windowFit.scale).toBeCloseTo(trueScale, 4);
+    expect(windowFit.offset).toBeCloseTo(trueOffset, 4);
   });
 });

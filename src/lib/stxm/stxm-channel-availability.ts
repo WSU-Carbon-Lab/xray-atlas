@@ -160,11 +160,11 @@ export function describeStxmChannelUnavailableReason(
     if (!ctx.hasIeData) {
       return "No TEY drain-current monitor column in this scan header.";
     }
-    return "Configure sample and izero regions to sum Ie.";
+    return "Configure sample and izero regions to average Ie.";
   }
 
   if (ingestionChannelUsesRawIntensity(channel)) {
-    return "Configure sample and izero regions to sum raw intensities.";
+    return "Configure sample and izero regions to average raw intensities.";
   }
 
   if (channel === "od") {
@@ -311,12 +311,24 @@ export function buildStxmChannelAvailabilityContext(args: {
   derivedOpticalAvailable: boolean;
   hasIeData: boolean;
   isTeyExperiment: boolean;
+  /** Sample regions configured in the line-scan editor before async spectra recompute finishes. */
+  configuredSampleRegionCount?: number;
+  /** Izero bounds configured in the line-scan editor before async spectra recompute finishes. */
+  configuredIzero?: boolean;
 }): StxmChannelAvailabilityContext {
   const trimmedFormula = args.chemicalFormula?.trim() ?? "";
   const hasFormula = trimmedFormula.length > 0;
-  const hasRawSpectra = args.regionSpectra.length > 0;
-  const hasIzeroRegion = args.regionSpectra.some((series) => series.isIzero);
-  const hasSampleRegions = args.regionSpectra.some((series) => !series.isIzero);
+  const hasComputedRawSpectra = args.regionSpectra.length > 0;
+  const hasConfiguredSampleRegions = (args.configuredSampleRegionCount ?? 0) > 0;
+  const hasConfiguredIzero = args.configuredIzero === true;
+  const hasIzeroRegion =
+    args.regionSpectra.some((series) => series.isIzero) || hasConfiguredIzero;
+  const hasSampleRegions =
+    args.regionSpectra.some((series) => !series.isIzero) ||
+    hasConfiguredSampleRegions;
+  const hasRawSpectra =
+    hasComputedRawSpectra ||
+    (hasConfiguredSampleRegions && hasConfiguredIzero);
 
   return {
     channel: args.channel,

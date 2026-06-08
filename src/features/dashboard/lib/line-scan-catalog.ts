@@ -39,15 +39,12 @@ export function filterCatalogLineScans(
   const nexafsOnly = parsed.filter((entry) => entry.isNexafsLineScan);
   const parsedLineScans = lineScans.length > 0 ? lineScans : nexafsOnly;
 
-  if (entries.length > 0 && placeholders.length === entries.length) {
+  if (parsed.length === 0) {
     return entries;
   }
 
-  if (placeholders.length === 0) {
-    return parsedLineScans;
-  }
-
-  return [...placeholders, ...parsedLineScans];
+  const pendingLineScans = placeholders.filter(isCatalogLineScanStripEntry);
+  return [...pendingLineScans, ...parsedLineScans];
 }
 
 /**

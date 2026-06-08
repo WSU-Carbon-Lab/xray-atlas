@@ -9,6 +9,7 @@ import {
   resolveStxmIngestionPlotDisplay,
   type StxmIngestionPlotDisplayCache,
 } from "~/features/dashboard/hooks/useStxmIngestionPlotState";
+import type { DashboardIngestionResult } from "~/lib/dashboard-processing-session";
 import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
 
 type ExpectAssertions = {
@@ -217,6 +218,51 @@ describe("resolveStxmIngestionPlotDisplay", () => {
     });
     expect(pipelineResolved.display.kind).toBe("regionMultiTrace");
     expect(pipelineResolved.display.model?.regionScopedTraces).toBe(true);
+  });
+
+  it("omits preview compare overlays from region-scoped ingestion legend companions", () => {
+    const otherScanIngestion: DashboardIngestionResult = {
+      scanId: "other-scan",
+      computedAt: "2026-01-01T00:00:00.000Z",
+      weightingMode: "poisson_mle",
+      normalization: {
+        preLo: 279,
+        preHi: 280,
+        postLo: 290,
+        postHi: 291,
+      },
+      energyEv: [280, 281],
+      od: [0.5, 0.6],
+      odErr: [0.01, 0.01],
+      odNormalized: [0.2, 0.3],
+    };
+
+    const model = buildStxmIngestionPlotModel({
+      result: sampleResult,
+      regionSpectra: multiRegionSpectra(),
+      channel: "od",
+      compareOverlays: [
+        {
+          id: "other-scan",
+          label: "Converted/532_260606092.hdr",
+          ingestion: otherScanIngestion,
+          color: "#dc2626",
+        },
+      ],
+      ...plotParams,
+    });
+
+    expect(model.kind).toBe("regionMultiTrace");
+    if (model.kind !== "regionMultiTrace" || model.model == null) {
+      return;
+    }
+    expect(model.model.regionScopedTraces).toBe(true);
+    expect(model.model.companionSpectra.length).toBe(1);
+    expect(
+      model.model.companionSpectra.every(
+        (spectrum) => !spectrum.label.includes("Converted/"),
+      ),
+    ).toBe(true);
   });
 
   it("returns empty with no cache when sample regions exist but regionSpectra is empty", () => {

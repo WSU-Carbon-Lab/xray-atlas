@@ -303,7 +303,9 @@ export function useExperimentCatalogLoad(
         return promise;
       };
 
-      if (!loadOptions?.forceRefresh) {
+      const forceRefresh = loadOptions?.forceRefresh === true;
+
+      if (!forceRefresh) {
         const hydrated = await hydrateBeamtimeCatalogFromCheckpoint(
           rootHandle,
           directoryLayout,
@@ -343,7 +345,7 @@ export function useExperimentCatalogLoad(
           experimentName,
           {
             signal: loadAbort.signal,
-            skipInitialCheckpoint: checkpointPainted,
+            skipInitialCheckpoint: forceRefresh || checkpointPainted,
             onProgress: (progress) => {
               if (!isActiveSession(generation, experimentName)) {
                 return;
@@ -353,23 +355,30 @@ export function useExperimentCatalogLoad(
                 progress.phase,
                 progress.fromCache,
               );
+              const backgroundRefresh =
+                checkpointPainted && !forceRefresh;
               setSnapshot((previous) => ({
                 ...previous,
                 entries: mergeCatalogEntriesPreservingThumbnails(
                   previous.entries,
                   progress.entries,
                 ),
-                discoveredCount: progress.discoveredCount,
+                discoveredCount: Math.max(
+                  previous.discoveredCount,
+                  progress.discoveredCount,
+                ),
                 parsedCount,
                 phase: progress.phase,
                 fromCache: progress.fromCache,
                 state:
-                  checkpointPainted && progress.phase === "listing"
+                  backgroundRefresh && progress.phase === "listing"
                     ? "cache-hit"
                     : nextState,
-                isLoading: checkpointPainted
-                  ? false
-                  : progress.phase !== "complete",
+                isLoading: forceRefresh
+                  ? progress.phase !== "complete"
+                  : backgroundRefresh
+                    ? progress.phase === "parsing"
+                    : progress.phase !== "complete",
                 listingIncomplete: false,
               }));
               if (progress.discoveredCount > 0) {

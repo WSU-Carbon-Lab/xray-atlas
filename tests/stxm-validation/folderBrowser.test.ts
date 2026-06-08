@@ -5,6 +5,7 @@ import {
 } from "bun:test";
 import {
   isExperimentFolderName,
+  listBeamtimeExperimentFolders,
   sortExperimentFolderNames,
   summarizeBeamtimeFolders,
 } from "~/lib/stxm/experimentFolder";
@@ -18,6 +19,7 @@ import {
 type ExpectAssertions = {
   toBe: (expected: unknown) => void;
   toHaveLength: (expected: number) => void;
+  toContain: (expected: unknown) => void;
 };
 
 const describe = bunDescribe as (name: string, fn: () => void) => void;
@@ -28,7 +30,32 @@ describe("isExperimentFolderName", () => {
   it("accepts ALS beamtime folder names", () => {
     expect(isExperimentFolderName("2025_10(October)")).toBe(true);
     expect(isExperimentFolderName("2026-03(March)")).toBe(true);
+    expect(isExperimentFolderName("2024_06")).toBe(true);
+    expect(isExperimentFolderName("2024-06")).toBe(true);
+    expect(isExperimentFolderName("2024_06 (June)")).toBe(true);
+    expect(isExperimentFolderName("2024.06(June)")).toBe(true);
     expect(isExperimentFolderName("misc")).toBe(false);
+    expect(isExperimentFolderName("BL5321 (New STXM)")).toBe(false);
+  });
+});
+
+describe("listBeamtimeExperimentFolders", () => {
+  it("includes every visible sibling when any dated folder exists", () => {
+    const names = listBeamtimeExperimentFolders([
+      "2026-03(March)",
+      "2025_10(October)",
+      "Archive",
+      "misc",
+      ".hidden",
+    ]);
+    expect(names).toHaveLength(4);
+    expect(names).toContain("Archive");
+    expect(names).toContain("misc");
+  });
+
+  it("returns only dated folders when no beamline siblings match", () => {
+    const names = listBeamtimeExperimentFolders(["misc", "calibration"]);
+    expect(names).toHaveLength(0);
   });
 });
 
@@ -49,10 +76,15 @@ describe("summarizeBeamtimeFolders", () => {
     const counts = new Map([
       ["2025_10(October)", { total: 12, nexafs: 4 }],
     ]);
-    const rows = summarizeBeamtimeFolders(["2025_10(October)", "misc"], counts);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.scanCount).toBe(12);
-    expect(rows[0]?.nexafsLineScanCount).toBe(4);
+    const rows = summarizeBeamtimeFolders(
+      ["2025_10(October)", "2026-03(March)", "misc"],
+      counts,
+    );
+    expect(rows).toHaveLength(3);
+    expect(rows[0]?.name).toBe("2026-03(March)");
+    expect(rows[1]?.name).toBe("2025_10(October)");
+    expect(rows[1]?.scanCount).toBe(12);
+    expect(rows[1]?.nexafsLineScanCount).toBe(4);
   });
 });
 
@@ -73,8 +105,9 @@ describe("resolveStxmDirectoryLayoutFromNames", () => {
     );
     expect(layout.mode).toBe("multi-experiment");
     if (layout.mode === "multi-experiment") {
-      expect(layout.experimentNames).toHaveLength(2);
+      expect(layout.experimentNames).toHaveLength(3);
       expect(layout.experimentNames[0]).toBe("2026-03(March)");
+      expect(layout.experimentNames[2]).toBe("misc");
     }
   });
 

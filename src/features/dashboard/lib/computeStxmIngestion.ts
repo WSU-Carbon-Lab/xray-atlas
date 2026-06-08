@@ -6,7 +6,7 @@ import {
 import { computeDeltaFromBetaKkcalcStyle } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
 import { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
 import type { StxmWeightingMode } from "~/lib/stxm/estimators";
-import { regionSumAndSigma } from "~/lib/stxm/estimators";
+import { regionMeanAndSigma } from "~/lib/stxm/estimators";
 import { nexafsBeerLambert } from "~/lib/stxm/nexafs";
 import {
   bareAtomBetaFromMassAbsorption,
@@ -141,13 +141,11 @@ export async function computeStxmIngestion(
     const muMassAbs = Float64Array.from(
       bareMuPoints.map((point) => point.absorption),
     );
-    const fit = fitBareAtomBackground(
-      params.energyEv,
-      beer.od,
-      muMassAbs,
-      5,
-      params.bareAtomIncludeOffset ?? true,
-    );
+    const fit = fitBareAtomBackground(params.energyEv, beer.od, muMassAbs, {
+      nEdge: 5,
+      includeOffset: params.bareAtomIncludeOffset ?? true,
+      windows: normalization,
+    });
     bareAtomScale = fit.scale;
     bareAtomOffset = fit.offset;
     const mass = massAbsorptionFromOdFit(beer.od, beer.sigmaOd, fit);
@@ -225,7 +223,7 @@ export async function computeStxmIngestion(
   };
 }
 
-/** Exposes raw region mean spectra (signal) without Beer-Lambert for display toggles. */
+/** Exposes raw region mean-count spectra (signal) without Beer-Lambert for display toggles. */
 export function computeRegionSignalSpectra(
   image: Float64Array[],
   spatial: Float64Array,
@@ -240,15 +238,15 @@ export function computeRegionSignalSpectra(
     bounds.izeroHi,
   );
   return {
-    i0: regionSumAndSigma(image, izeroMask, weightingMode).sum,
-    iSample: regionSumAndSigma(image, sampleMask, weightingMode).sum,
+    i0: regionMeanAndSigma(image, izeroMask, weightingMode).mean,
+    iSample: regionMeanAndSigma(image, sampleMask, weightingMode).mean,
   };
 }
 
 export { grantKkBrowserConsent, readKkBrowserConsentGranted };
 
 /**
- * Computes Beer-Lambert OD and uncertainty from pre-summed izero and sample intensities.
+ * Computes Beer-Lambert OD and uncertainty from per-pixel mean izero and sample intensities.
  */
 export function beerLambertFromSummedSignals(
   i0: readonly number[],
@@ -337,8 +335,11 @@ export async function enrichRegionSpectraWithReduction(
           energyEv,
           Float64Array.from(od),
           muMassAbs,
-          5,
-          options.bareAtomIncludeOffset ?? true,
+          {
+            nEdge: 5,
+            includeOffset: options.bareAtomIncludeOffset ?? true,
+            windows: options.normalization,
+          },
         );
         const mass = massAbsorptionFromOdFit(
           Float64Array.from(od),

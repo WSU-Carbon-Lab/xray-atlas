@@ -1,4 +1,4 @@
-import { regionSumAndSigma, type StxmWeightingMode } from "./estimators";
+import { regionMeanAndSigma, type StxmWeightingMode } from "./estimators";
 
 export interface NexafsBeerLambertResult {
   od: Float64Array;
@@ -17,7 +17,7 @@ export interface NexafsBeerLambertResult {
  * @param image - Oriented scan `(nSpatial, nEnergy)`.
  * @param sampleMask - Boolean mask selecting sample rows.
  * @param izeroMask - Boolean mask selecting izero rows.
- * @param mode - Region sum weighting mode forwarded to `regionSumAndSigma`.
+ * @param mode - Region mean weighting mode forwarded to `regionMeanAndSigma`.
  * @param eps - Minimum intensity before logarithms.
  */
 export function nexafsBeerLambert(
@@ -27,15 +27,15 @@ export function nexafsBeerLambert(
   mode: StxmWeightingMode = "poisson_mle",
   eps = 1e-10,
 ): NexafsBeerLambertResult {
-  const i0Result = regionSumAndSigma(image, izeroMask, mode, eps);
-  const sampleResult = regionSumAndSigma(image, sampleMask, mode, eps);
+  const i0Result = regionMeanAndSigma(image, izeroMask, mode, eps);
+  const sampleResult = regionMeanAndSigma(image, sampleMask, mode, eps);
   const nEnergy = image[0]?.length ?? 0;
   const od = new Float64Array(nEnergy);
   const sigmaOd = new Float64Array(nEnergy);
 
   for (let col = 0; col < nEnergy; col += 1) {
-    const i0 = Math.max(i0Result.sum[col] ?? eps, eps);
-    const iSample = Math.max(sampleResult.sum[col] ?? eps, eps);
+    const i0 = Math.max(i0Result.mean[col] ?? eps, eps);
+    const iSample = Math.max(sampleResult.mean[col] ?? eps, eps);
     od[col] = Math.log(i0 / iSample);
     const sigmaI0 = i0Result.sigma[col] ?? 0;
     const sigmaI = sampleResult.sigma[col] ?? 0;
@@ -45,9 +45,9 @@ export function nexafsBeerLambert(
   return {
     od,
     sigmaOd,
-    i0: i0Result.sum,
+    i0: i0Result.mean,
     sigmaI0: i0Result.sigma,
-    iSample: sampleResult.sum,
+    iSample: sampleResult.mean,
     sigmaI: sampleResult.sigma,
     nSample: sampleResult.n,
     nIzero: i0Result.n,
