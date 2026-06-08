@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { NexafsPlotChannelId } from "~/features/process-nexafs/nexafs-plot-channels";
 import { parsePlotViewerHiddenTraceIds } from "./plot-viewer-hidden-traces";
 import {
@@ -20,6 +21,23 @@ import {
   type PlotViewerLineStyleBy,
   type PlotViewerStyleMappingField,
 } from "./plot-viewer-trace-styles";
+
+/** Maximum shareable compare datasets encoded in the plot viewer URL. */
+export const PLOT_VIEWER_MAX_DATASETS = 25;
+
+/** Maximum catalog search string length accepted from plot viewer URL state. */
+export const PLOT_VIEWER_MAX_QUERY_LENGTH = 200;
+
+/** Maximum hidden trace keys encoded in the plot viewer URL. */
+export const PLOT_VIEWER_MAX_HIDDEN_TRACE_IDS = 100;
+
+/** Maximum values per catalog facet dimension in the plot viewer URL. */
+export const PLOT_VIEWER_MAX_FACET_VALUES = 30;
+
+/** Maximum geometry keys encoded in the plot viewer URL. */
+export const PLOT_VIEWER_MAX_GEOMETRY_KEYS = 50;
+
+const plotViewerExperimentIdSchema = z.string().uuid();
 
 const PLOT_VIEWER_CHANNEL_IDS = [
   "raw",
@@ -88,11 +106,45 @@ export function defaultPlotViewerUrlState(): PlotViewerUrlState {
   };
 }
 
-function parseCsvParam(raw: string | null): string[] {
+function parseCsvParam(raw: string | null, maxCount?: number): string[] {
   if (!raw) {
     return [];
   }
-  return raw.split(",").map((part) => part.trim()).filter(Boolean);
+  const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+  if (maxCount == null) {
+    return parts;
+  }
+  return parts.slice(0, maxCount);
+}
+
+/**
+ * Normalizes experiment ids for plot viewer state: valid UUIDs only, deduped, capped at
+ * {@link PLOT_VIEWER_MAX_DATASETS}.
+ */
+export function normalizePlotViewerDatasetIds(
+  experimentIds: readonly string[],
+): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of experimentIds) {
+    const trimmed = raw.trim();
+    if (!plotViewerExperimentIdSchema.safeParse(trimmed).success) {
+      continue;
+    }
+    if (seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    result.push(trimmed);
+    if (result.length >= PLOT_VIEWER_MAX_DATASETS) {
+      break;
+    }
+  }
+  return result;
+}
+
+function capPlotViewerQuery(raw: string): string {
+  return raw.slice(0, PLOT_VIEWER_MAX_QUERY_LENGTH);
 }
 
 function isPlotViewerChannel(value: string): value is PlotViewerChannelId {
@@ -219,16 +271,27 @@ export function readPlotViewerParams(
   const hiddenTraceIds = parsePlotViewerHiddenTraceIds(searchParams);
 
   return {
-    query: searchParams.get("q") ?? "",
-    datasets: parseCsvParam(searchParams.get("datasets")),
+    query: capPlotViewerQuery(searchParams.get("q") ?? ""),
+    datasets: normalizePlotViewerDatasetIds(
+      parseCsvParam(searchParams.get("datasets"), PLOT_VIEWER_MAX_DATASETS),
+    ),
     channel,
     facets: {
-      edge: parseCsvParam(searchParams.get("edge")),
-      mol: parseCsvParam(searchParams.get("mol")),
-      instrument: parseCsvParam(searchParams.get("instrument")),
-      facility: parseCsvParam(searchParams.get("facility")),
+      edge: parseCsvParam(searchParams.get("edge"), PLOT_VIEWER_MAX_FACET_VALUES),
+      mol: parseCsvParam(searchParams.get("mol"), PLOT_VIEWER_MAX_FACET_VALUES),
+      instrument: parseCsvParam(
+        searchParams.get("instrument"),
+        PLOT_VIEWER_MAX_FACET_VALUES,
+      ),
+      facility: parseCsvParam(
+        searchParams.get("facility"),
+        PLOT_VIEWER_MAX_FACET_VALUES,
+      ),
     },
-    geometryKeys: parseCsvParam(searchParams.get("geom")),
+    geometryKeys: parseCsvParam(
+      searchParams.get("geom"),
+      PLOT_VIEWER_MAX_GEOMETRY_KEYS,
+    ),
     panelOpen,
     viewMode,
     descriptorFields: parseDescriptorFields(searchParams),
@@ -250,14 +313,16 @@ export function writePlotViewerParams(
   searchParams: URLSearchParams,
   state: PlotViewerUrlState,
 ): void {
-  if (state.query.trim()) {
-    searchParams.set("q", state.query.trim());
+  const query = capPlotViewerQuery(state.query.trim());
+  if (query) {
+    searchParams.set("q", query);
   } else {
     searchParams.delete("q");
   }
 
-  if (state.datasets.length > 0) {
-    searchParams.set("datasets", state.datasets.join(","));
+  const datasets = normalizePlotViewerDatasetIds(state.datasets);
+  if (datasets.length > 0) {
+    searchParams.set("datasets", datasets.join(","));
   } else {
     searchParams.delete("datasets");
   }

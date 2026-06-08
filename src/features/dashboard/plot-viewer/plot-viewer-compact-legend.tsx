@@ -1,6 +1,10 @@
 "use client";
 
-import { isPlotViewerTraceHidden } from "./plot-viewer-hidden-traces";
+import { useMemo } from "react";
+import {
+  isPlotViewerTraceHidden,
+  plotViewerHiddenTraceIdSet,
+} from "./plot-viewer-hidden-traces";
 import type { PlotViewerDescriptorField, PlotViewerLegendRow } from "./plot-viewer-legend";
 import {
   DEFAULT_PLOT_VIEWER_DESCRIPTOR_FIELDS,
@@ -37,6 +41,10 @@ export function PlotViewerCompactLegend({
     return null;
   }
 
+  const hiddenTraceLookup = useMemo(
+    () => plotViewerHiddenTraceIdSet(hiddenTraceIds),
+    [hiddenTraceIds],
+  );
   const geometryKeys = plotViewerLegendGeometryKeys(rows);
   const activeDescriptorFields = resolvePlotViewerLegendDescriptorFields(
     descriptorFields.length > 0
@@ -81,7 +89,10 @@ export function PlotViewerCompactLegend({
         </thead>
         <tbody>
           {rows.map((row) => {
-            const hidden = isPlotViewerTraceHidden(hiddenTraceIds, row.traceKey);
+            const hidden = isPlotViewerTraceHidden(
+              hiddenTraceLookup,
+              row.traceKey,
+            );
             const visible = !hidden;
             const toggleHint = visible
               ? `Hide trace ${row.traceKey}`

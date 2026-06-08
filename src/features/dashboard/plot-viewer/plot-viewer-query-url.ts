@@ -1,4 +1,5 @@
 import type { PlotViewerUrlState } from "./plot-viewer-url-state";
+import { PLOT_VIEWER_MAX_QUERY_LENGTH } from "./plot-viewer-url-state";
 
 /**
  * Merges debounced catalog search text into plot viewer state before URL serialization.
@@ -9,7 +10,7 @@ export function plotViewerStateForUrlWrite(
 ): PlotViewerUrlState {
   return {
     ...state,
-    query: debouncedQuery.trim(),
+    query: debouncedQuery.trim().slice(0, PLOT_VIEWER_MAX_QUERY_LENGTH),
   };
 }
 

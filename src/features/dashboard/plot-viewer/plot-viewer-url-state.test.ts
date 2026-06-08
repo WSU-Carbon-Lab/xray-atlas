@@ -6,6 +6,9 @@ import {
 import type { PlotViewerDescriptorField } from "./plot-viewer-legend";
 import {
   defaultPlotViewerUrlState,
+  normalizePlotViewerDatasetIds,
+  PLOT_VIEWER_MAX_DATASETS,
+  PLOT_VIEWER_MAX_QUERY_LENGTH,
   parsePlotViewerLegendDock,
   parsePlotViewerLegendTrayOpen,
   readPlotViewerParams,
@@ -181,6 +184,36 @@ describe("plot-viewer-url-state", () => {
     expect(params.has("legendDock")).toBe(false);
     expect(params.has("legendTray")).toBe(false);
     expect(params.has("hidden")).toBe(false);
+  });
+
+  it("caps query length and rejects invalid dataset UUIDs", () => {
+    const longQuery = "a".repeat(PLOT_VIEWER_MAX_QUERY_LENGTH + 40);
+    const parsed = readPlotViewerParams(
+      new URLSearchParams(
+        `q=${longQuery}&datasets=not-a-uuid,11111111-1111-1111-1111-111111111111`,
+      ),
+    );
+    expect(parsed.query.length).toBe(PLOT_VIEWER_MAX_QUERY_LENGTH);
+    expect(parsed.datasets).toEqual([
+      "11111111-1111-1111-1111-111111111111",
+    ]);
+  });
+
+  it("dedupes and caps dataset ids", () => {
+    const uniqueIds = Array.from(
+      { length: PLOT_VIEWER_MAX_DATASETS + 2 },
+      (_, index) => {
+        const suffix = index.toString(16).padStart(2, "0");
+        return `11111111-1111-4111-8111-1111111111${suffix}`;
+      },
+    );
+    const normalized = normalizePlotViewerDatasetIds([
+      uniqueIds[0]!,
+      uniqueIds[0]!,
+      "invalid",
+      ...uniqueIds,
+    ]);
+    expect(normalized.length).toBe(PLOT_VIEWER_MAX_DATASETS);
   });
 
   it("omits default panel legend placement from the URL", () => {

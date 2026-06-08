@@ -22,6 +22,10 @@ import type {
   PlotViewerStyleMappingField,
 } from "./plot-viewer-trace-styles";
 import { togglePlotViewerHiddenTraceId } from "./plot-viewer-hidden-traces";
+import {
+  plotViewerUrlStateToggleDataset,
+  plotViewerUrlStateWithDatasets,
+} from "./plot-viewer-url-mutations";
 import type {
   PlotViewerChannelId,
   PlotViewerLegendDock,
@@ -225,26 +229,20 @@ export function usePlotViewerUrlState(): UsePlotViewerUrlStateResult {
 
   const toggleDataset = useCallback(
     (experimentId: string, nextGeometryKeys?: string[]) => {
-      commit((current) => {
-        const selected = new Set(current.datasets);
-        if (selected.has(experimentId)) {
-          selected.delete(experimentId);
-        } else {
-          selected.add(experimentId);
-        }
-        return {
-          ...current,
-          datasets: [...selected],
-          geometryKeys: nextGeometryKeys ?? current.geometryKeys,
-        };
-      });
+      commit((current) =>
+        plotViewerUrlStateToggleDataset(
+          current,
+          experimentId,
+          nextGeometryKeys,
+        ),
+      );
     },
     [commit],
   );
 
   const setDatasets = useCallback(
     (experimentIds: string[]) => {
-      commit((current) => ({ ...current, datasets: experimentIds }));
+      commit((current) => plotViewerUrlStateWithDatasets(current, experimentIds));
     },
     [commit],
   );

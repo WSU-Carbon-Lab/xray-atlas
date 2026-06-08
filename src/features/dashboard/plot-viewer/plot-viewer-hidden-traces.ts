@@ -1,3 +1,6 @@
+import { PLOT_VIEWER_MAX_HIDDEN_TRACE_IDS } from "./plot-viewer-url-state";
+import { parsePlotViewerTraceKey } from "./plot-viewer-trace-key";
+
 /**
  * Parses comma-separated trace keys from the `hidden` plot-viewer URL param.
  */
@@ -17,6 +20,9 @@ export function parsePlotViewerHiddenTraceIds(
     }
     seen.add(trimmed);
     ids.push(trimmed);
+    if (ids.length >= PLOT_VIEWER_MAX_HIDDEN_TRACE_IDS) {
+      break;
+    }
   }
   return ids;
 }
@@ -52,13 +58,42 @@ export function togglePlotViewerHiddenTraceId(
 }
 
 /**
+ * Builds a set for repeated hidden-trace membership checks in legend and plot filtering.
+ */
+export function plotViewerHiddenTraceIdSet(
+  hiddenTraceIds: readonly string[],
+): ReadonlySet<string> {
+  return new Set(hiddenTraceIds);
+}
+
+/**
  * Returns true when `traceKey` is in `hiddenTraceIds`.
  */
 export function isPlotViewerTraceHidden(
-  hiddenTraceIds: readonly string[],
+  hiddenTraceIds: readonly string[] | ReadonlySet<string>,
   traceKey: string,
 ): boolean {
-  return hiddenTraceIds.includes(traceKey);
+  if (Array.isArray(hiddenTraceIds)) {
+    return hiddenTraceIds.includes(traceKey);
+  }
+  return hiddenTraceIds.has(traceKey);
+}
+
+/**
+ * Drops hidden-trace keys whose experiment id is not in `activeExperimentIds`.
+ */
+export function prunePlotViewerHiddenTraceIdsForDatasets(
+  hiddenTraceIds: readonly string[],
+  activeExperimentIds: readonly string[],
+): string[] {
+  const active = new Set(activeExperimentIds);
+  return hiddenTraceIds.filter((traceKey) => {
+    const parsed = parsePlotViewerTraceKey(traceKey);
+    if (!parsed) {
+      return false;
+    }
+    return active.has(parsed.experimentId);
+  });
 }
 
 /**

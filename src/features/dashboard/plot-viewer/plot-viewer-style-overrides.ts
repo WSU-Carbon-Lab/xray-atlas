@@ -1,3 +1,4 @@
+import { hexSixSchema } from "~/lib/hex-color-presets";
 import { readPlotViewerColorOverrides } from "./plot-viewer-color-overrides";
 import type {
   PlotViewerLineDash,
@@ -6,6 +7,10 @@ import type {
 
 const STORAGE_KEY = "xray-atlas-plot-viewer-style-overrides:v2";
 const LEGACY_STORAGE_KEY = "xray-atlas-plot-viewer-style-overrides:v1";
+
+/** SessionStorage key for STXM preview compare style overrides (separate from plot viewer). */
+export const STXM_PREVIEW_STYLE_STORAGE_KEY =
+  "xray-atlas-stxm-preview-style-overrides:v1";
 
 export type PlotViewerExperimentColorMode = "scheme" | "fixed";
 
@@ -113,14 +118,26 @@ function parseNumberRecord(
   return result;
 }
 
+function parsePlotViewerHexColor(value: unknown): string | null {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return null;
+  }
+  const parsed = hexSixSchema.safeParse(value.trim());
+  if (!parsed.success) {
+    return null;
+  }
+  return parsed.data.toUpperCase();
+}
+
 function parseTraceOverride(value: unknown): PlotViewerTraceStyleOverride | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
   const record = value as Record<string, unknown>;
   const override: PlotViewerTraceStyleOverride = {};
-  if (typeof record.color === "string" && record.color.trim().length > 0) {
-    override.color = record.color.trim();
+  const color = parsePlotViewerHexColor(record.color);
+  if (color) {
+    override.color = color;
   }
   const lineDash = parseLineDash(record.lineDash);
   if (lineDash) {
@@ -208,8 +225,9 @@ function parseColorRecord(raw: unknown): Record<string, string> {
     return result;
   }
   for (const [key, value] of Object.entries(record)) {
-    if (typeof value === "string" && value.trim().length > 0) {
-      result[key] = value.trim();
+    const color = parsePlotViewerHexColor(value);
+    if (color) {
+      result[key] = color;
     }
   }
   return result;
@@ -261,39 +279,75 @@ function parseStoredOverrides(parsed: Record<string, unknown>): PlotViewerStyleO
   });
 }
 
-/**
- * Reads per-field, per-experiment, and per-trace style overrides from sessionStorage.
- */
-export function readPlotViewerStyleOverrides(): PlotViewerStyleOverrides {
+function readOverridesForStorageKey(
+  storageKey: string,
+  legacyKeys: readonly string[] = [],
+  mergeLegacyColors = false,
+): PlotViewerStyleOverrides {
   if (typeof window === "undefined") {
     return emptyOverrides();
   }
   try {
     const raw =
-      sessionStorage.getItem(STORAGE_KEY) ??
-      sessionStorage.getItem(LEGACY_STORAGE_KEY);
+      sessionStorage.getItem(storageKey) ??
+      legacyKeys.map((key) => sessionStorage.getItem(key)).find(Boolean);
     if (!raw) {
-      return mergeLegacyColorOverrides(emptyOverrides());
+      const base = emptyOverrides();
+      return mergeLegacyColors ? mergeLegacyColorOverrides(base) : base;
     }
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) {
-      return mergeLegacyColorOverrides(emptyOverrides());
+      const base = emptyOverrides();
+      return mergeLegacyColors ? mergeLegacyColorOverrides(base) : base;
     }
-    return parseStoredOverrides(parsed as Record<string, unknown>);
+    const overrides = parseStoredOverrides(parsed as Record<string, unknown>);
+    return mergeLegacyColors ? mergeLegacyColorOverrides(overrides) : overrides;
   } catch {
-    return mergeLegacyColorOverrides(emptyOverrides());
+    const base = emptyOverrides();
+    return mergeLegacyColors ? mergeLegacyColorOverrides(base) : base;
   }
 }
 
-function persistOverrides(overrides: PlotViewerStyleOverrides): PlotViewerStyleOverrides {
+function persistOverridesForStorageKey(
+  storageKey: string,
+  overrides: PlotViewerStyleOverrides,
+): PlotViewerStyleOverrides {
   if (typeof window !== "undefined") {
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
+      sessionStorage.setItem(storageKey, JSON.stringify(overrides));
     } catch {
       return overrides;
     }
   }
   return overrides;
+}
+
+/**
+ * Reads per-field, per-experiment, and per-trace style overrides from sessionStorage.
+ */
+export function readPlotViewerStyleOverrides(): PlotViewerStyleOverrides {
+  return readOverridesForStorageKey(STORAGE_KEY, [LEGACY_STORAGE_KEY], true);
+}
+
+/**
+ * Reads STXM preview compare style overrides from a dedicated sessionStorage namespace.
+ */
+export function readStxmPreviewStyleOverrides(): PlotViewerStyleOverrides {
+  return readOverridesForStorageKey(STXM_PREVIEW_STYLE_STORAGE_KEY);
+}
+
+function persistOverrides(overrides: PlotViewerStyleOverrides): PlotViewerStyleOverrides {
+  return persistOverridesForStorageKey(STORAGE_KEY, overrides);
+}
+
+function persistStxmPreviewOverrides(
+  overrides: PlotViewerStyleOverrides,
+): PlotViewerStyleOverrides {
+  return persistOverridesForStorageKey(STXM_PREVIEW_STYLE_STORAGE_KEY, overrides);
+}
+
+function readStxmPreviewOverridesMutable(): PlotViewerStyleOverrides {
+  return readStxmPreviewStyleOverrides();
 }
 
 /**
@@ -429,8 +483,13 @@ export function writePlotViewerExperimentColorMode(
     return current;
   }
   current.experimentColorMode[key] = mode;
-  if (mode === "fixed" && fixedColor != null && fixedColor.trim().length > 0) {
-    current.experimentFixedColor[key] = fixedColor.trim();
+  if (mode === "fixed" && fixedColor != null) {
+    const color = parsePlotViewerHexColor(fixedColor);
+    if (color) {
+      current.experimentFixedColor[key] = color;
+    } else {
+      delete current.experimentFixedColor[key];
+    }
   } else {
     delete current.experimentFixedColor[key];
   }
@@ -447,7 +506,12 @@ function mergeTraceOverride(
     delete next[clearKey];
   }
   if (patch.color != null) {
-    next.color = patch.color;
+    const color = parsePlotViewerHexColor(patch.color);
+    if (color) {
+      next.color = color;
+    } else {
+      delete next.color;
+    }
   }
   if (patch.lineDash != null) {
     next.lineDash = patch.lineDash;
@@ -487,4 +551,227 @@ export function writePlotViewerTraceStyleOverride(
     current.traceOverrides[key] = merged;
   }
   return persistOverrides(current);
+}
+
+function writeStyleOverrideForStorageKey(
+  storageKey: string,
+  readCurrent: () => PlotViewerStyleOverrides,
+  persistCurrent: (overrides: PlotViewerStyleOverrides) => PlotViewerStyleOverrides,
+  mutate: (current: PlotViewerStyleOverrides) => void,
+): PlotViewerStyleOverrides {
+  const current = readCurrent();
+  mutate(current);
+  return persistCurrent(current);
+}
+
+/**
+ * Persists or clears one STXM preview line-dash override keyed by the encoded field value.
+ */
+export function writeStxmPreviewLineDashOverride(
+  fieldValue: string,
+  lineDash: PlotViewerLineDash | null,
+): PlotViewerStyleOverrides {
+  return writeStyleOverrideForStorageKey(
+    STXM_PREVIEW_STYLE_STORAGE_KEY,
+    readStxmPreviewOverridesMutable,
+    persistStxmPreviewOverrides,
+    (current) => {
+      const key = fieldValue.trim();
+      if (lineDash == null || key.length === 0) {
+        delete current.lineDash[key];
+      } else {
+        current.lineDash[key] = lineDash;
+      }
+    },
+  );
+}
+
+/**
+ * Persists or clears one STXM preview marker override keyed by the encoded field value.
+ */
+export function writeStxmPreviewMarkerOverride(
+  fieldValue: string,
+  markerSymbol: PlotViewerMarkerSymbol | null,
+): PlotViewerStyleOverrides {
+  return writeStyleOverrideForStorageKey(
+    STXM_PREVIEW_STYLE_STORAGE_KEY,
+    readStxmPreviewOverridesMutable,
+    persistStxmPreviewOverrides,
+    (current) => {
+      const key = fieldValue.trim();
+      if (markerSymbol == null || key.length === 0) {
+        delete current.marker[key];
+      } else {
+        current.marker[key] = markerSymbol;
+      }
+    },
+  );
+}
+
+/**
+ * Persists or clears one STXM preview per-experiment line-dash override.
+ */
+export function writeStxmPreviewExperimentLineDashOverride(
+  experimentId: string,
+  lineDash: PlotViewerLineDash | null,
+): PlotViewerStyleOverrides {
+  return writeStyleOverrideForStorageKey(
+    STXM_PREVIEW_STYLE_STORAGE_KEY,
+    readStxmPreviewOverridesMutable,
+    persistStxmPreviewOverrides,
+    (current) => {
+      const key = experimentId.trim();
+      if (lineDash == null || key.length === 0) {
+        delete current.experimentLineDash[key];
+      } else {
+        current.experimentLineDash[key] = lineDash;
+      }
+    },
+  );
+}
+
+/**
+ * Persists or clears one STXM preview per-experiment marker override.
+ */
+export function writeStxmPreviewExperimentMarkerOverride(
+  experimentId: string,
+  markerSymbol: PlotViewerMarkerSymbol | null,
+): PlotViewerStyleOverrides {
+  return writeStyleOverrideForStorageKey(
+    STXM_PREVIEW_STYLE_STORAGE_KEY,
+    readStxmPreviewOverridesMutable,
+    persistStxmPreviewOverrides,
+    (current) => {
+      const key = experimentId.trim();
+      if (markerSymbol == null || key.length === 0) {
+        delete current.experimentMarker[key];
+      } else {
+        current.experimentMarker[key] = markerSymbol;
+      }
+    },
+  );
+}
+
+/**
+ * Persists or clears one STXM preview per-experiment line width override.
+ */
+export function writeStxmPreviewExperimentLineWidthOverride(
+  experimentId: string,
+  lineWidth: number | null,
+): PlotViewerStyleOverrides {
+  return writeStyleOverrideForStorageKey(
+    STXM_PREVIEW_STYLE_STORAGE_KEY,
+    readStxmPreviewOverridesMutable,
+    persistStxmPreviewOverrides,
+    (current) => {
+      const key = experimentId.trim();
+      if (lineWidth == null || key.length === 0) {
+        delete current.experimentLineWidth[key];
+      } else {
+        current.experimentLineWidth[key] = lineWidth;
+      }
+    },
+  );
+}
+
+/**
+ * Persists or clears one STXM preview per-experiment marker size override.
+ */
+export function writeStxmPreviewExperimentMarkerSizeOverride(
+  experimentId: string,
+  markerSize: number | null,
+): PlotViewerStyleOverrides {
+  return writeStyleOverrideForStorageKey(
+    STXM_PREVIEW_STYLE_STORAGE_KEY,
+    readStxmPreviewOverridesMutable,
+    persistStxmPreviewOverrides,
+    (current) => {
+      const key = experimentId.trim();
+      if (markerSize == null || key.length === 0) {
+        delete current.experimentMarkerSize[key];
+      } else {
+        current.experimentMarkerSize[key] = markerSize;
+      }
+    },
+  );
+}
+
+/**
+ * Persists or clears one STXM preview per-experiment marker-every override.
+ */
+export function writeStxmPreviewExperimentMarkerEveryOverride(
+  experimentId: string,
+  markerEvery: number | null,
+): PlotViewerStyleOverrides {
+  return writeStyleOverrideForStorageKey(
+    STXM_PREVIEW_STYLE_STORAGE_KEY,
+    readStxmPreviewOverridesMutable,
+    persistStxmPreviewOverrides,
+    (current) => {
+      const key = experimentId.trim();
+      if (markerEvery == null || key.length === 0) {
+        delete current.experimentMarkerEvery[key];
+      } else {
+        current.experimentMarkerEvery[key] = Math.max(1, Math.round(markerEvery));
+      }
+    },
+  );
+}
+
+/**
+ * Persists per-experiment color mode for STXM preview compare styling.
+ */
+export function writeStxmPreviewExperimentColorMode(
+  experimentId: string,
+  mode: PlotViewerExperimentColorMode,
+  fixedColor: string | null,
+): PlotViewerStyleOverrides {
+  return writeStyleOverrideForStorageKey(
+    STXM_PREVIEW_STYLE_STORAGE_KEY,
+    readStxmPreviewOverridesMutable,
+    persistStxmPreviewOverrides,
+    (current) => {
+      const key = experimentId.trim();
+      if (key.length === 0) {
+        return;
+      }
+      current.experimentColorMode[key] = mode;
+      if (mode === "fixed" && fixedColor != null && fixedColor.trim().length > 0) {
+        current.experimentFixedColor[key] = fixedColor.trim();
+      } else {
+        delete current.experimentFixedColor[key];
+      }
+    },
+  );
+}
+
+/**
+ * Persists or clears one STXM preview per-trace style override keyed by trace id.
+ */
+export function writeStxmPreviewTraceStyleOverride(
+  traceKey: string,
+  patch: Partial<PlotViewerTraceStyleOverride>,
+  clearKeys: readonly (keyof PlotViewerTraceStyleOverride)[] = [],
+): PlotViewerStyleOverrides {
+  return writeStyleOverrideForStorageKey(
+    STXM_PREVIEW_STYLE_STORAGE_KEY,
+    readStxmPreviewOverridesMutable,
+    persistStxmPreviewOverrides,
+    (current) => {
+      const key = traceKey.trim();
+      if (key.length === 0) {
+        return;
+      }
+      const merged = mergeTraceOverride(
+        current.traceOverrides[key],
+        patch,
+        clearKeys,
+      );
+      if (merged == null) {
+        delete current.traceOverrides[key];
+      } else {
+        current.traceOverrides[key] = merged;
+      }
+    },
+  );
 }

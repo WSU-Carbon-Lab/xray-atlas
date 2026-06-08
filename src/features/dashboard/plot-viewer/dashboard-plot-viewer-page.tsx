@@ -4,7 +4,6 @@ import Link from "next/link";
 import { memo, useEffect, useMemo, useState, useCallback } from "react";
 import {
   Button,
-  ButtonGroup,
   Label,
   Spinner,
   ToggleButton,
@@ -26,6 +25,7 @@ import {
   geometryKeySetsEqual,
   reconcileGeometryKeysAfterSpectraLoad,
 } from "./geometry-selection";
+import { plotViewerGroupMatchesFacilityFacet } from "./plot-viewer-facility-key";
 import { PlotViewerChannelSelect } from "./plot-viewer-channel-select";
 import { buildPlotViewerExperimentStyleItems } from "./plot-viewer-experiment-styles";
 import {
@@ -318,13 +318,10 @@ export function DashboardPlotViewerPage() {
       debouncedQuery.length > 0
         ? (browseSearchQuery.data?.groups ?? [])
         : (browseListQuery.data?.groups ?? []);
-    if (state.facets.facility.length === 0) {
-      return groups;
-    }
-    const allowed = new Set(state.facets.facility);
     return groups.filter((group) =>
-      allowed.has(
-        (group.instrument.facilityName?.trim() ?? "unknown facility").toLowerCase(),
+      plotViewerGroupMatchesFacilityFacet(
+        group.instrument.facilityName,
+        state.facets.facility,
       ),
     );
   }, [
@@ -566,7 +563,7 @@ export function DashboardPlotViewerPage() {
   const sharedEnergyStats = useMemo(() => {
     let min: number | null = null;
     let max: number | null = null;
-    for (const trace of styledPlot.traces) {
+    for (const trace of visibleTraces) {
       for (const point of trace.points) {
         if (!Number.isFinite(point.energy)) {
           continue;
@@ -576,9 +573,9 @@ export function DashboardPlotViewerPage() {
       }
     }
     return { min, max };
-  }, [styledPlot.traces]);
+  }, [visibleTraces]);
 
-  const traceCount = styledPlot.traces.length;
+  const traceCount = visibleTraces.length;
   const showPlotControls =
     traceCount > 0 &&
     !isLoading &&
@@ -640,7 +637,6 @@ export function DashboardPlotViewerPage() {
             );
           }}
         >
-          <ButtonGroup.Separator />
           <ArrowDownTrayIcon className="h-5 w-5" aria-hidden />
         </Button>
       </PlotToolbarRichHint>

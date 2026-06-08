@@ -7,6 +7,7 @@ import {
   filterPlotViewerTracesByHiddenIds,
   isPlotViewerTraceHidden,
   parsePlotViewerHiddenTraceIds,
+  prunePlotViewerHiddenTraceIdsForDatasets,
   togglePlotViewerHiddenTraceId,
 } from "./plot-viewer-hidden-traces";
 
@@ -44,6 +45,17 @@ describe("parsePlotViewerHiddenTraceIds", () => {
       ),
     ).toEqual(["a:55:0", "b:20:0"]);
     expect(parsePlotViewerHiddenTraceIds(new URLSearchParams())).toEqual([]);
+  });
+});
+
+describe("prunePlotViewerHiddenTraceIdsForDatasets", () => {
+  it("drops hidden keys for experiments no longer selected", () => {
+    expect(
+      prunePlotViewerHiddenTraceIdsForDatasets(
+        ["11111111-1111-1111-1111-111111111111:55:0", "22222222-2222-2222-2222-222222222222:20:0"],
+        ["11111111-1111-1111-1111-111111111111"],
+      ),
+    ).toEqual(["11111111-1111-1111-1111-111111111111:55:0"]);
   });
 });
 

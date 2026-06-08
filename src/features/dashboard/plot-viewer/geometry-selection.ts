@@ -48,14 +48,19 @@ export function pruneGeometryKeysOnDatasetRemove(
 }
 
 /**
- * When spectra arrive for a selected dataset whose keys do not overlap `currentKeys`, merges that dataset's keys.
+ * Intersects `currentKeys` with loaded dataset geometries, then merges keys when a newly loaded
+ * dataset does not overlap the surviving selection.
  */
 export function reconcileGeometryKeysAfterSpectraLoad(
   datasetIds: readonly string[],
   currentKeys: readonly string[],
   spectraByExperimentId: ReadonlyMap<string, SpectrumPoint[]>,
 ): string[] {
-  let next = [...currentKeys];
+  const validUnion = unionGeometryKeysForDatasets(
+    datasetIds,
+    spectraByExperimentId,
+  );
+  let next = currentKeys.filter((key) => validUnion.has(key));
   for (const experimentId of datasetIds) {
     const points = spectraByExperimentId.get(experimentId);
     if (points == null || points.length === 0) {
@@ -70,7 +75,7 @@ export function reconcileGeometryKeysAfterSpectraLoad(
       next = mergeGeometryKeysOnDatasetAdd(next, datasetKeys);
     }
   }
-  return next;
+  return next.filter((key) => validUnion.has(key));
 }
 
 /**

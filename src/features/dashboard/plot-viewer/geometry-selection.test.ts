@@ -83,6 +83,22 @@ describe("reconcileGeometryKeysAfterSpectraLoad", () => {
     ).toEqual(["20:0", "55:0"]);
   });
 
+  it("prunes stale geometry keys after datasets change", () => {
+    const spectra = new Map<string, SpectrumPoint[]>([
+      [
+        "exp-a",
+        [point(280, 0.1, { od: 0.1, theta: 55, phi: 0 })],
+      ],
+    ]);
+    expect(
+      reconcileGeometryKeysAfterSpectraLoad(
+        ["exp-a"],
+        ["55:0", "99:0"],
+        spectra,
+      ),
+    ).toEqual(["55:0"]);
+  });
+
   it("does not override a narrowed geometry selection", () => {
     const spectra = new Map<string, SpectrumPoint[]>([
       [

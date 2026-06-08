@@ -28,6 +28,10 @@ import {
 import { PlotViewerFacetChip } from "./plot-viewer-facet-chip";
 import { hasActivePlotViewerCatalogFilter } from "./plot-viewer-catalog-filter";
 import {
+  normalizePlotViewerFacilityKey,
+  plotViewerGroupMatchesFacilityFacet,
+} from "./plot-viewer-facility-key";
+import {
   patchPlotViewerBrowseFavoriteCaches,
   patchPlotViewerFavoriteIdsCache,
 } from "./plot-viewer-browse-favorite-cache";
@@ -55,10 +59,6 @@ export type PlotViewerSelectionPanelProps = {
 function groupLabel(group: NexafsBrowseGroup): string {
   const edge = `${group.edge.targetatom} ${group.edge.corestate}`;
   return `${group.molecule.displayName} (${edge})`;
-}
-
-function facilityKey(name: string | null | undefined): string {
-  return (name?.trim() ?? "Unknown facility").toLowerCase();
 }
 
 type PlotViewerCatalogDatasetRowProps = {
@@ -224,14 +224,11 @@ export function PlotViewerSelectionPanel({
     const groups = hasSearchQuery
       ? (browseSearchQuery.data?.groups ?? [])
       : (browseListQuery.data?.groups ?? []);
-    if (state.facets.facility.length === 0) {
-      return groups;
-    }
-    const allowed = new Set(
-      state.facets.facility.map((value) => value.toLowerCase()),
-    );
     return groups.filter((group) =>
-      allowed.has(facilityKey(group.instrument.facilityName)),
+      plotViewerGroupMatchesFacilityFacet(
+        group.instrument.facilityName,
+        state.facets.facility,
+      ),
     );
   }, [
     browseListQuery.data?.groups,
@@ -397,7 +394,7 @@ export function PlotViewerSelectionPanel({
     const counts = new Map<string, { id: string; label: string; count: number }>();
     for (const group of source) {
       const label = group.instrument.facilityName?.trim() ?? "Unknown facility";
-      const id = facilityKey(label);
+      const id = normalizePlotViewerFacilityKey(label);
       const existing = counts.get(id);
       if (existing) {
         existing.count += 1;

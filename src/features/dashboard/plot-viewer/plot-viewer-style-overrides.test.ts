@@ -51,4 +51,19 @@ describe("plot-viewer style overrides persistence", () => {
     expect(withTrace.traceOverrides[traceKey]?.markerSize).toBe(7);
     expect(withTrace.traceOverrides[traceKey]?.markerEvery).toBe(5);
   });
+
+  it("rejects invalid hex colors on read and write", () => {
+    const experimentId = "11111111-1111-1111-1111-111111111111";
+    const withInvalid = writePlotViewerExperimentColorMode(
+      experimentId,
+      "fixed",
+      "not-a-color",
+    );
+    expect(withInvalid.experimentFixedColor[experimentId]).toBe(undefined);
+
+    const withTrace = writePlotViewerTraceStyleOverride("trace-a", {
+      color: "blue",
+    });
+    expect(withTrace.traceOverrides["trace-a"]?.color).toBe(undefined);
+  });
 });
