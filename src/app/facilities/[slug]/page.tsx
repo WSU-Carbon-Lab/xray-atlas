@@ -92,8 +92,7 @@ export default function FacilityDetailPage({
               <FacilityIcon
                 name={facility.name}
                 faviconUrl={facility.faviconurl}
-                className="h-14 w-14 shrink-0 sm:h-16 sm:w-16"
-                iconClassName="h-8 w-8 sm:h-9 sm:w-9"
+                size="lg"
               />
               <div className="min-w-0 space-y-3">
                 <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">

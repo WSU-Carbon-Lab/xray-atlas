@@ -38,7 +38,8 @@ export function FacilityCardCompact({
       <FacilityIcon
         name={name}
         faviconUrl={faviconUrl}
-        className="h-12 w-12"
+        size="md"
+        className="group-hover:border-accent/25 group-hover:bg-surface-tertiary group-hover:ring-accent/20"
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-start justify-between gap-3">

@@ -124,8 +124,7 @@ export function FacilityWebsiteAdminCard({
               <FacilityIcon
                 name={facilityName}
                 faviconUrl={previewFaviconUrl ?? faviconUrl}
-                className="h-9 w-9"
-                iconClassName="h-5 w-5"
+                size="sm"
               />
               <span className="min-w-0 text-start">
                 <span className="block text-base font-semibold">
@@ -161,8 +160,7 @@ export function FacilityWebsiteAdminCard({
                 <FacilityIcon
                   name={facilityName}
                   faviconUrl={previewFaviconUrl}
-                  className="h-14 w-14"
-                  iconClassName="h-8 w-8"
+                  size="lg"
                 />
                 <span className="text-muted text-center text-xs sm:text-start">
                   Favicon preview
