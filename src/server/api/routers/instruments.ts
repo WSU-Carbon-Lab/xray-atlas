@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Prisma } from "~/prisma/client";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -397,16 +398,37 @@ export const instrumentsRouter = createTRPCRouter({
         return toInstrumentStewardPublic(existing);
       }
 
-      const row = await ctx.db.instrumentsteward.create({
-        data: {
-          instrumentid: input.instrumentId,
-          userid: input.userId,
-          assignedbyuserid: ctx.userId,
-          claimissueurl: input.claimIssueUrl ?? null,
-          notes: input.notes ?? null,
-        },
-        select: instrumentStewardPublicSelect,
-      });
+      const row = await ctx.db.instrumentsteward
+        .create({
+          data: {
+            instrumentid: input.instrumentId,
+            userid: input.userId,
+            assignedbyuserid: ctx.userId,
+            claimissueurl: input.claimIssueUrl ?? null,
+            notes: input.notes ?? null,
+          },
+          select: instrumentStewardPublicSelect,
+        })
+        .catch(async (error: unknown) => {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          ) {
+            const raced = await ctx.db.instrumentsteward.findUnique({
+              where: {
+                instrumentid_userid: {
+                  instrumentid: input.instrumentId,
+                  userid: input.userId,
+                },
+              },
+              select: instrumentStewardPublicSelect,
+            });
+            if (raced) {
+              return raced;
+            }
+          }
+          throw error;
+        });
 
       return toInstrumentStewardPublic(row);
     }),

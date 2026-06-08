@@ -140,7 +140,9 @@ export function AddBeamlineScientistForm({
   const searchResults = useMemo(
     () =>
       (searchData?.results ?? []).filter(
-        (hit) => !assignedUserIds.has(hit.orcid),
+        (hit) =>
+          hit.hasAtlasProfile &&
+          !assignedUserIds.has(hit.orcid),
       ),
     [assignedUserIds, searchData?.results],
   );
@@ -153,6 +155,13 @@ export function AddBeamlineScientistForm({
       if (assignedUserIds.has(hit.orcid)) {
         showToast(
           "That researcher is already a beamline scientist here.",
+          "error",
+        );
+        return;
+      }
+      if (!hit.hasAtlasProfile) {
+        showToast(
+          "That researcher must sign in to Atlas before they can be assigned as a beamline scientist.",
           "error",
         );
         return;
@@ -224,9 +233,7 @@ export function AddBeamlineScientistForm({
         cache = mergeInstrumentStewardIntoFacilityMap(cache, outcome.value);
       } else {
         failedHits.push(hit);
-        if (firstFailureReason == null) {
-          firstFailureReason = outcome.reason;
-        }
+        firstFailureReason ??= outcome.reason;
       }
     }
 
@@ -329,7 +336,7 @@ export function AddBeamlineScientistForm({
       <div>
         <p className="text-foreground text-sm font-medium">Add beamline scientist</p>
         <p className="text-muted mt-1 text-xs leading-snug">
-          Search Atlas or ORCID, select one or more researchers, then press Add for{" "}
+          Search Atlas researchers who have signed in, select one or more, then press Add for{" "}
           {instrumentName}.
         </p>
       </div>

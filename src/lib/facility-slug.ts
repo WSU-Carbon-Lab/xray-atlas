@@ -32,3 +32,19 @@ export function canonicalFacilitySlugFromView(
 ): string {
   return canonicalFacilitySlugFromName(facility.name);
 }
+
+/**
+ * Returns every facility whose display name slugifies to `slug`.
+ *
+ * @param facilities - Candidate facility rows with a `name` field.
+ * @param slug - Route or lookup slug segment (normalized before comparison).
+ */
+export function matchFacilitiesBySlug<T extends FacilitySlugSource>(
+  facilities: readonly T[],
+  slug: string,
+): T[] {
+  const normalizedSlug = slugifyFacilityName(slug);
+  return facilities.filter(
+    (facility) => slugifyFacilityName(facility.name) === normalizedSlug,
+  );
+}

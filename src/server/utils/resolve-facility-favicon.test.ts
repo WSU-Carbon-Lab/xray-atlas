@@ -25,8 +25,8 @@ describe("resolveFacilityFaviconUrl", () => {
   it("resolves als.lbl.gov to a non-empty favicon, not the zero-byte favicon.ico", async () => {
     const result = await resolveFacilityFaviconUrl("https://als.lbl.gov/");
     expect(result).not.toBe(null);
-    expect(result as string).not.toBe("https://als.lbl.gov/favicon.ico");
-    const url = result as string;
+    const url = result!;
+    expect(url).not.toBe("https://als.lbl.gov/favicon.ico");
     const isGoogleFallback = url.includes("google.com/s2/favicons");
     const isAlsPng = url.includes("cropped-favicon");
     if (!isGoogleFallback && !isAlsPng) {

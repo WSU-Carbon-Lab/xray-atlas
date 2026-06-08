@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { Prisma, type PrismaClient } from "~/prisma/client";
+import { matchFacilitiesBySlug } from "~/lib/facility-slug";
 import {
-  slugifyFacilityName,
-} from "~/lib/facility-slug";
-import {
+  facilityWebsiteHostname,
   facilityWebsiteUrlInputSchema,
+  googleFaviconUrlForHostname,
   parseFacilityWebsiteUrlInput,
 } from "~/lib/facility-website-url";
+import { assertSafeRemoteImageUrl } from "~/server/utils/safe-remote-image-url";
 import {
   contributeWriteProcedure,
   createTRPCRouter,
@@ -39,19 +40,36 @@ const facilityDetailInclude = {
 } as const;
 
 async function findFacilityBySlug(db: PrismaClient, slug: string) {
-  const normalizedSlug = slugifyFacilityName(slug);
   const facilities = await db.facilities.findMany({
     include: facilityDetailInclude,
   });
-  const matches = facilities.filter(
-    (facility) => slugifyFacilityName(facility.name) === normalizedSlug,
-  );
+  const matches = matchFacilitiesBySlug(facilities, slug);
 
   if (matches.length === 0) {
     return null;
   }
 
+  if (matches.length > 1) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message:
+        "Multiple facilities share this URL slug. Open the facility from browse or use its UUID.",
+    });
+  }
+
   return matches[0] ?? null;
+}
+
+async function resolveFacilityFaviconForPersist(
+  websiteUrl: string,
+): Promise<string | null> {
+  try {
+    return await resolveFacilityFaviconUrl(websiteUrl);
+  } catch {
+    await assertSafeRemoteImageUrl(websiteUrl);
+    const hostname = facilityWebsiteHostname(websiteUrl);
+    return hostname ? googleFaviconUrlForHostname(hostname) : null;
+  }
 }
 
 export const facilitiesRouter = createTRPCRouter({
@@ -309,13 +327,14 @@ export const facilitiesRouter = createTRPCRouter({
       let faviconUrl: string | null = null;
       if (websiteUrl) {
         try {
-          faviconUrl = await resolveFacilityFaviconUrl(websiteUrl);
+          await assertSafeRemoteImageUrl(websiteUrl);
         } catch {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Website URL is not reachable or not allowed.",
+            message: "Website URL is not allowed.",
           });
         }
+        faviconUrl = await resolveFacilityFaviconForPersist(websiteUrl);
       }
 
       return ctx.db.facilities.update({
@@ -356,15 +375,7 @@ export const facilitiesRouter = createTRPCRouter({
         });
       }
 
-      let faviconUrl: string | null = null;
-      try {
-        faviconUrl = await resolveFacilityFaviconUrl(facility.websiteurl);
-      } catch {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Website URL is not reachable or not allowed.",
-        });
-      }
+      const faviconUrl = await resolveFacilityFaviconForPersist(facility.websiteurl);
 
       return ctx.db.facilities.update({
         where: { id: input.facilityId },

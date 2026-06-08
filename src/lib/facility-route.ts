@@ -1,7 +1,7 @@
 import type { PrismaClient } from "~/prisma/client";
 import {
   canonicalFacilitySlugFromName,
-  slugifyFacilityName,
+  matchFacilitiesBySlug,
 } from "~/lib/facility-slug";
 
 const FACILITY_UUID_RE =
@@ -75,16 +75,13 @@ export async function resolveFacilityByRouteSegment(
     });
   }
 
-  const normalizedSlug = slugifyFacilityName(segment);
   const facilities = await db.facilities.findMany({
     select: facilityRouteSelect,
   });
 
-  const matches = facilities.filter(
-    (facility) => slugifyFacilityName(facility.name) === normalizedSlug,
-  );
+  const matches = matchFacilitiesBySlug(facilities, segment);
 
-  if (matches.length === 0) {
+  if (matches.length !== 1) {
     return null;
   }
 
