@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
 import Link from "next/link";
 import {
@@ -12,10 +11,8 @@ import {
   type InstrumentStewardPublic,
 } from "~/lib/instrument-steward";
 import { matchInstrumentToDashboardBinding } from "./connectors/bindings";
-import {
-  dashboardConnectorReadinessBadge,
-  dashboardInstrumentWorkspaceHref,
-} from "./connectors/registry";
+import { DashboardConnectorReadinessBadge } from "./dashboard-connector-readiness-badge";
+import { dashboardInstrumentWorkspaceHref } from "./connectors/registry";
 import type { DashboardConnectorReadiness } from "./connectors/types";
 import { InstrumentBeamlineScientistAttributionRow } from "~/features/facilities/instrument-beamline-scientist-attribution-row";
 
@@ -33,7 +30,6 @@ function resolveInstrumentConnectorState(
 ): {
   readiness: DashboardConnectorReadiness;
   workspaceSlug: string | undefined;
-  badgeLabel: string | null;
 } {
   const binding = matchInstrumentToDashboardBinding(instrumentName, facilityName);
   const readiness = binding?.readiness ?? "not_ready";
@@ -41,7 +37,6 @@ function resolveInstrumentConnectorState(
   return {
     readiness,
     workspaceSlug: binding?.slug,
-    badgeLabel: dashboardConnectorReadinessBadge(readiness),
   };
 }
 
@@ -56,7 +51,7 @@ export function InstrumentConnectorClaimSection({
   instrumentName,
   stewards = [],
 }: InstrumentConnectorClaimSectionProps) {
-  const { readiness, workspaceSlug, badgeLabel } = resolveInstrumentConnectorState(
+  const { readiness, workspaceSlug } = resolveInstrumentConnectorState(
     facilityName,
     instrumentName,
   );
@@ -87,11 +82,7 @@ export function InstrumentConnectorClaimSection({
     >
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-foreground text-sm font-medium">Dashboard workspace</p>
-        {badgeLabel ? (
-          <Badge variant="secondary" size="sm">
-            {badgeLabel}
-          </Badge>
-        ) : null}
+        <DashboardConnectorReadinessBadge readiness={readiness} />
       </div>
 
       {sectionView.showWorkspaceLink && workspaceHref ? (

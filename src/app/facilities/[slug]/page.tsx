@@ -11,15 +11,13 @@ import {
   BeakerIcon,
   LinkIcon,
   ArrowLeftIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon,
   ChartBarIcon,
   BuildingOfficeIcon,
   BookOpenIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { AddInstrumentButton } from "@/components/contribute";
+import { InstrumentStatusChip } from "@/components/forms/instrument-status-chip";
 import { InstrumentConnectorClaimSection } from "~/features/dashboard/instrument-connector-claim-section";
 import { Button, Card, Chip, Separator } from "@heroui/react";
 import { cn } from "@heroui/styles";
@@ -72,39 +70,6 @@ export default function FacilityDetailPage({
     FREE_ELECTRON_LASER: "Free Electron Laser",
     LAB_SOURCE: "Lab Source",
   }[facility.facilitytype];
-
-  const statusChip = (status: string) => {
-    const map = {
-      active: {
-        label: "Active",
-        icon: CheckCircleIcon,
-        color: "success" as const,
-      },
-      inactive: {
-        label: "Inactive",
-        icon: XCircleIcon,
-        color: "danger" as const,
-      },
-      under_maintenance: {
-        label: "Under Maintenance",
-        icon: ClockIcon,
-        color: "warning" as const,
-      },
-    };
-    const config = map[status as keyof typeof map] ?? map.active;
-    const Icon = config.icon;
-    return (
-      <Chip
-        size="sm"
-        variant="soft"
-        color={config.color}
-        className="h-7 gap-1.5 px-2.5 text-xs font-medium"
-      >
-        <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        {config.label}
-      </Chip>
-    );
-  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -270,7 +235,7 @@ export default function FacilityDetailPage({
                   <li key={instrument.id} id={`instrument-${instrument.id}`}>
                     <Card
                       variant="secondary"
-                      className="border-border bg-surface-2 scroll-mt-24 overflow-hidden rounded-lg border"
+                      className="border-border bg-surface-2 scroll-mt-24 rounded-lg border"
                     >
                       <Card.Content className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0 flex-1 space-y-2">
@@ -278,7 +243,7 @@ export default function FacilityDetailPage({
                             <h2 className="text-foreground text-base font-semibold">
                               {instrument.name}
                             </h2>
-                            {statusChip(instrument.status)}
+                            <InstrumentStatusChip status={instrument.status} />
                           </div>
                           {instrument.link ? (
                             <a

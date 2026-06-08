@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Badge } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
+import { DashboardConnectorReadinessBadge } from "./dashboard-connector-readiness-badge";
 import type { DashboardConnectorSummary } from "./connectors/types";
 
 type DashboardConnectorCardProps = {
@@ -33,11 +33,7 @@ export function DashboardConnectorCard({
           <p className="text-foreground text-sm font-semibold">
             {connector.instrumentLabel}
           </p>
-          {badgeLabel ? (
-            <Badge variant="secondary" size="sm">
-              {badgeLabel}
-            </Badge>
-          ) : null}
+          <DashboardConnectorReadinessBadge label={badgeLabel} />
         </div>
       </div>
       <p className="text-muted text-sm leading-snug">{connector.description}</p>

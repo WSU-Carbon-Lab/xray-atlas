@@ -30,6 +30,7 @@ export {
   parseInstrumentStatus,
   registeredInstrumentStatusPresentation,
 } from "./instrument-status";
+export { InstrumentStatusChip } from "./instrument-status-chip";
 export { RegisteredInstrumentEditor } from "./registered-instrument-editor";
 export { RegisteredInstrumentsAccordion } from "./registered-instruments-accordion";
 export {

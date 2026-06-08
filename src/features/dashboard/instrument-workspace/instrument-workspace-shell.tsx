@@ -2,11 +2,8 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Badge } from "@heroui/react";
 import { ArrowLeft, FlaskConical } from "lucide-react";
-import {
-  dashboardConnectorReadinessBadge,
-} from "~/features/dashboard/connectors/registry";
+import { DashboardConnectorReadinessBadge } from "~/features/dashboard/dashboard-connector-readiness-badge";
 import type { DashboardConnectorReadiness } from "~/features/dashboard/connectors/types";
 
 type InstrumentWorkspaceShellProps = {
@@ -23,8 +20,6 @@ export function InstrumentWorkspaceShell({
   readiness,
   children,
 }: InstrumentWorkspaceShellProps) {
-  const badgeLabel = dashboardConnectorReadinessBadge(readiness);
-
   return (
     <header className="flex flex-col gap-3">
       <Link
@@ -44,11 +39,7 @@ export function InstrumentWorkspaceShell({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-muted text-sm">{instrumentLabel}</p>
-            {badgeLabel ? (
-              <Badge variant="secondary" size="sm">
-                {badgeLabel}
-              </Badge>
-            ) : null}
+            <DashboardConnectorReadinessBadge readiness={readiness} />
           </div>
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">
             {instrumentLabel}
