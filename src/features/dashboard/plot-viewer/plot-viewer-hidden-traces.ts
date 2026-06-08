@@ -73,10 +73,10 @@ export function isPlotViewerTraceHidden(
   hiddenTraceIds: readonly string[] | ReadonlySet<string>,
   traceKey: string,
 ): boolean {
-  if (Array.isArray(hiddenTraceIds)) {
-    return hiddenTraceIds.includes(traceKey);
+  if ("has" in hiddenTraceIds) {
+    return hiddenTraceIds.has(traceKey);
   }
-  return hiddenTraceIds.has(traceKey);
+  return hiddenTraceIds.includes(traceKey);
 }
 
 /**
