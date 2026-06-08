@@ -642,6 +642,76 @@
   }
 }
 
+@keyframes beam-dump-live-fade {
+  0%,
+  68% {
+    opacity: 1;
+  }
+  82%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes beam-dump-flatline-draw {
+  0%,
+  68% {
+    opacity: 0;
+    stroke-dashoffset: 240;
+  }
+  82%,
+  100% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes beam-dump-status-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(1.06);
+  }
+}
+
+@layer components {
+  .beam-dump-scope {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .beam-dump-scope__pulse {
+    position: absolute;
+    inset: -0.75rem;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+    animation: beam-dump-status-pulse 3.2s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .beam-dump-scope__screen {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: color-mix(in oklab, var(--surface) 88%, var(--background));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 6%, transparent);
+  }
+
+  .beam-dump-scope__live-trace {
+    animation: beam-dump-live-fade 4.5s ease-in-out infinite;
+  }
+
+  .beam-dump-scope__flatline {
+    stroke-dasharray: 240;
+    animation: beam-dump-flatline-draw 4.5s ease-in-out infinite;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -54,6 +54,21 @@ export function buildInstrumentConnectorRequestIssueUrl(
   });
 }
 
+/**
+ * Builds a GitHub new-issue URL for general bug reports, optionally prefilling the title field.
+ */
+export function buildBugReportIssueUrl(title?: string): string {
+  const params = new URLSearchParams();
+  const trimmed = title?.trim();
+  if (trimmed) {
+    params.set("title", trimmed);
+  }
+  const query = params.toString();
+  return `https://github.com/${XRAY_ATLAS_GITHUB_REPO}/issues/new${
+    query ? `?${query}` : ""
+  }`;
+}
+
 function buildGitHubIssueFormUrl(
   template: string,
   fields: Record<string, string | undefined>,
