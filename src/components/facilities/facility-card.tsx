@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { BuildingOfficeIcon, BeakerIcon } from "@heroicons/react/24/outline";
+import { BeakerIcon } from "@heroicons/react/24/outline";
 import { facilityDetailHrefFromName } from "~/lib/facility-route";
+import { FacilityIcon } from "~/components/facilities/facility-icon";
 
 interface FacilityCardCompactProps {
   name: string;
@@ -10,6 +11,7 @@ interface FacilityCardCompactProps {
   country: string | null;
   facilityType: "SYNCHROTRON" | "FREE_ELECTRON_LASER" | "LAB_SOURCE";
   instrumentCount: number;
+  faviconUrl?: string | null;
 }
 
 export function FacilityCardCompact({
@@ -18,6 +20,7 @@ export function FacilityCardCompact({
   country,
   facilityType,
   instrumentCount,
+  faviconUrl,
 }: FacilityCardCompactProps) {
   const location = [city, country].filter(Boolean).join(", ") || "Location unknown";
 
@@ -32,9 +35,11 @@ export function FacilityCardCompact({
       href={facilityDetailHrefFromName(name)}
       className="group border-border bg-surface flex w-full items-center gap-4 overflow-hidden rounded-xl border p-4 shadow-lg transition-all hover:shadow-xl"
     >
-      <div className="bg-accent/10 text-accent dark:bg-accent-soft-hover flex h-12 w-12 shrink-0 items-center justify-center rounded-lg dark:text-accent">
-        <BuildingOfficeIcon className="h-6 w-6 stroke-[1.5]" aria-hidden />
-      </div>
+      <FacilityIcon
+        name={name}
+        faviconUrl={faviconUrl}
+        className="h-12 w-12"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">

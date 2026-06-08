@@ -4,12 +4,17 @@ import {
   slugifyFacilityName,
 } from "~/lib/facility-slug";
 import {
+  facilityWebsiteUrlInputSchema,
+  parseFacilityWebsiteUrlInput,
+} from "~/lib/facility-website-url";
+import {
   contributeWriteProcedure,
   createTRPCRouter,
   publicProcedure,
-  protectedProcedure,
+  adminProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { resolveFacilityFaviconUrl } from "~/server/utils/resolve-facility-favicon";
 
 const facilitiesListInclude = {
   instruments: {
@@ -275,5 +280,51 @@ export const facilitiesRouter = createTRPCRouter({
       });
 
       return { exists: !!instrument, instrument: instrument ?? null };
+    }),
+
+  /**
+   * Updates the public homepage URL for a facility and refreshes the cached favicon URL.
+   * Requires administrator privileges; favicon discovery runs server-side with SSRF filtering.
+   */
+  updateWebsite: adminProcedure
+    .input(
+      z.object({
+        facilityId: z.string().uuid(),
+        websiteUrl: facilityWebsiteUrlInputSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const facility = await ctx.db.facilities.findUnique({
+        where: { id: input.facilityId },
+        select: { id: true },
+      });
+      if (!facility) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Facility not found",
+        });
+      }
+
+      const websiteUrl = parseFacilityWebsiteUrlInput(input.websiteUrl);
+      let faviconUrl: string | null = null;
+      if (websiteUrl) {
+        try {
+          faviconUrl = await resolveFacilityFaviconUrl(websiteUrl);
+        } catch {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Website URL is not reachable or not allowed.",
+          });
+        }
+      }
+
+      return ctx.db.facilities.update({
+        where: { id: input.facilityId },
+        data: {
+          websiteurl: websiteUrl,
+          faviconurl: faviconUrl,
+        },
+        include: facilityDetailInclude,
+      });
     }),
 });

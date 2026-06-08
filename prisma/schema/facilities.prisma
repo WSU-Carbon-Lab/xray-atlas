@@ -5,6 +5,8 @@ model facilities {
   city         String?
   country      String?
   facilitytype FacilityType
+  websiteurl   String?
+  faviconurl   String?
   instruments  instruments[]
 
   @@schema("public")

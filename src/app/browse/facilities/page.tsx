@@ -161,6 +161,7 @@ function FacilitiesBrowseContent() {
                       country={facility.country}
                       facilityType={facility.facilitytype}
                       instrumentCount={facility.instruments?.length ?? 0}
+                      faviconUrl={facility.faviconurl}
                     />
                   ))}
                 </div>

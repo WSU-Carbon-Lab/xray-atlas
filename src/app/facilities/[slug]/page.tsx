@@ -19,6 +19,8 @@ import {
 import { AddInstrumentButton } from "@/components/contribute";
 import { InstrumentStatusChip } from "@/components/forms/instrument-status-chip";
 import { InstrumentConnectorClaimSection } from "~/features/dashboard/instrument-connector-claim-section";
+import { FacilityIcon } from "~/components/facilities/facility-icon";
+import { FacilityWebsiteAdminCard } from "~/components/facilities/facility-website-admin-card";
 import { Button, Card, Chip, Separator } from "@heroui/react";
 import { cn } from "@heroui/styles";
 
@@ -86,27 +88,56 @@ export default function FacilityDetailPage({
           </Button>
 
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-3">
-              <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
-                {facility.name}
-              </h1>
-              <div className="text-muted flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                <span className="inline-flex items-center gap-2">
-                  <MapPinIcon className="text-foreground/70 h-5 w-5 shrink-0" />
-                  <span>{location}</span>
-                </span>
-                <Chip
-                  size="sm"
-                  variant="soft"
-                  color="accent"
-                  className="h-7 px-2.5 text-xs font-semibold"
-                >
-                  {facilityTypeLabel}
-                </Chip>
+            <div className="min-w-0 flex flex-1 gap-4">
+              <FacilityIcon
+                name={facility.name}
+                faviconUrl={facility.faviconurl}
+                className="h-14 w-14 shrink-0 sm:h-16 sm:w-16"
+                iconClassName="h-8 w-8 sm:h-9 sm:w-9"
+              />
+              <div className="min-w-0 space-y-3">
+                <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
+                  {facility.name}
+                </h1>
+                <div className="text-muted flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                  <span className="inline-flex items-center gap-2">
+                    <MapPinIcon className="text-foreground/70 h-5 w-5 shrink-0" />
+                    <span>{location}</span>
+                  </span>
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    color="accent"
+                    className="h-7 px-2.5 text-xs font-semibold"
+                  >
+                    {facilityTypeLabel}
+                  </Chip>
+                  {facility.websiteurl ? (
+                    <a
+                      href={facility.websiteurl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:text-accent-dark inline-flex max-w-full items-center gap-1.5 font-medium underline-offset-2 hover:underline"
+                    >
+                      <LinkIcon className="h-4 w-4 shrink-0" aria-hidden />
+                      <span className="truncate">Visit facility website</span>
+                    </a>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        <FacilityWebsiteAdminCard
+          facilityId={facility.id}
+          facilityName={facility.name}
+          websiteUrl={facility.websiteurl}
+          faviconUrl={facility.faviconurl}
+          onSaved={() => {
+            void refetch();
+          }}
+        />
 
         <Card className="border-border bg-surface-1 overflow-hidden rounded-xl border shadow-sm">
           <nav
