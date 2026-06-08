@@ -17,6 +17,7 @@ import { BuildingOfficeIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import { FACILITY_TYPE_OPTIONS } from "./constants";
+import { facilityDetailHrefFromName } from "~/lib/facility-route";
 import type { FacilityIdentitySectionProps, FacilityType } from "./types";
 
 export function FacilityIdentitySection({
@@ -48,7 +49,9 @@ export function FacilityIdentitySection({
             variant="ghost"
             size="sm"
             className="ms-auto inline-flex items-center gap-2"
-            onPress={() => router.push(`/facilities/${existingFacilityId}`)}
+            onPress={() =>
+              router.push(facilityDetailHrefFromName(facilityData.name))
+            }
           >
             <BuildingOfficeIcon className="h-4 w-4 shrink-0" />
             <span>Open</span>

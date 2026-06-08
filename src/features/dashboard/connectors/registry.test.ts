@@ -29,11 +29,11 @@ describe("dashboard connector registry", () => {
   it("dashboardInstrumentBrowseHref links to the facility instrument anchor", () => {
     expect(
       dashboardInstrumentBrowseHref(
-        "11111111-1111-4111-8111-111111111111",
+        "advanced-light-source",
         "als-uuid_beamline_5_3_2_2",
       ),
     ).toBe(
-      "/facilities/11111111-1111-4111-8111-111111111111#instrument-als-uuid_beamline_5_3_2_2",
+      "/facilities/advanced-light-source#instrument-als-uuid_beamline_5_3_2_2",
     );
   });
 

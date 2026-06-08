@@ -180,9 +180,9 @@ export function DashboardHomePage() {
                         : dashboardInstrumentWorkspaceHref(connector.slug)
                     }
                     instrumentHref={
-                      connector.instrumentId && connector.facilityId
+                      connector.instrumentId && connector.facilitySlug
                         ? dashboardInstrumentBrowseHref(
-                            connector.facilityId,
+                            connector.facilitySlug,
                             connector.instrumentId,
                           )
                         : undefined

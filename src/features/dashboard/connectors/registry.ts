@@ -85,13 +85,13 @@ export function dashboardInstrumentWorkspaceHref(
 
 /**
  * Builds the public Atlas facility instrument record href for `instrumentId` under
- * `facilityId`, scrolling to the instrument card on the facility detail page.
+ * `facilitySlug`, scrolling to the instrument card on the facility detail page.
  */
 export function dashboardInstrumentBrowseHref(
-  facilityId: string,
+  facilitySlug: string,
   instrumentId: string,
 ): string {
-  return `/facilities/${encodeURIComponent(facilityId)}#instrument-${encodeURIComponent(instrumentId)}`;
+  return `/facilities/${encodeURIComponent(facilitySlug)}#instrument-${encodeURIComponent(instrumentId)}`;
 }
 
 /** Human-readable badge text for connector readiness, or null when no badge applies. */

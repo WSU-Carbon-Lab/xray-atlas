@@ -1,4 +1,5 @@
 import type { PrismaClient } from "~/prisma/client";
+import { canonicalFacilitySlugFromName } from "~/lib/facility-slug";
 import {
   matchInstrumentToDashboardBinding,
   resolveDashboardConnectorBinding,
@@ -15,6 +16,8 @@ export type DashboardConnectorCardDto = {
   instrumentId?: string;
   /** Persisted `facilities.id` for the parent facility of the instrument row. */
   facilityId?: string;
+  /** Canonical `/facilities/[slug]` segment derived from the facility name. */
+  facilitySlug?: string;
   /** Reader-facing facility name from the database or binding default. */
   facilityLabel: string;
   /** Reader-facing instrument name from the database or binding default. */
@@ -100,6 +103,7 @@ async function buildSortedDashboardConnectorCards(
       slug: binding?.slug ?? instrument.id,
       instrumentId: instrument.id,
       facilityId: instrument.facilityid,
+      facilitySlug: canonicalFacilitySlugFromName(instrument.facilities.name),
       facilityLabel: instrument.facilities.name,
       instrumentLabel: instrument.name,
       description: binding?.description ?? UNMATCHED_INSTRUMENT_DESCRIPTION,

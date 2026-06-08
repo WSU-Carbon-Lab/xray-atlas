@@ -156,7 +156,6 @@ function FacilitiesBrowseContent() {
                   {data.facilities.map((facility) => (
                     <FacilityCardCompact
                       key={facility.id}
-                      id={facility.id}
                       name={facility.name}
                       city={facility.city}
                       country={facility.country}

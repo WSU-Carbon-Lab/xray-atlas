@@ -23,14 +23,14 @@ import { Button, Card, Chip } from "@heroui/react";
 export default function FacilityDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = use(params);
+  const { slug } = use(params);
   const router = useRouter();
-  const facilityQuery = trpc.facilities.getById.useQuery({ id });
+  const facilityQuery = trpc.facilities.getBySlug.useQuery({ slug });
   const stewardsQuery = trpc.instruments.listStewardsForFacility.useQuery(
-    { facilityId: id },
-    { enabled: Boolean(id) },
+    { facilityId: facilityQuery.data?.id ?? "" },
+    { enabled: Boolean(facilityQuery.data?.id) },
   );
   const { data: facility, isLoading, isError, error, refetch } = facilityQuery;
   const stewardsByInstrumentId = stewardsQuery.data ?? {};

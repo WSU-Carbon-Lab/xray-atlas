@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { Prisma } from "~/prisma/client";
+import { Prisma, type PrismaClient } from "~/prisma/client";
+import {
+  slugifyFacilityName,
+} from "~/lib/facility-slug";
 import {
   contributeWriteProcedure,
   createTRPCRouter,
@@ -16,6 +19,35 @@ const facilitiesListInclude = {
     select: { instruments: true },
   },
 } as const;
+
+const facilityDetailInclude = {
+  instruments: {
+    orderBy: {
+      name: "asc" as const,
+    },
+  },
+  _count: {
+    select: {
+      instruments: true,
+    },
+  },
+} as const;
+
+async function findFacilityBySlug(db: PrismaClient, slug: string) {
+  const normalizedSlug = slugifyFacilityName(slug);
+  const facilities = await db.facilities.findMany({
+    include: facilityDetailInclude,
+  });
+  const matches = facilities.filter(
+    (facility) => slugifyFacilityName(facility.name) === normalizedSlug,
+  );
+
+  if (matches.length === 0) {
+    return null;
+  }
+
+  return matches[0] ?? null;
+}
 
 export const facilitiesRouter = createTRPCRouter({
   create: contributeWriteProcedure
@@ -159,19 +191,23 @@ export const facilitiesRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const facility = await ctx.db.facilities.findUnique({
         where: { id: input.id },
-        include: {
-          instruments: {
-            orderBy: {
-              name: "asc",
-            },
-          },
-          _count: {
-            select: {
-              instruments: true,
-            },
-          },
-        },
+        include: facilityDetailInclude,
       });
+
+      if (!facility) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Facility not found",
+        });
+      }
+
+      return facility;
+    }),
+
+  getBySlug: publicProcedure
+    .input(z.object({ slug: z.string().min(1).max(200) }))
+    .query(async ({ ctx, input }) => {
+      const facility = await findFacilityBySlug(ctx.db, input.slug);
 
       if (!facility) {
         throw new TRPCError({

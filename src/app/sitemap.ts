@@ -1,4 +1,5 @@
 import { type MetadataRoute } from "next";
+import { canonicalFacilitySlugFromName } from "~/lib/facility-slug";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { db } from "~/server/db";
 
@@ -20,7 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       take: 1000,
     }),
     db.facilities.findMany({
-      select: { id: true },
+      select: { id: true, name: true },
       take: 1000,
     }),
   ]);
@@ -37,7 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   const facilityEntries: MetadataRoute.Sitemap = facilities.map((facility) => ({
-    url: `${baseUrl}/facilities/${facility.id}`,
+    url: `${baseUrl}/facilities/${canonicalFacilitySlugFromName(facility.name)}`,
   lastModified: now,
     changeFrequency: "weekly",
     priority: 0.65,

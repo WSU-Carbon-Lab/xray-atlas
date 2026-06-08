@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { BuildingOfficeIcon, BeakerIcon } from "@heroicons/react/24/outline";
+import { facilityDetailHrefFromName } from "~/lib/facility-route";
 
 interface FacilityCardCompactProps {
-  id: string;
   name: string;
   city: string | null;
   country: string | null;
@@ -13,7 +13,6 @@ interface FacilityCardCompactProps {
 }
 
 export function FacilityCardCompact({
-  id,
   name,
   city,
   country,
@@ -30,7 +29,7 @@ export function FacilityCardCompact({
 
   return (
     <Link
-      href={`/facilities/${id}`}
+      href={facilityDetailHrefFromName(name)}
       className="group border-border bg-surface flex w-full items-center gap-4 overflow-hidden rounded-xl border p-4 shadow-lg transition-all hover:shadow-xl"
     >
       <div className="bg-accent/10 text-accent dark:bg-accent-soft-hover flex h-12 w-12 shrink-0 items-center justify-center rounded-lg dark:text-accent">
