@@ -45,7 +45,7 @@ function createAuthzMockDb(): PrismaClient {
 }
 
 describe("experimentFile aux access gate", () => {
-  it("requires experiment edit rights used by list and getDownloadUrl", async () => {
+  it("requires experiment edit rights for contributor list and getDownloadUrl", async () => {
     const db = createAuthzMockDb();
     await assertUserMayEditExperiment(db, OWNER_ORCID, EXPERIMENT_ID);
     let forbidden = false;
