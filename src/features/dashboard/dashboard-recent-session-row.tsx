@@ -9,7 +9,10 @@ import type { inferRouterOutputs } from "@trpc/server";
 import { SimpleDialog } from "~/components/ui/dialog";
 import type { AppRouter } from "~/server/api/root";
 import { showToast } from "~/components/ui/toast";
-import { ALS_5322_INSTRUMENT_LABEL } from "~/lib/dashboard-processing-session";
+import {
+  dashboardConnectorLabel,
+  dashboardInstrumentWorkspaceHref,
+} from "./connectors/registry";
 import { trpc } from "~/trpc/client";
 
 type DashboardRecentSessionRowProps = {
@@ -58,7 +61,10 @@ export function DashboardRecentSessionRow({
     <>
       <div className="border-border hover:bg-default/40 flex items-center gap-3 rounded-md border px-4 py-3 transition-colors">
         <Link
-          href={`/dashboard/instruments/als-5322?session=${session.id}`}
+          href={dashboardInstrumentWorkspaceHref(
+            session.instrumentSlug,
+            session.id,
+          )}
           className="min-w-0 flex-1"
         >
           <p className="text-foreground truncate text-sm font-medium">
@@ -66,7 +72,7 @@ export function DashboardRecentSessionRow({
           </p>
           <p className="text-muted text-xs">
             {session.stepMetadata.workspace?.beamtimeName ??
-              ALS_5322_INSTRUMENT_LABEL}
+              dashboardConnectorLabel(session.instrumentSlug)}
           </p>
         </Link>
         <div className="flex shrink-0 items-center gap-2">

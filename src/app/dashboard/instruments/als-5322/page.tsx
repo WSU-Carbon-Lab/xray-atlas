@@ -1,23 +1,24 @@
-import { Suspense } from "react";
-import { Spinner } from "@heroui/react";
-import { Als5322WorkspacePage } from "~/features/dashboard/instrument-workspace/als-5322-workspace-page";
+import { redirect } from "next/navigation";
+import { ALS_5322_INSTRUMENT_SLUG } from "~/features/dashboard/connectors/registry";
 
 export const metadata = {
   title: "ALS 5.3.2.2 STXM workspace",
 };
 
-function WorkspaceFallback() {
-  return (
-    <div className="flex justify-center py-16">
-      <Spinner size="lg" />
-    </div>
-  );
-}
+type Als5322InstrumentPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default function Als5322InstrumentPage() {
-  return (
-    <Suspense fallback={<WorkspaceFallback />}>
-      <Als5322WorkspacePage />
-    </Suspense>
-  );
+/** Legacy stable route; redirects to the dynamic `[slug]` workspace page. */
+export default async function Als5322InstrumentPage({
+  searchParams,
+}: Als5322InstrumentPageProps) {
+  const params = await searchParams;
+  const session = params.session;
+  const sessionValue = Array.isArray(session) ? session[0] : session;
+  const base = `/dashboard/instruments/${ALS_5322_INSTRUMENT_SLUG}`;
+  if (sessionValue) {
+    redirect(`${base}?session=${encodeURIComponent(sessionValue)}`);
+  }
+  redirect(base);
 }

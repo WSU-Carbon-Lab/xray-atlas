@@ -1,10 +1,90 @@
 import { z } from "zod";
+import {
+  ALS_5322_INSTRUMENT_LABEL,
+  ALS_5322_INSTRUMENT_SLUG,
+} from "~/features/dashboard/connectors/registry";
+import {
+  dashboardIngestStepMetadataSchema,
+  dashboardIngestionResultSchema,
+  dashboardLcfFitResultSchema,
+  dashboardLcfStepMetadataSchema,
+  dashboardPreviewAtlasEntrySchema,
+  dashboardPreviewRegionSpectrumSchema,
+  dashboardPreviewSpectrumEntrySchema,
+  dashboardPreviewStepMetadataSchema,
+  dashboardReduceStepMetadataSchema,
+  dashboardRegionsStepMetadataSchema,
+  dashboardStandardOverlaySchema,
+  regionSpectrumRecordSchema,
+  stxmIngestScanRecordSchema,
+  stxmIngestStorageModeSchema,
+  stxmIntensityGlitchRecordSchema,
+  stxmIzeroBoundsSchema,
+  stxmNormalizationWindowsSchema,
+  stxmRegionBoundsSchema,
+  stxmSampleRegionSchema,
+  type DashboardIngestionResult,
+  type DashboardLcfStepMetadata,
+  type DashboardPreviewAtlasEntry,
+  type DashboardPreviewRegionSpectrum,
+  type DashboardPreviewSpectrumEntry,
+  type DashboardPreviewStepMetadata,
+  type DashboardReduceStepMetadata,
+  type DashboardRegionsStepMetadata,
+  type DashboardStandardOverlay,
+  type RegionSpectrumRecord,
+  type StxmIngestScanRecord,
+  type StxmIngestScanSummary,
+  type StxmIngestStorageMode,
+  type StxmIntensityGlitchRecord,
+  type StxmIzeroBoundsRecord,
+  type StxmNormalizationWindows,
+  type StxmRegionBounds,
+  type StxmSampleRegionRecord,
+} from "~/features/dashboard/connectors/stxm/step-metadata";
 
-/** URL slug for the ALS Beamline 5.3.2.2 STXM instrument workspace. */
-export const ALS_5322_INSTRUMENT_SLUG = "als-5322";
-
-/** Reader-facing label for the ALS 5.3.2.2 workspace. */
-export const ALS_5322_INSTRUMENT_LABEL = "ALS Beamline 5.3.2.2 STXM";
+export { ALS_5322_INSTRUMENT_LABEL, ALS_5322_INSTRUMENT_SLUG };
+export {
+  dashboardIngestStepMetadataSchema,
+  dashboardIngestionResultSchema,
+  dashboardLcfFitResultSchema,
+  dashboardLcfStepMetadataSchema,
+  dashboardPreviewAtlasEntrySchema,
+  dashboardPreviewRegionSpectrumSchema,
+  dashboardPreviewSpectrumEntrySchema,
+  dashboardPreviewStepMetadataSchema,
+  dashboardReduceStepMetadataSchema,
+  dashboardRegionsStepMetadataSchema,
+  dashboardStandardOverlaySchema,
+  regionSpectrumRecordSchema,
+  stxmIngestScanRecordSchema,
+  stxmIngestStorageModeSchema,
+  stxmIntensityGlitchRecordSchema,
+  stxmIzeroBoundsSchema,
+  stxmNormalizationWindowsSchema,
+  stxmRegionBoundsSchema,
+  stxmSampleRegionSchema,
+};
+export type {
+  DashboardIngestionResult,
+  DashboardLcfStepMetadata,
+  DashboardPreviewAtlasEntry,
+  DashboardPreviewRegionSpectrum,
+  DashboardPreviewSpectrumEntry,
+  DashboardPreviewStepMetadata,
+  DashboardReduceStepMetadata,
+  DashboardRegionsStepMetadata,
+  DashboardStandardOverlay,
+  RegionSpectrumRecord,
+  StxmIngestScanRecord,
+  StxmIngestScanSummary,
+  StxmIngestStorageMode,
+  StxmIntensityGlitchRecord,
+  StxmIzeroBoundsRecord,
+  StxmNormalizationWindows,
+  StxmRegionBounds,
+  StxmSampleRegionRecord,
+};
 
 export const DASHBOARD_WORKSPACE_STEPS = [
   "ingest",
@@ -25,283 +105,6 @@ export const dashboardProcessingSessionStatusSchema = z.enum([
 
 export type DashboardProcessingSessionStatus = z.infer<
   typeof dashboardProcessingSessionStatusSchema
->;
-
-export const stxmIngestStorageModeSchema = z.enum([
-  "session_metadata_pending",
-  "experiment_aux",
-]);
-
-export type StxmIngestStorageMode = z.infer<typeof stxmIngestStorageModeSchema>;
-
-export const stxmIngestScanRecordSchema = z.object({
-  id: z.string().uuid(),
-  hdrFileName: z.string().min(1),
-  ximFileName: z.string().min(1),
-  hdrExperimentFileId: z.string().uuid().optional(),
-  ximExperimentFileId: z.string().uuid().optional(),
-  isNexafsLineScan: z.boolean(),
-  paxisCount: z.number().int().positive(),
-  qaxisCount: z.number().int().positive(),
-  paxisName: z.string().optional(),
-  qaxisName: z.string().optional(),
-  energyMinEv: z.number().nullable(),
-  energyMaxEv: z.number().nullable(),
-  parsedAt: z.string().min(1),
-  selected: z.boolean().default(false),
-});
-
-export type StxmIngestScanRecord = z.infer<typeof stxmIngestScanRecordSchema>;
-
-/** Alias used by dashboard ingest UI for parsed scan summaries. */
-export type StxmIngestScanSummary = StxmIngestScanRecord;
-
-/**
- * Ingest manifest on the processing session. Raw bytes live in experiment-aux
- * (`experiment_file` rows) once an experiment is linked; summaries and file ids
- * remain here for browser re-fetch and provenance.
- */
-export const dashboardIngestStepMetadataSchema = z.object({
-  scans: z.array(stxmIngestScanRecordSchema).default([]),
-  storageMode: stxmIngestStorageModeSchema.default("session_metadata_pending"),
-  activeScanId: z.string().uuid().nullable().optional(),
-});
-
-export const stxmRegionBoundsSchema = z.object({
-  sampleLo: z.number(),
-  sampleHi: z.number(),
-  izeroLo: z.number(),
-  izeroHi: z.number(),
-});
-
-export type StxmRegionBounds = z.infer<typeof stxmRegionBoundsSchema>;
-
-export const stxmNormalizationWindowsSchema = z.object({
-  preLo: z.number(),
-  preHi: z.number(),
-  postLo: z.number(),
-  postHi: z.number(),
-});
-
-export type StxmNormalizationWindows = z.infer<
-  typeof stxmNormalizationWindowsSchema
->;
-
-export const stxmSampleRegionSchema = z.object({
-  id: z.string().uuid(),
-  sampleLo: z.number(),
-  sampleHi: z.number(),
-  spotLabel: z.string(),
-  role: z.enum(["pure", "edge", "custom"]).default("custom"),
-});
-
-export type StxmSampleRegionRecord = z.infer<typeof stxmSampleRegionSchema>;
-
-export const stxmIzeroBoundsSchema = z.object({
-  izeroLo: z.number(),
-  izeroHi: z.number(),
-});
-
-export type StxmIzeroBoundsRecord = z.infer<typeof stxmIzeroBoundsSchema>;
-
-export const stxmIntensityGlitchRecordSchema = z.object({
-  energyIndex: z.number().int().nonnegative(),
-  energyEv: z.number().nullable(),
-  reason: z.enum([
-    "it_exceeds_i0",
-    "i0_below_neighbor_median",
-    "it_above_neighbor_median",
-    "paired_i0_it_spike",
-  ]),
-  i0: z.number(),
-  it: z.number(),
-});
-
-export type StxmIntensityGlitchRecord = z.infer<
-  typeof stxmIntensityGlitchRecordSchema
->;
-
-export const dashboardRegionsStepMetadataSchema = z.object({
-  scanId: z.string().min(1).nullable().optional(),
-  bounds: stxmRegionBoundsSchema.optional(),
-  sampleRegions: z.array(stxmSampleRegionSchema).optional(),
-  izeroBounds: stxmIzeroBoundsSchema.optional(),
-  pureRegionId: z.string().uuid().optional(),
-  plotScaleMode: z.enum(["linear", "log"]).optional(),
-  rawSignalTransform: z
-    .enum(["signal", "reciprocal", "log_reciprocal"])
-    .optional(),
-  i0PlotScale: z.enum(["linear", "log_i", "log_inv"]).optional(),
-  autoSuggested: z.boolean().optional(),
-  weightingMode: z
-    .enum(["inverse_count", "poisson_mle", "empirical"])
-    .default("poisson_mle"),
-  formula: z.string().optional(),
-  thicknessCm: z.number().positive().optional(),
-  normalization: stxmNormalizationWindowsSchema.optional(),
-  linkedMoleculeId: z.string().uuid().optional(),
-  linkedMoleculeLabel: z.string().optional(),
-  linkedMoleculeFormula: z.string().optional(),
-  regionEditorTrayOpen: z.boolean().optional(),
-  intensityGlitches: z.array(stxmIntensityGlitchRecordSchema).optional(),
-});
-
-export type DashboardRegionsStepMetadata = z.infer<
-  typeof dashboardRegionsStepMetadataSchema
->;
-
-export const regionSpectrumRecordSchema = z.object({
-  regionLabel: z.string(),
-  reductionMethod: z.enum(["two_region", "thickness_regression"]),
-  weightingMode: z.enum(["inverse_count", "poisson_mle", "empirical"]),
-  energyEv: z.array(z.number()),
-  od: z.array(z.number()),
-  odErr: z.array(z.number()),
-  nPixels: z.number().int(),
-  diagnostics: z.record(z.string(), z.number()).optional(),
-});
-
-export type RegionSpectrumRecord = z.infer<typeof regionSpectrumRecordSchema>;
-
-export const dashboardReduceStepMetadataSchema = z.object({
-  scanId: z.string().min(1),
-  spectra: z.array(regionSpectrumRecordSchema).default([]),
-  computedAt: z.string().min(1),
-  method: z.enum(["two_region", "thickness_regression"]).default("two_region"),
-});
-
-export type DashboardReduceStepMetadata = z.infer<
-  typeof dashboardReduceStepMetadataSchema
->;
-
-export const dashboardIngestionResultSchema = z.object({
-  scanId: z.string().min(1),
-  computedAt: z.string().min(1),
-  weightingMode: z.enum(["inverse_count", "poisson_mle", "empirical"]),
-  formula: z.string().nullable().optional(),
-  thicknessCm: z.number().optional(),
-  normalization: stxmNormalizationWindowsSchema,
-  normalizationScale: z.number().optional(),
-  energyEv: z.array(z.number()),
-  i0: z.array(z.number()).optional(),
-  iSample: z.array(z.number()).optional(),
-  od: z.array(z.number()),
-  odErr: z.array(z.number()),
-  odNormalized: z.array(z.number()).optional(),
-  massAbsorption: z.array(z.number()).optional(),
-  beta: z.array(z.number()).optional(),
-  delta: z.array(z.number()).optional(),
-  kkEngineLabel: z.string().nullable().optional(),
-});
-
-export type DashboardIngestionResult = z.infer<
-  typeof dashboardIngestionResultSchema
->;
-
-export const dashboardPreviewSpectrumEntrySchema = z.object({
-  scanId: z.string().min(1),
-  scanLabel: z.string().min(1),
-  keptAt: z.string().min(1),
-  edgeLabel: z.string().optional(),
-  hdrFileName: z.string().optional(),
-  ximFileName: z.string().optional(),
-  moleculeId: z.string().uuid().optional(),
-  moleculeName: z.string().optional(),
-  /** Incident polarization θ in degrees when known from hdr metadata or scan naming. */
-  incidentThetaDeg: z.number().finite().optional(),
-});
-
-export const dashboardPreviewAtlasEntrySchema = z.object({
-  experimentId: z.string().uuid(),
-  label: z.string().min(1),
-  addedAt: z.string().min(1),
-  moleculeName: z.string().optional(),
-  edgeLabel: z.string().optional(),
-  instrumentName: z.string().optional(),
-  facilityName: z.string().optional(),
-});
-
-export type DashboardPreviewAtlasEntry = z.infer<
-  typeof dashboardPreviewAtlasEntrySchema
->;
-
-export type DashboardPreviewSpectrumEntry = z.infer<
-  typeof dashboardPreviewSpectrumEntrySchema
->;
-
-export const dashboardStandardOverlaySchema = z.object({
-  experimentId: z.string().uuid(),
-  label: z.string().min(1),
-  enabled: z.boolean().default(true),
-});
-
-export type DashboardStandardOverlay = z.infer<
-  typeof dashboardStandardOverlaySchema
->;
-
-/** Downsampled per-region spectrum series kept in preview session cache. */
-export const dashboardPreviewRegionSpectrumSchema = z.object({
-  regionId: z.string().min(1),
-  spotLabel: z.string(),
-  isIzero: z.boolean().optional(),
-  color: z.string().optional(),
-  energyEv: z.array(z.number()),
-  signal: z.array(z.number()).optional(),
-  signalErr: z.array(z.number()).optional(),
-  od: z.array(z.number()).optional(),
-  odErr: z.array(z.number()).optional(),
-  odNormalized: z.array(z.number()).optional(),
-  massAbsorption: z.array(z.number()).optional(),
-  beta: z.array(z.number()).optional(),
-  delta: z.array(z.number()).optional(),
-});
-
-export type DashboardPreviewRegionSpectrum = z.infer<
-  typeof dashboardPreviewRegionSpectrumSchema
->;
-
-export const dashboardPreviewStepMetadataSchema = z.object({
-  spectra: z.array(dashboardPreviewSpectrumEntrySchema).default([]),
-  standardOverlays: z.array(dashboardStandardOverlaySchema).default([]),
-  compareScanIds: z.array(z.string()).default([]),
-  compareTraceKeys: z.array(z.string()).default([]),
-  atlasExperiments: z.array(dashboardPreviewAtlasEntrySchema).default([]),
-  atlasGeometryByExperimentId: z.record(z.string(), z.array(z.string())).optional(),
-  ingestionCache: z
-    .record(z.string(), dashboardIngestionResultSchema)
-    .optional(),
-  regionSpectraCache: z
-    .record(z.string(), z.array(dashboardPreviewRegionSpectrumSchema))
-    .optional(),
-});
-
-export type DashboardPreviewStepMetadata = z.infer<
-  typeof dashboardPreviewStepMetadataSchema
->;
-
-export const dashboardLcfFitResultSchema = z.object({
-  fractions: z.array(z.number()),
-  referenceLabels: z.array(z.string()),
-  reducedChiSquare: z.number(),
-  computedAt: z.string().min(1),
-});
-
-export const dashboardLcfStepMetadataSchema = z.object({
-  targetTraceKey: z.string().nullable().optional(),
-  componentTraceKeys: z.array(z.string()).default([]),
-  /** Slider warm-start weights aligned with `componentTraceKeys` (fraction units). */
-  initialWeights: z.array(z.number()).optional(),
-  channel: z
-    .enum(["od", "od_normalized", "mass_absorption", "beta", "delta"])
-    .optional(),
-  energyMinEv: z.number().optional(),
-  energyMaxEv: z.number().optional(),
-  sumToOne: z.boolean().default(true),
-  lastResult: dashboardLcfFitResultSchema.optional(),
-});
-
-export type DashboardLcfStepMetadata = z.infer<
-  typeof dashboardLcfStepMetadataSchema
 >;
 
 export const DASHBOARD_WORKSPACE_TABS = [
@@ -333,7 +136,10 @@ export const dashboardStepMetadataSchema = z.object({
   regions: dashboardRegionsStepMetadataSchema.optional(),
   /** Per-scan region locator metadata keyed by scan id (relative path or basename). */
   regionsCache: z
-    .record(z.string(), dashboardRegionsStepMetadataSchema)
+    .record(z.string().max(512), dashboardRegionsStepMetadataSchema)
+    .refine((record) => Object.keys(record).length <= 500, {
+      message: "At most 500 per-scan region cache entries allowed",
+    })
     .optional(),
   reduce: dashboardReduceStepMetadataSchema.optional(),
   ingestion: dashboardIngestionResultSchema.optional(),

@@ -13,7 +13,13 @@ import {
 } from "lucide-react";
 import { selectRecentWorkspaceSessions } from "~/lib/dashboard-processing-session";
 import { trpc } from "~/trpc/client";
+import {
+  dashboardConnectorReadinessBadge,
+  dashboardInstrumentWorkspaceHref,
+  listDashboardConnectors,
+} from "./connectors/registry";
 import { DashboardRecentSessionRow } from "./dashboard-recent-session-row";
+import { DashboardConnectorCard } from "./dashboard-connector-card";
 
 type DashboardSectionProps = {
   title: string;
@@ -75,6 +81,8 @@ export function DashboardHomePage() {
     [sessionsQuery.data],
   );
 
+  const instrumentConnectors = useMemo(() => listDashboardConnectors(), []);
+
   return (
     <div className="flex w-full flex-col gap-8">
       <header className="flex flex-col gap-2">
@@ -125,26 +133,18 @@ export function DashboardHomePage() {
           icon={<FlaskConical className="h-4 w-4" />}
         >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Link
-              href="/dashboard/instruments/als-5322"
-              className="border-border bg-default/20 hover:bg-default/40 flex flex-col gap-2 rounded-lg border px-4 py-4 transition-colors"
-            >
-              <p className="text-foreground text-sm font-semibold">
-                ALS — Beamline 5.3.2.2 (STXM)
-              </p>
-              <p className="text-muted text-sm leading-snug">
-                Browse local beamtime folders, extract NEXAFS line-scan spectra,
-                and define sample and izero regions in-browser.
-              </p>
-              <span
-                className={cn(
-                  buttonVariants({ variant: "primary", size: "sm" }),
-                  "mt-2 w-fit",
-                )}
-              >
-                Open workspace
-              </span>
-            </Link>
+            {instrumentConnectors.map((connector) => (
+              <DashboardConnectorCard
+                key={connector.slug}
+                connector={connector}
+                badgeLabel={dashboardConnectorReadinessBadge(connector.readiness)}
+                href={
+                  connector.readiness === "not_ready"
+                    ? undefined
+                    : dashboardInstrumentWorkspaceHref(connector.slug)
+                }
+              />
+            ))}
           </div>
         </DashboardSection>
 
