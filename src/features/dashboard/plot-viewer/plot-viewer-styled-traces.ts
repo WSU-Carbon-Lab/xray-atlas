@@ -12,6 +12,7 @@ import {
   formatPlotViewerGeometryCellLabel,
   resolvePlotViewerAngleSplit,
 } from "./format-plot-viewer-geometry-label";
+import { resolvePlotViewerRegionDescriptor } from "./plot-viewer-region-descriptor";
 import { channelDefinitionById } from "~/components/plots/data-rail/plot-data-rail-types";
 import {
   buildPlotPointsForChannel,
@@ -95,6 +96,7 @@ function descriptorValues(params: {
   experimentId: string;
   geometryKey: string;
   fixedLabel?: string;
+  regionLabel?: string;
   theta?: number;
   phi?: number;
   angleSplit: ReturnType<typeof resolvePlotViewerAngleSplit>;
@@ -110,12 +112,20 @@ function descriptorValues(params: {
     fixedLabel: params.fixedLabel,
     split: params.angleSplit,
   });
+  const regionLabel = resolvePlotViewerRegionDescriptor({
+    regionLabel: params.regionLabel ?? "",
+    theta: params.theta,
+    phi: params.phi,
+    geometryKey: params.geometryKey,
+    fixedLabel: params.fixedLabel,
+    angleSplit: params.angleSplit,
+  });
   const instrumentName = params.meta?.instrumentName ?? fallback;
   return {
     theta: formatPlotViewerAngleDegrees(params.theta),
     phi: formatPlotViewerAngleDegrees(params.phi),
     thetaPhi: angleLabel,
-    region: angleLabel,
+    region: regionLabel.length > 0 ? regionLabel : angleLabel,
     molecule: params.meta?.moleculeName ?? fallback,
     edge: params.meta?.edgeLabel ?? fallback,
     instrument: abbreviateInstrumentName(instrumentName),

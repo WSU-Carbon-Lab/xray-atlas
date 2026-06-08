@@ -42,7 +42,11 @@ export function mapPlotViewerLegendToDescriptorConfig(params: {
         markerSymbol: row.swatch.markerSymbol,
       },
       cells: Object.fromEntries(
-        activeFields.map((field) => [field, row.values[field] ?? "—"]),
+        activeFields.map((field) => {
+          const raw = row.values[field];
+          const text = typeof raw === "string" ? raw.trim() : raw;
+          return [field, text && text.length > 0 ? text : "—"];
+        }),
       ),
     })),
   };
