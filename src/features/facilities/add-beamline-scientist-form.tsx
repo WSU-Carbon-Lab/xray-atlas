@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type Key } from "react";
+import { useCallback, useEffect, useMemo, useState, type Key } from "react";
 import { skipToken } from "@tanstack/react-query";
 import {
   Badge,
@@ -12,6 +12,8 @@ import {
   ScrollShadow,
   Spinner,
 } from "@heroui/react";
+import { Check } from "lucide-react";
+import { ContributorAvatarGroup } from "~/components/attribution/contributor-avatar-group";
 import { ResearcherAvatar } from "~/components/ui/avatar";
 import {
   classifyAttributionSearchQuery,
@@ -19,7 +21,11 @@ import {
 } from "~/lib/attribution-researcher-search";
 import {
   buildOptimisticInstrumentSteward,
+  instrumentStewardSearchHitsForAvatarDisplay,
+  isInstrumentStewardSearchHitSelected,
   mergeInstrumentStewardIntoFacilityMap,
+  mergeInstrumentStewardsIntoFacilityMap,
+  toggleInstrumentStewardSearchHitSelection,
   type InstrumentStewardPublic,
   type InstrumentStewardSearchHit,
 } from "~/lib/instrument-steward";
@@ -59,8 +65,8 @@ function toStewardSearchHit(hit: ResearcherSearchHit): InstrumentStewardSearchHi
 /**
  * Search-and-add popover form for assigning beamline scientist stewards on facility cards.
  *
- * Picker rows call `instruments.addSteward` directly on list action; the parent popover stays
- * open until the mutation succeeds so optimistic cache updates can render the new avatar.
+ * Row picks accumulate in a pending list; the footer Add button commits all selections via
+ * `instruments.addSteward` without closing the popover until commit succeeds or Cancel is pressed.
  */
 export function AddBeamlineScientistForm({
   facilityId,
@@ -71,64 +77,28 @@ export function AddBeamlineScientistForm({
 }: AddBeamlineScientistFormProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const pendingSearchHitRef = useRef<InstrumentStewardSearchHit | null>(null);
+  const [pendingStewards, setPendingStewards] = useState<
+    InstrumentStewardSearchHit[]
+  >([]);
+  const [isCommitting, setIsCommitting] = useState(false);
 
   const utils = trpc.useUtils();
+  const addSteward = trpc.instruments.addSteward.useMutation();
+
   const assignedUserIds = useMemo(
     () => new Set(stewards.map((row) => row.userId)),
     [stewards],
   );
 
-  const addSteward = trpc.instruments.addSteward.useMutation({
-    onMutate: async ({ userId }) => {
-      await utils.instruments.listStewardsForFacility.cancel({ facilityId });
-      const previous = utils.instruments.listStewardsForFacility.getData({
-        facilityId,
-      });
-      const hit =
-        pendingSearchHitRef.current ??
-        ({
-          orcid: userId,
-          displayName: userId,
-          imageUrl: null,
-          hasAtlasProfile: false,
-        } satisfies InstrumentStewardSearchHit);
-      const optimisticSteward = buildOptimisticInstrumentSteward(
-        instrumentId,
-        hit,
-      );
-      if (previous) {
-        utils.instruments.listStewardsForFacility.setData(
-          { facilityId },
-          mergeInstrumentStewardIntoFacilityMap(previous, optimisticSteward),
-        );
-      }
-      return { previous };
-    },
-    onSuccess: (steward) => {
-      utils.instruments.listStewardsForFacility.setData({ facilityId }, (current) =>
-        mergeInstrumentStewardIntoFacilityMap(current ?? {}, steward),
-      );
-      showToast(`Added beamline scientist for ${instrumentName}.`, "success");
-      setSearchQuery("");
-      setDebouncedSearchQuery("");
-      pendingSearchHitRef.current = null;
-      onClose();
-    },
-    onError: (error, _variables, context) => {
-      if (context?.previous) {
-        utils.instruments.listStewardsForFacility.setData(
-          { facilityId },
-          context.previous,
-        );
-      }
-      pendingSearchHitRef.current = null;
-      showToast(error.message, "error");
-    },
-    onSettled: () => {
-      void utils.instruments.listStewardsForFacility.invalidate({ facilityId });
-    },
-  });
+  const pendingOrcids = useMemo(
+    () => new Set(pendingStewards.map((row) => row.orcid)),
+    [pendingStewards],
+  );
+
+  const pendingAvatarUsers = useMemo(
+    () => instrumentStewardSearchHitsForAvatarDisplay(pendingStewards),
+    [pendingStewards],
+  );
 
   useEffect(() => {
     const timer = setTimeout(
@@ -165,23 +135,153 @@ export function AddBeamlineScientistForm({
     [assignedUserIds, searchData?.results],
   );
 
-  const addSearchHit = useCallback(
+  const toggleSearchHit = useCallback(
     (hit: ResearcherSearchHit) => {
-      if (addSteward.isPending) {
+      if (isCommitting) {
         return;
       }
       if (assignedUserIds.has(hit.orcid)) {
-        showToast("That researcher is already a beamline scientist here.", "error");
+        showToast(
+          "That researcher is already a beamline scientist here.",
+          "error",
+        );
         return;
       }
-      pendingSearchHitRef.current = toStewardSearchHit(hit);
-      addSteward.mutate({
-        instrumentId,
-        userId: hit.orcid,
+      const stewardHit = toStewardSearchHit(hit);
+      setPendingStewards((current) => {
+        const wasSelected = isInstrumentStewardSearchHitSelected(
+          current,
+          stewardHit.orcid,
+        );
+        const next = toggleInstrumentStewardSearchHitSelection(
+          current,
+          stewardHit,
+        );
+        if (!wasSelected) {
+          setSearchQuery("");
+          setDebouncedSearchQuery("");
+        }
+        return next;
       });
     },
-    [addSteward, assignedUserIds, instrumentId],
+    [assignedUserIds, isCommitting],
   );
+
+  const handleCommitPending = useCallback(async () => {
+    if (pendingStewards.length === 0 || isCommitting || addSteward.isPending) {
+      return;
+    }
+
+    setIsCommitting(true);
+    const hits = [...pendingStewards];
+
+    await utils.instruments.listStewardsForFacility.cancel({ facilityId });
+    const previous = utils.instruments.listStewardsForFacility.getData({
+      facilityId,
+    });
+    const optimisticStewards = hits.map((hit) =>
+      buildOptimisticInstrumentSteward(instrumentId, hit),
+    );
+    if (previous) {
+      utils.instruments.listStewardsForFacility.setData(
+        { facilityId },
+        mergeInstrumentStewardsIntoFacilityMap(previous, optimisticStewards),
+      );
+    }
+
+    const outcomes = await Promise.allSettled(
+      hits.map((hit) =>
+        addSteward.mutateAsync({
+          instrumentId,
+          userId: hit.orcid,
+        }),
+      ),
+    );
+
+    let cache = previous ?? {};
+    const failedHits: InstrumentStewardSearchHit[] = [];
+    let successCount = 0;
+
+    for (let index = 0; index < outcomes.length; index += 1) {
+      const outcome = outcomes[index];
+      const hit = hits[index];
+      if (!outcome || !hit) {
+        continue;
+      }
+      if (outcome.status === "fulfilled") {
+        successCount += 1;
+        cache = mergeInstrumentStewardIntoFacilityMap(cache, outcome.value);
+      } else {
+        failedHits.push(hit);
+      }
+    }
+
+    utils.instruments.listStewardsForFacility.setData({ facilityId }, cache);
+
+    if (successCount === hits.length) {
+      showToast(
+        successCount === 1
+          ? `Added beamline scientist for ${instrumentName}.`
+          : `Added ${successCount} beamline scientists for ${instrumentName}.`,
+        "success",
+      );
+      setPendingStewards([]);
+      setSearchQuery("");
+      setDebouncedSearchQuery("");
+      onClose();
+    } else if (successCount > 0) {
+      setPendingStewards(failedHits);
+      const firstFailure = outcomes.find(
+        (outcome) => outcome.status === "rejected",
+      );
+      const detail =
+        firstFailure?.status === "rejected"
+          ? firstFailure.reason instanceof Error
+            ? firstFailure.reason.message
+            : "Some researchers could not be added."
+          : "Some researchers could not be added.";
+      showToast(
+        `Added ${successCount} of ${hits.length} beamline scientists. ${detail}`,
+        "error",
+      );
+    } else {
+      if (previous) {
+        utils.instruments.listStewardsForFacility.setData(
+          { facilityId },
+          previous,
+        );
+      }
+      const firstFailure = outcomes[0];
+      const message =
+        firstFailure?.status === "rejected" &&
+        firstFailure.reason instanceof Error
+          ? firstFailure.reason.message
+          : "Could not add beamline scientists.";
+      showToast(message, "error");
+    }
+
+    void utils.instruments.listStewardsForFacility.invalidate({ facilityId });
+    setIsCommitting(false);
+  }, [
+    addSteward,
+    facilityId,
+    instrumentId,
+    instrumentName,
+    isCommitting,
+    onClose,
+    pendingStewards,
+    utils.instruments.listStewardsForFacility,
+  ]);
+
+  const handleCancel = useCallback(() => {
+    if (isCommitting || addSteward.isPending) {
+      return;
+    }
+    setPendingStewards([]);
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+    onClose();
+  }, [addSteward.isPending, isCommitting, onClose]);
 
   const emptyStateMessage = useMemo(() => {
     if (!searchEnabled) {
@@ -208,19 +308,22 @@ export function AddBeamlineScientistForm({
       if (typeof key !== "string") return;
       const hit = searchResults.find((row) => row.orcid === key);
       if (!hit) return;
-      addSearchHit(hit);
+      toggleSearchHit(hit);
     },
-    [addSearchHit, searchResults],
+    [searchResults, toggleSearchHit],
   );
 
   const showResultsList = searchQuery.trim().length > 0;
+  const commitDisabled =
+    pendingStewards.length === 0 || isCommitting || addSteward.isPending;
 
   return (
     <div className="flex flex-col gap-3">
       <div>
         <p className="text-foreground text-sm font-medium">Add beamline scientist</p>
         <p className="text-muted mt-1 text-xs leading-snug">
-          Search Atlas or ORCID, then pick a row to add them to {instrumentName}.
+          Search Atlas or ORCID, select one or more researchers, then press Add for{" "}
+          {instrumentName}.
         </p>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -234,7 +337,7 @@ export function AddBeamlineScientistForm({
           autoComplete="off"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          disabled={addSteward.isPending}
+          disabled={isCommitting || addSteward.isPending}
         />
         {showResultsList ? (
           <div
@@ -262,11 +365,12 @@ export function AddBeamlineScientistForm({
                     isClaimed: hit.hasAtlasProfile,
                     hasContributionAgreement: hit.hasContributionAgreement,
                   });
+                  const isSelected = pendingOrcids.has(hit.orcid);
                   return (
                     <ListBox.Item
                       id={hit.orcid}
                       textValue={`${hit.displayName} ${hit.orcid}`}
-                      isDisabled={addSteward.isPending}
+                      isDisabled={isCommitting || addSteward.isPending}
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
                         <Badge.Anchor className="shrink-0">
@@ -311,6 +415,12 @@ export function AddBeamlineScientistForm({
                             </span>
                           ) : null}
                         </div>
+                        {isSelected ? (
+                          <Check
+                            className="text-accent size-4 shrink-0"
+                            aria-hidden
+                          />
+                        ) : null}
                       </div>
                     </ListBox.Item>
                   );
@@ -332,14 +442,43 @@ export function AddBeamlineScientistForm({
           </p>
         ) : null}
       </div>
-      <div className="flex justify-end">
+      {pendingStewards.length > 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-muted text-xs font-medium uppercase tracking-wide">
+            Selected ({pendingStewards.length})
+          </p>
+          <ContributorAvatarGroup
+            users={pendingAvatarUsers}
+            size="sm"
+            max={8}
+          />
+        </div>
+      ) : null}
+      <div className="flex justify-end gap-2">
         <Button
           size="sm"
           variant="ghost"
-          onPress={onClose}
-          isDisabled={addSteward.isPending}
+          onPress={handleCancel}
+          isDisabled={isCommitting || addSteward.isPending}
         >
           Cancel
+        </Button>
+        <Button
+          size="sm"
+          variant="primary"
+          onPress={() => {
+            void handleCommitPending();
+          }}
+          isDisabled={commitDisabled}
+        >
+          {isCommitting || addSteward.isPending ? (
+            <span className="flex items-center gap-1.5">
+              <Spinner size="sm" />
+              Adding...
+            </span>
+          ) : (
+            `Add${pendingStewards.length > 0 ? ` (${pendingStewards.length})` : ""}`
+          )}
         </Button>
       </div>
     </div>

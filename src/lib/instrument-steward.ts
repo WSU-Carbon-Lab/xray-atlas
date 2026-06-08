@@ -158,6 +158,71 @@ export function mergeInstrumentStewardIntoFacilityMap(
   };
 }
 
+/**
+ * Merges multiple stewards into a facility-scoped map, skipping duplicate `userId` rows per instrument.
+ */
+export function mergeInstrumentStewardsIntoFacilityMap(
+  stewardsByInstrumentId: Record<string, InstrumentStewardPublic[]>,
+  stewards: InstrumentStewardPublic[],
+): Record<string, InstrumentStewardPublic[]> {
+  return stewards.reduce(
+    (map, steward) => mergeInstrumentStewardIntoFacilityMap(map, steward),
+    stewardsByInstrumentId,
+  );
+}
+
+/**
+ * Toggles a search hit in a pending beamline-scientist selection list keyed by ORCID.
+ */
+export function toggleInstrumentStewardSearchHitSelection(
+  pending: InstrumentStewardSearchHit[],
+  hit: InstrumentStewardSearchHit,
+): InstrumentStewardSearchHit[] {
+  const existingIndex = pending.findIndex((row) => row.orcid === hit.orcid);
+  if (existingIndex >= 0) {
+    return pending.filter((row) => row.orcid !== hit.orcid);
+  }
+  return [...pending, hit];
+}
+
+/**
+ * Returns whether an ORCID is already present in a pending steward selection list.
+ */
+export function isInstrumentStewardSearchHitSelected(
+  pending: InstrumentStewardSearchHit[],
+  orcid: string,
+): boolean {
+  return pending.some((row) => row.orcid === orcid);
+}
+
+/**
+ * Maps pending steward search hits to stacked avatar users for compact picker previews.
+ */
+export function instrumentStewardSearchHitsForAvatarDisplay(
+  hits: InstrumentStewardSearchHit[],
+): UserWithOrcid[] {
+  const seen = new Set<string>();
+  const users: UserWithOrcid[] = [];
+  for (const hit of hits) {
+    if (seen.has(hit.orcid)) {
+      continue;
+    }
+    seen.add(hit.orcid);
+    users.push({
+      id: hit.orcid,
+      orcid: hit.orcid,
+      name: hit.displayName,
+      image: hit.imageUrl,
+      isAtlasProfile: hit.hasAtlasProfile,
+      avatarPlaceholder: hit.hasAtlasProfile ? "initials" : "person",
+      hoverRoleLabel: "Beamline scientist",
+      tooltipSubtitle: "Pending add",
+      avatarStackKey: hit.orcid,
+    });
+  }
+  return users;
+}
+
 export function instrumentStewardsForAvatarDisplay(
   stewards: InstrumentStewardPublic[] | null | undefined,
 ): UserWithOrcid[] {
