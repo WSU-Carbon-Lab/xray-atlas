@@ -5,6 +5,7 @@ import {
 } from "bun:test";
 import {
   ALS_5322_INSTRUMENT_SLUG,
+  dashboardInstrumentBrowseHref,
   dashboardInstrumentWorkspaceHref,
   resolveDashboardConnector,
 } from "./registry";
@@ -23,6 +24,17 @@ describe("dashboard connector registry", () => {
     const connector = resolveDashboardConnector(ALS_5322_INSTRUMENT_SLUG);
     expect(connector?.readiness).toBe("beta");
     expect(connector?.slug).toBe(ALS_5322_INSTRUMENT_SLUG);
+  });
+
+  it("dashboardInstrumentBrowseHref links to the facility instrument anchor", () => {
+    expect(
+      dashboardInstrumentBrowseHref(
+        "11111111-1111-4111-8111-111111111111",
+        "als-uuid_beamline_5_3_2_2",
+      ),
+    ).toBe(
+      "/facilities/11111111-1111-4111-8111-111111111111#instrument-als-uuid_beamline_5_3_2_2",
+    );
   });
 
   it("dashboardInstrumentWorkspaceHref builds resume URLs from instrumentSlug", () => {

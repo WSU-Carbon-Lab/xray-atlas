@@ -201,10 +201,10 @@ export default function FacilityDetailPage({
             ) : (
               <ul className="space-y-3" aria-label="Instruments at this facility">
                 {facility.instruments.map((instrument) => (
-                  <li key={instrument.id}>
+                  <li key={instrument.id} id={`instrument-${instrument.id}`}>
                     <Card
                       variant="secondary"
-                      className="border-border bg-surface-2/80 border"
+                      className="border-border bg-surface-2/80 border scroll-mt-24"
                     >
                       <Card.Content className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0 flex-1 space-y-2">

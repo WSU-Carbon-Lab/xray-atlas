@@ -14,8 +14,10 @@ export type DashboardConnectorReadiness = "beta" | "ready" | "not_ready";
  */
 export type DashboardConnectorSummary = {
   slug: string;
-  /** Persisted `instruments.id` when a binding matches a database row. */
+  /** Persisted `instruments.id` for the Atlas instrument row backing this card. */
   instrumentId?: string;
+  /** Persisted `facilities.id` for the parent facility of the instrument row. */
+  facilityId?: string;
   /** Reader-facing facility name from the database or binding default. */
   facilityLabel: string;
   /** Reader-facing instrument name from the database or binding default. */

@@ -1,16 +1,34 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { listDashboardConnectorsFromDb } from "~/features/dashboard/connectors/resolve-dashboard-connectors";
+import {
+  DASHBOARD_CONNECTORS_DEFAULT_PAGE_SIZE,
+  listDashboardConnectorsFromDb,
+} from "~/features/dashboard/connectors/resolve-dashboard-connectors";
 
 export const instrumentsRouter = createTRPCRouter({
   /**
    * Lists dashboard instrument workspace cards by matching persisted instruments to
    * connector bindings (labels and facilities from the database; readiness from overlay).
    */
-  listDashboardConnectors: publicProcedure.query(async ({ ctx }) => {
-    return listDashboardConnectorsFromDb(ctx.db);
-  }),
+  listDashboardConnectors: publicProcedure
+    .input(
+      z.object({
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .default(DASHBOARD_CONNECTORS_DEFAULT_PAGE_SIZE),
+        offset: z.number().int().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return listDashboardConnectorsFromDb(ctx.db, {
+        limit: input.limit,
+        offset: input.offset,
+      });
+    }),
 
   getById: publicProcedure
     .input(z.object({ id: z.string() }))

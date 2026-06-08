@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Spinner } from "@heroui/react";
+import { Pagination, Spinner } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
 import {
   Clock,
@@ -15,8 +15,10 @@ import { selectRecentWorkspaceSessions } from "~/lib/dashboard-processing-sessio
 import { trpc } from "~/trpc/client";
 import {
   dashboardConnectorReadinessBadge,
+  dashboardInstrumentBrowseHref,
   dashboardInstrumentWorkspaceHref,
 } from "./connectors/registry";
+import { DASHBOARD_CONNECTORS_DEFAULT_PAGE_SIZE } from "./connectors/resolve-dashboard-connectors";
 import { DashboardRecentSessionRow } from "./dashboard-recent-session-row";
 import { DashboardConnectorCard } from "./dashboard-connector-card";
 
@@ -58,11 +60,18 @@ function DashboardSection({
 export function DashboardHomePage() {
   const utils = trpc.useUtils();
   const hasPrunedDuplicatesRef = useRef(false);
+  const [instrumentsPage, setInstrumentsPage] = useState(1);
+  const instrumentsPageSize = DASHBOARD_CONNECTORS_DEFAULT_PAGE_SIZE;
+  const instrumentsOffset = (instrumentsPage - 1) * instrumentsPageSize;
+
   const sessionsQuery = trpc.dashboardSessions.list.useQuery(undefined, {
     staleTime: 30_000,
   });
   const connectorsQuery = trpc.instruments.listDashboardConnectors.useQuery(
-    undefined,
+    {
+      limit: instrumentsPageSize,
+      offset: instrumentsOffset,
+    },
     { staleTime: 60_000 },
   );
   const { mutate: dedupeWorkspaceSessions } =
@@ -84,7 +93,18 @@ export function DashboardHomePage() {
     [sessionsQuery.data],
   );
 
-  const instrumentConnectors = connectorsQuery.data ?? [];
+  const instrumentConnectors = connectorsQuery.data?.items ?? [];
+  const instrumentTotal = connectorsQuery.data?.total ?? 0;
+  const instrumentTotalPages = Math.max(
+    1,
+    Math.ceil(instrumentTotal / instrumentsPageSize),
+  );
+
+  useEffect(() => {
+    if (instrumentsPage > instrumentTotalPages) {
+      setInstrumentsPage(instrumentTotalPages);
+    }
+  }, [instrumentsPage, instrumentTotalPages]);
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -139,26 +159,90 @@ export function DashboardHomePage() {
             <div className="flex justify-center py-6">
               <Spinner size="md" />
             </div>
-          ) : instrumentConnectors.length === 0 ? (
+          ) : instrumentTotal === 0 ? (
             <p className="text-muted text-sm">
               No analysis instruments are registered in Atlas yet.
             </p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {instrumentConnectors.map((connector) => (
-                <DashboardConnectorCard
-                  key={connector.instrumentId ?? connector.slug}
-                  connector={connector}
-                  badgeLabel={dashboardConnectorReadinessBadge(
-                    connector.readiness,
-                  )}
-                  href={
-                    connector.readiness === "not_ready"
-                      ? undefined
-                      : dashboardInstrumentWorkspaceHref(connector.slug)
-                  }
-                />
-              ))}
+            <div className="flex flex-col gap-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {instrumentConnectors.map((connector) => (
+                  <DashboardConnectorCard
+                    key={connector.instrumentId ?? connector.slug}
+                    connector={connector}
+                    badgeLabel={dashboardConnectorReadinessBadge(
+                      connector.readiness,
+                    )}
+                    workspaceHref={
+                      connector.readiness === "not_ready"
+                        ? undefined
+                        : dashboardInstrumentWorkspaceHref(connector.slug)
+                    }
+                    instrumentHref={
+                      connector.instrumentId && connector.facilityId
+                        ? dashboardInstrumentBrowseHref(
+                            connector.facilityId,
+                            connector.instrumentId,
+                          )
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+              {instrumentTotalPages > 1 ? (
+                <div className="flex justify-center pt-2">
+                  <Pagination size="sm" className="gap-2">
+                    <Pagination.Content className="gap-2">
+                      <Pagination.Item>
+                        <Pagination.Previous
+                          isDisabled={instrumentsPage <= 1}
+                          aria-label="Previous analysis instruments page"
+                          onPress={() =>
+                            setInstrumentsPage((page) => Math.max(1, page - 1))
+                          }
+                          className="border-border bg-surface rounded-lg border"
+                        >
+                          <Pagination.PreviousIcon />
+                        </Pagination.Previous>
+                      </Pagination.Item>
+                      {instrumentTotalPages <= 20
+                        ? Array.from(
+                            { length: instrumentTotalPages },
+                            (_, index) => index + 1,
+                          ).map((page) => (
+                            <Pagination.Item key={page}>
+                              <Pagination.Link
+                                isActive={page === instrumentsPage}
+                                onPress={() => setInstrumentsPage(page)}
+                                aria-label={`Analysis instruments page ${page}`}
+                                className="border-border bg-surface rounded-lg border"
+                              >
+                                {page}
+                              </Pagination.Link>
+                            </Pagination.Item>
+                          ))
+                        : null}
+                      <Pagination.Item>
+                        <Pagination.Next
+                          isDisabled={
+                            instrumentsPage >= instrumentTotalPages ||
+                            !connectorsQuery.data?.hasMore
+                          }
+                          aria-label="Next analysis instruments page"
+                          onPress={() =>
+                            setInstrumentsPage((page) =>
+                              Math.min(instrumentTotalPages, page + 1),
+                            )
+                          }
+                          className="border-border bg-surface rounded-lg border"
+                        >
+                          <Pagination.NextIcon />
+                        </Pagination.Next>
+                      </Pagination.Item>
+                    </Pagination.Content>
+                  </Pagination>
+                </div>
+              ) : null}
             </div>
           )}
         </DashboardSection>
