@@ -14,10 +14,20 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
+  ChartBarIcon,
+  BuildingOfficeIcon,
+  BookOpenIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { AddInstrumentButton } from "@/components/contribute";
 import { InstrumentConnectorClaimSection } from "~/features/dashboard/instrument-connector-claim-section";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip, Separator } from "@heroui/react";
+
+const exploreCatalogLinkClass =
+  "focus-visible:ring-accent inline-flex items-center gap-1.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:border-border hover:bg-default/80 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+const exploreInstrumentLinkClass =
+  "focus-visible:ring-accent inline-flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent/10 px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-accent/40 hover:bg-accent/15 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 export default function FacilityDetailPage({
   params,
@@ -132,57 +142,61 @@ export default function FacilityDetailPage({
 
         <nav
           aria-label="Explore related catalogs"
-          className="border-border mt-8 border-t pt-6"
+          className="border-border bg-surface/40 mt-8 rounded-xl border px-4 py-5 sm:px-5 sm:py-6"
         >
-          <p className="text-muted mb-3 text-xs font-medium tracking-wide uppercase">
+          <p className="text-muted mb-4 text-[0.6875rem] font-semibold tracking-[0.12em] uppercase">
             Explore
           </p>
-          <ul className="text-muted flex flex-wrap gap-x-5 gap-y-2 text-sm">
-            {facility.instruments.slice(0, 2).map((instrument) => (
-              <li key={instrument.id}>
-                <Link
-                  href={`/browse/nexafs?instrument=${encodeURIComponent(instrument.id)}`}
-                  className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
-                >
-                  NEXAFS: {instrument.name}
+          <div className="flex flex-col gap-4">
+            {facility.instruments.length > 0 ? (
+              <ul className="flex flex-wrap gap-2">
+                {facility.instruments.slice(0, 2).map((instrument) => (
+                  <li key={instrument.id}>
+                    <Link
+                      href={`/browse/nexafs?instrument=${encodeURIComponent(instrument.id)}`}
+                      className={exploreInstrumentLinkClass}
+                    >
+                      <ChartBarIcon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      <span>NEXAFS: {instrument.name}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ul className="flex flex-wrap gap-2">
+                <li>
+                  <Link href="/browse/nexafs" className={exploreInstrumentLinkClass}>
+                    <ChartBarIcon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                    <span>Browse NEXAFS experiments</span>
+                  </Link>
+                </li>
+              </ul>
+            )}
+            <Separator className="bg-border" />
+            <ul className="flex flex-wrap gap-2">
+              <li>
+                <Link href="/browse/facilities" className={exploreCatalogLinkClass}>
+                  <BuildingOfficeIcon className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+                  <span>All facilities</span>
                 </Link>
               </li>
-            ))}
-            {facility.instruments.length === 0 ? (
+              <li>
+                <Link href="/wiki/home" className={exploreCatalogLinkClass}>
+                  <BookOpenIcon className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+                  <span>NEXAFS wiki</span>
+                </Link>
+              </li>
               <li>
                 <Link
-                  href="/browse/nexafs"
-                  className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
+                  href="/wiki/platform-features"
+                  className={exploreCatalogLinkClass}
                 >
-                  Browse NEXAFS experiments
+                  <SparklesIcon className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+                  <span>Platform features</span>
                 </Link>
               </li>
-            ) : null}
-            <li>
-              <Link
-                href="/browse/facilities"
-                className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
-              >
-                All facilities
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/wiki/home"
-                className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
-              >
-                NEXAFS wiki
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/wiki/platform-features"
-                className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
-              >
-                Platform features
-              </Link>
-            </li>
-          </ul>
+            </ul>
+          </div>
         </nav>
 
         <Card className="border-border bg-surface-1 overflow-hidden border shadow-sm">
@@ -232,13 +246,11 @@ export default function FacilityDetailPage({
                             </a>
                           ) : null}
                           <InstrumentConnectorClaimSection
+                            facilityId={facility.id}
                             facilityName={facility.name}
                             instrumentId={instrument.id}
                             instrumentName={instrument.name}
                             stewards={stewardsByInstrumentId[instrument.id] ?? []}
-                            onStewardsChanged={() => {
-                              void stewardsQuery.refetch();
-                            }}
                           />
                         </div>
                       </Card.Content>
