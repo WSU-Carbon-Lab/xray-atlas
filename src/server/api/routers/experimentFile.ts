@@ -17,7 +17,7 @@ import {
 import {
   contributeWriteProcedure,
   createTRPCRouter,
-  publicProcedure,
+  protectedProcedure,
 } from "~/server/api/trpc";
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 import {
@@ -43,9 +43,14 @@ async function userMaySoftDeleteExperimentFile(
 }
 
 export const experimentFileRouter = createTRPCRouter({
-  list: publicProcedure
+  list: protectedProcedure
     .input(z.object({ experimentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
       const rows = await ctx.db.experimentfile.findMany({
         where: {
           experimentid: input.experimentId,
@@ -57,7 +62,7 @@ export const experimentFileRouter = createTRPCRouter({
       return rows.map(serializeAuxFileRow);
     }),
 
-  getDownloadUrl: publicProcedure
+  getDownloadUrl: protectedProcedure
     .input(
       z.object({
         experimentId: z.string().uuid(),
@@ -65,6 +70,11 @@ export const experimentFileRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
       const row = await ctx.db.experimentfile.findFirst({
         where: {
           id: input.fileId,

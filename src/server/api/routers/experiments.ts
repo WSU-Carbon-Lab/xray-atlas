@@ -469,7 +469,7 @@ export const experimentsRouter = createTRPCRouter({
   browseSearch: publicProcedure
     .input(
       z.object({
-        query: z.string().min(1),
+        query: z.string().min(1).max(200),
         limit: z.number().min(1).max(50).default(12),
         offset: z.number().min(0).default(0),
         sortBy: nexafsBrowseSortBySchema,
