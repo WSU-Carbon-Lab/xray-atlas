@@ -379,6 +379,8 @@ export function IngestionTab({
   const [regionSpectraEpoch, setRegionSpectraEpoch] = useState(0);
   const [pipelineEpoch, setPipelineEpoch] = useState(0);
   const activeScanIdRef = useRef(scanId);
+  const sessionReadyRef = useRef(sessionReady);
+  sessionReadyRef.current = sessionReady;
   const regionPersistEnabledRef = useRef(false);
   const buildRegionsPersistPayloadRef = useRef<
     ((targetScanId: string) => DashboardRegionsStepMetadata | null) | null
@@ -479,7 +481,7 @@ export function IngestionTab({
         clearTimeout(debouncePipelineRef.current);
         debouncePipelineRef.current = null;
       }
-      if (!regionPersistEnabledRef.current) {
+      if (!regionPersistEnabledRef.current || !sessionReadyRef.current) {
         return;
       }
       const regionsPayload = buildRegionsPersistPayloadRef.current?.(
@@ -941,6 +943,9 @@ export function IngestionTab({
       if (previewOnly) {
         return;
       }
+      if (!sessionReadyRef.current) {
+        return;
+      }
       const persisted = ingestionResultToPersisted(pipelineResult, scanId);
       const { sampleMask, izeroMask } = sampleIzeroMasks(
         loaded.oriented.spatial,
@@ -1182,6 +1187,9 @@ export function IngestionTab({
   }, [loaded]);
 
   const handleKeepInCache = useCallback(async () => {
+    if (!sessionReady) {
+      return;
+    }
     const regionsPayload = buildRegionsPersistPayload();
     if (regionsPayload) {
       await onPersistRegions(regionsPayload);
@@ -1237,6 +1245,7 @@ export function IngestionTab({
     result,
     scanId,
     scanLabel,
+    sessionReady,
     standardOverlays,
     ximFile.name,
   ]);

@@ -28,6 +28,29 @@ import {
 
 const SESSION_WRITE_DEBOUNCE_MS = 400;
 
+/**
+ * Resolves the session snapshot eligible for in-memory mutation.
+ * Returns null while the initial session read is in flight so callers cannot
+ * clobber disk state with an empty file before {@link readStxmSessionFile} completes.
+ */
+export function resolveStxmSessionForMutation(
+  isReady: boolean,
+  session: StxmSessionFile | null,
+  experimentName: string | null,
+): StxmSessionFile | null {
+  if (!isReady) {
+    return null;
+  }
+  if (session) {
+    return session;
+  }
+  const trimmedName = experimentName?.trim();
+  if (!trimmedName) {
+    return null;
+  }
+  return createEmptyStxmSessionFile(trimmedName);
+}
+
 export type UseStxmSessionFileOptions = {
   experimentDirectory: StxmDirectoryHandle | null;
   experimentName: string | null;
@@ -38,6 +61,7 @@ export type UseStxmSessionFileResult = {
   sessionFile: StxmSessionFile | null;
   isLoading: boolean;
   isReady: boolean;
+  isWriting: boolean;
   resolveRegions: (scanId: string) => DashboardRegionsStepMetadata | undefined;
   resolveIngestion: (scanId: string) => DashboardIngestionResult | undefined;
   resolveReduce: (scanId: string) => DashboardReduceStepMetadata | undefined;
@@ -71,9 +95,12 @@ export function useStxmSessionFile(
   const [sessionFile, setSessionFile] = useState<StxmSessionFile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [isWriting, setIsWriting] = useState(false);
   const sessionRef = useRef<StxmSessionFile | null>(null);
+  const isReadyRef = useRef(false);
   const directoryRef = useRef<StxmDirectoryHandle | null>(null);
   const writeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const writeInFlightRef = useRef(false);
   const legacyImportedRef = useRef(false);
   const legacyStepMetadataRef = useRef(legacyStepMetadata);
   legacyStepMetadataRef.current = legacyStepMetadata;
@@ -83,47 +110,77 @@ export function useStxmSessionFile(
     setSessionFile(next);
   }, []);
 
+  const syncIsWriting = useCallback(() => {
+    setIsWriting(
+      writeInFlightRef.current || writeTimerRef.current !== null,
+    );
+  }, []);
+
   const writeNow = useCallback(async () => {
+    if (!isReadyRef.current) {
+      return;
+    }
     const directory = directoryRef.current;
     const session = sessionRef.current;
     if (!directory || !session) {
       return;
     }
-    await writeStxmSessionFile(directory, session);
-  }, []);
+    writeInFlightRef.current = true;
+    syncIsWriting();
+    try {
+      await writeStxmSessionFile(directory, session);
+    } finally {
+      writeInFlightRef.current = false;
+      syncIsWriting();
+    }
+  }, [syncIsWriting]);
 
   const scheduleWrite = useCallback(() => {
+    if (!isReadyRef.current) {
+      return;
+    }
     if (writeTimerRef.current) {
       clearTimeout(writeTimerRef.current);
     }
+    syncIsWriting();
     writeTimerRef.current = setTimeout(() => {
       writeTimerRef.current = null;
       void writeNow();
     }, SESSION_WRITE_DEBOUNCE_MS);
-  }, [writeNow]);
+  }, [syncIsWriting, writeNow]);
 
   const flushSession = useCallback(async () => {
+    if (!isReadyRef.current) {
+      return;
+    }
     if (writeTimerRef.current) {
       clearTimeout(writeTimerRef.current);
       writeTimerRef.current = null;
     }
+    syncIsWriting();
     await writeNow();
-  }, [writeNow]);
+  }, [syncIsWriting, writeNow]);
 
   useEffect(() => {
     directoryRef.current = experimentDirectory;
     if (!experimentDirectory || !experimentName) {
       sessionRef.current = null;
       setSessionFile(null);
+      isReadyRef.current = false;
       setIsReady(false);
       setIsLoading(false);
+      setIsWriting(false);
+      writeInFlightRef.current = false;
       legacyImportedRef.current = false;
       return;
     }
 
     let cancelled = false;
     setIsLoading(true);
+    isReadyRef.current = false;
     setIsReady(false);
+    setIsWriting(false);
+    writeInFlightRef.current = false;
     legacyImportedRef.current = false;
 
     void (async () => {
@@ -149,26 +206,29 @@ export function useStxmSessionFile(
       }
       applySession(next);
       setIsLoading(false);
+      isReadyRef.current = true;
       setIsReady(true);
     })();
 
     return () => {
       cancelled = true;
+      isReadyRef.current = false;
       if (writeTimerRef.current) {
         clearTimeout(writeTimerRef.current);
         writeTimerRef.current = null;
       }
+      syncIsWriting();
       void writeNow();
     };
-  }, [applySession, experimentDirectory, experimentName, writeNow]);
+  }, [applySession, experimentDirectory, experimentName, syncIsWriting, writeNow]);
 
   const mutateSession = useCallback(
     (updater: (current: StxmSessionFile) => StxmSessionFile) => {
-      const current =
-        sessionRef.current ??
-        (experimentName
-          ? createEmptyStxmSessionFile(experimentName)
-          : null);
+      const current = resolveStxmSessionForMutation(
+        isReadyRef.current,
+        sessionRef.current,
+        experimentName,
+      );
       if (!current) {
         return null;
       }
@@ -270,6 +330,7 @@ export function useStxmSessionFile(
     sessionFile,
     isLoading,
     isReady,
+    isWriting,
     resolveRegions,
     resolveIngestion,
     resolveReduce,
