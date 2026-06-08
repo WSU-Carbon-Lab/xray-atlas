@@ -37,14 +37,15 @@ export function PlotViewerCompactLegend({
   legendTitleId = "plot-viewer-legend-title",
   embedded = false,
 }: PlotViewerCompactLegendProps) {
-  if (rows.length === 0) {
-    return null;
-  }
-
   const hiddenTraceLookup = useMemo(
     () => plotViewerHiddenTraceIdSet(hiddenTraceIds),
     [hiddenTraceIds],
   );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
   const geometryKeys = plotViewerLegendGeometryKeys(rows);
   const activeDescriptorFields = resolvePlotViewerLegendDescriptorFields(
     descriptorFields.length > 0

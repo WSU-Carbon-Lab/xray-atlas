@@ -10,7 +10,10 @@ import {
   resolveInstrumentConnectorSectionView,
   type InstrumentStewardPublic,
 } from "~/lib/instrument-steward";
-import { matchInstrumentToDashboardBinding } from "./connectors/bindings";
+import {
+  matchInstrumentToDashboardBinding,
+  resolveDashboardConnectorBinding,
+} from "./connectors/bindings";
 import { DashboardConnectorReadinessBadge } from "./dashboard-connector-readiness-badge";
 import { dashboardInstrumentWorkspaceHref } from "./connectors/registry";
 import type { DashboardConnectorReadiness } from "./connectors/types";
@@ -173,9 +176,11 @@ export function instrumentConnectorRequestHrefForCard(
     return undefined;
   }
 
+  const binding = resolveDashboardConnectorBinding(slug);
+
   return buildInstrumentConnectorRequestIssueUrl({
     facilityName: facilityLabel,
     instrumentName: instrumentLabel,
-    preferredSlug: slug,
+    preferredSlug: binding?.slug,
   });
 }
