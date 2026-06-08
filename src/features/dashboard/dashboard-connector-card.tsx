@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { Badge } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
-import type { DashboardConnectorDefinition } from "./connectors/types";
+import type { DashboardConnectorSummary } from "./connectors/types";
 
 type DashboardConnectorCardProps = {
-  connector: DashboardConnectorDefinition;
+  connector: DashboardConnectorSummary;
   badgeLabel: string | null;
   href?: string;
 };

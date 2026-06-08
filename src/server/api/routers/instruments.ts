@@ -1,8 +1,17 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { listDashboardConnectorsFromDb } from "~/features/dashboard/connectors/resolve-dashboard-connectors";
 
 export const instrumentsRouter = createTRPCRouter({
+  /**
+   * Lists dashboard instrument workspace cards by matching persisted instruments to
+   * connector bindings (labels and facilities from the database; readiness from overlay).
+   */
+  listDashboardConnectors: publicProcedure.query(async ({ ctx }) => {
+    return listDashboardConnectorsFromDb(ctx.db);
+  }),
+
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {

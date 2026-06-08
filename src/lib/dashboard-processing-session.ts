@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   ALS_5322_INSTRUMENT_LABEL,
   ALS_5322_INSTRUMENT_SLUG,
-} from "~/features/dashboard/connectors/registry";
+} from "~/features/dashboard/connectors/bindings";
 import {
   dashboardIngestStepMetadataSchema,
   dashboardIngestionResultSchema,

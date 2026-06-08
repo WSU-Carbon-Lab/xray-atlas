@@ -9,10 +9,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import { SimpleDialog } from "~/components/ui/dialog";
 import type { AppRouter } from "~/server/api/root";
 import { showToast } from "~/components/ui/toast";
-import {
-  dashboardConnectorLabel,
-  dashboardInstrumentWorkspaceHref,
-} from "./connectors/registry";
+import { dashboardInstrumentWorkspaceHref } from "./connectors/registry";
 import { trpc } from "~/trpc/client";
 
 type DashboardRecentSessionRowProps = {
@@ -72,7 +69,8 @@ export function DashboardRecentSessionRow({
           </p>
           <p className="text-muted text-xs">
             {session.stepMetadata.workspace?.beamtimeName ??
-              dashboardConnectorLabel(session.instrumentSlug)}
+              session.instrumentLabel ??
+              session.instrumentSlug}
           </p>
         </Link>
         <div className="flex shrink-0 items-center gap-2">

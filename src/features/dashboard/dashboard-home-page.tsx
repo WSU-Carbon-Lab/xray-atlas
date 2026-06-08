@@ -16,7 +16,6 @@ import { trpc } from "~/trpc/client";
 import {
   dashboardConnectorReadinessBadge,
   dashboardInstrumentWorkspaceHref,
-  listDashboardConnectors,
 } from "./connectors/registry";
 import { DashboardRecentSessionRow } from "./dashboard-recent-session-row";
 import { DashboardConnectorCard } from "./dashboard-connector-card";
@@ -62,6 +61,10 @@ export function DashboardHomePage() {
   const sessionsQuery = trpc.dashboardSessions.list.useQuery(undefined, {
     staleTime: 30_000,
   });
+  const connectorsQuery = trpc.instruments.listDashboardConnectors.useQuery(
+    undefined,
+    { staleTime: 60_000 },
+  );
   const { mutate: dedupeWorkspaceSessions } =
     trpc.dashboardSessions.dedupeWorkspaceSessions.useMutation({
       onSettled: async () => {
@@ -81,7 +84,7 @@ export function DashboardHomePage() {
     [sessionsQuery.data],
   );
 
-  const instrumentConnectors = useMemo(() => listDashboardConnectors(), []);
+  const instrumentConnectors = connectorsQuery.data ?? [];
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -132,20 +135,32 @@ export function DashboardHomePage() {
           description="Facilities with built-in spectroscopy processing software."
           icon={<FlaskConical className="h-4 w-4" />}
         >
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {instrumentConnectors.map((connector) => (
-              <DashboardConnectorCard
-                key={connector.slug}
-                connector={connector}
-                badgeLabel={dashboardConnectorReadinessBadge(connector.readiness)}
-                href={
-                  connector.readiness === "not_ready"
-                    ? undefined
-                    : dashboardInstrumentWorkspaceHref(connector.slug)
-                }
-              />
-            ))}
-          </div>
+          {connectorsQuery.isLoading ? (
+            <div className="flex justify-center py-6">
+              <Spinner size="md" />
+            </div>
+          ) : instrumentConnectors.length === 0 ? (
+            <p className="text-muted text-sm">
+              No analysis instruments are registered in Atlas yet.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {instrumentConnectors.map((connector) => (
+                <DashboardConnectorCard
+                  key={connector.slug}
+                  connector={connector}
+                  badgeLabel={dashboardConnectorReadinessBadge(
+                    connector.readiness,
+                  )}
+                  href={
+                    connector.readiness === "not_ready"
+                      ? undefined
+                      : dashboardInstrumentWorkspaceHref(connector.slug)
+                  }
+                />
+              ))}
+            </div>
+          )}
         </DashboardSection>
 
         {recentSessions.length > 0 ? (

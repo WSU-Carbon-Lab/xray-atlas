@@ -10,18 +10,20 @@ import type { ComponentType } from "react";
 export type DashboardConnectorReadiness = "beta" | "ready" | "not_ready";
 
 /**
- * Registry entry describing one dashboard instrument connector.
+ * Dashboard home card fields shared by API DTOs and connector registry fallbacks.
  */
-export type DashboardConnectorDefinition = {
-  /** URL slug under `/dashboard/instruments/[slug]`. */
+export type DashboardConnectorSummary = {
   slug: string;
-  /** Reader-facing instrument label. */
   label: string;
-  /** Short description for dashboard home cards. */
   description: string;
-  /** Optional facility grouping label (for example "Advanced Light Source"). */
   facilityLabel?: string;
   readiness: DashboardConnectorReadiness;
+};
+
+/**
+ * Registry entry describing one dashboard instrument connector.
+ */
+export type DashboardConnectorDefinition = DashboardConnectorSummary & {
   /**
    * Lazy loader for the workspace page component.
    *

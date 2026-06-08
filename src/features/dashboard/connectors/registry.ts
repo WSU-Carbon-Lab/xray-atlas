@@ -1,92 +1,74 @@
-import type { DashboardConnectorDefinition, DashboardConnectorReadiness } from "./types";
+import type { DashboardConnectorDefinition } from "./types";
+import {
+  ALS_5322_INSTRUMENT_LABEL,
+  ALS_5322_INSTRUMENT_SLUG,
+  allowedDashboardInstrumentSlugs,
+  isAllowedDashboardInstrumentSlug,
+  isDashboardWorkspaceAccessible,
+  listDashboardConnectorBindings,
+  resolveDashboardConnectorBinding,
+} from "./bindings";
 
-/** URL slug for the ALS Beamline 5.3.2.2 STXM instrument workspace. */
-export const ALS_5322_INSTRUMENT_SLUG = "als-5322";
+export { ALS_5322_INSTRUMENT_LABEL, ALS_5322_INSTRUMENT_SLUG };
+export {
+  allowedDashboardInstrumentSlugs,
+  isAllowedDashboardInstrumentSlug,
+  isDashboardWorkspaceAccessible,
+};
 
-/** Reader-facing label for the ALS 5.3.2.2 workspace. */
-export const ALS_5322_INSTRUMENT_LABEL = "ALS Beamline 5.3.2.2 STXM";
-
-const ALS_FACILITY_LABEL = "Advanced Light Source";
-
-const CONNECTOR_DEFINITIONS: readonly DashboardConnectorDefinition[] = [
-  {
-    slug: ALS_5322_INSTRUMENT_SLUG,
-    label: ALS_5322_INSTRUMENT_LABEL,
-    description:
-      "Browse local beamtime folders, extract NEXAFS line-scan spectra, and define sample and izero regions in-browser.",
-    facilityLabel: ALS_FACILITY_LABEL,
-    readiness: "beta",
-    loadWorkspace: () =>
-      import(
-        "~/features/dashboard/instrument-workspace/stxm-als-5322-workspace"
-      ).then((module) => ({ default: module.StxmAls5322Workspace })),
+const WORKSPACE_LOADERS: Readonly<
+  Record<string, DashboardConnectorDefinition["loadWorkspace"]>
+> = {
+  [ALS_5322_INSTRUMENT_SLUG]: () =>
+    import(
+      "~/features/dashboard/instrument-workspace/stxm-als-5322-workspace"
+    ).then((module) => ({ default: module.StxmAls5322Workspace })),
+  "als-5321": async () => {
+    throw new Error("ALS 5.3.2.1 workspace is not available yet.");
   },
-  {
-    slug: "als-5321",
-    label: "ALS — Beamline 5.3.2.1 (STXM)",
-    description:
-      "Next-generation STXM beamline workspace for local folder processing and in-browser spectra reduction.",
-    facilityLabel: ALS_FACILITY_LABEL,
-    readiness: "not_ready",
-    loadWorkspace: async () => {
-      throw new Error("ALS 5.3.2.1 workspace is not available yet.");
-    },
+  "als-731": async () => {
+    throw new Error("ALS 7.3.1 workspace is not available yet.");
   },
-  {
-    slug: "als-731",
-    label: "ALS — Beamline 7.3.1 (STXM)",
-    description: "STXM spectroscopy workspace for ALS Beamline 7.3.1 beamtime folders.",
-    facilityLabel: ALS_FACILITY_LABEL,
-    readiness: "not_ready",
-    loadWorkspace: async () => {
-      throw new Error("ALS 7.3.1 workspace is not available yet.");
-    },
-  },
-] as const;
-
-const CONNECTOR_BY_SLUG = new Map(
-  CONNECTOR_DEFINITIONS.map((entry) => [entry.slug, entry]),
-);
+};
 
 /**
  * Returns the connector definition for `slug`, or `undefined` when unregistered.
+ *
+ * Labels on the definition use binding fallback text; dashboard home cards should
+ * prefer {@link listDashboardConnectorsFromDb} for authoritative instrument names.
  */
 export function resolveDashboardConnector(
   slug: string,
 ): DashboardConnectorDefinition | undefined {
-  return CONNECTOR_BY_SLUG.get(slug.trim());
+  const binding = resolveDashboardConnectorBinding(slug);
+  if (!binding) {
+    return undefined;
+  }
+
+  const loadWorkspace = WORKSPACE_LOADERS[binding.slug];
+  if (!loadWorkspace) {
+    return undefined;
+  }
+
+  return {
+    slug: binding.slug,
+    label: binding.fallbackLabel,
+    description: binding.description,
+    facilityLabel: binding.match.facilityName,
+    readiness: binding.readiness,
+    loadWorkspace,
+  };
 }
 
 /**
- * Lists every registered connector in stable registration order.
+ * Returns the reader-facing label for `slug`, or a title-cased fallback from the slug.
  */
-export function listDashboardConnectors(): readonly DashboardConnectorDefinition[] {
-  return CONNECTOR_DEFINITIONS;
-}
-
-/**
- * Returns instrument slugs that may be persisted on `dashboardSessions.create`.
- */
-export function allowedDashboardInstrumentSlugs(): readonly string[] {
-  return CONNECTOR_DEFINITIONS.filter(
-    (entry) => entry.readiness === "beta" || entry.readiness === "ready",
-  ).map((entry) => entry.slug);
-}
-
-/**
- * Returns true when `slug` identifies a connector allowed to create server sessions.
- */
-export function isAllowedDashboardInstrumentSlug(slug: string): boolean {
-  const entry = resolveDashboardConnector(slug);
-  return entry?.readiness === "beta" || entry?.readiness === "ready";
-}
-
-/**
- * Returns true when `slug` resolves to a workspace route that should render (beta or ready).
- */
-export function isDashboardWorkspaceAccessible(slug: string): boolean {
-  const entry = resolveDashboardConnector(slug);
-  return entry?.readiness === "beta" || entry?.readiness === "ready";
+export function dashboardConnectorLabel(slug: string): string {
+  const entry = resolveDashboardConnectorBinding(slug);
+  if (entry) {
+    return entry.fallbackLabel;
+  }
+  return slug;
 }
 
 /**
@@ -104,20 +86,9 @@ export function dashboardInstrumentWorkspaceHref(
   return `${base}?${params.toString()}`;
 }
 
-/**
- * Returns the reader-facing label for `slug`, or a title-cased fallback from the slug.
- */
-export function dashboardConnectorLabel(slug: string): string {
-  const entry = resolveDashboardConnector(slug);
-  if (entry) {
-    return entry.label;
-  }
-  return slug;
-}
-
 /** Human-readable badge text for connector readiness, or null when no badge applies. */
 export function dashboardConnectorReadinessBadge(
-  readiness: DashboardConnectorReadiness,
+  readiness: DashboardConnectorDefinition["readiness"],
 ): string | null {
   switch (readiness) {
     case "beta":
@@ -129,4 +100,14 @@ export function dashboardConnectorReadinessBadge(
     default:
       return null;
   }
+}
+
+/**
+ * @deprecated Use {@link listDashboardConnectorsFromDb} via `instruments.listDashboardConnectors`.
+ * Returns binding fallbacks only; does not reflect persisted instrument names.
+ */
+export function listDashboardConnectors(): readonly DashboardConnectorDefinition[] {
+  return listDashboardConnectorBindings()
+    .map((binding) => resolveDashboardConnector(binding.slug))
+    .filter((entry): entry is DashboardConnectorDefinition => entry !== undefined);
 }

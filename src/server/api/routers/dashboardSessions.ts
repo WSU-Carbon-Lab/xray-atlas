@@ -1,8 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import {
-  isAllowedDashboardInstrumentSlug,
-} from "~/features/dashboard/connectors/registry";
+import { isAllowedDashboardInstrumentSlug } from "~/features/dashboard/connectors/bindings";
+import { resolveDashboardConnectorLabelFromDb } from "~/features/dashboard/connectors/resolve-dashboard-connectors";
 import {
   ALS_5322_INSTRUMENT_SLUG,
   dashboardProcessingSessionStatusSchema,
@@ -65,6 +64,8 @@ export type DashboardProcessingSessionSummaryDto = {
   id: string;
   title: string | null;
   instrumentSlug: string;
+  /** Reader-facing instrument name from the matched Atlas row when available. */
+  instrumentLabel: string | null;
   status: z.infer<typeof dashboardProcessingSessionStatusSchema>;
   stepMetadata: ReturnType<typeof parseDashboardStepMetadata>;
   linkedExperimentId: string | null;
@@ -161,10 +162,16 @@ async function mapSessionRow(
     updatedat: Date;
   },
 ): Promise<DashboardProcessingSessionSummaryDto> {
+  const instrumentLabel = await resolveDashboardConnectorLabelFromDb(
+    db,
+    row.instrumentslug,
+  );
+
   return {
     id: row.id,
     title: row.title,
     instrumentSlug: row.instrumentslug,
+    instrumentLabel,
     linkedExperimentId: row.linkedexperimentid,
     linkedExperiment: await mapLinkedExperiment(db, row.linkedexperimentid),
     status: dashboardProcessingSessionStatusSchema.parse(row.status),
