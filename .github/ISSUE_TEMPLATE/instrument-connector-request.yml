@@ -13,6 +13,13 @@ body:
         Claim template: https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=beamline-claim.yml
 
         Provide enough detail for maintainers to reproduce your beamline processing in the dashboard. Attach files directly to the issue when possible.
+
+        **Required deliverables (all five sections below):**
+        1. As-is example data from the instrument
+        2. Processing code (scripts, notebooks, or repository links)
+        3. Plain-language processing narrative
+        4. Critical settings that must not be omitted
+        5. Processed CSV output derived from the as-is example
   - type: input
     id: facility
     attributes:
