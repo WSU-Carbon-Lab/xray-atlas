@@ -45,7 +45,7 @@ export function resolveStxmCatalogEntryForScanId(
   }
 
   const ximHint = previewEntry?.ximFileName?.trim().toLowerCase();
-  if (ximHint && ximHint.endsWith(".xim")) {
+  if (ximHint?.endsWith(".xim")) {
     const hdrFromXim = ximHint.replace(/\.xim$/i, ".hdr");
     const byXim = catalog.find(
       (row) => row.basename.toLowerCase() === hdrFromXim,

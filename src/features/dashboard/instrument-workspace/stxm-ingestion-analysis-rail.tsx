@@ -1,6 +1,7 @@
 "use client";
 
 import { PlotSpectrumToolsToolbarSection } from "~/components/plots/toolbars";
+import { noop } from "~/lib/noop";
 
 export type StxmIngestionAnalysisRailProps = {
   isNormalizationMode: boolean;
@@ -43,7 +44,7 @@ export function StxmIngestionAnalysisRail({
         isPeakSetMode={isPeakSetMode}
         onPeakSetModeChange={onPeakSetModeChange}
         peakCount={peakCount}
-        onAutoDetectPeaks={() => {}}
+        onAutoDetectPeaks={noop}
         onResetAllPeaks={onResetAllPeaks}
       />
     </div>

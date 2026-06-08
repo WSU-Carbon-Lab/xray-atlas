@@ -97,10 +97,7 @@ export function resolveStxmIngestionPlotDisplay(
 
   if (fresh.kind === "aggregatedLegacy") {
     const channelPrefix = `${channel}:`;
-    if (
-      previous != null &&
-      previous.cacheKey.startsWith(channelPrefix)
-    ) {
+    if (previous?.cacheKey.startsWith(channelPrefix)) {
       return { display: previous.build, nextCache: previous };
     }
     return { display: { kind: "empty", model: null }, nextCache: previous };
@@ -108,10 +105,7 @@ export function resolveStxmIngestionPlotDisplay(
 
   if (fresh.kind === "empty") {
     const channelPrefix = `${channel}:`;
-    if (
-      previous != null &&
-      previous.cacheKey.startsWith(channelPrefix)
-    ) {
+    if (previous?.cacheKey.startsWith(channelPrefix)) {
       return { display: previous.build, nextCache: previous };
     }
   }
@@ -202,19 +196,21 @@ export function useStxmIngestionPlotState(
     }
     const previous = cacheRef.current.cache;
     const channelPrefix = `${channel}:`;
-    const hasMatchingCache =
-      previous != null && previous.cacheKey.startsWith(channelPrefix);
+    const matchingPrevious =
+      previous?.cacheKey.startsWith(channelPrefix) === true
+        ? previous
+        : null;
 
     if (
       hasSampleRegions &&
       regionSpectra.length === 0 &&
-      hasMatchingCache
+      matchingPrevious
     ) {
       cacheRef.current = {
         scopeKey: plotScopeKey,
-        cache: previous,
+        cache: matchingPrevious,
       };
-      return previous.build;
+      return matchingPrevious.build;
     }
 
     const freshBuild = buildStxmIngestionPlotModel(buildParams);

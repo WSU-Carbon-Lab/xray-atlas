@@ -317,7 +317,7 @@ export function IngestionTab({
       return;
     }
     const row = linkedMoleculeQuery.data;
-    if (row && row.id === nextId) {
+    if (row?.id === nextId) {
       setLinkedMolecule((current) => {
         if (current?.id === nextId) {
           return current;
@@ -982,8 +982,8 @@ export function IngestionTab({
             ximFileName: ximFile.name,
             moleculeId: linkedMolecule?.id,
             moleculeName:
-              linkedMolecule?.commonName?.trim() ||
-              linkedMolecule?.iupacName?.trim() ||
+              linkedMolecule?.commonName?.trim() ??
+              linkedMolecule?.iupacName?.trim() ??
               undefined,
             previewMetadata: previewMetadataRef.current,
             ingestionResult: pipelineResult,
@@ -1209,8 +1209,8 @@ export function IngestionTab({
       ximFileName: ximFile.name,
       moleculeId: linkedMolecule?.id,
       moleculeName:
-        linkedMolecule?.commonName?.trim() ||
-        linkedMolecule?.iupacName?.trim() ||
+        linkedMolecule?.commonName?.trim() ??
+        linkedMolecule?.iupacName?.trim() ??
         undefined,
       previewMetadata: previewMetadataRef.current,
       ingestionResult: result,

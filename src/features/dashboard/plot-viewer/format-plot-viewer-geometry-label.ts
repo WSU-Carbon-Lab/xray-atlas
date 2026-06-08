@@ -75,7 +75,7 @@ export function formatPlotViewerGeometryCellLabel(params: {
   split?: SpectrumGeometryAngleSplit;
 }): string {
   if (params.geometryKey === "fixed") {
-    return params.fixedLabel?.trim() || "Fixed";
+    return params.fixedLabel?.trim() ? params.fixedLabel.trim() : "Fixed";
   }
 
   const split =
@@ -101,5 +101,5 @@ export function formatPlotViewerGeometryCellLabel(params: {
   if (finiteTheta && finitePhi) {
     return `${formatPlotViewerAngleDegrees(theta)} · ${formatPlotViewerAngleDegrees(phi)}`;
   }
-  return params.fixedLabel?.trim() || "Fixed";
+  return params.fixedLabel?.trim() ? params.fixedLabel.trim() : "Fixed";
 }

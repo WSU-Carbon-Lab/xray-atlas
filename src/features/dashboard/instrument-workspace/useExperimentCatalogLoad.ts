@@ -224,12 +224,12 @@ export function useExperimentCatalogLoad(
 
       let entries: StxmCatalogEntry[] = [];
       let checkpointPainted = false;
-      let activeThumbnailEnrichment: Promise<StxmCatalogEntry[]> | null = null;
+      let checkpointThumbnailTask: Promise<StxmCatalogEntry[]> | null = null;
 
       const scheduleThumbnailEnrichment = (
         seed: StxmCatalogEntry[],
         finalizeWhenDone: boolean,
-      ) => {
+      ): Promise<StxmCatalogEntry[]> | null => {
         if (!isActiveSession(generation, experimentName) || seed.length === 0) {
           return null;
         }
@@ -259,7 +259,6 @@ export function useExperimentCatalogLoad(
             },
           },
         );
-        activeThumbnailEnrichment = promise;
         void promise
           .then((enriched) => {
             if (
@@ -334,7 +333,7 @@ export function useExperimentCatalogLoad(
             listingIncomplete: false,
           });
           applyScanCounts(entries);
-          scheduleThumbnailEnrichment(entries, false);
+          checkpointThumbnailTask = scheduleThumbnailEnrichment(entries, false);
         }
       }
 
@@ -397,9 +396,9 @@ export function useExperimentCatalogLoad(
           return;
         }
 
-        if (activeThumbnailEnrichment) {
+        if (checkpointThumbnailTask) {
           try {
-            const enrichedSoFar = await activeThumbnailEnrichment;
+            const enrichedSoFar = await checkpointThumbnailTask;
             entries = mergeCatalogEntriesPreservingThumbnails(
               enrichedSoFar,
               result.entries,
@@ -449,7 +448,7 @@ export function useExperimentCatalogLoad(
         return;
       }
 
-      scheduleThumbnailEnrichment(entries, true);
+      void scheduleThumbnailEnrichment(entries, true);
     },
     [
       directoryLayout,
