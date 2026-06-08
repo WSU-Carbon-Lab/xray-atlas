@@ -180,7 +180,7 @@ export async function fetchRemoteImageBytesForSampling(
     const cl = res.headers.get("content-length");
     if (cl !== null && Number(cl) > maxBytes) return null;
     const ab = await res.arrayBuffer();
-    if (ab.byteLength > maxBytes) return null;
+    if (ab.byteLength === 0 || ab.byteLength > maxBytes) return null;
     return ab;
   }
   return null;

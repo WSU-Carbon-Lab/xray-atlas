@@ -4,6 +4,8 @@ import {
   it as bunIt,
 } from "bun:test";
 import {
+  facilityFaviconPreviewUrl,
+  facilityWebsiteHostname,
   googleFaviconUrlForHostname,
   parseFacilityWebsiteUrlInput,
   trimFacilityWebsiteUrl,
@@ -38,5 +40,32 @@ describe("facility website URL helpers", () => {
     expect(googleFaviconUrlForHostname("als.lbl.gov")).toBe(
       "https://www.google.com/s2/favicons?domain=als.lbl.gov&sz=64",
     );
+  });
+
+  it("facilityWebsiteHostname extracts host from validated URLs", () => {
+    expect(facilityWebsiteHostname("https://als.lbl.gov/")).toBe("als.lbl.gov");
+    expect(facilityWebsiteHostname("")).toBe(null);
+  });
+
+  it("facilityFaviconPreviewUrl prefers saved favicon when draft matches saved URL", () => {
+    expect(
+      facilityFaviconPreviewUrl(
+        "https://als.lbl.gov/",
+        "https://als.lbl.gov/",
+        "https://als.lbl.gov/wp-content/uploads/2016/07/cropped-favicon-32x32.png",
+      ),
+    ).toBe(
+      "https://als.lbl.gov/wp-content/uploads/2016/07/cropped-favicon-32x32.png",
+    );
+  });
+
+  it("facilityFaviconPreviewUrl uses Google fallback for changed drafts", () => {
+    expect(
+      facilityFaviconPreviewUrl(
+        "https://www.example.org/",
+        "https://als.lbl.gov/",
+        "https://als.lbl.gov/favicon.ico",
+      ),
+    ).toBe("https://www.google.com/s2/favicons?domain=www.example.org&sz=64");
   });
 });

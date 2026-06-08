@@ -51,3 +51,56 @@ export function parseFacilityWebsiteUrlInput(raw: string): string | null {
 export function googleFaviconUrlForHostname(hostname: string): string {
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`;
 }
+
+/**
+ * Extracts the hostname from a validated facility website URL for favicon preview.
+ *
+ * @param websiteUrl - Absolute http(s) facility homepage URL.
+ * @returns Hostname when parseable, otherwise null.
+ */
+export function facilityWebsiteHostname(
+  websiteUrl: string | null | undefined,
+): string | null {
+  const trimmed = websiteUrl ? trimFacilityWebsiteUrl(websiteUrl) : null;
+  if (!trimmed) return null;
+  try {
+    return new URL(trimmed).hostname;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Builds a client-side favicon preview URL for a draft or saved facility website.
+ * Uses the persisted favicon when the draft matches the saved URL; otherwise falls back
+ * to Google's favicon service for the draft hostname.
+ *
+ * @param draftWebsiteUrl - Current editor value.
+ * @param savedWebsiteUrl - Persisted facility homepage URL.
+ * @param savedFaviconUrl - Persisted favicon URL from the server.
+ * @returns Preview URL suitable for `<img src>`, or null when no preview is available.
+ */
+export function facilityFaviconPreviewUrl(
+  draftWebsiteUrl: string,
+  savedWebsiteUrl: string | null,
+  savedFaviconUrl: string | null,
+): string | null {
+  const draftTrimmed = trimFacilityWebsiteUrl(draftWebsiteUrl);
+  if (!draftTrimmed) return null;
+
+  const savedTrimmed = savedWebsiteUrl
+    ? trimFacilityWebsiteUrl(savedWebsiteUrl)
+    : null;
+  const savedFaviconTrimmed = savedFaviconUrl?.trim() ?? "";
+
+  if (
+    savedTrimmed &&
+    draftTrimmed === savedTrimmed &&
+    savedFaviconTrimmed.length > 0
+  ) {
+    return savedFaviconTrimmed;
+  }
+
+  const hostname = facilityWebsiteHostname(draftTrimmed);
+  return hostname ? googleFaviconUrlForHostname(hostname) : null;
+}

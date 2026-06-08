@@ -327,4 +327,49 @@ export const facilitiesRouter = createTRPCRouter({
         include: facilityDetailInclude,
       });
     }),
+
+  /**
+   * Re-fetches and persists the favicon URL for a facility with an existing homepage URL.
+   * Requires user-administration permission; discovery runs server-side with SSRF filtering.
+   */
+  refreshFavicon: manageUsersProcedure
+    .input(
+      z.object({
+        facilityId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const facility = await ctx.db.facilities.findUnique({
+        where: { id: input.facilityId },
+        select: { id: true, websiteurl: true },
+      });
+      if (!facility) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Facility not found",
+        });
+      }
+      if (!facility.websiteurl) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Facility has no website URL to refresh.",
+        });
+      }
+
+      let faviconUrl: string | null = null;
+      try {
+        faviconUrl = await resolveFacilityFaviconUrl(facility.websiteurl);
+      } catch {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Website URL is not reachable or not allowed.",
+        });
+      }
+
+      return ctx.db.facilities.update({
+        where: { id: input.facilityId },
+        data: { faviconurl: faviconUrl },
+        include: facilityDetailInclude,
+      });
+    }),
 });

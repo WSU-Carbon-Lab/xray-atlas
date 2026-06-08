@@ -67,6 +67,23 @@ function resolveIconHref(rawHref: string, pageUrl: URL): string | null {
   }
 }
 
+async function probeDisplayableImageUrl(candidate: string): Promise<string | null> {
+  try {
+    const validated = await assertSafeRemoteImageUrl(candidate);
+    const bytes = await fetchRemoteImageBytesForSampling(
+      validated.toString(),
+      FAVICON_MAX_BYTES,
+      FETCH_TIMEOUT_MS,
+    );
+    if (bytes && bytes.byteLength > 0) {
+      return validated.toString();
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 async function discoverIconFromHtml(pageUrl: URL): Promise<string | null> {
   const html = await fetchSafeHtmlDocument(pageUrl.toString());
   if (!html) return null;
@@ -80,42 +97,20 @@ async function discoverIconFromHtml(pageUrl: URL): Promise<string | null> {
   }
 
   for (const candidate of candidates) {
-    try {
-      const validated = await assertSafeRemoteImageUrl(candidate);
-      const bytes = await fetchRemoteImageBytesForSampling(
-        validated.toString(),
-        FAVICON_MAX_BYTES,
-        FETCH_TIMEOUT_MS,
-      );
-      if (bytes) {
-        return validated.toString();
-      }
-    } catch {
-      continue;
-    }
+    const resolved = await probeDisplayableImageUrl(candidate);
+    if (resolved) return resolved;
   }
   return null;
 }
 
 async function tryDefaultFaviconIco(origin: string): Promise<string | null> {
-  const faviconIco = `${origin}/favicon.ico`;
-  try {
-    await assertSafeRemoteImageUrl(faviconIco);
-  } catch {
-    return null;
-  }
-  const bytes = await fetchRemoteImageBytesForSampling(
-    faviconIco,
-    FAVICON_MAX_BYTES,
-    FETCH_TIMEOUT_MS,
-  );
-  return bytes ? faviconIco : null;
+  return probeDisplayableImageUrl(`${origin}/favicon.ico`);
 }
 
 /**
  * Resolves a displayable favicon URL for a validated facility website.
- * Probes `/favicon.ico`, parses HTML `<link rel="icon">` tags, then falls back to Google's
- * favicon service for the site hostname. Returns null when the website URL is empty.
+ * Probes HTML `<link rel="icon">` tags, then `/favicon.ico`, then Google's favicon service
+ * for the site hostname. Returns null when the website URL is empty.
  *
  * @param websiteUrl - Absolute http(s) facility homepage URL.
  * @returns Cached favicon URL to persist, or null when no website is configured.
@@ -128,11 +123,11 @@ export async function resolveFacilityFaviconUrl(
 
   const pageUrl = await assertSafeRemoteImageUrl(trimmed);
 
-  const fromIco = await tryDefaultFaviconIco(pageUrl.origin);
-  if (fromIco) return fromIco;
-
   const fromHtml = await discoverIconFromHtml(pageUrl);
   if (fromHtml) return fromHtml;
+
+  const fromIco = await tryDefaultFaviconIco(pageUrl.origin);
+  if (fromIco) return fromIco;
 
   return googleFaviconUrlForHostname(pageUrl.hostname);
 }
