@@ -1,6 +1,10 @@
+import { resolveFacilitySlugAlias } from "~/lib/facility-slug-aliases";
+
 export type FacilitySlugSource = {
   name: string;
 };
+
+export { resolveFacilitySlugAlias } from "~/lib/facility-slug-aliases";
 
 /**
  * Normalizes a facility display name into a URL path segment: lowercase, non-alphanumerics
@@ -43,7 +47,8 @@ export function matchFacilitiesBySlug<T extends FacilitySlugSource>(
   facilities: readonly T[],
   slug: string,
 ): T[] {
-  const normalizedSlug = slugifyFacilityName(slug);
+  const aliasSlug = resolveFacilitySlugAlias(slug);
+  const normalizedSlug = slugifyFacilityName(aliasSlug ?? slug);
   return facilities.filter(
     (facility) => slugifyFacilityName(facility.name) === normalizedSlug,
   );

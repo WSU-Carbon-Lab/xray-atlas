@@ -7,6 +7,7 @@ import {
   canonicalFacilitySlugFromName,
   canonicalFacilitySlugFromView,
   matchFacilitiesBySlug,
+  resolveFacilitySlugAlias,
   slugifyFacilityName,
 } from "./facility-slug";
 
@@ -33,6 +34,41 @@ describe("facility slug helpers", () => {
     expect(
       canonicalFacilitySlugFromView({ name: "Advanced Light Source" }),
     ).toBe(canonicalFacilitySlugFromName("Advanced Light Source"));
+  });
+
+  it("resolveFacilitySlugAlias maps acronym paths to canonical slugs", () => {
+    expect(resolveFacilitySlugAlias("als")).toBe("advanced-light-source");
+    expect(resolveFacilitySlugAlias("ALS")).toBe("advanced-light-source");
+    expect(resolveFacilitySlugAlias("nslsii")).toBe(
+      "national-synchrotron-light-source-ii",
+    );
+    expect(resolveFacilitySlugAlias("NSLSII")).toBe(
+      "national-synchrotron-light-source-ii",
+    );
+    expect(resolveFacilitySlugAlias("ansto")).toBe("the-australian-synchrotron");
+    expect(resolveFacilitySlugAlias("unknown-acronym")).toBe(null);
+    expect(resolveFacilitySlugAlias("advanced-light-source")).toBe(null);
+  });
+
+  it("matchFacilitiesBySlug resolves acronym aliases before slugify matching", () => {
+    const facilities = [
+      { id: "1", name: "Advanced Light Source" },
+      { id: "2", name: "National Synchrotron Light Source II" },
+      { id: "3", name: "The Australian Synchrotron" },
+    ];
+    expect(matchFacilitiesBySlug(facilities, "als")).toEqual([
+      { id: "1", name: "Advanced Light Source" },
+    ]);
+    expect(matchFacilitiesBySlug(facilities, "nslsii")).toEqual([
+      { id: "2", name: "National Synchrotron Light Source II" },
+    ]);
+    expect(matchFacilitiesBySlug(facilities, "ansto")).toEqual([
+      { id: "3", name: "The Australian Synchrotron" },
+    ]);
+    expect(matchFacilitiesBySlug(facilities, "advanced-light-source")).toEqual([
+      { id: "1", name: "Advanced Light Source" },
+    ]);
+    expect(matchFacilitiesBySlug(facilities, "not-an-alias")).toEqual([]);
   });
 
   it("matchFacilitiesBySlug returns every facility sharing a slug", () => {
