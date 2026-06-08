@@ -19,7 +19,7 @@ type AddEntityModalProps = {
   triggerClassName?: string;
   size?: "md" | "lg" | "xl";
   fullWidth?: boolean;
-  variant?: "card" | "compact";
+  variant?: "card" | "compact" | "header";
   children: (helpers: { close: () => void }) => ReactNode;
 };
 
@@ -49,12 +49,13 @@ export function AddEntityModal({
   const close = () => setIsOpen(false);
   const open = () => setIsOpen(true);
 
-  const isCompact = variant === "compact";
+  const cardVariant =
+    variant === "header" ? "header" : variant === "compact" ? "compact" : "default";
 
   return (
     <>
       <ContributionCard
-        variant={isCompact ? "compact" : "default"}
+        variant={cardVariant}
         label={triggerLabel}
         description={description ?? ""}
         subDescription={triggerDescription}

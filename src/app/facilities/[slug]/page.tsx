@@ -200,18 +200,39 @@ export default function FacilityDetailPage({
         </nav>
 
         <Card className="border-border bg-surface-1 overflow-hidden border shadow-sm">
-          <Card.Header className="border-border flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <Card.Title className="text-foreground flex items-center gap-2 text-lg font-semibold">
-              <BeakerIcon className="h-5 w-5 shrink-0" />
-              Instruments ({facility.instruments.length})
-            </Card.Title>
-            <AddInstrumentButton
-              facilityId={facility.id}
-              facilityName={facility.name}
-              onCreated={() => {
-                void refetch();
-              }}
-            />
+          <Card.Header className="border-border flex flex-col gap-4 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <span
+                className="text-accent bg-accent/10 flex h-9 w-9 shrink-0 items-center justify-center rounded-md"
+                aria-hidden
+              >
+                <BeakerIcon className="h-4 w-4 shrink-0" />
+              </span>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <Card.Title className="text-foreground text-lg font-semibold">
+                  Instruments
+                </Card.Title>
+                <Chip
+                  size="sm"
+                  variant="soft"
+                  color="default"
+                  className="text-muted h-6 px-2 text-xs font-medium tabular-nums"
+                  aria-label={`${facility.instruments.length} instruments`}
+                >
+                  {facility.instruments.length}
+                </Chip>
+              </div>
+            </div>
+            <div className="w-full shrink-0 sm:w-auto sm:max-w-sm">
+              <AddInstrumentButton
+                facilityId={facility.id}
+                facilityName={facility.name}
+                className="w-full"
+                onCreated={() => {
+                  void refetch();
+                }}
+              />
+            </div>
           </Card.Header>
           <Card.Content className="p-5 sm:p-6">
             {facility.instruments.length === 0 ? (
