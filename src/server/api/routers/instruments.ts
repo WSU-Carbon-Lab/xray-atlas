@@ -1,10 +1,30 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
+import {
+  adminProcedure,
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import {
   DASHBOARD_CONNECTORS_DEFAULT_PAGE_SIZE,
   listDashboardConnectorsFromDb,
 } from "~/features/dashboard/connectors/resolve-dashboard-connectors";
+import { orcidUserIdSchema } from "~/lib/orcid";
+import {
+  instrumentStewardPublicSelect,
+  toInstrumentStewardPublic,
+} from "~/server/instruments/instrument-steward-dto";
+
+const instrumentStewardPublicSchema = z.object({
+  instrumentId: z.string(),
+  userId: orcidUserIdSchema,
+  name: z.string().nullable(),
+  image: z.string().nullable(),
+  assignedAt: z.string().datetime(),
+  claimIssueUrl: z.string().nullable(),
+  notes: z.string().nullable(),
+});
 
 export const instrumentsRouter = createTRPCRouter({
   /**
@@ -274,5 +294,122 @@ export const instrumentsRouter = createTRPCRouter({
       });
 
       return updated;
+    }),
+
+  /**
+   * Returns the primary beamline scientist steward for one instrument, or null when none is assigned.
+   */
+  getSteward: publicProcedure
+    .input(z.object({ instrumentId: z.string().min(1) }))
+    .output(instrumentStewardPublicSchema.nullable())
+    .query(async ({ ctx, input }) => {
+      const row = await ctx.db.instrumentsteward.findUnique({
+        where: { instrumentid: input.instrumentId },
+        select: instrumentStewardPublicSelect,
+      });
+      return row ? toInstrumentStewardPublic(row) : null;
+    }),
+
+  /**
+   * Lists stewards for all instruments at a facility keyed by instrument id.
+   */
+  listStewardsForFacility: publicProcedure
+    .input(z.object({ facilityId: z.string().uuid() }))
+    .output(z.record(z.string(), instrumentStewardPublicSchema))
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db.instrumentsteward.findMany({
+        where: {
+          instrument: {
+            facilityid: input.facilityId,
+          },
+        },
+        select: instrumentStewardPublicSelect,
+      });
+      const stewards: Record<string, z.infer<typeof instrumentStewardPublicSchema>> =
+        {};
+      for (const row of rows) {
+        stewards[row.instrumentid] = toInstrumentStewardPublic(row);
+      }
+      return stewards;
+    }),
+
+  /**
+   * Assigns or replaces the primary beamline scientist steward for an instrument.
+   */
+  setSteward: adminProcedure
+    .input(
+      z.object({
+        instrumentId: z.string().min(1),
+        userId: orcidUserIdSchema,
+        claimIssueUrl: z.string().url().optional().nullable(),
+        notes: z.string().max(2000).optional().nullable(),
+      }),
+    )
+    .output(instrumentStewardPublicSchema)
+    .mutation(async ({ ctx, input }) => {
+      const instrument = await ctx.db.instruments.findUnique({
+        where: { id: input.instrumentId },
+        select: { id: true },
+      });
+      if (!instrument) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Instrument not found",
+        });
+      }
+
+      const stewardUser = await ctx.db.user.findUnique({
+        where: { id: input.userId },
+        select: { id: true },
+      });
+      if (!stewardUser) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      const row = await ctx.db.instrumentsteward.upsert({
+        where: { instrumentid: input.instrumentId },
+        create: {
+          instrumentid: input.instrumentId,
+          userid: input.userId,
+          assignedbyuserid: ctx.userId,
+          claimissueurl: input.claimIssueUrl ?? null,
+          notes: input.notes ?? null,
+        },
+        update: {
+          userid: input.userId,
+          assignedbyuserid: ctx.userId,
+          assignedat: new Date(),
+          claimissueurl: input.claimIssueUrl ?? null,
+          notes: input.notes ?? null,
+        },
+        select: instrumentStewardPublicSelect,
+      });
+
+      return toInstrumentStewardPublic(row);
+    }),
+
+  /**
+   * Clears the primary beamline scientist steward for an instrument.
+   */
+  clearSteward: adminProcedure
+    .input(z.object({ instrumentId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.instrumentsteward.findUnique({
+        where: { instrumentid: input.instrumentId },
+        select: { instrumentid: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No steward is assigned for this instrument",
+        });
+      }
+      await ctx.db.instrumentsteward.delete({
+        where: { instrumentid: input.instrumentId },
+      });
+      return { ok: true as const };
     }),
 });

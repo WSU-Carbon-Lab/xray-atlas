@@ -59,6 +59,8 @@ model user {
   attributionteams              attributionteam[]
   attributionteammembers        attributionteammember[]
   dashboardprocessingsessions   dashboardprocessingsession[]
+  instrumentstewards            instrumentsteward[]            @relation("InstrumentSteward")
+  instrumentstewardsassigned    instrumentsteward[]            @relation("InstrumentStewardAssignedBy")
 
   @@schema("next_auth")
 }

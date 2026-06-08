@@ -17,6 +17,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { AddInstrumentButton } from "@/components/contribute";
 import { InstrumentConnectorClaimSection } from "~/features/dashboard/instrument-connector-claim-section";
+import { InstrumentStewardAdminControls } from "~/features/facilities/instrument-steward-admin-controls";
 import { Button, Card, Chip } from "@heroui/react";
 
 export default function FacilityDetailPage({
@@ -27,7 +28,12 @@ export default function FacilityDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const facilityQuery = trpc.facilities.getById.useQuery({ id });
+  const stewardsQuery = trpc.instruments.listStewardsForFacility.useQuery(
+    { facilityId: id },
+    { enabled: Boolean(id) },
+  );
   const { data: facility, isLoading, isError, error, refetch } = facilityQuery;
+  const stewardsByInstrumentId = stewardsQuery.data ?? {};
 
   if (isLoading) {
     return <PageSkeleton />;
@@ -229,6 +235,15 @@ export default function FacilityDetailPage({
                           <InstrumentConnectorClaimSection
                             facilityName={facility.name}
                             instrumentName={instrument.name}
+                            steward={stewardsByInstrumentId[instrument.id] ?? null}
+                          />
+                          <InstrumentStewardAdminControls
+                            instrumentId={instrument.id}
+                            instrumentName={instrument.name}
+                            steward={stewardsByInstrumentId[instrument.id] ?? null}
+                            onStewardChanged={() => {
+                              void stewardsQuery.refetch();
+                            }}
                           />
                         </div>
                       </Card.Content>

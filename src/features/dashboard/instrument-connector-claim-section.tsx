@@ -7,6 +7,11 @@ import {
   buildBeamlineClaimIssueUrl,
   buildInstrumentConnectorRequestIssueUrl,
 } from "~/lib/github-beamline-issues";
+import {
+  instrumentStewardProfileHref,
+  resolveInstrumentConnectorSectionView,
+  type InstrumentStewardPublic,
+} from "~/lib/instrument-steward";
 import { matchInstrumentToDashboardBinding } from "./connectors/bindings";
 import {
   dashboardConnectorReadinessBadge,
@@ -17,6 +22,7 @@ import type { DashboardConnectorReadiness } from "./connectors/types";
 type InstrumentConnectorClaimSectionProps = {
   facilityName: string;
   instrumentName: string;
+  steward?: InstrumentStewardPublic | null;
 };
 
 function resolveInstrumentConnectorState(
@@ -39,17 +45,23 @@ function resolveInstrumentConnectorState(
 
 /**
  * Facility instrument card section for beamline scientists to claim a beamline and request
- * a dashboard connector when no beta or ready workspace exists yet.
+ * a dashboard connector. Claim and connector request actions remain visible when a steward
+ * is assigned or a beta workspace exists.
  */
 export function InstrumentConnectorClaimSection({
   facilityName,
   instrumentName,
+  steward = null,
 }: InstrumentConnectorClaimSectionProps) {
   const { readiness, workspaceSlug, badgeLabel } = resolveInstrumentConnectorState(
     facilityName,
     instrumentName,
   );
-  const hasWorkspace = readiness === "beta" || readiness === "ready";
+  const sectionView = resolveInstrumentConnectorSectionView({
+    readiness,
+    workspaceSlug,
+    steward,
+  });
   const claimIssueUrl = buildBeamlineClaimIssueUrl({
     facilityName,
     instrumentName,
@@ -58,11 +70,13 @@ export function InstrumentConnectorClaimSection({
     facilityName,
     instrumentName,
     preferredSlug: workspaceSlug,
+    technique: readiness !== "not_ready" ? "STXM" : undefined,
   });
   const workspaceHref =
-    hasWorkspace && workspaceSlug
+    sectionView.showWorkspaceLink && workspaceSlug
       ? dashboardInstrumentWorkspaceHref(workspaceSlug)
       : undefined;
+  const stewardLabel = steward?.name?.trim() || steward?.userId;
 
   return (
     <section
@@ -78,28 +92,44 @@ export function InstrumentConnectorClaimSection({
         ) : null}
       </div>
 
-      {hasWorkspace ? (
+      {sectionView.showSteward && steward ? (
+        <p className="text-muted mt-2 text-sm leading-snug">
+          Beamline scientist:{" "}
+          <Link
+            href={instrumentStewardProfileHref(steward.userId)}
+            className="text-accent hover:text-accent-dark font-medium underline-offset-2 hover:underline"
+          >
+            {stewardLabel}
+          </Link>
+        </p>
+      ) : null}
+
+      {sectionView.showWorkspaceLink && workspaceHref ? (
         <div className="mt-2 flex flex-col gap-2">
           <p className="text-muted text-sm leading-snug">
             Browser-side analysis software is available for this instrument on the
             contributor dashboard.
           </p>
-          {workspaceHref ? (
-            <Link
-              href={workspaceHref}
-              className={cn(buttonVariants({ variant: "primary", size: "sm" }), "w-fit")}
-              aria-label={`Open dashboard workspace for ${instrumentName}`}
-            >
-              Open workspace
-            </Link>
-          ) : null}
+          <Link
+            href={workspaceHref}
+            className={cn(buttonVariants({ variant: "primary", size: "sm" }), "w-fit")}
+            aria-label={`Open dashboard workspace for ${instrumentName}`}
+          >
+            Open workspace
+          </Link>
         </div>
-      ) : (
-        <div className="mt-2 flex flex-col gap-3">
-          <p className="text-muted text-sm leading-snug">
-            No dashboard workspace is available yet. Beamline scientists can claim this
-            beamline, then submit processing details so maintainers can build a connector.
-          </p>
+      ) : null}
+
+      {sectionView.showNoWorkspaceNarrative ? (
+        <p className="text-muted mt-2 text-sm leading-snug">
+          {sectionView.showSteward
+            ? "Maintainers may still need additional claim verification or connector details from beamline staff."
+            : "No dashboard workspace is available yet. Beamline scientists can claim this beamline, then submit processing details so maintainers can build a connector."}
+        </p>
+      ) : null}
+
+      <div className="mt-3 flex flex-col gap-3">
+        {sectionView.showNoWorkspaceNarrative ? (
           <ol className="text-muted list-decimal space-y-1 ps-5 text-sm leading-snug">
             <li>Submit a claim issue so maintainers can verify your affiliation.</li>
             <li>
@@ -107,28 +137,33 @@ export function InstrumentConnectorClaimSection({
               and a processed CSV derived from your as-is files.
             </li>
           </ol>
-          <div className="flex flex-wrap gap-2">
-            <a
-              href={claimIssueUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(buttonVariants({ variant: "primary", size: "sm" }))}
-              aria-label={`Claim ${instrumentName} beamline on GitHub`}
-            >
-              Claim beamline
-            </a>
-            <a
-              href={connectorIssueUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
-              aria-label={`Request dashboard connector for ${instrumentName} on GitHub`}
-            >
-              Request connector
-            </a>
-          </div>
+        ) : (
+          <p className="text-muted text-sm leading-snug">
+            Claim verification and connector requests stay open for additional beamline
+            staff or updated processing details.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={claimIssueUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "primary", size: "sm" }))}
+            aria-label={`Claim ${instrumentName} beamline on GitHub`}
+          >
+            Claim beamline
+          </a>
+          <a
+            href={connectorIssueUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+            aria-label={`Request dashboard connector for ${instrumentName} on GitHub`}
+          >
+            Request connector
+          </a>
         </div>
-      )}
+      </div>
     </section>
   );
 }
