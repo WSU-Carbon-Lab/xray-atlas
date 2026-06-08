@@ -13,6 +13,10 @@
 
 # testing
 /coverage
+.venv/
+venv/
+__pycache__/
+*.py[cod]
 tests/kk-calc-validation/.venv
 tests/kk-calc-validation/__pycache__/
 tests/kk-calc-validation/kkcalc/

@@ -12,7 +12,6 @@ import {
   resolveIngestionMetadataForScan,
   resolveRegionsMetadataForScan,
   type DashboardIngestionResult,
-  type DashboardPreviewStepMetadata,
   type DashboardRegionsStepMetadata,
 } from "~/lib/dashboard-processing-session";
 import type { StxmRegionSpectrumSeries } from "~/lib/stxm/stxm-region-types";
@@ -155,7 +154,7 @@ describe("quick scan switch persistence helpers", () => {
     const previewB = buildStxmPreviewCacheUpdate({
       scanId: scanB,
       scanLabel: scanB,
-      previewMetadata: previewA as DashboardPreviewStepMetadata,
+      previewMetadata: previewA!,
       ingestionResult: sampleIngestion(scanB),
       regionSpectra: sampleRegionSpectra(),
     });
