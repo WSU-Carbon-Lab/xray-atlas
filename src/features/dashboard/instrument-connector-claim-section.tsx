@@ -82,7 +82,7 @@ export function InstrumentConnectorClaimSection({
 
   return (
     <section
-      className="border-border bg-surface/60 mt-1 rounded-lg border px-3 py-3"
+      className="border-border/80 bg-surface-1/70 mt-1 rounded-md border px-3 py-3"
       aria-label={`Dashboard connector status for ${instrumentName}`}
     >
       <div className="flex flex-wrap items-center gap-2">

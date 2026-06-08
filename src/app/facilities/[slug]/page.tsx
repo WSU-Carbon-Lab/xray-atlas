@@ -22,12 +22,15 @@ import {
 import { AddInstrumentButton } from "@/components/contribute";
 import { InstrumentConnectorClaimSection } from "~/features/dashboard/instrument-connector-claim-section";
 import { Button, Card, Chip, Separator } from "@heroui/react";
+import { cn } from "@heroui/styles";
 
 const exploreCatalogLinkClass =
   "focus-visible:ring-accent inline-flex items-center gap-1.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sm font-medium text-muted transition-colors hover:border-border hover:bg-default/80 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 const exploreInstrumentLinkClass =
   "focus-visible:ring-accent inline-flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent/10 px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-accent/40 hover:bg-accent/15 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+const facilitySectionPaddingClass = "px-5 sm:px-6";
 
 export default function FacilityDetailPage({
   params,
@@ -105,8 +108,8 @@ export default function FacilityDetailPage({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <div>
           <Button
             type="button"
             variant="ghost"
@@ -140,67 +143,89 @@ export default function FacilityDetailPage({
           </div>
         </div>
 
-        <nav
-          aria-label="Explore related catalogs"
-          className="border-border bg-surface/40 mt-8 rounded-xl border px-4 py-5 sm:px-5 sm:py-6"
-        >
-          <p className="text-muted mb-4 text-[0.6875rem] font-semibold tracking-[0.12em] uppercase">
-            Explore
-          </p>
-          <div className="flex flex-col gap-4">
-            {facility.instruments.length > 0 ? (
-              <ul className="flex flex-wrap gap-2">
-                {facility.instruments.slice(0, 2).map((instrument) => (
-                  <li key={instrument.id}>
-                    <Link
-                      href={`/browse/nexafs?instrument=${encodeURIComponent(instrument.id)}`}
-                      className={exploreInstrumentLinkClass}
-                    >
-                      <ChartBarIcon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-                      <span>NEXAFS: {instrument.name}</span>
+        <Card className="border-border bg-surface-1 overflow-hidden rounded-xl border shadow-sm">
+          <nav
+            aria-label="Explore related catalogs"
+            className={cn(
+              "border-border border-b py-5 sm:py-6",
+              facilitySectionPaddingClass,
+            )}
+          >
+            <p className="text-muted mb-4 text-[0.6875rem] font-semibold tracking-[0.12em] uppercase">
+              Explore
+            </p>
+            <div className="flex flex-col gap-4">
+              {facility.instruments.length > 0 ? (
+                <ul className="flex flex-wrap gap-2">
+                  {facility.instruments.slice(0, 2).map((instrument) => (
+                    <li key={instrument.id}>
+                      <Link
+                        href={`/browse/nexafs?instrument=${encodeURIComponent(instrument.id)}`}
+                        className={exploreInstrumentLinkClass}
+                      >
+                        <ChartBarIcon
+                          className="h-4 w-4 shrink-0 opacity-80"
+                          aria-hidden
+                        />
+                        <span>NEXAFS: {instrument.name}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <ul className="flex flex-wrap gap-2">
+                  <li>
+                    <Link href="/browse/nexafs" className={exploreInstrumentLinkClass}>
+                      <ChartBarIcon
+                        className="h-4 w-4 shrink-0 opacity-80"
+                        aria-hidden
+                      />
+                      <span>Browse NEXAFS experiments</span>
                     </Link>
                   </li>
-                ))}
-              </ul>
-            ) : (
+                </ul>
+              )}
+              <Separator className="bg-border" />
               <ul className="flex flex-wrap gap-2">
                 <li>
-                  <Link href="/browse/nexafs" className={exploreInstrumentLinkClass}>
-                    <ChartBarIcon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-                    <span>Browse NEXAFS experiments</span>
+                  <Link href="/browse/facilities" className={exploreCatalogLinkClass}>
+                    <BuildingOfficeIcon
+                      className="h-4 w-4 shrink-0 opacity-70"
+                      aria-hidden
+                    />
+                    <span>All facilities</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/wiki/home" className={exploreCatalogLinkClass}>
+                    <BookOpenIcon
+                      className="h-4 w-4 shrink-0 opacity-70"
+                      aria-hidden
+                    />
+                    <span>NEXAFS wiki</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/wiki/platform-features"
+                    className={exploreCatalogLinkClass}
+                  >
+                    <SparklesIcon
+                      className="h-4 w-4 shrink-0 opacity-70"
+                      aria-hidden
+                    />
+                    <span>Platform features</span>
                   </Link>
                 </li>
               </ul>
+            </div>
+          </nav>
+          <Card.Header
+            className={cn(
+              "border-border flex flex-col gap-4 border-b py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3",
+              facilitySectionPaddingClass,
             )}
-            <Separator className="bg-border" />
-            <ul className="flex flex-wrap gap-2">
-              <li>
-                <Link href="/browse/facilities" className={exploreCatalogLinkClass}>
-                  <BuildingOfficeIcon className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
-                  <span>All facilities</span>
-                </Link>
-              </li>
-              <li>
-                <Link href="/wiki/home" className={exploreCatalogLinkClass}>
-                  <BookOpenIcon className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
-                  <span>NEXAFS wiki</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/wiki/platform-features"
-                  className={exploreCatalogLinkClass}
-                >
-                  <SparklesIcon className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
-                  <span>Platform features</span>
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </nav>
-
-        <Card className="border-border bg-surface-1 overflow-hidden border shadow-sm">
-          <Card.Header className="border-border flex flex-col gap-4 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6">
+          >
             <div className="flex min-w-0 items-center gap-3">
               <span
                 className="text-accent bg-accent/10 flex h-9 w-9 shrink-0 items-center justify-center rounded-md"
@@ -234,18 +259,18 @@ export default function FacilityDetailPage({
               />
             </div>
           </Card.Header>
-          <Card.Content className="p-5 sm:p-6">
+          <Card.Content className={cn("py-5 sm:py-6", facilitySectionPaddingClass)}>
             {facility.instruments.length === 0 ? (
               <p className="text-muted text-center text-sm">
                 No instruments registered for this facility yet.
               </p>
             ) : (
-              <ul className="space-y-3" aria-label="Instruments at this facility">
+              <ul className="space-y-4" aria-label="Instruments at this facility">
                 {facility.instruments.map((instrument) => (
                   <li key={instrument.id} id={`instrument-${instrument.id}`}>
                     <Card
                       variant="secondary"
-                      className="border-border bg-surface-2/80 border scroll-mt-24"
+                      className="border-border bg-surface-2 scroll-mt-24 overflow-hidden rounded-lg border"
                     >
                       <Card.Content className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0 flex-1 space-y-2">
