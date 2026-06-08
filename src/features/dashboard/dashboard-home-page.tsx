@@ -21,6 +21,7 @@ import {
 import { DASHBOARD_CONNECTORS_DEFAULT_PAGE_SIZE } from "./connectors/resolve-dashboard-connectors";
 import { DashboardRecentSessionRow } from "./dashboard-recent-session-row";
 import { DashboardConnectorCard } from "./dashboard-connector-card";
+import { instrumentConnectorRequestHrefForCard } from "./instrument-connector-claim-section";
 
 type DashboardSectionProps = {
   title: string;
@@ -186,6 +187,12 @@ export function DashboardHomePage() {
                           )
                         : undefined
                     }
+                    connectorRequestHref={instrumentConnectorRequestHrefForCard(
+                      connector.facilityLabel,
+                      connector.instrumentLabel,
+                      connector.slug,
+                      connector.readiness,
+                    )}
                   />
                 ))}
               </div>

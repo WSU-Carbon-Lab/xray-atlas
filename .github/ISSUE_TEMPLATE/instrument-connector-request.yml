@@ -1,0 +1,92 @@
+name: Request dashboard instrument connector
+description: Ask maintainers to build a browser-side dashboard workspace for your beamline.
+title: "[Instrument connector] "
+labels:
+  - instrument-connector
+  - dashboard
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form after your **Claim a beamline** request is approved, or when maintainers have already confirmed your affiliation.
+
+        Claim template: https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=beamline-claim.yml
+
+        Provide enough detail for maintainers to reproduce your beamline processing in the dashboard. Attach files directly to the issue when possible.
+  - type: input
+    id: facility
+    attributes:
+      label: Facility name
+      description: Exact facility name as listed in X-ray Atlas.
+    validations:
+      required: true
+  - type: input
+    id: instrument_name
+    attributes:
+      label: Instrument / beamline name
+      description: Exact instrument name as listed in X-ray Atlas.
+    validations:
+      required: true
+  - type: dropdown
+    id: technique
+    attributes:
+      label: Primary technique
+      options:
+        - STXM
+        - NEXAFS
+        - XAS / XANES
+        - RSoXS
+        - Other (describe below)
+    validations:
+      required: true
+  - type: input
+    id: preferred_slug
+    attributes:
+      label: Preferred dashboard slug (optional)
+      description: Short URL slug for /dashboard/instruments/[slug], for example als-5322.
+    validations:
+      required: false
+  - type: textarea
+    id: asis_data
+    attributes:
+      label: As-is example data
+      description: |
+        Attach native files written directly from the instrument, or describe exact paths, filenames, and formats.
+        Include one representative beamtime or scan set maintainers can use as a fixture.
+    validations:
+      required: true
+  - type: textarea
+    id: processing_code
+    attributes:
+      label: Processing code
+      description: |
+        Paste exact scripts, notebooks, Igor procedures, or repository links used at the beamline.
+        Name the files and note which steps each file performs.
+    validations:
+      required: true
+  - type: textarea
+    id: processing_narrative
+    attributes:
+      label: Processing narrative
+      description: |
+        Plain-language, step-by-step explanation of how you process data from raw files to analysis-ready spectra.
+    validations:
+      required: true
+  - type: textarea
+    id: critical_settings
+    attributes:
+      label: Critical settings
+      description: |
+        List settings that must be set during processing (normalization windows, region bounds, energy calibration, monitor channels, etc.).
+        Use a bullet list when possible.
+    validations:
+      required: true
+  - type: textarea
+    id: processed_csv
+    attributes:
+      label: Processed CSV output
+      description: |
+        Attach or describe the processed CSV derived from the as-is example files.
+        State column names, units, and which geometry or polarization each file represents.
+    validations:
+      required: true

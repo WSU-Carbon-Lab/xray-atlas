@@ -10,6 +10,7 @@ type DashboardConnectorCardProps = {
   badgeLabel: string | null;
   workspaceHref?: string;
   instrumentHref?: string;
+  connectorRequestHref?: string;
 };
 
 /**
@@ -20,6 +21,7 @@ export function DashboardConnectorCard({
   badgeLabel,
   workspaceHref,
   instrumentHref,
+  connectorRequestHref,
 }: DashboardConnectorCardProps) {
   const facilityInstrumentLabel = `${connector.facilityLabel}, ${connector.instrumentLabel}`;
 
@@ -62,6 +64,17 @@ export function DashboardConnectorCard({
           >
             View instrument
           </Link>
+        ) : null}
+        {connectorRequestHref ? (
+          <a
+            href={connectorRequestHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+            aria-label={`Request dashboard connector for ${facilityInstrumentLabel} on GitHub`}
+          >
+            Request connector
+          </a>
         ) : null}
       </div>
     </div>

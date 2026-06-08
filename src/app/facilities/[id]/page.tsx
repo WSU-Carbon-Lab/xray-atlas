@@ -16,6 +16,7 @@ import {
   ClockIcon,
 } from "@heroicons/react/24/outline";
 import { AddInstrumentButton } from "@/components/contribute";
+import { InstrumentConnectorClaimSection } from "~/features/dashboard/instrument-connector-claim-section";
 import { Button, Card, Chip } from "@heroui/react";
 
 export default function FacilityDetailPage({
@@ -225,6 +226,10 @@ export default function FacilityDetailPage({
                               <span className="truncate">Visit instrument page</span>
                             </a>
                           ) : null}
+                          <InstrumentConnectorClaimSection
+                            facilityName={facility.name}
+                            instrumentName={instrument.name}
+                          />
                         </div>
                       </Card.Content>
                     </Card>
