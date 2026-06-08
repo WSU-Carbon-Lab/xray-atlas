@@ -1,8 +1,56 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
+import { Prisma } from "~/prisma/client";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import {
+  DASHBOARD_CONNECTORS_DEFAULT_PAGE_SIZE,
+  listDashboardConnectorsFromDb,
+} from "~/features/dashboard/connectors/resolve-dashboard-connectors";
+import { orcidUserIdSchema } from "~/lib/orcid";
+import {
+  instrumentStewardPublicSelect,
+  toInstrumentStewardPublic,
+} from "~/server/instruments/instrument-steward-dto";
+import { assertUserMayManageInstrumentStewards } from "~/server/instruments/instrument-steward-authz";
+
+const instrumentStewardPublicSchema = z.object({
+  instrumentId: z.string(),
+  userId: orcidUserIdSchema,
+  name: z.string().nullable(),
+  image: z.string().nullable(),
+  assignedAt: z.string().datetime(),
+  claimIssueUrl: z.string().nullable(),
+  notes: z.string().nullable(),
+});
 
 export const instrumentsRouter = createTRPCRouter({
+  /**
+   * Lists dashboard instrument workspace cards by matching persisted instruments to
+   * connector bindings (labels and facilities from the database; readiness from overlay).
+   */
+  listDashboardConnectors: publicProcedure
+    .input(
+      z.object({
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .default(DASHBOARD_CONNECTORS_DEFAULT_PAGE_SIZE),
+        offset: z.number().int().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return listDashboardConnectorsFromDb(ctx.db, {
+        limit: input.limit,
+        offset: input.offset,
+      });
+    }),
+
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -247,5 +295,187 @@ export const instrumentsRouter = createTRPCRouter({
       });
 
       return updated;
+    }),
+
+  /**
+   * Lists beamline scientist stewards for one instrument (empty when none are assigned).
+   */
+  listStewardsForInstrument: publicProcedure
+    .input(z.object({ instrumentId: z.string().min(1) }))
+    .output(z.array(instrumentStewardPublicSchema))
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db.instrumentsteward.findMany({
+        where: { instrumentid: input.instrumentId },
+        select: instrumentStewardPublicSelect,
+        orderBy: { assignedat: "asc" },
+      });
+      return rows.map(toInstrumentStewardPublic);
+    }),
+
+  /**
+   * Lists stewards for all instruments at a facility keyed by instrument id.
+   */
+  listStewardsForFacility: publicProcedure
+    .input(z.object({ facilityId: z.string().uuid() }))
+    .output(z.record(z.string(), z.array(instrumentStewardPublicSchema)))
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db.instrumentsteward.findMany({
+        where: {
+          instrument: {
+            facilityid: input.facilityId,
+          },
+        },
+        select: instrumentStewardPublicSelect,
+        orderBy: { assignedat: "asc" },
+      });
+      const stewards: Record<
+        string,
+        z.infer<typeof instrumentStewardPublicSchema>[]
+      > = {};
+      for (const row of rows) {
+        const dto = toInstrumentStewardPublic(row);
+        const bucket = stewards[row.instrumentid] ?? [];
+        bucket.push(dto);
+        stewards[row.instrumentid] = bucket;
+      }
+      return stewards;
+    }),
+
+  /**
+   * Adds a beamline scientist steward for an instrument when the caller is an administrator
+   * or an existing steward on that instrument.
+   */
+  addSteward: protectedProcedure
+    .input(
+      z.object({
+        instrumentId: z.string().min(1),
+        userId: orcidUserIdSchema,
+        claimIssueUrl: z.string().url().optional().nullable(),
+        notes: z.string().max(2000).optional().nullable(),
+      }),
+    )
+    .output(instrumentStewardPublicSchema)
+    .mutation(async ({ ctx, input }) => {
+      await assertUserMayManageInstrumentStewards(
+        ctx.db,
+        ctx.userId,
+        input.instrumentId,
+      );
+
+      const instrument = await ctx.db.instruments.findUnique({
+        where: { id: input.instrumentId },
+        select: { id: true },
+      });
+      if (!instrument) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Instrument not found",
+        });
+      }
+
+      const stewardUser = await ctx.db.user.findUnique({
+        where: { id: input.userId },
+        select: { id: true },
+      });
+      if (!stewardUser) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message:
+            "That researcher must sign in to Atlas before they can be assigned as a beamline scientist.",
+        });
+      }
+
+      const existing = await ctx.db.instrumentsteward.findUnique({
+        where: {
+          instrumentid_userid: {
+            instrumentid: input.instrumentId,
+            userid: input.userId,
+          },
+        },
+        select: instrumentStewardPublicSelect,
+      });
+      if (existing) {
+        return toInstrumentStewardPublic(existing);
+      }
+
+      const row = await ctx.db.instrumentsteward
+        .create({
+          data: {
+            instrumentid: input.instrumentId,
+            userid: input.userId,
+            assignedbyuserid: ctx.userId,
+            claimissueurl: input.claimIssueUrl ?? null,
+            notes: input.notes ?? null,
+          },
+          select: instrumentStewardPublicSelect,
+        })
+        .catch(async (error: unknown) => {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          ) {
+            const raced = await ctx.db.instrumentsteward.findUnique({
+              where: {
+                instrumentid_userid: {
+                  instrumentid: input.instrumentId,
+                  userid: input.userId,
+                },
+              },
+              select: instrumentStewardPublicSelect,
+            });
+            if (raced) {
+              return raced;
+            }
+          }
+          throw error;
+        });
+
+      return toInstrumentStewardPublic(row);
+    }),
+
+  /**
+   * Removes one beamline scientist steward from an instrument when the caller is an administrator
+   * or an existing steward on that instrument.
+   */
+  removeSteward: protectedProcedure
+    .input(
+      z.object({
+        instrumentId: z.string().min(1),
+        userId: orcidUserIdSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertUserMayManageInstrumentStewards(
+        ctx.db,
+        ctx.userId,
+        input.instrumentId,
+      );
+
+      const existing = await ctx.db.instrumentsteward.findUnique({
+        where: {
+          instrumentid_userid: {
+            instrumentid: input.instrumentId,
+            userid: input.userId,
+          },
+        },
+        select: { instrumentid: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That beamline scientist is not assigned to this instrument",
+        });
+      }
+
+      await ctx.db.instrumentsteward.delete({
+        where: {
+          instrumentid_userid: {
+            instrumentid: input.instrumentId,
+            userid: input.userId,
+          },
+        },
+      });
+
+      return { ok: true as const };
     }),
 });

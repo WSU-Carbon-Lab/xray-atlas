@@ -47,18 +47,27 @@ export const ChartCrosshairAndDots = memo(function ChartCrosshairAndDots({
         strokeDasharray="4,3"
         opacity={0.55}
       />
-      {dots.map((dot, i) => (
-        <circle
-          key={i}
-          cx={x}
-          cy={yScale(dot.value) + top}
-          r={5}
-          fill={dot.color}
-          stroke="rgba(255,255,255,0.9)"
-          strokeWidth={1.5}
-          opacity={0.95}
-        />
-      ))}
+      {dots.map((dot, i) => {
+        if (!Number.isFinite(dot.value)) {
+          return null;
+        }
+        const cy = yScale(dot.value) + top;
+        if (!Number.isFinite(cy)) {
+          return null;
+        }
+        return (
+          <circle
+            key={i}
+            cx={x}
+            cy={cy}
+            r={5}
+            fill={dot.color}
+            stroke="rgba(255,255,255,0.9)"
+            strokeWidth={1.5}
+            opacity={0.95}
+          />
+        );
+      })}
     </g>
   );
 });

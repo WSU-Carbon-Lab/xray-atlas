@@ -1,12 +1,21 @@
 import { z } from "zod";
-import { Prisma } from "~/prisma/client";
+import { Prisma, type PrismaClient } from "~/prisma/client";
+import { matchFacilitiesBySlug } from "~/lib/facility-slug";
+import {
+  facilityWebsiteHostname,
+  facilityWebsiteUrlInputSchema,
+  googleFaviconUrlForHostname,
+  parseFacilityWebsiteUrlInput,
+} from "~/lib/facility-website-url";
+import { assertSafeRemoteImageUrl } from "~/server/utils/safe-remote-image-url";
 import {
   contributeWriteProcedure,
   createTRPCRouter,
+  manageUsersProcedure,
   publicProcedure,
-  protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { resolveFacilityFaviconUrl } from "~/server/utils/resolve-facility-favicon";
 
 const facilitiesListInclude = {
   instruments: {
@@ -16,6 +25,52 @@ const facilitiesListInclude = {
     select: { instruments: true },
   },
 } as const;
+
+const facilityDetailInclude = {
+  instruments: {
+    orderBy: {
+      name: "asc" as const,
+    },
+  },
+  _count: {
+    select: {
+      instruments: true,
+    },
+  },
+} as const;
+
+async function findFacilityBySlug(db: PrismaClient, slug: string) {
+  const facilities = await db.facilities.findMany({
+    include: facilityDetailInclude,
+  });
+  const matches = matchFacilitiesBySlug(facilities, slug);
+
+  if (matches.length === 0) {
+    return null;
+  }
+
+  if (matches.length > 1) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message:
+        "Multiple facilities share this URL slug. Open the facility from browse or use its UUID.",
+    });
+  }
+
+  return matches[0] ?? null;
+}
+
+async function resolveFacilityFaviconForPersist(
+  websiteUrl: string,
+): Promise<string | null> {
+  try {
+    return await resolveFacilityFaviconUrl(websiteUrl);
+  } catch {
+    await assertSafeRemoteImageUrl(websiteUrl);
+    const hostname = facilityWebsiteHostname(websiteUrl);
+    return hostname ? googleFaviconUrlForHostname(hostname) : null;
+  }
+}
 
 export const facilitiesRouter = createTRPCRouter({
   create: contributeWriteProcedure
@@ -159,19 +214,23 @@ export const facilitiesRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const facility = await ctx.db.facilities.findUnique({
         where: { id: input.id },
-        include: {
-          instruments: {
-            orderBy: {
-              name: "asc",
-            },
-          },
-          _count: {
-            select: {
-              instruments: true,
-            },
-          },
-        },
+        include: facilityDetailInclude,
       });
+
+      if (!facility) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Facility not found",
+        });
+      }
+
+      return facility;
+    }),
+
+  getBySlug: publicProcedure
+    .input(z.object({ slug: z.string().min(1).max(200) }))
+    .query(async ({ ctx, input }) => {
+      const facility = await findFacilityBySlug(ctx.db, input.slug);
 
       if (!facility) {
         throw new TRPCError({
@@ -239,5 +298,89 @@ export const facilitiesRouter = createTRPCRouter({
       });
 
       return { exists: !!instrument, instrument: instrument ?? null };
+    }),
+
+  /**
+   * Updates the public homepage URL for a facility and refreshes the cached favicon URL.
+   * Requires user-administration permission; favicon discovery runs server-side with SSRF filtering.
+   */
+  updateWebsite: manageUsersProcedure
+    .input(
+      z.object({
+        facilityId: z.string().uuid(),
+        websiteUrl: facilityWebsiteUrlInputSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const facility = await ctx.db.facilities.findUnique({
+        where: { id: input.facilityId },
+        select: { id: true },
+      });
+      if (!facility) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Facility not found",
+        });
+      }
+
+      const websiteUrl = parseFacilityWebsiteUrlInput(input.websiteUrl);
+      let faviconUrl: string | null = null;
+      if (websiteUrl) {
+        try {
+          await assertSafeRemoteImageUrl(websiteUrl);
+        } catch {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Website URL is not allowed.",
+          });
+        }
+        faviconUrl = await resolveFacilityFaviconForPersist(websiteUrl);
+      }
+
+      return ctx.db.facilities.update({
+        where: { id: input.facilityId },
+        data: {
+          websiteurl: websiteUrl,
+          faviconurl: faviconUrl,
+        },
+        include: facilityDetailInclude,
+      });
+    }),
+
+  /**
+   * Re-fetches and persists the favicon URL for a facility with an existing homepage URL.
+   * Requires user-administration permission; discovery runs server-side with SSRF filtering.
+   */
+  refreshFavicon: manageUsersProcedure
+    .input(
+      z.object({
+        facilityId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const facility = await ctx.db.facilities.findUnique({
+        where: { id: input.facilityId },
+        select: { id: true, websiteurl: true },
+      });
+      if (!facility) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Facility not found",
+        });
+      }
+      if (!facility.websiteurl) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Facility has no website URL to refresh.",
+        });
+      }
+
+      const faviconUrl = await resolveFacilityFaviconForPersist(facility.websiteurl);
+
+      return ctx.db.facilities.update({
+        where: { id: input.facilityId },
+        data: { faviconurl: faviconUrl },
+        include: facilityDetailInclude,
+      });
     }),
 });

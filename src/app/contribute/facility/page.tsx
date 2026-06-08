@@ -22,6 +22,7 @@ import { Breadcrumbs, Button, Card, Form, Separator, Tabs } from "@heroui/react"
 import { parseFacilityJsonFile } from "~/app/contribute/facility/utils/parse-facility-json";
 import { parseFacilityCsvFile } from "~/app/contribute/facility/utils/parse-facility-csv";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
+import { facilityDetailHrefFromName } from "~/lib/facility-route";
 
 import { skipToken } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -435,7 +436,7 @@ export default function FacilityContributePage({
             onClose?.();
           } else if (failures.length === 0) {
             setTimeout(() => {
-              router.push(`/facilities/${existingFacility.id}`);
+              router.push(facilityDetailHrefFromName(existingFacility.name));
             }, 1500);
           }
         }
@@ -488,7 +489,7 @@ export default function FacilityContributePage({
         onClose?.();
       } else {
         setTimeout(() => {
-          router.push(`/facilities/${result.id}`);
+          router.push(facilityDetailHrefFromName(result.name));
         }, 2000);
       }
     } catch (error: unknown) {

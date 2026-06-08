@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { LinePath, AreaClosed } from "@visx/shape";
 import { curveLinear } from "@visx/curve";
 import type { TraceData, GraphStyle } from "../types";
@@ -9,6 +9,91 @@ import type { ChartScales } from "./types";
 import type { LinkedOpticalAreaBand } from "../utils/linked-optical-area-bands";
 import { isLinkedOpticalSpectrumTrace } from "../utils/linked-optical-area-bands";
 import { ChartLinkedOpticalAreaBands } from "./ChartLinkedOpticalAreaBands";
+
+const MAX_LINE_MODE_MARKERS = 36;
+
+function decimatePoints<T>(
+  items: readonly T[],
+  maxCount: number,
+  stepOverride?: number,
+): T[] {
+  if (stepOverride != null && stepOverride >= 1) {
+    const step = Math.max(1, Math.round(stepOverride));
+    const decimated: T[] = [];
+    for (let index = 0; index < items.length; index += step) {
+      decimated.push(items[index] as T);
+    }
+    return decimated;
+  }
+  if (items.length <= maxCount) {
+    return [...items];
+  }
+  const step = Math.ceil(items.length / maxCount);
+  const decimated: T[] = [];
+  for (let index = 0; index < items.length; index += step) {
+    decimated.push(items[index] as T);
+  }
+  return decimated;
+}
+
+function renderMarkerShape(params: {
+  symbol: NonNullable<TraceData["marker"]>["symbol"];
+  cx: number;
+  cy: number;
+  size: number;
+  color: string;
+  opacity: number;
+  markerKey: string;
+}): ReactNode {
+  const { symbol, cx, cy, size, color, opacity, markerKey } = params;
+  if (symbol === "square") {
+    const side = size;
+    const half = side / 2;
+    return (
+      <rect
+        key={markerKey}
+        x={cx - half}
+        y={cy - half}
+        width={side}
+        height={side}
+        fill={color}
+        opacity={opacity}
+      />
+    );
+  }
+  if (symbol === "triangle") {
+    const half = size / 2;
+    return (
+      <polygon
+        key={markerKey}
+        points={`${cx},${cy - half} ${cx - half},${cy + half} ${cx + half},${cy + half}`}
+        fill={color}
+        opacity={opacity}
+      />
+    );
+  }
+  if (symbol === "diamond") {
+    const half = size / 2;
+    return (
+      <polygon
+        key={markerKey}
+        points={`${cx},${cy - half} ${cx + half},${cy} ${cx},${cy + half} ${cx - half},${cy}`}
+        fill={color}
+        opacity={opacity}
+      />
+    );
+  }
+  return (
+    <circle
+      key={markerKey}
+      cx={cx}
+      cy={cy}
+      r={size / 2}
+      fill={color}
+      opacity={opacity}
+    />
+  );
+}
 
 export const ChartSpectrumLines = memo(function ChartSpectrumLines({
   traces,
@@ -118,7 +203,19 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
           typeof trace.marker?.opacity === "number" ? trace.marker.opacity : 0.7;
 
         const showLine = graphStyle === "line" || graphStyle === "area";
-        const showMarkers = graphStyle === "scatter";
+        const markerSymbol = trace.marker?.symbol;
+        const showScatterMarkers = graphStyle === "scatter";
+        const showLineMarkers =
+          showLine &&
+          markerSymbol != null &&
+          markerSymbol !== undefined;
+        const markerEvery =
+          typeof trace.marker?.every === "number" ? trace.marker.every : undefined;
+        const markerPoints = showScatterMarkers
+          ? points
+          : showLineMarkers
+            ? decimatePoints(points, MAX_LINE_MODE_MARKERS, markerEvery)
+            : [];
         const showArea =
           graphStyle === "area" &&
           !(useLinkedAreaBands && isLinkedOpticalSpectrumTrace(trace));
@@ -154,36 +251,20 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
                 curve={curveLinear}
               />
             )}
-            {showMarkers &&
-              points.map((point, pointIndex) => {
+            {markerPoints.length > 0 &&
+              markerPoints.map((point, pointIndex) => {
                 const cx = scales.xScale(point.x);
                 const cy = scales.yScale(point.y);
                 const markerKey = `marker-${index}-${pointIndex}`;
-                if (trace.marker?.symbol === "square") {
-                  const side = markerSize;
-                  const half = side / 2;
-                  return (
-                    <rect
-                      key={markerKey}
-                      x={cx - half}
-                      y={cy - half}
-                      width={side}
-                      height={side}
-                      fill={color}
-                      opacity={markerOpacity}
-                    />
-                  );
-                }
-                return (
-                  <circle
-                    key={markerKey}
-                    cx={cx}
-                    cy={cy}
-                    r={markerSize / 2}
-                    fill={color}
-                    opacity={markerOpacity}
-                  />
-                );
+                return renderMarkerShape({
+                  symbol: markerSymbol ?? "circle",
+                  cx,
+                  cy,
+                  size: markerSize,
+                  color,
+                  opacity: markerOpacity,
+                  markerKey,
+                });
               })}
           </g>
         );

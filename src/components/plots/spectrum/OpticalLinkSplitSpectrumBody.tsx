@@ -571,7 +571,7 @@ export function OpticalLinkSplitSpectrumBody({
             zoomMode={zoomMode}
             onZoom={onMarqueeZoom}
             onReset={onResetZoom}
-            allowPlotInteractionsBelow={zoomedXDomain != null}
+            xAxisGutterHeight={realPlot.dimensions.margins.bottom}
           />
         )}
 

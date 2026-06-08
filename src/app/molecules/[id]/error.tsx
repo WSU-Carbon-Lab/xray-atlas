@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ErrorState } from "@/components/feedback/error-state";
+import { BeamDumpErrorPage } from "~/components/feedback/beam-dump-error-page";
 
 export default function MoleculeDetailError({
   error,
@@ -15,14 +15,16 @@ export default function MoleculeDetailError({
   }, [error]);
 
   return (
-    <div className="py-8">
-      <ErrorState
-        title="Failed to load molecule"
-        message={
-          error?.message ?? "An error occurred while loading the molecule."
-        }
-        onRetry={reset}
-      />
-    </div>
+    <BeamDumpErrorPage
+      variant="server"
+      statusLabel="Load fault"
+      headline="Beam instability on this molecule"
+      subcopy={
+        error?.message ??
+        "Something interrupted the photon stream while loading this structure. The operators are looking into it."
+      }
+      issueTitle="Molecule detail failed to load"
+      onRetry={reset}
+    />
   );
 }

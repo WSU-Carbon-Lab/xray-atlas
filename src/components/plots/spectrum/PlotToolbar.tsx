@@ -66,7 +66,10 @@ export const PlotToolbar = memo(function PlotToolbar({
       role="toolbar"
       aria-label="Plot tools"
     >
-      <PlotToolbarRichHint title="Pan" description="Drag horizontally after zooming in.">
+      <PlotToolbarRichHint
+        title="Pan"
+        description="Drag after zooming energy or absorption to shift the visible window."
+      >
         <Button
           variant={currentMode === "pan" ? "primary" : "ghost"}
           isIconOnly
@@ -82,7 +85,7 @@ export const PlotToolbar = memo(function PlotToolbar({
       </PlotToolbarRichHint>
       <PlotToolbarRichHint
         title="Zoom in"
-        description="Narrow the energy window around the plot center."
+        description="Narrow the visible energy and absorption windows around each axis center."
       >
         <Button
           variant="ghost"
@@ -98,7 +101,7 @@ export const PlotToolbar = memo(function PlotToolbar({
       </PlotToolbarRichHint>
       <PlotToolbarRichHint
         title="Zoom out"
-        description="Widen the energy window toward the full range."
+        description="Widen the visible energy and absorption windows toward the full data range."
       >
         <Button
           variant="ghost"

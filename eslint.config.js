@@ -7,7 +7,16 @@ const compat = new FlatCompat({
 
 export default tseslint.config(
   {
-    ignores: [".next", "generated"],
+    ignores: [
+      ".next",
+      "generated",
+      "node_modules",
+      "**/.venv/**",
+      "**/venv/**",
+      "**/__pycache__/**",
+      "tests/kk-calc-validation/.venv/**",
+      "tests/kk-calc-validation/kkcalc/**",
+    ],
   },
   ...compat.extends("next/core-web-vitals"),
   {

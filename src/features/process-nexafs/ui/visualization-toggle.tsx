@@ -19,7 +19,11 @@ const inactiveButtonClass =
 const activeButtonClass =
   "border-accent bg-accent text-accent-foreground flex h-8 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors";
 
+const DEFAULT_VISUALIZATION_MODES: VisualizationMode[] = ["graph", "table", "aux"];
+
 interface VisualizationToggleProps {
+  /** Subset of view modes to render; defaults to graph, table, and auxiliary files. */
+  modes?: VisualizationMode[];
   mode: VisualizationMode;
   graphStyle?: GraphStyle;
   onModeChange: (mode: VisualizationMode) => void;
@@ -35,6 +39,7 @@ interface VisualizationToggleProps {
 }
 
 export function VisualizationToggle({
+  modes = DEFAULT_VISUALIZATION_MODES,
   mode,
   graphStyle = "line",
   onModeChange,
@@ -58,49 +63,63 @@ export function VisualizationToggle({
     }
   };
 
+  const showGraph = modes.includes("graph");
+  const showTable = modes.includes("table");
+  const showAux = modes.includes("aux");
+
   return (
     <div className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Tooltip delay={0}>
-          <button
-            type="button"
-            onClick={() => onModeChange("graph")}
-            className={mode === "graph" ? activeButtonClass : inactiveButtonClass}
-          >
-            <ChartBarIcon className="h-4 w-4" />
-            <span>Graph</span>
-          </button>
-          <Tooltip.Content className={plotToolbarTooltipContentClass}>
-            Show graph: Open the interactive spectrum plot.
-          </Tooltip.Content>
-        </Tooltip>
-        <Tooltip delay={0}>
-          <button
-            type="button"
-            onClick={() => onModeChange("table")}
-            className={mode === "table" ? activeButtonClass : inactiveButtonClass}
-          >
-            <TableCellsIcon className="h-4 w-4" />
-            <span>Table</span>
-          </button>
-          <Tooltip.Content className={plotToolbarTooltipContentClass}>
-            Show table: View every point in a sortable grid.
-          </Tooltip.Content>
-        </Tooltip>
-        <Tooltip delay={0}>
-          <button
-            type="button"
-            onClick={() => onModeChange("aux")}
-            className={mode === "aux" ? activeButtonClass : inactiveButtonClass}
-          >
-            <FolderIcon className="h-4 w-4" />
-            <span>Auxiliary files</span>
-          </button>
-          <Tooltip.Content className={plotToolbarTooltipContentClass}>
-            Auxiliary files: Browse experiment and sample attachments and upload
-            supporting data.
-          </Tooltip.Content>
-        </Tooltip>
+        {showGraph ? (
+          <Tooltip delay={0}>
+            <button
+              type="button"
+              onClick={() => onModeChange("graph")}
+              className={
+                mode === "graph" ? activeButtonClass : inactiveButtonClass
+              }
+            >
+              <ChartBarIcon className="h-4 w-4" />
+              <span>Graph</span>
+            </button>
+            <Tooltip.Content className={plotToolbarTooltipContentClass}>
+              Show graph: Open the interactive spectrum plot.
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
+        {showTable ? (
+          <Tooltip delay={0}>
+            <button
+              type="button"
+              onClick={() => onModeChange("table")}
+              className={
+                mode === "table" ? activeButtonClass : inactiveButtonClass
+              }
+            >
+              <TableCellsIcon className="h-4 w-4" />
+              <span>Table</span>
+            </button>
+            <Tooltip.Content className={plotToolbarTooltipContentClass}>
+              Show table: View every point in a sortable grid.
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
+        {showAux ? (
+          <Tooltip delay={0}>
+            <button
+              type="button"
+              onClick={() => onModeChange("aux")}
+              className={mode === "aux" ? activeButtonClass : inactiveButtonClass}
+            >
+              <FolderIcon className="h-4 w-4" />
+              <span>Auxiliary files</span>
+            </button>
+            <Tooltip.Content className={plotToolbarTooltipContentClass}>
+              Auxiliary files: Browse experiment and sample attachments and upload
+              supporting data.
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
       </div>
 
       <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">

@@ -90,7 +90,7 @@ export function AddInstrumentButton({
   facilityName,
   onCreated,
 }: InstrumentTriggerProps) {
-  const variant = facilityId ? "compact" : "card";
+  const variant = facilityId ? "header" : "card";
   return (
     <AddEntityModal
       title={`Add Instrument${facilityName ? ` · ${facilityName}` : ""}`}

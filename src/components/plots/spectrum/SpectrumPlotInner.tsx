@@ -26,10 +26,13 @@ import { eventToPlotCoords } from "../utils/svgPlotPointer";
 import { PLOT_CONFIG, useChartThemeFromCSS } from "../config";
 import { useSubplotLayout } from "./useSubplotLayout";
 import { useOpticalLinkSplitLayout } from "./useOpticalLinkSplitLayout";
+import { useResidualSubplotLayout } from "./useResidualSubplotLayout";
+import { useTraceStackSplitLayout } from "./useTraceStackSplitLayout";
 import {
   OpticalLinkSplitSpectrumBody,
   yAxisQuantityForOpticalRole,
 } from "./OpticalLinkSplitSpectrumBody";
+import { TraceStackSplitSpectrumBody } from "./TraceStackSplitSpectrumBody";
 import {
   absorptionExtentFromTraces,
   filterTracesForOpticalLinkSplitRole,
@@ -38,12 +41,14 @@ import { ChartAxes } from "./ChartAxes";
 import { ChartGrid } from "./ChartGrid";
 import { ChartSpectrumLines } from "./ChartSpectrumLines";
 import { PlotToolbar } from "./PlotToolbar";
+import { PlotDescriptorTraceLegend } from "./PlotDescriptorTraceLegend";
 import { PlotSpectrumGeometryLegend } from "./PlotSpectrumGeometryLegend";
 import { useLinkedOpticalTraces } from "../hooks/useLinkedOpticalTraces";
 import { buildLinkedOpticalAreaBands } from "../utils/linked-optical-area-bands";
 import {
   buildSingleSpectrumGeometryLegendRows,
   spectrumChannelGlyphForQuantity,
+  type SingleSpectrumGeometryLegendRow,
 } from "./spectrum-geometry-legend-types";
 import { ExportPlotModal } from "./ExportPlotModal";
 import { ChartCrosshairAndDots } from "./ChartCrosshairAndDots";
@@ -72,6 +77,15 @@ import {
   spectrumGeometryCsvRowsFromTree,
 } from "~/components/nexafs/nexafs-spectrum-csv-shared";
 import { NexafsSpectrumPlotContextMenu } from "~/components/nexafs/nexafs-spectrum-plot-context-menu";
+import {
+  clampSpectrumAxisDomain,
+  panAxisDomain,
+  panVerticalAxisDomain,
+  spectrumAxisMinZoomSpan,
+  stepZoomInAxisDomain,
+  stepZoomOutAxisDomain,
+  wheelZoomAxisDomain,
+} from "../utils/spectrum-axis-zoom";
 
 type SpectrumPlotInnerProps = SpectrumPlotProps & {
   width: number;
@@ -129,6 +143,10 @@ export function SpectrumPlotInner({
   companionSpectra = [],
   opticalLink,
   opticalLinkSplitView = false,
+  traceStackSplitView = false,
+  traceStackPanels,
+  residualSubplotSplitView = false,
+  residualSubplot,
   betaDeltaLink: betaDeltaLinkLegacy,
   showThetaData = false,
   showPhiData = false,
@@ -142,9 +160,23 @@ export function SpectrumPlotInner({
   showNormalizationShading = false,
   normalizationEdgeHandlesEnabled = false,
   onNormalizationEdgeEnergyChange,
+  onNormalizationInteractionChange,
   cursorMode: externalCursorMode,
   onCursorModeChange,
   spectrumCsvContextMenu,
+  primaryTraceLabel,
+  hideGeometryLegend = false,
+  suppressInPlotLegend = false,
+  primaryTraceColor,
+  primaryTraceLineDash,
+  primaryTraceMarkerSymbol,
+  primaryTraceLineWidth,
+  primaryTraceMarkerEvery,
+  primaryTraceMarkerSize,
+  primaryTraceLegendId,
+  primaryRegionSpotLabel,
+  channelLegendGlyph: channelLegendGlyphProp,
+  descriptorTraceLegend,
 }: SpectrumPlotInnerProps) {
   const opticalLinkConfig = opticalLink ?? betaDeltaLinkLegacy;
   const { resolvedTheme } = useTheme();
@@ -163,6 +195,13 @@ export function SpectrumPlotInner({
     showPhiData,
     differenceSpectra,
     isDark,
+    primaryTraceLabel,
+    primaryTraceColor,
+    primaryTraceLineDash,
+    primaryTraceMarkerSymbol,
+    primaryTraceLineWidth,
+    primaryTraceMarkerEvery,
+    primaryTraceMarkerSize,
   );
   const linkedOptical = useLinkedOpticalTraces(
     groupedTraces.traces,
@@ -229,6 +268,18 @@ export function SpectrumPlotInner({
     if (linkedOptical.active) {
       return groupedTraces.traces;
     }
+    if (hideGeometryLegend) {
+      return groupedTraces.traces.map((trace, index) => ({
+        ...trace,
+        legendId:
+          index === 0 && primaryTraceLegendId
+            ? primaryTraceLegendId
+            : `region-primary-${index}`,
+        regionSpotLabel:
+          index === 0 ? primaryRegionSpotLabel : trace.regionSpotLabel,
+        showlegend: true,
+      }));
+    }
     return groupedTraces.traces.map((trace, index) => {
       const key = groupedTraces.keys[index] ?? `idx-${index}`;
       return {
@@ -237,7 +288,14 @@ export function SpectrumPlotInner({
         showlegend: false,
       };
     });
-  }, [linkedOptical.active, groupedTraces.traces, groupedTraces.keys]);
+  }, [
+    hideGeometryLegend,
+    linkedOptical.active,
+    groupedTraces.traces,
+    groupedTraces.keys,
+    primaryTraceLegendId,
+    primaryRegionSpotLabel,
+  ]);
 
   const primarySpectrumTraces = linkedOptical.active
     ? linkedOptical.primaryTraces
@@ -245,6 +303,19 @@ export function SpectrumPlotInner({
 
   const opticalSplitActive =
     opticalLinkSplitView && linkedOptical.active && opticalLinkConfig != null;
+
+  const traceStackSplitActive =
+    traceStackSplitView != null &&
+    traceStackSplitView &&
+    (traceStackPanels?.length ?? 0) >= 2 &&
+    !opticalSplitActive;
+
+  const residualSplitActive =
+    residualSubplotSplitView === true &&
+    residualSubplot != null &&
+    residualSubplot.points.length > 0 &&
+    !opticalSplitActive &&
+    !traceStackSplitActive;
 
   const linkedOpticalAreaBands = useMemo(() => {
     if (!linkedOptical.active || graphStyle !== "area" || opticalSplitActive) {
@@ -321,6 +392,55 @@ export function SpectrumPlotInner({
     visibleTraceIds,
   ]);
 
+  const regionLegendRows = useMemo((): SingleSpectrumGeometryLegendRow[] => {
+    if (!hideGeometryLegend) {
+      return [];
+    }
+    const rows: SingleSpectrumGeometryLegendRow[] = [];
+    let traceIndex = 0;
+    for (const trace of primarySpectrumTraces) {
+      if (isBareAtomTraceName(trace)) {
+        continue;
+      }
+      rows.push({
+        geometryKey: trace.legendId ?? `region-${traceIndex}`,
+        color: trace.line?.color ?? trace.marker?.color ?? "#6b7280",
+        angleLabel:
+          trace.regionSpotLabel ??
+          (typeof trace.name === "string" && trace.name.length > 0
+            ? trace.name
+            : `Trace ${traceIndex + 1}`),
+        traceId: trace.legendId ?? traceVisibilityId(trace, traceIndex),
+        lineDash: "solid",
+      });
+      traceIndex += 1;
+    }
+    const companionTraces = linkedOptical.active
+      ? linkedOptical.companionTraces
+      : referenceData.companionTraces;
+    for (const trace of companionTraces) {
+      rows.push({
+        geometryKey: trace.legendId ?? `region-${traceIndex}`,
+        color: trace.line?.color ?? "#6b7280",
+        angleLabel:
+          trace.regionSpotLabel ??
+          (typeof trace.name === "string" && trace.name.length > 0
+            ? trace.name
+            : `Trace ${traceIndex + 1}`),
+        traceId: trace.legendId ?? traceVisibilityId(trace, traceIndex),
+        lineDash: "solid",
+      });
+      traceIndex += 1;
+    }
+    return rows;
+  }, [
+    hideGeometryLegend,
+    linkedOptical.active,
+    linkedOptical.companionTraces,
+    primarySpectrumTraces,
+    referenceData.companionTraces,
+  ]);
+
   const toggleGeometryLegend = useCallback(
     (geometryKey: string) => {
       if (linkedOptical.active) {
@@ -345,9 +465,9 @@ export function SpectrumPlotInner({
         });
         return;
       }
-      const row = singleGeometryLegend.rows.find(
-        (r) => r.geometryKey === geometryKey,
-      );
+      const row = (
+        regionLegendRows.length > 0 ? regionLegendRows : singleGeometryLegend.rows
+      ).find((r) => r.geometryKey === geometryKey);
       if (!row) {
         return;
       }
@@ -365,24 +485,67 @@ export function SpectrumPlotInner({
       allTraceIds,
       linkedOptical.active,
       linkedOptical.legendRows,
+      regionLegendRows,
       singleGeometryLegend.rows,
     ],
   );
 
   const geometryLegendAngleTitle = linkedOptical.active
     ? linkedOptical.angleColumnTitle
-    : singleGeometryLegend.angleColumnTitle;
+    : regionLegendRows.length > 0
+      ? "Region"
+      : singleGeometryLegend.angleColumnTitle;
+
+  const showDescriptorTraceLegend =
+    !suppressInPlotLegend &&
+    descriptorTraceLegend != null &&
+    descriptorTraceLegend.rows.length > 0;
 
   const showGeometryLegend =
-    linkedOptical.active && opticalLinkConfig
-      ? linkedOptical.legendRows.length > 0
-      : singleGeometryLegend.rows.length > 0;
+    suppressInPlotLegend || showDescriptorTraceLegend
+      ? false
+      : regionLegendRows.length > 0
+        ? true
+        : !hideGeometryLegend &&
+          (linkedOptical.active && opticalLinkConfig
+            ? linkedOptical.legendRows.length > 0
+            : singleGeometryLegend.rows.length > 0);
 
-  const channelLegendGlyph = spectrumChannelGlyphForQuantity(
-    yAxisQuantity ?? "intensity",
-  );
+  const channelLegendGlyph =
+    channelLegendGlyphProp ??
+    spectrumChannelGlyphForQuantity(yAxisQuantity ?? "intensity");
 
   const contentHeight = height;
+
+  const traceStackPanelExtents = useMemo(() => {
+    if (!traceStackSplitActive || traceStackPanels == null) {
+      return [];
+    }
+    return traceStackPanels.map((panel) => {
+      let min = Number.POSITIVE_INFINITY;
+      let max = Number.NEGATIVE_INFINITY;
+      for (const point of panel.points) {
+        if (Number.isFinite(point.absorption)) {
+          min = Math.min(min, point.absorption);
+          max = Math.max(max, point.absorption);
+        }
+      }
+      return {
+        label: panel.label,
+        min: min === Number.POSITIVE_INFINITY ? 0 : min,
+        max: max === Number.NEGATIVE_INFINITY ? 1 : max,
+        yAxisQuantity: panel.yAxisQuantity,
+      };
+    });
+  }, [traceStackPanels, traceStackSplitActive]);
+
+  const traceStackSplitLayout = useTraceStackSplitLayout(
+    width,
+    contentHeight,
+    extents,
+    traceStackPanelExtents,
+    energyStats,
+  );
 
   const splitImaginaryTraces = useMemo(
     () =>
@@ -437,21 +600,42 @@ export function SpectrumPlotInner({
     realYAxisQuantity,
   );
 
+  const residualSubplotLayout = useResidualSubplotLayout(
+    width,
+    contentHeight,
+    extents,
+    residualSubplot?.points ?? [],
+    energyStats,
+    yAxisQuantity,
+  );
+
   const subplotLayout = useSubplotLayout(
     width,
     contentHeight,
     extents,
-    peakViz.hasPeakVisualization && !opticalSplitActive,
+    peakViz.hasPeakVisualization &&
+      !opticalSplitActive &&
+      !traceStackSplitActive &&
+      !residualSplitActive,
     peakViz.selectedGeometryPoints,
     energyStats,
     absorptionStats,
     yAxisQuantity,
   );
 
-  const { mainPlot, peakPlot, hasSubplot } = subplotLayout;
+  const {
+    mainPlot: defaultMainPlot,
+    peakPlot,
+    hasSubplot,
+  } = subplotLayout;
+  const mainPlot = residualSplitActive
+    ? residualSubplotLayout.mainPlot
+    : defaultMainPlot;
   const interactionPlot = opticalSplitActive
     ? opticalSplitLayout.imaginaryPlot
-    : mainPlot;
+    : traceStackSplitActive && traceStackSplitLayout.panels[0] != null
+      ? traceStackSplitLayout.panels[0]
+      : mainPlot;
   const dataXBounds = useMemo((): [number, number] => {
     if (extents.energyExtent) {
       const { min, max } = extents.energyExtent;
@@ -461,12 +645,30 @@ export function SpectrumPlotInner({
     return [d[0] ?? 0, d[1] ?? 1000];
   }, [extents.energyExtent, interactionPlot.xScale]);
 
+  const autoYDomain = useMemo(
+    () => interactionPlot.yScale.domain() as [number, number],
+    [interactionPlot.yScale],
+  );
+
+  const dataYBounds = useMemo((): [number, number] => {
+    const lo = autoYDomain[0] ?? 0;
+    const hi = autoYDomain[1] ?? 0;
+    return [Math.min(lo, hi), Math.max(lo, hi)];
+  }, [autoYDomain]);
+
+  const yAxisZoomPanEnabled = !opticalSplitActive && !traceStackSplitActive;
+
   const [zoomedXDomain, setZoomedXDomain] = useState<[number, number] | null>(
     null,
   );
   const [zoomedYDomain, setZoomedYDomain] = useState<[number, number] | null>(
     null,
   );
+
+  useEffect(() => {
+    setZoomedXDomain(null);
+    setZoomedYDomain(null);
+  }, [yAxisQuantity]);
 
   const visibleYDomain = useMemo((): [number, number] => {
     const raw =
@@ -509,6 +711,54 @@ export function SpectrumPlotInner({
     return opticalSplitLayout.realPlot.yScale.copy().domain(domain);
   }, [opticalSplitLayout.realPlot.yScale]);
 
+  const residualSubplotTrace = useMemo((): TraceData | null => {
+    if (!residualSplitActive || residualSubplot == null) {
+      return null;
+    }
+    return {
+      type: "scattergl",
+      mode: "lines",
+      name: residualSubplot.label,
+      legendId: residualSubplot.legendId,
+      x: residualSubplot.points.map((point) => point.energy),
+      y: residualSubplot.points.map((point) => point.absorption),
+      line: {
+        color: residualSubplot.color ?? "var(--muted)",
+        width: 2,
+        dash: residualSubplot.lineDash ?? "solid",
+      },
+      hovertemplate:
+        `<b>${residualSubplot.label}</b><br>` +
+        "Energy: %{x:.3f} eV<br>Value: %{y:.4f}" +
+        "<extra></extra>",
+      showlegend: false,
+    };
+  }, [residualSplitActive, residualSubplot]);
+
+  const residualPlotMetrics = useMemo(() => {
+    const residualPlot = residualSubplotLayout.residualPlot;
+    const plotWidth =
+      residualPlot.dimensions.width -
+      residualPlot.dimensions.margins.left -
+      residualPlot.dimensions.margins.right;
+    const plotHeight =
+      residualPlot.dimensions.height -
+      residualPlot.dimensions.margins.top -
+      residualPlot.dimensions.margins.bottom;
+    const xScale = zoomedXScale.copy().range([0, plotWidth]);
+    const yScale = residualPlot.yScale.copy().range([plotHeight, 0]);
+    return { xScale, yScale, plotWidth, plotHeight };
+  }, [residualSubplotLayout.residualPlot, zoomedXScale]);
+
+  const residualYAxisPresentation = useMemo(() => {
+    const yDomain = residualSubplotLayout.residualPlot.yScale.domain() as [
+      number,
+      number,
+    ];
+    const q: SpectrumYAxisQuantity = yAxisQuantity ?? "intensity";
+    return spectrumYAxisPresentation(q, yDomain[0] ?? 0, yDomain[1] ?? 1);
+  }, [residualSubplotLayout.residualPlot.yScale, yAxisQuantity]);
+
   const mainPlotScales = useMemo(
     () => ({
       xScale: zoomedXScale,
@@ -521,52 +771,97 @@ export function SpectrumPlotInner({
 
   const fullXSpan = dataXBounds[1] - dataXBounds[0];
   const minZoomSpan = Math.max(fullXSpan * 0.02, 1);
+  const minYZoomSpan = spectrumAxisMinZoomSpan(dataYBounds, 0.02, 1e-9);
 
-  const clampDomainToMinSpan = useCallback(
-    (domain: [number, number]): [number, number] => {
-      const [a, b] = domain;
-      const span = b - a;
-      if (span >= minZoomSpan) return domain;
-      const center = (a + b) / 2;
-      const half = minZoomSpan / 2;
-      return [
-        Math.max(dataXBounds[0], center - half),
-        Math.min(dataXBounds[1], center + half),
-      ];
-    },
+  const clampXDomainToMinSpan = useCallback(
+    (domain: [number, number]): [number, number] =>
+      clampSpectrumAxisDomain(domain, dataXBounds, minZoomSpan),
     [dataXBounds, minZoomSpan],
   );
 
+  const clampYDomainToMinSpan = useCallback(
+    (domain: [number, number]): [number, number] =>
+      clampSpectrumAxisDomain(domain, dataYBounds, minYZoomSpan),
+    [dataYBounds, minYZoomSpan],
+  );
+
   const handleZoomIn = useCallback(() => {
-    const [xMin, xMax] = zoomedXDomain ?? dataXBounds;
-    const center = (xMin + xMax) / 2;
-    const half = Math.max(minZoomSpan / 2, ((xMax - xMin) / 2) * 0.9);
-    const newMin = Math.max(dataXBounds[0], center - half);
-    const newMax = Math.min(dataXBounds[1], center + half);
-    if (newMax - newMin >= minZoomSpan) setZoomedXDomain([newMin, newMax]);
-  }, [zoomedXDomain, dataXBounds, minZoomSpan]);
+    const nextX = stepZoomInAxisDomain(zoomedXDomain, dataXBounds, minZoomSpan);
+    if (nextX != null) {
+      setZoomedXDomain(nextX);
+    }
+    if (yAxisZoomPanEnabled) {
+      const nextY = stepZoomInAxisDomain(
+        zoomedYDomain,
+        dataYBounds,
+        minYZoomSpan,
+      );
+      if (nextY != null) {
+        setZoomedYDomain(nextY);
+      }
+    }
+  }, [
+    dataXBounds,
+    dataYBounds,
+    minYZoomSpan,
+    minZoomSpan,
+    yAxisZoomPanEnabled,
+    zoomedXDomain,
+    zoomedYDomain,
+  ]);
 
   const handleZoomOut = useCallback(() => {
-    const [xMin, xMax] = zoomedXDomain ?? dataXBounds;
-    const center = (xMin + xMax) / 2;
-    const half = Math.min(
-      (dataXBounds[1] - dataXBounds[0]) / 2,
-      Math.max(minZoomSpan / 2, ((xMax - xMin) / 2) * 1.25),
-    );
-    const newMin = Math.max(dataXBounds[0], center - half);
-    const newMax = Math.min(dataXBounds[1], center + half);
-    setZoomedXDomain(
-      newMax - newMin >= dataXBounds[1] - dataXBounds[0] - 1e-6
-        ? null
-        : [newMin, newMax],
-    );
-  }, [zoomedXDomain, dataXBounds, minZoomSpan]);
+    const nextX = stepZoomOutAxisDomain(zoomedXDomain, dataXBounds, minZoomSpan);
+    setZoomedXDomain(nextX);
+    if (yAxisZoomPanEnabled) {
+      const nextY = stepZoomOutAxisDomain(
+        zoomedYDomain,
+        dataYBounds,
+        minYZoomSpan,
+      );
+      setZoomedYDomain(nextY);
+    }
+  }, [
+    dataXBounds,
+    dataYBounds,
+    minYZoomSpan,
+    minZoomSpan,
+    yAxisZoomPanEnabled,
+    zoomedXDomain,
+    zoomedYDomain,
+  ]);
 
   const handleMarqueeZoom = useCallback(
-    (xDomain: [number, number], _yDomain: [number, number]) => {
-      setZoomedXDomain(clampDomainToMinSpan(xDomain));
+    (xDomain: [number, number], yDomain: [number, number]) => {
+      const currentX = zoomedXDomain ?? dataXBounds;
+      const currentY = zoomedYDomain ?? dataYBounds;
+      const nextXSpan = Math.abs(xDomain[1] - xDomain[0]);
+      const nextYSpan = Math.abs(yDomain[1] - yDomain[0]);
+      const curXSpan = Math.abs(currentX[1] - currentX[0]);
+      const curYSpan = Math.abs(currentY[1] - currentY[0]);
+
+      if (nextXSpan >= minZoomSpan && Math.abs(nextXSpan - curXSpan) > 1e-9) {
+        setZoomedXDomain(clampXDomainToMinSpan(xDomain));
+      }
+      if (
+        yAxisZoomPanEnabled &&
+        nextYSpan >= minYZoomSpan &&
+        Math.abs(nextYSpan - curYSpan) > 1e-12
+      ) {
+        setZoomedYDomain(clampYDomainToMinSpan(yDomain));
+      }
     },
-    [clampDomainToMinSpan],
+    [
+      clampXDomainToMinSpan,
+      clampYDomainToMinSpan,
+      dataXBounds,
+      dataYBounds,
+      minYZoomSpan,
+      minZoomSpan,
+      yAxisZoomPanEnabled,
+      zoomedXDomain,
+      zoomedYDomain,
+    ],
   );
 
   const [geometryLegendPositionResetKey, setGeometryLegendPositionResetKey] =
@@ -583,12 +878,9 @@ export function SpectrumPlotInner({
   const isManualPeakMode = plotContext?.kind === "peak-edit";
 
   const cursorMode = externalCursorMode ?? "inspect";
+
   const effectiveCursorMode =
-    selectionTarget != null
-      ? "select"
-      : cursorMode === "pan" && zoomedXDomain == null
-        ? "inspect"
-        : cursorMode;
+    selectionTarget != null ? "select" : cursorMode;
 
   const handleCursorModeChange = useCallback(
     (mode: "pan" | "zoom" | "select" | "peak" | "inspect") => {
@@ -931,6 +1223,28 @@ export function SpectrumPlotInner({
         bottom: Math.max(imag.bottom, real.bottom),
       };
     }
+    if (traceStackSplitActive && traceStackSplitLayout.panels.length > 0) {
+      const first = traceStackSplitLayout.panels[0]!.dimensions.margins;
+      const last =
+        traceStackSplitLayout.panels.at(-1)!.dimensions.margins;
+      return {
+        left: first.left,
+        right: first.right,
+        top: first.top,
+        bottom: last.bottom,
+      };
+    }
+    if (residualSplitActive) {
+      const mainMargins = residualSubplotLayout.mainPlot.dimensions.margins;
+      const residualMargins =
+        residualSubplotLayout.residualPlot.dimensions.margins;
+      return {
+        left: mainMargins.left,
+        right: mainMargins.right,
+        top: mainMargins.top,
+        bottom: residualMargins.bottom,
+      };
+    }
     if (hasSubplot && peakPlot) {
       const mainMargins = mainPlot.dimensions.margins;
       const peakMargins = peakPlot.dimensions.margins;
@@ -946,17 +1260,23 @@ export function SpectrumPlotInner({
   }, [
     opticalSplitActive,
     opticalSplitLayout,
+    residualSplitActive,
+    residualSubplotLayout,
+    traceStackSplitActive,
+    traceStackSplitLayout.panels,
     hasSubplot,
     peakPlot,
     mainPlot.dimensions.margins,
   ]);
 
   const [isPanDragging, setIsPanDragging] = useState(false);
-  const panStartRef = useRef<{ x: number } | null>(null);
-  const panStartDomainRef = useRef<[number, number] | null>(null);
+  const panStartRef = useRef<{ x: number; y: number } | null>(null);
+  const panStartXDomainRef = useRef<[number, number] | null>(null);
+  const panStartYDomainRef = useRef<[number, number] | null>(null);
   const panGroupRef = useRef<SVGGElement | null>(null);
   const panOverlayRef = useRef<SVGGElement | null>(null);
   const plotClipId = useId();
+  const residualPlotClipId = useId();
 
   const PAN_DRAG_CLASS = "spectrum-plot-pan-dragging";
 
@@ -968,13 +1288,17 @@ export function SpectrumPlotInner({
 
   const handlePanStart = useCallback(
     (e: React.PointerEvent<SVGGElement>) => {
-      if (effectiveCursorMode !== "pan" || zoomedXDomain == null) return;
+      if (effectiveCursorMode !== "pan") return;
       if (e.button !== 0) return;
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      if (x >= 0 && x <= mainPlotWidth) {
-        panStartRef.current = { x };
-        panStartDomainRef.current = zoomedXDomain;
+      const y = e.clientY - rect.top;
+      if (x >= 0 && x <= mainPlotWidth && y >= 0 && y <= mainPlotHeight) {
+        panStartRef.current = { x, y };
+        panStartXDomainRef.current = zoomedXDomain ?? dataXBounds;
+        panStartYDomainRef.current = yAxisZoomPanEnabled
+          ? (zoomedYDomain ?? dataYBounds)
+          : null;
         setIsPanDragging(true);
         e.currentTarget.style.cursor = "grabbing";
         svgRef.current?.classList.add(PAN_DRAG_CLASS);
@@ -983,25 +1307,52 @@ export function SpectrumPlotInner({
         e.preventDefault();
       }
     },
-    [effectiveCursorMode, zoomedXDomain, mainPlotWidth],
+    [
+      dataXBounds,
+      dataYBounds,
+      effectiveCursorMode,
+      mainPlotHeight,
+      mainPlotWidth,
+      yAxisZoomPanEnabled,
+      zoomedXDomain,
+      zoomedYDomain,
+    ],
   );
 
   const applyPanFromDelta = useCallback(
-    (totalDeltaX: number) => {
-      const start = panStartRef.current;
-      const startDomain = panStartDomainRef.current;
-      if (!start || !startDomain) return;
-      const domainWidth = startDomain[1] - startDomain[0];
-      const pixelToDataRatio = domainWidth / mainPlotWidth;
-      const dataDelta = -totalDeltaX * pixelToDataRatio;
-      const newXMin = startDomain[0] + dataDelta;
-      const newXMax = startDomain[1] + dataDelta;
-      const constrainedMin = Math.max(dataXBounds[0], newXMin);
-      const constrainedMax = Math.min(dataXBounds[1], newXMax);
-      if (constrainedMin < constrainedMax)
-        setZoomedXDomain([constrainedMin, constrainedMax]);
+    (totalDeltaX: number, totalDeltaY: number) => {
+      const startXDomain = panStartXDomainRef.current;
+      if (startXDomain != null) {
+        const nextX = panAxisDomain(
+          startXDomain,
+          dataXBounds,
+          totalDeltaX,
+          mainPlotWidth,
+        );
+        if (nextX != null) {
+          setZoomedXDomain(nextX);
+        }
+      }
+      const startYDomain = panStartYDomainRef.current;
+      if (startYDomain != null && yAxisZoomPanEnabled) {
+        const nextY = panVerticalAxisDomain(
+          startYDomain,
+          dataYBounds,
+          totalDeltaY,
+          mainPlotHeight,
+        );
+        if (nextY != null) {
+          setZoomedYDomain(nextY);
+        }
+      }
     },
-    [dataXBounds, mainPlotWidth],
+    [
+      dataXBounds,
+      dataYBounds,
+      mainPlotHeight,
+      mainPlotWidth,
+      yAxisZoomPanEnabled,
+    ],
   );
 
   const handlePanMove = useCallback(
@@ -1010,8 +1361,10 @@ export function SpectrumPlotInner({
       e.preventDefault();
       const rect = e.currentTarget.getBoundingClientRect();
       const plotX = e.clientX - rect.left;
+      const plotY = e.clientY - rect.top;
       const totalDeltaX = plotX - panStartRef.current.x;
-      applyPanFromDelta(totalDeltaX);
+      const totalDeltaY = plotY - panStartRef.current.y;
+      applyPanFromDelta(totalDeltaX, totalDeltaY);
     },
     [applyPanFromDelta],
   );
@@ -1025,7 +1378,8 @@ export function SpectrumPlotInner({
       }
       clearPanDragCursor();
       panStartRef.current = null;
-      panStartDomainRef.current = null;
+      panStartXDomainRef.current = null;
+      panStartYDomainRef.current = null;
       setIsPanDragging(false);
     },
     [clearPanDragCursor],
@@ -1040,13 +1394,17 @@ export function SpectrumPlotInner({
       const rect = svg.getBoundingClientRect();
       const plotX =
         e.clientX - rect.left - interactionPlot.dimensions.margins.left;
+      const plotY =
+        e.clientY - rect.top - interactionPlot.dimensions.margins.top;
       const totalDeltaX = plotX - panStartRef.current.x;
-      applyPanFromDelta(totalDeltaX);
+      const totalDeltaY = plotY - panStartRef.current.y;
+      applyPanFromDelta(totalDeltaX, totalDeltaY);
     };
     const onUp = () => {
       clearPanDragCursor();
       panStartRef.current = null;
-      panStartDomainRef.current = null;
+      panStartXDomainRef.current = null;
+      panStartYDomainRef.current = null;
       setIsPanDragging(false);
     };
     window.addEventListener("pointermove", onMove, { capture: true });
@@ -1062,8 +1420,117 @@ export function SpectrumPlotInner({
     isPanDragging,
     applyPanFromDelta,
     interactionPlot.dimensions.margins.left,
+    interactionPlot.dimensions.margins.top,
     clearPanDragCursor,
   ]);
+
+  const handlePlotWheel = useCallback(
+    (event: React.WheelEvent<SVGSVGElement>) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const rect = svg.getBoundingClientRect();
+      const plotX =
+        event.clientX - rect.left - interactionPlot.dimensions.margins.left;
+      const plotY =
+        event.clientY - rect.top - interactionPlot.dimensions.margins.top;
+      const leftMargin = interactionPlot.dimensions.margins.left;
+      const bottomMargin = interactionPlot.dimensions.margins.bottom;
+      const inYGutter =
+        yAxisZoomPanEnabled &&
+        plotX < 0 &&
+        plotX >= -leftMargin &&
+        plotY >= 0 &&
+        plotY <= mainPlotHeight;
+      const inXGutter =
+        plotY > mainPlotHeight &&
+        plotY <= mainPlotHeight + bottomMargin &&
+        plotX >= 0 &&
+        plotX <= mainPlotWidth;
+      const inPlotInterior =
+        plotX >= 0 &&
+        plotX <= mainPlotWidth &&
+        plotY >= 0 &&
+        plotY <= mainPlotHeight;
+      const inResidualInterior =
+        residualSplitActive &&
+        plotX >= 0 &&
+        plotX <= residualPlotMetrics.plotWidth &&
+        event.clientY - rect.top >= mainPlot.dimensions.height &&
+        event.clientY - rect.top <=
+          mainPlot.dimensions.height +
+            residualSubplotLayout.residualPlot.dimensions.height;
+      if (
+        !inYGutter &&
+        !inXGutter &&
+        !inPlotInterior &&
+        !inResidualInterior
+      ) {
+        return;
+      }
+      event.preventDefault();
+
+      if (inYGutter) {
+        const currentY = zoomedYDomain ?? dataYBounds;
+        const anchor = zoomedYScale.invert(plotY);
+        const nextY = wheelZoomAxisDomain(
+          currentY,
+          dataYBounds,
+          minYZoomSpan,
+          anchor,
+          event.deltaY,
+        );
+        if (nextY == null) {
+          setZoomedYDomain(null);
+          return;
+        }
+        setZoomedYDomain(clampYDomainToMinSpan(nextY));
+        return;
+      }
+
+      const currentX = zoomedXDomain ?? dataXBounds;
+      const anchorX = zoomedXScale.invert(
+        inResidualInterior
+          ? event.clientX -
+              rect.left -
+              residualSubplotLayout.residualPlot.dimensions.margins.left
+          : plotX,
+      );
+      const nextX = wheelZoomAxisDomain(
+        currentX,
+        dataXBounds,
+        minZoomSpan,
+        anchorX,
+        event.deltaY,
+      );
+      if (nextX == null) {
+        setZoomedXDomain(null);
+        return;
+      }
+      setZoomedXDomain(clampXDomainToMinSpan(nextX));
+    },
+    [
+      clampXDomainToMinSpan,
+      clampYDomainToMinSpan,
+      dataXBounds,
+      dataYBounds,
+      interactionPlot.dimensions.margins.bottom,
+      interactionPlot.dimensions.margins.left,
+      interactionPlot.dimensions.margins.top,
+      mainPlot.dimensions.height,
+      mainPlotHeight,
+      mainPlotWidth,
+      minYZoomSpan,
+      minZoomSpan,
+      residualPlotMetrics.plotWidth,
+      residualSplitActive,
+      residualSubplotLayout.residualPlot.dimensions.height,
+      yAxisZoomPanEnabled,
+      zoomedXDomain,
+      zoomedXScale,
+      zoomedYDomain,
+      zoomedYScale,
+    ],
+  );
 
   const tooltipData = tooltip.tooltipData;
   const crosshairDots = useMemo(() => {
@@ -1071,12 +1538,13 @@ export function SpectrumPlotInner({
     return tooltipData.rows
       .filter(
         (r): r is { label: string; value: number; color: string } =>
-          r.value !== null,
+          r.value !== null && Number.isFinite(r.value),
       )
       .map((r) => ({ value: r.value, color: r.color }));
   }, [tooltipData, effectiveCursorMode]);
 
   const zoomMode: ZoomMode = "horizontal";
+  const xAxisGutterHeight = mainPlot.dimensions.margins.bottom;
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
@@ -1124,6 +1592,7 @@ export function SpectrumPlotInner({
           className="overflow-visible"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onWheel={handlePlotWheel}
         >
           {opticalSplitActive && opticalLinkConfig ? (
             <OpticalLinkSplitSpectrumBody
@@ -1191,12 +1660,33 @@ export function SpectrumPlotInner({
               panGroupRef={panGroupRef}
               panOverlayRef={panOverlayRef}
             />
+          ) : traceStackSplitActive && traceStackPanels != null ? (
+            <TraceStackSplitSpectrumBody
+              layout={traceStackSplitLayout}
+              panels={traceStackPanels}
+              zoomedXScale={zoomedXScale}
+              themeColors={themeColors}
+              graphStyle={graphStyle}
+              isDark={isDark}
+              width={width}
+              contentHeight={contentHeight}
+            />
           ) : (
           <>
           <defs>
             <clipPath id={plotClipId}>
               <rect x={0} y={0} width={mainPlotWidth} height={mainPlotHeight} />
             </clipPath>
+            {residualSplitActive ? (
+              <clipPath id={residualPlotClipId}>
+                <rect
+                  x={0}
+                  y={0}
+                  width={residualPlotMetrics.plotWidth}
+                  height={residualPlotMetrics.plotHeight}
+                />
+              </clipPath>
+            ) : null}
           </defs>
           <g>
             <rect
@@ -1383,6 +1873,7 @@ export function SpectrumPlotInner({
                     plotSvgRef={svgRef}
                     energyDomain={dataXBounds}
                     onEdgeEnergyChange={onNormalizationEdgeEnergyChange}
+                    onInteractionChange={onNormalizationInteractionChange}
                   />
                 </g>
               )}
@@ -1396,10 +1887,17 @@ export function SpectrumPlotInner({
                 zoomMode={zoomMode}
                 onZoom={handleMarqueeZoom}
                 onReset={handleResetZoom}
-                allowPlotInteractionsBelow={zoomedXDomain != null}
+                enableDirectionalMarquee={yAxisZoomPanEnabled}
+                enableVerticalMarquee={yAxisZoomPanEnabled}
+                yAxisGutterWidth={
+                  yAxisZoomPanEnabled
+                    ? mainPlot.dimensions.margins.left
+                    : 0
+                }
+                xAxisGutterHeight={xAxisGutterHeight}
               />
             )}
-            {effectiveCursorMode === "pan" && zoomedXDomain != null && (
+            {effectiveCursorMode === "pan" && (
               <g
                 ref={panOverlayRef}
                 transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
@@ -1421,7 +1919,7 @@ export function SpectrumPlotInner({
               scales={mainPlotScales}
               dimensions={mainPlot.dimensions}
               themeColors={themeColors}
-              showXAxisLabel={!hasSubplot}
+              showXAxisLabel={!hasSubplot && !residualSplitActive}
               yAxisLabel={yAxisPrimary.label}
               yTickFormat={(v) => yAxisPrimary.tickFormat(Number(v))}
             />
@@ -1438,6 +1936,22 @@ export function SpectrumPlotInner({
             <g
               transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
             >
+              {showDescriptorTraceLegend && descriptorTraceLegend ? (
+                <PlotDescriptorTraceLegend
+                  rows={descriptorTraceLegend.rows}
+                  columns={descriptorTraceLegend.columns}
+                  channelColumnTitle={descriptorTraceLegend.channelColumnTitle}
+                  hiddenTraceIds={descriptorTraceLegend.hiddenTraceIds}
+                  onToggleTrace={descriptorTraceLegend.onToggleTrace}
+                  themeColors={themeColors}
+                  plotWidth={mainPlotWidth}
+                  plotHeight={mainPlotHeight}
+                  plotSvgRef={svgRef}
+                  plotMarginLeft={mainPlot.dimensions.margins.left}
+                  plotMarginTop={mainPlot.dimensions.margins.top}
+                  positionResetKey={geometryLegendPositionResetKey}
+                />
+              ) : null}
               {showGeometryLegend ? (
                 linkedOptical.active && opticalLinkConfig ? (
                   <PlotSpectrumGeometryLegend
@@ -1460,7 +1974,11 @@ export function SpectrumPlotInner({
                 ) : (
                   <PlotSpectrumGeometryLegend
                     mode="single"
-                    rows={singleGeometryLegend.rows}
+                    rows={
+                      regionLegendRows.length > 0
+                        ? regionLegendRows
+                        : singleGeometryLegend.rows
+                    }
                     visibleTraceIds={visibleTraceIds}
                     onToggleGeometry={toggleGeometryLegend}
                     themeColors={themeColors}
@@ -1478,6 +1996,65 @@ export function SpectrumPlotInner({
               ) : null}
             </g>
           </g>
+
+          {residualSplitActive &&
+          residualSubplotTrace != null &&
+          residualSubplot != null ? (
+            <g transform={`translate(0, ${mainPlot.dimensions.height})`}>
+              <rect
+                x={residualSubplotLayout.residualPlot.dimensions.margins.left}
+                y={residualSubplotLayout.residualPlot.dimensions.margins.top}
+                width={residualPlotMetrics.plotWidth}
+                height={residualPlotMetrics.plotHeight}
+                fill={themeColors.plot}
+              />
+              <g
+                transform={`translate(${residualSubplotLayout.residualPlot.dimensions.margins.left}, ${residualSubplotLayout.residualPlot.dimensions.margins.top})`}
+              >
+                <ChartGrid
+                  scales={{
+                    xScale: residualPlotMetrics.xScale,
+                    yScale: residualPlotMetrics.yScale,
+                  }}
+                  dimensions={residualSubplotLayout.residualPlot.dimensions}
+                  themeColors={themeColors}
+                />
+                <g clipPath={`url(#${residualPlotClipId})`}>
+                  <ChartSpectrumLines
+                    traces={[residualSubplotTrace]}
+                    scales={{
+                      xScale: residualPlotMetrics.xScale,
+                      yScale: residualPlotMetrics.yScale,
+                    }}
+                    graphStyle={graphStyle}
+                    idPrefix="lcf-residual"
+                  />
+                </g>
+              </g>
+              <ChartAxes
+                scales={{
+                  xScale: residualPlotMetrics.xScale,
+                  yScale: residualPlotMetrics.yScale,
+                }}
+                dimensions={residualSubplotLayout.residualPlot.dimensions}
+                themeColors={themeColors}
+                showXAxisLabel
+                yAxisLabel={residualYAxisPresentation.label}
+                yTickFormat={(value) =>
+                  residualYAxisPresentation.tickFormat(
+                    typeof value === "number" ? value : value.valueOf(),
+                  )
+                }
+              />
+              <text
+                x={residualSubplotLayout.residualPlot.dimensions.margins.left + 4}
+                y={residualSubplotLayout.residualPlot.dimensions.margins.top + 12}
+                className="fill-[var(--text-secondary)] text-[10px] font-medium"
+              >
+                {residualSubplot.label}
+              </text>
+            </g>
+          ) : null}
 
           {hasSubplot && peakPlot && (
             <g transform={`translate(0, ${interactionPlot.dimensions.height})`}>
@@ -1587,7 +2164,7 @@ export function SpectrumPlotInner({
             railInsets={railInsets}
             currentMode={effectiveCursorMode}
             isCursorDisabled={plotContext?.kind === "normalize"}
-            isPanDisabled={zoomedXDomain == null}
+            isPanDisabled={false}
             onCursorModeChange={handleCursorModeChange}
             onResetZoom={handleResetZoom}
             onExportClick={

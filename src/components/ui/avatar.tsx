@@ -452,9 +452,8 @@ export function AvatarButton({
             </button>
             <button
               type="button"
-              disabled
-              className="text-muted flex w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm opacity-60"
-              title="Coming soon"
+              onClick={() => handleAction("dashboard")}
+              className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
             >
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
@@ -557,6 +556,9 @@ export function CustomUserButton() {
         break;
       case "profile":
         router.push(`/users/${user.id}`);
+        break;
+      case "dashboard":
+        router.push("/dashboard");
         break;
       case "admin-users":
         router.push("/admin/users");

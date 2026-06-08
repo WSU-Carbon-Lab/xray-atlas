@@ -136,7 +136,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           >
             <PlotToolbarRichHint
               title="Reset zoom"
-              description="Fit the plot back to the full energy range."
+              description="Fit energy and absorption axes back to the data range."
             >
               <Button
                 type="button"
@@ -209,7 +209,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
             </PlotToolbarRichHint>
             <PlotToolbarRichHint
               title="Zoom"
-              description="Drag a box on the plot to magnify that energy region."
+              description="Drag horizontally to magnify energy or vertically to magnify absorption. Wheel over the left y-axis or bottom x-axis margin zooms absorption or energy at the cursor."
               whenDisabledDescription="Exit normalization region editing to use plot cursors."
             >
               <ToggleButton
@@ -225,18 +225,14 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
             </PlotToolbarRichHint>
             <PlotToolbarRichHint
               title="Pan"
-              description="Drag the plot left or right after you have zoomed in."
-              whenDisabledDescription={
-                isCursorDisabled
-                  ? "Exit normalization region editing to use plot cursors."
-                  : "Select the zoom tool and drag a box on the plot to magnify an energy range, then pan."
-              }
+              description="Drag to shift the visible energy and absorption window."
+              whenDisabledDescription="Exit normalization region editing to use plot cursors."
               disabled={isCursorDisabled || isPanDisabled}
             >
               <ToggleButton
                 isIconOnly
                 id="pan"
-                aria-label="Pan horizontally"
+                aria-label="Pan plot axes"
                 className={plotToolbarGlyphToggleGroupItemHorizontalClass}
                 isDisabled={isCursorDisabled || isPanDisabled}
               >

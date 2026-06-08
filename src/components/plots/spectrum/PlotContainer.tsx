@@ -41,7 +41,7 @@ export function PlotContainer({ height, aspectRatio, children }: PlotContainerPr
 
         let effectiveHeight = fillContainer
           ? rawHeight > 0
-            ? Math.max(rawHeight, minHeight)
+            ? rawHeight
             : minHeight
           : height ?? minHeight;
 
@@ -78,10 +78,7 @@ export function PlotContainer({ height, aspectRatio, children }: PlotContainerPr
   if (fillContainer) {
     return (
       <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col self-stretch overflow-hidden">
-        <div
-          className="relative min-h-0 w-full min-w-0 flex-1 self-stretch overflow-hidden"
-          style={{ minHeight }}
-        >
+        <div className="relative min-h-0 w-full min-w-0 flex-1 self-stretch overflow-hidden">
           <div className="absolute inset-0 min-h-0 min-w-0">{content}</div>
         </div>
       </div>

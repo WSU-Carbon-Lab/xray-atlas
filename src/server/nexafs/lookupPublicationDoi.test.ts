@@ -21,7 +21,12 @@ describe("lookupPublicationDoi", () => {
   it("resolves a DOI via Crossref", async () => {
     const previousFetch = globalThis.fetch;
     globalThis.fetch = (async (input: RequestInfo | URL) => {
-      const url = String(input);
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
       if (url.includes("api.crossref.org/works/10.1000%2Fexample")) {
         return new Response(
           JSON.stringify({

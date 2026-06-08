@@ -421,6 +421,7 @@ export const experimentsRouter = createTRPCRouter({
         verifiedOnly: z.boolean().default(false),
         verificationSource: nexafsVerificationSourceSchema,
         sourcePaperDoi: sourcePaperDoiInputSchema.optional(),
+        experimentIds: z.array(z.string().uuid()).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -438,6 +439,7 @@ export const experimentsRouter = createTRPCRouter({
           verifiedOnly: input.verifiedOnly,
           verificationSource: input.verificationSource,
           sourcePaperDoi: input.sourcePaperDoi,
+          experimentIds: input.experimentIds,
         },
         searchQuery: null,
         sortBy: input.sortBy,
@@ -452,10 +454,22 @@ export const experimentsRouter = createTRPCRouter({
       };
     }),
 
+  listFavoriteExperimentIds: publicProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) {
+      return { experimentIds: [] as string[] };
+    }
+    const rows = await ctx.db.experimentfavorites.findMany({
+      where: { userid: ctx.userId },
+      select: { experimentid: true },
+      orderBy: { createdat: "desc" },
+    });
+    return { experimentIds: rows.map((row) => row.experimentid) };
+  }),
+
   browseSearch: publicProcedure
     .input(
       z.object({
-        query: z.string().min(1),
+        query: z.string().min(1).max(200),
         limit: z.number().min(1).max(50).default(12),
         offset: z.number().min(0).default(0),
         sortBy: nexafsBrowseSortBySchema,

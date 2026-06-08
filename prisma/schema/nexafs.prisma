@@ -58,6 +58,7 @@ model experiments {
   samples                   samples                    @relation(fields: [sampleid], references: [id], onUpdate: NoAction)
   peaksets                  peaksets[]
   spectrumpoints            spectrumpoints[]
+  dashboardprocessingsessions dashboardprocessingsession[]
 
   @@index([sampleid, edgeid, instrumentid], map: "idx_experiment_lookup")
   @@index([calibrationid], map: "idx_experiments_calibrationid")

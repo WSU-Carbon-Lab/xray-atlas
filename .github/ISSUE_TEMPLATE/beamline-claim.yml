@@ -1,0 +1,71 @@
+name: Claim a beamline
+description: Request verification as a beamline scientist before dashboard connector work begins.
+title: "[Beamline claim] "
+labels:
+  - beamline-claim
+  - dashboard
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when you are a beamline scientist or operator who can verify affiliation with a facility instrument.
+
+        Maintainers will confirm your role before approving dashboard connector development. After approval, open a **Request dashboard instrument connector** issue with example data and processing details.
+
+        Claim template: https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=beamline-claim.yml
+        Connector template: https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=instrument-connector-request.yml
+  - type: input
+    id: contact_name
+    attributes:
+      label: Full name
+      description: Name maintainers can use to verify affiliation.
+    validations:
+      required: true
+  - type: input
+    id: email
+    attributes:
+      label: Contact email
+      description: Email for follow-up during verification.
+    validations:
+      required: true
+  - type: input
+    id: orcid
+    attributes:
+      label: ORCID iD (optional)
+      description: Bare ORCID identifier or full https://orcid.org URL.
+    validations:
+      required: false
+  - type: input
+    id: facility
+    attributes:
+      label: Facility name
+      description: Exact facility name as listed in X-ray Atlas (for example Advanced Light Source).
+    validations:
+      required: true
+  - type: input
+    id: instrument_name
+    attributes:
+      label: Instrument / beamline name
+      description: Exact instrument name as listed in X-ray Atlas.
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Role at beamline
+      options:
+        - Beamline scientist
+        - Beamline operator
+        - Principal investigator (beamline)
+        - Postdoctoral researcher
+        - Graduate student
+        - Other (describe in justification)
+    validations:
+      required: true
+  - type: textarea
+    id: justification
+    attributes:
+      label: Brief justification
+      description: Why you are requesting claim verification and your relationship to this beamline.
+    validations:
+      required: true

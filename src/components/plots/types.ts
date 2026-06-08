@@ -25,6 +25,13 @@ export type SpectrumPoint = {
   rawabs?: number;
 };
 
+/** One stacked subplot in {@link SpectrumPlotProps.traceStackPanels}. */
+export type TraceStackPanel = {
+  readonly label: string;
+  readonly points: readonly SpectrumPoint[];
+  readonly yAxisQuantity: SpectrumYAxisQuantity;
+};
+
 export type SpectrumSelection = {
   energyMin: number;
   energyMax: number;
@@ -103,12 +110,56 @@ export type DifferenceSpectrum = {
   label: string;
   points: SpectrumPoint[];
   preferred?: boolean;
+  /** When set, overrides the default companion trace palette color (for example STXM region colors). */
+  color?: string;
+  /**
+   * Stable visibility key for in-plot legend toggles; when set, overrides index-based companion ids.
+   */
+  legendId?: string;
+  /** Region spot label for region-scoped legend rows (without channel prefix). */
+  regionSpotLabel?: string;
   lowerAngle?: number;
   higherAngle?: number;
   mode?: "theta" | "phi";
+  /** Overrides default companion trace line dash when set. */
+  lineDash?: "solid" | "dash" | "dot" | "dashdot";
+  /** Overrides default companion trace stroke width when set. */
+  lineWidth?: number;
+  /** Optional decimated point marker for line overlays (dashboard style mapping). */
+  markerSymbol?: "none" | "circle" | "square" | "triangle" | "diamond";
+  /** When set, places a marker every N points along line mode traces. */
+  markerEvery?: number;
+  /** Overrides default marker glyph size when set. */
+  markerSize?: number;
 };
 
 export type GraphStyle = "line" | "scatter" | "area";
+
+export type DescriptorTraceLegendSwatch = {
+  color: string;
+  lineDash: "solid" | "dash" | "dot" | "dashdot";
+  markerSymbol?: "none" | "circle" | "square" | "triangle" | "diamond";
+};
+
+export type DescriptorTraceLegendColumn = {
+  id: string;
+  title: string;
+};
+
+export type DescriptorTraceLegendRow = {
+  traceKey: string;
+  channelLabel: string;
+  swatch: DescriptorTraceLegendSwatch;
+  cells: Record<string, string>;
+};
+
+export type DescriptorTraceLegendConfig = {
+  rows: readonly DescriptorTraceLegendRow[];
+  columns: readonly DescriptorTraceLegendColumn[];
+  channelColumnTitle: string;
+  hiddenTraceIds: readonly string[];
+  onToggleTrace: (traceKey: string) => void;
+};
 
 /** Scatter marker glyph for linked imaginary (circle) vs real (square) optical traces. */
 export type TraceMarkerSymbol = "circle" | "square";
@@ -202,6 +253,19 @@ export type SpectrumPlotProps = {
    */
   opticalLinkSplitView?: boolean;
   /**
+   * When true with {@link traceStackPanels}, stacks each panel on its own y-range sharing one energy axis.
+   */
+  traceStackSplitView?: boolean;
+  /** Per-panel points for multi-channel STXM (or similar) stacked split view. */
+  traceStackPanels?: readonly TraceStackPanel[];
+  /**
+   * When true with {@link residualSubplot}, renders the residual trace in a bottom subplot
+   * sharing the main plot energy axis and horizontal zoom domain.
+   */
+  residualSubplotSplitView?: boolean;
+  /** Residual trace for {@link residualSubplotSplitView} (for example target minus fit). */
+  residualSubplot?: DifferenceSpectrum;
+  /**
    * @deprecated Pass split/coalesce controls via `headerAnalysis` on the right analysis rail.
    */
   opticalLinkSplitToggle?: ReactNode;
@@ -257,10 +321,51 @@ export type SpectrumPlotProps = {
     edge: NormalizationRegionEdgeId,
     energy: number,
   ) => void;
+  /** Fires true while any normalization edge handle is dragged; false when all handles release. */
+  onNormalizationInteractionChange?: (active: boolean) => void;
   /**
    * Replaces the default empty-state copy when `points` is empty (for example browse/preview surfaces that do not upload CSV here).
    */
   emptyStateMessage?: string;
+  /**
+   * Overrides the default "Fixed Geometry" legend label when the primary trace has no θ/φ metadata (for example STXM ingestion reduced spectra).
+   */
+  primaryTraceLabel?: string;
+  /**
+   * When true, hides θ/φ geometry legend rows and renders a region-name legend from primary plus companion trace labels (STXM multi-region line scans).
+   */
+  hideGeometryLegend?: boolean;
+  /**
+   * When true, suppresses the draggable in-plot geometry/region legend overlay entirely (for example when an external legend table is shown).
+   */
+  suppressInPlotLegend?: boolean;
+  /**
+   * Overrides the primary trace stroke color when the plot has no θ/φ geometry metadata (for example the first STXM sample region color).
+   */
+  primaryTraceColor?: string;
+  /** Overrides primary trace line dash in region-scoped or single-geometry overlay mode. */
+  primaryTraceLineDash?: "solid" | "dash" | "dot" | "dashdot";
+  /** Decimated point marker on the primary trace when set. */
+  primaryTraceMarkerSymbol?: "circle" | "square" | "triangle" | "diamond";
+  /** Overrides primary trace stroke width in region-scoped or single-geometry overlay mode. */
+  primaryTraceLineWidth?: number;
+  /** When set, places a marker every N points on the primary trace in line mode. */
+  primaryTraceMarkerEvery?: number;
+  /** Overrides primary trace marker glyph size when set. */
+  primaryTraceMarkerSize?: number;
+  /**
+   * Stable visibility id for the primary trace in region-scoped legend mode; must match companion {@link DifferenceSpectrum.legendId} keys.
+   */
+  primaryTraceLegendId?: string;
+  /** Region spot label for the primary trace legend row (without channel prefix). */
+  primaryRegionSpotLabel?: string;
+  /** Short channel header for region-scoped legend mode (for example `OD`, `Norm OD`, `β`). */
+  channelLegendGlyph?: string;
+  /**
+   * When set with `suppressInPlotLegend={false}`, renders an N-column descriptor trace legend
+   * instead of the geometry/region legend (dashboard plot viewer compare mode).
+   */
+  descriptorTraceLegend?: DescriptorTraceLegendConfig;
   /**
    * When set, right-click opens a minimal CSV context menu on the plot and Copy is hijacked to place total-dataset CSV on the clipboard (toolbar dropdown still handles per-geometry export).
    */
@@ -287,6 +392,8 @@ export type TraceData = {
    * Stable id for legend visibility toggles; when set, overrides trace `name` for visibility keys.
    */
   legendId?: string;
+  /** Region spot label for region-scoped in-plot legend rows (without channel prefix). */
+  regionSpotLabel?: string;
   name?: string;
   x: number[];
   y: number[];
@@ -299,7 +406,8 @@ export type TraceData = {
     color?: string;
     size?: number;
     opacity?: number;
-    symbol?: TraceMarkerSymbol;
+    symbol?: TraceMarkerSymbol | "triangle" | "diamond";
+    every?: number;
   };
   hovertemplate?: string;
   showlegend?: boolean;

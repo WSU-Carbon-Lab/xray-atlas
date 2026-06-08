@@ -68,6 +68,13 @@ export function useSpectrumData(
   showPhiData: boolean,
   differenceSpectra: DifferenceSpectrum[],
   isDark = true,
+  primaryTraceLabel?: string,
+  primaryTraceColor?: string,
+  primaryTraceLineDash?: "solid" | "dash" | "dot" | "dashdot",
+  primaryTraceMarkerSymbol?: "circle" | "square" | "triangle" | "diamond",
+  primaryTraceLineWidth?: number,
+  primaryTraceMarkerEvery?: number,
+  primaryTraceMarkerSize?: number,
 ): SpectrumDataResult {
   const palette = isDark ? SPECTRUM_TRACE_GRADIENT_DARK : SPECTRUM_TRACE_GRADIENT_LIGHT;
   return useMemo(() => {
@@ -80,35 +87,66 @@ export function useSpectrumData(
       ? filterSpectrumPointsForGroupedPlot(points, showThetaData, showPhiData)
       : [];
 
-    const groups = groupPointsByGeometry(filteredPoints);
+    let groups = groupPointsByGeometry(filteredPoints);
+    const fixedLabel = primaryTraceLabel?.trim();
+    if (fixedLabel && groups.has("fixed")) {
+      const nextGroups = new Map(groups);
+      const fixedGroup = nextGroups.get("fixed");
+      if (fixedGroup) {
+        nextGroups.set("fixed", { ...fixedGroup, label: fixedLabel });
+      }
+      groups = nextGroups;
+    }
     const ordered = sortedGeometryGroupEntries(groups);
     const traceCount = ordered.length;
 
     const traces: TraceData[] = ordered.map(([key, group], index) => {
-      const color = spectrumTraceColorAlongGradient(
-        palette,
-        index,
-        traceCount,
-      );
+      const color =
+        index === 0 && primaryTraceColor
+          ? primaryTraceColor
+          : spectrumTraceColorAlongGradient(palette, index, traceCount);
+      const label =
+        key === "fixed" && primaryTraceLabel?.trim()
+          ? primaryTraceLabel.trim()
+          : group.label || key;
       return {
         type: "scattergl" as const,
         mode: "lines+markers" as const,
-        name: group.label || key,
+        name: label,
         x: group.energies,
         y: group.absorptions,
         theta: group.theta,
         phi: group.phi,
         marker: {
           color,
-          size: 4,
-          opacity: 0.7,
+          size:
+            index === 0 && primaryTraceMarkerSize != null
+              ? primaryTraceMarkerSize
+              : 4,
+          opacity:
+            index === 0 && primaryTraceMarkerSymbol ? 0.85 : 0.7,
+          symbol:
+            index === 0 && primaryTraceMarkerSymbol
+              ? primaryTraceMarkerSymbol
+              : undefined,
+          every:
+            index === 0 && primaryTraceMarkerEvery != null
+              ? primaryTraceMarkerEvery
+              : undefined,
         },
         line: {
           color,
-          width: SPECTRUM_TRACE_LINE_WIDTH,
+          width:
+            index === 0 && primaryTraceLineWidth != null
+              ? primaryTraceLineWidth
+              : SPECTRUM_TRACE_LINE_WIDTH,
+          dash:
+            index === 0 && primaryTraceLineDash
+              ? primaryTraceLineDash
+              : undefined,
         },
         hovertemplate:
-          `<b>${group.label || key}</b><br>` +
+          `<b>${label}</b><br>` +
           "Energy: %{x:.3f} eV<br>Intensity: %{y:.4f}" +
           "<extra></extra>",
       };
@@ -119,5 +157,18 @@ export function useSpectrumData(
       keys: ordered.map(([k]) => k),
       groups,
     };
-  }, [points, showThetaData, showPhiData, differenceSpectra, palette]);
+  }, [
+    points,
+    showThetaData,
+    showPhiData,
+    differenceSpectra,
+    palette,
+    primaryTraceLabel,
+    primaryTraceColor,
+    primaryTraceLineDash,
+    primaryTraceMarkerSymbol,
+    primaryTraceLineWidth,
+    primaryTraceMarkerEvery,
+    primaryTraceMarkerSize,
+  ]);
 }

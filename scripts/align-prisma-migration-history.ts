@@ -46,7 +46,7 @@ async function main(): Promise<void> {
       AND a.ctid < b.ctid
   `);
 
-  const removed = await client.query(
+  const removed = await client.query<{ migration_name: string }>(
     `
     DELETE FROM "_prisma_migrations"
     WHERE migration_name <> ALL($1::text[])
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
       localMigrationCount: local.length,
       duplicateRowsRemoved: dedupe.rowCount ?? 0,
       orphanRowsRemoved: removed.rowCount ?? 0,
-      orphanNames: removed.rows.map((r) => r.migration_name as string),
+      orphanNames: removed.rows.map((r) => r.migration_name),
       next: [
         "bunx prisma migrate resolve --applied <name>  # for each migration already in schema",
         "bunx prisma migrate deploy",

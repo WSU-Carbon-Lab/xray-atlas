@@ -107,7 +107,7 @@ export const NexafsSpectrumRailCsvDropdown = memo(
     const downloadExtrasEnabled =
       kind === "download" && Boolean(experimentId) && !disabled;
 
-    const experimentAuxQuery = trpc.experimentFile.list.useQuery(
+    const experimentAuxQuery = trpc.experimentFile.listCommittedForBrowse.useQuery(
       { experimentId: experimentId ?? "" },
       {
         enabled: open && downloadExtrasEnabled && Boolean(experimentId),
@@ -226,7 +226,8 @@ export const NexafsSpectrumRailCsvDropdown = memo(
         if (!experimentId || disabled) return;
         setAuxDownloadBusyId(fileId);
         try {
-          const result = await utils.experimentFile.getDownloadUrl.fetch({
+          const result =
+            await utils.experimentFile.getCommittedDownloadUrlForBrowse.fetch({
             experimentId,
             fileId,
           });
@@ -241,7 +242,11 @@ export const NexafsSpectrumRailCsvDropdown = memo(
           setAuxDownloadBusyId(null);
         }
       },
-      [disabled, experimentId, utils.experimentFile.getDownloadUrl],
+      [
+        disabled,
+        experimentId,
+        utils.experimentFile.getCommittedDownloadUrlForBrowse,
+      ],
     );
 
     const runSampleAuxDownload = useCallback(

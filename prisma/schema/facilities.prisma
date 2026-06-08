@@ -5,6 +5,8 @@ model facilities {
   city         String?
   country      String?
   facilitytype FacilityType
+  websiteurl   String?
+  faviconurl   String?
   instruments  instruments[]
 
   @@schema("public")
@@ -12,14 +14,34 @@ model facilities {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model instruments {
-  id          String        @id
-  name        String
-  facilityid  String        @db.Uuid
-  link        String?
-  status      String        @default("active")
-  experiments experiments[]
-  facilities  facilities    @relation(fields: [facilityid], references: [id], onUpdate: NoAction)
+  id                String             @id
+  name              String
+  facilityid        String             @db.Uuid
+  link              String?
+  status            String             @default("active")
+  experiments       experiments[]
+  facilities        facilities         @relation(fields: [facilityid], references: [id], onUpdate: NoAction)
+  instrumentstewards instrumentsteward[]
 
   @@index([facilityid], map: "idx_instruments_facilityid")
+  @@schema("public")
+}
+
+/// Beamline scientist stewards for dashboard connector coordination (many per instrument).
+model instrumentsteward {
+  instrumentid     String      @map("instrument_id")
+  userid           String      @map("user_id") @db.VarChar(19)
+  assignedbyuserid String      @map("assigned_by_user_id") @db.VarChar(19)
+  assignedat       DateTime    @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  claimissueurl    String?     @map("claim_issue_url")
+  notes            String?
+  instrument       instruments @relation(fields: [instrumentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  steward          user        @relation("InstrumentSteward", fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  assignedby       user        @relation("InstrumentStewardAssignedBy", fields: [assignedbyuserid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([instrumentid, userid])
+  @@index([instrumentid], map: "idx_instrument_steward_instrument_id")
+  @@index([userid], map: "idx_instrument_steward_user_id")
+  @@map("instrument_steward")
   @@schema("public")
 }

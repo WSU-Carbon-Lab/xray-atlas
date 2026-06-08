@@ -1,0 +1,13 @@
+# dependencies and build output
+node_modules
+.next
+generated
+out
+build
+
+# python virtualenvs and caches
+**/.venv/**
+**/venv/**
+**/__pycache__/**
+tests/kk-calc-validation/.venv
+tests/kk-calc-validation/kkcalc

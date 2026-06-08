@@ -1,0 +1,6 @@
+# Python virtualenvs and validation fixtures (not part of the Next.js app)
+**/.venv/**
+**/venv/**
+**/__pycache__/**
+tests/kk-calc-validation/.venv
+tests/kk-calc-validation/kkcalc

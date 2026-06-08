@@ -17,6 +17,7 @@ import {
 import {
   contributeWriteProcedure,
   createTRPCRouter,
+  protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
@@ -42,22 +43,79 @@ async function userMaySoftDeleteExperimentFile(
   return userMayEditExperiment(db, userId, file.experimentid);
 }
 
+async function assertExperimentExistsForAuxBrowse(
+  db: Parameters<typeof userMayEditExperiment>[0],
+  experimentId: string,
+): Promise<void> {
+  const experiment = await db.experiments.findUnique({
+    where: { id: experimentId },
+    select: { id: true },
+  });
+  if (!experiment) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Experiment not found",
+    });
+  }
+}
+
+async function listCommittedExperimentAuxFiles(
+  db: Parameters<typeof userMayEditExperiment>[0],
+  experimentId: string,
+) {
+  const rows = await db.experimentfile.findMany({
+    where: {
+      experimentid: experimentId,
+      deletedat: null,
+      committedat: { not: null },
+    },
+    orderBy: { createdat: "desc" },
+  });
+  return rows.map(serializeAuxFileRow);
+}
+
+async function getCommittedExperimentAuxDownload(
+  db: Parameters<typeof userMayEditExperiment>[0],
+  experimentId: string,
+  fileId: string,
+) {
+  const row = await db.experimentfile.findFirst({
+    where: {
+      id: fileId,
+      experimentid: experimentId,
+      deletedat: null,
+      committedat: { not: null },
+    },
+  });
+  if (!row) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "File not found",
+    });
+  }
+
+  const signedUrl = await createAuxSignedReadUrl({
+    bucket: EXPERIMENT_AUX_BUCKET,
+    path: row.storagepath,
+  });
+
+  return {
+    signedUrl,
+    originalFilename: row.originalfilename,
+    mimeType: row.mimetype,
+    sizeBytes: Number(row.sizebytes),
+  };
+}
+
 export const experimentFileRouter = createTRPCRouter({
-  list: publicProcedure
+  listCommittedForBrowse: publicProcedure
     .input(z.object({ experimentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const rows = await ctx.db.experimentfile.findMany({
-        where: {
-          experimentid: input.experimentId,
-          deletedat: null,
-          committedat: { not: null },
-        },
-        orderBy: { createdat: "desc" },
-      });
-      return rows.map(serializeAuxFileRow);
+      await assertExperimentExistsForAuxBrowse(ctx.db, input.experimentId);
+      return listCommittedExperimentAuxFiles(ctx.db, input.experimentId);
     }),
 
-  getDownloadUrl: publicProcedure
+  getCommittedDownloadUrlForBrowse: publicProcedure
     .input(
       z.object({
         experimentId: z.string().uuid(),
@@ -65,32 +123,43 @@ export const experimentFileRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const row = await ctx.db.experimentfile.findFirst({
-        where: {
-          id: input.fileId,
-          experimentid: input.experimentId,
-          deletedat: null,
-          committedat: { not: null },
-        },
-      });
-      if (!row) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "File not found",
-        });
-      }
+      await assertExperimentExistsForAuxBrowse(ctx.db, input.experimentId);
+      return getCommittedExperimentAuxDownload(
+        ctx.db,
+        input.experimentId,
+        input.fileId,
+      );
+    }),
 
-      const signedUrl = await createAuxSignedReadUrl({
-        bucket: EXPERIMENT_AUX_BUCKET,
-        path: row.storagepath,
-      });
+  list: protectedProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+      return listCommittedExperimentAuxFiles(ctx.db, input.experimentId);
+    }),
 
-      return {
-        signedUrl,
-        originalFilename: row.originalfilename,
-        mimeType: row.mimetype,
-        sizeBytes: Number(row.sizebytes),
-      };
+  getDownloadUrl: protectedProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        fileId: z.string().uuid(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+      return getCommittedExperimentAuxDownload(
+        ctx.db,
+        input.experimentId,
+        input.fileId,
+      );
     }),
 
   requestUploadUrl: contributeWriteProcedure

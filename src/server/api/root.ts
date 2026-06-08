@@ -17,6 +17,7 @@ import { sampleFileRouter } from "~/server/api/routers/sampleFile";
 import { experimentFileRouter } from "~/server/api/routers/experimentFile";
 import { attributionTeamsRouter } from "~/server/api/routers/attributionTeams";
 import { datasetAttributionsRouter } from "~/server/api/routers/datasetAttributions";
+import { dashboardSessionsRouter } from "~/server/api/routers/dashboardSessions";
 
 export const appRouter = createTRPCRouter({
   molecules: moleculesRouter,
@@ -37,6 +38,7 @@ export const appRouter = createTRPCRouter({
   experimentFile: experimentFileRouter,
   attributionTeams: attributionTeamsRouter,
   datasetAttributions: datasetAttributionsRouter,
+  dashboardSessions: dashboardSessionsRouter,
 });
 
 export type AppRouter = typeof appRouter;

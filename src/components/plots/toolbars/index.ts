@@ -1,3 +1,7 @@
+export {
+  SpectrumYChannelRail,
+  type SpectrumYChannelRailProps,
+} from "./spectrum-y-channel-rail";
 export { PlotToolRailsDeck, type PlotToolRailInsets } from "./PlotToolRailsDeck";
 export { PlotSpectrumToolsToolbarSection } from "./PlotSpectrumToolsToolbarSection";
 export {
