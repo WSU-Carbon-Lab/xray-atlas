@@ -28,16 +28,16 @@ import {
   buildPlotViewerTraceOverrideRows,
 } from "~/features/dashboard/plot-viewer/plot-viewer-style-mapping-utils";
 import {
-  readPlotViewerStyleOverrides,
-  writePlotViewerExperimentColorMode,
-  writePlotViewerExperimentLineDashOverride,
-  writePlotViewerExperimentLineWidthOverride,
-  writePlotViewerExperimentMarkerEveryOverride,
-  writePlotViewerExperimentMarkerOverride,
-  writePlotViewerExperimentMarkerSizeOverride,
-  writePlotViewerLineDashOverride,
-  writePlotViewerMarkerOverride,
-  writePlotViewerTraceStyleOverride,
+  readStxmPreviewStyleOverrides,
+  writeStxmPreviewExperimentColorMode,
+  writeStxmPreviewExperimentLineDashOverride,
+  writeStxmPreviewExperimentLineWidthOverride,
+  writeStxmPreviewExperimentMarkerEveryOverride,
+  writeStxmPreviewExperimentMarkerOverride,
+  writeStxmPreviewExperimentMarkerSizeOverride,
+  writeStxmPreviewLineDashOverride,
+  writeStxmPreviewMarkerOverride,
+  writeStxmPreviewTraceStyleOverride,
   type PlotViewerStyleOverrides,
 } from "~/features/dashboard/plot-viewer/plot-viewer-style-overrides";
 import { PlotViewerStyleAccordion } from "~/features/dashboard/plot-viewer/plot-viewer-style-accordion";
@@ -206,7 +206,7 @@ export function StxmPreviewCompareView({
           experimentFixedColor: {},
           traceOverrides: {},
         }
-      : readPlotViewerStyleOverrides(),
+      : readStxmPreviewStyleOverrides(),
   );
 
   const allCandidates = useMemo(() => {
@@ -578,17 +578,17 @@ export function StxmPreviewCompareView({
               onToggleDescriptorField={toggleDescriptorField}
               onLineDashOverrideChange={(fieldValue, lineDash) => {
                 setStyleOverrides(
-                  writePlotViewerLineDashOverride(fieldValue, lineDash),
+                  writeStxmPreviewLineDashOverride(fieldValue, lineDash),
                 );
               }}
               onMarkerOverrideChange={(fieldValue, marker) => {
                 setStyleOverrides(
-                  writePlotViewerMarkerOverride(fieldValue, marker),
+                  writeStxmPreviewMarkerOverride(fieldValue, marker),
                 );
               }}
               onExperimentColorModeChange={(experimentId, mode, fixedColor) => {
                 setStyleOverrides(
-                  writePlotViewerExperimentColorMode(
+                  writeStxmPreviewExperimentColorMode(
                     experimentId,
                     mode,
                     fixedColor,
@@ -597,7 +597,7 @@ export function StxmPreviewCompareView({
               }}
               onExperimentLineDashChange={(experimentId, lineDash) => {
                 setStyleOverrides(
-                  writePlotViewerExperimentLineDashOverride(
+                  writeStxmPreviewExperimentLineDashOverride(
                     experimentId,
                     lineDash,
                   ),
@@ -605,7 +605,7 @@ export function StxmPreviewCompareView({
               }}
               onExperimentLineWidthChange={(experimentId, lineWidth) => {
                 setStyleOverrides(
-                  writePlotViewerExperimentLineWidthOverride(
+                  writeStxmPreviewExperimentLineWidthOverride(
                     experimentId,
                     lineWidth,
                   ),
@@ -613,12 +613,12 @@ export function StxmPreviewCompareView({
               }}
               onExperimentMarkerChange={(experimentId, marker) => {
                 setStyleOverrides(
-                  writePlotViewerExperimentMarkerOverride(experimentId, marker),
+                  writeStxmPreviewExperimentMarkerOverride(experimentId, marker),
                 );
               }}
               onExperimentMarkerSizeChange={(experimentId, markerSize) => {
                 setStyleOverrides(
-                  writePlotViewerExperimentMarkerSizeOverride(
+                  writeStxmPreviewExperimentMarkerSizeOverride(
                     experimentId,
                     markerSize,
                   ),
@@ -626,7 +626,7 @@ export function StxmPreviewCompareView({
               }}
               onExperimentMarkerEveryChange={(experimentId, markerEvery) => {
                 setStyleOverrides(
-                  writePlotViewerExperimentMarkerEveryOverride(
+                  writeStxmPreviewExperimentMarkerEveryOverride(
                     experimentId,
                     markerEvery,
                   ),
@@ -634,7 +634,7 @@ export function StxmPreviewCompareView({
               }}
               onTraceStyleOverrideChange={(traceKey, patch, clearKeys) => {
                 setStyleOverrides(
-                  writePlotViewerTraceStyleOverride(traceKey, patch, clearKeys),
+                  writeStxmPreviewTraceStyleOverride(traceKey, patch, clearKeys),
                 );
               }}
             />

@@ -1,6 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
+  isAllowedDashboardInstrumentSlug,
+} from "~/features/dashboard/connectors/registry";
+import {
   ALS_5322_INSTRUMENT_SLUG,
   dashboardProcessingSessionStatusSchema,
   dashboardStepMetadataSchema,
@@ -194,6 +197,12 @@ export const dashboardSessionsRouter = createTRPCRouter({
   create: protectedProcedure
     .input(createSessionInputSchema)
     .mutation(async ({ ctx, input }) => {
+      if (!isAllowedDashboardInstrumentSlug(input.instrumentSlug)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Instrument workspace is not available for this slug.",
+        });
+      }
       const row = await ctx.db.dashboardprocessingsession.create({
         data: {
           userid: ctx.userId,

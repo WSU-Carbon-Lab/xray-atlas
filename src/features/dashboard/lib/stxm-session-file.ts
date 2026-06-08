@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STXM_MAX_SCAN_ROWS } from "~/features/dashboard/connectors/stxm/step-metadata";
 import {
   dashboardIngestionResultSchema,
   dashboardPreviewRegionSpectrumSchema,
@@ -54,7 +55,12 @@ export const stxmSessionFileSchema = z.object({
   version: z.literal(STXM_SESSION_VERSION),
   updatedAt: z.string().min(1),
   experimentName: z.string().min(1),
-  scans: z.record(z.string(), stxmSessionScanEntrySchema).default({}),
+  scans: z
+    .record(z.string().min(1).max(512), stxmSessionScanEntrySchema)
+    .refine((record) => Object.keys(record).length <= STXM_MAX_SCAN_ROWS, {
+      message: `At most ${STXM_MAX_SCAN_ROWS} scan keys allowed`,
+    })
+    .default({}),
   preview: dashboardPreviewStepMetadataSchema.optional(),
 });
 

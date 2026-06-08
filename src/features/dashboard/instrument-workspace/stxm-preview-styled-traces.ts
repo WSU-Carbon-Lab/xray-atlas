@@ -87,7 +87,7 @@ function persistedIngestionToRuntime(
     iTeErr: null,
     od: persisted.od,
     odErr: persisted.odErr,
-    odNormalized: persisted.odNormalized ?? persisted.od,
+    odNormalized: persisted.odNormalized ?? [],
     massAbsorption: persisted.massAbsorption ?? null,
     massAbsorptionErr: null,
     beta: persisted.beta ?? null,

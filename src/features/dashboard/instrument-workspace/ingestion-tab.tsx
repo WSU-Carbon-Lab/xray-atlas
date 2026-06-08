@@ -107,7 +107,6 @@ type RunPipelineOptions = {
 };
 
 type IngestionTabProps = {
-  sessionId: string | null;
   exportMetadata: unknown;
   hdrFile: File;
   ximFile: File;
@@ -150,7 +149,7 @@ function persistedToRuntime(
     iTeErr: null,
     od: persisted.od,
     odErr: persisted.odErr,
-    odNormalized: persisted.odNormalized ?? persisted.od,
+    odNormalized: persisted.odNormalized ?? [],
     massAbsorption: persisted.massAbsorption ?? null,
     massAbsorptionErr: null,
     beta: persisted.beta ?? null,
@@ -194,7 +193,6 @@ function initialMultiRegion(
  * Ingestion tab with multi-region editor, linked plot scaling, standards overlays, and upload gate.
  */
 export function IngestionTab({
-  sessionId,
   exportMetadata,
   hdrFile,
   ximFile,
@@ -854,7 +852,7 @@ export function IngestionTab({
   }, [linkedMolecule, normalization, regionEditorTrayOpen, schedulePersistRegions]);
 
   const schedulePersistPreviewMolecule = useCallback(() => {
-    if (!sessionId || !linkedMolecule || !previewMetadata?.spectra.length) {
+    if (!sessionReady || !linkedMolecule || !previewMetadata?.spectra.length) {
       return;
     }
     const existing = previewMetadata.spectra.find((row) => row.scanId === scanId);
@@ -877,7 +875,7 @@ export function IngestionTab({
           : row,
       ),
     });
-  }, [linkedMolecule, onPersistPreview, previewMetadata, scanId, sessionId]);
+  }, [linkedMolecule, onPersistPreview, previewMetadata, scanId, sessionReady]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1064,7 +1062,7 @@ export function IngestionTab({
   ]);
 
   const schedulePersistExport = useCallback(() => {
-    if (!sessionId) {
+    if (!sessionReady) {
       return;
     }
     const peakRows: StxmPeak[] = peaks.map((peak, index) => ({
@@ -1086,7 +1084,7 @@ export function IngestionTab({
     onPersistExport,
     peaks,
     sampleInfo,
-    sessionId,
+    sessionReady,
   ]);
 
   useEffect(() => {
@@ -1314,7 +1312,7 @@ export function IngestionTab({
         onSelect={onSelectCatalogScan}
       />
 
-      {sessionId ? (
+      {sessionReady ? (
         <StxmMoleculeField
           linkedMolecule={linkedMolecule}
           onLinkedMoleculeChange={setLinkedMolecule}
@@ -1361,7 +1359,7 @@ export function IngestionTab({
         onRegionTrayOpenChange={setRegionEditorTrayOpen}
       />
 
-      {sessionId ? (
+      {sessionReady ? (
         <StxmIngestionSampleSection
           sampleInfo={sampleInfo}
           onSampleInfoChange={setSampleInfo}
@@ -1370,7 +1368,7 @@ export function IngestionTab({
         />
       ) : null}
 
-      {sessionId ? (
+      {sessionReady ? (
         <StxmIngestionAttributionSection
           attributions={attributions}
           onAttributionsChange={handleAttributionsChange}
@@ -1393,7 +1391,7 @@ export function IngestionTab({
         </p>
       ) : null}
 
-      {sessionId ? (
+      {sessionReady ? (
         <section className="border-border flex flex-col gap-3 border-t pt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">

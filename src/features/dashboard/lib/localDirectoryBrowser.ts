@@ -1,3 +1,4 @@
+import { isValidRelativePathSegment } from "~/features/dashboard/lib/validate-relative-path";
 import { isAllowedStxmFilename } from "~/lib/stxm/validateStxmFile";
 import type {
   StxmDirectoryHandle,
@@ -60,6 +61,9 @@ export async function* walkHdrFileRefs(
       return;
     }
     options?.onTraverse?.();
+    if (!isValidRelativePathSegment(name)) {
+      continue;
+    }
     const relativePath = prefix ? `${prefix}/${name}` : name;
     if (
       handle.kind === "file" &&
@@ -170,6 +174,9 @@ export async function findXimFileForHdr(
   parts.pop();
   let directory = root;
   for (const segment of parts) {
+    if (!isValidRelativePathSegment(segment)) {
+      return null;
+    }
     directory = await directory.getDirectoryHandle(segment);
   }
   for (const candidate of ximBasenames) {
