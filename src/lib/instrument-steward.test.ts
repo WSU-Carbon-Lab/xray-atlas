@@ -19,7 +19,20 @@ const it = bunIt as (name: string, fn: () => void | Promise<void>) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
 describe("resolveInstrumentConnectorSectionView", () => {
-  it("keeps claim actions visible when a steward is assigned", () => {
+  it("shows claim and connector requests when workspace is not ready", () => {
+    const view = resolveInstrumentConnectorSectionView({
+      readiness: "not_ready",
+      workspaceSlug: undefined,
+      steward: null,
+    });
+    expect(view.hasWorkspace).toBe(false);
+    expect(view.showClaimBeamline).toBe(true);
+    expect(view.showRequestConnector).toBe(true);
+    expect(view.showNoWorkspaceNarrative).toBe(true);
+    expect(view.showWorkspaceLink).toBe(false);
+  });
+
+  it("keeps claim visible and connector request when a steward is assigned without workspace", () => {
     const view = resolveInstrumentConnectorSectionView({
       readiness: "not_ready",
       workspaceSlug: undefined,
@@ -33,20 +46,44 @@ describe("resolveInstrumentConnectorSectionView", () => {
         notes: null,
       },
     });
-    expect(view.showClaimActions).toBe(true);
+    expect(view.showClaimBeamline).toBe(true);
+    expect(view.showRequestConnector).toBe(true);
     expect(view.showSteward).toBe(true);
     expect(view.showNoWorkspaceNarrative).toBe(true);
   });
 
-  it("shows workspace link and claim actions for beta readiness", () => {
+  it("shows workspace link and hides connector request for beta readiness", () => {
     const view = resolveInstrumentConnectorSectionView({
       readiness: "beta",
       workspaceSlug: "als-5322",
       steward: null,
     });
+    expect(view.hasWorkspace).toBe(true);
     expect(view.showWorkspaceLink).toBe(true);
-    expect(view.showClaimActions).toBe(true);
+    expect(view.showClaimBeamline).toBe(true);
+    expect(view.showRequestConnector).toBe(false);
     expect(view.showNoWorkspaceNarrative).toBe(false);
+    expect(view.showSteward).toBe(false);
+  });
+
+  it("hides connector request for ready readiness", () => {
+    const view = resolveInstrumentConnectorSectionView({
+      readiness: "ready",
+      workspaceSlug: "als-5322",
+      steward: {
+        instrumentId: "fac_inst",
+        userId: "0000-0001-2345-6789",
+        name: "Ada Scientist",
+        image: null,
+        assignedAt: "2026-06-08T12:00:00.000Z",
+        claimIssueUrl: null,
+        notes: null,
+      },
+    });
+    expect(view.hasWorkspace).toBe(true);
+    expect(view.showRequestConnector).toBe(false);
+    expect(view.showClaimBeamline).toBe(true);
+    expect(view.showSteward).toBe(true);
   });
 
   it("hides workspace link when slug is missing despite beta readiness", () => {
@@ -56,7 +93,9 @@ describe("resolveInstrumentConnectorSectionView", () => {
       steward: null,
     });
     expect(view.showWorkspaceLink).toBe(false);
-    expect(view.showClaimActions).toBe(true);
+    expect(view.hasWorkspace).toBe(true);
+    expect(view.showRequestConnector).toBe(false);
+    expect(view.showClaimBeamline).toBe(true);
   });
 });
 

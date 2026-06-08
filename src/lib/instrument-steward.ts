@@ -23,15 +23,17 @@ export type InstrumentConnectorSectionViewInput = {
 export type InstrumentConnectorSectionView = {
   showWorkspaceLink: boolean;
   showSteward: boolean;
-  showClaimActions: boolean;
+  showClaimBeamline: boolean;
+  showRequestConnector: boolean;
   showNoWorkspaceNarrative: boolean;
+  hasWorkspace: boolean;
 };
 
 /**
  * Derives which blocks render in {@link InstrumentConnectorClaimSection}.
  *
- * Claim and connector request actions stay visible even when a steward is assigned or a
- * beta workspace exists.
+ * Connector requests render only when no dashboard workspace is bound (`not_ready`).
+ * Claim beamline stays available for affiliation verification in every readiness state.
  */
 export function resolveInstrumentConnectorSectionView(
   input: InstrumentConnectorSectionViewInput,
@@ -43,8 +45,10 @@ export function resolveInstrumentConnectorSectionView(
   return {
     showWorkspaceLink: hasWorkspaceHref,
     showSteward: Boolean(input.steward),
-    showClaimActions: true,
+    showClaimBeamline: true,
+    showRequestConnector: input.readiness === "not_ready",
     showNoWorkspaceNarrative: !hasWorkspace,
+    hasWorkspace,
   };
 }
 
