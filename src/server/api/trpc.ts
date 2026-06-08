@@ -151,6 +151,12 @@ const enforcePrivilegedSessionAal = t.middleware(async ({ ctx, next }) => {
 export const privilegedWriteProcedure =
   protectedProcedure.use(enforcePrivilegedSessionAal);
 
+/**
+ * Authenticated writes that require user-administration permission but not passkey session AAL.
+ * Use for low-risk metadata edits; destructive admin actions should use {@link adminProcedure}.
+ */
+export const manageUsersProcedure = protectedProcedure.use(enforceManageUsers);
+
 export const adminProcedure = protectedProcedure
   .use(enforceManageUsers)
   .use(enforcePrivilegedSessionAal);

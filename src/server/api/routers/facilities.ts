@@ -10,8 +10,8 @@ import {
 import {
   contributeWriteProcedure,
   createTRPCRouter,
+  manageUsersProcedure,
   publicProcedure,
-  adminProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { resolveFacilityFaviconUrl } from "~/server/utils/resolve-facility-favicon";
@@ -284,9 +284,9 @@ export const facilitiesRouter = createTRPCRouter({
 
   /**
    * Updates the public homepage URL for a facility and refreshes the cached favicon URL.
-   * Requires administrator privileges; favicon discovery runs server-side with SSRF filtering.
+   * Requires user-administration permission; favicon discovery runs server-side with SSRF filtering.
    */
-  updateWebsite: adminProcedure
+  updateWebsite: manageUsersProcedure
     .input(
       z.object({
         facilityId: z.string().uuid(),
