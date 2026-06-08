@@ -27,10 +27,6 @@ import {
   researcherAttributionBadgeStatus,
   type ResearcherAttributionBadgeStatus,
 } from "~/lib/nexafs-attribution";
-import {
-  normalizeOrcidUserInput,
-  orcidUserIdSchema,
-} from "~/lib/orcid";
 import type { ResearcherSearchHit } from "~/server/nexafs/searchResearchersForAttribution";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
@@ -187,48 +183,7 @@ export function AddBeamlineScientistForm({
     [addSteward, assignedUserIds, instrumentId],
   );
 
-  const assignOrcid = useCallback(
-    (raw: string, hit?: ResearcherSearchHit) => {
-      if (addSteward.isPending) {
-        return;
-      }
-      const normalized = normalizeOrcidUserInput(raw);
-      if (!normalized || !orcidUserIdSchema.safeParse(normalized).success) {
-        showToast("Select a researcher or enter a valid ORCID iD.", "error");
-        return;
-      }
-      if (assignedUserIds.has(normalized)) {
-        showToast("That researcher is already a beamline scientist here.", "error");
-        return;
-      }
-      pendingSearchHitRef.current = hit
-        ? toStewardSearchHit(hit)
-        : {
-            orcid: normalized,
-            displayName: normalized,
-            imageUrl: null,
-            hasAtlasProfile: false,
-          };
-      addSteward.mutate({
-        instrumentId,
-        userId: normalized,
-      });
-    },
-    [addSteward, assignedUserIds, instrumentId],
-  );
-
-  const resolveOrcidForAssign = useCallback((): string | null => {
-    const normalized = normalizeOrcidUserInput(searchQuery);
-    if (normalized && orcidUserIdSchema.safeParse(normalized).success) {
-      return normalized;
-    }
-    return null;
-  }, [searchQuery]);
-
   const emptyStateMessage = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return "Search by name, institution, or ORCID iD.";
-    }
     if (!searchEnabled) {
       if (searchClassification.mode === "partial_orcid") {
         return "Enter at least 4 ORCID characters to search.";
@@ -246,7 +201,6 @@ export function AddBeamlineScientistForm({
     searchClassification.mode,
     searchEnabled,
     searchFailed,
-    searchQuery,
   ]);
 
   const handleListBoxAction = useCallback(
@@ -259,7 +213,7 @@ export function AddBeamlineScientistForm({
     [addSearchHit, searchResults],
   );
 
-  const resolvedOrcidForAssign = resolveOrcidForAssign();
+  const showResultsList = searchQuery.trim().length > 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -282,87 +236,89 @@ export function AddBeamlineScientistForm({
           onChange={(event) => setSearchQuery(event.target.value)}
           disabled={addSteward.isPending}
         />
-        <div
-          className="border-border bg-surface overflow-hidden rounded-lg border"
-          data-attribution-nested-overlay="true"
-        >
-          <ScrollShadow
-            className="max-h-48 min-h-0"
-            hideScrollBar
-            orientation="vertical"
+        {showResultsList ? (
+          <div
+            className="border-border bg-surface overflow-hidden rounded-lg border"
+            data-attribution-nested-overlay="true"
           >
-            <ListBox
-              aria-label="Researcher search results"
-              items={searchEnabled ? searchResults : []}
-              onAction={handleListBoxAction}
-              selectionMode="none"
-              renderEmptyState={() => (
-                <div className="text-muted px-3 py-2 text-xs">
-                  {emptyStateMessage}
-                </div>
-              )}
+            <ScrollShadow
+              className="max-h-48 min-h-0"
+              hideScrollBar
+              orientation="vertical"
             >
-              {(hit) => {
-                const status = researcherAttributionBadgeStatus({
-                  isClaimed: hit.hasAtlasProfile,
-                  hasContributionAgreement: hit.hasContributionAgreement,
-                });
-                return (
-                  <ListBox.Item
-                    id={hit.orcid}
-                    textValue={`${hit.displayName} ${hit.orcid}`}
-                    isDisabled={addSteward.isPending}
-                  >
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <Badge.Anchor className="shrink-0">
-                        <ResearcherAvatar
-                          displayName={hit.displayName}
-                          imageUrl={hit.imageUrl}
-                          identitySeed={hit.orcid}
-                          isAtlasProfile={hit.hasAtlasProfile}
-                          placeholder={
-                            hit.hasAtlasProfile ? "initials" : "person"
-                          }
-                          size="sm"
-                          className="h-8 w-8 shrink-0"
-                        />
-                        <Badge
-                          color={badgeColorForStatus(status)}
-                          size="sm"
-                          placement="bottom-right"
-                          className="size-2.5 min-h-0 min-w-0 rounded-full p-0"
-                        />
-                      </Badge.Anchor>
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="text-foreground flex min-w-0 items-center gap-1.5 truncate text-sm font-medium">
-                          <span className="truncate">{hit.displayName}</span>
-                          {hit.hasAtlasProfile ? (
-                            <Chip
-                              size="sm"
-                              variant="soft"
-                              color="accent"
-                              className="h-5 shrink-0 px-1.5 text-[10px]"
-                            >
-                              Atlas
-                            </Chip>
-                          ) : null}
-                        </span>
-                        <span className="text-muted font-mono text-xs tabular-nums">
-                          {hit.orcid}
-                        </span>
-                        {hit.affiliation ? (
-                          <span className="text-muted truncate text-xs">
-                            {hit.affiliation}
+              <ListBox
+                aria-label="Researcher search results"
+                items={searchEnabled ? searchResults : []}
+                onAction={handleListBoxAction}
+                selectionMode="none"
+                renderEmptyState={() => (
+                  <div className="text-muted px-3 py-2 text-xs">
+                    {emptyStateMessage}
+                  </div>
+                )}
+              >
+                {(hit) => {
+                  const status = researcherAttributionBadgeStatus({
+                    isClaimed: hit.hasAtlasProfile,
+                    hasContributionAgreement: hit.hasContributionAgreement,
+                  });
+                  return (
+                    <ListBox.Item
+                      id={hit.orcid}
+                      textValue={`${hit.displayName} ${hit.orcid}`}
+                      isDisabled={addSteward.isPending}
+                    >
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <Badge.Anchor className="shrink-0">
+                          <ResearcherAvatar
+                            displayName={hit.displayName}
+                            imageUrl={hit.imageUrl}
+                            identitySeed={hit.orcid}
+                            isAtlasProfile={hit.hasAtlasProfile}
+                            placeholder={
+                              hit.hasAtlasProfile ? "initials" : "person"
+                            }
+                            size="sm"
+                            className="h-8 w-8 shrink-0"
+                          />
+                          <Badge
+                            color={badgeColorForStatus(status)}
+                            size="sm"
+                            placement="bottom-right"
+                            className="size-2.5 min-h-0 min-w-0 rounded-full p-0"
+                          />
+                        </Badge.Anchor>
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="text-foreground flex min-w-0 items-center gap-1.5 truncate text-sm font-medium">
+                            <span className="truncate">{hit.displayName}</span>
+                            {hit.hasAtlasProfile ? (
+                              <Chip
+                                size="sm"
+                                variant="soft"
+                                color="accent"
+                                className="h-5 shrink-0 px-1.5 text-[10px]"
+                              >
+                                Atlas
+                              </Chip>
+                            ) : null}
                           </span>
-                        ) : null}
+                          <span className="text-muted font-mono text-xs tabular-nums">
+                            {hit.orcid}
+                          </span>
+                          {hit.affiliation ? (
+                            <span className="text-muted truncate text-xs">
+                              {hit.affiliation}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  </ListBox.Item>
-                );
-              }}
-            </ListBox>
-          </ScrollShadow>
-        </div>
+                    </ListBox.Item>
+                  );
+                }}
+              </ListBox>
+            </ScrollShadow>
+          </div>
+        ) : null}
         {isSearching ? (
           <p className="text-muted flex items-center gap-1.5 text-xs">
             <Spinner size="sm" />
@@ -376,7 +332,7 @@ export function AddBeamlineScientistForm({
           </p>
         ) : null}
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end">
         <Button
           size="sm"
           variant="ghost"
@@ -384,19 +340,6 @@ export function AddBeamlineScientistForm({
           isDisabled={addSteward.isPending}
         >
           Cancel
-        </Button>
-        <Button
-          size="sm"
-          variant="primary"
-          onPress={() => {
-            const orcid = resolveOrcidForAssign();
-            if (!orcid) return;
-            const hit = searchResults.find((row) => row.orcid === orcid);
-            assignOrcid(orcid, hit);
-          }}
-          isDisabled={!resolvedOrcidForAssign || addSteward.isPending}
-        >
-          {addSteward.isPending ? "Adding..." : "Add"}
         </Button>
       </div>
     </div>
