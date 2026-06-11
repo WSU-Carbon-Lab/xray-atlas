@@ -14,7 +14,6 @@ import {
   ContributionFileDropOverlay,
   type ContributionFileDropOverlayFileKind,
 } from "~/components/contribute";
-import type { MoleculeUploadData } from "~/types/upload";
 import { normalizeMoleculeUploadForPersistence } from "~/types/upload";
 import { MoleculeSynonymsField } from "./molecule-synonyms-field";
 import { MoleculeTagsField } from "./molecule-tags-field";

@@ -174,7 +174,7 @@ export const MoleculeIdentifierSearch = forwardRef<
     onSearchComplete,
     onPendingLookup,
     onClearSearchFeedback,
-    structureSmiles = "",
+    structureSmiles: _structureSmiles = "",
     onStructureLookupBusyChange,
   },
   ref,
