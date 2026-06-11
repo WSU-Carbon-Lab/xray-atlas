@@ -36,11 +36,20 @@ const EXAMPLE_TABLE_CLASSNAME = cn(
 
 function ColumnRequirementChip({ required }: { required: boolean }) {
   return required ? (
-    <Chip size="sm" variant="soft" color="accent" className="h-5 px-1.5 text-[10px]">
+    <Chip
+      size="sm"
+      variant="soft"
+      color="accent"
+      className="h-5 px-1.5 text-[10px]"
+    >
       Required
     </Chip>
   ) : (
-    <Chip size="sm" variant="soft" className="text-muted h-5 px-1.5 text-[10px]">
+    <Chip
+      size="sm"
+      variant="soft"
+      className="text-muted h-5 px-1.5 text-[10px]"
+    >
       Optional
     </Chip>
   );
@@ -78,8 +87,8 @@ function UploadExampleTable() {
             Example CSV layout
           </p>
           <p className="text-muted mt-0.5 text-xs leading-relaxed">
-            Column names in the downloadable template with sample values. Hover a
-            header for how each field maps at ingest.
+            Column names in the downloadable template with sample values. Hover
+            a header for how each field maps at ingest.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -116,7 +125,9 @@ function UploadExampleTable() {
                     {NEXAFS_UPLOAD_TEMPLATE_COLUMNS.map((column) => {
                       const value = row[column.key];
                       const display =
-                        value && value.length > 0 ? value : (
+                        value && value.length > 0 ? (
+                          value
+                        ) : (
                           <span className="text-muted">—</span>
                         );
                       return (
@@ -143,8 +154,8 @@ function UploadExampleTable() {
         channels include geometry, I0, OD, mass absorption, beta, delta, and
         matching uncertainty columns; compact alias names (for example{" "}
         <span className="text-foreground font-mono">muerr</span>,{" "}
-        <span className="text-foreground font-mono">oderr</span>) auto-match when
-        present. The primary upload trace is not a separate{" "}
+        <span className="text-foreground font-mono">oderr</span>) auto-match
+        when present. The primary upload trace is not a separate{" "}
         <span className="text-foreground font-mono">rawabs</span> column — it is
         the mapped absorption column.
       </p>
@@ -155,18 +166,20 @@ function UploadExampleTable() {
 /**
  * Empty-state upload portal for NEXAFS contribute: template download, column preview, and drop zone.
  */
-export function NexafsUploadPortal({ onFilesSelected }: NexafsUploadPortalProps) {
+export function NexafsUploadPortal({
+  onFilesSelected,
+}: NexafsUploadPortalProps) {
   return (
     <section
       aria-labelledby="nexafs-upload-portal-heading"
       className="border-border bg-surface relative mb-8 w-full min-w-0 shrink-0 rounded-2xl border shadow-sm"
     >
       <div
-        className="pointer-events-none absolute -top-24 -right-16 h-48 w-48 rounded-full bg-accent/15 blur-3xl"
+        className="bg-accent/15 pointer-events-none absolute -top-24 -right-16 h-48 w-48 rounded-full blur-3xl"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -bottom-20 -left-12 h-40 w-40 rounded-full bg-accent/10 blur-3xl"
+        className="bg-accent/10 pointer-events-none absolute -bottom-20 -left-12 h-40 w-40 rounded-full blur-3xl"
         aria-hidden
       />
 
@@ -183,8 +196,9 @@ export function NexafsUploadPortal({ onFilesSelected }: NexafsUploadPortalProps)
               Start with a spectrum file
             </h2>
             <p className="text-muted mt-1 max-w-2xl text-sm leading-relaxed">
-              Drop one or more CSV or JSON files, or browse from your computer. Each file
-              becomes a dataset tab you can map, normalize, and submit with sample metadata.
+              Drop one or more CSV or JSON files, or browse from your computer.
+              Each file becomes a dataset tab you can map, normalize, and submit
+              with sample metadata.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -208,10 +222,10 @@ export function NexafsUploadPortal({ onFilesSelected }: NexafsUploadPortalProps)
         <div className="flex min-w-0 flex-col gap-3">
           <FileUploadZone onFilesSelected={onFilesSelected} multiple={true} />
           <p className="text-muted text-xs leading-relaxed">
-            JSON uploads are supported for multi-geometry bundles. For a column-by-column
-            reference, see{" "}
+            JSON uploads are supported for multi-geometry bundles. For a
+            column-by-column reference, see{" "}
             <Link
-              href="/wiki/data-representation/input-spectroscopy"
+              href="/wiki/atlas/uploading-data"
               className="text-accent hover:underline"
             >
               input spectroscopy

@@ -66,10 +66,7 @@ export type BeamDumpErrorPageProps = {
  */
 export function BeamDumpOscilloscope() {
   return (
-    <div
-      className="beam-dump-scope mx-auto w-full max-w-sm"
-      aria-hidden
-    >
+    <div className="beam-dump-scope mx-auto w-full max-w-sm" aria-hidden>
       <div className="beam-dump-scope__pulse" />
       <div className="beam-dump-scope__screen px-3 py-4">
         <svg
@@ -211,7 +208,7 @@ export function BeamDumpErrorPage({
                 so the {site.name} maintainers can track it.
               </li>
               <li>
-                <Link href="/wiki/home" className="text-accent hover:underline">
+                <Link href="/wiki" className="text-accent hover:underline">
                   <BookOpenIcon
                     className="mr-1 inline h-4 w-4 align-[-2px]"
                     aria-hidden

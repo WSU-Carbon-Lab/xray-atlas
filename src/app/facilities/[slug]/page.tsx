@@ -83,7 +83,7 @@ export default function FacilityDetailPage({
           <Button
             type="button"
             variant="ghost"
-            className="text-muted hover:text-foreground mb-4 -ms-1 inline-flex h-auto min-h-10 items-center gap-2 px-2 py-2 text-sm font-medium"
+            className="text-muted hover:text-foreground -ms-1 mb-4 inline-flex h-auto min-h-10 items-center gap-2 px-2 py-2 text-sm font-medium"
             onPress={() => router.push("/browse/facilities")}
           >
             <ArrowLeftIcon className="h-4 w-4 shrink-0" />
@@ -91,7 +91,7 @@ export default function FacilityDetailPage({
           </Button>
 
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 flex flex-1 gap-4">
+            <div className="flex min-w-0 flex-1 gap-4">
               <FacilityIcon
                 name={facility.name}
                 faviconUrl={facility.faviconurl}
@@ -173,7 +173,10 @@ export default function FacilityDetailPage({
               ) : (
                 <ul className="flex flex-wrap gap-2">
                   <li>
-                    <Link href="/browse/nexafs" className={exploreInstrumentLinkClass}>
+                    <Link
+                      href="/browse/nexafs"
+                      className={exploreInstrumentLinkClass}
+                    >
                       <ChartBarIcon
                         className="h-4 w-4 shrink-0 opacity-80"
                         aria-hidden
@@ -186,7 +189,10 @@ export default function FacilityDetailPage({
               <Separator className="bg-border" />
               <ul className="flex flex-wrap gap-2">
                 <li>
-                  <Link href="/browse/facilities" className={exploreCatalogLinkClass}>
+                  <Link
+                    href="/browse/facilities"
+                    className={exploreCatalogLinkClass}
+                  >
                     <BuildingOfficeIcon
                       className="h-4 w-4 shrink-0 opacity-70"
                       aria-hidden
@@ -195,7 +201,7 @@ export default function FacilityDetailPage({
                   </Link>
                 </li>
                 <li>
-                  <Link href="/wiki/home" className={exploreCatalogLinkClass}>
+                  <Link href="/wiki" className={exploreCatalogLinkClass}>
                     <BookOpenIcon
                       className="h-4 w-4 shrink-0 opacity-70"
                       aria-hidden
@@ -204,15 +210,12 @@ export default function FacilityDetailPage({
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="/wiki/platform-features"
-                    className={exploreCatalogLinkClass}
-                  >
+                  <Link href="/wiki/atlas" className={exploreCatalogLinkClass}>
                     <SparklesIcon
                       className="h-4 w-4 shrink-0 opacity-70"
                       aria-hidden
                     />
-                    <span>Platform features</span>
+                    <span>Using X-ray Atlas</span>
                   </Link>
                 </li>
               </ul>
@@ -257,13 +260,18 @@ export default function FacilityDetailPage({
               />
             </div>
           </Card.Header>
-          <Card.Content className={cn("py-5 sm:py-6", facilitySectionPaddingClass)}>
+          <Card.Content
+            className={cn("py-5 sm:py-6", facilitySectionPaddingClass)}
+          >
             {facility.instruments.length === 0 ? (
               <p className="text-muted text-center text-sm">
                 No instruments registered for this facility yet.
               </p>
             ) : (
-              <ul className="space-y-4" aria-label="Instruments at this facility">
+              <ul
+                className="space-y-4"
+                aria-label="Instruments at this facility"
+              >
                 {facility.instruments.map((instrument) => (
                   <li key={instrument.id} id={`instrument-${instrument.id}`}>
                     <Card
@@ -286,7 +294,9 @@ export default function FacilityDetailPage({
                               className="text-accent hover:text-accent-dark inline-flex max-w-full items-center gap-1.5 text-sm font-medium underline-offset-2 hover:underline"
                             >
                               <LinkIcon className="h-4 w-4 shrink-0" />
-                              <span className="truncate">Visit instrument page</span>
+                              <span className="truncate">
+                                Visit instrument page
+                              </span>
                             </a>
                           ) : null}
                           <InstrumentConnectorClaimSection
@@ -294,7 +304,9 @@ export default function FacilityDetailPage({
                             facilityName={facility.name}
                             instrumentId={instrument.id}
                             instrumentName={instrument.name}
-                            stewards={stewardsByInstrumentId[instrument.id] ?? []}
+                            stewards={
+                              stewardsByInstrumentId[instrument.id] ?? []
+                            }
                           />
                         </div>
                       </Card.Content>
