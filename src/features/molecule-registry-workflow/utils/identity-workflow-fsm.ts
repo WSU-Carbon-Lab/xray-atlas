@@ -52,6 +52,7 @@ export type MoleculeIdentityFsmAction =
   | { type: "queue_match"; pending: MoleculePendingLookup }
   | { type: "apply_match"; identity: MoleculeResolvedIdentity; warnings: string[] }
   | { type: "dismiss_match" }
+  | { type: "unlink_record" }
   | { type: "mark_dirty" }
   | { type: "set_search_feedback"; feedback: MoleculeRegistrySearchFeedback }
   | { type: "set_chemistry_warnings"; warnings: string[] }
@@ -166,7 +167,7 @@ export function reduceMoleculeIdentityFsm(
         ...state,
         phase: "linked",
         linkedIdentity: action.identity,
-        pendingLookup: null,
+        pendingLookup: state.pendingLookup,
         previewSnapshot: previewFromIdentity(action.identity),
         chemistryWarnings: linkedWarnings,
         searchFeedback: {
@@ -178,6 +179,21 @@ export function reduceMoleculeIdentityFsm(
         },
       };
     }
+
+    case "unlink_record":
+      return {
+        ...state,
+        phase: state.pendingLookup !== null ? "matched" : "idle",
+        linkedIdentity: null,
+        previewSnapshot: state.pendingLookup
+          ? previewFromPending(state.pendingLookup)
+          : null,
+        chemistryWarnings: state.pendingLookup?.warnings ?? [],
+        searchFeedback: {
+          ...state.searchFeedback,
+          resolvedIdentity: null,
+        },
+      };
 
     case "dismiss_match":
       return {

@@ -1,12 +1,30 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import { cn } from "@heroui/styles";
 import {
+  ArrowTopRightOnSquareIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
-import { Button, Chip, Description } from "@heroui/react";
+import {
+  Checkbox,
+  Chip,
+  Description,
+  Label,
+  ListBox,
+  Select,
+  Switch,
+} from "@heroui/react";
 import { ChemicalFormula } from "~/components/ui/chemical-formula";
+import { FieldTooltip } from "~/components/ui/field-tooltip";
+import {
+  MOLECULE_COMPOUND_KINDS,
+  formatMoleculeFormulaForKind,
+  moleculeCompoundKindLabel,
+  parseRepeatUnitFormula,
+  type MoleculeCompoundKind,
+} from "~/lib/molecule-compound-kind";
+import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { RegistryDepictionThumbnail } from "./registry-depiction-thumbnail";
 import { dedupeChemistryWarnings } from "../utils/chemistry-consistency";
 import type {
@@ -27,9 +45,17 @@ const SOURCE_BADGE: Record<
 export type MoleculeLookupConfirmationProps = {
   pending: MoleculePendingLookup;
   isDark: boolean;
-  onConfirm: () => void;
-  onDismiss: () => void;
+  isApplied: boolean;
+  onApplyToggle: (applied: boolean) => void;
   onSelectCandidate?: (candidate: MoleculeLookupCandidate) => void;
+  compoundKind: MoleculeCompoundKind;
+  onCompoundKindChange: (kind: MoleculeCompoundKind) => void;
+  chemicalFormula: string;
+  registryStub: boolean;
+  onRegistryStubChange: (stub: boolean) => void;
+  hasStructure: boolean;
+  polymerKindSuggested: boolean;
+  displayWarnings?: string[];
   busy?: boolean;
 };
 
@@ -53,23 +79,55 @@ function LookupPreviewDepiction({
 }
 
 /**
- * Inline confirmation card shown after identifier lookup succeeds. Contributors
- * confirm before fields are populated ("Use this record") or continue editing.
+ * Unified match card for Atlas, PubChem, or CAS lookup results. One card persists
+ * from match through apply; the apply checkbox toggles whether the record is
+ * linked to the contribute form.
  */
 export function MoleculeLookupConfirmation({
   pending,
   isDark,
-  onConfirm,
-  onDismiss,
+  isApplied,
+  onApplyToggle,
   onSelectCandidate,
+  compoundKind,
+  onCompoundKindChange,
+  chemicalFormula,
+  registryStub,
+  onRegistryStubChange,
+  hasStructure,
+  polymerKindSuggested,
+  displayWarnings,
   busy = false,
 }: MoleculeLookupConfirmationProps) {
   const titleId = useId();
+  const applyCheckboxId = useId();
   const { identity } = pending;
   const badge = SOURCE_BADGE[identity.source];
   const candidateCount = pending.candidates?.length ?? 0;
   const showCandidatePicker = candidateCount > 0;
-  const uniqueWarnings = dedupeChemistryWarnings(pending.warnings);
+  const uniqueWarnings = dedupeChemistryWarnings(
+    displayWarnings ?? pending.warnings,
+  );
+  const applyDisabled = busy || showCandidatePicker;
+
+  const formulaRepeatUnit = parseRepeatUnitFormula(
+    identity.chemicalFormula ?? chemicalFormula,
+  );
+  const formulaDisplay =
+    compoundKind === "polymer" || compoundKind === "macromolecule"
+      ? formatMoleculeFormulaForKind(formulaRepeatUnit, compoundKind)
+      : (identity.chemicalFormula ?? chemicalFormula).trim();
+
+  const pubChemHref = identity.pubChemCid
+    ? `https://pubchem.ncbi.nlm.nih.gov/compound/${identity.pubChemCid}`
+    : null;
+
+  const atlasHref = useMemo(() => {
+    if (!identity.atlasMoleculeId) return null;
+    return `/molecules/${slugifyMoleculeSynonym(identity.displayName)}`;
+  }, [identity.atlasMoleculeId, identity.displayName]);
+
+  const showRegistryStubControl = isApplied && !hasStructure;
 
   return (
     <section
@@ -77,6 +135,7 @@ export function MoleculeLookupConfirmation({
       aria-live="polite"
       className={cn(
         "border-accent/30 bg-surface motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-[180ms] rounded-xl border shadow-sm",
+        isApplied && "border-accent/40 from-accent-soft/15 bg-gradient-to-br to-surface",
         "px-4 py-4 sm:px-5",
       )}
     >
@@ -87,24 +146,60 @@ export function MoleculeLookupConfirmation({
           label={`Structure preview for ${identity.displayName}`}
         />
         <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip size="sm" variant="soft" color={badge.color}>
-              {badge.label}
-            </Chip>
-            {identity.casVerified && identity.source === "pubchem" ? (
-              <Chip size="sm" variant="soft" color="warning">
-                CAS cross-check
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <Chip size="sm" variant="soft" color={badge.color}>
+                {badge.label}
               </Chip>
-            ) : null}
-            {pending.compoundKindSuggestion?.suggested ? (
-              <Chip size="sm" variant="soft" color="default">
-                Suggested {pending.compoundKindSuggestion.kind.replace("_", " ")}
-              </Chip>
-            ) : null}
+              {identity.casVerified && identity.source === "pubchem" ? (
+                <Chip size="sm" variant="soft" color="warning">
+                  CAS cross-check
+                </Chip>
+              ) : null}
+              {pending.compoundKindSuggestion?.suggested ? (
+                <Chip size="sm" variant="soft" color="default">
+                  Suggested{" "}
+                  {pending.compoundKindSuggestion.kind.replace("_", " ")}
+                </Chip>
+              ) : null}
+              {polymerKindSuggested && isApplied ? (
+                <Chip size="sm" variant="soft" color="default">
+                  Suggested polymer
+                </Chip>
+              ) : null}
+            </div>
+            <Checkbox
+              id={applyCheckboxId}
+              isSelected={isApplied}
+              isDisabled={applyDisabled}
+              onChange={(selected) => onApplyToggle(Boolean(selected))}
+              aria-label={
+                isApplied
+                  ? "Remove applied record from the form"
+                  : "Apply this record to the form"
+              }
+              className="shrink-0"
+            >
+              <Checkbox.Control>
+                <Checkbox.Indicator />
+              </Checkbox.Control>
+              <Checkbox.Content>
+                <Label className="text-foreground text-sm font-medium">
+                  {isApplied ? "Applied" : "Apply"}
+                </Label>
+              </Checkbox.Content>
+            </Checkbox>
           </div>
-          <p className="text-success flex items-center gap-1.5 text-xs font-medium">
+          <p
+            className={cn(
+              "flex items-center gap-1.5 text-xs font-medium",
+              isApplied ? "text-accent" : "text-success",
+            )}
+          >
             <CheckCircleIcon className="h-4 w-4 shrink-0" aria-hidden />
-            Match found — review before applying to the form.
+            {isApplied
+              ? "Record linked to the form. Uncheck to remove imported fields."
+              : "Match found — check Apply to populate the form."}
           </p>
           <h3
             id={titleId}
@@ -112,12 +207,18 @@ export function MoleculeLookupConfirmation({
           >
             {identity.displayName}
           </h3>
-          {identity.chemicalFormula ? (
+          {formulaDisplay.length > 0 ? (
             <p className="text-muted text-sm">
               <ChemicalFormula
-                formula={identity.chemicalFormula}
+                formula={formulaDisplay}
                 className="text-foreground font-medium"
               />
+              {compoundKind === "polymer" ||
+              compoundKind === "macromolecule" ? (
+                <span className="text-muted ml-1.5 text-xs">
+                  repeat-unit notation
+                </span>
+              ) : null}
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2">
@@ -136,7 +237,11 @@ export function MoleculeLookupConfirmation({
       </div>
 
       {showCandidatePicker && pending.candidates ? (
-        <ul className="border-border mt-4 space-y-2 border-t pt-4" role="listbox" aria-label="PubChem matches">
+        <ul
+          className="border-border mt-4 space-y-2 border-t pt-4"
+          role="listbox"
+          aria-label="PubChem matches"
+        >
           {pending.candidates.map((candidate) => (
             <li key={candidate.cid}>
               <button
@@ -175,31 +280,96 @@ export function MoleculeLookupConfirmation({
         </ul>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="primary"
-          size="sm"
-          onPress={onConfirm}
-          isDisabled={busy || candidateCount > 0}
-        >
-          Use this record
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onPress={onDismiss}
-          isDisabled={busy}
-        >
-          Keep editing
-        </Button>
-        {showCandidatePicker ? (
-          <Description className="text-muted text-xs">
-            Select a structure above to load that PubChem record.
-          </Description>
-        ) : null}
-      </div>
+      {showCandidatePicker ? (
+        <Description className="text-muted mt-3 text-xs">
+          Select a structure above before applying this record.
+        </Description>
+      ) : null}
+
+      {isApplied ? (
+        <div className="border-border/80 mt-4 grid grid-cols-1 gap-4 border-t pt-4 sm:grid-cols-2">
+          <Select
+            selectedKey={compoundKind}
+            onSelectionChange={(key) => {
+              if (typeof key !== "string") return;
+              onCompoundKindChange(key as MoleculeCompoundKind);
+            }}
+            aria-label="Compound kind"
+          >
+            <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
+              Compound kind
+              <FieldTooltip description="Classifies the registry entry for formula notation and browse filters." />
+            </Label>
+            <Select.Trigger className="border-border bg-surface min-h-11 w-full rounded-lg border">
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox aria-label="Compound kind">
+                {MOLECULE_COMPOUND_KINDS.map((kind) => (
+                  <ListBox.Item
+                    key={kind}
+                    textValue={moleculeCompoundKindLabel(kind)}
+                  >
+                    {moleculeCompoundKindLabel(kind)}
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
+
+          {showRegistryStubControl ? (
+            <div className="flex flex-col justify-end gap-1.5 pb-0.5">
+              <Switch
+                isSelected={registryStub}
+                onChange={onRegistryStubChange}
+                size="sm"
+              >
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
+                <Switch.Content>
+                  <Label className="text-foreground text-sm">
+                    Registry stub (no structure yet)
+                  </Label>
+                </Switch.Content>
+              </Switch>
+              <Description className="text-muted text-xs">
+                {identity.pubChemCid || identity.casNumber
+                  ? "Appropriate when you have PubChem or CAS identity but no SMILES or SVG depiction yet."
+                  : "Defer structure until a depiction is available."}
+              </Description>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isApplied && (pubChemHref || atlasHref) ? (
+        <div className="border-border/60 mt-4 flex flex-wrap gap-3 border-t pt-3">
+          {pubChemHref ? (
+            <a
+              href={pubChemHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent inline-flex items-center gap-1.5 text-sm font-medium transition-opacity hover:opacity-90"
+            >
+              <ArrowTopRightOnSquareIcon className="h-4 w-4 shrink-0" />
+              View on PubChem
+            </a>
+          ) : null}
+          {atlasHref ? (
+            <a
+              href={atlasHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent inline-flex items-center gap-1.5 text-sm font-medium transition-opacity hover:opacity-90"
+            >
+              <ArrowTopRightOnSquareIcon className="h-4 w-4 shrink-0" />
+              View in Atlas
+            </a>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -13,6 +13,7 @@ import { MoleculeSynonymsField } from "./molecule-synonyms-field";
 import { MoleculeTagsField } from "./molecule-tags-field";
 import { trpc } from "~/trpc/client";
 import { DocumentArrowUpIcon } from "@heroicons/react/24/outline";
+import { BroomIcon } from "~/components/icons";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import {
   MOLECULE_COMPOUND_KINDS,
@@ -35,6 +36,7 @@ import {
   Spinner,
   Switch,
   TextField,
+  Tooltip,
 } from "@heroui/react";
 import { parseMoleculeJsonFile } from "~/app/contribute/molecule/utils/parseMoleculeJson";
 import { parseMoleculeCsvFile } from "~/app/contribute/molecule/utils/parseMoleculeCsv";
@@ -46,7 +48,6 @@ import {
   MoleculeIdentifierSearchFeedback,
   type MoleculeIdentifierSearchHandle,
 } from "./molecule-identifier-search";
-import { MoleculeResolvedIdentityCard } from "./molecule-resolved-identity-card";
 import { MoleculeStructureSection } from "./molecule-structure-section";
 import type { BookendMarksState } from "~/features/molecule-sketcher";
 import type { StructureLookupContext } from "./molecule-contribute-sketcher-panel";
@@ -95,7 +96,7 @@ export function MoleculeContributionForm({
     clearTransientSearch,
     queuePendingLookup,
     applyPendingLookup,
-    dismissPendingLookup,
+    unlinkAppliedRecord,
     markIdentityDirty,
     promoteSynonym,
     handleCompoundKindChange,
@@ -146,6 +147,27 @@ export function MoleculeContributionForm({
     trpc.molecules.listTags.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
 
   const isDark = themeMounted && resolvedTheme === "dark";
+
+  const handleClearForm = useCallback(() => {
+    resetWorkflow();
+    setSvgDataUrl(null);
+    setImagePreview("");
+    setSketchBookends({ open: null, close: null });
+    setStructureValidationError(null);
+    setSubmitStatus({ type: null, message: "" });
+    identifierSearchRef.current?.resetSearchUi();
+  }, [resetWorkflow]);
+
+  const handleApplyToggle = useCallback(
+    (applied: boolean) => {
+      if (applied) {
+        applyPendingLookup();
+        return;
+      }
+      unlinkAppliedRecord();
+    },
+    [applyPendingLookup, unlinkAppliedRecord],
+  );
 
   const handleRegistryStubChange = useCallback(
     (selected: boolean) => {
@@ -485,10 +507,10 @@ export function MoleculeContributionForm({
       ? `Stored as ${formatMoleculeFormulaForKind(formulaDisplayValue, compoundKind) || "(…)n"}`
       : null;
   const hasStructure = formData.smiles.trim().length > 0;
-  const showIdentityCard = resolvedIdentity !== null;
-  const showManualCompoundControls = !showIdentityCard && !pendingLookup;
-  const showStructureRegistryStub =
-    !showIdentityCard || hasStructure;
+  const isRecordApplied = resolvedIdentity !== null;
+  const hasUnappliedMatch = pendingLookup !== null && !isRecordApplied;
+  const showManualCompoundControls = pendingLookup === null && !isRecordApplied;
+  const showStructureRegistryStub = !isRecordApplied || hasStructure;
 
   return (
     <>
@@ -503,15 +525,35 @@ export function MoleculeContributionForm({
       >
         <Card className="border-border bg-surface-1 border shadow-sm">
           <Card.Content className="space-y-5 p-5 sm:p-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-foreground text-lg font-semibold">
-                Registry identity
-              </h2>
-              {editingMoleculeId ? (
-                <Chip size="sm" variant="soft" color="accent">
-                  Editing existing entry
-                </Chip>
-              ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-foreground text-lg font-semibold">
+                  Registry identity
+                </h2>
+                {editingMoleculeId ? (
+                  <Chip size="sm" variant="soft" color="accent">
+                    Editing existing entry
+                  </Chip>
+                ) : null}
+              </div>
+              <Tooltip delay={0}>
+                <Tooltip.Trigger>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    isIconOnly
+                    aria-label="Clear form"
+                    onPress={handleClearForm}
+                    className="text-muted hover:text-foreground"
+                  >
+                    <BroomIcon className="h-4 w-4 shrink-0" aria-hidden />
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content className="tooltip-content-panel">
+                  Clear form
+                </Tooltip.Content>
+              </Tooltip>
             </div>
 
             <Description className="text-muted text-sm">
@@ -541,8 +583,16 @@ export function MoleculeContributionForm({
               <MoleculeLookupConfirmation
                 pending={pendingLookup}
                 isDark={isDark}
-                onConfirm={applyPendingLookup}
-                onDismiss={dismissPendingLookup}
+                isApplied={isRecordApplied}
+                onApplyToggle={handleApplyToggle}
+                compoundKind={compoundKind}
+                onCompoundKindChange={handleCompoundKindChange}
+                chemicalFormula={formData.chemicalFormula}
+                registryStub={formData.registryStub ?? false}
+                onRegistryStubChange={handleRegistryStubChange}
+                hasStructure={hasStructure}
+                polymerKindSuggested={polymerKindSuggested}
+                displayWarnings={chemistryWarnings}
                 onSelectCandidate={(candidate) => {
                   void identifierSearchRef.current?.selectPubChemCandidate(
                     candidate,
@@ -559,22 +609,6 @@ export function MoleculeContributionForm({
               pubChemUrl={searchFeedback.pubChemUrl}
               resolvedIdentity={resolvedIdentity}
             />
-
-            {showIdentityCard ? (
-              <MoleculeResolvedIdentityCard
-                identity={resolvedIdentity}
-                warnings={chemistryWarnings}
-                compoundKind={compoundKind}
-                onCompoundKindChange={handleCompoundKindChange}
-                chemicalFormula={formData.chemicalFormula}
-                registryStub={formData.registryStub ?? false}
-                onRegistryStubChange={handleRegistryStubChange}
-                hasStructure={hasStructure}
-                polymerKindSuggested={polymerKindSuggested}
-                previewSnapshot={identityFsm.previewSnapshot}
-                isDark={isDark}
-              />
-            ) : null}
 
             {showManualCompoundControls ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -779,7 +813,7 @@ export function MoleculeContributionForm({
           <Button
             type="submit"
             variant="primary"
-            isDisabled={isSubmitting || pendingLookup !== null}
+            isDisabled={isSubmitting || hasUnappliedMatch}
             className="focus-visible:ring-accent inline-flex items-center gap-2 focus:outline-none focus-visible:ring-2"
             aria-label={isSubmitting ? "Saving registry entry" : "Save registry entry"}
           >

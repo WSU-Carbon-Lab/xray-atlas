@@ -116,6 +116,7 @@ export type MoleculeIdentifierSearchHandle = {
     options?: StructureLookupOptions,
   ) => Promise<void>;
   selectPubChemCandidate: (candidate: PubChemCandidateSummary) => Promise<void>;
+  resetSearchUi: () => void;
 };
 
 const PUBCHEM_DEBOUNCE_MS = 320;
@@ -904,13 +905,24 @@ export const MoleculeIdentifierSearch = forwardRef<
     ],
   );
 
+  const resetSearchUi = useCallback(() => {
+    setManualPubChemCandidates([]);
+    setShowDropdown(false);
+    setHighlightedIndex(-1);
+    setLocalError(null);
+    setStructureLookupSmiles(null);
+    setDebouncedQuery("");
+    setSearchMode("name");
+  }, []);
+
   useImperativeHandle(
     ref,
     () => ({
       lookupFromSmiles,
       selectPubChemCandidate,
+      resetSearchUi,
     }),
-    [lookupFromSmiles, selectPubChemCandidate],
+    [lookupFromSmiles, resetSearchUi, selectPubChemCandidate],
   );
 
   const searchBusy = isSearching || isSearchingCas;

@@ -68,7 +68,7 @@ describe("reduceMoleculeIdentityFsm", () => {
     expect(linked.linkedIdentity).toEqual(PENDING.identity);
   });
 
-  it("transitions matched to linked on apply", () => {
+  it("transitions matched to linked on apply and keeps pending lookup", () => {
     const matched = reduceMoleculeIdentityFsm(
       MOLECULE_IDENTITY_FSM_INITIAL,
       { type: "queue_match", pending: PENDING },
@@ -80,8 +80,39 @@ describe("reduceMoleculeIdentityFsm", () => {
       warnings: ["note"],
     });
     expect(linked.phase).toBe("linked");
-    expect(linked.pendingLookup).toBe(null);
+    expect(linked.pendingLookup).toEqual(PENDING);
     expect(linked.chemistryWarnings).toEqual(["note"]);
+  });
+
+  it("transitions linked to matched on unlink_record", () => {
+    const linked = reduceMoleculeIdentityFsm(
+      {
+        ...MOLECULE_IDENTITY_FSM_INITIAL,
+        phase: "linked",
+        linkedIdentity: PENDING.identity,
+        pendingLookup: PENDING,
+        chemistryWarnings: ["note"],
+      },
+      { type: "unlink_record" },
+    );
+    expect(linked.phase).toBe("matched");
+    expect(linked.linkedIdentity).toBe(null);
+    expect(linked.pendingLookup).toEqual(PENDING);
+    expect(linked.searchFeedback.resolvedIdentity).toBe(null);
+  });
+
+  it("reset returns to idle", () => {
+    const reset = reduceMoleculeIdentityFsm(
+      {
+        ...MOLECULE_IDENTITY_FSM_INITIAL,
+        phase: "linked",
+        linkedIdentity: PENDING.identity,
+        pendingLookup: PENDING,
+        searchQuery: "poly",
+      },
+      { type: "reset" },
+    );
+    expect(reset).toEqual(MOLECULE_IDENTITY_FSM_INITIAL);
   });
 
   it("clear_transient_search preserves linked identity", () => {

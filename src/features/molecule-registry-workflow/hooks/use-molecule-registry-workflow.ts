@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useReducer, useState } from "react";
+import { useCallback, useReducer, useRef, useState } from "react";
 import type { MoleculePendingTag } from "~/components/molecules/category-tags";
 import { normalizeMoleculeSynonym } from "~/lib/molecule-synonym-dedupe";
 import {
@@ -68,6 +68,7 @@ export type UseMoleculeRegistryWorkflowResult = {
   clearTransientSearch: () => void;
   queuePendingLookup: (pending: MoleculePendingLookup) => void;
   applyPendingLookup: () => void;
+  unlinkAppliedRecord: () => void;
   dismissPendingLookup: () => void;
   markIdentityDirty: () => void;
   promoteSynonym: (synonym: string) => void;
@@ -94,6 +95,11 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
     reduceMoleculeIdentityFsm,
     MOLECULE_IDENTITY_FSM_INITIAL,
   );
+  const preApplySnapshotRef = useRef<{
+    formData: MoleculeUploadData;
+    editingMoleculeId: string | null;
+    importedSynonyms: Set<string>;
+  } | null>(null);
 
   const resolvedIdentity = identityFsm.linkedIdentity;
   const pendingLookup = identityFsm.pendingLookup;
@@ -154,6 +160,11 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
     if (!pending) {
       return;
     }
+    preApplySnapshotRef.current = {
+      formData: { ...formData },
+      editingMoleculeId,
+      importedSynonyms: new Set(importedSynonyms),
+    };
     if (pending.importedSynonyms.length > 0) {
       recordImportedSynonyms(pending.importedSynonyms);
     }
@@ -216,7 +227,24 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
       type: "set_search_query",
       query: mergedForm.commonName.trim(),
     });
-  }, [formData, identityFsm.pendingLookup, recordImportedSynonyms]);
+  }, [
+    editingMoleculeId,
+    formData,
+    identityFsm.pendingLookup,
+    importedSynonyms,
+    recordImportedSynonyms,
+  ]);
+
+  const unlinkAppliedRecord = useCallback(() => {
+    const snapshot = preApplySnapshotRef.current;
+    if (snapshot) {
+      setFormData(snapshot.formData);
+      setEditingMoleculeId(snapshot.editingMoleculeId);
+      setImportedSynonyms(new Set(snapshot.importedSynonyms));
+    }
+    preApplySnapshotRef.current = null;
+    dispatchIdentity({ type: "unlink_record" });
+  }, []);
 
   const dismissPendingLookup = useCallback(() => {
     dispatchIdentity({ type: "dismiss_match" });
@@ -257,6 +285,7 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
   }, []);
 
   const resetWorkflow = useCallback(() => {
+    preApplySnapshotRef.current = null;
     setFormData(MOLECULE_REGISTRY_INITIAL_FORM);
     setPendingTags([]);
     setImportedSynonyms(new Set());
@@ -286,6 +315,7 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
     clearTransientSearch,
     queuePendingLookup,
     applyPendingLookup,
+    unlinkAppliedRecord,
     dismissPendingLookup,
     markIdentityDirty,
     promoteSynonym,
