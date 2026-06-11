@@ -25,6 +25,7 @@ import {
   Move,
   Pencil,
   Redo2,
+  RefreshCw,
   RotateCw,
   Scissors,
   Sparkles,
@@ -195,6 +196,13 @@ export interface MoleculeDrawToolbarProps {
   onRunPivotRotate: (deg: number) => void;
   /** Abbreviates alkyl tails and nitriles while preserving orientation (one undo step). */
   onPrepareForDatabase: () => void;
+  /**
+   * Rebuilds the canvas from canonical SMILES with fresh layout and database
+   * abbreviations; clears polymer bookend marks.
+   */
+  onRegenerateFromSmiles: () => void;
+  /** True when canonical SMILES is available to regenerate from. */
+  canRegenerateFromSmiles: boolean;
   /** Runs CoordinateInventor layout on the whole drawing. */
   onStabilize: () => void;
   /** Scales the drawing about its centroid without abbreviating labels. */
@@ -439,6 +447,8 @@ export function MoleculeDrawToolbar({
   onRunPivotFlip,
   onRunPivotRotate,
   onPrepareForDatabase,
+  onRegenerateFromSmiles,
+  canRegenerateFromSmiles,
   onStabilize,
   onTidySpacing,
   onUndo,
@@ -669,6 +679,22 @@ export function MoleculeDrawToolbar({
               className="min-w-9 px-2"
             >
               <Sparkles className="h-4 w-4" aria-hidden />
+            </Button>
+          </DrawToolbarHint>
+          <DrawToolbarHint
+            label="Regenerate from SMILES"
+            description="Discard manual layout and rebuild from the current canonical SMILES with default coordinates and database abbreviations. Clears repeat-unit bookends and block cuts."
+          >
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onPress={onRegenerateFromSmiles}
+              isDisabled={!canRegenerateFromSmiles}
+              aria-label="Regenerate from SMILES"
+              className="min-w-9 px-2"
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden />
             </Button>
           </DrawToolbarHint>
           <PopoverMenu

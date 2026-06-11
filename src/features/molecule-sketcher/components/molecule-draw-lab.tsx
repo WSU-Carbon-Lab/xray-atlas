@@ -352,6 +352,8 @@ export function MoleculeDrawLab() {
           onRunPivotFlip={state.pivotFlip}
           onRunPivotRotate={state.pivotRotate}
           onPrepareForDatabase={state.prepareForDatabase}
+          onRegenerateFromSmiles={state.regenerateFromSmiles}
+          canRegenerateFromSmiles={state.smiles.trim().length > 0}
           onTidySpacing={state.cleanupSpacing}
           onStabilize={state.stabilize}
           onUndo={state.undo}

@@ -34,6 +34,10 @@ export type {
 export { ColoredElementSymbol } from "./components/colored-element-symbol";
 export { DatabaseBuildWorkflowHint } from "./components/database-build-workflow-hint";
 export type {
+  DatabaseBuildWorkflowHintProps,
+  DatabaseBuildWorkflowHintVariant,
+} from "./components/database-build-workflow-hint";
+export type {
   DrawBondKind,
   DrawBondKindOption,
   DrawBondMark,
@@ -61,6 +65,13 @@ export {
   buildDatabaseDepictionSvg,
   buildDrawCanvasOclDepiction,
 } from "./utils/molecule-2d-ocl-depiction";
+export { buildDatabasePrepSnapshotSvg } from "./utils/build-database-prep-snapshot-svg";
+export type { BuildDatabasePrepSnapshotSvgParams } from "./utils/build-database-prep-snapshot-svg";
+export {
+  remapBookendMarksAfterMolEdit,
+  remapDrawBondMarkAfterMolEdit,
+} from "./utils/remap-draw-bond-marks";
+export type { RemapBookendMarksInput } from "./utils/remap-draw-bond-marks";
 export {
   assessMoleculeDatabasePrep,
   prepareMoleculeForDatabase,

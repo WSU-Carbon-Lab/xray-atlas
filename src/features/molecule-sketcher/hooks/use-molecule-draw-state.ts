@@ -67,7 +67,8 @@ import {
   stabilizeLayout,
   type MoleculeDatabasePrepAssessment,
 } from "../utils/molecule-graph-editing";
-import { buildDatabaseDepictionSvg } from "../utils/molecule-2d-ocl-depiction";
+import { buildDatabasePrepSnapshotSvg } from "../utils/build-database-prep-snapshot-svg";
+import { remapBookendMarksAfterMolEdit } from "../utils/remap-draw-bond-marks";
 import {
   expandAllAbbreviatedAlkylLabels,
 } from "../utils/alkyl-label-expand";
@@ -192,6 +193,13 @@ export interface MoleculeDrawState {
   clearAll: () => void;
   /** Replaces the drawing with a structure parsed from SMILES. */
   loadSmiles: (smiles: string) => void;
+  /**
+   * Rebuilds the canvas from {@link MoleculeDrawState.smiles}: fresh
+   * CoordinateInventor layout, database alkyl/nitrile abbreviations, and cleared
+   * polymer marks. Canonical SMILES does not encode repeat-unit bookends, so
+   * bookend and block marks are always reset.
+   */
+  regenerateFromSmiles: () => void;
   /**
    * Merges a SMILES fragment at `centerPoint` without clearing the canvas;
    * surfaces parse errors inline via {@link MoleculeDrawState.polymerError}.
@@ -1042,6 +1050,8 @@ export function useMoleculeDrawState(): MoleculeDrawState {
   const prepareForDatabase = useCallback(() => {
     let alkylAbbreviated = 0;
     let nitrileAbbreviated = 0;
+    const previous = history.molfileRef.current;
+    const beforeMol = parseDrawMolfile(previous);
     applyEdit((mol) => {
       const counts = prepareMoleculeForDatabase(mol);
       alkylAbbreviated = counts.alkylAbbreviated;
@@ -1050,6 +1060,12 @@ export function useMoleculeDrawState(): MoleculeDrawState {
         cleanupMolecule2DSpacing(mol);
       }
     });
+    const next = history.molfileRef.current;
+    if (next !== previous) {
+      setBookends((current) =>
+        remapBookendMarksAfterMolEdit(beforeMol, parseDrawMolfile(next), current),
+      );
+    }
     const notes = ["Prepared for database upload (orientation preserved)."];
     if (alkylAbbreviated > 0) {
       notes.push(`Abbreviated ${alkylAbbreviated} alkyl tail(s).`);
@@ -1064,7 +1080,7 @@ export function useMoleculeDrawState(): MoleculeDrawState {
       notes.push("Compacted layout spacing.");
     }
     setLayoutNote(notes.join(" "));
-  }, [applyEdit, compactSpacingOnPrep]);
+  }, [applyEdit, compactSpacingOnPrep, history]);
 
   const tidyLayout = cleanupSpacing;
 
@@ -1077,7 +1093,9 @@ export function useMoleculeDrawState(): MoleculeDrawState {
       let next = previous;
       let svg: string | null = null;
       let smiles = "";
+      let snapshotBookends = bookends;
       try {
+        const beforeMol = parseDrawMolfile(previous);
         const mol = parseDrawMolfile(previous);
         prepareMoleculeForDatabase(mol);
         if (compactSpacingOnPrep) {
@@ -1096,17 +1114,24 @@ export function useMoleculeDrawState(): MoleculeDrawState {
             );
           }
         }
+        snapshotBookends = remapBookendMarksAfterMolEdit(
+          beforeMol,
+          mol,
+          bookends,
+        );
         next = serializeDrawMolfile(mol);
         smiles = canonicalSmilesOf(mol);
         const svgId = `atlas-db-snap-${Date.now()}`;
-        svg = buildDatabaseDepictionSvg(
+        svg = buildDatabasePrepSnapshotSvg({
           mol,
-          DATABASE_DEPICTION_WIDTH_PX,
-          DATABASE_DEPICTION_HEIGHT_PX,
+          width: DATABASE_DEPICTION_WIDTH_PX,
+          height: DATABASE_DEPICTION_HEIGHT_PX,
           svgId,
           isDark,
+          bookends: snapshotBookends,
           cageBondDepthTierByMark,
-        );
+          cageDepictionMode,
+        });
       } catch (error) {
         return {
           ok: false,
@@ -1122,6 +1147,7 @@ export function useMoleculeDrawState(): MoleculeDrawState {
         history.molfileRef.current = next;
         history.displayedMolRef.current = next;
         history.setMolfile(next);
+        setBookends(snapshotBookends);
         setPolymerError(null);
       }
       const notes = ["Database snapshot generated."];
@@ -1132,7 +1158,9 @@ export function useMoleculeDrawState(): MoleculeDrawState {
       return { ok: true, svg, smiles };
     },
     [
+      bookends,
       cageBondDepthTierByMark,
+      cageDepictionMode,
       cageView3d,
       compactSpacingOnPrep,
       history,
@@ -1183,6 +1211,35 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     },
     [history, clearSelection],
   );
+
+  const regenerateFromSmiles = useCallback(() => {
+    const trimmed = smiles.trim();
+    if (trimmed.length === 0) {
+      return;
+    }
+    const previous = history.molfileRef.current;
+    let next: string;
+    try {
+      const mol = MoleculeCtor.fromSmiles(trimmed);
+      stabilizeLayout(mol);
+      prepareMoleculeForDatabase(mol);
+      if (compactSpacingOnPrep) {
+        cleanupMolecule2DSpacing(mol);
+      }
+      next = serializeDrawMolfile(mol);
+    } catch {
+      setPolymerError(`Could not rebuild structure from SMILES "${trimmed}".`);
+      return;
+    }
+    history.commitHistoryPoint(previous);
+    history.molfileRef.current = next;
+    history.displayedMolRef.current = next;
+    history.setMolfile(next);
+    clearMarks();
+    setPendingSmilesFragment(null);
+    clearSelection();
+    setLayoutNote("Regenerated layout from canonical SMILES.");
+  }, [smiles, history, compactSpacingOnPrep, clearMarks, clearSelection]);
 
   const defaultFragmentCenter = useCallback((): DrawPoint => {
     if (molecule.getAllAtoms() === 0) {
@@ -1666,6 +1723,7 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     generateDatabaseSnapshot,
     clearAll,
     loadSmiles,
+    regenerateFromSmiles,
     addSmilesFragmentAt,
     queueSmilesFragmentPlacement,
     pendingSmilesFragment,
