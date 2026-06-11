@@ -64,7 +64,7 @@ export function Footer() {
             <h4 className="text-foreground text-sm font-semibold">Resources</h4>
             <div className="flex flex-col space-y-2">
               <Link
-                href="/wiki/home"
+                href="/wiki"
                 className="text-muted hover:text-accent text-sm transition-colors hover:underline"
               >
                 Wiki

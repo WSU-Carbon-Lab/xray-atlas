@@ -159,7 +159,10 @@ function DatasetMetricScoreRing({
             cy={c}
             r={r}
             fill="none"
-            className={cn(strokeClass, "transition-[stroke-dashoffset] duration-300")}
+            className={cn(
+              strokeClass,
+              "transition-[stroke-dashoffset] duration-300",
+            )}
             strokeWidth={strokePx}
             strokeLinecap="round"
             strokeDasharray={circumference}
@@ -170,11 +173,14 @@ function DatasetMetricScoreRing({
       </svg>
       <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
         {missing ? (
-          <AlertCircle className="text-text-tertiary h-[42%] w-[42%]" aria-hidden />
+          <AlertCircle
+            className="text-text-tertiary h-[42%] w-[42%]"
+            aria-hidden
+          />
         ) : centerLabel != null ? (
           <span
             className={cn(
-              "text-foreground font-semibold tabular-nums leading-none tracking-tight",
+              "text-foreground leading-none font-semibold tracking-tight tabular-nums",
               sizePx >= 44 ? "text-sm" : "text-[10px]",
             )}
           >
@@ -275,10 +281,14 @@ function MissingDatasetMetricPlaceholder({
 }) {
   return (
     <div className={metricCardSurfaceClassName}>
-      <div className="text-muted text-[11px] leading-tight font-medium">{bar.label}</div>
-      <p className="text-warning text-[10px] font-medium leading-snug">{bar.summary}</p>
+      <div className="text-muted text-[11px] leading-tight font-medium">
+        {bar.label}
+      </div>
+      <p className="text-warning text-[10px] leading-snug font-medium">
+        {bar.summary}
+      </p>
       <div className="pt-0.5">
-        <span className="text-muted text-xl leading-none font-semibold tabular-nums tracking-tight sm:text-2xl">
+        <span className="text-muted text-xl leading-none font-semibold tracking-tight tabular-nums sm:text-2xl">
           —
         </span>
       </div>
@@ -377,7 +387,12 @@ function ResolutionDistributionTrace({
   return (
     <div className="relative mt-2">
       <div className="mb-1.5 flex items-center justify-start">
-        <span className={cn("text-xl leading-none font-semibold tabular-nums", heroColorClass)}>
+        <span
+          className={cn(
+            "text-xl leading-none font-semibold tabular-nums",
+            heroColorClass,
+          )}
+        >
           {distribution.p75DeltaEv != null
             ? `${distribution.p75DeltaEv.toFixed(3)} eV`
             : "—"}
@@ -466,23 +481,24 @@ function ResolutionDistributionTrace({
             {bucketDetails[activeBucket].percent.toFixed(1)}% of points are in{" "}
             {bucketDetails[activeBucket].label.toLowerCase()} resolution
           </div>
-          <div className="mt-1">
-            {bucketDetails[activeBucket].description}
-          </div>
+          <div className="mt-1">{bucketDetails[activeBucket].description}</div>
         </div>
       ) : null}
     </div>
   );
 }
 
-function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarModel }) {
+function VercelStyleMetricBlock({
+  bar,
+}: {
+  bar: NexafsBrowseDatasetMetricBarModel;
+}) {
   const scoreVal = bar.percent;
   const hasScore = typeof scoreVal === "number" && Number.isFinite(scoreVal);
   const scoreRounded = hasScore ? Math.round(scoreVal) : null;
   const isResolutionDistribution = bar.key === "resolution_distribution";
   const isMissingMetricPlaceholder =
-    !hasScore &&
-    (bar.key === "resolution_distribution" || bar.key === "snr");
+    !hasScore && (bar.key === "resolution_distribution" || bar.key === "snr");
 
   if (isMissingMetricPlaceholder) {
     return <MissingDatasetMetricPlaceholder bar={bar} />;
@@ -497,7 +513,7 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span
             className={cn(
-              "text-foreground text-xl leading-none font-semibold tabular-nums tracking-tight sm:text-2xl",
+              "text-foreground text-xl leading-none font-semibold tracking-tight tabular-nums sm:text-2xl",
               hasScore ? tierValueTextClass(bar.tier) : "text-muted",
             )}
           >
@@ -506,10 +522,10 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
           <span className="text-muted text-xs tabular-nums">/ 100</span>
           {bar.quantityValue !== "—" ? (
             <span className="text-muted ml-auto text-[11px] tabular-nums">
-              <span className="text-foreground font-medium">{bar.quantityValue}</span>
-              {bar.quantityUnit ? (
-                <span> {bar.quantityUnit}</span>
-              ) : null}
+              <span className="text-foreground font-medium">
+                {bar.quantityValue}
+              </span>
+              {bar.quantityUnit ? <span> {bar.quantityUnit}</span> : null}
             </span>
           ) : null}
         </div>
@@ -520,7 +536,9 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
         <TierSegmentedBar percent={bar.percent} tier={bar.tier} />
       )}
       {!isResolutionDistribution ? (
-        <p className="text-muted pt-1 text-[10px] leading-snug">{bar.summary}</p>
+        <p className="text-muted pt-1 text-[10px] leading-snug">
+          {bar.summary}
+        </p>
       ) : null}
     </div>
   );
@@ -529,7 +547,7 @@ function VercelStyleMetricBlock({ bar }: { bar: NexafsBrowseDatasetMetricBarMode
 function DatasetQualityWikiChip() {
   return (
     <AccentNavChip
-      href="/wiki/platform-features/dataset-quality-metrics"
+      href="/wiki/atlas/quality-metrics"
       label="Dataset quality metrics guide"
       icon={BookOpenIcon}
       size="sm"
@@ -547,11 +565,15 @@ function ChannelDatasetMetricBreakdownBody({
   return (
     <div className="flex flex-col gap-3">
       <div className="border-border border-b pb-3">
-        <h3 className="text-foreground text-sm font-semibold">Dataset quality</h3>
+        <h3 className="text-foreground text-sm font-semibold">
+          Dataset quality
+        </h3>
         <p className="text-muted mt-1.5 text-[11px] leading-snug">
-          The ring averages energy resolution and SNR subscores that are available, then subtracts{" "}
-          {DATASET_QUALITY_MISSING_STATISTIC_PENALTY} when SNR is not scored (for example, no error bars on the upload).
-          Normalization fit sections are in development and do not affect the headline score.
+          The ring averages energy resolution and SNR subscores that are
+          available, then subtracts {DATASET_QUALITY_MISSING_STATISTIC_PENALTY}{" "}
+          when SNR is not scored (for example, no error bars on the upload).
+          Normalization fit sections are in development and do not affect the
+          headline score.
         </p>
         <DatasetQualityWikiChip />
       </div>
@@ -559,7 +581,7 @@ function ChannelDatasetMetricBreakdownBody({
         {metrics.bars.map((bar) => (
           <VercelStyleMetricBlock key={bar.key} bar={bar} />
         ))}
-        <p className="text-muted text-[10px] font-medium leading-snug">
+        <p className="text-muted text-[10px] leading-snug font-medium">
           More coming soon...
         </p>
       </div>
@@ -575,7 +597,8 @@ function ChannelMetricHoverTrigger({
   const triggerRef = useRef<HTMLSpanElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const { position, updatePosition } = useDatasetMetricTooltipPosition(triggerRef);
+  const { position, updatePosition } =
+    useDatasetMetricTooltipPosition(triggerRef);
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -632,7 +655,7 @@ function ChannelMetricHoverTrigger({
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         className={cn(
-          "focus-visible:ring-accent focus-visible:ring-offset-background border-border bg-surface inline-flex h-9 w-9 shrink-0 cursor-default items-center justify-center rounded-full border shadow-sm outline-none transition-transform hover:scale-[1.03] focus-visible:ring-2 focus-visible:ring-offset-2",
+          "focus-visible:ring-accent focus-visible:ring-offset-background border-border bg-surface inline-flex h-9 w-9 shrink-0 cursor-default items-center justify-center rounded-full border shadow-sm transition-transform outline-none hover:scale-[1.03] focus-visible:ring-2 focus-visible:ring-offset-2",
           metrics.missing && "bg-muted/40",
         )}
         title={`Dataset quality: ${scoreHint}`}

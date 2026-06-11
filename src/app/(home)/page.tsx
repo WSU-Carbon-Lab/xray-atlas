@@ -147,9 +147,7 @@ function TopUpvotedMolecules() {
   }, [totalPages, itemsPerPage]);
 
   if (isLoading) {
-    return (
-      <PopularMoleculesCarouselSkeleton itemsPerPage={itemsPerPage} />
-    );
+    return <PopularMoleculesCarouselSkeleton itemsPerPage={itemsPerPage} />;
   }
 
   if (isError) {
@@ -168,7 +166,7 @@ function TopUpvotedMolecules() {
 
   if (molecules.length === 0) {
     return (
-      <div className="border-border/70 text-muted rounded-xl border border-dashed bg-muted/5 px-6 py-14 text-center text-sm">
+      <div className="border-border/70 text-muted bg-muted/5 rounded-xl border border-dashed px-6 py-14 text-center text-sm">
         No molecules found in the database.
       </div>
     );
@@ -176,10 +174,7 @@ function TopUpvotedMolecules() {
 
   const start = page * itemsPerPage;
   const pageMolecules = molecules.slice(start, start + itemsPerPage);
-  const columnCount = Math.min(
-    itemsPerPage,
-    Math.max(pageMolecules.length, 1),
-  );
+  const columnCount = Math.min(itemsPerPage, Math.max(pageMolecules.length, 1));
 
   return (
     <div
@@ -257,7 +252,7 @@ const homeQuickLinks: readonly HomeQuickLink[] = [
 function WikiQuickStartChip() {
   return (
     <AccentNavChip
-      href="/wiki/home"
+      href="/wiki/nexafs"
       label="Quick start: NEXAFS terminology & data guide"
       icon={BookOpenIcon}
     />
@@ -282,7 +277,7 @@ export default function HomePage() {
           className="pointer-events-none absolute inset-0 opacity-[0.05]"
           aria-hidden
         >
-          <div className="from-accent/50 absolute -right-24 top-0 h-72 w-72 rounded-full bg-gradient-to-bl to-transparent blur-3xl" />
+          <div className="from-accent/50 absolute top-0 -right-24 h-72 w-72 rounded-full bg-gradient-to-bl to-transparent blur-3xl" />
           <div className="absolute -bottom-32 left-0 h-64 w-64 rounded-full bg-gradient-to-tr from-violet-500/35 to-transparent blur-3xl" />
         </div>
         <div className={`relative mx-auto w-full ${CONTENT_MAX_WIDTH} px-4`}>
@@ -308,12 +303,15 @@ export default function HomePage() {
               <Link
                 key={href}
                 href={href}
-                className="focus-visible:ring-accent border-border bg-surface text-foreground hover:border-accent/30 hover:bg-default group flex max-sm:min-h-[5.75rem] flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3.5 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-1.5 sm:px-1.5 sm:py-3"
+                className="focus-visible:ring-accent border-border bg-surface text-foreground hover:border-accent/30 hover:bg-default group focus-visible:ring-offset-background flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3.5 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 max-sm:min-h-[5.75rem] sm:gap-1.5 sm:px-1.5 sm:py-3"
               >
                 <span className="bg-accent/12 text-accent ring-accent/15 inline-flex rounded-lg p-1.5 ring-1 sm:p-2">
-                  <Icon className="size-4 shrink-0 sm:size-[1.125rem]" aria-hidden />
+                  <Icon
+                    className="size-4 shrink-0 sm:size-[1.125rem]"
+                    aria-hidden
+                  />
                 </span>
-                <span className="text-foreground group-hover:text-accent text-sm font-semibold leading-tight transition-colors sm:text-xs">
+                <span className="text-foreground group-hover:text-accent text-sm leading-tight font-semibold transition-colors sm:text-xs">
                   {title}
                 </span>
                 <span className="text-muted max-w-[10rem] px-0.5 text-[11px] leading-snug sm:max-w-[6.75rem] sm:text-[10px]">

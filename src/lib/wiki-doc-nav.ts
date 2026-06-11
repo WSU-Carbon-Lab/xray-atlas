@@ -1,8 +1,9 @@
 /**
  * Canonical navigation entries for `/wiki/*` documentation routes.
  *
- * Owns per-page section anchors for the Overview accordion (`href` + hash links).
- * Next.js routing remains authoritative; section `id`s must match headings in page TSX.
+ * Owns the two-branch wiki tree (Start here, NEXAFS, Using X-ray Atlas) and per-page
+ * section anchors for the right-rail outline. Section `id`s must match `rehype-slug`
+ * output on MDX headings.
  */
 
 export type WikiOverviewNavIcon =
@@ -29,104 +30,66 @@ export interface WikiDocTopic {
 
 export const wikiDocTopics: readonly WikiDocTopic[] = [
   {
-    href: "/wiki/home",
-    label: "Wiki home",
-    breadcrumbLabel: "Wiki home",
+    href: "/wiki",
+    label: "Start here",
+    breadcrumbLabel: "Start here",
     overviewNavIcon: "wiki-home",
-    sections: [
-      {
-        id: "terminology-heading",
-        label: "The zoo of names for the same idea",
-      },
-      { id: "nexafs-probes", label: "What NEXAFS probes" },
-      {
-        id: "representations-stored",
-        label: "Representations stored in X-ray Atlas",
-      },
-      { id: "coordinates-and-units", label: "Coordinates and units" },
-    ],
+    sections: [],
   },
   {
-    href: "/wiki/data-representation",
-    label: "Data representation",
-    breadcrumbLabel: "Data representation",
+    href: "/wiki/nexafs",
+    label: "NEXAFS",
+    breadcrumbLabel: "NEXAFS",
     overviewNavIcon: "data-representation",
     sections: [
       {
-        id: "input-spectroscopy",
-        label: "Input spectroscopy",
-        href: "/wiki/data-representation/input-spectroscopy",
+        id: "terminology",
+        label: "Terminology and edge nomenclature",
+        href: "/wiki/nexafs/terminology",
+      },
+      {
+        id: "quantities",
+        label: "Measured and derived quantities",
+        href: "/wiki/nexafs/quantities",
       },
       {
         id: "optical-constants",
-        label: "Optical constants & plot views",
-        href: "/wiki/data-representation/optical-constants",
+        label: "Optical constants and Kramers-Kronig",
+        href: "/wiki/nexafs/optical-constants",
       },
     ],
   },
   {
-    href: "/wiki/platform-features",
-    label: "Platform features",
-    breadcrumbLabel: "Platform features",
+    href: "/wiki/atlas",
+    label: "Using X-ray Atlas",
+    breadcrumbLabel: "Using X-ray Atlas",
     overviewNavIcon: "platform-features",
     sections: [
-      { id: "search-and-filter", label: "Search and filter" },
-      { id: "interactive-visualization", label: "Interactive visualization" },
       {
-        id: "dataset-quality-metrics",
+        id: "data-model",
+        label: "What the database stores",
+        href: "/wiki/atlas/data-model",
+      },
+      {
+        id: "uploading-data",
+        label: "Uploading spectroscopy",
+        href: "/wiki/atlas/uploading-data",
+      },
+      {
+        id: "quality-metrics",
         label: "Dataset quality metrics",
-        href: "/wiki/platform-features/dataset-quality-metrics",
-      },
-      { id: "contribution-workflows", label: "Contribution workflows" },
-      { id: "attribution-signals", label: "Attribution signals" },
-    ],
-  },
-  {
-    href: "/wiki/contributions",
-    label: "Contributions",
-    breadcrumbLabel: "Contributions",
-    overviewNavIcon: "contributions",
-    sections: [
-      { id: "contribution-expectations", label: "Contribution expectations" },
-      { id: "next-step", label: "Next step" },
-    ],
-  },
-  {
-    href: "/wiki/data-insights",
-    label: "Data Insights",
-    breadcrumbLabel: "Data Insights",
-    overviewNavIcon: "data-insights",
-    sections: [
-      { id: "live-metrics-preview", label: "Live metrics preview" },
-      {
-        id: "speed-insights-overview",
-        label: "Speed Insights overview",
+        href: "/wiki/atlas/quality-metrics",
       },
       {
-        id: "real-experience-score",
-        label: "Real Experience Score",
+        id: "contributing",
+        label: "Contributing datasets",
+        href: "/wiki/atlas/contributing",
       },
-      { id: "core-web-vitals", label: "Core Web Vitals" },
-      { id: "other-metrics", label: "Additional metrics" },
-      { id: "how-scores-work", label: "How scores are determined" },
       {
-        id: "data-points-percentiles",
-        label: "Data points and percentiles",
+        id: "api",
+        label: "API overview",
+        href: "/wiki/api",
       },
-      { id: "interpreting-scores", label: "Interpreting scores" },
-      {
-        id: "official-documentation",
-        label: "Official documentation",
-      },
-    ],
-  },
-  {
-    href: "/wiki/api",
-    label: "API",
-    breadcrumbLabel: "API",
-    overviewNavIcon: "api",
-    sections: [
-      { id: "overview", label: "API overview", href: "/wiki/api" },
       {
         id: "openapi",
         label: "OpenAPI",
@@ -142,9 +105,108 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
 ] satisfies readonly WikiDocTopic[];
 
 /**
- * Resolves the wiki topic metadata whose `href` exactly matches `pathname`, when present.
+ * Per-page right-rail outline keyed by pathname. Populated from heading slugs on MDX pages.
+ */
+export const wikiPageSections: Record<string, readonly WikiDocNavSection[]> = {
+  "/wiki": [
+    { id: "nexafs", label: "NEXAFS" },
+    { id: "using-x-ray-atlas", label: "Using X-ray Atlas" },
+    { id: "citing-and-contributing", label: "Citing and contributing" },
+  ],
+  "/wiki/nexafs": [
+    { id: "the-absorption-process", label: "The absorption process" },
+    {
+      id: "anatomy-of-a-near-edge-spectrum",
+      label: "Anatomy of a near-edge spectrum",
+    },
+    {
+      id: "what-nexafs-measures-in-practice",
+      label: "What NEXAFS measures in practice",
+    },
+    { id: "where-to-go-next", label: "Where to go next" },
+  ],
+  "/wiki/nexafs/terminology": [
+    { id: "naming-conventions", label: "Naming conventions" },
+    { id: "edge-nomenclature", label: "Edge nomenclature" },
+    { id: "related", label: "Related" },
+  ],
+  "/wiki/nexafs/quantities": [
+    {
+      id: "absorption-from-transmission",
+      label: "Absorption from transmission",
+    },
+    {
+      id: "the-complex-index-of-refraction",
+      label: "The complex index of refraction",
+    },
+    { id: "atomic-scattering-factors", label: "Atomic scattering factors" },
+    { id: "dielectric-response", label: "Dielectric response" },
+    {
+      id: "persisted-versus-derived-channels",
+      label: "Persisted versus derived channels",
+    },
+    { id: "related", label: "Related" },
+  ],
+  "/wiki/nexafs/optical-constants": [
+    { id: "example-spectrum", label: "Example spectrum" },
+    {
+      id: "the-kramers-kronig-transform",
+      label: "The Kramers-Kronig transform",
+    },
+    {
+      id: "interpolation-onto-the-measured-grid",
+      label: "Interpolation onto the measured grid",
+    },
+    { id: "recalculation-in-the-app", label: "Recalculation in the app" },
+    { id: "related", label: "Related" },
+  ],
+  "/wiki/atlas": [
+    { id: "what-the-platform-provides", label: "What the platform provides" },
+  ],
+  "/wiki/atlas/data-model": [
+    { id: "persisted-channels", label: "Persisted channels" },
+    { id: "metadata-conventions", label: "Metadata conventions" },
+    { id: "related", label: "Related" },
+  ],
+  "/wiki/atlas/uploading-data": [
+    { id: "expected-column-layout", label: "Expected column layout" },
+    { id: "related", label: "Related" },
+  ],
+  "/wiki/atlas/quality-metrics": [
+    { id: "metrics-roadmap", label: "Metrics roadmap" },
+    { id: "headline-score", label: "Headline score" },
+    {
+      id: "energy-resolution-distribution",
+      label: "Energy resolution distribution",
+    },
+    {
+      id: "worked-example-spacing-distribution",
+      label: "Worked example, spacing distribution",
+    },
+    { id: "signal-to-noise-ratio", label: "Signal-to-noise ratio" },
+    {
+      id: "normalization-fits-od-and-mass-absorption",
+      label: "Normalization fits (OD and mass absorption)",
+    },
+    {
+      id: "missing-metrics-in-the-tooltip",
+      label: "Missing metrics in the tooltip",
+    },
+  ],
+  "/wiki/atlas/contributing": [
+    { id: "contribution-expectations", label: "Contribution expectations" },
+    {
+      id: "what-makes-a-dataset-reusable",
+      label: "What makes a dataset reusable",
+    },
+    { id: "next-step", label: "Next step" },
+  ],
+};
+
+/**
+ * Resolves the wiki topic metadata whose `href` matches `pathname`, when present.
  *
- * @param pathname - Next.js pathname such as `/wiki/home` (no query or hash).
+ * @param pathname - Next.js pathname such as `/wiki/nexafs/quantities` (no query or hash).
  * @returns The matching topic, or `undefined` when `pathname` is not a configured wiki entry.
  */
 export function wikiDocTopicForPathname(
@@ -154,9 +216,16 @@ export function wikiDocTopicForPathname(
   if (exact) {
     return exact;
   }
+
+  const bySection = wikiDocTopics.find((topic) =>
+    topic.sections.some((section) => section.href === pathname),
+  );
+  if (bySection) {
+    return bySection;
+  }
+
   const prefixMatches = wikiDocTopics.filter(
-    (topic) =>
-      pathname.startsWith(`${topic.href}/`) || pathname.startsWith(topic.href),
+    (topic) => pathname === topic.href || pathname.startsWith(`${topic.href}/`),
   );
   return prefixMatches.sort((a, b) => b.href.length - a.href.length)[0];
 }
@@ -241,8 +310,9 @@ export interface WikiBreadcrumbItem {
  * sub-pages declared via section `href`s that differ from the topic `href`, the trail
  * begins with a link to the parent topic and ends with an inert entry for the active
  * sub-page (for example `/wiki/api/v1` returns
- * `[{ label: "API", href: "/wiki/api" }, { label: "v1" }]`). When `pathname` is outside
- * the wiki tree the trail is empty so the caller can render a default `Wiki` placeholder.
+ * `[{ label: "Using X-ray Atlas", href: "/wiki/atlas" }, { label: "v1" }]`). When
+ * `pathname` is outside the wiki tree the trail is empty so the caller can render a
+ * default `Wiki` placeholder.
  *
  * @param pathname - Next.js pathname such as `/wiki/api/v1` (no query or hash).
  * @returns Ordered breadcrumb entries beneath `Home > Wiki`.
@@ -261,6 +331,21 @@ export function wikiDocBreadcrumbTrail(
   );
 
   if (!subPage) {
+    if (pathname === topic.href) {
+      return [{ label: topic.breadcrumbLabel }];
+    }
+    if (pathname.startsWith(`${topic.href}/`)) {
+      const leafLabel =
+        pathname
+          .slice(topic.href.length + 1)
+          .split("/")
+          .pop()
+          ?.replace(/-/g, " ") ?? pathname;
+      return [
+        { label: topic.breadcrumbLabel, href: topic.href },
+        { label: leafLabel.charAt(0).toUpperCase() + leafLabel.slice(1) },
+      ];
+    }
     return [{ label: topic.breadcrumbLabel }];
   }
 
@@ -278,7 +363,7 @@ export function wikiDocBreadcrumbTrail(
  * When `pathname` is outside the wiki page list, all three fields are `undefined` so
  * callers can render disabled controls without throwing.
  *
- * @param pathname - Next.js pathname such as `/wiki/home` (no query or hash).
+ * @param pathname - Next.js pathname such as `/wiki` (no query or hash).
  * @returns `{ current, previous, next }` neighbor entries.
  */
 export function wikiDocPageNeighbors(pathname: string): {
@@ -299,4 +384,36 @@ export function wikiDocPageNeighbors(pathname: string): {
         ? wikiDocPages[index + 1]
         : undefined,
   };
+}
+
+/**
+ * Resolves the right-rail outline sections for a wiki pathname when configured.
+ *
+ * @param pathname - Next.js pathname such as `/wiki/nexafs/quantities`.
+ * @returns Section anchors for the page outline, or `undefined` when not configured.
+ */
+export function wikiPageOutlineForPathname(
+  pathname: string,
+): readonly WikiDocNavSection[] | undefined {
+  const normalized =
+    pathname.length > 1 && pathname.endsWith("/")
+      ? pathname.slice(0, -1)
+      : pathname;
+  return wikiPageSections[normalized];
+}
+
+/**
+ * Label for the topic landing link shown as the first child under a wiki header menu group.
+ *
+ * @param topic - Wiki topic entry from {@link wikiDocTopics}.
+ * @returns Reader-facing intro link text for the topic root path.
+ */
+export function wikiTopicIntroLinkLabel(topic: WikiDocTopic): string {
+  if (topic.href === "/wiki/nexafs") {
+    return "Introduction";
+  }
+  if (topic.href === "/wiki/atlas") {
+    return "Overview";
+  }
+  return topic.breadcrumbLabel;
 }

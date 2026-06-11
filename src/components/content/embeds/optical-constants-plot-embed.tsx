@@ -7,10 +7,10 @@ import { WIKI_OPTICAL_CONSTANTS_SHOWCASE_EXPERIMENT_ID } from "~/lib/wiki-optica
  * Wiki optical-constants example plot: same browse dataset panel as NEXAFS catalog cards
  * (data-view rail, difference spectra, analysis rails) for the fixed showcase experiment.
  */
-export function WikiOpticalConstantsPlotEmbed() {
+export function OpticalConstantsPlotEmbed() {
   return (
     <div
-      className="pointer-events-auto mt-3 w-full min-w-0 min-h-[480px]"
+      className="pointer-events-auto mt-3 min-h-[480px] w-full min-w-0"
       data-testid="wiki-optical-constants-plot-embed"
     >
       <NexafsExperimentDatasetPanel

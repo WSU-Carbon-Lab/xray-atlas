@@ -1,0 +1,72 @@
+---
+title: Introduction to NEXAFS
+description: The core-level absorption process, the structure of a near-edge spectrum, and what NEXAFS measures in practice.
+order: 1
+lastReviewed: 2026-06-11
+---
+
+# Introduction to NEXAFS
+
+Near-edge X-ray absorption fine structure (NEXAFS) probes transitions of
+core-level electrons into unoccupied bound and quasi-bound states just above an
+element's absorption edge. Because the initial state is a core orbital with a
+well-defined binding energy, the technique is element specific, and because the
+final states are shaped by local bonding, the fine structure within roughly
+30 eV of the edge reports directly on chemistry, electronic structure, and
+molecular orientation.
+
+## The absorption process
+
+An incident photon of energy $E = \hbar\omega$ promotes a core electron (for
+the carbon K-edge, a $1s$ electron near 284 eV) into an unoccupied state. In
+the electric-dipole approximation the cross section for a transition from
+initial state $|i\rangle$ to final state $|f\rangle$ follows Fermi's golden
+rule,
+
+$$
+\sigma(E) \;\propto\; \bigl|\langle f \,|\, \hat{\mathbf{e}}\cdot\mathbf{r}\, |\, i \rangle\bigr|^{2}\,
+\rho_f(E),
+$$
+
+where $\hat{\mathbf{e}}$ is the X-ray polarization unit vector and $\rho_f$ the
+density of final states. Two consequences organize everything that follows.
+Dipole selection rules ($\Delta l = \pm 1$) restrict which final states are
+reachable from a given core level, and the scalar product
+$\hat{\mathbf{e}}\cdot\mathbf{r}$ makes the transition intensity depend on the
+angle between the polarization and the transition dipole moment, which is the
+basis of orientation analysis.
+
+## Anatomy of a near-edge spectrum
+
+Below and at the edge, sharp resonances correspond to transitions into low-lying
+antibonding states, $\pi^{*}$ resonances typically appearing first and most
+intensely in unsaturated systems. Near the ionization threshold, weaker Rydberg
+states may appear in molecules with accessible diffuse states. Above threshold,
+broader $\sigma^{*}$ shape resonances sit on the continuum step produced by
+ionization. Linewidths combine the core-hole lifetime, instrumental resolution,
+and vibrational structure, so resonances sharpen or blur depending on edge and
+beamline.
+
+{/* [HUMAN] Add an annotated example figure. Recommend selecting a canonical
+   carbon K-edge dataset from the catalog (PC61BM is already the optical
+   constants showcase) and labeling pi*, sigma*, and the continuum step.
+   An embed component over a real record is preferred over a static image. */}
+
+## What NEXAFS measures in practice
+
+Edge position and near-edge resonance energies track oxidation state and
+chemical environment. Resonance intensities measured with defined polarization
+geometry encode molecular orientation and order parameters in thin films and
+at interfaces. Comparing detection channels (electron versus photon yield)
+adds depth sensitivity. These capabilities make NEXAFS a workhorse for
+polymers, organic semiconductors, self-assembled monolayers, and soft-matter
+systems studied at synchrotron facilities.
+
+## Where to go next
+
+[Terminology](/wiki/nexafs/terminology) fixes the naming conventions used
+throughout this database.
+[Measured and derived quantities](/wiki/nexafs/quantities) defines every
+channel the catalog stores or computes.
+[Optical constants and Kramers-Kronig](/wiki/nexafs/optical-constants) connects
+absorption to the complex index of refraction with a live example.

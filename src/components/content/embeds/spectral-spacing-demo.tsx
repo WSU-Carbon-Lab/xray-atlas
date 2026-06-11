@@ -9,10 +9,6 @@ import { tierValueTextClass } from "~/lib/nexafs-dataset-metric-policy";
 
 const DEMO_HEADING_ID = "demo-spacing-distribution-body";
 
-/**
- * Fixed illustrative shares for wiki documentation (not from uploads). Adjacent-ΔE tier thresholds match browse
- * `ResolutionDistributionTrace` and `nexafs-dataset-metric-display-model` (great / good / OK / bad).
- */
 const ILLUSTRATIVE_SPACING_SEGMENTS: readonly MetricTierSegmentSpec[] = [
   {
     id: "great",
@@ -74,16 +70,21 @@ export function SpectralSpacingDemo() {
             Adjacent spacing distribution (illustrative)
           </h3>
           <p className="text-muted text-xs leading-snug">
-            Segment widths use fixed documentation shares (65% / 30% / 3% / 2%; tail 5% across OK and bad). Hover or
-            focus a segment for share and range; Tab and arrows move between segments. The marker shows an illustrative
-            P75 on the share scale.
+            Segment widths use fixed documentation shares (65% / 30% / 3% / 2%;
+            tail 5% across OK and bad). Hover or focus a segment for share and
+            range; Tab and arrows move between segments. The marker shows an
+            illustrative P75 on the share scale.
           </p>
           <div className="text-[11px] leading-snug">
-            <div className="text-muted font-medium">App tiers (adjacent ΔE)</div>
+            <div className="text-muted font-medium">
+              App tiers (adjacent ΔE)
+            </div>
             <ul className="mt-1 space-y-0.5">
               {APP_SPACING_TIER_ROWS.map((row) => (
                 <li key={row.name} className="flex flex-wrap gap-x-2 gap-y-0">
-                  <span className="text-foreground font-medium">{row.name}</span>
+                  <span className="text-foreground font-medium">
+                    {row.name}
+                  </span>
                   <span className="text-muted">{row.threshold}</span>
                 </li>
               ))}

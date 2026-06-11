@@ -7,12 +7,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { api } from "~/trpc/server";
 import { ORCIDIcon } from "~/components/icons";
+import { AboutWikiEntry } from "~/components/about/about-wiki-entry";
 import { attribution, mission, site } from "~/app/brand";
 import {
   ArrowTopRightOnSquareIcon,
   AcademicCapIcon,
   BookOpenIcon,
-  ChartBarIcon,
   InformationCircleIcon,
   MagnifyingGlassIcon,
   LockOpenIcon,
@@ -26,49 +26,48 @@ import {
 
 export const metadata: Metadata = {
   title: `About ${site.name}`,
-  description:
-    `Learn how ${site.name} supports FAIR-aligned spectroscopy discovery, attribution, and reuse across the synchrotron community.`,
+  description: `Learn how ${site.name} supports FAIR-aligned spectroscopy discovery, attribution, and reuse across the synchrotron community.`,
 };
 
 const aboutResourceCards = [
   {
-    href: "/wiki/home",
-    title: "Wiki home",
+    href: "/wiki",
+    title: "Start here",
     description:
-      "Living reference for NEXAFS concepts, terminology, and spectroscopy workflows used throughout the platform.",
+      "Wiki landing page with scope, the NEXAFS and Atlas branches, and how to cite hosted data.",
     icon: BookOpenIcon,
   },
   {
-    href: "/wiki/data-representation",
-    title: "Data representation and structure",
+    href: "/wiki/nexafs",
+    title: "Introduction to NEXAFS",
     description:
-      "How molecules, samples, spectra, provenance fields, and quality signals are represented in the database.",
+      "Core-level absorption, near-edge spectrum anatomy, and what NEXAFS measures in practice.",
     icon: RectangleStackIcon,
   },
   {
-    href: "/wiki/platform-features",
-    title: "Platform features",
+    href: "/wiki/nexafs/quantities",
+    title: "Measured and derived quantities",
     description:
-      "Search, browse, filtering, visualization, and analysis capabilities for NEXAFS and related X-ray datasets.",
+      "Definitions and interrelations for every absorption channel the catalog stores or derives.",
     icon: SparklesIcon,
   },
   {
-    href: "/wiki/contributions",
-    title: "Database contributions",
+    href: "/wiki/atlas",
+    title: "Using X-ray Atlas",
     description:
-      "Guidance for dataset contributors, metadata expectations, attribution, and scientific reproducibility practices.",
+      "Platform overview: search, visualization, quality signals, contribution flows, and the API.",
+    icon: MagnifyingGlassIcon,
+  },
+  {
+    href: "/wiki/atlas/contributing",
+    title: "Contributing datasets",
+    description:
+      "Guidance for dataset contributors, metadata expectations, attribution, and reproducibility practices.",
     icon: ArrowTopRightOnSquareIcon,
   },
   {
-    href: "/wiki/data-insights",
-    title: "Data Insights",
-    description:
-      "Vercel Speed Insights vocabulary for Core Web Vitals, Real Experience Score, percentiles, and how we track UX after deployments.",
-    icon: ChartBarIcon,
-  },
-  {
     href: "/wiki/api",
-    title: "API reference",
+    title: "API",
     description:
       "Versioned REST API documentation for researcher workflows, DOI-driven discovery, and pandas-ready dataset export.",
     icon: CodeBracketIcon,
@@ -125,7 +124,7 @@ function ProfileCard({ user }: { user: CoreMaintainerRow }) {
       <div className="flex flex-col items-center gap-2 text-center">
         <Link
           href={`/users/${user.id}`}
-          className="ring-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="ring-accent/30 focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
           aria-label={`Open profile for ${name}`}
         >
           {imageSrc ? (
@@ -186,13 +185,16 @@ export default async function AboutPage() {
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-12 space-y-4 text-center">
-          <h1 className="text-foreground mb-2 text-4xl font-bold sm:text-5xl">
-            About {site.name}
-          </h1>
-          <p className="text-muted mx-auto max-w-4xl text-left text-base leading-relaxed sm:text-lg">
-            {mission.canonical}
-          </p>
+        <div className="mb-12 space-y-6">
+          <div className="space-y-4 text-center">
+            <h1 className="text-foreground mb-2 text-4xl font-bold sm:text-5xl">
+              About {site.name}
+            </h1>
+            <p className="text-muted mx-auto max-w-4xl text-left text-base leading-relaxed sm:text-lg">
+              {mission.canonical}
+            </p>
+          </div>
+          <AboutWikiEntry />
         </div>
 
         <div className="space-y-12">
@@ -217,7 +219,9 @@ export default async function AboutPage() {
                         {principle.title}
                       </h3>
                     </div>
-                    <p className="text-muted text-sm">{principle.description}</p>
+                    <p className="text-muted text-sm">
+                      {principle.description}
+                    </p>
                   </article>
                 ))}
               </div>
@@ -307,7 +311,9 @@ export default async function AboutPage() {
                 >
                   <div className="mb-2 flex items-center gap-2">
                     <card.icon className="text-accent h-5 w-5" />
-                    <h3 className="text-foreground font-semibold">{card.title}</h3>
+                    <h3 className="text-foreground font-semibold">
+                      {card.title}
+                    </h3>
                   </div>
                   <p className="text-muted text-sm">{card.description}</p>
                 </Link>
@@ -327,8 +333,8 @@ export default async function AboutPage() {
                     Administrators
                   </h3>
                   <p className="text-muted text-sm">
-                    Users assigned the administrator lineage role steward platform
-                    operations alongside dataset publishing workflows.
+                    Users assigned the administrator lineage role steward
+                    platform operations alongside dataset publishing workflows.
                   </p>
                   {administrators.length > 0 ? (
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -348,8 +354,9 @@ export default async function AboutPage() {
                     Core maintainers
                   </h3>
                   <p className="text-muted text-sm">
-                    Maintainers guide scientific direction, review contributions,
-                    and coordinate releases for the open spectroscopy catalog.
+                    Maintainers guide scientific direction, review
+                    contributions, and coordinate releases for the open
+                    spectroscopy catalog.
                   </p>
                   {maintainersForDisplay.length > 0 ? (
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -358,8 +365,8 @@ export default async function AboutPage() {
                       ))}
                       {lineageUnassigned.length > 0 ? (
                         <p className="text-muted col-span-full text-xs">
-                          Some stewardship profiles are shown here while lineage role
-                          metadata finishes syncing.
+                          Some stewardship profiles are shown here while lineage
+                          role metadata finishes syncing.
                         </p>
                       ) : null}
                     </div>
@@ -394,7 +401,9 @@ export default async function AboutPage() {
                               {collaborator.name}
                             </Link>
                           ) : (
-                            <span className="text-foreground">{collaborator.name}</span>
+                            <span className="text-foreground">
+                              {collaborator.name}
+                            </span>
                           )}
                         </li>
                       ))}
@@ -465,7 +474,6 @@ export default async function AboutPage() {
               </p>
             </div>
           </section>
-
         </div>
       </div>
     </div>

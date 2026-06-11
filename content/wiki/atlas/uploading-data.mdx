@@ -1,0 +1,27 @@
+---
+title: Uploading spectroscopy
+description: CSV column mapping, geometry handling, and the downloadable template for NEXAFS uploads.
+order: 3
+lastReviewed: 2026-06-11
+---
+
+# Uploading spectroscopy
+
+Each uploaded trace is a table of photon-energy samples. The contribute flow
+maps CSV headers to `spectrumpoints` rows; energies must increase
+monotonically. Angle-resolved uploads use separate traces per geometry when
+`theta_deg` and `phi_deg` vary, or fixed angles set in the UI when those
+columns are omitted.
+
+## Expected column layout
+
+Header names are matched flexibly in the contribute mapper; the table below
+lists the conventional names used in exports and in the template.
+
+<UploadColumnsReference />
+
+## Related
+
+[Optical constants and Kramers-Kronig](/wiki/nexafs/optical-constants).
+[What the database stores](/wiki/atlas/data-model).
+[NEXAFS contribute flow](/contribute/nexafs).

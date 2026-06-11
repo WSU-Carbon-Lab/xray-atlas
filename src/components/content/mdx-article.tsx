@@ -9,6 +9,11 @@ import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import type { MDXComponents } from "mdx/types";
+import { CtaLink } from "~/components/content/embeds/cta-link";
+import { OpticalConstantsExample } from "~/components/content/embeds/optical-constants-example";
+import { SpectralSpacingDemo } from "~/components/content/embeds/spectral-spacing-demo";
+import { UploadColumnsReference } from "~/components/content/embeds/upload-columns-reference";
+import { WikiLandingHero } from "~/components/content/embeds/wiki-landing-hero";
 
 const CONTENT_ROOT = path.join(process.cwd(), "content");
 
@@ -106,6 +111,11 @@ function MdxTable({
 
 /** Shared MDX component map for wiki articles. */
 export const wikiMdxComponents: MDXComponents = {
+  CtaLink,
+  UploadColumnsReference,
+  OpticalConstantsExample,
+  SpectralSpacingDemo,
+  WikiLandingHero,
   h1: ({ children, className, ...props }) => (
     <h1
       {...props}
@@ -182,7 +192,10 @@ export const wikiMdxComponents: MDXComponents = {
   th: ({ children, className, ...props }) => (
     <th
       {...props}
-      className={cn("text-foreground px-3 py-2 text-left font-semibold", className)}
+      className={cn(
+        "text-foreground px-3 py-2 text-left font-semibold",
+        className,
+      )}
     >
       {children}
     </th>

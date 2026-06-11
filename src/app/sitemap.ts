@@ -27,7 +27,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
 
   const moleculeEntries: MetadataRoute.Sitemap = molecules.map((molecule) => {
-    const primarySynonym = molecule.moleculesynonyms[0]?.synonym?.trim() ?? molecule.id;
+    const primarySynonym =
+      molecule.moleculesynonyms[0]?.synonym?.trim() ?? molecule.id;
     const slug = slugifyMoleculeSynonym(primarySynonym);
     return {
       url: `${baseUrl}/molecules/${slug}`,
@@ -39,7 +40,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const facilityEntries: MetadataRoute.Sitemap = facilities.map((facility) => ({
     url: `${baseUrl}/facilities/${canonicalFacilitySlugFromName(facility.name)}`,
-  lastModified: now,
+    lastModified: now,
     changeFrequency: "weekly",
     priority: 0.65,
   }));
@@ -76,43 +77,61 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.75,
     },
     {
-      url: `${baseUrl}/wiki/home`,
+      url: `${baseUrl}/wiki`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.65,
     },
     {
-      url: `${baseUrl}/wiki/data-representation`,
+      url: `${baseUrl}/wiki/nexafs`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.65,
     },
     {
-      url: `${baseUrl}/wiki/data-representation/input-spectroscopy`,
+      url: `${baseUrl}/wiki/nexafs/terminology`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.6,
     },
     {
-      url: `${baseUrl}/wiki/data-representation/optical-constants`,
+      url: `${baseUrl}/wiki/nexafs/quantities`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.6,
     },
     {
-      url: `${baseUrl}/wiki/platform-features`,
+      url: `${baseUrl}/wiki/nexafs/optical-constants`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/wiki/atlas`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.65,
     },
     {
-      url: `${baseUrl}/wiki/contributions`,
+      url: `${baseUrl}/wiki/atlas/data-model`,
       lastModified: now,
       changeFrequency: "weekly",
-      priority: 0.65,
+      priority: 0.6,
     },
     {
-      url: `${baseUrl}/wiki/data-insights`,
+      url: `${baseUrl}/wiki/atlas/uploading-data`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/wiki/atlas/quality-metrics`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/wiki/atlas/contributing`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.65,

@@ -13,10 +13,11 @@ export type NexafsUploadTemplateColumn = {
   readonly tooltip: string;
 };
 
-export const NEXAFS_UPLOAD_TEMPLATE_CSV_PUBLIC_PATH = "/nexafs-upload-template.csv";
+export const NEXAFS_UPLOAD_TEMPLATE_CSV_PUBLIC_PATH =
+  "/nexafs-upload-template.csv";
 
 export const NEXAFS_UPLOAD_TEMPLATE_CSV_WIKI_PATH =
-  "/wiki/data-representation/input-spectroscopy/template";
+  "/wiki/atlas/uploading-data/template";
 
 export const NEXAFS_UPLOAD_TEMPLATE_COLUMNS: readonly NexafsUploadTemplateColumn[] =
   [
@@ -228,9 +229,9 @@ function formatNexafsUploadTemplateCsvCell(
  * Builds the UTF-8 CSV body for the public contribute template and wiki download route.
  */
 export function buildNexafsUploadTemplateCsv(): string {
-  const header = NEXAFS_UPLOAD_TEMPLATE_COLUMNS.map((column) => column.key).join(
-    ",",
-  );
+  const header = NEXAFS_UPLOAD_TEMPLATE_COLUMNS.map(
+    (column) => column.key,
+  ).join(",");
   const body = NEXAFS_UPLOAD_TEMPLATE_EXAMPLE_ROWS.map((row) =>
     NEXAFS_UPLOAD_TEMPLATE_COLUMNS.map((column) =>
       formatNexafsUploadTemplateCsvCell(column.key, row[column.key] ?? ""),

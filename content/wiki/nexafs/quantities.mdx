@@ -1,0 +1,106 @@
+---
+title: Measured and derived quantities
+description: Definitions, units, and interrelations for every absorption channel X-ray Atlas stores or derives.
+order: 3
+lastReviewed: 2026-06-11
+---
+
+# Measured and derived quantities
+
+NEXAFS measures X-ray absorption versus photon energy, but the literature and
+this database express that absorption in several interconvertible forms. This
+page defines each quantity, its units, and the relations the catalog uses.
+Photon energy $E$ is reported in electron volts throughout.
+
+## Absorption from transmission
+
+For a beam of intensity $I_0$ traversing a film of thickness $z$, the
+transmitted intensity follows the Beer-Lambert law
+
+$$
+I = I_0\, e^{-\mu(E)\, z},
+$$
+
+defining the linear absorption coefficient $\mu(E)$ with dimensions of inverse
+length. The catalog's **optical density** channel is the dimensionless
+attenuation
+
+$$
+\mathrm{OD}(E) = -\ln\!\bigl(I/I_0\bigr) = \mu(E)\, z .
+$$
+
+{/* [HUMAN] Confirm the OD logarithm convention used at ingest (natural log
+   versus log10) and state it here explicitly. The factor ln(10) matters when
+   comparing against literature absorbance values. */}
+
+The **mass absorption coefficient** $\mu/\rho$ (cm² g⁻¹) removes the density
+dependence and is the natural channel for comparing materials of different
+packing; it connects measured spectra to tabulated atomic values away from the
+near-edge region.
+
+## The complex index of refraction
+
+In the X-ray regime the index of refraction is written
+
+$$
+n(E) = 1 - \delta(E) + i\,\beta(E),
+$$
+
+with both $\delta$ and $\beta$ small and positive for most materials. The
+imaginary part carries absorption,
+
+$$
+\mu(E) = \frac{4\pi\,\beta(E)}{\lambda} = \frac{4\pi\,\beta(E)\,E}{hc},
+$$
+
+while $\delta$ governs refraction and phase. The two are not independent;
+causality links them through the Kramers-Kronig relations treated on
+[the optical constants page](/wiki/nexafs/optical-constants).
+
+## Atomic scattering factors
+
+For a material of atomic number density $n_a$, the optical constants relate to
+the complex atomic scattering factor $f = f_1 + i f_2$ through
+
+$$
+\delta = \frac{r_e \lambda^2}{2\pi}\, n_a\, f_1,
+\qquad
+\beta = \frac{r_e \lambda^2}{2\pi}\, n_a\, f_2,
+$$
+
+with $r_e$ the classical electron radius. For molecules the catalog computes
+$n_a$ from the chemical formula and the declared or assumed density, which is
+why formula metadata on a record enables the derived $f_1$ and $f_2$ channels.
+
+## Dielectric response
+
+To first order in the small quantities $\delta$ and $\beta$,
+
+$$
+\varepsilon(E) = n^2 \simeq 1 - 2\delta + 2i\beta,
+\qquad
+\chi(E) = \varepsilon - 1 \simeq -2\delta + 2i\beta,
+$$
+
+giving the dielectric function and susceptibility channels used in scattering
+analysis (resonant soft X-ray scattering contrast is built from differences in
+$\varepsilon$ between phases). For anisotropic, oriented materials these become
+tensor quantities; the scalar channels here describe the orientationally
+averaged response.
+
+## Persisted versus derived channels
+
+Browse plots expose an eleven-channel rail in three trays (spectroscopy,
+imaginary constants, real constants). **Persisted** channels are written at
+ingest or recalculation and plotted as stored, raw absorption, OD, mass
+absorption, $\beta$, and $\delta$, each with optional uncertainties.
+**Derived** channels, $f_1$, $f_2$, and the real and imaginary parts of
+$\varepsilon$ and $\chi$, are computed in the browser from stored $\beta$ and
+$\delta$ using the relations above and are not written back to the database.
+The mapping from uploaded columns to persisted fields is documented in
+[uploading spectroscopy](/wiki/atlas/uploading-data).
+
+## Related
+
+[Optical constants and Kramers-Kronig](/wiki/nexafs/optical-constants).
+[What the database stores](/wiki/atlas/data-model).

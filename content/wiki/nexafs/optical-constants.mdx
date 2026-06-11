@@ -1,0 +1,58 @@
+---
+title: Optical constants and Kramers-Kronig
+description: How beta and delta are connected by causality, how X-ray Atlas computes delta with kkcalc, and a live example over a catalog record.
+order: 4
+lastReviewed: 2026-06-11
+---
+
+# Optical constants and Kramers-Kronig
+
+The absorptive and dispersive parts of the index of refraction,
+$n(E) = 1 - \delta(E) + i\beta(E)$, are linked by causality. Measuring
+$\beta$ across an edge therefore determines $\delta$ up to the accuracy of the
+extrapolation beyond the measured range. X-ray Atlas computes $\delta$ from
+stored $\beta$ on request and persists the result alongside the spectrum.
+
+## Example spectrum
+
+<OpticalConstantsExample />
+
+## The Kramers-Kronig transform
+
+The real and imaginary parts satisfy the dispersion relation
+
+$$
+\delta(E) = \frac{2}{\pi}\;\mathcal{P}\!\!\int_0^{\infty}
+\frac{E'\,\beta(E')}{E'^{2} - E^{2}}\; dE',
+$$
+
+where $\mathcal{P}$ denotes the Cauchy principal value. Because the integral
+runs over all energies, the measured near-edge window is extended with
+tabulated atomic scattering factors away from the edge before transforming.
+The in-app implementation follows the piecewise polynomial method of
+kkcalc [@watts2014], adapted for browser execution.
+
+## Interpolation onto the measured grid
+
+When the Kramers-Kronig evaluation grid differs from the uploaded energy
+samples, $\delta$ is mapped onto the spectrum axis with modified Akima
+(makima) interpolation, which suppresses the overshoot cubic splines produce
+near sharp resonances
+([OSA Continuum summary](https://opg.optica.org/osac/abstract.cfm?uri=osac-4-5-1497)).
+
+## Recalculation in the app
+
+The transform runs in the browser during NEXAFS upload when the contributor
+opts in, or when an authorized user triggers recalculate on a dataset panel.
+Values persist on `spectrumpoints.delta` with optional `kk_delta_metadata` on
+the experiment row recording the run parameters.
+
+{/* [HUMAN] Document the extrapolation choices (bare-atom stitching ranges,
+   normalization windows) once the recalculation defaults are considered
+   stable. One short subsection with the parameters named. */}
+
+## Related
+
+[Measured and derived quantities](/wiki/nexafs/quantities).
+[Uploading spectroscopy](/wiki/atlas/uploading-data).
+[Browse NEXAFS](/browse/nexafs).
