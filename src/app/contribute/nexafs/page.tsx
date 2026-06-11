@@ -4,9 +4,8 @@ import { useSession } from "next-auth/react";
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { ContributionAgreementModal } from "@/components/contribute";
 import { trpc } from "~/trpc/client";
-import { BrushCleaning } from "lucide-react";
 import { Breadcrumbs } from "@heroui/react";
-import { Tooltip } from "@heroui/react";
+import { ContributeClearFormButton } from "~/components/forms";
 import { useToast, ToastContainer } from "@/components/ui/toast";
 import {
   useNexafsOptions,
@@ -231,19 +230,10 @@ export default function NEXAFSContributePage() {
               </Breadcrumbs.Item>
               <Breadcrumbs.Item>NEXAFS</Breadcrumbs.Item>
             </Breadcrumbs>
-            <Tooltip delay={0}>
-              <button
-                type="button"
-                onClick={clearForm}
-                className="border-border bg-surface text-foreground focus-visible:ring-accent hover:bg-default flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              >
-                <BrushCleaning className="h-4 w-4" />
-                <span>Clear Form</span>
-              </button>
-              <Tooltip.Content className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg">
-                Clear all uploaded datasets and reset the form
-              </Tooltip.Content>
-            </Tooltip>
+            <ContributeClearFormButton
+              onPress={clearForm}
+              tooltipDescription="Clear all uploaded datasets and reset the form"
+            />
           </div>
 
           <ToastContainer toasts={toasts} onRemove={removeToast} />

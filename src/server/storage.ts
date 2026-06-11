@@ -3,14 +3,7 @@ import { env } from "~/env";
 
 const BUCKET_NAME = "images";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_MIME_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "image/svg+xml",
-];
+const ALLOWED_MIME_TYPES = ["image/svg+xml"];
 
 // Create Supabase client with service role key for server-side operations
 const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -25,23 +18,18 @@ const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
  */
 function getExtensionFromMimeType(mimeType: string): string {
   const mimeToExt: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/jpg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-    "image/gif": "gif",
     "image/svg+xml": "svg",
   };
   return mimeToExt[mimeType.toLowerCase()] ?? "svg";
 }
 
 /**
- * Validates image file
+ * Validates molecule structure SVG uploads.
  */
 function validateImage(buffer: Buffer, mimeType: string): void {
   if (!ALLOWED_MIME_TYPES.includes(mimeType.toLowerCase())) {
     throw new Error(
-      `Invalid image type. Allowed types: ${ALLOWED_MIME_TYPES.join(", ")}`,
+      "Structure uploads must be SVG. PNG, JPEG, GIF, and WebP are not accepted.",
     );
   }
 
@@ -49,6 +37,11 @@ function validateImage(buffer: Buffer, mimeType: string): void {
     throw new Error(
       `Image size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`,
     );
+  }
+
+  const head = buffer.subarray(0, Math.min(buffer.length, 4096)).toString("utf8").trim();
+  if (!head.includes("<svg") && !head.includes("<?xml")) {
+    throw new Error("Uploaded file is not valid SVG markup.");
   }
 }
 

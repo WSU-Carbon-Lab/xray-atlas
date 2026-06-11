@@ -135,6 +135,7 @@ export const moleculesRouter = createTRPCRouter({
             )
             OR LOWER(COALESCE(m.casnumber, '')) = ${searchTermLower}
             OR LOWER(COALESCE(m.pubchemcid, '')) = ${searchTermLower}
+            OR LOWER(COALESCE(m.smiles, '')) = ${searchTermLower}
             OR (
               LENGTH(${searchTerm}) >= 3
               AND to_tsvector(
@@ -161,6 +162,7 @@ export const moleculesRouter = createTRPCRouter({
               CASE
                 WHEN LOWER(COALESCE(cm.casnumber, '')) = ${searchTermLower} THEN 12.0
                 WHEN LOWER(COALESCE(cm.pubchemcid, '')) = ${searchTermLower} THEN 11.0
+                WHEN LOWER(COALESCE(cm.smiles, '')) = ${searchTermLower} THEN 11.5
                 WHEN LOWER(cm.iupacname) = ${searchTermLower} THEN 10.0
                 WHEN LOWER(cm.iupacname) LIKE ${searchPattern} THEN 8.0
                 ELSE 0
@@ -201,6 +203,7 @@ export const moleculesRouter = createTRPCRouter({
             CASE
               WHEN LOWER(COALESCE(cm.casnumber, '')) = ${searchTermLower} THEN 'cas_exact'
               WHEN LOWER(COALESCE(cm.pubchemcid, '')) = ${searchTermLower} THEN 'pubchem_exact'
+              WHEN LOWER(COALESCE(cm.smiles, '')) = ${searchTermLower} THEN 'smiles_exact'
               WHEN LOWER(cm.iupacname) = ${searchTermLower} THEN 'name_exact'
               WHEN LOWER(cm.iupacname) LIKE ${searchPattern} THEN 'name_prefix'
               WHEN LENGTH(${searchTerm}) >= 3
@@ -552,11 +555,12 @@ export const moleculesRouter = createTRPCRouter({
     .input(
       z.object({
         moleculeId: z.string().uuid(),
-        imageData: z.string(), // Base64-encoded image data (data:image/jpeg;base64,...)
+        imageData: z
+          .string()
+          .max(16_000_000, "Structure SVG payload is too large"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if molecule exists
       const molecule = await ctx.db.molecules.findUnique({
         where: { id: input.moleculeId },
       });
@@ -568,7 +572,26 @@ export const moleculesRouter = createTRPCRouter({
         });
       }
 
-      // Parse base64 data URL
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+
+      const allowed = await checkCanEdit(
+        ctx.db,
+        input.moleculeId,
+        ctx.userId,
+        molecule.createdby,
+      );
+      if (!allowed) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to edit this molecule",
+        });
+      }
+
       const base64Regex = /^data:([^;]+);base64,(.+)$/;
       const base64Match = base64Regex.exec(input.imageData);
       if (!base64Match) {
@@ -580,6 +603,12 @@ export const moleculesRouter = createTRPCRouter({
       }
 
       const [, mimeType, base64Data] = base64Match;
+      if (mimeType?.toLowerCase() !== "image/svg+xml") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Structure uploads must be SVG (image/svg+xml).",
+        });
+      }
       const imageBuffer = Buffer.from(base64Data ?? "", "base64");
 
       // Delete old image if it exists
@@ -614,7 +643,6 @@ export const moleculesRouter = createTRPCRouter({
   deleteImage: protectedProcedure
     .input(z.object({ moleculeId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      // Check if molecule exists
       const molecule = await ctx.db.molecules.findUnique({
         where: { id: input.moleculeId },
       });
@@ -623,6 +651,26 @@ export const moleculesRouter = createTRPCRouter({
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Molecule not found",
+        });
+      }
+
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+
+      const allowed = await checkCanEdit(
+        ctx.db,
+        input.moleculeId,
+        ctx.userId,
+        molecule.createdby,
+      );
+      if (!allowed) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to edit this molecule",
         });
       }
 

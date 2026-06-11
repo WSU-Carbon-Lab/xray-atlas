@@ -123,6 +123,11 @@ export type MoleculeContributionFormProps = {
   className?: string;
 };
 
+/** Imperative handle for page-level clear controls on {@link MoleculeContributionForm}. */
+export type MoleculeContributionFormHandle = {
+  clearForm: () => void;
+};
+
 export type MoleculeContributePageProps = MoleculeContributionFormProps;
 
 export type NexafsSampleVendorOption = {

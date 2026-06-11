@@ -20,6 +20,10 @@ export { FACILITY_TYPE_OPTIONS, INSTRUMENT_STATUS_OPTIONS } from "./constants";
 export { FacilityIdentitySection } from "./facility-identity-section";
 export { InstrumentFieldsBlock } from "./instrument-fields-block";
 export { InstrumentContributionForm } from "./instrument-contribution-form";
+export {
+  ContributeClearFormButton,
+  type ContributeClearFormButtonProps,
+} from "./contribute-clear-form-button";
 export { MoleculeContributionForm } from "./molecule-contribution-form";
 export { NexafsCreateCalibrationDialog } from "./nexafs-create-calibration-dialog";
 export { NexafsCreateEdgeDialog } from "./nexafs-create-edge-dialog";
@@ -39,6 +43,7 @@ export {
 } from "./use-instrument-name-availability";
 export type {
   MoleculeContributionFormProps,
+  MoleculeContributionFormHandle,
   MoleculeContributePageProps,
   NexafsCreateCalibrationDialogProps,
   NexafsCreateEdgeDialogProps,

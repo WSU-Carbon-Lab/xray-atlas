@@ -1,11 +1,21 @@
 "use client";
 
+import { useRef } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Breadcrumbs } from "@heroui/react";
+import { BeakerIcon } from "@heroicons/react/24/outline";
+import { site } from "~/app/brand";
 import { ContributionAgreementModal } from "~/components/contribute";
-import { MoleculeContributionForm } from "~/components/forms";
-import type { MoleculeContributePageProps } from "~/components/forms";
+import {
+  ContributeClearFormButton,
+  MoleculeContributionForm,
+} from "~/components/forms";
+import type {
+  MoleculeContributePageProps,
+  MoleculeContributionFormHandle,
+} from "~/components/forms";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
 
 export type { MoleculeContributePageProps };
@@ -16,6 +26,7 @@ export default function MoleculeContributePage({
   onClose,
 }: MoleculeContributePageProps = {}) {
   const router = useRouter();
+  const formRef = useRef<MoleculeContributionFormHandle>(null);
   const { data: session } = useSession();
   const isSignedIn = !!session?.user;
   const isModal = variant === "modal";
@@ -41,10 +52,10 @@ export default function MoleculeContributePage({
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-foreground mb-4 text-4xl font-bold">
-          Contribute Molecule
+          Molecule registry
         </h1>
         <p className="text-muted mb-8">
-          Please sign in to contribute molecules to the X-ray Atlas database.
+          Sign in to link molecules into the {site.name} catalog.
         </p>
       </div>
     );
@@ -61,29 +72,53 @@ export default function MoleculeContributePage({
       <div className={`${isModal ? "" : "container mx-auto"} px-4 py-8`}>
         <div className="mx-auto max-w-4xl">
           {!isModal ? (
-            <div className="mb-6">
+            <div className="mb-6 flex items-center justify-between">
               <Breadcrumbs className="text-sm font-medium">
                 <Breadcrumbs.Item href="/contribute">
                   Contributions
                 </Breadcrumbs.Item>
-                <Breadcrumbs.Item>Molecule</Breadcrumbs.Item>
+                <Breadcrumbs.Item>Molecule registry</Breadcrumbs.Item>
               </Breadcrumbs>
+              {canContribute ? (
+                <ContributeClearFormButton
+                  onPress={() => formRef.current?.clearForm()}
+                  tooltipDescription="Reset registry identity and form fields"
+                />
+              ) : null}
             </div>
           ) : null}
-          <h1 className="text-foreground mb-2 text-3xl font-bold sm:text-4xl">
-            Contribute molecule
-          </h1>
-          <p className="text-muted mb-8 max-w-xl text-sm">
-            Search by common name or PubChem CID to fill identifiers, then
-            review and submit. Drag a molecule JSON or CSV onto the page to
-            import fields.
-          </p>
+          <div className="mb-8 flex items-start gap-4">
+            <span
+              className="text-accent bg-accent/10 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
+              aria-hidden
+            >
+              <BeakerIcon className="h-6 w-6 stroke-[1.75]" />
+            </span>
+            <div>
+              <h1 className="text-foreground mb-3 text-3xl font-bold sm:text-4xl">
+                Link molecule to Atlas
+              </h1>
+              <p className="text-muted max-w-2xl text-lg">
+                Register or update compound metadata in the {site.name} catalog:
+                identifiers, synonyms, optional tags, and an SVG depiction. For
+                NEXAFS spectra and experiment files, use{" "}
+                <Link
+                  href="/contribute/nexafs"
+                  className="text-accent hover:underline"
+                >
+                  Contribute NEXAFS
+                </Link>
+                .
+              </p>
+            </div>
+          </div>
           {isCheckingAgreement ? (
             <p className="text-muted text-sm">
-              Checking contribution agreement status...
+              Checking contribution agreement status…
             </p>
           ) : canContribute ? (
             <MoleculeContributionForm
+              ref={formRef}
               variant={variant}
               onCompleted={onCompleted}
               onClose={onClose}
