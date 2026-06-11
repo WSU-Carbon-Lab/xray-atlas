@@ -37,27 +37,6 @@ export default function SandboxPage() {
               Hex color selector
             </Link>
           </li>
-          <li>
-            <Link
-              href="/sandbox/molecule-draw"
-              className="text-accent hover:underline"
-            >
-              Molecule drawer
-            </Link>
-            <span className="text-muted"> — primary interactive sketcher</span>
-          </li>
-          <li>
-            <Link
-              href="/sandbox/molecule-structure"
-              className="text-accent hover:underline"
-            >
-              Molecule structure lab
-            </Link>
-            <span className="text-muted">
-              {" "}
-              — catalog compare, fragmentation, block strip
-            </span>
-          </li>
         </ul>
         <div className="mt-6">
           <Link

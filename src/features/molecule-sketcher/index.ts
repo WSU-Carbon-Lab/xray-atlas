@@ -1,27 +1,23 @@
 /**
  * Molecule sketcher feature: in-app structure authoring, cached SVG depictions,
- * SMILES outputs, block-component display, and sandbox labs. Surfaces are composed
- * from `src/app` routes; contribute integration UI lands in later pipeline phases.
+ * SMILES outputs, block-component display, and contribute integration surfaces.
  */
 
 export { MoleculeDrawCanvas } from "./components/molecule-draw-canvas";
-export { MoleculeDrawLab } from "./components/molecule-draw-lab";
 export { MoleculeDrawToolbar } from "./components/molecule-draw-toolbar";
-export { MoleculeSketcherLab } from "./components/molecule-sketcher-lab";
 export {
   BigSmilesBlockCard,
   BigSmilesComponentsStrip,
   BlockStructureDepiction,
-  BIGSMILES_MOCK_PRESETS,
   BLOCK_LABELS,
   blockAccentColor,
-  fragmentationResultToComponentsModel,
   fragmentsToBlockRecords,
 } from "./bigsmiles";
 export type {
   BigSmilesBlockRecord,
   BigSmilesComponentsModel,
   BigSmilesTopologyKind,
+  FragmentLikeRecord,
 } from "./bigsmiles";
 export { useMoleculeDrawState } from "./hooks/use-molecule-draw-state";
 export type {
@@ -60,7 +56,6 @@ export {
   SUPPORTED_CAGE_CARBON_COUNTS,
 } from "./utils/cage-smiles";
 export type { CageSmilesFailure, CageSmilesResult, CageSmilesSuccess } from "./utils/cage-smiles";
-export { chunkCutResultToComponentsModel } from "./utils/draw-chunks-to-components-model";
 export {
   buildDatabaseDepictionSvg,
   buildDrawCanvasOclDepiction,
@@ -81,13 +76,6 @@ export type {
   MoleculeDatabasePrepAssessment,
   PrepareForDatabaseCounts,
 } from "./utils/molecule-graph-editing";
-
-export {
-  FRAGMENTATION_POLICY_VERSION,
-  formatBondLabel,
-  fragmentMoleculeByBondIndices,
-  listCandidateCutBonds,
-} from "./utils/smiles-fragmentation";
 export {
   snapshotConformerToFlatSvg,
   removeOccludedBondsFromMolecule,

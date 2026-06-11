@@ -1,7 +1,5 @@
-import type { FragmentationResult } from "~/features/molecule-sketcher/utils/smiles-fragmentation";
-
 import { BLOCK_LABELS } from "../constants";
-import type { BigSmilesBlockRecord, BigSmilesComponentsModel } from "../types";
+import type { BigSmilesBlockRecord } from "../types";
 
 export type FragmentLikeRecord = {
   index: number;
@@ -10,9 +8,9 @@ export type FragmentLikeRecord = {
 };
 
 /**
- * Maps fragmentation-lab fragment rows to labeled block cards (A, B, C, D).
+ * Maps polymer fragment rows to labeled block cards (A, B, C, D).
  *
- * @param fragments - Fragment records from SMILES fragmentation output.
+ * @param fragments - Fragment records from draw-canvas block cuts or SMILES fragmentation.
  * @returns Block records with orientation hints derived from cut labels.
  */
 export function fragmentsToBlockRecords(
@@ -32,22 +30,4 @@ export function fragmentsToBlockRecords(
       bondDescriptor: fragment.cutLabels.length > 0 ? "[<]...[>]" : null,
     };
   });
-}
-
-/**
- * Builds a BigSMILES components strip model from SMILES fragmentation output.
- *
- * @param result - Fragmentation result from `fragmentMoleculeByBondIndices`.
- * @returns Strip model with topology inferred from fragment count and a joined SMILES preview.
- */
-export function fragmentationResultToComponentsModel(
-  result: FragmentationResult,
-): BigSmilesComponentsModel {
-  const blocks = fragmentsToBlockRecords(result.fragments);
-  return {
-    topology: blocks.length === 1 ? "homopolymer" : "block_copolymer",
-    blocks,
-    rawNotationPreview: result.fragments.map((fragment) => fragment.smiles).join(" | "),
-    sourceLabel: `Fragmentation (${result.policyVersion})`,
-  };
 }
