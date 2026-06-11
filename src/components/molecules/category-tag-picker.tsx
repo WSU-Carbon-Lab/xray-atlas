@@ -110,6 +110,8 @@ function PendingTagColorPicker({
   );
 }
 
+export type CategoryTagsMultiSelectLayout = "inline" | "stacked";
+
 export interface CategoryTagsMultiSelectProps {
   allTags: CategoryTagPickerTag[];
   selectedTagIds: Set<string>;
@@ -120,6 +122,7 @@ export interface CategoryTagsMultiSelectProps {
   isLoading?: boolean;
   className?: string;
   ariaLabel?: string;
+  layout?: CategoryTagsMultiSelectLayout;
 }
 
 export function CategoryTagsMultiSelect({
@@ -132,6 +135,7 @@ export function CategoryTagsMultiSelect({
   isLoading = false,
   className = "",
   ariaLabel = "Category tags",
+  layout = "inline",
 }: CategoryTagsMultiSelectProps) {
   const [search, setSearch] = useState("");
 
@@ -311,8 +315,18 @@ export function CategoryTagsMultiSelect({
 
   const tagStrip =
     totalCount > 0 ? (
-      <div className="border-border bg-surface-2 shadow-sm flex min-h-10 min-w-0 flex-1 items-center rounded-lg border">
-        <div className="scrollshadow-tags-x flex max-h-11 min-h-10 min-w-0 flex-1 flex-nowrap items-center gap-1.5 px-2 py-1">
+      <div
+        className={`border-border bg-surface flex min-h-10 min-w-0 items-center rounded-xl border ${
+          layout === "stacked" ? "w-full" : "bg-surface-2 shadow-sm flex-1"
+        }`}
+      >
+        <div
+          className={`scrollshadow-tags-x flex min-h-10 min-w-0 gap-1.5 px-2 py-1.5 ${
+            layout === "stacked"
+              ? "max-h-32 w-full flex-wrap items-center overflow-y-auto overscroll-contain"
+              : "max-h-11 flex-1 flex-nowrap items-center"
+          }`}
+        >
           {selectedServerTags.map((tag) => {
             const chipClass = getTagChipClass(tag);
             const inlineStyle = getTagInlineStyle(tag);
@@ -365,102 +379,116 @@ export function CategoryTagsMultiSelect({
       </div>
     ) : null;
 
+  const pickerTrigger = (
+    <PopoverMenu
+      align="start"
+      contentClassName="w-[min(100vw-2rem,20rem)]"
+      renderTrigger={({ triggerProps, isOpen }) => (
+        <button
+          {...triggerProps}
+          aria-label={ariaLabel}
+          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-10 w-full cursor-pointer items-center gap-2 rounded-xl border px-3 text-left transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+            layout === "inline" ? "min-w-[10rem]" : ""
+          } ${totalCount > 0 ? "border-accent/30 bg-accent/5" : ""}`}
+        >
+          <TagIcon className="text-muted h-5 w-5 shrink-0" aria-hidden />
+          <span
+            className="text-sm font-medium"
+            title={
+              deferNewTagPersistence
+                ? "Search and select tags. New names stay local until you upload the molecule."
+                : "Search and select tags. New names create a tag in the database when added."
+            }
+          >
+            {layout === "stacked" ? "Browse tags" : "Tags"}
+          </span>
+          {totalCount > 0 ? (
+            <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
+              {totalCount}
+            </span>
+          ) : null}
+          <ChevronDownIcon className="text-muted ml-auto h-4 w-4 shrink-0" />
+          <span className="sr-only">
+            {isOpen ? "Close category tag menu" : "Open category tag menu"}
+          </span>
+        </button>
+      )}
+      renderContent={({ contentPositionClassName, contentProps }) => (
+        <PopoverMenuContent
+          {...contentProps}
+          className={`${contentPositionClassName} max-h-[min(320px,60vh)] w-[min(100vw-2rem,20rem)] py-1`}
+        >
+          {topBlock ? (
+            <div className="border-border border-b px-1 py-1">{topBlock}</div>
+          ) : null}
+          <div
+            aria-label={ariaLabel}
+            className="max-h-[min(220px,45vh)] overflow-y-auto py-0.5"
+          >
+            {filteredMenuTags.length === 0 ? (
+              <div className="text-muted min-h-0 cursor-default px-3 py-2 text-sm">
+                {isLoading ? "Loading…" : "No tags"}
+              </div>
+            ) : (
+              filteredMenuTags.map((tag) => {
+                const chipClass = getTagChipClass(tag);
+                const inlineStyle = getTagInlineStyle(tag);
+                const selected = selectedTagIds.has(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => {
+                      const next = new Set(selectedTagIds);
+                      if (next.has(tag.id)) {
+                        next.delete(tag.id);
+                      } else {
+                        next.add(tag.id);
+                      }
+                      onSelectedTagIdsChange(next);
+                    }}
+                    className={`min-h-0 w-full rounded-md px-3 py-1 text-left ${
+                      selected
+                        ? "bg-accent/15 ring-accent/40 ring-1"
+                        : "hover:bg-default"
+                    }`}
+                  >
+                    <span className="mr-2 inline-block w-3 text-xs">
+                      {selected ? "✓" : ""}
+                    </span>
+                    <span
+                      className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
+                      style={inlineStyle}
+                    >
+                      {tag.name}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </PopoverMenuContent>
+      )}
+    />
+  );
+
+  if (layout === "stacked") {
+    return (
+      <div className={`border-border bg-surface space-y-3 rounded-xl border p-3 ${className}`}>
+        {tagStrip ?? (
+          <p className="text-muted min-h-10 text-sm">
+            Selected tags appear here. Use Browse tags to add filters.
+          </p>
+        )}
+        {pickerTrigger}
+      </div>
+    );
+  }
+
   return (
     <div className={className}>
       <div className="flex w-full min-w-0 flex-nowrap items-stretch gap-2">
-        <div className="max-w-xs shrink-0">
-          <PopoverMenu
-            align="start"
-            contentClassName="w-[min(100vw-2rem,20rem)]"
-            renderTrigger={({ triggerProps, isOpen }) => (
-              <button
-                {...triggerProps}
-                aria-label={ariaLabel}
-                className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-10 min-w-[10rem] cursor-pointer items-center gap-2 rounded-xl border px-3 text-left transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${totalCount > 0 ? "border-accent/30 bg-accent/5" : ""}`}
-              >
-                <TagIcon
-                  className="text-muted h-5 w-5 shrink-0"
-                  aria-hidden
-                />
-                <span
-                  className="text-sm font-medium"
-                  title={
-                    deferNewTagPersistence
-                      ? "Search and select tags. New names stay local until you upload the molecule."
-                      : "Search and select tags. New names create a tag in the database when added."
-                  }
-                >
-                  Tags
-                </span>
-                {totalCount > 0 ? (
-                  <span className="bg-accent text-accent-foreground ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums">
-                    {totalCount}
-                  </span>
-                ) : null}
-                <ChevronDownIcon className="text-muted ml-auto h-4 w-4 shrink-0" />
-                <span className="sr-only">
-                  {isOpen ? "Close category tag menu" : "Open category tag menu"}
-                </span>
-              </button>
-            )}
-            renderContent={({ contentPositionClassName, contentProps }) => (
-              <PopoverMenuContent
-                {...contentProps}
-                className={`${contentPositionClassName} max-h-[min(320px,60vh)] w-[min(100vw-2rem,20rem)] py-1`}
-              >
-                {topBlock ? (
-                  <div className="border-border border-b px-1 py-1">{topBlock}</div>
-                ) : null}
-                <div
-                  aria-label={ariaLabel}
-                  className="max-h-[min(220px,45vh)] overflow-y-auto py-0.5"
-                >
-                  {filteredMenuTags.length === 0 ? (
-                    <div className="text-muted min-h-0 cursor-default px-3 py-2 text-sm">
-                      {isLoading ? "Loading…" : "No tags"}
-                    </div>
-                  ) : (
-                    filteredMenuTags.map((tag) => {
-                      const chipClass = getTagChipClass(tag);
-                      const inlineStyle = getTagInlineStyle(tag);
-                      const selected = selectedTagIds.has(tag.id);
-                      return (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          onClick={() => {
-                            const next = new Set(selectedTagIds);
-                            if (next.has(tag.id)) {
-                              next.delete(tag.id);
-                            } else {
-                              next.add(tag.id);
-                            }
-                            onSelectedTagIdsChange(next);
-                          }}
-                          className={`min-h-0 w-full rounded-md px-3 py-1 text-left ${
-                            selected
-                              ? "bg-accent/15 ring-accent/40 ring-1"
-                              : "hover:bg-default"
-                          }`}
-                        >
-                          <span className="mr-2 inline-block w-3 text-xs">
-                            {selected ? "✓" : ""}
-                          </span>
-                          <span
-                            className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${chipClass}`}
-                            style={inlineStyle}
-                          >
-                            {tag.name}
-                          </span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </PopoverMenuContent>
-            )}
-          />
-        </div>
+        <div className="max-w-xs shrink-0">{pickerTrigger}</div>
         {tagStrip}
       </div>
     </div>
