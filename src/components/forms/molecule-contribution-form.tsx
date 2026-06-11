@@ -84,13 +84,17 @@ export function MoleculeContributionForm({
     editingMoleculeId,
     resolvedIdentity,
     pendingLookup,
-    setPendingLookup,
+    identityFsm,
+    dispatchIdentity,
     polymerKindSuggested,
+    chemistryWarnings,
     searchFeedback,
     setSearchFeedback,
-    clearSearchFeedback,
+    clearTransientSearch,
+    queuePendingLookup,
     applyPendingLookup,
     dismissPendingLookup,
+    markIdentityDirty,
     promoteSynonym,
     handleCompoundKindChange,
     resetWorkflow,
@@ -184,7 +188,7 @@ export function MoleculeContributionForm({
     async (file: File) => {
       try {
         const parsed = await parseMoleculeJsonFile(file);
-        clearSearchFeedback();
+        clearTransientSearch();
         setFormData((prev) => ({
           ...prev,
           commonName: parsed.commonName || prev.commonName,
@@ -209,14 +213,14 @@ export function MoleculeContributionForm({
         });
       }
     },
-    [clearSearchFeedback, setFormData, setPendingTags, setSearchFeedback],
+    [clearTransientSearch, setFormData, setPendingTags, setSearchFeedback],
   );
 
   const handleCsvDropped = useCallback(
     async (file: File) => {
       try {
         const parsed = await parseMoleculeCsvFile(file);
-        clearSearchFeedback();
+        clearTransientSearch();
         setFormData((prev) => ({
           ...prev,
           commonName: parsed.commonName || prev.commonName,
@@ -241,7 +245,7 @@ export function MoleculeContributionForm({
         });
       }
     },
-    [clearSearchFeedback, setFormData, setPendingTags, setSearchFeedback],
+    [clearTransientSearch, setFormData, setPendingTags, setSearchFeedback],
   );
 
   useEffect(() => {
@@ -493,12 +497,17 @@ export function MoleculeContributionForm({
               formData={formData}
               structureSmiles={formData.smiles}
               onStructureLookupBusyChange={setStructureLookupBusy}
-              onFormDataChange={setFormData}
+              onFormDataChange={(updater) => {
+                setFormData(updater);
+                markIdentityDirty();
+              }}
               editingMoleculeId={editingMoleculeId}
               onEditingMoleculeIdChange={() => undefined}
-              onPendingLookup={setPendingLookup}
+              identityFsm={identityFsm}
+              dispatchIdentity={dispatchIdentity}
+              onPendingLookup={queuePendingLookup}
               onSearchComplete={setSearchFeedback}
-              onClearSearchFeedback={clearSearchFeedback}
+              onClearSearchFeedback={clearTransientSearch}
             />
 
             {pendingLookup ? (
@@ -527,7 +536,7 @@ export function MoleculeContributionForm({
             {showIdentityCard ? (
               <MoleculeResolvedIdentityCard
                 identity={resolvedIdentity}
-                warnings={searchFeedback.searchWarnings}
+                warnings={[...searchFeedback.searchWarnings, ...chemistryWarnings]}
                 compoundKind={compoundKind}
                 onCompoundKindChange={handleCompoundKindChange}
                 chemicalFormula={formData.chemicalFormula}
@@ -535,6 +544,7 @@ export function MoleculeContributionForm({
                 onRegistryStubChange={handleRegistryStubChange}
                 hasStructure={hasStructure}
                 polymerKindSuggested={polymerKindSuggested}
+                previewSnapshot={identityFsm.previewSnapshot}
               />
             ) : null}
 

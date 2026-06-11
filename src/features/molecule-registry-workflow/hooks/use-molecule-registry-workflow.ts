@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useReducer, useState } from "react";
 import type { MoleculePendingTag } from "~/components/molecules/category-tags";
 import { normalizeMoleculeSynonym } from "~/lib/molecule-synonym-dedupe";
 import {
@@ -10,6 +10,14 @@ import {
 } from "~/lib/molecule-compound-kind";
 import type { MoleculeUploadData } from "~/types/upload";
 import { formatFormulaForCompoundKind } from "../utils/compound-kind-suggestion";
+import { validateChemistryConsistency } from "../utils/chemistry-consistency";
+import {
+  MOLECULE_IDENTITY_FSM_INITIAL,
+  reduceMoleculeIdentityFsm,
+  type MoleculeIdentityFsmAction,
+  type MoleculeIdentityFsmState,
+  type MoleculeIdentityPhase,
+} from "../utils/identity-workflow-fsm";
 import { promoteSynonymToPreferredName } from "../utils/lookup-form-helpers";
 import type {
   MoleculePendingLookup,
@@ -40,35 +48,33 @@ export type UseMoleculeRegistryWorkflowResult = {
   recordImportedSynonyms: (synonyms: string[]) => void;
   editingMoleculeId: string | null;
   setEditingMoleculeId: (id: string | null) => void;
+  identityPhase: MoleculeIdentityPhase;
+  identityFsm: MoleculeIdentityFsmState;
+  dispatchIdentity: (action: MoleculeIdentityFsmAction) => void;
   resolvedIdentity: MoleculeResolvedIdentity | null;
   pendingLookup: MoleculePendingLookup | null;
   setPendingLookup: React.Dispatch<
     React.SetStateAction<MoleculePendingLookup | null>
   >;
   polymerKindSuggested: boolean;
+  chemistryWarnings: string[];
   searchFeedback: MoleculeRegistrySearchFeedback;
   setSearchFeedback: React.Dispatch<
     React.SetStateAction<MoleculeRegistrySearchFeedback>
   >;
-  clearSearchFeedback: () => void;
+  clearTransientSearch: () => void;
+  queuePendingLookup: (pending: MoleculePendingLookup) => void;
   applyPendingLookup: () => void;
   dismissPendingLookup: () => void;
+  markIdentityDirty: () => void;
   promoteSynonym: (synonym: string) => void;
   handleCompoundKindChange: (kind: MoleculeCompoundKind) => void;
   resetWorkflow: () => void;
 };
 
-const EMPTY_FEEDBACK: MoleculeRegistrySearchFeedback = {
-  searchError: null,
-  searchSuccess: null,
-  searchWarnings: [],
-  pubChemUrl: null,
-  resolvedIdentity: null,
-};
-
 /**
- * Orchestrates registry contribute form state: identity lookup confirmation,
- * synonym promotion, and compound-kind suggestions.
+ * Orchestrates registry contribute form state with an explicit identity FSM:
+ * search query isolation, confirmation-before-apply, linked identity, and dirty edits.
  */
 export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult {
   const [formData, setFormData] = useState<MoleculeUploadData>(
@@ -81,13 +87,42 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
   const [editingMoleculeId, setEditingMoleculeId] = useState<string | null>(
     null,
   );
-  const [resolvedIdentity, setResolvedIdentity] =
-    useState<MoleculeResolvedIdentity | null>(null);
-  const [pendingLookup, setPendingLookup] =
-    useState<MoleculePendingLookup | null>(null);
-  const [polymerKindSuggested, setPolymerKindSuggested] = useState(false);
-  const [searchFeedback, setSearchFeedback] =
-    useState<MoleculeRegistrySearchFeedback>(EMPTY_FEEDBACK);
+  const [identityFsm, dispatchIdentity] = useReducer(
+    reduceMoleculeIdentityFsm,
+    MOLECULE_IDENTITY_FSM_INITIAL,
+  );
+
+  const resolvedIdentity = identityFsm.linkedIdentity;
+  const pendingLookup = identityFsm.pendingLookup;
+  const polymerKindSuggested = identityFsm.polymerKindSuggested;
+  const chemistryWarnings = identityFsm.chemistryWarnings;
+  const searchFeedback = identityFsm.searchFeedback;
+
+  const setSearchFeedback = useCallback(
+    (updater: React.SetStateAction<MoleculeRegistrySearchFeedback>) => {
+      dispatchIdentity({
+        type: "set_search_feedback",
+        feedback:
+          typeof updater === "function"
+            ? updater(identityFsm.searchFeedback)
+            : updater,
+      });
+    },
+    [identityFsm.searchFeedback],
+  );
+
+  const setPendingLookup = useCallback(
+    (updater: React.SetStateAction<MoleculePendingLookup | null>) => {
+      const next =
+        typeof updater === "function" ? updater(identityFsm.pendingLookup) : updater;
+      if (next === null) {
+        dispatchIdentity({ type: "dismiss_match" });
+      } else {
+        dispatchIdentity({ type: "queue_match", pending: next });
+      }
+    },
+    [identityFsm.pendingLookup],
+  );
 
   const recordImportedSynonyms = useCallback((synonyms: string[]) => {
     const normalized = synonyms
@@ -103,15 +138,16 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
     });
   }, []);
 
-  const clearSearchFeedback = useCallback(() => {
-    setSearchFeedback(EMPTY_FEEDBACK);
-    setResolvedIdentity(null);
-    setPolymerKindSuggested(false);
-    setPendingLookup(null);
+  const clearTransientSearch = useCallback(() => {
+    dispatchIdentity({ type: "clear_transient_search" });
+  }, []);
+
+  const queuePendingLookup = useCallback((pending: MoleculePendingLookup) => {
+    dispatchIdentity({ type: "queue_match", pending });
   }, []);
 
   const applyPendingLookup = useCallback(() => {
-    const pending = pendingLookup;
+    const pending = identityFsm.pendingLookup;
     if (!pending) {
       return;
     }
@@ -138,26 +174,50 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
       }
       return merged;
     });
-    setPolymerKindSuggested(
-      pending.compoundKindSuggestion?.suggested === true,
-    );
-    setResolvedIdentity(pending.identity);
-    setSearchFeedback({
-      searchError: null,
-      searchSuccess: null,
-      searchWarnings: pending.warnings,
-      pubChemUrl: pending.pubChemUrl,
-      resolvedIdentity: pending.identity,
+    const mergedForm: MoleculeUploadData = (() => {
+      const merged = {
+        ...formData,
+        ...pending.formPatch,
+        tagIds:
+          pending.tagIds.length > 0 ? pending.tagIds : (formData.tagIds ?? []),
+      };
+      if (pending.compoundKindSuggestion?.suggested) {
+        return {
+          ...merged,
+          compoundKind: pending.compoundKindSuggestion.kind,
+          chemicalFormula: formatFormulaForCompoundKind(
+            merged.chemicalFormula,
+            pending.compoundKindSuggestion.kind,
+          ),
+        };
+      }
+      return merged;
+    })();
+    if (pending.compoundKindSuggestion?.suggested) {
+      dispatchIdentity({
+        type: "set_polymer_kind_suggested",
+        suggested: true,
+      });
+    }
+    const chemistry = validateChemistryConsistency(mergedForm);
+    const warnings = [...pending.warnings, ...chemistry.warnings];
+    dispatchIdentity({
+      type: "apply_match",
+      identity: pending.identity,
+      warnings,
     });
-    setPendingLookup(null);
-  }, [pendingLookup, recordImportedSynonyms]);
+    dispatchIdentity({
+      type: "set_search_query",
+      query: mergedForm.commonName.trim(),
+    });
+  }, [formData, identityFsm.pendingLookup, recordImportedSynonyms]);
 
   const dismissPendingLookup = useCallback(() => {
-    setPendingLookup(null);
-    setSearchFeedback((prev) => ({
-      ...prev,
-      searchSuccess: null,
-    }));
+    dispatchIdentity({ type: "dismiss_match" });
+  }, []);
+
+  const markIdentityDirty = useCallback(() => {
+    dispatchIdentity({ type: "mark_dirty" });
   }, []);
 
   const promoteSynonym = useCallback((synonym: string) => {
@@ -174,6 +234,7 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
           : prev.iupacName;
       return { ...prev, commonName, synonyms, iupacName: iupac };
     });
+    dispatchIdentity({ type: "mark_dirty" });
   }, []);
 
   const handleCompoundKindChange = useCallback((kind: MoleculeCompoundKind) => {
@@ -185,7 +246,8 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
         kind,
       ),
     }));
-    setPolymerKindSuggested(false);
+    dispatchIdentity({ type: "set_polymer_kind_suggested", suggested: false });
+    dispatchIdentity({ type: "mark_dirty" });
   }, []);
 
   const resetWorkflow = useCallback(() => {
@@ -193,10 +255,7 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
     setPendingTags([]);
     setImportedSynonyms(new Set());
     setEditingMoleculeId(null);
-    setPolymerKindSuggested(false);
-    setPendingLookup(null);
-    setSearchFeedback(EMPTY_FEEDBACK);
-    setResolvedIdentity(null);
+    dispatchIdentity({ type: "reset" });
   }, []);
 
   return {
@@ -208,15 +267,21 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
     recordImportedSynonyms,
     editingMoleculeId,
     setEditingMoleculeId,
+    identityPhase: identityFsm.phase,
+    identityFsm,
+    dispatchIdentity,
     resolvedIdentity,
     pendingLookup,
     setPendingLookup,
     polymerKindSuggested,
+    chemistryWarnings,
     searchFeedback,
     setSearchFeedback,
-    clearSearchFeedback,
+    clearTransientSearch,
+    queuePendingLookup,
     applyPendingLookup,
     dismissPendingLookup,
+    markIdentityDirty,
     promoteSynonym,
     handleCompoundKindChange,
     resetWorkflow,

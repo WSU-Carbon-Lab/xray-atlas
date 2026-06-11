@@ -15,6 +15,7 @@ export {
 export { MoleculeLookupConfirmation } from "./components/molecule-lookup-confirmation";
 export { MoleculePreferredIdentity } from "./components/molecule-preferred-identity";
 export { MoleculeStructureSearchTab } from "./components/molecule-structure-search-tab";
+export { RegistryDepictionThumbnail } from "./components/registry-depiction-thumbnail";
 
 export {
   applyPubChemResultToForm,
@@ -29,6 +30,31 @@ export {
 } from "./utils/pubchem-session-cache";
 
 export { createLookupRequestGeneration } from "./utils/lookup-request-generation";
+
+export type {
+  MoleculeIdentityPreviewSnapshot,
+  MoleculeIdentityPhase,
+  MoleculeIdentityFsmAction,
+  MoleculeIdentityFsmState,
+} from "./utils/identity-workflow-fsm";
+
+export {
+  MOLECULE_IDENTITY_FSM_INITIAL,
+  reduceMoleculeIdentityFsm,
+} from "./utils/identity-workflow-fsm";
+
+export { validateChemistryConsistency } from "./utils/chemistry-consistency";
+
+export {
+  rankAtlasAutosuggestHits,
+  autosuggestMatchTypeLabel,
+  isExactNameMatch,
+} from "./utils/search-result-ranking";
+
+export {
+  buildRegistryDepictionFromSmiles,
+  REGISTRY_THUMBNAIL_SIZE,
+} from "./utils/registry-depiction";
 
 export {
   applyCompoundKindSuggestionIfDefault,
