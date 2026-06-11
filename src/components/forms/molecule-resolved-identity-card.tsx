@@ -9,11 +9,9 @@ import {
 import {
   Button,
   Chip,
-  Description,
   Label,
   ListBox,
   Select,
-  Switch,
 } from "@heroui/react";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import {
@@ -41,9 +39,6 @@ export type MoleculeResolvedIdentityCardProps = {
   compoundKind: MoleculeCompoundKind;
   onCompoundKindChange: (kind: MoleculeCompoundKind) => void;
   chemicalFormula: string;
-  registryStub: boolean;
-  onRegistryStubChange: (stub: boolean) => void;
-  hasStructure: boolean;
   polymerKindSuggested: boolean;
   previewSnapshot?: MoleculeIdentityPreviewSnapshot | null;
   isDark?: boolean;
@@ -84,9 +79,6 @@ export function MoleculeResolvedIdentityCard({
   compoundKind,
   onCompoundKindChange,
   chemicalFormula,
-  registryStub,
-  onRegistryStubChange,
-  hasStructure,
   polymerKindSuggested,
   previewSnapshot = null,
   isDark = false,
@@ -118,8 +110,6 @@ export function MoleculeResolvedIdentityCard({
   const pubChemHref = identity.pubChemCid
     ? `https://pubchem.ncbi.nlm.nih.gov/compound/${identity.pubChemCid}`
     : null;
-
-  const showRegistryStub = !hasStructure;
 
   const previewSmiles =
     previewSnapshot?.previewSmiles ?? identity.previewSmiles;
@@ -239,7 +229,7 @@ export function MoleculeResolvedIdentityCard({
         ) : null}
       </div>
 
-      <div className="border-border/80 mt-4 grid grid-cols-1 gap-4 border-t pt-4 sm:grid-cols-2">
+      <div className="border-border/80 mt-4 border-t pt-4">
         <Select
           selectedKey={compoundKind}
           onSelectionChange={(key) => {
@@ -247,6 +237,7 @@ export function MoleculeResolvedIdentityCard({
             onCompoundKindChange(key as MoleculeCompoundKind);
           }}
           aria-label="Compound kind"
+          className="max-w-md"
         >
           <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
             Compound kind
@@ -269,30 +260,6 @@ export function MoleculeResolvedIdentityCard({
             </ListBox>
           </Select.Popover>
         </Select>
-
-        {showRegistryStub ? (
-          <div className="flex flex-col justify-end gap-1.5 pb-0.5">
-            <Switch
-              isSelected={registryStub}
-              onChange={onRegistryStubChange}
-              size="sm"
-            >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-              <Switch.Content>
-                <Label className="text-foreground text-sm">
-                  Registry stub (no structure yet)
-                </Label>
-              </Switch.Content>
-            </Switch>
-            <Description className="text-muted text-xs">
-              {identity.pubChemCid || identity.casNumber
-                ? "Appropriate when you have PubChem or CAS identity but no SMILES or SVG depiction yet. Requires CID or CAS on save."
-                : "Defer structure until a depiction is available. Requires PubChem CID or CAS on save."}
-            </Description>
-          </div>
-        ) : null}
       </div>
 
       {uniqueWarnings.length > 0 ? (

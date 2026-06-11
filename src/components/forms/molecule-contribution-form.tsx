@@ -34,7 +34,6 @@ import {
   Select,
   Separator,
   Spinner,
-  Switch,
   TextField,
   Tooltip,
 } from "@heroui/react";
@@ -510,7 +509,7 @@ export function MoleculeContributionForm({
   const isRecordApplied = resolvedIdentity !== null;
   const hasUnappliedMatch = pendingLookup !== null && !isRecordApplied;
   const showManualCompoundControls = pendingLookup === null && !isRecordApplied;
-  const showStructureRegistryStub = !isRecordApplied || hasStructure;
+  const showStructureRegistryStub = !hasStructure;
 
   return (
     <>
@@ -588,9 +587,6 @@ export function MoleculeContributionForm({
                 compoundKind={compoundKind}
                 onCompoundKindChange={handleCompoundKindChange}
                 chemicalFormula={formData.chemicalFormula}
-                registryStub={formData.registryStub ?? false}
-                onRegistryStubChange={handleRegistryStubChange}
-                hasStructure={hasStructure}
                 polymerKindSuggested={polymerKindSuggested}
                 displayWarnings={chemistryWarnings}
                 onSelectCandidate={(candidate) => {
@@ -611,53 +607,36 @@ export function MoleculeContributionForm({
             />
 
             {showManualCompoundControls ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Select
-                  selectedKey={compoundKind}
-                  onSelectionChange={(key) => {
-                    if (typeof key !== "string") return;
-                    handleCompoundKindChange(key as MoleculeCompoundKind);
-                  }}
-                  aria-label="Compound kind"
-                >
-                  <Label className="text-foreground mb-1.5 text-sm font-medium">
-                    Compound kind
-                  </Label>
-                  <Select.Trigger className="border-border bg-surface focus-visible:ring-accent min-h-11 w-full rounded-lg border focus:outline-none focus-visible:ring-2">
-                    <Select.Value />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox aria-label="Compound kind">
-                      {MOLECULE_COMPOUND_KINDS.map((kind) => (
-                        <ListBox.Item
-                          key={kind}
-                          textValue={moleculeCompoundKindLabel(kind)}
-                        >
-                          {moleculeCompoundKindLabel(kind)}
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
-
-                <div className="flex items-end pb-1">
-                  <Switch
-                    isSelected={formData.registryStub ?? false}
-                    onChange={handleRegistryStubChange}
-                    size="sm"
-                  >
-                    <Switch.Control>
-                      <Switch.Thumb />
-                    </Switch.Control>
-                    <Switch.Content>
-                      <Label className="text-foreground text-sm">
-                        Registry stub (no structure yet)
-                      </Label>
-                    </Switch.Content>
-                  </Switch>
-                </div>
-              </div>
+              <Select
+                selectedKey={compoundKind}
+                onSelectionChange={(key) => {
+                  if (typeof key !== "string") return;
+                  handleCompoundKindChange(key as MoleculeCompoundKind);
+                }}
+                aria-label="Compound kind"
+                className="max-w-md"
+              >
+                <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
+                  Compound kind
+                  <FieldTooltip description="Classifies the registry entry for formula notation and browse filters." />
+                </Label>
+                <Select.Trigger className="border-border bg-surface focus-visible:ring-accent min-h-11 w-full rounded-lg border focus:outline-none focus-visible:ring-2">
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox aria-label="Compound kind">
+                    {MOLECULE_COMPOUND_KINDS.map((kind) => (
+                      <ListBox.Item
+                        key={kind}
+                        textValue={moleculeCompoundKindLabel(kind)}
+                      >
+                        {moleculeCompoundKindLabel(kind)}
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
             ) : null}
 
             <MoleculePreferredIdentity

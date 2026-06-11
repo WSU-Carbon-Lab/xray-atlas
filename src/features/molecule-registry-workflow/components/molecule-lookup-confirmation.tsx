@@ -13,7 +13,6 @@ import {
   Label,
   ListBox,
   Select,
-  Switch,
 } from "@heroui/react";
 import { ChemicalFormula } from "~/components/ui/chemical-formula";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
@@ -51,9 +50,6 @@ export type MoleculeLookupConfirmationProps = {
   compoundKind: MoleculeCompoundKind;
   onCompoundKindChange: (kind: MoleculeCompoundKind) => void;
   chemicalFormula: string;
-  registryStub: boolean;
-  onRegistryStubChange: (stub: boolean) => void;
-  hasStructure: boolean;
   polymerKindSuggested: boolean;
   displayWarnings?: string[];
   busy?: boolean;
@@ -92,9 +88,6 @@ export function MoleculeLookupConfirmation({
   compoundKind,
   onCompoundKindChange,
   chemicalFormula,
-  registryStub,
-  onRegistryStubChange,
-  hasStructure,
   polymerKindSuggested,
   displayWarnings,
   busy = false,
@@ -126,8 +119,6 @@ export function MoleculeLookupConfirmation({
     if (!identity.atlasMoleculeId) return null;
     return `/molecules/${slugifyMoleculeSynonym(identity.displayName)}`;
   }, [identity.atlasMoleculeId, identity.displayName]);
-
-  const showRegistryStubControl = isApplied && !hasStructure;
 
   return (
     <section
@@ -287,7 +278,7 @@ export function MoleculeLookupConfirmation({
       ) : null}
 
       {isApplied ? (
-        <div className="border-border/80 mt-4 grid grid-cols-1 gap-4 border-t pt-4 sm:grid-cols-2">
+        <div className="border-border/80 mt-4 border-t pt-4">
           <Select
             selectedKey={compoundKind}
             onSelectionChange={(key) => {
@@ -295,6 +286,7 @@ export function MoleculeLookupConfirmation({
               onCompoundKindChange(key as MoleculeCompoundKind);
             }}
             aria-label="Compound kind"
+            className="max-w-md"
           >
             <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
               Compound kind
@@ -317,30 +309,6 @@ export function MoleculeLookupConfirmation({
               </ListBox>
             </Select.Popover>
           </Select>
-
-          {showRegistryStubControl ? (
-            <div className="flex flex-col justify-end gap-1.5 pb-0.5">
-              <Switch
-                isSelected={registryStub}
-                onChange={onRegistryStubChange}
-                size="sm"
-              >
-                <Switch.Control>
-                  <Switch.Thumb />
-                </Switch.Control>
-                <Switch.Content>
-                  <Label className="text-foreground text-sm">
-                    Registry stub (no structure yet)
-                  </Label>
-                </Switch.Content>
-              </Switch>
-              <Description className="text-muted text-xs">
-                {identity.pubChemCid || identity.casNumber
-                  ? "Appropriate when you have PubChem or CAS identity but no SMILES or SVG depiction yet."
-                  : "Defer structure until a depiction is available."}
-              </Description>
-            </div>
-          ) : null}
         </div>
       ) : null}
 

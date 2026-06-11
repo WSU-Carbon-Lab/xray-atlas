@@ -511,31 +511,38 @@ export function MoleculeStructureSection({
               : "Generate from SMILES, draw in the sketcher, or upload an SVG export. Raster formats are not stored."}
           </Description>
         </div>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-col items-end gap-2">
           {showRegistryStubToggle && onRegistryStubChange ? (
-            <Switch
-              isSelected={registryStub}
-              onChange={(selected) => {
-                queueMicrotask(() => {
-                  onRegistryStubChange(selected);
-                  if (selected) {
-                    setSketcherOpen(false);
-                    onImagePreviewChange("");
-                    onSvgDataUrlReady(null);
-                  }
-                });
-              }}
-              size="sm"
-            >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-              <Switch.Content>
-                <Label className="text-foreground text-sm">
-                  Registry stub (no structure yet)
-                </Label>
-              </Switch.Content>
-            </Switch>
+            <div className="flex flex-col items-end gap-1">
+              <Switch
+                isSelected={registryStub}
+                onChange={(selected) => {
+                  queueMicrotask(() => {
+                    onRegistryStubChange(selected);
+                    if (selected) {
+                      setSketcherOpen(false);
+                      onImagePreviewChange("");
+                      onSvgDataUrlReady(null);
+                    }
+                  });
+                }}
+                size="sm"
+                aria-label="Registry stub without structure depiction"
+              >
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
+                <Switch.Content>
+                  <Label className="text-foreground flex items-center gap-1 text-sm">
+                    Registry stub
+                    <FieldTooltip description="Save identifiers and formula without SMILES or SVG. Requires PubChem CID or CAS. Add a depiction later from the molecule page." />
+                  </Label>
+                </Switch.Content>
+              </Switch>
+              <Description className="text-muted max-w-xs text-right text-xs">
+                No structure depiction yet
+              </Description>
+            </div>
           ) : null}
           {!registryStub ? (
             <Switch
