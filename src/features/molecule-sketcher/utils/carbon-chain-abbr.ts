@@ -78,11 +78,50 @@ export function abbreviateTerminalAlkylChains(
 
       const label = formatAlkylCnH2nPlus1(L);
       mol.setAtomCustomLabel(attachIdx, label);
-      mol.inventCoordinates({});
       total += 1;
       changed = true;
       break;
     }
+  }
+  return total;
+}
+
+/**
+ * Counts terminal saturated carbon chains that {@link abbreviateTerminalAlkylChains}
+ * would collapse to CnH2n+1 labels without mutating `mol`.
+ *
+ * @param mol - Molecule to inspect; not mutated.
+ * @param minTailCarbons - Minimum tail length in carbons, matching abbreviate default.
+ * @returns Number of abbreviable tails currently drawn in full.
+ */
+export function countAbbreviableAlkylTails(
+  mol: Molecule,
+  minTailCarbons: number = DEFAULT_MIN_TAIL_CARBONS,
+): number {
+  mol.ensureHelperArrays(MoleculeCtor.cHelperRings);
+  let total = 0;
+  const heavy = mol.getAtoms();
+  const seenLeaves = new Set<number>();
+  for (let a = 0; a < heavy; a += 1) {
+    if (mol.getAtomicNo(a) !== CARBON || mol.getConnAtoms(a) !== 1) {
+      continue;
+    }
+    if (seenLeaves.has(a)) {
+      continue;
+    }
+    const path = buildTerminalCarbonPathFromLeaf(mol, a);
+    const L = path?.length ?? 0;
+    if (!path || L < 2 || L < minTailCarbons) {
+      continue;
+    }
+    const attach = path[L - 1]!;
+    if (mol.isRingAtom(attach)) {
+      continue;
+    }
+    for (const node of path) {
+      seenLeaves.add(node);
+    }
+    total += 1;
   }
   return total;
 }

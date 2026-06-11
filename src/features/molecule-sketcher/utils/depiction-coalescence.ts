@@ -12,11 +12,38 @@ const N = 7;
 const C = 6;
 
 export function abbreviateNitrileGroups(mol: Molecule): number {
-  const n = coalesceNitrileTripleBonds(mol);
-  if (n > 0) {
-    mol.inventCoordinates({});
+  return coalesceNitrileTripleBonds(mol);
+}
+
+/**
+ * Counts C#N or N#C triple bonds that {@link abbreviateNitrileGroups} would
+ * coalesce to CN/NC labels without mutating `mol`.
+ *
+ * @param mol - Molecule to inspect; not mutated.
+ * @returns Number of coalescible nitrile triple bonds.
+ */
+export function countCoalescibleNitrileGroups(mol: Molecule): number {
+  mol.ensureHelperArrays(MoleculeCtor.cHelperNeighbours);
+  let count = 0;
+  const bonds = mol.getBonds();
+  for (let b = 0; b < bonds; b += 1) {
+    if (mol.getBondOrder(b) !== 3) {
+      continue;
+    }
+    const a0 = mol.getBondAtom(0, b);
+    const a1 = mol.getBondAtom(1, b);
+    const z0 = mol.getAtomicNo(a0);
+    const z1 = mol.getAtomicNo(a1);
+    if (!((z0 === C && z1 === N) || (z0 === N && z1 === C))) {
+      continue;
+    }
+    const cIdx = z0 === C ? a0 : a1;
+    const nIdx = z0 === N ? a0 : a1;
+    if (mol.getConnAtoms(nIdx) === 1 || mol.getConnAtoms(cIdx) === 1) {
+      count += 1;
+    }
   }
-  return n;
+  return count;
 }
 
 export function coalesceNitrileTripleBonds(mol: Molecule): number {

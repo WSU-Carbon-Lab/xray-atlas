@@ -30,6 +30,73 @@ export function translateAllCoords(mol: Molecule, dx: number, dy: number): void 
   }
 }
 
+/** Translates only the listed atom indices in molecule space. */
+export function translateAtomIndices(
+  mol: Molecule,
+  atomIndices: readonly number[],
+  dx: number,
+  dy: number,
+): void {
+  for (const a of atomIndices) {
+    if (a < 0 || a >= mol.getAllAtoms()) {
+      continue;
+    }
+    mol.setAtomX(a, mol.getAtomX(a) + dx);
+    mol.setAtomY(a, mol.getAtomY(a) + dy);
+  }
+}
+
+/**
+ * Computes the arithmetic mean of coordinates for the listed atom indices;
+ * skips out-of-range indices.
+ */
+export function centroidOfAtomIndices(
+  mol: Molecule,
+  atomIndices: readonly number[],
+): { x: number; y: number } {
+  if (atomIndices.length === 0) {
+    return { x: 0, y: 0 };
+  }
+  let sumX = 0;
+  let sumY = 0;
+  let count = 0;
+  for (const a of atomIndices) {
+    if (a < 0 || a >= mol.getAllAtoms()) {
+      continue;
+    }
+    sumX += mol.getAtomX(a);
+    sumY += mol.getAtomY(a);
+    count += 1;
+  }
+  if (count === 0) {
+    return { x: 0, y: 0 };
+  }
+  return { x: sumX / count, y: sumY / count };
+}
+
+/**
+ * Rotates only the listed atom indices about `(px, py)` by `angleRad` radians.
+ */
+export function rotateAtomIndices(
+  mol: Molecule,
+  atomIndices: readonly number[],
+  px: number,
+  py: number,
+  angleRad: number,
+): void {
+  const c = Math.cos(angleRad);
+  const s = Math.sin(angleRad);
+  for (const a of atomIndices) {
+    if (a < 0 || a >= mol.getAllAtoms()) {
+      continue;
+    }
+    const x = mol.getAtomX(a) - px;
+    const y = mol.getAtomY(a) - py;
+    mol.setAtomX(a, x * c - y * s + px);
+    mol.setAtomY(a, x * s + y * c + py);
+  }
+}
+
 export function applyHorizonFrame(
   mol: Molecule,
   originAtom: number,

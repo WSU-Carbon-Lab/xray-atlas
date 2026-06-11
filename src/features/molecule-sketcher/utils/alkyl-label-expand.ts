@@ -12,7 +12,15 @@ const CARBON = 6;
 
 const ALKYL_RE = /^C(\d+)H(\d+)$/;
 
-function parseAlkylFormula(label: string): { n: number; h: number } | null {
+/**
+ * Parses a custom atom label as CnH2n+1 alkyl notation (ASCII or subscript digits).
+ * Returns null when the label is not a valid saturated alkyl formula.
+ *
+ * @param label - Raw custom label from OpenChemLib, optionally prefixed with `]`.
+ */
+export function parseAbbreviatedAlkylFormula(
+  label: string,
+): { n: number; h: number } | null {
   const t = normalizeNumericSubscriptsToAscii(label.replace(/^\]/, "").trim());
   const m = ALKYL_RE.exec(t);
   if (!m) return null;
@@ -21,6 +29,43 @@ function parseAlkylFormula(label: string): { n: number; h: number } | null {
   if (!Number.isFinite(n) || n < 1 || !Number.isFinite(h)) return null;
   if (h !== 2 * n + 1) return null;
   return { n, h };
+}
+
+function parseAlkylFormula(label: string): { n: number; h: number } | null {
+  return parseAbbreviatedAlkylFormula(label);
+}
+
+/**
+ * Resolves user-typed alkyl tail input to a carbon count n in CnH2n+1. Accepts a
+ * full formula (`C6H13`, subscript digits) or a bare positive integer n.
+ *
+ * @param input - Raw text from an alkyl preset field or element popover.
+ * @returns Carbon count when recognized; null otherwise.
+ */
+export function alkylCarbonCountFromUserInput(input: string): number | null {
+  const parsed = parseAbbreviatedAlkylFormula(input);
+  if (parsed !== null) {
+    return parsed.n;
+  }
+  const trimmed = normalizeNumericSubscriptsToAscii(input.trim());
+  if (!/^\d+$/u.test(trimmed)) {
+    return null;
+  }
+  const n = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(n) || n < 1) {
+    return null;
+  }
+  return n;
+}
+
+/**
+ * Reports whether `label` is a valid CnH2n+1 abbreviated alkyl custom label.
+ */
+export function isAbbreviatedAlkylLabel(label: string | null | undefined): boolean {
+  if (label === null || label === undefined || label.trim().length === 0) {
+    return false;
+  }
+  return parseAbbreviatedAlkylFormula(label) !== null;
 }
 
 export function normalizeChHydrideDisplayLabels(mol: Molecule): boolean {
