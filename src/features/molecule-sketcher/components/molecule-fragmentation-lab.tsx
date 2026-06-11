@@ -13,6 +13,10 @@ import {
 } from "@heroui/react";
 import { Molecule } from "openchemlib";
 
+import {
+  BigSmilesComponentsStrip,
+  fragmentationResultToComponentsModel,
+} from "../bigsmiles";
 import { applyMoleculeSvgCpkThemeToElement } from "~/lib/molecule-svg-cpk-theme";
 import {
   formatBondLabel,
@@ -94,7 +98,14 @@ function FragmentDepiction({
   );
 }
 
-export function MoleculeFragmentationLab() {
+type MoleculeFragmentationLabProps = {
+  /** Optional SMILES from the structure editor to copy into the fragmentation input. */
+  editorSmiles?: string | null;
+};
+
+export function MoleculeFragmentationLab({
+  editorSmiles = null,
+}: MoleculeFragmentationLabProps) {
   const baseId = useId();
   const [smiles, setSmiles] = useState("CCOCC");
   const [granularity, setGranularity] = useState<FragmentationGranularity>("medium");
@@ -103,8 +114,14 @@ export function MoleculeFragmentationLab() {
   const [extraBondText, setExtraBondText] = useState("");
   const [allowNonPolicyCuts, setAllowNonPolicyCuts] = useState(false);
   const [showFragmentColors, setShowFragmentColors] = useState(true);
+  const [showBlockStrip, setShowBlockStrip] = useState(true);
   const [result, setResult] = useState<FragmentationResult | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+
+  const blockComponentsModel = useMemo(
+    () => (result ? fragmentationResultToComponentsModel(result) : null),
+    [result],
+  );
 
   const molProbe = useMemo(() => {
     const t = smiles.trim();
@@ -199,7 +216,19 @@ export function MoleculeFragmentationLab() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label className="text-foreground text-sm font-medium">SMILES</Label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label className="text-foreground text-sm font-medium">SMILES</Label>
+            {editorSmiles?.trim() ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onPress={() => setSmiles(editorSmiles.trim())}
+              >
+                Use editor SMILES
+              </Button>
+            ) : null}
+          </div>
           <Input
             value={smiles}
             onChange={(e) => setSmiles(e.target.value)}
@@ -288,6 +317,25 @@ export function MoleculeFragmentationLab() {
               className="text-foreground cursor-pointer text-sm font-normal"
             >
               Allow manual bonds outside policy
+            </Label>
+          </Checkbox.Content>
+        </Checkbox>
+        <Checkbox
+          id={`${baseId}-strip`}
+          variant="secondary"
+          className="items-start gap-3"
+          isSelected={showBlockStrip}
+          onChange={() => setShowBlockStrip((v) => !v)}
+        >
+          <Checkbox.Control>
+            <Checkbox.Indicator />
+          </Checkbox.Control>
+          <Checkbox.Content>
+            <Label
+              htmlFor={`${baseId}-strip`}
+              className="text-foreground cursor-pointer text-sm font-normal"
+            >
+              Show BigSMILES block strip
             </Label>
           </Checkbox.Content>
         </Checkbox>
@@ -399,6 +447,14 @@ export function MoleculeFragmentationLab() {
               </div>
             ))}
           </div>
+          {showBlockStrip && blockComponentsModel ? (
+            <div className="border-border border-t pt-4">
+              <BigSmilesComponentsStrip
+                model={blockComponentsModel}
+                showAccent={showFragmentColors}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

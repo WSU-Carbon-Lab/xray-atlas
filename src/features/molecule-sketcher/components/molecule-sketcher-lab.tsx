@@ -32,6 +32,7 @@ export function MoleculeSketcherLab() {
   const [moleculeId, setMoleculeId] = useState<string | null>(null);
   const [uuidInput, setUuidInput] = useState("");
   const [uuidError, setUuidError] = useState<string | null>(null);
+  const [editorSmiles, setEditorSmiles] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 150);
@@ -187,6 +188,7 @@ export function MoleculeSketcherLab() {
                   ? molecule.SMILES
                   : null
               }
+              onDerivedSmilesChange={setEditorSmiles}
             />
           </section>
 
@@ -279,7 +281,7 @@ export function MoleculeSketcherLab() {
           </section>
         </div>
 
-        <MoleculeFragmentationLab />
+        <MoleculeFragmentationLab editorSmiles={editorSmiles} />
       </Card.Content>
     </Card>
   );

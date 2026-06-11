@@ -7,6 +7,7 @@ import { Button, ErrorMessage, Label } from "@heroui/react";
 import { MolfileSvgEditor } from "react-ocl";
 import { Molecule, Resources } from "openchemlib";
 import { applyMoleculeSvgCpkThemeToElement } from "~/lib/molecule-svg-cpk-theme";
+import { applyMolecule2dBondStrokeWidthToSvgRoot } from "../utils/molecule-2d-depiction-style";
 import { getBaseUrl } from "~/utils/getBaseUrl";
 import {
   expandAllAbbreviatedAlkylLabels,
@@ -27,7 +28,7 @@ import {
   rotateAllCoordsAroundPoint,
   translateAllCoords,
 } from "../utils/molecule-2d-transforms";
-import { LAB_STRUCTURE_PANE_HEIGHT_PX } from "../constants";
+import { LAB_STRUCTURE_PANE_CLASS, LAB_STRUCTURE_PANE_HEIGHT_PX } from "../constants";
 import type { ViewTool } from "../molecule-structure-editor-types";
 import { useMolfileHistory } from "../hooks/use-molfile-history";
 import { useMolecule3dPreview } from "../hooks/use-molecule-3d-preview";
@@ -49,10 +50,13 @@ function molfileV3FromMolecule(mol: Molecule): string {
 
 export interface MoleculeStructureEditorLabProps {
   seedSmiles?: string | null;
+  /** Fires when the editor derives a new isomeric SMILES from the current molfile. */
+  onDerivedSmilesChange?: (smiles: string) => void;
 }
 
 export function MoleculeStructureEditorLab({
   seedSmiles,
+  onDerivedSmilesChange,
 }: MoleculeStructureEditorLabProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -158,6 +162,7 @@ export function MoleculeStructureEditorLab({
     const svg = containerRef.current?.querySelector("svg");
     if (svg) {
       applyMoleculeSvgCpkThemeToElement(svg, isDark);
+      applyMolecule2dBondStrokeWidthToSvgRoot(svg);
     }
   }, [isDark]);
 
@@ -536,6 +541,12 @@ export function MoleculeStructureEditorLab({
     }
   }, [molfile]);
 
+  useEffect(() => {
+    if (editorDerived.ok) {
+      onDerivedSmilesChange?.(editorDerived.isomericSmiles);
+    }
+  }, [editorDerived, onDerivedSmilesChange]);
+
   const showViewOverlay = viewTool === "translate" || viewTool === "rotate";
 
   const editorCanvasWidth = preview3d.session3d ? SPLIT_PANEL_WIDTH : EDITOR_WIDTH;
@@ -607,6 +618,11 @@ export function MoleculeStructureEditorLab({
           onCompute: preview3d.runCompute3dConformer,
           onClear: preview3d.clear3dConformer,
           onResetView: preview3d.resetView3d,
+          onSaveSnapshot: preview3d.generateSnapshotPreview,
+          onClearSnapshot: preview3d.clearSnapshotPreview,
+          hasSnapshot: preview3d.snapshotPreviewSvg !== null,
+          snapshotError: preview3d.snapshotError,
+          omittedBondCount: preview3d.snapshotMetadata?.omittedBondCount ?? null,
         }}
       />
 
@@ -626,7 +642,7 @@ export function MoleculeStructureEditorLab({
       ) : null}
 
       <div
-        className="border-border bg-surface-2/10 flex w-full max-w-full flex-col overflow-hidden rounded-lg border"
+        className={LAB_STRUCTURE_PANE_CLASS}
         style={{
           height: LAB_STRUCTURE_PANE_HEIGHT_PX,
           minHeight: LAB_STRUCTURE_PANE_HEIGHT_PX,
@@ -674,21 +690,47 @@ export function MoleculeStructureEditorLab({
             <div
               role="application"
               aria-label="3D structure preview. Drag to orbit."
-              className="relative flex min-h-0 min-w-0 flex-1 touch-none flex-col items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing [&_svg]:max-h-full [&_svg]:max-w-full"
-              style={{ touchAction: "none" }}
-              onPointerDown={preview3d.on3dPointerDown}
-              onPointerMove={preview3d.on3dPointerMove}
-              onPointerUp={preview3d.on3dPointerUp}
-              onPointerCancel={preview3d.on3dPointerUp}
+              className="relative flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center overflow-hidden"
             >
               <div
-                className="flex max-h-full max-w-full items-center justify-center"
+                className="pointer-events-none flex max-h-full max-w-full items-center justify-center [&_svg]:max-h-full [&_svg]:max-w-full"
                 dangerouslySetInnerHTML={{ __html: preview3d.wire3dSvgRendered }}
+              />
+              <div
+                className="touch-none absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
+                style={{ touchAction: "none" }}
+                onPointerDown={preview3d.on3dPointerDown}
+                onPointerMove={preview3d.on3dPointerMove}
+                onPointerUp={preview3d.on3dPointerUp}
+                onPointerCancel={preview3d.on3dPointerUp}
               />
             </div>
           ) : null}
         </div>
       </div>
+
+      {preview3d.snapshotPreviewSvg ? (
+        <section
+          className="border-border bg-surface-2/10 space-y-2 rounded-lg border p-4"
+          aria-labelledby="snapshot-preview-heading"
+        >
+          <h3
+            id="snapshot-preview-heading"
+            className="text-foreground text-sm font-semibold"
+          >
+            2D snapshot preview
+          </h3>
+          <p className="text-muted text-xs">
+            Flat depiction from the current 3D view. Occluded bonds are omitted (
+            {preview3d.snapshotMetadata?.omittedBondCount ?? 0} of{" "}
+            {preview3d.snapshotMetadata?.totalBondCount ?? 0}).
+          </p>
+          <div
+            className="border-border bg-surface flex max-h-80 items-center justify-center overflow-auto rounded-md border p-3 [&_svg]:max-h-full [&_svg]:max-w-full"
+            dangerouslySetInnerHTML={{ __html: preview3d.snapshotPreviewSvg }}
+          />
+        </section>
+      ) : null}
 
       {seedSmiles?.trim() ? (
         <div className="flex flex-wrap gap-2">

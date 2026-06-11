@@ -14,8 +14,9 @@ export default function SandboxMoleculeStructurePage() {
           Molecule structure lab
         </h1>
         <p className="text-muted mt-2 max-w-2xl text-sm">
-          Prototype surface for the structure pipeline. Nothing here is guaranteed
-          to be stable.
+          Draw or load a structure, fragment SMILES with policy-aware cuts, then
+          preview oriented block cards in the BigSMILES components strip. Nothing
+          here is guaranteed to be stable.
         </p>
       </div>
       <MoleculeSketcherLab />
@@ -25,6 +26,12 @@ export default function SandboxMoleculeStructurePage() {
           className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
         >
           Back to Sandbox
+        </Link>
+        <Link
+          href="/sandbox/molecule-draw"
+          className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+        >
+          Molecule drawer
         </Link>
         <Link
           href="/"

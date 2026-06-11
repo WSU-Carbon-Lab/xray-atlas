@@ -1,7 +1,13 @@
-import { Button, Separator } from "@heroui/react";
+"use client";
+
+import { useCallback } from "react";
+import { Button, Separator, ToggleButton, ToggleButtonGroup } from "@heroui/react";
+
 import type { ViewTool } from "../molecule-structure-editor-types";
 
 const PIVOT_ROTATE_STEP_DEG = 15;
+
+const VIEW_TOOL_IDS = new Set<string>(["draw", "translate", "rotate", "align", "pivot"]);
 
 export interface MoleculeStructureEditorToolbarProps {
   editorDerivedOk: boolean;
@@ -29,6 +35,11 @@ export interface MoleculeStructureEditorToolbarProps {
     onCompute: () => void;
     onClear: () => void;
     onResetView: () => void;
+    onSaveSnapshot: () => void;
+    onClearSnapshot: () => void;
+    hasSnapshot: boolean;
+    snapshotError: string | null;
+    omittedBondCount: number | null;
   };
 }
 
@@ -53,50 +64,78 @@ export function MoleculeStructureEditorToolbar({
   canRedo,
   threeD,
 }: MoleculeStructureEditorToolbarProps) {
+  const handleViewToolChange = useCallback(
+    (keys: "all" | Iterable<string | number>) => {
+      if (keys === "all") {
+        return;
+      }
+      for (const key of keys) {
+        const id = String(key);
+        if (VIEW_TOOL_IDS.has(id)) {
+          onViewTool(id as ViewTool);
+        }
+        return;
+      }
+    },
+    [onViewTool],
+  );
+
   return (
     <div className="border-border space-y-3 rounded-lg border p-3">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-        <span className="text-muted text-xs font-medium">Draw</span>
-        <Button
-          type="button"
-          size="sm"
-          variant={viewTool === "draw" ? "primary" : "secondary"}
-          onPress={() => onViewTool("draw")}
+      <div className="flex flex-wrap items-center gap-2">
+        <ToggleButtonGroup
+          aria-label="Structure editor tools"
+          selectionMode="single"
+          selectedKeys={viewTool === "draw" ? new Set(["draw"]) : new Set<string>()}
+          onSelectionChange={handleViewToolChange}
         >
-          Draw
-        </Button>
+          <ToggleButton id="draw" size="sm" aria-label="Draw">
+            Draw
+          </ToggleButton>
+        </ToggleButtonGroup>
         <Separator className="bg-border h-6" orientation="vertical" />
+        <Button type="button" size="sm" variant="secondary" onPress={onUndo} isDisabled={!canUndo}>
+          Undo
+        </Button>
+        <Button type="button" size="sm" variant="secondary" onPress={onRedo} isDisabled={!canRedo}>
+          Redo
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
         <span className="text-muted text-xs font-medium">Layout</span>
-        <Button
-          type="button"
-          size="sm"
-          variant={viewTool === "translate" ? "primary" : "secondary"}
-          onPress={() => onViewTool("translate")}
+        <ToggleButtonGroup
+          aria-label="Layout tools"
+          selectionMode="single"
+          selectedKeys={
+            viewTool === "translate" ||
+            viewTool === "rotate" ||
+            viewTool === "align" ||
+            viewTool === "pivot"
+              ? new Set([viewTool])
+              : new Set<string>()
+          }
+          onSelectionChange={handleViewToolChange}
         >
-          Move
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={viewTool === "rotate" ? "primary" : "secondary"}
-          onPress={() => onViewTool("rotate")}
-        >
-          Rotate
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={viewTool === "align" ? "primary" : "secondary"}
-          onPress={() => onViewTool("align")}
-        >
-          Align
-        </Button>
+          <ToggleButton id="translate" size="sm" aria-label="Move">
+            Move
+          </ToggleButton>
+          <ToggleButton id="rotate" size="sm" aria-label="Rotate">
+            Rotate
+          </ToggleButton>
+          <ToggleButton id="align" size="sm" aria-label="Align">
+            Align
+          </ToggleButton>
+          <ToggleButton id="pivot" size="sm" aria-label="Pivot bond">
+            Pivot
+          </ToggleButton>
+        </ToggleButtonGroup>
         <Button
           type="button"
           size="sm"
           variant="secondary"
           onPress={() => onRunAlignAxis("x")}
-          isDisabled={alignAtomCount !== 2}
+          isDisabled={viewTool !== "align" || alignAtomCount !== 2}
         >
           Along X
         </Button>
@@ -105,7 +144,7 @@ export function MoleculeStructureEditorToolbar({
           size="sm"
           variant="secondary"
           onPress={() => onRunAlignAxis("y")}
-          isDisabled={alignAtomCount !== 2}
+          isDisabled={viewTool !== "align" || alignAtomCount !== 2}
         >
           Along Y
         </Button>
@@ -119,15 +158,6 @@ export function MoleculeStructureEditorToolbar({
           Clear picks
         </Button>
         <Separator className="bg-border h-6" orientation="vertical" />
-        <span className="text-muted text-xs font-medium">Pivot</span>
-        <Button
-          type="button"
-          size="sm"
-          variant={viewTool === "pivot" ? "primary" : "secondary"}
-          onPress={() => onViewTool("pivot")}
-        >
-          Pivot bond
-        </Button>
         <Button
           type="button"
           size="sm"
@@ -180,15 +210,8 @@ export function MoleculeStructureEditorToolbar({
         <Button type="button" size="sm" variant="secondary" onPress={onCleanupSpacing}>
           Clean up spacing
         </Button>
-        <Separator className="bg-border h-6" orientation="vertical" />
-        <span className="text-muted text-xs font-medium">History</span>
-        <Button type="button" size="sm" variant="secondary" onPress={onUndo} isDisabled={!canUndo}>
-          Undo
-        </Button>
-        <Button type="button" size="sm" variant="secondary" onPress={onRedo} isDisabled={!canRedo}>
-          Redo
-        </Button>
       </div>
+
       <div className="border-border bg-surface-2/20 flex flex-wrap items-center gap-x-2 gap-y-2 rounded-md border border-dashed px-2 py-2">
         <span className="text-muted text-[0.65rem] font-semibold uppercase tracking-wide">
           3D preview
@@ -224,13 +247,40 @@ export function MoleculeStructureEditorToolbar({
         >
           Reset view
         </Button>
-        {threeD.error ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="primary"
+          onPress={threeD.onSaveSnapshot}
+          isDisabled={!threeD.hasSession}
+        >
+          Save snapshot
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onPress={threeD.onClearSnapshot}
+          isDisabled={!threeD.hasSnapshot}
+        >
+          Clear snapshot
+        </Button>
+        {threeD.snapshotError ? (
+          <span className="text-danger max-w-md text-xs" role="alert">
+            {threeD.snapshotError}
+          </span>
+        ) : threeD.omittedBondCount !== null ? (
+          <span className="text-muted max-w-md text-xs">
+            Snapshot: {threeD.omittedBondCount} bond
+            {threeD.omittedBondCount === 1 ? "" : "s"} omitted (occluded).
+          </span>
+        ) : threeD.error ? (
           <span className="text-danger max-w-md text-xs" role="alert">
             {threeD.error}
           </span>
         ) : (
           <span className="text-muted max-w-md text-xs">
-            Orbit-only preview. 2D molfile stays canonical; edit clears 3D.
+            Orbit-only preview with perspective depth. 2D molfile stays canonical; edit clears 3D.
           </span>
         )}
       </div>
