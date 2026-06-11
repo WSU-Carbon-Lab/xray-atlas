@@ -2,6 +2,15 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { env } from "~/env";
+import {
+  extractCasRegistryFromSynonyms,
+  isLikelyChemicalFormula,
+  pickPubChemDisplayTitle,
+  pickPubChemSmiles,
+  type PubChemCandidateSummary,
+  type PubChemPropertyRow,
+  PUBCHEM_COMPOUND_PROPERTY_QUERY,
+} from "~/lib/pubchem-compound";
 
 /**
  * Encodes InChI string for CAS API
@@ -13,6 +22,305 @@ function encodeInChIForCas(inchi: string): string {
     cleaned = cleaned.substring(6);
   }
   return encodeURIComponent(cleaned);
+}
+
+function normalizePubChemCid(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === "string") {
+    return value.trim().length > 0 ? value.trim() : null;
+  }
+  if (typeof value === "number") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Resolves PubChem compound IDs for a name or SMILES query via PUG REST.
+ *
+ * @param query - Name or SMILES string passed to PubChem.
+ * @param type - Whether `query` is a compound name or SMILES.
+ * @param limit - Maximum number of CIDs to return (PubChem may return more).
+ * @returns Ordered CID strings; empty when PubChem reports no matches.
+ * @throws TRPCError with `NOT_FOUND` when PubChem has no compounds for the query.
+ */
+async function fetchPubChemCidsForQuery(
+  query: string,
+  type: "name" | "smiles",
+  limit: number,
+): Promise<string[]> {
+  const searchUrl =
+    type === "smiles"
+      ? `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/${encodeURIComponent(query)}/cids/JSON`
+      : `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(query)}/cids/JSON`;
+
+  const searchResponse = await fetch(searchUrl, {
+    headers: { Accept: "application/json" },
+  });
+
+  if (!searchResponse.ok) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Compound not found in PubChem",
+    });
+  }
+
+  const searchData = (await searchResponse.json()) as {
+    IdentifierList?: { CID?: unknown[] | null } | null;
+  } | null;
+  const rawCids = searchData?.IdentifierList?.CID;
+
+  if (!Array.isArray(rawCids) || rawCids.length === 0) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Compound not found in PubChem",
+    });
+  }
+
+  const cids: string[] = [];
+  for (const raw of rawCids) {
+    const normalized = normalizePubChemCid(raw);
+    if (normalized) {
+      cids.push(normalized);
+    }
+    if (cids.length >= limit) {
+      break;
+    }
+  }
+
+  if (cids.length === 0) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Compound not found in PubChem",
+    });
+  }
+
+  return cids;
+}
+
+const PUBCHEM_LISTKEY_POLL_MS = [400, 700, 1000, 1200, 1500, 1800, 2000] as const;
+
+/**
+ * Polls a PubChem asynchronous list key until CIDs are ready or attempts exhaust.
+ *
+ * @param listKey - List key from a PubChem `Waiting` response.
+ * @returns Resolved CID strings; empty when polling times out.
+ */
+async function pollPubChemListKeyCids(listKey: string): Promise<string[]> {
+  for (const delayMs of PUBCHEM_LISTKEY_POLL_MS) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    const pollResponse = await fetch(
+      `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/listkey/${listKey}/cids/JSON`,
+      { headers: { Accept: "application/json" } },
+    );
+    if (!pollResponse.ok) {
+      continue;
+    }
+    const pollData = (await pollResponse.json()) as {
+      Waiting?: { ListKey?: string; Message?: string } | null;
+      IdentifierList?: { CID?: unknown[] | null } | null;
+    } | null;
+    if (pollData?.Waiting) {
+      continue;
+    }
+    const rawCids = pollData?.IdentifierList?.CID;
+    if (!Array.isArray(rawCids) || rawCids.length === 0) {
+      return [];
+    }
+    const cids: string[] = [];
+    for (const raw of rawCids) {
+      const normalized = normalizePubChemCid(raw);
+      if (normalized) {
+        cids.push(normalized);
+      }
+    }
+    return cids;
+  }
+  return [];
+}
+
+/**
+ * Resolves PubChem compound IDs for a Hill molecular formula via PUG REST.
+ *
+ * Formula lookups may return a `Waiting` list key; this helper polls until CIDs
+ * are available or the poll budget is exhausted.
+ *
+ * @param formula - Hill-system formula string.
+ * @param limit - Maximum number of CIDs to return.
+ * @returns Ordered CID strings; empty when PubChem reports no matches.
+ * @throws TRPCError with `NOT_FOUND` when PubChem has no compounds for the formula.
+ */
+async function fetchPubChemCidsForFormula(
+  formula: string,
+  limit: number,
+): Promise<string[]> {
+  const searchUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/formula/${encodeURIComponent(formula)}/cids/JSON?MaxRecords=${limit}`;
+  const searchResponse = await fetch(searchUrl, {
+    headers: { Accept: "application/json" },
+  });
+
+  if (!searchResponse.ok) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Compound not found in PubChem",
+    });
+  }
+
+  const searchData = (await searchResponse.json()) as {
+    Waiting?: { ListKey?: string } | null;
+    IdentifierList?: { CID?: unknown[] | null } | null;
+  } | null;
+
+  let rawCids: unknown[] | null | undefined;
+  if (searchData?.Waiting?.ListKey) {
+    const polled = await pollPubChemListKeyCids(searchData.Waiting.ListKey);
+    rawCids = polled;
+  } else {
+    rawCids = searchData?.IdentifierList?.CID;
+  }
+
+  if (!Array.isArray(rawCids) || rawCids.length === 0) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Compound not found in PubChem",
+    });
+  }
+
+  const cids: string[] = [];
+  for (const raw of rawCids) {
+    const normalized = normalizePubChemCid(raw);
+    if (normalized) {
+      cids.push(normalized);
+    }
+    if (cids.length >= limit) {
+      break;
+    }
+  }
+
+  if (cids.length === 0) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Compound not found in PubChem",
+    });
+  }
+
+  return cids;
+}
+
+/**
+ * Loads title and formula summaries for PubChem CIDs in one PUG property request.
+ *
+ * @param cids - PubChem compound IDs to summarize.
+ * @returns Candidate rows aligned with `cids` order; missing rows use CID fallbacks.
+ */
+async function fetchPubChemCandidateSummaries(
+  cids: readonly string[],
+): Promise<PubChemCandidateSummary[]> {
+  if (cids.length === 0) {
+    return [];
+  }
+
+  const cidList = cids.join(",");
+  const propertyResponse = await fetch(
+    `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cidList}/property/Title,IUPACName,MolecularFormula/JSON`,
+    { headers: { Accept: "application/json" } },
+  );
+
+  const propsByCid = new Map<string, PubChemPropertyRow>();
+  if (propertyResponse.ok) {
+    const propertyData = (await propertyResponse.json()) as {
+      PropertyTable?: { Properties?: PubChemPropertyRow[] | null } | null;
+    } | null;
+    for (const row of propertyData?.PropertyTable?.Properties ?? []) {
+      if (row?.CID !== null && row?.CID !== undefined) {
+        propsByCid.set(String(row.CID), row);
+      }
+    }
+  }
+
+  return cids.map((cid) => {
+    const props = propsByCid.get(cid);
+    const formula =
+      typeof props?.MolecularFormula === "string" &&
+      props.MolecularFormula.trim().length > 0
+        ? props.MolecularFormula.trim()
+        : null;
+    return {
+      cid,
+      title: pickPubChemDisplayTitle(props, `PubChem CID ${cid}`),
+      formula,
+    };
+  });
+}
+
+async function fetchCasRegistryFromCasApi(input: {
+  inchi?: string;
+  synonym?: string;
+}): Promise<string | null> {
+  if (!env.CAS_API_KEY) {
+    return null;
+  }
+  const inchi = input.inchi?.trim();
+  const synonym = input.synonym?.trim();
+  if (!inchi && !synonym) {
+    return null;
+  }
+
+  const searchQuery = inchi
+    ? encodeInChIForCas(inchi)
+    : encodeURIComponent(synonym!);
+  const searchUrl = `https://commonchemistry.cas.org/api/search?q=${searchQuery}`;
+
+  try {
+    const searchResponse = await fetch(searchUrl, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+        "X-API-KEY": env.CAS_API_KEY,
+      },
+    });
+    if (!searchResponse.ok) {
+      return null;
+    }
+
+    const searchData = (await searchResponse.json()) as
+      | {
+          results?: Array<{ rn?: unknown }>;
+          rn?: unknown;
+        }
+      | Array<{ rn?: unknown }>
+      | null;
+
+    const firstRn =
+      searchData &&
+      !Array.isArray(searchData) &&
+      Array.isArray(searchData.results) &&
+      searchData.results.length > 0
+        ? searchData.results[0]?.rn
+        : Array.isArray(searchData) && searchData.length > 0
+          ? searchData[0]?.rn
+          : searchData &&
+              !Array.isArray(searchData) &&
+              searchData.rn !== null &&
+              searchData.rn !== undefined
+            ? searchData.rn
+            : null;
+
+    if (firstRn === null || firstRn === undefined) {
+      return null;
+    }
+    if (typeof firstRn === "string") {
+      return firstRn;
+    }
+    if (typeof firstRn === "number") {
+      return String(firstRn);
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export const externalRouter = createTRPCRouter({
@@ -274,6 +582,113 @@ export const externalRouter = createTRPCRouter({
       }
     }),
 
+  listPubchemCids: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1, "Query is required"),
+        type: z.enum(["name", "smiles", "formula"]).default("name"),
+        limit: z.number().int().min(1).max(20).default(10),
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        const trimmed = input.query.trim();
+        const cids =
+          input.type === "formula"
+            ? await fetchPubChemCidsForFormula(trimmed, input.limit)
+            : await fetchPubChemCidsForQuery(trimmed, input.type, input.limit);
+        return { ok: true as const, cids };
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to search PubChem",
+        });
+      }
+    }),
+
+  searchPubchemCandidates: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1, "Query is required"),
+        limit: z.number().int().min(1).max(20).default(10),
+        type: z
+          .enum(["auto", "name", "formula", "cid", "smiles"])
+          .default("auto"),
+      }),
+    )
+    .query(async ({ input }) => {
+      const trimmed = input.query.trim();
+      const limit = input.limit;
+      const requestedType = input.type;
+
+      try {
+        if (requestedType === "cid" || (requestedType === "auto" && /^\d+$/.test(trimmed))) {
+          const candidates = await fetchPubChemCandidateSummaries([trimmed]);
+          return {
+            ok: true as const,
+            searchType: "cid" as const,
+            candidates,
+          };
+        }
+
+        if (requestedType === "smiles") {
+          const cids = await fetchPubChemCidsForQuery(trimmed, "smiles", limit);
+          const candidates = await fetchPubChemCandidateSummaries(cids);
+          return {
+            ok: true as const,
+            searchType: "smiles" as const,
+            candidates,
+          };
+        }
+
+        if (
+          requestedType === "formula" ||
+          (requestedType === "auto" && isLikelyChemicalFormula(trimmed))
+        ) {
+          const cids = await fetchPubChemCidsForFormula(trimmed, limit);
+          const candidates = await fetchPubChemCandidateSummaries(cids);
+          return {
+            ok: true as const,
+            searchType: "formula" as const,
+            candidates,
+          };
+        }
+
+        const cids = await fetchPubChemCidsForQuery(trimmed, "name", limit);
+        const candidates = await fetchPubChemCandidateSummaries(cids);
+        return {
+          ok: true as const,
+          searchType: "name" as const,
+          candidates,
+        };
+      } catch (error) {
+        if (error instanceof TRPCError && error.code === "NOT_FOUND") {
+          const searchType =
+            requestedType === "smiles"
+              ? ("smiles" as const)
+              : requestedType === "formula" ||
+                  (requestedType === "auto" && isLikelyChemicalFormula(trimmed))
+                ? ("formula" as const)
+                : ("name" as const);
+          return {
+            ok: true as const,
+            searchType,
+            candidates: [] as PubChemCandidateSummary[],
+          };
+        }
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to search PubChem",
+        });
+      }
+    }),
+
   searchPubchem: publicProcedure
     .input(
       z.object({
@@ -285,50 +700,12 @@ export const externalRouter = createTRPCRouter({
       const { query, type } = input;
       let cid: string | null = null;
 
-      // If searching by CID directly, use it
       if (type === "cid") {
         cid = query.trim();
       } else {
-        // Search by name or SMILES to get CID
-        const searchUrl =
-          type === "smiles"
-            ? `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/${encodeURIComponent(query)}/cids/JSON`
-            : `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(query)}/cids/JSON`;
-
         try {
-          const searchResponse = await fetch(searchUrl, {
-            headers: { Accept: "application/json" },
-          });
-
-          if (!searchResponse.ok) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "Compound not found in PubChem",
-            });
-          }
-
-          const searchData = (await searchResponse.json()) as {
-            IdentifierList?: { CID?: unknown[] | null } | null;
-          } | null;
-          const cids = searchData?.IdentifierList?.CID;
-
-          if (!Array.isArray(cids) || cids.length === 0) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "Compound not found in PubChem",
-            });
-          }
-
-          const firstCid = cids[0];
-          if (firstCid === null || firstCid === undefined) {
-            cid = null;
-          } else if (typeof firstCid === "string") {
-            cid = firstCid;
-          } else if (typeof firstCid === "number") {
-            cid = String(firstCid);
-          } else {
-            cid = JSON.stringify(firstCid);
-          }
+          const cids = await fetchPubChemCidsForQuery(query.trim(), type, 1);
+          cid = cids[0] ?? null;
         } catch (error) {
           if (error instanceof TRPCError) {
             throw error;
@@ -349,7 +726,7 @@ export const externalRouter = createTRPCRouter({
 
       const [propertiesResponse, synonymsResponse] = await Promise.allSettled([
         fetch(
-          `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/property/IUPACName,CanonicalSMILES,InChI,InChIKey,MolecularFormula/JSON`,
+          `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/property/${PUBCHEM_COMPOUND_PROPERTY_QUERY}/JSON`,
           { headers: { Accept: "application/json" } },
         ),
         fetch(
@@ -359,6 +736,7 @@ export const externalRouter = createTRPCRouter({
       ]);
 
       // Parse properties
+      let pubChemTitle = "";
       let iupacName = "";
       let smiles = "";
       let inchi = "";
@@ -371,24 +749,16 @@ export const externalRouter = createTRPCRouter({
       ) {
         const propertiesData = (await propertiesResponse.value.json()) as {
           PropertyTable?: {
-            Properties?: Array<{
-              IUPACName?: string | null;
-              CanonicalSMILES?: string | null;
-              InChI?: string | null;
-              InChIKey?: string | null;
-              MolecularFormula?: string | null;
-            } | null> | null;
+            Properties?: PubChemPropertyRow[] | null;
           } | null;
         } | null;
         const props = propertiesData?.PropertyTable?.Properties?.[0];
 
         if (props) {
+          pubChemTitle = pickPubChemDisplayTitle(props, query);
           iupacName =
             typeof props.IUPACName === "string" ? props.IUPACName : "";
-          smiles =
-            typeof props.CanonicalSMILES === "string"
-              ? props.CanonicalSMILES
-              : "";
+          smiles = pickPubChemSmiles(props);
           inchi = typeof props.InChI === "string" ? props.InChI : "";
           inchiKey = typeof props.InChIKey === "string" ? props.InChIKey : "";
           chemicalFormula =
@@ -456,6 +826,8 @@ export const externalRouter = createTRPCRouter({
         console.warn("Could not fetch CAS number:", error);
       }
 
+      casNumber ??= extractCasRegistryFromSynonyms(synonyms);
+
       // Extract InChI Key from InChI if not found
       if (!inchiKey && inchi) {
         const keyRegex = /Key=([A-Z]{14}-[A-Z]{10}(-[A-Z])?)/;
@@ -475,7 +847,20 @@ export const externalRouter = createTRPCRouter({
       let finalCommonName = "";
       let finalSynonyms = [...synonyms];
 
-      if (iupacName && !isLikelyIUPACName(iupacName)) {
+      if (pubChemTitle) {
+        finalIUPACName = pubChemTitle;
+        finalCommonName = query.trim();
+        if (
+          finalCommonName.length === 0 ||
+          finalCommonName.toLowerCase() === pubChemTitle.toLowerCase()
+        ) {
+          finalCommonName =
+            synonyms.find(
+              (synonym) =>
+                synonym.toLowerCase() !== pubChemTitle.toLowerCase(),
+            ) ?? query;
+        }
+      } else if (iupacName && !isLikelyIUPACName(iupacName)) {
         const betterIUPAC = synonyms.find((s) => isLikelyIUPACName(s));
         if (betterIUPAC) {
           finalIUPACName = betterIUPAC;
@@ -521,9 +906,20 @@ export const externalRouter = createTRPCRouter({
         finalSynonyms = finalSynonyms.slice(1);
       }
 
+      if (!casNumber) {
+        const casFromApi = await fetchCasRegistryFromCasApi({
+          inchi: inchi || undefined,
+          synonym: finalCommonName || query,
+        });
+        if (casFromApi) {
+          casNumber = casFromApi;
+        }
+      }
+
       return {
         ok: true,
         data: {
+          title: pubChemTitle || finalIUPACName,
           iupacName: finalIUPACName,
           commonName: finalCommonName,
           synonyms: finalSynonyms,

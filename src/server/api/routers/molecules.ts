@@ -135,6 +135,7 @@ export const moleculesRouter = createTRPCRouter({
             )
             OR LOWER(COALESCE(m.casnumber, '')) = ${searchTermLower}
             OR LOWER(COALESCE(m.pubchemcid, '')) = ${searchTermLower}
+            OR LOWER(COALESCE(m.smiles, '')) = ${searchTermLower}
             OR (
               LENGTH(${searchTerm}) >= 3
               AND to_tsvector(
@@ -161,6 +162,7 @@ export const moleculesRouter = createTRPCRouter({
               CASE
                 WHEN LOWER(COALESCE(cm.casnumber, '')) = ${searchTermLower} THEN 12.0
                 WHEN LOWER(COALESCE(cm.pubchemcid, '')) = ${searchTermLower} THEN 11.0
+                WHEN LOWER(COALESCE(cm.smiles, '')) = ${searchTermLower} THEN 11.5
                 WHEN LOWER(cm.iupacname) = ${searchTermLower} THEN 10.0
                 WHEN LOWER(cm.iupacname) LIKE ${searchPattern} THEN 8.0
                 ELSE 0
@@ -201,6 +203,7 @@ export const moleculesRouter = createTRPCRouter({
             CASE
               WHEN LOWER(COALESCE(cm.casnumber, '')) = ${searchTermLower} THEN 'cas_exact'
               WHEN LOWER(COALESCE(cm.pubchemcid, '')) = ${searchTermLower} THEN 'pubchem_exact'
+              WHEN LOWER(COALESCE(cm.smiles, '')) = ${searchTermLower} THEN 'smiles_exact'
               WHEN LOWER(cm.iupacname) = ${searchTermLower} THEN 'name_exact'
               WHEN LOWER(cm.iupacname) LIKE ${searchPattern} THEN 'name_prefix'
               WHEN LENGTH(${searchTerm}) >= 3
