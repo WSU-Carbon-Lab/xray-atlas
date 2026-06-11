@@ -1,0 +1,50 @@
+---
+title: Dataset quality metrics
+description: How X-ray Atlas summarizes spectral resolution, SNR, normalization-fit signals, and missing-statistic penalties on dataset cards.
+order: 4
+lastReviewed: 2026-06-11
+---
+
+# Dataset quality metrics
+
+Browse and molecule-detail NEXAFS cards show one headline quality ring plus a tooltip breakdown. Missing rows use neutral placeholders and short explanations instead of invented numbers.
+
+## Metrics roadmap
+
+Some signals are still evolving. The items below are planned or in active development; browse cards may show interim rows until these stabilize.
+
+- **Normalization fits (OD and mass absorption):** clearer definitions, documentation examples, and richer tooltip copy for how declared pre-edge and post-edge windows compare to anchor targets.
+- **Worked wiki examples:** optional interactive demos for normalization-fit rows and SNR (similar in spirit to the spacing demo below) once definitions are locked.
+
+## Headline score
+
+The ring is a 0–100 aggregate from whichever subscores are available for that dataset: energy resolution, signal-to-noise (when error bars allow), and OD versus mass-absorption normalization fits (when ranges and channels allow). The resolution model uses decade-relative spacing scoring; details follow under Energy resolution. Each optional slot among SNR, OD normalization fit, and mass-absorption normalization fit that cannot be scored applies a five-point penalty before the headline is clamped to the display range.
+
+{/* [HUMAN] Once subscore definitions stabilize, replace the prose-only
+   description with the defining expressions (the decade-relative spacing
+   mapping and the penalty aggregation), mirroring how quantities are
+   treated in the NEXAFS branch. */}
+
+## Energy resolution distribution
+
+Adjacent channel spacing along the canonical polarization trace is grouped by tier: great (below 0.1 eV), good (0.1–1 eV), OK (1–5 eV), and bad (above 5 eV). The tooltip uses a segmented trace and a P75 ΔE headline. The resolution subscore uses a mapping anchored at 0.1 eV so equal ratios in spacing move the score similarly across decades.
+
+## Worked example, spacing distribution
+
+The interactive bar uses fixed illustrative tier shares (65% / 30% / 3% / 2%) and the same thresholds as in Energy resolution distribution; it is not computed from uploaded energies. The P75 value is a documentation example aligned with those shares.
+
+<SpectralSpacingDemo />
+
+## Signal-to-noise ratio
+
+SNR uses uploaded absorption and uncertainty when finite positive error bars exist. Without usable error bars, SNR is omitted and the tooltip states why.
+
+## Normalization fits (OD and mass absorption)
+
+Rows aim to summarize how well traces match nominal plateaus in declared windows. Presentation and scoring copy are still tightening—see [Metrics roadmap](#metrics-roadmap). Contributors should still supply pre-edge and post-edge ranges when possible so future scoring can consume them.
+
+## Missing metrics in the tooltip
+
+When a statistic cannot be scored, the row shows a skeleton bar, an em dash instead of a headline number, and amber guidance (for example missing error bars or missing normalization windows). Resolution may be omitted if there are too few points for an adjacent-spacing distribution.
+
+<CtaLink href="/browse/nexafs">Browse NEXAFS</CtaLink>

@@ -1,0 +1,46 @@
+---
+title: What the database stores
+description: Molecules, experiments, and per-energy spectrum points, with the metadata conventions that make traces comparable.
+order: 2
+lastReviewed: 2026-06-11
+---
+
+# What the database stores
+
+X-ray Atlas stores NEXAFS measurements as queryable molecules, experiments,
+and per-energy spectrum points. A molecule record carries identity (names,
+identifiers, chemical formula). An experiment carries the measurement context
+(facility, instrument, edge, detection mode, geometry, provenance). Spectrum
+points carry the traces themselves, one row per photon energy per geometry,
+on `spectrumpoints` columns.
+
+## Persisted channels
+
+Raw absorption, optical density, mass absorption, $\beta$, and $\delta$ are
+persisted at ingest or recalculation, each with an optional uncertainty
+column. Channels derived in the browser ($f_1$, $f_2$, $\varepsilon$, $\chi$)
+are computed from stored values and never written back; the physics behind
+each channel is defined in
+[measured and derived quantities](/wiki/nexafs/quantities).
+
+## Metadata conventions
+
+**Energy.** Photon energy is reported in electron volts for browse, download,
+and API workflows, and must increase strictly monotonically within a trace.
+
+**Geometry.** Polarization and sample orientation use the theta and phi
+metadata captured on experiments when angle-resolved data are submitted.
+Angle-resolved uploads store separate traces per geometry.
+
+**Detection.** Modality metadata (TEY, PEY, FY, transmission) distinguishes
+comparable traces collected under different instrumental coupling, since probe
+depth and artifacts differ by mode.
+
+{/* [HUMAN] Optional. A small entity-relationship sketch (molecule,
+   experiment, spectrumpoints) would help API users; decide whether to add
+   one as a figure or leave the prose. */}
+
+## Related
+
+[Uploading spectroscopy](/wiki/atlas/uploading-data).
+[API](/wiki/api).
