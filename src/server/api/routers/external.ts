@@ -12,6 +12,16 @@ import {
   PUBCHEM_COMPOUND_PROPERTY_QUERY,
 } from "~/lib/pubchem-compound";
 
+const EXTERNAL_LOOKUP_QUERY_MAX_LEN = 2048;
+
+const externalLookupQuerySchema = z
+  .string()
+  .min(1, "Query is required")
+  .max(
+    EXTERNAL_LOOKUP_QUERY_MAX_LEN,
+    `Query must be at most ${EXTERNAL_LOOKUP_QUERY_MAX_LEN} characters`,
+  );
+
 /**
  * Encodes InChI string for CAS API
  * According to CAS API docs: InChI can be searched with or without the "InChI=" prefix
@@ -328,9 +338,9 @@ export const externalRouter = createTRPCRouter({
     .input(
       z
         .object({
-          inchi: z.string().optional(),
-          synonym: z.string().optional(),
-          casNumber: z.string().optional(),
+          inchi: z.string().max(EXTERNAL_LOOKUP_QUERY_MAX_LEN).optional(),
+          synonym: z.string().max(EXTERNAL_LOOKUP_QUERY_MAX_LEN).optional(),
+          casNumber: z.string().max(64).optional(),
         })
         .refine(
           // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- We want to reject empty strings, not just null/undefined
@@ -585,7 +595,7 @@ export const externalRouter = createTRPCRouter({
   listPubchemCids: publicProcedure
     .input(
       z.object({
-        query: z.string().min(1, "Query is required"),
+        query: externalLookupQuerySchema,
         type: z.enum(["name", "smiles", "formula"]).default("name"),
         limit: z.number().int().min(1).max(20).default(10),
       }),
@@ -612,7 +622,7 @@ export const externalRouter = createTRPCRouter({
   searchPubchemCandidates: publicProcedure
     .input(
       z.object({
-        query: z.string().min(1, "Query is required"),
+        query: externalLookupQuerySchema,
         limit: z.number().int().min(1).max(20).default(10),
         type: z
           .enum(["auto", "name", "formula", "cid", "smiles"])
@@ -692,7 +702,7 @@ export const externalRouter = createTRPCRouter({
   searchPubchem: publicProcedure
     .input(
       z.object({
-        query: z.string().min(1, "Query is required"),
+        query: externalLookupQuerySchema,
         type: z.enum(["name", "cid", "smiles"]).default("name"),
       }),
     )
@@ -962,7 +972,7 @@ export const externalRouter = createTRPCRouter({
     }),
 
   validatePubChemCid: publicProcedure
-    .input(z.object({ cid: z.string() }))
+    .input(z.object({ cid: z.string().max(20) }))
     .query(async ({ input }) => {
       const cid = input.cid.trim();
       if (!cid || !/^\d+$/.test(cid)) return { valid: false };

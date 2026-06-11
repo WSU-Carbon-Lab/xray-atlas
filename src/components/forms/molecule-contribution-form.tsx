@@ -196,8 +196,9 @@ export const MoleculeContributionForm = forwardRef<
         setImagePreview("");
       }
       setStructureValidationError(null);
+      markIdentityDirty();
     },
-    [setFormData],
+    [markIdentityDirty, setFormData],
   );
 
   const handleSketchBookendsChange = useCallback((bookends: BookendMarksState) => {
@@ -222,8 +223,9 @@ export const MoleculeContributionForm = forwardRef<
       setFormData((prev) =>
         prev.smiles === smiles ? prev : { ...prev, smiles },
       );
+      markIdentityDirty();
     },
-    [setFormData],
+    [markIdentityDirty, setFormData],
   );
 
   const handleStructureLookupContextChange = useCallback(
@@ -376,9 +378,9 @@ export const MoleculeContributionForm = forwardRef<
         void handleCsvDropped(first);
       }
     };
-    window.addEventListener("dragenter", handleDragEnter);
-    window.addEventListener("dragover", handleDragOver);
-    window.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("dragenter", handleDragEnter, { passive: true });
+    window.addEventListener("dragover", handleDragOver, { passive: true });
+    window.addEventListener("dragleave", handleDragLeave, { passive: true });
     window.addEventListener("drop", handleDrop);
     return () => {
       window.removeEventListener("dragenter", handleDragEnter);
@@ -578,7 +580,6 @@ export const MoleculeContributionForm = forwardRef<
                 markIdentityDirty();
               }}
               editingMoleculeId={editingMoleculeId}
-              onEditingMoleculeIdChange={() => undefined}
               identityFsm={identityFsm}
               dispatchIdentity={dispatchIdentity}
               onPendingLookup={queuePendingLookup}
@@ -650,12 +651,14 @@ export const MoleculeContributionForm = forwardRef<
             <MoleculePreferredIdentity
               preferredName={formData.commonName}
               iupacName={formData.iupacName}
-              onPreferredNameChange={(value) =>
-                setFormData((prev) => ({ ...prev, commonName: value }))
-              }
-              onIupacNameChange={(value) =>
-                setFormData((prev) => ({ ...prev, iupacName: value }))
-              }
+              onPreferredNameChange={(value) => {
+                setFormData((prev) => ({ ...prev, commonName: value }));
+                markIdentityDirty();
+              }}
+              onIupacNameChange={(value) => {
+                setFormData((prev) => ({ ...prev, iupacName: value }));
+                markIdentityDirty();
+              }}
               synonyms={formData.synonyms}
               onPromoteSynonym={promoteSynonym}
               linkedIdentity={resolvedIdentity}
@@ -664,17 +667,19 @@ export const MoleculeContributionForm = forwardRef<
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               <MoleculeSynonymsField
                 synonyms={formData.synonyms}
-                onSynonymsChange={(synonyms) =>
-                  setFormData((prev) => ({ ...prev, synonyms }))
-                }
+                onSynonymsChange={(synonyms) => {
+                  setFormData((prev) => ({ ...prev, synonyms }));
+                  markIdentityDirty();
+                }}
                 importedSynonyms={importedSynonyms}
               />
               <MoleculeTagsField
                 allTags={allTags}
                 tagIds={formData.tagIds ?? []}
-                onTagIdsChange={(tagIds) =>
-                  setFormData((prev) => ({ ...prev, tagIds }))
-                }
+                onTagIdsChange={(tagIds) => {
+                  setFormData((prev) => ({ ...prev, tagIds }));
+                  markIdentityDirty();
+                }}
                 pendingTags={pendingTags}
                 onPendingTagsChange={setPendingTags}
                 isLoading={isTagsLoading}
@@ -684,9 +689,10 @@ export const MoleculeContributionForm = forwardRef<
             <TextField
               name="smiles"
               value={formData.smiles}
-              onChange={(value) =>
-                setFormData((prev) => ({ ...prev, smiles: value }))
-              }
+              onChange={(value) => {
+                setFormData((prev) => ({ ...prev, smiles: value }));
+                markIdentityDirty();
+              }}
               isRequired={!formData.registryStub}
               isDisabled={formData.registryStub}
               variant="secondary"
@@ -711,9 +717,10 @@ export const MoleculeContributionForm = forwardRef<
             <TextField
               name="inchi"
               value={formData.inchi}
-              onChange={(value) =>
-                setFormData((prev) => ({ ...prev, inchi: value }))
-              }
+              onChange={(value) => {
+                setFormData((prev) => ({ ...prev, inchi: value }));
+                markIdentityDirty();
+              }}
               isRequired={!formData.registryStub}
               isDisabled={formData.registryStub}
               variant="secondary"
@@ -734,15 +741,16 @@ export const MoleculeContributionForm = forwardRef<
             <TextField
               name="chemicalFormula"
               value={formulaDisplayValue}
-              onChange={(value) =>
+              onChange={(value) => {
                 setFormData((prev) => ({
                   ...prev,
                   chemicalFormula: formatMoleculeFormulaForKind(
                     value,
                     prev.compoundKind ?? "small_molecule",
                   ),
-                }))
-              }
+                }));
+                markIdentityDirty();
+              }}
               isRequired
               variant="secondary"
               fullWidth

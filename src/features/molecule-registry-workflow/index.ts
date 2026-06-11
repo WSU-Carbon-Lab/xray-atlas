@@ -29,7 +29,10 @@ export {
   writePubChemCidCache,
 } from "./utils/pubchem-session-cache";
 
-export { createLookupRequestGeneration } from "./utils/lookup-request-generation";
+export {
+  createLookupRequestGeneration,
+  resolveLookupGeneration,
+} from "./utils/lookup-request-generation";
 
 export type {
   MoleculeIdentityPreviewSnapshot,

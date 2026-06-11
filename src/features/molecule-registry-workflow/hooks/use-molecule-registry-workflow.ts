@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { MoleculePendingTag } from "~/components/molecules/category-tags";
 import { normalizeMoleculeSynonym } from "~/lib/molecule-synonym-dedupe";
 import {
@@ -292,6 +292,17 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
     setEditingMoleculeId(null);
     dispatchIdentity({ type: "reset" });
   }, []);
+
+  useEffect(() => {
+    if (identityFsm.phase !== "linked" && identityFsm.phase !== "dirty") {
+      return;
+    }
+    const chemistry = validateChemistryConsistency(formData);
+    dispatchIdentity({
+      type: "set_chemistry_warnings",
+      warnings: dedupeChemistryWarnings(chemistry.warnings),
+    });
+  }, [formData, identityFsm.phase]);
 
   return {
     formData,

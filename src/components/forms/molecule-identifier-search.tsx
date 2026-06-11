@@ -38,6 +38,7 @@ import {
   applyPubChemResultToForm,
   autosuggestMatchTypeLabel,
   createLookupRequestGeneration,
+  resolveLookupGeneration,
   dedupeChemistryWarnings,
   firstTrimmedNonEmpty,
   mergePubChemCandidatesForComponents,
@@ -74,7 +75,6 @@ export type MoleculeIdentifierSearchProps = {
     updater: MoleculeUploadData | ((prev: MoleculeUploadData) => MoleculeUploadData),
   ) => void;
   editingMoleculeId: string | null;
-  onEditingMoleculeIdChange: (id: string | null) => void;
   identityFsm: MoleculeIdentityFsmState;
   dispatchIdentity: (action: MoleculeIdentityFsmAction) => void;
   onSearchComplete: (payload: MoleculeIdentifierSearchCompletePayload) => void;
@@ -169,7 +169,6 @@ export const MoleculeIdentifierSearch = forwardRef<
     formData,
     onFormDataChange,
     editingMoleculeId,
-    onEditingMoleculeIdChange,
     identityFsm,
     dispatchIdentity,
     onSearchComplete,
@@ -189,6 +188,10 @@ export const MoleculeIdentifierSearch = forwardRef<
 
   const [searchMode, setSearchMode] =
     useState<MoleculeIdentifierSearchMode>(identityFsm.searchMode);
+
+  useEffect(() => {
+    setSearchMode(identityFsm.searchMode);
+  }, [identityFsm.searchMode]);
   const query = identityFsm.searchQuery;
   const setQuery = useCallback(
     (value: string) => {
@@ -499,10 +502,15 @@ export const MoleculeIdentifierSearch = forwardRef<
   );
 
   const applyDatabaseHit = useCallback(
-    async (hit: AutosuggestHit) => {
-      const generation = lookupGeneration.current.next();
-      dispatchIdentity({ type: "begin_query", queryKey: query.trim() });
-      onClearSearchFeedback();
+    async (hit: AutosuggestHit, reuseGeneration?: number) => {
+      const generation = resolveLookupGeneration(
+        lookupGeneration.current,
+        reuseGeneration,
+      );
+      if (reuseGeneration === undefined) {
+        dispatchIdentity({ type: "begin_query", queryKey: query.trim() });
+        onClearSearchFeedback();
+      }
       setIsSearching(true);
       try {
         const pending = await buildAtlasPending(hit, generation);
@@ -553,11 +561,19 @@ export const MoleculeIdentifierSearch = forwardRef<
   );
 
   const selectPubChemCandidate = useCallback(
-    async (candidate: PubChemCandidateSummary) => {
-      const generation = lookupGeneration.current.next();
+    async (
+      candidate: PubChemCandidateSummary,
+      reuseGeneration?: number,
+    ) => {
+      const generation = resolveLookupGeneration(
+        lookupGeneration.current,
+        reuseGeneration,
+      );
       setIsSearching(true);
       setLocalError(null);
-      onClearSearchFeedback();
+      if (reuseGeneration === undefined) {
+        onClearSearchFeedback();
+      }
       const drawnSmiles = structureLookupSmiles?.trim() ?? "";
       const applyOptions =
         drawnSmiles.length > 0
@@ -634,7 +650,7 @@ export const MoleculeIdentifierSearch = forwardRef<
           top &&
           (top.matchType === "name_exact" || top.matchType === "name_prefix")
         ) {
-          await applyDatabaseHit(top as AutosuggestHit);
+          await applyDatabaseHit(top as AutosuggestHit, generation);
           return;
         }
       }
@@ -711,7 +727,7 @@ export const MoleculeIdentifierSearch = forwardRef<
         throw new Error("Molecule not found in PubChem.");
       }
       if (candidates.length === 1) {
-        await selectPubChemCandidate(candidates[0]!);
+        await selectPubChemCandidate(candidates[0]!, generation);
         return;
       }
 
@@ -774,7 +790,10 @@ export const MoleculeIdentifierSearch = forwardRef<
     async (smiles: string, options?: StructureLookupOptions) => {
       const generation = lookupGeneration.current.next();
       const lookupSmiles = smiles.trim();
-      const registrySmiles = options?.registrySmiles?.trim() || lookupSmiles;
+      const registrySmiles = firstTrimmedNonEmpty(
+        options?.registrySmiles,
+        lookupSmiles,
+      );
       if (lookupSmiles.length === 0) {
         reportError(
           "Draw or enter a SMILES string before looking up identifiers.",
@@ -803,7 +822,7 @@ export const MoleculeIdentifierSearch = forwardRef<
         }
         const atlasHit = atlasSuggest.results[0];
         if (atlasHit?.matchType === "smiles_exact") {
-          await applyDatabaseHit(atlasHit as AutosuggestHit);
+          await applyDatabaseHit(atlasHit as AutosuggestHit, generation);
           return;
         }
 
@@ -913,7 +932,9 @@ export const MoleculeIdentifierSearch = forwardRef<
     setStructureLookupSmiles(null);
     setDebouncedQuery("");
     setSearchMode("name");
-  }, []);
+    dispatchIdentity({ type: "set_search_mode", mode: "name" });
+    dispatchIdentity({ type: "set_search_query", query: "" });
+  }, [dispatchIdentity]);
 
   useImperativeHandle(
     ref,
