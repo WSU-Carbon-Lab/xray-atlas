@@ -1,0 +1,41 @@
+---
+title: Pipeline check
+description: Dev-only fixture exercising wiki MDX remark and rehype plugins.
+order: 0
+authors: []
+lastReviewed: 2026-06-11
+draft: true
+---
+
+# Pipeline check
+
+This page validates the wiki MDX pipeline in development. It is marked `draft: true` and must 404 in production builds.
+
+## Inline and display math
+
+Inline: $E = h\nu$. Display:
+
+$$
+\delta(\omega) = -\frac{2}{\pi} \mathcal{P} \int_0^\infty \frac{\beta(\omega')}{\omega'^2 - \omega^2}\, d\omega'
+$$
+
+## Citations
+
+Kramers-Kronig delta in Atlas follows [@watts2014].
+
+## GFM table
+
+| Channel | Role                                   |
+| ------- | -------------------------------------- |
+| beta    | Imaginary part of the refractive index |
+| delta   | Real part from KK transform            |
+
+## Links
+
+Internal: [contributions](/wiki/contributions). External: [Optics Express](https://opg.optica.org/oe/fulltext.cfm?uri=oe-22-19-23628).
+
+## Slug headings
+
+### Nested heading for slug test
+
+This subsection checks `rehype-slug` output for scroll-spy compatibility.
