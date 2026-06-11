@@ -4,6 +4,15 @@ import {
   ForceFieldMMFF94,
   Molecule as MoleculeCtor,
 } from "openchemlib";
+import {
+  classifyDepictionBondDepthTiers,
+  computeViewSpaceCoords,
+  normalizeProjectedPlaneCoords,
+  projectSessionAtoms,
+} from "./molecule-3d-projection";
+import type { BondDepthTier } from "~/lib/molecule-svg-3d-perspective";
+
+export { combinedViewMatrix } from "./molecule-3d-projection";
 export const DEFAULT_OCL_DEPICTION_TO_SVG_OPTIONS = {
   autoCrop: true,
   autoCropMargin: 12,
@@ -58,58 +67,8 @@ export function applyView3dAxisPreset(
   return { ...view, yaw: 0, pitch: Math.PI / 2, roll: 0 };
 }
 
-function matVec3(
-  m: number[],
-  p: [number, number, number],
-): [number, number, number] {
-  return [
-    m[0]! * p[0] + m[1]! * p[1] + m[2]! * p[2],
-    m[3]! * p[0] + m[4]! * p[1] + m[5]! * p[2],
-    m[6]! * p[0] + m[7]! * p[1] + m[8]! * p[2],
-  ];
-}
-
-function matMul3(a: number[], b: number[]): number[] {
-  const o = new Array<number>(9);
-  for (let r = 0; r < 3; r += 1) {
-    for (let c = 0; c < 3; c += 1) {
-      o[r * 3 + c] = 0;
-      for (let k = 0; k < 3; k += 1) {
-        o[r * 3 + c]! += a[r * 3 + k]! * b[k * 3 + c]!;
-      }
-    }
-  }
-  return o;
-}
-
-function matRotateX(rad: number): number[] {
-  const c = Math.cos(rad);
-  const s = Math.sin(rad);
-  return [1, 0, 0, 0, c, -s, 0, s, c];
-}
-
-function matRotateY(rad: number): number[] {
-  const c = Math.cos(rad);
-  const s = Math.sin(rad);
-  return [c, 0, s, 0, 1, 0, -s, 0, c];
-}
-
-function matRotateZ(rad: number): number[] {
-  const c = Math.cos(rad);
-  const s = Math.sin(rad);
-  return [c, -s, 0, s, c, 0, 0, 0, 1];
-}
-
 function identityBasisRows(): number[] {
   return [1, 0, 0, 0, 1, 0, 0, 0, 1];
-}
-
-function combinedViewMatrix(intrinsicRows: number[], view: View3d): number[] {
-  const Rz = matRotateZ(view.roll);
-  const Ry = matRotateY(view.yaw);
-  const Rx = matRotateX(view.pitch);
-  const user = matMul3(Rz, matMul3(Ry, Rx));
-  return matMul3(user, intrinsicRows);
 }
 
 export function getSessionIntrinsicBasis(session: Molecule3dSession): number[] {
@@ -145,85 +104,11 @@ function pointToSegmentDistance2d(
   return Math.hypot(px - qx, py - qy);
 }
 
-function normalizePlaneCoordsToIdealAverage(
-  mol: Molecule,
-  x2: number[],
-  y2: number[],
-): { x: number[]; y: number[] } {
-  const n = mol.getAtoms();
-  let bondLenSum = 0;
-  let bondCount = 0;
-  const bonds = mol.getBonds();
-  for (let b = 0; b < bonds; b += 1) {
-    const a0 = mol.getBondAtom(0, b);
-    const a1 = mol.getBondAtom(1, b);
-    const dx = x2[a0]! - x2[a1]!;
-    const dy = y2[a0]! - y2[a1]!;
-    bondLenSum += Math.hypot(dx, dy);
-    bondCount += 1;
-  }
-  const targetAv =
-    bondCount > 0
-      ? bondLenSum / bondCount
-      : MoleculeCtor.getDefaultAverageBondLength();
-  const ideal = MoleculeCtor.getDefaultAverageBondLength();
-  const s = targetAv > 1e-9 ? ideal / targetAv : 1;
-  let mx = 0;
-  let my = 0;
-  for (let i = 0; i < n; i += 1) {
-    mx += x2[i]!;
-    my += y2[i]!;
-  }
-  mx /= n;
-  my /= n;
-  const x: number[] = [];
-  const y: number[] = [];
-  for (let i = 0; i < n; i += 1) {
-    x.push((x2[i]! - mx) * s);
-    y.push((y2[i]! - my) * s);
-  }
-  return { x, y };
-}
-
-function rawRotatedPlaneXY(
-  session: Molecule3dSession,
-  view: View3d,
-): { x: number[]; y: number[] } {
-  const R = combinedViewMatrix(getSessionIntrinsicBasis(session), view);
-  const mol3d = session.mol3d;
-  const n = mol3d.getAtoms();
-  const x: number[] = [];
-  const y: number[] = [];
-  for (let i = 0; i < n; i += 1) {
-    const p: [number, number, number] = [
-      session.centered[i * 3]!,
-      session.centered[i * 3 + 1]!,
-      session.centered[i * 3 + 2]!,
-    ];
-    const t = matVec3(R, p);
-    x.push(t[0]);
-    y.push(-t[1]);
-  }
-  return { x, y };
-}
-
 export function computeAtomViewSpaceZ(
   session: Molecule3dSession,
   view: View3d,
 ): number[] {
-  const R = combinedViewMatrix(getSessionIntrinsicBasis(session), view);
-  const n = session.mol3d.getAtoms();
-  const z: number[] = [];
-  for (let i = 0; i < n; i += 1) {
-    const p: [number, number, number] = [
-      session.centered[i * 3]!,
-      session.centered[i * 3 + 1]!,
-      session.centered[i * 3 + 2]!,
-    ];
-    const t = matVec3(R, p);
-    z.push(-t[2]);
-  }
-  return z;
+  return computeViewSpaceCoords(session, view).z;
 }
 
 function mapAtomDepthAfterStrip(
@@ -261,6 +146,7 @@ function mapAtomDepthAfterStrip(
 export type OclDepiction3dSvgPack = {
   svg: string;
   atomDepth: number[];
+  bondDepthTier: Map<number, BondDepthTier>;
   strippedMolfileV3: string;
 };
 
@@ -269,9 +155,9 @@ export function computeMergedNormalizedPlaneCoords(
   session: Molecule3dSession,
   view: View3d,
 ): { x: number[]; y: number[] } {
-  const mol3d = session.mol3d;
-  const raw = rawRotatedPlaneXY(session, view);
-  return normalizePlaneCoordsToIdealAverage(mol3d, raw.x, raw.y);
+  const projected = projectSessionAtoms(session, view);
+  const normalized = normalizeProjectedPlaneCoords(session.mol3d, projected);
+  return { x: normalized.x, y: normalized.y };
 }
 
 function planeArraysToScreenMap(
@@ -341,7 +227,8 @@ export function sessionToOclDepictionSvg(
   molfile2d: string,
 ): OclDepiction3dSvgPack {
   const { x, y } = computeMergedNormalizedPlaneCoords(session, view);
-  const zFull = computeAtomViewSpaceZ(session, view);
+  const projected = projectSessionAtoms(session, view);
+  const zFull = projected.map((p) => p.z);
   let mol: Molecule;
   try {
     mol = MoleculeCtor.fromMolfile(molfile2d);
@@ -355,12 +242,26 @@ export function sessionToOclDepictionSvg(
   const beforeStrip = MoleculeCtor.fromMolfile(mol.toMolfileV3());
   mol.removeExplicitHydrogens();
   const atomDepth = mapAtomDepthAfterStrip(beforeStrip, zFull, mol);
+  const strippedN = mol.getAtoms();
+  const planeX: number[] = [];
+  const planeY: number[] = [];
+  for (let i = 0; i < strippedN; i += 1) {
+    planeX.push(mol.getAtomX(i));
+    planeY.push(mol.getAtomY(i));
+  }
+  const bondDepthTier = classifyDepictionBondDepthTiers(
+    mol,
+    atomDepth,
+    planeX,
+    planeY,
+  );
   const svg = mol.toSVG(opts.width, opts.height, opts.svgId, {
     ...DEFAULT_OCL_DEPICTION_TO_SVG_OPTIONS,
   });
   return {
     svg,
     atomDepth,
+    bondDepthTier,
     strippedMolfileV3: mol.toMolfileV3(),
   };
 }

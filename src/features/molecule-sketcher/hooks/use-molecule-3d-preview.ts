@@ -9,7 +9,11 @@ import {
 } from "react";
 import { Molecule } from "openchemlib";
 import { applyMoleculeSvgCpkTheme } from "~/lib/molecule-svg-cpk-theme";
-import { applyMoleculeSvg3dPerspectiveDepth } from "~/lib/molecule-svg-3d-perspective";
+import {
+  applyMoleculeSvg3dBondDepthTiers,
+  applyMoleculeSvg3dPerspectiveDepth,
+  disableMoleculeSvgPointerEvents,
+} from "~/lib/molecule-svg-3d-perspective";
 import {
   createMolecule3dSession,
   defaultView3d,
@@ -18,6 +22,10 @@ import {
   type OclDepiction3dSvgPack,
   type View3d,
 } from "../utils/molecule-3d-depth-wireframe";
+import {
+  snapshotConformerToFlatSvg,
+  type ConformerSnapshotMetadata,
+} from "../utils/snapshot-conformer-to-flat-svg";
 
 export function useMolecule3dPreview(options: {
   molfile: string;
@@ -34,6 +42,13 @@ export function useMolecule3dPreview(options: {
   const [view3d, setView3d] = useState<View3d>(() => defaultView3d());
   const [wire3dError, setWire3dError] = useState<string | null>(null);
   const [wire3dBusy, setWire3dBusy] = useState(false);
+  const [snapshotPreviewSvg, setSnapshotPreviewSvg] = useState<string | null>(
+    null,
+  );
+  const [snapshotMetadata, setSnapshotMetadata] =
+    useState<ConformerSnapshotMetadata | null>(null);
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
+
   const conformerMolfileKeyRef = useRef<string | null>(null);
 
   const threeDDragRef = useRef<{
@@ -55,6 +70,9 @@ export function useMolecule3dPreview(options: {
       setView3d(defaultView3d());
       setWire3dError(null);
       conformerMolfileKeyRef.current = null;
+      setSnapshotPreviewSvg(null);
+      setSnapshotMetadata(null);
+      setSnapshotError(null);
     }
   }, [molfile, session3d]);
 
@@ -69,6 +87,9 @@ export function useMolecule3dPreview(options: {
         setSession3d(r.session);
         setView3d(defaultView3d());
         setWire3dError(null);
+        setSnapshotPreviewSvg(null);
+        setSnapshotMetadata(null);
+        setSnapshotError(null);
       } else {
         setSession3d(null);
         conformerMolfileKeyRef.current = null;
@@ -82,6 +103,9 @@ export function useMolecule3dPreview(options: {
     setView3d(defaultView3d());
     setWire3dError(null);
     conformerMolfileKeyRef.current = null;
+    setSnapshotPreviewSvg(null);
+    setSnapshotMetadata(null);
+    setSnapshotError(null);
   }, []);
 
   const resetView3d = useCallback(() => {
@@ -105,17 +129,65 @@ export function useMolecule3dPreview(options: {
     try {
       const m = Molecule.fromMolfile(pack.strippedMolfileV3);
       if (m.getAtoms() === pack.atomDepth.length) {
-        themed = applyMoleculeSvg3dPerspectiveDepth(themed, m, pack.atomDepth);
+        if (pack.bondDepthTier.size > 0) {
+          themed = applyMoleculeSvg3dBondDepthTiers(
+            themed,
+            m,
+            pack.bondDepthTier,
+            isDark,
+          );
+        } else {
+          themed = applyMoleculeSvg3dPerspectiveDepth(themed, m, pack.atomDepth);
+        }
       }
     } catch {
       /* keep CPK-only */
     }
-    return themed;
+    return disableMoleculeSvgPointerEvents(themed);
   }, [session3d, view3d, isDark, wire3dSvgId, molfile, panelWidth, panelHeight]);
+
+  const generateSnapshotPreview = useCallback(() => {
+    if (!session3d) return;
+    setSnapshotError(null);
+    const result = snapshotConformerToFlatSvg(
+      session3d,
+      view3d,
+      molfileRef.current,
+      {
+        width: panelWidth,
+        height: panelHeight,
+        svgId: `mol-snap-${wire3dSvgId}`,
+        isDark,
+      },
+    );
+    if (!result.ok) {
+      setSnapshotError(result.message);
+      setSnapshotPreviewSvg(null);
+      setSnapshotMetadata(null);
+      return;
+    }
+    setSnapshotPreviewSvg(applyMoleculeSvgCpkTheme(result.svg, isDark));
+    setSnapshotMetadata(result.metadata);
+  }, [
+    session3d,
+    view3d,
+    molfileRef,
+    panelWidth,
+    panelHeight,
+    wire3dSvgId,
+    isDark,
+  ]);
+
+  const clearSnapshotPreview = useCallback(() => {
+    setSnapshotPreviewSvg(null);
+    setSnapshotMetadata(null);
+    setSnapshotError(null);
+  }, []);
 
   const on3dPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!session3d) return;
+      e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
       threeDDragRef.current = {
         lastX: e.clientX,
@@ -130,6 +202,7 @@ export function useMolecule3dPreview(options: {
     (e: ReactPointerEvent<HTMLDivElement>) => {
       const d = threeDDragRef.current;
       if (d?.pointerId !== e.pointerId) return;
+      e.preventDefault();
       const dy = e.clientY - d.lastY;
       const r = e.currentTarget.getBoundingClientRect();
       const cx = r.left + r.width / 2;
@@ -174,9 +247,14 @@ export function useMolecule3dPreview(options: {
     wire3dBusy,
     wire3dError,
     wire3dSvgRendered,
+    snapshotPreviewSvg,
+    snapshotMetadata,
+    snapshotError,
     runCompute3dConformer,
     clear3dConformer,
     resetView3d,
+    generateSnapshotPreview,
+    clearSnapshotPreview,
     on3dPointerDown,
     on3dPointerMove,
     on3dPointerUp,
