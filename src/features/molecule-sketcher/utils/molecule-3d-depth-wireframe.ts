@@ -11,8 +11,10 @@ import {
   projectSessionAtoms,
 } from "./molecule-3d-projection";
 import type { BondDepthTier } from "~/lib/molecule-svg-3d-perspective";
+import { MOLECULE_2D_ATOM_LABEL_FONT_WEIGHT } from "./molecule-2d-depiction-style";
 
 export { combinedViewMatrix } from "./molecule-3d-projection";
+
 export const DEFAULT_OCL_DEPICTION_TO_SVG_OPTIONS = {
   autoCrop: true,
   autoCropMargin: 12,
@@ -21,6 +23,7 @@ export const DEFAULT_OCL_DEPICTION_TO_SVG_OPTIONS = {
   suppressESR: true,
   noStereoProblem: true,
   noImplicitHydrogen: true,
+  fontWeight: MOLECULE_2D_ATOM_LABEL_FONT_WEIGHT,
 } as const;
 
 export interface DepthWireframeOptions {

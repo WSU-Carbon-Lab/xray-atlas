@@ -5,6 +5,7 @@ import { cn } from "@heroui/styles";
 import { Molecule } from "openchemlib";
 
 import { bondStrokeHexForMoleculeSvgTheme } from "~/lib/molecule-svg-cpk-theme";
+import { MOLECULE_SVG_FONT_FAMILY_INLINE } from "~/lib/molecule-svg-typography";
 import { buildDatabaseDepictionSvg, buildDrawCanvasOclDepiction } from "../utils/molecule-2d-ocl-depiction";
 import {
   MOLECULE_2D_ATOM_LABEL_FONT_WEIGHT,
@@ -419,6 +420,7 @@ export function WorkflowBookendDepiction({
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
         preserveAspectRatio="xMidYMid meet"
         className="block h-full w-full max-h-full max-w-full"
+        style={{ fontFamily: MOLECULE_SVG_FONT_FAMILY_INLINE }}
         aria-hidden
       >
         <g dangerouslySetInnerHTML={{ __html: innerMarkup }} />
@@ -645,6 +647,7 @@ export function WorkflowChunkSliceDepiction({
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
         preserveAspectRatio="xMidYMid meet"
         className="block h-full w-full max-h-full max-w-full"
+        style={{ fontFamily: MOLECULE_SVG_FONT_FAMILY_INLINE }}
         aria-hidden
       >
         <g dangerouslySetInnerHTML={{ __html: innerMarkup }} />

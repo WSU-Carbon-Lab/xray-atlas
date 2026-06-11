@@ -16,6 +16,7 @@ import { cn } from "@heroui/styles";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 
 import { bondStrokeHexForMoleculeSvgTheme } from "~/lib/molecule-svg-cpk-theme";
+import { MOLECULE_SVG_FONT_FAMILY_INLINE } from "~/lib/molecule-svg-typography";
 import type { MoleculeDrawState } from "../hooks/use-molecule-draw-state";
 import { CageOrbitFastLayer } from "./cage-orbit-fast-layer";
 import { ALKYL_TAIL_PRESETS } from "../molecule-draw-types";
@@ -1635,7 +1636,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
           viewBox={svgViewBox}
           preserveAspectRatio="xMidYMid meet"
           className="block w-full touch-none bg-transparent"
-          style={{ cursor: cursorClass }}
+          style={{ cursor: cursorClass, fontFamily: MOLECULE_SVG_FONT_FAMILY_INLINE }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}

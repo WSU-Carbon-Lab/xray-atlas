@@ -10,6 +10,7 @@
 import type { Molecule } from "openchemlib";
 
 import { cpkHexForElementSymbol } from "~/lib/molecule-svg-cpk-theme";
+import { MOLECULE_SVG_LABEL_FONT_WEIGHT } from "~/lib/molecule-svg-typography";
 import { isAbbreviatedAlkylLabel } from "./alkyl-label-expand";
 
 /** Visible bond stroke width in SVG user units (draw canvas and themed OCL lines). */
@@ -33,8 +34,8 @@ export const MOLECULE_2D_SUBSCRIPT_FONT_SCALE = 0.72;
 /** Subscript baseline shift in em units (negative raises subscripts). */
 export const MOLECULE_2D_SUBSCRIPT_BASELINE_SHIFT_EM = -0.28;
 
-/** Atom label font weight. */
-export const MOLECULE_2D_ATOM_LABEL_FONT_WEIGHT = 600;
+/** Atom label font weight; aligned with {@link MOLECULE_SVG_LABEL_FONT_WEIGHT}. */
+export const MOLECULE_2D_ATOM_LABEL_FONT_WEIGHT = MOLECULE_SVG_LABEL_FONT_WEIGHT;
 
 /** Vertical offset applied to centered atom labels (baseline tweak). */
 export const MOLECULE_2D_ATOM_LABEL_Y_OFFSET = 4.5;

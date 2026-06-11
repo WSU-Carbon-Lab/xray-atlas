@@ -1,3 +1,5 @@
+import { applyMoleculeSvgTypography } from "~/lib/molecule-svg-typography";
+
 import { ringTemplateThumbnailSvg } from "../utils/ring-template-thumbnails";
 
 /** Props for {@link RingTemplateThumbnail}. */
@@ -12,10 +14,12 @@ export interface RingTemplateThumbnailProps {
  * CPK-aligned fills that switch with the document dark class.
  */
 export function RingTemplateThumbnail({ templateId }: RingTemplateThumbnailProps) {
-  const markup = ringTemplateThumbnailSvg(templateId);
-  if (!markup) {
+  const rawMarkup = ringTemplateThumbnailSvg(templateId);
+  if (!rawMarkup) {
     return <span className="inline-block h-8 w-8 shrink-0" aria-hidden />;
   }
+
+  const markup = applyMoleculeSvgTypography(rawMarkup);
 
   return (
     <span

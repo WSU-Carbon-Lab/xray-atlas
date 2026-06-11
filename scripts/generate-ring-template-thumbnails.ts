@@ -12,6 +12,7 @@ import { cageBondDepthTierMapFromMarks } from "../src/features/molecule-sketcher
 import { ensureOclResourcesNode } from "../src/features/molecule-sketcher/utils/ocl-resources.node";
 import { RING_TEMPLATE_PRESETS } from "../src/features/molecule-sketcher/molecule-draw-types";
 import { applyMoleculeSvg3dBondDepthTiers } from "../src/lib/molecule-svg-3d-perspective";
+import { applyMoleculeSvgTypography } from "../src/lib/molecule-svg-typography";
 
 ensureOclResourcesNode();
 
@@ -33,7 +34,7 @@ function normalizeRingTemplateThumbnailSvg(raw: string, stripLabels: boolean): s
   if (stripLabels) {
     normalized = stripCageDepictionLabelsFromSvgMarkup(normalized);
   }
-  return normalized;
+  return applyMoleculeSvgTypography(normalized);
 }
 
 const entries: Record<string, string> = {};

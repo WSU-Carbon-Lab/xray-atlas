@@ -1,4 +1,5 @@
 import { applyChemFormulaTypographyToSvgRoot } from "~/lib/molecule-svg-formula-typography";
+import { applyMoleculeSvgTypographyToSvgRoot } from "~/lib/molecule-svg-typography";
 
 /**
  * Shared CPK-style atom and bond coloring for molecule SVG markup, matching
@@ -54,6 +55,7 @@ export function applyMoleculeSvgCpkThemeToElement(
   isDark: boolean,
 ): void {
   applyChemFormulaTypographyToSvgRoot(svgRoot);
+  applyMoleculeSvgTypographyToSvgRoot(svgRoot);
   const CPK_COLORS = isDark ? CPK_COLORS_DARK : CPK_COLORS_LIGHT;
   const BOND_COLOR = isDark ? "#ffffff" : "#000000";
   const DEFAULT_ATOM_COLOR = isDark ? "#ffffff" : "#000000";
