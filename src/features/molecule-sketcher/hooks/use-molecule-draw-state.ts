@@ -45,7 +45,6 @@ import {
   addBondedAtom,
   addIsolatedAtom,
   attachAbbreviatedAlkylTail,
-  canonicalSmilesOf,
   connectAtoms,
   cycleBondOrder,
   deleteAtomCascade,
@@ -67,6 +66,7 @@ import {
   stabilizeLayout,
   type MoleculeDatabasePrepAssessment,
 } from "../utils/molecule-graph-editing";
+import { smilesForRegistryExport } from "../utils/polymer-export-smiles";
 import { buildDatabasePrepSnapshotSvg } from "../utils/build-database-prep-snapshot-svg";
 import { remapBookendMarksAfterMolEdit } from "../utils/remap-draw-bond-marks";
 import {
@@ -456,11 +456,11 @@ export function useMoleculeDrawState(): MoleculeDrawState {
 
   const smiles = useMemo(() => {
     try {
-      return canonicalSmilesOf(molecule);
+      return smilesForRegistryExport(molecule, bookends);
     } catch {
       return "";
     }
-  }, [molecule]);
+  }, [molecule, bookends]);
 
   const containsDativeBond = useMemo(() => hasDativeBond(molecule), [molecule]);
 
@@ -1120,7 +1120,7 @@ export function useMoleculeDrawState(): MoleculeDrawState {
           bookends,
         );
         next = serializeDrawMolfile(mol);
-        smiles = canonicalSmilesOf(mol);
+        smiles = smilesForRegistryExport(mol, snapshotBookends);
         const svgId = `atlas-db-snap-${Date.now()}`;
         svg = buildDatabasePrepSnapshotSvg({
           mol,

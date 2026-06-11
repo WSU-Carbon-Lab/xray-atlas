@@ -3,11 +3,11 @@
 import { useId } from "react";
 import { cn } from "@heroui/styles";
 import {
-  BeakerIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { Button, Chip, Description } from "@heroui/react";
-import { WorkflowMiniDepiction } from "~/features/molecule-sketcher/components/workflow-mini-depiction";
+import { ChemicalFormula } from "~/components/ui/chemical-formula";
+import { RegistryDepictionThumbnail } from "./registry-depiction-thumbnail";
 import type {
   MoleculeLookupCandidate,
   MoleculePendingLookup,
@@ -41,31 +41,13 @@ function LookupPreviewDepiction({
   isDark: boolean;
   label: string;
 }) {
-  const trimmed = smiles?.trim() ?? "";
-  if (trimmed.length === 0) {
-    return (
-      <div
-        className="border-border bg-surface text-muted flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border"
-        aria-hidden
-      >
-        <BeakerIcon className="h-8 w-8 opacity-50" />
-      </div>
-    );
-  }
   return (
-    <div
-      className="border-border bg-surface relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border"
-      aria-label={label}
-    >
-      <WorkflowMiniDepiction
-        smiles={trimmed}
-        isDark={isDark}
-        width={96}
-        height={96}
-        fill
-        bare
-      />
-    </div>
+    <RegistryDepictionThumbnail
+      smiles={smiles}
+      isDark={isDark}
+      label={label}
+      enlargeable
+    />
   );
 }
 
@@ -91,7 +73,7 @@ export function MoleculeLookupConfirmation({
       aria-labelledby={titleId}
       aria-live="polite"
       className={cn(
-        "border-accent/30 bg-surface motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 rounded-xl border shadow-sm",
+        "border-accent/30 bg-surface motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-[180ms] rounded-xl border shadow-sm",
         "px-4 py-4 sm:px-5",
       )}
     >
@@ -129,9 +111,10 @@ export function MoleculeLookupConfirmation({
           </h3>
           {identity.chemicalFormula ? (
             <p className="text-muted text-sm">
-              <span className="text-foreground font-mono font-medium">
-                {identity.chemicalFormula}
-              </span>
+              <ChemicalFormula
+                formula={identity.chemicalFormula}
+                className="text-foreground font-medium"
+              />
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2">

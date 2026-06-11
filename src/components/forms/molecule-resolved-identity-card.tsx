@@ -27,7 +27,9 @@ import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import type {
   MoleculeResolvedIdentity,
   MoleculeResolvedIdentitySource,
+  MoleculeIdentityPreviewSnapshot,
 } from "~/features/molecule-registry-workflow";
+import { ChemicalFormula } from "~/components/ui/chemical-formula";
 
 export type { MoleculeResolvedIdentity, MoleculeResolvedIdentitySource };
 
@@ -41,6 +43,7 @@ export type MoleculeResolvedIdentityCardProps = {
   onRegistryStubChange: (stub: boolean) => void;
   hasStructure: boolean;
   polymerKindSuggested: boolean;
+  previewSnapshot?: MoleculeIdentityPreviewSnapshot | null;
 };
 
 const SOURCE_BADGE: Record<
@@ -82,6 +85,7 @@ export function MoleculeResolvedIdentityCard({
   onRegistryStubChange,
   hasStructure,
   polymerKindSuggested,
+  previewSnapshot = null,
 }: MoleculeResolvedIdentityCardProps) {
   const nameId = useId();
   const [nameExpanded, setNameExpanded] = useState(false);
@@ -109,11 +113,15 @@ export function MoleculeResolvedIdentityCard({
 
   const showRegistryStub = !hasStructure;
 
+  const previewSmiles =
+    previewSnapshot?.previewSmiles ?? identity.previewSmiles;
+
   return (
     <div
       className={cn(
         "border-accent/25 bg-surface relative overflow-hidden rounded-xl border",
         "from-accent-soft/20 via-surface to-muted/15 bg-gradient-to-br",
+        "motion-safe:transition-[opacity,transform] motion-safe:duration-[180ms] motion-safe:ease-out",
         "px-4 py-4 shadow-sm sm:px-5",
       )}
       aria-labelledby={nameId}
@@ -150,6 +158,7 @@ export function MoleculeResolvedIdentityCard({
       <div className="mt-4 space-y-2">
         <h3
           id={nameId}
+          title={identity.displayName.trim()}
           className={cn(
             "text-foreground text-base font-semibold tracking-tight sm:text-lg",
             !nameExpanded && longName ? "line-clamp-2" : undefined,
@@ -170,7 +179,10 @@ export function MoleculeResolvedIdentityCard({
         ) : null}
         {formulaDisplay.length > 0 ? (
           <p className="text-muted text-sm">
-            <span className="text-foreground font-medium">{formulaDisplay}</span>
+            <ChemicalFormula
+              formula={formulaDisplay}
+              className="text-foreground font-medium"
+            />
             {compoundKind === "polymer" || compoundKind === "macromolecule" ? (
               <span className="text-muted ml-1.5 text-xs">
                 repeat-unit notation
@@ -179,6 +191,12 @@ export function MoleculeResolvedIdentityCard({
           </p>
         ) : null}
       </div>
+
+      {previewSmiles ? (
+        <p className="text-muted sr-only">
+          Structure preview available for {previewSmiles}
+        </p>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap gap-2">
         {identity.pubChemCid ? (

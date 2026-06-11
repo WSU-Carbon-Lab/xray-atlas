@@ -123,7 +123,12 @@ export function MoleculePreferredIdentity({
           <FieldTooltip description="Systematic name stored as the primary registry key. Lookup fills this when available." />
         </Label>
         <InputGroup variant="secondary" fullWidth>
-          <InputGroup.Input placeholder="Systematic name" autoComplete="off" />
+          <InputGroup.Input
+            placeholder="Systematic name"
+            autoComplete="off"
+            title={iupacName.trim().length > 0 ? iupacName : undefined}
+            className="line-clamp-2"
+          />
         </InputGroup>
       </TextField>
     </div>
