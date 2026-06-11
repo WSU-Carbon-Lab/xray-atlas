@@ -34,6 +34,7 @@ import {
 import {
   wikiDocBreadcrumbTrail,
   wikiDocTopics,
+  wikiPageOutlineForPathname,
   type WikiOverviewNavIcon,
 } from "~/lib/wiki-doc-nav";
 import { WikiDocPageNav } from "./wiki-doc-page-nav";
@@ -59,12 +60,17 @@ interface WikiDocShellProps {
   children: ReactNode;
 }
 
+const wikiOverviewAccordionTriggerClass =
+  "hover:bg-default/50 flex w-full min-w-0 items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors";
+
 function OverviewNavIcon({
   kind,
+  className,
 }: {
   kind: WikiOverviewNavIcon;
+  className?: string;
 }): ReactElement {
-  const cls = "text-accent size-4 shrink-0";
+  const cls = cn("size-4 shrink-0", className ?? "text-accent");
   switch (kind) {
     case "wiki-home":
       return <BookOpenIcon className={cls} aria-hidden />;
@@ -87,10 +93,10 @@ function navLinkClass(active: boolean, dense?: boolean): string {
   return (
     cn(
       "block rounded-md text-sm transition-colors",
-      dense ? "py-1 pl-2" : "py-1.5 pl-2",
+      dense ? "px-2 py-1" : "px-2 py-1.5",
       active
-        ? "bg-accent/12 text-accent border-accent border-l-2 font-medium"
-        : "text-muted hover:bg-default hover:text-foreground border-l-2 border-transparent",
+        ? "bg-accent/10 text-accent font-medium"
+        : "text-muted hover:bg-default/50 hover:text-foreground",
     ) ?? ""
   );
 }
@@ -109,66 +115,81 @@ function WikiOverviewAccordion({
   onNavigate?: () => void;
 }): ReactElement {
   return (
-    <Accordion
-      allowsMultipleExpanded
-      className="w-full rounded-lg"
-      expandedKeys={expandedKeys}
-      variant="surface"
-      onExpandedChange={(keys) => {
-        onExpandedChange(new Set([...keys].map(String)));
-      }}
-    >
-      {wikiDocTopics.map((topic) => {
-        const isActivePage =
-          pathname === topic.href || pathname.startsWith(`${topic.href}/`);
-        return (
-          <Accordion.Item key={topic.href} id={topic.href}>
-            <Accordion.Heading>
-              <Accordion.Trigger
-                className={cn(
-                  "flex w-full items-center gap-3 text-sm",
-                  isActivePage && "text-accent font-medium",
-                )}
-              >
-                <OverviewNavIcon kind={topic.overviewNavIcon} />
-                <span className="min-w-0 flex-1 text-left">{topic.label}</span>
-                <Accordion.Indicator>
-                  <ChevronDownIcon className="size-4 shrink-0" aria-hidden />
-                </Accordion.Indicator>
-              </Accordion.Trigger>
-            </Accordion.Heading>
-            <Accordion.Panel>
-              <Accordion.Body className="flex flex-col gap-1 pt-0">
-                <Link
-                  href={topic.href}
-                  className={navLinkClass(isActivePage && hashId === "", true)}
-                  onClick={onNavigate}
+    <div className="border-border/60 bg-surface/40 rounded-lg border p-1.5">
+      <Accordion
+        allowsMultipleExpanded
+        className="flex w-full flex-col gap-1"
+        expandedKeys={expandedKeys}
+        onExpandedChange={(keys) => {
+          onExpandedChange(new Set([...keys].map(String)));
+        }}
+      >
+        {wikiDocTopics.map((topic) => {
+          const isActivePage =
+            pathname === topic.href ||
+            (topic.href !== "/wiki" && pathname.startsWith(`${topic.href}/`)) ||
+            topic.sections.some((section) => section.href === pathname);
+          return (
+            <Accordion.Item
+              key={topic.href}
+              id={topic.href}
+              className="border-border/50 bg-background/50 overflow-hidden rounded-lg border"
+            >
+              <Accordion.Heading>
+                <Accordion.Trigger
+                  className={cn(
+                    wikiOverviewAccordionTriggerClass,
+                    isActivePage && "text-accent font-medium",
+                  )}
                 >
-                  Top of page
-                </Link>
-                {topic.sections.map((section) => {
-                  const sectionActive = section.href
-                    ? pathname === section.href
-                    : isActivePage && hashId === section.id;
-                  const sectionHref =
-                    section.href ?? `${topic.href}#${section.id}`;
-                  return (
-                    <Link
-                      key={section.id}
-                      href={sectionHref}
-                      className={navLinkClass(sectionActive, true)}
-                      onClick={onNavigate}
-                    >
-                      {section.label}
-                    </Link>
-                  );
-                })}
-              </Accordion.Body>
-            </Accordion.Panel>
-          </Accordion.Item>
-        );
-      })}
-    </Accordion>
+                  <OverviewNavIcon
+                    kind={topic.overviewNavIcon}
+                    className={isActivePage ? "text-accent" : "text-muted"}
+                  />
+                  <span className="min-w-0 flex-1 text-left">
+                    {topic.label}
+                  </span>
+                  <Accordion.Indicator>
+                    <ChevronDownIcon className="size-4 shrink-0" aria-hidden />
+                  </Accordion.Indicator>
+                </Accordion.Trigger>
+              </Accordion.Heading>
+              <Accordion.Panel>
+                <Accordion.Body className="border-border/40 flex flex-col gap-0.5 border-t px-1.5 pt-1.5 pb-2">
+                  <Link
+                    href={topic.href}
+                    className={navLinkClass(
+                      isActivePage && hashId === "",
+                      true,
+                    )}
+                    onClick={onNavigate}
+                  >
+                    Top of page
+                  </Link>
+                  {topic.sections.map((section) => {
+                    const sectionActive = section.href
+                      ? pathname === section.href
+                      : isActivePage && hashId === section.id;
+                    const sectionHref =
+                      section.href ?? `${topic.href}#${section.id}`;
+                    return (
+                      <Link
+                        key={section.id}
+                        href={sectionHref}
+                        className={navLinkClass(sectionActive, true)}
+                        onClick={onNavigate}
+                      >
+                        {section.label}
+                      </Link>
+                    );
+                  })}
+                </Accordion.Body>
+              </Accordion.Panel>
+            </Accordion.Item>
+          );
+        })}
+      </Accordion>
+    </div>
   );
 }
 
@@ -199,11 +220,11 @@ function WikiOnPageOutline({
             href={`#${entry.id}`}
             onClick={onNavigate}
             className={cn(
-              "block rounded-md py-1 text-sm transition-colors",
+              "block rounded-md px-2 py-1 text-sm transition-colors",
               entry.depth === 3 ? "pl-4" : "pl-2",
               active
-                ? "text-accent border-accent border-l-2 font-medium"
-                : "text-muted hover:text-foreground border-border border-l-2 border-transparent",
+                ? "bg-accent/10 text-accent font-medium"
+                : "text-muted hover:bg-default/50 hover:text-foreground",
             )}
           >
             {entry.text}
@@ -237,31 +258,39 @@ function OnThisPageAccordion({
   onNavigate?: () => void;
 }): ReactElement {
   return (
-    <Accordion className="w-full rounded-lg" variant="surface">
-      <Accordion.Item defaultExpanded id="wiki-on-this-page">
-        <Accordion.Heading>
-          <Accordion.Trigger className="flex w-full items-center gap-3 text-sm font-semibold">
-            <ListBulletIcon
-              className="text-accent size-5 shrink-0"
-              aria-hidden
-            />
-            <span className="min-w-0 flex-1 text-left">On this page</span>
-            <Accordion.Indicator>
-              <ChevronDownIcon className="size-4 shrink-0" aria-hidden />
-            </Accordion.Indicator>
-          </Accordion.Trigger>
-        </Accordion.Heading>
-        <Accordion.Panel>
-          <Accordion.Body className="pt-0">
-            <WikiOnPageOutline
-              entries={toc}
-              activeId={activeHeadingId}
-              onNavigate={onNavigate}
-            />
-          </Accordion.Body>
-        </Accordion.Panel>
-      </Accordion.Item>
-    </Accordion>
+    <div className="border-border/60 bg-surface/40 rounded-lg border p-1.5">
+      <Accordion className="flex w-full flex-col gap-1">
+        <Accordion.Item
+          className="border-border/50 bg-background/50 overflow-hidden rounded-lg border"
+          defaultExpanded
+          id="wiki-on-this-page"
+        >
+          <Accordion.Heading>
+            <Accordion.Trigger
+              className={cn(wikiOverviewAccordionTriggerClass, "font-semibold")}
+            >
+              <ListBulletIcon
+                className="text-accent size-5 shrink-0"
+                aria-hidden
+              />
+              <span className="min-w-0 flex-1 text-left">On this page</span>
+              <Accordion.Indicator>
+                <ChevronDownIcon className="size-4 shrink-0" aria-hidden />
+              </Accordion.Indicator>
+            </Accordion.Trigger>
+          </Accordion.Heading>
+          <Accordion.Panel>
+            <Accordion.Body className="border-border/40 border-t px-1.5 pt-1.5 pb-2">
+              <WikiOnPageOutline
+                entries={toc}
+                activeId={activeHeadingId}
+                onNavigate={onNavigate}
+              />
+            </Accordion.Body>
+          </Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
+    </div>
   );
 }
 
@@ -456,9 +485,20 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
   );
 
   const rescanToc = useCallback(() => {
+    const configured = wikiPageOutlineForPathname(pathname);
+    if (configured && configured.length > 0) {
+      setToc(
+        configured.map((section) => ({
+          id: section.id,
+          text: section.label,
+          depth: 2 as const,
+        })),
+      );
+      return;
+    }
     const root = mainRef.current?.querySelector("[data-wiki-main]");
     setToc(outlineFromMain(root instanceof HTMLElement ? root : null));
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     const storedLeft = window.localStorage.getItem(STORAGE_LEFT);
@@ -620,7 +660,7 @@ export function WikiDocShell({ children }: WikiDocShellProps): ReactElement {
       <div className="border-border mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between lg:mb-6">
         <Breadcrumbs className="min-w-0 text-sm font-medium">
           <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
-          <Breadcrumbs.Item href="/wiki/home">Wiki</Breadcrumbs.Item>
+          <Breadcrumbs.Item href="/wiki">Wiki</Breadcrumbs.Item>
           {breadcrumbTrail.length === 0 ? (
             <Breadcrumbs.Item>Wiki</Breadcrumbs.Item>
           ) : (
