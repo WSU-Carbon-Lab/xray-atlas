@@ -11,3 +11,6 @@ build
 **/__pycache__/**
 tests/kk-calc-validation/.venv
 tests/kk-calc-validation/kkcalc
+
+# MDX JSX comments ({/* */}) are corrupted by Prettier; wiki bodies are authored verbatim
+content/wiki/**/*.mdx
