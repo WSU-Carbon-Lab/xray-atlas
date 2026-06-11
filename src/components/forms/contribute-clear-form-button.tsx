@@ -2,7 +2,7 @@
 
 import { Button, Tooltip } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { BroomIcon } from "~/components/icons";
+import { BrushCleaning } from "lucide-react";
 
 export type ContributeClearFormButtonProps = {
   /** Invoked when the user clears the contribute form. */
@@ -49,7 +49,7 @@ export function ContributeClearFormButton({
           aria-label={ariaLabel}
           className={cn(CLEAR_FORM_BUTTON_CLASS, className)}
         >
-          <BroomIcon className="h-4 w-4 shrink-0" />
+          <BrushCleaning className="h-4 w-4 shrink-0" aria-hidden="true" />
           Clear Form
         </Button>
       </Tooltip.Trigger>

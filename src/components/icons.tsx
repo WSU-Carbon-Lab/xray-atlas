@@ -997,24 +997,3 @@ export function ORCIDIcon({
     }
   }
 }
-
-/** Outline broom icon for clearing contribute forms. */
-export function BroomIcon(props: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      {...props}
-    >
-      <path d="M5 19h14" />
-      <path d="M7 19V9l4-4 4 4v10" />
-      <path d="M9 13h6" />
-      <path d="M10 9h4" />
-    </svg>
-  );
-}
