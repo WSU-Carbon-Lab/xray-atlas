@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -7,8 +8,14 @@ import { Breadcrumbs } from "@heroui/react";
 import { BeakerIcon } from "@heroicons/react/24/outline";
 import { site } from "~/app/brand";
 import { ContributionAgreementModal } from "~/components/contribute";
-import { MoleculeContributionForm } from "~/components/forms";
-import type { MoleculeContributePageProps } from "~/components/forms";
+import {
+  ContributeClearFormButton,
+  MoleculeContributionForm,
+} from "~/components/forms";
+import type {
+  MoleculeContributePageProps,
+  MoleculeContributionFormHandle,
+} from "~/components/forms";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
 
 export type { MoleculeContributePageProps };
@@ -19,6 +26,7 @@ export default function MoleculeContributePage({
   onClose,
 }: MoleculeContributePageProps = {}) {
   const router = useRouter();
+  const formRef = useRef<MoleculeContributionFormHandle>(null);
   const { data: session } = useSession();
   const isSignedIn = !!session?.user;
   const isModal = variant === "modal";
@@ -64,13 +72,19 @@ export default function MoleculeContributePage({
       <div className={`${isModal ? "" : "container mx-auto"} px-4 py-8`}>
         <div className="mx-auto max-w-4xl">
           {!isModal ? (
-            <div className="mb-6">
+            <div className="mb-6 flex items-center justify-between">
               <Breadcrumbs className="text-sm font-medium">
                 <Breadcrumbs.Item href="/contribute">
                   Contributions
                 </Breadcrumbs.Item>
                 <Breadcrumbs.Item>Molecule registry</Breadcrumbs.Item>
               </Breadcrumbs>
+              {canContribute ? (
+                <ContributeClearFormButton
+                  onPress={() => formRef.current?.clearForm()}
+                  tooltipDescription="Reset registry identity and form fields"
+                />
+              ) : null}
             </div>
           ) : null}
           <div className="mb-8 flex items-start gap-4">
@@ -104,6 +118,7 @@ export default function MoleculeContributePage({
             </p>
           ) : canContribute ? (
             <MoleculeContributionForm
+              ref={formRef}
               variant={variant}
               onCompleted={onCompleted}
               onClose={onClose}

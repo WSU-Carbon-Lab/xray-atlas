@@ -1,6 +1,13 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import {
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useEffect,
+  useCallback,
+  useState,
+} from "react";
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
 import {
@@ -13,7 +20,7 @@ import { MoleculeSynonymsField } from "./molecule-synonyms-field";
 import { MoleculeTagsField } from "./molecule-tags-field";
 import { trpc } from "~/trpc/client";
 import { DocumentArrowUpIcon } from "@heroicons/react/24/outline";
-import { BroomIcon } from "~/components/icons";
+import { ContributeClearFormButton } from "./contribute-clear-form-button";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import {
   MOLECULE_COMPOUND_KINDS,
@@ -35,13 +42,17 @@ import {
   Separator,
   Spinner,
   TextField,
-  Tooltip,
 } from "@heroui/react";
 import { parseMoleculeJsonFile } from "~/app/contribute/molecule/utils/parseMoleculeJson";
 import { parseMoleculeCsvFile } from "~/app/contribute/molecule/utils/parseMoleculeCsv";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
-import type { MoleculeContributionFormProps } from "./types";
+import type {
+  MoleculeContributionFormHandle,
+  MoleculeContributionFormProps,
+} from "./types";
+
+export type { MoleculeContributionFormHandle };
 import {
   MoleculeIdentifierSearch,
   MoleculeIdentifierSearchFeedback,
@@ -64,12 +75,13 @@ type CreateMoleculeResponse = inferRouterOutputs<AppRouter>["molecules"]["create
  * Registry contribute form for linking molecules into X-ray Atlas (metadata,
  * identifiers, optional SVG depiction)—not NEXAFS dataset upload.
  */
-export function MoleculeContributionForm({
-  variant = "page",
-  onCompleted,
-  onClose,
-  className = "",
-}: MoleculeContributionFormProps = {}) {
+export const MoleculeContributionForm = forwardRef<
+  MoleculeContributionFormHandle,
+  MoleculeContributionFormProps
+>(function MoleculeContributionForm(
+  { variant = "page", onCompleted, onClose, className = "" },
+  ref,
+) {
   const { data: session } = useSession();
   const isSignedIn = !!session?.user;
   const isModal = variant === "modal";
@@ -156,6 +168,14 @@ export function MoleculeContributionForm({
     setSubmitStatus({ type: null, message: "" });
     identifierSearchRef.current?.resetSearchUi();
   }, [resetWorkflow]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      clearForm: handleClearForm,
+    }),
+    [handleClearForm],
+  );
 
   const handleApplyToggle = useCallback(
     (applied: boolean) => {
@@ -513,6 +533,14 @@ export function MoleculeContributionForm({
 
   return (
     <>
+      {isModal ? (
+        <div className="mb-4 flex justify-end">
+          <ContributeClearFormButton
+            onPress={handleClearForm}
+            tooltipDescription="Reset registry identity and form fields"
+          />
+        </div>
+      ) : null}
       <ContributionFileDropOverlay
         isDragging={isDragging}
         fileKind={draggedFileType ?? "mixed"}
@@ -524,35 +552,15 @@ export function MoleculeContributionForm({
       >
         <Card className="border-border bg-surface-1 border shadow-sm">
           <Card.Content className="space-y-5 p-5 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <h2 className="text-foreground text-lg font-semibold">
-                  Registry identity
-                </h2>
-                {editingMoleculeId ? (
-                  <Chip size="sm" variant="soft" color="accent">
-                    Editing existing entry
-                  </Chip>
-                ) : null}
-              </div>
-              <Tooltip delay={0}>
-                <Tooltip.Trigger>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    isIconOnly
-                    aria-label="Clear form"
-                    onPress={handleClearForm}
-                    className="text-muted hover:text-foreground"
-                  >
-                    <BroomIcon className="h-4 w-4 shrink-0" aria-hidden />
-                  </Button>
-                </Tooltip.Trigger>
-                <Tooltip.Content className="tooltip-content-panel">
-                  Clear form
-                </Tooltip.Content>
-              </Tooltip>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-foreground text-lg font-semibold">
+                Registry identity
+              </h2>
+              {editingMoleculeId ? (
+                <Chip size="sm" variant="soft" color="accent">
+                  Editing existing entry
+                </Chip>
+              ) : null}
             </div>
 
             <Description className="text-muted text-sm">
@@ -827,4 +835,4 @@ export function MoleculeContributionForm({
       </Form>
     </>
   );
-}
+});
