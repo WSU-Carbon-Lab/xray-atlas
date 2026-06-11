@@ -29,17 +29,23 @@ import {
   MagnifyingGlassIcon,
   TagIcon,
 } from "@heroicons/react/24/outline";
+import { cn } from "@heroui/styles";
 import { CatalogSearchChrome } from "~/components/browse/catalog-search-chrome";
+import { ChemicalFormula } from "~/components/ui/chemical-formula";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import {
   applyCompoundKindSuggestionIfDefault,
   applyPubChemResultToForm,
+  autosuggestMatchTypeLabel,
   createLookupRequestGeneration,
   firstTrimmedNonEmpty,
   MoleculeStructureSearchTab,
+  rankAtlasAutosuggestHits,
   readPubChemCidCache,
   trimmedOrNull,
   writePubChemCidCache,
+  type MoleculeIdentityFsmAction,
+  type MoleculeIdentityFsmState,
   type MoleculeIdentifierSearchMode,
   type MoleculeLookupCandidate,
   type MoleculePendingLookup,
@@ -66,6 +72,8 @@ export type MoleculeIdentifierSearchProps = {
   ) => void;
   editingMoleculeId: string | null;
   onEditingMoleculeIdChange: (id: string | null) => void;
+  identityFsm: MoleculeIdentityFsmState;
+  dispatchIdentity: (action: MoleculeIdentityFsmAction) => void;
   onSearchComplete: (payload: MoleculeIdentifierSearchCompletePayload) => void;
   onPendingLookup: (pending: MoleculePendingLookup) => void;
   onClearSearchFeedback: () => void;
@@ -106,6 +114,23 @@ export type MoleculeIdentifierSearchHandle = {
 
 const PUBCHEM_DEBOUNCE_MS = 320;
 
+function SearchResultSkeletonRows({ count = 3 }: { count?: number }) {
+  return (
+    <>
+      {Array.from({ length: count }, (_, index) => (
+        <li
+          key={`skeleton-${index}`}
+          className="border-border/60 mx-2 my-1 animate-pulse rounded-md border px-3 py-2"
+          aria-hidden
+        >
+          <div className="bg-default/50 mb-2 h-3.5 w-2/3 rounded" />
+          <div className="bg-default/40 h-3 w-1/2 rounded" />
+        </li>
+      ))}
+    </>
+  );
+}
+
 function pubchemSynonyms(result: PubChemLookupResult): string[] {
   return (
     result.synonyms?.filter(
@@ -138,6 +163,8 @@ export const MoleculeIdentifierSearch = forwardRef<
     onFormDataChange,
     editingMoleculeId,
     onEditingMoleculeIdChange,
+    identityFsm,
+    dispatchIdentity,
     onSearchComplete,
     onPendingLookup,
     onClearSearchFeedback,
@@ -154,9 +181,15 @@ export const MoleculeIdentifierSearch = forwardRef<
   const [themeMounted, setThemeMounted] = useState(false);
 
   const [searchMode, setSearchMode] =
-    useState<MoleculeIdentifierSearchMode>("name");
-  const [query, setQuery] = useState(formData.commonName);
-  const [debouncedQuery, setDebouncedQuery] = useState(formData.commonName);
+    useState<MoleculeIdentifierSearchMode>(identityFsm.searchMode);
+  const query = identityFsm.searchQuery;
+  const setQuery = useCallback(
+    (value: string) => {
+      dispatchIdentity({ type: "set_search_query", query: value });
+    },
+    [dispatchIdentity],
+  );
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
   const [showDropdown, setShowDropdown] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isSearching, setIsSearching] = useState(false);
@@ -172,10 +205,6 @@ export const MoleculeIdentifierSearch = forwardRef<
   useEffect(() => {
     setThemeMounted(true);
   }, []);
-
-  useEffect(() => {
-    setQuery(formData.commonName);
-  }, [formData.commonName]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query.trim()), PUBCHEM_DEBOUNCE_MS);
@@ -198,8 +227,8 @@ export const MoleculeIdentifierSearch = forwardRef<
     );
 
   const suggestions = useMemo(
-    () => suggestData?.results ?? [],
-    [suggestData?.results],
+    () => rankAtlasAutosuggestHits(suggestData?.results ?? [], debouncedQuery),
+    [suggestData?.results, debouncedQuery],
   );
 
   const pubChemCandidates = useMemo(() => {
@@ -213,8 +242,10 @@ export const MoleculeIdentifierSearch = forwardRef<
   const optionCount = suggestions.length + pubChemCandidates.length;
 
   useEffect(() => {
-    setHighlightedIndex(optionCount > 0 ? 0 : -1);
-  }, [debouncedQuery, optionCount]);
+    if (debouncedQuery.length >= 2 && !isSuggesting && !isPubchemSuggesting) {
+      dispatchIdentity({ type: "show_results", queryKey: debouncedQuery });
+    }
+  }, [debouncedQuery, dispatchIdentity, isPubchemSuggesting, isSuggesting]);
 
   const reportError = useCallback(
     (message: string, generation: number) => {
@@ -249,6 +280,7 @@ export const MoleculeIdentifierSearch = forwardRef<
       setLocalError(null);
       setManualPubChemCandidates([]);
       setShowDropdown(false);
+      setHighlightedIndex(-1);
     },
     [onPendingLookup, onSearchComplete],
   );
@@ -462,13 +494,13 @@ export const MoleculeIdentifierSearch = forwardRef<
   const applyDatabaseHit = useCallback(
     async (hit: AutosuggestHit) => {
       const generation = lookupGeneration.current.next();
+      dispatchIdentity({ type: "begin_query", queryKey: query.trim() });
       onClearSearchFeedback();
       setIsSearching(true);
       try {
         const pending = await buildAtlasPending(hit, generation);
         if (pending) {
           queuePendingLookup(pending, generation);
-          setQuery(hit.commonName ?? query.trim());
         }
       } finally {
         if (lookupGeneration.current.isCurrent(generation)) {
@@ -476,7 +508,7 @@ export const MoleculeIdentifierSearch = forwardRef<
         }
       }
     },
-    [buildAtlasPending, onClearSearchFeedback, queuePendingLookup, query],
+    [buildAtlasPending, dispatchIdentity, onClearSearchFeedback, queuePendingLookup, query],
   );
 
   const resolvePubChemByCid = useCallback(
@@ -561,6 +593,7 @@ export const MoleculeIdentifierSearch = forwardRef<
 
   const runExternalLookup = useCallback(async () => {
     const generation = lookupGeneration.current.next();
+    dispatchIdentity({ type: "begin_query", queryKey: query.trim() });
     const commonName = query.trim();
     const cid = (formData.pubchemCid ?? "").trim();
     const cas = (formData.casNumber ?? "").trim();
@@ -578,6 +611,7 @@ export const MoleculeIdentifierSearch = forwardRef<
     setLocalError(null);
     setManualPubChemCandidates([]);
     onClearSearchFeedback();
+    setHighlightedIndex(-1);
 
     try {
       if (commonName.length >= 2) {
@@ -723,6 +757,7 @@ export const MoleculeIdentifierSearch = forwardRef<
     resolvePubChemByCid,
     selectPubChemCandidate,
     structureLookupSmiles,
+    dispatchIdentity,
     utils.external.searchCas,
     utils.external.searchPubchemCandidates,
     utils.molecules.autosuggest,
@@ -870,10 +905,16 @@ export const MoleculeIdentifierSearch = forwardRef<
         className="border-border bg-surface max-h-80 overflow-y-auto rounded-lg border py-1 shadow-lg"
       >
         {dropdownLoading ? (
-          <li className="text-muted flex items-center gap-2 px-3 py-2 text-sm">
-            <Spinner className="h-4 w-4" />
-            Searching Atlas catalog and PubChem…
-          </li>
+          <>
+            <li className="text-muted border-border border-b px-3 py-2 text-xs font-medium">
+              X-ray Atlas catalog
+            </li>
+            <SearchResultSkeletonRows count={2} />
+            <li className="text-muted border-border border-b px-3 py-2 text-xs font-medium">
+              {pubchemSectionLabel}
+            </li>
+            <SearchResultSkeletonRows count={2} />
+          </>
         ) : null}
 
         {!dropdownLoading && suggestions.length > 0 ? (
@@ -884,6 +925,7 @@ export const MoleculeIdentifierSearch = forwardRef<
 
         {suggestions.map((hit, index) => {
           const label = hit.commonName ?? hit.iupacName ?? hit.id ?? "Molecule";
+          const matchLabel = autosuggestMatchTypeLabel(hit.matchType);
           return (
             <li key={hit.id ?? `${label}-${index}`}>
               <button
@@ -899,7 +941,10 @@ export const MoleculeIdentifierSearch = forwardRef<
               >
                 <span className="text-foreground block font-medium">{label}</span>
                 <span className="text-muted block truncate text-xs">
-                  {hit.chemicalFormula ?? ""}
+                  {hit.chemicalFormula ? (
+                    <ChemicalFormula formula={hit.chemicalFormula} className="text-muted" />
+                  ) : null}
+                  {matchLabel ? ` · ${matchLabel}` : ""}
                   {hit.pubChemCid ? ` · CID ${hit.pubChemCid}` : ""}
                   {hit.casNumber ? ` · CAS ${hit.casNumber}` : ""}
                 </span>
@@ -932,7 +977,12 @@ export const MoleculeIdentifierSearch = forwardRef<
                   {candidate.title}
                 </span>
                 <span className="text-muted block truncate text-xs">
-                  {candidate.formula ? `${candidate.formula} · ` : ""}
+                  {candidate.formula ? (
+                    <>
+                      <ChemicalFormula formula={candidate.formula} className="text-muted" />
+                      {" · "}
+                    </>
+                  ) : null}
                   CID {candidate.cid}
                 </span>
               </button>
@@ -969,25 +1019,71 @@ export const MoleculeIdentifierSearch = forwardRef<
         selectedKey={searchMode}
         onSelectionChange={(key) => {
           if (typeof key === "string") {
-            setSearchMode(key as MoleculeIdentifierSearchMode);
+            const mode = key as MoleculeIdentifierSearchMode;
+            setSearchMode(mode);
+            dispatchIdentity({ type: "set_search_mode", mode });
           }
         }}
         className="w-full"
       >
         <Tabs.List
           aria-label="Molecule lookup method"
-          className="border-border bg-surface-2 w-full rounded-lg border p-1"
+          className="border-border bg-surface-2 grid w-full grid-cols-3 gap-1 rounded-lg border p-1"
         >
-          <Tab id="name" className="flex-1">
-            <TagIcon className="mr-1.5 inline h-4 w-4 shrink-0" aria-hidden />
+          <Tab
+            id="name"
+            className={cn(
+              "flex flex-1 items-center justify-center rounded-md px-2 py-2 text-sm font-medium transition-colors",
+              searchMode === "name"
+                ? "bg-accent text-accent-foreground shadow-sm"
+                : "text-muted hover:text-foreground",
+            )}
+          >
+            <TagIcon
+              className={cn(
+                "mr-1.5 inline h-4 w-4 shrink-0",
+                searchMode === "name" ? "text-accent-foreground" : "text-muted",
+              )}
+              aria-hidden
+            />
             Name
           </Tab>
-          <Tab id="id" className="flex-1">
-            <FingerPrintIcon className="mr-1.5 inline h-4 w-4 shrink-0" aria-hidden />
+          <Tab
+            id="id"
+            className={cn(
+              "flex flex-1 items-center justify-center rounded-md px-2 py-2 text-sm font-medium transition-colors",
+              searchMode === "id"
+                ? "bg-accent text-accent-foreground shadow-sm"
+                : "text-muted hover:text-foreground",
+            )}
+          >
+            <FingerPrintIcon
+              className={cn(
+                "mr-1.5 inline h-4 w-4 shrink-0",
+                searchMode === "id" ? "text-accent-foreground" : "text-muted",
+              )}
+              aria-hidden
+            />
             ID
           </Tab>
-          <Tab id="structure" className="flex-1">
-            <BeakerIcon className="mr-1.5 inline h-4 w-4 shrink-0" aria-hidden />
+          <Tab
+            id="structure"
+            className={cn(
+              "flex flex-1 items-center justify-center rounded-md px-2 py-2 text-sm font-medium transition-colors",
+              searchMode === "structure"
+                ? "bg-accent text-accent-foreground shadow-sm"
+                : "text-muted hover:text-foreground",
+            )}
+          >
+            <BeakerIcon
+              className={cn(
+                "mr-1.5 inline h-4 w-4 shrink-0",
+                searchMode === "structure"
+                  ? "text-accent-foreground"
+                  : "text-muted",
+              )}
+              aria-hidden
+            />
             Structure
           </Tab>
         </Tabs.List>
@@ -1002,17 +1098,15 @@ export const MoleculeIdentifierSearch = forwardRef<
             query={query}
             onQueryChange={(value) => {
               setQuery(value);
-              onFormDataChange((prev) => ({ ...prev, commonName: value }));
-              onClearSearchFeedback();
               setLocalError(null);
               setManualPubChemCandidates([]);
               setShowDropdown(true);
+              setHighlightedIndex(-1);
             }}
             onClearAll={() => {
               setQuery("");
-              onFormDataChange((prev) => ({ ...prev, commonName: "" }));
-              onClearSearchFeedback();
               setManualPubChemCandidates([]);
+              setHighlightedIndex(-1);
             }}
             placeholder="Common name, formula, synonym, or IUPAC prefix…"
             ariaLabel="Search molecule catalog or external identifiers"
@@ -1050,34 +1144,34 @@ export const MoleculeIdentifierSearch = forwardRef<
             onInputKeyDown={(event) => {
               if (event.key === "ArrowDown") {
                 event.preventDefault();
+                if (optionCount === 0) {
+                  return;
+                }
                 setHighlightedIndex((prev) =>
-                  Math.min(prev + 1, Math.max(optionCount - 1, 0)),
+                  prev < 0 ? 0 : Math.min(prev + 1, optionCount - 1),
                 );
               } else if (event.key === "ArrowUp") {
                 event.preventDefault();
-                setHighlightedIndex((prev) => Math.max(prev - 1, 0));
-              } else if (event.key === "Enter" && highlightedIndex >= 0) {
+                setHighlightedIndex((prev) => (prev <= 0 ? -1 : prev - 1));
+              } else if (event.key === "Enter") {
                 event.preventDefault();
-                if (highlightedIndex < suggestions.length) {
+                if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
                   const hit = suggestions[highlightedIndex];
                   if (hit) {
                     void applyDatabaseHit(hit as AutosuggestHit);
                     setShowDropdown(false);
                   }
-                } else {
+                  return;
+                }
+                if (highlightedIndex >= suggestions.length) {
                   const candidateIndex = highlightedIndex - suggestions.length;
                   const candidate = pubChemCandidates[candidateIndex];
                   if (candidate) {
                     void selectPubChemCandidate(candidate);
                   }
+                  return;
                 }
-              } else if (event.key === "Enter") {
-                event.preventDefault();
-                if (optionCount > 0) {
-                  setShowDropdown(true);
-                } else {
-                  void runExternalLookup();
-                }
+                void runExternalLookup();
               }
             }}
           />

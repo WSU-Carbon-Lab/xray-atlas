@@ -38,7 +38,7 @@ export function MoleculeStructureSearchTab({
   lookupBusy,
 }: MoleculeStructureSearchTabProps) {
   const [draftSmiles, setDraftSmiles] = useState("");
-  const [sketcherVisible, setSketcherVisible] = useState(false);
+  const [sketcherVisible, setSketcherVisible] = useState(true);
 
   const trimmed = draftSmiles.trim();
 
@@ -81,19 +81,20 @@ export function MoleculeStructureSearchTab({
           </Button>
         </div>
       ) : (
-        <MoleculeContributeSketcherPanel
-          initialSmiles={trimmed}
-          isDark={isDark}
-          onSmilesChange={setDraftSmiles}
-          onSnapshot={(svgMarkup, canonicalSmiles) => {
-            void svgMarkup;
-            const next = canonicalSmiles.trim();
-            if (next.length > 0) {
-              setDraftSmiles(next);
-              onSmilesReady(next);
-            }
-          }}
-        />
+        <div className="border-border overflow-hidden rounded-xl border">
+          <MoleculeContributeSketcherPanel
+            initialSmiles={trimmed}
+            isDark={isDark}
+            onSmilesChange={setDraftSmiles}
+            onSnapshot={(svgMarkup, canonicalSmiles) => {
+              void svgMarkup;
+              const next = canonicalSmiles.trim();
+              if (next.length > 0) {
+                setDraftSmiles(next);
+              }
+            }}
+          />
+        </div>
       )}
 
       {trimmed.length > 0 ? (
