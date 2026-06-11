@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useTheme } from "next-themes";
 import {
   ContributionFileDropOverlay,
   type ContributionFileDropOverlayFileKind,
 } from "~/components/contribute";
 import type { MoleculeUploadData } from "~/types/upload";
 import { normalizeMoleculeUploadForPersistence } from "~/types/upload";
-import type { MoleculePendingTag } from "~/components/molecules/category-tags";
 import { MoleculeSynonymsField } from "./molecule-synonyms-field";
 import { MoleculeTagsField } from "./molecule-tags-field";
-import { normalizeMoleculeSynonym } from "~/lib/molecule-synonym-dedupe";
 import { trpc } from "~/trpc/client";
 import { DocumentArrowUpIcon } from "@heroicons/react/24/outline";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
@@ -47,30 +46,17 @@ import {
   MoleculeIdentifierSearchFeedback,
   type MoleculeIdentifierSearchHandle,
 } from "./molecule-identifier-search";
-import {
-  MoleculeResolvedIdentityCard,
-  applyCompoundKindSuggestionIfDefault,
-  type MoleculeResolvedIdentity,
-} from "./molecule-resolved-identity-card";
+import { MoleculeResolvedIdentityCard } from "./molecule-resolved-identity-card";
 import { MoleculeStructureSection } from "./molecule-structure-section";
 import type { BookendMarksState } from "~/features/molecule-sketcher";
+import {
+  MoleculeLookupConfirmation,
+  MoleculePreferredIdentity,
+  useMoleculeRegistryWorkflow,
+} from "~/features/molecule-registry-workflow";
 import { validatePolymerStructureRequirement } from "~/lib/molecule-polymer-structure-validation";
 
 type CreateMoleculeResponse = inferRouterOutputs<AppRouter>["molecules"]["create"];
-
-const INITIAL_FORM: MoleculeUploadData = {
-  iupacName: "",
-  commonName: "",
-  synonyms: [],
-  inchi: "",
-  smiles: "",
-  chemicalFormula: "",
-  casNumber: null,
-  pubchemCid: null,
-  tagIds: [],
-  compoundKind: "small_molecule",
-  registryStub: false,
-};
 
 /**
  * Registry contribute form for linking molecules into X-ray Atlas (metadata,
@@ -85,12 +71,31 @@ export function MoleculeContributionForm({
   const { data: session } = useSession();
   const isSignedIn = !!session?.user;
   const isModal = variant === "modal";
+  const { resolvedTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
 
-  const [formData, setFormData] = useState<MoleculeUploadData>(INITIAL_FORM);
-  const [pendingTags, setPendingTags] = useState<MoleculePendingTag[]>([]);
-  const [importedSynonyms, setImportedSynonyms] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const workflow = useMoleculeRegistryWorkflow();
+  const {
+    formData,
+    setFormData,
+    pendingTags,
+    setPendingTags,
+    importedSynonyms,
+    editingMoleculeId,
+    resolvedIdentity,
+    pendingLookup,
+    setPendingLookup,
+    polymerKindSuggested,
+    searchFeedback,
+    setSearchFeedback,
+    clearSearchFeedback,
+    applyPendingLookup,
+    dismissPendingLookup,
+    promoteSynonym,
+    handleCompoundKindChange,
+    resetWorkflow,
+  } = workflow;
+
   const [svgDataUrl, setSvgDataUrl] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [sketchBookends, setSketchBookends] = useState<BookendMarksState>({
@@ -105,22 +110,18 @@ export function MoleculeContributionForm({
     type: "success" | "error" | null;
     message: string;
   }>({ type: null, message: "" });
-
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [searchSuccess, setSearchSuccess] = useState<string | null>(null);
-  const [searchWarnings, setSearchWarnings] = useState<string[]>([]);
-  const [pubChemUrl, setPubChemUrl] = useState<string | null>(null);
-  const [resolvedIdentity, setResolvedIdentity] =
-    useState<MoleculeResolvedIdentity | null>(null);
-  const [polymerKindSuggested, setPolymerKindSuggested] = useState(false);
   const [structureLookupBusy, setStructureLookupBusy] = useState(false);
-  const [editingMoleculeId, setEditingMoleculeId] = useState<string | null>(null);
+
   const identifierSearchRef = useRef<MoleculeIdentifierSearchHandle>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [draggedFileType, setDraggedFileType] =
     useState<ContributionFileDropOverlayFileKind | null>(null);
   const [draggedFileName, setDraggedFileName] = useState<string | null>(null);
   const dragCounterRef = useRef(0);
+
+  useEffect(() => {
+    setThemeMounted(true);
+  }, []);
 
   const utils = trpc.useUtils();
   const createMolecule = trpc.molecules.create.useMutation();
@@ -131,37 +132,19 @@ export function MoleculeContributionForm({
   const { data: allTags = [], isLoading: isTagsLoading } =
     trpc.molecules.listTags.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
 
-  const recordImportedSynonyms = useCallback((synonyms: string[]) => {
-    const normalized = synonyms
-      .map((synonym) => normalizeMoleculeSynonym(synonym))
-      .filter((synonym) => synonym.length > 0);
-    if (normalized.length === 0) return;
-    setImportedSynonyms((prev) => {
-      const next = new Set(prev);
-      for (const synonym of normalized) {
-        next.add(synonym);
+  const isDark = themeMounted && resolvedTheme === "dark";
+
+  const handleRegistryStubChange = useCallback(
+    (selected: boolean) => {
+      setFormData((prev) => ({ ...prev, registryStub: selected }));
+      if (selected) {
+        setSvgDataUrl(null);
+        setImagePreview("");
       }
-      return next;
-    });
-  }, []);
-
-  const clearSearchFeedback = useCallback(() => {
-    setSearchError(null);
-    setSearchSuccess(null);
-    setSearchWarnings([]);
-    setPubChemUrl(null);
-    setResolvedIdentity(null);
-    setPolymerKindSuggested(false);
-  }, []);
-
-  const handleRegistryStubChange = useCallback((selected: boolean) => {
-    setFormData((prev) => ({ ...prev, registryStub: selected }));
-    if (selected) {
-      setSvgDataUrl(null);
-      setImagePreview("");
-    }
-    setStructureValidationError(null);
-  }, []);
+      setStructureValidationError(null);
+    },
+    [setFormData],
+  );
 
   const handleSketchBookendsChange = useCallback((bookends: BookendMarksState) => {
     setSketchBookends(bookends);
@@ -180,11 +163,14 @@ export function MoleculeContributionForm({
     }
   }, []);
 
-  const handleStructureSmilesChange = useCallback((smiles: string) => {
-    setFormData((prev) =>
-      prev.smiles === smiles ? prev : { ...prev, smiles },
-    );
-  }, []);
+  const handleStructureSmilesChange = useCallback(
+    (smiles: string) => {
+      setFormData((prev) =>
+        prev.smiles === smiles ? prev : { ...prev, smiles },
+      );
+    },
+    [setFormData],
+  );
 
   const handleLookupIdentifiersFromStructure = useCallback(() => {
     const smiles = formData.smiles.trim();
@@ -194,74 +180,69 @@ export function MoleculeContributionForm({
     void identifierSearchRef.current?.lookupFromSmiles(smiles);
   }, [formData.smiles]);
 
-  const handleCompoundKindChange = useCallback((kind: MoleculeCompoundKind) => {
-    setFormData((prev) => ({
-      ...prev,
-      compoundKind: kind,
-      chemicalFormula: formatMoleculeFormulaForKind(
-        parseRepeatUnitFormula(prev.chemicalFormula),
-        kind,
-      ),
-    }));
-    setPolymerKindSuggested(false);
-    setStructureValidationError(null);
-  }, []);
+  const handleJsonDropped = useCallback(
+    async (file: File) => {
+      try {
+        const parsed = await parseMoleculeJsonFile(file);
+        clearSearchFeedback();
+        setFormData((prev) => ({
+          ...prev,
+          commonName: parsed.commonName || prev.commonName,
+          iupacName: parsed.iupacName || prev.iupacName,
+          synonyms: parsed.synonyms.length > 0 ? parsed.synonyms : prev.synonyms,
+          smiles: parsed.smiles || prev.smiles,
+          inchi: parsed.inchi || prev.inchi,
+          chemicalFormula: parsed.chemicalFormula || prev.chemicalFormula,
+          casNumber: parsed.casNumber ?? prev.casNumber,
+          pubchemCid: parsed.pubchemCid ?? prev.pubchemCid,
+          tagIds: parsed.tagIds.length > 0 ? parsed.tagIds : (prev.tagIds ?? []),
+        }));
+        setPendingTags([]);
+      } catch (err) {
+        setSearchFeedback({
+          searchError:
+            err instanceof Error ? err.message : "Failed to parse JSON file",
+          searchSuccess: null,
+          searchWarnings: [],
+          pubChemUrl: null,
+          resolvedIdentity: null,
+        });
+      }
+    },
+    [clearSearchFeedback, setFormData, setPendingTags, setSearchFeedback],
+  );
 
-  const handleJsonDropped = useCallback(async (file: File) => {
-    try {
-      const parsed = await parseMoleculeJsonFile(file);
-      clearSearchFeedback();
-      setFormData((prev) => ({
-        ...prev,
-        commonName: parsed.commonName || prev.commonName,
-        iupacName: parsed.iupacName || prev.iupacName,
-        synonyms: parsed.synonyms.length > 0 ? parsed.synonyms : prev.synonyms,
-        smiles: parsed.smiles || prev.smiles,
-        inchi: parsed.inchi || prev.inchi,
-        chemicalFormula: parsed.chemicalFormula || prev.chemicalFormula,
-        casNumber: parsed.casNumber ?? prev.casNumber,
-        pubchemCid: parsed.pubchemCid ?? prev.pubchemCid,
-        tagIds: parsed.tagIds.length > 0 ? parsed.tagIds : (prev.tagIds ?? []),
-      }));
-      setPendingTags([]);
-      setImportedSynonyms(new Set());
-      setEditingMoleculeId(null);
-      setResolvedIdentity(null);
-      setPolymerKindSuggested(false);
-    } catch (err) {
-      setSearchError(
-        err instanceof Error ? err.message : "Failed to parse JSON file",
-      );
-    }
-  }, [clearSearchFeedback]);
-
-  const handleCsvDropped = useCallback(async (file: File) => {
-    try {
-      const parsed = await parseMoleculeCsvFile(file);
-      clearSearchFeedback();
-      setFormData((prev) => ({
-        ...prev,
-        commonName: parsed.commonName || prev.commonName,
-        iupacName: parsed.iupacName || prev.iupacName,
-        synonyms: parsed.synonyms.length > 0 ? parsed.synonyms : prev.synonyms,
-        smiles: parsed.smiles || prev.smiles,
-        inchi: parsed.inchi || prev.inchi,
-        chemicalFormula: parsed.chemicalFormula || prev.chemicalFormula,
-        casNumber: parsed.casNumber ?? prev.casNumber,
-        pubchemCid: parsed.pubchemCid ?? prev.pubchemCid,
-        tagIds: parsed.tagIds.length > 0 ? parsed.tagIds : (prev.tagIds ?? []),
-      }));
-      setPendingTags([]);
-      setImportedSynonyms(new Set());
-      setEditingMoleculeId(null);
-      setResolvedIdentity(null);
-      setPolymerKindSuggested(false);
-    } catch (err) {
-      setSearchError(
-        err instanceof Error ? err.message : "Failed to parse CSV file",
-      );
-    }
-  }, [clearSearchFeedback]);
+  const handleCsvDropped = useCallback(
+    async (file: File) => {
+      try {
+        const parsed = await parseMoleculeCsvFile(file);
+        clearSearchFeedback();
+        setFormData((prev) => ({
+          ...prev,
+          commonName: parsed.commonName || prev.commonName,
+          iupacName: parsed.iupacName || prev.iupacName,
+          synonyms: parsed.synonyms.length > 0 ? parsed.synonyms : prev.synonyms,
+          smiles: parsed.smiles || prev.smiles,
+          inchi: parsed.inchi || prev.inchi,
+          chemicalFormula: parsed.chemicalFormula || prev.chemicalFormula,
+          casNumber: parsed.casNumber ?? prev.casNumber,
+          pubchemCid: parsed.pubchemCid ?? prev.pubchemCid,
+          tagIds: parsed.tagIds.length > 0 ? parsed.tagIds : (prev.tagIds ?? []),
+        }));
+        setPendingTags([]);
+      } catch (err) {
+        setSearchFeedback({
+          searchError:
+            err instanceof Error ? err.message : "Failed to parse CSV file",
+          searchSuccess: null,
+          searchWarnings: [],
+          pubChemUrl: null,
+          resolvedIdentity: null,
+        });
+      }
+    },
+    [clearSearchFeedback, setFormData, setPendingTags, setSearchFeedback],
+  );
 
   useEffect(() => {
     const handleDragEnter = (e: DragEvent) => {
@@ -443,15 +424,11 @@ export function MoleculeContributionForm({
         onClose?.();
       }
 
-      setFormData(INITIAL_FORM);
-      setPendingTags([]);
-      setImportedSynonyms(new Set());
+      resetWorkflow();
       setSvgDataUrl(null);
       setImagePreview("");
       setSketchBookends({ open: null, close: null });
       setStructureValidationError(null);
-      setEditingMoleculeId(null);
-      clearSearchFeedback();
     } catch (error: unknown) {
       const extractedMessage =
         error instanceof Error
@@ -478,7 +455,7 @@ export function MoleculeContributionForm({
       : null;
   const hasStructure = formData.smiles.trim().length > 0;
   const showIdentityCard = resolvedIdentity !== null;
-  const showManualCompoundControls = !showIdentityCard;
+  const showManualCompoundControls = !showIdentityCard && !pendingLookup;
   const showStructureRegistryStub =
     !showIdentityCard || hasStructure;
 
@@ -491,7 +468,7 @@ export function MoleculeContributionForm({
       />
       <Form
         onSubmit={handleSubmit}
-        className={className ? `space-y-8 ${className}` : "space-y-8"}
+        className={className ? `space-y-6 ${className}` : "space-y-6"}
       >
         <Card className="border-border bg-surface-1 border shadow-sm">
           <Card.Content className="space-y-5 p-5 sm:p-6">
@@ -507,8 +484,8 @@ export function MoleculeContributionForm({
             </div>
 
             <Description className="text-muted text-sm">
-              Search by name, CAS, PubChem CID, or InChI to open an existing
-              entry or prefill identifiers for a new one.
+              Search by name, draw a structure, or enter PubChem CID / CAS to
+              open an existing entry or prefill a new one.
             </Description>
 
             <MoleculeIdentifierSearch
@@ -518,61 +495,39 @@ export function MoleculeContributionForm({
               onStructureLookupBusyChange={setStructureLookupBusy}
               onFormDataChange={setFormData}
               editingMoleculeId={editingMoleculeId}
-              onEditingMoleculeIdChange={setEditingMoleculeId}
-              onImportedSynonyms={recordImportedSynonyms}
-              onSearchComplete={({
-                searchError: err,
-                searchSuccess: success,
-                searchWarnings: warnings,
-                pubChemUrl: url,
-                resolvedIdentity: identity,
-              }) => {
-                setSearchError(err);
-                setSearchSuccess(success);
-                setSearchWarnings(warnings);
-                setPubChemUrl(url);
-                setResolvedIdentity(identity);
-                if (identity) {
-                  let suggested = false;
-                  setFormData((prev) => {
-                    const suggestion = applyCompoundKindSuggestionIfDefault(
-                      identity.displayName,
-                      identity.chemicalFormula ?? prev.chemicalFormula,
-                      prev.compoundKind,
-                    );
-                    suggested = suggestion.suggested;
-                    if (!suggestion.suggested) {
-                      return prev;
-                    }
-                    return {
-                      ...prev,
-                      compoundKind: suggestion.kind,
-                      chemicalFormula: formatMoleculeFormulaForKind(
-                        parseRepeatUnitFormula(prev.chemicalFormula),
-                        suggestion.kind,
-                      ),
-                    };
-                  });
-                  setPolymerKindSuggested(suggested);
-                } else {
-                  setPolymerKindSuggested(false);
-                }
-              }}
+              onEditingMoleculeIdChange={() => undefined}
+              onPendingLookup={setPendingLookup}
+              onSearchComplete={setSearchFeedback}
               onClearSearchFeedback={clearSearchFeedback}
             />
 
+            {pendingLookup ? (
+              <MoleculeLookupConfirmation
+                pending={pendingLookup}
+                isDark={isDark}
+                onConfirm={applyPendingLookup}
+                onDismiss={dismissPendingLookup}
+                onSelectCandidate={(candidate) => {
+                  void identifierSearchRef.current?.selectPubChemCandidate(
+                    candidate,
+                  );
+                }}
+                busy={structureLookupBusy}
+              />
+            ) : null}
+
             <MoleculeIdentifierSearchFeedback
-              searchError={searchError}
-              searchSuccess={searchSuccess}
-              searchWarnings={searchWarnings}
-              pubChemUrl={pubChemUrl}
+              searchError={searchFeedback.searchError}
+              searchSuccess={searchFeedback.searchSuccess}
+              searchWarnings={searchFeedback.searchWarnings}
+              pubChemUrl={searchFeedback.pubChemUrl}
               resolvedIdentity={resolvedIdentity}
             />
 
             {showIdentityCard ? (
               <MoleculeResolvedIdentityCard
                 identity={resolvedIdentity}
-                warnings={searchWarnings}
+                warnings={searchFeedback.searchWarnings}
                 compoundKind={compoundKind}
                 onCompoundKindChange={handleCompoundKindChange}
                 chemicalFormula={formData.chemicalFormula}
@@ -596,7 +551,7 @@ export function MoleculeContributionForm({
                   <Label className="text-foreground mb-1.5 text-sm font-medium">
                     Compound kind
                   </Label>
-                  <Select.Trigger className="border-border bg-surface min-h-11 w-full rounded-lg border">
+                  <Select.Trigger className="border-border bg-surface focus-visible:ring-accent min-h-11 w-full rounded-lg border focus:outline-none focus-visible:ring-2">
                     <Select.Value />
                     <Select.Indicator />
                   </Select.Trigger>
@@ -633,24 +588,18 @@ export function MoleculeContributionForm({
               </div>
             ) : null}
 
-            <TextField
-              name="iupacName"
-              value={formData.iupacName}
-              onChange={(value) =>
+            <MoleculePreferredIdentity
+              preferredName={formData.commonName}
+              iupacName={formData.iupacName}
+              onPreferredNameChange={(value) =>
+                setFormData((prev) => ({ ...prev, commonName: value }))
+              }
+              onIupacNameChange={(value) =>
                 setFormData((prev) => ({ ...prev, iupacName: value }))
               }
-              isRequired
-              variant="secondary"
-              fullWidth
-            >
-              <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
-                IUPAC name
-                <FieldTooltip description="Systematic name used as the primary registry label. Search fills this when available; stub entries may reuse the common name." />
-              </Label>
-              <InputGroup variant="secondary" fullWidth>
-                <InputGroup.Input placeholder="Systematic name" autoComplete="off" />
-              </InputGroup>
-            </TextField>
+              synonyms={formData.synonyms}
+              onPromoteSynonym={promoteSynonym}
+            />
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               <MoleculeSynonymsField
@@ -790,8 +739,8 @@ export function MoleculeContributionForm({
           <Button
             type="submit"
             variant="primary"
-            isDisabled={isSubmitting}
-            className="inline-flex items-center gap-2"
+            isDisabled={isSubmitting || pendingLookup !== null}
+            className="focus-visible:ring-accent inline-flex items-center gap-2 focus:outline-none focus-visible:ring-2"
             aria-label={isSubmitting ? "Saving registry entry" : "Save registry entry"}
           >
             {isSubmitting ? (

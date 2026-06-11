@@ -7,8 +7,10 @@ import {
   useId,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { useTheme } from "next-themes";
 import {
   Button,
   Description,
@@ -16,21 +18,38 @@ import {
   InputGroup,
   Label,
   Spinner,
+  Tab,
+  Tabs,
   TextField,
 } from "@heroui/react";
 import {
   ArrowTopRightOnSquareIcon,
+  BeakerIcon,
+  FingerPrintIcon,
   MagnifyingGlassIcon,
+  TagIcon,
 } from "@heroicons/react/24/outline";
 import { CatalogSearchChrome } from "~/components/browse/catalog-search-chrome";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import {
-  appendUniqueMoleculeSynonym,
-} from "~/lib/molecule-synonym-dedupe";
+  applyCompoundKindSuggestionIfDefault,
+  applyPubChemResultToForm,
+  createLookupRequestGeneration,
+  firstTrimmedNonEmpty,
+  MoleculeStructureSearchTab,
+  readPubChemCidCache,
+  trimmedOrNull,
+  writePubChemCidCache,
+  type MoleculeIdentifierSearchMode,
+  type MoleculeLookupCandidate,
+  type MoleculePendingLookup,
+  type MoleculeResolvedIdentity,
+} from "~/features/molecule-registry-workflow";
 import type { PubChemCandidateSummary } from "~/lib/pubchem-compound";
 import { trpc } from "~/trpc/client";
 import type { MoleculeUploadData } from "~/types/upload";
-import type { MoleculeResolvedIdentity } from "./molecule-resolved-identity-card";
+
+export type { MoleculeResolvedIdentity } from "~/features/molecule-registry-workflow";
 
 export type MoleculeIdentifierSearchCompletePayload = {
   searchError: string | null;
@@ -48,8 +67,8 @@ export type MoleculeIdentifierSearchProps = {
   editingMoleculeId: string | null;
   onEditingMoleculeIdChange: (id: string | null) => void;
   onSearchComplete: (payload: MoleculeIdentifierSearchCompletePayload) => void;
+  onPendingLookup: (pending: MoleculePendingLookup) => void;
   onClearSearchFeedback: () => void;
-  onImportedSynonyms?: (synonyms: string[]) => void;
   structureSmiles?: string;
   onStructureLookupBusyChange?: (busy: boolean) => void;
 };
@@ -64,26 +83,8 @@ type AutosuggestHit = {
   casNumber: string | null;
   pubChemCid: string | null;
   synonyms: string[] | null;
-  imageUrl?: string | null;
   matchType: string;
 };
-
-function firstTrimmedNonEmpty(
-  ...values: Array<string | null | undefined>
-): string {
-  for (const value of values) {
-    const trimmed = value?.trim() ?? "";
-    if (trimmed.length > 0) {
-      return trimmed;
-    }
-  }
-  return "";
-}
-
-function trimmedOrNull(value: string | null | undefined): string | null {
-  const trimmed = value?.trim() ?? "";
-  return trimmed.length > 0 ? trimmed : null;
-}
 
 type PubChemLookupResult = {
   title?: string;
@@ -97,91 +98,36 @@ type PubChemLookupResult = {
   pubChemCid?: string;
 };
 
-function mergeImportedSynonyms(
-  existing: readonly string[],
-  imported: readonly string[],
-): string[] {
-  let merged = [...existing];
-  for (const synonym of imported) {
-    merged = appendUniqueMoleculeSynonym(merged, synonym);
-  }
-  return merged;
-}
-
-function applyPubChemResultToForm(
-  result: PubChemLookupResult,
-  lookupQuery: string,
-  options?: { preserveDrawnSmiles?: string; fillEmptyFieldsOnly?: boolean },
-): (prev: MoleculeUploadData) => MoleculeUploadData {
-  const displayName =
-    result.title?.trim() ??
-    result.iupacName?.trim() ??
-    result.commonName?.trim() ??
-    lookupQuery.trim();
-  const commonName =
-    lookupQuery.trim().length > 0 &&
-    lookupQuery.trim().toLowerCase() !== displayName.toLowerCase()
-      ? lookupQuery.trim()
-      : (result.commonName?.trim() ?? lookupQuery.trim());
-
-  const importedSynonyms =
-    result.synonyms?.filter(
-      (synonym): synonym is string =>
-        typeof synonym === "string" && synonym.trim().length > 0,
-    ) ?? [];
-  const drawnSmiles = options?.preserveDrawnSmiles?.trim() ?? "";
-  const fillEmptyOnly = options?.fillEmptyFieldsOnly === true;
-
-  return (prev) => {
-    if (!fillEmptyOnly) {
-      return {
-        ...prev,
-        iupacName: displayName,
-        commonName:
-          prev.commonName.trim().length > 0 ? prev.commonName : commonName,
-        synonyms: importedSynonyms.length > 0 ? importedSynonyms : prev.synonyms,
-        inchi: result.inchi ?? prev.inchi,
-        smiles: result.smiles ?? prev.smiles,
-        chemicalFormula: result.chemicalFormula ?? prev.chemicalFormula,
-        casNumber: result.casNumber ?? prev.casNumber,
-        pubchemCid: result.pubChemCid ?? prev.pubchemCid,
-      };
-    }
-
-    return {
-      ...prev,
-      iupacName: prev.iupacName.trim().length > 0 ? prev.iupacName : displayName,
-      commonName:
-        prev.commonName.trim().length > 0 ? prev.commonName : commonName,
-      synonyms:
-        importedSynonyms.length > 0
-          ? mergeImportedSynonyms(prev.synonyms, importedSynonyms)
-          : prev.synonyms,
-      inchi: prev.inchi.trim().length > 0 ? prev.inchi : (result.inchi ?? ""),
-      smiles:
-        drawnSmiles.length > 0
-          ? drawnSmiles
-          : prev.smiles.trim().length > 0
-            ? prev.smiles
-            : (result.smiles ?? ""),
-      chemicalFormula:
-        prev.chemicalFormula.trim().length > 0
-          ? prev.chemicalFormula
-          : (result.chemicalFormula ?? ""),
-      casNumber: prev.casNumber ?? result.casNumber ?? null,
-      pubchemCid: prev.pubchemCid ?? result.pubChemCid ?? null,
-    };
-  };
-}
-
 /** Imperative handle for structure-initiated PubChem identifier lookup. */
 export type MoleculeIdentifierSearchHandle = {
   lookupFromSmiles: (smiles: string) => Promise<void>;
+  selectPubChemCandidate: (candidate: PubChemCandidateSummary) => Promise<void>;
 };
 
+const PUBCHEM_DEBOUNCE_MS = 320;
+
+function pubchemSynonyms(result: PubChemLookupResult): string[] {
+  return (
+    result.synonyms?.filter(
+      (synonym): synonym is string =>
+        typeof synonym === "string" && synonym.trim().length > 0,
+    ) ?? []
+  );
+}
+
+function toLookupCandidates(
+  candidates: PubChemCandidateSummary[],
+  previewSmiles: string | null,
+): MoleculeLookupCandidate[] {
+  return candidates.map((candidate) => ({
+    ...candidate,
+    previewSmiles,
+  }));
+}
+
 /**
- * Unified identifier search row for the molecule registry form: catalog autosuggest,
- * PubChem/CAS fields, and explicit lookup actions.
+ * Unified identifier search for the molecule registry form: Name, ID, and
+ * Structure tabs with confirmation-before-apply lookup results.
  */
 export const MoleculeIdentifierSearch = forwardRef<
   MoleculeIdentifierSearchHandle,
@@ -193,8 +139,8 @@ export const MoleculeIdentifierSearch = forwardRef<
     editingMoleculeId,
     onEditingMoleculeIdChange,
     onSearchComplete,
+    onPendingLookup,
     onClearSearchFeedback,
-    onImportedSynonyms,
     structureSmiles = "",
     onStructureLookupBusyChange,
   },
@@ -202,7 +148,13 @@ export const MoleculeIdentifierSearch = forwardRef<
 ) {
   const utils = trpc.useUtils();
   const listboxId = useId();
+  const statusLiveId = useId();
+  const lookupGeneration = useRef(createLookupRequestGeneration());
+  const { resolvedTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
 
+  const [searchMode, setSearchMode] =
+    useState<MoleculeIdentifierSearchMode>("name");
   const [query, setQuery] = useState(formData.commonName);
   const [debouncedQuery, setDebouncedQuery] = useState(formData.commonName);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -218,11 +170,15 @@ export const MoleculeIdentifierSearch = forwardRef<
   >(null);
 
   useEffect(() => {
+    setThemeMounted(true);
+  }, []);
+
+  useEffect(() => {
     setQuery(formData.commonName);
   }, [formData.commonName]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query.trim()), 200);
+    const timer = setTimeout(() => setDebouncedQuery(query.trim()), PUBCHEM_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query]);
 
@@ -254,23 +210,62 @@ export const MoleculeIdentifierSearch = forwardRef<
   }, [manualPubChemCandidates, pubchemCandidateData?.candidates]);
 
   const pubchemSearchType = pubchemCandidateData?.searchType;
-
   const optionCount = suggestions.length + pubChemCandidates.length;
 
   useEffect(() => {
     setHighlightedIndex(optionCount > 0 ? 0 : -1);
   }, [debouncedQuery, optionCount]);
 
-  const applyDatabaseHit = useCallback(
-    async (hit: AutosuggestHit) => {
-      onClearSearchFeedback();
+  const reportError = useCallback(
+    (message: string, generation: number) => {
+      if (!lookupGeneration.current.isCurrent(generation)) {
+        return;
+      }
+      setLocalError(message);
+      onSearchComplete({
+        searchError: message,
+        searchSuccess: null,
+        searchWarnings: [],
+        pubChemUrl: null,
+        resolvedIdentity: null,
+      });
+    },
+    [onSearchComplete],
+  );
+
+  const queuePendingLookup = useCallback(
+    (pending: MoleculePendingLookup, generation: number) => {
+      if (!lookupGeneration.current.isCurrent(generation)) {
+        return;
+      }
+      onPendingLookup(pending);
+      onSearchComplete({
+        searchError: null,
+        searchSuccess: null,
+        searchWarnings: pending.warnings,
+        pubChemUrl: pending.pubChemUrl,
+        resolvedIdentity: null,
+      });
+      setLocalError(null);
+      setManualPubChemCandidates([]);
+      setShowDropdown(false);
+    },
+    [onPendingLookup, onSearchComplete],
+  );
+
+  const buildAtlasPending = useCallback(
+    async (
+      hit: AutosuggestHit,
+      generation: number,
+    ): Promise<MoleculePendingLookup | null> => {
       const moleculeId = hit.id ?? null;
       let tagIds: string[] = [];
       if (moleculeId) {
         try {
-          const tagsData = await utils.molecules.getTags.fetch({
-            moleculeId,
-          });
+          const tagsData = await utils.molecules.getTags.fetch({ moleculeId });
+          if (!lookupGeneration.current.isCurrent(generation)) {
+            return null;
+          }
           tagIds = tagsData.map((t) => t.id);
         } catch {
           tagIds = [];
@@ -282,8 +277,12 @@ export const MoleculeIdentifierSearch = forwardRef<
               typeof synonym === "string" && synonym.trim().length > 0,
           )
         : [];
-      onImportedSynonyms?.(atlasSynonyms);
-      onFormDataChange({
+      const displayName = firstTrimmedNonEmpty(
+        hit.iupacName,
+        hit.commonName,
+        query,
+      );
+      const formPatch: Partial<MoleculeUploadData> = {
         iupacName: hit.iupacName ?? "",
         commonName: hit.commonName ?? query.trim(),
         synonyms: atlasSynonyms,
@@ -292,46 +291,36 @@ export const MoleculeIdentifierSearch = forwardRef<
         chemicalFormula: hit.chemicalFormula ?? "",
         casNumber: hit.casNumber ?? null,
         pubchemCid: hit.pubChemCid ?? null,
-        tagIds,
-      });
-      onEditingMoleculeIdChange(moleculeId);
-      setQuery(hit.commonName ?? query.trim());
-      setManualPubChemCandidates([]);
-      const displayName = firstTrimmedNonEmpty(
-        hit.iupacName,
-        hit.commonName,
-        query,
+      };
+      const suggestion = applyCompoundKindSuggestionIfDefault(
+        displayName,
+        formPatch.chemicalFormula ?? "",
+        formData.compoundKind,
       );
-      onSearchComplete({
-        searchError: null,
-        searchSuccess: null,
-        searchWarnings: [],
+      return {
+        identity: {
+          source: "atlas",
+          displayName,
+          chemicalFormula: trimmedOrNull(hit.chemicalFormula),
+          pubChemCid: trimmedOrNull(hit.pubChemCid),
+          casNumber: trimmedOrNull(hit.casNumber),
+          atlasMoleculeId: moleculeId,
+          casVerified: Boolean(hit.casNumber?.trim()),
+          statusDetail: null,
+          previewSmiles: trimmedOrNull(hit.smiles),
+        },
+        formPatch,
+        editingMoleculeId: moleculeId,
+        importedSynonyms: atlasSynonyms,
+        warnings: [],
         pubChemUrl: hit.pubChemCid
           ? `https://pubchem.ncbi.nlm.nih.gov/compound/${hit.pubChemCid}`
           : null,
-        resolvedIdentity: moleculeId
-          ? {
-              source: "atlas",
-              displayName,
-              chemicalFormula: trimmedOrNull(hit.chemicalFormula),
-              pubChemCid: trimmedOrNull(hit.pubChemCid),
-              casNumber: trimmedOrNull(hit.casNumber),
-              atlasMoleculeId: moleculeId,
-              casVerified: Boolean(hit.casNumber?.trim()),
-              statusDetail: null,
-            }
-          : null,
-      });
+        tagIds,
+        compoundKindSuggestion: suggestion.suggested ? suggestion : null,
+      };
     },
-    [
-      onClearSearchFeedback,
-      onEditingMoleculeIdChange,
-      onFormDataChange,
-      onImportedSynonyms,
-      onSearchComplete,
-      query,
-      utils.molecules.getTags,
-    ],
+    [formData.compoundKind, query, utils.molecules.getTags],
   );
 
   const enrichPubChemWithCas = useCallback(
@@ -340,14 +329,15 @@ export const MoleculeIdentifierSearch = forwardRef<
       commonName: string,
       lookupLabel: string,
       options?: { preserveDrawnSmiles?: string },
-    ): Promise<{ warnings: string[]; casNumber: string | null }> => {
+    ): Promise<{ warnings: string[]; casNumber: string | null; result: PubChemLookupResult }> => {
       const preserveDrawnSmiles = options?.preserveDrawnSmiles?.trim() ?? "";
       const warnings: string[] = [];
       let resolvedCas = (result.casNumber ?? "").trim() || null;
+      let enriched = { ...result };
       const needsCas = !resolvedCas;
       const needsSmiles = !result.smiles?.trim();
       if (!needsCas && !needsSmiles) {
-        return { warnings, casNumber: resolvedCas };
+        return { warnings, casNumber: resolvedCas, result: enriched };
       }
 
       setIsSearchingCas(true);
@@ -372,17 +362,17 @@ export const MoleculeIdentifierSearch = forwardRef<
           if (detailCas) {
             resolvedCas = detailCas;
           }
-          onFormDataChange((prev) => ({
-            ...prev,
-            casNumber: detailCas ?? prev.casNumber,
+          enriched = {
+            ...enriched,
+            casNumber: detailCas ?? enriched.casNumber,
+            inchi: detailInchi ?? enriched.inchi,
             smiles:
               preserveDrawnSmiles.length > 0
                 ? preserveDrawnSmiles
                 : needsSmiles && detailSmiles
                   ? detailSmiles
-                  : prev.smiles,
-            inchi: detailInchi ?? prev.inchi,
-          }));
+                  : enriched.smiles,
+          };
           if (needsSmiles && !detailSmiles) {
             warnings.push(
               "SMILES not returned from PubChem; CAS enrichment did not resolve it.",
@@ -402,97 +392,130 @@ export const MoleculeIdentifierSearch = forwardRef<
       } finally {
         setIsSearchingCas(false);
       }
-      return { warnings, casNumber: resolvedCas };
+      return { warnings, casNumber: resolvedCas, result: enriched };
     },
-    [onFormDataChange, utils.external.searchCas],
+    [utils.external.searchCas],
   );
 
-  const applyResolvedPubChem = useCallback(
+  const buildPubChemPending = useCallback(
     async (
       result: PubChemLookupResult,
       lookupQuery: string,
-      candidate?: PubChemCandidateSummary,
+      generation: number,
       options?: { preserveDrawnSmiles?: string; fillEmptyFieldsOnly?: boolean },
-    ) => {
-      const pubchemSynonyms =
-        result.synonyms?.filter(
-          (synonym): synonym is string =>
-            typeof synonym === "string" && synonym.trim().length > 0,
-        ) ?? [];
-      if (pubchemSynonyms.length > 0) {
-        onImportedSynonyms?.(pubchemSynonyms);
+    ): Promise<MoleculePendingLookup | null> => {
+      const { warnings, casNumber, result: enriched } =
+        await enrichPubChemWithCas(
+          result,
+          lookupQuery,
+          lookupQuery,
+          options,
+        );
+      if (!lookupGeneration.current.isCurrent(generation)) {
+        return null;
       }
-      onFormDataChange(
-        applyPubChemResultToForm(result, lookupQuery, options),
-      );
-      onEditingMoleculeIdChange(null);
-      setManualPubChemCandidates([]);
-      const { warnings, casNumber } = await enrichPubChemWithCas(
-        result,
-        lookupQuery,
-        candidate?.title ?? lookupQuery,
-        options,
-      );
+      const importedSynonyms = pubchemSynonyms(enriched);
       const displayName = firstTrimmedNonEmpty(
-        result.title,
-        result.iupacName,
-        result.commonName,
+        enriched.title,
+        enriched.iupacName,
+        enriched.commonName,
         lookupQuery,
       );
-      onSearchComplete({
-        searchError: null,
-        searchSuccess: null,
-        searchWarnings: warnings,
-        pubChemUrl: result.pubChemCid
-          ? `https://pubchem.ncbi.nlm.nih.gov/compound/${result.pubChemCid}`
-          : null,
-        resolvedIdentity: {
+      const draft = applyPubChemResultToForm(
+        { ...enriched, casNumber },
+        lookupQuery,
+        options,
+      )(formData);
+      const suggestion = applyCompoundKindSuggestionIfDefault(
+        displayName,
+        draft.chemicalFormula,
+        formData.compoundKind,
+      );
+      return {
+        identity: {
           source: "pubchem",
           displayName,
-          chemicalFormula: trimmedOrNull(result.chemicalFormula),
-          pubChemCid: trimmedOrNull(result.pubChemCid),
+          chemicalFormula: trimmedOrNull(enriched.chemicalFormula),
+          pubChemCid: trimmedOrNull(enriched.pubChemCid),
           casNumber: trimmedOrNull(casNumber),
           atlasMoleculeId: null,
           casVerified: Boolean(casNumber && casNumber.length > 0),
           statusDetail: null,
+          previewSmiles: trimmedOrNull(
+            options?.preserveDrawnSmiles ?? enriched.smiles ?? null,
+          ),
         },
-      });
+        formPatch: draft,
+        editingMoleculeId: null,
+        importedSynonyms,
+        warnings,
+        pubChemUrl: enriched.pubChemCid
+          ? `https://pubchem.ncbi.nlm.nih.gov/compound/${enriched.pubChemCid}`
+          : null,
+        tagIds: [],
+        compoundKindSuggestion: suggestion.suggested ? suggestion : null,
+      };
     },
-    [
-      enrichPubChemWithCas,
-      onEditingMoleculeIdChange,
-      onFormDataChange,
-      onImportedSynonyms,
-      onSearchComplete,
-    ],
+    [enrichPubChemWithCas, formData],
+  );
+
+  const applyDatabaseHit = useCallback(
+    async (hit: AutosuggestHit) => {
+      const generation = lookupGeneration.current.next();
+      onClearSearchFeedback();
+      setIsSearching(true);
+      try {
+        const pending = await buildAtlasPending(hit, generation);
+        if (pending) {
+          queuePendingLookup(pending, generation);
+          setQuery(hit.commonName ?? query.trim());
+        }
+      } finally {
+        if (lookupGeneration.current.isCurrent(generation)) {
+          setIsSearching(false);
+        }
+      }
+    },
+    [buildAtlasPending, onClearSearchFeedback, queuePendingLookup, query],
   );
 
   const resolvePubChemByCid = useCallback(
     async (
       cid: string,
       lookupQuery: string,
-      candidate?: PubChemCandidateSummary,
-      applyOptions?: { preserveDrawnSmiles?: string; fillEmptyFieldsOnly?: boolean },
+      generation: number,
+      options?: { preserveDrawnSmiles?: string; fillEmptyFieldsOnly?: boolean },
     ) => {
-      const pubChemResponse = await utils.external.searchPubchem.fetch({
-        query: cid,
-        type: "cid",
-      });
+      const cached = readPubChemCidCache(cid);
+      const pubChemResponse =
+        cached !== null
+          ? { ok: true as const, data: cached }
+          : await utils.external.searchPubchem.fetch({
+              query: cid,
+              type: "cid",
+            });
+      if (!lookupGeneration.current.isCurrent(generation)) {
+        return null;
+      }
       if (!pubChemResponse.ok || !pubChemResponse.data) {
         throw new Error("Molecule not found in PubChem.");
       }
-      await applyResolvedPubChem(
+      if (cached === null) {
+        writePubChemCidCache(cid, pubChemResponse.data);
+      }
+      return buildPubChemPending(
         pubChemResponse.data,
         lookupQuery,
-        candidate,
-        applyOptions,
+        generation,
+        options,
       );
     },
-    [applyResolvedPubChem, utils.external.searchPubchem],
+    [buildPubChemPending, utils.external.searchPubchem],
   );
 
   const selectPubChemCandidate = useCallback(
     async (candidate: PubChemCandidateSummary) => {
+      const generation = lookupGeneration.current.next();
       setIsSearching(true);
       setLocalError(null);
       onClearSearchFeedback();
@@ -505,55 +528,48 @@ export const MoleculeIdentifierSearch = forwardRef<
             }
           : undefined;
       try {
-        await resolvePubChemByCid(
+        const pending = await resolvePubChemByCid(
           candidate.cid,
           drawnSmiles.length > 0 ? drawnSmiles : query.trim(),
-          candidate,
+          generation,
           applyOptions,
         );
+        if (pending) {
+          queuePendingLookup(pending, generation);
+        }
         setStructureLookupSmiles(null);
-        setShowDropdown(false);
       } catch (error: unknown) {
         const message =
           error instanceof Error ? error.message : "PubChem lookup failed.";
-        setLocalError(message);
-        onSearchComplete({
-          searchError: message,
-          searchSuccess: null,
-          searchWarnings: [],
-          pubChemUrl: null,
-          resolvedIdentity: null,
-        });
+        reportError(message, generation);
       } finally {
-        setIsSearching(false);
-        setIsSearchingCas(false);
+        if (lookupGeneration.current.isCurrent(generation)) {
+          setIsSearching(false);
+          setIsSearchingCas(false);
+        }
       }
     },
     [
       onClearSearchFeedback,
-      onSearchComplete,
       query,
+      queuePendingLookup,
+      reportError,
       resolvePubChemByCid,
       structureLookupSmiles,
     ],
   );
 
   const runExternalLookup = useCallback(async () => {
+    const generation = lookupGeneration.current.next();
     const commonName = query.trim();
     const cid = (formData.pubchemCid ?? "").trim();
     const cas = (formData.casNumber ?? "").trim();
 
     if (commonName.length < 2 && cid.length === 0 && cas.length === 0) {
-      const message =
-        "Enter a common name (2+ characters), PubChem CID, or CAS number to search.";
-      setLocalError(message);
-      onSearchComplete({
-        searchError: message,
-        searchSuccess: null,
-        searchWarnings: [],
-        pubChemUrl: null,
-        resolvedIdentity: null,
-      });
+      reportError(
+        "Enter a common name (2+ characters), PubChem CID, or CAS number to search.",
+        generation,
+      );
       return;
     }
 
@@ -569,66 +585,76 @@ export const MoleculeIdentifierSearch = forwardRef<
           query: commonName,
           limit: 1,
         });
+        if (!lookupGeneration.current.isCurrent(generation)) {
+          return;
+        }
         const top = autosuggest.results[0];
         if (
           top &&
           (top.matchType === "name_exact" || top.matchType === "name_prefix")
         ) {
           await applyDatabaseHit(top as AutosuggestHit);
-          setIsSearching(false);
           return;
         }
       }
 
       if (cid.length > 0) {
-        await resolvePubChemByCid(cid, commonName);
-        setIsSearching(false);
+        const pending = await resolvePubChemByCid(cid, commonName, generation);
+        if (pending) {
+          queuePendingLookup(pending, generation);
+        }
         return;
       }
 
       if (cas.length > 0) {
         const casResponse = await utils.external.searchCas.fetch({ casNumber: cas });
+        if (!lookupGeneration.current.isCurrent(generation)) {
+          return;
+        }
         if (!casResponse.ok || !casResponse.data) {
           throw new Error("Compound not found for that CAS number.");
         }
         const casData = casResponse.data;
-        onFormDataChange((prev) => ({
-          ...prev,
-          casNumber: casData.casRegistryNumber ?? prev.casNumber,
-          inchi: casData.inchi?.trim() ?? prev.inchi,
-          smiles: casData.smiles?.trim() ?? prev.smiles,
-          commonName:
-            prev.commonName.trim().length > 0
-              ? prev.commonName
-              : (casData.moleculeName?.trim() ?? prev.commonName),
-          iupacName:
-            prev.iupacName.trim().length > 0
-              ? prev.iupacName
-              : (casData.moleculeName?.trim() ?? prev.iupacName),
-        }));
-        onEditingMoleculeIdChange(null);
         const casDisplayName = firstTrimmedNonEmpty(
           casData.moleculeName,
           commonName,
           cas,
         );
-        onSearchComplete({
-          searchError: null,
-          searchSuccess: null,
-          searchWarnings: [],
-          pubChemUrl: null,
-          resolvedIdentity: {
-            source: "cas",
-            displayName: casDisplayName,
-            chemicalFormula: null,
-            pubChemCid: null,
-            casNumber: trimmedOrNull(casData.casRegistryNumber) ?? cas,
-            atlasMoleculeId: null,
-            casVerified: true,
-            statusDetail: null,
+        const formPatch: Partial<MoleculeUploadData> = {
+          casNumber: casData.casRegistryNumber ?? cas,
+          inchi: casData.inchi?.trim() ?? "",
+          smiles: casData.smiles?.trim() ?? "",
+          commonName: casData.moleculeName?.trim() ?? commonName,
+          iupacName: casData.moleculeName?.trim() ?? "",
+        };
+        const suggestion = applyCompoundKindSuggestionIfDefault(
+          casDisplayName,
+          formData.chemicalFormula,
+          formData.compoundKind,
+        );
+        queuePendingLookup(
+          {
+            identity: {
+              source: "cas",
+              displayName: casDisplayName,
+              chemicalFormula: null,
+              pubChemCid: null,
+              casNumber: trimmedOrNull(casData.casRegistryNumber) ?? cas,
+              atlasMoleculeId: null,
+              casVerified: true,
+              statusDetail: null,
+              previewSmiles: trimmedOrNull(casData.smiles),
+            },
+            formPatch,
+            editingMoleculeId: null,
+            importedSynonyms: [],
+            warnings: [],
+            pubChemUrl: null,
+            tagIds: [],
+            compoundKindSuggestion: suggestion.suggested ? suggestion : null,
           },
-        });
-        setIsSearching(false);
+          generation,
+        );
         return;
       }
 
@@ -636,51 +662,67 @@ export const MoleculeIdentifierSearch = forwardRef<
         query: commonName,
         limit: 10,
       });
+      if (!lookupGeneration.current.isCurrent(generation)) {
+        return;
+      }
       const candidates = candidateResponse.candidates;
       if (candidates.length === 0) {
         throw new Error("Molecule not found in PubChem.");
       }
       if (candidates.length === 1) {
         await selectPubChemCandidate(candidates[0]!);
-        setIsSearching(false);
         return;
       }
 
-      setManualPubChemCandidates(candidates);
+      const previewSmiles = structureLookupSmiles?.trim() ?? null;
+      queuePendingLookup(
+        {
+          identity: {
+            source: "pubchem",
+            displayName: commonName,
+            chemicalFormula: null,
+            pubChemCid: null,
+            casNumber: null,
+            atlasMoleculeId: null,
+            casVerified: false,
+            statusDetail: "Multiple PubChem matches",
+            previewSmiles,
+          },
+          formPatch: {},
+          editingMoleculeId: null,
+          importedSynonyms: [],
+          warnings: [],
+          pubChemUrl: null,
+          tagIds: [],
+          compoundKindSuggestion: null,
+          candidates: toLookupCandidates(candidates, previewSmiles),
+        },
+        generation,
+      );
       setShowDropdown(true);
-      onSearchComplete({
-        searchError: null,
-        searchSuccess: "Multiple PubChem matches. Select a compound below.",
-        searchWarnings: [],
-        pubChemUrl: null,
-        resolvedIdentity: null,
-      });
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Identifier lookup failed.";
-      setLocalError(message);
-      onSearchComplete({
-        searchError: message,
-        searchSuccess: null,
-        searchWarnings: [],
-        pubChemUrl: null,
-        resolvedIdentity: null,
-      });
+      reportError(message, generation);
     } finally {
-      setIsSearching(false);
-      setIsSearchingCas(false);
+      if (lookupGeneration.current.isCurrent(generation)) {
+        setIsSearching(false);
+        setIsSearchingCas(false);
+      }
     }
   }, [
     applyDatabaseHit,
     formData.casNumber,
+    formData.chemicalFormula,
+    formData.compoundKind,
     formData.pubchemCid,
     onClearSearchFeedback,
-    onEditingMoleculeIdChange,
-    onFormDataChange,
-    onSearchComplete,
     query,
+    queuePendingLookup,
+    reportError,
     resolvePubChemByCid,
     selectPubChemCandidate,
+    structureLookupSmiles,
     utils.external.searchCas,
     utils.external.searchPubchemCandidates,
     utils.molecules.autosuggest,
@@ -688,17 +730,13 @@ export const MoleculeIdentifierSearch = forwardRef<
 
   const lookupFromSmiles = useCallback(
     async (smiles: string) => {
+      const generation = lookupGeneration.current.next();
       const trimmedSmiles = smiles.trim();
       if (trimmedSmiles.length === 0) {
-        const message = "Draw or enter a SMILES string before looking up identifiers.";
-        setLocalError(message);
-        onSearchComplete({
-          searchError: message,
-          searchSuccess: null,
-          searchWarnings: [],
-          pubChemUrl: null,
-          resolvedIdentity: null,
-        });
+        reportError(
+          "Draw or enter a SMILES string before looking up identifiers.",
+          generation,
+        );
         return;
       }
 
@@ -714,6 +752,9 @@ export const MoleculeIdentifierSearch = forwardRef<
           query: trimmedSmiles,
           limit: 1,
         });
+        if (!lookupGeneration.current.isCurrent(generation)) {
+          return;
+        }
         const atlasHit = atlasSuggest.results[0];
         if (atlasHit?.matchType === "smiles_exact") {
           await applyDatabaseHit(atlasHit as AutosuggestHit);
@@ -726,58 +767,76 @@ export const MoleculeIdentifierSearch = forwardRef<
             limit: 10,
             type: "smiles",
           });
+        if (!lookupGeneration.current.isCurrent(generation)) {
+          return;
+        }
         const candidates = candidateResponse.candidates;
         if (candidates.length === 0) {
           throw new Error("No PubChem match for this SMILES.");
         }
         if (candidates.length > 1) {
           setStructureLookupSmiles(trimmedSmiles);
-          setManualPubChemCandidates(candidates);
-          onSearchComplete({
-            searchError: null,
-            searchSuccess:
-              "Multiple PubChem matches for this structure. Select a compound in the search dropdown.",
-            searchWarnings: [],
-            pubChemUrl: null,
-            resolvedIdentity: null,
-          });
-          setShowDropdown(true);
+          queuePendingLookup(
+            {
+              identity: {
+                source: "pubchem",
+                displayName: trimmedSmiles,
+                chemicalFormula: null,
+                pubChemCid: null,
+                casNumber: null,
+                atlasMoleculeId: null,
+                casVerified: false,
+                statusDetail: "Multiple PubChem matches",
+                previewSmiles: trimmedSmiles,
+              },
+              formPatch: { smiles: trimmedSmiles },
+              editingMoleculeId: null,
+              importedSynonyms: [],
+              warnings: [],
+              pubChemUrl: null,
+              tagIds: [],
+              compoundKindSuggestion: null,
+              candidates: toLookupCandidates(candidates, trimmedSmiles),
+            },
+            generation,
+          );
           return;
         }
 
-        await resolvePubChemByCid(
+        setStructureLookupSmiles(trimmedSmiles);
+        const pending = await resolvePubChemByCid(
           candidates[0]!.cid,
           trimmedSmiles,
-          candidates[0],
+          generation,
           {
             preserveDrawnSmiles: trimmedSmiles,
             fillEmptyFieldsOnly: true,
           },
         );
+        if (pending) {
+          queuePendingLookup(pending, generation);
+        }
+        setStructureLookupSmiles(null);
       } catch (error: unknown) {
         const message =
           error instanceof Error
             ? error.message
             : "PubChem lookup from structure failed.";
-        setLocalError(message);
-        onSearchComplete({
-          searchError: message,
-          searchSuccess: null,
-          searchWarnings: [],
-          pubChemUrl: null,
-          resolvedIdentity: null,
-        });
+        reportError(message, generation);
       } finally {
-        setIsSearching(false);
-        setIsSearchingCas(false);
-        onStructureLookupBusyChange?.(false);
+        if (lookupGeneration.current.isCurrent(generation)) {
+          setIsSearching(false);
+          setIsSearchingCas(false);
+          onStructureLookupBusyChange?.(false);
+        }
       }
     },
     [
       applyDatabaseHit,
       onClearSearchFeedback,
-      onSearchComplete,
       onStructureLookupBusyChange,
+      queuePendingLookup,
+      reportError,
       resolvePubChemByCid,
       utils.external.searchPubchemCandidates,
       utils.molecules.autosuggest,
@@ -788,14 +847,15 @@ export const MoleculeIdentifierSearch = forwardRef<
     ref,
     () => ({
       lookupFromSmiles,
+      selectPubChemCandidate,
     }),
-    [lookupFromSmiles],
+    [lookupFromSmiles, selectPubChemCandidate],
   );
 
   const searchBusy = isSearching || isSearchingCas;
   const dropdownLoading =
     isSuggesting || isPubchemSuggesting || searchBusy;
-  const trimmedStructureSmiles = structureSmiles.trim();
+  const isDark = themeMounted && resolvedTheme === "dark";
 
   const pubchemSectionLabel =
     pubchemSearchType === "formula"
@@ -830,7 +890,7 @@ export const MoleculeIdentifierSearch = forwardRef<
                 type="button"
                 role="option"
                 aria-selected={highlightedIndex === index}
-                className="hover:bg-default/40 focus:bg-default/40 w-full px-3 py-2 text-left text-sm transition-colors focus:outline-none"
+                className="hover:bg-default/40 focus:bg-default/40 focus-visible:ring-accent w-full px-3 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2"
                 onMouseDown={(event) => {
                   event.preventDefault();
                   void applyDatabaseHit(hit as AutosuggestHit);
@@ -862,7 +922,7 @@ export const MoleculeIdentifierSearch = forwardRef<
                 type="button"
                 role="option"
                 aria-selected={highlightedIndex === optionIndex}
-                className="hover:bg-default/40 focus:bg-default/40 w-full px-3 py-2 text-left text-sm transition-colors focus:outline-none"
+                className="hover:bg-default/40 focus:bg-default/40 focus-visible:ring-accent w-full px-3 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2"
                 onMouseDown={(event) => {
                   event.preventDefault();
                   void selectPubChemCandidate(candidate);
@@ -905,158 +965,176 @@ export const MoleculeIdentifierSearch = forwardRef<
 
   return (
     <div className="space-y-4">
-      <div>
-        <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
-          Search catalog or external IDs
-          <FieldTooltip description="One search box for Atlas catalog hits, PubChem name or formula matches, and CAS cross-check on selection. Pick a row to populate the registry form." />
-        </Label>
-        <CatalogSearchChrome
-          tokens={[]}
-          query={query}
-          onQueryChange={(value) => {
-            setQuery(value);
-            onFormDataChange((prev) => ({ ...prev, commonName: value }));
-            onClearSearchFeedback();
-            setLocalError(null);
-            setManualPubChemCandidates([]);
-            setShowDropdown(true);
-          }}
-          onClearAll={() => {
-            setQuery("");
-            onFormDataChange((prev) => ({ ...prev, commonName: "" }));
-            onClearSearchFeedback();
-            setManualPubChemCandidates([]);
-          }}
-          placeholder="Common name, formula, synonym, or IUPAC prefix…"
-          ariaLabel="Search molecule catalog or external identifiers"
-          showDropdown={
-            showDropdown &&
-            (debouncedQuery.length >= 2 || pubChemCandidates.length > 0)
+      <Tabs
+        selectedKey={searchMode}
+        onSelectionChange={(key) => {
+          if (typeof key === "string") {
+            setSearchMode(key as MoleculeIdentifierSearchMode);
           }
-          dropdown={dropdown}
-          trailing={
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="shrink-0"
-              onPress={() => {
-                void runExternalLookup();
-              }}
-              isDisabled={searchBusy}
-              aria-label={
-                searchBusy ? "Searching identifiers" : "Search identifiers now"
-              }
-            >
-              {searchBusy ? (
-                <Spinner className="h-4 w-4" />
-              ) : (
-                <MagnifyingGlassIcon className="h-4 w-4" />
-              )}
-              Search
-            </Button>
-          }
-          onFocus={() => setShowDropdown(true)}
-          onBlurClose={() => setShowDropdown(false)}
-          listboxId={listboxId}
-          highlightedIndex={highlightedIndex}
-          onInputKeyDown={(event) => {
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              setHighlightedIndex((prev) =>
-                Math.min(prev + 1, Math.max(optionCount - 1, 0)),
-              );
-            } else if (event.key === "ArrowUp") {
-              event.preventDefault();
-              setHighlightedIndex((prev) => Math.max(prev - 1, 0));
-            } else if (event.key === "Enter" && highlightedIndex >= 0) {
-              event.preventDefault();
-              if (highlightedIndex < suggestions.length) {
-                const hit = suggestions[highlightedIndex];
-                if (hit) {
-                  void applyDatabaseHit(hit as AutosuggestHit);
-                  setShowDropdown(false);
-                }
-              } else {
-                const candidateIndex = highlightedIndex - suggestions.length;
-                const candidate = pubChemCandidates[candidateIndex];
-                if (candidate) {
-                  void selectPubChemCandidate(candidate);
-                }
-              }
-            } else if (event.key === "Enter") {
-              event.preventDefault();
-              if (optionCount > 0) {
-                setShowDropdown(true);
-                onSearchComplete({
-                  searchError: null,
-                  searchSuccess: "Select a match from the list below.",
-                  searchWarnings: [],
-                  pubChemUrl: null,
-                  resolvedIdentity: null,
-                });
-              } else {
-                void runExternalLookup();
-              }
+        }}
+        className="w-full"
+      >
+        <Tabs.List
+          aria-label="Molecule lookup method"
+          className="border-border bg-surface-2 w-full rounded-lg border p-1"
+        >
+          <Tab id="name" className="flex-1">
+            <TagIcon className="mr-1.5 inline h-4 w-4 shrink-0" aria-hidden />
+            Name
+          </Tab>
+          <Tab id="id" className="flex-1">
+            <FingerPrintIcon className="mr-1.5 inline h-4 w-4 shrink-0" aria-hidden />
+            ID
+          </Tab>
+          <Tab id="structure" className="flex-1">
+            <BeakerIcon className="mr-1.5 inline h-4 w-4 shrink-0" aria-hidden />
+            Structure
+          </Tab>
+        </Tabs.List>
+
+        <Tabs.Panel id="name" className="pt-4">
+          <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
+            Search catalog or external names
+            <FieldTooltip description="Atlas catalog hits, PubChem name or formula matches, and CAS cross-check on selection." />
+          </Label>
+          <CatalogSearchChrome
+            tokens={[]}
+            query={query}
+            onQueryChange={(value) => {
+              setQuery(value);
+              onFormDataChange((prev) => ({ ...prev, commonName: value }));
+              onClearSearchFeedback();
+              setLocalError(null);
+              setManualPubChemCandidates([]);
+              setShowDropdown(true);
+            }}
+            onClearAll={() => {
+              setQuery("");
+              onFormDataChange((prev) => ({ ...prev, commonName: "" }));
+              onClearSearchFeedback();
+              setManualPubChemCandidates([]);
+            }}
+            placeholder="Common name, formula, synonym, or IUPAC prefix…"
+            ariaLabel="Search molecule catalog or external identifiers"
+            showDropdown={
+              showDropdown &&
+              (debouncedQuery.length >= 2 || pubChemCandidates.length > 0)
             }
-          }}
-        />
-      </div>
+            dropdown={dropdown}
+            trailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="shrink-0"
+                onPress={() => {
+                  void runExternalLookup();
+                }}
+                isDisabled={searchBusy}
+                aria-label={
+                  searchBusy ? "Searching identifiers" : "Search identifiers now"
+                }
+              >
+                {searchBusy ? (
+                  <Spinner className="h-4 w-4" />
+                ) : (
+                  <MagnifyingGlassIcon className="h-4 w-4" />
+                )}
+                Search
+              </Button>
+            }
+            onFocus={() => setShowDropdown(true)}
+            onBlurClose={() => setShowDropdown(false)}
+            listboxId={listboxId}
+            highlightedIndex={highlightedIndex}
+            onInputKeyDown={(event) => {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setHighlightedIndex((prev) =>
+                  Math.min(prev + 1, Math.max(optionCount - 1, 0)),
+                );
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setHighlightedIndex((prev) => Math.max(prev - 1, 0));
+              } else if (event.key === "Enter" && highlightedIndex >= 0) {
+                event.preventDefault();
+                if (highlightedIndex < suggestions.length) {
+                  const hit = suggestions[highlightedIndex];
+                  if (hit) {
+                    void applyDatabaseHit(hit as AutosuggestHit);
+                    setShowDropdown(false);
+                  }
+                } else {
+                  const candidateIndex = highlightedIndex - suggestions.length;
+                  const candidate = pubChemCandidates[candidateIndex];
+                  if (candidate) {
+                    void selectPubChemCandidate(candidate);
+                  }
+                }
+              } else if (event.key === "Enter") {
+                event.preventDefault();
+                if (optionCount > 0) {
+                  setShowDropdown(true);
+                } else {
+                  void runExternalLookup();
+                }
+              }
+            }}
+          />
+        </Tabs.Panel>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <TextField
-          name="pubchemCid"
-          value={formData.pubchemCid ?? ""}
-          onChange={(value) => {
-            onFormDataChange((prev) => ({
-              ...prev,
-              pubchemCid: value || null,
-            }));
-            onClearSearchFeedback();
-          }}
-          variant="secondary"
-          fullWidth
-        >
-          <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
-            PubChem CID
-            <FieldTooltip description="Numeric PubChem compound identifier. Search uses CID when the common name field is empty." />
-          </Label>
-          <InputGroup variant="secondary" fullWidth>
-            <InputGroup.Input placeholder="e.g., 154703023" autoComplete="off" />
-          </InputGroup>
-        </TextField>
+        <Tabs.Panel id="id" className="space-y-4 pt-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TextField
+              name="pubchemCid"
+              value={formData.pubchemCid ?? ""}
+              onChange={(value) => {
+                onFormDataChange((prev) => ({
+                  ...prev,
+                  pubchemCid: value || null,
+                }));
+                onClearSearchFeedback();
+              }}
+              variant="secondary"
+              fullWidth
+            >
+              <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
+                <FingerPrintIcon className="h-4 w-4" aria-hidden />
+                PubChem CID
+              </Label>
+              <InputGroup variant="secondary" fullWidth>
+                <InputGroup.Input placeholder="e.g., 241" autoComplete="off" />
+              </InputGroup>
+            </TextField>
 
-        <TextField
-          name="casNumber"
-          value={formData.casNumber ?? ""}
-          onChange={(value) => {
-            onFormDataChange((prev) => ({
-              ...prev,
-              casNumber: value || null,
-            }));
-            onClearSearchFeedback();
-          }}
-          variant="secondary"
-          fullWidth
-        >
-          <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
-            CAS registry number
-            <FieldTooltip description="CAS RN (XXX-XX-X). Required for registry stub entries without a structure image." />
-          </Label>
-          <InputGroup variant="secondary" fullWidth>
-            <InputGroup.Input placeholder="e.g., 50-00-0" autoComplete="off" />
-          </InputGroup>
-        </TextField>
-      </div>
-
-      {trimmedStructureSmiles.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
+            <TextField
+              name="casNumber"
+              value={formData.casNumber ?? ""}
+              onChange={(value) => {
+                onFormDataChange((prev) => ({
+                  ...prev,
+                  casNumber: value || null,
+                }));
+                onClearSearchFeedback();
+              }}
+              variant="secondary"
+              fullWidth
+            >
+              <Label className="text-foreground mb-1.5 flex items-center gap-1 text-sm font-medium">
+                <FingerPrintIcon className="h-4 w-4" aria-hidden />
+                CAS registry number
+              </Label>
+              <InputGroup variant="secondary" fullWidth>
+                <InputGroup.Input placeholder="e.g., 50-00-0" autoComplete="off" />
+              </InputGroup>
+            </TextField>
+          </div>
           <Button
             type="button"
             variant="secondary"
             size="sm"
             onPress={() => {
-              void lookupFromSmiles(trimmedStructureSmiles);
+              void runExternalLookup();
             }}
             isDisabled={searchBusy}
           >
@@ -1065,19 +1143,30 @@ export const MoleculeIdentifierSearch = forwardRef<
             ) : (
               <MagnifyingGlassIcon className="h-4 w-4" />
             )}
-            Search PubChem from drawn structure
+            Look up by ID
           </Button>
-          <Description className="text-muted text-xs">
-            Fills empty name, formula, InChI, CAS, and synonym fields from
-            PubChem without replacing your drawn SMILES.
-          </Description>
-        </div>
-      ) : null}
+        </Tabs.Panel>
+
+        <Tabs.Panel id="structure" className="pt-4">
+          <MoleculeStructureSearchTab
+            isDark={isDark}
+            lookupBusy={searchBusy}
+            onSmilesReady={(smiles) => {
+              void lookupFromSmiles(smiles);
+            }}
+          />
+        </Tabs.Panel>
+      </Tabs>
+
+      <div id={statusLiveId} aria-live="polite" aria-atomic="true" className="sr-only">
+        {searchBusy ? "Searching identifiers" : localError ?? ""}
+      </div>
 
       {localError ? (
-        <ErrorMessage className="text-sm font-medium">{localError}</ErrorMessage>
+        <ErrorMessage className="text-sm font-medium" role="alert">
+          {localError}
+        </ErrorMessage>
       ) : null}
-
     </div>
   );
 });
@@ -1091,8 +1180,7 @@ export type MoleculeIdentifierSearchFeedbackProps = {
 };
 
 /**
- * Renders transient lookup feedback beneath the identifier search row. Resolved
- * identity success states render in {@link MoleculeResolvedIdentityCard} instead.
+ * Renders transient lookup feedback beneath the identifier search row.
  */
 export function MoleculeIdentifierSearchFeedback({
   searchError,
@@ -1108,9 +1196,11 @@ export function MoleculeIdentifierSearchFeedback({
     return null;
   }
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" aria-live="polite">
       {searchError ? (
-        <ErrorMessage className="text-sm font-medium">{searchError}</ErrorMessage>
+        <ErrorMessage className="text-sm font-medium" role="alert">
+          {searchError}
+        </ErrorMessage>
       ) : null}
       {showInlineSuccess ? (
         <Description className="text-muted text-sm font-medium">
@@ -1129,7 +1219,7 @@ export function MoleculeIdentifierSearchFeedback({
           href={pubChemUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-accent inline-flex items-center gap-1.5 text-sm font-medium transition-opacity hover:opacity-90"
+          className="text-accent focus-visible:ring-accent inline-flex items-center gap-1.5 text-sm font-medium transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2"
         >
           <ArrowTopRightOnSquareIcon className="h-4 w-4 shrink-0" />
           View on PubChem

@@ -313,8 +313,9 @@ export function MoleculeStructureSection({
           variant="ghost"
           size="sm"
           onPress={() => setSmilesCompareMode(true)}
+          aria-pressed={false}
         >
-          Compare with SMILES preview
+          Compare: registry SVG vs SMILES preview
         </Button>
       ) : null}
       {replaceSvgButton}
@@ -406,7 +407,11 @@ export function MoleculeStructureSection({
     if (hasCommittedRegistrySvg) {
       if (showSmilesComparePanel) {
         return (
-          <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
+          <div
+            className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch"
+            role="group"
+            aria-label="Structure compare: SMILES preview and registry depiction"
+          >
             {smilesPreviewPanel}
             {registryDepictionPanel}
           </div>
