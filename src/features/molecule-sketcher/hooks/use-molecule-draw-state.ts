@@ -1219,13 +1219,20 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     }
     const previous = history.molfileRef.current;
     let next: string;
+    let remappedBookends = bookends;
     try {
+      const beforeMol = parseDrawMolfile(previous);
       const mol = MoleculeCtor.fromSmiles(trimmed);
       stabilizeLayout(mol);
       prepareMoleculeForDatabase(mol);
       if (compactSpacingOnPrep) {
         cleanupMolecule2DSpacing(mol);
       }
+      remappedBookends = remapBookendMarksAfterMolEdit(
+        beforeMol,
+        mol,
+        bookends,
+      );
       next = serializeDrawMolfile(mol);
     } catch {
       setPolymerError(`Could not rebuild structure from SMILES "${trimmed}".`);
@@ -1235,11 +1242,19 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     history.molfileRef.current = next;
     history.displayedMolRef.current = next;
     history.setMolfile(next);
-    clearMarks();
+    setBookends(remappedBookends);
+    setChunkMarks([]);
     setPendingSmilesFragment(null);
     clearSelection();
+    setPolymerError(null);
     setLayoutNote("Regenerated layout from canonical SMILES.");
-  }, [smiles, history, compactSpacingOnPrep, clearMarks, clearSelection]);
+  }, [
+    smiles,
+    history,
+    compactSpacingOnPrep,
+    bookends,
+    clearSelection,
+  ]);
 
   const defaultFragmentCenter = useCallback((): DrawPoint => {
     if (molecule.getAllAtoms() === 0) {
