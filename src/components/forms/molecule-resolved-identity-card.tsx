@@ -30,6 +30,8 @@ import type {
   MoleculeIdentityPreviewSnapshot,
 } from "~/features/molecule-registry-workflow";
 import { ChemicalFormula } from "~/components/ui/chemical-formula";
+import { dedupeChemistryWarnings } from "~/features/molecule-registry-workflow";
+import { RegistryDepictionThumbnail } from "~/features/molecule-registry-workflow/components/registry-depiction-thumbnail";
 
 export type { MoleculeResolvedIdentity, MoleculeResolvedIdentitySource };
 
@@ -44,6 +46,7 @@ export type MoleculeResolvedIdentityCardProps = {
   hasStructure: boolean;
   polymerKindSuggested: boolean;
   previewSnapshot?: MoleculeIdentityPreviewSnapshot | null;
+  isDark?: boolean;
 };
 
 const SOURCE_BADGE: Record<
@@ -86,9 +89,14 @@ export function MoleculeResolvedIdentityCard({
   hasStructure,
   polymerKindSuggested,
   previewSnapshot = null,
+  isDark = false,
 }: MoleculeResolvedIdentityCardProps) {
   const nameId = useId();
   const [nameExpanded, setNameExpanded] = useState(false);
+  const uniqueWarnings = useMemo(
+    () => dedupeChemistryWarnings(warnings),
+    [warnings],
+  );
 
   const badge = SOURCE_BADGE[identity.source];
   const statusLine = sourceStatusLine(identity);
@@ -121,7 +129,7 @@ export function MoleculeResolvedIdentityCard({
       className={cn(
         "border-accent/25 bg-surface relative overflow-hidden rounded-xl border",
         "from-accent-soft/20 via-surface to-muted/15 bg-gradient-to-br",
-        "motion-safe:transition-[opacity,transform] motion-safe:duration-[180ms] motion-safe:ease-out",
+        "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-[180ms]",
         "px-4 py-4 shadow-sm sm:px-5",
       )}
       aria-labelledby={nameId}
@@ -131,7 +139,15 @@ export function MoleculeResolvedIdentityCard({
         aria-hidden
       />
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start gap-4">
+        {previewSmiles ? (
+          <RegistryDepictionThumbnail
+            smiles={previewSmiles}
+            isDark={isDark}
+            label={`Structure preview for ${identity.displayName}`}
+            enlargeable
+          />
+        ) : null}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Chip size="sm" variant="soft" color={badge.color}>
@@ -279,10 +295,10 @@ export function MoleculeResolvedIdentityCard({
         ) : null}
       </div>
 
-      {warnings.length > 0 ? (
+      {uniqueWarnings.length > 0 ? (
         <ul className="text-warning mt-3 list-inside list-disc space-y-1 text-xs">
-          {warnings.map((warning) => (
-            <li key={warning}>{warning}</li>
+          {uniqueWarnings.map((warning, index) => (
+            <li key={`${index}-${warning}`}>{warning}</li>
           ))}
         </ul>
       ) : null}

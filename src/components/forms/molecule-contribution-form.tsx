@@ -49,6 +49,8 @@ import {
 import { MoleculeResolvedIdentityCard } from "./molecule-resolved-identity-card";
 import { MoleculeStructureSection } from "./molecule-structure-section";
 import type { BookendMarksState } from "~/features/molecule-sketcher";
+import type { StructureLookupContext } from "./molecule-contribute-sketcher-panel";
+import type { StructureLookupOptions } from "~/features/molecule-registry-workflow";
 import {
   MoleculeLookupConfirmation,
   MoleculePreferredIdentity,
@@ -117,6 +119,13 @@ export function MoleculeContributionForm({
   const [structureLookupBusy, setStructureLookupBusy] = useState(false);
 
   const identifierSearchRef = useRef<MoleculeIdentifierSearchHandle>(null);
+  const structureLookupRef = useRef<
+    StructureLookupContext & StructureLookupOptions
+  >({
+    registrySmiles: "",
+    lookupSmiles: "",
+    components: [],
+  });
   const [isDragging, setIsDragging] = useState(false);
   const [draggedFileType, setDraggedFileType] =
     useState<ContributionFileDropOverlayFileKind | null>(null);
@@ -176,12 +185,30 @@ export function MoleculeContributionForm({
     [setFormData],
   );
 
+  const handleStructureLookupContextChange = useCallback(
+    (context: StructureLookupContext) => {
+      structureLookupRef.current = {
+        registrySmiles: context.registrySmiles,
+        lookupSmiles: context.lookupSmiles,
+        components: context.components,
+      };
+    },
+    [],
+  );
+
   const handleLookupIdentifiersFromStructure = useCallback(() => {
-    const smiles = formData.smiles.trim();
-    if (smiles.length === 0) {
+    const registrySmiles = formData.smiles.trim();
+    const ctx = structureLookupRef.current;
+    const lookupSmiles =
+      ctx.lookupSmiles.trim().length > 0 ? ctx.lookupSmiles : registrySmiles;
+    if (lookupSmiles.length === 0) {
       return;
     }
-    void identifierSearchRef.current?.lookupFromSmiles(smiles);
+    void identifierSearchRef.current?.lookupFromSmiles(lookupSmiles, {
+      registrySmiles,
+      components:
+        ctx.components.length > 0 ? ctx.components : undefined,
+    });
   }, [formData.smiles]);
 
   const handleJsonDropped = useCallback(
@@ -536,7 +563,7 @@ export function MoleculeContributionForm({
             {showIdentityCard ? (
               <MoleculeResolvedIdentityCard
                 identity={resolvedIdentity}
-                warnings={[...searchFeedback.searchWarnings, ...chemistryWarnings]}
+                warnings={chemistryWarnings}
                 compoundKind={compoundKind}
                 onCompoundKindChange={handleCompoundKindChange}
                 chemicalFormula={formData.chemicalFormula}
@@ -545,6 +572,7 @@ export function MoleculeContributionForm({
                 hasStructure={hasStructure}
                 polymerKindSuggested={polymerKindSuggested}
                 previewSnapshot={identityFsm.previewSnapshot}
+                isDark={isDark}
               />
             ) : null}
 
@@ -609,6 +637,7 @@ export function MoleculeContributionForm({
               }
               synonyms={formData.synonyms}
               onPromoteSynonym={promoteSynonym}
+              linkedIdentity={resolvedIdentity}
             />
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -733,6 +762,7 @@ export function MoleculeContributionForm({
               structureValidationError={structureValidationError}
               onSketchBookendsChange={handleSketchBookendsChange}
               onLookupIdentifiers={handleLookupIdentifiersFromStructure}
+              onStructureLookupContextChange={handleStructureLookupContextChange}
               lookupIdentifiersBusy={structureLookupBusy}
             />
           </Card.Content>

@@ -8,6 +8,7 @@ import {
 import { Button, Chip, Description } from "@heroui/react";
 import { ChemicalFormula } from "~/components/ui/chemical-formula";
 import { RegistryDepictionThumbnail } from "./registry-depiction-thumbnail";
+import { dedupeChemistryWarnings } from "../utils/chemistry-consistency";
 import type {
   MoleculeLookupCandidate,
   MoleculePendingLookup,
@@ -66,7 +67,9 @@ export function MoleculeLookupConfirmation({
   const titleId = useId();
   const { identity } = pending;
   const badge = SOURCE_BADGE[identity.source];
-  const multi = (pending.candidates?.length ?? 0) > 1;
+  const candidateCount = pending.candidates?.length ?? 0;
+  const showCandidatePicker = candidateCount > 0;
+  const uniqueWarnings = dedupeChemistryWarnings(pending.warnings);
 
   return (
     <section
@@ -132,7 +135,7 @@ export function MoleculeLookupConfirmation({
         </div>
       </div>
 
-      {multi && pending.candidates ? (
+      {showCandidatePicker && pending.candidates ? (
         <ul className="border-border mt-4 space-y-2 border-t pt-4" role="listbox" aria-label="PubChem matches">
           {pending.candidates.map((candidate) => (
             <li key={candidate.cid}>
@@ -164,10 +167,10 @@ export function MoleculeLookupConfirmation({
         </ul>
       ) : null}
 
-      {pending.warnings.length > 0 ? (
+      {uniqueWarnings.length > 0 ? (
         <ul className="text-warning mt-3 list-inside list-disc space-y-1 text-xs">
-          {pending.warnings.map((warning) => (
-            <li key={warning}>{warning}</li>
+          {uniqueWarnings.map((warning, index) => (
+            <li key={`${index}-${warning}`}>{warning}</li>
           ))}
         </ul>
       ) : null}
@@ -178,7 +181,7 @@ export function MoleculeLookupConfirmation({
           variant="primary"
           size="sm"
           onPress={onConfirm}
-          isDisabled={busy || multi}
+          isDisabled={busy || candidateCount > 0}
         >
           Use this record
         </Button>
@@ -191,9 +194,9 @@ export function MoleculeLookupConfirmation({
         >
           Keep editing
         </Button>
-        {multi ? (
+        {showCandidatePicker ? (
           <Description className="text-muted text-xs">
-            Select a structure above, then confirm.
+            Select a structure above to load that PubChem record.
           </Description>
         ) : null}
       </div>

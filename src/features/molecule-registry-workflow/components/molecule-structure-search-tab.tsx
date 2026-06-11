@@ -1,9 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Button, Description, Spinner } from "@heroui/react";
 import { PencilSquareIcon } from "@heroicons/react/24/outline";
+import type { StructureLookupOptions } from "~/features/molecule-registry-workflow";
+import type { StructureLookupContext } from "~/components/forms/molecule-contribute-sketcher-panel";
 
 const MoleculeContributeSketcherPanel = dynamic(
   () =>
@@ -22,7 +24,10 @@ const MoleculeContributeSketcherPanel = dynamic(
 
 export type MoleculeStructureSearchTabProps = {
   isDark: boolean;
-  onSmilesReady: (smiles: string) => void;
+  onStructureLookup: (
+    lookupSmiles: string,
+    options?: StructureLookupOptions,
+  ) => void;
   lookupBusy: boolean;
 };
 
@@ -34,19 +39,31 @@ const EXAMPLE_SMILES = "c1ccccc1";
  */
 export function MoleculeStructureSearchTab({
   isDark,
-  onSmilesReady,
+  onStructureLookup,
   lookupBusy,
 }: MoleculeStructureSearchTabProps) {
   const [draftSmiles, setDraftSmiles] = useState("");
   const [sketcherVisible, setSketcherVisible] = useState(true);
+  const lookupContextRef = useRef<StructureLookupContext>({
+    registrySmiles: "",
+    lookupSmiles: "",
+    components: [],
+  });
 
   const trimmed = draftSmiles.trim();
 
   const handleIdentify = useCallback(() => {
-    if (trimmed.length > 0) {
-      onSmilesReady(trimmed);
+    const ctx = lookupContextRef.current;
+    const lookupSmiles =
+      ctx.lookupSmiles.trim().length > 0 ? ctx.lookupSmiles : trimmed;
+    if (lookupSmiles.length > 0) {
+      onStructureLookup(lookupSmiles, {
+        registrySmiles: ctx.registrySmiles || trimmed,
+        components:
+          ctx.components.length > 0 ? ctx.components : undefined,
+      });
     }
-  }, [onSmilesReady, trimmed]);
+  }, [onStructureLookup, trimmed]);
 
   return (
     <div className="space-y-3" aria-live="polite">
@@ -86,6 +103,9 @@ export function MoleculeStructureSearchTab({
             initialSmiles={trimmed}
             isDark={isDark}
             onSmilesChange={setDraftSmiles}
+            onStructureLookupContextChange={(context) => {
+              lookupContextRef.current = context;
+            }}
             onSnapshot={(svgMarkup, canonicalSmiles) => {
               void svgMarkup;
               const next = canonicalSmiles.trim();

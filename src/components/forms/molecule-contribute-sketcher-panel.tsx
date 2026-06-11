@@ -18,7 +18,14 @@ import { MoleculeDrawCanvas } from "~/features/molecule-sketcher/components/mole
 import { MoleculeDrawToolbar } from "~/features/molecule-sketcher/components/molecule-draw-toolbar";
 import type { BookendMarksState } from "~/features/molecule-sketcher";
 import { useMoleculeDrawState } from "~/features/molecule-sketcher/hooks/use-molecule-draw-state";
+import type { StructureLookupComponent } from "~/features/molecule-sketcher/utils/structure-lookup-components";
 import { ensureOclResourcesBrowser } from "~/features/molecule-sketcher/utils/ocl-resources.browser";
+
+export type StructureLookupContext = {
+  registrySmiles: string;
+  lookupSmiles: string;
+  components: StructureLookupComponent[];
+};
 
 export type MoleculeContributeSketcherPanelProps = {
   initialSmiles: string;
@@ -26,6 +33,8 @@ export type MoleculeContributeSketcherPanelProps = {
   onSmilesChange: (smiles: string) => void;
   onSnapshot: (svgMarkup: string, canonicalSmiles: string) => void;
   onBookendsChange?: (bookends: BookendMarksState) => void;
+  /** Fires when registry or lookup SMILES / component fragments change. */
+  onStructureLookupContextChange?: (context: StructureLookupContext) => void;
 };
 
 /** Imperative handle for committing a database SVG from a hidden sketcher instance. */
@@ -47,11 +56,17 @@ export const MoleculeContributeSketcherPanel = forwardRef<
     onSmilesChange,
     onSnapshot,
     onBookendsChange,
+    onStructureLookupContextChange,
   },
   ref,
 ) {
   const state = useMoleculeDrawState();
-  const { loadSmiles, smiles: drawSmiles } = state;
+  const {
+    loadSmiles,
+    smiles: drawSmiles,
+    structureLookupSmiles,
+    structureLookupComponents,
+  } = state;
   const loadedSmilesRef = useRef<string | null>(null);
   const onSmilesChangeRef = useRef(onSmilesChange);
   const lastSyncedSmilesRef = useRef<string | null>(null);
@@ -99,6 +114,21 @@ export const MoleculeContributeSketcherPanel = forwardRef<
   useEffect(() => {
     onBookendsChangeRef.current?.(state.bookends);
   }, [state.bookends]);
+
+  const onStructureLookupContextChangeRef = useRef(
+    onStructureLookupContextChange,
+  );
+  useEffect(() => {
+    onStructureLookupContextChangeRef.current = onStructureLookupContextChange;
+  }, [onStructureLookupContextChange]);
+
+  useEffect(() => {
+    onStructureLookupContextChangeRef.current?.({
+      registrySmiles: drawSmiles.trim(),
+      lookupSmiles: structureLookupSmiles.trim(),
+      components: structureLookupComponents,
+    });
+  }, [drawSmiles, structureLookupSmiles, structureLookupComponents]);
 
   const commitSnapshot = useCallback(() => {
     const result = state.generateDatabaseSnapshot(isDark);

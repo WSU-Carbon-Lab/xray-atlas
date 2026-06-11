@@ -43,7 +43,13 @@ export {
   reduceMoleculeIdentityFsm,
 } from "./utils/identity-workflow-fsm";
 
-export { validateChemistryConsistency } from "./utils/chemistry-consistency";
+export {
+  dedupeChemistryWarnings,
+  validateChemistryConsistency,
+} from "./utils/chemistry-consistency";
+
+export type { StructureLookupOptions } from "./utils/structure-lookup-pubchem";
+export { mergePubChemCandidatesForComponents } from "./utils/structure-lookup-pubchem";
 
 export {
   rankAtlasAutosuggestHits,

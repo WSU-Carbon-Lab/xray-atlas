@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import dynamic from "next/dynamic";
-import type { MoleculeContributeSketcherPanelHandle } from "./molecule-contribute-sketcher-panel";
+import type {
+  MoleculeContributeSketcherPanelHandle,
+  StructureLookupContext,
+} from "./molecule-contribute-sketcher-panel";
 import { useTheme } from "next-themes";
 import type { Molecule } from "openchemlib";
 import {
@@ -69,6 +72,8 @@ export type MoleculeStructureSectionProps = {
   onSketchBookendsChange?: (bookends: BookendMarksState) => void;
   /** Invokes Atlas/PubChem identifier lookup from the current SMILES without opening the sketcher. */
   onLookupIdentifiers?: () => void;
+  /** Receives expanded lookup SMILES and component fragments from the sketcher. */
+  onStructureLookupContextChange?: (context: StructureLookupContext) => void;
   /** When true, disables the structure lookup action while an external lookup is in flight. */
   lookupIdentifiersBusy?: boolean;
 };
@@ -90,6 +95,7 @@ export function MoleculeStructureSection({
   structureValidationError = null,
   onSketchBookendsChange,
   onLookupIdentifiers,
+  onStructureLookupContextChange,
   lookupIdentifiersBusy = false,
 }: MoleculeStructureSectionProps) {
   const { resolvedTheme } = useTheme();
@@ -565,6 +571,7 @@ export function MoleculeStructureSection({
             onSmilesChange={onSmilesChange}
             onSnapshot={applySketcherSnapshot}
             onBookendsChange={onSketchBookendsChange}
+            onStructureLookupContextChange={onStructureLookupContextChange}
           />
         </div>
       ) : null}

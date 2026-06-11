@@ -10,7 +10,10 @@ import {
 } from "~/lib/molecule-compound-kind";
 import type { MoleculeUploadData } from "~/types/upload";
 import { formatFormulaForCompoundKind } from "../utils/compound-kind-suggestion";
-import { validateChemistryConsistency } from "../utils/chemistry-consistency";
+import {
+  dedupeChemistryWarnings,
+  validateChemistryConsistency,
+} from "../utils/chemistry-consistency";
 import {
   MOLECULE_IDENTITY_FSM_INITIAL,
   reduceMoleculeIdentityFsm,
@@ -200,7 +203,10 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
       });
     }
     const chemistry = validateChemistryConsistency(mergedForm);
-    const warnings = [...pending.warnings, ...chemistry.warnings];
+    const warnings = dedupeChemistryWarnings([
+      ...pending.warnings,
+      ...chemistry.warnings,
+    ]);
     dispatchIdentity({
       type: "apply_match",
       identity: pending.identity,

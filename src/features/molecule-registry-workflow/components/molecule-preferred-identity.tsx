@@ -11,6 +11,7 @@ import {
 import { ArrowUpIcon } from "@heroicons/react/24/outline";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import { normalizeMoleculeSynonym } from "~/lib/molecule-synonym-dedupe";
+import type { MoleculeResolvedIdentity } from "../types";
 
 export type MoleculePreferredIdentityProps = {
   preferredName: string;
@@ -19,6 +20,8 @@ export type MoleculePreferredIdentityProps = {
   onIupacNameChange: (name: string) => void;
   synonyms: string[];
   onPromoteSynonym: (synonym: string) => void;
+  /** When set, preferred name is shown on the linked identity card instead. */
+  linkedIdentity?: MoleculeResolvedIdentity | null;
   className?: string;
 };
 
@@ -33,9 +36,13 @@ export function MoleculePreferredIdentity({
   onIupacNameChange,
   synonyms,
   onPromoteSynonym,
+  linkedIdentity = null,
   className = "",
 }: MoleculePreferredIdentityProps) {
   const trimmedPreferred = preferredName.trim();
+  const linkedName = linkedIdentity?.displayName.trim() ?? "";
+  const showPreferredChip =
+    linkedIdentity === null && trimmedPreferred.length > 0;
   const showPromotableSynonyms = synonyms.filter(
     (synonym) =>
       normalizeMoleculeSynonym(synonym).toLowerCase() !==
@@ -48,7 +55,7 @@ export function MoleculePreferredIdentity({
         Preferred name
         <FieldTooltip description="Primary label shown on browse cards and molecule detail. Search and lookup populate this field; promote any synonym to replace it." />
       </Label>
-      {trimmedPreferred.length > 0 ? (
+      {showPreferredChip ? (
         <Chip
           size="lg"
           variant="soft"
@@ -59,11 +66,15 @@ export function MoleculePreferredIdentity({
             {trimmedPreferred}
           </span>
         </Chip>
-      ) : (
+      ) : linkedIdentity === null ? (
         <Description className="text-muted text-sm">
           Search or draw a structure to set the preferred name.
         </Description>
-      )}
+      ) : linkedName.length > 0 ? (
+        <Description className="text-muted text-sm">
+          Preferred name is shown on the linked identity card above.
+        </Description>
+      ) : null}
 
       {showPromotableSynonyms.length > 0 ? (
         <div className="mt-3 space-y-1.5">

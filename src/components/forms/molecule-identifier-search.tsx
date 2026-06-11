@@ -38,7 +38,9 @@ import {
   applyPubChemResultToForm,
   autosuggestMatchTypeLabel,
   createLookupRequestGeneration,
+  dedupeChemistryWarnings,
   firstTrimmedNonEmpty,
+  mergePubChemCandidatesForComponents,
   MoleculeStructureSearchTab,
   rankAtlasAutosuggestHits,
   readPubChemCidCache,
@@ -50,6 +52,7 @@ import {
   type MoleculeLookupCandidate,
   type MoleculePendingLookup,
   type MoleculeResolvedIdentity,
+  type StructureLookupOptions,
 } from "~/features/molecule-registry-workflow";
 import type { PubChemCandidateSummary } from "~/lib/pubchem-compound";
 import { trpc } from "~/trpc/client";
@@ -108,7 +111,10 @@ type PubChemLookupResult = {
 
 /** Imperative handle for structure-initiated PubChem identifier lookup. */
 export type MoleculeIdentifierSearchHandle = {
-  lookupFromSmiles: (smiles: string) => Promise<void>;
+  lookupFromSmiles: (
+    smiles: string,
+    options?: StructureLookupOptions,
+  ) => Promise<void>;
   selectPubChemCandidate: (candidate: PubChemCandidateSummary) => Promise<void>;
 };
 
@@ -764,10 +770,11 @@ export const MoleculeIdentifierSearch = forwardRef<
   ]);
 
   const lookupFromSmiles = useCallback(
-    async (smiles: string) => {
+    async (smiles: string, options?: StructureLookupOptions) => {
       const generation = lookupGeneration.current.next();
-      const trimmedSmiles = smiles.trim();
-      if (trimmedSmiles.length === 0) {
+      const lookupSmiles = smiles.trim();
+      const registrySmiles = options?.registrySmiles?.trim() || lookupSmiles;
+      if (lookupSmiles.length === 0) {
         reportError(
           "Draw or enter a SMILES string before looking up identifiers.",
           generation,
@@ -782,9 +789,12 @@ export const MoleculeIdentifierSearch = forwardRef<
       onClearSearchFeedback();
       onStructureLookupBusyChange?.(true);
 
+      const componentCount = options?.components?.length ?? 0;
+      const multiComponentLookup = componentCount > 1;
+
       try {
         const atlasSuggest = await utils.molecules.autosuggest.fetch({
-          query: trimmedSmiles,
+          query: lookupSmiles,
           limit: 1,
         });
         if (!lookupGeneration.current.isCurrent(generation)) {
@@ -796,55 +806,71 @@ export const MoleculeIdentifierSearch = forwardRef<
           return;
         }
 
-        const candidateResponse =
-          await utils.external.searchPubchemCandidates.fetch({
-            query: trimmedSmiles,
-            limit: 10,
-            type: "smiles",
-          });
+        const candidates = await mergePubChemCandidatesForComponents(
+          (input) => utils.external.searchPubchemCandidates.fetch(input),
+          lookupSmiles,
+          options?.components,
+        );
         if (!lookupGeneration.current.isCurrent(generation)) {
           return;
         }
-        const candidates = candidateResponse.candidates;
         if (candidates.length === 0) {
-          throw new Error("No PubChem match for this SMILES.");
+          throw new Error("No PubChem match for this structure.");
         }
-        if (candidates.length > 1) {
-          setStructureLookupSmiles(trimmedSmiles);
+
+        const needsCandidatePicker =
+          candidates.length > 1 ||
+          (multiComponentLookup && candidates.length >= 1);
+
+        if (needsCandidatePicker) {
+          setStructureLookupSmiles(registrySmiles);
           queuePendingLookup(
             {
               identity: {
                 source: "pubchem",
-                displayName: trimmedSmiles,
-                chemicalFormula: null,
-                pubChemCid: null,
+                displayName:
+                  candidates.length === 1
+                    ? candidates[0]!.title
+                    : "Structure matches",
+                chemicalFormula: candidates[0]?.formula ?? null,
+                pubChemCid:
+                  candidates.length === 1 ? candidates[0]!.cid : null,
                 casNumber: null,
                 atlasMoleculeId: null,
                 casVerified: false,
-                statusDetail: "Multiple PubChem matches",
-                previewSmiles: trimmedSmiles,
+                statusDetail:
+                  candidates.length > 1
+                    ? "Multiple PubChem matches"
+                    : "Confirm component match",
+                previewSmiles: lookupSmiles,
               },
-              formPatch: { smiles: trimmedSmiles },
+              formPatch: { smiles: registrySmiles },
               editingMoleculeId: null,
               importedSynonyms: [],
-              warnings: [],
+              warnings: dedupeChemistryWarnings(
+                multiComponentLookup
+                  ? [
+                      "Polymer or multi-block structure: pick the PubChem record that matches your drawn structure.",
+                    ]
+                  : [],
+              ),
               pubChemUrl: null,
               tagIds: [],
               compoundKindSuggestion: null,
-              candidates: toLookupCandidates(candidates, trimmedSmiles),
+              candidates: toLookupCandidates(candidates, lookupSmiles),
             },
             generation,
           );
           return;
         }
 
-        setStructureLookupSmiles(trimmedSmiles);
+        setStructureLookupSmiles(registrySmiles);
         const pending = await resolvePubChemByCid(
           candidates[0]!.cid,
-          trimmedSmiles,
+          lookupSmiles,
           generation,
           {
-            preserveDrawnSmiles: trimmedSmiles,
+            preserveDrawnSmiles: registrySmiles,
             fillEmptyFieldsOnly: true,
           },
         );
@@ -1245,8 +1271,8 @@ export const MoleculeIdentifierSearch = forwardRef<
           <MoleculeStructureSearchTab
             isDark={isDark}
             lookupBusy={searchBusy}
-            onSmilesReady={(smiles) => {
-              void lookupFromSmiles(smiles);
+            onStructureLookup={(lookupSmiles, options) => {
+              void lookupFromSmiles(lookupSmiles, options);
             }}
           />
         </Tabs.Panel>

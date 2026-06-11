@@ -3,7 +3,10 @@ import {
   expect as bunExpect,
   it as bunIt,
 } from "bun:test";
-import { validateChemistryConsistency } from "./chemistry-consistency";
+import {
+  dedupeChemistryWarnings,
+  validateChemistryConsistency,
+} from "./chemistry-consistency";
 import type { MoleculeUploadData } from "~/types/upload";
 
 type ExpectAssertions = {
@@ -44,5 +47,14 @@ describe("validateChemistryConsistency", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.warnings.length > 0).toBe(true);
+  });
+});
+
+describe("dedupeChemistryWarnings", () => {
+  it("removes duplicate warning strings", () => {
+    const message =
+      "Formula (C10H14S) differs from SMILES-derived formula (C10H16S). Review before saving.";
+    const deduped = dedupeChemistryWarnings([message, message]);
+    expect(deduped).toHaveLength(1);
   });
 });

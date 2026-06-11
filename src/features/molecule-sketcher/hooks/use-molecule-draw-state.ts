@@ -66,7 +66,12 @@ import {
   stabilizeLayout,
   type MoleculeDatabasePrepAssessment,
 } from "../utils/molecule-graph-editing";
-import { smilesForRegistryExport } from "../utils/polymer-export-smiles";
+import { buildStructureLookupComponents } from "../utils/structure-lookup-components";
+import type { StructureLookupComponent } from "../utils/structure-lookup-components";
+import {
+  smilesForRegistryExport,
+  smilesForStructureLookup,
+} from "../utils/polymer-export-smiles";
 import { buildDatabasePrepSnapshotSvg } from "../utils/build-database-prep-snapshot-svg";
 import { remapBookendMarksAfterMolEdit } from "../utils/remap-draw-bond-marks";
 import {
@@ -129,6 +134,10 @@ export interface MoleculeDrawState {
   setDrawBondKind: (kind: DrawBondKind) => void;
   /** Canonical isomeric SMILES of the full drawing (empty when no atoms). */
   smiles: string;
+  /** Expanded full-structure SMILES for Atlas/PubChem lookup (alkyl tails included). */
+  structureLookupSmiles: string;
+  /** Deduped SMILES fragments for component-wise structure lookup. */
+  structureLookupComponents: StructureLookupComponent[];
   /** True when the drawing contains a dative bond (SMILES caveat applies). */
   containsDativeBond: boolean;
   /** Bookend bond marks, or null slots when not yet placed. */
@@ -461,6 +470,22 @@ export function useMoleculeDrawState(): MoleculeDrawState {
       return "";
     }
   }, [molecule, bookends]);
+
+  const structureLookupSmiles = useMemo(() => {
+    try {
+      return smilesForStructureLookup(molecule, bookends);
+    } catch {
+      return "";
+    }
+  }, [molecule, bookends]);
+
+  const structureLookupComponents = useMemo(() => {
+    try {
+      return buildStructureLookupComponents(molecule, bookends, chunkMarks);
+    } catch {
+      return [];
+    }
+  }, [molecule, bookends, chunkMarks]);
 
   const containsDativeBond = useMemo(() => hasDativeBond(molecule), [molecule]);
 
@@ -1712,6 +1737,8 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     drawBondKind,
     setDrawBondKind,
     smiles,
+    structureLookupSmiles,
+    structureLookupComponents,
     containsDativeBond,
     bookends,
     bookendExtraction,

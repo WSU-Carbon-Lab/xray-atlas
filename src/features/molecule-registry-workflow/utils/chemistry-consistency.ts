@@ -10,6 +10,26 @@ export type ChemistryConsistencyResult = {
   warnings: string[];
 };
 
+/**
+ * Removes duplicate warning strings while preserving first-seen order.
+ *
+ * @param warnings - Raw warning messages from lookup and chemistry validation.
+ * @returns Deduped warnings safe for React list keys and UI display.
+ */
+export function dedupeChemistryWarnings(warnings: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const warning of warnings) {
+    const trimmed = warning.trim();
+    if (trimmed.length === 0 || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
 function normalizeFormula(value: string): string {
   return value.replace(/\s+/g, "").toLowerCase();
 }
@@ -91,5 +111,5 @@ export function validateChemistryConsistency(
     );
   }
 
-  return { ok: warnings.length === 0, warnings };
+  return { ok: warnings.length === 0, warnings: dedupeChemistryWarnings(warnings) };
 }

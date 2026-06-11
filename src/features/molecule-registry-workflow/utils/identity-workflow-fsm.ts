@@ -1,4 +1,5 @@
 import type { MoleculeCompoundKind } from "~/lib/molecule-compound-kind";
+import { dedupeChemistryWarnings } from "./chemistry-consistency";
 import type {
   MoleculeIdentifierSearchMode,
   MoleculePendingLookup,
@@ -159,22 +160,24 @@ export function reduceMoleculeIdentityFsm(
         },
       };
 
-    case "apply_match":
+    case "apply_match": {
+      const linkedWarnings = dedupeChemistryWarnings(action.warnings);
       return {
         ...state,
         phase: "linked",
         linkedIdentity: action.identity,
         pendingLookup: null,
         previewSnapshot: previewFromIdentity(action.identity),
-        chemistryWarnings: action.warnings,
+        chemistryWarnings: linkedWarnings,
         searchFeedback: {
           searchError: null,
           searchSuccess: null,
-          searchWarnings: action.warnings,
+          searchWarnings: [],
           pubChemUrl: null,
           resolvedIdentity: action.identity,
         },
       };
+    }
 
     case "dismiss_match":
       return {
