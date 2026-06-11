@@ -5,19 +5,20 @@ import { MdxArticle } from "~/components/content/mdx-article";
 import { getWikiEntries, getWikiEntryBySlug } from "~/lib/content/wiki-loader";
 
 interface WikiCatchAllPageProps {
-  params: Promise<{ slug: string[] }>;
+  params: Promise<{ slug?: string[] }>;
 }
 
 /**
- * Builds static params for every non-draft wiki MDX entry.
+ * Builds static params for every non-draft wiki MDX entry, including the wiki index at `/wiki`.
  */
-export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
+export async function generateStaticParams(): Promise<{ slug?: string[] }[]> {
   const entries = await getWikiEntries();
   return entries
     .filter((entry) => !entry.frontmatter.draft)
-    .map((entry) => ({
-      slug: entry.slug.split("/").filter(Boolean),
-    }));
+    .map((entry) => {
+      const segments = entry.slug.split("/").filter(Boolean);
+      return segments.length === 0 ? { slug: [] } : { slug: segments };
+    });
 }
 
 /**
@@ -27,33 +28,36 @@ export async function generateMetadata({
   params,
 }: WikiCatchAllPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const slugPath = slug.join("/");
+  const slugPath = slug?.join("/") ?? "";
   const entry = await getWikiEntryBySlug(slugPath);
 
   if (!entry) {
     return {};
   }
 
+  const canonical = entry.slug.length === 0 ? "/wiki" : `/wiki/${entry.slug}`;
+
   return {
     title: entry.frontmatter.title,
     description: entry.frontmatter.description,
     alternates: {
-      canonical: `/wiki/${entry.slug}`,
+      canonical,
     },
   };
 }
 
 /**
- * Catch-all wiki route that renders MDX content from `content/wiki`.
+ * Optional catch-all wiki route that renders MDX content from `content/wiki`.
  *
- * Static TSX routes under `src/app/wiki` take precedence. Draft entries are
- * excluded from static generation and return 404 in production.
+ * Resolves `/wiki` from `content/wiki/index.mdx` and nested paths from sibling MDX files.
+ * Static TSX routes under `src/app/wiki` take precedence. Draft entries are excluded from
+ * static generation and return 404 in production.
  */
 export default async function WikiCatchAllPage({
   params,
 }: WikiCatchAllPageProps): Promise<ReactElement> {
   const { slug } = await params;
-  const slugPath = slug.join("/");
+  const slugPath = slug?.join("/") ?? "";
   const entry = await getWikiEntryBySlug(slugPath);
 
   if (!entry) {
