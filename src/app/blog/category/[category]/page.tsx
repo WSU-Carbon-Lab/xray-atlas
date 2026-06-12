@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactElement } from "react";
 import { notFound } from "next/navigation";
-import { BlogBreadcrumbs } from "~/components/blog/blog-breadcrumbs";
+import {
+  BlogBreadcrumbs,
+  blogCategoryBreadcrumbItems,
+} from "~/components/blog/blog-breadcrumbs";
 import { BlogCategoryHero } from "~/components/blog/blog-category-hero";
 import { BlogCategoryFilteredSection } from "~/components/blog/blog-filtered-grid";
 import {
@@ -80,7 +83,9 @@ export default async function BlogCategoryPage({
     getBlogEntriesByCategory(category.slug),
     getTeaserEntries(),
   ]);
-  const teasers = allTeasers.filter((entry) => entry.category === category.slug);
+  const teasers = allTeasers.filter(
+    (entry) => entry.category === category.slug,
+  );
   const [featured, ...rest] = published;
   const availableTags = topBlogTags(published);
   const gridMeta = rest.map((entry) => ({
@@ -92,11 +97,7 @@ export default async function BlogCategoryPage({
 
   return (
     <div className="mx-auto w-full max-w-5xl py-10">
-      <BlogBreadcrumbs
-        categoryLabel={category.label}
-        categorySlug={category.slug}
-        linkCategory={false}
-      />
+      <BlogBreadcrumbs items={blogCategoryBreadcrumbItems(category.label)} />
       <BlogCategoryHero
         activeCategory={category.slug}
         recentPosts={published}

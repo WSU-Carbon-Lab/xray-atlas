@@ -55,6 +55,12 @@ export const blogFrontmatterSchema = z.object({
   heroImage: z.string().optional(),
   draft: z.boolean().default(false),
   teaser: z.union([z.boolean(), z.string()]).default(false),
+  series: z
+    .object({
+      name: z.string().min(1),
+      part: z.number().int().positive(),
+    })
+    .optional(),
 });
 
 /** Parsed and validated frontmatter for a blog MDX document. */

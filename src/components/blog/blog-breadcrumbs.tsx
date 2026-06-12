@@ -1,54 +1,66 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
+import { Breadcrumbs } from "@heroui/react";
 import {
   blogCategoryHref,
   type BlogCategorySlug,
 } from "~/lib/content/blog-categories";
 
-interface BlogBreadcrumbsProps {
-  categoryLabel: string;
-  categorySlug?: BlogCategorySlug;
-  /** When false, renders the category as the current page without a link. */
-  linkCategory?: boolean;
+export interface BlogBreadcrumbItem {
+  label: string;
+  href?: string;
 }
 
 /**
- * Renders `Blog / {category}` navigation for blog index descendants.
- *
- * The Blog segment always links to `/blog`. The category segment links to the
- * category index when `linkCategory` is true (post pages); otherwise it renders
- * as the active page label (category index pages).
+ * Renders `Home / Blog / {category} / {post}` using the shared HeroUI Breadcrumbs pattern.
  */
 export function BlogBreadcrumbs({
+  items,
+}: {
+  items: BlogBreadcrumbItem[];
+}): ReactElement {
+  return (
+    <Breadcrumbs className="text-muted mb-6 min-w-0 text-sm font-medium">
+      <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
+      <Breadcrumbs.Item href="/blog">Blog</Breadcrumbs.Item>
+      {items.map((item, index) => {
+        const isTerminal = index === items.length - 1;
+        return (
+          <Breadcrumbs.Item
+            key={`${item.label}-${item.href ?? "terminal"}`}
+            href={!isTerminal ? item.href : undefined}
+          >
+            {item.label}
+          </Breadcrumbs.Item>
+        );
+      })}
+    </Breadcrumbs>
+  );
+}
+
+/**
+ * Builds breadcrumb items for a category index page (terminal category label).
+ */
+export function blogCategoryBreadcrumbItems(
+  categoryLabel: string,
+): BlogBreadcrumbItem[] {
+  return [{ label: categoryLabel }];
+}
+
+/**
+ * Builds breadcrumb items for a post page (linked category, terminal post title).
+ */
+export function blogPostBreadcrumbItems({
   categoryLabel,
   categorySlug,
-  linkCategory = true,
-}: BlogBreadcrumbsProps): ReactElement {
-  const showCategoryLink =
-    linkCategory && categorySlug !== undefined;
-
-  return (
-    <nav aria-label="Breadcrumb" className="text-muted mb-6 text-sm">
-      <ol className="flex flex-wrap items-center gap-2">
-        <li>
-          <Link href="/blog" className="hover:text-accent no-underline">
-            Blog
-          </Link>
-        </li>
-        <li aria-hidden>/</li>
-        <li>
-          {showCategoryLink ? (
-            <Link
-              href={blogCategoryHref(categorySlug)}
-              className="text-foreground hover:text-accent no-underline"
-            >
-              {categoryLabel}
-            </Link>
-          ) : (
-            <span className="text-foreground">{categoryLabel}</span>
-          )}
-        </li>
-      </ol>
-    </nav>
-  );
+  postTitle,
+}: {
+  categoryLabel: string;
+  categorySlug: BlogCategorySlug;
+  postTitle: string;
+}): BlogBreadcrumbItem[] {
+  return [
+    { label: categoryLabel, href: blogCategoryHref(categorySlug) },
+    { label: postTitle },
+  ];
 }

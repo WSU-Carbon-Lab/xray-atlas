@@ -4,7 +4,14 @@ import type { ComponentPropsWithoutRef, ReactElement } from "react";
 import { notFound } from "next/navigation";
 import type { MDXComponents } from "mdx/types";
 import { cn } from "@heroui/styles";
-import { BlogBreadcrumbs } from "~/components/blog/blog-breadcrumbs";
+import { BlogAuthorByline } from "~/components/blog/blog-author-byline";
+import {
+  BlogBreadcrumbs,
+  blogPostBreadcrumbItems,
+} from "~/components/blog/blog-breadcrumbs";
+import { BlogRelatedPosts } from "~/components/blog/blog-related-posts";
+import { BlogSeriesBox } from "~/components/blog/blog-series-box";
+import { BlogTableOfContents } from "~/components/blog/blog-toc";
 import { CopyLinkButton } from "~/components/blog/copy-link-button";
 import { BlogPostTagChips } from "~/components/blog/blog-post-tag-chips";
 import { MdxArticle } from "~/components/content/mdx-article";
@@ -12,10 +19,15 @@ import {
   blogCategoryRssHref,
   getBlogCategory,
 } from "~/lib/content/blog-categories";
+import { blogPostJsonLd } from "~/lib/content/blog-json-ld";
+import { relatedBlogPosts } from "~/lib/content/blog-related";
+import {
+  adjacentBlogPosts,
+  blogSeriesPartRows,
+} from "~/lib/content/blog-series";
 import {
   getBlogEntries,
   getBlogEntryBySlug,
-  isBlogTeaser,
   isListableBlogEntry,
   type BlogEntry,
 } from "~/lib/content/blog-loader";
@@ -101,41 +113,6 @@ const blogMdxComponents: MDXComponents = {
   ),
 };
 
-function publishedEntriesFrom(entries: BlogEntry[]): BlogEntry[] {
-  return entries.filter(isListableBlogEntry);
-}
-
-function adjacentPostsInCategory(
-  entries: BlogEntry[],
-  slug: string,
-  category: BlogFrontmatter["category"],
-): {
-  previous?: { slug: string; title: string };
-  next?: { slug: string; title: string };
-} {
-  const published = publishedEntriesFrom(entries).filter(
-    (entry) => entry.frontmatter.category === category,
-  );
-  const index = published.findIndex((entry) => entry.slug === slug);
-  if (index === -1) {
-    return {};
-  }
-  return {
-    previous: published[index + 1]
-      ? {
-          slug: published[index + 1]!.slug,
-          title: published[index + 1]!.frontmatter.title,
-        }
-      : undefined,
-    next: published[index - 1]
-      ? {
-          slug: published[index - 1]!.slug,
-          title: published[index - 1]!.frontmatter.title,
-        }
-      : undefined,
-  };
-}
-
 function PostNavLink({
   direction,
   slug,
@@ -161,42 +138,6 @@ function PostNavLink({
   );
 }
 
-function BlogTableOfContents({
-  headings,
-}: {
-  headings: ReturnType<typeof extractHeadings>;
-}): ReactElement | null {
-  const sectionHeadings = headings.filter((heading) => heading.level === 2);
-  if (sectionHeadings.length < 3) {
-    return null;
-  }
-
-  return (
-    <details className="border-border bg-surface mb-8 rounded-xl border px-4 py-3">
-      <summary className="text-foreground cursor-pointer text-sm font-medium">
-        On this page
-      </summary>
-      <nav aria-label="Table of contents" className="mt-3">
-        <ul className="space-y-2 text-sm">
-          {headings.map((heading) => (
-            <li
-              key={heading.id}
-              className={heading.level === 3 ? "ml-4" : undefined}
-            >
-              <a
-                href={`#${heading.id}`}
-                className="text-muted hover:text-accent no-underline transition-colors"
-              >
-                {heading.text}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </details>
-  );
-}
-
 function BlogHeroImage({
   frontmatter,
 }: {
@@ -215,12 +156,30 @@ function BlogHeroImage({
   );
 }
 
+function BlogJsonLdScript({ entry }: { entry: BlogEntry }): ReactElement {
+  const { breadcrumbList, article } = blogPostJsonLd(entry);
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbList) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(article) }}
+      />
+    </>
+  );
+}
+
 /**
- * Builds static params for every non-draft blog MDX entry.
+ * Builds static params for every listable blog MDX entry.
  */
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   const entries = await getBlogEntries();
-  return publishedEntriesFrom(entries).map((entry) => ({ slug: entry.slug }));
+  return entries
+    .filter(isListableBlogEntry)
+    .map((entry) => ({ slug: entry.slug }));
 }
 
 /**
@@ -232,7 +191,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const entry = await getBlogEntryBySlug(slug);
 
-  if (!entry) {
+  if (!entry || !isListableBlogEntry(entry)) {
     return {};
   }
 
@@ -280,83 +239,106 @@ export default async function BlogPostPage({
     notFound();
   }
 
-  if (isBlogTeaser(entry.frontmatter.teaser)) {
+  if (!isListableBlogEntry(entry) && process.env.NODE_ENV === "production") {
     notFound();
   }
 
   const category = getBlogCategory(entry.frontmatter.category);
   const headings = extractHeadings(entry.body);
   const minutes = readingTimeMinutes(entry.body);
-  const { previous, next } = adjacentPostsInCategory(
+  const { previous, next } = adjacentBlogPosts(
     entries,
     entry.slug,
-    entry.frontmatter.category,
+    entry.frontmatter,
   );
-  const authorLabel = entry.frontmatter.authors.join(", ");
+  const seriesParts = blogSeriesPartRows(entries, entry);
+  const related = relatedBlogPosts(entries, entry);
+  const breadcrumbItems = category
+    ? blogPostBreadcrumbItems({
+        categoryLabel: category.label,
+        categorySlug: category.slug,
+        postTitle: entry.frontmatter.title,
+      })
+    : [{ label: entry.frontmatter.title }];
 
   return (
-    <div className="mx-auto w-full max-w-2xl py-10">
-      {category ? (
-        <BlogBreadcrumbs
-          categoryLabel={category.label}
-          categorySlug={category.slug}
-        />
-      ) : (
-        <BlogBreadcrumbs
-          categoryLabel={entry.frontmatter.category}
-          linkCategory={false}
-        />
-      )}
+    <>
+      <BlogJsonLdScript entry={entry} />
+      <div className="mx-auto w-full max-w-6xl px-4 py-10 xl:px-6">
+        <div className="mx-auto w-full max-w-2xl">
+          <BlogBreadcrumbs items={breadcrumbItems} />
 
-      <header className="mb-8 space-y-4">
-        <p className="text-accent text-xs font-semibold tracking-[0.18em] uppercase">
-          {category?.kicker ?? entry.frontmatter.category}
-        </p>
-        <h1 className="font-display text-foreground text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
-          {entry.frontmatter.title}
-        </h1>
-        <div className="text-muted flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
-          <time dateTime={entry.frontmatter.date}>
-            {formatBlogDate(entry.frontmatter.date)}
-          </time>
-          <span aria-hidden>·</span>
-          <span>{authorLabel}</span>
-          <span aria-hidden>·</span>
-          <span>{minutes} min read</span>
-          <span aria-hidden>·</span>
-          <CopyLinkButton />
+          <header className="mb-8 space-y-4">
+            <p className="text-accent text-xs font-semibold tracking-[0.18em] uppercase">
+              {category?.kicker ?? entry.frontmatter.category}
+            </p>
+            <h1 className="font-display text-foreground text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
+              {entry.frontmatter.title}
+            </h1>
+            <div className="text-muted flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
+              <time dateTime={entry.frontmatter.date}>
+                {formatBlogDate(entry.frontmatter.date)}
+              </time>
+              <span aria-hidden>·</span>
+              <BlogAuthorByline authors={entry.frontmatter.authors} />
+              <span aria-hidden>·</span>
+              <span>{minutes} min read</span>
+              <span aria-hidden>·</span>
+              <CopyLinkButton />
+            </div>
+            <BlogPostTagChips tags={entry.frontmatter.tags} />
+          </header>
         </div>
-        <BlogPostTagChips tags={entry.frontmatter.tags} />
-      </header>
 
-      <BlogHeroImage frontmatter={entry.frontmatter} />
-      <BlogTableOfContents headings={headings} />
+        <div className="flex items-start gap-10 xl:gap-12">
+          <div className="mx-auto w-full max-w-2xl min-w-0 flex-1">
+            <BlogHeroImage frontmatter={entry.frontmatter} />
+            {entry.frontmatter.series ? (
+              <BlogSeriesBox
+                seriesName={entry.frontmatter.series.name}
+                parts={seriesParts}
+              />
+            ) : null}
+            <BlogTableOfContents headings={headings} variant="inline" />
 
-      <MdxArticle
-        source={entry.body}
-        components={blogMdxComponents}
-        className="max-w-2xl"
-      />
-
-      {previous || next ? (
-        <nav
-          aria-label="Post pagination"
-          className="border-border mt-12 grid gap-4 border-t pt-8 sm:grid-cols-2"
-        >
-          {previous ? (
-            <PostNavLink
-              direction="previous"
-              slug={previous.slug}
-              title={previous.title}
+            <MdxArticle
+              source={entry.body}
+              components={blogMdxComponents}
+              className="max-w-2xl"
             />
-          ) : (
-            <span />
-          )}
-          {next ? (
-            <PostNavLink direction="next" slug={next.slug} title={next.title} />
-          ) : null}
-        </nav>
-      ) : null}
-    </div>
+
+            {previous || next ? (
+              <nav
+                aria-label="Post pagination"
+                className="border-border mt-12 grid gap-4 border-t pt-8 sm:grid-cols-2"
+              >
+                {previous ? (
+                  <PostNavLink
+                    direction="previous"
+                    slug={previous.slug}
+                    title={previous.title}
+                  />
+                ) : (
+                  <span />
+                )}
+                {next ? (
+                  <PostNavLink
+                    direction="next"
+                    slug={next.slug}
+                    title={next.title}
+                  />
+                ) : null}
+              </nav>
+            ) : null}
+
+            <BlogRelatedPosts posts={related} />
+          </div>
+
+          <div className="hidden w-56 shrink-0 xl:block">
+            <BlogTableOfContents headings={headings} variant="rail" />
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
