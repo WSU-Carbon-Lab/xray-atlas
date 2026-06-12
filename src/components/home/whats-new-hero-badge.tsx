@@ -2,11 +2,9 @@
 
 import type { ReactElement } from "react";
 import Link from "next/link";
-import {
-  ArrowRightIcon,
-  NewspaperIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowRightIcon, NewspaperIcon } from "@heroicons/react/24/outline";
 import { cn } from "@heroui/styles";
+import { formatBlogDate } from "~/lib/content/blog-presentation";
 import type { WhatsNewSummary } from "~/lib/whats-new-summary";
 import { useWhatsNewSeen } from "~/lib/whats-new-seen";
 
@@ -34,7 +32,7 @@ export function WhatsNewHeroBadge({
       href={href}
       onClick={markSeen}
       className={cn(
-        "group focus-visible:ring-accent inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-sm text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "group focus-visible:ring-accent focus-visible:ring-offset-background inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-sm text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
         mounted && isUnread
           ? "text-accent hover:text-accent/90"
           : "text-muted hover:text-foreground",
@@ -49,6 +47,12 @@ export function WhatsNewHeroBadge({
         </span>
         <span className={mounted && isUnread ? "font-medium" : undefined}>
           {truncatedTitle}
+        </span>
+        <span className="opacity-60" aria-hidden>
+          {" · "}
+        </span>
+        <span className="tabular-nums">
+          {formatBlogDate(summary.date, { relative: true })}
         </span>
       </span>
       <ArrowRightIcon
