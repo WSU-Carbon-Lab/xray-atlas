@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
+import { BlogFeaturedAuthor } from "~/components/blog/blog-author-byline";
 import { BlogTile } from "~/components/blog/blog-tile";
 import { getBlogCategory } from "~/lib/content/blog-categories";
 import type { BlogEntry } from "~/lib/content/blog-loader";
@@ -42,7 +43,11 @@ function categoryKicker(entry: BlogEntry): string {
 }
 
 /** Large featured card for the newest post on blog index and category pages. */
-export function FeaturedPostCard({ entry }: { entry: BlogEntry }): ReactElement {
+export function FeaturedPostCard({
+  entry,
+}: {
+  entry: BlogEntry;
+}): ReactElement {
   return (
     <article className="border-border bg-surface overflow-hidden rounded-2xl border">
       <Link
@@ -70,6 +75,7 @@ export function FeaturedPostCard({ entry }: { entry: BlogEntry }): ReactElement 
           <p className="text-muted text-base leading-7">
             {entry.frontmatter.description}
           </p>
+          <BlogFeaturedAuthor authors={entry.frontmatter.authors} />
           <span className="text-accent text-sm font-medium">Read post</span>
         </div>
       </Link>
