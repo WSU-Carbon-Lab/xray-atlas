@@ -2,7 +2,7 @@ import { type MetadataRoute } from "next";
 import { site } from "~/app/brand";
 import { canonicalFacilitySlugFromName } from "~/lib/facility-slug";
 import { BLOG_CATEGORIES } from "~/lib/content/blog-categories";
-import { getBlogEntries } from "~/lib/content/blog-loader";
+import { getBlogEntries, isListableBlogEntry } from "~/lib/content/blog-loader";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { db } from "~/server/db";
 
@@ -63,7 +63,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.65,
     })),
     ...blogEntries
-      .filter((entry) => !entry.frontmatter.draft)
+      .filter(isListableBlogEntry)
       .map((entry) => ({
         url: `${baseUrl}/blog/${entry.slug}`,
         lastModified: new Date(`${entry.frontmatter.date}T12:00:00.000Z`),

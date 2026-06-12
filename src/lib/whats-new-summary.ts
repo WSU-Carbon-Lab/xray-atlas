@@ -1,6 +1,7 @@
 import {
   getBlogEntries,
   getLatestReleasePost,
+  isListableBlogEntry,
 } from "~/lib/content/blog-loader";
 
 /** Serializable highlight post for What's New surfaces (hero pill and account menu). */
@@ -25,7 +26,7 @@ export async function getWhatsNewSummary(): Promise<WhatsNewSummary | null> {
   }
 
   const entries = await getBlogEntries();
-  const latestPost = entries.find((entry) => !entry.frontmatter.draft);
+  const latestPost = entries.find(isListableBlogEntry);
   if (!latestPost) {
     return null;
   }

@@ -54,6 +54,7 @@ export const blogFrontmatterSchema = z.object({
   category: blogCategorySchema.default("releases"),
   heroImage: z.string().optional(),
   draft: z.boolean().default(false),
+  teaser: z.union([z.boolean(), z.string()]).default(false),
 });
 
 /** Parsed and validated frontmatter for a blog MDX document. */

@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
 import type { BlogCategorySlug } from "~/lib/content/blog-categories";
+import { blogSlugHash } from "~/lib/content/blog-presentation";
 import {
   blogFrontmatterSchema,
   type BlogFrontmatter,
@@ -131,7 +132,98 @@ export async function getBlogEntryBySlug(
 }
 
 /**
- * Loads published blog entries whose frontmatter `category` matches `category`.
+ * Loads every listable (non-draft, non-teaser) blog entry, sorted newest first.
+ */
+export async function getPublishedBlogEntries(): Promise<BlogEntry[]> {
+  const entries = await getBlogEntries();
+  return entries.filter(isListableBlogEntry);
+}
+
+/**
+ * Loads work-in-progress teaser entries for the "In the works" section.
+ *
+ * Returns only `category`, `displayTitle`, and `slugHash` so slugs never reach the DOM.
+ */
+export async function getTeaserEntries(): Promise<BlogTeaserEntry[]> {
+  const entries = await getBlogEntries();
+  return entries
+    .filter((entry) => isBlogTeaser(entry.frontmatter.teaser))
+    .map((entry) => {
+      const displayTitle = getTeaserDisplayTitle(entry);
+      if (!displayTitle) {
+        throw new Error(
+          `Teaser entry ${entry.filePath} has teaser frontmatter but no display title`,
+        );
+      }
+      return {
+        category: entry.frontmatter.category,
+        displayTitle,
+        slugHash: blogSlugHash(entry.slug),
+      };
+    });
+}
+
+/** A work-in-progress teaser surfaced in the "In the works" section without exposing slugs. */
+export interface BlogTeaserEntry {
+  category: BlogCategorySlug;
+  displayTitle: string;
+  slugHash: string;
+}
+
+/**
+ * Returns whether frontmatter `teaser` marks the post as work-in-progress (`true` or a custom string).
+ */
+export function isBlogTeaser(teaser: BlogFrontmatter["teaser"]): boolean {
+  return teaser === true || typeof teaser === "string";
+}
+
+/**
+ * Resolves the reader-facing teaser title from frontmatter `teaser` and `title`.
+ */
+export function getTeaserDisplayTitle(entry: BlogEntry): string | undefined {
+  const { teaser, title } = entry.frontmatter;
+  if (teaser === true) {
+    return title;
+  }
+  if (typeof teaser === "string") {
+    return teaser;
+  }
+  return undefined;
+}
+
+/**
+ * Returns whether an entry is listable on indexes, feeds, sitemap, and post static params.
+ *
+ * Excludes drafts and work-in-progress teasers.
+ */
+export function isListableBlogEntry(entry: BlogEntry): boolean {
+  return !entry.frontmatter.draft && !isBlogTeaser(entry.frontmatter.teaser);
+}
+
+/**
+ * Counts tag frequency across entries and returns the top `limit` tags by count.
+ */
+export function topBlogTags(entries: BlogEntry[], limit = 12): string[] {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    for (const tag of entry.frontmatter.tags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((left, right) => {
+      const countCompare = right[1] - left[1];
+      if (countCompare !== 0) {
+        return countCompare;
+      }
+      return left[0].localeCompare(right[0]);
+    })
+    .slice(0, limit)
+    .map(([tag]) => tag);
+}
+
+/**
+ * Loads listable blog entries whose frontmatter `category` matches `category`.
  *
  * Results stay sorted newest-first by {@link getBlogEntries}.
  */
@@ -141,12 +233,12 @@ export async function getBlogEntriesByCategory(
   const entries = await getBlogEntries();
   return entries.filter(
     (entry) =>
-      !entry.frontmatter.draft && entry.frontmatter.category === category,
+      isListableBlogEntry(entry) && entry.frontmatter.category === category,
   );
 }
 
 /**
- * Returns the newest non-draft blog entry in the `releases` category, if one exists.
+ * Returns the newest listable blog entry in the `releases` category, if one exists.
  */
 export async function getLatestReleasePost(): Promise<BlogEntry | undefined> {
   const entries = await getBlogEntriesByCategory("releases");
