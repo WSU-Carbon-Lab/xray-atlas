@@ -4,6 +4,9 @@ import type { Heading } from "mdast";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { visit } from "unist-util-visit";
+import { formatBlogDate } from "~/lib/content/blog-date-format";
+
+export { formatBlogDate };
 
 /** Public URL prefix for blog post images; kept inline so client components can import date helpers. */
 const BLOG_ASSETS_URL_PREFIX = "/blog/blog-assets";
@@ -51,43 +54,6 @@ export function readingTimeMinutes(body: string): number {
   text = text.replace(/[#>*_~|-]/g, " ");
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.ceil(words / WORDS_PER_MINUTE));
-}
-
-/**
- * Formats a blog calendar day (`YYYY-MM-DD`) for display.
- *
- * When `relative` is true and the post is within the last 14 days, returns compact
- * relative labels (`Today`, `Yesterday`, `N days ago`). Otherwise returns a long-form
- * US locale date. On statically generated blog routes, relative strings reflect the
- * build timestamp until the next deployment.
- */
-export function formatBlogDate(
-  isoDate: string,
-  options?: { relative?: boolean; now?: Date },
-): string {
-  const date = new Date(`${isoDate}T12:00:00.000Z`);
-  const now = options?.now ?? new Date();
-
-  if (options?.relative) {
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays >= 0 && diffDays <= 14) {
-      if (diffDays === 0) {
-        return "Today";
-      }
-      if (diffDays === 1) {
-        return "Yesterday";
-      }
-      return `${diffDays} days ago`;
-    }
-  }
-
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  });
 }
 
 /**
