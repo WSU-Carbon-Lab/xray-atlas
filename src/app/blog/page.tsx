@@ -52,7 +52,10 @@ export default async function BlogIndexPage(): Promise<ReactElement> {
         <div className="space-y-10">
           {featured ? <FeaturedPostCard entry={featured} /> : null}
           {rest.length > 0 ? (
-            <BlogIndexFilteredSection items={gridMeta} availableTags={availableTags}>
+            <BlogIndexFilteredSection
+              items={gridMeta}
+              availableTags={availableTags}
+            >
               {rest.map((entry) => (
                 <GridPostCard key={entry.slug} entry={entry} />
               ))}

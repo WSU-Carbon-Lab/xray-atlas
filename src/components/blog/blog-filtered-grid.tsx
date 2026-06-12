@@ -36,7 +36,10 @@ function entryMatchesFilter(
   ) {
     return false;
   }
-  if (state.tags.length > 0 && !state.tags.some((tag) => meta.tags.includes(tag))) {
+  if (
+    state.tags.length > 0 &&
+    !state.tags.some((tag) => meta.tags.includes(tag))
+  ) {
     return false;
   }
   return true;

@@ -68,7 +68,9 @@ export function BlogFilterBar({
   availableTags: string[];
   onFilterChange: (state: BlogFilterState) => void;
 }): ReactElement {
-  const [state, setState] = useState<BlogFilterState>(DEFAULT_BLOG_FILTER_STATE);
+  const [state, setState] = useState<BlogFilterState>(
+    DEFAULT_BLOG_FILTER_STATE,
+  );
 
   const applyState = useCallback(
     (next: BlogFilterState) => {
@@ -176,7 +178,9 @@ export function BlogCategoryTagFilterBar({
   availableTags: string[];
   onFilterChange: (state: BlogFilterState) => void;
 }): ReactElement | null {
-  const [state, setState] = useState<BlogFilterState>(DEFAULT_BLOG_FILTER_STATE);
+  const [state, setState] = useState<BlogFilterState>(
+    DEFAULT_BLOG_FILTER_STATE,
+  );
 
   const applyState = useCallback(
     (next: BlogFilterState) => {

@@ -11,7 +11,10 @@ function hashSlugHash(slugHash: string): number {
   return hash;
 }
 
-function teaserTilePalette(slugHash: string): { primary: string; secondary: string } {
+function teaserTilePalette(slugHash: string): {
+  primary: string;
+  secondary: string;
+} {
   const hash = hashSlugHash(slugHash);
   const hueA = hash % 360;
   const hueB = (hueA + 40 + (hash % 80)) % 360;
@@ -21,7 +24,13 @@ function teaserTilePalette(slugHash: string): { primary: string; secondary: stri
   };
 }
 
-function TeaserTile({ slugHash, title }: { slugHash: string; title: string }): ReactElement {
+function TeaserTile({
+  slugHash,
+  title,
+}: {
+  slugHash: string;
+  title: string;
+}): ReactElement {
   const { primary, secondary } = teaserTilePalette(slugHash);
   const hash = hashSlugHash(slugHash);
   const variant = hash % 3;
@@ -122,7 +131,10 @@ export function BlogTeaserSection({
   }
 
   return (
-    <section aria-labelledby="blog-in-the-works-heading" className="mt-10 space-y-6 pt-4">
+    <section
+      aria-labelledby="blog-in-the-works-heading"
+      className="mt-10 space-y-6 pt-4"
+    >
       <div className="space-y-2">
         <h2
           id="blog-in-the-works-heading"
@@ -131,7 +143,8 @@ export function BlogTeaserSection({
           In the works
         </h2>
         <p className="text-muted text-sm leading-6">
-          Topics we are drafting now. These previews are not published posts yet.
+          Topics we are drafting now. These previews are not published posts
+          yet.
         </p>
       </div>
       <div className="grid gap-6 sm:grid-cols-2">

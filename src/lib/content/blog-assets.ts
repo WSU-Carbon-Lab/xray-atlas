@@ -29,7 +29,9 @@ const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
  * @returns A MIME type when recognized; otherwise `application/octet-stream`.
  */
 export function blogAssetContentType(extension: string): string {
-  return MIME_BY_EXTENSION[extension.toLowerCase()] ?? "application/octet-stream";
+  return (
+    MIME_BY_EXTENSION[extension.toLowerCase()] ?? "application/octet-stream"
+  );
 }
 
 /**

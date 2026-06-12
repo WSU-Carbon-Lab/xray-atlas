@@ -4,7 +4,11 @@ import type { ReactElement } from "react";
 /**
  * Renders post tags as chips linking to the blog index with tag filter hash prefill.
  */
-export function BlogPostTagChips({ tags }: { tags: string[] }): ReactElement | null {
+export function BlogPostTagChips({
+  tags,
+}: {
+  tags: string[];
+}): ReactElement | null {
   if (tags.length === 0) {
     return null;
   }

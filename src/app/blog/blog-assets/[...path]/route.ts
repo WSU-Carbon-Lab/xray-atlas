@@ -1,4 +1,7 @@
-import { listBlogAssetPathSegments, readBlogAsset } from "~/lib/content/blog-assets";
+import {
+  listBlogAssetPathSegments,
+  readBlogAsset,
+} from "~/lib/content/blog-assets";
 
 export const dynamic = "force-static";
 

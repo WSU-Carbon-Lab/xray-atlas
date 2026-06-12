@@ -37,10 +37,7 @@ export function BlogCategoryHero({
             <h1 className="font-display text-foreground text-4xl font-semibold tracking-tight sm:text-5xl md:text-[2.75rem] lg:text-5xl">
               Blog
             </h1>
-            <div
-              className="bg-accent/70 h-0.5 w-12 rounded-full"
-              aria-hidden
-            />
+            <div className="bg-accent/70 h-0.5 w-12 rounded-full" aria-hidden />
             <p className="text-muted max-w-prose text-base leading-7 md:text-[0.9375rem] md:leading-6 lg:text-lg lg:leading-8">
               {BLOG_STANDING_DESCRIPTION}
             </p>
@@ -89,7 +86,7 @@ export function BlogCategoryHero({
             <Link
               key={entry.slug}
               href={`/blog/${entry.slug}`}
-              className="hover:bg-surface/60 block px-0 py-4 no-underline transition-colors first:sm:pl-0 sm:px-6 sm:py-5"
+              className="hover:bg-surface/60 block px-0 py-4 no-underline transition-colors sm:px-6 sm:py-5 first:sm:pl-0"
             >
               <time
                 dateTime={entry.frontmatter.date}
