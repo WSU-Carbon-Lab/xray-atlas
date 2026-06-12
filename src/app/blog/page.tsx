@@ -42,22 +42,24 @@ export default async function BlogIndexPage(): Promise<ReactElement> {
     date: entry.frontmatter.date,
   }));
 
+  const now = new Date();
+
   return (
     <div className="mx-auto w-full max-w-5xl py-10">
-      <BlogCategoryHero recentPosts={published} />
+      <BlogCategoryHero recentPosts={published} now={now} />
 
       {published.length === 0 ? (
         <p className="text-muted">No posts yet.</p>
       ) : (
         <div className="space-y-10">
-          {featured ? <FeaturedPostCard entry={featured} /> : null}
+          {featured ? <FeaturedPostCard entry={featured} now={now} /> : null}
           {rest.length > 0 ? (
             <BlogIndexFilteredSection
               items={gridMeta}
               availableTags={availableTags}
             >
               {rest.map((entry) => (
-                <GridPostCard key={entry.slug} entry={entry} />
+                <GridPostCard key={entry.slug} entry={entry} now={now} />
               ))}
             </BlogIndexFilteredSection>
           ) : null}

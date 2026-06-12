@@ -45,8 +45,10 @@ function categoryKicker(entry: BlogEntry): string {
 /** Large featured card for the newest post on blog index and category pages. */
 export function FeaturedPostCard({
   entry,
+  now,
 }: {
   entry: BlogEntry;
+  now?: Date;
 }): ReactElement {
   return (
     <article className="border-border bg-surface overflow-hidden rounded-2xl border">
@@ -66,7 +68,7 @@ export function FeaturedPostCard({
               {categoryKicker(entry)}
             </span>
             <time dateTime={entry.frontmatter.date} className="text-muted">
-              {formatBlogDate(entry.frontmatter.date, { relative: true })}
+              {formatBlogDate(entry.frontmatter.date, { relative: true, now })}
             </time>
           </div>
           <h2 className="font-display text-foreground text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">
@@ -75,7 +77,10 @@ export function FeaturedPostCard({
           <p className="text-muted text-base leading-7">
             {entry.frontmatter.description}
           </p>
-          <BlogFeaturedAuthor authors={entry.frontmatter.authors} />
+          <BlogFeaturedAuthor
+            authors={entry.frontmatter.authors}
+            linkable={false}
+          />
           <span className="text-accent text-sm font-medium">Read post</span>
         </div>
       </Link>
@@ -84,7 +89,13 @@ export function FeaturedPostCard({
 }
 
 /** Compact grid card for secondary posts on blog index and category pages. */
-export function GridPostCard({ entry }: { entry: BlogEntry }): ReactElement {
+export function GridPostCard({
+  entry,
+  now,
+}: {
+  entry: BlogEntry;
+  now?: Date;
+}): ReactElement {
   return (
     <article className="border-border bg-surface overflow-hidden rounded-xl border">
       <Link href={`/blog/${entry.slug}`} className="block no-underline">
@@ -97,7 +108,7 @@ export function GridPostCard({ entry }: { entry: BlogEntry }): ReactElement {
               {categoryKicker(entry)}
             </span>
             <time dateTime={entry.frontmatter.date} className="text-muted">
-              {formatBlogDate(entry.frontmatter.date, { relative: true })}
+              {formatBlogDate(entry.frontmatter.date, { relative: true, now })}
             </time>
           </div>
           <h2 className="text-foreground text-lg font-semibold tracking-tight">

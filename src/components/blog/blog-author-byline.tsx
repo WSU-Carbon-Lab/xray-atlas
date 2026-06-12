@@ -41,17 +41,21 @@ export function BlogAuthorByline({
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="inline-flex items-center -space-x-2">
-        {profiles.map((author) => (
-          <ResearcherAvatar
-            key={author.name}
-            displayName={author.name}
-            imageUrl={author.avatarUrl ?? null}
-            identitySeed={author.userId ?? author.orcid ?? author.name}
-            isAtlasProfile={Boolean(author.userId ?? author.orcid)}
-            size={size}
-            className="ring-background ring-2"
-          />
-        ))}
+        {profiles.map((author) => {
+          const isAtlasProfile = Boolean(author.userId ?? author.orcid);
+          return (
+            <ResearcherAvatar
+              key={author.name}
+              displayName={author.name}
+              imageUrl={author.avatarUrl ?? null}
+              identitySeed={author.userId ?? author.orcid ?? author.name}
+              isAtlasProfile={isAtlasProfile}
+              placeholder={isAtlasProfile ? "initials" : "person"}
+              size={size}
+              className="ring-background ring-2"
+            />
+          );
+        })}
       </span>
       <span className="inline-flex flex-wrap items-center gap-x-1">
         {profiles.map((author, index) => {
@@ -72,21 +76,24 @@ export function BlogAuthorByline({
 }
 
 /**
- * Compact author row for featured cards: miniature avatar plus linked name.
+ * Compact author row for featured cards: miniature avatar plus optional linked name.
  */
 export function BlogFeaturedAuthor({
   authors,
+  linkable = true,
 }: {
   authors: string[];
+  linkable?: boolean;
 }): ReactElement {
   const [primary, ...rest] = resolveBlogAuthors(authors);
   if (!primary) {
     return <span />;
   }
 
-  const href = blogAuthorProfileHref(primary);
+  const href = linkable ? blogAuthorProfileHref(primary) : undefined;
   const label =
     rest.length > 0 ? `${primary.name} + ${rest.length}` : primary.name;
+  const isAtlasProfile = Boolean(primary.userId ?? primary.orcid);
 
   return (
     <span className="text-muted inline-flex items-center gap-2 text-sm">
@@ -94,16 +101,11 @@ export function BlogFeaturedAuthor({
         displayName={primary.name}
         imageUrl={primary.avatarUrl ?? null}
         identitySeed={primary.userId ?? primary.orcid ?? primary.name}
-        isAtlasProfile={Boolean(primary.userId ?? primary.orcid)}
+        isAtlasProfile={isAtlasProfile}
+        placeholder={isAtlasProfile ? "initials" : "person"}
         size="sm"
       />
-      {href ? (
-        <Link href={href} className="hover:text-accent no-underline">
-          {label}
-        </Link>
-      ) : (
-        <span>{label}</span>
-      )}
+      <BlogAuthorName name={label} href={href} />
     </span>
   );
 }

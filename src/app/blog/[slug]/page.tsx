@@ -19,7 +19,6 @@ import {
   blogCategoryRssHref,
   getBlogCategory,
 } from "~/lib/content/blog-categories";
-import { blogPostJsonLd } from "~/lib/content/blog-json-ld";
 import { relatedBlogPosts } from "~/lib/content/blog-related";
 import {
   adjacentBlogPosts,
@@ -29,7 +28,6 @@ import {
   getBlogEntries,
   getBlogEntryBySlug,
   isListableBlogEntry,
-  type BlogEntry,
 } from "~/lib/content/blog-loader";
 import {
   extractHeadings,
@@ -156,22 +154,6 @@ function BlogHeroImage({
   );
 }
 
-function BlogJsonLdScript({ entry }: { entry: BlogEntry }): ReactElement {
-  const { breadcrumbList, article } = blogPostJsonLd(entry);
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbList) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(article) }}
-      />
-    </>
-  );
-}
-
 /**
  * Builds static params for every listable blog MDX entry.
  */
@@ -262,9 +244,7 @@ export default async function BlogPostPage({
     : [{ label: entry.frontmatter.title }];
 
   return (
-    <>
-      <BlogJsonLdScript entry={entry} />
-      <div className="mx-auto w-full max-w-6xl px-4 py-10 xl:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-10 xl:px-6">
         <div className="mx-auto w-full max-w-2xl">
           <BlogBreadcrumbs items={breadcrumbItems} />
 
@@ -338,7 +318,6 @@ export default async function BlogPostPage({
             <BlogTableOfContents headings={headings} variant="rail" />
           </div>
         </div>
-      </div>
-    </>
+    </div>
   );
 }

@@ -95,12 +95,15 @@ export default async function BlogCategoryPage({
     date: entry.frontmatter.date,
   }));
 
+  const now = new Date();
+
   return (
     <div className="mx-auto w-full max-w-5xl py-10">
       <BlogBreadcrumbs items={blogCategoryBreadcrumbItems(category.label)} />
       <BlogCategoryHero
         activeCategory={category.slug}
         recentPosts={published}
+        now={now}
       />
 
       {published.length === 0 ? (
@@ -110,14 +113,14 @@ export default async function BlogCategoryPage({
         </p>
       ) : (
         <div className="space-y-10">
-          {featured ? <FeaturedPostCard entry={featured} /> : null}
+          {featured ? <FeaturedPostCard entry={featured} now={now} /> : null}
           {rest.length > 0 ? (
             <BlogCategoryFilteredSection
               items={gridMeta}
               availableTags={availableTags}
             >
               {rest.map((entry) => (
-                <GridPostCard key={entry.slug} entry={entry} />
+                <GridPostCard key={entry.slug} entry={entry} now={now} />
               ))}
             </BlogCategoryFilteredSection>
           ) : null}

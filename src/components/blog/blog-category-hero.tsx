@@ -23,9 +23,11 @@ const BLOG_STANDING_DESCRIPTION =
 export function BlogCategoryHero({
   activeCategory = null,
   recentPosts,
+  now,
 }: {
   activeCategory?: BlogCategorySlug | null;
   recentPosts: BlogEntry[];
+  now?: Date;
 }): ReactElement {
   const stripPosts = recentPosts.slice(0, 3);
 
@@ -92,7 +94,7 @@ export function BlogCategoryHero({
                 dateTime={entry.frontmatter.date}
                 className="text-muted text-xs tracking-wide uppercase"
               >
-                {formatBlogDate(entry.frontmatter.date, { relative: true })}
+                {formatBlogDate(entry.frontmatter.date, { relative: true, now })}
               </time>
               <p className="text-foreground mt-2 text-sm leading-6 font-medium sm:text-base">
                 {entry.frontmatter.title}
