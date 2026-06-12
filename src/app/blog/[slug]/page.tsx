@@ -6,7 +6,16 @@ import type { MDXComponents } from "mdx/types";
 import { cn } from "@heroui/styles";
 import { CopyLinkButton } from "~/components/blog/copy-link-button";
 import { MdxArticle } from "~/components/content/mdx-article";
-import { getBlogEntries, getBlogEntryBySlug } from "~/lib/content/blog-loader";
+import {
+  blogCategoryHref,
+  blogCategoryRssHref,
+  getBlogCategory,
+} from "~/lib/content/blog-categories";
+import {
+  getBlogEntries,
+  getBlogEntryBySlug,
+  type BlogEntry,
+} from "~/lib/content/blog-loader";
 import {
   extractHeadings,
   formatBlogDate,
@@ -89,20 +98,21 @@ const blogMdxComponents: MDXComponents = {
   ),
 };
 
-function publishedEntriesFrom(
-  entries: Awaited<ReturnType<typeof getBlogEntries>>,
-) {
+function publishedEntriesFrom(entries: BlogEntry[]): BlogEntry[] {
   return entries.filter((entry) => !entry.frontmatter.draft);
 }
 
-function adjacentPosts(
-  entries: Awaited<ReturnType<typeof getBlogEntries>>,
+function adjacentPostsInCategory(
+  entries: BlogEntry[],
   slug: string,
+  category: BlogFrontmatter["category"],
 ): {
   previous?: { slug: string; title: string };
   next?: { slug: string; title: string };
 } {
-  const published = publishedEntriesFrom(entries);
+  const published = publishedEntriesFrom(entries).filter(
+    (entry) => entry.frontmatter.category === category,
+  );
   const index = published.findIndex((entry) => entry.slug === slug);
   if (index === -1) {
     return {};
@@ -223,11 +233,26 @@ export async function generateMetadata({
     return {};
   }
 
+  const category = getBlogCategory(entry.frontmatter.category);
+
   return {
     title: entry.frontmatter.title,
     description: entry.frontmatter.description,
     alternates: {
       canonical: `/blog/${entry.slug}`,
+      types: {
+        "application/rss+xml": [
+          { url: "/blog/rss.xml", title: "X-ray Atlas Blog" },
+          ...(category
+            ? [
+                {
+                  url: blogCategoryRssHref(category.slug),
+                  title: `X-ray Atlas Blog — ${category.label}`,
+                },
+              ]
+            : []),
+        ],
+      },
     },
   };
 }
@@ -252,11 +277,15 @@ export default async function BlogPostPage({
     notFound();
   }
 
+  const category = getBlogCategory(entry.frontmatter.category);
   const headings = extractHeadings(entry.body);
   const minutes = readingTimeMinutes(entry.body);
-  const { previous, next } = adjacentPosts(entries, entry.slug);
+  const { previous, next } = adjacentPostsInCategory(
+    entries,
+    entry.slug,
+    entry.frontmatter.category,
+  );
   const authorLabel = entry.frontmatter.authors.join(", ");
-  const { category } = entry.frontmatter;
 
   return (
     <div className="mx-auto w-full max-w-2xl py-10">
@@ -268,13 +297,24 @@ export default async function BlogPostPage({
             </Link>
           </li>
           <li aria-hidden>/</li>
-          <li className="text-foreground">{category}</li>
+          <li>
+            {category ? (
+              <Link
+                href={blogCategoryHref(category.slug)}
+                className="text-foreground hover:text-accent no-underline"
+              >
+                {category.label}
+              </Link>
+            ) : (
+              <span className="text-foreground">{entry.frontmatter.category}</span>
+            )}
+          </li>
         </ol>
       </nav>
 
       <header className="mb-8 space-y-4">
         <p className="text-accent text-xs font-semibold tracking-[0.18em] uppercase">
-          {category}
+          {category?.kicker ?? entry.frontmatter.category}
         </p>
         <h1 className="font-display text-foreground text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
           {entry.frontmatter.title}
