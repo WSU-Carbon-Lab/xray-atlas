@@ -2,6 +2,7 @@ import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
+import type { BlogCategorySlug } from "~/lib/content/blog-categories";
 import {
   blogFrontmatterSchema,
   type BlogFrontmatter,
@@ -130,12 +131,24 @@ export async function getBlogEntryBySlug(
 }
 
 /**
- * Returns the newest non-draft blog entry tagged `release`, if one exists.
+ * Loads published blog entries whose frontmatter `category` matches `category`.
+ *
+ * Results stay sorted newest-first by {@link getBlogEntries}.
+ */
+export async function getBlogEntriesByCategory(
+  category: BlogCategorySlug,
+): Promise<BlogEntry[]> {
+  const entries = await getBlogEntries();
+  return entries.filter(
+    (entry) =>
+      !entry.frontmatter.draft && entry.frontmatter.category === category,
+  );
+}
+
+/**
+ * Returns the newest non-draft blog entry in the `releases` category, if one exists.
  */
 export async function getLatestReleasePost(): Promise<BlogEntry | undefined> {
-  const entries = await getBlogEntries();
-  return entries.find(
-    (entry) =>
-      !entry.frontmatter.draft && entry.frontmatter.tags.includes("release"),
-  );
+  const entries = await getBlogEntriesByCategory("releases");
+  return entries[0];
 }

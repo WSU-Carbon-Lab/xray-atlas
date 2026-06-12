@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BLOG_CATEGORY_SLUGS } from "~/lib/content/blog-categories";
 
 /**
  * Normalizes frontmatter date values to an ISO calendar day (`YYYY-MM-DD`).
@@ -42,11 +43,7 @@ export type WikiFrontmatter = z.infer<typeof wikiFrontmatterSchema>;
  * Invalid frontmatter fails at build or request time when entries are loaded,
  * surfacing the offending file path from the blog loader.
  */
-export const blogCategorySchema = z.enum([
-  "Release",
-  "Engineering",
-  "Community",
-]);
+export const blogCategorySchema = z.enum(BLOG_CATEGORY_SLUGS);
 
 export const blogFrontmatterSchema = z.object({
   title: z.string().min(1),
@@ -54,7 +51,7 @@ export const blogFrontmatterSchema = z.object({
   date: calendarDaySchema,
   authors: z.array(z.string()).min(1),
   tags: z.array(z.string()).default([]),
-  category: blogCategorySchema.default("Release"),
+  category: blogCategorySchema.default("releases"),
   heroImage: z.string().optional(),
   draft: z.boolean().default(false),
 });

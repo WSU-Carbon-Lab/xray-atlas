@@ -11,8 +11,8 @@ export interface WhatsNewSummary {
 }
 
 /**
- * Resolves the post highlighted in What's New UI: newest tagged `release`, or the
- * newest published post when no release exists.
+ * Resolves the post highlighted in What's New UI: newest `releases` category post,
+ * or the newest published post when no release-category post exists.
  */
 export async function getWhatsNewSummary(): Promise<WhatsNewSummary | null> {
   const releasePost = await getLatestReleasePost();
