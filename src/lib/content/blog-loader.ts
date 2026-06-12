@@ -132,7 +132,7 @@ export async function getBlogEntryBySlug(
 }
 
 /**
- * Loads every listable (non-draft, non-teaser) blog entry, sorted newest first.
+ * Loads every listable (non-draft) blog entry, sorted newest first.
  */
 export async function getPublishedBlogEntries(): Promise<BlogEntry[]> {
   const entries = await getBlogEntries();
@@ -147,7 +147,10 @@ export async function getPublishedBlogEntries(): Promise<BlogEntry[]> {
 export async function getTeaserEntries(): Promise<BlogTeaserEntry[]> {
   const entries = await getBlogEntries();
   return entries
-    .filter((entry) => isBlogTeaser(entry.frontmatter.teaser))
+    .filter(
+      (entry) =>
+        entry.frontmatter.draft && isBlogTeaser(entry.frontmatter.teaser),
+    )
     .map((entry) => {
       const displayTitle = getTeaserDisplayTitle(entry);
       if (!displayTitle) {
@@ -194,10 +197,10 @@ export function getTeaserDisplayTitle(entry: BlogEntry): string | undefined {
 /**
  * Returns whether an entry is listable on indexes, feeds, sitemap, and post static params.
  *
- * Excludes drafts and work-in-progress teasers.
+ * Excludes drafts only. A stale `teaser` flag on a published post does not suppress listing.
  */
 export function isListableBlogEntry(entry: BlogEntry): boolean {
-  return !entry.frontmatter.draft && !isBlogTeaser(entry.frontmatter.teaser);
+  return !entry.frontmatter.draft;
 }
 
 /**
