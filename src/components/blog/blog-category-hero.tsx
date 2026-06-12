@@ -31,7 +31,7 @@ export function BlogCategoryHero({
 
   return (
     <section className="mb-12 space-y-10">
-      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] md:items-start md:gap-8 lg:gap-10">
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 md:items-start md:gap-8 lg:gap-10">
         <div className="space-y-4 md:space-y-5 lg:max-w-md">
           <div className="space-y-3 md:space-y-4">
             <h1 className="font-display text-foreground text-4xl font-semibold tracking-tight sm:text-5xl md:text-[2.75rem] lg:text-5xl">

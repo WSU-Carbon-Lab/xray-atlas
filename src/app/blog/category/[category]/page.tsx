@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import type { ReactElement } from "react";
 import { notFound } from "next/navigation";
 import { BlogCategoryHero } from "~/components/blog/blog-category-hero";
+import { BlogCategoryFilteredSection } from "~/components/blog/blog-filtered-grid";
 import {
   FeaturedPostCard,
   GridPostCard,
 } from "~/components/blog/blog-post-cards";
+import { BlogTeaserSection } from "~/components/blog/blog-teaser-section";
 import {
   BLOG_CATEGORIES,
   blogCategoryRssHref,
@@ -13,7 +15,11 @@ import {
   isBlogCategorySlug,
   type BlogCategorySlug,
 } from "~/lib/content/blog-categories";
-import { getBlogEntriesByCategory } from "~/lib/content/blog-loader";
+import {
+  getBlogEntriesByCategory,
+  getTeaserEntries,
+  topBlogTags,
+} from "~/lib/content/blog-loader";
 
 interface BlogCategoryPageProps {
   params: Promise<{ category: string }>;
@@ -57,7 +63,7 @@ export async function generateMetadata({
 }
 
 /**
- * Renders a category-scoped blog index with shared masthead and post grid.
+ * Renders a category-scoped blog index with shared masthead, tag filtering, and teasers.
  */
 export default async function BlogCategoryPage({
   params,
@@ -69,8 +75,19 @@ export default async function BlogCategoryPage({
   }
 
   const category = getBlogCategory(categoryParam)!;
-  const published = await getBlogEntriesByCategory(category.slug);
+  const [published, allTeasers] = await Promise.all([
+    getBlogEntriesByCategory(category.slug),
+    getTeaserEntries(),
+  ]);
+  const teasers = allTeasers.filter((entry) => entry.category === category.slug);
   const [featured, ...rest] = published;
+  const availableTags = topBlogTags(published);
+  const gridMeta = rest.map((entry) => ({
+    slug: entry.slug,
+    category: entry.frontmatter.category,
+    tags: entry.frontmatter.tags,
+    date: entry.frontmatter.date,
+  }));
 
   return (
     <div className="mx-auto w-full max-w-5xl py-10">
@@ -88,14 +105,19 @@ export default async function BlogCategoryPage({
         <div className="space-y-10">
           {featured ? <FeaturedPostCard entry={featured} /> : null}
           {rest.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2">
+            <BlogCategoryFilteredSection
+              items={gridMeta}
+              availableTags={availableTags}
+            >
               {rest.map((entry) => (
                 <GridPostCard key={entry.slug} entry={entry} />
               ))}
-            </div>
+            </BlogCategoryFilteredSection>
           ) : null}
         </div>
       )}
+
+      <BlogTeaserSection teasers={teasers} />
     </div>
   );
 }

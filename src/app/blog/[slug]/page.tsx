@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import type { MDXComponents } from "mdx/types";
 import { cn } from "@heroui/styles";
 import { CopyLinkButton } from "~/components/blog/copy-link-button";
+import { BlogPostTagChips } from "~/components/blog/blog-post-tag-chips";
 import { MdxArticle } from "~/components/content/mdx-article";
 import {
   blogCategoryHref,
@@ -14,6 +15,8 @@ import {
 import {
   getBlogEntries,
   getBlogEntryBySlug,
+  isBlogTeaser,
+  isListableBlogEntry,
   type BlogEntry,
 } from "~/lib/content/blog-loader";
 import {
@@ -99,7 +102,7 @@ const blogMdxComponents: MDXComponents = {
 };
 
 function publishedEntriesFrom(entries: BlogEntry[]): BlogEntry[] {
-  return entries.filter((entry) => !entry.frontmatter.draft);
+  return entries.filter(isListableBlogEntry);
 }
 
 function adjacentPostsInCategory(
@@ -277,6 +280,10 @@ export default async function BlogPostPage({
     notFound();
   }
 
+  if (isBlogTeaser(entry.frontmatter.teaser)) {
+    notFound();
+  }
+
   const category = getBlogCategory(entry.frontmatter.category);
   const headings = extractHeadings(entry.body);
   const minutes = readingTimeMinutes(entry.body);
@@ -330,6 +337,7 @@ export default async function BlogPostPage({
           <span aria-hidden>·</span>
           <CopyLinkButton />
         </div>
+        <BlogPostTagChips tags={entry.frontmatter.tags} />
       </header>
 
       <BlogHeroImage frontmatter={entry.frontmatter} />
