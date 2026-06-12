@@ -42,12 +42,20 @@ export type WikiFrontmatter = z.infer<typeof wikiFrontmatterSchema>;
  * Invalid frontmatter fails at build or request time when entries are loaded,
  * surfacing the offending file path from the blog loader.
  */
+export const blogCategorySchema = z.enum([
+  "Release",
+  "Engineering",
+  "Community",
+]);
+
 export const blogFrontmatterSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   date: calendarDaySchema,
   authors: z.array(z.string()).min(1),
   tags: z.array(z.string()).default([]),
+  category: blogCategorySchema.default("Release"),
+  heroImage: z.string().optional(),
   draft: z.boolean().default(false),
 });
 
