@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactElement } from "react";
 import { notFound } from "next/navigation";
+import { BlogBreadcrumbs } from "~/components/blog/blog-breadcrumbs";
 import { BlogCategoryHero } from "~/components/blog/blog-category-hero";
 import { BlogCategoryFilteredSection } from "~/components/blog/blog-filtered-grid";
 import {
@@ -91,6 +92,11 @@ export default async function BlogCategoryPage({
 
   return (
     <div className="mx-auto w-full max-w-5xl py-10">
+      <BlogBreadcrumbs
+        categoryLabel={category.label}
+        categorySlug={category.slug}
+        linkCategory={false}
+      />
       <BlogCategoryHero
         activeCategory={category.slug}
         recentPosts={published}

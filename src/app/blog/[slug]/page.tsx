@@ -4,11 +4,11 @@ import type { ComponentPropsWithoutRef, ReactElement } from "react";
 import { notFound } from "next/navigation";
 import type { MDXComponents } from "mdx/types";
 import { cn } from "@heroui/styles";
+import { BlogBreadcrumbs } from "~/components/blog/blog-breadcrumbs";
 import { CopyLinkButton } from "~/components/blog/copy-link-button";
 import { BlogPostTagChips } from "~/components/blog/blog-post-tag-chips";
 import { MdxArticle } from "~/components/content/mdx-article";
 import {
-  blogCategoryHref,
   blogCategoryRssHref,
   getBlogCategory,
 } from "~/lib/content/blog-categories";
@@ -296,28 +296,17 @@ export default async function BlogPostPage({
 
   return (
     <div className="mx-auto w-full max-w-2xl py-10">
-      <nav aria-label="Breadcrumb" className="text-muted mb-6 text-sm">
-        <ol className="flex flex-wrap items-center gap-2">
-          <li>
-            <Link href="/blog" className="hover:text-accent no-underline">
-              Blog
-            </Link>
-          </li>
-          <li aria-hidden>/</li>
-          <li>
-            {category ? (
-              <Link
-                href={blogCategoryHref(category.slug)}
-                className="text-foreground hover:text-accent no-underline"
-              >
-                {category.label}
-              </Link>
-            ) : (
-              <span className="text-foreground">{entry.frontmatter.category}</span>
-            )}
-          </li>
-        </ol>
-      </nav>
+      {category ? (
+        <BlogBreadcrumbs
+          categoryLabel={category.label}
+          categorySlug={category.slug}
+        />
+      ) : (
+        <BlogBreadcrumbs
+          categoryLabel={entry.frontmatter.category}
+          linkCategory={false}
+        />
+      )}
 
       <header className="mb-8 space-y-4">
         <p className="text-accent text-xs font-semibold tracking-[0.18em] uppercase">
