@@ -30,11 +30,15 @@ function isInternalHref(href: string): boolean {
  */
 export async function MdxArticle({
   source,
+  components,
+  className,
 }: {
   source: string;
+  components?: MDXComponents;
+  className?: string;
 }): Promise<ReactElement> {
   return (
-    <article className="w-full min-w-0 space-y-4">
+    <article className={cn("w-full min-w-0 space-y-4", className)}>
       <MDXRemote
         source={source}
         options={{
@@ -53,7 +57,7 @@ export async function MdxArticle({
             ],
           },
         }}
-        components={wikiMdxComponents}
+        components={{ ...wikiMdxComponents, ...components }}
       />
     </article>
   );

@@ -1,11 +1,14 @@
 import { type MetadataRoute } from "next";
+import { site } from "~/app/brand";
 import { canonicalFacilitySlugFromName } from "~/lib/facility-slug";
+import { BLOG_CATEGORIES } from "~/lib/content/blog-categories";
+import { getBlogEntries, isListableBlogEntry } from "~/lib/content/blog-loader";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { db } from "~/server/db";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const baseUrl = "https://xrayatlas.wsu.edu";
+  const baseUrl = site.url;
 
   const [molecules, facilities] = await Promise.all([
     db.molecules.findMany({
@@ -44,6 +47,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "weekly",
     priority: 0.65,
   }));
+
+  const blogEntries = await getBlogEntries();
+  const blogSitemapEntries: MetadataRoute.Sitemap = [
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    ...BLOG_CATEGORIES.map((category) => ({
+      url: `${baseUrl}/blog/category/${category.slug}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.65,
+    })),
+    ...blogEntries
+      .filter(isListableBlogEntry)
+      .map((entry) => ({
+        url: `${baseUrl}/blog/${entry.slug}`,
+        lastModified: new Date(`${entry.frontmatter.date}T12:00:00.000Z`),
+        changeFrequency: "monthly" as const,
+        priority: 0.65,
+      })),
+  ];
 
   return [
     {
@@ -138,5 +165,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     ...moleculeEntries,
     ...facilityEntries,
+    ...blogSitemapEntries,
   ];
 }

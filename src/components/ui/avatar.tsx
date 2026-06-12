@@ -15,11 +15,15 @@ import {
   FlaskConical,
   Bell,
 } from "lucide-react";
+import { SparklesIcon } from "@heroicons/react/24/outline";
 import type { User as NextAuthUser } from "next-auth";
 import { ORCIDIcon } from "~/components/icons";
 import { Avatar, Badge, Button } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import type { ResearcherAttributionBadgeStatus } from "~/lib/nexafs-attribution";
+import { formatBlogDate } from "~/lib/content/blog-presentation";
+import type { WhatsNewSummary } from "~/lib/whats-new-summary";
+import { useWhatsNewSeen } from "~/lib/whats-new-seen";
 import { ContributorHoverCard } from "~/components/attribution/contributor-hover-card";
 
 export type ContributorHoverRemoveRow = {
@@ -168,6 +172,7 @@ interface AvatarButtonProps {
   showManageUsers?: boolean;
   showSandbox?: boolean;
   pendingAttributionCount?: number;
+  whatsNew?: WhatsNewSummary;
 }
 
 interface CustomAvatarProps extends React.ComponentProps<typeof Avatar> {
@@ -343,9 +348,12 @@ export function AvatarButton({
   showManageUsers = false,
   showSandbox = false,
   pendingAttributionCount = 0,
+  whatsNew,
 }: AvatarButtonProps) {
   const menuContainerRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const { mounted: whatsNewMounted, isUnread: isWhatsNewUnread } =
+    useWhatsNewSeen(whatsNew?.date);
 
   useEffect(() => {
     if (!isOpen) {
@@ -382,17 +390,29 @@ export function AvatarButton({
     <Button
       type="button"
       onClick={() => setIsOpen((open) => !open)}
-      className="border-border bg-surface focus-visible:ring-accent hover:bg-default flex h-10 w-10 items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+      className="border-border bg-surface focus-visible:ring-accent hover:bg-default relative flex h-10 w-10 items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
       aria-label={
-        pendingAttributionCount > 0
-          ? `User menu, ${pendingAttributionCount} pending dataset attributions`
-          : "User menu"
+        pendingAttributionCount > 0 && whatsNewMounted && isWhatsNewUnread
+          ? `User menu, ${pendingAttributionCount} pending dataset attributions, unread What's New`
+          : pendingAttributionCount > 0
+            ? `User menu, ${pendingAttributionCount} pending dataset attributions`
+            : whatsNewMounted && isWhatsNewUnread
+              ? "User menu, unread What's New"
+              : "User menu"
       }
       aria-expanded={isOpen}
       aria-haspopup="true"
       aria-controls={isOpen ? menuId : undefined}
     >
       <CustomAvatar user={user} size="md" />
+      {whatsNewMounted &&
+      isWhatsNewUnread &&
+      pendingAttributionCount === 0 ? (
+        <span
+          className="bg-accent absolute top-0.5 right-0.5 size-2 rounded-full ring-2 ring-background"
+          aria-hidden
+        />
+      ) : null}
     </Button>
   );
 
@@ -458,6 +478,42 @@ export function AvatarButton({
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
             </button>
+            {whatsNew ? (
+              <button
+                type="button"
+                onClick={() => handleAction("whats-new")}
+                className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+                aria-label={
+                  whatsNewMounted && isWhatsNewUnread
+                    ? "What's New, unread"
+                    : "What's New"
+                }
+              >
+                {whatsNewMounted && isWhatsNewUnread ? (
+                  <Badge.Anchor>
+                    <span className="inline-flex shrink-0">
+                      <SparklesIcon className="h-4 w-4" aria-hidden />
+                    </span>
+                    <Badge
+                      color="accent"
+                      size="sm"
+                      placement="top-right"
+                      className="size-2 min-h-0 min-w-0 rounded-full p-0"
+                    />
+                  </Badge.Anchor>
+                ) : (
+                  <SparklesIcon className="h-4 w-4 shrink-0" aria-hidden />
+                )}
+                <span className="flex min-w-0 flex-col items-start">
+                  <span>What&apos;s New</span>
+                  {whatsNew ? (
+                    <span className="text-muted text-xs font-normal tabular-nums">
+                      {formatBlogDate(whatsNew.date, { relative: true })}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => handleAction("teams")}
@@ -532,10 +588,15 @@ export function AvatarButton({
 
 import { trpc } from "~/trpc/client";
 
-export function CustomUserButton() {
+export function CustomUserButton({
+  whatsNew,
+}: {
+  whatsNew?: WhatsNewSummary;
+}) {
   const router = useRouter();
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
+  const { markSeen: markWhatsNewSeen } = useWhatsNewSeen(whatsNew?.date);
   const { data: pendingCountData } =
     trpc.datasetAttributions.countPendingForSession.useQuery(undefined, {
       enabled: Boolean(session?.user?.id),
@@ -572,6 +633,14 @@ export function CustomUserButton() {
       case "pending-attributions":
         router.push("/account/attributions/pending");
         break;
+      case "whats-new":
+        markWhatsNewSeen();
+        if (whatsNew) {
+          router.push(`/blog/${whatsNew.slug}`);
+        } else {
+          router.push("/blog");
+        }
+        break;
       default:
         break;
     }
@@ -595,6 +664,7 @@ export function CustomUserButton() {
       showManageUsers={Boolean(user.canManageUsers)}
       showSandbox={showSandbox}
       pendingAttributionCount={pendingCountData?.count ?? 0}
+      whatsNew={whatsNew}
     />
   );
 }
