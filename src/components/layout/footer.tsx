@@ -70,6 +70,12 @@ export function Footer() {
                 Wiki
               </Link>
               <Link
+                href="/blog"
+                className="text-muted hover:text-accent text-sm transition-colors hover:underline"
+              >
+                Blog
+              </Link>
+              <Link
                 href="/wiki/api"
                 className="text-muted hover:text-accent text-sm transition-colors hover:underline"
               >

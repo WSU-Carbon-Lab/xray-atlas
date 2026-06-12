@@ -16,10 +16,12 @@ import {
   BookOpenIcon,
   BuildingOfficeIcon,
   InformationCircleIcon,
+  NewspaperIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 import { site } from "~/app/brand";
 import { wikiDocTopics, wikiTopicIntroLinkLabel } from "~/lib/wiki-doc-nav";
+import type { WhatsNewSummary } from "~/lib/whats-new-summary";
 import {
   HeaderMenuButton,
   HeaderMenuNestedGroup,
@@ -142,6 +144,11 @@ function AboutDropdown() {
               </div>
             ) : null}
             <HeaderMenuButton
+              icon={NewspaperIcon}
+              label="Blog"
+              onClick={() => handleItemClick("/blog")}
+            />
+            <HeaderMenuButton
               icon={ShieldCheckIcon}
               label="Privacy"
               onClick={() => handleItemClick("/privacy")}
@@ -257,7 +264,11 @@ function ContributeDropdown() {
   );
 }
 
-export default function Header() {
+export default function Header({
+  whatsNew = null,
+}: {
+  whatsNew?: WhatsNewSummary | null;
+}) {
   const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
 
@@ -321,7 +332,7 @@ export default function Header() {
             <li className="flex items-center">
               {mounted && isLoaded ? (
                 isSignedIn ? (
-                  <CustomUserButton />
+                  <CustomUserButton whatsNew={whatsNew ?? undefined} />
                 ) : (
                   <SignInButton>Sign In</SignInButton>
                 )
