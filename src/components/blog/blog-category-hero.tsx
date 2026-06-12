@@ -31,18 +31,29 @@ export function BlogCategoryHero({
 
   return (
     <section className="mb-12 space-y-10">
-      <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
-        <div className="max-w-md space-y-4">
-          <h1 className="font-display text-foreground text-4xl font-semibold tracking-tight sm:text-5xl">
-            Blog
-          </h1>
-          <p className="text-muted text-lg leading-8">
-            {BLOG_STANDING_DESCRIPTION}
-          </p>
-          <CtaLink href="/browse/nexafs">Browse the catalog</CtaLink>
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] md:items-start md:gap-8 lg:gap-10">
+        <div className="space-y-4 md:space-y-5 lg:max-w-md">
+          <div className="space-y-3 md:space-y-4">
+            <h1 className="font-display text-foreground text-4xl font-semibold tracking-tight sm:text-5xl md:text-[2.75rem] lg:text-5xl">
+              Blog
+            </h1>
+            <div
+              className="bg-accent/70 h-0.5 w-12 rounded-full"
+              aria-hidden
+            />
+            <p className="text-muted max-w-prose text-base leading-7 md:text-[0.9375rem] md:leading-6 lg:text-lg lg:leading-8">
+              {BLOG_STANDING_DESCRIPTION}
+            </p>
+          </div>
+          <div className="pt-1">
+            <CtaLink href="/browse/nexafs">Browse the catalog</CtaLink>
+          </div>
         </div>
 
-        <nav aria-label="Blog categories" className="space-y-1">
+        <nav
+          aria-label="Blog categories"
+          className="space-y-0.5 md:space-y-1 md:pt-1"
+        >
           {BLOG_CATEGORIES.map((category) => {
             const isActive = activeCategory === category.slug;
             return (
@@ -50,7 +61,7 @@ export function BlogCategoryHero({
                 key={category.slug}
                 href={blogCategoryHref(category.slug)}
                 className={cn(
-                  "font-display group flex items-center justify-between gap-4 py-1 text-5xl leading-none font-normal tracking-tight no-underline transition-colors sm:text-6xl",
+                  "font-display group flex items-center justify-between gap-3 py-1 text-3xl leading-none font-normal tracking-tight no-underline transition-colors sm:text-4xl md:text-[2rem] lg:text-5xl xl:text-6xl",
                   isActive
                     ? "text-foreground"
                     : "text-muted hover:text-foreground",
@@ -59,7 +70,7 @@ export function BlogCategoryHero({
                 <span>{category.label}</span>
                 <ArrowRightIcon
                   className={cn(
-                    "size-8 shrink-0 transition-transform sm:size-10",
+                    "size-6 shrink-0 transition-transform sm:size-7 md:size-7 lg:size-8 xl:size-10",
                     isActive
                       ? "translate-x-0 opacity-100"
                       : "opacity-0 group-hover:translate-x-1 group-hover:opacity-60",
