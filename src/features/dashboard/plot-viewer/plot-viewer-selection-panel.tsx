@@ -174,6 +174,7 @@ export function PlotViewerSelectionPanel({
 
   const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
     staleTime: 120_000,
+    gcTime: 300_000,
   });
   const atlasFavoriteIdsQuery =
     trpc.experiments.listFavoriteExperimentIds.useQuery(undefined, {

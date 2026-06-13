@@ -298,7 +298,7 @@ export function DashboardPlotViewerPage() {
       instrumentIds:
         state.facets.instrument.length > 0 ? state.facets.instrument : undefined,
     },
-    { enabled: urlSynced && debouncedQuery.length > 0, staleTime: 30_000 },
+    { enabled: urlSynced && debouncedQuery.length > 0, staleTime: 30_000, gcTime: 300_000 },
   );
   const browseListQuery = trpc.experiments.browseList.useQuery(
     {
@@ -310,7 +310,7 @@ export function DashboardPlotViewerPage() {
       instrumentIds:
         state.facets.instrument.length > 0 ? state.facets.instrument : undefined,
     },
-    { enabled: urlSynced && debouncedQuery.length === 0, staleTime: 30_000 },
+    { enabled: urlSynced && debouncedQuery.length === 0, staleTime: 30_000, gcTime: 300_000 },
   );
 
   const catalogGroups = useMemo(() => {
@@ -365,7 +365,9 @@ export function DashboardPlotViewerPage() {
   );
 
   const { datasets, spectraByExperimentId, isLoading, errorMessage } =
-    useDashboardPlotSpectra(catalogSelections);
+    useDashboardPlotSpectra(catalogSelections, {
+      enabled: state.datasets.length > 0,
+    });
 
   useEffect(() => {
     if (!urlSynced || state.datasets.length === 0) {
