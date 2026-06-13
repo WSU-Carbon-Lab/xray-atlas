@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { FacilityCardCompact } from "@/components/facilities/facility-card";
-import { ErrorState } from "@/components/feedback/error-state";
+import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
 import { BrowseTabs } from "@/components/layout/browse-tabs";
 import { AddFacilityButton } from "@/components/contribute";
 import { BrowseHeader } from "@/components/browse/browse-header";
@@ -79,6 +79,7 @@ function FacilitiesBrowseContent() {
   const isLoading = hasSearchQuery ? searchData.isLoading : allData.isLoading;
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;
+  const refetchResults = hasSearchQuery ? searchData.refetch : allData.refetch;
 
   const totalPages = data ? Math.ceil((data.total ?? 0) / itemsPerPage) : 1;
 
@@ -116,13 +117,10 @@ function FacilitiesBrowseContent() {
           )}
 
           {isError && (
-            <ErrorState
+            <CatalogDataErrorState
+              error={error}
               title="Failed to load results"
-              message={
-                error?.message ??
-                "An error occurred while loading search results."
-              }
-              onRetry={() => window.location.reload()}
+              onRetry={() => void refetchResults()}
             />
           )}
 

@@ -87,7 +87,10 @@ export function PreviewSpectraTab({
   );
 
   const { datasets, spectraByExperimentId, isLoading: atlasSpectraLoading } =
-    useDashboardPlotSpectra(catalogSelections);
+    useDashboardPlotSpectra(catalogSelections, {
+      enabled: atlasExperimentIds.length > 0,
+      geometryKeysByExperimentId: atlasGeometryByExperimentId,
+    });
 
   const geometrySyncRef = useRef<string>("");
   useEffect(() => {

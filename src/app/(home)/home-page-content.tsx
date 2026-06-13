@@ -18,7 +18,7 @@ import {
 import { CatalogHeroSearch } from "@/components/home/catalog-hero-search";
 import { MoleculeCard } from "@/components/molecules/molecule-display";
 import { MoleculeCardSkeleton } from "@/components/feedback/loading-state";
-import { ErrorState } from "@/components/feedback/error-state";
+import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
 import { trpc } from "~/trpc/client";
 import { useRouter } from "next/navigation";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
@@ -129,10 +129,10 @@ function TopUpvotedMolecules() {
   const router = useRouter();
   const itemsPerPage = usePopularCarouselItemsPerPage();
   const [page, setPage] = useState(0);
-  const { data, isLoading, isError, error } =
-    trpc.molecules.getTopFavorited.useQuery({
-      limit: 16,
-    });
+  const topFavoritedQuery = trpc.molecules.getTopFavorited.useQuery({
+    limit: 16,
+  });
+  const { data, isLoading, isError, error, refetch } = topFavoritedQuery;
 
   const molecules = data?.molecules ?? [];
   const totalPages =
@@ -149,12 +149,11 @@ function TopUpvotedMolecules() {
   if (isError) {
     return (
       <div className="border-border/70 bg-muted/5 rounded-xl border border-dashed px-4 py-10 sm:px-6">
-        <ErrorState
+        <CatalogDataErrorState
+          error={error}
           title="Failed to load molecules"
-          message={
-            error?.message ?? "An error occurred while loading molecules."
-          }
-          onRetry={() => window.location.reload()}
+          compact
+          onRetry={() => void refetch()}
         />
       </div>
     );

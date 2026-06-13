@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
+import { DatabaseUnavailableProvider } from "~/hooks/use-database-unavailable";
 import type { AppRouter } from "~/server/api/root";
 import { getBaseUrl } from "~/utils/getBaseUrl";
 
@@ -26,7 +27,9 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
   return (
     <TRPCProvider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        {props.children}
+        <DatabaseUnavailableProvider queryClient={queryClient}>
+          {props.children}
+        </DatabaseUnavailableProvider>
       </QueryClientProvider>
     </TRPCProvider>
   );

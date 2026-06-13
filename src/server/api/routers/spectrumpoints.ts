@@ -13,8 +13,28 @@ import {
   buildKkDeltaMetadata,
   kkDeltaMetadataToJson,
 } from "~/server/nexafs/kkDeltaMetadata";
+import { spectrumpointsWhereForPlotGeometryKeys } from "~/server/nexafs/plotSpectrumGeometryFilter";
 
 const KK_DELTA_BATCH_CHUNK = 800;
+
+const plotGeometryKeysSchema = z
+  .array(z.string().min(1).max(32))
+  .max(50)
+  .optional();
+
+const plotSpectrumRowSelect = {
+  energyev: true,
+  rawabs: true,
+  od: true,
+  massabsorption: true,
+  beta: true,
+  delta: true,
+  i0: true,
+  polarizationid: true,
+  polarizations: {
+    select: { polardeg: true, azimuthdeg: true },
+  },
+} as const;
 
 export const spectrumpointsRouter = createTRPCRouter({
   canRecalculateKkDelta: publicProcedure
@@ -54,6 +74,41 @@ export const spectrumpointsRouter = createTRPCRouter({
       });
 
       return points;
+    }),
+
+  /**
+   * Loads lean persisted spectrum rows for dashboard plot compare and STXM Atlas overlays.
+   *
+   * Selects only plot channels and polarization geometry; optional `geometryKeys` narrows
+   * polarizations server-side (`theta:phi` or `fixed`). Browse and dataset detail views
+   * should keep using `getByExperiment` when full rows are required.
+   */
+  getByExperimentForPlot: publicProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        limit: z.number().min(1).max(10000).default(5000),
+        offset: z.number().min(0).default(0),
+        geometryKeys: plotGeometryKeysSchema,
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const geometryWhere = input.geometryKeys
+        ? spectrumpointsWhereForPlotGeometryKeys(input.geometryKeys)
+        : null;
+
+      const where: Prisma.spectrumpointsWhereInput = {
+        experimentid: input.experimentId,
+        ...(geometryWhere ?? {}),
+      };
+
+      return ctx.db.spectrumpoints.findMany({
+        where,
+        orderBy: { energyev: "asc" },
+        take: input.limit,
+        skip: input.offset,
+        select: plotSpectrumRowSelect,
+      });
     }),
 
   peaksForExperiment: publicProcedure
