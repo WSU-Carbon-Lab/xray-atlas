@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import Link from "next/link";
 import { ArrowRightIcon, NewspaperIcon } from "@heroicons/react/24/outline";
 import { cn } from "@heroui/styles";
-import { formatBlogDate } from "~/lib/content/blog-presentation";
+import { formatBlogDate } from "~/lib/content/blog-date-format";
 import type { WhatsNewSummary } from "~/lib/whats-new-summary";
 import { useWhatsNewSeen } from "~/lib/whats-new-seen";
 

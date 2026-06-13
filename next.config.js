@@ -7,6 +7,9 @@ import "./src/env.js";
 /** @type {import("next").NextConfig} */
 const config = {
   serverExternalPackages: ["pg", "@prisma/adapter-pg"],
+  outputFileTracingIncludes: {
+    "/*": ["./content/blog/**/*"],
+  },
   async redirects() {
     return [
       {

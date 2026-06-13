@@ -83,7 +83,7 @@ const blogMdxComponents: MDXComponents = {
     <h2
       {...props}
       className={cn(
-        "text-foreground mt-10 scroll-mt-24 text-2xl font-semibold tracking-tight",
+        "font-display text-foreground mt-10 scroll-mt-24 text-2xl font-semibold tracking-tight",
         className,
       )}
     >
@@ -94,7 +94,7 @@ const blogMdxComponents: MDXComponents = {
     <h3
       {...props}
       className={cn(
-        "text-foreground mt-8 scroll-mt-24 text-xl font-semibold tracking-tight",
+        "font-display text-foreground mt-8 scroll-mt-24 text-xl font-semibold tracking-tight",
         className,
       )}
     >

@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
 import type { BlogCategorySlug } from "~/lib/content/blog-categories";
-import { blogSlugHash } from "~/lib/content/blog-presentation";
+import { blogSlugHash } from "~/lib/content/blog-slug-hash";
 import {
   blogFrontmatterSchema,
   type BlogFrontmatter,

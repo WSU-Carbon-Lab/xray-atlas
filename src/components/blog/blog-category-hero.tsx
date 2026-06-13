@@ -9,7 +9,7 @@ import {
   type BlogCategorySlug,
 } from "~/lib/content/blog-categories";
 import type { BlogEntry } from "~/lib/content/blog-loader";
-import { formatBlogDate } from "~/lib/content/blog-presentation";
+import { formatBlogDate } from "~/lib/content/blog-date-format";
 
 const BLOG_STANDING_DESCRIPTION =
   "Announcements and engineering notes from the X-ray Atlas team.";

@@ -21,7 +21,7 @@ import { ORCIDIcon } from "~/components/icons";
 import { Avatar, Badge, Button } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import type { ResearcherAttributionBadgeStatus } from "~/lib/nexafs-attribution";
-import { formatBlogDate } from "~/lib/content/blog-presentation";
+import { formatBlogDate } from "~/lib/content/blog-date-format";
 import type { WhatsNewSummary } from "~/lib/whats-new-summary";
 import { useWhatsNewSeen } from "~/lib/whats-new-seen";
 import { ContributorHoverCard } from "~/components/attribution/contributor-hover-card";
