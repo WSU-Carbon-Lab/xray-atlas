@@ -164,7 +164,10 @@ export function StxmIngestionSampleSection({
   thicknessCm,
   onThicknessCmChange,
 }: StxmIngestionSampleSectionProps) {
-  const vendorsQuery = trpc.vendors.list.useQuery({ limit: 100 });
+  const vendorsQuery = trpc.vendors.list.useQuery(
+    { limit: 100 },
+    { staleTime: 300_000, gcTime: 600_000 },
+  );
 
   const nexafsSample = useMemo(
     () => stxmSampleInfoForNexafsForm(sampleInfo),
