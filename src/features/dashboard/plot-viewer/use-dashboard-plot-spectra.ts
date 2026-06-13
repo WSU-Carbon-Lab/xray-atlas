@@ -4,6 +4,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SpectrumPoint } from "~/components/plots/types";
 import { mapDbSpectrumRowsToPoints } from "~/features/process-nexafs/utils/mapDbSpectrumRowsToPoints";
+import {
+  isDatabaseUnavailableError,
+  resolveDatabaseErrorMessage,
+} from "~/lib/database-unavailable";
 import { trpc } from "~/trpc/client";
 import type { DashboardPlotDatasetInput } from "./build-dashboard-plot-model";
 import { fetchWithConcurrency } from "./fetch-with-concurrency";
@@ -39,6 +43,10 @@ export type UseDashboardPlotSpectraOptions = {
   geometryKeysByExperimentId?: Readonly<
     Record<string, readonly string[] | undefined>
   >;
+  /**
+   * Increment to force a fresh spectrum fetch after a catalog/database retry.
+   */
+  retryNonce?: number;
 };
 
 function selectionSignature(
@@ -70,10 +78,13 @@ export function useDashboardPlotSpectra(
   isLoading: boolean;
   loadingExperimentIds: ReadonlySet<string>;
   errorMessage: string | null;
+  fetchError: unknown;
+  isDatabaseUnavailable: boolean;
 } {
   const enabled = options?.enabled ?? selections.length > 0;
   const debounceMs = options?.debounceMs ?? PLOT_VIEWER_SPECTRUM_DEBOUNCE_MS;
   const geometryKeysByExperimentId = options?.geometryKeysByExperimentId;
+  const retryNonce = options?.retryNonce ?? 0;
 
   const utils = trpc.useUtils();
   const queryClient = useQueryClient();
@@ -109,6 +120,7 @@ export function useDashboardPlotSpectra(
   >(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<unknown>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,6 +132,7 @@ export function useDashboardPlotSpectra(
       setLoadingExperimentIds(new Set());
       setIsLoading(false);
       setErrorMessage(null);
+      setFetchError(null);
       return;
     }
 
@@ -138,6 +151,7 @@ export function useDashboardPlotSpectra(
     setLoadingExperimentIds(targetIds);
     setIsLoading(true);
     setErrorMessage(null);
+    setFetchError(null);
 
     void (async () => {
       try {
@@ -182,13 +196,13 @@ export function useDashboardPlotSpectra(
           });
           setLoadingExperimentIds(new Set());
           setErrorMessage(null);
+          setFetchError(null);
         }
       } catch (error) {
         if (!cancelled) {
           setLoadingExperimentIds(new Set());
-          setErrorMessage(
-            error instanceof Error ? error.message : "Failed to load spectra",
-          );
+          setFetchError(error);
+          setErrorMessage(resolveDatabaseErrorMessage(error));
         }
       } finally {
         if (!cancelled) {
@@ -200,7 +214,7 @@ export function useDashboardPlotSpectra(
     return () => {
       cancelled = true;
     };
-  }, [debouncedSignature, enabled, queryClient, utils.spectrumpoints.getByExperimentForPlot]);
+  }, [debouncedSignature, enabled, queryClient, retryNonce, utils.spectrumpoints.getByExperimentForPlot]);
 
   const datasets = useMemo((): DashboardPlotDatasetInput[] => {
     return selections.map((selection) => ({
@@ -218,5 +232,7 @@ export function useDashboardPlotSpectra(
     isLoading,
     loadingExperimentIds,
     errorMessage,
+    fetchError,
+    isDatabaseUnavailable: isDatabaseUnavailableError(fetchError),
   };
 }

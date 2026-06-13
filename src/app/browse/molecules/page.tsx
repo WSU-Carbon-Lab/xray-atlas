@@ -14,7 +14,7 @@ import {
   MoleculeDisplay,
   type DisplayMolecule,
 } from "@/components/molecules/molecule-display";
-import { ErrorState } from "@/components/feedback/error-state";
+import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
 import {
   MoleculeCardSkeleton,
   MoleculeCompactSkeleton,
@@ -157,6 +157,7 @@ function MoleculesBrowseContent() {
   const isLoading = hasSearchQuery ? searchData.isLoading : allData.isLoading;
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;
+  const refetchResults = hasSearchQuery ? searchData.refetch : allData.refetch;
   type SearchResult = NonNullable<typeof searchData.data>;
   type PaginatedResult = NonNullable<typeof allData.data>;
   type SearchResultMolecule = NonNullable<SearchResult["results"]>[number];
@@ -332,13 +333,10 @@ function MoleculesBrowseContent() {
           )}
 
           {isError && (
-            <ErrorState
+            <CatalogDataErrorState
+              error={error}
               title="Failed to load results"
-              message={
-                error?.message ??
-                "An error occurred while loading search results."
-              }
-              onRetry={() => window.location.reload()}
+              onRetry={() => void refetchResults()}
             />
           )}
 
