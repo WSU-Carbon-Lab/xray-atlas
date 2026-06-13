@@ -5,7 +5,7 @@ import {
   useMemo,
 } from "react";
 import { trpc } from "~/trpc/client";
-import { ErrorState } from "@/components/feedback/error-state";
+import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
 import {
   CalendarDaysIcon,
   CheckBadgeIcon,
@@ -224,6 +224,9 @@ export function NexafsBrowseExperimentSection({
     !urlSynced || (hasSearchQuery ? searchData.isLoading : allData.isLoading);
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;
+  const refetchResults = hasSearchQuery
+    ? searchData.refetch
+    : allData.refetch;
 
   const totalPages = Math.max(1, Math.ceil((data.total ?? 0) / itemsPerPage));
 
@@ -290,13 +293,10 @@ export function NexafsBrowseExperimentSection({
         )}
 
         {isError && (
-          <ErrorState
+          <CatalogDataErrorState
+            error={error}
             title="Failed to load results"
-            message={
-              error?.message ??
-              "Oh no! Our beam must have dumped... Please try again in a moment or submit a support ticket."
-            }
-            onRetry={() => window.location.reload()}
+            onRetry={() => void refetchResults()}
           />
         )}
 

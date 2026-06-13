@@ -20,6 +20,7 @@ import {
   PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
 import { downloadSpectrumCsv } from "~/components/nexafs/nexafs-spectrum-csv-shared";
+import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
 import { trpc } from "~/trpc/client";
 import {
   geometryKeySetsEqual,
@@ -180,6 +181,7 @@ export function DashboardPlotViewerPage() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const [cursorMode, setCursorMode] = useState<CursorMode>("inspect");
+  const [spectraRetryNonce, setSpectraRetryNonce] = useState(0);
   const [styleOverrides, setStyleOverrides] = useState(() =>
     typeof window === "undefined"
       ? {
@@ -364,9 +366,10 @@ export function DashboardPlotViewerPage() {
     [groupById, state.datasets],
   );
 
-  const { datasets, spectraByExperimentId, isLoading, errorMessage } =
+  const { datasets, spectraByExperimentId, isLoading, errorMessage, fetchError, isDatabaseUnavailable } =
     useDashboardPlotSpectra(catalogSelections, {
       enabled: state.datasets.length > 0,
+      retryNonce: spectraRetryNonce,
     });
 
   useEffect(() => {
@@ -815,6 +818,16 @@ export function DashboardPlotViewerPage() {
               <div className="border-border bg-default/20 text-muted flex min-h-[420px] flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 text-center text-sm">
                 <Spinner size="md" aria-label="Loading spectrum points" />
                 <span>Loading spectrum points for selected datasets...</span>
+              </div>
+            ) : styledPlot.isEmpty && isDatabaseUnavailable && fetchError ? (
+              <div className="flex min-h-[420px] flex-1 items-center justify-center px-4 py-6">
+                <CatalogDataErrorState
+                  error={fetchError}
+                  title="Spectrum data unavailable"
+                  compact
+                  className="w-full max-w-md border-dashed shadow-none"
+                  onRetry={() => setSpectraRetryNonce((nonce) => nonce + 1)}
+                />
               </div>
             ) : styledPlot.isEmpty ? (
               <div className="border-border bg-default/20 text-muted flex min-h-[420px] flex-1 items-center justify-center rounded-lg border border-dashed px-6 text-center text-sm">
