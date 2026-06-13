@@ -5,28 +5,9 @@ import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { visit } from "unist-util-visit";
 import { formatBlogDate } from "~/lib/content/blog-date-format";
+import { blogSlugHash } from "~/lib/content/blog-slug-hash";
 
-export { formatBlogDate };
-
-/** Public URL prefix for blog post images; kept inline so client components can import date helpers. */
-const BLOG_ASSETS_URL_PREFIX = "/blog/blog-assets";
-
-function hashSlug(slug: string): number {
-  let hash = 0;
-  for (let index = 0; index < slug.length; index += 1) {
-    hash = (hash * 31 + slug.charCodeAt(index)) >>> 0;
-  }
-  return hash;
-}
-
-/**
- * Returns a deterministic opaque hash for a blog slug used in teaser tiles without
- * exposing the slug in the DOM.
- */
-export function blogSlugHash(slug: string): string {
-  const hash = hashSlug(slug);
-  return hash.toString(16).padStart(8, "0");
-}
+export { formatBlogDate, blogSlugHash };
 
 /** One in-page heading extracted from blog MDX for table-of-contents links. */
 export interface BlogHeading {
@@ -82,6 +63,9 @@ export function extractHeadings(body: string): BlogHeading[] {
 
   return headings;
 }
+
+/** Public URL prefix for blog post images served from `content/blog/blog-assets`. */
+const BLOG_ASSETS_URL_PREFIX = "/blog/blog-assets";
 
 /**
  * Maps blog frontmatter `heroImage` values to public URLs under `/blog/blog-assets`.
