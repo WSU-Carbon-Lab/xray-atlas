@@ -194,8 +194,16 @@ const useSecureCookies =
   env.NODE_ENV === "production" && env.AUTH_URL.startsWith("https://");
 const cookiePrefix = useSecureCookies ? "__Secure-" : "";
 const sameSite = useSecureCookies ? ("none" as const) : ("lax" as const);
-const nextAuthPublicUrl =
-  env.NODE_ENV === "production" ? env.AUTH_URL : undefined;
+
+function resolveNextAuthPublicUrl(): string | undefined {
+  if (env.NODE_ENV !== "production") return undefined;
+  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return env.AUTH_URL;
+}
+
+const nextAuthPublicUrl = resolveNextAuthPublicUrl();
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapterOrcid(db),
