@@ -278,7 +278,8 @@ export default async function BlogPostPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 xl:px-6">
-        <div className="mx-auto w-full max-w-2xl">
+      <div className="flex items-start gap-10 xl:gap-12">
+        <div className="mx-auto w-full min-w-0 max-w-2xl xl:mx-0 xl:flex-1">
           <BlogBreadcrumbs items={breadcrumbItems} />
 
           <header className="mb-8 space-y-4">
@@ -301,11 +302,8 @@ export default async function BlogPostPage({
             </div>
             <BlogPostTagChips tags={entry.frontmatter.tags} />
           </header>
-        </div>
 
-        <div className="flex items-start gap-10 xl:gap-12">
-          <div className="mx-auto w-full max-w-2xl min-w-0 flex-1">
-            <BlogHeroImage frontmatter={entry.frontmatter} />
+          <BlogHeroImage frontmatter={entry.frontmatter} />
             {entry.frontmatter.series ? (
               <BlogSeriesBox
                 seriesName={entry.frontmatter.series.name}
