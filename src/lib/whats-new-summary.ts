@@ -16,24 +16,29 @@ export interface WhatsNewSummary {
  * or the newest published post when no release-category post exists.
  */
 export async function getWhatsNewSummary(): Promise<WhatsNewSummary | null> {
-  const releasePost = await getLatestReleasePost();
-  if (releasePost) {
-    return {
-      slug: releasePost.slug,
-      title: releasePost.frontmatter.title,
-      date: releasePost.frontmatter.date,
-    };
-  }
+  try {
+    const releasePost = await getLatestReleasePost();
+    if (releasePost) {
+      return {
+        slug: releasePost.slug,
+        title: releasePost.frontmatter.title,
+        date: releasePost.frontmatter.date,
+      };
+    }
 
-  const entries = await getBlogEntries();
-  const latestPost = entries.find(isListableBlogEntry);
-  if (!latestPost) {
+    const entries = await getBlogEntries();
+    const latestPost = entries.find(isListableBlogEntry);
+    if (!latestPost) {
+      return null;
+    }
+
+    return {
+      slug: latestPost.slug,
+      title: latestPost.frontmatter.title,
+      date: latestPost.frontmatter.date,
+    };
+  } catch (error) {
+    console.error("[getWhatsNewSummary] Failed to load blog highlight", error);
     return null;
   }
-
-  return {
-    slug: latestPost.slug,
-    title: latestPost.frontmatter.title,
-    date: latestPost.frontmatter.date,
-  };
 }
