@@ -1,4 +1,29 @@
+import type { BlogCategorySlug } from "~/lib/content/blog-categories";
 import { isListableBlogEntry, type BlogEntry } from "~/lib/content/blog-loader";
+
+/**
+ * Lists other listable posts in the same category as `current`, newest first.
+ *
+ * Excludes `current` and caps results at `limit`. Returns an empty array when the
+ * category has no siblings or `category` is omitted.
+ */
+export function categoryReadNextPosts(
+  entries: BlogEntry[],
+  current: BlogEntry,
+  limit = 5,
+  category?: BlogCategorySlug,
+): BlogEntry[] {
+  const categorySlug = category ?? current.frontmatter.category;
+
+  return entries
+    .filter(
+      (entry) =>
+        isListableBlogEntry(entry) &&
+        entry.slug !== current.slug &&
+        entry.frontmatter.category === categorySlug,
+    )
+    .slice(0, limit);
+}
 
 /**
  * Selects up to `limit` related posts ranked by shared tags, then category, then recency.
