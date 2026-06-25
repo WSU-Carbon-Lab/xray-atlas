@@ -6,6 +6,7 @@ const newsreader = Newsreader({
   display: "swap",
   variable: "--font-display",
   adjustFontFallback: true,
+  fallback: ["Georgia", "Cambria", "Times New Roman", "serif"],
 });
 
 /**

@@ -247,7 +247,9 @@
 
 @layer components {
   .font-display {
-    font-family: var(--font-display), "Newsreader", ui-serif, Georgia, serif;
+    font-family:
+      var(--font-display, ui-serif), "Newsreader", ui-serif, Georgia, Cambria,
+      "Times New Roman", serif;
   }
 
   .scrollshadow-inline-legend {
