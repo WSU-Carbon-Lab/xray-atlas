@@ -46,7 +46,10 @@ export function StxmStandardsPicker({
   onPlotStandardsChange,
 }: StxmStandardsPickerProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const edgesQuery = trpc.experiments.listEdges.useQuery();
+  const edgesQuery = trpc.experiments.listEdges.useQuery(undefined, {
+    enabled: pickerOpen,
+    staleTime: 300_000,
+  });
   const edgeId = useMemo(() => {
     if (!edgeLabel || !edgesQuery.data?.edges) {
       return null;
@@ -66,7 +69,7 @@ export function StxmStandardsPicker({
     label: string,
     color: string,
   ): Promise<StxmPlotStandardOverlay> => {
-    const points = await utils.spectrumpoints.getByExperiment.fetch({
+    const points = await utils.spectrumpoints.getByExperimentForPlot.fetch({
       experimentId,
       limit: 2000,
     });

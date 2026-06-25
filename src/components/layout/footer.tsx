@@ -2,12 +2,14 @@
 import Link from "next/link";
 import { WSULogoIcon } from "../icons";
 import GitHubStarsLink from "./github-stars-link";
+import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
 import { trpc } from "~/trpc/client";
 import { attribution, mission, site } from "~/app/brand";
 
 export function Footer() {
-  const { data: collaboratorsData, isLoading: isLoadingCollaborators } =
-    trpc.collaborators.getAll.useQuery();
+  const collaboratorsQuery = trpc.collaborators.getAll.useQuery();
+  const { data: collaboratorsData, isLoading: isLoadingCollaborators, isError, error, refetch } =
+    collaboratorsQuery;
 
   return (
     <footer className="border-border bg-surface border-t">
@@ -29,6 +31,14 @@ export function Footer() {
             <p className="text-muted flex-wrap text-sm">{mission.heroShort}</p>
             {isLoadingCollaborators ? (
               <div className="text-muted text-sm">Loading...</div>
+            ) : isError ? (
+              <CatalogDataErrorState
+                error={error}
+                title="Collaborators unavailable"
+                compact
+                className="border-dashed shadow-none"
+                onRetry={() => void refetch()}
+              />
             ) : (
               <>
                 {collaboratorsData?.hosts &&
@@ -95,6 +105,14 @@ export function Footer() {
             </h4>
             {isLoadingCollaborators ? (
               <div className="text-foreground-500 text-sm">Loading...</div>
+            ) : isError ? (
+              <CatalogDataErrorState
+                error={error}
+                title="Collaborators unavailable"
+                compact
+                className="border-dashed shadow-none"
+                onRetry={() => void refetch()}
+              />
             ) : (
               <>
                 {collaboratorsData?.collaborators &&

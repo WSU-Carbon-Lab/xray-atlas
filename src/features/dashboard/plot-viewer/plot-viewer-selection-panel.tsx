@@ -14,6 +14,7 @@ import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { NexafsBrowseGroup } from "~/components/browse/nexafs-browse-map-group";
 import { showToast } from "~/components/ui/toast";
+import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
 import { trpc } from "~/trpc/client";
 import {
   geometryKeysForPoints,
@@ -174,6 +175,7 @@ export function PlotViewerSelectionPanel({
 
   const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
     staleTime: 120_000,
+    gcTime: 300_000,
   });
   const atlasFavoriteIdsQuery =
     trpc.experiments.listFavoriteExperimentIds.useQuery(undefined, {
@@ -422,6 +424,39 @@ export function PlotViewerSelectionPanel({
     (isSignedIn && atlasFavoriteIdsQuery.isLoading) ||
     (atlasFavoriteIds.length > 0 && favoritesBrowseQuery.isLoading);
 
+  const activeBrowseQuery = hasSearchQuery ? browseSearchQuery : browseListQuery;
+  const catalogLoadError =
+    facetCountsQuery.isError
+      ? facetCountsQuery.error
+      : hasActiveCatalogFilter && activeBrowseQuery.isError
+        ? activeBrowseQuery.error
+        : favoritesBrowseQuery.isError
+          ? favoritesBrowseQuery.error
+          : isSignedIn && atlasFavoriteIdsQuery.isError
+            ? atlasFavoriteIdsQuery.error
+            : null;
+
+  const handleCatalogRetry = useCallback(() => {
+    void facetCountsQuery.refetch();
+    if (hasActiveCatalogFilter) {
+      void activeBrowseQuery.refetch();
+    }
+    if (isSignedIn) {
+      void atlasFavoriteIdsQuery.refetch();
+    }
+    if (atlasFavoriteIds.length > 0) {
+      void favoritesBrowseQuery.refetch();
+    }
+  }, [
+    activeBrowseQuery,
+    atlasFavoriteIds.length,
+    atlasFavoriteIdsQuery,
+    facetCountsQuery,
+    favoritesBrowseQuery,
+    hasActiveCatalogFilter,
+    isSignedIn,
+  ]);
+
   const selectedDatasets = new Set(state.datasets);
 
   const handleToggleDataset = useCallback(
@@ -557,6 +592,15 @@ export function PlotViewerSelectionPanel({
 
       <ScrollShadow className="min-h-0 flex-1 px-3 py-3" hideScrollBar={false}>
         <div className="flex flex-col gap-4 pr-1">
+          {catalogLoadError ? (
+            <CatalogDataErrorState
+              error={catalogLoadError}
+              title="Catalog unavailable"
+              compact
+              className="border-dashed shadow-none"
+              onRetry={handleCatalogRetry}
+            />
+          ) : null}
           {hasActiveCatalogFilter ? (
             <section className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">

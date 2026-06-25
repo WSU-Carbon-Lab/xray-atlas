@@ -101,6 +101,39 @@ const blogMdxComponents: MDXComponents = {
       {children}
     </h3>
   ),
+  h4: ({ children, className, ...props }) => (
+    <h4
+      {...props}
+      className={cn(
+        "font-display text-foreground mt-6 scroll-mt-24 text-lg font-semibold tracking-tight",
+        className,
+      )}
+    >
+      {children}
+    </h4>
+  ),
+  h5: ({ children, className, ...props }) => (
+    <h5
+      {...props}
+      className={cn(
+        "font-display text-foreground mt-6 scroll-mt-24 text-base font-semibold tracking-tight",
+        className,
+      )}
+    >
+      {children}
+    </h5>
+  ),
+  h6: ({ children, className, ...props }) => (
+    <h6
+      {...props}
+      className={cn(
+        "font-display text-muted mt-6 scroll-mt-24 text-sm font-semibold tracking-wide uppercase",
+        className,
+      )}
+    >
+      {children}
+    </h6>
+  ),
   p: ({ children, className, ...props }) => (
     <p
       {...props}

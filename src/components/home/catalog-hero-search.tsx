@@ -30,6 +30,7 @@ import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
+import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
 import { buildPopularitySections } from "~/components/browse/unified-search/catalog-search-popularity";
 import { CatalogSearchPopularityPanel } from "~/components/browse/unified-search/catalog-search-popularity-panel";
 import type { FacetField, FacetItem } from "~/components/browse/unified-search/types";
@@ -148,30 +149,58 @@ export function CatalogHeroSearch({
   const typeaheadEnabled = debouncedQuery.length >= 2;
   const showPopularityPanel = isOpen && !showTypeaheadPanel;
 
-  const { data: facetCounts, isLoading: facetCountsLoading } =
-    trpc.experiments.facetCounts.useQuery(undefined, {
-      staleTime: 300_000,
-    });
+  const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
+    staleTime: 300_000,
+  });
+  const { data: facetCounts, isLoading: facetCountsLoading, isError: facetCountsError, error: facetCountsLoadError, refetch: refetchFacetCounts } =
+    facetCountsQuery;
 
   const popularitySections = useMemo(
     () => buildPopularitySections(facetCounts),
     [facetCounts],
   );
 
-  const { data: molData, isLoading: molLoading } =
-    trpc.molecules.autosuggest.useQuery(
-      { query: debouncedQuery, limit: 4 },
-      { enabled: typeaheadEnabled, staleTime: 60_000 },
-    );
+  const moleculesQuery = trpc.molecules.autosuggest.useQuery(
+    { query: debouncedQuery, limit: 4 },
+    { enabled: typeaheadEnabled, staleTime: 60_000 },
+  );
+  const { data: molData, isLoading: molLoading, isError: molError, error: molLoadError, refetch: refetchMolecules } =
+    moleculesQuery;
 
-  const { data: entityData, isLoading: entityLoading } =
-    trpc.experiments.searchEntities.useQuery(
-      { query: debouncedQuery, limitPerGroup: 3 },
-      { enabled: typeaheadEnabled, staleTime: 60_000 },
-    );
+  const entitiesQuery = trpc.experiments.searchEntities.useQuery(
+    { query: debouncedQuery, limitPerGroup: 3 },
+    { enabled: typeaheadEnabled, staleTime: 60_000 },
+  );
+  const { data: entityData, isLoading: entityLoading, isError: entityError, error: entityLoadError, refetch: refetchEntities } =
+    entitiesQuery;
 
   const isTypeaheadLoading =
     typeaheadEnabled && (molLoading || entityLoading);
+
+  const dropdownLoadError = showPopularityPanel
+    ? facetCountsError
+      ? facetCountsLoadError
+      : null
+    : typeaheadEnabled && (molError || entityError)
+      ? (molLoadError ?? entityLoadError)
+      : null;
+
+  const handleDropdownRetry = useCallback(() => {
+    if (showPopularityPanel) {
+      void refetchFacetCounts();
+      return;
+    }
+    if (typeaheadEnabled) {
+      void refetchMolecules();
+      void refetchEntities();
+    }
+  }, [
+    refetchEntities,
+    refetchFacetCounts,
+    refetchMolecules,
+    showPopularityPanel,
+    typeaheadEnabled,
+  ]);
 
   const candidates = useMemo<Candidate[]>(() => {
     if (!typeaheadEnabled) return [];
@@ -400,7 +429,15 @@ export function CatalogHeroSearch({
           role="listbox"
           aria-label="Search suggestions"
         >
-          {showPopularityPanel ? (
+          {dropdownLoadError ? (
+            <CatalogDataErrorState
+              error={dropdownLoadError}
+              title="Catalog search unavailable"
+              compact
+              className="mx-2 my-3 border-dashed shadow-none"
+              onRetry={handleDropdownRetry}
+            />
+          ) : showPopularityPanel ? (
             <CatalogSearchPopularityPanel
               sections={popularitySections}
               variant="home"

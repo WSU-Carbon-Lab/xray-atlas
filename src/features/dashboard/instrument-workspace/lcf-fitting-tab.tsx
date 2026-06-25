@@ -190,7 +190,10 @@ export function LcfFittingTab({
   );
 
   const { datasets: atlasDatasets, spectraByExperimentId, isLoading: atlasSpectraLoading } =
-    useDashboardPlotSpectra(catalogSelections);
+    useDashboardPlotSpectra(catalogSelections, {
+      enabled: atlasExperimentIds.length > 0,
+      geometryKeysByExperimentId: atlasGeometryByExperimentId,
+    });
 
   useEffect(() => {
     if (atlasExperimentIds.length === 0) {
