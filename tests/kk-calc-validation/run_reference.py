@@ -147,6 +147,7 @@ def _kkcalc_delta_optical_beta_extended_pipeline(
     beta_optical: np.ndarray,
     formula: str,
     density_g_per_cm3: float,
+    merge_domain: tuple[float, float] | None = None,
 ) -> tuple[np.ndarray, float]:
     """
     Optical-index ``beta`` to dispersive ``delta`` with ``asp_db_im_extended`` Henke tails
@@ -170,7 +171,7 @@ def _kkcalc_delta_optical_beta_extended_pipeline(
         extended = asp_db_im_extended(
             data_asf=data_asf,
             database=formula,
-            merge_domain=None,
+            merge_domain=merge_domain,
             fix_distortions=False,
         )
         re = extended.kk_transform(
@@ -276,11 +277,18 @@ def cmd_kkcalc_delta_optical_beta(args: argparse.Namespace) -> None:
             density_g_per_cm3=float(args.density),
         )
     else:
+        merge_domain = None
+        if getattr(args, "merge_domain", None):
+            parts = str(args.merge_domain).split(",")
+            if len(parts) != 2:
+                raise ValueError("--merge-domain requires two comma-separated energies")
+            merge_domain = (float(parts[0]), float(parts[1]))
         delta, nd = _kkcalc_delta_optical_beta_extended_pipeline(
             e,
             b,
             formula=str(args.formula),
             density_g_per_cm3=float(args.density),
+            merge_domain=merge_domain,
         )
     json.dump(
         {
@@ -393,6 +401,15 @@ def main() -> None:
         help=(
             "Use measurement-only ``asf_im`` knots (no ``asp_db_im_extended``); for TS parity when "
             "``bareAtomExtension.enabled`` is false."
+        ),
+    )
+    p_ob.add_argument(
+        "--merge-domain",
+        type=str,
+        default=None,
+        help=(
+            "Optional inclusive Henke merge window as lo,hi eV for ``asp_db_im_extended`` "
+            "(default: kkcalc2 full-span merge)."
         ),
     )
     p_ob.set_defaults(func=cmd_kkcalc_delta_optical_beta)

@@ -8,9 +8,10 @@ Setup: cd tests/kk-calc-validation && uv sync
 
   src/features/kk-calc/__fixtures__/nexafs-experiment-30539a6a-pol-86906b55-th55-ph0.csv
 
-Plot **persisted δ vs kkcalc2 δ from β** (residual δ_kkcalc − δ_CSV; no TS discrete KK recompute):
+Plot **persisted δ vs kkcalc2 δ from β** (percent error of Atlas δ vs kkcalc2; no TS discrete KK recompute):
 
-  cd tests/kk-calc-validation && uv run python plot_kk_compare.py
+  cd tests/kk-calc-validation && uv run python plot_kk_compare.py \
+    --out ../../content/blog/blog-assets/kk-browser-vs-kkcalc2.png
 
 Optional: --csv /path/to/export.csv, --out /path/to/out.png, --formula C72H14O2, --density 1
 
