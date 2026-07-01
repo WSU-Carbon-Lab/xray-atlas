@@ -57,6 +57,33 @@ export function refractiveBetaToImaginaryAsf(
 }
 
 /**
+ * Maps imaginary atomic scattering factors `f_2` to optical `beta` on the same energy samples,
+ * inverting {@link refractiveBetaToImaginaryAsf} (`beta = f_2 / prefactor(E)`).
+ *
+ * @param energyEv Strictly positive photon energies in eV (same length as `f2`).
+ * @param f2 Imaginary ASF samples aligned with `energyEv`.
+ * @param numberDensityAtomsPerCm3 Material number density in atoms per cm³.
+ * @returns Optical absorption index `beta` aligned with `energyEv`.
+ */
+export function imaginaryAsfToOpticalBeta(
+  energyEv: readonly number[],
+  f2: ArrayLike<number>,
+  numberDensityAtomsPerCm3: number,
+): Float64Array {
+  const n = energyEv.length;
+  const pref = refractivePrefactorPerAsf(energyEv, numberDensityAtomsPerCm3);
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = pref[i]!;
+    if (!(p > 0)) {
+      throw new RangeError("refractive prefactor must be positive at every energy");
+    }
+    out[i] = f2[i]! / p;
+  }
+  return out;
+}
+
+/**
  * kkcalc2 `ASF_to_refractive` for complex `f_1 + i f_2`: returns dispersive `delta` as the **real part**
  * of `(f_1 + i f_2) / prefactor(E)` (same as `numpy.asarray(..., complex128).real` in `run_reference.py`).
  */

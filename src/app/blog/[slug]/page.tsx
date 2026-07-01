@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { ComponentPropsWithoutRef, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { notFound } from "next/navigation";
-import type { MDXComponents } from "mdx/types";
-import { cn } from "@heroui/styles";
+import { blogMdxComponents } from "~/components/blog/blog-mdx-components";
 import { BlogAuthorByline } from "~/components/blog/blog-author-byline";
 import { BlogCategoryReadNext } from "~/components/blog/blog-category-read-next";
 import {
@@ -41,109 +40,6 @@ import type { BlogFrontmatter } from "~/lib/content/schema";
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
 }
-
-const blogMdxComponents: MDXComponents = {
-  img: ({ src, alt, className, ...props }: ComponentPropsWithoutRef<"img">) => {
-    const imageSrc = typeof src === "string" ? src : undefined;
-    if (!imageSrc) {
-      return null;
-    }
-    const imageAlt = typeof alt === "string" ? alt : "";
-    return (
-      <figure className="my-8 space-y-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageSrc}
-          alt={imageAlt}
-          className={cn(
-            "border-border w-full rounded-xl border object-cover",
-            className,
-          )}
-          {...props}
-        />
-        {imageAlt ? (
-          <figcaption className="text-muted text-center text-sm">
-            {imageAlt}
-          </figcaption>
-        ) : null}
-      </figure>
-    );
-  },
-  h1: ({ children, className, ...props }) => (
-    <h1
-      {...props}
-      className={cn(
-        "font-display text-foreground mt-10 scroll-mt-24 text-3xl font-semibold tracking-tight first:mt-0",
-        className,
-      )}
-    >
-      {children}
-    </h1>
-  ),
-  h2: ({ children, className, ...props }) => (
-    <h2
-      {...props}
-      className={cn(
-        "font-display text-foreground mt-10 scroll-mt-24 text-2xl font-semibold tracking-tight",
-        className,
-      )}
-    >
-      {children}
-    </h2>
-  ),
-  h3: ({ children, className, ...props }) => (
-    <h3
-      {...props}
-      className={cn(
-        "font-display text-foreground mt-8 scroll-mt-24 text-xl font-semibold tracking-tight",
-        className,
-      )}
-    >
-      {children}
-    </h3>
-  ),
-  h4: ({ children, className, ...props }) => (
-    <h4
-      {...props}
-      className={cn(
-        "font-display text-foreground mt-6 scroll-mt-24 text-lg font-semibold tracking-tight",
-        className,
-      )}
-    >
-      {children}
-    </h4>
-  ),
-  h5: ({ children, className, ...props }) => (
-    <h5
-      {...props}
-      className={cn(
-        "font-display text-foreground mt-6 scroll-mt-24 text-base font-semibold tracking-tight",
-        className,
-      )}
-    >
-      {children}
-    </h5>
-  ),
-  h6: ({ children, className, ...props }) => (
-    <h6
-      {...props}
-      className={cn(
-        "font-display text-muted mt-6 scroll-mt-24 text-sm font-semibold tracking-wide uppercase",
-        className,
-      )}
-    >
-      {children}
-    </h6>
-  ),
-  p: ({ children, className, ...props }) => (
-    <p
-      {...props}
-      className={cn("text-muted text-[1.05rem] leading-8", className)}
-    >
-      {children}
-    </p>
-  ),
-};
 
 function PostNavLink({
   direction,

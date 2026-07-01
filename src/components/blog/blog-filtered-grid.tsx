@@ -13,6 +13,7 @@ import {
   BlogCategoryTagFilterBar,
   BlogFilterBar,
 } from "~/components/blog/blog-filter-bar";
+import { useBlogFilter } from "~/components/blog/blog-filter-context";
 import {
   DEFAULT_BLOG_FILTER_STATE,
   type BlogFilterState,
@@ -76,7 +77,7 @@ function BlogGridShell({
   }, [items, filterState]);
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2">
+    <div className="grid items-stretch gap-6 sm:grid-cols-2">
       {childArray.map((child, index) => {
         const meta = items[index];
         if (!meta) {
@@ -87,7 +88,7 @@ function BlogGridShell({
         return (
           <div
             key={meta.slug}
-            className={visible ? undefined : "hidden"}
+            className={visible ? "h-full" : "hidden"}
             style={visible && order !== undefined ? { order } : undefined}
           >
             {child}
@@ -110,19 +111,11 @@ export function BlogIndexFilteredSection({
   availableTags: string[];
   children: ReactNode;
 }): ReactElement {
-  const [filterState, setFilterState] = useState<BlogFilterState>(
-    DEFAULT_BLOG_FILTER_STATE,
-  );
-  const handleFilterChange = useCallback((next: BlogFilterState) => {
-    setFilterState(next);
-  }, []);
+  const { state: filterState } = useBlogFilter();
 
   return (
     <div className="flex flex-col gap-6">
-      <BlogFilterBar
-        availableTags={availableTags}
-        onFilterChange={handleFilterChange}
-      />
+      <BlogFilterBar availableTags={availableTags} />
       <BlogGridShell items={items} filterState={filterState}>
         {children}
       </BlogGridShell>

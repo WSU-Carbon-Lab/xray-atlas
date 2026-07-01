@@ -25,7 +25,7 @@ import { PeakOverlayLayer } from "../visx/PeakOverlayLayer";
 import { BrushZoom } from "../visx/BrushZoom";
 import type { ZoomMode } from "../visx/BrushZoom";
 import { NormalizationBrush } from "../visx/NormalizationBrush";
-import { NORMALIZATION_COLORS } from "../constants";
+import { NormalizationRegionBands } from "./NormalizationRegionBands";
 import { spectrumYAxisPresentation } from "../utils/yAxisScientific";
 import { getPlotChannelDefinition } from "~/features/process-nexafs/nexafs-plot-channels";
 import type { OpticalLinkChannelRole } from "../hooks/useLinkedOpticalTraces";
@@ -330,44 +330,15 @@ export function OpticalLinkSplitSpectrumBody({
         </g>
 
         {normalizationRegions &&
-          (selectionTarget !== null || showNormalizationShading) && (
-            <>
-              {normalizationRegions.pre && (
-                <rect
-                  x={
-                    imaginaryScales.xScale(normalizationRegions.pre[0]) +
-                    imaginaryPlot.dimensions.margins.left
-                  }
-                  y={imaginaryPlot.dimensions.margins.top}
-                  width={
-                    imaginaryScales.xScale(normalizationRegions.pre[1]) -
-                    imaginaryScales.xScale(normalizationRegions.pre[0])
-                  }
-                  height={stackedPlotSpan}
-                  fill={NORMALIZATION_COLORS.pre}
-                  opacity={0.12}
-                  pointerEvents="none"
-                />
-              )}
-              {normalizationRegions.post && (
-                <rect
-                  x={
-                    imaginaryScales.xScale(normalizationRegions.post[0]) +
-                    imaginaryPlot.dimensions.margins.left
-                  }
-                  y={imaginaryPlot.dimensions.margins.top}
-                  width={
-                    imaginaryScales.xScale(normalizationRegions.post[1]) -
-                    imaginaryScales.xScale(normalizationRegions.post[0])
-                  }
-                  height={stackedPlotSpan}
-                  fill={NORMALIZATION_COLORS.post}
-                  opacity={0.12}
-                  pointerEvents="none"
-                />
-              )}
-            </>
-          )}
+          (selectionTarget !== null || showNormalizationShading) ? (
+            <NormalizationRegionBands
+              normalizationRegions={normalizationRegions}
+              xScale={imaginaryScales.xScale}
+              offsetX={imaginaryPlot.dimensions.margins.left}
+              offsetY={imaginaryPlot.dimensions.margins.top}
+              height={stackedPlotSpan}
+            />
+          ) : null}
 
         <g
           ref={panGroupRef}

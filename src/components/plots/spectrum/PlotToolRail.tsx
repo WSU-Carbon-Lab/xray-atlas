@@ -23,6 +23,7 @@ type PlotToolRailProps = {
   analysisTools?: ReactNode;
   bottomTools?: ReactNode;
   suppressAnalysisRailLeadingGrip?: boolean;
+  initialTrayMode?: boolean;
 };
 
 export const PlotToolRail = memo(function PlotToolRail({
@@ -41,6 +42,7 @@ export const PlotToolRail = memo(function PlotToolRail({
   analysisTools,
   bottomTools,
   suppressAnalysisRailLeadingGrip,
+  initialTrayMode,
 }: PlotToolRailProps) {
   return (
     <PlotToolRailsDeck
@@ -59,6 +61,7 @@ export const PlotToolRail = memo(function PlotToolRail({
       analysisTools={analysisTools}
       bottomTools={bottomTools}
       suppressAnalysisRailLeadingGrip={suppressAnalysisRailLeadingGrip}
+      initialTrayMode={initialTrayMode}
     />
   );
 });

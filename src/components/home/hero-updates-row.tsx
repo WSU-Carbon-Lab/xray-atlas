@@ -5,7 +5,7 @@ import { cn } from "@heroui/styles";
 
 /**
  * Hero onboarding rail: wiki quick-start as the primary accent chip, optional blog
- * announcement as a secondary typographic link separated by a vertical rule on md+.
+ * announcement as a secondary typographic link stacked below with vertical spacing.
  */
 export function HeroUpdatesRow({
   blogAnnouncement,
@@ -17,7 +17,7 @@ export function HeroUpdatesRow({
   return (
     <div
       className={cn(
-        "flex w-full max-w-2xl flex-col items-center gap-2 sm:gap-2.5 md:flex-row md:flex-wrap md:justify-center md:gap-x-3",
+        "flex w-full max-w-2xl flex-col items-center gap-2 sm:gap-2.5",
         className,
       )}
     >
@@ -27,15 +27,9 @@ export function HeroUpdatesRow({
         icon={BookOpenIcon}
       />
       {blogAnnouncement ? (
-        <>
-          <span
-            className="bg-border hidden h-4 w-px shrink-0 md:block"
-            aria-hidden
-          />
-          <div className="flex min-w-0 max-w-full justify-center md:justify-start">
-            {blogAnnouncement}
-          </div>
-        </>
+        <div className="flex min-w-0 max-w-full justify-center">
+          {blogAnnouncement}
+        </div>
       ) : null}
     </div>
   );

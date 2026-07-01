@@ -7,7 +7,11 @@ import { PROCESS_METHOD_OPTIONS } from "~/features/process-nexafs/constants";
 import type { NexafsSampleInformationSectionProps } from "./types";
 
 const formLabelClass =
-  "mb-1.5 flex items-center gap-1 text-sm font-medium text-foreground";
+  "mb-1.5 flex flex-wrap items-center gap-1 text-sm font-medium text-foreground";
+
+const optionalSuffix = (
+  <span className="text-muted font-normal"> (optional)</span>
+);
 
 const selectClass =
   "border-border bg-field-background text-field-foreground placeholder:text-field-placeholder focus:border-accent focus:ring-accent/20 w-full rounded-xl border px-4 py-2.5 focus:outline-none focus:ring-2";
@@ -39,7 +43,8 @@ export function NexafsSampleInformationSection({
           2. Sample Information
         </h2>
         <p className="text-muted text-sm">
-          Provide context describing the specimen used across your experiments.
+          Optional context describing the specimen used across your experiments.
+          None of these fields are required to submit.
         </p>
       </div>
 
@@ -49,6 +54,7 @@ export function NexafsSampleInformationSection({
             <Label htmlFor="processMethod" className={formLabelClass}>
               Process Method
               <FieldTooltip description="Method used to process the sample" />
+              {optionalSuffix}
             </Label>
             <select
               id="processMethod"
@@ -59,7 +65,7 @@ export function NexafsSampleInformationSection({
                 setProcessMethod(v.length > 0 ? (v as ProcessMethod) : null);
               }}
               className={selectClass}
-              aria-label="Process method"
+              aria-label="Process method (optional)"
             >
               <option value="">Select an option</option>
               {PROCESS_METHOD_OPTIONS.map((opt) => (
@@ -79,6 +85,7 @@ export function NexafsSampleInformationSection({
             <Label className={formLabelClass}>
               Substrate
               <FieldTooltip description="Substrate material on which the sample sits" />
+              {optionalSuffix}
             </Label>
             <InputGroup variant="secondary" fullWidth>
               <InputGroup.Input placeholder="e.g., Si wafer, glass" />
@@ -97,6 +104,7 @@ export function NexafsSampleInformationSection({
             <Label className={formLabelClass}>
               Solvent
               <FieldTooltip description="Solvent used during sample prep (if any)" />
+              {optionalSuffix}
             </Label>
             <InputGroup variant="secondary" fullWidth>
               <InputGroup.Input placeholder="e.g., chloroform, toluene" />
@@ -112,6 +120,7 @@ export function NexafsSampleInformationSection({
             <Label className={formLabelClass}>
               Thickness (nm)
               <FieldTooltip description="Sample thickness in nanometers" />
+              {optionalSuffix}
             </Label>
             <InputGroup variant="secondary" fullWidth>
               <InputGroup.Input
@@ -137,6 +146,7 @@ export function NexafsSampleInformationSection({
             <Label className={formLabelClass}>
               Molecular Weight (g/mol)
               <FieldTooltip description="Molecular weight in grams per mole" />
+              {optionalSuffix}
             </Label>
             <InputGroup variant="secondary" fullWidth>
               <InputGroup.Input
@@ -151,6 +161,7 @@ export function NexafsSampleInformationSection({
             <Label htmlFor="vendor" className={formLabelClass}>
               Select Existing Vendor
               <FieldTooltip description="Pick an existing vendor or add a new one" />
+              {optionalSuffix}
             </Label>
             <select
               id="vendor"
@@ -158,7 +169,7 @@ export function NexafsSampleInformationSection({
               value={selectedVendorId}
               onChange={(e) => setSelectedVendorId(e.target.value)}
               className={selectClass}
-              aria-label="Select vendor"
+              aria-label="Select vendor (optional)"
             >
               <option value="">
                 {isLoadingVendors
@@ -175,9 +186,15 @@ export function NexafsSampleInformationSection({
         </div>
 
         <div className="space-y-3 pt-2">
-          <p className="text-foreground text-sm font-medium">
-            Or create a new vendor
-          </p>
+          <div>
+            <p className="text-foreground text-sm font-medium">
+              Or create a new vendor
+              <span className="text-muted font-normal"> (optional)</span>
+            </p>
+            <p className="text-muted mt-1 text-xs">
+              Use when no existing vendor matches; leave blank if unknown.
+            </p>
+          </div>
           <div className="grid gap-3 md:grid-cols-2">
             <TextField
               name="newVendorName"
@@ -186,7 +203,10 @@ export function NexafsSampleInformationSection({
               variant="secondary"
               fullWidth
             >
-              <Label className={formLabelClass}>Vendor name</Label>
+              <Label className={formLabelClass}>
+                Vendor name
+                {optionalSuffix}
+              </Label>
               <InputGroup variant="secondary" fullWidth>
                 <InputGroup.Input placeholder="Vendor name" />
               </InputGroup>
@@ -199,10 +219,11 @@ export function NexafsSampleInformationSection({
               fullWidth
             >
               <Label className={formLabelClass}>
-                Vendor website (optional)
+                Vendor website
+                {optionalSuffix}
               </Label>
               <InputGroup variant="secondary" fullWidth>
-                <InputGroup.Input placeholder="Vendor website (optional)" />
+                <InputGroup.Input placeholder="https://example.com" />
               </InputGroup>
             </TextField>
           </div>

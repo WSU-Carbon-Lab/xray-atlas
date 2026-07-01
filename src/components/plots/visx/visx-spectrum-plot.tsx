@@ -18,11 +18,11 @@ import type {
 import {
   DEFAULT_PLOT_HEIGHT,
   FILL_CONTAINER_MIN_HEIGHT,
-  NORMALIZATION_COLORS,
   PLOT_FRAME_RADIUS,
   OVERVIEW_HEIGHT,
   OVERVIEW_GAP,
 } from "../constants";
+import { NormalizationRegionBands } from "../spectrum/NormalizationRegionBands";
 import { useChartTheme, type ChartThemeColors } from "../hooks/useChartTheme";
 import { useSpectrumData } from "../hooks/useSpectrumData";
 import { useReferenceData } from "../hooks/useReferenceData";
@@ -932,48 +932,15 @@ function VisxSpectrumPlotInner({
               isDark={isDark}
               themeColors={themeColors}
             />
-            {normalizationRegions && (
-              <>
-                {normalizationRegions.pre &&
-                  normalizationRegions.pre[0] !==
-                    normalizationRegions.pre[1] && (
-                    <rect
-                      x={
-                        mainPlot.xScale(normalizationRegions.pre[0]) +
-                        mainPlot.dimensions.margins.left
-                      }
-                      y={mainPlot.dimensions.margins.top}
-                      width={
-                        mainPlot.xScale(normalizationRegions.pre[1]) -
-                        mainPlot.xScale(normalizationRegions.pre[0])
-                      }
-                      height={mainPlotHeight}
-                      fill={NORMALIZATION_COLORS.pre}
-                      opacity={0.12}
-                      pointerEvents="none"
-                    />
-                  )}
-                {normalizationRegions.post &&
-                  normalizationRegions.post[0] !==
-                    normalizationRegions.post[1] && (
-                    <rect
-                      x={
-                        mainPlot.xScale(normalizationRegions.post[0]) +
-                        mainPlot.dimensions.margins.left
-                      }
-                      y={mainPlot.dimensions.margins.top}
-                      width={
-                        mainPlot.xScale(normalizationRegions.post[1]) -
-                        mainPlot.xScale(normalizationRegions.post[0])
-                      }
-                      height={mainPlotHeight}
-                      fill={NORMALIZATION_COLORS.post}
-                      opacity={0.12}
-                      pointerEvents="none"
-                    />
-                  )}
-              </>
-            )}
+            {normalizationRegions ? (
+              <NormalizationRegionBands
+                normalizationRegions={normalizationRegions}
+                xScale={mainPlot.xScale}
+                offsetX={mainPlot.dimensions.margins.left}
+                offsetY={mainPlot.dimensions.margins.top}
+                height={mainPlotHeight}
+              />
+            ) : null}
             <g
               transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
               onMouseDown={handlePanStart}

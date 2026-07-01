@@ -330,6 +330,33 @@ describe("kk-calc validation vs Python kkcalc2 + SciPy", () => {
     assertAllClose(ts, pyDelta, 2e-7, 2e-10);
   });
 
+  it("TS extended delta with Henke merge window matches kkcalc2 subprocess (rtol=2e-7, atol=2e-10)", () => {
+    const { energyEv, beta } = loadNexafsCsvEnergyBeta(csvFixturePath);
+    const mergeDomain: readonly [number, number] = [278, 310];
+    const pyDelta = parseNumberArrayField(
+      runReference([
+        "kkcalc-delta-optical-beta",
+        "--csv",
+        path.relative(validationDir, csvFixturePath),
+        "--formula",
+        "C72H14O2",
+        "--density",
+        "1",
+        "--merge-domain",
+        `${mergeDomain[0]},${mergeDomain[1]}`,
+      ]),
+      "delta",
+    );
+    const ts = computeDeltaFromBetaKkcalcStyle({
+      energyEv,
+      beta,
+      stoichiometryFormula: "C72H14O2",
+      densityGPerCm3: 1,
+      henkeMergeDomain: mergeDomain,
+    });
+    assertAllClose(ts, pyDelta, 2e-7, 2e-10);
+  });
+
   it("makima alignment matches SciPy on kkcalc2 optical-beta δ subsampled curve (rtol=1e-9, atol=1e-11)", () => {
     const { energyEv } = loadNexafsCsvEnergyBeta(csvFixturePath);
     const deltaKkcalc = [...loadKkcalcOpticalDeltaGolden()];

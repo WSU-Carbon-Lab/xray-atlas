@@ -12,6 +12,7 @@ import {
   getSessionAalRequiredAppCode,
   runPasskeyClientAuth,
 } from "~/lib/passkey-client-auth";
+import { ProfileAttributionPreferencesSection } from "~/features/account/attributions/attribution-preferences-panel";
 import {
   ProfileApiKeysSection,
   ProfileContributionsSection,
@@ -31,7 +32,7 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
     : fallbackMessage;
 }
 
-type ProfileTabId = "contributions" | "security";
+type ProfileTabId = "contributions" | "preferences" | "security";
 
 export default function UserProfilePage({
   params,
@@ -55,6 +56,8 @@ export default function UserProfilePage({
 
   const unlinkAccount = trpc.users.unlinkAccount.useMutation();
   const deletePasskey = trpc.users.deletePasskey.useMutation();
+  const confirmPasskeySessionStepUp =
+    trpc.users.confirmPasskeySessionStepUp.useMutation();
   const utils = trpc.useUtils();
   const { toasts, removeToast, showToast } = useToast();
 
@@ -92,7 +95,7 @@ export default function UserProfilePage({
 
   const tabIds = useMemo((): ProfileTabId[] => {
     if (isOwnProfile) {
-      return ["contributions", "security"];
+      return ["contributions", "preferences", "security"];
     }
     return ["contributions"];
   }, [isOwnProfile]);
@@ -119,6 +122,16 @@ export default function UserProfilePage({
         );
       }
 
+      if (sessionStatus === "authenticated") {
+        await confirmPasskeySessionStepUp.mutateAsync();
+        await Promise.all([
+          utils.users.getSessionWriteAssurance.invalidate(),
+          utils.users.getPasskeys.invalidate(),
+        ]);
+        showToast("Passkey confirmed for this session", "success");
+        return;
+      }
+
       if (result.redirectUrl) {
         applyPasskeyClientRedirect(result);
         return;
@@ -136,7 +149,13 @@ export default function UserProfilePage({
     } finally {
       setIsPasskeySigningIn(false);
     }
-  }, [showToast, utils.users.getSessionWriteAssurance]);
+  }, [
+    confirmPasskeySessionStepUp,
+    sessionStatus,
+    showToast,
+    utils.users.getPasskeys,
+    utils.users.getSessionWriteAssurance,
+  ]);
 
   const handleRegisterPasskey = useCallback(async () => {
     setIsRegisteringPasskey(true);
@@ -180,7 +199,11 @@ export default function UserProfilePage({
     async (passkeyId: string) => {
       try {
         await deletePasskey.mutateAsync({ passkeyId });
-        await utils.users.getPasskeys.invalidate();
+        await Promise.all([
+          utils.users.getPasskeys.invalidate(),
+          utils.users.getPasskeyEnrollmentStatus.invalidate(),
+          utils.users.getSessionWriteAssurance.invalidate(),
+        ]);
         showToast("Passkey revoked", "success");
       } catch (deleteError) {
         console.error("Failed to delete passkey:", deleteError);
@@ -198,7 +221,9 @@ export default function UserProfilePage({
       deletePasskey,
       handlePasskeySignIn,
       showToast,
+      utils.users.getPasskeyEnrollmentStatus,
       utils.users.getPasskeys,
+      utils.users.getSessionWriteAssurance,
     ],
   );
 
@@ -309,7 +334,11 @@ export default function UserProfilePage({
           selectedKey={effectiveTab}
           onSelectionChange={(key) => {
             const next = String(key);
-            if (next === "security" || next === "contributions") {
+            if (
+              next === "contributions" ||
+              next === "preferences" ||
+              next === "security"
+            ) {
               queueMicrotask(() => setSelectedTab(next));
             }
           }}
@@ -325,6 +354,13 @@ export default function UserProfilePage({
                 className="flex-1 px-4 py-2 text-sm font-medium"
               >
                 Contributions
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              <Tabs.Tab
+                id="preferences"
+                className="flex-1 px-4 py-2 text-sm font-medium"
+              >
+                Preferences
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab
@@ -345,6 +381,12 @@ export default function UserProfilePage({
                 void handlePasskeySignIn();
               }}
             />
+          </Tabs.Panel>
+
+          <Tabs.Panel id="preferences" className="pt-6">
+            {effectiveTab === "preferences" ? (
+              <ProfileAttributionPreferencesSection />
+            ) : null}
           </Tabs.Panel>
 
           <Tabs.Panel id="security" className="pt-6">

@@ -68,14 +68,23 @@ export function extractHeadings(body: string): BlogHeading[] {
 const BLOG_ASSETS_URL_PREFIX = "/blog/blog-assets";
 
 /**
- * Maps blog frontmatter `heroImage` values to public URLs under `/blog/blog-assets`.
+ * Maps blog asset paths from frontmatter or MDX bodies to public URLs under
+ * `/blog/blog-assets`.
  */
 export function resolveBlogHeroImageUrl(heroImage: string): string {
-  if (
-    heroImage.startsWith("http://") ||
-    heroImage.startsWith("https://") ||
-    heroImage.startsWith("/")
-  ) {
+  if (heroImage.startsWith("http://") || heroImage.startsWith("https://")) {
+    return heroImage;
+  }
+
+  if (heroImage.startsWith(BLOG_ASSETS_URL_PREFIX)) {
+    return heroImage;
+  }
+
+  if (heroImage.startsWith("/blog-assets/")) {
+    return `${BLOG_ASSETS_URL_PREFIX}${heroImage.slice("/blog-assets".length)}`;
+  }
+
+  if (heroImage.startsWith("/")) {
     return heroImage;
   }
 

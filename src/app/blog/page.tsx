@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactElement } from "react";
 import { BlogCategoryHero } from "~/components/blog/blog-category-hero";
+import { BlogFilterProvider } from "~/components/blog/blog-filter-context";
 import { BlogIndexFilteredSection } from "~/components/blog/blog-filtered-grid";
 import {
   FeaturedPostCard,
@@ -8,6 +9,7 @@ import {
 } from "~/components/blog/blog-post-cards";
 import { BlogTeaserSection } from "~/components/blog/blog-teaser-section";
 import {
+  getLatestReleasePost,
   getPublishedBlogEntries,
   getTeaserEntries,
   topBlogTags,
@@ -26,14 +28,19 @@ export const metadata: Metadata = {
 };
 
 /**
- * Static blog index with masthead, featured newest post, filterable grid, and teasers.
+ * Static blog index with masthead, featured newest release post, filterable grid, and teasers.
  */
 export default async function BlogIndexPage(): Promise<ReactElement> {
-  const [published, teasers] = await Promise.all([
+  const [published, teasers, featuredRelease] = await Promise.all([
     getPublishedBlogEntries(),
     getTeaserEntries(),
+    getLatestReleasePost(),
   ]);
-  const [featured, ...rest] = published;
+  const featured = featuredRelease ?? null;
+  const featuredSlug = featured?.slug;
+  const rest = featuredSlug
+    ? published.filter((entry) => entry.slug !== featuredSlug)
+    : published;
   const availableTags = topBlogTags(published);
   const gridMeta = rest.map((entry) => ({
     slug: entry.slug,
@@ -45,28 +52,34 @@ export default async function BlogIndexPage(): Promise<ReactElement> {
   const now = new Date();
 
   return (
-    <div className="mx-auto w-full max-w-5xl py-10">
-      <BlogCategoryHero recentPosts={published} now={now} />
+    <BlogFilterProvider>
+      <div className="mx-auto w-full max-w-5xl py-10">
+        <BlogCategoryHero
+          recentPosts={published}
+          categoryNavMode="hash"
+          now={now}
+        />
 
-      {published.length === 0 ? (
-        <p className="text-muted">No posts yet.</p>
-      ) : (
-        <div className="space-y-10">
-          {featured ? <FeaturedPostCard entry={featured} now={now} /> : null}
-          {rest.length > 0 ? (
-            <BlogIndexFilteredSection
-              items={gridMeta}
-              availableTags={availableTags}
-            >
-              {rest.map((entry) => (
-                <GridPostCard key={entry.slug} entry={entry} now={now} />
-              ))}
-            </BlogIndexFilteredSection>
-          ) : null}
-        </div>
-      )}
+        {published.length === 0 ? (
+          <p className="text-muted">No posts yet.</p>
+        ) : (
+          <div className="space-y-10">
+            {featured ? <FeaturedPostCard entry={featured} now={now} /> : null}
+            {rest.length > 0 ? (
+              <BlogIndexFilteredSection
+                items={gridMeta}
+                availableTags={availableTags}
+              >
+                {rest.map((entry) => (
+                  <GridPostCard key={entry.slug} entry={entry} now={now} />
+                ))}
+              </BlogIndexFilteredSection>
+            ) : null}
+          </div>
+        )}
 
-      <BlogTeaserSection teasers={teasers} />
-    </div>
+        <BlogTeaserSection teasers={teasers} />
+      </div>
+    </BlogFilterProvider>
   );
 }

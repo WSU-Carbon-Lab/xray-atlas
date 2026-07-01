@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import {
   Accordion,
-  Input,
+  InputGroup,
   Label,
   ListBox,
   Select,
@@ -64,8 +64,23 @@ const NON_NEGATIVE_NUMERIC_KEYS = new Set<NumericFieldKey>([
   "annealingRampCPerMin",
 ]);
 
-const labelClass = "text-foreground text-xs font-medium";
+const formLabelClass =
+  "text-foreground mb-1.5 block text-sm font-medium leading-none";
 const sectionHeaderClass = "text-muted text-sm font-medium leading-none";
+const selectTriggerClass =
+  "border-border bg-surface-2 min-h-[44px] w-full rounded-lg border shadow-none";
+const selectPopoverClass =
+  "z-[var(--z-popover)] w-[var(--trigger-width)] !rounded-lg p-0";
+const selectListBoxClass = "w-full p-1";
+const selectListBoxItemClass = "!rounded-md px-2.5";
+const accordionItemClass = "rounded-lg [&+&]:mt-1";
+const accordionTriggerClass =
+  "flex min-h-11 w-full items-center gap-2 rounded-lg px-4 py-3 text-start";
+const accordionBodyGridClass =
+  "grid min-w-0 gap-4 px-4 py-3 sm:grid-cols-2";
+const accordionBodySpinGridClass =
+  "grid min-w-0 gap-4 px-4 py-3 sm:grid-cols-2 lg:grid-cols-3";
+const accordionBodyStackClass = "grid min-w-0 gap-4 px-4 py-3";
 
 function parseNumericInput(
   raw: string,
@@ -114,15 +129,19 @@ function NumericAuxField({
         setDraft(next);
         onChange(fieldKey, parseNumericInput(next, fieldKey));
       }}
+      variant="secondary"
       isDisabled={disabled}
       fullWidth
+      className="min-w-0"
     >
-      <Label className={labelClass}>{label}</Label>
-      <Input
-        type="number"
-        step={step}
-        min={NON_NEGATIVE_NUMERIC_KEYS.has(fieldKey) ? 0 : undefined}
-      />
+      <Label className={formLabelClass}>{label}</Label>
+      <InputGroup variant="secondary" fullWidth>
+        <InputGroup.Input
+          type="number"
+          step={step}
+          min={NON_NEGATIVE_NUMERIC_KEYS.has(fieldKey) ? 0 : undefined}
+        />
+      </InputGroup>
     </TextField>
   );
 }
@@ -149,11 +168,15 @@ function TextAuxField({
       onChange={(next) => {
         onChange(fieldKey, next.trim().length > 0 ? next : undefined);
       }}
+      variant="secondary"
       isDisabled={disabled}
       fullWidth
+      className="min-w-0"
     >
-      <Label className={labelClass}>{label}</Label>
-      <Input placeholder={placeholder} />
+      <Label className={formLabelClass}>{label}</Label>
+      <InputGroup variant="secondary" fullWidth>
+        <InputGroup.Input placeholder={placeholder} />
+      </InputGroup>
     </TextField>
   );
 }
@@ -176,35 +199,43 @@ function MethodSelect<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label className={labelClass}>{label}</Label>
-      <Select
-        aria-label={ariaLabel}
-        selectedKey={selectedKey ?? null}
-        isDisabled={disabled}
-        onSelectionChange={(key) => {
-          if (key == null) {
-            onSelectionChange(undefined);
-            return;
-          }
-          onSelectionChange(String(key) as T);
-        }}
-      >
-        <Select.Trigger className="border-border bg-field-background min-h-9 w-full rounded-lg border shadow-none">
-          <Select.Value />
-          <Select.Indicator />
-        </Select.Trigger>
-        <Select.Popover>
-          <ListBox aria-label={ariaLabel}>
-            {items.map((item) => (
-              <ListBox.Item id={item} key={item} textValue={labels[item]}>
-                {labels[item]}
-              </ListBox.Item>
-            ))}
-          </ListBox>
-        </Select.Popover>
-      </Select>
-    </div>
+    <Select
+      aria-label={ariaLabel}
+      className="min-w-0 w-full"
+      fullWidth
+      placeholder="Select an option"
+      selectedKey={selectedKey ?? null}
+      variant="secondary"
+      isDisabled={disabled}
+      onSelectionChange={(key) => {
+        if (key == null) {
+          onSelectionChange(undefined);
+          return;
+        }
+        onSelectionChange(String(key) as T);
+      }}
+    >
+      <Label className={formLabelClass}>{label}</Label>
+      <Select.Trigger className={selectTriggerClass}>
+        <Select.Value />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover className={selectPopoverClass}>
+        <ListBox aria-label={ariaLabel} className={selectListBoxClass}>
+          {items.map((item) => (
+            <ListBox.Item
+              id={item}
+              key={item}
+              textValue={labels[item]}
+              className={selectListBoxItemClass}
+            >
+              {labels[item]}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
+    </Select>
   );
 }
 
@@ -276,13 +307,14 @@ export function SampleAuxAccordion({
       <div>
         <h2 id="sample-aux-heading" className={sectionHeaderClass}>
           Extended sample preparation
+          <span className="font-normal"> (optional)</span>
         </h2>
         <p className="text-muted mt-1 text-xs leading-snug">
           Optional deposition, solution, substrate, and annealing details.
         </p>
       </div>
 
-      <div className="border-border bg-surface grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
+      <div className="border-border bg-surface relative z-[1] grid gap-4 overflow-visible rounded-lg border p-4 sm:grid-cols-2">
         <MethodSelect<SampleProcessingMode>
           label="Processing branch"
           items={SAMPLE_PROCESSING_MODES}
@@ -358,12 +390,12 @@ export function SampleAuxAccordion({
           allowsMultipleExpanded
           variant="surface"
           aria-label="Extended sample preparation sections"
-          className="border-border w-full rounded-lg border"
+          className="w-full rounded-lg"
         >
           {showWetSpin ? (
-            <Accordion.Item id="deposition-spin">
+            <Accordion.Item id="deposition-spin" className={accordionItemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+                <Accordion.Trigger className={accordionTriggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Spin coating
                   </span>
@@ -373,7 +405,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className="grid gap-3 pt-0 sm:grid-cols-2">
+                <Accordion.Body className={accordionBodySpinGridClass}>
                   <NumericAuxField
                     fieldKey="spinSpeedRpm"
                     label="Spin speed (rpm)"
@@ -401,9 +433,9 @@ export function SampleAuxAccordion({
           ) : null}
 
           {showWetBlade ? (
-            <Accordion.Item id="deposition-blade">
+            <Accordion.Item id="deposition-blade" className={accordionItemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+                <Accordion.Trigger className={accordionTriggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Blade coating
                   </span>
@@ -413,7 +445,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className="grid gap-3 pt-0 sm:grid-cols-2">
+                <Accordion.Body className={accordionBodyGridClass}>
                   <NumericAuxField
                     fieldKey="bladeSpeedMmPerS"
                     label="Blade speed (mm/s)"
@@ -441,9 +473,9 @@ export function SampleAuxAccordion({
           ) : null}
 
           {showDryVacuum ? (
-            <Accordion.Item id="deposition-vacuum">
+            <Accordion.Item id="deposition-vacuum" className={accordionItemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+                <Accordion.Trigger className={accordionTriggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Vacuum deposition
                   </span>
@@ -453,7 +485,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className="grid gap-3 pt-0 sm:grid-cols-2">
+                <Accordion.Body className={accordionBodyGridClass}>
                   <NumericAuxField
                     fieldKey="depositionRateAngstromPerS"
                     label="Deposition rate (A/s)"
@@ -495,9 +527,9 @@ export function SampleAuxAccordion({
           ) : null}
 
           {showWetSolution ? (
-            <Accordion.Item id="solution-chemistry">
+            <Accordion.Item id="solution-chemistry" className={accordionItemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+                <Accordion.Trigger className={accordionTriggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Solution chemistry
                   </span>
@@ -507,7 +539,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className="grid gap-3 pt-0 sm:grid-cols-2">
+                <Accordion.Body className={accordionBodyGridClass}>
                   <NumericAuxField
                     fieldKey="concentrationMgPerMl"
                     label="Concentration (mg/mL)"
@@ -548,9 +580,9 @@ export function SampleAuxAccordion({
             </Accordion.Item>
           ) : null}
 
-          <Accordion.Item id="substrate-detail">
+          <Accordion.Item id="substrate-detail" className={accordionItemClass}>
             <Accordion.Heading>
-              <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+              <Accordion.Trigger className={accordionTriggerClass}>
                 <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                   Substrate detail
                 </span>
@@ -560,7 +592,7 @@ export function SampleAuxAccordion({
               </Accordion.Trigger>
             </Accordion.Heading>
             <Accordion.Panel>
-              <Accordion.Body className="grid gap-3 pt-0 sm:grid-cols-2">
+              <Accordion.Body className={accordionBodyGridClass}>
                 <TextAuxField
                   fieldKey="substrateOrientation"
                   label="Substrate orientation"
@@ -601,9 +633,9 @@ export function SampleAuxAccordion({
           </Accordion.Item>
 
           {showAtmosphere ? (
-            <Accordion.Item id="atmosphere">
+            <Accordion.Item id="atmosphere" className={accordionItemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+                <Accordion.Trigger className={accordionTriggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Atmosphere
                   </span>
@@ -613,7 +645,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className="grid gap-3 pt-0 sm:grid-cols-2">
+                <Accordion.Body className={accordionBodyGridClass}>
                   <TextAuxField
                     fieldKey="depositionAtmosphere"
                     label="Deposition atmosphere"
@@ -641,9 +673,9 @@ export function SampleAuxAccordion({
           ) : null}
 
           {showDryPowder ? (
-            <Accordion.Item id="powder-prep">
+            <Accordion.Item id="powder-prep" className={accordionItemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+                <Accordion.Trigger className={accordionTriggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Powder preparation
                   </span>
@@ -653,7 +685,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className="grid gap-3 pt-0 sm:grid-cols-2">
+                <Accordion.Body className={accordionBodyGridClass}>
                   <NumericAuxField
                     fieldKey="roughnessNm"
                     label="Particle / surface roughness (nm)"
@@ -666,9 +698,9 @@ export function SampleAuxAccordion({
             </Accordion.Item>
           ) : null}
 
-          <Accordion.Item id="annealing">
+          <Accordion.Item id="annealing" className={accordionItemClass}>
             <Accordion.Heading>
-              <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+              <Accordion.Trigger className={accordionTriggerClass}>
                 <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                   Annealing
                 </span>
@@ -678,7 +710,7 @@ export function SampleAuxAccordion({
               </Accordion.Trigger>
             </Accordion.Heading>
             <Accordion.Panel>
-              <Accordion.Body className="grid gap-3 pt-0 sm:grid-cols-2">
+              <Accordion.Body className={accordionBodyGridClass}>
                 <NumericAuxField
                   fieldKey="annealingTemperatureC"
                   label="Annealing temperature (C)"
@@ -711,9 +743,9 @@ export function SampleAuxAccordion({
             </Accordion.Panel>
           </Accordion.Item>
 
-          <Accordion.Item id="sample-aux-notes">
+          <Accordion.Item id="sample-aux-notes" className={accordionItemClass}>
             <Accordion.Heading>
-              <Accordion.Trigger className="flex w-full items-center gap-2 text-start">
+              <Accordion.Trigger className={accordionTriggerClass}>
                 <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                   Notes
                 </span>
@@ -723,7 +755,7 @@ export function SampleAuxAccordion({
               </Accordion.Trigger>
             </Accordion.Heading>
             <Accordion.Panel>
-              <Accordion.Body className="grid gap-3 pt-0">
+              <Accordion.Body className={accordionBodyStackClass}>
                 <TextAuxField
                   fieldKey="preparationDescription"
                   label="Preparation description"

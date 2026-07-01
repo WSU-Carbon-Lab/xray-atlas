@@ -3,8 +3,17 @@ Overlay persisted dispersive ``delta`` from an Atlas NEXAFS CSV export (TS / DB 
 ``delta`` recomputed by kkcalc2 from the same CSV ``beta`` column using stoichiometry and mass
 density (Ben Watts pipeline: ``refractive_to_ASF`` → ``KK_PP`` → ``ASF_to_refractive``).
 
-Residual row: ``delta_kkcalc − delta_CSV`` on identical ``energy_eV`` samples (no discrete KK
-recompute on the TS side — the CSV ``delta`` is source of truth for what was stored).
+Top panel: measured ``beta`` (shared CSV input) on the right axis; Atlas vs kkcalc2 ``delta`` on
+the left axis (no TS discrete KK recompute — the CSV ``delta`` is source of truth for what was
+stored).
+
+Bottom panel: percent error of Atlas ``delta`` relative to kkcalc2 (ground truth)::
+
+    pct_err = 100 * (delta_atlas - delta_kkcalc2) / delta_kkcalc2
+
+Positive ``pct_err`` means Atlas ``delta`` is above the kkcalc2 reference. Points with
+``|delta_kkcalc2| < DELTA_REF_MIN`` are omitted (not plotted) to avoid blow-up near zero
+denominators.
 """
 
 from __future__ import annotations
@@ -20,6 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+DELTA_REF_MIN = 1e-6
 _VALIDATION_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _VALIDATION_DIR.parent.parent
 _DEFAULT_CSV = (
@@ -97,21 +107,57 @@ def run_kkcalc_delta_optical_beta(
     return np.asarray(data["delta"], dtype=np.float64)
 
 
+def percent_error_from_kkcalc2(
+    delta_atlas: np.ndarray,
+    delta_kkcalc2: np.ndarray,
+    *,
+    ref_min: float = DELTA_REF_MIN,
+) -> np.ndarray:
+    """
+    Compute Atlas percent error relative to kkcalc2 ``delta`` on shared energy samples.
+
+    Parameters
+    ----------
+    delta_atlas
+        Persisted Atlas / browser ``delta`` (CSV column).
+    delta_kkcalc2
+        kkcalc2 reference ``delta`` recomputed from optical ``beta``.
+    ref_min
+        Minimum ``|delta_kkcalc2|`` for a finite percent error; smaller references yield NaN.
+
+    Returns
+    -------
+    numpy.ndarray
+        ``100 * (delta_atlas - delta_kkcalc2) / delta_kkcalc2`` where the reference magnitude
+        exceeds ``ref_min``; otherwise NaN.
+    """
+    pct = np.full(delta_atlas.shape, np.nan, dtype=np.float64)
+    mask = np.isfinite(delta_atlas) & np.isfinite(delta_kkcalc2) & (
+        np.abs(delta_kkcalc2) >= ref_min
+    )
+    pct[mask] = 100.0 * (delta_atlas[mask] - delta_kkcalc2[mask]) / delta_kkcalc2[mask]
+    return pct
+
+
 def plot_comparison(
     csv_path: Path,
     out_path: Path,
     formula: str,
     density: float,
-) -> None:
-    energy_ev, _beta, delta_csv = load_csv_energy_beta_delta(csv_path)
+) -> dict[str, float]:
+    energy_ev, beta, delta_csv = load_csv_energy_beta_delta(csv_path)
     delta_kkcalc = run_kkcalc_delta_optical_beta(csv_path, formula, density)
     if delta_kkcalc.shape != energy_ev.shape:
         raise RuntimeError(
             f"length mismatch: energy {energy_ev.size}, kkcalc delta {delta_kkcalc.size}",
         )
 
-    residual = delta_kkcalc - delta_csv
-    residual_alt = delta_kkcalc + delta_csv
+    pct_err = percent_error_from_kkcalc2(delta_csv, delta_kkcalc)
+    valid = np.isfinite(pct_err)
+    stats = {
+        "max_abs_pct_err": float(np.nanmax(np.abs(pct_err))) if np.any(valid) else float("nan"),
+        "pct_points_plotted": 100.0 * float(np.count_nonzero(valid)) / float(energy_ev.size),
+    }
 
     fig, axes = plt.subplots(
         2,
@@ -121,7 +167,7 @@ def plot_comparison(
         layout="constrained",
     )
     ax0, ax1 = axes[0], axes[1]
-    axkk = ax0.twinx()
+    ax_beta = ax0.twinx()
 
     ax0.plot(
         energy_ev,
@@ -129,9 +175,9 @@ def plot_comparison(
         color="C0",
         lw=1.2,
         ls="--",
-        label=r"Atlas $\delta$ (CSV / TS persisted)",
+        label=r"Atlas $\delta$ (browser / CSV)",
     )
-    axkk.plot(
+    ax0.plot(
         energy_ev,
         delta_kkcalc,
         color="0.15",
@@ -141,29 +187,42 @@ def plot_comparison(
             rf"$\rho$={density:g} g/cm$^3$)"
         ),
     )
-    ax0.plot(
-        energy_ev,
-        -delta_csv,
-        color="C1",
-        lw=1.2,
-        ls="--",
-        label=r"Atlas $-\delta$ (CSV / TS persisted)",
-    )
     ax0.set_ylabel(r"$\delta$")
-    ax0.legend(frameon=False, fontsize=8)
-    ax0.set_title(csv_path.name)
+    ax_beta.plot(
+        energy_ev,
+        beta,
+        color="C1",
+        lw=1.0,
+        alpha=0.85,
+        label=r"$\beta$ (CSV input)",
+    )
+    ax_beta.set_ylabel(r"$\beta$")
+    lines0, labels0 = ax0.get_legend_handles_labels()
+    lines1, labels1 = ax_beta.get_legend_handles_labels()
+    ax0.legend(lines0 + lines1, labels0 + labels1, frameon=False, fontsize=8, loc="upper left")
+    ax0.set_title("PC61BM C K-edge, θ = 55°")
 
-    ax1.plot(energy_ev, residual, color="C3", lw=1.0)
-    ax1.plot(energy_ev, residual_alt, color="C4", lw=1.0)
+    ax1.plot(energy_ev[valid], pct_err[valid], color="C3", lw=1.0)
     ax1.axhline(0.0, color="0.5", lw=0.6, ls=":")
     ax1.set_xlabel("Energy (eV)")
-    ax1.set_ylabel(r"$\delta_{\mathrm{kkcalc}} - \delta_{\mathrm{CSV}}$")
+    ax1.set_ylabel("Percent error from kkcalc2 (%)")
 
     fig.suptitle(
-        "KK comparison: persisted TS delta vs kkcalc2 delta recomputed from optical beta",
+        "KK comparison: browser delta vs kkcalc2 delta recomputed from optical beta",
         fontsize=10,
     )
     fig.savefig(out_path, dpi=200)
+    svg_path = out_path.with_suffix(".svg")
+    fig.savefig(svg_path)
+    plt.close(fig)
+    print(str(out_path))
+    print(str(svg_path))
+    print(
+        f"max |percent error| = {stats['max_abs_pct_err']:.4g}% "
+        f"({stats['pct_points_plotted']:.1f}% of points plotted, "
+        f"|delta_kkcalc2| >= {DELTA_REF_MIN:g})",
+    )
+    return stats
 
 
 def main(argv: list[str] | None = None) -> int:

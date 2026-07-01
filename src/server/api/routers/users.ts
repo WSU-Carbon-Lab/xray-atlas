@@ -6,6 +6,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { applyPasskeySessionStepUpForRequest } from "~/server/auth/apply-passkey-session-step-up";
 import { evaluateSessionWriteAssurance } from "~/server/auth/mfa-access";
 import { isAal3Eligible } from "~/server/auth/aal";
 import {
@@ -806,6 +807,13 @@ export const usersRouter = createTRPCRouter({
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
     return evaluateSessionWriteAssurance(ctx.db, ctx.userId, ctx.req);
+  }),
+
+  confirmPasskeySessionStepUp: protectedProcedure.mutation(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    return applyPasskeySessionStepUpForRequest(ctx.db, ctx.userId, ctx.req);
   }),
 
   getPasskeys: protectedProcedure.query(async ({ ctx }) => {

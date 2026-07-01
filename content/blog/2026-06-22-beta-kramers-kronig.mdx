@@ -1,12 +1,12 @@
 ---
 title: Kramers-Kronig in the browser
 description: X-ray Atlas computes delta from beta natively in the browser, following the kkcalc method, validated against kkcalc2 on real catalog data.
-date: 2026-06-22
+date: 2026-06-30
 authors: [Harlan Heilman]
 tags: [beta]
 category: technical
-draft: true
-teaser: true
+# draft: true
+# teaser: true
 series:
   name: Public beta
   part: 6
@@ -22,8 +22,8 @@ needs the dispersive part $\delta$, and the two are linked by causality
 through the Kramers-Kronig relations,
 
 $$
-\delta(E) = \frac{2}{\pi}\,\mathcal{P}\!\!\int_0^{\infty}
-\frac{E'\,\beta(E')}{E'^{2}-E^{2}}\,dE'.
+  \delta(E) = \frac{2}{\pi}\mathcal{P}\!\!\int_0^{\infty}
+  \frac{E'\,\beta(E')}{E'^{2}-E^{2}}\,dE'.
 $$
 
 Computing this used to be an offline chore, exporting your data, running
@@ -37,6 +37,8 @@ computed from the molecule's chemical formula before transforming, and the
 result is mapped back onto your measured energy grid with modified Akima
 interpolation, which suppresses the overshoot cubic splines produce near sharp
 resonances.
+
+![Example spectrum of C60 choosing the index of refraction channels](./blog-assets/beta-kramers-kronig/kk-calculation.png)
 
 The calculation runs at upload time when you opt in, or on demand from a
 dataset panel for authorized users. The computed $\delta$ persists on the
@@ -54,7 +56,7 @@ panel. The two agree through all of the resonant structure, with residuals of
 a few parts in $10^{4}$ concentrated at the sharp $\pi^{*}$ edge where the
 extrapolation treatments differ.
 
-![In-browser Kramers-Kronig delta versus the kkcalc2 reference for PC61BM at the carbon K-edge, with the residual shown in the lower panel.](./blog-assets/kk-browser-vs-kkcalc2.svg)
+![In-browser Kramers-Kronig delta versus the kkcalc2 reference for PC61BM at the carbon K-edge, with the residual shown in the lower panel.](./blog-assets/beta-kramers-kronig/kk-browser-vs-kkcalc2.svg)
 
 The validation suite runs in CI against pinned reference outputs, including
 checks of the extended scattering-factor pipeline, the interpolation

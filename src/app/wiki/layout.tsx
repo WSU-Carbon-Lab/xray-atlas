@@ -12,7 +12,6 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
-import "katex/dist/katex.min.css";
 import { WikiDocShell } from "~/components/about/wiki-doc-shell";
 
 export default function AboutWikiLayout({

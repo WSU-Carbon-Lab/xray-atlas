@@ -1,13 +1,8 @@
-import { ArrowRightIcon } from "@heroicons/react/24/outline";
-import { cn } from "@heroui/styles";
 import Link from "next/link";
 import type { ReactElement } from "react";
+import { BlogCategoryNav } from "~/components/blog/blog-category-nav";
 import { CtaLink } from "~/components/content/embeds/cta-link";
-import {
-  BLOG_CATEGORIES,
-  blogCategoryHref,
-  type BlogCategorySlug,
-} from "~/lib/content/blog-categories";
+import { type BlogCategorySlug } from "~/lib/content/blog-categories";
 import type { BlogEntry } from "~/lib/content/blog-loader";
 import { formatBlogDate } from "~/lib/content/blog-date-format";
 
@@ -17,15 +12,19 @@ const BLOG_STANDING_DESCRIPTION =
 /**
  * Claude-style blog masthead with category navigation and a recent-post strip.
  *
- * Shared by `/blog` and `/blog/category/[category]`. When `activeCategory` is set,
- * that category link uses foreground styling; otherwise all category links are muted.
+ * Shared by `/blog` and `/blog/category/[category]`. On the blog index, pass
+ * `categoryNavMode="hash"` so category picks filter via `location.hash` without
+ * a full navigation. On category pages, `activeCategory` highlights the current
+ * category and shows an **All posts** link back to `/blog`.
  */
 export function BlogCategoryHero({
   activeCategory = null,
+  categoryNavMode = "route",
   recentPosts,
   now,
 }: {
   activeCategory?: BlogCategorySlug | null;
+  categoryNavMode?: "hash" | "route";
   recentPosts: BlogEntry[];
   now?: Date;
 }): ReactElement {
@@ -49,37 +48,7 @@ export function BlogCategoryHero({
           </div>
         </div>
 
-        <nav
-          aria-label="Blog categories"
-          className="space-y-0.5 md:space-y-1 md:pt-1"
-        >
-          {BLOG_CATEGORIES.map((category) => {
-            const isActive = activeCategory === category.slug;
-            return (
-              <Link
-                key={category.slug}
-                href={blogCategoryHref(category.slug)}
-                className={cn(
-                  "font-display group flex items-center justify-between gap-3 py-1 text-3xl leading-none font-normal tracking-tight no-underline transition-colors sm:text-4xl md:text-[2rem] lg:text-5xl xl:text-6xl",
-                  isActive
-                    ? "text-foreground"
-                    : "text-muted hover:text-foreground",
-                )}
-              >
-                <span>{category.label}</span>
-                <ArrowRightIcon
-                  className={cn(
-                    "size-6 shrink-0 transition-transform sm:size-7 md:size-7 lg:size-8 xl:size-10",
-                    isActive
-                      ? "translate-x-0 opacity-100"
-                      : "opacity-0 group-hover:translate-x-1 group-hover:opacity-60",
-                  )}
-                  aria-hidden
-                />
-              </Link>
-            );
-          })}
-        </nav>
+        <BlogCategoryNav mode={categoryNavMode} activeCategory={activeCategory} />
       </div>
 
       {stripPosts.length >= 2 ? (
@@ -88,7 +57,7 @@ export function BlogCategoryHero({
             <Link
               key={entry.slug}
               href={`/blog/${entry.slug}`}
-              className="hover:bg-surface/60 block px-0 py-4 no-underline transition-colors sm:px-6 sm:py-5 first:sm:pl-0"
+              className="hover:bg-surface/60 block px-4 py-4 no-underline transition-colors sm:px-6 sm:py-5"
             >
               <time
                 dateTime={entry.frontmatter.date}

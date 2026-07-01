@@ -9,7 +9,12 @@
  */
 import henkeElementF2Bundle from "./kkcalc-henke-element-f2.bundle.json" with { type: "json" };
 import {
+  imaginaryAsfToOpticalBeta,
+  numberDensityFromMassDensity,
+} from "./kkcalc-conversions";
+import {
   elementSymbolFromAtomicNumber,
+  formulaMassFromComposition,
   type StoichiometryTerm,
 } from "./kkcalc-stoichiometry";
 
@@ -166,4 +171,33 @@ export function henkeCompoundGridInRange(
   }
   const f2 = energiesEv.map((e) => henkeCompoundF2AtEv(composition, e));
   return { energiesEv, f2 };
+}
+
+/**
+ * Builds stoichiometry-weighted bare-atom optical `beta` on `targetEnergyEv` from the bundled Henke
+ * `f_2` tables (same database as KK Henke tail extension), evaluating compound `f_2` at each
+ * destination energy then applying {@link imaginaryAsfToOpticalBeta} at `massDensityGPerCm3`.
+ *
+ * @param composition Consolidated stoichiometry terms.
+ * @param targetEnergyEv Strictly ascending destination energies in eV (length >= 1).
+ * @param massDensityGPerCm3 Mass density in g/cm³ for number-density scaling.
+ * @returns One `beta` sample per `targetEnergyEv` entry.
+ */
+export function bareAtomBetaFromHenkeCompoundF2(
+  composition: readonly StoichiometryTerm[],
+  targetEnergyEv: readonly number[],
+  massDensityGPerCm3: number,
+): number[] {
+  if (targetEnergyEv.length === 0) {
+    return [];
+  }
+  if (!(massDensityGPerCm3 > 0)) {
+    throw new RangeError("massDensityGPerCm3 must be finite and positive");
+  }
+  const f2OnGrid = targetEnergyEv.map((e) => henkeCompoundF2AtEv(composition, e));
+  const nd = numberDensityFromMassDensity(
+    massDensityGPerCm3,
+    formulaMassFromComposition(composition),
+  );
+  return Array.from(imaginaryAsfToOpticalBeta(targetEnergyEv, f2OnGrid, nd));
 }
