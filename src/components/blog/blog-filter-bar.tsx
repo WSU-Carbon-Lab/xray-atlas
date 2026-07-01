@@ -2,10 +2,7 @@
 
 import { cn } from "@heroui/styles";
 import { useCallback, useEffect, useState, type ReactElement } from "react";
-import {
-  BLOG_CATEGORIES,
-  type BlogCategorySlug,
-} from "~/lib/content/blog-categories";
+import { useBlogFilter } from "~/components/blog/blog-filter-context";
 import {
   buildBlogFilterHash,
   DEFAULT_BLOG_FILTER_STATE,
@@ -13,15 +10,6 @@ import {
   type BlogFilterState,
   type BlogSortOrder,
 } from "~/components/blog/blog-filter-hash";
-
-function toggleCategory(
-  current: BlogCategorySlug[],
-  category: BlogCategorySlug,
-): BlogCategorySlug[] {
-  return current.includes(category)
-    ? current.filter((value) => value !== category)
-    : [...current, category];
-}
 
 function toggleTag(current: string[], tag: string): string[] {
   return current.includes(tag)
@@ -56,38 +44,17 @@ function FilterChip({
 }
 
 /**
- * Blog index filter bar with category pills, tag chips, and sort controls.
+ * Blog index filter bar with tag chips and sort controls.
  *
- * Syncs filter state to the location hash via `history.replaceState` without
- * `useSearchParams`, keeping `/blog` statically generated.
+ * Reads and writes filter state from {@link BlogFilterProvider} and syncs to
+ * `location.hash` via `replaceState`, keeping `/blog` statically generated.
  */
 export function BlogFilterBar({
   availableTags,
-  onFilterChange,
 }: {
   availableTags: string[];
-  onFilterChange: (state: BlogFilterState) => void;
 }): ReactElement {
-  const [state, setState] = useState<BlogFilterState>(
-    DEFAULT_BLOG_FILTER_STATE,
-  );
-
-  const applyState = useCallback(
-    (next: BlogFilterState) => {
-      setState(next);
-      onFilterChange(next);
-      const hash = buildBlogFilterHash(next);
-      const path = `${window.location.pathname}${window.location.search}${hash}`;
-      window.history.replaceState(null, "", path);
-    },
-    [onFilterChange],
-  );
-
-  useEffect(() => {
-    const initial = parseBlogFilterHash(window.location.hash);
-    setState(initial);
-    onFilterChange(initial);
-  }, [onFilterChange]);
+  const { state, applyState } = useBlogFilter();
 
   const setSort = (sort: BlogSortOrder): void => {
     applyState({ ...state, sort });
@@ -117,27 +84,6 @@ export function BlogFilterBar({
             >
               {sort}
             </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-muted text-xs font-medium tracking-wide uppercase">
-          Categories
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {BLOG_CATEGORIES.map((category) => (
-            <FilterChip
-              key={category.slug}
-              label={category.label}
-              selected={state.categories.includes(category.slug)}
-              onPress={() =>
-                applyState({
-                  ...state,
-                  categories: toggleCategory(state.categories, category.slug),
-                })
-              }
-            />
           ))}
         </div>
       </div>

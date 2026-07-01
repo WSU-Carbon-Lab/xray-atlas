@@ -42,7 +42,7 @@ function categoryKicker(entry: BlogEntry): string {
   );
 }
 
-/** Large featured card for the newest post on blog index and category pages. */
+/** Large featured card for a pinned post on blog index and category pages. */
 export function FeaturedPostCard({
   entry,
   now,
@@ -97,12 +97,15 @@ export function GridPostCard({
   now?: Date;
 }): ReactElement {
   return (
-    <article className="border-border bg-surface overflow-hidden rounded-xl border">
-      <Link href={`/blog/${entry.slug}`} className="block no-underline">
-        <div className="aspect-[16/10] overflow-hidden">
+    <article className="border-border bg-surface flex h-full flex-col overflow-hidden rounded-xl border">
+      <Link
+        href={`/blog/${entry.slug}`}
+        className="flex h-full flex-col no-underline"
+      >
+        <div className="aspect-[16/10] shrink-0 overflow-hidden">
           <BlogPostImage entry={entry} className="h-full w-full" />
         </div>
-        <div className="space-y-3 p-5">
+        <div className="flex flex-1 flex-col space-y-3 p-5">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
             <span className="text-accent font-semibold tracking-[0.14em] uppercase">
               {categoryKicker(entry)}
@@ -114,7 +117,7 @@ export function GridPostCard({
           <h2 className="text-foreground text-lg font-semibold tracking-tight">
             {entry.frontmatter.title}
           </h2>
-          <p className="text-muted line-clamp-3 text-sm leading-6">
+          <p className="text-muted line-clamp-3 flex-1 text-sm leading-6">
             {entry.frontmatter.description}
           </p>
         </div>
