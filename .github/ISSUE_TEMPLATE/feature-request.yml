@@ -1,0 +1,136 @@
+name: Feature request
+description: Suggest a new capability or improvement for X-ray Atlas.
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We welcome ideas that help researchers share, explore, and process NEXAFS and related X-ray data.
+
+        **Discuss with the community first.** Feature requests should follow a prior [GitHub Discussion](https://github.com/WSU-Carbon-Lab/xray-atlas/discussions), ideally in [**Ideas**](https://github.com/WSU-Carbon-Lab/xray-atlas/discussions/new?category=ideas), so maintainers and users can shape scope before it becomes a tracked issue.
+
+        **Good requests usually include**
+        - A link to the discussion where the idea was raised and refined
+        - The **user** (contributor, browser, beamline scientist, maintainer)
+        - The **workflow** you are trying to complete
+        - Why existing Atlas features do not already solve it
+
+        For **dashboard instrument connectors** or **beamline scientist verification**, use the dedicated templates instead:
+        - [Claim a beamline](https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=beamline-claim.yml)
+        - [Request dashboard instrument connector](https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=instrument-connector-request.yml)
+  - type: input
+    id: discussion_link
+    attributes:
+      label: Community discussion link
+      description: |
+        URL to the GitHub Discussion where this idea was discussed ahead of time.
+        If you have not started one yet, open an [Ideas discussion](https://github.com/WSU-Carbon-Lab/xray-atlas/discussions/new?category=ideas) first and return here after there is feedback to summarize.
+      placeholder: https://github.com/WSU-Carbon-Lab/xray-atlas/discussions/...
+    validations:
+      required: true
+  - type: textarea
+    id: community_feedback
+    attributes:
+      label: Community discussion summary
+      description: |
+        Briefly summarize who participated, what feedback you received, and any consensus or open questions from the discussion.
+        Link specific comments when helpful.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Atlas would this affect?
+      options:
+        - Browse and dataset exploration
+        - Contribute (NEXAFS upload / processing)
+        - Molecules and chemical registry
+        - Dashboard (plot viewer / STXM)
+        - Facilities and instruments
+        - Attribution, teams, or DOI export
+        - Account, auth, or compliance
+        - Wiki, blog, or onboarding docs
+        - API, exports, or integrations
+        - Performance, accessibility, or UX polish
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: What pain point does this address? Who benefits?
+      placeholder: Beamline users comparing many polarizations need...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the feature at a high level. UI sketches, mockups, or example URLs are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered (optional)
+      description: Other ways to solve this today (spreadsheets, external tools, manual workarounds).
+    validations:
+      required: false
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Primary audience
+      options:
+        - Data contributors (upload / edit)
+        - Researchers browsing public data
+        - Beamline scientists / instrument stewards
+        - Atlas maintainers / administrators
+        - Multiple audiences
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: How important is this to you?
+      options:
+        - Critical for my beamtime or publication workflow
+        - Would save significant time
+        - Nice to have
+        - Exploratory idea
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria (optional)
+      description: |
+        Bullet list of outcomes that would make this "done" from your perspective.
+        For science features, note reproducibility or units expectations when relevant.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context (optional)
+      description: Links to papers, beamline docs, related issues, or screenshots.
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Checklist
+      options:
+        - label: I am willing to help test a preview deployment or answer follow-up questions.
+          required: false
+        - label: I checked open issues and this is not already requested.
+          required: true
+        - label: This request reflects a prior GitHub Discussion with community input (linked above).
+          required: true

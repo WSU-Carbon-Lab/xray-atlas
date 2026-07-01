@@ -28,10 +28,7 @@ export { parseNexafsJson } from "./jsonParser";
 export type { NEXAFSJsonData, NexafsJsonDocumentMetadata } from "./jsonParser";
 export { buildNexafsUploadAutofill } from "./nexafsUploadAutofill";
 export { detectPeaks, convertToPeakData } from "./peakDetection";
-export type {
-  PeakDetectionOptions,
-  DetectedPeak,
-} from "./peakDetection";
+export type { PeakDetectionOptions, DetectedPeak } from "./peakDetection";
 export { calculateDifferenceSpectra } from "./differenceSpectra";
 export type { DifferenceSpectrum } from "./differenceSpectra";
 export {
@@ -69,6 +66,7 @@ export {
   buildSpectrumPointsWithDerivedForUpload,
   uploadDatasetHasFiniteBetaForKkOnEveryRow,
 } from "./uploadDerivedSpectrum";
+export { resolveHenkeMergeDomainForUploadDataset } from "./resolveHenkeMergeDomainForUploadDataset";
 export { detectAuxiliarySpectrumColumnNames } from "./auxiliarySpectrumColumns";
 export {
   filterSpectrumPointsByGeometry,
