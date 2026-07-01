@@ -31,6 +31,74 @@ const KK_HENKE_TAIL_DENSE_SEGMENTS = 420;
 import { interpolateMakimaSorted } from "./makima-interpolate";
 import type { StoichiometryTerm } from "./kkcalc-stoichiometry";
 
+function linearExtrapolateSorted(
+  x: readonly number[],
+  y: readonly number[],
+  xq: number,
+): number {
+  const n = x.length;
+  if (n < 2) {
+    throw new RangeError("linearExtrapolateSorted requires at least two samples");
+  }
+  if (xq <= x[0]!) {
+    const x0 = x[0]!;
+    const x1 = x[1]!;
+    const slope = (y[1]! - y[0]!) / (x1 - x0);
+    return y[0]! + slope * (xq - x0);
+  }
+  if (xq >= x[n - 1]!) {
+    const x0 = x[n - 2]!;
+    const x1 = x[n - 1]!;
+    const slope = (y[n - 1]! - y[n - 2]!) / (x1 - x0);
+    return y[n - 1]! + slope * (xq - x1);
+  }
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (xq < x[mid]!) hi = mid;
+    else lo = mid;
+  }
+  const x0 = x[lo]!;
+  const x1 = x[hi]!;
+  const t = (xq - x0) / (x1 - x0);
+  return y[lo]! * (1 - t) + y[hi]! * t;
+}
+
+/**
+ * Evaluates measured imaginary ASF at merge-anchor energies: makima inside the experiment span,
+ * linear extrapolation outside (kkcalc2 merge anchors may lie beyond the first/last knot).
+ */
+function measuredImaginaryAsfAtMergeEnergies(
+  mergeEnergiesEv: readonly number[],
+  measuredEnergyEv: readonly number[],
+  measuredImaginaryAsf: readonly number[],
+): number[] {
+  const eMin = measuredEnergyEv[0]!;
+  const eMax = measuredEnergyEv[measuredEnergyEv.length - 1]!;
+  const inSpan = mergeEnergiesEv.filter((e) => e >= eMin && e <= eMax);
+  const makimaInSpan =
+    inSpan.length > 0
+      ? interpolateMakimaSorted(inSpan, measuredEnergyEv, measuredImaginaryAsf)
+      : [];
+  let inIdx = 0;
+  return mergeEnergiesEv.map((e) => {
+    if (e >= eMin && e <= eMax) {
+      const v = makimaInSpan[inIdx]!;
+      inIdx += 1;
+      if (!Number.isFinite(v)) {
+        return linearExtrapolateSorted(
+          measuredEnergyEv,
+          measuredImaginaryAsf,
+          e,
+        );
+      }
+      return v;
+    }
+    return linearExtrapolateSorted(measuredEnergyEv, measuredImaginaryAsf, e);
+  });
+}
+
 export interface BareAtomExtensionOptions {
   /**
    * When `false`, skip Henke tail merge and use measurement-only knots (legacy CI golden path).
@@ -243,7 +311,17 @@ export function extendImaginaryAsfWithHenkeTails(
     throw new RangeError("mergeDomain must be strictly increasing after Henke span clamp");
   }
 
-  let dataMergeRange = interpolateMakimaSorted(
+  const measLoBound = measuredEnergyEv[0]!;
+  const measHiBound = measuredEnergyEv[n - 1]!;
+  mergeDomain = [
+    Math.max(mergeDomain[0], measLoBound),
+    Math.min(mergeDomain[1], measHiBound),
+  ] as const;
+  if (!(mergeDomain[1] > mergeDomain[0])) {
+    mergeDomain = [measLoBound, measHiBound] as const;
+  }
+
+  let dataMergeRange = measuredImaginaryAsfAtMergeEnergies(
     [mergeDomain[0], mergeDomain[1]],
     measuredEnergyEv,
     measuredImaginaryAsf,
@@ -263,7 +341,7 @@ export function extendImaginaryAsfWithHenkeTails(
         "Henke merge fallback span is degenerate: experiment energies lie outside Henke tabulated intersection",
       );
     }
-    dataMergeRange = interpolateMakimaSorted(
+    dataMergeRange = measuredImaginaryAsfAtMergeEnergies(
       [mergeDomain[0], mergeDomain[1]],
       measuredEnergyEv,
       measuredImaginaryAsf,

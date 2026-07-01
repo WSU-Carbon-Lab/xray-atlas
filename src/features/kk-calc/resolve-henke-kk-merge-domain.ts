@@ -5,24 +5,33 @@ import type { StoichiometryTerm } from "./kkcalc-stoichiometry";
  * Maps contributor pre-edge and post-edge normalization windows to the inclusive Henke merge
  * interval used by {@link extendImaginaryAsfWithHenkeTails}: low bound is the lower end of the pre
  * window (clamped to tabulated Henke coverage) and high bound is the upper end of the post window
- * (same clamp). When unset or degenerate after clamping, callers should omit `mergeDomain` and use
+ * (same clamp). When `measuredEnergyEv` is supplied, the result is further clamped to the
+ * experiment energy span so merge anchors never lie outside the measurement grid (avoids makima
+ * `NaN` scaling). When unset or degenerate after clamping, callers should omit `mergeDomain` and use
  * the default full-measurement span inside the extension helper.
  *
  * @param args.pre Finite pre-edge `[eV, eV]` pair (order-independent).
  * @param args.post Finite post-edge `[eV, eV]` pair (order-independent).
  * @param args.composition Parsed stoichiometry for Henke tabulated intersection limits.
+ * @param args.measuredEnergyEv Optional strictly ascending measurement energies for span clamping.
  * @returns A strictly increasing `[lo, hi]` inside Henke coverage, or `undefined` if inputs are invalid.
  */
 export function resolveHenkeKkMergeDomainFromPrePostWindows(args: {
   readonly pre: readonly [number, number];
   readonly post: readonly [number, number];
   readonly composition: readonly StoichiometryTerm[];
+  readonly measuredEnergyEv?: readonly number[];
 }): readonly [number, number] | undefined {
   const span = henkeCompositionTabulatedSpan(args.composition);
   const preLo = Math.min(args.pre[0], args.pre[1]);
   const postHi = Math.max(args.post[0], args.post[1]);
-  const lo = Math.max(preLo, span.minEv);
-  const hi = Math.min(postHi, span.maxEv);
+  let lo = Math.max(preLo, span.minEv);
+  let hi = Math.min(postHi, span.maxEv);
+  const measured = args.measuredEnergyEv;
+  if (measured != null && measured.length >= 2) {
+    lo = Math.max(lo, measured[0]!);
+    hi = Math.min(hi, measured[measured.length - 1]!);
+  }
   if (!(hi > lo)) {
     return undefined;
   }

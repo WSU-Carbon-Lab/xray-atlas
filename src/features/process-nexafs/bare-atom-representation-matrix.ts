@@ -5,12 +5,12 @@ import {
   refractiveBetaToImaginaryAsf,
 } from "~/features/kk-calc/kkcalc-conversions";
 import { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
+import { bareAtomBetaFromHenkeCompoundF2 } from "~/features/kk-calc/kkcalc-henke-f2";
 import {
   formulaMassFromComposition,
   parseChemicalFormula,
 } from "~/features/kk-calc/kkcalc-stoichiometry";
 import { bareAtomReferenceStrokeColor } from "~/features/process-nexafs/bare-atom-reference-style";
-import { computeBetaIndex } from "~/features/process-nexafs/utils/betaIndex";
 import {
   calculateBareAtomAbsorption,
   calculateBareAtomDelta,
@@ -54,21 +54,19 @@ function resolveNumberDensity(formula: string): number | null {
   }
 }
 
-function betaFromMu(
-  mu: readonly BareAtomPoint[],
+function betaPointsFromHenkeBundle(
+  formula: string,
+  targetEnergyEv: readonly number[],
 ): readonly BareAtomRepresentationPoint[] {
-  const muLike = mu.map((p) => ({
-    energy: p.energy,
-    absorption: p.absorption,
-  }));
-  const betaLike = computeBetaIndex(
-    muLike,
-    muLike.map((p) => p.energy),
-    [...mu],
+  const composition = parseChemicalFormula(formula.trim());
+  const betaValues = bareAtomBetaFromHenkeCompoundF2(
+    composition,
+    targetEnergyEv,
+    DEFAULT_KK_MASS_DENSITY_G_CM3,
   );
-  return betaLike.map((p) => ({
-    energy: p.energy,
-    absorption: p.absorption,
+  return targetEnergyEv.map((energy, i) => ({
+    energy,
+    absorption: betaValues[i]!,
   }));
 }
 
@@ -178,7 +176,7 @@ export async function buildBareAtomRepresentationMatrix(
     energy: p.energy,
     absorption: p.absorption,
   }));
-  const betaPoints = betaFromMu(bareMu);
+  const betaPoints = betaPointsFromHenkeBundle(cleaned, targetEnergyEv);
   const { f2, f1 } = deriveF1F2(cleaned, betaPoints, deltaPoints);
   const { imEpsilon, reEpsilon, imChi, reChi } = deriveEpsilonChi(
     betaPoints,
