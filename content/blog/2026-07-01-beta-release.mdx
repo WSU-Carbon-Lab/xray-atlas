@@ -14,9 +14,9 @@ series:
 
 # Public Beta Release
 
-We are excited to announce the public beta for X-ray Atlas. This is a major
-milestone for the project and we are excited to share it with the community in
-a state that is ready for public use.
+We are announcing the public beta for X-ray Atlas. This is a major milestone
+for the project, the first time we consider the platform ready for the
+community to use in earnest.
 
 A year ago, X-ray Atlas was a mostly static website with a few interactive
 plots and a few datasets. There was no way to upload or contribute data to the
@@ -35,17 +35,16 @@ platform. To facilitate this we made the decision to move to a platform with
 proper backend relational database support, better user authentication, and a
 more flexible data model.
 
-![Diagram of the new architecture, showing the new platform with a backend relational
-database, better user authentication, and a more flexible data model.](./blog-assets/new-architecture.png)
+![New backend hosted on Supabase, with Vercel for deployment.](./blog-assets/beta-release/new-architecture.png)
 
 We decided to move to Supabase, a database-as-a-service provider with a
 gracious support team and a free tier that is more than enough for the
 platform at this stage of development. For deployment and hosting, we are
 using Vercel, an industry leading platform for web development.
 
-With this new infrastructure in place, we are able to safely and securely host
-X-ray Atlas as a fully functional platform with all the user interactions and
-bells and whistles the community deserves.
+With this new infrastructure in place, we can host X-ray Atlas as a fully
+functional platform with real user accounts, contribution flows, and the
+interactive tooling the rest of this series covers.
 
 ## What's in the beta
 
@@ -62,8 +61,9 @@ registered, searched, and drawn, and why polymers and monomers share a record.
 [**Facilities and instruments**](/blog/beta-facilities). Linking beamlines to
 the platform, claiming instruments, and where dashboard connectors are headed.
 
-[**Uploading NEXAFS data**](/blog/beta-uploading-data). The principles behind
-the upload flow, the CSV format, auxiliary files, and in-app processing.
+[**Uploading NEXAFS data**](/blog/beta-uploading-data). A step-by-step
+walkthrough of the upload flow, from a raw CSV to a normalized, attributed,
+submitted dataset.
 
 [**Kramers-Kronig in the browser**](/blog/beta-kramers-kronig). Computing
 $\delta$ from $\beta$ natively in the app, and how we validated it against
@@ -72,3 +72,6 @@ kkcalc2.
 If you want to skip the reading, [sign in](/sign-in) with your ORCID account
 and [start contributing](/contribute). If something fights you, that is a bug
 we want to hear about.
+
+Additionally, please subscribe to our [RSS feed](/rss.xml) to get notified
+when new posts are published.
