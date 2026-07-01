@@ -33,6 +33,11 @@ const config = {
         permanent: true,
       },
       {
+        source: "/roadmap",
+        destination: "/about/roadmap",
+        permanent: true,
+      },
+      {
         source: "/wiki/home",
         destination: "/wiki",
         permanent: true,

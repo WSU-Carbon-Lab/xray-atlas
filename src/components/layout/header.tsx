@@ -16,6 +16,7 @@ import {
   BookOpenIcon,
   BuildingOfficeIcon,
   InformationCircleIcon,
+  MapIcon,
   NewspaperIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
@@ -89,6 +90,11 @@ function AboutDropdown() {
               icon={InformationCircleIcon}
               label="About"
               onClick={() => handleItemClick("/about")}
+            />
+            <HeaderMenuButton
+              icon={MapIcon}
+              label="Roadmap"
+              onClick={() => handleItemClick("/about/roadmap")}
             />
             <HeaderMenuButton
               aria-controls="about-wiki-nav"
