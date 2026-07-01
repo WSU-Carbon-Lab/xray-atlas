@@ -22,6 +22,7 @@ import {
   SparklesIcon,
   UserGroupIcon,
   CodeBracketIcon,
+  MapIcon,
 } from "@heroicons/react/24/outline";
 
 export const metadata: Metadata = {
@@ -30,6 +31,13 @@ export const metadata: Metadata = {
 };
 
 const aboutResourceCards = [
+  {
+    href: "/about/roadmap",
+    title: "Roadmap",
+    description:
+      "Publication timeline, platform milestones, DataCite decisions, and live GitHub activity.",
+    icon: MapIcon,
+  },
   {
     href: "/wiki",
     title: "Start here",

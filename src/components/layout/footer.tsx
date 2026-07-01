@@ -8,8 +8,13 @@ import { attribution, mission, site } from "~/app/brand";
 
 export function Footer() {
   const collaboratorsQuery = trpc.collaborators.getAll.useQuery();
-  const { data: collaboratorsData, isLoading: isLoadingCollaborators, isError, error, refetch } =
-    collaboratorsQuery;
+  const {
+    data: collaboratorsData,
+    isLoading: isLoadingCollaborators,
+    isError,
+    error,
+    refetch,
+  } = collaboratorsQuery;
 
   return (
     <footer className="border-border bg-surface border-t">
@@ -73,6 +78,12 @@ export function Footer() {
           <div className="col-span-2 space-y-4">
             <h4 className="text-foreground text-sm font-semibold">Resources</h4>
             <div className="flex flex-col space-y-2">
+              <Link
+                href="/about/roadmap"
+                className="text-muted hover:text-accent text-sm transition-colors hover:underline"
+              >
+                Roadmap
+              </Link>
               <Link
                 href="/wiki"
                 className="text-muted hover:text-accent text-sm transition-colors hover:underline"

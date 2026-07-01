@@ -62,14 +62,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.65,
     })),
-    ...blogEntries
-      .filter(isListableBlogEntry)
-      .map((entry) => ({
-        url: `${baseUrl}/blog/${entry.slug}`,
-        lastModified: new Date(`${entry.frontmatter.date}T12:00:00.000Z`),
-        changeFrequency: "monthly" as const,
-        priority: 0.65,
-      })),
+    ...blogEntries.filter(isListableBlogEntry).map((entry) => ({
+      url: `${baseUrl}/blog/${entry.slug}`,
+      lastModified: new Date(`${entry.frontmatter.date}T12:00:00.000Z`),
+      changeFrequency: "monthly" as const,
+      priority: 0.65,
+    })),
   ];
 
   return [
@@ -102,6 +100,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.75,
+    },
+    {
+      url: `${baseUrl}/about/roadmap`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.7,
     },
     {
       url: `${baseUrl}/wiki`,
