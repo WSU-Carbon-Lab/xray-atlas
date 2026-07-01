@@ -98,14 +98,21 @@ export async function readBlogAsset(
 }
 
 /**
- * Lists public URL paths for every file under `content/blog/blog-assets`.
+ * Recursively lists every file under `directory`, relative to {@link BLOG_ASSETS_ROOT}.
  *
- * Used to pre-render asset routes at build time.
+ * Assets are grouped into per-post subdirectories (for example
+ * `beta-uploading-data/data.png`), so this walks one level of nesting in
+ * addition to the historical flat layout.
+ *
+ * @param directory - Absolute directory to walk; defaults to the assets root.
+ * @returns Path segment arrays relative to {@link BLOG_ASSETS_ROOT}, sorted.
  */
-export async function listBlogAssetPathSegments(): Promise<string[][]> {
+async function walkBlogAssetFiles(
+  directory: string = BLOG_ASSETS_ROOT,
+): Promise<string[][]> {
   let entries: Dirent[];
   try {
-    entries = await readdir(BLOG_ASSETS_ROOT, { withFileTypes: true });
+    entries = await readdir(directory, { withFileTypes: true });
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return [];
@@ -113,8 +120,36 @@ export async function listBlogAssetPathSegments(): Promise<string[][]> {
     throw error;
   }
 
-  return entries
-    .filter((entry) => entry.isFile())
-    .map((entry) => [entry.name])
-    .sort((left, right) => left[0]!.localeCompare(right[0]!));
+  const files: string[][] = [];
+  const childDirs: Dirent[] = [];
+
+  for (const entry of entries) {
+    if (entry.isFile()) {
+      const relative = path.relative(
+        BLOG_ASSETS_ROOT,
+        path.join(directory, entry.name),
+      );
+      files.push(relative.split(path.sep));
+    } else if (entry.isDirectory()) {
+      childDirs.push(entry);
+    }
+  }
+
+  const nested = await Promise.all(
+    childDirs.map((dir) => walkBlogAssetFiles(path.join(directory, dir.name))),
+  );
+
+  return [...files, ...nested.flat()].sort((left, right) =>
+    left.join("/").localeCompare(right.join("/")),
+  );
+}
+
+/**
+ * Lists public URL path segments for every file under `content/blog/blog-assets`,
+ * including per-post subdirectories.
+ *
+ * Used to pre-render asset routes at build time.
+ */
+export async function listBlogAssetPathSegments(): Promise<string[][]> {
+  return walkBlogAssetFiles();
 }
