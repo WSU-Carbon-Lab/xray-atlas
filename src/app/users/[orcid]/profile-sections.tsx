@@ -55,7 +55,6 @@ import {
   type SessionWriteAssuranceAppCode,
 } from "~/lib/passkey-client-auth";
 import type { SessionWriteAssuranceEvaluation } from "~/server/auth/mfa-access";
-
 type ProfileUser = {
   id: string;
   name: string | null;
@@ -1174,7 +1173,11 @@ export function ProfileMainTabsSkeleton({
 }) {
   return (
     <ProfileTabBarSkeleton
-      tabs={showSecurity ? ["Contributions", "Security"] : ["Contributions"]}
+      tabs={
+        showSecurity
+          ? ["Contributions", "Preferences", "Security"]
+          : ["Contributions"]
+      }
     />
   );
 }

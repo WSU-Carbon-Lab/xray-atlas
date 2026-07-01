@@ -5,8 +5,8 @@ date: 2026-06-19
 authors: [Harlan Heilman]
 tags: [beta]
 category: guides
-draft: true
-teaser: true
+# draft: true
+# teaser: true
 series:
   name: Public beta
   part: 5
@@ -35,15 +35,16 @@ To start, there are a couple of key driving principles for this process.
    compare the figures from a publication. We want to be able to
    quantitatively compare datasets between each other.
 2. If you come to X-ray Atlas wanting any version of an optical constant
-   ($f$, $n$, $\epsilon$, $\chi$), you should be able to get it for free.
+   ($f$, $n$, $\epsilon$, $\chi$, $SLD$), you should be able to get it for free.
    People use different conventions and units. We want to support them.
 3. We should preserve the original data as it was uploaded to the platform,
    but allow users to tweak their data to ensure it is in a quality they are
    comfortable with sharing. This means that common data "tweaks" need to be
-   first class citizens in this platform, including pre- and post-edge ranges.
+   first class citizens in this platform, including pre- and post-edge ranges,
+   peak assignmensts, and more.
 4. We want it to be as easy as possible to upload data from 10 years ago that
    you have sitting on a USB drive. So we need a format that people are
-   comfortable forcing their data into. So we are going to force you to use
+   comfortable with. So we are going to force you to use
    CSV files to upload your data.
 5. We know that every experiment and sample is unique, making it hard to
    conform to a single format that can accommodate all of the metadata needed

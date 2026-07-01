@@ -1,4 +1,5 @@
 import { cn } from "@heroui/styles";
+import "katex/dist/katex.min.css";
 import Link from "next/link";
 import type { ComponentPropsWithoutRef, ReactElement } from "react";
 import { MDXRemote } from "next-mdx-remote-client/rsc";
