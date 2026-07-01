@@ -1,4 +1,3 @@
-import { cn } from "@heroui/styles";
 import type { ReactElement } from "react";
 import type { BlogHeading } from "~/lib/content/blog-presentation";
 
@@ -31,6 +30,13 @@ function BlogTocNav({
 }
 
 /**
+ * Returns whether the post has enough section headings to show a table of contents.
+ */
+export function hasBlogTableOfContents(headings: BlogHeading[]): boolean {
+  return headings.filter((heading) => heading.level === 2).length >= 3;
+}
+
+/**
  * Renders blog table of contents in compact (details) or sticky rail layouts.
  *
  * Returns null when fewer than three h2 headings exist.
@@ -42,21 +48,16 @@ export function BlogTableOfContents({
   headings: BlogHeading[];
   variant: "inline" | "rail";
 }): ReactElement | null {
-  const sectionHeadings = headings.filter((heading) => heading.level === 2);
-  if (sectionHeadings.length < 3) {
+  if (!hasBlogTableOfContents(headings)) {
     return null;
   }
 
   if (variant === "rail") {
     return (
-      <aside className="hidden xl:block">
-        <div className="sticky top-24">
-          <p className="text-foreground mb-3 text-sm font-medium">
-            On this page
-          </p>
-          <BlogTocNav headings={headings} />
-        </div>
-      </aside>
+      <div>
+        <p className="text-foreground mb-3 text-sm font-medium">On this page</p>
+        <BlogTocNav headings={headings} />
+      </div>
     );
   }
 

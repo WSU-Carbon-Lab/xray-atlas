@@ -5,13 +5,14 @@ import { notFound } from "next/navigation";
 import type { MDXComponents } from "mdx/types";
 import { cn } from "@heroui/styles";
 import { BlogAuthorByline } from "~/components/blog/blog-author-byline";
+import { BlogCategoryReadNext } from "~/components/blog/blog-category-read-next";
 import {
   BlogBreadcrumbs,
   blogPostBreadcrumbItems,
 } from "~/components/blog/blog-breadcrumbs";
 import { BlogRelatedPosts } from "~/components/blog/blog-related-posts";
 import { BlogSeriesBox } from "~/components/blog/blog-series-box";
-import { BlogTableOfContents } from "~/components/blog/blog-toc";
+import { BlogTableOfContents, hasBlogTableOfContents } from "~/components/blog/blog-toc";
 import { CopyLinkButton } from "~/components/blog/copy-link-button";
 import { BlogPostTagChips } from "~/components/blog/blog-post-tag-chips";
 import { MdxArticle } from "~/components/content/mdx-article";
@@ -19,7 +20,7 @@ import {
   blogCategoryRssHref,
   getBlogCategory,
 } from "~/lib/content/blog-categories";
-import { relatedBlogPosts } from "~/lib/content/blog-related";
+import { categoryReadNextPosts, relatedBlogPosts } from "~/lib/content/blog-related";
 import {
   adjacentBlogPosts,
   blogSeriesPartRows,
@@ -268,6 +269,12 @@ export default async function BlogPostPage({
   );
   const seriesParts = blogSeriesPartRows(entries, entry);
   const related = relatedBlogPosts(entries, entry);
+  const categoryReadNext = category
+    ? categoryReadNextPosts(entries, entry, 5)
+    : [];
+  const showTableOfContents = hasBlogTableOfContents(headings);
+  const showReadNextRail = categoryReadNext.length > 0;
+  const showSidebar = showTableOfContents || showReadNextRail;
   const breadcrumbItems = category
     ? blogPostBreadcrumbItems({
         categoryLabel: category.label,
@@ -278,7 +285,16 @@ export default async function BlogPostPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 xl:px-6">
-        <div className="mx-auto w-full max-w-2xl">
+      <div
+        className={
+          showSidebar
+            ? "xl:grid xl:grid-cols-[minmax(0,1fr)_min(42rem,100%)_16rem] xl:items-start xl:gap-x-12"
+            : "xl:grid xl:grid-cols-[minmax(0,1fr)_min(42rem,100%)_minmax(0,1fr)] xl:items-start xl:gap-x-12"
+        }
+      >
+        <div className="hidden xl:block" aria-hidden="true" />
+
+        <div className="mx-auto w-full min-w-0 max-w-2xl xl:mx-0 xl:max-w-none">
           <BlogBreadcrumbs items={breadcrumbItems} />
 
           <header className="mb-8 space-y-4">
@@ -301,56 +317,76 @@ export default async function BlogPostPage({
             </div>
             <BlogPostTagChips tags={entry.frontmatter.tags} />
           </header>
-        </div>
 
-        <div className="flex items-start gap-10 xl:gap-12">
-          <div className="mx-auto w-full max-w-2xl min-w-0 flex-1">
-            <BlogHeroImage frontmatter={entry.frontmatter} />
-            {entry.frontmatter.series ? (
-              <BlogSeriesBox
-                seriesName={entry.frontmatter.series.name}
-                parts={seriesParts}
-              />
-            ) : null}
-            <BlogTableOfContents headings={headings} variant="inline" />
-
-            <MdxArticle
-              source={entry.body}
-              components={blogMdxComponents}
-              className="max-w-2xl"
+          <BlogHeroImage frontmatter={entry.frontmatter} />
+          {entry.frontmatter.series ? (
+            <BlogSeriesBox
+              seriesName={entry.frontmatter.series.name}
+              parts={seriesParts}
             />
+          ) : null}
+          <BlogTableOfContents headings={headings} variant="inline" />
 
-            {previous || next ? (
-              <nav
-                aria-label="Post pagination"
-                className="border-border mt-12 grid gap-4 border-t pt-8 sm:grid-cols-2"
-              >
-                {previous ? (
-                  <PostNavLink
-                    direction="previous"
-                    slug={previous.slug}
-                    title={previous.title}
-                  />
-                ) : (
-                  <span />
-                )}
-                {next ? (
-                  <PostNavLink
-                    direction="next"
-                    slug={next.slug}
-                    title={next.title}
-                  />
-                ) : null}
-              </nav>
-            ) : null}
+          <MdxArticle
+            source={entry.body}
+            components={blogMdxComponents}
+            className="max-w-2xl"
+          />
 
-            <BlogRelatedPosts posts={related} />
-          </div>
+          {previous || next ? (
+            <nav
+              aria-label="Post pagination"
+              className="border-border mt-12 grid gap-4 border-t pt-8 sm:grid-cols-2"
+            >
+              {previous ? (
+                <PostNavLink
+                  direction="previous"
+                  slug={previous.slug}
+                  title={previous.title}
+                />
+              ) : (
+                <span />
+              )}
+              {next ? (
+                <PostNavLink
+                  direction="next"
+                  slug={next.slug}
+                  title={next.title}
+                />
+              ) : null}
+            </nav>
+          ) : null}
 
-          <div className="hidden w-56 shrink-0 xl:block">
-            <BlogTableOfContents headings={headings} variant="rail" />
-          </div>
+          {category ? (
+            <BlogCategoryReadNext
+              posts={categoryReadNext}
+              category={category}
+              variant="inline"
+            />
+          ) : null}
+
+          <BlogRelatedPosts posts={related} />
         </div>
+
+        {showSidebar ? (
+          <aside className="hidden w-64 shrink-0 xl:block">
+            <div className="sticky top-24 max-h-[calc(100dvh-6rem)] space-y-10 overflow-y-auto overscroll-contain">
+              {showTableOfContents ? (
+                <BlogTableOfContents headings={headings} variant="rail" />
+              ) : null}
+              {category && showReadNextRail ? (
+                <BlogCategoryReadNext
+                  posts={categoryReadNext}
+                  category={category}
+                  variant="rail"
+                />
+              ) : null}
+            </div>
+          </aside>
+        ) : (
+          <div className="hidden xl:block" aria-hidden="true" />
+        )}
+      </div>
     </div>
   );
 }
