@@ -118,6 +118,8 @@ import {
 import { LoadingSkeleton } from "~/components/feedback/loading-state";
 import { NexafsBrowseGroupedSpectrumTable } from "~/components/nexafs/nexafs-browse-grouped-spectrum-table";
 import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
+import { SimpleDialog } from "~/components/ui/dialog";
+import { DefaultButton as DialogButton } from "~/components/ui/button";
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
 
 interface ExperimentFormulaMeta {
@@ -162,10 +164,13 @@ export interface NexafsExperimentDatasetPanelProps {
   enabled: boolean;
 }
 
+/** Minimum graph viewport height for browse/molecule dataset panels (matches contribute fill-container intent). */
+const NEXAFS_BROWSE_PLOT_VIEWPORT_CLASS = "min-h-[min(70vh,680px)]";
+
 function NexafsExperimentPlotSkeleton() {
   return (
     <div
-      className="flex min-h-[420px] min-w-0 flex-1 flex-col rounded-xl border border-[var(--border-default)] p-4"
+      className={`flex ${NEXAFS_BROWSE_PLOT_VIEWPORT_CLASS} min-w-0 flex-1 flex-col`}
       aria-busy
       aria-label="Loading spectrum plot"
     >
@@ -174,7 +179,7 @@ function NexafsExperimentPlotSkeleton() {
           <LoadingSkeleton className="h-28 w-full rounded-md" />
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-          <LoadingSkeleton className="min-h-[280px] w-full flex-1 rounded-xl" />
+          <LoadingSkeleton className="min-h-[min(60vh,560px)] w-full flex-1 rounded-xl" />
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
             <LoadingSkeleton className="h-3 max-w-[min(24rem,55%)] flex-1 rounded" />
             <div className="flex items-center gap-2">
@@ -341,6 +346,9 @@ export function NexafsExperimentDatasetPanel({
   const [editorNormBareMuPoints, setEditorNormBareMuPoints] = useState<
     BareAtomPoint[] | null
   >(null);
+  const [saveNormConfirmOpen, setSaveNormConfirmOpen] = useState(false);
+  const [undoNormConfirmOpen, setUndoNormConfirmOpen] = useState(false);
+  const [discardNormConfirmOpen, setDiscardNormConfirmOpen] = useState(false);
 
   const henkeMergeDomainForKkBeta = useMemo((): readonly [
     number,
@@ -1059,13 +1067,13 @@ export function NexafsExperimentDatasetPanel({
     [normalizationSelectionTarget],
   );
 
-  const handleResetDraftNormRegions = useCallback(() => {
-    const def = defaultNormalizationRangesFromSpectrum(sortedAllPoints);
-    if (!def) {
+  const handleUndoDraftToStoredRegions = useCallback(() => {
+    const init = initialNormDraftRef.current;
+    if (!init) {
       return;
     }
-    setDraftNormRegions({ pre: def.pre, post: def.post });
-  }, [sortedAllPoints]);
+    setDraftNormRegions({ pre: init.pre, post: init.post });
+  }, []);
 
   const handleBrowseNormalizationEdgeDrag = useCallback(
     (edge: NormalizationRegionEdgeId, energy: number) => {
@@ -1315,7 +1323,7 @@ export function NexafsExperimentDatasetPanel({
       const str = new Set(Array.from(keys, String));
       if (str.has("reset")) {
         if (!normResetDisabled) {
-          handleResetDraftNormRegions();
+          setUndoNormConfirmOpen(true);
         }
         return;
       }
@@ -1325,22 +1333,46 @@ export function NexafsExperimentDatasetPanel({
           !updateNormalizationMetadata.isPending &&
           datasetPlotEditorActive
         ) {
-          void handleSaveNormalizationRanges();
+          setSaveNormConfirmOpen(true);
         }
         return;
       }
-      handleToggleDatasetPlotEditor(str.has("edit"));
+      const wantsEdit = str.has("edit");
+      if (datasetPlotEditorActive && !wantsEdit) {
+        if (normDraftDirty) {
+          setDiscardNormConfirmOpen(true);
+          return;
+        }
+        endDatasetPlotEditor();
+        return;
+      }
+      handleToggleDatasetPlotEditor(wantsEdit);
     },
     [
       datasetPlotEditorActive,
-      handleResetDraftNormRegions,
-      handleSaveNormalizationRanges,
+      endDatasetPlotEditor,
       handleToggleDatasetPlotEditor,
       normDraftDirty,
       normResetDisabled,
       updateNormalizationMetadata.isPending,
     ],
   );
+
+  const confirmSaveNormalization = useCallback(async () => {
+    setSaveNormConfirmOpen(false);
+    await handleSaveNormalizationRanges();
+  }, [handleSaveNormalizationRanges]);
+
+  const confirmUndoNormalizationDraft = useCallback(() => {
+    setUndoNormConfirmOpen(false);
+    handleUndoDraftToStoredRegions();
+    showToast("Reverted to saved normalization windows", "success");
+  }, [handleUndoDraftToStoredRegions]);
+
+  const confirmDiscardNormalizationDraft = useCallback(() => {
+    setDiscardNormConfirmOpen(false);
+    endDatasetPlotEditor();
+  }, [endDatasetPlotEditor]);
 
   const plotTopRailTrailingActions = useMemo(
     () =>
@@ -1356,11 +1388,11 @@ export function NexafsExperimentDatasetPanel({
           >
             <PlotToolbarRichHint
               title={
-                datasetPlotEditorActive ? "Close dataset editor" : "Edit dataset"
+                datasetPlotEditorActive ? "Close editor" : "Edit dataset"
               }
               description={
                 datasetPlotEditorActive
-                  ? "Leave normalization draft mode without saving."
+                  ? "Exit edit mode. Unsaved window changes prompt before discarding."
                   : "Adjust beta normalization windows and related metadata."
               }
               placement="bottom"
@@ -1381,8 +1413,8 @@ export function NexafsExperimentDatasetPanel({
             {datasetPlotEditorActive ? (
               <>
                 <PlotToolbarRichHint
-                  title="Save"
-                  description="Write the draft pre/post windows to the experiment record."
+                  title="Save to database"
+                  description="Persist the draft pre- and post-edge windows on this experiment."
                   whenDisabledDescription={
                     updateNormalizationMetadata.isPending
                       ? "Wait for the save to finish."
@@ -1396,7 +1428,7 @@ export function NexafsExperimentDatasetPanel({
                   <ToggleButton
                     id="save"
                     isIconOnly
-                    aria-label="Save normalization regions"
+                    aria-label="Save normalization regions to database"
                     isDisabled={
                       !normDraftDirty || updateNormalizationMetadata.isPending
                     }
@@ -1407,25 +1439,27 @@ export function NexafsExperimentDatasetPanel({
                   </ToggleButton>
                 </PlotToolbarRichHint>
                 <PlotToolbarRichHint
-                  title="Reset draft"
-                  description="Restore default pre-edge and post-edge spans from the spectrum."
+                  title="Undo changes"
+                  description="Discard local edits and restore the windows loaded from the database."
                   whenDisabledDescription={
                     sortedAllPoints.length === 0
                       ? "Wait for spectrum points to load."
-                      : "Wait for the save to finish."
+                      : updateNormalizationMetadata.isPending
+                        ? "Wait for the save to finish."
+                        : "No local changes to undo."
                   }
                   placement="bottom"
-                  disabled={normResetDisabled}
+                  disabled={normResetDisabled || !normDraftDirty}
                 >
                   <ToggleButton
                     id="reset"
                     isIconOnly
-                    aria-label="Reset pre and post normalization regions to defaults"
-                    isDisabled={normResetDisabled}
+                    aria-label="Undo normalization window edits"
+                    isDisabled={normResetDisabled || !normDraftDirty}
                     className={plotToolbarGlyphToggleGroupItemHorizontalClass}
                   >
                     <ToggleButtonGroup.Separator />
-                    <RotateCcw className="h-4 w-4" aria-hidden />
+                    <RotateCcw className="h-5 w-5" aria-hidden />
                   </ToggleButton>
                 </PlotToolbarRichHint>
               </>
@@ -1554,7 +1588,7 @@ export function NexafsExperimentDatasetPanel({
             onNormalizationModeChange={handlePlotNormalizationMode}
             activeEdge={normalizationSelectionTarget ?? "pre"}
             onActiveEdgeChange={(edge) => setNormalizationSelectionTarget(edge)}
-            onResetToDefaultRegions={handleResetDraftNormRegions}
+            onResetToDefaultRegions={() => setUndoNormConfirmOpen(true)}
             normalizationLocked={false}
             hasData={sortedAllPoints.length > 0}
             isPeakSetMode={false}
@@ -1572,7 +1606,6 @@ export function NexafsExperimentDatasetPanel({
       isPlotNormalizationMode,
       normalizationSelectionTarget,
       handlePlotNormalizationMode,
-      handleResetDraftNormRegions,
       sortedAllPoints.length,
       diffBareSelectedKeys,
       handleDiffBareSelectionChange,
@@ -1710,7 +1743,10 @@ export function NexafsExperimentDatasetPanel({
         isSpectrumLoading ? (
           <NexafsExperimentPlotSkeleton />
         ) : (
-          <div className="flex min-h-[420px] min-w-0 flex-1 flex-col rounded-xl border border-[var(--border-default)] p-4">
+          <div
+            className={`flex ${NEXAFS_BROWSE_PLOT_VIEWPORT_CLASS} min-w-0 w-full flex-1 flex-col gap-2`}
+          >
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <SpectrumPlot
               points={spectrumPlotPoints}
               graphStyle={graphStyle}
@@ -1761,40 +1797,31 @@ export function NexafsExperimentDatasetPanel({
               suppressAnalysisRailLeadingGrip
               plotTopRailDataActions={plotTopRailDataActions}
               plotTopRailTrailingActions={plotTopRailTrailingActions}
+              geometryLegendCorner="bottom-right"
+              plotToolRailsInitialTrayMode
               cursorMode={cursorMode}
               onCursorModeChange={setCursorMode}
               spectrumCsvContextMenu={spectrumCsvContextMenu}
               emptyStateMessage="No points in this view."
             />
-            {datasetPlotEditorActive ? (
-              <div className="border-border bg-surface mt-3 flex flex-col gap-2 rounded-lg border p-3">
-                {isPlotNormalizationMode && normalizationSelectionTarget ? (
-                  <div
-                    className={
-                      normalizationSelectionTarget === "pre"
-                        ? "rounded-md border border-blue-500/35 bg-blue-500/10 p-2 text-xs text-blue-900 dark:text-blue-100"
-                        : "rounded-md border border-emerald-500/35 bg-emerald-500/10 p-2 text-xs text-emerald-900 dark:text-emerald-100"
-                    }
-                  >
-                    <div className="flex items-center gap-2">
-                      <PencilIcon className="h-4 w-4 shrink-0" aria-hidden />
-                      <span>
-                        {normalizationSelectionTarget === "pre"
-                          ? "Drag on the plot to set the pre-edge window (beta normalization channel)."
-                          : "Drag on the plot to set the post-edge window (beta normalization channel)."}
-                      </span>
-                    </div>
-                  </div>
-                ) : null}
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="tertiary"
-                    onPress={endDatasetPlotEditor}
-                  >
-                    Done
-                  </Button>
+            </div>
+            {datasetPlotEditorActive &&
+            isPlotNormalizationMode &&
+            normalizationSelectionTarget ? (
+              <div
+                className={
+                  normalizationSelectionTarget === "pre"
+                    ? "rounded-md border border-blue-500/35 bg-blue-500/10 px-3 py-2 text-xs text-blue-900 dark:text-blue-100"
+                    : "rounded-md border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-900 dark:text-emerald-100"
+                }
+              >
+                <div className="flex items-center gap-2">
+                  <PencilIcon className="h-4 w-4 shrink-0" aria-hidden />
+                  <span>
+                    {normalizationSelectionTarget === "pre"
+                      ? "Drag on the plot to set the pre-edge window (beta normalization channel)."
+                      : "Drag on the plot to set the post-edge window (beta normalization channel)."}
+                  </span>
                 </div>
               </div>
             ) : null}
@@ -1816,6 +1843,95 @@ export function NexafsExperimentDatasetPanel({
           />
         )
       ) : null}
+
+      <SimpleDialog
+        isOpen={saveNormConfirmOpen}
+        onClose={() => setSaveNormConfirmOpen(false)}
+        title="Save normalization windows?"
+      >
+        <div className="space-y-4">
+          <p className="text-muted text-sm">
+            Write the current pre- and post-edge windows to this experiment in the
+            database. Other contributors will see the updated ranges.
+          </p>
+          <div className="flex justify-end gap-2">
+            <DialogButton
+              type="button"
+              variant="outline"
+              onClick={() => setSaveNormConfirmOpen(false)}
+            >
+              Cancel
+            </DialogButton>
+            <DialogButton
+              type="button"
+              variant="primary"
+              onClick={() => {
+                void confirmSaveNormalization();
+              }}
+            >
+              Save
+            </DialogButton>
+          </div>
+        </div>
+      </SimpleDialog>
+
+      <SimpleDialog
+        isOpen={undoNormConfirmOpen}
+        onClose={() => setUndoNormConfirmOpen(false)}
+        title="Undo local edits?"
+      >
+        <div className="space-y-4">
+          <p className="text-muted text-sm">
+            Restore the pre- and post-edge windows from the last saved database
+            values and discard unsaved changes in this edit session.
+          </p>
+          <div className="flex justify-end gap-2">
+            <DialogButton
+              type="button"
+              variant="outline"
+              onClick={() => setUndoNormConfirmOpen(false)}
+            >
+              Cancel
+            </DialogButton>
+            <DialogButton
+              type="button"
+              variant="primary"
+              onClick={confirmUndoNormalizationDraft}
+            >
+              Undo
+            </DialogButton>
+          </div>
+        </div>
+      </SimpleDialog>
+
+      <SimpleDialog
+        isOpen={discardNormConfirmOpen}
+        onClose={() => setDiscardNormConfirmOpen(false)}
+        title="Discard unsaved edits?"
+      >
+        <div className="space-y-4">
+          <p className="text-muted text-sm">
+            Exit edit mode without saving. Local window changes will be lost.
+          </p>
+          <div className="flex justify-end gap-2">
+            <DialogButton
+              type="button"
+              variant="outline"
+              onClick={() => setDiscardNormConfirmOpen(false)}
+            >
+              Keep editing
+            </DialogButton>
+            <DialogButton
+              type="button"
+              variant="primary"
+              className="bg-red-600 hover:bg-red-700"
+              onClick={confirmDiscardNormalizationDraft}
+            >
+              Discard
+            </DialogButton>
+          </div>
+        </div>
+      </SimpleDialog>
     </div>
   );
 }

@@ -370,6 +370,14 @@ export type SpectrumPlotProps = {
    * When set, right-click opens a minimal CSV context menu on the plot and Copy is hijacked to place total-dataset CSV on the clipboard (toolbar dropdown still handles per-geometry export).
    */
   spectrumCsvContextMenu?: SpectrumCsvContextMenuConfig;
+  /**
+   * Default corner for the in-plot geometry legend before the user drags it. `bottom-right` keeps the top plot rail clear on compact browse surfaces.
+   */
+  geometryLegendCorner?: "top-right" | "bottom-right";
+  /**
+   * When true, plot tool rails start in tray mode (edge handles only) so docked toolbars do not cover traces until hovered.
+   */
+  plotToolRailsInitialTrayMode?: boolean;
 };
 
 export type SpectrumCsvContextMenuConfig = {

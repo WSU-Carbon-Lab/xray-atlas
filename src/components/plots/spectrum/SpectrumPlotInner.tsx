@@ -67,7 +67,7 @@ import { PeakCurves } from "../visx/PeakCurves";
 import { PeakOverlayLayer } from "../visx/PeakOverlayLayer";
 import { BrushZoom } from "../visx/BrushZoom";
 import type { ZoomMode } from "../visx/BrushZoom";
-import { NORMALIZATION_COLORS } from "../constants";
+import { NormalizationRegionBands } from "./NormalizationRegionBands";
 import { PlotToolRail } from "./PlotToolRail";
 import { findClosestTraceIndex } from "../utils/find-closest-trace";
 import {
@@ -177,6 +177,8 @@ export function SpectrumPlotInner({
   primaryRegionSpotLabel,
   channelLegendGlyph: channelLegendGlyphProp,
   descriptorTraceLegend,
+  geometryLegendCorner = "top-right",
+  plotToolRailsInitialTrayMode = false,
 }: SpectrumPlotInnerProps) {
   const opticalLinkConfig = opticalLink ?? betaDeltaLinkLegacy;
   const { resolvedTheme } = useTheme();
@@ -1711,44 +1713,15 @@ export function SpectrumPlotInner({
               />
             </g>
             {normalizationRegions &&
-              (selectionTarget !== null || showNormalizationShading) && (
-              <>
-                {normalizationRegions.pre && (
-                  <rect
-                    x={
-                      mainPlotScales.xScale(normalizationRegions.pre[0]) +
-                      mainPlot.dimensions.margins.left
-                    }
-                    y={mainPlot.dimensions.margins.top}
-                    width={
-                      mainPlotScales.xScale(normalizationRegions.pre[1]) -
-                      mainPlotScales.xScale(normalizationRegions.pre[0])
-                    }
-                    height={mainPlotHeight}
-                    fill={NORMALIZATION_COLORS.pre}
-                    opacity={0.12}
-                    pointerEvents="none"
-                  />
-                )}
-                {normalizationRegions.post && (
-                  <rect
-                    x={
-                      mainPlotScales.xScale(normalizationRegions.post[0]) +
-                      mainPlot.dimensions.margins.left
-                    }
-                    y={mainPlot.dimensions.margins.top}
-                    width={
-                      mainPlotScales.xScale(normalizationRegions.post[1]) -
-                      mainPlotScales.xScale(normalizationRegions.post[0])
-                    }
-                    height={mainPlotHeight}
-                    fill={NORMALIZATION_COLORS.post}
-                    opacity={0.12}
-                    pointerEvents="none"
-                  />
-                )}
-              </>
-            )}
+              (selectionTarget !== null || showNormalizationShading) ? (
+              <NormalizationRegionBands
+                normalizationRegions={normalizationRegions}
+                xScale={mainPlotScales.xScale}
+                offsetX={mainPlot.dimensions.margins.left}
+                offsetY={mainPlot.dimensions.margins.top}
+                height={mainPlotHeight}
+              />
+            ) : null}
             <g
               ref={panGroupRef}
               transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
@@ -1970,6 +1943,7 @@ export function SpectrumPlotInner({
                     imaginaryColumnGlyph={opticalLinkConfig.imaginaryGlyph}
                     realColumnGlyph={opticalLinkConfig.realGlyph}
                     angleColumnTitle={geometryLegendAngleTitle}
+                    defaultCorner={geometryLegendCorner}
                   />
                 ) : (
                   <PlotSpectrumGeometryLegend
@@ -1991,6 +1965,7 @@ export function SpectrumPlotInner({
                     graphStyle={graphStyle}
                     channelColumnGlyph={channelLegendGlyph}
                     angleColumnTitle={geometryLegendAngleTitle}
+                    defaultCorner={geometryLegendCorner}
                   />
                 )
               ) : null}
@@ -2178,6 +2153,7 @@ export function SpectrumPlotInner({
             analysisTools={headerAnalysis}
             bottomTools={plotBottomTools}
             suppressAnalysisRailLeadingGrip={suppressAnalysisRailLeadingGrip}
+            initialTrayMode={plotToolRailsInitialTrayMode}
           />
         </div>
       </div>

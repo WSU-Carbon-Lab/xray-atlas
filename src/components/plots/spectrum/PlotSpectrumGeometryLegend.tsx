@@ -46,6 +46,8 @@ type PlotSpectrumGeometryLegendPropsBase = {
   legendBorderRadius?: number;
   /** When this key changes (e.g. zoom reset), the legend snaps back to its default corner. */
   positionResetKey?: string | number;
+  /** Default anchor before the user drags the legend; `bottom-right` avoids the top plot toolbar on compact views. */
+  defaultCorner?: "top-right" | "bottom-right";
 };
 
 export type PlotSpectrumGeometryLegendLinkedProps =
@@ -95,6 +97,7 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
     plotMarginLeft = 0,
     plotMarginTop = 0,
     positionResetKey,
+    defaultCorner = "top-right",
   } = props;
 
   const legendGroupSvgRef = useRef<SVGSVGElement | null>(null);
@@ -202,7 +205,10 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
   ]);
 
   const defaultX = plotWidth - legendWidth - LEGEND_INSET;
-  const defaultY = LEGEND_INSET;
+  const defaultY =
+    defaultCorner === "bottom-right"
+      ? Math.max(LEGEND_INSET, plotHeight - boxHeight - LEGEND_INSET)
+      : LEGEND_INSET;
   const shouldRender = rows.length > 0 && legendWidth > 0;
 
   const {

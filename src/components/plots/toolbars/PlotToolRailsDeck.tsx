@@ -81,12 +81,19 @@ type PlotToolRailsDeckProps = {
    * dataset-style rails show only real tools. Tray mode still uses its own hover handles.
    */
   suppressAnalysisRailLeadingGrip?: boolean;
+  /**
+   * When true, rails begin collapsed in tray mode (hover edge handles to reveal toolbars).
+   */
+  initialTrayMode?: boolean;
 };
 
 type TraySide = "top" | "bottom" | "left" | "right";
 
 const HANDLE_BUTTON_CLASS =
-  "pointer-events-auto h-11 w-11 min-w-11 rounded-xl border border-(--border-default) bg-(--surface-glass)/70 text-(--text-secondary) shadow-md backdrop-blur-sm opacity-90 transition duration-200 hover:bg-(--surface-2)/70 hover:text-(--text-primary) hover:opacity-100";
+  "pointer-events-auto h-8 w-8 min-w-8 rounded-lg border border-(--border-default) bg-(--surface-glass)/55 text-(--text-secondary) shadow-sm backdrop-blur-sm opacity-75 transition duration-200 hover:bg-(--surface-2)/70 hover:text-(--text-primary) hover:opacity-100";
+
+const TRAY_MODE_TOGGLE_CLASS =
+  "pointer-events-auto absolute z-40 h-8 w-8 min-w-8 rounded-lg border border-(--border-default) bg-(--surface-glass)/55 text-(--text-secondary) shadow-sm backdrop-blur-sm opacity-80 hover:bg-(--surface-2)/70 hover:text-(--text-primary) hover:opacity-100";
 
 const RAIL_EDGE_PAD = 4;
 
@@ -106,8 +113,9 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
   analysisTools,
   bottomTools,
   suppressAnalysisRailLeadingGrip = false,
+  initialTrayMode = false,
 }: PlotToolRailsDeckProps) {
-  const [isTrayMode, setIsTrayMode] = useState(false);
+  const [isTrayMode, setIsTrayMode] = useState(initialTrayMode);
   const [hoveredSide, setHoveredSide] = useState<TraySide | null>(null);
 
   const rails = useMemo<PlotRailDefinition[]>(() => {
@@ -354,10 +362,10 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
           isIconOnly
           aria-label={isTrayMode ? "Dock plot toolbars" : "Float plot toolbars in tray mode"}
           onPress={() => setIsTrayMode((prev) => !prev)}
-          className="pointer-events-auto absolute z-40 h-11 w-11 min-w-11 rounded-xl border border-(--border-default) bg-(--surface-glass)/70 text-(--text-secondary) shadow-md backdrop-blur-sm hover:bg-(--surface-2)/70 hover:text-(--text-primary)"
+          className={TRAY_MODE_TOGGLE_CLASS}
           style={{ left: insetLeft, top: insetTop }}
         >
-          <Grip className="h-5 w-5" />
+          <Grip className="h-4 w-4" />
         </Button>
       </PlotToolbarRichHint>
 
@@ -415,7 +423,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               aria-label="Reveal top plot toolbar"
               className={HANDLE_BUTTON_CLASS}
             >
-              <GripHorizontal className="h-6 w-6" />
+              <GripHorizontal className="h-4 w-4" />
             </Button>
           </PlotToolbarRichHint>
         ) : null}
@@ -447,7 +455,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               aria-label="Reveal bottom plot toolbar"
               className={HANDLE_BUTTON_CLASS}
             >
-              <GripHorizontal className="h-6 w-6" />
+              <GripHorizontal className="h-4 w-4" />
             </Button>
           </PlotToolbarRichHint>
         ) : null}
@@ -474,7 +482,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
                 aria-label="Reveal left plot toolbar"
                 className={HANDLE_BUTTON_CLASS}
               >
-                <GripVertical className="h-6 w-6" />
+                <GripVertical className="h-4 w-4" />
               </Button>
             </PlotToolbarRichHint>
           ) : null}
@@ -505,7 +513,7 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               aria-label="Reveal right plot toolbar"
               className={HANDLE_BUTTON_CLASS}
             >
-              <GripVertical className="h-6 w-6" />
+              <GripVertical className="h-4 w-4" />
             </Button>
           </PlotToolbarRichHint>
         ) : null}
