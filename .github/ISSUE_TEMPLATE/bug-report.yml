@@ -1,0 +1,131 @@
+name: Bug report
+description: Report incorrect behavior, crashes, or data issues in X-ray Atlas.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve X-ray Atlas. A clear, reproducible report gets fixes to production faster.
+
+        **Before you file**
+        - Search [open issues](https://github.com/WSU-Carbon-Lab/xray-atlas/issues) for duplicates.
+        - Note the **URL** (or route) where the problem appears.
+        - For upload or processing bugs, attach a **minimal CSV** or describe column names when you can.
+
+        **Security:** Do not paste secrets, OAuth tokens, or private beamtime paths. Use staging or redacted fixtures when possible.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where did you see the problem?
+      options:
+        - Browse (NEXAFS catalog / dataset cards)
+        - Contribute (NEXAFS upload / normalization / peaks)
+        - Molecules (registry / structure / detail pages)
+        - Dashboard (plot viewer / STXM workspace)
+        - Facilities and instruments
+        - Account, auth, or profile
+        - Admin or permissions
+        - Wiki or blog
+        - API / data export
+        - Performance or availability
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Page URL or route
+      description: Full URL on xrayatlas.wsu.edu, a Vercel preview, or localhost (for example `/contribute/nexafs`, `/dashboard/plot`).
+      placeholder: https://xrayatlas.wsu.edu/browse?q=...
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Short summary
+      description: One sentence describing what went wrong.
+      placeholder: KK delta preview fails after bare-atom normalization on C K-edge upload.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps a maintainer can follow. Include molecule, instrument, or dataset identifiers when relevant.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include error messages, toast text, or HTTP status codes.
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Blocks my work (cannot upload, sign in, or view data)
+        - Major (feature broken but workaround exists)
+        - Minor (cosmetic or edge case)
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Production (xrayatlas.wsu.edu)
+        - Vercel preview deployment
+        - Local development (`bun run dev`)
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS (optional)
+      description: For example Firefox 128 on macOS 15, or Chrome on Windows 11.
+    validations:
+      required: false
+  - type: textarea
+    id: sample_data
+    attributes:
+      label: Sample data or context (optional)
+      description: |
+        Attach a minimal CSV, screenshot, or experiment/molecule link.
+        For numerics bugs, note edge, normalization method, and which channel (OD, mu, beta, delta) is affected.
+    validations:
+      required: false
+  - type: textarea
+    id: console
+    attributes:
+      label: Console or network errors (optional)
+      description: Paste relevant browser console output or failed request paths (redact tokens).
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I removed secrets and personally identifying information from this report.
+          required: false

@@ -13,15 +13,14 @@ import {
 import {
   buildSpectrumPointsWithDerivedForUpload,
   extractGeometryPairs,
+  resolveHenkeMergeDomainForUploadDataset,
 } from "../utils";
 import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
 } from "~/features/kk-calc";
 
-export type SubmitStatus =
-  | { type: "error"; message: string }
-  | undefined;
+export type SubmitStatus = { type: "error"; message: string } | undefined;
 
 export type DatasetPersistedIds = {
   experimentId: string;
@@ -32,10 +31,7 @@ export function useNexafsSubmit(
   datasets: DatasetState[],
   options?: {
     onSuccess?: () => void;
-    onDatasetPersisted?: (
-      datasetId: string,
-      ids: DatasetPersistedIds,
-    ) => void;
+    onDatasetPersisted?: (datasetId: string, ids: DatasetPersistedIds) => void;
     requestKkConsent?: () => Promise<boolean>;
     showToast?: (message: string, type?: ToastType) => void;
   },
@@ -215,6 +211,10 @@ export function useNexafsSubmit(
               spectrumPoints = applyKkDeltaToSpectrumPoints(spectrumPoints, {
                 stoichiometryFormula: formula,
                 massDensityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
+                henkeMergeDomain: resolveHenkeMergeDomainForUploadDataset(
+                  dataset,
+                  formula,
+                ),
               });
             } catch (err) {
               const msg =
@@ -330,7 +330,10 @@ export function useNexafsSubmit(
                 data: dataset.sampleAux,
               });
             } catch (auxError) {
-              console.error("Failed to save extended sample metadata", auxError);
+              console.error(
+                "Failed to save extended sample metadata",
+                auxError,
+              );
               options?.showToast?.(
                 `Dataset "${dataset.fileName}" was created, but extended sample preparation could not be saved. Edit the sample later from your dataset.`,
                 "warning",
@@ -367,10 +370,7 @@ export function useNexafsSubmit(
           }
 
           for (const warning of auxWarnings) {
-            options?.showToast?.(
-              `${dataset.fileName}: ${warning}`,
-              "warning",
-            );
+            options?.showToast?.(`${dataset.fileName}: ${warning}`, "warning");
           }
 
           options?.onDatasetPersisted?.(dataset.id, {

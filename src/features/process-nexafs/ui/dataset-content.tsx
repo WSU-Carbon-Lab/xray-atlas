@@ -67,6 +67,7 @@ import {
   groupSpectrumByPolarizationThetaPhi,
   mergePeaksPreservingManualAndSteps,
   uploadDatasetHasFiniteBetaForKkOnEveryRow,
+  resolveHenkeMergeDomainForUploadDataset,
   warmBareAtomCacheForFormula,
   type DifferenceSpectrum,
 } from "~/features/process-nexafs/utils";
@@ -101,12 +102,6 @@ import { trpc } from "~/trpc/client";
 import { useMoleculeSearch } from "~/features/process-nexafs";
 import type { MoleculeSearchResult } from "~/features/process-nexafs";
 import { buildBareAtomReferenceCurve } from "~/features/process-nexafs/utils/buildBareAtomReferenceCurve";
-import { parseChemicalFormula } from "~/features/kk-calc/kkcalc-stoichiometry";
-import { resolveHenkeKkMergeDomainFromPrePostWindows } from "~/features/kk-calc/resolve-henke-kk-merge-domain";
-import {
-  parseStoredNormalizationRanges,
-  unifiedNormalizationWindowsForBasis,
-} from "~/lib/nexafs-normalization-ranges";
 import type {
   BareAtomPoint,
   DatasetState,
@@ -351,8 +346,12 @@ function GeometrySpectrumTableBlock({
             <Copy className="size-3.5" />
             Copy as CSV
           </Button>
-          <Tooltip.Content placement="top" className={plotToolbarTooltipContentClass}>
-            Copy as CSV: Copy this geometry slice to the clipboard as comma-separated values.
+          <Tooltip.Content
+            placement="top"
+            className={plotToolbarTooltipContentClass}
+          >
+            Copy as CSV: Copy this geometry slice to the clipboard as
+            comma-separated values.
           </Tooltip.Content>
         </Tooltip>
       </div>
@@ -449,10 +448,7 @@ function GeometrySpectrumTableBlock({
                             );
                           case "theta":
                             return (
-                              <Table.Cell
-                                key={col.id}
-                                className="text-right"
-                              >
+                              <Table.Cell key={col.id} className="text-right">
                                 {canEdit ? (
                                   <input
                                     type="number"
@@ -502,16 +498,15 @@ function GeometrySpectrumTableBlock({
                             );
                           case "phi":
                             return (
-                              <Table.Cell
-                                key={col.id}
-                                className="text-right"
-                              >
+                              <Table.Cell key={col.id} className="text-right">
                                 {canEdit ? (
                                   <input
                                     type="number"
                                     step="0.1"
                                     defaultValue={
-                                      typeof point.phi === "number" ? point.phi : ""
+                                      typeof point.phi === "number"
+                                        ? point.phi
+                                        : ""
                                     }
                                     aria-label={`Edit phi (degrees) for energy ${point.energy.toFixed(2)}; theta ${theta ?? "-"}`}
                                     onBlur={(e) => {
@@ -530,11 +525,11 @@ function GeometrySpectrumTableBlock({
                                   />
                                 ) : (
                                   <span className="flex justify-end">
-                                    {hasPhi &&
-                                    typeof point.phi === "number" ? (
+                                    {hasPhi && typeof point.phi === "number" ? (
                                       <Chip
                                         color={
-                                          phiColorByValue.get(point.phi) ?? "accent"
+                                          phiColorByValue.get(point.phi) ??
+                                          "accent"
                                         }
                                         size="sm"
                                         variant="soft"
@@ -581,23 +576,28 @@ function GeometrySpectrumTableBlock({
                     <Pagination.PreviousIcon />
                   </Pagination.Previous>
                 </Pagination.Item>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <Pagination.Item key={p}>
-                    <Pagination.Link
-                      isActive={p === pageIndex + 1}
-                      onPress={() => {
-                        setGroupPage((prev) => ({ ...prev, [keyStr]: p - 1 }));
-                      }}
-                      className={`rounded-md border border-[var(--border-default)] bg-[var(--surface-1)] text-[var(--text-primary)] ${
-                        p === pageIndex + 1
-                          ? "bg-accent text-accent-foreground border-accent"
-                          : ""
-                      }`}
-                    >
-                      {p}
-                    </Pagination.Link>
-                  </Pagination.Item>
-                ))}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (p) => (
+                    <Pagination.Item key={p}>
+                      <Pagination.Link
+                        isActive={p === pageIndex + 1}
+                        onPress={() => {
+                          setGroupPage((prev) => ({
+                            ...prev,
+                            [keyStr]: p - 1,
+                          }));
+                        }}
+                        className={`rounded-md border border-[var(--border-default)] bg-[var(--surface-1)] text-[var(--text-primary)] ${
+                          p === pageIndex + 1
+                            ? "bg-accent text-accent-foreground border-accent"
+                            : ""
+                        }`}
+                      >
+                        {p}
+                      </Pagination.Link>
+                    </Pagination.Item>
+                  ),
+                )}
                 <Pagination.Item>
                   <Pagination.Next
                     isDisabled={pageIndex + 1 >= totalPages}
@@ -850,8 +850,11 @@ function DatasetSpectrumTable({
                         >
                           <Trash2 className="size-4" />
                         </span>
-                        <Tooltip.Content className={plotToolbarTooltipContentClass}>
-                          Remove geometry: Delete every point for this theta/phi group.
+                        <Tooltip.Content
+                          className={plotToolbarTooltipContentClass}
+                        >
+                          Remove geometry: Delete every point for this theta/phi
+                          group.
                         </Tooltip.Content>
                       </Tooltip>
                     )}
@@ -906,7 +909,8 @@ function DatasetSpectrumTable({
               Add geometry
             </Button>
             <Tooltip.Content className={plotToolbarTooltipContentClass}>
-              Add geometry: Paste CSV or tab-separated energy, mu, and optional angles.
+              Add geometry: Paste CSV or tab-separated energy, mu, and optional
+              angles.
             </Tooltip.Content>
           </Tooltip>
         </div>
@@ -1418,7 +1422,12 @@ export function DatasetContent({
         normalizationRegions: { ...regions, post: next },
       });
     },
-    [dataset.id, dataset.normalizationLocked, dataset.normalizationRegions, onDatasetUpdate],
+    [
+      dataset.id,
+      dataset.normalizationLocked,
+      dataset.normalizationRegions,
+      onDatasetUpdate,
+    ],
   );
 
   const handlePlotNormalizationMode = useCallback((enabled: boolean) => {
@@ -1503,9 +1512,7 @@ export function DatasetContent({
   );
 
   const edgeZeroOnePoints = useMemo(() => {
-    return (
-      zeroOneComputation?.normalizedPoints ?? dataset.spectrumPoints
-    );
+    return zeroOneComputation?.normalizedPoints ?? dataset.spectrumPoints;
   }, [zeroOneComputation, dataset.spectrumPoints]);
 
   const absorptionPlotPoints =
@@ -1519,9 +1526,7 @@ export function DatasetContent({
     if (primary && primary.length > 0) {
       return primary;
     }
-    return (
-      zeroOneComputation?.normalizedPoints ?? dataset.spectrumPoints
-    );
+    return zeroOneComputation?.normalizedPoints ?? dataset.spectrumPoints;
   }, [
     betaNormType,
     bareAtomComputation,
@@ -1639,11 +1644,7 @@ export function DatasetContent({
     return () => {
       cancelled = true;
     };
-  }, [
-    selectedMolecule?.chemicalFormula,
-    dataset.spectrumPoints,
-    deltaPoints,
-  ]);
+  }, [selectedMolecule?.chemicalFormula, dataset.spectrumPoints, deltaPoints]);
 
   const differenceRootPoints = useMemo<{
     mode: DifferenceRootView;
@@ -1659,7 +1660,13 @@ export function DatasetContent({
       mode: "absorption",
       points: absorptionPlotPoints ?? null,
     };
-  }, [dataView, edgeZeroOnePoints, absorptionPlotPoints, betaPoints, deltaPoints]);
+  }, [
+    dataView,
+    edgeZeroOnePoints,
+    absorptionPlotPoints,
+    betaPoints,
+    deltaPoints,
+  ]);
 
   const computeDifferenceSpectraFromRoot = useCallback(
     (angleMode: "theta" | "phi") => {
@@ -1872,40 +1879,14 @@ export function DatasetContent({
     onDatasetUpdate,
   ]);
 
-  const henkeMergeDomainUpload = useMemo(():
-    | readonly [number, number]
-    | undefined => {
-    const formula = selectedMolecule?.chemicalFormula?.trim();
-    if (!formula) {
-      return undefined;
-    }
-    let composition;
-    try {
-      composition = parseChemicalFormula(formula);
-    } catch {
-      return undefined;
-    }
-    const ranges = parseStoredNormalizationRanges(
-      dataset.normalizationRegions,
-    );
-    const win = unifiedNormalizationWindowsForBasis(
-      dataset.normalizationScope,
-      ranges,
-      "beta",
-    );
-    if (!win?.pre || !win.post) {
-      return undefined;
-    }
-    return resolveHenkeKkMergeDomainFromPrePostWindows({
-      pre: win.pre,
-      post: win.post,
-      composition,
-    });
-  }, [
-    selectedMolecule?.chemicalFormula,
-    dataset.normalizationScope,
-    dataset.normalizationRegions,
-  ]);
+  const henkeMergeDomainUpload = useMemo(
+    () =>
+      resolveHenkeMergeDomainForUploadDataset(
+        dataset,
+        selectedMolecule?.chemicalFormula,
+      ),
+    [dataset, selectedMolecule?.chemicalFormula],
+  );
 
   const runKkDeltaPreviewForUploadDraft = useCallback(() => {
     const formula = selectedMolecule?.chemicalFormula?.trim();
@@ -2012,7 +1993,9 @@ export function DatasetContent({
     const curve = buildBareAtomReferenceCurve({
       bareMu: referenceView === "delta" ? undefined : bare,
       bareDelta:
-        referenceView === "delta" ? (bareAtomDeltaPoints ?? undefined) : undefined,
+        referenceView === "delta"
+          ? (bareAtomDeltaPoints ?? undefined)
+          : undefined,
       dataView: referenceView,
       label:
         referenceView === "beta"
@@ -2415,9 +2398,7 @@ export function DatasetContent({
     (change: DatasetAttributionChange) => {
       onDatasetUpdate(dataset.id, (current) => ({
         attributions:
-          typeof change === "function"
-            ? change(current.attributions)
-            : change,
+          typeof change === "function" ? change(current.attributions) : change,
       }));
     },
     [dataset.id, onDatasetUpdate],
@@ -2450,9 +2431,7 @@ export function DatasetContent({
           <div className="w-full min-w-0">
             {visualizationMode === "aux" ? (
               <DatasetAuxFilesTab
-                variant={
-                  dataset.persistedExperimentId ? "persisted" : "draft"
-                }
+                variant={dataset.persistedExperimentId ? "persisted" : "draft"}
                 dataset={dataset}
                 pendingKind={auxUploadKind}
                 pendingDescription={auxUploadDescription}
@@ -2464,196 +2443,202 @@ export function DatasetContent({
                 onDropTargetsChange={onAuxDropTargetsChange}
                 auxTabActive={visualizationMode === "aux"}
               />
-            ) : visualizationMode === "graph" || visualizationMode === "table" ? (
-            <div
-              className={`border-border bg-surface w-full border p-6 shadow-sm ${
-                visualizationMode === "table"
-                  ? "flex flex-col rounded-lg"
-                  : "flex min-h-[840px] min-w-0 flex-col rounded-xl"
-              }`}
-            >
-              {visualizationMode === "graph" && plotPoints.length > 0 ? (
-                <div
-                  className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3"
-                  style={{ minHeight: 0 }}
-                >
-                  <SpectrumPlot
-                    points={plotPoints}
-                    graphStyle={graphStyle}
-                    yAxisQuantity={spectrumYAxisQuantity}
-                    plotTopRailDataActions={plotTopRailDataActions}
-                    referenceCurves={spectrumReferenceCurves}
-                    normalizationRegions={normalizationRegionsForPlot}
-                    showNormalizationShading={
-                      normalizationRegionsForPlot != null
-                    }
-                    normalizationEdgeHandlesEnabled={
-                      isPlotNormalizationMode &&
-                      Boolean(normalizationRegionsForPlot)
-                    }
-                    onNormalizationEdgeEnergyChange={
-                      dataset.normalizationLocked
-                        ? undefined
-                        : handleNormalizationEdgeEnergyChange
-                    }
-                    onSelectionChange={handleNormalizationSelection}
-                    headerRight={plotLeftPlotRail}
-                    headerAnalysis={plotRightPlotRail}
-                    plotBottomTools={plotBottomPlotRail}
-                    suppressAnalysisRailLeadingGrip
-                    plotContext={
-                      isPlotNormalizationMode && normalizationSelectionTarget
-                        ? {
-                            kind: "normalize",
-                            target: normalizationSelectionTarget,
-                          }
-                        : isManualPeakMode
-                          ? { kind: "peak-edit" }
-                          : { kind: "explore" }
-                    }
-                    peaks={dataset.peaks.map((peak, index) => ({
-                      ...peak,
-                      id: peak.id ?? `peak-${index}-${peak.energy}`,
-                    }))}
-                    selectedPeakId={dataset.selectedPeakId}
-                    onPeakSelect={(peakId) =>
-                      onDatasetUpdate(dataset.id, { selectedPeakId: peakId })
-                    }
-                    onPeakUpdate={(peakId, energy) => {
-                      const roundedEnergy = Math.round(energy * 100) / 100;
-                      const updatedPeaks = dataset.peaks.map((peak, index) => {
-                        const currentId =
-                          peak.id ?? `peak-${index}-${peak.energy}`;
-                        if (currentId === peakId) {
-                          return { ...peak, energy: roundedEnergy };
-                        }
-                        return peak;
-                      });
-                      onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
-                    }}
-                    onPeakPatch={(peakId, patch) => {
-                      const updatedPeaks = dataset.peaks.map((peak, index) => {
-                        const currentId =
-                          peak.id ?? `peak-${index}-${peak.energy}`;
-                        if (currentId !== peakId) return peak;
-                        const next = { ...peak };
-                        if (patch.energy !== undefined) {
-                          next.energy = Math.round(patch.energy * 100) / 100;
-                        }
-                        if (patch.peakKind !== undefined) {
-                          next.peakKind = patch.peakKind;
-                        }
-                        return next;
-                      });
-                      onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
-                    }}
-                    onPeakDelete={(peakId) => {
-                      const updatedPeaks = dataset.peaks.filter(
-                        (peak, index) =>
-                          (peak.id ?? `peak-${index}-${peak.energy}`) !==
-                          peakId,
-                      );
-                      onDatasetUpdate(dataset.id, {
-                        peaks: updatedPeaks,
-                        selectedPeakId:
-                          dataset.selectedPeakId === peakId
-                            ? null
-                            : dataset.selectedPeakId,
-                      });
-                    }}
-                    onPeakAdd={(energy) => {
-                      const roundedEnergy = Math.round(energy * 100) / 100;
-
-                      // Estimate amplitude from spectrum at this energy
-                      const pointsToAnalyze = plotPoints;
-                      let amplitude: number | undefined;
-                      if (pointsToAnalyze.length > 0) {
-                        // Find closest point to estimate amplitude
-                        let closestPoint = pointsToAnalyze[0];
-                        let minDistance = Math.abs(
-                          pointsToAnalyze[0]!.energy - roundedEnergy,
-                        );
-                        for (const point of pointsToAnalyze) {
-                          const distance = Math.abs(
-                            point.energy - roundedEnergy,
-                          );
-                          if (distance < minDistance) {
-                            minDistance = distance;
-                            closestPoint = point;
-                          }
-                        }
-                        amplitude = closestPoint?.absorption;
+            ) : visualizationMode === "graph" ||
+              visualizationMode === "table" ? (
+              <div
+                className={`border-border bg-surface w-full border p-6 shadow-sm ${
+                  visualizationMode === "table"
+                    ? "flex flex-col rounded-lg"
+                    : "flex min-h-[840px] min-w-0 flex-col rounded-xl"
+                }`}
+              >
+                {visualizationMode === "graph" && plotPoints.length > 0 ? (
+                  <div
+                    className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3"
+                    style={{ minHeight: 0 }}
+                  >
+                    <SpectrumPlot
+                      points={plotPoints}
+                      graphStyle={graphStyle}
+                      yAxisQuantity={spectrumYAxisQuantity}
+                      plotTopRailDataActions={plotTopRailDataActions}
+                      referenceCurves={spectrumReferenceCurves}
+                      normalizationRegions={normalizationRegionsForPlot}
+                      showNormalizationShading={
+                        normalizationRegionsForPlot != null
                       }
+                      normalizationEdgeHandlesEnabled={
+                        isPlotNormalizationMode &&
+                        Boolean(normalizationRegionsForPlot)
+                      }
+                      onNormalizationEdgeEnergyChange={
+                        dataset.normalizationLocked
+                          ? undefined
+                          : handleNormalizationEdgeEnergyChange
+                      }
+                      onSelectionChange={handleNormalizationSelection}
+                      headerRight={plotLeftPlotRail}
+                      headerAnalysis={plotRightPlotRail}
+                      plotBottomTools={plotBottomPlotRail}
+                      suppressAnalysisRailLeadingGrip
+                      plotContext={
+                        isPlotNormalizationMode && normalizationSelectionTarget
+                          ? {
+                              kind: "normalize",
+                              target: normalizationSelectionTarget,
+                            }
+                          : isManualPeakMode
+                            ? { kind: "peak-edit" }
+                            : { kind: "explore" }
+                      }
+                      peaks={dataset.peaks.map((peak, index) => ({
+                        ...peak,
+                        id: peak.id ?? `peak-${index}-${peak.energy}`,
+                      }))}
+                      selectedPeakId={dataset.selectedPeakId}
+                      onPeakSelect={(peakId) =>
+                        onDatasetUpdate(dataset.id, { selectedPeakId: peakId })
+                      }
+                      onPeakUpdate={(peakId, energy) => {
+                        const roundedEnergy = Math.round(energy * 100) / 100;
+                        const updatedPeaks = dataset.peaks.map(
+                          (peak, index) => {
+                            const currentId =
+                              peak.id ?? `peak-${index}-${peak.energy}`;
+                            if (currentId === peakId) {
+                              return { ...peak, energy: roundedEnergy };
+                            }
+                            return peak;
+                          },
+                        );
+                        onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
+                      }}
+                      onPeakPatch={(peakId, patch) => {
+                        const updatedPeaks = dataset.peaks.map(
+                          (peak, index) => {
+                            const currentId =
+                              peak.id ?? `peak-${index}-${peak.energy}`;
+                            if (currentId !== peakId) return peak;
+                            const next = { ...peak };
+                            if (patch.energy !== undefined) {
+                              next.energy =
+                                Math.round(patch.energy * 100) / 100;
+                            }
+                            if (patch.peakKind !== undefined) {
+                              next.peakKind = patch.peakKind;
+                            }
+                            return next;
+                          },
+                        );
+                        onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
+                      }}
+                      onPeakDelete={(peakId) => {
+                        const updatedPeaks = dataset.peaks.filter(
+                          (peak, index) =>
+                            (peak.id ?? `peak-${index}-${peak.energy}`) !==
+                            peakId,
+                        );
+                        onDatasetUpdate(dataset.id, {
+                          peaks: updatedPeaks,
+                          selectedPeakId:
+                            dataset.selectedPeakId === peakId
+                              ? null
+                              : dataset.selectedPeakId,
+                        });
+                      }}
+                      onPeakAdd={(energy) => {
+                        const roundedEnergy = Math.round(energy * 100) / 100;
 
-                      const newPeak = {
-                        energy: roundedEnergy,
-                        amplitude,
-                        id: `peak-manual-${Date.now()}`,
-                      } as PeakData & { id: string };
-                      onDatasetUpdate(dataset.id, {
-                        peaks: [...dataset.peaks, newPeak],
-                      });
-                    }}
-                    differenceSpectra={differenceSpectra}
-                    showThetaData={showThetaData}
-                    showPhiData={showPhiData}
-                    selectedGeometry={selectedGeometry}
-                    cursorMode={cursorMode}
-                    onCursorModeChange={setCursorMode}
-                  />
-                </div>
-              ) : visualizationMode === "table" ? (
-                plotPoints.length > 0 ? (
-                  <DatasetSpectrumTable
-                    points={plotPoints}
-                    uniqueThetaValues={tableUniqueThetaValues}
-                    uniquePhiValues={tableUniquePhiValues}
-                    stoichiometryFormula={
-                      selectedMolecule?.chemicalFormula ?? null
-                    }
-                    editMode={geometryEditMode}
-                    onDeleteGeometry={handleDeleteGeometry}
-                    onPasteGeometries={handlePasteGeometries}
-                    onReplacePoint={handleReplacePoint}
-                  />
+                        // Estimate amplitude from spectrum at this energy
+                        const pointsToAnalyze = plotPoints;
+                        let amplitude: number | undefined;
+                        if (pointsToAnalyze.length > 0) {
+                          // Find closest point to estimate amplitude
+                          let closestPoint = pointsToAnalyze[0];
+                          let minDistance = Math.abs(
+                            pointsToAnalyze[0]!.energy - roundedEnergy,
+                          );
+                          for (const point of pointsToAnalyze) {
+                            const distance = Math.abs(
+                              point.energy - roundedEnergy,
+                            );
+                            if (distance < minDistance) {
+                              minDistance = distance;
+                              closestPoint = point;
+                            }
+                          }
+                          amplitude = closestPoint?.absorption;
+                        }
+
+                        const newPeak = {
+                          energy: roundedEnergy,
+                          amplitude,
+                          id: `peak-manual-${Date.now()}`,
+                        } as PeakData & { id: string };
+                        onDatasetUpdate(dataset.id, {
+                          peaks: [...dataset.peaks, newPeak],
+                        });
+                      }}
+                      differenceSpectra={differenceSpectra}
+                      showThetaData={showThetaData}
+                      showPhiData={showPhiData}
+                      selectedGeometry={selectedGeometry}
+                      cursorMode={cursorMode}
+                      onCursorModeChange={setCursorMode}
+                    />
+                  </div>
+                ) : visualizationMode === "table" ? (
+                  plotPoints.length > 0 ? (
+                    <DatasetSpectrumTable
+                      points={plotPoints}
+                      uniqueThetaValues={tableUniqueThetaValues}
+                      uniquePhiValues={tableUniquePhiValues}
+                      stoichiometryFormula={
+                        selectedMolecule?.chemicalFormula ?? null
+                      }
+                      editMode={geometryEditMode}
+                      onDeleteGeometry={handleDeleteGeometry}
+                      onPasteGeometries={handlePasteGeometries}
+                      onReplacePoint={handleReplacePoint}
+                    />
+                  ) : (
+                    <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
+                      <div className="text-center">
+                        <p className="font-medium">No data available</p>
+                        <p className="mt-1 text-sm">
+                          Upload a CSV file to see the table
+                        </p>
+                      </div>
+                    </div>
+                  )
+                ) : dataset.spectrumError ? (
+                  <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">
+                    <div className="text-center">
+                      <p className="font-medium">Error processing data</p>
+                      <p className="mt-1 text-sm">{dataset.spectrumError}</p>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
                     <div className="text-center">
-                      <p className="font-medium">No data available</p>
+                      <p className="font-medium">No spectrum data</p>
                       <p className="mt-1 text-sm">
-                        Upload a CSV file to see the table
+                        Upload a CSV file to see the plot
                       </p>
                     </div>
                   </div>
-                )
-              ) : dataset.spectrumError ? (
-                <div className="flex h-[400px] items-center justify-center text-red-600 dark:text-red-400">
-                  <div className="text-center">
-                    <p className="font-medium">Error processing data</p>
-                    <p className="mt-1 text-sm">{dataset.spectrumError}</p>
+                )}
+                {isCalculatingBareAtom && (
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Calculating bare atom absorption...
                   </div>
-                </div>
-              ) : (
-                <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
-                  <div className="text-center">
-                    <p className="font-medium">No spectrum data</p>
-                    <p className="mt-1 text-sm">
-                      Upload a CSV file to see the plot
-                    </p>
+                )}
+                {bareAtomError && (
+                  <div className="mt-2 text-xs text-red-600 dark:text-red-400">
+                    {bareAtomError}
                   </div>
-                </div>
-              )}
-              {isCalculatingBareAtom && (
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Calculating bare atom absorption...
-                </div>
-              )}
-              {bareAtomError && (
-                <div className="mt-2 text-xs text-red-600 dark:text-red-400">
-                  {bareAtomError}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
             ) : null}
 
             {/* Selection Mode Toast */}

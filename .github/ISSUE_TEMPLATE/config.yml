@@ -3,3 +3,9 @@ contact_links:
   - name: Contributing guide
     url: https://github.com/WSU-Carbon-Lab/xray-atlas/blob/main/CONTRIBUTING.md
     about: Environment setup, PR workflow, and conventional commits.
+  - name: Report a bug
+    url: https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=bug-report.yml
+    about: Structured form for reproducible defect reports.
+  - name: Request a feature
+    url: https://github.com/WSU-Carbon-Lab/xray-atlas/issues/new?template=feature-request.yml
+    about: Propose new capabilities or workflow improvements.

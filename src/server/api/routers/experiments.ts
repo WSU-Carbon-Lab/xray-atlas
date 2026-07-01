@@ -51,6 +51,7 @@ import {
   kkDeltaMetadataToJson,
   parseKkDeltaMetadata,
 } from "~/server/nexafs/kkDeltaMetadata";
+import { kkDeltaSubmitValidationErrors } from "~/server/nexafs/kkDeltaSubmitValidation";
 import { SPECTRUMPOINTS_SERVER_SCAN_CAP } from "~/server/nexafs/spectrumpointLimits";
 import {
   buildAtlasTeamVerificationSummary,
@@ -199,6 +200,27 @@ function spectrumRowsHaveUploadedDerivedScalars(
   );
 }
 
+function geometryGroupsHaveClientDerivedScalar(
+  groups: ReadonlyArray<{
+    points: ReadonlyArray<{
+      od?: number;
+      massabsorption?: number;
+      beta?: number;
+    }>;
+  }>,
+  channel: "od" | "massabsorption" | "beta",
+): boolean {
+  return groups.some((group) => {
+    if (group.points.length === 0) {
+      return false;
+    }
+    return group.points.every((point) => {
+      const value = point[channel];
+      return typeof value === "number" && Number.isFinite(value);
+    });
+  });
+}
+
 export const experimentsRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -269,8 +291,7 @@ export const experimentsRouter = createTRPCRouter({
           },
         },
       });
-      const raw =
-        row?.samples?.molecules?.chemicalformula?.trim() ?? "";
+      const raw = row?.samples?.molecules?.chemicalformula?.trim() ?? "";
       const userId = ctx.userId;
       const canEditNormalizationMetadata =
         Boolean(userId && row?.createdby && row.createdby === userId) ||
@@ -784,10 +805,24 @@ export const experimentsRouter = createTRPCRouter({
       const pattern = `%${input.query.trim()}%`;
       const lim = input.limitPerGroup;
 
-      type EdgeRow = { id: string; targetatom: string; corestate: string; count: bigint };
-      type InstrumentRow = { id: string; name: string; facility_name: string | null; count: bigint };
+      type EdgeRow = {
+        id: string;
+        targetatom: string;
+        corestate: string;
+        count: bigint;
+      };
+      type InstrumentRow = {
+        id: string;
+        name: string;
+        facility_name: string | null;
+        count: bigint;
+      };
       type MolRow = { id: string; name: string; count: bigint };
-      type ContributorRow = { orcid_id: string; name: string | null; count: bigint };
+      type ContributorRow = {
+        orcid_id: string;
+        name: string | null;
+        count: bigint;
+      };
 
       const [edgeRows, instRows, molRows, contRows] = await Promise.all([
         ctx.db.$queryRaw<EdgeRow[]>`
@@ -1290,14 +1325,18 @@ export const experimentsRouter = createTRPCRouter({
       );
       const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
       const requestedCollectedBy = [
-        ...new Set((collectedByUserIds ?? []).filter((id) =>
-          orcidUserIdSchema.safeParse(id).success,
-        )),
+        ...new Set(
+          (collectedByUserIds ?? []).filter(
+            (id) => orcidUserIdSchema.safeParse(id).success,
+          ),
+        ),
       ];
       const requestedCollectedByOrcid = [
-        ...new Set((collectedByOrcidIds ?? []).filter((id) =>
-          orcidUserIdSchema.safeParse(id).success,
-        )),
+        ...new Set(
+          (collectedByOrcidIds ?? []).filter(
+            (id) => orcidUserIdSchema.safeParse(id).success,
+          ),
+        ),
       ];
       if (
         !isPrivilegedUser &&
@@ -1415,7 +1454,10 @@ export const experimentsRouter = createTRPCRouter({
             }
           }
           const normalizedCollectorOrcidIds = [
-            ...new Set([...normalizedCollectedBy, ...requestedCollectedByOrcid]),
+            ...new Set([
+              ...normalizedCollectedBy,
+              ...requestedCollectedByOrcid,
+            ]),
           ];
 
           let attributionRows: ExperimentAttributionInput[] =
@@ -1446,10 +1488,8 @@ export const experimentsRouter = createTRPCRouter({
             attributionRows,
             ctx.userId,
           );
-          const collectedByFromAttributions = await resolveKnownCollectorUserIds(
-            tx,
-            attributionRows,
-          );
+          const collectedByFromAttributions =
+            await resolveKnownCollectorUserIds(tx, attributionRows);
           const normalizedCollectedByForExperiment =
             collectedByFromAttributions.length > 0
               ? collectedByFromAttributions
@@ -1612,15 +1652,27 @@ export const experimentsRouter = createTRPCRouter({
             doiPresent: sourcePaperCitations.length > 0,
           });
           const hasDerivedValues = {
-            od: derivedByGroup.some((group) =>
-              group.od.some((value) => value != null),
-            ),
-            massabsorption: derivedByGroup.some((group) =>
-              group.massabsorption.some((value) => value != null),
-            ),
-            beta: derivedByGroup.some((group) =>
-              group.beta.some((value) => value != null),
-            ),
+            od:
+              derivedByGroup.some((group) =>
+                group.od.some((value) => value != null),
+              ) ||
+              (!uploadedChannels.includes("od") &&
+                geometryGroupsHaveClientDerivedScalar(geometryGroups, "od")),
+            massabsorption:
+              derivedByGroup.some((group) =>
+                group.massabsorption.some((value) => value != null),
+              ) ||
+              (!uploadedChannels.includes("massabsorption") &&
+                geometryGroupsHaveClientDerivedScalar(
+                  geometryGroups,
+                  "massabsorption",
+                )),
+            beta:
+              derivedByGroup.some((group) =>
+                group.beta.some((value) => value != null),
+              ) ||
+              (!uploadedChannels.includes("beta") &&
+                geometryGroupsHaveClientDerivedScalar(geometryGroups, "beta")),
           };
           const channelProvenance = buildChannelProvenance({
             uploadedChannels,
@@ -1641,24 +1693,14 @@ export const experimentsRouter = createTRPCRouter({
             }
           }
 
-          if (
-            experimentInput.computeKkDeltaOnSubmit === true &&
-            !spectrumHasDelta
-          ) {
+          const kkSubmitValidationErrors = kkDeltaSubmitValidationErrors(
+            experimentInput.computeKkDeltaOnSubmit,
+            spectrumInput.points,
+          );
+          if (kkSubmitValidationErrors.length > 0) {
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message:
-                "computeKkDeltaOnSubmit requires finite delta on at least one spectrum point",
-            });
-          }
-          if (
-            experimentInput.computeKkDeltaOnSubmit === true &&
-            !uploadedChannels.includes("beta")
-          ) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message:
-                "computeKkDeltaOnSubmit requires beta in uploadedChannels",
+              message: kkSubmitValidationErrors[0]!,
             });
           }
 
@@ -2165,10 +2207,7 @@ export const experimentsRouter = createTRPCRouter({
       }
 
       const uploadedChannels = Array.from(
-        new Set<UploadedChannel>([
-          ...(input.uploadedChannels ?? []),
-          "rawabs",
-        ]),
+        new Set<UploadedChannel>([...(input.uploadedChannels ?? []), "rawabs"]),
       );
       const pointCount = await ctx.db.spectrumpoints.count({
         where: { experimentid: input.experimentId },
@@ -2218,7 +2257,8 @@ export const experimentsRouter = createTRPCRouter({
         data: {
           normalizationscope: input.normalization.scope,
           normalizationranges: ranges as unknown as Prisma.InputJsonValue,
-          uploadedchannels: uploadedChannels as unknown as Prisma.InputJsonValue,
+          uploadedchannels:
+            uploadedChannels as unknown as Prisma.InputJsonValue,
           channelprovenance:
             channelProvenance as unknown as Prisma.InputJsonValue,
           validationsummary:
@@ -2498,8 +2538,11 @@ export const experimentsRouter = createTRPCRouter({
         ctx.db,
         input.experimentId,
       );
-      const publications = rows.map((row) => mapPublicationCitationToOutput(row));
-      const primaryDoi = metrics?.originaldatadoi?.trim() ?? publications[0]?.doi ?? "";
+      const publications = rows.map((row) =>
+        mapPublicationCitationToOutput(row),
+      );
+      const primaryDoi =
+        metrics?.originaldatadoi?.trim() ?? publications[0]?.doi ?? "";
       const primaryCitation =
         publications.find((publication) => publication.doi === primaryDoi) ??
         publications[0] ??
@@ -2558,11 +2601,7 @@ export const experimentsRouter = createTRPCRouter({
         });
       }
 
-      await assertUserMayEditExperiment(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      );
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
 
       const citation = await resolvePublicationDoi(input.doi);
       if (!citation) {
@@ -2610,11 +2649,7 @@ export const experimentsRouter = createTRPCRouter({
         });
       }
 
-      await assertUserMayEditExperiment(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      );
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
 
       const primaryDoi = await removeExperimentSourcePublication(
         ctx.db,
@@ -2652,11 +2687,7 @@ export const experimentsRouter = createTRPCRouter({
         });
       }
 
-      await assertUserMayEditExperiment(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      );
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
 
       const citation = await resolvePublicationDoi(input.doi);
       if (!citation) {
@@ -2667,11 +2698,7 @@ export const experimentsRouter = createTRPCRouter({
         });
       }
 
-      await syncExperimentSourcePaperDoi(
-        ctx.db,
-        input.experimentId,
-        citation,
-      );
+      await syncExperimentSourcePaperDoi(ctx.db, input.experimentId, citation);
 
       const metrics = await ctx.db.experimentmetrics.findUnique({
         where: { experimentid: input.experimentId },
@@ -2705,11 +2732,7 @@ export const experimentsRouter = createTRPCRouter({
         });
       }
 
-      await assertUserMayEditExperiment(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      );
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
 
       await clearExperimentSourcePaperDoi(ctx.db, input.experimentId);
 
