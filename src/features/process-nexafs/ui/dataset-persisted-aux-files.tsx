@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Spinner } from "@heroui/react";
+import { cn } from "@heroui/styles";
 import {
   AuxFileDropZone,
   AuxUploadDefaultsRow,
@@ -66,6 +67,8 @@ export type DatasetAuxFilesPanelProps = {
   auxTabActive: boolean;
   /** When false, drop zones and global drop targets stay off (browse upload lock). */
   uploadDropEnabled?: boolean;
+  /** When true, drop zones stretch to fill a tall aux tab shell (browse dataset panel). */
+  fillContainer?: boolean;
 };
 
 /**
@@ -85,6 +88,7 @@ export function DatasetAuxFilesPanel({
   onDropTargetsChange,
   auxTabActive,
   uploadDropEnabled = true,
+  fillContainer = false,
 }: DatasetAuxFilesPanelProps) {
   const isPersisted = variant === "persisted";
   const experimentId = dataset.persistedExperimentId ?? "";
@@ -314,7 +318,10 @@ export function DatasetAuxFilesPanel({
 
   return (
     <section
-      className="flex w-full flex-col gap-4"
+      className={cn(
+        "flex w-full flex-col gap-4",
+        fillContainer && "min-h-0 flex-1",
+      )}
       aria-labelledby="dataset-aux-files-heading"
     >
       <div className="flex items-center justify-between gap-3">
@@ -343,10 +350,16 @@ export function DatasetAuxFilesPanel({
         />
       ) : null}
 
-      <div className="grid w-full items-stretch gap-4 lg:grid-cols-2">
+      <div
+        className={cn(
+          "grid w-full items-stretch gap-4 lg:grid-cols-2",
+          fillContainer && "min-h-0 flex-1",
+        )}
+      >
         <AuxFileDropZone
           variant="compact"
           hideUploadDefaults
+          fillHeight={fillContainer}
           pendingKind={pendingKind}
           pendingDescription={pendingDescription}
           scope="experiment"
@@ -374,6 +387,7 @@ export function DatasetAuxFilesPanel({
         <AuxFileDropZone
           variant="compact"
           hideUploadDefaults
+          fillHeight={fillContainer}
           pendingKind={pendingKind}
           pendingDescription={pendingDescription}
           scope="sample"

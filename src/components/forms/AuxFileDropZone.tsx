@@ -70,6 +70,8 @@ type AuxFileDropZoneProps = {
   persistedFiles?: AuxPersistedDisplayFile[];
   onPersistedFileRemove?: (fileId: string) => void;
   persistedRemovingFileId?: string | null;
+  /** When true, the compact drop surface grows to fill the parent column height. */
+  fillHeight?: boolean;
 };
 
 const kindIconClass = "size-4 shrink-0";
@@ -180,6 +182,7 @@ export function AuxFileDropZone({
   persistedFiles = [],
   onPersistedFileRemove,
   persistedRemovingFileId = null,
+  fillHeight = false,
 }: AuxFileDropZoneProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -355,7 +358,10 @@ export function AuxFileDropZone({
       className={cn(
         "relative flex cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed text-center transition-colors",
         isCompact
-          ? "border-border flex-1 px-3 py-3"
+          ? cn(
+              "border-border flex-1 px-3 py-3",
+              fillHeight ? "justify-between" : "justify-center",
+            )
           : "border-border min-h-[8.5rem] px-4 py-5 gap-2",
         (showGlobalOverlay ||
           (isHovering && !experimentDangerZone) ||
@@ -398,8 +404,10 @@ export function AuxFileDropZone({
         <>
           <div
             className={cn(
-              "relative w-full shrink-0",
-              COMPACT_AUX_DROP_VISUAL_SLOT_HEIGHT_CLASS,
+              "relative w-full min-w-0",
+              fillHeight
+                ? "min-h-[5.25rem] flex-1"
+                : cn("shrink-0", COMPACT_AUX_DROP_VISUAL_SLOT_HEIGHT_CLASS),
               showGlobalOverlay && "opacity-0",
             )}
             onMouseEnter={() => {
@@ -432,6 +440,7 @@ export function AuxFileDropZone({
           <div
             className={cn(
               "flex w-full min-h-[2.375rem] shrink-0 flex-col items-center justify-center gap-0.5",
+              fillHeight && "mt-auto",
               showGlobalOverlay && "opacity-0",
             )}
           >

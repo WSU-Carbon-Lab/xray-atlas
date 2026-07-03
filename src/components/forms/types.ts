@@ -1,6 +1,7 @@
 import type { Key } from "@heroui/react";
 import type { ProcessMethod } from "~/prisma/browser";
 import type { ReactNode } from "react";
+import type { SampleAuxFields } from "~/features/process-nexafs/types";
 
 export type InstrumentStatus = "active" | "inactive" | "under_maintenance";
 
@@ -136,6 +137,16 @@ export type NexafsSampleVendorOption = {
 };
 
 export type NexafsSampleInformationSectionProps = {
+  /** When false, omits the contribute workflow heading and intro copy. */
+  showSectionHeading?: boolean;
+  /** When false, hides the create-new-vendor block (browse edit uses existing vendors only). */
+  showVendorCreateFields?: boolean;
+  /** When set, renders process method beside wet/dry technique in a shared preparation group. */
+  linkedSampleAux?: {
+    value: SampleAuxFields;
+    onChange: (next: SampleAuxFields) => void;
+    onProcessMethodChange?: (processMethod: ProcessMethod | null) => void;
+  };
   processMethod: ProcessMethod | null;
   setProcessMethod: (value: ProcessMethod | null) => void;
   substrate: string;
@@ -154,6 +165,14 @@ export type NexafsSampleInformationSectionProps = {
   setNewVendorUrl: (value: string) => void;
   vendors: NexafsSampleVendorOption[];
   isLoadingVendors: boolean;
+  /**
+   * @deprecated Inset layout is always used; retained for call-site compatibility.
+   */
+  appearance?: "form" | "inset";
+  /**
+   * @deprecated Inset layout is always used; retained for call-site compatibility.
+   */
+  layout?: "form" | "inset";
 };
 
 export type NexafsCreateEdgeDialogProps = {

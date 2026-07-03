@@ -20,6 +20,7 @@ export type DatasetVisualizationShellProps = {
   trailingSlot?: ReactNode;
   graph: ReactNode;
   table: ReactNode;
+  sample?: ReactNode;
   aux?: ReactNode;
 };
 
@@ -37,6 +38,7 @@ export function DatasetVisualizationShell({
   trailingSlot,
   graph,
   table,
+  sample,
   aux,
 }: DatasetVisualizationShellProps) {
   return (
@@ -55,9 +57,11 @@ export function DatasetVisualizationShell({
       />
       {mode === "aux" && aux != null
         ? aux
-        : mode === "table"
-          ? table
-          : graph}
+        : mode === "sample" && sample != null
+          ? sample
+          : mode === "table"
+            ? table
+            : graph}
     </div>
   );
 }
