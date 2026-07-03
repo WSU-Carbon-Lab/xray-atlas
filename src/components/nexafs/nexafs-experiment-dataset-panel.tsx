@@ -121,6 +121,7 @@ import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-
 import { SimpleDialog } from "~/components/ui/dialog";
 import { DefaultButton as DialogButton } from "~/components/ui/button";
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
+import { NexafsExperimentSampleInfoPanel } from "~/components/nexafs/nexafs-experiment-sample-info-panel";
 
 interface ExperimentFormulaMeta {
   sampleId?: string | null;
@@ -1724,10 +1725,17 @@ export function NexafsExperimentDatasetPanel({
         trailingSlot={auxUploadLockTrailing}
       />
 
-      {visualizationMode === "aux" ? (
+      {visualizationMode === "sample" ? (
+        <NexafsExperimentSampleInfoPanel
+          experimentId={experimentId}
+          sampleId={sampleId}
+          enabled={enabled}
+        />
+      ) : visualizationMode === "aux" ? (
         <div className="border-border bg-surface flex min-h-[420px] w-full flex-col rounded-xl border p-4">
           <DatasetAuxFilesPanel
             variant="persisted"
+            fillContainer
             dataset={browseAuxDataset}
             pendingKind={auxUploadKind}
             pendingDescription={auxUploadDescription}

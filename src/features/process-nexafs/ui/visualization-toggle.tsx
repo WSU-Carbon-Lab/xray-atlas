@@ -6,12 +6,13 @@ import {
   ChartBarIcon,
   PencilSquareIcon,
   FolderIcon,
+  BeakerIcon,
 } from "@heroicons/react/24/outline";
 import { ChartLine, ChartArea, ChartScatter } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { plotToolbarTooltipContentClass } from "~/components/plots/toolbars";
 
-export type VisualizationMode = "graph" | "table" | "aux";
+export type VisualizationMode = "graph" | "table" | "sample" | "aux";
 export type GraphStyle = "line" | "scatter" | "area";
 
 const inactiveButtonClass =
@@ -19,7 +20,12 @@ const inactiveButtonClass =
 const activeButtonClass =
   "border-accent bg-accent text-accent-foreground flex h-8 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors";
 
-const DEFAULT_VISUALIZATION_MODES: VisualizationMode[] = ["graph", "table", "aux"];
+const DEFAULT_VISUALIZATION_MODES: VisualizationMode[] = [
+  "graph",
+  "table",
+  "sample",
+  "aux",
+];
 
 interface VisualizationToggleProps {
   /** Subset of view modes to render; defaults to graph, table, and auxiliary files. */
@@ -65,6 +71,7 @@ export function VisualizationToggle({
 
   const showGraph = modes.includes("graph");
   const showTable = modes.includes("table");
+  const showSample = modes.includes("sample");
   const showAux = modes.includes("aux");
 
   return (
@@ -101,6 +108,23 @@ export function VisualizationToggle({
             </button>
             <Tooltip.Content className={plotToolbarTooltipContentClass}>
               Show table: View every point in a sortable grid.
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
+        {showSample ? (
+          <Tooltip delay={0}>
+            <button
+              type="button"
+              onClick={() => onModeChange("sample")}
+              className={
+                mode === "sample" ? activeButtonClass : inactiveButtonClass
+              }
+            >
+              <BeakerIcon className="h-4 w-4" />
+              <span>Sample information</span>
+            </button>
+            <Tooltip.Content className={plotToolbarTooltipContentClass}>
+              Sample information: View specimen metadata recorded for this dataset.
             </Tooltip.Content>
           </Tooltip>
         ) : null}
