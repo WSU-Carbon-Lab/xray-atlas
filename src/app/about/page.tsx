@@ -5,10 +5,13 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { api } from "~/trpc/server";
 import { ORCIDIcon } from "~/components/icons";
 import { AboutWikiEntry } from "~/components/about/about-wiki-entry";
 import { attribution, mission, site } from "~/app/brand";
+import {
+  getCachedAboutCollaborators,
+  getCachedCoreMaintainers,
+} from "~/server/cache/about-public-cache";
 import {
   ArrowTopRightOnSquareIcon,
   AcademicCapIcon,
@@ -29,6 +32,8 @@ export const metadata: Metadata = {
   title: `About ${site.name}`,
   description: `Learn how ${site.name} supports FAIR-aligned spectroscopy discovery, attribution, and reuse across the synchrotron community.`,
 };
+
+export const revalidate = 3600;
 
 const aboutResourceCards = [
   {
@@ -110,7 +115,7 @@ const fairPrinciples = [
 ] as const;
 
 type CoreMaintainerRow = Awaited<
-  ReturnType<typeof api.users.getCoreMaintainers>
+  ReturnType<typeof getCachedCoreMaintainers>
 >[number];
 
 function initialsFromName(name: string | null): string {
@@ -175,8 +180,8 @@ function ProfileCard({ user }: { user: CoreMaintainerRow }) {
 
 export default async function AboutPage() {
   const [collaboratorsData, coreMaintainers] = await Promise.all([
-    api.collaborators.getAll(),
-    api.users.getCoreMaintainers(),
+    getCachedAboutCollaborators(),
+    getCachedCoreMaintainers(),
   ]);
 
   const administrators = coreMaintainers.filter(

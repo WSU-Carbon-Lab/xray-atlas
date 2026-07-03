@@ -1,6 +1,8 @@
 import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import matter from "gray-matter";
 import {
   wikiFrontmatterSchema,
@@ -98,14 +100,24 @@ export async function parseWikiMdxFile(filePath: string): Promise<WikiEntry> {
   };
 }
 
-/**
- * Loads every wiki MDX entry under `content/wiki`, sorted by slug.
- */
-export async function getWikiEntries(): Promise<WikiEntry[]> {
+async function loadWikiEntriesUncached(): Promise<WikiEntry[]> {
   const filePaths = await listWikiMdxFiles();
   const entries = await Promise.all(filePaths.map(parseWikiMdxFile));
   return entries.sort((left, right) => left.slug.localeCompare(right.slug));
 }
+
+const getWikiEntriesCrossRequest = unstable_cache(
+  loadWikiEntriesUncached,
+  ["wiki-entries-all"],
+  { revalidate: 3600, tags: ["wiki"] },
+);
+
+/**
+ * Loads every wiki MDX entry under `content/wiki`, sorted by slug.
+ *
+ * Results are deduplicated per request and revalidated hourly across requests.
+ */
+export const getWikiEntries = cache(getWikiEntriesCrossRequest);
 
 /**
  * Resolves a wiki entry by its public slug (for example `contributions` or `foo/bar`).
@@ -117,6 +129,12 @@ export async function getWikiEntryBySlug(
   slug: string,
 ): Promise<WikiEntry | undefined> {
   const normalizedSlug = slug.replace(/^\/+|\/+$/gu, "");
-  const entries = await getWikiEntries();
-  return entries.find((entry) => entry.slug === normalizedSlug);
+  const filePaths = await listWikiMdxFiles();
+  const matchingPath = filePaths.find(
+    (filePath) => wikiSlugFromFilePath(filePath) === normalizedSlug,
+  );
+  if (!matchingPath) {
+    return undefined;
+  }
+  return parseWikiMdxFile(matchingPath);
 }

@@ -1,6 +1,8 @@
 import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import matter from "gray-matter";
 import type { BlogCategorySlug } from "~/lib/content/blog-categories";
 import { blogSlugHash } from "~/lib/content/blog-slug-hash";
@@ -106,16 +108,26 @@ export async function parseBlogMdxFile(filePath: string): Promise<BlogEntry> {
   };
 }
 
-/**
- * Loads every blog MDX entry under `content/blog`, sorted newest first by
- * `date` with slug as the tiebreaker.
- */
-export async function getBlogEntries(): Promise<BlogEntry[]> {
+async function loadBlogEntriesUncached(): Promise<BlogEntry[]> {
   const filePaths = await listBlogMdxFiles();
   const entries = await Promise.all(filePaths.map(parseBlogMdxFile));
   assertUniqueBlogSlugs(entries);
   return sortBlogEntries(entries);
 }
+
+const getBlogEntriesCrossRequest = unstable_cache(
+  loadBlogEntriesUncached,
+  ["blog-entries-all"],
+  { revalidate: 3600, tags: ["blog"] },
+);
+
+/**
+ * Loads every blog MDX entry under `content/blog`, sorted newest first by
+ * `date` with slug as the tiebreaker.
+ *
+ * Results are deduplicated per request and revalidated hourly across requests.
+ */
+export const getBlogEntries = cache(getBlogEntriesCrossRequest);
 
 /**
  * Resolves a blog entry by its public slug (for example `wiki-relaunch`).
@@ -127,8 +139,14 @@ export async function getBlogEntryBySlug(
   slug: string,
 ): Promise<BlogEntry | undefined> {
   const normalizedSlug = slug.replace(/^\/+|\/+$/gu, "");
-  const entries = await getBlogEntries();
-  return entries.find((entry) => entry.slug === normalizedSlug);
+  const filePaths = await listBlogMdxFiles();
+  const matchingPath = filePaths.find(
+    (filePath) => blogSlugFromFilePath(filePath) === normalizedSlug,
+  );
+  if (!matchingPath) {
+    return undefined;
+  }
+  return parseBlogMdxFile(matchingPath);
 }
 
 /**

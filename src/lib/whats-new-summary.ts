@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import {
   getBlogEntries,
   getLatestReleasePost,
@@ -42,3 +43,12 @@ export async function getWhatsNewSummary(): Promise<WhatsNewSummary | null> {
     return null;
   }
 }
+
+/**
+ * Cross-request cached What's New highlight for header chrome (10 minute TTL).
+ */
+export const getCachedWhatsNewSummary = unstable_cache(
+  getWhatsNewSummary,
+  ["whats-new-summary"],
+  { revalidate: 600, tags: ["blog", "whats-new"] },
+);
