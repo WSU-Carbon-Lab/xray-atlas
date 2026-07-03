@@ -1,18 +1,13 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Button } from "@heroui/react";
 import { HeroUpdatesRow } from "@/components/home/hero-updates-row";
 import { AccentNavChip } from "@/components/ui/accent-nav-chip";
-import { cn } from "@heroui/styles";
 import { Upload } from "lucide-react";
 import {
   BeakerIcon,
   BoltIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { CatalogHeroSearch } from "@/components/home/catalog-hero-search";
@@ -21,39 +16,14 @@ import { MoleculeCardSkeleton } from "@/components/feedback/loading-state";
 import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
 import { trpc } from "~/trpc/client";
 import { useRouter } from "next/navigation";
+import { HOME_POPULAR_MOLECULES_LIMIT } from "~/lib/home-popular-molecules";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
 import { mission, site } from "~/app/brand";
 
-function usePopularCarouselItemsPerPage(): number {
-  const [itemsPerPage, setItemsPerPage] = useState(2);
-  useEffect(() => {
-    const compute = () => {
-      const w = window.innerWidth;
-      if (w >= 1280) setItemsPerPage(4);
-      else if (w >= 1024) setItemsPerPage(3);
-      else if (w >= 640) setItemsPerPage(2);
-      else setItemsPerPage(1);
-    };
-    compute();
-    window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
-  }, []);
-  return itemsPerPage;
-}
-
-function PopularMoleculesCarouselSkeleton({
-  itemsPerPage,
-}: {
-  itemsPerPage: number;
-}) {
+function PopularMoleculesGridSkeleton() {
   return (
-    <div
-      className="grid min-h-0 w-full gap-4 sm:gap-5"
-      style={{
-        gridTemplateColumns: `repeat(${itemsPerPage}, minmax(0, 1fr))`,
-      }}
-    >
-      {Array.from({ length: itemsPerPage }).map((_, i) => (
+    <div className="grid min-h-0 w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: HOME_POPULAR_MOLECULES_LIMIT }).map((_, i) => (
         <div key={i} className="min-w-0">
           <MoleculeCardSkeleton />
         </div>
@@ -62,89 +32,18 @@ function PopularMoleculesCarouselSkeleton({
   );
 }
 
-function PopularMoleculesCarouselFooter({
-  page,
-  totalPages,
-  onPageChange,
-}: {
-  page: number;
-  totalPages: number;
-  onPageChange: (next: number) => void;
-}) {
-  if (totalPages <= 1) return null;
-  return (
-    <footer className="border-border mt-6 flex flex-col items-center gap-4 border-t pt-6">
-      <div className="flex items-center gap-3 sm:gap-4">
-        <Button
-          variant="secondary"
-          size="sm"
-          isIconOnly
-          aria-label="Previous page"
-          isDisabled={page <= 0}
-          onPress={() => onPageChange(Math.max(0, page - 1))}
-        >
-          <ChevronLeftIcon className="size-5 shrink-0" aria-hidden />
-        </Button>
-        <span className="text-muted min-w-[4.5rem] text-center text-sm tabular-nums">
-          {page + 1} / {totalPages}
-        </span>
-        <Button
-          variant="secondary"
-          size="sm"
-          isIconOnly
-          aria-label="Next page"
-          isDisabled={page >= totalPages - 1}
-          onPress={() => onPageChange(Math.min(totalPages - 1, page + 1))}
-        >
-          <ChevronRightIcon className="size-5 shrink-0" aria-hidden />
-        </Button>
-      </div>
-      {totalPages <= 8 ? (
-        <div
-          className="flex max-w-full flex-wrap justify-center gap-2"
-          role="tablist"
-          aria-label="Popular molecules pages"
-        >
-          {Array.from({ length: totalPages }).map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              role="tab"
-              aria-selected={i === page}
-              aria-label={`Go to page ${String(i + 1)}`}
-              onClick={() => onPageChange(i)}
-              className={cn(
-                "h-2 shrink-0 rounded-full transition-[width,background-color]",
-                i === page ? "bg-accent w-8" : "bg-muted hover:bg-muted/80 w-2",
-              )}
-            />
-          ))}
-        </div>
-      ) : null}
-    </footer>
-  );
-}
-
 function TopUpvotedMolecules() {
   const router = useRouter();
-  const itemsPerPage = usePopularCarouselItemsPerPage();
-  const [page, setPage] = useState(0);
   const topFavoritedQuery = trpc.molecules.getTopFavorited.useQuery(
-    { limit: 16 },
+    { limit: HOME_POPULAR_MOLECULES_LIMIT },
     { staleTime: 120_000, gcTime: 300_000 },
   );
   const { data, isLoading, isError, error, refetch } = topFavoritedQuery;
 
   const molecules = data?.molecules ?? [];
-  const totalPages =
-    molecules.length === 0 ? 1 : Math.ceil(molecules.length / itemsPerPage);
-
-  useEffect(() => {
-    setPage((p) => Math.min(p, Math.max(0, totalPages - 1)));
-  }, [totalPages, itemsPerPage]);
 
   if (isLoading) {
-    return <PopularMoleculesCarouselSkeleton itemsPerPage={itemsPerPage} />;
+    return <PopularMoleculesGridSkeleton />;
   }
 
   if (isError) {
@@ -168,24 +67,10 @@ function TopUpvotedMolecules() {
     );
   }
 
-  const start = page * itemsPerPage;
-  const pageMolecules = molecules.slice(start, start + itemsPerPage);
-  const columnCount = Math.min(itemsPerPage, Math.max(pageMolecules.length, 1));
-
   return (
-    <div
-      role="region"
-      aria-roledescription="carousel"
-      aria-label="Popular molecules"
-      aria-live="polite"
-    >
-      <div
-        className="grid min-h-0 w-full gap-4 sm:gap-5"
-        style={{
-          gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-        }}
-      >
-        {pageMolecules.map((molecule) => (
+    <div role="region" aria-label="Popular molecules">
+      <div className="grid min-h-0 w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+        {molecules.map((molecule) => (
           <div key={molecule.id} className="flex min-h-0 min-w-0 flex-col">
             <div
               onClick={() =>
@@ -200,11 +85,6 @@ function TopUpvotedMolecules() {
           </div>
         ))}
       </div>
-      <PopularMoleculesCarouselFooter
-        page={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
-      />
     </div>
   );
 }
