@@ -48,7 +48,7 @@ export const roadmapHorizon: RoadmapHorizon = {
   monthLabel: "December 2026",
   title: "Manuscript to reviewers",
   preCaption:
-    "Prove the catalog through upload quality, Python/API access, QANT-style adoption, peer-database interop, Claude-assisted spectroscopy plugins, and DataCite readiness.",
+    "Prove the catalog through Python/API access, QANT-style data processing, peer-database interop, Claude-assisted spectroscopy plugins, and per-dataset DOI minting before the manuscript goes to reviewers.",
   postCaption:
     "Deepen the science model with materials coverage, structure-aware search, peak/DFT assignments, and beamline integration.",
 };
@@ -56,20 +56,54 @@ export const roadmapHorizon: RoadmapHorizon = {
 export const prePublicationStages: RoadmapStage[] = [
   {
     id: "upload",
-    title: "Data upload and DOIs",
+    title: "Data upload",
     phase: "pre-publication",
     status: "shipped",
     statusLabel: "Shipped",
     summary:
-      "Guided CSV upload and a minted DOI per dataset are live in production beta.",
+      "Guided CSV upload through normalization and submission is live in production beta.",
     detail:
-      "The validated upload flow takes a raw CSV through normalization, attribution, and submission. Each accepted dataset is minted a DOI at submission time. Remaining work on this stage is incremental: broader instrument-format support, batch submission for beamline scientists processing many scans at once, and richer provenance metadata for calibration standards and normalization procedure.",
+      "The validated upload flow takes a raw CSV through normalization, sample metadata, and submission. Remaining work is incremental: broader instrument-format support, batch submission for beamline scientists processing many scans at once, and richer provenance metadata for calibration standards and normalization procedure.",
     relatedLinks: [
       {
         href: "/wiki/atlas/uploading-data",
         label: "Uploading NEXAFS data",
       },
       { href: "/contribute/nexafs", label: "Contribute a dataset" },
+    ],
+  },
+  {
+    id: "attribution",
+    title: "User attribution",
+    phase: "pre-publication",
+    status: "shipped",
+    statusLabel: "Shipped",
+    summary:
+      "ORCID-backed contributor records, dataset claiming, and saved attribution teams are live in the contribute workflow.",
+    detail:
+      "Contributors assign owner and collector roles with DataCite-aligned contributor types, claim pending attributions on their profile, and reuse saved attribution teams for beamtime rosters. Browse and dataset cards surface attribution status so catalog credit stays tied to the people who collected and curated each spectrum.",
+    relatedLinks: [
+      { href: "/contribute/nexafs", label: "Contribute a dataset" },
+      { href: "/account/teams", label: "Attribution teams" },
+      {
+        href: "/wiki/atlas/contributing",
+        label: "Contributing to Atlas",
+      },
+    ],
+  },
+  {
+    id: "publication-linking",
+    title: "Dataset-publication linking",
+    phase: "pre-publication",
+    status: "shipped",
+    statusLabel: "Shipped",
+    summary:
+      "Contributors can link source publication DOIs to datasets at upload and after submission.",
+    detail:
+      "Each experiment can carry one or more linked source publications so browse cards and verification controls show when a dataset traces back to a peer-reviewed paper or preprint. Atlas team verification remains separate from source-publication links. This is distinct from minting a DOI for the dataset itself—that registrar work is tracked under governance.",
+    relatedLinks: [
+      { href: "/browse/nexafs", label: "Browse NEXAFS datasets" },
+      { href: "/wiki/atlas/contributing", label: "Contributing to Atlas" },
     ],
   },
   {
@@ -131,15 +165,15 @@ export const prePublicationStages: RoadmapStage[] = [
   },
   {
     id: "governance",
-    title: "Governance, persistence, and DataCite",
+    title: "Governance, persistence, and DOI minting",
     phase: "institutional",
     status: "open-question",
     statusLabel: "Resolve before publication",
     variant: "fork",
     summary:
-      "Long-term persistence and DOI registrar strategy are unresolved. Choose between direct DataCite membership or Zenodo as a lower-friction interim home before publication.",
+      "Per-dataset DOI minting and long-term persistence are unresolved. Choose direct DataCite membership or Zenodo as a lower-friction interim registrar before publication.",
     detail:
-      "Atlas already mints a DOI per dataset at upload; document the current registrar arrangement before committing to new infrastructure. (1) Direct DataCite membership for X-ray Atlas: non-profit incorporation is required first (Consortium and Direct membership expect participating organizations to be non-profit). Expect an annual base fee of roughly EUR 2,000, plus volume-scaled DOI fees on the order of EUR 2,500 per 10,000-100,000 DOIs annually at typical tiers and additional organizational fees; Direct membership also carries governance obligations such as member assembly voting. (2) Zenodo as an interim carry-over: a cheaper, lower-friction path before permanent funding is established. Zenodo mints DOIs via DataCite and can serve as a temporary home while institutional funding and the non-profit path are resolved.",
+      "Upload, contributor attribution, and source-publication linking are live, but Atlas does not yet mint a DOI per dataset on our side. Before publication we must choose and implement a registrar path. (1) Direct DataCite membership for X-ray Atlas: non-profit incorporation is required first (Consortium and Direct membership expect participating organizations to be non-profit). Expect an annual base fee of roughly EUR 2,000, plus volume-scaled DOI fees on the order of EUR 2,500 per 10,000-100,000 DOIs annually at typical tiers and additional organizational fees; Direct membership also carries governance obligations such as member assembly voting. (2) Zenodo as an interim carry-over: a cheaper, lower-friction path before permanent funding is established. Zenodo mints DOIs via DataCite and can serve as a temporary home while institutional funding and the non-profit path are resolved. Either path must be integrated with the upload flow so accepted datasets receive citable DOIs at submission time.",
     relatedLinks: [
       { href: "https://zenodo.org/", label: "Zenodo" },
       {
