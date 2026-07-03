@@ -1,8 +1,14 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
+import {
+  contributeWriteProcedure,
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { ProcessMethod } from "~/prisma/client";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
+import { assertUserMayEditSample } from "~/server/nexafs/experimentEditAuthz";
 export const samplesRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -10,6 +16,7 @@ export const samplesRouter = createTRPCRouter({
       const sample = await ctx.db.samples.findUnique({
         where: { id: input.id },
         include: {
+          vendors: true,
           molecules: {
             include: {
               moleculesynonyms: {
@@ -178,6 +185,91 @@ export const samplesRouter = createTRPCRouter({
               },
             },
           },
+          vendors: true,
+        },
+      });
+
+      return sample;
+    }),
+
+  update: contributeWriteProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        processMethod: z.nativeEnum(ProcessMethod).nullable().optional(),
+        substrate: z.string().nullable().optional(),
+        solvent: z.string().nullable().optional(),
+        thickness: z.number().nullable().optional(),
+        molecularWeight: z.number().nullable().optional(),
+        vendorid: z.string().uuid().nullable().optional(),
+        vendorName: z.string().optional(),
+        vendorUrl: z.string().url().optional().or(z.literal("")),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.samples.findUnique({
+        where: { id: input.id },
+        select: { id: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Sample not found",
+        });
+      }
+
+      await assertUserMayEditSample(ctx.db, ctx.userId, input.id);
+
+      let resolvedVendorId: string | null | undefined = input.vendorid;
+
+      if (input.vendorid) {
+        const vendor = await ctx.db.vendors.findUnique({
+          where: { id: input.vendorid },
+          select: { id: true },
+        });
+        if (!vendor) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Selected vendor was not found",
+          });
+        }
+      } else if (input.vendorName?.trim()) {
+        const trimmedName = input.vendorName.trim();
+        const existingVendor = await ctx.db.vendors.findUnique({
+          where: { name: trimmedName },
+        });
+        if (existingVendor) {
+          resolvedVendorId = existingVendor.id;
+        } else {
+          const newVendor = await ctx.db.vendors.create({
+            data: {
+              name: trimmedName,
+              url: input.vendorUrl?.trim() ?? null,
+            },
+          });
+          resolvedVendorId = newVendor.id;
+        }
+      }
+
+      const sample = await ctx.db.samples.update({
+        where: { id: input.id },
+        data: {
+          ...(input.processMethod !== undefined
+            ? { processmethod: input.processMethod }
+            : {}),
+          ...(input.substrate !== undefined
+            ? { substrate: normalizeSampleSubstrate(input.substrate) }
+            : {}),
+          ...(input.solvent !== undefined
+            ? { solvent: input.solvent?.trim() ?? null }
+            : {}),
+          ...(input.thickness !== undefined ? { thickness: input.thickness } : {}),
+          ...(input.molecularWeight !== undefined
+            ? { molecularweight: input.molecularWeight }
+            : {}),
+          ...(resolvedVendorId !== undefined ? { vendorid: resolvedVendorId } : {}),
+        },
+        include: {
           vendors: true,
         },
       });
