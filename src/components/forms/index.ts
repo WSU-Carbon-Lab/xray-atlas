@@ -27,7 +27,22 @@ export {
 export { MoleculeContributionForm } from "./molecule-contribution-form";
 export { NexafsCreateCalibrationDialog } from "./nexafs-create-calibration-dialog";
 export { NexafsCreateEdgeDialog } from "./nexafs-create-edge-dialog";
+export { SampleFormSelect } from "./sample-form-select";
+export { SampleVendorField } from "./sample-vendor-field";
 export { NexafsSampleInformationSection } from "./nexafs-sample-information-section";
+export { SampleInformationEditStack } from "./sample-information-edit-stack";
+export { SamplePreparationMethodFields } from "./sample-preparation-method-fields";
+export { SampleSpecimenFields } from "./sample-specimen-fields";
+export { SampleVendorSection } from "./sample-vendor-section";
+export {
+  sampleFormInsetControlClass,
+  sampleFormInsetLabelClass,
+  sampleFormInsetRowClass,
+  resolveSampleFormLayout,
+  type SampleFormLayout,
+  type SampleFormLegacyAppearance,
+} from "./sample-form-layout";
+export { sampleAuxAccordionChrome } from "./sample-aux-accordion-chrome";
 export { InstrumentNewRowForm } from "./instrument-new-row-form";
 export { NewInstrumentsAccordion } from "./new-instruments-accordion";
 export {
@@ -67,3 +82,4 @@ export type {
   RegisteredInstrumentStatusChipColor,
   RegisteredInstrumentStatusPresentation,
 } from "./types";
+export type { SampleInformationEditStackProps } from "./sample-information-edit-stack";

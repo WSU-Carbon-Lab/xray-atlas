@@ -6,8 +6,6 @@ import {
   Accordion,
   InputGroup,
   Label,
-  ListBox,
-  Select,
   TextField,
 } from "@heroui/react";
 import type { SampleAuxFields } from "~/features/process-nexafs/types";
@@ -23,12 +21,37 @@ import {
   type SampleProcessingMode,
   type SampleWetMethod,
 } from "~/lib/sample-aux-preparation";
+import {
+  effectiveSampleProcessingMode,
+  processMethodToProcessingMode,
+  processingModeToProcessMethod,
+  sampleAuxFieldsForProcessingMode,
+} from "~/lib/sample-process-method-link";
+import {
+  SampleMetadataInsetGroup,
+  SampleMetadataSectionCaption,
+} from "~/components/nexafs/sample-metadata-chrome-shared";
+import {
+  SampleFormSelect,
+} from "./sample-form-select";
+import { sampleAuxAccordionChrome } from "./sample-aux-accordion-chrome";
+import {
+  resolveSampleFormLayout,
+  type SampleFormLegacyAppearance,
+} from "./sample-form-layout";
 
 type SampleAuxAccordionProps = {
   value: SampleAuxFields;
   onChange: (next: SampleAuxFields) => void;
   disabled?: boolean;
   processMethod?: ProcessMethod | null;
+  onProcessMethodChange?: (processMethod: ProcessMethod | null) => void;
+  /** When true, wet/dry selectors render in {@link SamplePreparationMethodFields} instead. */
+  hideMethodSelectors?: boolean;
+  /** When `inset`, matches browse sample read-view grouped list styling. */
+  appearance?: SampleFormLegacyAppearance;
+  /** Preferred alias for {@link appearance}. */
+  layout?: SampleFormLegacyAppearance;
 };
 
 type NumericFieldKey = {
@@ -67,20 +90,6 @@ const NON_NEGATIVE_NUMERIC_KEYS = new Set<NumericFieldKey>([
 const formLabelClass =
   "text-foreground mb-1.5 block text-sm font-medium leading-none";
 const sectionHeaderClass = "text-muted text-sm font-medium leading-none";
-const selectTriggerClass =
-  "border-border bg-surface-2 min-h-[44px] w-full rounded-lg border shadow-none";
-const selectPopoverClass =
-  "z-[var(--z-popover)] w-[var(--trigger-width)] !rounded-lg p-0";
-const selectListBoxClass = "w-full p-1";
-const selectListBoxItemClass = "!rounded-md px-2.5";
-const accordionItemClass = "rounded-lg [&+&]:mt-1";
-const accordionTriggerClass =
-  "flex min-h-11 w-full items-center gap-2 rounded-lg px-4 py-3 text-start";
-const accordionBodyGridClass =
-  "grid min-w-0 gap-4 px-4 py-3 sm:grid-cols-2";
-const accordionBodySpinGridClass =
-  "grid min-w-0 gap-4 px-4 py-3 sm:grid-cols-2 lg:grid-cols-3";
-const accordionBodyStackClass = "grid min-w-0 gap-4 px-4 py-3";
 
 function parseNumericInput(
   raw: string,
@@ -181,73 +190,20 @@ function TextAuxField({
   );
 }
 
-function MethodSelect<T extends string>({
-  label,
-  items,
-  labels,
-  selectedKey,
-  onSelectionChange,
-  disabled,
-  ariaLabel,
-}: {
-  label: string;
-  items: readonly T[];
-  labels: Record<T, string>;
-  selectedKey: T | undefined;
-  onSelectionChange: (next: T | undefined) => void;
-  disabled?: boolean;
-  ariaLabel: string;
-}) {
-  return (
-    <Select
-      aria-label={ariaLabel}
-      className="min-w-0 w-full"
-      fullWidth
-      placeholder="Select an option"
-      selectedKey={selectedKey ?? null}
-      variant="secondary"
-      isDisabled={disabled}
-      onSelectionChange={(key) => {
-        if (key == null) {
-          onSelectionChange(undefined);
-          return;
-        }
-        onSelectionChange(String(key) as T);
-      }}
-    >
-      <Label className={formLabelClass}>{label}</Label>
-      <Select.Trigger className={selectTriggerClass}>
-        <Select.Value />
-        <Select.Indicator />
-      </Select.Trigger>
-      <Select.Popover className={selectPopoverClass}>
-        <ListBox aria-label={ariaLabel} className={selectListBoxClass}>
-          {items.map((item) => (
-            <ListBox.Item
-              id={item}
-              key={item}
-              textValue={labels[item]}
-              className={selectListBoxItemClass}
-            >
-              {labels[item]}
-              <ListBox.ItemIndicator />
-            </ListBox.Item>
-          ))}
-        </ListBox>
-      </Select.Popover>
-    </Select>
-  );
-}
-
-/**
- * Optional extended sample preparation fields grouped in a surface accordion.
- */
 export function SampleAuxAccordion({
   value,
   onChange,
   disabled = false,
   processMethod = null,
+  onProcessMethodChange,
+  hideMethodSelectors = false,
+  appearance = "form",
+  layout,
 }: SampleAuxAccordionProps) {
+  const formLayout = resolveSampleFormLayout(layout, appearance);
+  const chrome = sampleAuxAccordionChrome(formLayout);
+  const isInset = formLayout === "inset";
+  const selectLayout = formLayout;
   const setNumeric = (key: NumericFieldKey, next: number | undefined) => {
     onChange({ ...value, [key]: next });
   };
@@ -256,24 +212,11 @@ export function SampleAuxAccordion({
     onChange({ ...value, [key]: next });
   };
 
-  useEffect(() => {
-    if (value.processingMode != null || processMethod == null) {
-      return;
-    }
-    const inferredMode =
-      processMethod === "DRY"
-        ? ("dry" as const)
-        : processMethod === "SOLVENT"
-          ? ("wet" as const)
-          : undefined;
-    if (inferredMode) {
-      onChange({ ...value, processingMode: inferredMode });
-    }
-    // Only seed processingMode from sample processMethod when aux mode is unset.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: avoid re-sync on every aux field edit
-  }, [onChange, processMethod, value.processingMode]);
-
-  const mode = value.processingMode;
+  const linkedMode = processMethodToProcessingMode(processMethod);
+  const mode = effectiveSampleProcessingMode({
+    processMethod,
+    processingMode: value.processingMode,
+  });
   const wetMethod = value.wetMethod;
   const dryMethod = value.dryMethod;
 
@@ -298,86 +241,116 @@ export function SampleAuxAccordion({
   const showAtmosphere =
     mode === "dry" && dryMethod !== "powder" && dryMethod !== undefined;
   const showExtendedFields = mode === "wet" || mode === "dry";
+  const showOtherMethodFields =
+    (mode === "wet" && wetMethod === "other") ||
+    (mode === "dry" && dryMethod === "other");
+  const showMethodSelectorPanel = !hideMethodSelectors || showOtherMethodFields;
+
+  const methodSelectorFields = (
+    <>
+      {!hideMethodSelectors ? (
+        <>
+          {linkedMode == null ? (
+            <SampleFormSelect<SampleProcessingMode>
+              label="Processing branch"
+              layout={selectLayout}
+              items={SAMPLE_PROCESSING_MODES}
+              labels={SAMPLE_PROCESSING_MODE_LABELS}
+              selectedKey={value.processingMode}
+              onSelectionChange={(next) => {
+                onChange(sampleAuxFieldsForProcessingMode(value, next));
+                onProcessMethodChange?.(processingModeToProcessMethod(next));
+              }}
+              disabled={disabled}
+              ariaLabel="Sample processing branch"
+            />
+          ) : null}
+
+          {mode === "wet" ? (
+            <SampleFormSelect<SampleWetMethod>
+              label="Wet method"
+              layout={selectLayout}
+              items={SAMPLE_WET_METHODS}
+              labels={SAMPLE_WET_METHOD_LABELS}
+              selectedKey={value.wetMethod}
+              onSelectionChange={(next) => onChange({ ...value, wetMethod: next })}
+              disabled={disabled}
+              ariaLabel="Wet preparation method"
+            />
+          ) : null}
+
+          {mode === "dry" ? (
+            <SampleFormSelect<SampleDryMethod>
+              label="Dry method"
+              layout={selectLayout}
+              items={SAMPLE_DRY_METHODS}
+              labels={SAMPLE_DRY_METHOD_LABELS}
+              selectedKey={value.dryMethod}
+              onSelectionChange={(next) => onChange({ ...value, dryMethod: next })}
+              disabled={disabled}
+              ariaLabel="Dry preparation method"
+            />
+          ) : null}
+        </>
+      ) : null}
+
+      {mode === "wet" && wetMethod === "other" ? (
+        <TextAuxField
+          fieldKey="wetMethodOther"
+          label="Wet method (other)"
+          value={value.wetMethodOther}
+          onChange={setText}
+          disabled={disabled}
+          placeholder="Describe the wet method"
+        />
+      ) : null}
+
+      {mode === "dry" && dryMethod === "other" ? (
+        <TextAuxField
+          fieldKey="dryMethodOther"
+          label="Dry method (other)"
+          value={value.dryMethodOther}
+          onChange={setText}
+          disabled={disabled}
+          placeholder="Describe the dry method"
+        />
+      ) : null}
+    </>
+  );
 
   return (
     <section
-      className="flex flex-col gap-3"
+      className={isInset ? "flex flex-col gap-3" : "flex flex-col gap-3"}
       aria-labelledby="sample-aux-heading"
     >
-      <div>
-        <h2 id="sample-aux-heading" className={sectionHeaderClass}>
-          Extended sample preparation
-          <span className="font-normal"> (optional)</span>
-        </h2>
-        <p className="text-muted mt-1 text-xs leading-snug">
-          Optional deposition, solution, substrate, and annealing details.
-        </p>
-      </div>
-
-      <div className="border-border bg-surface relative z-[1] grid gap-4 overflow-visible rounded-lg border p-4 sm:grid-cols-2">
-        <MethodSelect<SampleProcessingMode>
-          label="Processing branch"
-          items={SAMPLE_PROCESSING_MODES}
-          labels={SAMPLE_PROCESSING_MODE_LABELS}
-          selectedKey={value.processingMode}
-          onSelectionChange={(next) =>
-            onChange({
-              ...value,
-              processingMode: next,
-              wetMethod: next === "wet" ? value.wetMethod : undefined,
-              dryMethod: next === "dry" ? value.dryMethod : undefined,
-            })
-          }
-          disabled={disabled}
-          ariaLabel="Sample processing branch"
+      {isInset ? (
+        <SampleMetadataSectionCaption
+          title="Extended preparation"
+          hint="Composition, solution, substrate, and annealing details."
         />
+      ) : (
+        <div>
+          <h2 id="sample-aux-heading" className={sectionHeaderClass}>
+            Extended sample preparation
+            <span className="font-normal"> (optional)</span>
+          </h2>
+          <p className="text-muted mt-1 text-xs leading-snug">
+            Optional deposition, solution, substrate, and annealing details.
+          </p>
+        </div>
+      )}
 
-        {mode === "wet" ? (
-          <MethodSelect<SampleWetMethod>
-            label="Wet method"
-            items={SAMPLE_WET_METHODS}
-            labels={SAMPLE_WET_METHOD_LABELS}
-            selectedKey={value.wetMethod}
-            onSelectionChange={(next) => onChange({ ...value, wetMethod: next })}
-            disabled={disabled}
-            ariaLabel="Wet preparation method"
-          />
-        ) : null}
-
-        {mode === "dry" ? (
-          <MethodSelect<SampleDryMethod>
-            label="Dry method"
-            items={SAMPLE_DRY_METHODS}
-            labels={SAMPLE_DRY_METHOD_LABELS}
-            selectedKey={value.dryMethod}
-            onSelectionChange={(next) => onChange({ ...value, dryMethod: next })}
-            disabled={disabled}
-            ariaLabel="Dry preparation method"
-          />
-        ) : null}
-
-        {mode === "wet" && wetMethod === "other" ? (
-          <TextAuxField
-            fieldKey="wetMethodOther"
-            label="Wet method (other)"
-            value={value.wetMethodOther}
-            onChange={setText}
-            disabled={disabled}
-            placeholder="Describe the wet method"
-          />
-        ) : null}
-
-        {mode === "dry" && dryMethod === "other" ? (
-          <TextAuxField
-            fieldKey="dryMethodOther"
-            label="Dry method (other)"
-            value={value.dryMethodOther}
-            onChange={setText}
-            disabled={disabled}
-            placeholder="Describe the dry method"
-          />
-        ) : null}
-      </div>
+      {showMethodSelectorPanel ? (
+        isInset ? (
+          <SampleMetadataInsetGroup ariaLabel="Extended preparation method">
+            {methodSelectorFields}
+          </SampleMetadataInsetGroup>
+        ) : (
+          <div className="border-border bg-surface relative z-[1] grid gap-4 overflow-visible rounded-lg border p-4 sm:grid-cols-2">
+            {methodSelectorFields}
+          </div>
+        )
+      ) : null}
 
       {!showExtendedFields ? (
         <p className="text-muted text-xs">
@@ -390,13 +363,13 @@ export function SampleAuxAccordion({
           allowsMultipleExpanded
           variant="surface"
           aria-label="Extended sample preparation sections"
-          className="w-full rounded-lg"
+          className={chrome.rootClass}
         >
           {showWetSpin ? (
-            <Accordion.Item id="deposition-spin" className={accordionItemClass}>
+            <Accordion.Item id="deposition-spin" className={chrome.itemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className={accordionTriggerClass}>
-                  <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
+                <Accordion.Trigger className={chrome.triggerClass}>
+                  <span className="text-foreground min-w-0 flex-1 truncate text-[15px] font-medium">
                     Spin coating
                   </span>
                   <Accordion.Indicator className="text-muted shrink-0 [&>svg]:size-4">
@@ -405,7 +378,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className={accordionBodySpinGridClass}>
+                <Accordion.Body className={chrome.bodySpinGridClass}>
                   <NumericAuxField
                     fieldKey="spinSpeedRpm"
                     label="Spin speed (rpm)"
@@ -433,9 +406,9 @@ export function SampleAuxAccordion({
           ) : null}
 
           {showWetBlade ? (
-            <Accordion.Item id="deposition-blade" className={accordionItemClass}>
+            <Accordion.Item id="deposition-blade" className={chrome.itemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className={accordionTriggerClass}>
+                <Accordion.Trigger className={chrome.triggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Blade coating
                   </span>
@@ -445,7 +418,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className={accordionBodyGridClass}>
+                <Accordion.Body className={chrome.bodyGridClass}>
                   <NumericAuxField
                     fieldKey="bladeSpeedMmPerS"
                     label="Blade speed (mm/s)"
@@ -473,9 +446,9 @@ export function SampleAuxAccordion({
           ) : null}
 
           {showDryVacuum ? (
-            <Accordion.Item id="deposition-vacuum" className={accordionItemClass}>
+            <Accordion.Item id="deposition-vacuum" className={chrome.itemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className={accordionTriggerClass}>
+                <Accordion.Trigger className={chrome.triggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Vacuum deposition
                   </span>
@@ -485,7 +458,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className={accordionBodyGridClass}>
+                <Accordion.Body className={chrome.bodyGridClass}>
                   <NumericAuxField
                     fieldKey="depositionRateAngstromPerS"
                     label="Deposition rate (A/s)"
@@ -527,9 +500,9 @@ export function SampleAuxAccordion({
           ) : null}
 
           {showWetSolution ? (
-            <Accordion.Item id="solution-chemistry" className={accordionItemClass}>
+            <Accordion.Item id="solution-chemistry" className={chrome.itemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className={accordionTriggerClass}>
+                <Accordion.Trigger className={chrome.triggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Solution chemistry
                   </span>
@@ -539,7 +512,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className={accordionBodyGridClass}>
+                <Accordion.Body className={chrome.bodyGridClass}>
                   <NumericAuxField
                     fieldKey="concentrationMgPerMl"
                     label="Concentration (mg/mL)"
@@ -580,9 +553,9 @@ export function SampleAuxAccordion({
             </Accordion.Item>
           ) : null}
 
-          <Accordion.Item id="substrate-detail" className={accordionItemClass}>
+          <Accordion.Item id="substrate-detail" className={chrome.itemClass}>
             <Accordion.Heading>
-              <Accordion.Trigger className={accordionTriggerClass}>
+              <Accordion.Trigger className={chrome.triggerClass}>
                 <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                   Substrate detail
                 </span>
@@ -592,7 +565,7 @@ export function SampleAuxAccordion({
               </Accordion.Trigger>
             </Accordion.Heading>
             <Accordion.Panel>
-              <Accordion.Body className={accordionBodyGridClass}>
+              <Accordion.Body className={chrome.bodyGridClass}>
                 <TextAuxField
                   fieldKey="substrateOrientation"
                   label="Substrate orientation"
@@ -633,9 +606,9 @@ export function SampleAuxAccordion({
           </Accordion.Item>
 
           {showAtmosphere ? (
-            <Accordion.Item id="atmosphere" className={accordionItemClass}>
+            <Accordion.Item id="atmosphere" className={chrome.itemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className={accordionTriggerClass}>
+                <Accordion.Trigger className={chrome.triggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Atmosphere
                   </span>
@@ -645,7 +618,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className={accordionBodyGridClass}>
+                <Accordion.Body className={chrome.bodyGridClass}>
                   <TextAuxField
                     fieldKey="depositionAtmosphere"
                     label="Deposition atmosphere"
@@ -673,9 +646,9 @@ export function SampleAuxAccordion({
           ) : null}
 
           {showDryPowder ? (
-            <Accordion.Item id="powder-prep" className={accordionItemClass}>
+            <Accordion.Item id="powder-prep" className={chrome.itemClass}>
               <Accordion.Heading>
-                <Accordion.Trigger className={accordionTriggerClass}>
+                <Accordion.Trigger className={chrome.triggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     Powder preparation
                   </span>
@@ -685,7 +658,7 @@ export function SampleAuxAccordion({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel>
-                <Accordion.Body className={accordionBodyGridClass}>
+                <Accordion.Body className={chrome.bodyGridClass}>
                   <NumericAuxField
                     fieldKey="roughnessNm"
                     label="Particle / surface roughness (nm)"
@@ -698,9 +671,9 @@ export function SampleAuxAccordion({
             </Accordion.Item>
           ) : null}
 
-          <Accordion.Item id="annealing" className={accordionItemClass}>
+          <Accordion.Item id="annealing" className={chrome.itemClass}>
             <Accordion.Heading>
-              <Accordion.Trigger className={accordionTriggerClass}>
+              <Accordion.Trigger className={chrome.triggerClass}>
                 <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                   Annealing
                 </span>
@@ -710,7 +683,7 @@ export function SampleAuxAccordion({
               </Accordion.Trigger>
             </Accordion.Heading>
             <Accordion.Panel>
-              <Accordion.Body className={accordionBodyGridClass}>
+              <Accordion.Body className={chrome.bodyGridClass}>
                 <NumericAuxField
                   fieldKey="annealingTemperatureC"
                   label="Annealing temperature (C)"
@@ -743,9 +716,9 @@ export function SampleAuxAccordion({
             </Accordion.Panel>
           </Accordion.Item>
 
-          <Accordion.Item id="sample-aux-notes" className={accordionItemClass}>
+          <Accordion.Item id="sample-aux-notes" className={chrome.itemClass}>
             <Accordion.Heading>
-              <Accordion.Trigger className={accordionTriggerClass}>
+              <Accordion.Trigger className={chrome.triggerClass}>
                 <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                   Notes
                 </span>
@@ -755,7 +728,7 @@ export function SampleAuxAccordion({
               </Accordion.Trigger>
             </Accordion.Heading>
             <Accordion.Panel>
-              <Accordion.Body className={accordionBodyStackClass}>
+              <Accordion.Body className={chrome.bodyStackGridClass}>
                 <TextAuxField
                   fieldKey="preparationDescription"
                   label="Preparation description"
