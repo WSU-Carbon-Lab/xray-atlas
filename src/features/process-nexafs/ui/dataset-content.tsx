@@ -79,10 +79,10 @@ import type {
 import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
 import {
-  NexafsSampleInformationSection,
-  SampleAuxAccordion,
+  SampleInformationEditStack,
 } from "~/components/forms";
 import type { AuxFileKind } from "~/lib/aux-file-client";
+import { linkedSampleAuxForProcessMethod } from "~/lib/sample-process-method-link";
 import { setNexafsAuxUploadDefaults } from "~/lib/nexafs-aux-upload-defaults";
 import {
   DatasetAttributionEditor,
@@ -2419,6 +2419,7 @@ export function DatasetContent({
 
       <div className="flex w-full flex-col">
         <VisualizationToggle
+          modes={["graph", "table", "aux"]}
           mode={visualizationMode}
           graphStyle={graphStyle}
           onModeChange={handleVisualizationModeChange}
@@ -2686,12 +2687,28 @@ export function DatasetContent({
       />
 
       {/* Sample Information */}
-      <div>
-        <NexafsSampleInformationSection
+      <div className="border-border bg-surface flex flex-col gap-5 rounded-lg border p-4">
+        <SampleInformationEditStack
+          layout="inset"
+          linkedSampleAux={{
+            value: dataset.sampleAux,
+            onChange: (next) => {
+              onDatasetUpdate(dataset.id, { sampleAux: next });
+            },
+            onProcessMethodChange: (processMethod) => {
+              onDatasetUpdate(dataset.id, {
+                sampleInfo: { ...dataset.sampleInfo, processMethod },
+              });
+            },
+          }}
           processMethod={dataset.sampleInfo.processMethod}
           setProcessMethod={(value) =>
             onDatasetUpdate(dataset.id, {
               sampleInfo: { ...dataset.sampleInfo, processMethod: value },
+              sampleAux: linkedSampleAuxForProcessMethod(
+                dataset.sampleAux,
+                value,
+              ),
             })
           }
           substrate={dataset.sampleInfo.substrate}
@@ -2740,14 +2757,6 @@ export function DatasetContent({
           isLoadingVendors={isLoadingVendors}
         />
       </div>
-
-      <SampleAuxAccordion
-        value={dataset.sampleAux}
-        processMethod={dataset.sampleInfo.processMethod}
-        onChange={(next) => {
-          onDatasetUpdate(dataset.id, { sampleAux: next });
-        }}
-      />
 
       <div className="border-border bg-surface rounded-lg border p-4">
         <div className="grid gap-4 md:grid-cols-2">
