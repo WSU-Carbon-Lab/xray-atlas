@@ -27,7 +27,10 @@ import { orcidUserIdSchema } from "~/lib/orcid";
 import { resolveUserIdFromRouteSegment } from "~/lib/user-route";
 import { toMoleculeView } from "~/server/api/routers/molecules-view";
 import { fetchNexafsBrowseGrouped } from "~/server/nexafs/nexafsBrowseGroups";
-import { decryptOAuthToken } from "~/server/auth/oauth-token-crypto";
+import {
+  getCachedGitHubAccountPresentation,
+  resolveGitHubAccountPresentation,
+} from "~/server/cache/github-account-presentation";
 import {
   researcherSearchHitSchema,
   searchResearchersForAttribution,
@@ -111,59 +114,6 @@ function fillContributionYearSeries(
     filled.push({ year, count: countByYear.get(year) ?? 0 });
   }
   return filled;
-}
-
-/**
- * Resolves GitHub login and profile URLs for a linked account using the stored OAuth token.
- */
-async function resolveGitHubAccountPresentation(account: {
-  access_token: string | null;
-}): Promise<{
-  login: string | null;
-  profileUrl: string | null;
-  avatarUrl: string | null;
-}> {
-  if (!account.access_token) {
-    return { login: null, profileUrl: null, avatarUrl: null };
-  }
-
-  const accessToken = decryptOAuthToken(account.access_token);
-  if (!accessToken) {
-    return { login: null, profileUrl: null, avatarUrl: null };
-  }
-
-  try {
-    const response = await fetch("https://api.github.com/user", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github+json",
-      },
-    });
-    if (!response.ok) {
-      return { login: null, profileUrl: null, avatarUrl: null };
-    }
-    const body: unknown = await response.json();
-    if (
-      typeof body !== "object" ||
-      body === null ||
-      !("login" in body) ||
-      typeof body.login !== "string"
-    ) {
-      return { login: null, profileUrl: null, avatarUrl: null };
-    }
-    const login = body.login;
-    const profileUrl =
-      "html_url" in body && typeof body.html_url === "string"
-        ? body.html_url
-        : `https://github.com/${login}`;
-    const avatarUrl =
-      "avatar_url" in body && typeof body.avatar_url === "string"
-        ? body.avatar_url
-        : null;
-    return { login, profileUrl, avatarUrl };
-  } catch {
-    return { login: null, profileUrl: null, avatarUrl: null };
-  }
 }
 
 export const usersRouter = createTRPCRouter({
@@ -337,9 +287,10 @@ export const usersRouter = createTRPCRouter({
 
       let github: z.infer<typeof userPublicGitHubSchema> | null = null;
       if (githubAccount) {
-        const presentation = await resolveGitHubAccountPresentation({
-          access_token: githubAccount.access_token,
-        });
+        const presentation = await getCachedGitHubAccountPresentation(
+          githubAccount.providerAccountId,
+          githubAccount.access_token,
+        );
         const login =
           presentation.login ??
           `user-${githubAccount.providerAccountId.slice(0, 6)}`;

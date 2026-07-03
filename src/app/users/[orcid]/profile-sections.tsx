@@ -125,16 +125,21 @@ export function ProfileHeader({
   user,
   github,
   isOwnProfile = false,
+  initialContributionStats,
 }: {
   user: ProfileUser;
   github?: ProfileGitHubPresentation | null;
   isOwnProfile?: boolean;
+  initialContributionStats?: ProfileContributionStats;
 }) {
   const {
     data: contributionStats,
     isLoading: contributionStatsLoading,
     isError: contributionStatsError,
-  } = trpc.users.getProfileContributionStats.useQuery({ userId: user.id });
+  } = trpc.users.getProfileContributionStats.useQuery(
+    { userId: user.id },
+    { initialData: initialContributionStats },
+  );
 
   return (
     <header className="border-border bg-surface flex flex-col gap-4 rounded-2xl border p-4 sm:gap-5 sm:p-5">
