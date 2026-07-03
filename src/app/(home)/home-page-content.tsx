@@ -129,9 +129,10 @@ function TopUpvotedMolecules() {
   const router = useRouter();
   const itemsPerPage = usePopularCarouselItemsPerPage();
   const [page, setPage] = useState(0);
-  const topFavoritedQuery = trpc.molecules.getTopFavorited.useQuery({
-    limit: 16,
-  });
+  const topFavoritedQuery = trpc.molecules.getTopFavorited.useQuery(
+    { limit: 16 },
+    { staleTime: 120_000, gcTime: 300_000 },
+  );
   const { data, isLoading, isError, error, refetch } = topFavoritedQuery;
 
   const molecules = data?.molecules ?? [];

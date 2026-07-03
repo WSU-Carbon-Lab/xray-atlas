@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import dynamic from "next/dynamic";
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { ContributionAgreementModal } from "@/components/contribute";
 import { trpc } from "~/trpc/client";
@@ -11,8 +12,8 @@ import {
   useNexafsOptions,
   useNexafsDatasets,
   useNexafsSubmit,
-  NexafsContributeFlow,
 } from "~/features/process-nexafs";
+import type { NexafsContributeFlowProps } from "~/features/process-nexafs";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -25,6 +26,19 @@ import {
   NexafsCreateEdgeDialog,
 } from "~/components/forms";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
+
+const NexafsContributeFlow = dynamic<NexafsContributeFlowProps>(
+  () =>
+    import("~/features/process-nexafs").then((module) => module.NexafsContributeFlow),
+  {
+    ssr: false,
+    loading: () => (
+      <p className="text-muted text-sm" aria-busy>
+        Loading upload workspace...
+      </p>
+    ),
+  },
+);
 
 export default function NEXAFSContributePage() {
   const router = useRouter();

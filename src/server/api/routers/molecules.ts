@@ -20,7 +20,7 @@ import { pickRandomTagHex } from "~/lib/tag-colors";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { recordMoleculeView } from "~/server/engagement/record-molecule-view";
 import { toMoleculeView } from "./molecules-view";
-import { queryMoleculeIdsByPopularityRank } from "./molecules-popularity-ranking";
+import { getCachedPopularMoleculeRows } from "~/server/cache/popular-molecules-cache";
 import {
   normalizeMoleculeContributionType,
   type MoleculeContributionType,
@@ -1135,53 +1135,14 @@ export const moleculesRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const orderedIds = await queryMoleculeIdsByPopularityRank(
+      const moleculesWithSortedSynonyms = await getCachedPopularMoleculeRows(
         ctx.db,
         input.limit,
       );
-      const molecules =
-        orderedIds.length === 0
-          ? []
-          : await ctx.db.molecules.findMany({
-              where: { id: { in: orderedIds } },
-              include: {
-                moleculesynonyms: {
-                  orderBy: [{ order: "asc" }],
-                },
-                moleculecontributors: {
-                  include: {
-                    user: {
-                      select: { id: true, name: true, image: true },
-                    },
-                  },
-                  orderBy: { contributedat: "asc" },
-                },
-                moleculetags: { include: { tags: true } },
-                samples: {
-                  include: { _count: { select: { experiments: true } } },
-                },
-              },
-            });
-      const idOrder = new Map(orderedIds.map((id, i) => [id, i]));
-      molecules.sort(
-        (a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0),
-      );
-
-      const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
-        ...molecule,
-        moleculesynonyms: [
-          ...molecule.moleculesynonyms
-            .filter((syn) => syn.order === 0)
-            .sort((a, b) => a.synonym.length - b.synonym.length),
-          ...molecule.moleculesynonyms
-            .filter((syn) => syn.order !== 0)
-            .sort((a, b) => a.synonym.length - b.synonym.length),
-        ],
-      }));
 
       let favoritedSet = new Set<string>();
       if (ctx.userId && moleculesWithSortedSynonyms.length > 0) {
-        const ids = moleculesWithSortedSynonyms.map((m) => m.id);
+        const ids = moleculesWithSortedSynonyms.map((molecule) => molecule.id);
         const favorited = await ctx.db.moleculefavorites.findMany({
           where: {
             moleculeid: { in: ids },
@@ -1189,7 +1150,7 @@ export const moleculesRouter = createTRPCRouter({
           },
           select: { moleculeid: true },
         });
-        favoritedSet = new Set(favorited.map((f) => f.moleculeid));
+        favoritedSet = new Set(favorited.map((favorite) => favorite.moleculeid));
       }
 
       const viewMolecules = moleculesWithSortedSynonyms.map((mol) =>
