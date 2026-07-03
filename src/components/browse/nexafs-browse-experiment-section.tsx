@@ -109,7 +109,8 @@ export function NexafsBrowseExperimentSection({
   const [itemsPerPage, setItemsPerPage] = useState(12);
 
   const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
-    staleTime: 120000,
+    staleTime: 120_000,
+    gcTime: 300_000,
   });
 
   const facetData = useMemo<FacetData | null>(() => {
@@ -149,7 +150,8 @@ export function NexafsBrowseExperimentSection({
     { query: debouncedQuery.trim(), limitPerGroup: 5 },
     {
       enabled: debouncedQuery.trim().length > 0,
-      staleTime: 30000,
+      staleTime: 30_000,
+      gcTime: 300_000,
     },
   );
 
@@ -165,7 +167,8 @@ export function NexafsBrowseExperimentSection({
   }, [searchEntitiesQuery.data]);
 
   const edgesQuery = trpc.experiments.listEdges.useQuery(undefined, {
-    staleTime: 120000,
+    staleTime: 300_000,
+    gcTime: 600_000,
   });
 
   const edgeOptions = useMemo(
@@ -199,7 +202,8 @@ export function NexafsBrowseExperimentSection({
     },
     {
       enabled: urlSynced && hasSearchQuery,
-      staleTime: 30000,
+      staleTime: 30_000,
+      gcTime: 300_000,
     },
   );
 
@@ -212,7 +216,8 @@ export function NexafsBrowseExperimentSection({
     },
     {
       enabled: urlSynced && !hasSearchQuery,
-      staleTime: 30000,
+      staleTime: 30_000,
+      gcTime: 300_000,
     },
   );
 

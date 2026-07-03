@@ -1,9 +1,8 @@
 import "~/styles/globals.css";
 
 import { Geist } from "next/font/google";
-import Header from "@/components/layout/header";
+import { HeaderWhatsNewSuspense } from "@/components/layout/header-whats-new";
 import { Footer } from "@/components/layout/footer";
-import { getWhatsNewSummary } from "~/lib/whats-new-summary";
 import { siteMetadata } from "./metadata";
 import { SessionProvider } from "@/components/auth/session-provider";
 import { ThemeProviderWrapper } from "@/components/theme/theme-provider";
@@ -37,8 +36,6 @@ export default async function RootLayout({
   children,
   modal,
 }: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
-  const whatsNew = await getWhatsNewSummary();
-
   return (
     <html
       lang="en"
@@ -49,7 +46,7 @@ export default async function RootLayout({
         <SessionProvider>
           <TRPCReactProvider>
             <ThemeProviderWrapper>
-              <Header whatsNew={whatsNew} />
+              <HeaderWhatsNewSuspense />
               <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
                 {children}
               </main>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactElement } from "react";
 import { notFound } from "next/navigation";
@@ -41,6 +42,8 @@ interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
 }
 
+export const revalidate = 3600;
+
 function PostNavLink({
   direction,
   slug,
@@ -78,8 +81,15 @@ function BlogHeroImage({
   const src = resolveBlogHeroImageUrl(frontmatter.heroImage);
   return (
     <figure className="mb-10 overflow-hidden rounded-2xl">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" className="aspect-[16/9] w-full object-cover" />
+      <Image
+        src={src}
+        alt=""
+        width={1600}
+        height={900}
+        className="aspect-[16/9] w-full object-cover"
+        priority
+        sizes="(max-width: 768px) 100vw, min(42rem, 100vw)"
+      />
     </figure>
   );
 }

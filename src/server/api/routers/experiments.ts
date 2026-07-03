@@ -27,6 +27,10 @@ import { TRPCError } from "@trpc/server";
 import { Prisma, ExperimentType, ProcessMethod } from "~/prisma/client";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
 import { cachePublicCatalogRead } from "~/server/cache/public-catalog-cache";
+import {
+  getCachedAnonymousNexafsBrowse,
+  isAnonymousUnfilteredNexafsBrowse,
+} from "~/server/cache/nexafs-browse-public-cache";
 import { loadNexafsFacetCounts } from "~/server/nexafs/nexafsFacetCounts";
 import {
   coalesceUploadedOrDerived,
@@ -448,27 +452,36 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { groups, total } = await fetchNexafsBrowseGrouped(ctx.db, {
-        viewerUserId: ctx.userId,
-        filters: {
-          moleculeId: input.moleculeId,
-          edgeId: input.edgeId,
-          instrumentId: input.instrumentId,
-          moleculeIds: input.moleculeIds,
-          edgeIds: input.edgeIds,
-          instrumentIds: input.instrumentIds,
-          contributorOrcids: input.contributorOrcids,
-          experimentType: input.experimentType,
-          verifiedOnly: input.verifiedOnly,
-          verificationSource: input.verificationSource,
-          sourcePaperDoi: input.sourcePaperDoi,
-          experimentIds: input.experimentIds,
-        },
-        searchQuery: null,
-        sortBy: input.sortBy,
-        limit: input.limit,
-        offset: input.offset,
-      });
+      const filters = {
+        moleculeId: input.moleculeId,
+        edgeId: input.edgeId,
+        instrumentId: input.instrumentId,
+        moleculeIds: input.moleculeIds,
+        edgeIds: input.edgeIds,
+        instrumentIds: input.instrumentIds,
+        contributorOrcids: input.contributorOrcids,
+        experimentType: input.experimentType,
+        verifiedOnly: input.verifiedOnly,
+        verificationSource: input.verificationSource,
+        sourcePaperDoi: input.sourcePaperDoi,
+        experimentIds: input.experimentIds,
+      };
+
+      const { groups, total } =
+        !ctx.userId && isAnonymousUnfilteredNexafsBrowse(input)
+          ? await getCachedAnonymousNexafsBrowse(ctx.db, {
+              limit: input.limit,
+              offset: input.offset,
+              sortBy: input.sortBy,
+            })
+          : await fetchNexafsBrowseGrouped(ctx.db, {
+              viewerUserId: ctx.userId,
+              filters,
+              searchQuery: null,
+              sortBy: input.sortBy,
+              limit: input.limit,
+              offset: input.offset,
+            });
 
       return {
         groups,
@@ -919,33 +932,41 @@ export const experimentsRouter = createTRPCRouter({
     }),
 
   listEdges: publicProcedure.query(async ({ ctx }) => {
-    const edges = await ctx.db.edges.findMany();
-    const priorityRank = (e: { targetatom: string; corestate: string }) => {
-      const atom = e.targetatom.trim().toUpperCase();
-      const cs = e.corestate.trim().toUpperCase();
-      const isK = cs === "K";
-      const cEdge = isK && (atom === "C" || atom === "CARBON");
-      const nEdge = isK && (atom === "N" || atom === "NITROGEN");
-      const sEdge =
-        isK && (atom === "S" || atom === "SULFUR" || atom === "SULPHUR");
-      if (cEdge) return 0;
-      if (nEdge) return 1;
-      if (sEdge) return 2;
-      return 3;
-    };
-    edges.sort((a, b) => {
-      const pa = priorityRank(a);
-      const pb = priorityRank(b);
-      if (pa !== pb) return pa - pb;
-      const t = a.targetatom.localeCompare(b.targetatom, undefined, {
-        sensitivity: "base",
-      });
-      if (t !== 0) return t;
-      return a.corestate.localeCompare(b.corestate, undefined, {
-        sensitivity: "base",
-      });
-    });
-    return { edges };
+    const loadCached = cachePublicCatalogRead(
+      "nexafs-edges-list-v1",
+      ["nexafs-edges"],
+      async () => {
+        const edges = await ctx.db.edges.findMany();
+        const priorityRank = (edge: { targetatom: string; corestate: string }) => {
+          const atom = edge.targetatom.trim().toUpperCase();
+          const coreState = edge.corestate.trim().toUpperCase();
+          const isK = coreState === "K";
+          const cEdge = isK && (atom === "C" || atom === "CARBON");
+          const nEdge = isK && (atom === "N" || atom === "NITROGEN");
+          const sEdge =
+            isK && (atom === "S" || atom === "SULFUR" || atom === "SULPHUR");
+          if (cEdge) return 0;
+          if (nEdge) return 1;
+          if (sEdge) return 2;
+          return 3;
+        };
+        edges.sort((left, right) => {
+          const leftPriority = priorityRank(left);
+          const rightPriority = priorityRank(right);
+          if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+          const targetCompare = left.targetatom.localeCompare(right.targetatom, undefined, {
+            sensitivity: "base",
+          });
+          if (targetCompare !== 0) return targetCompare;
+          return left.corestate.localeCompare(right.corestate, undefined, {
+            sensitivity: "base",
+          });
+        });
+        return { edges };
+      },
+      3600,
+    );
+    return loadCached();
   }),
 
   /**

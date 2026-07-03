@@ -24,6 +24,9 @@ import { useRouter } from "next/navigation";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
 import { mission, site } from "~/app/brand";
 
+/** Maximum popularity-ranked molecules shown in the home carousel (independent of catalog size). */
+const HOME_POPULAR_MOLECULES_MAX = 4;
+
 function usePopularCarouselItemsPerPage(): number {
   const [itemsPerPage, setItemsPerPage] = useState(2);
   useEffect(() => {
@@ -129,9 +132,10 @@ function TopUpvotedMolecules() {
   const router = useRouter();
   const itemsPerPage = usePopularCarouselItemsPerPage();
   const [page, setPage] = useState(0);
-  const topFavoritedQuery = trpc.molecules.getTopFavorited.useQuery({
-    limit: 16,
-  });
+  const topFavoritedQuery = trpc.molecules.getTopFavorited.useQuery(
+    { limit: HOME_POPULAR_MOLECULES_MAX },
+    { staleTime: 120_000, gcTime: 300_000 },
+  );
   const { data, isLoading, isError, error, refetch } = topFavoritedQuery;
 
   const molecules = data?.molecules ?? [];

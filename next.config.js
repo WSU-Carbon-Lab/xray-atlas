@@ -7,6 +7,21 @@ import "./src/env.js";
 /** @type {import("next").NextConfig} */
 const config = {
   serverExternalPackages: ["pg", "@prisma/adapter-pg"],
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "@heroicons/react",
+      "@heroui/react",
+      "d3",
+      "@visx/axis",
+      "@visx/curve",
+      "@visx/grid",
+      "@visx/responsive",
+      "@visx/scale",
+      "@visx/shape",
+      "openchemlib",
+    ],
+  },
   outputFileTracingIncludes: {
     "/*": ["./content/blog/**/*"],
   },

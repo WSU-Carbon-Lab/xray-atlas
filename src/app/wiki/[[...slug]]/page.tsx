@@ -8,6 +8,8 @@ interface WikiCatchAllPageProps {
   params: Promise<{ slug?: string[] }>;
 }
 
+export const revalidate = 3600;
+
 /**
  * Builds static params for every non-draft wiki MDX entry, including the wiki index at `/wiki`.
  */

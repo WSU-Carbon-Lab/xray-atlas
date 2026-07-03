@@ -366,9 +366,21 @@ export function DashboardPlotViewerPage() {
     [groupById, state.datasets],
   );
 
+  const geometryKeysByExperimentId = useMemo(() => {
+    if (state.geometryKeys.length === 0) {
+      return undefined;
+    }
+    const geometryByExperiment: Record<string, readonly string[]> = {};
+    for (const experimentId of state.datasets) {
+      geometryByExperiment[experimentId] = state.geometryKeys;
+    }
+    return geometryByExperiment;
+  }, [state.datasets, state.geometryKeys]);
+
   const { datasets, spectraByExperimentId, isLoading, errorMessage, fetchError, isDatabaseUnavailable } =
     useDashboardPlotSpectra(catalogSelections, {
       enabled: state.datasets.length > 0,
+      geometryKeysByExperimentId,
       retryNonce: spectraRetryNonce,
     });
 
