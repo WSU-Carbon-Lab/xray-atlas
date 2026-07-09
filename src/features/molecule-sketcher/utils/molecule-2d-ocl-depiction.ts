@@ -21,6 +21,7 @@ import {
 } from "./cage-template-placement";
 import { DEFAULT_OCL_DEPICTION_TO_SVG_OPTIONS } from "./molecule-3d-depth-wireframe";
 import {
+  applyDativeBondStrokesToSvgRoot,
   applyMolecule2dBondStrokeWidthToSvgRoot,
   MOLECULE_2D_FIT_PADDING_PX,
 } from "./molecule-2d-depiction-style";
@@ -261,6 +262,7 @@ export function buildDrawCanvasOclDepiction(
   });
   applyMoleculeSvgCpkThemeToElement(svgRoot, isDark);
   applyMolecule2dBondStrokeWidthToSvgRoot(svgRoot);
+  applyDativeBondStrokesToSvgRoot(svgRoot, clone, isDark);
   if (hasCageDepth) {
     stripCageDepictionLabelsFromSvgRoot(svgRoot);
   }
@@ -346,6 +348,7 @@ export function buildDatabaseDepictionSvg(
   const svgRoot = doc.documentElement;
   applyMoleculeSvgCpkThemeToElement(svgRoot, isDark);
   applyMolecule2dBondStrokeWidthToSvgRoot(svgRoot);
+  applyDativeBondStrokesToSvgRoot(svgRoot, clone, isDark);
   if (hasCageDepth) {
     stripCageDepictionLabelsFromSvgRoot(svgRoot);
   }
