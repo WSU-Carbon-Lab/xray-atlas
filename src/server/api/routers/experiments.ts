@@ -1207,6 +1207,17 @@ export const experimentsRouter = createTRPCRouter({
           uploadedChannels: z
             .array(z.enum(["rawabs", "od", "massabsorption", "beta"]))
             .optional(),
+          primaryRepresentation: z
+            .enum([
+              "raw_mu",
+              "od",
+              "mass_absorption",
+              "beta",
+              "f2",
+              "epsilon2",
+              "chi2",
+            ])
+            .optional(),
           computeKkDeltaOnSubmit: z.boolean().optional(),
           validationOverride: z
             .object({
@@ -1344,6 +1355,8 @@ export const experimentsRouter = createTRPCRouter({
           "rawabs",
         ]),
       );
+      const primaryRepresentation =
+        experimentInput.primaryRepresentation ?? "raw_mu";
       const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
       const requestedCollectedBy = [
         ...new Set(
@@ -1442,6 +1455,7 @@ export const experimentsRouter = createTRPCRouter({
             await computeSpectrumDerivedScalarColumns(
               group.points,
               chemicalFormula,
+              primaryRepresentation,
             ),
           );
         }
@@ -1698,6 +1712,7 @@ export const experimentsRouter = createTRPCRouter({
           const channelProvenance = buildChannelProvenance({
             uploadedChannels,
             hasDerivedValues,
+            primaryRepresentation,
           });
 
           let spectrumHasDelta = false;
@@ -2206,7 +2221,7 @@ export const experimentsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const existingExperiment = await ctx.db.experiments.findUnique({
         where: { id: input.experimentId },
-        select: { createdby: true },
+        select: { createdby: true, channelprovenance: true },
       });
       if (!existingExperiment) {
         throw new TRPCError({
@@ -2264,6 +2279,19 @@ export const experimentsRouter = createTRPCRouter({
         scope: input.normalization.scope,
         doiPresent: false,
       });
+      const existingProvenance = existingExperiment.channelprovenance as
+        | { primaryRepresentation?: string }
+        | null;
+      const primaryRepresentation =
+        existingProvenance?.primaryRepresentation === "od" ||
+        existingProvenance?.primaryRepresentation === "mass_absorption" ||
+        existingProvenance?.primaryRepresentation === "beta" ||
+        existingProvenance?.primaryRepresentation === "f2" ||
+        existingProvenance?.primaryRepresentation === "epsilon2" ||
+        existingProvenance?.primaryRepresentation === "chi2"
+          ? existingProvenance.primaryRepresentation
+          : "raw_mu";
+
       const channelProvenance = buildChannelProvenance({
         uploadedChannels,
         hasDerivedValues: {
@@ -2271,6 +2299,7 @@ export const experimentsRouter = createTRPCRouter({
           massabsorption: points.some((point) => point.massabsorption != null),
           beta: points.some((point) => point.beta != null),
         },
+        primaryRepresentation,
       });
 
       return ctx.db.experiments.update({
