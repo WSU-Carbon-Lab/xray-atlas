@@ -22,7 +22,11 @@ import {
   ErrorMessage,
 } from "@heroui/react";
 import { Button as HeroButton } from "@heroui/react";
-import type { DatasetState, CSVColumnMappings } from "../types";
+import type {
+  DatasetState,
+  CSVColumnMappings,
+  PrimaryRepresentation,
+} from "../types";
 import type { SubmitStatus } from "../hooks/useNexafsSubmit";
 import {
   GlobalFileDropZoneProvider,
@@ -61,6 +65,7 @@ export type NexafsContributeFlowProps = {
   handleColumnMappingConfirm: (
     mappings: CSVColumnMappings,
     fixedValues?: { theta?: string; phi?: string },
+    primaryRepresentation?: PrimaryRepresentation,
   ) => void;
   handleColumnMappingClose: () => void;
   instrumentOptions: InstrumentOption[];
