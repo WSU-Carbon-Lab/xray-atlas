@@ -16,6 +16,10 @@ import {
   resolveHenkeMergeDomainForUploadDataset,
 } from "../utils";
 import {
+  classifyColumnFillStatus,
+  uploadedChannelsFromDataset,
+} from "../utils/channelCompleteness";
+import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
 } from "~/features/kk-calc";
@@ -278,14 +282,14 @@ export function useNexafsSubmit(
                         dataset.validationOverride.reason.trim() || undefined,
                     }
                   : undefined,
-              uploadedChannels: [
-                "rawabs",
-                ...(dataset.columnMappings.od ? (["od"] as const) : []),
-                ...(dataset.columnMappings.massabsorption
-                  ? (["massabsorption"] as const)
-                  : []),
-                ...(dataset.columnMappings.beta ? (["beta"] as const) : []),
-              ],
+              uploadedChannels: uploadedChannelsFromDataset({
+                columnMappings: dataset.columnMappings,
+                fillStatus: classifyColumnFillStatus(
+                  dataset.csvRawData,
+                  dataset.columnMappings,
+                ),
+              }),
+              primaryRepresentation: dataset.primaryRepresentation,
               computeKkDeltaOnSubmit: dataset.computeKkDeltaOnSubmit
                 ? true
                 : undefined,

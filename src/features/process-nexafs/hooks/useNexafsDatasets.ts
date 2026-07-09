@@ -25,6 +25,12 @@ import {
   matchInstrumentIdFromParsedNexafsFilename,
   buildNexafsUploadAutofill,
 } from "../utils";
+import {
+  classifyColumnFillStatus,
+  inferPrimaryRepresentation,
+} from "../utils/channelCompleteness";
+import { buildUploadScaleSanityWarnings } from "../utils/uploadScaleSanity";
+import type { PrimaryRepresentation } from "../types";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -57,6 +63,36 @@ function readOptionalFloat(
     return Number.isFinite(n) ? n : undefined;
   }
   return undefined;
+}
+
+function isProcessedPrimary(representation: PrimaryRepresentation): boolean {
+  return (
+    representation === "beta" ||
+    representation === "mass_absorption" ||
+    representation === "f2" ||
+    representation === "epsilon2" ||
+    representation === "chi2"
+  );
+}
+
+function tagNativeChannelFromPrimary(
+  point: SpectrumPoint,
+  representation: PrimaryRepresentation,
+): SpectrumPoint {
+  const value = point.absorption;
+  if (!Number.isFinite(value)) {
+    return point;
+  }
+  switch (representation) {
+    case "beta":
+      return { ...point, beta: point.beta ?? value };
+    case "mass_absorption":
+      return { ...point, massabsorption: point.massabsorption ?? value };
+    case "od":
+      return { ...point, od: point.od ?? value };
+    default:
+      return point;
+  }
 }
 
 export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
@@ -100,11 +136,35 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         return;
 
       const energyColumn = dataset.columnMappings.energy;
-      const absorptionColumn = dataset.columnMappings.absorption;
+      let absorptionColumn = dataset.columnMappings.absorption;
       const thetaColumn = dataset.columnMappings.theta;
       const phiColumn = dataset.columnMappings.phi;
 
-      if (!energyColumn || !absorptionColumn) return;
+      if (!energyColumn) return;
+
+      const fillStatus = classifyColumnFillStatus(
+        dataset.csvRawData,
+        dataset.columnMappings,
+      );
+      const inferred = inferPrimaryRepresentation({
+        mappings: dataset.columnMappings,
+        fillStatus,
+      });
+
+      if (!inferred) {
+        updateDataset(datasetId, {
+          spectrumError:
+            "Could not infer a primary signal column. Map energy and at least one absorption channel (mu, beta, mass_absorption, or od).",
+        });
+        return;
+      }
+
+      absorptionColumn = inferred.absorptionColumn;
+      const primaryRepresentation = dataset.primaryRepresentationLocked
+        ? dataset.primaryRepresentation
+        : inferred.primaryRepresentation;
+
+      if (!absorptionColumn) return;
 
       try {
         const spectrumPoints: SpectrumPoint[] = [];
@@ -192,12 +252,35 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
           const deltaErrv = readOptionalFloat(row, cm.deltaError);
           if (deltaErrv !== undefined) point.deltaError = deltaErrv;
 
-          spectrumPoints.push(point);
+          spectrumPoints.push(
+            tagNativeChannelFromPrimary(point, primaryRepresentation),
+          );
+        }
+
+        const warnings = buildUploadScaleSanityWarnings({
+          points: spectrumPoints,
+          primaryRepresentation,
+          bareAtomPoints: dataset.bareAtomPoints,
+        });
+        if (inferred.needsExplicitChoice) {
+          warnings.unshift(
+            "Multiple processed channels are filled; confirm the primary representation in column mapping.",
+          );
         }
 
         updateDataset(datasetId, {
           spectrumPoints,
           spectrumError: undefined,
+          columnMappings: {
+            ...dataset.columnMappings,
+            absorption: absorptionColumn,
+          },
+          primaryRepresentation,
+          primaryInferenceNeedsChoice: inferred.needsExplicitChoice,
+          uploadParseWarnings: warnings,
+          normalizationScope: isProcessedPrimary(primaryRepresentation)
+            ? "none"
+            : dataset.normalizationScope,
         });
       } catch (error) {
         updateDataset(datasetId, {
@@ -338,7 +421,15 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
             } else {
               const missingColumns: string[] = [];
               if (!columnMappings.energy) missingColumns.push("Energy");
-              if (!columnMappings.absorption) missingColumns.push("Absorption");
+              const inferred = inferPrimaryRepresentation({
+                mappings: columnMappings,
+                fillStatus: classifyColumnFillStatus(rawData, columnMappings),
+              });
+              if (!inferred) {
+                missingColumns.push(
+                  "Primary signal (mu, beta, mass_absorption, or od)",
+                );
+              }
               if (missingColumns.length > 0) {
                 showToast(
                   `Missing required columns: ${missingColumns.join(", ")}. Please map columns in the table view.`,
@@ -381,9 +472,18 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 ...detectAuxiliarySpectrumColumnNames(columns),
               };
 
+              const csvRows = Array.isArray(parsed.data) ? parsed.data : [];
               const missingColumns: string[] = [];
               if (!columnMappings.energy) missingColumns.push("Energy");
-              if (!columnMappings.absorption) missingColumns.push("Absorption");
+              const inferred = inferPrimaryRepresentation({
+                mappings: columnMappings,
+                fillStatus: classifyColumnFillStatus(csvRows, columnMappings),
+              });
+              if (!inferred) {
+                missingColumns.push(
+                  "Primary signal (mu, beta, mass_absorption, or od)",
+                );
+              }
 
               const baseSampleInfo = createEmptyDatasetState(file).sampleInfo;
               const autofill = buildNexafsUploadAutofill({
@@ -428,7 +528,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 );
               }
 
-              if (columnMappings.energy && columnMappings.absorption) {
+              if (inferred) {
                 setTimeout(() => processDatasetDataRef.current(dataset.id), 50);
               }
             } else {
@@ -491,10 +591,18 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
     (
       mappings: CSVColumnMappings,
       fixedValues?: { theta?: string; phi?: string },
+      primaryRepresentation?: PrimaryRepresentation,
     ) => {
       if (!columnMappingFile) return;
 
-      const updates: Partial<DatasetState> = { columnMappings: mappings };
+      const updates: Partial<DatasetState> = {
+        columnMappings: mappings,
+        primaryInferenceNeedsChoice: false,
+      };
+      if (primaryRepresentation) {
+        updates.primaryRepresentation = primaryRepresentation;
+        updates.primaryRepresentationLocked = true;
+      }
       if (fixedValues?.theta !== undefined)
         updates.fixedTheta = fixedValues.theta;
       if (fixedValues?.phi !== undefined) updates.fixedPhi = fixedValues.phi;
@@ -516,7 +624,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       datasets
         .map(
           (d) =>
-            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.columnMappings.i0 ?? ""}:${d.columnMappings.od ?? ""}:${d.columnMappings.massabsorption ?? ""}:${d.columnMappings.beta ?? ""}:${d.columnMappings.delta ?? ""}:${d.columnMappings.deltaError ?? ""}:${d.columnMappings.rawabsError ?? ""}:${d.columnMappings.odError ?? ""}:${d.columnMappings.massabsorptionError ?? ""}:${d.columnMappings.betaError ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${Array.isArray(d.csvRawData) ? d.csvRawData.length : 0}`,
+            `${d.id}:${d.columnMappings.energy}:${d.columnMappings.absorption}:${d.primaryRepresentation}:${d.columnMappings.theta ?? ""}:${d.columnMappings.phi ?? ""}:${d.columnMappings.i0 ?? ""}:${d.columnMappings.od ?? ""}:${d.columnMappings.massabsorption ?? ""}:${d.columnMappings.beta ?? ""}:${d.columnMappings.f2 ?? ""}:${d.columnMappings.epsilon2 ?? ""}:${d.columnMappings.chi2 ?? ""}:${d.columnMappings.delta ?? ""}:${d.columnMappings.deltaError ?? ""}:${d.columnMappings.rawabsError ?? ""}:${d.columnMappings.odError ?? ""}:${d.columnMappings.massabsorptionError ?? ""}:${d.columnMappings.betaError ?? ""}:${d.fixedTheta ?? ""}:${d.fixedPhi ?? ""}:${Array.isArray(d.csvRawData) ? d.csvRawData.length : 0}`,
         )
         .join(","),
     [datasets],
@@ -527,8 +635,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       if (
         Array.isArray(dataset.csvRawData) &&
         dataset.csvRawData.length > 0 &&
-        dataset.columnMappings.energy &&
-        dataset.columnMappings.absorption
+        dataset.columnMappings.energy
       ) {
         processDatasetDataRef.current(dataset.id);
       }
