@@ -87,7 +87,7 @@ const TOOL_ITEMS: Array<{
   {
     id: "element",
     label: "Heteroatom",
-    hint: "Click an atom to open the heteroatom palette (N, O, S, halogens, and custom symbols).",
+    hint: "Double-click an atom to open the bottom editor; type any symbol (e.g. Se, Li) or pick from the palette.",
     icon: <HeteroatomToolIcon />,
   },
   {
