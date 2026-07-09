@@ -1,34 +1,45 @@
 import type { SpectrumPoint } from "~/components/plots/types";
 import type { BareAtomPoint } from "../types";
+import { betaFromMassAbsorption } from "./opticalConstants";
 
-const HC_EV_CM = 1.23984193e-4;
-const FOUR_PI = 4 * Math.PI;
-
-function medianFinite(values: number[]): number {
-  const filtered = values.filter((v) => Number.isFinite(v));
-  if (filtered.length === 0) return 0;
-  const sorted = filtered.sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
+/**
+ * Computes beta from mass-absorption hub values without relative scaling heuristics.
+ */
+export function computeBetaFromMassAbsorption(
+  hubPoints: SpectrumPoint[],
+): SpectrumPoint[] {
+  return hubPoints.map((p) => {
+    const mu = p.massabsorption ?? p.absorption;
+    const beta = betaFromMassAbsorption(mu, p.energy);
+    return {
+      ...p,
+      absorption: Number.isFinite(beta) ? beta : p.absorption,
+    };
+  });
 }
 
 /**
- * Compute the imaginary refractive index (beta) from NEXAFS absorption-like values.
+ * Computes the imaginary refractive index (beta) from NEXAFS absorption-like values.
  *
  * Derivation (common optics relation):
  *   mu(E) = 4*pi*beta(E)/lambda(E)  =>  beta(E) = mu(E)*lambda(E)/(4*pi)
  * with lambda(E) = (h*c)/E.
  *
- * In this codebase, `normalizedPoints[].absorption` and `BareAtomPoint[].absorption`
- * are treated as an absorption coefficient in compatible units (mu), and beta is returned
- * as the corresponding proportional imaginary refractive index.
+ * When `treatInputAsMassAbsorption` is true, input absorption is treated as mass absorption
+ * at rho = 1 g/cm3 and converted directly. Otherwise a relative scaling heuristic may apply
+ * for legacy raw mu-like traces that are dimensionless fractions of bare-atom absorption.
  */
 export function computeBetaIndex(
   normalizedPoints: SpectrumPoint[],
   energyEv: number[],
   atomicScatteringFactors: BareAtomPoint[],
+  options?: { treatInputAsMassAbsorption?: boolean },
 ): SpectrumPoint[] {
   if (normalizedPoints.length === 0) return [];
+
+  if (options?.treatInputAsMassAbsorption) {
+    return computeBetaFromMassAbsorption(normalizedPoints);
+  }
 
   const atomicMap = new Map<number, number>();
   for (const p of atomicScatteringFactors) {
@@ -42,8 +53,6 @@ export function computeBetaIndex(
   const atomicMedian = medianFinite(atomicAbsValues);
   const normalizedMedian = medianFinite(normalizedAbsValues);
 
-  // Heuristic: if normalized values are much smaller than bare-atom absorption,
-  // treat them as dimensionless relative values and scale by bare-atom absorption.
   const shouldScaleByAtomic =
     atomicMedian > 0 && normalizedMedian / atomicMedian < 0.2;
 
@@ -54,20 +63,25 @@ export function computeBetaIndex(
 
   return normalizedPoints.map((p) => {
     const E = p.energy;
-    const lambdaCm = HC_EV_CM / E;
-
-    const atomicAbs = atomicMap.get(E) ?? (atomicScatteringFactors[0]?.absorption ?? 1);
+    const atomicAbs =
+      atomicMap.get(E) ?? (atomicScatteringFactors[0]?.absorption ?? 1);
     const mu = shouldScaleByAtomic ? p.absorption * atomicAbs : p.absorption;
-
-    // If input energy array was provided, require it to include this energy
-    // for consistent scaling; otherwise keep computed mu as-is.
     const muAdjusted =
       energyFallback && !energyFallback.has(E) ? p.absorption : mu;
-
+    const beta = betaFromMassAbsorption(muAdjusted, E);
     return {
       ...p,
-      absorption: (muAdjusted * lambdaCm) / FOUR_PI,
+      absorption: Number.isFinite(beta) ? beta : p.absorption,
     };
   });
 }
 
+function medianFinite(values: number[]): number {
+  const filtered = values.filter((v) => Number.isFinite(v));
+  if (filtered.length === 0) return 0;
+  const sorted = filtered.sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1]! + sorted[mid]!) / 2
+    : sorted[mid]!;
+}
