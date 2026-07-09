@@ -1,13 +1,28 @@
 import type { SpectrumPoint } from "~/components/plots/types";
 import type { DatasetState } from "../types";
-import { computeBetaIndex } from "./betaIndex";
-import {
-  computeNormalizationForExperiment,
-  computeZeroOneNormalization,
-  interpolateBareMu,
-} from "./core";
 import { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";
+import {
+  buildMassAbsorptionHubPoints,
+  deriveOdAndBetaFromHub,
+} from "./representationToMassAbsorption";
 
+function coalesceUploaded(
+  uploaded: number | undefined,
+  derived: number | null,
+): number | undefined {
+  if (typeof uploaded === "number" && Number.isFinite(uploaded)) {
+    return uploaded;
+  }
+  if (typeof derived === "number" && Number.isFinite(derived)) {
+    return derived;
+  }
+  return undefined;
+}
+
+/**
+ * Builds upload-ready spectrum rows: preserves the uploaded primary in absorption (rawabs),
+ * converts to the mass-absorption hub, and derives OD/beta when not uploaded.
+ */
 export function buildSpectrumPointsWithDerivedForUpload(
   dataset: DatasetState,
 ): SpectrumPoint[] {
@@ -24,71 +39,66 @@ export function buildSpectrumPointsWithDerivedForUpload(
     }
   }
 
-  const next: SpectrumPoint[] = points.map((p) => ({ ...p }));
+  const formulaMass =
+    typeof dataset.sampleInfo.molecularWeight === "number" &&
+    Number.isFinite(dataset.sampleInfo.molecularWeight)
+      ? dataset.sampleInfo.molecularWeight
+      : null;
 
-  if (pre && post) {
-    const z = computeZeroOneNormalization(points, pre, post);
-    if (z) {
-      for (let i = 0; i < next.length; i++) {
-        const v = z.normalizedPoints[i]?.absorption;
-        if (typeof v === "number" && Number.isFinite(v)) {
-          const base = points[i]!;
-          next[i] = { ...base, ...next[i], od: v };
-        }
-      }
-    }
-  }
-
-  const barePts = dataset.bareAtomPoints;
-  if (pre && post && barePts && barePts.length > 0) {
-    const massComp = computeNormalizationForExperiment(
-      points,
-      barePts,
+  const hub = buildMassAbsorptionHubPoints(
+    points,
+    dataset.primaryRepresentation,
+    {
+      barePoints: dataset.bareAtomPoints ?? [],
       pre,
       post,
-    );
-    if (massComp) {
-      for (let i = 0; i < next.length; i++) {
-        const v = massComp.normalizedPoints[i]?.absorption;
-        if (typeof v === "number" && Number.isFinite(v)) {
-          const base = points[i]!;
-          next[i] = { ...base, ...next[i], massabsorption: v };
-        }
-      }
-      const uniqueEnergies = Array.from(
-        new Set(points.map((p) => p.energy)),
-      ).sort((a, b) => a - b);
-      const atomicPoints = uniqueEnergies.map((E) => ({
-        energy: E,
-        absorption: interpolateBareMu(barePts, E),
-      }));
-      const energyEv = points.map((p) => p.energy);
-      const betaArr = computeBetaIndex(
-        massComp.normalizedPoints,
-        energyEv,
-        atomicPoints,
-      );
-      for (let i = 0; i < next.length; i++) {
-        const v = betaArr[i]?.absorption;
-        if (typeof v === "number" && Number.isFinite(v)) {
-          const base = points[i]!;
-          next[i] = { ...base, ...next[i], beta: v };
-        }
-      }
-    }
-  }
+      formulaMassGPerMol: formulaMass,
+    },
+  );
 
-  return next;
+  const derived =
+    hub != null ? deriveOdAndBetaFromHub(hub, pre, post) : { od: [], beta: [] };
+
+  return points.map((base, i) => {
+    const hubMu =
+      hub?.[i]?.massabsorption ?? hub?.[i]?.absorption ?? null;
+    const derivedOd = derived.od[i] ?? null;
+    const derivedBeta = derived.beta[i] ?? null;
+    const derivedMass =
+      typeof hubMu === "number" && Number.isFinite(hubMu) ? hubMu : null;
+
+    const next: SpectrumPoint = { ...base };
+
+    const mass = coalesceUploaded(base.massabsorption, derivedMass);
+    if (mass !== undefined) {
+      next.massabsorption = mass;
+    }
+
+    const od = coalesceUploaded(base.od, derivedOd);
+    if (od !== undefined) {
+      next.od = od;
+    }
+
+    const beta = coalesceUploaded(base.beta, derivedBeta);
+    if (beta !== undefined) {
+      next.beta = beta;
+    }
+
+    if (
+      dataset.primaryRepresentation === "beta" &&
+      typeof base.absorption === "number" &&
+      Number.isFinite(base.absorption) &&
+      next.beta === undefined
+    ) {
+      next.beta = base.absorption;
+    }
+
+    return next;
+  });
 }
 
 /**
- * Reports whether an upload **draft** dataset can run the same browser-side beta→delta
- * Kramers–Kronig path as submit-time {@link buildSpectrumPointsWithDerivedForUpload} followed by
- * {@link applyKkDeltaToSpectrumPoints} from `~/features/kk-calc`: every derived row must carry a
- * finite `beta` after OD / mass-absorption / beta derivation from normalization windows and bare
- * atom data. Returns false when there are no points or when any derived row lacks finite beta.
- *
- * @param dataset Contribute-flow dataset state (spectrum grid, normalization regions, bare atom).
+ * Reports whether an upload draft can run browser-side beta-to-delta KK on every row.
  */
 export function uploadDatasetHasFiniteBetaForKkOnEveryRow(
   dataset: DatasetState,

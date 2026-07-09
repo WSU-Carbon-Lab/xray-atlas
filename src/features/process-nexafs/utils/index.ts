@@ -41,7 +41,29 @@ export {
   type BareAtomReferenceDataView,
 } from "./buildBareAtomReferenceCurve";
 export { parseCSVFile } from "./csv";
-export { computeBetaIndex } from "./betaIndex";
+export { computeBetaIndex, computeBetaFromMassAbsorption } from "./betaIndex";
+export {
+  betaFromMassAbsorption,
+  massAbsorptionFromBeta,
+  massAbsorptionFromF2,
+  massAbsorptionFromEpsilon2,
+  HC_EV_CM,
+  FOUR_PI,
+} from "./opticalConstants";
+export {
+  buildMassAbsorptionHubPoints,
+  deriveOdAndBetaFromHub,
+} from "./representationToMassAbsorption";
+export {
+  classifyColumnFillStatus,
+  inferPrimaryRepresentation,
+  uploadedChannelsFromDataset,
+} from "./channelCompleteness";
+export {
+  buildUploadScaleSanityWarnings,
+  buildProcessedPrimaryBareAtomAgreement,
+  isProcessedPrimaryRepresentation,
+} from "./uploadScaleSanity";
 export { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";
 export {
   mapDbSpectrumRowsToPoints,
