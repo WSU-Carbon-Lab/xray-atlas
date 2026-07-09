@@ -18,6 +18,7 @@ import {
   MOLECULE_COMPOUND_KINDS,
   formatMoleculeFormulaForKind,
   moleculeCompoundKindLabel,
+  parseMoleculeCompoundKind,
   parseRepeatUnitFormula,
   type MoleculeCompoundKind,
 } from "~/lib/molecule-compound-kind";
@@ -234,7 +235,9 @@ export function MoleculeResolvedIdentityCard({
           selectedKey={compoundKind}
           onSelectionChange={(key) => {
             if (typeof key !== "string") return;
-            onCompoundKindChange(key as MoleculeCompoundKind);
+            const kind = parseMoleculeCompoundKind(key);
+            if (kind === null) return;
+            onCompoundKindChange(kind);
           }}
           aria-label="Compound kind"
           className="max-w-md"
@@ -251,6 +254,7 @@ export function MoleculeResolvedIdentityCard({
             <ListBox aria-label="Compound kind">
               {MOLECULE_COMPOUND_KINDS.map((kind) => (
                 <ListBox.Item
+                  id={kind}
                   key={kind}
                   textValue={moleculeCompoundKindLabel(kind)}
                 >

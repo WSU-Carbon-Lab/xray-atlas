@@ -8,8 +8,12 @@
  */
 
 import type { Molecule } from "openchemlib";
+import { Molecule as MoleculeCtor } from "openchemlib";
 
-import { cpkHexForElementSymbol } from "~/lib/molecule-svg-cpk-theme";
+import {
+  bondStrokeHexForMoleculeSvgTheme,
+  cpkHexForElementSymbol,
+} from "~/lib/molecule-svg-cpk-theme";
 import { MOLECULE_SVG_LABEL_FONT_WEIGHT } from "~/lib/molecule-svg-typography";
 import { isAbbreviatedAlkylLabel } from "./alkyl-label-expand";
 
@@ -24,6 +28,91 @@ export const MOLECULE_2D_BOND_LINE_CAP = "butt" as const;
 
 /** Dashed dative bond pattern on the draw canvas. */
 export const MOLECULE_2D_DATIVE_DASHARRAY = "5 4";
+
+/** Formal charge limits enforced by the draw-canvas atom editor. */
+export const MOLECULE_DRAW_CHARGE_MIN = -4;
+
+/** Formal charge limits enforced by the draw-canvas atom editor. */
+export const MOLECULE_DRAW_CHARGE_MAX = 4;
+
+/**
+ * Clamps an integer formal charge to the draw-canvas editor range.
+ *
+ * @param charge - Requested formal charge.
+ */
+export function clampMoleculeDrawCharge(charge: number): number {
+  if (!Number.isFinite(charge)) {
+    return 0;
+  }
+  const rounded = Math.round(charge);
+  return Math.min(
+    MOLECULE_DRAW_CHARGE_MAX,
+    Math.max(MOLECULE_DRAW_CHARGE_MIN, rounded),
+  );
+}
+
+/** Shorten a segment by fixed distances at each end (SVG user units). */
+function trimLineSegmentEnds(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  trimStart: number,
+  trimEnd: number,
+): { x0: number; y0: number; x1: number; y1: number } {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const len = Math.hypot(dx, dy);
+  if (len <= trimStart + trimEnd + 1e-9) {
+    const cx = (x0 + x1) / 2;
+    const cy = (y0 + y1) / 2;
+    return { x0: cx, y0: cy, x1: cx, y1: cy };
+  }
+  const ux = dx / len;
+  const uy = dy / len;
+  return {
+    x0: x0 + ux * trimStart,
+    y0: y0 + uy * trimStart,
+    x1: x1 - ux * trimEnd,
+    y1: y1 - uy * trimEnd,
+  };
+}
+
+/**
+ * Endpoint trim for a dative-bond segment at an atom label so the stroke stays
+ * in the gap between symbols instead of painting through charge superscripts.
+ *
+ * @param mol - Molecule containing `atom`.
+ * @param atom - Atom index at the bond endpoint.
+ */
+export function dativeBondEndpointTrimPx(mol: Molecule, atom: number): number {
+  const atomicNo = mol.getAtomicNo(atom);
+  const symbol = MoleculeCtor.cAtomLabel[atomicNo] ?? "C";
+  const charge = mol.getAtomCharge(atom);
+  const hasCustomLabel = (mol.getAtomCustomLabel(atom) ?? "").trim().length > 0;
+  let trim = MOLECULE_2D_LABEL_TRIM_PX;
+  if (symbol !== "C" || charge !== 0 || hasCustomLabel) {
+    trim += 4;
+  }
+  if (charge !== 0) {
+    trim += 6;
+  }
+  if (symbol.length >= 2) {
+    trim += 2;
+  }
+  return trim;
+}
+
+function dativeBondStrokeInsertAnchor(svgRoot: Element): Element | null {
+  const firstText = svgRoot.querySelector("text");
+  if (firstText !== null) {
+    return firstText;
+  }
+  const firstVisibleLine = [...svgRoot.querySelectorAll("line")].find(
+    (line) => line.getAttribute("opacity") !== "0",
+  );
+  return firstVisibleLine ?? svgRoot.firstElementChild;
+}
 
 /** Atom label font size in SVG user units. */
 export const MOLECULE_2D_ATOM_LABEL_FONT_SIZE = 13;
@@ -191,4 +280,93 @@ export function applyMolecule2dBondStrokeWidthToSvgRoot(svgRoot: Element): void 
       pathElem.setAttribute("stroke-width", String(MOLECULE_2D_BOND_STROKE_WIDTH));
     }
   });
+}
+
+const OCL_ATOM_CIRCLE_ID_SUFFIX_RE = /:Atom:(\d+)$/;
+
+function oclAtomCentersFromSvgRoot(
+  svgRoot: Element,
+): Map<number, { x: number; y: number }> {
+  const centers = new Map<number, { x: number; y: number }>();
+  svgRoot.querySelectorAll("circle[id]").forEach((circleElem) => {
+    const id = circleElem.getAttribute("id") ?? "";
+    const match = OCL_ATOM_CIRCLE_ID_SUFFIX_RE.exec(id);
+    if (match === null) {
+      return;
+    }
+    const atom = Number.parseInt(match[1] ?? "", 10);
+    const x = Number.parseFloat(circleElem.getAttribute("cx") ?? "");
+    const y = Number.parseFloat(circleElem.getAttribute("cy") ?? "");
+    if (!Number.isFinite(atom) || !Number.isFinite(x) || !Number.isFinite(y)) {
+      return;
+    }
+    centers.set(atom, { x, y });
+  });
+  return centers;
+}
+
+/**
+ * Injects visible dashed bond strokes for OpenChemLib metal-ligand (dative)
+ * bonds. OCL `toSVG` emits only invisible hit-target lines for those bonds.
+ *
+ * @param svgRoot - Parsed OCL SVG root after CPK theming.
+ * @param mol - Molecule whose bond types determine which segments are dative.
+ * @param isDark - When true, use the dark-theme bond stroke color.
+ */
+export function applyDativeBondStrokesToSvgRoot(
+  svgRoot: Element,
+  mol: Molecule,
+  isDark: boolean,
+): void {
+  const atomCenters = oclAtomCentersFromSvgRoot(svgRoot);
+  if (atomCenters.size === 0) {
+    return;
+  }
+  const stroke = bondStrokeHexForMoleculeSvgTheme(isDark);
+  const document = svgRoot.ownerDocument;
+  if (document === null) {
+    return;
+  }
+
+  for (let bond = 0; bond < mol.getBonds(); bond += 1) {
+    if (mol.getBondType(bond) !== MoleculeCtor.cBondTypeMetalLigand) {
+      continue;
+    }
+    const atom0 = mol.getBondAtom(0, bond);
+    const atom1 = mol.getBondAtom(1, bond);
+    const center0 = atomCenters.get(atom0);
+    const center1 = atomCenters.get(atom1);
+    if (center0 === undefined || center1 === undefined) {
+      continue;
+    }
+
+    const trimStart = dativeBondEndpointTrimPx(mol, atom0);
+    const trimEnd = dativeBondEndpointTrimPx(mol, atom1);
+    const trimmed = trimLineSegmentEnds(
+      center0.x,
+      center0.y,
+      center1.x,
+      center1.y,
+      trimStart,
+      trimEnd,
+    );
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(trimmed.x0));
+    line.setAttribute("y1", String(trimmed.y0));
+    line.setAttribute("x2", String(trimmed.x1));
+    line.setAttribute("y2", String(trimmed.y1));
+    line.setAttribute("stroke", stroke);
+    line.setAttribute("stroke-width", String(MOLECULE_2D_BOND_STROKE_WIDTH));
+    line.setAttribute("stroke-dasharray", MOLECULE_2D_DATIVE_DASHARRAY);
+    line.setAttribute("stroke-linecap", "round");
+    line.setAttribute("pointer-events", "none");
+
+    const insertAnchor = dativeBondStrokeInsertAnchor(svgRoot);
+    if (insertAnchor !== null) {
+      svgRoot.insertBefore(line, insertAnchor);
+    } else {
+      svgRoot.appendChild(line);
+    }
+  }
 }

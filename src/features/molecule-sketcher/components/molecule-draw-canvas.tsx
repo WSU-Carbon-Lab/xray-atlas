@@ -11,9 +11,10 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useTheme } from "next-themes";
-import { Button, ErrorMessage, Input, Tooltip } from "@heroui/react";
+import { Button, ErrorMessage, Input, Label, Tooltip } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
+import { Molecule as MoleculeCtor } from "openchemlib";
 
 import { bondStrokeHexForMoleculeSvgTheme } from "~/lib/molecule-svg-cpk-theme";
 import { MOLECULE_SVG_FONT_FAMILY_INLINE } from "~/lib/molecule-svg-typography";
@@ -27,9 +28,11 @@ import {
 import {
   atomicNoForSymbol,
   COMMON_HETEROATOM_SYMBOLS,
+  COMMON_METAL_SYMBOLS,
   drawBondKindOf,
 } from "../utils/molecule-graph-editing";
 import {
+  formatMolecule2dAtomLabelText,
   MOLECULE_2D_ATOM_HIT_RADIUS_PX,
   MOLECULE_2D_ATOM_HOVER_RADIUS_PX,
   MOLECULE_2D_ATOM_LABEL_FONT_WEIGHT,
@@ -42,6 +45,11 @@ import {
   MOLECULE_2D_BOOKEND_SUBSCRIPT_FONT_SIZE,
   MOLECULE_2D_NOTATION_FONT_SIZE,
 } from "../utils/molecule-2d-depiction-style";
+import {
+  formatAtomEditorNotation,
+  parseAtomEditorNotation,
+  previewAtomEditorNotation,
+} from "../utils/parse-atom-editor-notation";
 import {
   snapshotCageOrbitDragAnchor,
   type CageOrbitDragAnchor,
@@ -104,8 +112,6 @@ export interface MoleculeDrawCanvasProps {
 
 interface ElementPopoverState {
   atom: number;
-  x: number;
-  y: number;
 }
 
 interface AlkylTailPopoverState {
@@ -233,6 +239,8 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
     pointerId: number;
     snapshot: string;
     lastScreen: DrawPoint;
+    startScreen: DrawPoint;
+    moved: boolean;
   } | null>(null);
   const layoutDragRef = useRef<{ lastAngle: number; pointerId: number } | null>(null);
   const cageOrbitDragRef = useRef<{ lastX: number; lastY: number; pointerId: number } | null>(
@@ -602,6 +610,22 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
     return { x: client.x - rect.left, y: client.y - rect.top };
   }, []);
 
+  const openAtomEditor = useCallback(
+    (atom: number) => {
+      if (atom < 0 || atom >= molecule.getAllAtoms()) {
+        return;
+      }
+      setAlkylPopover(null);
+      const charge = molecule.getAtomCharge(atom);
+      const atomicNo = molecule.getAtomicNo(atom);
+      const symbol = MoleculeCtor.cAtomLabel[atomicNo] ?? "?";
+      setCustomSymbol(formatAtomEditorNotation(symbol, charge));
+      setElementInputError(null);
+      setElementPopover({ atom });
+    },
+    [molecule],
+  );
+
   const resetView = useCallback(() => {
     setViewPan({ x: 0, y: 0 });
     setViewZoom(1);
@@ -714,11 +738,19 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       }
 
       if (tool === "select") {
-        if (hit.kind === "atom" && selectedAtomSet.has(hit.atom)) {
+        if (hit.kind === "atom") {
+          if (event.shiftKey) {
+            return;
+          }
+          if (!selectedAtomSet.has(hit.atom)) {
+            state.setSelectedAtoms([hit.atom]);
+          }
           selectionDragRef.current = {
             pointerId: event.pointerId,
             snapshot: state.molfile,
             lastScreen: point,
+            startScreen: point,
+            moved: false,
           };
           event.currentTarget.setPointerCapture(event.pointerId);
           return;
@@ -771,12 +803,21 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
 
       const selectionDrag = selectionDragRef.current;
       if (selectionDrag?.pointerId === event.pointerId) {
-        const molScale = baseTransform.scale * viewZoom;
-        const dx = (point.x - selectionDrag.lastScreen.x) / molScale;
-        const ySign = baseTransform.flipY === false ? 1 : -1;
-        const dy = (ySign * (point.y - selectionDrag.lastScreen.y)) / molScale;
-        selectionDrag.lastScreen = point;
-        state.translateSelectedDuringDrag(dx, dy);
+        const dist = Math.hypot(
+          point.x - selectionDrag.startScreen.x,
+          point.y - selectionDrag.startScreen.y,
+        );
+        if (!selectionDrag.moved && dist > CLICK_DRAG_THRESHOLD_PX) {
+          selectionDrag.moved = true;
+        }
+        if (selectionDrag.moved) {
+          const molScale = baseTransform.scale * viewZoom;
+          const dx = (point.x - selectionDrag.lastScreen.x) / molScale;
+          const ySign = baseTransform.flipY === false ? 1 : -1;
+          const dy = (ySign * (point.y - selectionDrag.lastScreen.y)) / molScale;
+          selectionDrag.lastScreen = point;
+          state.translateSelectedDuringDrag(dx, dy);
+        }
         return;
       }
 
@@ -969,18 +1010,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
         }
         case "element":
           if (hit.kind === "atom") {
-            const viewScreen = moleculeToScreen(viewTransform, {
-              x: molecule.getAtomX(hit.atom),
-              y: molecule.getAtomY(hit.atom),
-            });
-            const anchor = containerPointFromSvg(viewScreen);
-            setCustomSymbol("");
-            setElementInputError(null);
-            setElementPopover({
-              atom: hit.atom,
-              x: anchor.x,
-              y: anchor.y,
-            });
+            openAtomEditor(hit.atom);
           } else {
             setElementPopover(null);
           }
@@ -1025,7 +1055,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
         }
       }
     },
-    [tool, layoutTool, state, molecule, viewTransform, containerPointFromSvg, localPoint, hitAt, dragBondKind, baseTransform, viewPanZoom, oclAtomCenters],
+    [tool, layoutTool, state, molecule, viewTransform, localPoint, hitAt, dragBondKind, baseTransform, viewPanZoom, oclAtomCenters, openAtomEditor],
   );
 
   const onLayoutOverlayPointerDown = useCallback(
@@ -1339,10 +1369,20 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
         ? emptyDragRef.current.startScreen
         : null;
 
-  const popoverAtomCharge =
-    elementPopover !== null && elementPopover.atom < molecule.getAllAtoms()
-      ? molecule.getAtomCharge(elementPopover.atom)
-      : 0;
+  const notationPreview = useMemo(
+    () => previewAtomEditorNotation(customSymbol),
+    [customSymbol],
+  );
+
+  const editingAtomLabel = useMemo(() => {
+    if (elementPopover === null || elementPopover.atom >= molecule.getAllAtoms()) {
+      return null;
+    }
+    const atom = elementPopover.atom;
+    const atomicNo = molecule.getAtomicNo(atom);
+    const symbol = MoleculeCtor.cAtomLabel[atomicNo] ?? "?";
+    return formatMolecule2dAtomLabelText(symbol, 0, molecule.getAtomCharge(atom));
+  }, [elementPopover, molecule]);
 
   const applyAlkylTail = useCallback(
     (carbonCount: number) => {
@@ -1377,13 +1417,13 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       }
       state.assignElement(elementPopover.atom, symbol);
       setElementPopover(null);
-      setCustomSymbol("");
+      setCustomSymbol(symbol);
       setElementInputError(null);
     },
     [elementPopover, state],
   );
 
-  const applyCustomElementInput = useCallback(() => {
+  const applyAtomNotation = useCallback(() => {
     const raw = customSymbol.trim();
     if (raw.length === 0 || elementPopover === null) {
       return;
@@ -1393,17 +1433,33 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       applyElement(raw);
       return;
     }
-    try {
-      atomicNoForSymbol(raw);
-    } catch (error) {
-      setElementInputError(
-        error instanceof Error ? error.message : "Invalid element symbol.",
-      );
+    const parsed = parseAtomEditorNotation(raw);
+    if (parsed !== null) {
+      state.assignElement(elementPopover.atom, parsed.symbol);
+      state.assignCharge(elementPopover.atom, parsed.charge);
+      setElementPopover(null);
+      setCustomSymbol("");
+      setElementInputError(null);
       return;
     }
-    setElementInputError(null);
-    applyElement(raw);
-  }, [applyElement, customSymbol, elementPopover]);
+    const symbolOnly = /^([A-Z][a-z]?)$/u.exec(raw);
+    if (symbolOnly !== null) {
+      try {
+        atomicNoForSymbol(symbolOnly[1] ?? "");
+      } catch (error) {
+        setElementInputError(
+          error instanceof Error ? error.message : "Invalid element symbol.",
+        );
+        return;
+      }
+      setElementInputError(null);
+      applyElement(symbolOnly[1] ?? "");
+      return;
+    }
+    setElementInputError(
+      "Use an element symbol with optional charge (Cu2+, N-) or formula shorthand (Cu20+2).",
+    );
+  }, [applyElement, customSymbol, elementPopover, state]);
 
   useEffect(() => {
     if (elementPopover === null) {
@@ -1411,36 +1467,34 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
     }
     const focusFrame = requestAnimationFrame(() => {
       elementSymbolInputRef.current?.focus({ preventScroll: true });
+      elementSymbolInputRef.current?.select();
     });
-    const onPopoverKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.key.length === 1 &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        !isEditableKeyboardTarget(event.target)
-      ) {
-        event.preventDefault();
-        setCustomSymbol((previous) => previous + event.key);
-        elementSymbolInputRef.current?.focus({ preventScroll: true });
-        setElementInputError(null);
-      }
-    };
-    window.addEventListener("keydown", onPopoverKeyDown);
     return () => {
       cancelAnimationFrame(focusFrame);
-      window.removeEventListener("keydown", onPopoverKeyDown);
     };
   }, [elementPopover]);
 
-  const applyCharge = useCallback(
-    (delta: number) => {
-      if (elementPopover === null) {
+  const appendNotationSuffix = useCallback((suffix: string) => {
+    setCustomSymbol((previous) => previous + suffix);
+    setElementInputError(null);
+    requestAnimationFrame(() => {
+      elementSymbolInputRef.current?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const onAtomEditorDoubleClick = useCallback(
+    (event: ReactPointerEvent<SVGSVGElement>) => {
+      if (tool === "erase") {
         return;
       }
-      state.assignCharge(elementPopover.atom, popoverAtomCharge + delta);
+      const point = localPoint(event);
+      const hit = hitAt(point);
+      if (hit.kind === "atom") {
+        event.preventDefault();
+        openAtomEditor(hit.atom);
+      }
     },
-    [elementPopover, popoverAtomCharge, state],
+    [hitAt, localPoint, openAtomEditor, tool],
   );
 
   const toolHint = useMemo(() => {
@@ -1476,7 +1530,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
     }
     switch (tool) {
       case "select":
-        return "Drag empty canvas to marquee-select; Shift+click toggles atoms; drag selection to move; Delete or Backspace removes selected atoms. Use Pan tool, Space+drag, middle- or right-mouse, or scroll wheel to navigate.";
+        return "Drag empty canvas to marquee-select; Shift+click toggles atoms; drag selection to move; double-click an atom to edit element and charge; Delete or Backspace removes selected atoms.";
       case "pan":
         return "Drag anywhere to pan the view. Space+drag, middle-mouse, and right-drag also pan; scroll wheel zooms; Reset view restores pan and zoom.";
       case "draw":
@@ -1488,7 +1542,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
           ? `${selectedRingTemplate.name}: click a bonded neighbor or a bond to fuse; empty canvas places a free ring. Escape cancels.`
           : `${selectedRingTemplate.name}: click empty canvas to place, click a bond to fuse, or pick two adjacent atoms. Escape returns to Draw.`;
       case "element":
-        return "Click an atom to assign its element, alkyl tail (CnH2n+1), or charge.";
+        return "Double-click an atom, then type a symbol in the bottom editor or pick from the palette.";
       case "erase":
         return "Click an atom or bond to delete it.";
       case "chunk":
@@ -1642,6 +1696,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onPointerLeave={onPointerLeave}
+          onDoubleClick={onAtomEditorDoubleClick}
           onContextMenu={(event) => {
             event.preventDefault();
           }}
@@ -1771,93 +1826,139 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       ) : null}
       {elementPopover !== null ? (
         <div
-          className="border-border bg-surface absolute z-10 w-56 space-y-2 rounded-md border p-2 shadow-lg"
-          style={{
-            left: Math.min(Math.max(elementPopover.x - 112, 4), width - 228),
-            top: Math.min(elementPopover.y + 14, heightPx - 150),
-          }}
+          className="border-border bg-surface absolute left-2 top-12 z-20 w-64 max-h-[min(28rem,calc(100%-4rem))] overflow-y-auto rounded-md border p-2 shadow-lg"
+          role="dialog"
+          aria-label="Atom editor"
         >
-          <div className="flex flex-wrap gap-1">
-            {COMMON_HETEROATOM_SYMBOLS.map((symbol) => (
-              <Button
-                key={symbol}
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="min-w-9 font-mono text-sm font-semibold"
-                onPress={() => applyElement(symbol)}
-                aria-label={`Set element ${symbol}`}
-              >
-                <ColoredElementSymbol symbol={symbol} isDark={isDark} />
-              </Button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1">
-            <Input
-              ref={elementSymbolInputRef}
-              value={customSymbol}
-              onChange={(e) => {
-                const next = e.target.value;
-                setCustomSymbol(next);
-                if (parseAbbreviatedAlkylFormula(next.trim()) !== null) {
-                  setElementInputError(null);
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  applyCustomElementInput();
-                }
-              }}
-              placeholder="Element or CnH2n+1"
-              variant="secondary"
-              className="h-8 flex-1 font-mono text-xs"
-              aria-label="Custom element symbol or alkyl formula"
-            />
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-foreground text-sm font-medium">Edit atom</p>
+              {editingAtomLabel !== null ? (
+                <p className="text-muted truncate font-mono text-xs">
+                  Current: {editingAtomLabel}
+                </p>
+              ) : null}
+            </div>
             <Button
               type="button"
               size="sm"
-              variant="primary"
-              isDisabled={customSymbol.trim().length === 0}
-              onPress={applyCustomElementInput}
+              variant="ghost"
+              className="shrink-0"
+              onPress={() => setElementPopover(null)}
             >
-              Set
+              Close
             </Button>
           </div>
-          {elementInputError !== null ? (
-            <ErrorMessage>{elementInputError}</ErrorMessage>
-          ) : null}
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-muted text-xs">
-              Charge {popoverAtomCharge > 0 ? `+${popoverAtomCharge}` : popoverAtomCharge}
-            </span>
-            <div className="flex gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                aria-label="Decrease charge"
-                onPress={() => applyCharge(-1)}
-              >
-                -
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                aria-label="Increase charge"
-                onPress={() => applyCharge(1)}
-              >
-                +
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onPress={() => setElementPopover(null)}
-              >
-                Close
-              </Button>
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-foreground text-xs font-medium">
+                Element notation
+              </Label>
+              <div className="flex items-center gap-1">
+                <Input
+                  ref={elementSymbolInputRef}
+                  value={customSymbol}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setCustomSymbol(next);
+                    if (
+                      parseAbbreviatedAlkylFormula(next.trim()) !== null ||
+                      parseAtomEditorNotation(next.trim()) !== null
+                    ) {
+                      setElementInputError(null);
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      applyAtomNotation();
+                    }
+                  }}
+                  placeholder="Cu2+, N-, Cu20+2"
+                  variant="secondary"
+                  className="h-8 min-w-0 flex-1 font-mono text-sm"
+                  aria-label="Element notation"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  aria-label="Append minus charge"
+                  onPress={() => appendNotationSuffix("-")}
+                >
+                  -
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  aria-label="Append plus charge"
+                  onPress={() => appendNotationSuffix("+")}
+                >
+                  +
+                </Button>
+              </div>
+              {notationPreview !== null &&
+              notationPreview !== customSymbol.trim() ? (
+                <p className="text-muted font-mono text-xs">
+                  Preview: {notationPreview}
+                </p>
+              ) : null}
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  className="flex-1"
+                  isDisabled={customSymbol.trim().length === 0}
+                  onPress={applyAtomNotation}
+                >
+                  Set
+                </Button>
+              </div>
+              <p className="text-muted text-xs">
+                Digits before + or - are charge; other digits become subscripts
+                (0 is O). Alkyl tails use CnH2n+1.
+              </p>
+              {elementInputError !== null ? (
+                <ErrorMessage>{elementInputError}</ErrorMessage>
+              ) : null}
+            </div>
+            <div>
+              <p className="text-muted mb-1 text-xs">Common elements</p>
+              <div className="flex flex-wrap gap-1">
+                {COMMON_HETEROATOM_SYMBOLS.map((symbol) => (
+                  <Button
+                    key={symbol}
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="min-w-8 font-mono text-sm font-semibold"
+                    onPress={() => applyElement(symbol)}
+                    aria-label={`Set element ${symbol}`}
+                  >
+                    <ColoredElementSymbol symbol={symbol} isDark={isDark} />
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-muted mb-1 text-xs">Metals</p>
+              <div className="flex flex-wrap gap-1">
+                {COMMON_METAL_SYMBOLS.map((symbol) => (
+                  <Button
+                    key={symbol}
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="min-w-8 font-mono text-sm font-semibold"
+                    onPress={() => applyElement(symbol)}
+                    aria-label={`Set element ${symbol}`}
+                  >
+                    <ColoredElementSymbol symbol={symbol} isDark={isDark} />
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

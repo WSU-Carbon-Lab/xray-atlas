@@ -13,6 +13,20 @@ export const MOLECULE_COMPOUND_KINDS = [
 
 export type MoleculeCompoundKind = (typeof MOLECULE_COMPOUND_KINDS)[number];
 
+const COMPOUND_KIND_SET = new Set<string>(MOLECULE_COMPOUND_KINDS);
+
+/**
+ * Narrows an arbitrary string to {@link MoleculeCompoundKind} when it matches a
+ * registry selector option id.
+ *
+ * @param value - React Aria collection key or form field value.
+ */
+export function parseMoleculeCompoundKind(
+  value: string,
+): MoleculeCompoundKind | null {
+  return COMPOUND_KIND_SET.has(value) ? (value as MoleculeCompoundKind) : null;
+}
+
 const COMPOUND_KIND_LABELS: Record<MoleculeCompoundKind, string> = {
   small_molecule: "Small molecule",
   polymer: "Polymer",

@@ -68,6 +68,22 @@ export const COMMON_HETEROATOM_SYMBOLS = [
 ] as const;
 
 /**
+ * Transition-metal symbols offered in the atom editor for coordination complexes.
+ */
+export const COMMON_METAL_SYMBOLS = [
+  "Cu",
+  "Fe",
+  "Zn",
+  "Ni",
+  "Co",
+  "Mn",
+  "Pd",
+  "Pt",
+  "Ag",
+  "Au",
+] as const;
+
+/**
  * Serializes a canvas molecule to its V2000 molfile string. V2000 is required
  * so dative (metal-ligand) bonds survive a parse round trip; see module docs.
  *
