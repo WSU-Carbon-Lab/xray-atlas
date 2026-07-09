@@ -1908,17 +1908,18 @@ export function DatasetContent({
     runKkDeltaPreviewForUploadDraft();
   }, [runKkDeltaPreviewForUploadDraft]);
 
-  const kkUploadRailVisible =
+  const kkUploadRailReady = uploadDatasetHasFiniteBetaForKkOnEveryRow(dataset);
+
+  const kkUploadRailShown =
     dataset.spectrumPoints.length > 0 &&
-    Boolean(selectedMolecule?.chemicalFormula?.trim()) &&
-    uploadDatasetHasFiniteBetaForKkOnEveryRow(dataset);
+    Boolean(selectedMolecule?.chemicalFormula?.trim());
 
   useEffect(() => {
-    if (!kkUploadRailVisible) return;
+    if (!kkUploadRailReady) return;
     if (dataset.computeKkDeltaOnSubmit) return;
     onDatasetUpdate(dataset.id, { computeKkDeltaOnSubmit: true });
   }, [
-    kkUploadRailVisible,
+    kkUploadRailReady,
     dataset.id,
     dataset.computeKkDeltaOnSubmit,
     onDatasetUpdate,
@@ -2380,17 +2381,21 @@ export function DatasetContent({
         onAutoDetectPeaks={handleAutoDetectPeaksFromPlotRail}
         onResetAllPeaks={handleResetAllPeaksFromPlotRail}
       />
+      {kkUploadRailShown ? (
+        <>
+          <PlotToolbarGroupSeparator orientation="horizontal" />
+          <NexafsPlotKkVerticalToolbar
+            visible
+            orientation="vertical"
+            busy={kkUploadBusy}
+            disabled={!kkUploadRailReady}
+            whenDisabledDescription="Need finite beta on every row. Normalize with bare-atom reference first, or map a beta column."
+            onPressKk={onPressKkUploadRail}
+          />
+        </>
+      ) : null}
     </div>
   );
-
-  const plotBottomPlotRail = kkUploadRailVisible ? (
-    <NexafsPlotKkVerticalToolbar
-      visible
-      orientation="horizontal"
-      busy={kkUploadBusy}
-      onPressKk={onPressKkUploadRail}
-    />
-  ) : null;
 
   const normalizationRegionsForPlot =
     dataset.normalizationRegions.pre != null ||
@@ -2503,7 +2508,6 @@ export function DatasetContent({
                       onSelectionChange={handleNormalizationSelection}
                       headerRight={plotLeftPlotRail}
                       headerAnalysis={plotRightPlotRail}
-                      plotBottomTools={plotBottomPlotRail}
                       suppressAnalysisRailLeadingGrip
                       plotContext={
                         isPlotNormalizationMode && normalizationSelectionTarget
