@@ -4,6 +4,7 @@ import type {
   NormalizationRanges,
   NormalizationScope,
   PerChannelNormalizationRanges,
+  PrimaryRepresentation,
   UnifiedNormalizationRanges,
 } from "~/features/process-nexafs/types";
 
@@ -23,6 +24,11 @@ export type ChannelProvenanceStatus =
   | "missing";
 
 export type ChannelProvenance = Record<UploadedChannel, ChannelProvenanceStatus>;
+
+export type ExperimentChannelProvenance = {
+  channels: ChannelProvenance;
+  primaryRepresentation: PrimaryRepresentation;
+};
 
 export type ValidationCheckStatus = "pass" | "warn" | "skip";
 
@@ -93,7 +99,7 @@ export function unifiedRangesForUploadedChannel(
 }
 
 /**
- * Assigns per-channel provenance for upload and derivation paths.
+ * Assigns per-channel provenance for upload and derivation paths, including primary representation.
  */
 export function buildChannelProvenance(args: {
   uploadedChannels: UploadedChannel[];
@@ -102,25 +108,47 @@ export function buildChannelProvenance(args: {
     massabsorption: boolean;
     beta: boolean;
   };
-}): ChannelProvenance {
+  primaryRepresentation: PrimaryRepresentation;
+}): ExperimentChannelProvenance {
   const uploaded = new Set<UploadedChannel>(args.uploadedChannels);
-  return {
+  const exactPrimary =
+    args.primaryRepresentation === "beta" ||
+    args.primaryRepresentation === "mass_absorption" ||
+    args.primaryRepresentation === "f2" ||
+    args.primaryRepresentation === "epsilon2" ||
+    args.primaryRepresentation === "chi2";
+  const assumptionPrimary =
+    args.primaryRepresentation === "od" ||
+    args.primaryRepresentation === "raw_mu";
+
+  const channels: ChannelProvenance = {
     rawabs: "uploaded_authoritative",
     od: uploaded.has("od")
       ? "uploaded_authoritative"
       : args.hasDerivedValues.od
-        ? "derived"
+        ? assumptionPrimary
+          ? "derived_with_assumptions"
+          : "derived"
         : "missing",
     massabsorption: uploaded.has("massabsorption")
       ? "uploaded_authoritative"
       : args.hasDerivedValues.massabsorption
-        ? "derived_with_assumptions"
+        ? exactPrimary
+          ? "derived"
+          : "derived_with_assumptions"
         : "missing",
     beta: uploaded.has("beta")
       ? "uploaded_authoritative"
       : args.hasDerivedValues.beta
-        ? "derived_with_assumptions"
+        ? exactPrimary || args.primaryRepresentation === "mass_absorption"
+          ? "derived"
+          : "derived_with_assumptions"
         : "missing",
+  };
+
+  return {
+    channels,
+    primaryRepresentation: args.primaryRepresentation,
   };
 }
 
@@ -303,22 +331,32 @@ export function buildValidationSummary(args: {
   };
 
   const checkBetaCross = (): ValidationCheckStatus => {
+    const HC_EV_CM = 1.23984193e-4;
+    const FOUR_PI = 4 * Math.PI;
     const pairs = args.points
-      .map((point) => ({ beta: point.beta, mass: point.massabsorption }))
-      .filter(
-        (pair): pair is { beta: number; mass: number } =>
-          typeof pair.beta === "number" &&
-          Number.isFinite(pair.beta) &&
-          typeof pair.mass === "number" &&
-          Number.isFinite(pair.mass) &&
-          pair.mass !== 0,
-      );
+      .map((point) => {
+        const beta = point.beta;
+        const mass = point.massabsorption;
+        if (
+          typeof beta !== "number" ||
+          !Number.isFinite(beta) ||
+          typeof mass !== "number" ||
+          !Number.isFinite(mass) ||
+          !(point.energy > 0)
+        ) {
+          return null;
+        }
+        const lambdaCm = HC_EV_CM / point.energy;
+        const betaFromMass = (mass * lambdaCm) / FOUR_PI;
+        if (!Number.isFinite(betaFromMass) || betaFromMass === 0) {
+          return null;
+        }
+        return Math.abs(beta - betaFromMass) / Math.abs(betaFromMass);
+      })
+      .filter((value): value is number => value != null);
     if (pairs.length === 0) return "skip";
-    const relative = pairs.map((pair) =>
-      Math.abs(pair.beta - pair.mass) / Math.abs(pair.mass),
-    );
-    const median = [...relative].sort((a, b) => a - b)[
-      Math.floor(relative.length / 2)
+    const median = [...pairs].sort((a, b) => a - b)[
+      Math.floor(pairs.length / 2)
     ];
     if (median == null) return "skip";
     if (median > 0.1) {
