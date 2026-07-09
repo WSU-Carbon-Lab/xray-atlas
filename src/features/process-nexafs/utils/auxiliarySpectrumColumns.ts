@@ -9,6 +9,9 @@ export function detectAuxiliarySpectrumColumnNames(columns: string[]): {
   betaError?: string;
   delta?: string;
   deltaError?: string;
+  f2?: string;
+  epsilon2?: string;
+  chi2?: string;
 } {
   const norm = (raw: string) =>
     raw
@@ -76,6 +79,27 @@ export function detectAuxiliarySpectrumColumnNames(columns: string[]): {
       n.includes("mu_aerr") ||
       n.includes("muaerr"),
   );
+  const f2 = pick(
+    (n) =>
+      n === "f2" ||
+      n === "f_2" ||
+      n.includes("imaginaryformfactor") ||
+      n.includes("imagformfactor"),
+  );
+  const epsilon2 = pick(
+    (n) =>
+      n === "epsilon2" ||
+      n === "eps2" ||
+      n === "epsilon_2" ||
+      n.includes("imagpermittivity"),
+  );
+  const chi2 = pick(
+    (n) =>
+      n === "chi2" ||
+      n === "chi_2" ||
+      n.includes("imagsusceptibility") ||
+      n.includes("chiimag"),
+  );
 
   return {
     ...(i0 ? { i0 } : {}),
@@ -88,5 +112,8 @@ export function detectAuxiliarySpectrumColumnNames(columns: string[]): {
     ...(massabsorptionError ? { massabsorptionError } : {}),
     ...(delta ? { delta } : {}),
     ...(deltaError ? { deltaError } : {}),
+    ...(f2 ? { f2 } : {}),
+    ...(epsilon2 ? { epsilon2 } : {}),
+    ...(chi2 ? { chi2 } : {}),
   };
 }
