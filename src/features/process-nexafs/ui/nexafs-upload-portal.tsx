@@ -147,17 +147,21 @@ function UploadExampleTable() {
         </div>
       </ScrollShadow>
       <p className="text-muted border-border border-t px-4 py-2.5 text-xs leading-relaxed">
-        Required columns are{" "}
-        <span className="text-foreground font-mono">energy_eV</span> and{" "}
-        <span className="text-foreground font-mono">mu</span> (or mapped{" "}
-        <span className="text-foreground font-mono">Absorption</span>). Optional
-        channels include geometry, I0, OD, mass absorption, beta, delta, and
+        Required column:{" "}
+        <span className="text-foreground font-mono">energy_eV</span>. Supply at
+        least one primary signal column:{" "}
+        <span className="text-foreground font-mono">mu</span> (legacy raw
+        trace),{" "}
+        <span className="text-foreground font-mono">mass_absorption</span>,{" "}
+        <span className="text-foreground font-mono">beta</span>, or{" "}
+        <span className="text-foreground font-mono">od</span> (0-1). Optional
+        channels include geometry, I0, additional processed channels, delta, and
         matching uncertainty columns; compact alias names (for example{" "}
         <span className="text-foreground font-mono">muerr</span>,{" "}
         <span className="text-foreground font-mono">oderr</span>) auto-match
-        when present. The primary upload trace is not a separate{" "}
-        <span className="text-foreground font-mono">rawabs</span> column — it is
-        the mapped absorption column.
+        when present. The native primary is stored verbatim in{" "}
+        <span className="text-foreground font-mono">rawabs</span>; Atlas derives
+        other channels through a mass-absorption hub.
       </p>
     </div>
   );

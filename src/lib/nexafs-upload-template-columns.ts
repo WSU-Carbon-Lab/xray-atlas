@@ -26,14 +26,14 @@ export const NEXAFS_UPLOAD_TEMPLATE_COLUMNS: readonly NexafsUploadTemplateColumn
       label: "energy_eV",
       required: true,
       tooltip:
-        "Incident photon energy (eV) on the spectrum axis. Required. Maps to Energy in the column mapper; headers containing energy, ev, or photon are auto-matched (for example Energy). Values should increase monotonically along the scan.",
+        "Incident photon energy (eV) on the spectrum axis. Required for every upload. Values should increase monotonically along the scan.",
     },
     {
       key: "mu",
       label: "mu",
-      required: true,
+      required: false,
       tooltip:
-        "Primary absorption trace proportional to mass absorption with arbitrary sample density, thickness, and instrument scaling — not already a physical mass absorption coefficient. Required. Maps to Absorption in the column mapper (persisted as rawabs); aliases include Absorption, abs, intensity, signal, and mu.",
+        "Primary raw mu-like absorption trace when no processed channel is supplied. Maps to Absorption in the column mapper (persisted as rawabs); aliases include Absorption, abs, intensity, signal, and mu.",
     },
     {
       key: "mu_err",
