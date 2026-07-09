@@ -60,6 +60,28 @@ export type SpectrumStats = {
   phi?: ColumnStats;
 };
 
+export type PrimaryRepresentation =
+  | "raw_mu"
+  | "od"
+  | "mass_absorption"
+  | "beta"
+  | "f2"
+  | "epsilon2"
+  | "chi2";
+
+export const PRIMARY_REPRESENTATION_LABELS: Record<
+  PrimaryRepresentation,
+  string
+> = {
+  raw_mu: "Raw mu-like signal",
+  od: "Optical density (0-1)",
+  mass_absorption: "Mass absorption (mu_a)",
+  beta: "Beta (imaginary index)",
+  f2: "f2 (imaginary ASF)",
+  epsilon2: "Epsilon2 (loss)",
+  chi2: "Chi2 (loss)",
+};
+
 export interface CSVColumnMappings {
   energy: string;
   absorption: string;
@@ -75,6 +97,9 @@ export interface CSVColumnMappings {
   betaError?: string;
   delta?: string;
   deltaError?: string;
+  f2?: string;
+  epsilon2?: string;
+  chi2?: string;
 }
 
 export type NormalizationScope = "none" | "unified" | "per_channel";
@@ -106,6 +131,11 @@ export type ChannelProvenanceStatus =
   | "missing";
 
 export type ChannelProvenance = Record<UploadedChannel, ChannelProvenanceStatus>;
+
+export type ExperimentChannelProvenance = {
+  channels: ChannelProvenance;
+  primaryRepresentation: PrimaryRepresentation;
+};
 
 export interface ValidationOverrideState {
   bypass: boolean;
@@ -281,6 +311,10 @@ export type DatasetState = {
   csvColumns: string[];
   csvRawData: Record<string, unknown>[];
   columnMappings: CSVColumnMappings;
+  primaryRepresentation: PrimaryRepresentation;
+  primaryInferenceNeedsChoice: boolean;
+  primaryRepresentationLocked: boolean;
+  uploadParseWarnings: string[];
   spectrumPoints: SpectrumPoint[];
   normalizedPoints: SpectrumPoint[] | null;
   normalization: ExperimentNormalization | null;
@@ -329,6 +363,10 @@ export function createEmptyDatasetState(file: File): DatasetState {
     csvColumns: [],
     csvRawData: [],
     columnMappings: { energy: "", absorption: "" },
+    primaryRepresentation: "raw_mu",
+    primaryInferenceNeedsChoice: false,
+    primaryRepresentationLocked: false,
+    uploadParseWarnings: [],
     spectrumPoints: [],
     normalizedPoints: null,
     normalization: null,
