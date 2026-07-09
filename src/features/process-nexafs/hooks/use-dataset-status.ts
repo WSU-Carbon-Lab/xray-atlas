@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { DatasetState } from "../types";
+import { uploadGeometryIsComplete } from "../utils/default-upload-phi";
 
 export type DatasetStatus =
   | "complete"
@@ -40,10 +41,17 @@ export function useDatasetStatus(dataset: DatasetState): DatasetStatusInfo {
 
     const hasThetaMapping = Boolean(dataset.columnMappings.theta);
     const hasPhiMapping = Boolean(dataset.columnMappings.phi);
-    if (hasThetaMapping !== hasPhiMapping) {
-      errors.push("Theta and Phi must both be mapped or both use fixed values");
+    if (hasPhiMapping && !hasThetaMapping) {
+      errors.push("Map a theta column when phi is mapped, or use fixed geometry");
     }
-    if (!hasThetaMapping && (!dataset.fixedTheta || !dataset.fixedPhi)) {
+    if (
+      !uploadGeometryIsComplete({
+        hasThetaColumn: hasThetaMapping,
+        hasPhiColumn: hasPhiMapping,
+        fixedTheta: dataset.fixedTheta,
+        fixedPhi: dataset.fixedPhi,
+      })
+    ) {
       missingFields.push("Geometry (Theta/Phi)");
     }
 

@@ -16,6 +16,10 @@ import {
   resolveHenkeMergeDomainForUploadDataset,
 } from "../utils";
 import {
+  resolveUploadFixedPhi,
+  uploadGeometryIsComplete,
+} from "../utils/default-upload-phi";
+import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
 } from "~/features/kk-calc";
@@ -111,17 +115,24 @@ export function useNexafsSubmit(
         }
         const hasThetaMapping = Boolean(dataset.columnMappings.theta);
         const hasPhiMapping = Boolean(dataset.columnMappings.phi);
-        if (hasThetaMapping !== hasPhiMapping) {
+        if (hasPhiMapping && !hasThetaMapping) {
           setSubmitStatus({
             type: "error",
-            message: `Dataset "${dataset.fileName}": Provide both theta and phi column mappings, or leave both unset.`,
+            message: `Dataset "${dataset.fileName}": Map a theta column when phi is mapped, or use fixed geometry.`,
           });
           return;
         }
-        if (!hasThetaMapping && (!dataset.fixedTheta || !dataset.fixedPhi)) {
+        if (
+          !uploadGeometryIsComplete({
+            hasThetaColumn: hasThetaMapping,
+            hasPhiColumn: hasPhiMapping,
+            fixedTheta: dataset.fixedTheta,
+            fixedPhi: dataset.fixedPhi,
+          })
+        ) {
           setSubmitStatus({
             type: "error",
-            message: `Dataset "${dataset.fileName}": Provide theta and phi values for fixed geometry.`,
+            message: `Dataset "${dataset.fileName}": Provide theta geometry (phi defaults to 0 when omitted).`,
           });
           return;
         }
@@ -156,8 +167,10 @@ export function useNexafsSubmit(
             dataset.attributions,
           );
 
+          const hasThetaMapping = Boolean(dataset.columnMappings.theta);
+          const hasPhiMapping = Boolean(dataset.columnMappings.phi);
           const geometryInput =
-            dataset.columnMappings.theta && dataset.columnMappings.phi
+            hasThetaMapping || hasPhiMapping
               ? {
                   mode: "csv" as const,
                   csvGeometries: extractGeometryPairs(dataset.spectrumPoints),
@@ -166,7 +179,9 @@ export function useNexafsSubmit(
                   mode: "fixed" as const,
                   fixed: {
                     theta: parseFloat(dataset.fixedTheta),
-                    phi: parseFloat(dataset.fixedPhi),
+                    phi: parseFloat(
+                      resolveUploadFixedPhi(dataset.fixedPhi, hasPhiMapping)!,
+                    ),
                   },
                 };
 
