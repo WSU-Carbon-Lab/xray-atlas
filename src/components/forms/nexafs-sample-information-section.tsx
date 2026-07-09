@@ -26,6 +26,7 @@ export function NexafsSampleInformationSection({
   setNewVendorName,
   newVendorUrl,
   setNewVendorUrl,
+  onVendorFieldsChange,
   vendors,
   isLoadingVendors,
 }: NexafsSampleInformationSectionProps) {
@@ -67,6 +68,7 @@ export function NexafsSampleInformationSection({
         onSelectedVendorIdChange={setSelectedVendorId}
         onNewVendorNameChange={setNewVendorName}
         onNewVendorUrlChange={setNewVendorUrl}
+        onVendorFieldsChange={onVendorFieldsChange}
         isLoadingVendors={isLoadingVendors}
       />
     </div>

@@ -163,6 +163,11 @@ export type NexafsSampleInformationSectionProps = {
   setNewVendorName: (value: string) => void;
   newVendorUrl: string;
   setNewVendorUrl: (value: string) => void;
+  onVendorFieldsChange?: (patch: {
+    selectedVendorId?: string;
+    newVendorName?: string;
+    newVendorUrl?: string;
+  }) => void;
   vendors: NexafsSampleVendorOption[];
   isLoadingVendors: boolean;
   /**
