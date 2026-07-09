@@ -164,6 +164,8 @@ export function ColumnMappingModal({
     }
     if (phiMode === "fixed" && fixedPhi) {
       fixedValues.phi = fixedPhi;
+    } else if (!mappings.phi) {
+      fixedValues.phi = "0";
     }
 
     const finalMappings = { ...mappings };

@@ -26,7 +26,6 @@ import {
   Header,
   Input,
   Pagination,
-  Separator,
   Table,
   ToggleButton,
   ToggleButtonGroup,
@@ -38,10 +37,12 @@ import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import {
   PlotSpectrumToolsToolbarSection,
   plotToolbarAttachedShellClass,
-  plotToolbarBasisToggleClass,
+  plotToolbarGlyphToggleGroupItemVerticalClass,
   plotToolbarTooltipContentClass,
+  PlotToolbarGroupSeparator,
   PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
+import { NexafsPlotDataRail } from "~/components/nexafs/nexafs-plot-data-rail";
 import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
 import { copySpectrumCsv } from "~/components/nexafs/nexafs-spectrum-csv-shared";
@@ -101,7 +102,20 @@ import {
 import { trpc } from "~/trpc/client";
 import { useMoleculeSearch } from "~/features/process-nexafs";
 import type { MoleculeSearchResult } from "~/features/process-nexafs";
-import { buildBareAtomReferenceCurve } from "~/features/process-nexafs/utils/buildBareAtomReferenceCurve";
+import { buildUploadBareAtomReferenceCurves } from "~/features/process-nexafs/utils/uploadBareAtomReferenceCurves";
+import { channelDefinitionById } from "~/components/plots/data-rail";
+import type { OpticalLinkPlotConfig } from "~/components/plots/hooks/useLinkedOpticalTraces";
+import { resolveLinkedCompanionChannel } from "~/components/nexafs/nexafs-plot-data-rail";
+import {
+  isImaginaryChannel,
+  isRealChannel,
+  type NexafsImaginaryChannelId,
+  type NexafsPlotChannelAvailability,
+  type NexafsPlotChannelId,
+  type NexafsRealChannelId,
+} from "~/features/process-nexafs/nexafs-plot-channels";
+import { NEXAFS_PLOT_DATA_RAIL_DEFINITION } from "~/features/process-nexafs/nexafs-plot-data-rail-config";
+import { useTheme } from "next-themes";
 import type {
   BareAtomPoint,
   DatasetState,
@@ -116,6 +130,15 @@ import { DefaultButton as DialogButton } from "~/components/ui/button";
 type SpectrumPoint = DatasetState["spectrumPoints"][number];
 
 type KkBrowserConsentContinuation = { readonly kind: "preview-rail-delta" };
+
+type UploadPlotDataView = "od" | "absorption" | "beta" | "delta";
+
+function uploadDataViewToPlotChannel(dataView: UploadPlotDataView): NexafsPlotChannelId {
+  if (dataView === "od") return "normalized";
+  if (dataView === "beta") return "beta";
+  if (dataView === "delta") return "delta";
+  return "mass-absorption";
+}
 
 function parsePastedSpectrumText(text: string): {
   points: SpectrumPoint[];
@@ -952,6 +975,8 @@ export function DatasetContent({
   isLoadingVendors,
   onAuxDropTargetsChange,
 }: DatasetContentProps) {
+  const { resolvedTheme } = useTheme();
+  const chartIsDark = resolvedTheme === "dark";
   const [showAddMoleculeModal, setShowAddMoleculeModal] = useState(false);
   const [showAddFacilityModal, setShowAddFacilityModal] = useState(false);
   const [isCalculatingBareAtom, setIsCalculatingBareAtom] = useState(false);
@@ -970,6 +995,7 @@ export function DatasetContent({
   >([]);
   const [showBareAtomContributionOverlay, setShowBareAtomContributionOverlay] =
     useState(false);
+  const [linkImaginaryReal, setLinkImaginaryReal] = useState(false);
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
   const [selectedGeometry] = useState<{
@@ -1979,7 +2005,6 @@ export function DatasetContent({
     ) {
       return [];
     }
-    const bare = dataset.bareAtomPoints;
     const formula = selectedMolecule?.chemicalFormula?.trim();
     if (!formula) {
       return [];
@@ -1990,27 +2015,26 @@ export function DatasetContent({
         : dataView === "delta"
           ? "delta"
           : "absorption";
-    const curve = buildBareAtomReferenceCurve({
-      bareMu: referenceView === "delta" ? undefined : bare,
-      bareDelta:
-        referenceView === "delta"
-          ? (bareAtomDeltaPoints ?? undefined)
-          : undefined,
+    return buildUploadBareAtomReferenceCurves({
+      barePoints: dataset.bareAtomPoints,
+      bareDeltaPoints: bareAtomDeltaPoints,
       dataView: referenceView,
-      label:
-        referenceView === "beta"
-          ? "Bare atom beta"
-          : referenceView === "delta"
-            ? "Bare atom delta"
-            : "Bare atom absorption",
+      muNormalization: absorptionComputation,
+      betaMuNormalization:
+        betaNormType === "bare-atom" ? bareAtomComputation : zeroOneComputation,
+      isDark: chartIsDark,
     });
-    return curve ? [curve] : [];
   }, [
     showBareAtomContributionOverlay,
     dataView,
     dataset.bareAtomPoints,
     bareAtomDeltaPoints,
     selectedMolecule?.chemicalFormula,
+    absorptionComputation,
+    bareAtomComputation,
+    zeroOneComputation,
+    betaNormType,
+    chartIsDark,
   ]);
 
   const spectrumReferenceCurves = useMemo(
@@ -2028,15 +2052,28 @@ export function DatasetContent({
     betaMuLike.length > 0 &&
     (betaPoints?.length ?? 0) > 0;
 
-  type OverlayDataView = "od" | "absorption" | "beta" | "delta";
-  const overlaySelectedKey: OverlayDataView =
-    dataView === "od"
-      ? "od"
-      : dataView === "beta"
-        ? "beta"
-        : dataView === "delta"
-          ? "delta"
-          : "absorption";
+  const uploadChannelAvailability = useMemo((): NexafsPlotChannelAvailability => {
+    const hasRaw = dataset.spectrumPoints.some(
+      (point) =>
+        typeof point.rawabs === "number" && Number.isFinite(point.rawabs),
+    );
+    const formula = selectedMolecule?.chemicalFormula?.trim();
+    return {
+      raw: hasRaw,
+      normalized: edgeZeroOnePoints.length > 0,
+      massAbsorption: absorptionAvailable,
+      beta: betaAvailable,
+      delta: deltaAvailable,
+      derivedOptical: Boolean(formula) && betaAvailable && deltaAvailable,
+    };
+  }, [
+    dataset.spectrumPoints,
+    edgeZeroOnePoints.length,
+    absorptionAvailable,
+    betaAvailable,
+    deltaAvailable,
+    selectedMolecule?.chemicalFormula,
+  ]);
 
   const spectrumYAxisQuantity =
     dataView === "od"
@@ -2145,199 +2182,209 @@ export function DatasetContent({
     ((dataView === "absorption" || dataView === "beta") &&
       (!dataset.bareAtomPoints?.length || isCalculatingBareAtom));
 
-  const plotDataViewRail = (
-    <Toolbar
-      isAttached
-      orientation="vertical"
-      aria-label="Plot data view"
-      className={`${plotToolbarAttachedShellClass} w-fit`}
-    >
-      <ToggleButtonGroup
-        aria-label="Difference spectrum and bare atom reference"
-        selectionMode="multiple"
-        orientation="vertical"
-        className="w-full rounded-full"
-        selectedKeys={diffBareContributionSelectedKeys}
-        onSelectionChange={handleDiffBareContributionSelectionChange}
-      >
-        <PlotToolbarRichHint
-          title="Difference"
-          description="Overlay spectra that subtract one geometry from another."
-          placement="right"
-        >
-          <ToggleButton
-            isIconOnly
-            aria-label="Difference spectrum between geometries"
-            id="difference"
-            className={plotToolbarBasisToggleClass}
-          >
-            <span className="text-xs font-semibold" aria-hidden>
-              &#x0394;
-            </span>
-          </ToggleButton>
-        </PlotToolbarRichHint>
-        <PlotToolbarRichHint
-          title="Bare atom step edge"
-          description="Overlay the tabulated bare-atom step-edge reference on the current energy grid."
-          whenDisabledDescription={
-            isCalculatingBareAtom
-              ? "Calculating bare-atom reference."
-              : !selectedMolecule?.chemicalFormula?.trim()
-                ? "Select a molecule with a chemical formula first."
-                : dataView === "od"
-                  ? "Switch the plot to mu, beta, or delta to compare bare atom."
-                  : dataView === "bare-atom"
-                    ? "Bare-atom overlay is already the active view."
-                    : dataView === "delta"
-                      ? isCalculatingBareAtomDelta
-                        ? "Computing Henke/CXRO bare-atom delta."
-                        : !bareAtomDeltaPoints?.length
-                          ? "Need stored or computed delta on the spectrum grid."
-                          : "Bare-atom overlay is not available in this view."
-                      : !dataset.bareAtomPoints?.length
-                        ? "Bare-atom reference is not available for this edge yet."
-                        : "Bare-atom overlay is not available in this view."
-          }
-          placement="right"
-          disabled={plotBareAtomToggleDisabled}
-        >
-          <ToggleButton
-            isIconOnly
-            aria-label={
-              dataView === "od"
-                ? "Bare atom overlay (not available in optical density view)"
-                : selectedMolecule?.chemicalFormula
-                  ? dataView === "delta"
-                    ? "Bare atom delta reference (Henke/CXRO f1 on this grid)"
-                    : "Bare atom reference curve on this energy grid"
-                  : "Bare atom overlay (select a molecule with a formula)"
-            }
-            id="bare-atom"
-            isDisabled={plotBareAtomToggleDisabled}
-            className={plotToolbarBasisToggleClass}
-          >
-            <ToggleButtonGroup.Separator />
-            <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
-          </ToggleButton>
-        </PlotToolbarRichHint>
-      </ToggleButtonGroup>
-      <Separator orientation="horizontal" className="my-1 w-full shrink-0" />
-      <ToggleButtonGroup
-        aria-label="Data view basis"
-        selectionMode="single"
-        orientation="vertical"
-        className="w-full rounded-full"
-        selectedKeys={new Set([overlaySelectedKey])}
-        onSelectionChange={(keys) => {
-          const next = keys.values().next().value as
-            | OverlayDataView
-            | undefined;
-          if (!next) return;
-          if (next === "od") trySetDataView("od");
-          else if (next === "absorption") trySetDataView("absorption");
-          else if (next === "beta") trySetDataView("beta");
-          else if (next === "delta") trySetDataView("delta");
-        }}
-      >
-        <PlotToolbarRichHint
-          title="OD"
-          description="Plot optical density derived from raw intensities."
-          placement="right"
-        >
-          <ToggleButton
-            isIconOnly
-            aria-label="Optical density"
-            id="od"
-            className={plotToolbarBasisToggleClass}
-          >
-            <span className="text-xs font-semibold">OD</span>
-          </ToggleButton>
-        </PlotToolbarRichHint>
-        <PlotToolbarRichHint
-          title="Mu"
-          description="Plot mass absorption after edge normalization."
-          whenDisabledDescription="Set pre- and post-edge windows and normalize to enable mu."
-          placement="right"
-          disabled={!absorptionAvailable}
-        >
-          <ToggleButton
-            isIconOnly
-            aria-label="Mass absorption coefficient"
-            id="absorption"
-            isDisabled={!absorptionAvailable}
-            className={plotToolbarBasisToggleClass}
-          >
-            <ToggleButtonGroup.Separator />
-            <span className="text-sm font-semibold" aria-hidden>
-              &#x00B5;
-            </span>
-          </ToggleButton>
-        </PlotToolbarRichHint>
-        <PlotToolbarRichHint
-          title="Beta"
-          description="Plot the imaginary part of the index from mu and bare-atom data."
-          whenDisabledDescription="Normalize to mu with bare-atom reference to enable beta."
-          placement="right"
-          disabled={!betaAvailable}
-        >
-          <ToggleButton
-            isIconOnly
-            aria-label="Beta index of refraction"
-            id="beta"
-            isDisabled={!betaAvailable}
-            className={plotToolbarBasisToggleClass}
-          >
-            <ToggleButtonGroup.Separator />
-            <span className="text-sm font-semibold" aria-hidden>
-              &#x03B2;
-            </span>
-          </ToggleButton>
-        </PlotToolbarRichHint>
-        <PlotToolbarRichHint
-          title="Delta"
-          description="Plot stored delta values aligned to the current energy axis."
-          whenDisabledDescription="Run KK from the right rail or upload delta values first."
-          placement="right"
-          disabled={!deltaAvailable}
-        >
-          <ToggleButton
-            isIconOnly
-            aria-label="Delta refractive decrement from stored values"
-            id="delta"
-            isDisabled={!deltaAvailable}
-            className={plotToolbarBasisToggleClass}
-          >
-            <ToggleButtonGroup.Separator />
-            <span className="text-sm font-semibold" aria-hidden>
-              &#x03B4;
-            </span>
-          </ToggleButton>
-        </PlotToolbarRichHint>
-      </ToggleButtonGroup>
-    </Toolbar>
+  const uploadPlotChannel = useMemo(
+    () =>
+      uploadDataViewToPlotChannel(
+        dataView === "bare-atom" ? "absorption" : dataView,
+      ),
+    [dataView],
   );
 
+  const handlePlotChannelChange = useCallback(
+    (channel: NexafsPlotChannelId) => {
+      switch (channel) {
+        case "normalized":
+          trySetDataView("od");
+          break;
+        case "mass-absorption":
+          trySetDataView("absorption");
+          break;
+        case "beta":
+          trySetDataView("beta");
+          break;
+        case "delta":
+          trySetDataView("delta");
+          break;
+        default:
+          break;
+      }
+      if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
+        setLinkImaginaryReal(false);
+      }
+    },
+    [trySetDataView],
+  );
+
+  const linkBetaDeltaEnabled =
+    isImaginaryChannel(uploadPlotChannel) || isRealChannel(uploadPlotChannel);
+
+  const opticalLink = useMemo((): OpticalLinkPlotConfig | undefined => {
+    if (!linkImaginaryReal || !linkBetaDeltaEnabled) {
+      return undefined;
+    }
+    const channel = uploadPlotChannel;
+    if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
+      return undefined;
+    }
+    const companionId = resolveLinkedCompanionChannel(channel, true);
+    if (companionId == null) {
+      return undefined;
+    }
+    const companionPoints =
+      companionId === "beta"
+        ? (betaPoints ?? [])
+        : companionId === "delta"
+          ? (deltaPoints ?? [])
+          : [];
+    if (companionPoints.length === 0) {
+      return undefined;
+    }
+    const imaginaryRole: NexafsImaginaryChannelId | null = isImaginaryChannel(
+      channel,
+    )
+      ? channel
+      : isImaginaryChannel(companionId)
+        ? companionId
+        : null;
+    const realRole: NexafsRealChannelId | null = isRealChannel(channel)
+      ? channel
+      : isRealChannel(companionId)
+        ? companionId
+        : null;
+    if (imaginaryRole == null || realRole == null) {
+      return undefined;
+    }
+    const imaginaryGlyph = channelDefinitionById(
+      NEXAFS_PLOT_DATA_RAIL_DEFINITION,
+      imaginaryRole,
+    ).glyph;
+    const realGlyph = channelDefinitionById(
+      NEXAFS_PLOT_DATA_RAIL_DEFINITION,
+      realRole,
+    ).glyph;
+    return {
+      primaryRole: channel,
+      imaginaryRole,
+      realRole,
+      imaginaryGlyph,
+      realGlyph,
+      companionPoints,
+    };
+  }, [
+    linkImaginaryReal,
+    linkBetaDeltaEnabled,
+    uploadPlotChannel,
+    betaPoints,
+    deltaPoints,
+  ]);
+
   const plotLeftPlotRail = (
-    <>
-      <div className="pointer-events-auto">{plotDataViewRail}</div>
-      <div className="pointer-events-auto">
-        <PlotSpectrumToolsToolbarSection
-          peakToolsEnabled={false}
-          isNormalizationMode={isPlotNormalizationMode}
-          onNormalizationModeChange={handlePlotNormalizationMode}
-          activeEdge={normalizationSelectionTarget ?? "pre"}
-          onActiveEdgeChange={setNormalizationSelectionTarget}
-          onResetToDefaultRegions={handleResetNormalizationRegions}
-          normalizationLocked={dataset.normalizationLocked}
-          hasData={dataset.spectrumPoints.length > 0}
-          isPeakSetMode={isManualPeakMode}
-          onPeakSetModeChange={handlePeakSetModeFromPlotRail}
-          peakCount={dataset.peaks.length}
-          onAutoDetectPeaks={handleAutoDetectPeaksFromPlotRail}
-          onResetAllPeaks={handleResetAllPeaksFromPlotRail}
-        />
-      </div>
-    </>
+    <div className="pointer-events-auto flex flex-col items-center">
+      <Toolbar
+        isAttached
+        orientation="vertical"
+        aria-label="Difference spectrum and bare atom reference"
+        className={`${plotToolbarAttachedShellClass} w-fit`}
+      >
+        <ToggleButtonGroup
+          aria-label="Difference spectrum and bare atom reference"
+          selectionMode="multiple"
+          orientation="vertical"
+          className="w-full rounded-full"
+          selectedKeys={diffBareContributionSelectedKeys}
+          onSelectionChange={handleDiffBareContributionSelectionChange}
+        >
+          <PlotToolbarRichHint
+            title="Difference"
+            description="Overlay spectra that subtract one geometry from another."
+            placement="right"
+          >
+            <ToggleButton
+              isIconOnly
+              aria-label="Difference spectrum between geometries"
+              id="difference"
+              className={plotToolbarGlyphToggleGroupItemVerticalClass}
+            >
+              <span className="text-xs font-semibold" aria-hidden>
+                &#x0394;
+              </span>
+            </ToggleButton>
+          </PlotToolbarRichHint>
+          <PlotToolbarRichHint
+            title="Bare atom step edge"
+            description="Overlay the tabulated bare-atom step-edge reference on the current energy grid."
+            whenDisabledDescription={
+              isCalculatingBareAtom
+                ? "Calculating bare-atom reference."
+                : !selectedMolecule?.chemicalFormula?.trim()
+                  ? "Select a molecule with a chemical formula first."
+                  : dataView === "od"
+                    ? "Switch the plot to mu, beta, or delta to compare bare atom."
+                    : dataView === "bare-atom"
+                      ? "Bare-atom overlay is already the active view."
+                      : dataView === "delta"
+                        ? isCalculatingBareAtomDelta
+                          ? "Computing Henke/CXRO bare-atom delta."
+                          : !bareAtomDeltaPoints?.length
+                            ? "Need stored or computed delta on the spectrum grid."
+                            : "Bare-atom overlay is not available in this view."
+                        : !dataset.bareAtomPoints?.length
+                          ? "Bare-atom reference is not available for this edge yet."
+                          : "Bare-atom overlay is not available in this view."
+            }
+            placement="right"
+            disabled={plotBareAtomToggleDisabled}
+          >
+            <ToggleButton
+              isIconOnly
+              aria-label={
+                dataView === "od"
+                  ? "Bare atom overlay (not available in optical density view)"
+                  : selectedMolecule?.chemicalFormula
+                    ? dataView === "delta"
+                      ? "Bare atom delta reference (Henke/CXRO f1 on this grid)"
+                      : "Bare atom reference curve on this energy grid"
+                    : "Bare atom overlay (select a molecule with a formula)"
+              }
+              id="bare-atom"
+              isDisabled={plotBareAtomToggleDisabled}
+              className={plotToolbarGlyphToggleGroupItemVerticalClass}
+            >
+              <ToggleButtonGroup.Separator />
+              <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
+            </ToggleButton>
+          </PlotToolbarRichHint>
+        </ToggleButtonGroup>
+      </Toolbar>
+
+      <PlotToolbarGroupSeparator orientation="horizontal" />
+
+      <NexafsPlotDataRail
+        plotChannel={uploadPlotChannel}
+        onPlotChannelChange={handlePlotChannelChange}
+        availability={uploadChannelAvailability}
+        linkImaginaryReal={linkImaginaryReal}
+        onLinkImaginaryRealChange={setLinkImaginaryReal}
+      />
+
+      <PlotToolbarGroupSeparator orientation="horizontal" />
+
+      <PlotSpectrumToolsToolbarSection
+        peakToolsEnabled={false}
+        isNormalizationMode={isPlotNormalizationMode}
+        onNormalizationModeChange={handlePlotNormalizationMode}
+        activeEdge={normalizationSelectionTarget ?? "pre"}
+        onActiveEdgeChange={setNormalizationSelectionTarget}
+        onResetToDefaultRegions={handleResetNormalizationRegions}
+        normalizationLocked={dataset.normalizationLocked}
+        hasData={dataset.spectrumPoints.length > 0}
+        isPeakSetMode={isManualPeakMode}
+        onPeakSetModeChange={handlePeakSetModeFromPlotRail}
+        peakCount={dataset.peaks.length}
+        onAutoDetectPeaks={handleAutoDetectPeaksFromPlotRail}
+        onResetAllPeaks={handleResetAllPeaksFromPlotRail}
+      />
+    </div>
   );
 
   const plotRightPlotRail = (
@@ -2581,6 +2628,7 @@ export function DatasetContent({
                         });
                       }}
                       differenceSpectra={differenceSpectra}
+                      opticalLink={opticalLink}
                       showThetaData={showThetaData}
                       showPhiData={showPhiData}
                       selectedGeometry={selectedGeometry}
@@ -2737,21 +2785,37 @@ export function DatasetContent({
           }
           selectedVendorId={dataset.sampleInfo.vendorId}
           setSelectedVendorId={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, vendorId: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, vendorId: value },
+            }))
           }
           newVendorName={dataset.sampleInfo.newVendorName}
           setNewVendorName={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, newVendorName: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, newVendorName: value },
+            }))
           }
           newVendorUrl={dataset.sampleInfo.newVendorUrl}
           setNewVendorUrl={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, newVendorUrl: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, newVendorUrl: value },
+            }))
+          }
+          onVendorFieldsChange={(patch) =>
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: {
+                ...current.sampleInfo,
+                ...(patch.selectedVendorId !== undefined
+                  ? { vendorId: patch.selectedVendorId }
+                  : null),
+                ...(patch.newVendorName !== undefined
+                  ? { newVendorName: patch.newVendorName }
+                  : null),
+                ...(patch.newVendorUrl !== undefined
+                  ? { newVendorUrl: patch.newVendorUrl }
+                  : null),
+              },
+            }))
           }
           vendors={vendors}
           isLoadingVendors={isLoadingVendors}

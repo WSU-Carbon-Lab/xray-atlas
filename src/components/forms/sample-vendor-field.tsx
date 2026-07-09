@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import type { Key } from "@heroui/react";
 import { ComboBox, Input, InputGroup, Label, ListBox, TextField } from "@heroui/react";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
@@ -26,6 +27,12 @@ export type SampleVendorFieldOption = {
   name: string;
 };
 
+export type SampleVendorFieldsPatch = {
+  selectedVendorId?: string;
+  newVendorName?: string;
+  newVendorUrl?: string;
+};
+
 export type SampleVendorFieldProps = {
   vendors: readonly SampleVendorFieldOption[];
   selectedVendorId: string;
@@ -34,6 +41,8 @@ export type SampleVendorFieldProps = {
   onSelectedVendorIdChange: (vendorId: string) => void;
   onNewVendorNameChange: (name: string) => void;
   onNewVendorUrlChange: (url: string) => void;
+  /** Applies multiple vendor field updates in one commit (avoids stale batched overwrites). */
+  onVendorFieldsChange?: (patch: SampleVendorFieldsPatch) => void;
   isLoadingVendors?: boolean;
   layout?: SampleFormLayout;
   /** When false, typed values must match an existing vendor (no create flow). */
@@ -51,14 +60,41 @@ export function SampleVendorField({
   onSelectedVendorIdChange,
   onNewVendorNameChange,
   onNewVendorUrlChange,
+  onVendorFieldsChange,
   isLoadingVendors = false,
   layout = "stacked",
   allowCreate = true,
 }: SampleVendorFieldProps) {
   const selectedVendor = vendors.find((vendor) => vendor.id === selectedVendorId);
   const inputValue = selectedVendor?.name ?? newVendorName;
+  const selectedKey = selectedVendorId.length > 0 ? selectedVendorId : null;
+
   const isCreatingNew =
     allowCreate && !selectedVendorId && newVendorName.trim().length > 0;
+
+  const applyVendorFields = useCallback(
+    (patch: SampleVendorFieldsPatch) => {
+      if (onVendorFieldsChange) {
+        onVendorFieldsChange(patch);
+        return;
+      }
+      if (patch.selectedVendorId !== undefined) {
+        onSelectedVendorIdChange(patch.selectedVendorId);
+      }
+      if (patch.newVendorName !== undefined) {
+        onNewVendorNameChange(patch.newVendorName);
+      }
+      if (patch.newVendorUrl !== undefined) {
+        onNewVendorUrlChange(patch.newVendorUrl);
+      }
+    },
+    [
+      onVendorFieldsChange,
+      onNewVendorNameChange,
+      onNewVendorUrlChange,
+      onSelectedVendorIdChange,
+    ],
+  );
 
   const comboControl = (
     <ComboBox
@@ -67,34 +103,44 @@ export function SampleVendorField({
       allowsEmptyCollection
       aria-label="Vendor name"
       isDisabled={isLoadingVendors}
-      selectedKey={selectedVendorId.length > 0 ? selectedVendorId : null}
+      selectedKey={selectedKey}
       inputValue={inputValue}
       onInputChange={(value) => {
         if (!allowCreate) {
-          onNewVendorNameChange(value);
-          onSelectedVendorIdChange("");
           const matched = vendors.find(
             (vendor) => vendor.name.toLowerCase() === value.trim().toLowerCase(),
           );
           if (matched) {
-            onSelectedVendorIdChange(matched.id);
-            onNewVendorNameChange("");
+            applyVendorFields({
+              selectedVendorId: matched.id,
+              newVendorName: "",
+            });
+            return;
           }
+          applyVendorFields({
+            selectedVendorId: "",
+            newVendorName: value,
+          });
           return;
         }
-        onNewVendorNameChange(value);
-        onSelectedVendorIdChange("");
+        applyVendorFields({
+          selectedVendorId: "",
+          newVendorName: value,
+        });
       }}
       onSelectionChange={(key: Key | null) => {
-        if (key == null || typeof key !== "string") {
+        if (key == null) {
           return;
         }
-        const vendor = vendors.find((entry) => entry.id === key);
+        const vendorId = String(key);
+        const vendor = vendors.find((entry) => entry.id === vendorId);
         if (!vendor) {
           return;
         }
-        onSelectedVendorIdChange(vendor.id);
-        onNewVendorNameChange("");
+        applyVendorFields({
+          selectedVendorId: vendor.id,
+          newVendorName: "",
+        });
       }}
       items={[...vendors]}
       className={layout === "inset" ? sampleFormInsetControlClass : "min-w-0 w-full"}
