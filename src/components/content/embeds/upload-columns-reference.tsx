@@ -9,7 +9,7 @@ const exampleColumns = NEXAFS_UPLOAD_TEMPLATE_COLUMNS.map((col) => ({
     col.key === "energy_eV"
       ? "spectrumpoints.energyev (strictly ascending)"
       : col.key === "mu"
-        ? "spectrumpoints.rawabs (primary upload trace via Absorption mapping)"
+        ? "spectrumpoints.rawabs (primary native trace when mu is the primary; optional when a processed channel is supplied)"
         : col.key === "mu_err"
           ? "spectrumpoints.rawabserr"
           : col.key === "theta_deg" || col.key === "phi_deg"

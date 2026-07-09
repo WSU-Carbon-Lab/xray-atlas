@@ -17,10 +17,12 @@ export type {
   NormalizationType,
   DatasetViewNormalizationTypes,
   DatasetState,
+  PrimaryRepresentation,
 } from "./types";
 export {
   createEmptyDatasetState,
   defaultDatasetViewNormalizationTypes,
+  PRIMARY_REPRESENTATION_LABELS,
 } from "./types";
 export {
   useNexafsOptions,

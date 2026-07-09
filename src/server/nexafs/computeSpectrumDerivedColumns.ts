@@ -1,13 +1,15 @@
 import type { SpectrumPoint } from "~/components/plots/types";
-import type { BareAtomPoint } from "~/features/process-nexafs/types";
+import type { BareAtomPoint, PrimaryRepresentation } from "~/features/process-nexafs/types";
 import {
-  computeNormalizationForExperiment,
-  computeZeroOneNormalization,
-  interpolateBareMu,
-} from "~/features/process-nexafs/utils/core";
+  buildMassAbsorptionHubPoints,
+  deriveOdAndBetaFromHub,
+} from "~/features/process-nexafs/utils/representationToMassAbsorption";
 import { defaultNormalizationRangesFromSpectrum } from "~/features/process-nexafs/utils/normalizationDefaults";
-import { computeBetaIndex } from "~/features/process-nexafs/utils/betaIndex";
 import { computeBareAtomAbsorption } from "~/server/utils/cxro";
+import {
+  computeMolecularWeight,
+  parseChemicalFormula,
+} from "~/server/utils/chemistry";
 
 export function coalesceUploadedOrDerived(
   uploaded: number | undefined,
@@ -32,63 +34,69 @@ function nullColumn(n: number): Array<number | null> {
   return Array.from({ length: n }, () => null);
 }
 
+/**
+ * Derives OD, mass absorption, and beta from uploaded points using the mass-absorption hub
+ * when the client did not supply complete scalar columns.
+ */
 export async function computeSpectrumDerivedScalarColumns(
   points: SpectrumPoint[],
   chemicalFormula: string | null,
+  primaryRepresentation: PrimaryRepresentation = "raw_mu",
 ): Promise<SpectrumDerivedScalarColumns> {
   const n = points.length;
   if (n === 0) {
     return { od: [], massabsorption: [], beta: [] };
   }
-  let od = nullColumn(n);
-  let massabsorption = nullColumn(n);
-  let beta = nullColumn(n);
+
   const ranges = defaultNormalizationRangesFromSpectrum(points);
-  if (ranges) {
-    const odComp = computeZeroOneNormalization(points, ranges.pre, ranges.post);
-    if (odComp) {
-      od = odComp.normalizedPoints.map((p) => p.absorption);
+  const pre = ranges?.pre ?? null;
+  const post = ranges?.post ?? null;
+
+  let barePoints: BareAtomPoint[] = [];
+  const formula = chemicalFormula?.trim() ?? "";
+  if (formula) {
+    try {
+      const bareMu = await computeBareAtomAbsorption(formula, { density: 1 });
+      barePoints = bareMu
+        .map((p) => ({ energy: p.energyEv, absorption: p.mu }))
+        .sort((a, b) => a.energy - b.energy);
+    } catch {
+      barePoints = [];
     }
   }
-  const formula = chemicalFormula?.trim() ?? "";
-  if (!formula || !ranges) {
-    return { od, massabsorption, beta };
+
+  let formulaMass: number | null = null;
+  if (formula) {
+    try {
+      formulaMass = computeMolecularWeight(parseChemicalFormula(formula));
+    } catch {
+      formulaMass = null;
+    }
   }
-  let barePoints: BareAtomPoint[] = [];
-  try {
-    const bareMu = await computeBareAtomAbsorption(formula, { density: 1 });
-    barePoints = bareMu
-      .map((p) => ({ energy: p.energyEv, absorption: p.mu }))
-      .sort((a, b) => a.energy - b.energy);
-  } catch {
-    return { od, massabsorption, beta };
-  }
-  if (barePoints.length === 0) {
-    return { od, massabsorption, beta };
-  }
-  const massComp = computeNormalizationForExperiment(
-    points,
+
+  const hub = buildMassAbsorptionHubPoints(points, primaryRepresentation, {
     barePoints,
-    ranges.pre,
-    ranges.post,
-  );
-  if (!massComp) {
-    return { od, massabsorption, beta };
+    pre,
+    post,
+    formulaMassGPerMol: formulaMass,
+  });
+
+  if (!hub) {
+    return {
+      od: nullColumn(n),
+      massabsorption: nullColumn(n),
+      beta: nullColumn(n),
+    };
   }
-  massabsorption = massComp.normalizedPoints.map((p) => p.absorption);
-  const uniqueEnergies = Array.from(new Set(points.map((p) => p.energy))).sort(
-    (a, b) => a - b,
-  );
-  const atomicPoints = uniqueEnergies.map((E) => ({
-    energy: E,
-    absorption: interpolateBareMu(barePoints, E),
-  }));
-  const energyEv = points.map((p) => p.energy);
-  const betaComp = computeBetaIndex(
-    massComp.normalizedPoints,
-    energyEv,
-    atomicPoints,
-  );
-  beta = betaComp.map((p) => p.absorption);
-  return { od, massabsorption, beta };
+
+  const derived = deriveOdAndBetaFromHub(hub, pre, post);
+  return {
+    od: derived.od,
+    massabsorption: hub.map((p) =>
+      Number.isFinite(p.massabsorption ?? p.absorption)
+        ? (p.massabsorption ?? p.absorption)
+        : null,
+    ),
+    beta: derived.beta,
+  };
 }

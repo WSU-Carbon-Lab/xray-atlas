@@ -13,6 +13,13 @@ monotonically. Angle-resolved uploads use separate traces per geometry when
 `theta_deg` and `phi_deg` vary, or fixed angles set in the UI when those
 columns are omitted.
 
+**Channel-flexible primary:** supply `energy_eV` plus at least one primary
+absorption representation — legacy `mu` (instrument-scaled raw trace), processed
+`mass_absorption`, `beta`, or normalized `od` (0-1). When a processed channel
+is the primary, Atlas converts it to a mass-absorption hub and derives OD, beta,
+and optional Kramers-Kronig delta forward. Legacy `mu` remains required only
+when no processed channel is present.
+
 ## Expected column layout
 
 Header names are matched flexibly in the contribute mapper; the table below

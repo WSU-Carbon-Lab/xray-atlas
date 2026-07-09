@@ -107,6 +107,11 @@ import type {
   DatasetState,
   PeakData,
 } from "~/features/process-nexafs";
+import { PRIMARY_REPRESENTATION_LABELS } from "~/features/process-nexafs";
+import {
+  buildProcessedPrimaryBareAtomAgreement,
+  isProcessedPrimaryRepresentation,
+} from "~/features/process-nexafs/utils/uploadScaleSanity";
 import type { CursorMode } from "~/components/plots/visx/CursorModeSelector";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import { showToast } from "~/components/ui/toast";
@@ -970,6 +975,38 @@ export function DatasetContent({
   >([]);
   const [showBareAtomContributionOverlay, setShowBareAtomContributionOverlay] =
     useState(false);
+
+  useEffect(() => {
+    if (
+      isProcessedPrimaryRepresentation(dataset.primaryRepresentation) &&
+      dataset.bareAtomPoints &&
+      dataset.bareAtomPoints.length > 0
+    ) {
+      setShowBareAtomContributionOverlay(true);
+    }
+  }, [
+    dataset.primaryRepresentation,
+    dataset.bareAtomPoints,
+  ]);
+
+  const processedPrimaryBareAtomAgreement = useMemo(
+    () =>
+      isProcessedPrimaryRepresentation(dataset.primaryRepresentation)
+        ? buildProcessedPrimaryBareAtomAgreement({
+            points: dataset.spectrumPoints,
+            bareAtomPoints: dataset.bareAtomPoints,
+            pre: dataset.normalizationRegions.pre,
+            post: dataset.normalizationRegions.post,
+          })
+        : [],
+    [
+      dataset.primaryRepresentation,
+      dataset.spectrumPoints,
+      dataset.bareAtomPoints,
+      dataset.normalizationRegions.pre,
+      dataset.normalizationRegions.post,
+    ],
+  );
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
   const [selectedGeometry] = useState<{
@@ -2418,6 +2455,38 @@ export function DatasetContent({
       </div>
 
       <div className="flex w-full flex-col">
+        {processedPrimaryBareAtomAgreement.length > 0 ? (
+          <div
+            role="status"
+            className="border-border bg-surface-2 mb-3 rounded-lg border px-3 py-2 text-sm"
+          >
+            <p className="text-foreground font-medium">
+              Bare-atom agreement (
+              {PRIMARY_REPRESENTATION_LABELS[dataset.primaryRepresentation]}{" "}
+              primary)
+            </p>
+            <ul className="text-muted mt-1 list-disc pl-5">
+              {processedPrimaryBareAtomAgreement.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {dataset.uploadParseWarnings.length > 0 ? (
+          <div
+            role="status"
+            className="border-warning bg-warning-soft mb-3 rounded-lg border px-3 py-2 text-sm"
+          >
+            <p className="text-foreground font-medium">
+              Upload checks ({PRIMARY_REPRESENTATION_LABELS[dataset.primaryRepresentation]})
+            </p>
+            <ul className="text-muted mt-1 list-disc pl-5">
+              {dataset.uploadParseWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <VisualizationToggle
           modes={["graph", "table", "aux"]}
           mode={visualizationMode}
@@ -2775,6 +2844,13 @@ export function DatasetContent({
                 })
               }
               className="border-border bg-field-background text-field-foreground rounded-md border px-3 py-2"
+              disabled={
+                dataset.primaryRepresentation === "beta" ||
+                dataset.primaryRepresentation === "mass_absorption" ||
+                dataset.primaryRepresentation === "f2" ||
+                dataset.primaryRepresentation === "epsilon2" ||
+                dataset.primaryRepresentation === "chi2"
+              }
             >
               <option value="unified">Unified ranges</option>
               <option value="none">No ranges</option>

@@ -1,17 +1,125 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, type RefObject } from "react";
 import { DefaultButton as Button } from "~/components/ui/button";
 import { SimpleDialog } from "~/components/ui/dialog";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import { Chip, Slider } from "@heroui/react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
-import type { CSVColumnMappings, ColumnStats } from "~/features/process-nexafs";
+import type { CSVColumnMappings, ColumnStats, PrimaryRepresentation } from "~/features/process-nexafs";
+import {
+  PRIMARY_REPRESENTATION_LABELS,
+} from "~/features/process-nexafs/types";
 import {
   analyzeNumericColumns,
   detectAuxiliarySpectrumColumnNames,
 } from "~/features/process-nexafs/utils";
+import {
+  classifyColumnFillStatus,
+  inferPrimaryRepresentation,
+} from "~/features/process-nexafs/utils/channelCompleteness";
 import type { SpectrumPoint } from "~/components/plots/types";
+
+type OptionalChannelKey = "od" | "massabsorption" | "beta";
+
+type OptionalSpectrumColumnPickerProps = {
+  label: string;
+  channelKey: OptionalChannelKey;
+  mappedColumn: string | undefined;
+  columns: string[];
+  openStatusDropdown: OptionalChannelKey | "energy" | "absorption" | "theta" | "phi" | null;
+  setOpenStatusDropdown: (
+    value: OptionalChannelKey | "energy" | "absorption" | "theta" | "phi" | null,
+  ) => void;
+  statusDropdownRef: RefObject<HTMLDivElement | null>;
+  activeClass: string;
+  onSelect: (column: string | undefined) => void;
+};
+
+function OptionalSpectrumColumnPicker({
+  label,
+  channelKey,
+  mappedColumn,
+  columns,
+  openStatusDropdown,
+  setOpenStatusDropdown,
+  statusDropdownRef,
+  activeClass,
+  onSelect,
+}: OptionalSpectrumColumnPickerProps) {
+  return (
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+        <Chip
+          size="sm"
+          variant="primary"
+          color={mappedColumn ? "accent" : "default"}
+          className="h-6 px-2.5 text-xs font-semibold text-white"
+        >
+          {label}
+        </Chip>
+      </label>
+      <div
+        className="relative"
+        ref={openStatusDropdown === channelKey ? statusDropdownRef : null}
+      >
+        <button
+          type="button"
+          onClick={() =>
+            setOpenStatusDropdown(
+              openStatusDropdown === channelKey ? null : channelKey,
+            )
+          }
+          className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+            mappedColumn
+              ? activeClass
+              : "border-gray-300 bg-white text-gray-500 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:border-gray-500"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="truncate">
+              {mappedColumn ?? "Select column..."}
+            </span>
+            <ChevronDownIcon className="h-3 w-3 shrink-0" />
+          </div>
+        </button>
+        {openStatusDropdown === channelKey && (
+          <div className="absolute top-full left-0 z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+            <div className="py-1">
+              <button
+                type="button"
+                onClick={() => {
+                  onSelect(undefined);
+                  setOpenStatusDropdown(null);
+                }}
+                className="w-full px-3 py-1.5 text-left text-xs text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+              >
+                None
+              </button>
+              {columns.map((col) => (
+                <button
+                  key={col}
+                  type="button"
+                  onClick={() => {
+                    onSelect(col);
+                    setOpenStatusDropdown(null);
+                  }}
+                  className={`w-full px-3 py-1.5 text-left text-xs ${
+                    mappedColumn === col
+                      ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  {col} {mappedColumn === col && "✓"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface ColumnMappingModalProps {
   isOpen: boolean;
@@ -19,6 +127,7 @@ interface ColumnMappingModalProps {
   onConfirm: (
     mappings: CSVColumnMappings,
     fixedValues?: { theta?: string; phi?: string },
+    primaryRepresentation?: PrimaryRepresentation,
   ) => void;
   columns: string[];
   rawData: Record<string, unknown>[];
@@ -43,9 +152,18 @@ export function ColumnMappingModal({
   const [phiMode, setPhiMode] = useState<"column" | "fixed">("column");
   const [fixedTheta, setFixedTheta] = useState<string>("");
   const [fixedPhi, setFixedPhi] = useState<string>("");
+  const [primaryRepresentation, setPrimaryRepresentation] =
+    useState<PrimaryRepresentation>("raw_mu");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [openStatusDropdown, setOpenStatusDropdown] = useState<
-    "energy" | "absorption" | "theta" | "phi" | null
+    | "energy"
+    | "absorption"
+    | "od"
+    | "massabsorption"
+    | "beta"
+    | "theta"
+    | "phi"
+    | null
   >(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
@@ -88,19 +206,34 @@ export function ColumnMappingModal({
         col.toLowerCase().includes("absorption") ||
         col.toLowerCase().includes("abs") ||
         col.toLowerCase().includes("intensity") ||
-        col.toLowerCase().includes("signal"),
+        col.toLowerCase().includes("signal") ||
+        col.toLowerCase().trim() === "mu",
     );
     const thetaCol = columns.find((col) => col.toLowerCase().includes("theta"));
     const phiCol = columns.find((col) => col.toLowerCase().includes("phi"));
 
-    setMappings({
+    const nextMappings: CSVColumnMappings = {
       energy: energyCol ?? columns[0] ?? "",
       absorption: absorptionCol ?? columns[1] ?? "",
       theta: thetaCol ?? undefined,
       phi: phiCol ?? undefined,
       ...detectAuxiliarySpectrumColumnNames(columns),
+    };
+    setMappings(nextMappings);
+
+    const fillStatus = classifyColumnFillStatus(rawData, nextMappings);
+    const inferred = inferPrimaryRepresentation({
+      mappings: nextMappings,
+      fillStatus,
     });
-  }, [columns, isOpen]);
+    if (inferred) {
+      setPrimaryRepresentation(inferred.primaryRepresentation);
+      setMappings((prev) => ({
+        ...prev,
+        absorption: inferred.absorptionColumn,
+      }));
+    }
+  }, [columns, isOpen, rawData]);
 
   const _columnStats = useMemo(() => {
     const numericColumns = new Set<string>();
@@ -112,6 +245,9 @@ export function ColumnMappingModal({
     if (mappings.od) numericColumns.add(mappings.od);
     if (mappings.massabsorption) numericColumns.add(mappings.massabsorption);
     if (mappings.beta) numericColumns.add(mappings.beta);
+    if (mappings.f2) numericColumns.add(mappings.f2);
+    if (mappings.epsilon2) numericColumns.add(mappings.epsilon2);
+    if (mappings.chi2) numericColumns.add(mappings.chi2);
     if (mappings.delta) numericColumns.add(mappings.delta);
     if (mappings.deltaError) numericColumns.add(mappings.deltaError);
 
@@ -153,8 +289,16 @@ export function ColumnMappingModal({
     return stats;
   }, [rawData, mappings]);
 
+  const confirmReady = useMemo(() => {
+    if (!mappings.energy) {
+      return false;
+    }
+    const fillStatus = classifyColumnFillStatus(rawData, mappings);
+    return inferPrimaryRepresentation({ mappings, fillStatus }) != null;
+  }, [mappings, rawData]);
+
   const handleConfirm = () => {
-    if (!mappings.energy || !mappings.absorption) {
+    if (!confirmReady) {
       return;
     }
 
@@ -177,59 +321,57 @@ export function ColumnMappingModal({
     onConfirm(
       finalMappings,
       Object.keys(fixedValues).length > 0 ? fixedValues : undefined,
+      primaryRepresentation,
     );
+  };
+
+  type ColumnAssignment =
+    | "energy"
+    | "absorption"
+    | "theta"
+    | "phi"
+    | "od"
+    | "massabsorption"
+    | "beta"
+    | "none";
+
+  const clearColumnFromMappings = (
+    target: CSVColumnMappings,
+    columnName: string,
+  ) => {
+    if (target.energy === columnName) target.energy = "";
+    if (target.absorption === columnName) target.absorption = "";
+    if (target.theta === columnName) target.theta = undefined;
+    if (target.phi === columnName) target.phi = undefined;
+    if (target.od === columnName) target.od = undefined;
+    if (target.massabsorption === columnName) target.massabsorption = undefined;
+    if (target.beta === columnName) target.beta = undefined;
   };
 
   const handleAssignColumn = (
     columnName: string,
-    assignment: "energy" | "absorption" | "theta" | "phi" | "none",
+    assignment: ColumnAssignment,
   ) => {
     const newMappings = { ...mappings };
 
     if (assignment === "none") {
-      if (columnName === mappings.energy) {
-        newMappings.energy = "";
-      } else if (columnName === mappings.absorption) {
-        newMappings.absorption = "";
-      } else if (columnName === mappings.theta) {
-        newMappings.theta = undefined;
-      } else if (columnName === mappings.phi) {
-        newMappings.phi = undefined;
-      }
+      clearColumnFromMappings(newMappings, columnName);
     } else {
+      clearColumnFromMappings(newMappings, columnName);
       if (assignment === "energy") {
         newMappings.energy = columnName;
-        if (mappings.energy && mappings.energy !== columnName) {
-          newMappings.energy = columnName;
-        }
       } else if (assignment === "absorption") {
         newMappings.absorption = columnName;
-        if (mappings.absorption && mappings.absorption !== columnName) {
-          newMappings.absorption = columnName;
-        }
       } else if (assignment === "theta") {
         newMappings.theta = columnName;
-        if (mappings.theta && mappings.theta !== columnName) {
-          newMappings.theta = columnName;
-        }
       } else if (assignment === "phi") {
         newMappings.phi = columnName;
-        if (mappings.phi && mappings.phi !== columnName) {
-          newMappings.phi = columnName;
-        }
-      }
-
-      if (mappings.energy === columnName && assignment !== "energy") {
-        newMappings.energy = "";
-      }
-      if (mappings.absorption === columnName && assignment !== "absorption") {
-        newMappings.absorption = "";
-      }
-      if (mappings.theta === columnName && assignment !== "theta") {
-        newMappings.theta = undefined;
-      }
-      if (mappings.phi === columnName && assignment !== "phi") {
-        newMappings.phi = undefined;
+      } else if (assignment === "od") {
+        newMappings.od = columnName;
+      } else if (assignment === "massabsorption") {
+        newMappings.massabsorption = columnName;
+      } else if (assignment === "beta") {
+        newMappings.beta = columnName;
       }
     }
 
@@ -239,16 +381,34 @@ export function ColumnMappingModal({
 
   const getColumnMappingType = (
     columnName: string,
-  ): "energy" | "absorption" | "theta" | "phi" | null => {
+  ):
+    | "energy"
+    | "absorption"
+    | "theta"
+    | "phi"
+    | "od"
+    | "massabsorption"
+    | "beta"
+    | null => {
     if (columnName === mappings.energy) return "energy";
     if (columnName === mappings.absorption) return "absorption";
     if (columnName === mappings.theta) return "theta";
     if (columnName === mappings.phi) return "phi";
+    if (columnName === mappings.od) return "od";
+    if (columnName === mappings.massabsorption) return "massabsorption";
+    if (columnName === mappings.beta) return "beta";
     return null;
   };
 
   const getColumnColor = (
-    type: "energy" | "absorption" | "theta" | "phi",
+    type:
+      | "energy"
+      | "absorption"
+      | "theta"
+      | "phi"
+      | "od"
+      | "massabsorption"
+      | "beta",
   ): "accent" | "default" | "success" | "warning" | "danger" => {
     switch (type) {
       case "energy":
@@ -259,15 +419,27 @@ export function ColumnMappingModal({
         return "warning";
       case "phi":
         return "success";
+      case "od":
+        return "accent";
+      case "massabsorption":
+        return "default";
+      case "beta":
+        return "warning";
     }
   };
 
   // Generate preview spectrum points from mapped columns
+  const previewAbsorptionColumn = useMemo(() => {
+    const fillStatus = classifyColumnFillStatus(rawData, mappings);
+    const inferred = inferPrimaryRepresentation({ mappings, fillStatus });
+    return inferred?.absorptionColumn ?? mappings.absorption;
+  }, [rawData, mappings]);
+
   const previewPoints = useMemo(() => {
-    if (!mappings.energy || !mappings.absorption) return [];
+    if (!mappings.energy || !previewAbsorptionColumn) return [];
 
     const energyCol = mappings.energy;
-    const absorptionCol = mappings.absorption;
+    const absorptionCol = previewAbsorptionColumn;
     const points: SpectrumPoint[] = [];
     rawData.forEach((row) => {
       const energyValue = Number(row[energyCol]);
@@ -297,7 +469,7 @@ export function ColumnMappingModal({
     });
 
     return points;
-  }, [rawData, mappings]);
+  }, [rawData, mappings, previewAbsorptionColumn]);
 
   const previewRows = rawData.slice(0, 10);
 
@@ -310,7 +482,31 @@ export function ColumnMappingModal({
     >
       <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
         Assign columns using the dropdown widgets in the table headers.
-        Required: Energy and Absorption.
+        Required: Energy and a primary signal column (mu, beta, mass_absorption, or od).
+      </div>
+
+      <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Primary representation
+        </label>
+        <select
+          value={primaryRepresentation}
+          onChange={(event) =>
+            setPrimaryRepresentation(event.target.value as PrimaryRepresentation)
+          }
+          className="border-border bg-surface text-foreground w-full rounded-lg border px-3 py-2 text-sm"
+          aria-label="Primary representation"
+        >
+          {(
+            Object.entries(PRIMARY_REPRESENTATION_LABELS) as Array<
+              [PrimaryRepresentation, string]
+            >
+          ).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Column Assignment Status - Moved to Top */}
@@ -463,6 +659,42 @@ export function ColumnMappingModal({
               )}
             </div>
           </div>
+
+          <OptionalSpectrumColumnPicker
+            label="OD"
+            channelKey="od"
+            mappedColumn={mappings.od}
+            columns={columns}
+            openStatusDropdown={openStatusDropdown}
+            setOpenStatusDropdown={setOpenStatusDropdown}
+            statusDropdownRef={statusDropdownRef}
+            activeClass="border-indigo-300 bg-indigo-50 text-indigo-900 dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-200"
+            onSelect={(col) => setMappings({ ...mappings, od: col })}
+          />
+          <OptionalSpectrumColumnPicker
+            label="Mass abs"
+            channelKey="massabsorption"
+            mappedColumn={mappings.massabsorption}
+            columns={columns}
+            openStatusDropdown={openStatusDropdown}
+            setOpenStatusDropdown={setOpenStatusDropdown}
+            statusDropdownRef={statusDropdownRef}
+            activeClass="border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-200"
+            onSelect={(col) =>
+              setMappings({ ...mappings, massabsorption: col })
+            }
+          />
+          <OptionalSpectrumColumnPicker
+            label="Beta"
+            channelKey="beta"
+            mappedColumn={mappings.beta}
+            columns={columns}
+            openStatusDropdown={openStatusDropdown}
+            setOpenStatusDropdown={setOpenStatusDropdown}
+            statusDropdownRef={statusDropdownRef}
+            activeClass="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
+            onSelect={(col) => setMappings({ ...mappings, beta: col })}
+          />
 
           {/* Theta */}
           <div className="space-y-1.5">
@@ -750,7 +982,13 @@ export function ColumnMappingModal({
                                     ? "Absorption"
                                     : mappingType === "theta"
                                       ? "Theta"
-                                      : "Phi"}
+                                      : mappingType === "phi"
+                                        ? "Phi"
+                                        : mappingType === "od"
+                                          ? "OD"
+                                          : mappingType === "massabsorption"
+                                            ? "Mass abs"
+                                            : "Beta"}
                               </Chip>
                             )}
                             <div
@@ -849,6 +1087,75 @@ export function ColumnMappingModal({
                                     <button
                                       type="button"
                                       onClick={() =>
+                                        handleAssignColumn(col, "od")
+                                      }
+                                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
+                                        mappingType === "od"
+                                          ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200"
+                                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                      }`}
+                                    >
+                                      <Chip
+                                        size="sm"
+                                        variant="primary"
+                                        color="accent"
+                                        className="h-5 px-2 text-[10px] font-semibold text-white"
+                                      >
+                                        OD
+                                      </Chip>
+                                      {mappingType === "od" && (
+                                        <span className="ml-auto">✓</span>
+                                      )}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleAssignColumn(col, "massabsorption")
+                                      }
+                                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
+                                        mappingType === "massabsorption"
+                                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200"
+                                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                      }`}
+                                    >
+                                      <Chip
+                                        size="sm"
+                                        variant="primary"
+                                        color="default"
+                                        className="h-5 px-2 text-[10px] font-semibold text-white"
+                                      >
+                                        Mass abs
+                                      </Chip>
+                                      {mappingType === "massabsorption" && (
+                                        <span className="ml-auto">✓</span>
+                                      )}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleAssignColumn(col, "beta")
+                                      }
+                                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
+                                        mappingType === "beta"
+                                          ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200"
+                                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                      }`}
+                                    >
+                                      <Chip
+                                        size="sm"
+                                        variant="primary"
+                                        color="warning"
+                                        className="h-5 px-2 text-[10px] font-semibold text-white"
+                                      >
+                                        Beta
+                                      </Chip>
+                                      {mappingType === "beta" && (
+                                        <span className="ml-auto">✓</span>
+                                      )}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
                                         handleAssignColumn(col, "phi")
                                       }
                                       className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
@@ -929,9 +1236,7 @@ export function ColumnMappingModal({
 
         {/* Right Side: Preview Graph */}
         <div className="flex flex-col">
-          {previewPoints.length > 0 &&
-          mappings.energy &&
-          mappings.absorption ? (
+          {previewPoints.length > 0 && mappings.energy && previewAbsorptionColumn ? (
             <div
               className="flex flex-1 flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
               style={{ minHeight: "500px", maxHeight: "500px" }}
@@ -949,7 +1254,7 @@ export function ColumnMappingModal({
               style={{ minHeight: "500px", maxHeight: "500px" }}
             >
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Assign Energy and Absorption columns to see preview
+                Assign Energy and a primary signal column to see preview
               </p>
             </div>
           )}
@@ -965,7 +1270,7 @@ export function ColumnMappingModal({
           type="button"
           variant="primary"
           onClick={handleConfirm}
-          isDisabled={!mappings.energy || !mappings.absorption}
+          isDisabled={!confirmReady}
         >
           Confirm
         </Button>
