@@ -108,6 +108,7 @@ import type { OpticalLinkPlotConfig } from "~/components/plots/hooks/useLinkedOp
 import { resolveLinkedCompanionChannel } from "~/components/nexafs/nexafs-plot-data-rail";
 import {
   isImaginaryChannel,
+  isPlotChannelAvailable,
   isRealChannel,
   type NexafsImaginaryChannelId,
   type NexafsPlotChannelAvailability,
@@ -1740,66 +1741,6 @@ export function DatasetContent({
     computeDifferenceSpectraFromRoot,
   ]);
 
-  const trySetDataView = useCallback(
-    (next: DataView) => {
-      if (next === dataView) return;
-      if (next === "od") {
-        setDataView("od");
-        return;
-      }
-
-      const hasAbsorptionCurve =
-        (absorptionComputation?.normalizedPoints?.length ?? 0) > 0;
-      if (!hasAbsorptionCurve) {
-        showDataViewGateToast(
-          "requires-normalization",
-          "Run normalization before switching to absorption, bare-atom, or beta views",
-        );
-        return;
-      }
-
-      if (next === "bare-atom") {
-        setDataView("bare-atom");
-        return;
-      }
-
-      if (next === "beta") {
-        if (!dataset.bareAtomPoints) {
-          showDataViewGateToast(
-            "requires-bare-atom",
-            "Compute bare-atom absorption before switching to beta view",
-          );
-          return;
-        }
-        setDataView("beta");
-        return;
-      }
-
-      if (next === "delta") {
-        if (!deltaAvailable) {
-          showDataViewGateToast(
-            "no-delta",
-            "No finite delta on spectrum points for this view.",
-          );
-          return;
-        }
-        setDataView("delta");
-        return;
-      }
-
-      if (next === "absorption") {
-        setDataView("absorption");
-      }
-    },
-    [
-      dataView,
-      absorptionComputation,
-      dataset.bareAtomPoints,
-      deltaAvailable,
-      showDataViewGateToast,
-    ],
-  );
-
   // Prepare plot data
   const plotPoints =
     dataView === "od"
@@ -2048,6 +1989,7 @@ export function DatasetContent({
   const absorptionAvailable =
     (absorptionComputation?.normalizedPoints?.length ?? 0) > 0;
   const betaAvailable =
+    absorptionAvailable &&
     !!dataset.bareAtomPoints &&
     betaMuLike.length > 0 &&
     (betaPoints?.length ?? 0) > 0;
@@ -2190,20 +2132,49 @@ export function DatasetContent({
     [dataView],
   );
 
+  const uploadChannelUnavailableDescription = useCallback(
+    (channel: NexafsPlotChannelId): string | undefined => {
+      if (isPlotChannelAvailable(channel, uploadChannelAvailability)) {
+        return undefined;
+      }
+      if (channel === "mass-absorption") {
+        return "Set pre- and post-edge windows and normalize to enable mu.";
+      }
+      if (channel === "beta") {
+        return "Normalize to mu with bare-atom reference to enable beta.";
+      }
+      if (channel === "delta") {
+        return "Run KK from the right rail or upload delta values first.";
+      }
+      if (channel === "normalized") {
+        return "Upload spectrum points to plot optical density.";
+      }
+      return "Not available for this dataset yet.";
+    },
+    [uploadChannelAvailability],
+  );
+
   const handlePlotChannelChange = useCallback(
     (channel: NexafsPlotChannelId) => {
+      if (!isPlotChannelAvailable(channel, uploadChannelAvailability)) {
+        const description = uploadChannelUnavailableDescription(channel);
+        if (description) {
+          showDataViewGateToast(`channel-${channel}`, description);
+        }
+        return;
+      }
       switch (channel) {
         case "normalized":
-          trySetDataView("od");
+          setDataView("od");
           break;
         case "mass-absorption":
-          trySetDataView("absorption");
+          setDataView("absorption");
           break;
         case "beta":
-          trySetDataView("beta");
+          setDataView("beta");
           break;
         case "delta":
-          trySetDataView("delta");
+          setDataView("delta");
           break;
         default:
           break;
@@ -2212,7 +2183,11 @@ export function DatasetContent({
         setLinkImaginaryReal(false);
       }
     },
-    [trySetDataView],
+    [
+      uploadChannelAvailability,
+      uploadChannelUnavailableDescription,
+      showDataViewGateToast,
+    ],
   );
 
   const linkBetaDeltaEnabled =
@@ -2365,6 +2340,7 @@ export function DatasetContent({
         availability={uploadChannelAvailability}
         linkImaginaryReal={linkImaginaryReal}
         onLinkImaginaryRealChange={setLinkImaginaryReal}
+        channelUnavailableDescription={uploadChannelUnavailableDescription}
       />
 
       <PlotToolbarGroupSeparator orientation="horizontal" />
