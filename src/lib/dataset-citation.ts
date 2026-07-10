@@ -206,12 +206,12 @@ export function resolveZenodoRecordIdForCitation(input: {
  * Builds a Zotero import URL that serves Zenodo BibTeX for this dataset.
  *
  * Returns Zenodo’s `/records/{id}/export/bibtex` endpoint (`application/x-bibtex`).
- * With the Zotero Connector installed, that response is intercepted and imported
- * as a Dataset item. The older `zotero.org/save?q=…` deep link is not used:
- * when the connector is active it often saves the Atlas referrer as a Web Page
- * Snapshot instead of resolving the DOI.
+ * Used to gate the Zotero control when a deposit exists. The Cite UI posts the
+ * Atlas-built BibTeX to a same-origin `/api/citations/bibtex` endpoint inside a
+ * hidden iframe so the Zotero Connector can intercept Dataset metadata without
+ * opening a tab (Zenodo’s export URL cannot be framed).
  *
- * Without the connector, the browser downloads a `.bib` file the user can
+ * Without the connector, that response downloads a `.bib` file the user can
  * import via File → Import (same `@dataset` result as pasting BibTeX).
  *
  * @param input - Dataset DOI and optional Zenodo record URL.

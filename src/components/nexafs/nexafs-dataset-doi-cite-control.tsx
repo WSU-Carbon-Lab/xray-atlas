@@ -390,36 +390,109 @@ function openExternalUrl(
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+const ZOTERO_IMPORT_FRAME_ID = "atlas-zotero-bibtex-import-frame";
+
+/**
+ * Posts BibTeX to the same-origin citations endpoint inside a hidden iframe.
+ *
+ * Zenodo’s export URL cannot be framed (`X-Frame-Options: sameorigin`), and
+ * `target=_blank` opens a tab. A same-origin `application/x-bibtex` response
+ * lets the Zotero Connector intercept the file without leaving the page.
+ *
+ * @param bibtex - Full `@dataset{…}` entry from the Cite popover.
+ * @param filename - Download basename (`.bib` appended when missing).
+ */
+function importZoteroBibTeXInBackground(
+  bibtex: string,
+  filename: string,
+): void {
+  if (typeof document === "undefined") return;
+  document.getElementById(ZOTERO_IMPORT_FRAME_ID)?.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = ZOTERO_IMPORT_FRAME_ID;
+  iframe.name = ZOTERO_IMPORT_FRAME_ID;
+  iframe.title = "Zotero BibTeX import";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.tabIndex = -1;
+  iframe.style.cssText =
+    "position:fixed;width:0;height:0;border:0;clip:rect(0,0,0,0);overflow:hidden";
+  document.body.appendChild(iframe);
+
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/api/citations/bibtex";
+  form.target = ZOTERO_IMPORT_FRAME_ID;
+  form.acceptCharset = "UTF-8";
+  form.style.display = "none";
+
+  const bibtexField = document.createElement("textarea");
+  bibtexField.name = "bibtex";
+  bibtexField.value = bibtex;
+  form.appendChild(bibtexField);
+
+  const filenameField = document.createElement("input");
+  filenameField.type = "hidden";
+  filenameField.name = "filename";
+  filenameField.value = filename;
+  form.appendChild(filenameField);
+
+  document.body.appendChild(form);
+  form.submit();
+  form.remove();
+
+  window.setTimeout(() => {
+    iframe.remove();
+  }, 60_000);
+}
+
+function zoteroBibFilename(doi: string | null): string {
+  const normalized = doi?.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "") ?? "";
+  if (!normalized) return "atlas-dataset.bib";
+  const slug = normalized.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "");
+  return `atlas_${slug || "dataset"}.bib`;
+}
+
 function ReferenceManagerLinks({
   datasetDoi,
   zenodoRecordUrl,
+  bibtex,
+  onZoteroImport,
 }: {
   datasetDoi: string | null;
   zenodoRecordUrl: string | null;
+  bibtex: string;
+  onZoteroImport?: () => void;
 }): ReactNode {
   const zoteroHref = buildZoteroSaveUrl({
     doi: datasetDoi,
     zenodoRecordUrl,
   });
+  const canImportZotero = Boolean(zoteroHref) && bibtex.trim().startsWith("@");
   const mendeleyHref = buildMendeleyImportUrl(datasetDoi);
   return (
     <section className="min-w-0">
       <h3 className={sectionLabelClassName}>Add to library</h3>
       <p className={sectionHintClassName}>
-        {zoteroHref
-          ? "Zotero opens Zenodo BibTeX; the Connector imports it as a Dataset. Mendeley uses DOI lookup."
+        {canImportZotero
+          ? "Zotero imports BibTeX in the background (Dataset). Mendeley uses DOI lookup."
           : "Available after a dataset DOI is minted"}
       </p>
-      {zoteroHref || mendeleyHref ? (
+      {canImportZotero || mendeleyHref ? (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {zoteroHref ? (
-            <a
-              href={zoteroHref}
-              target="_blank"
-              rel="noopener noreferrer"
+          {canImportZotero ? (
+            <button
+              type="button"
               className={referenceManagerLinkClassName}
               onPointerDown={stopCardToggle}
-              onClick={stopCardToggle}
+              onClick={(event) => {
+                event.stopPropagation();
+                importZoteroBibTeXInBackground(
+                  bibtex,
+                  zoteroBibFilename(datasetDoi),
+                );
+                onZoteroImport?.();
+              }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- static brand PNG from /public */}
               <img
@@ -431,7 +504,7 @@ function ReferenceManagerLinks({
                 aria-hidden
               />
               Zotero
-            </a>
+            </button>
           ) : null}
           {mendeleyHref ? (
             <a
@@ -913,6 +986,13 @@ export function NexafsDatasetDoiCiteControl({
             <ReferenceManagerLinks
               datasetDoi={localDoi}
               zenodoRecordUrl={localRecordUrl}
+              bibtex={citationBundle.bibtex}
+              onZoteroImport={() => {
+                showToast(
+                  "Confirm the Zotero import if prompted (Dataset)",
+                  "info",
+                );
+              }}
             />
             <Accordion
               className={citeAccordionClass}
