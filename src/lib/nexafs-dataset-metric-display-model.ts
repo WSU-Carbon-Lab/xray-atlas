@@ -349,3 +349,71 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
     bars,
   };
 }
+
+function spectrumHasUploadedErrorBars(points: readonly { rawabsError?: number; odError?: number; massabsorptionError?: number; betaError?: number }[]): boolean {
+  for (const point of points) {
+    if (
+      (typeof point.rawabsError === "number" &&
+        Number.isFinite(point.rawabsError) &&
+        point.rawabsError > 0) ||
+      (typeof point.odError === "number" &&
+        Number.isFinite(point.odError) &&
+        point.odError > 0) ||
+      (typeof point.massabsorptionError === "number" &&
+        Number.isFinite(point.massabsorptionError) &&
+        point.massabsorptionError > 0) ||
+      (typeof point.betaError === "number" &&
+        Number.isFinite(point.betaError) &&
+        point.betaError > 0)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+type UploadQualityScoresLike = {
+  normalizationRangesPresent: boolean;
+  perChannel: Record<
+    NexafsDatasetMetricChannelKey,
+    {
+      pointSpacing: number | null;
+      snr: number | null;
+      normalizationTargetDistance: number | null;
+    }
+  >;
+};
+
+/**
+ * Builds the browse-card metrics model from live upload diagnostics so contribute previews match persisted browse scoring.
+ *
+ * @param qualityScores Client-computed quality subscores from {@link computeUploadDatasetDiagnostics}.
+ * @param derivedPoints Upload spectrum rows after normalization and bare-atom derivation used for SNR detection.
+ */
+export function buildUploadDatasetMetricsCardModel(
+  qualityScores: UploadQualityScoresLike,
+  derivedPoints: readonly {
+    rawabsError?: number;
+    odError?: number;
+    massabsorptionError?: number;
+    betaError?: number;
+  }[],
+): NexafsBrowseDatasetMetricsCardModel {
+  const headerPayload: NexafsBrowseExperimentMetricHeaderPayload = {
+    normalization_ranges_present: qualityScores.normalizationRangesPresent,
+    has_error_bars: spectrumHasUploadedErrorBars(derivedPoints),
+  };
+  const channelsPayload = NEXAFS_DATASET_METRIC_CHANNEL_ORDER.map((channel) => {
+    const qc = qualityScores.perChannel[channel];
+    return {
+      channel,
+      point_spacing_ev: qc.pointSpacing,
+      snr: qc.snr,
+      normalization_target_distance: qc.normalizationTargetDistance,
+    };
+  });
+  return buildNexafsBrowseDatasetMetricsCardModel(
+    headerPayload,
+    channelsPayload,
+  );
+}

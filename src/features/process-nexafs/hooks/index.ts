@@ -7,6 +7,7 @@ export {
   type DatasetStatus,
   type DatasetStatusInfo,
 } from "./use-dataset-status";
+export { useUploadDatasetDiagnostics } from "./useUploadDatasetDiagnostics";
 export {
   useNexafsSpectrumBrowseModel,
   mapPeaksetsToPlotPeaks,

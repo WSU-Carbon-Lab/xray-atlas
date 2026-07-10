@@ -45,6 +45,7 @@ import {
 } from "~/components/plots/toolbars";
 import { NexafsPlotDataRail } from "~/components/nexafs/nexafs-plot-data-rail";
 import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
+import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
 import { copySpectrumCsv } from "~/components/nexafs/nexafs-spectrum-csv-shared";
 import {
@@ -124,6 +125,8 @@ import {
   type NexafsRealChannelId,
 } from "~/features/process-nexafs/nexafs-plot-channels";
 import { NEXAFS_PLOT_DATA_RAIL_DEFINITION } from "~/features/process-nexafs/nexafs-plot-data-rail-config";
+import { buildUploadDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
+import { useUploadDatasetDiagnostics } from "~/features/process-nexafs/hooks/useUploadDatasetDiagnostics";
 import { useTheme } from "next-themes";
 import type {
   BareAtomPoint,
@@ -2488,6 +2491,18 @@ export function DatasetContent({
     !dataset.columnMappings.phi &&
     dataset.spectrumPoints.length > 0;
 
+  const uploadDiagnostics = useUploadDatasetDiagnostics(dataset);
+  const uploadMetricsPreview = useMemo(
+    () =>
+      uploadDiagnostics
+        ? buildUploadDatasetMetricsCardModel(
+            uploadDiagnostics.qualityScores,
+            uploadDiagnostics.derivedPoints,
+          )
+        : null,
+    [uploadDiagnostics],
+  );
+
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
       <div className="py-0.5">
@@ -2882,57 +2897,85 @@ export function DatasetContent({
       </div>
 
       <div className="border-border bg-surface rounded-lg border p-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-foreground font-medium">
-              Normalization validation mode
-            </span>
-            <select
-              value={dataset.normalizationScope}
-              onChange={(event) =>
-                onDatasetUpdate(dataset.id, {
-                  normalizationScope: event.target.value as
-                    | "none"
-                    | "unified"
-                    | "per_channel",
-                })
-              }
-              className="border-border bg-field-background text-field-foreground rounded-md border px-3 py-2"
-            >
-              <option value="unified">Unified ranges</option>
-              <option value="none">No ranges</option>
-              <option value="per_channel">Per-channel ranges</option>
-            </select>
-          </label>
-          <div className="flex flex-col gap-2">
-            <Checkbox
-              isSelected={dataset.validationOverride.bypass}
-              onChange={(checked) =>
-                onDatasetUpdate(dataset.id, {
-                  validationOverride: {
-                    ...dataset.validationOverride,
-                    bypass: checked,
-                  },
-                })
-              }
-            >
-              Bypass validation warnings
-            </Checkbox>
-            <Input
-              value={dataset.validationOverride.reason}
-              onChange={(event) =>
-                onDatasetUpdate(dataset.id, {
-                  validationOverride: {
-                    ...dataset.validationOverride,
-                    reason: event.target.value,
-                  },
-                })
-              }
-              placeholder="Optional bypass reason"
-              aria-label="Validation bypass reason"
-              disabled={!dataset.validationOverride.bypass}
-            />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="grid min-w-0 flex-1 gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm">
+                <span className="text-foreground font-medium">
+                  Normalization validation mode
+                </span>
+                <select
+                  value={dataset.normalizationScope}
+                  onChange={(event) =>
+                    onDatasetUpdate(dataset.id, {
+                      normalizationScope: event.target.value as
+                        | "none"
+                        | "unified"
+                        | "per_channel",
+                    })
+                  }
+                  className="border-border bg-field-background text-field-foreground rounded-md border px-3 py-2"
+                >
+                  <option value="unified">Unified ranges</option>
+                  <option value="none">No ranges</option>
+                  <option value="per_channel">Per-channel ranges</option>
+                </select>
+              </label>
+              <div className="flex flex-col gap-2">
+                <Checkbox
+                  isSelected={dataset.validationOverride.bypass}
+                  onChange={(checked) =>
+                    onDatasetUpdate(dataset.id, {
+                      validationOverride: {
+                        ...dataset.validationOverride,
+                        bypass: checked,
+                      },
+                    })
+                  }
+                >
+                  Bypass validation warnings
+                </Checkbox>
+                <Input
+                  value={dataset.validationOverride.reason}
+                  onChange={(event) =>
+                    onDatasetUpdate(dataset.id, {
+                      validationOverride: {
+                        ...dataset.validationOverride,
+                        reason: event.target.value,
+                      },
+                    })
+                  }
+                  placeholder="Optional bypass reason"
+                  aria-label="Validation bypass reason"
+                  disabled={!dataset.validationOverride.bypass}
+                />
+              </div>
+            </div>
+            {uploadMetricsPreview && !uploadMetricsPreview.missing ? (
+              <NexafsDatasetMetricsRail metrics={uploadMetricsPreview} />
+            ) : null}
           </div>
+          {uploadDiagnostics &&
+          uploadDiagnostics.validationSummary.warnings.length > 0 ? (
+            <div
+              role="status"
+              className="border-border bg-default rounded-md border px-3 py-2 text-sm"
+            >
+              <p className="text-foreground mb-1 font-medium">
+                Normalization validation
+                {uploadDiagnostics.validationSummary.passed
+                  ? " passed"
+                  : " warnings"}
+              </p>
+              <ul className="text-muted list-disc space-y-1 pl-5">
+                {uploadDiagnostics.validationSummary.warnings.map(
+                  (warning) => (
+                    <li key={warning}>{warning}</li>
+                  ),
+                )}
+              </ul>
+            </div>
+          ) : null}
         </div>
       </div>
       <KkBrowserConsentDialog

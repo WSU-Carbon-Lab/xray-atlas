@@ -67,6 +67,11 @@ export {
   uploadDatasetHasFiniteBetaForKkOnEveryRow,
 } from "./uploadDerivedSpectrum";
 export { resolveHenkeMergeDomainForUploadDataset } from "./resolveHenkeMergeDomainForUploadDataset";
+export {
+  computeUploadDatasetDiagnostics,
+  uploadNormalizationRangesForDataset,
+  type UploadDatasetDiagnostics,
+} from "./upload-dataset-diagnostics";
 export { detectAuxiliarySpectrumColumnNames } from "./auxiliarySpectrumColumns";
 export {
   filterSpectrumPointsByGeometry,
