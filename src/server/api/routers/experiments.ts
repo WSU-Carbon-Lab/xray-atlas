@@ -48,6 +48,7 @@ import {
   fetchNexafsBrowseGrouped,
   type NexafsBrowseSortKey,
 } from "~/server/nexafs/nexafsBrowseGroups";
+import { persistExperimentMetricsTables } from "~/server/nexafs/persistExperimentMetricsTables";
 import { findExperimentFavorite } from "~/server/db/engagement-queries";
 import {
   buildKkDeltaMetadata,
@@ -1880,6 +1881,10 @@ export const experimentsRouter = createTRPCRouter({
         { timeout: 60000 },
       );
 
+      for (const entry of transactionResult.experiments) {
+        await persistExperimentMetricsTables(ctx.db, entry.experiment.id);
+      }
+
       return transactionResult;
     }),
 
@@ -2284,7 +2289,7 @@ export const experimentsRouter = createTRPCRouter({
         },
       });
 
-      return ctx.db.experiments.update({
+      const updated = await ctx.db.experiments.update({
         where: { id: input.experimentId },
         data: {
           normalizationscope: input.normalization.scope,
@@ -2298,6 +2303,10 @@ export const experimentsRouter = createTRPCRouter({
           qualityscores: qualityScores as unknown as Prisma.InputJsonValue,
         },
       });
+
+      await persistExperimentMetricsTables(ctx.db, input.experimentId);
+
+      return updated;
     }),
 
   update: protectedProcedure
