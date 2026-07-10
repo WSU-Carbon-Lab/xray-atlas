@@ -5,6 +5,7 @@ import {
 } from "bun:test";
 import {
   DEFAULT_UPLOAD_PHI_DEGREES,
+  isStrictFiniteNumberString,
   resolveUploadFixedPhi,
   uploadGeometryIsComplete,
 } from "./default-upload-phi";
@@ -76,5 +77,30 @@ describe("uploadGeometryIsComplete", () => {
         fixedPhi: "",
       }),
     ).toBe(false);
+  });
+
+  it("rejects fixed theta with unit suffixes", () => {
+    expect(
+      uploadGeometryIsComplete({
+        hasThetaColumn: false,
+        hasPhiColumn: false,
+        fixedTheta: "55deg",
+        fixedPhi: "",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("isStrictFiniteNumberString", () => {
+  it("accepts plain decimal numerals", () => {
+    expect(isStrictFiniteNumberString("55")).toBe(true);
+    expect(isStrictFiniteNumberString("-12.5")).toBe(true);
+    expect(isStrictFiniteNumberString("  90  ")).toBe(true);
+  });
+
+  it("rejects suffixes and non-numeric text", () => {
+    expect(isStrictFiniteNumberString("55deg")).toBe(false);
+    expect(isStrictFiniteNumberString("abc")).toBe(false);
+    expect(isStrictFiniteNumberString("55 deg")).toBe(false);
   });
 });
