@@ -100,6 +100,7 @@ export const samplesRouter = createTRPCRouter({
         identifier: z.string().optional(),
         processMethod: z.nativeEnum(ProcessMethod).optional(),
         substrate: z.string().optional(),
+        patterningLayer: z.string().optional(),
         solvent: z.string().optional(),
         thickness: z.number().optional(),
         molecularWeight: z.number().optional(),
@@ -172,6 +173,7 @@ export const samplesRouter = createTRPCRouter({
           identifier: sampleIdentifier,
           processmethod: input.processMethod ?? null,
           substrate: normalizeSampleSubstrate(input.substrate),
+          patterninglayer: input.patterningLayer?.trim() ?? null,
           solvent: input.solvent?.trim() ?? null,
           thickness: input.thickness ?? null,
           molecularweight: input.molecularWeight ?? null,
@@ -198,6 +200,7 @@ export const samplesRouter = createTRPCRouter({
         id: z.string().uuid(),
         processMethod: z.nativeEnum(ProcessMethod).nullable().optional(),
         substrate: z.string().nullable().optional(),
+        patterningLayer: z.string().nullable().optional(),
         solvent: z.string().nullable().optional(),
         thickness: z.number().nullable().optional(),
         molecularWeight: z.number().nullable().optional(),
@@ -259,6 +262,9 @@ export const samplesRouter = createTRPCRouter({
             : {}),
           ...(input.substrate !== undefined
             ? { substrate: normalizeSampleSubstrate(input.substrate) }
+            : {}),
+          ...(input.patterningLayer !== undefined
+            ? { patterninglayer: input.patterningLayer?.trim() ?? null }
             : {}),
           ...(input.solvent !== undefined
             ? { solvent: input.solvent?.trim() ?? null }

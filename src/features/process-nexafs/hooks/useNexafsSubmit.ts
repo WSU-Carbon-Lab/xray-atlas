@@ -251,6 +251,10 @@ export function useNexafsSubmit(
                 dataset.sampleInfo.substrate.trim() === ""
                   ? undefined
                   : dataset.sampleInfo.substrate.trim(),
+              patterningLayer:
+                dataset.sampleInfo.patterningLayer.trim() === ""
+                  ? undefined
+                  : dataset.sampleInfo.patterningLayer.trim(),
               solvent:
                 dataset.sampleInfo.solvent.trim() === ""
                   ? undefined

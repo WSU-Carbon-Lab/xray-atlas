@@ -25,6 +25,7 @@ import {
   stxmSampleInfoForNexafsForm,
   type StxmSampleInfo,
 } from "~/features/dashboard/lib/stxm-export-metadata";
+import { applyProcessMethodToSampleFields } from "~/lib/sample-process-method-link";
 import { trpc } from "~/trpc/client";
 
 export type StxmMoleculeFieldProps = {
@@ -197,11 +198,15 @@ export function StxmIngestionSampleSection({
       <NexafsSampleInformationSection
         processMethod={nexafsSample.processMethod}
         setProcessMethod={(value) =>
-          onSampleInfoChange({ ...sampleInfo, processMethod: value })
+          onSampleInfoChange(applyProcessMethodToSampleFields(sampleInfo, value))
         }
         substrate={nexafsSample.substrate}
         setSubstrate={(value) =>
           onSampleInfoChange({ ...sampleInfo, substrate: value })
+        }
+        patterningLayer={nexafsSample.patterningLayer}
+        setPatterningLayer={(value) =>
+          onSampleInfoChange({ ...sampleInfo, patterningLayer: value })
         }
         solvent={nexafsSample.solvent}
         setSolvent={(value) =>

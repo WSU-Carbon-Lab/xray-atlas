@@ -126,6 +126,7 @@ model samples {
   processmethod          ProcessMethod?
   solvent                String?
   substrate              String?
+  patterninglayer        String?
   thickness              Float?
   preparationfingerprint String?        @map("preparation_fingerprint")
   experiments            experiments[]
