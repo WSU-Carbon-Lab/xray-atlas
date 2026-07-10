@@ -10,7 +10,6 @@ import { useMemo, useCallback, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { ParentSize } from "@visx/responsive";
 import type {
-  PlotContext,
   SpectrumPlotProps,
   SpectrumSelection,
   TraceData,
@@ -327,7 +326,7 @@ function VisxSpectrumPlotInner({
   energyStats: _energyStats,
   absorptionStats: _absorptionStats,
   cursorMode: externalCursorMode,
-  onCursorModeChange,
+  onCursorModeChange: _onCursorModeChange,
 }: {
   subplotLayout: ReturnType<typeof useVisxSubplotLayout>;
   extents: ReturnType<typeof useDataExtents>;
@@ -374,9 +373,7 @@ function VisxSpectrumPlotInner({
   } = useSpectrumTooltip();
 
   // Cursor mode state management - default to inspect mode
-  const [internalCursorMode, setInternalCursorMode] =
-    useState<CursorMode>("inspect");
-  const cursorMode = externalCursorMode ?? internalCursorMode;
+  const cursorMode = externalCursorMode ?? "inspect";
 
   // Default to inspect mode when not explicitly set to pan or zoom
   const effectiveCursorMode = useMemo(() => {
@@ -386,17 +383,6 @@ function VisxSpectrumPlotInner({
       ? cursorMode
       : "inspect";
   }, [cursorMode, selectionTarget, isManualPeakMode]);
-  const handleCursorModeChange = useCallback(
-    (mode: CursorMode) => {
-      if (onCursorModeChange) {
-        onCursorModeChange(mode);
-      } else {
-        setInternalCursorMode(mode);
-      }
-    },
-    [onCursorModeChange],
-  );
-
   // Domain-based zoom state (instead of transform-based)
   const [zoomMode, _setZoomMode] = useState<ZoomMode>("default");
 
@@ -427,7 +413,6 @@ function VisxSpectrumPlotInner({
   const dataXBounds = useMemo((): [number, number] => {
     if (extents.energyExtent) {
       const { min, max } = extents.energyExtent;
-      const span = Math.max(max - min, 1);
       return [min, max];
     }
     return originalXDomain;
@@ -735,7 +720,6 @@ function VisxSpectrumPlotInner({
 
   const hoveredPointsWithColor = useMemo(() => {
     if (!tooltipData || effectiveCursorMode !== "inspect") return [];
-    const energy = tooltipData.energy;
     const points: Array<{ value: number; color: string }> = [];
     allTraces.forEach((trace) => {
       const label = typeof trace.name === "string" ? trace.name : "Trace";

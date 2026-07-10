@@ -1555,6 +1555,7 @@ export function SpectrumPlotInner({
       residualPlotMetrics.plotWidth,
       residualSplitActive,
       residualSubplotLayout.residualPlot.dimensions.height,
+      residualSubplotLayout.residualPlot.dimensions.margins.left,
       yAxisZoomPanEnabled,
       zoomedXDomain,
       zoomedXScale,

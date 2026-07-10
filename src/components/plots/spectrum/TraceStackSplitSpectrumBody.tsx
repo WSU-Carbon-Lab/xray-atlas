@@ -2,7 +2,12 @@
 
 import { useMemo } from "react";
 import type { ScaleLinear } from "d3-scale";
-import type { GraphStyle, SpectrumPoint, TraceData } from "../types";
+import type {
+  GraphStyle,
+  SpectrumPoint,
+  SpectrumYAxisQuantity,
+  TraceData,
+} from "../types";
 import type { ChartThemeColors } from "../config";
 import {
   SPECTRUM_TRACE_GRADIENT_DARK,
@@ -18,7 +23,7 @@ import { spectrumYAxisPresentation } from "../utils/yAxisScientific";
 export type TraceStackSplitPanel = {
   readonly label: string;
   readonly points: readonly SpectrumPoint[];
-  readonly yAxisQuantity: import("../types").SpectrumYAxisQuantity;
+  readonly yAxisQuantity: SpectrumYAxisQuantity;
 };
 
 export type TraceStackSplitSpectrumBodyProps = {
@@ -80,7 +85,7 @@ export function TraceStackSplitSpectrumBody({
           ),
         ),
       ),
-    [isDark, panels, palette],
+    [panels, palette],
   );
 
   return (
