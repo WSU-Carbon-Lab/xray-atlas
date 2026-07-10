@@ -1547,7 +1547,19 @@ export function DatasetContent({
   );
 
   const edgeZeroOnePoints = useMemo(() => {
-    return zeroOneComputation?.normalizedPoints ?? dataset.spectrumPoints;
+    if ((zeroOneComputation?.normalizedPoints?.length ?? 0) > 0) {
+      return zeroOneComputation!.normalizedPoints;
+    }
+    const uploadedOd = dataset.spectrumPoints.filter(
+      (point) => typeof point.od === "number" && Number.isFinite(point.od),
+    );
+    if (uploadedOd.length > 0) {
+      return uploadedOd.map((point) => ({
+        ...point,
+        absorption: point.od!,
+      }));
+    }
+    return [];
   }, [zeroOneComputation, dataset.spectrumPoints]);
 
   const absorptionPlotPoints =
@@ -2075,9 +2087,12 @@ export function DatasetContent({
       isPlotChannelAvailable(id, uploadChannelAvailability),
     );
     if (next != null && next !== uploadPlotChannel) {
+      if (differenceSpectra.length > 0) {
+        setDifferenceSpectra([]);
+      }
       setUploadPlotChannel(next);
     }
-  }, [uploadPlotChannel, uploadChannelAvailability]);
+  }, [uploadPlotChannel, uploadChannelAvailability, differenceSpectra.length]);
 
   const isDifferenceEnabled = differenceSpectra.length > 0;
 
@@ -2215,7 +2230,6 @@ export function DatasetContent({
         }
         return;
       }
-      setDifferenceSpectra([]);
       setUploadPlotChannel(channel);
       if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
         setLinkImaginaryReal(false);
@@ -2469,6 +2483,11 @@ export function DatasetContent({
     [dataset.id, onDatasetUpdate],
   );
 
+  const showDefaultPhiHint =
+    Boolean(dataset.columnMappings.theta) &&
+    !dataset.columnMappings.phi &&
+    dataset.spectrumPoints.length > 0;
+
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
       <div className="py-0.5">
@@ -2483,6 +2502,15 @@ export function DatasetContent({
       </div>
 
       <div className="flex w-full flex-col">
+        {showDefaultPhiHint ? (
+          <p
+            role="note"
+            className="border-border bg-default text-muted mb-3 rounded-lg border px-3 py-2 text-sm"
+          >
+            No phi column detected; azimuth defaulted to 0 degrees for all
+            polarizations.
+          </p>
+        ) : null}
         <VisualizationToggle
           modes={["graph", "table", "aux"]}
           mode={visualizationMode}
@@ -2915,7 +2943,6 @@ export function DatasetContent({
           grantKkBrowserConsent();
           setKkConsentContinuation(null);
           if (continuation?.kind === "preview-rail-delta") {
-            onDatasetUpdate(dataset.id, { computeKkDeltaOnSubmit: true });
             void runKkDeltaPreviewForUploadDraft();
           }
         }}

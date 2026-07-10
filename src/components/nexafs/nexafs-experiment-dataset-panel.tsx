@@ -723,6 +723,7 @@ export function NexafsExperimentDatasetPanel({
     (angleMode: "theta" | "phi") => {
       if (differenceRootPoints.length === 0) {
         showToast("No points in this view for difference spectra", "info");
+        setDifferenceSpectra([]);
         return false;
       }
       const calculated = calculateDifferenceSpectra(
@@ -734,6 +735,7 @@ export function NexafsExperimentDatasetPanel({
           "Difference spectra need at least two distinct geometries",
           "info",
         );
+        setDifferenceSpectra([]);
         return false;
       }
       setDifferenceSpectra(calculated);
@@ -1474,9 +1476,12 @@ export function NexafsExperimentDatasetPanel({
   );
 
   const setPlotChannel = model.setPlotChannel;
+  const plotChannelRef = useRef(model.plotChannel);
+  const plotChannelChangedByHandlerRef = useRef(false);
+
   const handlePlotChannelChange = useCallback(
     (channel: NexafsPlotChannelId) => {
-      setDifferenceSpectra([]);
+      plotChannelChangedByHandlerRef.current = true;
       setPlotChannel(channel);
       if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
         setLinkImaginaryReal(false);
@@ -1484,6 +1489,20 @@ export function NexafsExperimentDatasetPanel({
     },
     [setPlotChannel],
   );
+
+  useEffect(() => {
+    if (plotChannelRef.current === model.plotChannel) {
+      return;
+    }
+    plotChannelRef.current = model.plotChannel;
+    if (plotChannelChangedByHandlerRef.current) {
+      plotChannelChangedByHandlerRef.current = false;
+      return;
+    }
+    if (differenceSpectra.length > 0) {
+      setDifferenceSpectra([]);
+    }
+  }, [model.plotChannel, differenceSpectra.length]);
 
   const plotLeftRail = useMemo(() => {
     const bareAtomOverlayChannelSupported = bareAtomOverlaySupportedForChannel(
