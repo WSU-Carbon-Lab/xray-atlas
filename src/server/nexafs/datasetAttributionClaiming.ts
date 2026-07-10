@@ -12,6 +12,7 @@ import {
 } from "~/lib/dataset-attribution-claim";
 import type { ExperimentAttributionInput } from "~/server/nexafs/experimentAttributions";
 import { getUserSessionCapabilities } from "~/server/auth/privileged-role";
+import { scheduleZenodoDepositSync } from "~/server/zenodo";
 
 export type ContributorUserContext = {
   id: string;
@@ -27,7 +28,9 @@ export async function loadContributorUserContextByOrcid(
   db: PrismaClient | Prisma.TransactionClient,
   orcids: readonly string[],
 ): Promise<Map<string, ContributorUserContext>> {
-  const unique = [...new Set(orcids.map((orcid) => orcid.trim()).filter(Boolean))];
+  const unique = [
+    ...new Set(orcids.map((orcid) => orcid.trim()).filter(Boolean)),
+  ];
   if (unique.length === 0) {
     return new Map();
   }
@@ -114,6 +117,9 @@ export function buildContributorRowsWithClaimStatus(
 
 /**
  * Applies accept, decline, or unclaim to one contributor row owned by the session ORCID.
+ *
+ * On success, schedules a Zenodo metadata sync so published deposits pick up the
+ * claimed display name (or revert to ORCID labeling on unclaim/decline).
  */
 export async function updateContributorClaimForSessionUser(
   db: PrismaClient,
@@ -122,10 +128,10 @@ export async function updateContributorClaimForSessionUser(
     sessionOrcid: string;
     nextStatus: ExperimentContributorClaimStatus;
   },
-): Promise<{ updated: boolean }> {
+): Promise<{ updated: boolean; experimentId: string }> {
   const row = await db.experimentcontributors.findUnique({
     where: { id: params.contributorId },
-    select: { id: true, orcidid: true, userid: true },
+    select: { id: true, orcidid: true, userid: true, experimentid: true },
   });
   if (row?.orcidid !== params.sessionOrcid) {
     throw new TRPCError({
@@ -146,7 +152,8 @@ export async function updateContributorClaimForSessionUser(
       claimedat: flags.claimedat,
     },
   });
-  return { updated: true };
+  scheduleZenodoDepositSync(db, row.experimentid, { mode: "metadata" });
+  return { updated: true, experimentId: row.experimentid };
 }
 
 export type PendingAttributionListItem = {

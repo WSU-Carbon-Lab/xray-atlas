@@ -68,6 +68,11 @@ export interface BuildDatasetCitationInput {
   experimentTypeLabel?: string | null;
   /** Zenodo/Atlas dataset DOI; may be null when minting is pending. */
   datasetDoi: string | null;
+  /**
+   * Short Atlas citation URL (`https://xrayatlas.wsu.edu/d/{id}`).
+   * When set, BibTeX `url` and data-availability prefer this over the DOI URL.
+   */
+  atlasCitationUrl?: string | null;
   /** Ordered creators; empty falls back to {@link DATASET_CITATION_PUBLISHER} contributors. */
   creators?: ReadonlyArray<DatasetCitationCreator | string>;
   /** Four-digit publication / deposit year; defaults to current UTC year. */
@@ -112,7 +117,7 @@ export interface BuildDatabaseCitationInput {
 
 /**
  * Builds a formal dataset title shared by citations and Zenodo deposits:
- * `NEXAFS dataset: {molecule}, {edge}[, {type}], {instrument}[, {facility}]`.
+ * `X-ray Atlas NEXAFS Dataset: {molecule}, {edge}[, {type}], {instrument}[, {facility}]`.
  *
  * Omits informal `@` facility markers. Empty molecule/edge/instrument fall back to
  * stable placeholders so titles remain non-empty.
@@ -137,7 +142,7 @@ export function buildNexafsDatasetCitationTitle(
   if (typeLabel) parts.push(typeLabel);
   parts.push(instrument);
   if (facility) parts.push(facility);
-  return `NEXAFS dataset: ${parts.join(", ")}`;
+  return `${DATASET_CITATION_PUBLISHER} NEXAFS Dataset: ${parts.join(", ")}`;
 }
 
 /**
@@ -194,7 +199,9 @@ export function resolveZenodoRecordIdForCitation(input: {
   if (zenodoUrl) {
     const fromRecords = /\/records\/(\d+)/i.exec(zenodoUrl)?.[1];
     if (fromRecords) return fromRecords;
-    const fromDoiPath = /\/doi\/(?:10\.5281\/)?zenodo\.(\d+)/i.exec(zenodoUrl)?.[1];
+    const fromDoiPath = /\/doi\/(?:10\.5281\/)?zenodo\.(\d+)/i.exec(
+      zenodoUrl,
+    )?.[1];
     if (fromDoiPath) return fromDoiPath;
   }
   const doi = normalizeDoi(input.doi);
@@ -268,11 +275,18 @@ export function normalizeCitationCreatorNames(
   return names;
 }
 
+function isOrcidCreatorLabel(displayName: string): boolean {
+  return /^ORCID\s+\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/i.test(displayName.trim());
+}
+
 function splitDisplayName(displayName: string): {
   family: string;
   given: string;
 } {
   const trimmed = displayName.trim().replace(/\s+/g, " ");
+  if (isOrcidCreatorLabel(trimmed)) {
+    return { family: trimmed, given: "" };
+  }
   if (trimmed.includes(",")) {
     const [familyPart, ...rest] = trimmed.split(",");
     return {
@@ -470,19 +484,108 @@ export function formatDatasetCitationSampleSummary(
 }
 
 /**
- * Builds the BibTeX `note` body for an Atlas NEXAFS dataset, including sample
- * preparation when provided.
+ * Builds the BibTeX experiment-context note (edge, instrument, facility, type).
  *
- * @param sample - Optional core sample fields.
+ * @param input - Experiment identity fields.
  * @returns Note text (not BibTeX-escaped).
  */
-export function buildDatasetBibTeXNote(
-  sample?: DatasetCitationSampleInfo | null,
+export function buildDatasetBibTeXExperimentNote(
+  input: Pick<
+    BuildDatasetCitationInput,
+    "edgeLabel" | "instrumentName" | "facilityName" | "experimentTypeLabel"
+  >,
 ): string {
-  const base = `${DATASET_CITATION_PUBLISHER} NEXAFS dataset; DOI minted via Zenodo`;
-  const sampleSummary = formatDatasetCitationSampleSummary(sample);
-  if (!sampleSummary) return base;
-  return `${base}; ${sampleSummary}`;
+  const parts: string[] = [`${DATASET_CITATION_PUBLISHER} NEXAFS experiment`];
+  const edge = input.edgeLabel.trim();
+  if (edge) parts.push(`edge ${edge}`);
+  const instrument = input.instrumentName.trim();
+  if (instrument) parts.push(`instrument ${instrument}`);
+  const facility = input.facilityName?.trim() ?? "";
+  if (facility) parts.push(`facility ${facility}`);
+  const experimentType = input.experimentTypeLabel?.trim() ?? "";
+  if (experimentType) parts.push(`experiment type ${experimentType}`);
+  return parts.join("; ");
+}
+
+/**
+ * Builds the BibTeX sample-preparation note when sample fields are present.
+ *
+ * @param sample - Optional core sample fields.
+ * @returns Sample note text, or `null` when nothing usable.
+ */
+export function buildDatasetBibTeXSampleNote(
+  sample?: DatasetCitationSampleInfo | null,
+): string | null {
+  return formatDatasetCitationSampleSummary(sample);
+}
+
+/**
+ * Builds the BibTeX identifier / DOI-linking note (Atlas URL and Zenodo DOI).
+ *
+ * @param input - Atlas citation URL and optional dataset DOI.
+ * @returns Note text (not BibTeX-escaped).
+ */
+export function buildDatasetBibTeXIdentifierNote(
+  input: Pick<BuildDatasetCitationInput, "datasetDoi" | "atlasCitationUrl">,
+): string {
+  const parts: string[] = [];
+  const atlasUrl = input.atlasCitationUrl?.trim() ?? "";
+  if (atlasUrl) parts.push(`Atlas ${atlasUrl}`);
+  const doi = normalizeDoi(input.datasetDoi);
+  if (doi) parts.push(`DOI ${doi} (minted via Zenodo)`);
+  else parts.push("DOI pending mint via Zenodo");
+  return parts.join("; ");
+}
+
+/**
+ * Builds a single combined note for Zenodo deposit extras and legacy callers.
+ *
+ * Joins experiment, sample preparation, and identifier notes with `; `.
+ *
+ * @param input - Dataset identity, optional sample, and identifier fields.
+ * @returns Combined note text (not BibTeX-escaped).
+ */
+export function buildDatasetBibTeXNote(
+  input: Pick<
+    BuildDatasetCitationInput,
+    | "edgeLabel"
+    | "instrumentName"
+    | "facilityName"
+    | "experimentTypeLabel"
+    | "sample"
+    | "datasetDoi"
+    | "atlasCitationUrl"
+  >,
+): string {
+  const parts = [
+    buildDatasetBibTeXExperimentNote(input),
+    buildDatasetBibTeXSampleNote(input.sample),
+    buildDatasetBibTeXIdentifierNote(input),
+  ].filter((part): part is string => Boolean(part?.trim()));
+  return parts.join("; ");
+}
+
+/**
+ * Resolves a citation creator display name from an Atlas contributor row.
+ *
+ * Prefers a public profile name; otherwise labels the creator as `ORCID {id}`
+ * so unclaimed rows still appear in BibTeX and Zotero author lists.
+ *
+ * Prefer {@link resolveCitationCreatorLabelFromPreferences} when claim status
+ * and attribution display preferences are available.
+ *
+ * @param input - Optional display name and ORCID iD.
+ * @returns Non-empty creator label, or `null` when neither is usable.
+ */
+export function resolveCitationCreatorDisplayName(input: {
+  name?: string | null;
+  orcid?: string | null;
+}): string | null {
+  const name = input.name?.trim().replace(/\s+/g, " ") ?? "";
+  if (name.length > 0) return name;
+  const orcid = input.orcid?.trim() ?? "";
+  if (orcid.length > 0) return `ORCID ${orcid}`;
+  return null;
 }
 
 /**
@@ -522,11 +625,26 @@ export function buildDatasetDataAvailabilityStatement(
   const title = buildNexafsDatasetCitationTitle(input);
   const host = (input.hostName ?? site.name).trim() || site.name;
   const doiUrl = formatDoiCitationUrl(input.datasetDoi);
+  const atlasUrl = input.atlasCitationUrl?.trim() ?? null;
+  if (doiUrl && atlasUrl) {
+    return (
+      `NEXAFS datasets are openly available on ${host}. ` +
+      `Persistent DOIs for Atlas datasets are minted via Zenodo. ` +
+      `${title} is available at ${atlasUrl} (${doiUrl}, CC BY 4.0).`
+    );
+  }
   if (doiUrl) {
     return (
       `NEXAFS datasets are openly available on ${host}. ` +
       `Persistent DOIs for Atlas datasets are minted via Zenodo. ` +
       `${title} is available at ${doiUrl} (CC BY 4.0).`
+    );
+  }
+  if (atlasUrl) {
+    return (
+      `NEXAFS datasets are openly available on ${host}. ` +
+      `${title} is available at ${atlasUrl}. ` +
+      `A persistent DOI is pending minting via Zenodo.`
     );
   }
   return (
@@ -554,6 +672,8 @@ export function buildDatasetBibTeX(input: BuildDatasetCitationInput): string {
       : `${DATASET_CITATION_PUBLISHER} contributors`;
   const doi = normalizeDoi(input.datasetDoi);
   const doiUrl = formatDoiCitationUrl(input.datasetDoi);
+  const atlasUrl = input.atlasCitationUrl?.trim() ?? null;
+  const urlField = atlasUrl ?? doiUrl;
   const key = bibtexCiteKey(title, year, doi);
   const lines = [
     `@dataset{${key},`,
@@ -566,11 +686,18 @@ export function buildDatasetBibTeX(input: BuildDatasetCitationInput): string {
   if (doi) {
     lines.push(`  doi       = {${escapeBibtex(doi)}},`);
   }
-  if (doiUrl) {
-    lines.push(`  url       = {${escapeBibtex(doiUrl)}},`);
+  if (urlField) {
+    lines.push(`  url       = {${escapeBibtex(urlField)}},`);
   }
   lines.push(
-    `  note      = {${escapeBibtex(buildDatasetBibTeXNote(input.sample))}},`,
+    `  note      = {${escapeBibtex(buildDatasetBibTeXExperimentNote(input))}},`,
+  );
+  const sampleNote = buildDatasetBibTeXSampleNote(input.sample);
+  if (sampleNote) {
+    lines.push(`  annote    = {${escapeBibtex(sampleNote)}},`);
+  }
+  lines.push(
+    `  addendum  = {${escapeBibtex(buildDatasetBibTeXIdentifierNote(input))}},`,
   );
   lines.push(`}`);
   return lines.join("\n");
@@ -597,12 +724,14 @@ export function buildDatasetCitation(input: BuildDatasetCitationInput): string {
   const names = normalizeCitationCreatorNames(input.creators);
   const authors = formatApaReferenceAuthors(names);
   const doiUrl = formatDoiCitationUrl(input.datasetDoi);
+  const atlasUrl = input.atlasCitationUrl?.trim() ?? null;
   const adaptedFrom = formatSourcePublicationClause(input.sourcePublications);
 
   const head = `${authors} (${year}). ${title} [Dataset]. ${publisher}.`;
+  const atlasPart = atlasUrl ? ` ${atlasUrl}.` : "";
   const doiPart = doiUrl ? ` ${doiUrl} (DOI minted via Zenodo).` : "";
   const adapted = adaptedFrom ? ` Adapted from ${adaptedFrom}.` : "";
-  return `${head}${doiPart}${adapted}`.replace(/\s+/g, " ").trim();
+  return `${head}${atlasPart}${doiPart}${adapted}`.replace(/\s+/g, " ").trim();
 }
 
 /**

@@ -263,6 +263,55 @@ export function resolveAttributionPublicDisplay(
 }
 
 /**
+ * Resolves a citation / deposit creator label from claim status and the
+ * attributed user's display preferences.
+ *
+ * When the effective preference for the claim state is `name_only` or
+ * `name_and_avatar` and a profile name exists, returns that name. When the
+ * preference is `orcid_only`, or the person has no Atlas profile name, returns
+ * `ORCID {id}` so Zenodo can stay ORCID-labeled for users who opt out of names.
+ *
+ * @param input - ORCID, claim status, optional Atlas name, and preference context.
+ * @returns Non-empty creator label suitable for BibTeX authors or Zenodo creators.
+ */
+export function resolveCitationCreatorLabelFromPreferences(input: {
+  orcid: string;
+  claimStatus: ExperimentContributorClaimStatus | null | undefined;
+  userName?: string | null;
+  displayPreferences?: AttributionDisplayPreferences | null;
+  roleSlugs?: readonly string[];
+}): string {
+  const orcid = input.orcid.trim();
+  const claimParsed = z
+    .enum(EXPERIMENT_CONTRIBUTOR_CLAIM_STATUSES)
+    .safeParse(input.claimStatus);
+  const claimStatus: ExperimentContributorClaimStatus = claimParsed.success
+    ? claimParsed.data
+    : "pending";
+  const displayPreferences =
+    input.displayPreferences ?? DEFAULT_ATTRIBUTION_DISPLAY_PREFERENCES;
+  const resolved = resolveAttributionPublicDisplay({
+    orcid,
+    claimStatus,
+    storedDisplayName: input.userName ?? null,
+    storedImageUrl: null,
+    targetPreferences: {
+      autoAcceptMode: "off",
+      displayPreferences,
+    },
+    targetRoleSlugs: input.roleSlugs ?? [],
+  });
+  const name = resolved.displayName?.trim() ?? "";
+  if (name.length > 0) {
+    return name;
+  }
+  if (orcid.length > 0) {
+    return `ORCID ${orcid}`;
+  }
+  return "Unknown contributor";
+}
+
+/**
  * Maps claim workflow mutations to persisted contributor flags kept for legacy browse SQL.
  */
 export function contributorFlagsForClaimStatus(

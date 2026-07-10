@@ -46,7 +46,10 @@ export async function POST(request: Request): Promise<Response> {
       filenameRaw = typeof nameValue === "string" ? nameValue : null;
     }
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   const trimmed = bibtex.trim();

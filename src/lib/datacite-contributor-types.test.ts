@@ -6,6 +6,7 @@ import {
 import {
   CONTRIBUTOR_ROLE_PICKER_TIER_ORDER,
   DATACITE_CONTRIBUTOR_TYPES,
+  contributorCitationSortKey,
   groupContributorRoleOptionsByTier,
   listDataCiteContributorRoleOptions,
 } from "./datacite-contributor-types";
@@ -69,5 +70,16 @@ describe("groupContributorRoleOptionsByTier", () => {
     ]);
     expect(sections[0]?.tier).toBe("primary");
     expect(sections[0]?.options.length).toBeGreaterThan(0);
+  });
+});
+
+describe("contributorCitationSortKey", () => {
+  it("ranks lead experimentalist, curator, then PI last", () => {
+    expect(contributorCitationSortKey(["ProjectLeader"])).toBe(0);
+    expect(contributorCitationSortKey(["DataCurator"])).toBe(1);
+    expect(contributorCitationSortKey(["Supervisor"])).toBe(1_000_000);
+    expect(contributorCitationSortKey(["ProjectLeader", "Supervisor"])).toBe(
+      1_000_000,
+    );
   });
 });
