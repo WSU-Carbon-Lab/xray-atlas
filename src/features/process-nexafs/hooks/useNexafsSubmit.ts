@@ -6,10 +6,7 @@ import type { ToastType } from "@/components/ui/toast";
 import { uploadQueuedAuxFiles } from "~/hooks/useAuxFileUpload";
 import { sampleAuxFieldsHasData } from "~/components/forms/SampleAuxAccordion";
 import type { DatasetState } from "../types";
-import {
-  collectorOrcidsFromAttributions,
-  filterValidOrcidAttributions,
-} from "~/lib/nexafs-attribution";
+import { filterValidOrcidAttributions } from "~/lib/nexafs-attribution";
 import {
   buildSpectrumPointsWithDerivedForUpload,
   extractGeometryPairs,
@@ -321,14 +318,6 @@ export function useNexafsSubmit(
                     role: row.role,
                   }))
                 : undefined,
-            collectedByUserIds: (() => {
-              const fromAttributions =
-                collectorOrcidsFromAttributions(attributionRows);
-              if (fromAttributions.length > 0) {
-                return fromAttributions;
-              }
-              return undefined;
-            })(),
             sourcePaperDois: dataset.sourcePaperPublications.map(
               (publication) => publication.doi,
             ),

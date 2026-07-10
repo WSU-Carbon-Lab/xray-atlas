@@ -1457,7 +1457,7 @@ export const experimentsRouter = createTRPCRouter({
                   select: { id: true },
                 })
               : null;
-          const normalizedCollectedBy =
+          let normalizedCollectedBy =
             requestedCollectedBy.length > 0
               ? requestedCollectedBy
               : ctx.userId != null
@@ -1468,11 +1468,20 @@ export const experimentsRouter = createTRPCRouter({
               where: { id: { in: normalizedCollectedBy } },
               select: { id: true },
             });
+            const existingUserIds = new Set(existingUsers.map((user) => user.id));
+            const hasAttributionPayload =
+              attributionsInput != null && attributionsInput.length > 0;
             if (existingUsers.length !== normalizedCollectedBy.length) {
-              throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: "One or more collected-by users do not exist",
-              });
+              if (hasAttributionPayload) {
+                normalizedCollectedBy = normalizedCollectedBy.filter((userId) =>
+                  existingUserIds.has(userId),
+                );
+              } else {
+                throw new TRPCError({
+                  code: "BAD_REQUEST",
+                  message: "One or more collected-by users do not exist",
+                });
+              }
             }
           }
           const normalizedCollectorOrcidIds = [
