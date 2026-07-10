@@ -124,8 +124,8 @@ export default function NEXAFSContributePage() {
         updateDataset(datasetId, {
           persistedExperimentId: ids.experimentId,
           persistedSampleId: ids.sampleId,
-          pendingExperimentAuxFiles: [],
-          pendingSampleAuxFiles: [],
+          pendingExperimentAuxFiles: ids.remainingExperimentAuxFiles,
+          pendingSampleAuxFiles: ids.remainingSampleAuxFiles,
         });
       },
       onSuccess: () => {
