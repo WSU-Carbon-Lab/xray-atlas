@@ -190,6 +190,7 @@ export type NexafsExperimentCompactCardProps = {
   citationSample?: {
     processMethod: string | null;
     substrate: string | null;
+    patterningLayer: string | null;
     solvent: string | null;
     thicknessNm: number | null;
     molecularWeightGPerMol: number | null;

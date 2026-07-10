@@ -2093,6 +2093,10 @@ export const experimentsRouter = createTRPCRouter({
         },
       });
 
+      scheduleZenodoDepositSync(ctx.db, input.experimentId, {
+        mode: "metadata",
+      });
+
       return {
         experimentId: updated.id,
         edgeId: updated.edgeid,

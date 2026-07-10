@@ -200,13 +200,14 @@ describe("formatDatasetCitationSampleSummary", () => {
       formatDatasetCitationSampleSummary({
         processMethod: "Solvent",
         substrate: "Si",
+        patterningLayer: "photoresist",
         solvent: "chloroform",
         thicknessNm: 50,
         molecularWeightGPerMol: 10000.5,
         vendorName: "Sigma-Aldrich",
       }),
     ).toBe(
-      "Sample: process Solvent; substrate Si; solvent chloroform; thickness 50 nm; molecular weight 10000.5 g/mol; vendor Sigma-Aldrich",
+      "Sample: process Solvent; substrate Si; patterning layer photoresist; solvent chloroform; thickness 50 nm; molecular weight 10000.5 g/mol; vendor Sigma-Aldrich",
     );
   });
 
@@ -251,12 +252,13 @@ describe("buildDatasetBibTeX", () => {
       sample: {
         processMethod: "Solvent",
         substrate: "Si wafer",
+        patterningLayer: "photoresist",
         thicknessNm: 40,
         vendorName: "Sigma-Aldrich",
       },
     });
     expect(text).toContain(
-      "note      = {X-ray Atlas NEXAFS dataset; DOI minted via Zenodo; Sample: process Solvent; substrate Si wafer; thickness 40 nm; vendor Sigma-Aldrich}",
+      "note      = {X-ray Atlas NEXAFS dataset; DOI minted via Zenodo; Sample: process Solvent; substrate Si wafer; patterning layer photoresist; thickness 40 nm; vendor Sigma-Aldrich}",
     );
   });
 });

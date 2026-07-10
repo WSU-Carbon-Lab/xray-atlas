@@ -255,6 +255,7 @@ export type NexafsBrowseGroupRow = {
   zenodo_attempt_count: number | bigint | null;
   sample_process_method: string | null;
   sample_substrate: string | null;
+  sample_patterning_layer: string | null;
   sample_solvent: string | null;
   sample_thickness: number | null;
   sample_molecular_weight: number | null;
@@ -300,6 +301,7 @@ export type NexafsBrowseGroupDto = {
   sample: {
     processMethod: string | null;
     substrate: string | null;
+    patterningLayer: string | null;
     solvent: string | null;
     thicknessNm: number | null;
     molecularWeightGPerMol: number | null;
@@ -432,6 +434,9 @@ export function mapNexafsBrowseGroupRow(
     sample: {
       processMethod: formatBrowseSampleProcessMethod(row.sample_process_method),
       substrate: row.sample_substrate?.trim() ? row.sample_substrate.trim() : null,
+      patterningLayer: row.sample_patterning_layer?.trim()
+        ? row.sample_patterning_layer.trim()
+        : null,
       solvent: row.sample_solvent?.trim() ? row.sample_solvent.trim() : null,
       thicknessNm: finiteOrNull(row.sample_thickness),
       molecularWeightGPerMol: finiteOrNull(row.sample_molecular_weight),
@@ -526,6 +531,7 @@ export async function fetchNexafsBrowseGrouped(
         (COALESCE(e.validation_summary->>'atlasTeamVerified', 'false') = 'true') AS ingest_verified,
         s.processmethod::text AS sample_process_method,
         s.substrate AS sample_substrate,
+        s.patterninglayer AS sample_patterning_layer,
         s.solvent AS sample_solvent,
         s.thickness AS sample_thickness,
         s.molecularweight AS sample_molecular_weight,
@@ -574,6 +580,7 @@ export async function fetchNexafsBrowseGrouped(
         b.ingest_verified,
         b.sample_process_method,
         b.sample_substrate,
+        b.sample_patterning_layer,
         b.sample_solvent,
         b.sample_thickness,
         b.sample_molecular_weight,

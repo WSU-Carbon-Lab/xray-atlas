@@ -51,6 +51,8 @@ export interface DatasetCitationCreator {
 export interface DatasetCitationSampleInfo {
   processMethod?: string | null;
   substrate?: string | null;
+  /** Optional patterning / mask layer on the specimen (under substrate in forms). */
+  patterningLayer?: string | null;
   solvent?: string | null;
   thicknessNm?: number | null;
   molecularWeightGPerMol?: number | null;
@@ -360,7 +362,10 @@ function formatCitationNumeric(value: number): string {
  * Formats core sample preparation fields into a compact clause for BibTeX notes.
  *
  * Omits empty fields. Example:
- * `Sample: process Dry; substrate Si; thickness 50 nm; vendor Sigma-Aldrich`
+ * `Sample: process Dry; substrate Si; patterning layer photoresist; thickness 50 nm; vendor Sigma-Aldrich`
+ *
+ * Field order matches specimen UI: process, substrate, patterning layer, solvent,
+ * thickness, molecular weight, vendor.
  *
  * @param sample - Optional core sample fields with human-readable labels.
  * @returns Sample clause without a trailing period, or `null` when nothing usable.
@@ -374,6 +379,8 @@ export function formatDatasetCitationSampleSummary(
   if (processMethod) parts.push(`process ${processMethod}`);
   const substrate = sample.substrate?.trim() ?? "";
   if (substrate) parts.push(`substrate ${substrate}`);
+  const patterningLayer = sample.patterningLayer?.trim() ?? "";
+  if (patterningLayer) parts.push(`patterning layer ${patterningLayer}`);
   const solvent = sample.solvent?.trim() ?? "";
   if (solvent) parts.push(`solvent ${solvent}`);
   if (sample.thicknessNm != null && Number.isFinite(sample.thicknessNm)) {
