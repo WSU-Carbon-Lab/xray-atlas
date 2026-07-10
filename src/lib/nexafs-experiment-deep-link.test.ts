@@ -6,6 +6,7 @@ import {
 import {
   moleculeNexafsExperimentHref,
   parseNexafsExperimentSearchParam,
+  pathnameWithoutNexafsExperimentDeepLink,
 } from "~/lib/nexafs-experiment-deep-link";
 
 type ExpectAssertions = {
@@ -36,5 +37,44 @@ describe("moleculeNexafsExperimentHref", () => {
     expect(moleculeNexafsExperimentHref("polystyrene", EXPERIMENT_ID)).toBe(
       `/molecules/polystyrene?nexafsExperiment=${EXPERIMENT_ID}`,
     );
+  });
+});
+
+describe("pathnameWithoutNexafsExperimentDeepLink", () => {
+  it("strips a matching nexafsExperiment param", () => {
+    expect(
+      pathnameWithoutNexafsExperimentDeepLink(
+        "/molecules/polystyrene",
+        `?nexafsExperiment=${EXPERIMENT_ID}`,
+        EXPERIMENT_ID,
+      ),
+    ).toBe("/molecules/polystyrene");
+  });
+
+  it("preserves unrelated query keys", () => {
+    expect(
+      pathnameWithoutNexafsExperimentDeepLink(
+        "/molecules/polystyrene",
+        `?nexafsExperiment=${EXPERIMENT_ID}&sort=favorites`,
+        EXPERIMENT_ID,
+      ),
+    ).toBe("/molecules/polystyrene?sort=favorites");
+  });
+
+  it("returns null when the param is absent or for another experiment", () => {
+    expect(
+      pathnameWithoutNexafsExperimentDeepLink(
+        "/molecules/polystyrene",
+        "",
+        EXPERIMENT_ID,
+      ),
+    ).toBeNull();
+    expect(
+      pathnameWithoutNexafsExperimentDeepLink(
+        "/molecules/polystyrene",
+        "?nexafsExperiment=11111111-1111-1111-1111-111111111111",
+        EXPERIMENT_ID,
+      ),
+    ).toBeNull();
   });
 });
