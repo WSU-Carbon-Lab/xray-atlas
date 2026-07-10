@@ -19,6 +19,7 @@ const processMethodSchema = z.enum(["DRY", "SOLVENT"]);
 export const stxmSampleInfoSchema = z.object({
   processMethod: processMethodSchema.nullable().optional(),
   substrate: z.string().default(""),
+  patterningLayer: z.string().default(""),
   solvent: z.string().default(""),
   thicknessNm: z.number().nullable().optional(),
   molecularWeight: z.number().nullable().optional(),
@@ -54,6 +55,7 @@ export type StxmExportStepMetadata = z.infer<typeof stxmExportStepMetadataSchema
 export const defaultStxmSampleInfo = (): StxmSampleInfo => ({
   processMethod: null,
   substrate: "",
+  patterningLayer: "",
   solvent: "",
   thicknessNm: null,
   molecularWeight: null,
@@ -154,6 +156,7 @@ export function attributionsFromStxmExportMetadata(
 export function stxmSampleInfoForNexafsForm(info: StxmSampleInfo): {
   processMethod: ProcessMethod | null;
   substrate: string;
+  patterningLayer: string;
   solvent: string;
   thickness: number | null;
   molecularWeight: number | null;
@@ -164,6 +167,7 @@ export function stxmSampleInfoForNexafsForm(info: StxmSampleInfo): {
   return {
     processMethod: info.processMethod ?? null,
     substrate: info.substrate,
+    patterningLayer: info.patterningLayer,
     solvent: info.solvent,
     thickness: info.thicknessNm ?? null,
     molecularWeight: info.molecularWeight ?? null,

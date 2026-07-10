@@ -205,6 +205,7 @@ export type BareAtomPoint = {
 export type SampleInfo = {
   processMethod: ProcessMethod | null;
   substrate: string;
+  patterningLayer: string;
   solvent: string;
   thickness: number | null;
   molecularWeight: number | null;
@@ -345,6 +346,7 @@ export function createEmptyDatasetState(file: File): DatasetState {
     sampleInfo: {
       processMethod: null,
       substrate: "",
+      patterningLayer: "",
       solvent: "",
       thickness: null,
       molecularWeight: null,

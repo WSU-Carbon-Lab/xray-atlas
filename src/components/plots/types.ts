@@ -266,7 +266,9 @@ export type SpectrumPlotProps = {
   /** Residual trace for {@link residualSubplotSplitView} (for example target minus fit). */
   residualSubplot?: DifferenceSpectrum;
   /**
-   * @deprecated Pass split/coalesce controls via `headerAnalysis` on the right analysis rail.
+   * Split/coalesce control for linked imaginary/real optical channels. Rendered inside the plot
+   * canvas: centered in the subplot gap when {@link opticalLinkSplitView} is true, otherwise at
+   * the bottom center of the plot inner area.
    */
   opticalLinkSplitToggle?: ReactNode;
   /**

@@ -23,6 +23,7 @@ export interface NexafsPlotDataRailProps {
   availability: NexafsPlotChannelAvailability;
   linkImaginaryReal: boolean;
   onLinkImaginaryRealChange: (linked: boolean) => void;
+  channelUnavailableDescription?: (id: NexafsPlotChannelId) => string | undefined;
 }
 
 /**
@@ -35,6 +36,7 @@ export function NexafsPlotDataRail({
   availability,
   linkImaginaryReal,
   onLinkImaginaryRealChange,
+  channelUnavailableDescription,
 }: NexafsPlotDataRailProps) {
   const links = useMemo(
     () => [
@@ -79,6 +81,7 @@ export function NexafsPlotDataRail({
       onLinkStateChange={(_id, linked) => onLinkImaginaryRealChange(linked)}
       hintPlacement="top"
       ariaLabel="NEXAFS data views"
+      channelUnavailableDescription={channelUnavailableDescription}
     />
   );
 }

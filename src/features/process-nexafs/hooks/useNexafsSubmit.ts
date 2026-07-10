@@ -5,16 +5,18 @@ import { trpc } from "~/trpc/client";
 import type { ToastType } from "@/components/ui/toast";
 import { uploadQueuedAuxFiles } from "~/hooks/useAuxFileUpload";
 import { sampleAuxFieldsHasData } from "~/components/forms/SampleAuxAccordion";
-import type { DatasetState } from "../types";
-import {
-  collectorOrcidsFromAttributions,
-  filterValidOrcidAttributions,
-} from "~/lib/nexafs-attribution";
+import type { DatasetState, PendingAuxFile } from "../types";
+import { filterValidOrcidAttributions } from "~/lib/nexafs-attribution";
 import {
   buildSpectrumPointsWithDerivedForUpload,
   extractGeometryPairs,
   resolveHenkeMergeDomainForUploadDataset,
 } from "../utils";
+import {
+  parseStrictFiniteNumber,
+  resolveUploadFixedPhi,
+  uploadGeometryIsComplete,
+} from "../utils/default-upload-phi";
 import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
@@ -25,6 +27,8 @@ export type SubmitStatus = { type: "error"; message: string } | undefined;
 export type DatasetPersistedIds = {
   experimentId: string;
   sampleId: string;
+  remainingExperimentAuxFiles: PendingAuxFile[];
+  remainingSampleAuxFiles: PendingAuxFile[];
 };
 
 export function useNexafsSubmit(
@@ -111,17 +115,24 @@ export function useNexafsSubmit(
         }
         const hasThetaMapping = Boolean(dataset.columnMappings.theta);
         const hasPhiMapping = Boolean(dataset.columnMappings.phi);
-        if (hasThetaMapping !== hasPhiMapping) {
+        if (hasPhiMapping && !hasThetaMapping) {
           setSubmitStatus({
             type: "error",
-            message: `Dataset "${dataset.fileName}": Provide both theta and phi column mappings, or leave both unset.`,
+            message: `Dataset "${dataset.fileName}": Map a theta column when phi is mapped, or use fixed geometry.`,
           });
           return;
         }
-        if (!hasThetaMapping && (!dataset.fixedTheta || !dataset.fixedPhi)) {
+        if (
+          !uploadGeometryIsComplete({
+            hasThetaColumn: hasThetaMapping,
+            hasPhiColumn: hasPhiMapping,
+            fixedTheta: dataset.fixedTheta,
+            fixedPhi: dataset.fixedPhi,
+          })
+        ) {
           setSubmitStatus({
             type: "error",
-            message: `Dataset "${dataset.fileName}": Provide theta and phi values for fixed geometry.`,
+            message: `Dataset "${dataset.fileName}": Provide theta geometry (phi defaults to 0 when omitted).`,
           });
           return;
         }
@@ -156,8 +167,10 @@ export function useNexafsSubmit(
             dataset.attributions,
           );
 
+          const hasThetaMapping = Boolean(dataset.columnMappings.theta);
+          const hasPhiMapping = Boolean(dataset.columnMappings.phi);
           const geometryInput =
-            dataset.columnMappings.theta && dataset.columnMappings.phi
+            hasThetaMapping || hasPhiMapping
               ? {
                   mode: "csv" as const,
                   csvGeometries: extractGeometryPairs(dataset.spectrumPoints),
@@ -165,8 +178,10 @@ export function useNexafsSubmit(
               : {
                   mode: "fixed" as const,
                   fixed: {
-                    theta: parseFloat(dataset.fixedTheta),
-                    phi: parseFloat(dataset.fixedPhi),
+                    theta: parseStrictFiniteNumber(dataset.fixedTheta)!,
+                    phi: parseStrictFiniteNumber(
+                      resolveUploadFixedPhi(dataset.fixedPhi, hasPhiMapping)!,
+                    )!,
                   },
                 };
 
@@ -236,6 +251,10 @@ export function useNexafsSubmit(
                 dataset.sampleInfo.substrate.trim() === ""
                   ? undefined
                   : dataset.sampleInfo.substrate.trim(),
+              patterningLayer:
+                dataset.sampleInfo.patterningLayer.trim() === ""
+                  ? undefined
+                  : dataset.sampleInfo.patterningLayer.trim(),
               solvent:
                 dataset.sampleInfo.solvent.trim() === ""
                   ? undefined
@@ -302,14 +321,6 @@ export function useNexafsSubmit(
                     role: row.role,
                   }))
                 : undefined,
-            collectedByUserIds: (() => {
-              const fromAttributions =
-                collectorOrcidsFromAttributions(attributionRows);
-              if (fromAttributions.length > 0) {
-                return fromAttributions;
-              }
-              return undefined;
-            })(),
             sourcePaperDois: dataset.sourcePaperPublications.map(
               (publication) => publication.doi,
             ),
@@ -342,6 +353,8 @@ export function useNexafsSubmit(
           }
 
           const auxWarnings: string[] = [];
+          let remainingExperimentAuxFiles = dataset.pendingExperimentAuxFiles;
+          let remainingSampleAuxFiles = dataset.pendingSampleAuxFiles;
 
           if (dataset.pendingExperimentAuxFiles.length > 0) {
             const experimentUpload = await uploadQueuedAuxFiles(utils, {
@@ -350,9 +363,18 @@ export function useNexafsSubmit(
               files: dataset.pendingExperimentAuxFiles,
             });
             if (experimentUpload.failed.length > 0) {
-              auxWarnings.push(
-                `${experimentUpload.failed.length} experiment file(s) failed to upload. Retry from the dataset edit page.`,
+              const failedKeys = new Set(
+                experimentUpload.failed.map((entry) => entry.clientKey),
               );
+              remainingExperimentAuxFiles =
+                dataset.pendingExperimentAuxFiles.filter((entry) =>
+                  failedKeys.has(entry.clientKey),
+                );
+              auxWarnings.push(
+                `${experimentUpload.failed.length} experiment file(s) failed to upload and remain queued here for retry.`,
+              );
+            } else {
+              remainingExperimentAuxFiles = [];
             }
           }
 
@@ -363,9 +385,17 @@ export function useNexafsSubmit(
               files: dataset.pendingSampleAuxFiles,
             });
             if (sampleUpload.failed.length > 0) {
-              auxWarnings.push(
-                `${sampleUpload.failed.length} sample file(s) failed to upload. Retry from the dataset edit page.`,
+              const failedKeys = new Set(
+                sampleUpload.failed.map((entry) => entry.clientKey),
               );
+              remainingSampleAuxFiles = dataset.pendingSampleAuxFiles.filter(
+                (entry) => failedKeys.has(entry.clientKey),
+              );
+              auxWarnings.push(
+                `${sampleUpload.failed.length} sample file(s) failed to upload and remain queued here for retry.`,
+              );
+            } else {
+              remainingSampleAuxFiles = [];
             }
           }
 
@@ -385,6 +415,8 @@ export function useNexafsSubmit(
           options?.onDatasetPersisted?.(dataset.id, {
             experimentId,
             sampleId,
+            remainingExperimentAuxFiles,
+            remainingSampleAuxFiles,
           });
         }
 

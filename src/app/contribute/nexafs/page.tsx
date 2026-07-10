@@ -124,13 +124,14 @@ export default function NEXAFSContributePage() {
         updateDataset(datasetId, {
           persistedExperimentId: ids.experimentId,
           persistedSampleId: ids.sampleId,
-          pendingExperimentAuxFiles: [],
-          pendingSampleAuxFiles: [],
+          pendingExperimentAuxFiles: ids.remainingExperimentAuxFiles,
+          pendingSampleAuxFiles: ids.remainingSampleAuxFiles,
         });
       },
       onSuccess: () => {
+        setSubmitStatus(undefined);
         showToast(
-          "Dataset submitted. Add auxiliary files in the accordion below, then clear the form when finished.",
+          "All datasets submitted successfully. Use Clear Form when you are ready to start another upload.",
           "success",
         );
       },

@@ -96,6 +96,28 @@ export function effectiveSampleProcessingMode(input: {
 }
 
 /**
+ * Returns true when sample preparation should expose the solvent field (wet / solvent-based route).
+ */
+export function samplePreparationUsesSolvent(input: {
+  processMethod?: ProcessMethod | null;
+  processingMode?: SampleProcessingMode;
+}): boolean {
+  return effectiveSampleProcessingMode(input) === "wet";
+}
+
+/**
+ * Applies a process method to core sample fields and clears solvent when the route is not wet.
+ */
+export function applyProcessMethodToSampleFields<
+  T extends { processMethod?: ProcessMethod | null; solvent: string },
+>(fields: T, processMethod: ProcessMethod | null): T {
+  if (samplePreparationUsesSolvent({ processMethod })) {
+    return { ...fields, processMethod };
+  }
+  return { ...fields, processMethod, solvent: "" };
+}
+
+/**
  * Builds reader-facing copy explaining how process method and processing branch relate.
  */
 export function sampleProcessMethodLinkDescription(

@@ -5,6 +5,7 @@ import type { SampleVendorDraft } from "~/lib/sample-vendor-update";
 export type SampleCoreDraft = SampleVendorDraft & {
   processMethod: ProcessMethod | null;
   substrate: string;
+  patterningLayer: string;
   solvent: string;
   thickness: number | null;
   molecularWeight: number | null;
@@ -13,6 +14,7 @@ export type SampleCoreDraft = SampleVendorDraft & {
 type PersistedSampleCoreRow = {
   processmethod: ProcessMethod | null;
   substrate: string | null;
+  patterninglayer: string | null;
   solvent: string | null;
   thickness: number | null;
   molecularweight: number | null;
@@ -28,6 +30,7 @@ export function sampleCoreDraftFromPersistedRow(
   return {
     processMethod: sample.processmethod,
     substrate: sample.substrate ?? "",
+    patterningLayer: sample.patterninglayer ?? "",
     solvent: sample.solvent ?? "",
     thickness: sample.thickness,
     molecularWeight: sample.molecularweight,

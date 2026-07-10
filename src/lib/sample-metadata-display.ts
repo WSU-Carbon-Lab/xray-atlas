@@ -195,6 +195,7 @@ function formatAuxFieldValue(
 export function coreSampleMetadataRows(input: {
   processmethod?: ProcessMethod | null;
   substrate?: string | null;
+  patterninglayer?: string | null;
   solvent?: string | null;
   thickness?: number | null;
   molecularweight?: number | null;
@@ -204,6 +205,7 @@ export function coreSampleMetadataRows(input: {
   const rows: SampleMetadataDisplayRow[] = [];
   pushRow(rows, "Process method", formatProcessMethod(input.processmethod));
   pushRow(rows, "Substrate", input.substrate?.trim() ?? null);
+  pushRow(rows, "Patterning layer", input.patterninglayer?.trim() ?? null);
   pushRow(rows, "Solvent", input.solvent?.trim() ?? null);
   if (input.thickness != null && Number.isFinite(input.thickness)) {
     pushRow(rows, "Thickness (nm)", formatNumericValue(input.thickness));
@@ -232,6 +234,7 @@ export function coreSampleMetadataSections(
   const preparationLabels = new Set([
     "Process method",
     "Substrate",
+    "Patterning layer",
     "Solvent",
     "Thickness (nm)",
     "Molecular weight (g/mol)",

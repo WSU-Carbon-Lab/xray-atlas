@@ -7,6 +7,7 @@ import {
 import {
   SampleVendorField,
   type SampleVendorFieldOption,
+  type SampleVendorFieldsPatch,
 } from "./sample-vendor-field";
 
 export type SampleVendorSectionProps = {
@@ -17,6 +18,7 @@ export type SampleVendorSectionProps = {
   onSelectedVendorIdChange: (vendorId: string) => void;
   onNewVendorNameChange: (name: string) => void;
   onNewVendorUrlChange: (url: string) => void;
+  onVendorFieldsChange?: (patch: SampleVendorFieldsPatch) => void;
   isLoadingVendors?: boolean;
   allowCreate?: boolean;
 };
@@ -32,6 +34,7 @@ export function SampleVendorSection({
   onSelectedVendorIdChange,
   onNewVendorNameChange,
   onNewVendorUrlChange,
+  onVendorFieldsChange,
   isLoadingVendors = false,
   allowCreate = true,
 }: SampleVendorSectionProps) {
@@ -52,6 +55,7 @@ export function SampleVendorSection({
           onSelectedVendorIdChange={onSelectedVendorIdChange}
           onNewVendorNameChange={onNewVendorNameChange}
           onNewVendorUrlChange={onNewVendorUrlChange}
+          onVendorFieldsChange={onVendorFieldsChange}
           isLoadingVendors={isLoadingVendors}
         />
       </SampleMetadataInsetGroup>

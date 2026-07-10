@@ -36,7 +36,6 @@ import {
   type PlotDataRailLinkDefinition,
   type PlotDataRailDefinition,
   type PlotDataViewRailProps,
-  trayIdForChannel,
 } from "./plot-data-rail-types";
 
 /**
@@ -536,16 +535,6 @@ export function PlotDataViewRail<
   onTraySelectedChannelIdsChange,
 }: PlotDataViewRailProps<TChannelId, TTrayId>) {
   const [openTrayId, setOpenTrayId] = useState<TTrayId | null>(null);
-
-  useEffect(() => {
-    if (openTrayId == null) {
-      return;
-    }
-    const activeTray = trayIdForChannel(definition, activeChannelId);
-    if (activeTray !== openTrayId) {
-      setOpenTrayId(null);
-    }
-  }, [activeChannelId, definition, openTrayId]);
 
   const trayHighlights = useMemo(
     () =>

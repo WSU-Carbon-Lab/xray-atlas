@@ -15,7 +15,7 @@ import {
   LockOpenIcon,
   PencilIcon,
 } from "@heroicons/react/24/outline";
-import { ChevronsDownUp, ChevronsUpDown, RotateCcw, Save } from "lucide-react";
+import { RotateCcw, Save } from "lucide-react";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import {
   Button,
@@ -36,13 +36,13 @@ import type {
 import { groupPointsByGeometry, sortedGeometryGroupEntries } from "~/components/plots/utils/trace-utils";
 import { filterSpectrumPointsForGroupedPlot } from "~/components/plots/hooks/useSpectrumData";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
+import { OpticalLinkSplitToggle } from "~/components/plots/spectrum/OpticalLinkSplitToggle";
 import {
   PlotSpectrumToolsToolbarSection,
   PlotToolbarGroupSeparator,
   plotToolbarAttachedToolbarVerticalClass,
   plotToolbarAttachedToggleGroupHorizontalClass,
   plotToolbarAttachedToggleGroupVerticalClass,
-  plotToolbarCompactGlyphToggleClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
   plotToolbarGlyphToggleGroupItemVerticalClass,
   PlotToolbarRichHint,
@@ -423,17 +423,10 @@ export function NexafsExperimentDatasetPanel({
         );
         return;
       }
-      const result = await updateKkDeltaBatch.mutateAsync({
+      await updateKkDeltaBatch.mutateAsync({
         experimentId,
         updates,
       });
-      const recalcAt = result.kkDeltaMetadata?.calculatedAt;
-      showToast(
-        recalcAt
-          ? `Recalculated delta from beta (KK) at ${new Date(recalcAt).toLocaleString()}`
-          : "Recalculated delta from beta (KK)",
-        "success",
-      );
     } catch (e) {
       showToast(
         e instanceof Error ? e.message : "Could not update KK delta",
@@ -730,6 +723,7 @@ export function NexafsExperimentDatasetPanel({
     (angleMode: "theta" | "phi") => {
       if (differenceRootPoints.length === 0) {
         showToast("No points in this view for difference spectra", "info");
+        setDifferenceSpectra([]);
         return false;
       }
       const calculated = calculateDifferenceSpectra(
@@ -741,6 +735,7 @@ export function NexafsExperimentDatasetPanel({
           "Difference spectra need at least two distinct geometries",
           "info",
         );
+        setDifferenceSpectra([]);
         return false;
       }
       setDifferenceSpectra(calculated);
@@ -1481,8 +1476,12 @@ export function NexafsExperimentDatasetPanel({
   );
 
   const setPlotChannel = model.setPlotChannel;
+  const plotChannelRef = useRef(model.plotChannel);
+  const plotChannelChangedByHandlerRef = useRef(false);
+
   const handlePlotChannelChange = useCallback(
     (channel: NexafsPlotChannelId) => {
+      plotChannelChangedByHandlerRef.current = true;
       setPlotChannel(channel);
       if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
         setLinkImaginaryReal(false);
@@ -1490,6 +1489,20 @@ export function NexafsExperimentDatasetPanel({
     },
     [setPlotChannel],
   );
+
+  useEffect(() => {
+    if (plotChannelRef.current === model.plotChannel) {
+      return;
+    }
+    plotChannelRef.current = model.plotChannel;
+    if (plotChannelChangedByHandlerRef.current) {
+      plotChannelChangedByHandlerRef.current = false;
+      return;
+    }
+    if (differenceSpectra.length > 0) {
+      setDifferenceSpectra([]);
+    }
+  }, [model.plotChannel, differenceSpectra.length]);
 
   const plotLeftRail = useMemo(() => {
     const bareAtomOverlayChannelSupported = bareAtomOverlaySupportedForChannel(
@@ -1617,48 +1630,15 @@ export function NexafsExperimentDatasetPanel({
       handlePlotChannelChange,
     ]);
 
-  const plotRightRail = useMemo(() => {
-    if (opticalLink == null) {
-      return null;
-    }
-    return (
-      <PlotToolbarRichHint
-        title={
-          opticalLinkSplitView
-            ? "Unsplit linked plot"
-            : "Split imaginary and real"
-        }
-        description={
-          opticalLinkSplitView
-            ? "Show imaginary and real channels on one shared y-axis."
-            : "Stack imaginary (top) and real (bottom) with separate y-ranges on one energy axis."
-        }
-        placement="left"
-      >
-        <ToggleButton
-          isIconOnly
-          aria-label={
-            opticalLinkSplitView
-              ? "Unsplit linked optical plot"
-              : "Split linked optical plot"
-          }
-          isSelected={opticalLinkSplitView}
-          onChange={(next) => {
-            setOpticalLinkSplitView(next);
-          }}
-          className={plotToolbarCompactGlyphToggleClass}
-        >
-          {opticalLinkSplitView ? (
-            <ChevronsDownUp className="h-4 w-4" aria-hidden />
-          ) : (
-            <ChevronsUpDown className="h-4 w-4" aria-hidden />
-          )}
-        </ToggleButton>
-      </PlotToolbarRichHint>
-    );
-  }, [opticalLink, opticalLinkSplitView]);
+  const opticalLinkSplitToggle =
+    opticalLink != null ? (
+      <OpticalLinkSplitToggle
+        splitView={opticalLinkSplitView}
+        onSplitViewChange={setOpticalLinkSplitView}
+      />
+    ) : null;
 
-  const plotBottomRail = useMemo(() => {
+  const plotRightRail = useMemo(() => {
     if (
       !datasetPlotEditorActive ||
       !kkRecalcAllowed ||
@@ -1670,7 +1650,7 @@ export function NexafsExperimentDatasetPanel({
     return (
       <NexafsPlotKkVerticalToolbar
         visible
-        orientation="horizontal"
+        orientation="vertical"
         busy={kkRecalcBusy || updateKkDeltaBatch.isPending}
         onPressKk={onPressRecalculateKk}
       />
@@ -1797,11 +1777,11 @@ export function NexafsExperimentDatasetPanel({
               companionSpectra={companionSpectra}
               opticalLink={opticalLink}
               opticalLinkSplitView={opticalLinkSplitView}
+              opticalLinkSplitToggle={opticalLinkSplitToggle}
               showThetaData={showThetaData}
               showPhiData={showPhiData}
               headerRight={plotLeftRail}
               headerAnalysis={plotRightRail}
-              plotBottomTools={plotBottomRail}
               suppressAnalysisRailLeadingGrip
               plotTopRailDataActions={plotTopRailDataActions}
               plotTopRailTrailingActions={plotTopRailTrailingActions}

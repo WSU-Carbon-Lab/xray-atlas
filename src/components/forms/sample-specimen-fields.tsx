@@ -5,6 +5,10 @@ import {
   SampleMetadataInsetGroup,
   SampleMetadataSectionCaption,
 } from "~/components/nexafs/sample-metadata-chrome-shared";
+import {
+  samplePreparationUsesSolvent,
+} from "~/lib/sample-process-method-link";
+import type { SampleProcessingMode } from "~/lib/sample-aux-preparation";
 import { SampleFormInsetTextRow } from "./sample-form-inset-field";
 import {
   PROCESS_METHOD_ITEMS,
@@ -15,9 +19,12 @@ import { SampleFormSelect } from "./sample-form-select";
 export type SampleSpecimenFieldsProps = {
   showProcessMethodSelect: boolean;
   processMethod: ProcessMethod | null;
+  processingMode?: SampleProcessingMode;
   setProcessMethod: (value: ProcessMethod | null) => void;
   substrate: string;
   setSubstrate: (value: string) => void;
+  patterningLayer: string;
+  setPatterningLayer: (value: string) => void;
   solvent: string;
   setSolvent: (value: string) => void;
   thickness: number | null;
@@ -27,14 +34,17 @@ export type SampleSpecimenFieldsProps = {
 };
 
 /**
- * Renders substrate, solvent, thickness, and molecular weight in one inset preparation group.
+ * Renders substrate, patterning layer, solvent, thickness, and molecular weight in one inset preparation group.
  */
 export function SampleSpecimenFields({
   showProcessMethodSelect,
   processMethod,
+  processingMode,
   setProcessMethod,
   substrate,
   setSubstrate,
+  patterningLayer,
+  setPatterningLayer,
   solvent,
   setSolvent,
   thickness,
@@ -42,6 +52,11 @@ export function SampleSpecimenFields({
   molecularWeight,
   setMolecularWeight,
 }: SampleSpecimenFieldsProps) {
+  const showSolvent = samplePreparationUsesSolvent({
+    processMethod,
+    processingMode,
+  });
+
   return (
     <section aria-labelledby="sample-preparation-fields">
       <SampleMetadataSectionCaption title="Preparation" />
@@ -71,14 +86,25 @@ export function SampleSpecimenFields({
           placeholder="e.g., Si wafer, glass"
         />
         <SampleFormInsetTextRow
-          name="solvent"
-          label="Solvent"
-          tooltip="Solvent used during sample prep (if any)"
+          name="patterningLayer"
+          label="Patterning layer"
+          tooltip="Material or stack used to pattern the sample, if applicable"
           optional
-          value={solvent}
-          onChange={setSolvent}
-          placeholder="e.g., chloroform, toluene"
+          value={patterningLayer}
+          onChange={setPatterningLayer}
+          placeholder="e.g., photoresist, hard mask"
         />
+        {showSolvent ? (
+          <SampleFormInsetTextRow
+            name="solvent"
+            label="Solvent"
+            tooltip="Solvent used during sample prep (if any)"
+            optional
+            value={solvent}
+            onChange={setSolvent}
+            placeholder="e.g., chloroform, toluene"
+          />
+        ) : null}
         <SampleFormInsetTextRow
           name="thickness"
           label="Thickness (nm)"

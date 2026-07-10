@@ -1,0 +1,106 @@
+import {
+  describe as bunDescribe,
+  it as bunIt,
+  expect as bunExpect,
+} from "bun:test";
+import {
+  DEFAULT_UPLOAD_PHI_DEGREES,
+  isStrictFiniteNumberString,
+  resolveUploadFixedPhi,
+  uploadGeometryIsComplete,
+} from "./default-upload-phi";
+
+type ExpectAssertions = {
+  toBe: (expected: unknown) => void;
+};
+
+const describe = bunDescribe as (name: string, fn: () => void) => void;
+const it = bunIt as (name: string, fn: () => void) => void;
+const expect = bunExpect as (value: unknown) => ExpectAssertions;
+
+describe("resolveUploadFixedPhi", () => {
+  it("defaults missing phi to zero when no phi column is mapped", () => {
+    expect(resolveUploadFixedPhi(undefined, false)).toBe(
+      String(DEFAULT_UPLOAD_PHI_DEGREES),
+    );
+    expect(resolveUploadFixedPhi("", false)).toBe(
+      String(DEFAULT_UPLOAD_PHI_DEGREES),
+    );
+  });
+
+  it("preserves explicit fixed phi when no phi column is mapped", () => {
+    expect(resolveUploadFixedPhi("45", false)).toBe("45");
+  });
+
+  it("does not inject a default when a phi column is mapped", () => {
+    expect(resolveUploadFixedPhi(undefined, true)).toBe(undefined);
+  });
+});
+
+describe("uploadGeometryIsComplete", () => {
+  it("accepts theta column mapping without phi column", () => {
+    expect(
+      uploadGeometryIsComplete({
+        hasThetaColumn: true,
+        hasPhiColumn: false,
+        fixedTheta: undefined,
+        fixedPhi: undefined,
+      }),
+    ).toBe(true);
+  });
+
+  it("requires fixed theta when neither angle column is mapped", () => {
+    expect(
+      uploadGeometryIsComplete({
+        hasThetaColumn: false,
+        hasPhiColumn: false,
+        fixedTheta: "",
+        fixedPhi: "",
+      }),
+    ).toBe(false);
+    expect(
+      uploadGeometryIsComplete({
+        hasThetaColumn: false,
+        hasPhiColumn: false,
+        fixedTheta: "55",
+        fixedPhi: "",
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects non-numeric fixed theta when neither angle column is mapped", () => {
+    expect(
+      uploadGeometryIsComplete({
+        hasThetaColumn: false,
+        hasPhiColumn: false,
+        fixedTheta: "abc",
+        fixedPhi: "",
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects fixed theta with unit suffixes", () => {
+    expect(
+      uploadGeometryIsComplete({
+        hasThetaColumn: false,
+        hasPhiColumn: false,
+        fixedTheta: "55deg",
+        fixedPhi: "",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("isStrictFiniteNumberString", () => {
+  it("accepts plain decimal numerals", () => {
+    expect(isStrictFiniteNumberString("55")).toBe(true);
+    expect(isStrictFiniteNumberString("-12.5")).toBe(true);
+    expect(isStrictFiniteNumberString("  90  ")).toBe(true);
+  });
+
+  it("rejects suffixes and non-numeric text", () => {
+    expect(isStrictFiniteNumberString("55deg")).toBe(false);
+    expect(isStrictFiniteNumberString("abc")).toBe(false);
+    expect(isStrictFiniteNumberString("55 deg")).toBe(false);
+  });
+});

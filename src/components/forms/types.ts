@@ -151,6 +151,8 @@ export type NexafsSampleInformationSectionProps = {
   setProcessMethod: (value: ProcessMethod | null) => void;
   substrate: string;
   setSubstrate: (value: string) => void;
+  patterningLayer: string;
+  setPatterningLayer: (value: string) => void;
   solvent: string;
   setSolvent: (value: string) => void;
   thickness: number | null;
@@ -163,6 +165,11 @@ export type NexafsSampleInformationSectionProps = {
   setNewVendorName: (value: string) => void;
   newVendorUrl: string;
   setNewVendorUrl: (value: string) => void;
+  onVendorFieldsChange?: (patch: {
+    selectedVendorId?: string;
+    newVendorName?: string;
+    newVendorUrl?: string;
+  }) => void;
   vendors: NexafsSampleVendorOption[];
   isLoadingVendors: boolean;
   /**

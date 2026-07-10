@@ -25,6 +25,10 @@ import {
   matchInstrumentIdFromParsedNexafsFilename,
   buildNexafsUploadAutofill,
 } from "../utils";
+import {
+  resolveUploadFixedPhi,
+  DEFAULT_UPLOAD_PHI_DEGREES,
+} from "../utils/default-upload-phi";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -162,12 +166,15 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 : "";
             const phiValue = parseFloat(phiStr.trim());
             if (!isNaN(phiValue)) point.phi = phiValue;
-          } else if (
-            dataset.fixedPhi !== undefined &&
-            dataset.fixedPhi !== ""
-          ) {
-            const fixedPhiValue = parseFloat(dataset.fixedPhi);
-            if (!isNaN(fixedPhiValue)) point.phi = fixedPhiValue;
+          } else {
+            const effectiveFixedPhi = resolveUploadFixedPhi(
+              dataset.fixedPhi,
+              Boolean(phiColumn),
+            );
+            if (effectiveFixedPhi !== undefined && effectiveFixedPhi !== "") {
+              const fixedPhiValue = parseFloat(effectiveFixedPhi);
+              if (!isNaN(fixedPhiValue)) point.phi = fixedPhiValue;
+            }
           }
 
           const cm = dataset.columnMappings;
@@ -308,12 +315,18 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
               ...detectAuxiliarySpectrumColumnNames(columns),
             };
 
+            const geometryDefaults: Partial<DatasetState> = {};
+            if (!phiCol) {
+              geometryDefaults.fixedPhi = String(DEFAULT_UPLOAD_PHI_DEGREES);
+            }
+
             setDatasets((prev) =>
               prev.map((d) => {
                 if (d.id !== dataset.id) return d;
                 return {
                   ...d,
                   ...updates,
+                  ...geometryDefaults,
                   csvColumns: columns,
                   csvRawData: rawData,
                   columnMappings,
@@ -381,6 +394,11 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 ...detectAuxiliarySpectrumColumnNames(columns),
               };
 
+              const csvGeometryDefaults: Partial<DatasetState> = {};
+              if (!phiCol) {
+                csvGeometryDefaults.fixedPhi = String(DEFAULT_UPLOAD_PHI_DEGREES);
+              }
+
               const missingColumns: string[] = [];
               if (!columnMappings.energy) missingColumns.push("Energy");
               if (!columnMappings.absorption) missingColumns.push("Absorption");
@@ -402,6 +420,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                   return {
                     ...d,
                     ...updates,
+                    ...csvGeometryDefaults,
                     csvColumns: columns,
                     csvRawData: Array.isArray(parsed.data) ? parsed.data : [],
                     columnMappings,
@@ -497,7 +516,11 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       const updates: Partial<DatasetState> = { columnMappings: mappings };
       if (fixedValues?.theta !== undefined)
         updates.fixedTheta = fixedValues.theta;
-      if (fixedValues?.phi !== undefined) updates.fixedPhi = fixedValues.phi;
+      if (fixedValues?.phi !== undefined) {
+        updates.fixedPhi = fixedValues.phi;
+      } else if (!mappings.phi) {
+        updates.fixedPhi = String(DEFAULT_UPLOAD_PHI_DEGREES);
+      }
 
       const datasetId = columnMappingFile.datasetId;
       updateDataset(datasetId, updates);

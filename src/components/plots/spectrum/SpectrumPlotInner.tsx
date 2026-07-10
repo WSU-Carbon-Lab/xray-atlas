@@ -32,6 +32,7 @@ import {
   OpticalLinkSplitSpectrumBody,
   yAxisQuantityForOpticalRole,
 } from "./OpticalLinkSplitSpectrumBody";
+import { computeOpticalLinkSplitToggleAnchor } from "./optical-link-split-toggle-anchor";
 import { TraceStackSplitSpectrumBody } from "./TraceStackSplitSpectrumBody";
 import {
   absorptionExtentFromTraces,
@@ -143,6 +144,7 @@ export function SpectrumPlotInner({
   companionSpectra = [],
   opticalLink,
   opticalLinkSplitView = false,
+  opticalLinkSplitToggle,
   traceStackSplitView = false,
   traceStackPanels,
   residualSubplotSplitView = false,
@@ -1214,6 +1216,33 @@ export function SpectrumPlotInner({
   const plotCanvasWidth = width;
   const plotCanvasHeight = contentHeight;
 
+  const opticalLinkSplitToggleAnchor = useMemo(() => {
+    if (opticalLinkSplitToggle == null || !linkedOptical.active) {
+      return null;
+    }
+    const plotDimensions = opticalSplitActive
+      ? opticalSplitLayout.imaginaryPlot.dimensions
+      : mainPlot.dimensions;
+    const innerLeft = plotDimensions.margins.left;
+    const innerWidth =
+      plotDimensions.width -
+      plotDimensions.margins.left -
+      plotDimensions.margins.right;
+    return computeOpticalLinkSplitToggleAnchor({
+      opticalSplitActive,
+      plotInnerLeft: innerLeft,
+      plotInnerWidth: innerWidth,
+      singlePlotDimensions: mainPlot.dimensions,
+      opticalSplitLayout: opticalSplitActive ? opticalSplitLayout : null,
+    });
+  }, [
+    opticalLinkSplitToggle,
+    linkedOptical.active,
+    opticalSplitActive,
+    opticalSplitLayout,
+    mainPlot.dimensions,
+  ]);
+
   const railInsets = useMemo(() => {
     if (opticalSplitActive) {
       const imag = opticalSplitLayout.imaginaryPlot.dimensions.margins;
@@ -1526,6 +1555,7 @@ export function SpectrumPlotInner({
       residualPlotMetrics.plotWidth,
       residualSplitActive,
       residualSubplotLayout.residualPlot.dimensions.height,
+      residualSubplotLayout.residualPlot.dimensions.margins.left,
       yAxisZoomPanEnabled,
       zoomedXDomain,
       zoomedXScale,
@@ -1712,16 +1742,6 @@ export function SpectrumPlotInner({
                 themeColors={themeColors}
               />
             </g>
-            {normalizationRegions &&
-              (selectionTarget !== null || showNormalizationShading) ? (
-              <NormalizationRegionBands
-                normalizationRegions={normalizationRegions}
-                xScale={mainPlotScales.xScale}
-                offsetX={mainPlot.dimensions.margins.left}
-                offsetY={mainPlot.dimensions.margins.top}
-                height={mainPlotHeight}
-              />
-            ) : null}
             <g
               ref={panGroupRef}
               transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
@@ -1745,6 +1765,17 @@ export function SpectrumPlotInner({
               onClick={handlePlotAreaClick}
             >
               <g clipPath={`url(#${plotClipId})`}>
+                {normalizationRegions &&
+                (selectionTarget !== null || showNormalizationShading) ? (
+                  <NormalizationRegionBands
+                    normalizationRegions={normalizationRegions}
+                    xScale={mainPlotScales.xScale}
+                    offsetX={0}
+                    offsetY={0}
+                    height={mainPlotHeight}
+                    plotInnerWidth={mainPlotWidth}
+                  />
+                ) : null}
                 <rect
                   width={mainPlotWidth}
                   height={mainPlotHeight}
@@ -2133,6 +2164,18 @@ export function SpectrumPlotInner({
           className="pointer-events-none absolute inset-0 z-10"
           style={{ width: plotCanvasWidth, height: plotCanvasHeight }}
         >
+          {opticalLinkSplitToggle != null &&
+          opticalLinkSplitToggleAnchor != null ? (
+            <div
+              className="pointer-events-auto absolute z-20 -translate-x-1/2 -translate-y-1/2"
+              style={{
+                left: opticalLinkSplitToggleAnchor.left,
+                top: opticalLinkSplitToggleAnchor.top,
+              }}
+            >
+              {opticalLinkSplitToggle}
+            </div>
+          ) : null}
           <PlotToolRail
             plotWidth={plotCanvasWidth}
             plotHeight={plotCanvasHeight}
