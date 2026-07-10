@@ -1,6 +1,30 @@
 /** Default azimuth angle (degrees) when uploads omit a phi column or fixed value. */
 export const DEFAULT_UPLOAD_PHI_DEGREES = 0;
 
+const STRICT_FINITE_NUMBER_PATTERN = /^-?\d+(\.\d+)?$/;
+
+/**
+ * Returns true when `value` is a trimmed decimal numeral with no suffixes or extra characters.
+ */
+export function isStrictFiniteNumberString(value: string): boolean {
+  const trimmed = value.trim();
+  if (!STRICT_FINITE_NUMBER_PATTERN.test(trimmed)) {
+    return false;
+  }
+  return Number.isFinite(Number(trimmed));
+}
+
+/**
+ * Parses a strict decimal numeral string to a finite number, or returns null when invalid.
+ */
+export function parseStrictFiniteNumber(value: string): number | null {
+  if (!isStrictFiniteNumberString(value)) {
+    return null;
+  }
+  const parsed = Number(value.trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 /**
  * Resolves the effective fixed phi string for upload geometry, defaulting missing phi to zero.
  */
@@ -33,7 +57,11 @@ export function uploadGeometryIsComplete(args: {
     return true;
   }
   if (!args.hasThetaColumn && !args.hasPhiColumn) {
-    return Boolean(args.fixedTheta?.trim());
+    const trimmed = args.fixedTheta?.trim();
+    if (!trimmed) {
+      return false;
+    }
+    return isStrictFiniteNumberString(trimmed);
   }
   return false;
 }

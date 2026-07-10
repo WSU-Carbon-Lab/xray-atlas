@@ -34,6 +34,7 @@ import {
 } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
+import { OpticalLinkSplitToggle } from "~/components/plots/spectrum/OpticalLinkSplitToggle";
 import {
   PlotSpectrumToolsToolbarSection,
   plotToolbarAttachedShellClass,
@@ -44,6 +45,7 @@ import {
 } from "~/components/plots/toolbars";
 import { NexafsPlotDataRail } from "~/components/nexafs/nexafs-plot-data-rail";
 import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
+import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
 import { copySpectrumCsv } from "~/components/nexafs/nexafs-spectrum-csv-shared";
 import {
@@ -83,7 +85,10 @@ import {
   SampleInformationEditStack,
 } from "~/components/forms";
 import type { AuxFileKind } from "~/lib/aux-file-client";
-import { linkedSampleAuxForProcessMethod } from "~/lib/sample-process-method-link";
+import {
+  applyProcessMethodToSampleFields,
+  linkedSampleAuxForProcessMethod,
+} from "~/lib/sample-process-method-link";
 import { setNexafsAuxUploadDefaults } from "~/lib/nexafs-aux-upload-defaults";
 import {
   DatasetAttributionEditor,
@@ -106,15 +111,22 @@ import { buildUploadBareAtomReferenceCurves } from "~/features/process-nexafs/ut
 import { channelDefinitionById } from "~/components/plots/data-rail";
 import type { OpticalLinkPlotConfig } from "~/components/plots/hooks/useLinkedOpticalTraces";
 import { resolveLinkedCompanionChannel } from "~/components/nexafs/nexafs-plot-data-rail";
+import { bareAtomOverlaySupportedForChannel } from "~/features/process-nexafs/bare-atom-representation-matrix";
 import {
+  buildPlotPointsForChannel,
   isImaginaryChannel,
+  isPlotChannelAvailable,
   isRealChannel,
+  plotChannelToLegacyDataView,
+  spectrumYAxisQuantityForChannel,
   type NexafsImaginaryChannelId,
   type NexafsPlotChannelAvailability,
   type NexafsPlotChannelId,
   type NexafsRealChannelId,
 } from "~/features/process-nexafs/nexafs-plot-channels";
 import { NEXAFS_PLOT_DATA_RAIL_DEFINITION } from "~/features/process-nexafs/nexafs-plot-data-rail-config";
+import { buildUploadDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
+import { useUploadDatasetDiagnostics } from "~/features/process-nexafs/hooks/useUploadDatasetDiagnostics";
 import { useTheme } from "next-themes";
 import type {
   BareAtomPoint,
@@ -130,15 +142,6 @@ import { DefaultButton as DialogButton } from "~/components/ui/button";
 type SpectrumPoint = DatasetState["spectrumPoints"][number];
 
 type KkBrowserConsentContinuation = { readonly kind: "preview-rail-delta" };
-
-type UploadPlotDataView = "od" | "absorption" | "beta" | "delta";
-
-function uploadDataViewToPlotChannel(dataView: UploadPlotDataView): NexafsPlotChannelId {
-  if (dataView === "od") return "normalized";
-  if (dataView === "beta") return "beta";
-  if (dataView === "delta") return "delta";
-  return "mass-absorption";
-}
 
 function parsePastedSpectrumText(text: string): {
   points: SpectrumPoint[];
@@ -996,6 +999,7 @@ export function DatasetContent({
   const [showBareAtomContributionOverlay, setShowBareAtomContributionOverlay] =
     useState(false);
   const [linkImaginaryReal, setLinkImaginaryReal] = useState(false);
+  const [opticalLinkSplitView, setOpticalLinkSplitView] = useState(false);
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
   const [selectedGeometry] = useState<{
@@ -1516,15 +1520,23 @@ export function DatasetContent({
     onDatasetUpdate,
   ]);
 
-  type DataView = "od" | "absorption" | "bare-atom" | "beta" | "delta";
-  const [dataView, setDataView] = useState<DataView>("od");
+  const [uploadPlotChannel, setUploadPlotChannel] =
+    useState<NexafsPlotChannelId>("normalized");
   const gateToastTimestampsRef = useRef<Record<string, number>>({});
 
+  const dataView = plotChannelToLegacyDataView(uploadPlotChannel);
+
   useEffect(() => {
-    if (dataView === "od" && showBareAtomContributionOverlay) {
+    if (uploadPlotChannel === "normalized" && showBareAtomContributionOverlay) {
       setShowBareAtomContributionOverlay(false);
     }
-  }, [dataView, showBareAtomContributionOverlay]);
+  }, [uploadPlotChannel, showBareAtomContributionOverlay]);
+
+  useEffect(() => {
+    if (!linkImaginaryReal) {
+      setOpticalLinkSplitView(false);
+    }
+  }, [linkImaginaryReal]);
 
   const showDataViewGateToast = useCallback(
     (gateKey: string, message: string) => {
@@ -1538,7 +1550,19 @@ export function DatasetContent({
   );
 
   const edgeZeroOnePoints = useMemo(() => {
-    return zeroOneComputation?.normalizedPoints ?? dataset.spectrumPoints;
+    if ((zeroOneComputation?.normalizedPoints?.length ?? 0) > 0) {
+      return zeroOneComputation!.normalizedPoints;
+    }
+    const uploadedOd = dataset.spectrumPoints.filter(
+      (point) => typeof point.od === "number" && Number.isFinite(point.od),
+    );
+    if (uploadedOd.length > 0) {
+      return uploadedOd.map((point) => ({
+        ...point,
+        absorption: point.od!,
+      }));
+    }
+    return [];
   }, [zeroOneComputation, dataset.spectrumPoints]);
 
   const absorptionPlotPoints =
@@ -1638,6 +1662,57 @@ export function DatasetContent({
     return out.length > 0 ? out : null;
   }, [absorptionPlotPoints, dataset.spectrumPoints, deltaAvailable]);
 
+  const uploadSpectrumRowsForChannelPlot = useMemo(
+    () => buildSpectrumPointsWithDerivedForUpload(dataset),
+    [dataset],
+  );
+
+  const stoichiometryFormula = selectedMolecule?.chemicalFormula ?? null;
+
+  const buildUploadPlotPoints = useCallback(
+    (channel: NexafsPlotChannelId): SpectrumPoint[] => {
+      const fromChannel = buildPlotPointsForChannel(
+        channel,
+        uploadSpectrumRowsForChannelPlot,
+        stoichiometryFormula,
+      );
+      if (fromChannel.length > 0) {
+        return fromChannel;
+      }
+      switch (channel) {
+        case "normalized":
+          return edgeZeroOnePoints;
+        case "mass-absorption":
+          return absorptionPlotPoints ?? edgeZeroOnePoints;
+        case "beta":
+          return (
+            betaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints
+          );
+        case "delta":
+          return (
+            deltaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints
+          );
+        default:
+          return fromChannel;
+      }
+    },
+    [
+      uploadSpectrumRowsForChannelPlot,
+      stoichiometryFormula,
+      edgeZeroOnePoints,
+      absorptionPlotPoints,
+      betaPoints,
+      deltaPoints,
+    ],
+  );
+
+  const plotPoints = useMemo(
+    () => buildUploadPlotPoints(uploadPlotChannel),
+    [buildUploadPlotPoints, uploadPlotChannel],
+  );
+
+  const spectrumYAxisQuantity = spectrumYAxisQuantityForChannel(uploadPlotChannel);
+
   useEffect(() => {
     const formula = selectedMolecule?.chemicalFormula?.trim();
     if (!formula) {
@@ -1676,23 +1751,19 @@ export function DatasetContent({
     mode: DifferenceRootView;
     points: SpectrumPoint[] | null;
   }>(() => {
-    if (dataView === "od") return { mode: "od", points: edgeZeroOnePoints };
-    if (dataView === "beta") return { mode: "beta", points: betaPoints };
-    if (dataView === "delta") return { mode: "delta", points: deltaPoints };
-    if (dataView === "bare-atom") {
-      return { mode: "absorption", points: absorptionPlotPoints ?? null };
-    }
+    const mode: DifferenceRootView =
+      dataView === "od"
+        ? "od"
+        : dataView === "beta"
+          ? "beta"
+          : dataView === "delta"
+            ? "delta"
+            : "absorption";
     return {
-      mode: "absorption",
-      points: absorptionPlotPoints ?? null,
+      mode,
+      points: plotPoints.length > 0 ? plotPoints : null,
     };
-  }, [
-    dataView,
-    edgeZeroOnePoints,
-    absorptionPlotPoints,
-    betaPoints,
-    deltaPoints,
-  ]);
+  }, [dataView, plotPoints]);
 
   const computeDifferenceSpectraFromRoot = useCallback(
     (angleMode: "theta" | "phi") => {
@@ -1713,11 +1784,25 @@ export function DatasetContent({
             "no-delta",
             "No finite delta on spectrum points for difference spectra in this view.",
           );
+        } else if (differenceRootPoints.mode === "od") {
+          showDataViewGateToast(
+            "no-od",
+            "No optical density points available for difference spectra in this view.",
+          );
         }
+        setDifferenceSpectra([]);
         return false;
       }
 
       const calculated = calculateDifferenceSpectra(pointsToAnalyze, angleMode);
+      if (calculated.length === 0) {
+        showDataViewGateToast(
+          "diff-geometries",
+          "Difference spectra need at least two distinct geometries",
+        );
+        setDifferenceSpectra([]);
+        return false;
+      }
       setDifferenceSpectra(calculated);
       return true;
     },
@@ -1732,83 +1817,12 @@ export function DatasetContent({
     if (differenceSpectra.length === 0) return;
     void computeDifferenceSpectraFromRoot(differenceAngleMode);
   }, [
-    dataView,
+    uploadPlotChannel,
     differenceAngleMode,
-    betaPoints,
     differenceRootPoints.points,
     differenceSpectra.length,
     computeDifferenceSpectraFromRoot,
   ]);
-
-  const trySetDataView = useCallback(
-    (next: DataView) => {
-      if (next === dataView) return;
-      if (next === "od") {
-        setDataView("od");
-        return;
-      }
-
-      const hasAbsorptionCurve =
-        (absorptionComputation?.normalizedPoints?.length ?? 0) > 0;
-      if (!hasAbsorptionCurve) {
-        showDataViewGateToast(
-          "requires-normalization",
-          "Run normalization before switching to absorption, bare-atom, or beta views",
-        );
-        return;
-      }
-
-      if (next === "bare-atom") {
-        setDataView("bare-atom");
-        return;
-      }
-
-      if (next === "beta") {
-        if (!dataset.bareAtomPoints) {
-          showDataViewGateToast(
-            "requires-bare-atom",
-            "Compute bare-atom absorption before switching to beta view",
-          );
-          return;
-        }
-        setDataView("beta");
-        return;
-      }
-
-      if (next === "delta") {
-        if (!deltaAvailable) {
-          showDataViewGateToast(
-            "no-delta",
-            "No finite delta on spectrum points for this view.",
-          );
-          return;
-        }
-        setDataView("delta");
-        return;
-      }
-
-      if (next === "absorption") {
-        setDataView("absorption");
-      }
-    },
-    [
-      dataView,
-      absorptionComputation,
-      dataset.bareAtomPoints,
-      deltaAvailable,
-      showDataViewGateToast,
-    ],
-  );
-
-  // Prepare plot data
-  const plotPoints =
-    dataView === "od"
-      ? edgeZeroOnePoints
-      : dataView === "beta"
-        ? (betaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints)
-        : dataView === "delta"
-          ? (deltaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints)
-          : absorptionPlotPoints;
 
   const uploadRailSortedAllPoints = useMemo(() => {
     const copy = [...dataset.spectrumPoints];
@@ -1914,7 +1928,7 @@ export function DatasetContent({
     [dataset, selectedMolecule?.chemicalFormula],
   );
 
-  const runKkDeltaPreviewForUploadDraft = useCallback(() => {
+  const runKkDeltaPreviewForUploadDraft = useCallback(async () => {
     const formula = selectedMolecule?.chemicalFormula?.trim();
     if (!formula) {
       showToast(
@@ -1931,6 +1945,11 @@ export function DatasetContent({
       return;
     }
     setKkUploadBusy(true);
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
     try {
       const base = buildSpectrumPointsWithDerivedForUpload(dataset);
       const withDelta = applyKkDeltaToSpectrumPoints(base, {
@@ -1943,7 +1962,7 @@ export function DatasetContent({
         delta: withDelta[i]?.delta,
       }));
       onDatasetUpdate(dataset.id, { spectrumPoints: merged });
-      showToast("Updated delta from beta (KK) in this draft", "success");
+      showToast("K-K delta preview applied to the spectrum.", "success");
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : "Kramers-Kronig failed.",
@@ -1964,44 +1983,24 @@ export function DatasetContent({
       setKkConsentContinuation({ kind: "preview-rail-delta" });
       return;
     }
-    runKkDeltaPreviewForUploadDraft();
+    void runKkDeltaPreviewForUploadDraft();
   }, [runKkDeltaPreviewForUploadDraft]);
 
-  const kkUploadRailVisible =
-    dataset.spectrumPoints.length > 0 &&
-    Boolean(selectedMolecule?.chemicalFormula?.trim()) &&
-    uploadDatasetHasFiniteBetaForKkOnEveryRow(dataset);
+  const kkUploadRailReady = uploadDatasetHasFiniteBetaForKkOnEveryRow(dataset);
 
-  useEffect(() => {
-    if (!kkUploadRailVisible) return;
-    if (dataset.computeKkDeltaOnSubmit) return;
-    onDatasetUpdate(dataset.id, { computeKkDeltaOnSubmit: true });
-  }, [
-    kkUploadRailVisible,
-    dataset.id,
-    dataset.computeKkDeltaOnSubmit,
-    onDatasetUpdate,
-  ]);
+  const kkUploadRailShown =
+    dataset.spectrumPoints.length > 0 &&
+    Boolean(selectedMolecule?.chemicalFormula?.trim());
 
   const bareAtomFullViewReferenceCurves = useMemo((): ReferenceCurve[] => {
-    if (dataView === "bare-atom" && dataset.bareAtomPoints) {
-      return [
-        {
-          label: "Bare Atom Absorption",
-          points: dataset.bareAtomPoints,
-          color: "#6b7280",
-        },
-      ];
-    }
     return [];
-  }, [dataView, dataset.bareAtomPoints]);
+  }, []);
 
   const bareAtomContributionOverlayCurves = useMemo((): ReferenceCurve[] => {
     if (
       !showBareAtomContributionOverlay ||
       !dataset.bareAtomPoints?.length ||
-      dataView === "od" ||
-      dataView === "bare-atom"
+      !bareAtomOverlaySupportedForChannel(uploadPlotChannel)
     ) {
       return [];
     }
@@ -2026,6 +2025,7 @@ export function DatasetContent({
     });
   }, [
     showBareAtomContributionOverlay,
+    uploadPlotChannel,
     dataView,
     dataset.bareAtomPoints,
     bareAtomDeltaPoints,
@@ -2048,6 +2048,7 @@ export function DatasetContent({
   const absorptionAvailable =
     (absorptionComputation?.normalizedPoints?.length ?? 0) > 0;
   const betaAvailable =
+    absorptionAvailable &&
     !!dataset.bareAtomPoints &&
     betaMuLike.length > 0 &&
     (betaPoints?.length ?? 0) > 0;
@@ -2075,16 +2076,26 @@ export function DatasetContent({
     selectedMolecule?.chemicalFormula,
   ]);
 
-  const spectrumYAxisQuantity =
-    dataView === "od"
-      ? "optical-density"
-      : dataView === "beta"
-        ? "beta"
-        : dataView === "delta"
-          ? "delta"
-          : dataView === "absorption" || dataView === "bare-atom"
-            ? "mass-absorption"
-            : "intensity";
+  useEffect(() => {
+    if (isPlotChannelAvailable(uploadPlotChannel, uploadChannelAvailability)) {
+      return;
+    }
+    const fallbacks: NexafsPlotChannelId[] = [
+      "normalized",
+      "mass-absorption",
+      "beta",
+      "delta",
+    ];
+    const next = fallbacks.find((id) =>
+      isPlotChannelAvailable(id, uploadChannelAvailability),
+    );
+    if (next != null && next !== uploadPlotChannel) {
+      if (differenceSpectra.length > 0) {
+        setDifferenceSpectra([]);
+      }
+      setUploadPlotChannel(next);
+    }
+  }, [uploadPlotChannel, uploadChannelAvailability, differenceSpectra.length]);
 
   const isDifferenceEnabled = differenceSpectra.length > 0;
 
@@ -2173,46 +2184,65 @@ export function DatasetContent({
 
   const plotBareAtomToggleDisabled =
     !selectedMolecule?.chemicalFormula?.trim() ||
-    dataView === "od" ||
-    dataView === "bare-atom" ||
-    (dataView === "delta" &&
+    !bareAtomOverlaySupportedForChannel(uploadPlotChannel) ||
+    (uploadPlotChannel === "delta" &&
       (!deltaPoints?.length ||
         isCalculatingBareAtomDelta ||
         !bareAtomDeltaPoints?.length)) ||
-    ((dataView === "absorption" || dataView === "beta") &&
+    ((uploadPlotChannel === "mass-absorption" || uploadPlotChannel === "beta") &&
       (!dataset.bareAtomPoints?.length || isCalculatingBareAtom));
 
-  const uploadPlotChannel = useMemo(
-    () =>
-      uploadDataViewToPlotChannel(
-        dataView === "bare-atom" ? "absorption" : dataView,
-      ),
-    [dataView],
+  const uploadChannelUnavailableDescription = useCallback(
+    (channel: NexafsPlotChannelId): string | undefined => {
+      if (isPlotChannelAvailable(channel, uploadChannelAvailability)) {
+        return undefined;
+      }
+      if (channel === "mass-absorption") {
+        return "Set pre- and post-edge windows and normalize to enable mu.";
+      }
+      if (channel === "beta") {
+        return "Normalize to mu with bare-atom reference to enable beta.";
+      }
+      if (channel === "delta") {
+        return "Run KK from the right rail or upload delta values first.";
+      }
+      if (channel === "normalized") {
+        return "Upload spectrum points to plot optical density.";
+      }
+      if (
+        channel === "f2" ||
+        channel === "f1" ||
+        channel === "im-epsilon" ||
+        channel === "re-epsilon" ||
+        channel === "im-chi" ||
+        channel === "re-chi"
+      ) {
+        return "Select a molecule formula and derive beta and delta to use derived optical constants.";
+      }
+      return "Not available for this dataset yet.";
+    },
+    [uploadChannelAvailability],
   );
 
   const handlePlotChannelChange = useCallback(
     (channel: NexafsPlotChannelId) => {
-      switch (channel) {
-        case "normalized":
-          trySetDataView("od");
-          break;
-        case "mass-absorption":
-          trySetDataView("absorption");
-          break;
-        case "beta":
-          trySetDataView("beta");
-          break;
-        case "delta":
-          trySetDataView("delta");
-          break;
-        default:
-          break;
+      if (!isPlotChannelAvailable(channel, uploadChannelAvailability)) {
+        const description = uploadChannelUnavailableDescription(channel);
+        if (description) {
+          showDataViewGateToast(`channel-${channel}`, description);
+        }
+        return;
       }
+      setUploadPlotChannel(channel);
       if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
         setLinkImaginaryReal(false);
       }
     },
-    [trySetDataView],
+    [
+      uploadChannelAvailability,
+      uploadChannelUnavailableDescription,
+      showDataViewGateToast,
+    ],
   );
 
   const linkBetaDeltaEnabled =
@@ -2230,12 +2260,7 @@ export function DatasetContent({
     if (companionId == null) {
       return undefined;
     }
-    const companionPoints =
-      companionId === "beta"
-        ? (betaPoints ?? [])
-        : companionId === "delta"
-          ? (deltaPoints ?? [])
-          : [];
+    const companionPoints = buildUploadPlotPoints(companionId);
     if (companionPoints.length === 0) {
       return undefined;
     }
@@ -2274,8 +2299,7 @@ export function DatasetContent({
     linkImaginaryReal,
     linkBetaDeltaEnabled,
     uploadPlotChannel,
-    betaPoints,
-    deltaPoints,
+    buildUploadPlotPoints,
   ]);
 
   const plotLeftPlotRail = (
@@ -2318,19 +2342,17 @@ export function DatasetContent({
                 ? "Calculating bare-atom reference."
                 : !selectedMolecule?.chemicalFormula?.trim()
                   ? "Select a molecule with a chemical formula first."
-                  : dataView === "od"
-                    ? "Switch the plot to mu, beta, or delta to compare bare atom."
-                    : dataView === "bare-atom"
-                      ? "Bare-atom overlay is already the active view."
-                      : dataView === "delta"
-                        ? isCalculatingBareAtomDelta
-                          ? "Computing Henke/CXRO bare-atom delta."
-                          : !bareAtomDeltaPoints?.length
-                            ? "Need stored or computed delta on the spectrum grid."
-                            : "Bare-atom overlay is not available in this view."
-                        : !dataset.bareAtomPoints?.length
-                          ? "Bare-atom reference is not available for this edge yet."
+                  : !bareAtomOverlaySupportedForChannel(uploadPlotChannel)
+                    ? "Switch the plot to mu, beta, delta, or derived optical constants to compare bare atom."
+                    : uploadPlotChannel === "delta"
+                      ? isCalculatingBareAtomDelta
+                        ? "Computing Henke/CXRO bare-atom delta."
+                        : !bareAtomDeltaPoints?.length
+                          ? "Need stored or computed delta on the spectrum grid."
                           : "Bare-atom overlay is not available in this view."
+                      : !dataset.bareAtomPoints?.length
+                        ? "Bare-atom reference is not available for this edge yet."
+                        : "Bare-atom overlay is not available in this view."
             }
             placement="right"
             disabled={plotBareAtomToggleDisabled}
@@ -2338,10 +2360,10 @@ export function DatasetContent({
             <ToggleButton
               isIconOnly
               aria-label={
-                dataView === "od"
+                !bareAtomOverlaySupportedForChannel(uploadPlotChannel)
                   ? "Bare atom overlay (not available in optical density view)"
                   : selectedMolecule?.chemicalFormula
-                    ? dataView === "delta"
+                    ? uploadPlotChannel === "delta"
                       ? "Bare atom delta reference (Henke/CXRO f1 on this grid)"
                       : "Bare atom reference curve on this energy grid"
                     : "Bare atom overlay (select a molecule with a formula)"
@@ -2365,6 +2387,7 @@ export function DatasetContent({
         availability={uploadChannelAvailability}
         linkImaginaryReal={linkImaginaryReal}
         onLinkImaginaryRealChange={setLinkImaginaryReal}
+        channelUnavailableDescription={uploadChannelUnavailableDescription}
       />
 
       <PlotToolbarGroupSeparator orientation="horizontal" />
@@ -2404,17 +2427,29 @@ export function DatasetContent({
         onAutoDetectPeaks={handleAutoDetectPeaksFromPlotRail}
         onResetAllPeaks={handleResetAllPeaksFromPlotRail}
       />
+      {kkUploadRailShown ? (
+        <>
+          <PlotToolbarGroupSeparator orientation="horizontal" />
+          <NexafsPlotKkVerticalToolbar
+            visible
+            orientation="vertical"
+            busy={kkUploadBusy}
+            disabled={!kkUploadRailReady}
+            whenDisabledDescription="Need finite beta on every row. Normalize with bare-atom reference first, or map a beta column."
+            onPressKk={onPressKkUploadRail}
+          />
+        </>
+      ) : null}
     </div>
   );
 
-  const plotBottomPlotRail = kkUploadRailVisible ? (
-    <NexafsPlotKkVerticalToolbar
-      visible
-      orientation="horizontal"
-      busy={kkUploadBusy}
-      onPressKk={onPressKkUploadRail}
-    />
-  ) : null;
+  const opticalLinkSplitToggle =
+    opticalLink != null ? (
+      <OpticalLinkSplitToggle
+        splitView={opticalLinkSplitView}
+        onSplitViewChange={setOpticalLinkSplitView}
+      />
+    ) : null;
 
   const normalizationRegionsForPlot =
     dataset.normalizationRegions.pre != null ||
@@ -2451,6 +2486,23 @@ export function DatasetContent({
     [dataset.id, onDatasetUpdate],
   );
 
+  const showDefaultPhiHint =
+    Boolean(dataset.columnMappings.theta) &&
+    !dataset.columnMappings.phi &&
+    dataset.spectrumPoints.length > 0;
+
+  const uploadDiagnostics = useUploadDatasetDiagnostics(dataset);
+  const uploadMetricsPreview = useMemo(
+    () =>
+      uploadDiagnostics
+        ? buildUploadDatasetMetricsCardModel(
+            uploadDiagnostics.qualityScores,
+            uploadDiagnostics.derivedPoints,
+          )
+        : null,
+    [uploadDiagnostics],
+  );
+
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
       <div className="py-0.5">
@@ -2465,6 +2517,15 @@ export function DatasetContent({
       </div>
 
       <div className="flex w-full flex-col">
+        {showDefaultPhiHint ? (
+          <p
+            role="note"
+            className="border-border bg-default text-muted mb-3 rounded-lg border px-3 py-2 text-sm"
+          >
+            No phi column detected; azimuth defaulted to 0 degrees for all
+            polarizations.
+          </p>
+        ) : null}
         <VisualizationToggle
           modes={["graph", "table", "aux"]}
           mode={visualizationMode}
@@ -2527,7 +2588,7 @@ export function DatasetContent({
                       onSelectionChange={handleNormalizationSelection}
                       headerRight={plotLeftPlotRail}
                       headerAnalysis={plotRightPlotRail}
-                      plotBottomTools={plotBottomPlotRail}
+                      opticalLinkSplitToggle={opticalLinkSplitToggle}
                       suppressAnalysisRailLeadingGrip
                       plotContext={
                         isPlotNormalizationMode && normalizationSelectionTarget
@@ -2629,6 +2690,7 @@ export function DatasetContent({
                       }}
                       differenceSpectra={differenceSpectra}
                       opticalLink={opticalLink}
+                      opticalLinkSplitView={opticalLinkSplitView}
                       showThetaData={showThetaData}
                       showPhiData={showPhiData}
                       selectedGeometry={selectedGeometry}
@@ -2744,44 +2806,56 @@ export function DatasetContent({
               onDatasetUpdate(dataset.id, { sampleAux: next });
             },
             onProcessMethodChange: (processMethod) => {
-              onDatasetUpdate(dataset.id, {
-                sampleInfo: { ...dataset.sampleInfo, processMethod },
-              });
+              onDatasetUpdate(dataset.id, (current) => ({
+                sampleInfo: applyProcessMethodToSampleFields(
+                  current.sampleInfo,
+                  processMethod,
+                ),
+              }));
             },
           }}
           processMethod={dataset.sampleInfo.processMethod}
           setProcessMethod={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, processMethod: value },
-              sampleAux: linkedSampleAuxForProcessMethod(
-                dataset.sampleAux,
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: applyProcessMethodToSampleFields(
+                current.sampleInfo,
                 value,
               ),
-            })
+              sampleAux: linkedSampleAuxForProcessMethod(
+                current.sampleAux,
+                value,
+              ),
+            }))
           }
           substrate={dataset.sampleInfo.substrate}
           setSubstrate={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, substrate: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, substrate: value },
+            }))
+          }
+          patterningLayer={dataset.sampleInfo.patterningLayer}
+          setPatterningLayer={(value) =>
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, patterningLayer: value },
+            }))
           }
           solvent={dataset.sampleInfo.solvent}
           setSolvent={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, solvent: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, solvent: value },
+            }))
           }
           thickness={dataset.sampleInfo.thickness}
           setThickness={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, thickness: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, thickness: value },
+            }))
           }
           molecularWeight={dataset.sampleInfo.molecularWeight}
           setMolecularWeight={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, molecularWeight: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, molecularWeight: value },
+            }))
           }
           selectedVendorId={dataset.sampleInfo.vendorId}
           setSelectedVendorId={(value) =>
@@ -2823,57 +2897,85 @@ export function DatasetContent({
       </div>
 
       <div className="border-border bg-surface rounded-lg border p-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-foreground font-medium">
-              Normalization validation mode
-            </span>
-            <select
-              value={dataset.normalizationScope}
-              onChange={(event) =>
-                onDatasetUpdate(dataset.id, {
-                  normalizationScope: event.target.value as
-                    | "none"
-                    | "unified"
-                    | "per_channel",
-                })
-              }
-              className="border-border bg-field-background text-field-foreground rounded-md border px-3 py-2"
-            >
-              <option value="unified">Unified ranges</option>
-              <option value="none">No ranges</option>
-              <option value="per_channel">Per-channel ranges</option>
-            </select>
-          </label>
-          <div className="flex flex-col gap-2">
-            <Checkbox
-              isSelected={dataset.validationOverride.bypass}
-              onChange={(checked) =>
-                onDatasetUpdate(dataset.id, {
-                  validationOverride: {
-                    ...dataset.validationOverride,
-                    bypass: checked,
-                  },
-                })
-              }
-            >
-              Bypass validation warnings
-            </Checkbox>
-            <Input
-              value={dataset.validationOverride.reason}
-              onChange={(event) =>
-                onDatasetUpdate(dataset.id, {
-                  validationOverride: {
-                    ...dataset.validationOverride,
-                    reason: event.target.value,
-                  },
-                })
-              }
-              placeholder="Optional bypass reason"
-              aria-label="Validation bypass reason"
-              disabled={!dataset.validationOverride.bypass}
-            />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="grid min-w-0 flex-1 gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm">
+                <span className="text-foreground font-medium">
+                  Normalization validation mode
+                </span>
+                <select
+                  value={dataset.normalizationScope}
+                  onChange={(event) =>
+                    onDatasetUpdate(dataset.id, {
+                      normalizationScope: event.target.value as
+                        | "none"
+                        | "unified"
+                        | "per_channel",
+                    })
+                  }
+                  className="border-border bg-field-background text-field-foreground rounded-md border px-3 py-2"
+                >
+                  <option value="unified">Unified ranges</option>
+                  <option value="none">No ranges</option>
+                  <option value="per_channel">Per-channel ranges</option>
+                </select>
+              </label>
+              <div className="flex flex-col gap-2">
+                <Checkbox
+                  isSelected={dataset.validationOverride.bypass}
+                  onChange={(checked) =>
+                    onDatasetUpdate(dataset.id, {
+                      validationOverride: {
+                        ...dataset.validationOverride,
+                        bypass: checked,
+                      },
+                    })
+                  }
+                >
+                  Bypass validation warnings
+                </Checkbox>
+                <Input
+                  value={dataset.validationOverride.reason}
+                  onChange={(event) =>
+                    onDatasetUpdate(dataset.id, {
+                      validationOverride: {
+                        ...dataset.validationOverride,
+                        reason: event.target.value,
+                      },
+                    })
+                  }
+                  placeholder="Optional bypass reason"
+                  aria-label="Validation bypass reason"
+                  disabled={!dataset.validationOverride.bypass}
+                />
+              </div>
+            </div>
+            {uploadMetricsPreview && !uploadMetricsPreview.missing ? (
+              <NexafsDatasetMetricsRail metrics={uploadMetricsPreview} />
+            ) : null}
           </div>
+          {uploadDiagnostics &&
+          uploadDiagnostics.validationSummary.warnings.length > 0 ? (
+            <div
+              role="status"
+              className="border-border bg-default rounded-md border px-3 py-2 text-sm"
+            >
+              <p className="text-foreground mb-1 font-medium">
+                Normalization validation
+                {uploadDiagnostics.validationSummary.passed
+                  ? " passed"
+                  : " warnings"}
+              </p>
+              <ul className="text-muted list-disc space-y-1 pl-5">
+                {uploadDiagnostics.validationSummary.warnings.map(
+                  (warning) => (
+                    <li key={warning}>{warning}</li>
+                  ),
+                )}
+              </ul>
+            </div>
+          ) : null}
         </div>
       </div>
       <KkBrowserConsentDialog
@@ -2884,8 +2986,7 @@ export function DatasetContent({
           grantKkBrowserConsent();
           setKkConsentContinuation(null);
           if (continuation?.kind === "preview-rail-delta") {
-            onDatasetUpdate(dataset.id, { computeKkDeltaOnSubmit: true });
-            runKkDeltaPreviewForUploadDraft();
+            void runKkDeltaPreviewForUploadDraft();
           }
         }}
       />

@@ -14,6 +14,8 @@ export function NexafsSampleInformationSection({
   setProcessMethod,
   substrate,
   setSubstrate,
+  patterningLayer,
+  setPatterningLayer,
   solvent,
   setSolvent,
   thickness,
@@ -48,9 +50,12 @@ export function NexafsSampleInformationSection({
       <SampleSpecimenFields
         showProcessMethodSelect={!linkedSampleAux}
         processMethod={processMethod}
+        processingMode={linkedSampleAux?.value.processingMode}
         setProcessMethod={setProcessMethod}
         substrate={substrate}
         setSubstrate={setSubstrate}
+        patterningLayer={patterningLayer}
+        setPatterningLayer={setPatterningLayer}
         solvent={solvent}
         setSolvent={setSolvent}
         thickness={thickness}

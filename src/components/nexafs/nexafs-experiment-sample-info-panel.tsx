@@ -23,6 +23,7 @@ import {
   sampleMetadataHasDisplayableRows,
 } from "~/lib/sample-metadata-display";
 import {
+  applyProcessMethodToSampleFields,
   linkedSampleAuxForProcessMethod,
 } from "~/lib/sample-process-method-link";
 import {
@@ -139,6 +140,7 @@ export function NexafsExperimentSampleInfoPanel({
     return coreSampleMetadataRows({
       processmethod: sample.processmethod,
       substrate: sample.substrate,
+      patterninglayer: sample.patterninglayer,
       solvent: sample.solvent,
       thickness: sample.thickness,
       molecularweight: sample.molecularweight,
@@ -220,6 +222,7 @@ export function NexafsExperimentSampleInfoPanel({
         id: sampleId,
         processMethod: coreDraft.processMethod,
         substrate: coreDraft.substrate.trim() || null,
+        patterningLayer: coreDraft.patterningLayer.trim() || null,
         solvent: coreDraft.solvent.trim() || null,
         thickness: coreDraft.thickness,
         molecularWeight: coreDraft.molecularWeight,
@@ -309,14 +312,18 @@ export function NexafsExperimentSampleInfoPanel({
               onChange: setAuxDraft,
               onProcessMethodChange: (value) => {
                 setCoreDraft((previous) =>
-                  previous ? { ...previous, processMethod: value } : previous,
+                  previous
+                    ? applyProcessMethodToSampleFields(previous, value)
+                    : previous,
                 );
               },
             }}
             processMethod={coreDraft.processMethod}
             setProcessMethod={(value) => {
               setCoreDraft((previous) =>
-                previous ? { ...previous, processMethod: value } : previous,
+                previous
+                  ? applyProcessMethodToSampleFields(previous, value)
+                  : previous,
               );
               setAuxDraft((previous) =>
                 linkedSampleAuxForProcessMethod(previous, value),
@@ -326,6 +333,12 @@ export function NexafsExperimentSampleInfoPanel({
             setSubstrate={(value) =>
               setCoreDraft((previous) =>
                 previous ? { ...previous, substrate: value } : previous,
+              )
+            }
+            patterningLayer={coreDraft.patterningLayer}
+            setPatterningLayer={(value) =>
+              setCoreDraft((previous) =>
+                previous ? { ...previous, patterningLayer: value } : previous,
               )
             }
             solvent={coreDraft.solvent}

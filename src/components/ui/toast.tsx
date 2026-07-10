@@ -47,10 +47,20 @@ function ToastItem({ toast, onRemove }: ToastProps) {
   };
 
   const styles = {
-    success: "border border-success bg-success/10 text-success-foreground",
-    error: "border border-danger bg-danger/10 text-danger-foreground",
-    warning: "border border-warning bg-warning/10 text-warning-foreground",
-    info: "border border-border bg-surface text-foreground",
+    success:
+      "border border-success/40 bg-surface text-foreground shadow-black/20 dark:shadow-black/40",
+    error:
+      "border border-danger/40 bg-surface text-foreground shadow-black/20 dark:shadow-black/40",
+    warning:
+      "border border-warning/40 bg-surface text-foreground shadow-black/20 dark:shadow-black/40",
+    info: "border border-border bg-surface text-foreground shadow-black/20 dark:shadow-black/40",
+  };
+
+  const iconStyles = {
+    success: "text-success",
+    error: "text-danger",
+    warning: "text-warning",
+    info: "text-accent",
   };
 
   const Icon = icons[toast.type];
@@ -60,7 +70,7 @@ function ToastItem({ toast, onRemove }: ToastProps) {
       className={`animate-in slide-in-from-bottom-2 pointer-events-auto flex items-start gap-3 rounded-lg p-4 shadow-lg transition-all ${styles[toast.type]}`}
     >
       <Icon
-        className={`h-5 w-5 shrink-0 ${toast.type === "info" ? "text-accent" : ""}`}
+        className={`h-5 w-5 shrink-0 ${iconStyles[toast.type]}`}
         aria-hidden
       />
       <p className="flex-1 text-sm font-medium">{toast.message}</p>

@@ -151,6 +151,8 @@ export type NexafsSampleInformationSectionProps = {
   setProcessMethod: (value: ProcessMethod | null) => void;
   substrate: string;
   setSubstrate: (value: string) => void;
+  patterningLayer: string;
+  setPatterningLayer: (value: string) => void;
   solvent: string;
   setSolvent: (value: string) => void;
   thickness: number | null;

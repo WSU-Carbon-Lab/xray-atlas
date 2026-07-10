@@ -48,6 +48,7 @@ import {
   fetchNexafsBrowseGrouped,
   type NexafsBrowseSortKey,
 } from "~/server/nexafs/nexafsBrowseGroups";
+import { persistExperimentMetricsTables } from "~/server/nexafs/persistExperimentMetricsTables";
 import { findExperimentFavorite } from "~/server/db/engagement-queries";
 import {
   buildKkDeltaMetadata,
@@ -1187,6 +1188,7 @@ export const experimentsRouter = createTRPCRouter({
           identifier: z.string().optional(),
           processMethod: z.nativeEnum(ProcessMethod).optional(),
           substrate: z.string().optional(),
+          patterningLayer: z.string().optional(),
           solvent: z.string().optional(),
           thickness: z.number().optional(),
           molecularWeight: z.number().optional(),
@@ -1456,7 +1458,7 @@ export const experimentsRouter = createTRPCRouter({
                   select: { id: true },
                 })
               : null;
-          const normalizedCollectedBy =
+          let normalizedCollectedBy =
             requestedCollectedBy.length > 0
               ? requestedCollectedBy
               : ctx.userId != null
@@ -1467,11 +1469,20 @@ export const experimentsRouter = createTRPCRouter({
               where: { id: { in: normalizedCollectedBy } },
               select: { id: true },
             });
+            const existingUserIds = new Set(existingUsers.map((user) => user.id));
+            const hasAttributionPayload =
+              attributionsInput != null && attributionsInput.length > 0;
             if (existingUsers.length !== normalizedCollectedBy.length) {
-              throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: "One or more collected-by users do not exist",
-              });
+              if (hasAttributionPayload) {
+                normalizedCollectedBy = normalizedCollectedBy.filter((userId) =>
+                  existingUserIds.has(userId),
+                );
+              } else {
+                throw new TRPCError({
+                  code: "BAD_REQUEST",
+                  message: "One or more collected-by users do not exist",
+                });
+              }
             }
           }
           const normalizedCollectorOrcidIds = [
@@ -1592,6 +1603,7 @@ export const experimentsRouter = createTRPCRouter({
                 identifier: sampleIdentifier,
                 processmethod: sampleInput.processMethod ?? null,
                 substrate: normalizeSampleSubstrate(sampleInput.substrate),
+                patterninglayer: sampleInput.patterningLayer?.trim() ?? null,
                 solvent: sampleInput.solvent?.trim() ?? null,
                 thickness: sampleInput.thickness ?? null,
                 molecularweight: sampleInput.molecularWeight ?? null,
@@ -1868,6 +1880,10 @@ export const experimentsRouter = createTRPCRouter({
         },
         { timeout: 60000 },
       );
+
+      for (const entry of transactionResult.experiments) {
+        await persistExperimentMetricsTables(ctx.db, entry.experiment.id);
+      }
 
       return transactionResult;
     }),
@@ -2273,7 +2289,7 @@ export const experimentsRouter = createTRPCRouter({
         },
       });
 
-      return ctx.db.experiments.update({
+      const updated = await ctx.db.experiments.update({
         where: { id: input.experimentId },
         data: {
           normalizationscope: input.normalization.scope,
@@ -2287,6 +2303,10 @@ export const experimentsRouter = createTRPCRouter({
           qualityscores: qualityScores as unknown as Prisma.InputJsonValue,
         },
       });
+
+      await persistExperimentMetricsTables(ctx.db, input.experimentId);
+
+      return updated;
     }),
 
   update: protectedProcedure

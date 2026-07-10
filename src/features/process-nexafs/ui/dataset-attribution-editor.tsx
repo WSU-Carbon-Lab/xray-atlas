@@ -19,12 +19,15 @@ import {
   dedupeDatasetAttributions,
   defaultUploaderAttribution,
   filterValidOrcidAttributions,
+  groupContributorRoleOptionsByTier,
+  listAttributionRoleOptions,
   researcherAttributionBadgeStatus,
   contributorRoleLabel,
   isUploaderContributorRole,
   type AttributionAvatarDisplay,
   type DatasetAttributionEntry,
 } from "~/lib/nexafs-attribution";
+import { coerceContributorRoleInput } from "~/lib/datacite-contributor-types";
 import { attributionResearcherAvatarProps } from "~/lib/dataset-attribution-claim";
 import type { ResolvedAttributionPublicDisplay } from "~/lib/dataset-attribution-claim";
 import { isValidOrcidUserId } from "~/lib/orcid";
@@ -101,7 +104,10 @@ function avatarDisplayToUser(
     contributorRemoveRows: rowsForOrcid.map((row) => ({
       rowKey: row.clientId,
       roleLabel: contributorRoleLabel(row.role),
+      contributorRole: row.role,
       removeDisabled:
+        isUploaderContributorRole(row.role) && row.orcid === sessionOrcid,
+      roleChangeDisabled:
         isUploaderContributorRole(row.role) && row.orcid === sessionOrcid,
     })),
   };
@@ -165,6 +171,20 @@ export function DatasetAttributionEditor({
   );
 
   const [orcidError, setOrcidError] = useState<string | null>(null);
+
+  const roleOptionSections = useMemo(
+    () =>
+      groupContributorRoleOptionsByTier(listAttributionRoleOptions()).map(
+        (section) => ({
+          sectionLabel: section.sectionLabel,
+          options: section.options.map((option) => ({
+            contributorType: option.contributorType,
+            label: option.label,
+          })),
+        }),
+      ),
+    [],
+  );
 
   useEffect(() => {
     if (!sessionOrcid || validAttributions.length > 0) {
@@ -231,6 +251,75 @@ export function DatasetAttributionEditor({
       }
     },
     [handleRemove, validAttributions],
+  );
+
+  const handleRoleChangeContributorRow = useCallback(
+    ({
+      rowKey,
+      role: nextRoleRaw,
+    }: {
+      user: UserWithOrcid;
+      rowKey: string;
+      role: string;
+    }) => {
+      const nextRole = coerceContributorRoleInput(nextRoleRaw);
+      if (!nextRole) {
+        setOrcidError("Unsupported attribution role");
+        return;
+      }
+      onChangeRef.current((previous) => {
+        const valid = filterValidOrcidAttributions(previous);
+        const target = valid.find((item) => item.clientId === rowKey);
+        if (!target) {
+          return previous;
+        }
+        if (target.role === nextRole) {
+          return previous;
+        }
+        const duplicateKey = `${target.orcid.trim()}:${nextRole}`;
+        if (
+          valid.some(
+            (item) =>
+              item.clientId !== rowKey &&
+              `${item.orcid.trim()}:${item.role}` === duplicateKey,
+          )
+        ) {
+          setOrcidError("This person already has that role on the dataset");
+          return previous;
+        }
+        if (isUploaderContributorRole(nextRole)) {
+          const existingUploader = valid.find(
+            (item) =>
+              isUploaderContributorRole(item.role) &&
+              item.clientId !== rowKey,
+          );
+          if (existingUploader && existingUploader.orcid !== target.orcid) {
+            setOrcidError(
+              "Only one data curator (uploader) is allowed per dataset",
+            );
+            return previous;
+          }
+        }
+        if (
+          isUploaderContributorRole(target.role) &&
+          target.orcid === sessionOrcid &&
+          !isUploaderContributorRole(nextRole)
+        ) {
+          const uploaderCount = valid.filter((item) =>
+            isUploaderContributorRole(item.role),
+          ).length;
+          if (uploaderCount <= 1) {
+            setOrcidError("At least one data curator (uploader) is required");
+            return previous;
+          }
+        }
+        setOrcidError(null);
+        return valid.map((item) =>
+          item.clientId === rowKey ? { ...item, role: nextRole } : item,
+        );
+      });
+    },
+    [sessionOrcid],
   );
 
   const handleApplyTeamAttributions = useCallback(
@@ -352,6 +441,8 @@ export function DatasetAttributionEditor({
                 max={8}
                 trailingSlot={addResearcherControl}
                 onRemoveContributorRow={handleRemoveContributorRow}
+                onRoleChangeContributorRow={handleRoleChangeContributorRow}
+                contributorRoleOptionSections={roleOptionSections}
               />
             )}
           </div>
