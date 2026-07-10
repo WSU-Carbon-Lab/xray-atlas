@@ -60,7 +60,8 @@ function NexafsExperimentDescriptorsSkeleton() {
 
 /**
  * Shows edge, instrument, and measurement mode for one experiment; authorized
- * contributors may correct broken ingest descriptors in place on the browse sample tab.
+ * contributors may correct broken ingest descriptors in place on the browse
+ * experiment tab.
  */
 export function NexafsExperimentDescriptorsPanel({
   experimentId,

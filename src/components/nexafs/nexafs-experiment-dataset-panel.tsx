@@ -1707,17 +1707,16 @@ export function NexafsExperimentDatasetPanel({
       />
 
       {visualizationMode === "sample" ? (
-        <div className="flex w-full flex-col gap-4">
-          <NexafsExperimentDescriptorsPanel
-            experimentId={experimentId}
-            enabled={enabled}
-          />
-          <NexafsExperimentSampleInfoPanel
-            experimentId={experimentId}
-            sampleId={sampleId}
-            enabled={enabled}
-          />
-        </div>
+        <NexafsExperimentSampleInfoPanel
+          experimentId={experimentId}
+          sampleId={sampleId}
+          enabled={enabled}
+        />
+      ) : visualizationMode === "experiment" ? (
+        <NexafsExperimentDescriptorsPanel
+          experimentId={experimentId}
+          enabled={enabled}
+        />
       ) : visualizationMode === "aux" ? (
         <div className="border-border bg-surface flex min-h-[420px] w-full flex-col rounded-xl border p-4">
           <DatasetAuxFilesPanel

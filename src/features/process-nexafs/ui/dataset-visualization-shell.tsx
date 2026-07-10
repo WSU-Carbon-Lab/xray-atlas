@@ -21,11 +21,13 @@ export type DatasetVisualizationShellProps = {
   graph: ReactNode;
   table: ReactNode;
   sample?: ReactNode;
+  experiment?: ReactNode;
   aux?: ReactNode;
 };
 
 /**
- * Shared Graph / Table / Aux shell matching the NEXAFS experiment dataset panel header layout.
+ * Shared Graph / Table / Sample / Experiment / Metadata shell matching the
+ * NEXAFS experiment dataset panel header layout.
  */
 export function DatasetVisualizationShell({
   modes,
@@ -39,6 +41,7 @@ export function DatasetVisualizationShell({
   graph,
   table,
   sample,
+  experiment,
   aux,
 }: DatasetVisualizationShellProps) {
   return (
@@ -57,11 +60,13 @@ export function DatasetVisualizationShell({
       />
       {mode === "aux" && aux != null
         ? aux
-        : mode === "sample" && sample != null
-          ? sample
-          : mode === "table"
-            ? table
-            : graph}
+        : mode === "experiment" && experiment != null
+          ? experiment
+          : mode === "sample" && sample != null
+            ? sample
+            : mode === "table"
+              ? table
+              : graph}
     </div>
   );
 }
