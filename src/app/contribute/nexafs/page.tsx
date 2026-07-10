@@ -129,10 +129,9 @@ export default function NEXAFSContributePage() {
         });
       },
       onSuccess: () => {
-        showToast(
-          "Dataset submitted. Add auxiliary files in the accordion below, then clear the form when finished.",
-          "success",
-        );
+        clearDatasets();
+        setSubmitStatus(undefined);
+        showToast("All datasets submitted successfully.", "success");
       },
       requestKkConsent,
       showToast,
