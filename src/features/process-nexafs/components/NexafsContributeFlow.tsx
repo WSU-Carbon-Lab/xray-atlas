@@ -345,7 +345,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           {submitStatus?.type === "error" && (
             <div
               role="alert"
-              className="border-danger/40 bg-danger/10 text-danger-foreground rounded-lg border p-4 text-sm"
+              className="border-danger/40 bg-surface text-foreground rounded-lg border p-4 text-sm"
             >
               {submitStatus.message}
             </div>
