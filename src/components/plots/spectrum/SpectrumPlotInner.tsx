@@ -1712,16 +1712,6 @@ export function SpectrumPlotInner({
                 themeColors={themeColors}
               />
             </g>
-            {normalizationRegions &&
-              (selectionTarget !== null || showNormalizationShading) ? (
-              <NormalizationRegionBands
-                normalizationRegions={normalizationRegions}
-                xScale={mainPlotScales.xScale}
-                offsetX={mainPlot.dimensions.margins.left}
-                offsetY={mainPlot.dimensions.margins.top}
-                height={mainPlotHeight}
-              />
-            ) : null}
             <g
               ref={panGroupRef}
               transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
@@ -1745,6 +1735,17 @@ export function SpectrumPlotInner({
               onClick={handlePlotAreaClick}
             >
               <g clipPath={`url(#${plotClipId})`}>
+                {normalizationRegions &&
+                (selectionTarget !== null || showNormalizationShading) ? (
+                  <NormalizationRegionBands
+                    normalizationRegions={normalizationRegions}
+                    xScale={mainPlotScales.xScale}
+                    offsetX={0}
+                    offsetY={0}
+                    height={mainPlotHeight}
+                    plotInnerWidth={mainPlotWidth}
+                  />
+                ) : null}
                 <rect
                   width={mainPlotWidth}
                   height={mainPlotHeight}

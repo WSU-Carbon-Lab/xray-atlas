@@ -939,6 +939,7 @@ function VisxSpectrumPlotInner({
                 offsetX={mainPlot.dimensions.margins.left}
                 offsetY={mainPlot.dimensions.margins.top}
                 height={mainPlotHeight}
+                plotInnerWidth={mainPlotWidth}
               />
             ) : null}
             <g

@@ -5,13 +5,7 @@ import { useTheme } from "next-themes";
 import type { ScaleLinear } from "d3-scale";
 import { NORMALIZATION_COLORS } from "../constants";
 import type { NormalizationRegions } from "../types";
-
-type BandRect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+import { resolveNormalizationBandRect } from "./normalization-region-band-geometry";
 
 export type NormalizationRegionBandsProps = {
   normalizationRegions: NormalizationRegions;
@@ -19,29 +13,10 @@ export type NormalizationRegionBandsProps = {
   offsetX: number;
   offsetY: number;
   height: number;
+  /** When set, band rectangles are clipped horizontally to this inner plot width. */
+  plotInnerWidth?: number;
   showLabels?: boolean;
 };
-
-function resolveBandRect(
-  range: [number, number],
-  xScale: ScaleLinear<number, number>,
-  offsetX: number,
-  offsetY: number,
-  height: number,
-): BandRect | null {
-  const lo = Math.min(range[0], range[1]);
-  const hi = Math.max(range[0], range[1]);
-  if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi) {
-    return null;
-  }
-  const x0 = xScale(lo) + offsetX;
-  const x1 = xScale(hi) + offsetX;
-  const width = x1 - x0;
-  if (width <= 0) {
-    return null;
-  }
-  return { x: x0, y: offsetY, width, height };
-}
 
 /**
  * Renders hatched pre-edge and post-edge normalization bands behind spectrum traces.
@@ -56,6 +31,7 @@ export function NormalizationRegionBands({
   offsetX,
   offsetY,
   height,
+  plotInnerWidth,
   showLabels = true,
 }: NormalizationRegionBandsProps) {
   const patternUid = useId().replace(/:/g, "");
@@ -65,29 +41,31 @@ export function NormalizationRegionBands({
   const preRect = useMemo(
     () =>
       normalizationRegions.pre
-        ? resolveBandRect(
+        ? resolveNormalizationBandRect(
             normalizationRegions.pre,
             xScale,
             offsetX,
             offsetY,
             height,
+            plotInnerWidth,
           )
         : null,
-    [height, normalizationRegions.pre, offsetX, offsetY, xScale],
+    [height, normalizationRegions.pre, offsetX, offsetY, plotInnerWidth, xScale],
   );
 
   const postRect = useMemo(
     () =>
       normalizationRegions.post
-        ? resolveBandRect(
+        ? resolveNormalizationBandRect(
             normalizationRegions.post,
             xScale,
             offsetX,
             offsetY,
             height,
+            plotInnerWidth,
           )
         : null,
-    [height, normalizationRegions.post, offsetX, offsetY, xScale],
+    [height, normalizationRegions.post, offsetX, offsetY, plotInnerWidth, xScale],
   );
 
   if (!preRect && !postRect) {
