@@ -1770,10 +1770,19 @@ export function DatasetContent({
             "No finite delta on spectrum points for difference spectra in this view.",
           );
         }
+        setDifferenceSpectra([]);
         return false;
       }
 
       const calculated = calculateDifferenceSpectra(pointsToAnalyze, angleMode);
+      if (calculated.length === 0) {
+        showDataViewGateToast(
+          "diff-geometries",
+          "Difference spectra need at least two distinct geometries",
+        );
+        setDifferenceSpectra([]);
+        return false;
+      }
       setDifferenceSpectra(calculated);
       return true;
     },
