@@ -33,7 +33,11 @@ export function uploadGeometryIsComplete(args: {
     return true;
   }
   if (!args.hasThetaColumn && !args.hasPhiColumn) {
-    return Boolean(args.fixedTheta?.trim());
+    const trimmed = args.fixedTheta?.trim();
+    if (!trimmed) {
+      return false;
+    }
+    return Number.isFinite(parseFloat(trimmed));
   }
   return false;
 }

@@ -129,9 +129,11 @@ export default function NEXAFSContributePage() {
         });
       },
       onSuccess: () => {
-        clearDatasets();
         setSubmitStatus(undefined);
-        showToast("All datasets submitted successfully.", "success");
+        showToast(
+          "All datasets submitted successfully. Use Clear Form when you are ready to start another upload.",
+          "success",
+        );
       },
       requestKkConsent,
       showToast,

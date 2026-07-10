@@ -1769,6 +1769,11 @@ export function DatasetContent({
             "no-delta",
             "No finite delta on spectrum points for difference spectra in this view.",
           );
+        } else if (differenceRootPoints.mode === "od") {
+          showDataViewGateToast(
+            "no-od",
+            "No optical density points available for difference spectra in this view.",
+          );
         }
         setDifferenceSpectra([]);
         return false;
@@ -1942,6 +1947,7 @@ export function DatasetContent({
         delta: withDelta[i]?.delta,
       }));
       onDatasetUpdate(dataset.id, { spectrumPoints: merged });
+      showToast("K-K delta preview applied to the spectrum.", "success");
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : "Kramers-Kronig failed.",
@@ -1970,17 +1976,6 @@ export function DatasetContent({
   const kkUploadRailShown =
     dataset.spectrumPoints.length > 0 &&
     Boolean(selectedMolecule?.chemicalFormula?.trim());
-
-  useEffect(() => {
-    if (!kkUploadRailReady) return;
-    if (dataset.computeKkDeltaOnSubmit) return;
-    onDatasetUpdate(dataset.id, { computeKkDeltaOnSubmit: true });
-  }, [
-    kkUploadRailReady,
-    dataset.id,
-    dataset.computeKkDeltaOnSubmit,
-    onDatasetUpdate,
-  ]);
 
   const bareAtomFullViewReferenceCurves = useMemo((): ReferenceCurve[] => {
     return [];
@@ -2220,6 +2215,7 @@ export function DatasetContent({
         }
         return;
       }
+      setDifferenceSpectra([]);
       setUploadPlotChannel(channel);
       if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
         setLinkImaginaryReal(false);
@@ -2790,33 +2786,33 @@ export function DatasetContent({
           }
           substrate={dataset.sampleInfo.substrate}
           setSubstrate={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, substrate: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, substrate: value },
+            }))
           }
           patterningLayer={dataset.sampleInfo.patterningLayer}
           setPatterningLayer={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, patterningLayer: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, patterningLayer: value },
+            }))
           }
           solvent={dataset.sampleInfo.solvent}
           setSolvent={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, solvent: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, solvent: value },
+            }))
           }
           thickness={dataset.sampleInfo.thickness}
           setThickness={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, thickness: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, thickness: value },
+            }))
           }
           molecularWeight={dataset.sampleInfo.molecularWeight}
           setMolecularWeight={(value) =>
-            onDatasetUpdate(dataset.id, {
-              sampleInfo: { ...dataset.sampleInfo, molecularWeight: value },
-            })
+            onDatasetUpdate(dataset.id, (current) => ({
+              sampleInfo: { ...current.sampleInfo, molecularWeight: value },
+            }))
           }
           selectedVendorId={dataset.sampleInfo.vendorId}
           setSelectedVendorId={(value) =>

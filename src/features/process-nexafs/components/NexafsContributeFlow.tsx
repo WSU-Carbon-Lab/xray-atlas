@@ -345,9 +345,13 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           {submitStatus?.type === "error" && (
             <div
               role="alert"
-              className="border-danger/40 bg-surface text-foreground rounded-lg border p-4 text-sm"
+              className="border-danger bg-danger/15 text-foreground flex items-start gap-2 rounded-lg border p-4 text-sm"
             >
-              {submitStatus.message}
+              <ExclamationTriangleIcon
+                className="text-danger mt-0.5 h-5 w-5 shrink-0"
+                aria-hidden
+              />
+              <span>{submitStatus.message}</span>
             </div>
           )}
 

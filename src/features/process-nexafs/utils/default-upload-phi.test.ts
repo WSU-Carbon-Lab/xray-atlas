@@ -66,4 +66,15 @@ describe("uploadGeometryIsComplete", () => {
       }),
     ).toBe(true);
   });
+
+  it("rejects non-numeric fixed theta when neither angle column is mapped", () => {
+    expect(
+      uploadGeometryIsComplete({
+        hasThetaColumn: false,
+        hasPhiColumn: false,
+        fixedTheta: "abc",
+        fixedPhi: "",
+      }),
+    ).toBe(false);
+  });
 });
