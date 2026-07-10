@@ -19,7 +19,7 @@ export function buildUploadScaleSanityWarnings(args: {
 
   if (primaryRepresentation === "beta") {
     const betas = points
-      .map((p) => p.beta ?? p.absorption)
+      .map((p) => p.absorption)
       .filter((v) => Number.isFinite(v));
     if (betas.length > 0) {
       const maxBeta = Math.max(...betas);
@@ -29,6 +29,24 @@ export function buildUploadScaleSanityWarnings(args: {
         );
       }
     }
+  }
+
+  if (primaryRepresentation === "chi2") {
+    warnings.push(
+      "Chi2 primary is converted using the same epsilon2 relation (beta = eps2/2). Confirm the column is dielectric epsilon2, not magnetic chi double-prime.",
+    );
+  }
+
+  if (primaryRepresentation === "f2") {
+    warnings.push(
+      "f2 primary assumes compound-level Henke f2 divided by total molecular weight. Per-absorbing-atom f2 columns need stoichiometry weighting and may scale incorrectly for polyatomics.",
+    );
+  }
+
+  if (primaryRepresentation === "epsilon2") {
+    warnings.push(
+      "Epsilon2 primary uses beta = eps2/2 at 1 g/cm3. Confirm the column is dielectric epsilon2, not another optical constant.",
+    );
   }
 
   if (
@@ -68,7 +86,7 @@ export function buildUploadScaleSanityWarnings(args: {
 
   if (primaryRepresentation === "od") {
     const ods = points
-      .map((p) => p.od ?? p.absorption)
+      .map((p) => p.absorption)
       .filter((v) => Number.isFinite(v));
     if (ods.length > 0) {
       const min = Math.min(...ods);

@@ -10,6 +10,7 @@ import {
   massAbsorptionFromEpsilon2,
   massAbsorptionFromF2,
 } from "./opticalConstants";
+import { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";
 
 export type MassAbsorptionHubOptions = {
   barePoints: BareAtomPoint[];
@@ -18,27 +19,11 @@ export type MassAbsorptionHubOptions = {
   formulaMassGPerMol?: number | null;
 };
 
-function primaryScalarForPoint(
-  point: SpectrumPoint,
-  representation: PrimaryRepresentation,
-): number {
-  switch (representation) {
-    case "mass_absorption":
-      return point.massabsorption ?? point.absorption;
-    case "beta":
-      return point.beta ?? point.absorption;
-    case "od":
-      return point.od ?? point.absorption;
-    case "f2":
-    case "epsilon2":
-    case "chi2":
-    case "raw_mu":
-      return point.absorption;
-    default: {
-      const _exhaustive: never = representation;
-      return _exhaustive;
-    }
-  }
+/**
+ * Reads the uploaded primary scalar from the mapped primary column (`absorption`).
+ */
+function primaryScalarForPoint(point: SpectrumPoint): number {
+  return point.absorption;
 }
 
 function pointMassAbsorptionFromPrimary(
@@ -47,7 +32,7 @@ function pointMassAbsorptionFromPrimary(
   formulaMassGPerMol: number | null,
 ): number {
   const E = point.energy;
-  const primary = primaryScalarForPoint(point, representation);
+  const primary = primaryScalarForPoint(point);
   if (!Number.isFinite(primary)) {
     return Number.NaN;
   }
@@ -63,6 +48,7 @@ function pointMassAbsorptionFromPrimary(
       return massAbsorptionFromF2(primary, E, formulaMassGPerMol);
     }
     case "epsilon2":
+      return massAbsorptionFromEpsilon2(primary, E);
     case "chi2":
       return massAbsorptionFromEpsilon2(primary, E);
     case "od":
@@ -73,6 +59,12 @@ function pointMassAbsorptionFromPrimary(
       return _exhaustive;
     }
   }
+}
+
+function hubHasFiniteRows(hub: SpectrumPoint[]): boolean {
+  return hub.some((p) =>
+    Number.isFinite(p.massabsorption ?? p.absorption),
+  );
 }
 
 /**
@@ -127,7 +119,7 @@ export function buildMassAbsorptionHubPoints(
     };
   });
 
-  if (hub.some((p) => !Number.isFinite(p.absorption))) {
+  if (!hubHasFiniteRows(hub)) {
     return null;
   }
   return hub;
@@ -147,11 +139,22 @@ export function deriveOdAndBetaFromHub(
   const beta: Array<number | null> = Array.from({ length: n }, () => null);
 
   if (pre && post) {
-    const odComp = computeZeroOneNormalization(hubPoints, pre, post);
-    if (odComp) {
-      for (let i = 0; i < n; i++) {
-        const v = odComp.normalizedPoints[i]?.absorption;
-        od[i] = typeof v === "number" && Number.isFinite(v) ? v : null;
+    const finiteHub = hubPoints.filter((p) =>
+      Number.isFinite(p.massabsorption ?? p.absorption),
+    );
+    if (finiteHub.length > 0) {
+      const odComp = computeZeroOneNormalization(finiteHub, pre, post);
+      if (odComp) {
+        let odIndex = 0;
+        for (let i = 0; i < n; i++) {
+          const p = hubPoints[i]!;
+          if (!Number.isFinite(p.massabsorption ?? p.absorption)) {
+            continue;
+          }
+          const v = odComp.normalizedPoints[odIndex]?.absorption;
+          odIndex += 1;
+          od[i] = typeof v === "number" && Number.isFinite(v) ? v : null;
+        }
       }
     }
   }
@@ -159,9 +162,30 @@ export function deriveOdAndBetaFromHub(
   for (let i = 0; i < n; i++) {
     const p = hubPoints[i]!;
     const mu = p.massabsorption ?? p.absorption;
+    if (!Number.isFinite(mu)) {
+      continue;
+    }
     const b = betaFromMassAbsorption(mu, p.energy);
     beta[i] = Number.isFinite(b) ? b : null;
   }
 
   return { od, beta };
+}
+
+export type NormalizationWindowPair = {
+  pre: [number, number] | null;
+  post: [number, number] | null;
+};
+
+/**
+ * Resolves pre/post normalization windows from contributor ranges with spectrum auto-fallback.
+ */
+export function resolveNormalizationWindowsForHub(
+  points: SpectrumPoint[],
+  contributorRanges: NormalizationWindowPair | null | undefined,
+): NormalizationWindowPair {
+  const fallback = defaultNormalizationRangesFromSpectrum(points);
+  const pre = contributorRanges?.pre ?? fallback?.pre ?? null;
+  const post = contributorRanges?.post ?? fallback?.post ?? null;
+  return { pre, post };
 }

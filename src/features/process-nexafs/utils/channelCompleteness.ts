@@ -109,6 +109,50 @@ export type PrimaryInferenceResult = {
   needsExplicitChoice: boolean;
 };
 
+const PROCESSED_CANDIDATE_SPECS: Array<{
+  representation: PrimaryRepresentation;
+  columnKey: keyof Pick<
+    CSVColumnMappings,
+    "beta" | "massabsorption" | "od" | "f2" | "epsilon2" | "chi2"
+  >;
+}> = [
+  { representation: "beta", columnKey: "beta" },
+  { representation: "mass_absorption", columnKey: "massabsorption" },
+  { representation: "od", columnKey: "od" },
+  { representation: "f2", columnKey: "f2" },
+  { representation: "epsilon2", columnKey: "epsilon2" },
+  { representation: "chi2", columnKey: "chi2" },
+];
+
+/**
+ * Resolves the CSV column that holds the declared primary trace for parsing and hub conversion.
+ */
+export function resolvePrimaryAbsorptionColumn(
+  mappings: CSVColumnMappings,
+  primaryRepresentation: PrimaryRepresentation,
+): string | undefined {
+  switch (primaryRepresentation) {
+    case "beta":
+      return mappings.beta ?? mappings.absorption ?? undefined;
+    case "mass_absorption":
+      return mappings.massabsorption ?? mappings.absorption ?? undefined;
+    case "od":
+      return mappings.od ?? mappings.absorption ?? undefined;
+    case "f2":
+      return mappings.f2 ?? mappings.absorption ?? undefined;
+    case "epsilon2":
+      return mappings.epsilon2 ?? mappings.absorption ?? undefined;
+    case "chi2":
+      return mappings.chi2 ?? mappings.absorption ?? undefined;
+    case "raw_mu":
+      return mappings.absorption ?? undefined;
+    default: {
+      const _exhaustive: never = primaryRepresentation;
+      return _exhaustive;
+    }
+  }
+}
+
 /**
  * Infers primary representation and absorption column from column fill status and header names.
  */
@@ -121,10 +165,44 @@ export function inferPrimaryRepresentation(args: {
     return null;
   }
 
+  const processedCandidates = PROCESSED_CANDIDATE_SPECS.map((spec) => ({
+    representation: spec.representation,
+    column: mappings[spec.columnKey],
+  })).filter(
+    (candidate) => candidate.column && columnFilled(fillStatus, candidate.column),
+  );
+
   const muFilled =
-    mappings.absorption &&
-    fillStatus[mappings.absorption] === "filled" &&
+    Boolean(mappings.absorption) &&
+    columnFilled(fillStatus, mappings.absorption) &&
     isMuLikeAbsorptionColumn(mappings.absorption, mappings);
+
+  if (processedCandidates.length === 1 && !muFilled) {
+    const only = processedCandidates[0]!;
+    return {
+      primaryRepresentation: only.representation,
+      absorptionColumn: only.column!,
+      needsExplicitChoice: false,
+    };
+  }
+
+  if (processedCandidates.length >= 1 && muFilled) {
+    const preferred = processedCandidates[0]!;
+    return {
+      primaryRepresentation: preferred.representation,
+      absorptionColumn: preferred.column!,
+      needsExplicitChoice: true,
+    };
+  }
+
+  if (processedCandidates.length > 1) {
+    const preferred = processedCandidates[0]!;
+    return {
+      primaryRepresentation: preferred.representation,
+      absorptionColumn: preferred.column!,
+      needsExplicitChoice: true,
+    };
+  }
 
   if (muFilled && mappings.absorption) {
     return {
@@ -134,44 +212,7 @@ export function inferPrimaryRepresentation(args: {
     };
   }
 
-  const candidates: Array<{
-    representation: PrimaryRepresentation;
-    column: string | undefined;
-  }> = [
-    { representation: "beta", column: mappings.beta },
-    { representation: "mass_absorption", column: mappings.massabsorption },
-    { representation: "od", column: mappings.od },
-    { representation: "f2", column: mappings.f2 },
-    { representation: "epsilon2", column: mappings.epsilon2 },
-    { representation: "chi2", column: mappings.chi2 },
-  ];
-
-  const filledCandidates = candidates.filter(
-    (c) => c.column && columnFilled(fillStatus, c.column),
-  );
-
-  if (filledCandidates.length === 1) {
-    const only = filledCandidates[0]!;
-    return {
-      primaryRepresentation: only.representation,
-      absorptionColumn: only.column!,
-      needsExplicitChoice: false,
-    };
-  }
-
-  if (filledCandidates.length > 1) {
-    const first = filledCandidates[0]!;
-    return {
-      primaryRepresentation: first.representation,
-      absorptionColumn: first.column!,
-      needsExplicitChoice: true,
-    };
-  }
-
-  if (
-    mappings.absorption &&
-    fillStatus[mappings.absorption] === "filled"
-  ) {
+  if (mappings.absorption && fillStatus[mappings.absorption] === "filled") {
     return {
       primaryRepresentation: "raw_mu",
       absorptionColumn: mappings.absorption,
@@ -183,11 +224,12 @@ export function inferPrimaryRepresentation(args: {
 }
 
 /**
- * Lists uploaded channel keys present with filled data in spectrum points or column mappings.
+ * Lists uploaded channel keys present with filled data in column mappings.
  */
 export function uploadedChannelsFromDataset(args: {
   columnMappings: CSVColumnMappings;
   fillStatus: Record<string, ColumnFillStatus>;
+  primaryRepresentation?: PrimaryRepresentation;
 }): Array<"rawabs" | "od" | "massabsorption" | "beta"> {
   const channels: Array<"rawabs" | "od" | "massabsorption" | "beta"> = [
     "rawabs",
@@ -210,5 +252,35 @@ export function uploadedChannelsFromDataset(args: {
   ) {
     channels.push("beta");
   }
+  const primary = args.primaryRepresentation;
+  if (primary === "f2" || primary === "epsilon2" || primary === "chi2") {
+    return channels;
+  }
   return channels;
+}
+
+/**
+ * Reports whether the dataset has a resolvable primary column for upload.
+ */
+export function datasetHasResolvablePrimary(args: {
+  mappings: CSVColumnMappings;
+  fillStatus: Record<string, ColumnFillStatus>;
+  primaryRepresentation: PrimaryRepresentation;
+  primaryRepresentationLocked: boolean;
+  primaryInferenceNeedsChoice: boolean;
+}): boolean {
+  if (args.primaryInferenceNeedsChoice && !args.primaryRepresentationLocked) {
+    return false;
+  }
+  const column = resolvePrimaryAbsorptionColumn(
+    args.mappings,
+    args.primaryRepresentation,
+  );
+  if (!column || args.fillStatus[column] !== "filled") {
+    return false;
+  }
+  if (!args.mappings.energy || args.fillStatus[args.mappings.energy] !== "filled") {
+    return false;
+  }
+  return true;
 }

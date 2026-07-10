@@ -53,10 +53,13 @@ export {
 export {
   buildMassAbsorptionHubPoints,
   deriveOdAndBetaFromHub,
+  resolveNormalizationWindowsForHub,
 } from "./representationToMassAbsorption";
 export {
   classifyColumnFillStatus,
   inferPrimaryRepresentation,
+  resolvePrimaryAbsorptionColumn,
+  datasetHasResolvablePrimary,
   uploadedChannelsFromDataset,
 } from "./channelCompleteness";
 export {
@@ -87,6 +90,7 @@ export {
 export {
   buildSpectrumPointsWithDerivedForUpload,
   uploadDatasetHasFiniteBetaForKkOnEveryRow,
+  resolveFormulaMassGPerMol,
 } from "./uploadDerivedSpectrum";
 export { resolveHenkeMergeDomainForUploadDataset } from "./resolveHenkeMergeDomainForUploadDataset";
 export { detectAuxiliarySpectrumColumnNames } from "./auxiliarySpectrumColumns";

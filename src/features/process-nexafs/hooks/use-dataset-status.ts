@@ -1,5 +1,9 @@
 import { useMemo } from "react";
 import type { DatasetState } from "../types";
+import {
+  classifyColumnFillStatus,
+  datasetHasResolvablePrimary,
+} from "../utils/channelCompleteness";
 
 export type DatasetStatus =
   | "complete"
@@ -27,9 +31,32 @@ export function useDatasetStatus(dataset: DatasetState): DatasetStatusInfo {
     if (!dataset.edgeId) {
       missingFields.push("Edge");
     }
-    if (!dataset.columnMappings.energy || !dataset.columnMappings.absorption) {
-      missingFields.push("Column Mapping");
+
+    const fillStatus = classifyColumnFillStatus(
+      dataset.csvRawData,
+      dataset.columnMappings,
+    );
+    const hasPrimary = datasetHasResolvablePrimary({
+      mappings: dataset.columnMappings,
+      fillStatus,
+      primaryRepresentation: dataset.primaryRepresentation,
+      primaryRepresentationLocked: dataset.primaryRepresentationLocked,
+      primaryInferenceNeedsChoice: dataset.primaryInferenceNeedsChoice,
+    });
+
+    if (!hasPrimary) {
+      if (
+        dataset.primaryInferenceNeedsChoice &&
+        !dataset.primaryRepresentationLocked
+      ) {
+        errors.push(
+          "Confirm the primary signal column in column mapping before submitting.",
+        );
+      } else {
+        missingFields.push("Column Mapping");
+      }
     }
+
     if (dataset.spectrumPoints.length === 0 && !dataset.spectrumError) {
       missingFields.push("Spectrum Data");
     }

@@ -108,6 +108,7 @@ export default function NEXAFSContributePage() {
     handleDatasetRemove,
     clearDatasets,
     columnMappingFile,
+    openColumnMappingForDataset,
     handleColumnMappingConfirm,
     handleColumnMappingClose,
   } = useNexafsDatasets({
@@ -284,6 +285,7 @@ export default function NEXAFSContributePage() {
               handleDatasetSelect={handleDatasetSelect}
               handleDatasetRemove={handleDatasetRemove}
               columnMappingFile={columnMappingFile}
+              openColumnMappingForDataset={openColumnMappingForDataset}
               handleColumnMappingConfirm={handleColumnMappingConfirm}
               handleColumnMappingClose={handleColumnMappingClose}
               instrumentOptions={instrumentOptions}

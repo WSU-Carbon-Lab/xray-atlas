@@ -54,6 +54,7 @@ import {
 } from "~/features/kk-calc";
 import {
   buildAutoDetectedPeakList,
+  buildMassAbsorptionHubPoints,
   buildSpectrumPointsWithDerivedForUpload,
   calculateBareAtomAbsorption,
   calculateBareAtomDelta,
@@ -68,6 +69,8 @@ import {
   mergePeaksPreservingManualAndSteps,
   uploadDatasetHasFiniteBetaForKkOnEveryRow,
   resolveHenkeMergeDomainForUploadDataset,
+  resolveFormulaMassGPerMol,
+  resolveNormalizationWindowsForHub,
   warmBareAtomCacheForFormula,
   type DifferenceSpectrum,
 } from "~/features/process-nexafs/utils";
@@ -941,6 +944,7 @@ interface DatasetContentProps {
   isLoadingCalibrations: boolean;
   isLoadingVendors: boolean;
   onAuxDropTargetsChange?: (active: AuxDropTargetsActive) => void;
+  onOpenColumnMapping?: () => void;
 }
 
 export function DatasetContent({
@@ -956,6 +960,7 @@ export function DatasetContent({
   isLoadingCalibrations: _isLoadingCalibrations,
   isLoadingVendors,
   onAuxDropTargetsChange,
+  onOpenColumnMapping,
 }: DatasetContentProps) {
   const [showAddMoleculeModal, setShowAddMoleculeModal] = useState(false);
   const [showAddFacilityModal, setShowAddFacilityModal] = useState(false);
@@ -989,24 +994,6 @@ export function DatasetContent({
     dataset.bareAtomPoints,
   ]);
 
-  const processedPrimaryBareAtomAgreement = useMemo(
-    () =>
-      isProcessedPrimaryRepresentation(dataset.primaryRepresentation)
-        ? buildProcessedPrimaryBareAtomAgreement({
-            points: dataset.spectrumPoints,
-            bareAtomPoints: dataset.bareAtomPoints,
-            pre: dataset.normalizationRegions.pre,
-            post: dataset.normalizationRegions.post,
-          })
-        : [],
-    [
-      dataset.primaryRepresentation,
-      dataset.spectrumPoints,
-      dataset.bareAtomPoints,
-      dataset.normalizationRegions.pre,
-      dataset.normalizationRegions.post,
-    ],
-  );
   const [showThetaData, setShowThetaData] = useState(false);
   const [showPhiData, setShowPhiData] = useState(false);
   const [selectedGeometry] = useState<{
@@ -1190,6 +1177,62 @@ export function DatasetContent({
     }
     void warmBareAtomCacheForFormula(f).catch(() => undefined);
   }, [selectedMolecule?.chemicalFormula]);
+
+  const moleculeFormula = selectedMolecule?.chemicalFormula?.trim() ?? null;
+
+  const uploadDerivedPreview = useMemo(
+    () =>
+      buildSpectrumPointsWithDerivedForUpload(dataset, {
+        chemicalFormula: moleculeFormula,
+      }),
+    [dataset, moleculeFormula],
+  );
+
+  const processedPrimaryBareAtomAgreement = useMemo(() => {
+    if (!isProcessedPrimaryRepresentation(dataset.primaryRepresentation)) {
+      return [];
+    }
+    if (!dataset.bareAtomPoints?.length) {
+      return [];
+    }
+    const { pre, post } = resolveNormalizationWindowsForHub(
+      dataset.spectrumPoints,
+      {
+        pre: dataset.normalizationRegions.pre,
+        post: dataset.normalizationRegions.post,
+      },
+    );
+    const hub = buildMassAbsorptionHubPoints(
+      dataset.spectrumPoints,
+      dataset.primaryRepresentation,
+      {
+        barePoints: dataset.bareAtomPoints,
+        pre,
+        post,
+        formulaMassGPerMol: resolveFormulaMassGPerMol({
+          sampleMolecularWeight: dataset.sampleInfo.molecularWeight,
+          chemicalFormula: moleculeFormula,
+        }),
+      },
+    );
+    if (!hub) {
+      return [];
+    }
+    return buildProcessedPrimaryBareAtomAgreement({
+      points: hub,
+      bareAtomPoints: dataset.bareAtomPoints,
+      pre,
+      post,
+    });
+  }, [
+    dataset.primaryRepresentation,
+    dataset.spectrumPoints,
+    dataset.bareAtomPoints,
+    dataset.normalizationRegions.pre,
+    dataset.normalizationRegions.post,
+    dataset.sampleInfo.molecularWeight,
+    moleculeFormula,
+  ]);
 
   // Check if current edge selection matches molecule atoms
   const selectedEdge = edgeOptions.find((e) => e.id === dataset.edgeId);
@@ -1572,6 +1615,23 @@ export function DatasetContent({
   ]);
 
   const betaPoints = useMemo(() => {
+    const hubBeta = uploadDerivedPreview
+      .filter((p) => typeof p.beta === "number" && Number.isFinite(p.beta))
+      .map((p) => ({
+        energy: p.energy,
+        absorption: p.beta!,
+        beta: p.beta,
+        theta: p.theta,
+        phi: p.phi,
+        od: p.od,
+      }));
+    const hubCoverage =
+      uploadDerivedPreview.length > 0
+        ? hubBeta.length / uploadDerivedPreview.length
+        : 0;
+    if (hubCoverage >= 0.99 && hubBeta.length > 0) {
+      return hubBeta;
+    }
     if (!dataset.bareAtomPoints?.length) return null;
     if (betaMuLike.length === 0) return null;
     return computeBetaIndex(
@@ -1579,7 +1639,7 @@ export function DatasetContent({
       betaMuLike.map((p) => p.energy),
       dataset.bareAtomPoints,
     );
-  }, [betaMuLike, dataset.bareAtomPoints]);
+  }, [uploadDerivedPreview, betaMuLike, dataset.bareAtomPoints]);
 
   const showThetaPhiBeforeDifferenceRef = useRef<{
     showThetaData: boolean;
@@ -1926,15 +1986,16 @@ export function DatasetContent({
   );
 
   const runKkDeltaPreviewForUploadDraft = useCallback(() => {
-    const formula = selectedMolecule?.chemicalFormula?.trim();
-    if (!formula) {
+    if (!moleculeFormula) {
       showToast(
         "Select a molecule with a chemical formula before running KK.",
         "info",
       );
       return;
     }
-    if (!uploadDatasetHasFiniteBetaForKkOnEveryRow(dataset)) {
+    if (!uploadDatasetHasFiniteBetaForKkOnEveryRow(dataset, {
+      chemicalFormula: moleculeFormula,
+    })) {
       showToast(
         "Need finite beta on every row. Derive beta via normalization and bare atom, or map a beta column.",
         "info",
@@ -1943,9 +2004,11 @@ export function DatasetContent({
     }
     setKkUploadBusy(true);
     try {
-      const base = buildSpectrumPointsWithDerivedForUpload(dataset);
+      const base = buildSpectrumPointsWithDerivedForUpload(dataset, {
+        chemicalFormula: moleculeFormula,
+      });
       const withDelta = applyKkDeltaToSpectrumPoints(base, {
-        stoichiometryFormula: formula,
+        stoichiometryFormula: moleculeFormula,
         massDensityGPerCm3: DEFAULT_KK_MASS_DENSITY_G_CM3,
         henkeMergeDomain: henkeMergeDomainUpload,
       });
@@ -1965,7 +2028,7 @@ export function DatasetContent({
     }
   }, [
     dataset,
-    selectedMolecule?.chemicalFormula,
+    moleculeFormula,
     henkeMergeDomainUpload,
     onDatasetUpdate,
   ]);
@@ -1980,8 +2043,10 @@ export function DatasetContent({
 
   const kkUploadRailVisible =
     dataset.spectrumPoints.length > 0 &&
-    Boolean(selectedMolecule?.chemicalFormula?.trim()) &&
-    uploadDatasetHasFiniteBetaForKkOnEveryRow(dataset);
+    Boolean(moleculeFormula) &&
+    uploadDatasetHasFiniteBetaForKkOnEveryRow(dataset, {
+      chemicalFormula: moleculeFormula,
+    });
 
   useEffect(() => {
     if (!kkUploadRailVisible) return;
@@ -2455,6 +2520,28 @@ export function DatasetContent({
       </div>
 
       <div className="flex w-full flex-col">
+        {dataset.primaryInferenceNeedsChoice &&
+        !dataset.primaryRepresentationLocked &&
+        onOpenColumnMapping ? (
+          <div
+            role="alert"
+            className="border-danger/40 bg-danger/10 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+          >
+            <p className="text-danger-foreground">
+              Multiple signal columns detected. Confirm the primary
+              representation before submitting.
+            </p>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="shrink-0"
+              onPress={onOpenColumnMapping}
+            >
+              <Columns3 className="h-4 w-4" />
+              Map columns
+            </Button>
+          </div>
+        ) : null}
         {processedPrimaryBareAtomAgreement.length > 0 ? (
           <div
             role="status"

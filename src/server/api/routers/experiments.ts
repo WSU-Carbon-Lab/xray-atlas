@@ -35,6 +35,7 @@ import { loadNexafsFacetCounts } from "~/server/nexafs/nexafsFacetCounts";
 import {
   coalesceUploadedOrDerived,
   computeSpectrumDerivedScalarColumns,
+  uploadedDerivedScalarsConsistentWithPrimary,
 } from "~/server/nexafs/computeSpectrumDerivedColumns";
 import {
   buildChannelProvenance,
@@ -43,7 +44,10 @@ import {
   type NormalizationRanges,
   type NormalizationScope,
   type UploadedChannel,
+  unifiedRangesForUploadedChannel,
 } from "~/server/nexafs/normalizationMetadata";
+import type { PrimaryRepresentation } from "~/features/process-nexafs/types";
+import type { NormalizationWindowPair } from "~/features/process-nexafs/utils/representationToMassAbsorption";
 import {
   fetchNexafsBrowseGrouped,
   type NexafsBrowseSortKey,
@@ -64,6 +68,36 @@ import {
   userMayManageAtlasTeamVerification,
   validationSummaryToPrismaJson,
 } from "~/server/nexafs/atlasTeamVerification";
+
+function hubNormalizationRangesFromInput(
+  scope: NormalizationScope,
+  ranges: NormalizationRanges,
+  primaryRepresentation: PrimaryRepresentation,
+): NormalizationWindowPair | null {
+  if (!ranges) {
+    return null;
+  }
+  if (
+    typeof ranges === "object" &&
+    "pre" in ranges &&
+    "post" in ranges &&
+    ranges.pre &&
+    ranges.post
+  ) {
+    return { pre: ranges.pre, post: ranges.post };
+  }
+  const channel: Exclude<UploadedChannel, "rawabs"> =
+    primaryRepresentation === "od"
+      ? "od"
+      : primaryRepresentation === "mass_absorption"
+        ? "massabsorption"
+        : "beta";
+  const unified = unifiedRangesForUploadedChannel(scope, ranges, channel);
+  if (unified?.pre && unified?.post) {
+    return { pre: unified.pre, post: unified.post };
+  }
+  return null;
+}
 
 const nexafsBrowseSortBySchema = z
   .enum([
@@ -1447,15 +1481,39 @@ export const experimentsRouter = createTRPCRouter({
         Awaited<ReturnType<typeof computeSpectrumDerivedScalarColumns>>
       > = [];
 
+      const deriveNormalizationRanges = hubNormalizationRangesFromInput(
+        normalizationScope,
+        normalizationRanges,
+        primaryRepresentation,
+      );
+
       for (const group of geometryGroups) {
         if (spectrumRowsHaveUploadedDerivedScalars(group.points)) {
-          derivedByGroup.push(emptyDerivedScalars());
+          const consistent = await uploadedDerivedScalarsConsistentWithPrimary({
+            points: group.points,
+            chemicalFormula,
+            primaryRepresentation,
+            normalizationRanges: deriveNormalizationRanges,
+          });
+          if (consistent) {
+            derivedByGroup.push(emptyDerivedScalars());
+          } else {
+            derivedByGroup.push(
+              await computeSpectrumDerivedScalarColumns(
+                group.points,
+                chemicalFormula,
+                primaryRepresentation,
+                deriveNormalizationRanges,
+              ),
+            );
+          }
         } else {
           derivedByGroup.push(
             await computeSpectrumDerivedScalarColumns(
               group.points,
               chemicalFormula,
               primaryRepresentation,
+              deriveNormalizationRanges,
             ),
           );
         }

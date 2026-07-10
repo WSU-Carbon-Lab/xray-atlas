@@ -62,6 +62,7 @@ export type NexafsContributeFlowProps = {
   handleDatasetSelect: (id: string) => void;
   handleDatasetRemove: (id: string) => void;
   columnMappingFile: { file: File; datasetId: string } | null;
+  openColumnMappingForDataset: (dataset: DatasetState) => void;
   handleColumnMappingConfirm: (
     mappings: CSVColumnMappings,
     fixedValues?: { theta?: string; phi?: string },
@@ -135,6 +136,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     handleDatasetSelect,
     handleDatasetRemove,
     columnMappingFile,
+    openColumnMappingForDataset,
     handleColumnMappingConfirm,
     handleColumnMappingClose,
     instrumentOptions,
@@ -326,6 +328,9 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
                   key={activeDataset.id}
                   dataset={activeDataset}
                   onDatasetUpdate={updateDataset}
+                  onOpenColumnMapping={() =>
+                    openColumnMappingForDataset(activeDataset)
+                  }
                   onAuxDropTargetsChange={setAuxDropTargetsActive}
                   onReloadData={() => processDatasetData(activeDataset.id)}
                   instrumentOptions={instrumentOptions}

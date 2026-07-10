@@ -17,8 +17,10 @@ import {
 } from "../utils";
 import {
   classifyColumnFillStatus,
+  datasetHasResolvablePrimary,
   uploadedChannelsFromDataset,
 } from "../utils/channelCompleteness";
+import { isProcessedPrimaryRepresentation } from "../utils/uploadScaleSanity";
 import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
@@ -97,6 +99,25 @@ export function useNexafsSubmit(
           setSubmitStatus({
             type: "error",
             message: `Dataset "${dataset.fileName}": No spectrum data found.`,
+          });
+          return;
+        }
+        const fillStatus = classifyColumnFillStatus(
+          dataset.csvRawData,
+          dataset.columnMappings,
+        );
+        if (
+          !datasetHasResolvablePrimary({
+            mappings: dataset.columnMappings,
+            fillStatus,
+            primaryRepresentation: dataset.primaryRepresentation,
+            primaryRepresentationLocked: dataset.primaryRepresentationLocked,
+            primaryInferenceNeedsChoice: dataset.primaryInferenceNeedsChoice,
+          })
+        ) {
+          setSubmitStatus({
+            type: "error",
+            message: `Dataset "${dataset.fileName}": Confirm the primary signal column in column mapping before submitting.`,
           });
           return;
         }
@@ -188,7 +209,19 @@ export function useNexafsSubmit(
             };
           }
 
-          let spectrumPoints = buildSpectrumPointsWithDerivedForUpload(dataset);
+          let moleculeFormula: string | null = null;
+          try {
+            const mol = await utils.client.molecules.getById.query({
+              id: dataset.moleculeId,
+            });
+            moleculeFormula = mol.chemicalFormula?.trim() ?? null;
+          } catch {
+            moleculeFormula = null;
+          }
+
+          let spectrumPoints = buildSpectrumPointsWithDerivedForUpload(dataset, {
+            chemicalFormula: moleculeFormula,
+          });
           if (dataset.computeKkDeltaOnSubmit) {
             const hasBeta = spectrumPoints.every(
               (p) => typeof p.beta === "number" && Number.isFinite(p.beta),
@@ -263,16 +296,22 @@ export function useNexafsSubmit(
               calibrationId: dataset.calibrationId || undefined,
               referenceStandard: dataset.referenceStandard.trim() || undefined,
               isStandard: dataset.isStandard,
-              normalization: {
-                scope: dataset.normalizationScope,
-                ranges:
-                  dataset.normalizationScope === "none"
-                    ? null
-                    : {
-                        pre: dataset.normalizationRegions.pre,
-                        post: dataset.normalizationRegions.post,
-                      },
-              },
+              normalization: (() => {
+                const pre = dataset.normalizationRegions.pre;
+                const post = dataset.normalizationRegions.post;
+                const persistRangesForDerive =
+                  pre &&
+                  post &&
+                  (dataset.normalizationScope !== "none" ||
+                    isProcessedPrimaryRepresentation(
+                      dataset.primaryRepresentation,
+                    ) ||
+                    dataset.primaryRepresentation === "od");
+                return {
+                  scope: dataset.normalizationScope,
+                  ranges: persistRangesForDerive ? { pre, post } : null,
+                };
+              })(),
               validationOverride:
                 dataset.validationOverride.bypass ||
                 dataset.validationOverride.reason.trim().length > 0
@@ -288,6 +327,7 @@ export function useNexafsSubmit(
                   dataset.csvRawData,
                   dataset.columnMappings,
                 ),
+                primaryRepresentation: dataset.primaryRepresentation,
               }),
               primaryRepresentation: dataset.primaryRepresentation,
               computeKkDeltaOnSubmit: dataset.computeKkDeltaOnSubmit

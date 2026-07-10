@@ -28,6 +28,7 @@ import {
 import {
   classifyColumnFillStatus,
   inferPrimaryRepresentation,
+  resolvePrimaryAbsorptionColumn,
 } from "../utils/channelCompleteness";
 import { buildUploadScaleSanityWarnings } from "../utils/uploadScaleSanity";
 import type { PrimaryRepresentation } from "../types";
@@ -125,6 +126,10 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
     [],
   );
 
+  const openColumnMappingForDataset = useCallback((dataset: DatasetState) => {
+    setColumnMappingFile({ file: dataset.file, datasetId: dataset.id });
+  }, []);
+
   const processDatasetData = useCallback(
     (datasetId: string) => {
       const dataset = datasets.find((d) => d.id === datasetId);
@@ -136,7 +141,6 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         return;
 
       const energyColumn = dataset.columnMappings.energy;
-      let absorptionColumn = dataset.columnMappings.absorption;
       const thetaColumn = dataset.columnMappings.theta;
       const phiColumn = dataset.columnMappings.phi;
 
@@ -156,15 +160,36 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
           spectrumError:
             "Could not infer a primary signal column. Map energy and at least one absorption channel (mu, beta, mass_absorption, or od).",
         });
+        openColumnMappingForDataset(dataset);
         return;
       }
 
-      absorptionColumn = inferred.absorptionColumn;
       const primaryRepresentation = dataset.primaryRepresentationLocked
         ? dataset.primaryRepresentation
         : inferred.primaryRepresentation;
 
-      if (!absorptionColumn) return;
+      const absorptionColumn = dataset.primaryRepresentationLocked
+        ? resolvePrimaryAbsorptionColumn(
+            dataset.columnMappings,
+            primaryRepresentation,
+          )
+        : inferred.absorptionColumn;
+
+      if (!absorptionColumn) {
+        updateDataset(datasetId, {
+          spectrumError:
+            "Primary column mapping is incomplete. Open column mapping and assign the primary signal column.",
+        });
+        openColumnMappingForDataset(dataset);
+        return;
+      }
+
+      const needsExplicitChoice =
+        inferred.needsExplicitChoice && !dataset.primaryRepresentationLocked;
+
+      if (needsExplicitChoice) {
+        openColumnMappingForDataset(dataset);
+      }
 
       try {
         const spectrumPoints: SpectrumPoint[] = [];
@@ -264,7 +289,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         });
         if (inferred.needsExplicitChoice) {
           warnings.unshift(
-            "Multiple processed channels are filled; confirm the primary representation in column mapping.",
+            "Multiple signal columns are filled; confirm the primary representation in column mapping before submitting.",
           );
         }
 
@@ -276,7 +301,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
             absorption: absorptionColumn,
           },
           primaryRepresentation,
-          primaryInferenceNeedsChoice: inferred.needsExplicitChoice,
+          primaryInferenceNeedsChoice: needsExplicitChoice,
           uploadParseWarnings: warnings,
           normalizationScope: isProcessedPrimary(primaryRepresentation)
             ? "none"
@@ -291,7 +316,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         });
       }
     },
-    [datasets, updateDataset],
+    [datasets, openColumnMappingForDataset, updateDataset],
   );
 
   const processDatasetDataRef = useRef(processDatasetData);
@@ -432,10 +457,13 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
               }
               if (missingColumns.length > 0) {
                 showToast(
-                  `Missing required columns: ${missingColumns.join(", ")}. Please map columns in the table view.`,
+                  `Missing required columns: ${missingColumns.join(", ")}. Opening column mapping.`,
                   "error",
                   8000,
                 );
+                setColumnMappingFile({ file, datasetId: dataset.id });
+              } else if (inferred?.needsExplicitChoice) {
+                setColumnMappingFile({ file, datasetId: dataset.id });
               }
             }
           } else {
@@ -522,10 +550,13 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
 
               if (missingColumns.length > 0) {
                 showToast(
-                  `Missing required columns: ${missingColumns.join(", ")}. Please map columns in the table view.`,
+                  `Missing required columns: ${missingColumns.join(", ")}. Opening column mapping.`,
                   "error",
                   8000,
                 );
+                setColumnMappingFile({ file, datasetId: dataset.id });
+              } else if (inferred?.needsExplicitChoice) {
+                setColumnMappingFile({ file, datasetId: dataset.id });
               }
 
               if (inferred) {
@@ -595,14 +626,21 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
     ) => {
       if (!columnMappingFile) return;
 
+      const lockedPrimary = primaryRepresentation ?? "raw_mu";
+      const primaryColumn = resolvePrimaryAbsorptionColumn(
+        mappings,
+        lockedPrimary,
+      );
+
       const updates: Partial<DatasetState> = {
-        columnMappings: mappings,
+        columnMappings: {
+          ...mappings,
+          absorption: primaryColumn ?? mappings.absorption,
+        },
         primaryInferenceNeedsChoice: false,
+        primaryRepresentation: lockedPrimary,
+        primaryRepresentationLocked: true,
       };
-      if (primaryRepresentation) {
-        updates.primaryRepresentation = primaryRepresentation;
-        updates.primaryRepresentationLocked = true;
-      }
       if (fixedValues?.theta !== undefined)
         updates.fixedTheta = fixedValues.theta;
       if (fixedValues?.phi !== undefined) updates.fixedPhi = fixedValues.phi;
@@ -711,6 +749,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
     clearDatasets,
     columnMappingFile,
     setColumnMappingFile,
+    openColumnMappingForDataset,
     handleColumnMappingConfirm,
     handleColumnMappingClose,
   };

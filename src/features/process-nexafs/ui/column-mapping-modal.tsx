@@ -17,6 +17,7 @@ import {
 import {
   classifyColumnFillStatus,
   inferPrimaryRepresentation,
+  resolvePrimaryAbsorptionColumn,
 } from "~/features/process-nexafs/utils/channelCompleteness";
 import type { SpectrumPoint } from "~/components/plots/types";
 
@@ -294,8 +295,39 @@ export function ColumnMappingModal({
       return false;
     }
     const fillStatus = classifyColumnFillStatus(rawData, mappings);
-    return inferPrimaryRepresentation({ mappings, fillStatus }) != null;
-  }, [mappings, rawData]);
+    const primaryColumn = resolvePrimaryAbsorptionColumn(
+      mappings,
+      primaryRepresentation,
+    );
+    if (
+      !primaryColumn ||
+      fillStatus[primaryColumn] !== "filled" ||
+      fillStatus[mappings.energy] !== "filled"
+    ) {
+      return false;
+    }
+    return true;
+  }, [mappings, rawData, primaryRepresentation]);
+
+  useEffect(() => {
+    const primaryColumn = resolvePrimaryAbsorptionColumn(
+      mappings,
+      primaryRepresentation,
+    );
+    if (primaryColumn && mappings.absorption !== primaryColumn) {
+      setMappings((prev) => ({ ...prev, absorption: primaryColumn }));
+    }
+  }, [
+    primaryRepresentation,
+    mappings.energy,
+    mappings.absorption,
+    mappings.beta,
+    mappings.od,
+    mappings.massabsorption,
+    mappings.f2,
+    mappings.epsilon2,
+    mappings.chi2,
+  ]);
 
   const handleConfirm = () => {
     if (!confirmReady) {

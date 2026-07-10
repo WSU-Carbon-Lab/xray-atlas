@@ -1,9 +1,13 @@
 import type { SpectrumPoint } from "~/components/plots/types";
 import type { DatasetState } from "../types";
-import { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";
+import {
+  computeMolecularWeight,
+  parseChemicalFormula,
+} from "~/server/utils/chemistry";
 import {
   buildMassAbsorptionHubPoints,
   deriveOdAndBetaFromHub,
+  resolveNormalizationWindowsForHub,
 } from "./representationToMassAbsorption";
 
 function coalesceUploaded(
@@ -20,30 +24,51 @@ function coalesceUploaded(
 }
 
 /**
+ * Resolves formula mass (g/mol) from sample metadata or an optional molecule formula string.
+ */
+export function resolveFormulaMassGPerMol(args: {
+  sampleMolecularWeight: number | null | undefined;
+  chemicalFormula: string | null | undefined;
+}): number | null {
+  if (
+    typeof args.sampleMolecularWeight === "number" &&
+    Number.isFinite(args.sampleMolecularWeight) &&
+    args.sampleMolecularWeight > 0
+  ) {
+    return args.sampleMolecularWeight;
+  }
+  const formula = args.chemicalFormula?.trim();
+  if (!formula) {
+    return null;
+  }
+  try {
+    const mass = computeMolecularWeight(parseChemicalFormula(formula));
+    return mass > 0 ? mass : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Builds upload-ready spectrum rows: preserves the uploaded primary in absorption (rawabs),
  * converts to the mass-absorption hub, and derives OD/beta when not uploaded.
  */
 export function buildSpectrumPointsWithDerivedForUpload(
   dataset: DatasetState,
+  options?: { chemicalFormula?: string | null },
 ): SpectrumPoint[] {
   const points = dataset.spectrumPoints;
   if (points.length === 0) return [];
 
-  let pre = dataset.normalizationRegions.pre;
-  let post = dataset.normalizationRegions.post;
-  if (!pre || !post) {
-    const fallback = defaultNormalizationRangesFromSpectrum(points);
-    if (fallback) {
-      pre = pre ?? fallback.pre;
-      post = post ?? fallback.post;
-    }
-  }
+  const { pre, post } = resolveNormalizationWindowsForHub(points, {
+    pre: dataset.normalizationRegions.pre,
+    post: dataset.normalizationRegions.post,
+  });
 
-  const formulaMass =
-    typeof dataset.sampleInfo.molecularWeight === "number" &&
-    Number.isFinite(dataset.sampleInfo.molecularWeight)
-      ? dataset.sampleInfo.molecularWeight
-      : null;
+  const formulaMass = resolveFormulaMassGPerMol({
+    sampleMolecularWeight: dataset.sampleInfo.molecularWeight,
+    chemicalFormula: options?.chemicalFormula ?? null,
+  });
 
   const hub = buildMassAbsorptionHubPoints(
     points,
@@ -84,15 +109,6 @@ export function buildSpectrumPointsWithDerivedForUpload(
       next.beta = beta;
     }
 
-    if (
-      dataset.primaryRepresentation === "beta" &&
-      typeof base.absorption === "number" &&
-      Number.isFinite(base.absorption) &&
-      next.beta === undefined
-    ) {
-      next.beta = base.absorption;
-    }
-
     return next;
   });
 }
@@ -102,8 +118,9 @@ export function buildSpectrumPointsWithDerivedForUpload(
  */
 export function uploadDatasetHasFiniteBetaForKkOnEveryRow(
   dataset: DatasetState,
+  options?: { chemicalFormula?: string | null },
 ): boolean {
-  const derived = buildSpectrumPointsWithDerivedForUpload(dataset);
+  const derived = buildSpectrumPointsWithDerivedForUpload(dataset, options);
   if (derived.length === 0) {
     return false;
   }
