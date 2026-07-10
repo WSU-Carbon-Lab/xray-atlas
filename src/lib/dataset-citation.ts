@@ -152,18 +152,49 @@ export function formatDoiCitationUrl(doi: string | null | undefined): string | n
 }
 
 /**
+ * Resolves a Zenodo HTML record URL for citation-manager deep links.
+ *
+ * Prefers an explicit `zenodoRecordUrl`, otherwise derives
+ * `https://zenodo.org/records/{id}` from a `10.5281/zenodo.{id}` DOI.
+ *
+ * @param input - Optional DOI and/or published Zenodo record URL.
+ * @returns Absolute Zenodo record URL, or `null` when neither is usable.
+ */
+export function resolveZenodoRecordUrlForCitation(input: {
+  doi?: string | null;
+  zenodoRecordUrl?: string | null;
+}): string | null {
+  const explicit = input.zenodoRecordUrl?.trim() ?? "";
+  if (/^https:\/\/(sandbox\.)?zenodo\.org\/(records|doi)\//i.test(explicit)) {
+    return explicit.replace(/\/$/, "");
+  }
+  const doi = normalizeDoi(input.doi);
+  if (!doi) return null;
+  const match = /^10\.5281\/zenodo\.(\d+)$/i.exec(doi);
+  if (!match) return null;
+  return `https://zenodo.org/records/${match[1]}`;
+}
+
+/**
  * Builds a Zotero web-library save deep link for a dataset DOI.
  *
- * Opens `https://www.zotero.org/save?q=` with the canonical `https://doi.org/…`
- * URL so Zotero can resolve DataCite/Crossref metadata. The user still confirms
- * Save in the Zotero web UI (and must be signed in). Returns `null` when no
- * usable DOI is present.
+ * Prefers the Zenodo record page (`/records/{id}`) so Zotero’s Zenodo translator
+ * imports a Dataset item. Falling back to `https://doi.org/…` often saves a
+ * webpage snapshot of the DOI resolver instead of bibliographic Dataset metadata.
+ * The user still confirms Save in the Zotero web UI (and must be signed in).
  *
- * @param doi - Raw or canonical dataset DOI.
+ * @param input - Dataset DOI and optional Zenodo record URL.
  * @returns Absolute Zotero save URL, or `null` when minting is pending.
  */
-export function buildZoteroSaveUrl(doi: string | null | undefined): string | null {
-  const doiUrl = formatDoiCitationUrl(doi);
+export function buildZoteroSaveUrl(input: {
+  doi?: string | null;
+  zenodoRecordUrl?: string | null;
+}): string | null {
+  const zenodoUrl = resolveZenodoRecordUrlForCitation(input);
+  if (zenodoUrl) {
+    return `https://www.zotero.org/save?q=${encodeURIComponent(zenodoUrl)}`;
+  }
+  const doiUrl = formatDoiCitationUrl(input.doi);
   if (!doiUrl) return null;
   return `https://www.zotero.org/save?q=${encodeURIComponent(doiUrl)}`;
 }

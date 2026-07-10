@@ -73,15 +73,26 @@ describe("formatDoiCitationUrl", () => {
 });
 
 describe("buildZoteroSaveUrl", () => {
-  it("encodes the doi.org URL as the Zotero save query", () => {
-    expect(buildZoteroSaveUrl("10.5281/zenodo.123")).toBe(
-      `https://www.zotero.org/save?q=${encodeURIComponent("https://doi.org/10.5281/zenodo.123")}`,
+  it("prefers the Zenodo record page so Zotero imports a Dataset", () => {
+    expect(
+      buildZoteroSaveUrl({
+        doi: "10.5281/zenodo.123",
+        zenodoRecordUrl: "https://zenodo.org/records/123",
+      }),
+    ).toBe(
+      `https://www.zotero.org/save?q=${encodeURIComponent("https://zenodo.org/records/123")}`,
     );
   });
 
-  it("returns null without a DOI", () => {
-    expect(buildZoteroSaveUrl(null)).toBeNull();
-    expect(buildZoteroSaveUrl("")).toBeNull();
+  it("derives the Zenodo record URL from a 10.5281/zenodo DOI", () => {
+    expect(buildZoteroSaveUrl({ doi: "10.5281/zenodo.21299145" })).toBe(
+      `https://www.zotero.org/save?q=${encodeURIComponent("https://zenodo.org/records/21299145")}`,
+    );
+  });
+
+  it("returns null without a DOI or Zenodo record URL", () => {
+    expect(buildZoteroSaveUrl({})).toBeNull();
+    expect(buildZoteroSaveUrl({ doi: "" })).toBeNull();
   });
 });
 

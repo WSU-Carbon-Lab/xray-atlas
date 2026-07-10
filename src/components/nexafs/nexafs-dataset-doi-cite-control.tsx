@@ -4,9 +4,8 @@
  * Compact Atlas dataset Cite | doi segmented control for browse card action rows.
  *
  * One horizontal scholarly unit in the trailing cluster (before To molecule):
- * Cite opens a popover with in-text (plus prose example), data-availability,
- * BibTeX, full-reference copy actions, and Zotero / Mendeley deep links when a
- * DOI exists;
+ * Cite opens a compact popover (Zotero/Mendeley, in-text, BibTeX and data-availability
+ * accordions);
  * doi opens Copy DOI / Go to Zenodo when minted, or mints / retries when not.
  * Never dumps the full `10.5281/…` string into the card header.
  *
@@ -26,6 +25,7 @@ import {
   useState,
   type ReactNode,
   type RefObject,
+  type SVGProps,
 } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -33,7 +33,7 @@ import {
   Square2StackIcon,
 } from "@heroicons/react/24/outline";
 import { Quote } from "lucide-react";
-import { Button, Spinner } from "@heroui/react";
+import { Accordion, Button, Spinner } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { site } from "~/app/brand";
 import { trpc } from "~/trpc/client";
@@ -97,7 +97,15 @@ const copyIconButtonClassName =
   "text-text-secondary hover:text-foreground h-7 w-7 min-w-7 shrink-0";
 
 const referenceManagerLinkClassName =
-  "text-text-secondary hover:text-foreground inline-flex h-7 items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-foreground/[0.03] px-2.5 text-[11px] font-medium hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+  "text-text-secondary hover:text-foreground inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-foreground/[0.03] px-2.5 text-[11px] font-medium hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+
+const citeAccordionClass = "w-full min-w-0 gap-1";
+
+const citeAccordionTriggerClass =
+  "text-foreground hover:bg-foreground/5 flex w-full min-w-0 items-center gap-2 rounded-lg px-1 py-2 text-left text-[11px] font-semibold tracking-wide";
+
+const citeAccordionIndicatorClass =
+  "text-muted ml-auto shrink-0 [&>svg]:size-3.5";
 
 const POPOVER_VIEWPORT_PADDING_PX = 12;
 const POPOVER_SIDE_OFFSET_PX = 8;
@@ -333,6 +341,22 @@ function CardPressPopover({
   );
 }
 
+function ZoteroMarkIcon(props: SVGProps<SVGSVGElement>): ReactNode {
+  return (
+    <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden {...props}>
+      <path d="M4 3h24v5.2H19.6L27.2 29h-6.4L13.2 8.2H4z" />
+    </svg>
+  );
+}
+
+function MendeleyMarkIcon(props: SVGProps<SVGSVGElement>): ReactNode {
+  return (
+    <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden {...props}>
+      <path d="M6 5h7.2c4.4 0 7.2 2.4 7.2 6.4 0 2.8-1.4 4.8-3.8 5.8L22.8 27h-6.2l-5.4-8.8H11V27H6zm5 8.8h1.8c1.8 0 2.8-.8 2.8-2.4S14.6 9 12.8 9H11z" />
+    </svg>
+  );
+}
+
 function CitationCopyIconButton({
   label,
   onPress,
@@ -354,127 +378,106 @@ function CitationCopyIconButton({
   );
 }
 
-function CitationCopySection({
-  label,
-  text,
-  onCopy,
-  hint,
-  prose,
-}: {
-  label: string;
-  text: string;
-  onCopy: (text: string, label: string) => void;
-  hint?: string;
-  /** When true, render body as readable prose instead of monospace. */
-  prose?: boolean;
-}) {
-  return (
-    <section className="min-w-0">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className={sectionLabelClassName}>{label}</h3>
-          {hint ? <p className={sectionHintClassName}>{hint}</p> : null}
-        </div>
-        <CitationCopyIconButton
-          label={label}
-          onPress={() => {
-            onCopy(text, label);
-          }}
-        />
-      </div>
-      <p className={prose ? sectionProseClassName : sectionBodyClassName}>
-        {text}
-      </p>
-    </section>
-  );
-}
-
 function ReferenceManagerLinks({
   datasetDoi,
+  zenodoRecordUrl,
 }: {
   datasetDoi: string | null;
+  zenodoRecordUrl: string | null;
 }): ReactNode {
-  const zoteroHref = buildZoteroSaveUrl(datasetDoi);
+  const zoteroHref = buildZoteroSaveUrl({
+    doi: datasetDoi,
+    zenodoRecordUrl,
+  });
   const mendeleyHref = buildMendeleyImportUrl(datasetDoi);
   return (
     <section className="min-w-0">
       <h4 className={sectionLabelClassName}>Add to library</h4>
       <p className={sectionHintClassName}>
         {zoteroHref
-          ? "Opens Zotero or Mendeley with this dataset DOI"
+          ? "Import via Zenodo record (Dataset) or Mendeley DOI lookup"
           : "Available after a dataset DOI is minted"}
       </p>
-      {zoteroHref && mendeleyHref ? (
+      {zoteroHref || mendeleyHref ? (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <a
-            href={zoteroHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={referenceManagerLinkClassName}
-            onPointerDown={stopCardToggle}
-            onClick={stopCardToggle}
-          >
-            <ArrowTopRightOnSquareIcon className="size-3.5 shrink-0" aria-hidden />
-            Zotero
-          </a>
-          <a
-            href={mendeleyHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={referenceManagerLinkClassName}
-            onPointerDown={stopCardToggle}
-            onClick={stopCardToggle}
-          >
-            <ArrowTopRightOnSquareIcon className="size-3.5 shrink-0" aria-hidden />
-            Mendeley
-          </a>
+          {zoteroHref ? (
+            <a
+              href={zoteroHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={referenceManagerLinkClassName}
+              onPointerDown={stopCardToggle}
+              onClick={stopCardToggle}
+            >
+              <ZoteroMarkIcon className="size-3.5 shrink-0 text-[#CC2936]" />
+              Zotero
+            </a>
+          ) : null}
+          {mendeleyHref ? (
+            <a
+              href={mendeleyHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={referenceManagerLinkClassName}
+              onPointerDown={stopCardToggle}
+              onClick={stopCardToggle}
+            >
+              <MendeleyMarkIcon className="size-3.5 shrink-0 text-[#AD0000]" />
+              Mendeley
+            </a>
+          ) : null}
         </div>
       ) : null}
     </section>
   );
 }
 
-function InTextCitationSection({
-  inText,
-  inTextExample,
+function CitationCopyAccordion({
+  id,
+  label,
+  hint,
+  text,
+  prose,
   onCopy,
 }: {
-  inText: string;
-  inTextExample: string;
+  id: string;
+  label: string;
+  hint?: string;
+  text: string;
+  prose?: boolean;
   onCopy: (text: string, label: string) => void;
-}) {
+}): ReactNode {
   return (
-    <section className="min-w-0 space-y-3">
-      <div>
-        <div className="flex items-start justify-between gap-2">
-          <h3 className={sectionLabelClassName}>In-text citation</h3>
+    <Accordion.Item id={id} className="w-full min-w-0">
+      <Accordion.Heading className="w-full min-w-0">
+        <div className="flex w-full min-w-0 items-center gap-1">
+          <Accordion.Trigger className={citeAccordionTriggerClass}>
+            <span className="min-w-0 flex-1">
+              <span className="block">{label}</span>
+              {hint ? (
+                <span className={cn(sectionHintClassName, "mt-0 font-normal")}>
+                  {hint}
+                </span>
+              ) : null}
+            </span>
+            <Accordion.Indicator className={citeAccordionIndicatorClass} />
+          </Accordion.Trigger>
           <CitationCopyIconButton
-            label="In-text citation"
+            label={label}
             onPress={() => {
-              onCopy(inText, "In-text citation");
+              onCopy(text, label);
             }}
           />
         </div>
-        <p className={sectionBodyClassName}>{inText}</p>
-      </div>
-      <div>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h4 className={sectionLabelClassName}>Example in prose</h4>
-            <p className={sectionHintClassName}>
-              How you might mention an {site.name} dataset in a manuscript
-            </p>
-          </div>
-          <CitationCopyIconButton
-            label="example citation sentence"
-            onPress={() => {
-              onCopy(inTextExample, "Example citation sentence");
-            }}
-          />
-        </div>
-        <p className={sectionProseClassName}>{inTextExample}</p>
-      </div>
-    </section>
+      </Accordion.Heading>
+      <Accordion.Panel className="w-full min-w-0">
+        <Accordion.Body className="pt-0">
+          <p className={prose ? sectionProseClassName : sectionBodyClassName}>
+            {text}
+          </p>
+        </Accordion.Body>
+      </Accordion.Panel>
+    </Accordion.Item>
   );
 }
 
@@ -881,7 +884,7 @@ export function NexafsDatasetDoiCiteControl({
             </>
           }
         >
-          <header className="mb-4 border-b border-border/60 pb-3">
+          <header className="mb-3 border-b border-border/60 pb-3">
             <h3 className="text-foreground text-sm font-semibold tracking-tight">
               Cite this dataset
             </h3>
@@ -889,39 +892,47 @@ export function NexafsDatasetDoiCiteControl({
               {site.name} NEXAFS dataset; DOI minted via Zenodo
             </p>
           </header>
-          <div className="space-y-4">
-            <InTextCitationSection
-              inText={citationBundle.inText}
-              inTextExample={citationBundle.inTextExample}
-              onCopy={(text, label) => {
-                void handleCopy(text, label);
-              }}
+          <div className="space-y-3">
+            <ReferenceManagerLinks
+              datasetDoi={localDoi}
+              zenodoRecordUrl={localRecordUrl}
             />
-            <CitationCopySection
-              label="Data availability"
-              hint="For a manuscript Data Availability section"
-              text={citationBundle.dataAvailability}
-              prose
-              onCopy={(text, label) => {
-                void handleCopy(text, label);
-              }}
-            />
-            <CitationCopySection
-              label="BibTeX"
-              text={citationBundle.bibtex}
-              onCopy={(text, label) => {
-                void handleCopy(text, label);
-              }}
-            />
-            <CitationCopySection
-              label="Full reference"
-              text={citationBundle.reference}
-              prose
-              onCopy={(text, label) => {
-                void handleCopy(text, label);
-              }}
-            />
-            <ReferenceManagerLinks datasetDoi={datasetDoi} />
+            <section className="min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <h4 className={sectionLabelClassName}>In-text</h4>
+                <CitationCopyIconButton
+                  label="In-text citation"
+                  onPress={() => {
+                    void handleCopy(citationBundle.inText, "In-text citation");
+                  }}
+                />
+              </div>
+              <p className={sectionBodyClassName}>{citationBundle.inText}</p>
+            </section>
+            <Accordion
+              className={citeAccordionClass}
+              hideSeparator
+              allowsMultipleExpanded
+            >
+              <CitationCopyAccordion
+                id="bibtex"
+                label="BibTeX"
+                text={citationBundle.bibtex}
+                onCopy={(text, label) => {
+                  void handleCopy(text, label);
+                }}
+              />
+              <CitationCopyAccordion
+                id="data-availability"
+                label="Data availability"
+                hint="For a manuscript Data Availability section"
+                text={citationBundle.dataAvailability}
+                prose
+                onCopy={(text, label) => {
+                  void handleCopy(text, label);
+                }}
+              />
+            </Accordion>
           </div>
         </CardPressPopover>
         <span className={segmentDividerClassName} aria-hidden />
