@@ -337,6 +337,7 @@ export function OpticalLinkSplitSpectrumBody({
               offsetX={imaginaryPlot.dimensions.margins.left}
               offsetY={imaginaryPlot.dimensions.margins.top}
               height={stackedPlotSpan}
+              plotInnerWidth={imaginaryInner.width}
             />
           ) : null}
 

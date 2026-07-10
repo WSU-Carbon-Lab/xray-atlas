@@ -15,7 +15,7 @@ import {
   LockOpenIcon,
   PencilIcon,
 } from "@heroicons/react/24/outline";
-import { ChevronsDownUp, ChevronsUpDown, RotateCcw, Save } from "lucide-react";
+import { RotateCcw, Save } from "lucide-react";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import {
   Button,
@@ -36,13 +36,13 @@ import type {
 import { groupPointsByGeometry, sortedGeometryGroupEntries } from "~/components/plots/utils/trace-utils";
 import { filterSpectrumPointsForGroupedPlot } from "~/components/plots/hooks/useSpectrumData";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
+import { OpticalLinkSplitToggle } from "~/components/plots/spectrum/OpticalLinkSplitToggle";
 import {
   PlotSpectrumToolsToolbarSection,
   PlotToolbarGroupSeparator,
   plotToolbarAttachedToolbarVerticalClass,
   plotToolbarAttachedToggleGroupHorizontalClass,
   plotToolbarAttachedToggleGroupVerticalClass,
-  plotToolbarCompactGlyphToggleClass,
   plotToolbarGlyphToggleGroupItemHorizontalClass,
   plotToolbarGlyphToggleGroupItemVerticalClass,
   PlotToolbarRichHint,
@@ -423,17 +423,10 @@ export function NexafsExperimentDatasetPanel({
         );
         return;
       }
-      const result = await updateKkDeltaBatch.mutateAsync({
+      await updateKkDeltaBatch.mutateAsync({
         experimentId,
         updates,
       });
-      const recalcAt = result.kkDeltaMetadata?.calculatedAt;
-      showToast(
-        recalcAt
-          ? `Recalculated delta from beta (KK) at ${new Date(recalcAt).toLocaleString()}`
-          : "Recalculated delta from beta (KK)",
-        "success",
-      );
     } catch (e) {
       showToast(
         e instanceof Error ? e.message : "Could not update KK delta",
@@ -1617,46 +1610,13 @@ export function NexafsExperimentDatasetPanel({
       handlePlotChannelChange,
     ]);
 
-  const plotRightRail = useMemo(() => {
-    if (opticalLink == null) {
-      return null;
-    }
-    return (
-      <PlotToolbarRichHint
-        title={
-          opticalLinkSplitView
-            ? "Unsplit linked plot"
-            : "Split imaginary and real"
-        }
-        description={
-          opticalLinkSplitView
-            ? "Show imaginary and real channels on one shared y-axis."
-            : "Stack imaginary (top) and real (bottom) with separate y-ranges on one energy axis."
-        }
-        placement="left"
-      >
-        <ToggleButton
-          isIconOnly
-          aria-label={
-            opticalLinkSplitView
-              ? "Unsplit linked optical plot"
-              : "Split linked optical plot"
-          }
-          isSelected={opticalLinkSplitView}
-          onChange={(next) => {
-            setOpticalLinkSplitView(next);
-          }}
-          className={plotToolbarCompactGlyphToggleClass}
-        >
-          {opticalLinkSplitView ? (
-            <ChevronsDownUp className="h-4 w-4" aria-hidden />
-          ) : (
-            <ChevronsUpDown className="h-4 w-4" aria-hidden />
-          )}
-        </ToggleButton>
-      </PlotToolbarRichHint>
-    );
-  }, [opticalLink, opticalLinkSplitView]);
+  const opticalLinkSplitToggle =
+    opticalLink != null ? (
+      <OpticalLinkSplitToggle
+        splitView={opticalLinkSplitView}
+        onSplitViewChange={setOpticalLinkSplitView}
+      />
+    ) : null;
 
   const plotBottomRail = useMemo(() => {
     if (
@@ -1797,10 +1757,10 @@ export function NexafsExperimentDatasetPanel({
               companionSpectra={companionSpectra}
               opticalLink={opticalLink}
               opticalLinkSplitView={opticalLinkSplitView}
+              opticalLinkSplitToggle={opticalLinkSplitToggle}
               showThetaData={showThetaData}
               showPhiData={showPhiData}
               headerRight={plotLeftRail}
-              headerAnalysis={plotRightRail}
               plotBottomTools={plotBottomRail}
               suppressAnalysisRailLeadingGrip
               plotTopRailDataActions={plotTopRailDataActions}
