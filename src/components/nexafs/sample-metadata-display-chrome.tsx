@@ -41,6 +41,7 @@ const SECTION_ICON_BY_TITLE: Record<string, SampleMetadataIcon> = {
 const FIELD_ICON_BY_LABEL: Record<string, SampleMetadataIcon> = {
   "Process method": WrenchScrewdriverIcon,
   Substrate: CubeIcon,
+  "Patterning layer": Square3Stack3DIcon,
   Solvent: BeakerIcon,
   "Thickness (nm)": Square3Stack3DIcon,
   "Molecular weight (g/mol)": ScaleIcon,
@@ -48,6 +49,9 @@ const FIELD_ICON_BY_LABEL: Record<string, SampleMetadataIcon> = {
   "Processing branch": ArrowPathIcon,
   "Wet method": BeakerIcon,
   "Dry method": CloudIcon,
+  Edge: BeakerIcon,
+  Instrument: WrenchScrewdriverIcon,
+  "Measurement mode": FireIcon,
 };
 
 /**
