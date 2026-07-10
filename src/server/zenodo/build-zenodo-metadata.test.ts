@@ -52,6 +52,7 @@ function sampleSnapshot(
         scheme: "doi",
       },
     ],
+    sample: {},
     ...overrides,
   };
 }
@@ -105,5 +106,23 @@ describe("buildZenodoDepositMetadata", () => {
       { communityId: "xrayatlas" },
     );
     expect(metadata.related_identifiers).toBeUndefined();
+  });
+
+  it("embeds sample preparation in description and notes", () => {
+    const metadata = buildZenodoDepositMetadata(
+      sampleSnapshot({
+        sample: {
+          processMethod: "Dry",
+          substrate: "Silicon nitride",
+          patterningLayer: "CuI",
+        },
+      }),
+      { communityId: "xrayatlas" },
+    );
+    expect(metadata.description).toContain(
+      "Sample: process Dry; substrate Silicon nitride; patterning layer CuI",
+    );
+    expect(metadata.notes).toContain("patterning layer CuI");
+    expect(metadata.notes).toContain("Atlas experiment id:");
   });
 });

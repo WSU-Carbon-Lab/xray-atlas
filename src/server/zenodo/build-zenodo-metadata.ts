@@ -12,12 +12,18 @@
  */
 
 import type { PrismaClient } from "~/prisma/client";
-import { buildNexafsDatasetCitationTitle } from "~/lib/dataset-citation";
+import {
+  buildDatasetBibTeXNote,
+  buildNexafsDatasetCitationTitle,
+  formatDatasetCitationSampleSummary,
+  type DatasetCitationSampleInfo,
+} from "~/lib/dataset-citation";
 import { normalizeDoi } from "~/lib/doi";
 import {
   canonicalMoleculeSlugFromView,
   slugifyMoleculeSynonym,
 } from "~/lib/molecule-slug";
+import { PROCESS_METHOD_OPTIONS } from "~/features/process-nexafs/constants";
 import { buildAtlasExperimentMoleculeUrl } from "~/server/zenodo/atlas-public-site-origin";
 import { zenodoCommunityId } from "~/server/zenodo/zenodo-config";
 import type {
@@ -41,6 +47,8 @@ export interface ZenodoMetadataExperimentSnapshot {
   atlasExperimentUrl: string;
   creators: ZenodoCreator[];
   relatedIdentifiers: ZenodoRelatedIdentifier[];
+  /** Core sample preparation fields for description / notes (may be empty). */
+  sample: DatasetCitationSampleInfo;
 }
 
 /**
@@ -102,6 +110,18 @@ function experimentTypeLabel(
   return experimentType;
 }
 
+function processMethodLabel(
+  processMethod: string | null | undefined,
+): string | null {
+  if (!processMethod) return null;
+  const trimmed = processMethod.trim();
+  if (!trimmed) return null;
+  const match = PROCESS_METHOD_OPTIONS.find(
+    (option) => option.value === trimmed,
+  );
+  return match?.label ?? trimmed;
+}
+
 /**
  * Loads experiment, molecule, instrument, contributors, and source publications for Zenodo metadata.
  *
@@ -128,6 +148,13 @@ export async function loadZenodoMetadataSnapshot(
       },
       samples: {
         select: {
+          processmethod: true,
+          substrate: true,
+          patterninglayer: true,
+          solvent: true,
+          thickness: true,
+          molecularweight: true,
+          vendors: { select: { name: true } },
           molecules: {
             select: {
               iupacname: true,
@@ -219,6 +246,24 @@ export async function loadZenodoMetadataSnapshot(
     moleculeSlug,
   );
 
+  const sample: DatasetCitationSampleInfo = {
+    processMethod: processMethodLabel(experiment.samples.processmethod),
+    substrate: experiment.samples.substrate?.trim() || null,
+    patterningLayer: experiment.samples.patterninglayer?.trim() || null,
+    solvent: experiment.samples.solvent?.trim() || null,
+    thicknessNm:
+      experiment.samples.thickness != null &&
+      Number.isFinite(experiment.samples.thickness)
+        ? experiment.samples.thickness
+        : null,
+    molecularWeightGPerMol:
+      experiment.samples.molecularweight != null &&
+      Number.isFinite(experiment.samples.molecularweight)
+        ? experiment.samples.molecularweight
+        : null,
+    vendorName: experiment.samples.vendors?.name?.trim() || null,
+  };
+
   return {
     experimentId: experiment.id,
     canonicalSlug: experiment.canonicalslug,
@@ -234,6 +279,7 @@ export async function loadZenodoMetadataSnapshot(
     atlasExperimentUrl,
     creators,
     relatedIdentifiers,
+    sample,
   };
 }
 
@@ -261,6 +307,7 @@ export function buildZenodoDepositMetadata(
     ? `${snapshot.instrumentName}, ${snapshot.facilityName}`
     : snapshot.instrumentName;
 
+  const sampleSummary = formatDatasetCitationSampleSummary(snapshot.sample);
   const description = [
     `<p>Near-edge X-ray absorption fine structure (NEXAFS) spectrum dataset for <strong>${escapeHtml(snapshot.moleculeDisplayName)}</strong>`,
     snapshot.chemicalFormula
@@ -271,6 +318,9 @@ export function buildZenodoDepositMetadata(
       ? ` measured in ${escapeHtml(snapshot.experimentTypeLabel)} mode`
       : "",
     ` on ${escapeHtml(instrumentClause)}.</p>`,
+    sampleSummary
+      ? `<p>${escapeHtml(sampleSummary)}.</p>`
+      : "",
     `<p>Canonical record on X-ray Atlas: <a href="${escapeHtml(snapshot.atlasExperimentUrl)}">${escapeHtml(snapshot.atlasExperimentUrl)}</a>.</p>`,
     `<p>Archive contents match the Atlas all-data download (spectrum CSV for all polarizations plus committed experiment and sample auxiliary files). Spectrum export is capped at 10,000 points per experiment, matching the browse download path.</p>`,
   ].join("");
@@ -285,6 +335,11 @@ export function buildZenodoDepositMetadata(
     keywords.push(snapshot.experimentTypeLabel);
   }
 
+  const noteParts = [
+    buildDatasetBibTeXNote(snapshot.sample),
+    `Atlas experiment id: ${snapshot.experimentId}`,
+  ];
+
   return {
     title,
     description,
@@ -298,7 +353,7 @@ export function buildZenodoDepositMetadata(
         ? snapshot.relatedIdentifiers
         : undefined,
     keywords,
-    notes: `Atlas experiment id: ${snapshot.experimentId}`,
+    notes: noteParts.join(". "),
   };
 }
 

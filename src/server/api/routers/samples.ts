@@ -9,6 +9,8 @@ import { TRPCError } from "@trpc/server";
 import { ProcessMethod } from "~/prisma/client";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
 import { assertUserMayEditSample } from "~/server/nexafs/experimentEditAuthz";
+import { scheduleZenodoDepositSyncForSample } from "~/server/zenodo";
+
 export const samplesRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -278,6 +280,10 @@ export const samplesRouter = createTRPCRouter({
         include: {
           vendors: true,
         },
+      });
+
+      await scheduleZenodoDepositSyncForSample(ctx.db, input.id, {
+        mode: "metadata",
       });
 
       return sample;

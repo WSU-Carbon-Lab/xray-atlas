@@ -204,6 +204,7 @@ describe("buildZenodoDepositMetadata public URL", () => {
       ),
       creators: [{ name: "Doe, Jane" }],
       relatedIdentifiers: [],
+      sample: {},
     });
     expect(metadata.description).toContain(
       `https://xrayatlas.wsu.edu/molecules/demo?nexafsExperiment=${EXPERIMENT_ID}`,

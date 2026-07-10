@@ -14,6 +14,7 @@ import {
   sampleProcessingModeSchema,
   sampleWetMethodSchema,
 } from "~/lib/sample-aux-preparation";
+import { scheduleZenodoDepositSyncForSample } from "~/server/zenodo";
 
 const sampleAuxFieldsSchema = z.object({
   processingMode: sampleProcessingModeSchema.optional(),
@@ -215,6 +216,10 @@ export const sampleAuxRouter = createTRPCRouter({
           ...prismaData,
         },
         update: prismaData,
+      });
+
+      await scheduleZenodoDepositSyncForSample(ctx.db, input.sampleId, {
+        mode: "metadata",
       });
 
       return fromSampleAuxRow(row);

@@ -10,12 +10,12 @@
  *
  * | Mode | Trigger |
  * | --- | --- |
- * | `metadata` | `experiments.setAttributions`, source-publication mutations, `experiments.update` (type/calibration fields that affect title) |
+ * | `metadata` | `experiments.setAttributions`, source-publication mutations, `experiments.update` / `updateDescriptors` (type/edge/instrument that affect title), `samples.update`, `sampleAux.upsert` |
  * | `files` | `experimentFile.commitUpload` / `softDelete`, `sampleFile.commitUpload` / `softDelete`, `spectrumpoints.updateKkDeltaBatch` |
  *
- * Sample substrate / `sampleAux` fields are not currently embedded in Zenodo
- * metadata or the all-data archive beyond committed sample files, so those
- * mutations do not schedule sync.
+ * Sample preparation fields (process method, substrate, patterning layer, solvent,
+ * thickness, molecular weight, vendor) are embedded in Zenodo description/notes via
+ * {@link buildZenodoDepositMetadata}; core sample edits must schedule metadata sync.
  */
 
 import { after } from "next/server";
