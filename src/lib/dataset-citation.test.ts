@@ -73,31 +73,27 @@ describe("formatDoiCitationUrl", () => {
 });
 
 describe("buildZoteroSaveUrl", () => {
-  it("passes the bare DOI so Zotero uses DataCite identifier lookup", () => {
+  it("points at Zenodo BibTeX export so the connector imports a Dataset", () => {
     expect(
       buildZoteroSaveUrl({
         doi: "10.5281/zenodo.123",
         zenodoRecordUrl: "https://zenodo.org/records/123",
       }),
-    ).toBe(
-      `https://www.zotero.org/save?q=${encodeURIComponent("10.5281/zenodo.123")}`,
-    );
+    ).toBe("https://zenodo.org/records/123/export/bibtex");
   });
 
-  it("normalizes DOI URLs to a bare DOI query", () => {
-    expect(buildZoteroSaveUrl({ doi: "https://doi.org/10.5281/zenodo.21299145" })).toBe(
-      `https://www.zotero.org/save?q=${encodeURIComponent("10.5281/zenodo.21299145")}`,
-    );
+  it("derives the export URL from a 10.5281/zenodo DOI", () => {
+    expect(
+      buildZoteroSaveUrl({ doi: "https://doi.org/10.5281/zenodo.21299145" }),
+    ).toBe("https://zenodo.org/records/21299145/export/bibtex");
   });
 
-  it("falls back to Zenodo CSL export when only a record URL is present", () => {
+  it("derives the export URL from a record URL alone", () => {
     expect(
       buildZoteroSaveUrl({
         zenodoRecordUrl: "https://zenodo.org/records/21299145",
       }),
-    ).toBe(
-      `https://www.zotero.org/save?q=${encodeURIComponent("https://zenodo.org/records/21299145/export/csl")}`,
-    );
+    ).toBe("https://zenodo.org/records/21299145/export/bibtex");
   });
 
   it("returns null without a DOI or Zenodo record URL", () => {

@@ -378,10 +378,13 @@ function CitationCopyIconButton({
   );
 }
 
-function openExternalUrl(url: string, event: {
-  stopPropagation: () => void;
-  preventDefault: () => void;
-}): void {
+function openExternalUrl(
+  url: string,
+  event: {
+    stopPropagation: () => void;
+    preventDefault: () => void;
+  },
+): void {
   event.stopPropagation();
   event.preventDefault();
   window.open(url, "_blank", "noopener,noreferrer");
@@ -404,7 +407,7 @@ function ReferenceManagerLinks({
       <h3 className={sectionLabelClassName}>Add to library</h3>
       <p className={sectionHintClassName}>
         {zoteroHref
-          ? "Zotero imports the Zenodo Dataset by DOI; Mendeley uses DOI lookup"
+          ? "Zotero opens Zenodo BibTeX; the Connector imports it as a Dataset. Mendeley uses DOI lookup."
           : "Available after a dataset DOI is minted"}
       </p>
       {zoteroHref || mendeleyHref ? (
@@ -416,9 +419,7 @@ function ReferenceManagerLinks({
               rel="noopener noreferrer"
               className={referenceManagerLinkClassName}
               onPointerDown={stopCardToggle}
-              onClick={(event) => {
-                openExternalUrl(zoteroHref, event);
-              }}
+              onClick={stopCardToggle}
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- static brand PNG from /public */}
               <img

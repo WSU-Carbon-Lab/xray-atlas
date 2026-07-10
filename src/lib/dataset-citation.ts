@@ -128,7 +128,8 @@ export function buildNexafsDatasetCitationTitle(
   const instrumentRaw = input.instrumentName.trim();
   const molecule = moleculeRaw.length > 0 ? moleculeRaw : "Unknown molecule";
   const edge = edgeRaw.length > 0 ? edgeRaw : "unknown edge";
-  const instrument = instrumentRaw.length > 0 ? instrumentRaw : "unknown instrument";
+  const instrument =
+    instrumentRaw.length > 0 ? instrumentRaw : "unknown instrument";
   const facility = input.facilityName?.trim() ?? "";
   const typeLabel = input.experimentTypeLabel?.trim() ?? "";
 
@@ -145,7 +146,9 @@ export function buildNexafsDatasetCitationTitle(
  * @param doi - Raw or canonical DOI; empty/invalid values yield `null`.
  * @returns Absolute DOI URL, or `null` when no usable DOI is present.
  */
-export function formatDoiCitationUrl(doi: string | null | undefined): string | null {
+export function formatDoiCitationUrl(
+  doi: string | null | undefined,
+): string | null {
   const normalized = normalizeDoi(doi);
   if (!normalized) return null;
   return `https://doi.org/${normalized}`;
@@ -176,37 +179,51 @@ export function resolveZenodoRecordUrlForCitation(input: {
 }
 
 /**
- * Builds a Zotero web-library save deep link for a dataset DOI.
+ * Resolves a Zenodo record id for citation-manager export links.
  *
- * Passes the **bare DOI** (not `https://doi.org/…` and not the Zenodo HTML
- * record page). Zotero’s save endpoint then uses identifier lookup against
- * DataCite, which imports Zenodo deposits as Dataset items. Passing a webpage
- * URL makes Zotero scrape HTML and often creates a Web Page item plus Snapshot
- * (including when the connector saves the Atlas referrer instead).
+ * Accepts an explicit record URL or a `10.5281/zenodo.{id}` DOI.
  *
- * When only a Zenodo record URL is available, points `q` at Zenodo’s CSL JSON
- * export (`/records/{id}/export/csl`), which Zotero imports as a metadata file
- * with `type: dataset`.
+ * @param input - Optional DOI and/or published Zenodo record URL.
+ * @returns Numeric Zenodo record id, or `null` when neither is usable.
+ */
+export function resolveZenodoRecordIdForCitation(input: {
+  doi?: string | null;
+  zenodoRecordUrl?: string | null;
+}): string | null {
+  const zenodoUrl = resolveZenodoRecordUrlForCitation(input);
+  if (zenodoUrl) {
+    const fromRecords = /\/records\/(\d+)/i.exec(zenodoUrl)?.[1];
+    if (fromRecords) return fromRecords;
+    const fromDoiPath = /\/doi\/(?:10\.5281\/)?zenodo\.(\d+)/i.exec(zenodoUrl)?.[1];
+    if (fromDoiPath) return fromDoiPath;
+  }
+  const doi = normalizeDoi(input.doi);
+  if (!doi) return null;
+  return /^10\.5281\/zenodo\.(\d+)$/i.exec(doi)?.[1] ?? null;
+}
+
+/**
+ * Builds a Zotero import URL that serves Zenodo BibTeX for this dataset.
  *
- * The user still confirms Save in the Zotero web UI (and must be signed in).
+ * Returns Zenodo’s `/records/{id}/export/bibtex` endpoint (`application/x-bibtex`).
+ * With the Zotero Connector installed, that response is intercepted and imported
+ * as a Dataset item. The older `zotero.org/save?q=…` deep link is not used:
+ * when the connector is active it often saves the Atlas referrer as a Web Page
+ * Snapshot instead of resolving the DOI.
+ *
+ * Without the connector, the browser downloads a `.bib` file the user can
+ * import via File → Import (same `@dataset` result as pasting BibTeX).
  *
  * @param input - Dataset DOI and optional Zenodo record URL.
- * @returns Absolute Zotero save URL, or `null` when minting is pending.
+ * @returns Absolute Zenodo BibTeX export URL, or `null` when minting is pending.
  */
 export function buildZoteroSaveUrl(input: {
   doi?: string | null;
   zenodoRecordUrl?: string | null;
 }): string | null {
-  const doi = normalizeDoi(input.doi);
-  if (doi) {
-    return `https://www.zotero.org/save?q=${encodeURIComponent(doi)}`;
-  }
-  const zenodoUrl = resolveZenodoRecordUrlForCitation(input);
-  if (!zenodoUrl) return null;
-  const recordId = /\/records\/(\d+)/i.exec(zenodoUrl)?.[1];
+  const recordId = resolveZenodoRecordIdForCitation(input);
   if (!recordId) return null;
-  const cslExportUrl = `https://zenodo.org/records/${recordId}/export/csl`;
-  return `https://www.zotero.org/save?q=${encodeURIComponent(cslExportUrl)}`;
+  return `https://zenodo.org/records/${recordId}/export/bibtex`;
 }
 
 /**
@@ -251,7 +268,10 @@ export function normalizeCitationCreatorNames(
   return names;
 }
 
-function splitDisplayName(displayName: string): { family: string; given: string } {
+function splitDisplayName(displayName: string): {
+  family: string;
+  given: string;
+} {
   const trimmed = displayName.trim().replace(/\s+/g, " ");
   if (trimmed.includes(",")) {
     const [familyPart, ...rest] = trimmed.split(",");
@@ -310,7 +330,9 @@ export function formatBibtexAuthor(displayName: string): string {
  * @param names - Ordered creator display names.
  * @returns APA author string, or a contributors fallback when empty.
  */
-export function formatApaReferenceAuthors(names: ReadonlyArray<string>): string {
+export function formatApaReferenceAuthors(
+  names: ReadonlyArray<string>,
+): string {
   if (names.length === 0) {
     return `${DATASET_CITATION_PUBLISHER} contributors`;
   }
@@ -332,7 +354,9 @@ export function buildDatasetInTextCitation(
   names: ReadonlyArray<string>,
   year: number,
 ): string {
-  const y = Number.isFinite(year) ? Math.trunc(year) : new Date().getUTCFullYear();
+  const y = Number.isFinite(year)
+    ? Math.trunc(year)
+    : new Date().getUTCFullYear();
   if (names.length === 0) {
     return `(${DATASET_CITATION_PUBLISHER}, ${y})`;
   }
@@ -373,7 +397,11 @@ function resolveCitationYear(year: number | undefined): number {
   return new Date().getUTCFullYear();
 }
 
-function bibtexCiteKey(title: string, year: number, doi: string | null): string {
+function bibtexCiteKey(
+  title: string,
+  year: number,
+  doi: string | null,
+): string {
   if (doi) {
     const slug = doi.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "");
     if (slug) return `atlas_${slug}`.slice(0, 80);
@@ -572,9 +600,7 @@ export function buildDatasetCitation(input: BuildDatasetCitationInput): string {
   const adaptedFrom = formatSourcePublicationClause(input.sourcePublications);
 
   const head = `${authors} (${year}). ${title} [Dataset]. ${publisher}.`;
-  const doiPart = doiUrl
-    ? ` ${doiUrl} (DOI minted via Zenodo).`
-    : "";
+  const doiPart = doiUrl ? ` ${doiUrl} (DOI minted via Zenodo).` : "";
   const adapted = adaptedFrom ? ` Adapted from ${adaptedFrom}.` : "";
   return `${head}${doiPart}${adapted}`.replace(/\s+/g, " ").trim();
 }
