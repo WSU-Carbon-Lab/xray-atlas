@@ -1,5 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "~/prisma/client";
+import { Prisma, PrismaClient } from "~/prisma/client";
 
 import { env } from "~/env";
 
@@ -22,8 +22,30 @@ const createPrismaClient = () => {
 
 const globalForPrisma = globalThis as unknown as {
   prisma: ReturnType<typeof createPrismaClient> | undefined;
+  prismaSchemaSignature: string | undefined;
 };
 
-export const db = globalForPrisma.prisma ?? createPrismaClient();
+/**
+ * Fingerprints generated scalar fields so a post-`prisma generate` module reload replaces a stale
+ * singleton that would otherwise omit new columns such as `samples.patterninglayer`.
+ */
+function prismaSchemaSignature(): string {
+  return [
+    Prisma.prismaVersion.client,
+    Prisma.prismaVersion.engine,
+    Object.values(Prisma.SamplesScalarFieldEnum).join(","),
+  ].join("|");
+}
 
-if (env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+const schemaSignature = prismaSchemaSignature();
+
+export const db =
+  globalForPrisma.prisma &&
+  globalForPrisma.prismaSchemaSignature === schemaSignature
+    ? globalForPrisma.prisma
+    : createPrismaClient();
+
+if (env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = db;
+  globalForPrisma.prismaSchemaSignature = schemaSignature;
+}
