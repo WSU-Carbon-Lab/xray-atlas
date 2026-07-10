@@ -4,9 +4,9 @@
  * Compact Atlas dataset Cite | doi segmented control for browse card action rows.
  *
  * One horizontal scholarly unit in the trailing cluster (before To molecule):
- * Cite opens a compact popover (Add to library, BibTeX and data-availability
- * accordions);
- * doi opens Copy DOI / Go to Zenodo when minted, or mints / retries when not.
+ * Cite opens a compact popover (Add to library via Atlas BibTeX for Zotero,
+ * BibTeX and data-availability accordions);
+ * doi opens Copy DOI / Zenodo link when minted, or mints / retries when not.
  * Never dumps the full `10.5281/…` string into the card header.
  *
  * Polling for in-flight deposits is budgeted and stale-aware so hung
@@ -41,9 +41,9 @@ import { ToastContainer, useToast } from "~/components/ui/toast";
 import {
   buildDatasetCitationBundle,
   buildMendeleyImportUrl,
-  buildZoteroSaveUrl,
 } from "~/lib/dataset-citation";
 import { normalizeDoi } from "~/lib/doi";
+import { atlasDatasetCitationHref } from "~/lib/nexafs-experiment-deep-link";
 import {
   coerceZenodoDepositUiState,
   resolveZenodoDoiButtonMode,
@@ -119,6 +119,8 @@ type OpenPopoverId = "cite" | "doi" | null;
 
 export interface NexafsDatasetDoiCiteControlProps {
   experimentId: string;
+  /** Opaque short id for `/d/{id}` citation URLs. */
+  atlasDatasetId?: string | null;
   datasetDoi: string | null;
   zenodoRecordUrl: string | null;
   zenodoDepositState: ZenodoDepositUiState;
@@ -393,90 +395,48 @@ function openExternalUrl(
 const ZOTERO_IMPORT_FRAME_ID = "atlas-zotero-bibtex-import-frame";
 
 /**
- * Posts BibTeX to the same-origin citations endpoint inside a hidden iframe.
+ * Imports the Atlas-built BibTeX `@dataset` for this experiment via a hidden
+ * iframe so the Zotero Connector can capture authors, note (sample/experiment),
+ * DOI, and Atlas citation URL in one pass.
  *
- * Zenodo’s export URL cannot be framed (`X-Frame-Options: sameorigin`), and
- * `target=_blank` opens a tab. A same-origin `application/x-bibtex` response
- * lets the Zotero Connector intercept the file without leaving the page.
- *
- * @param bibtex - Full `@dataset{…}` entry from the Cite popover.
- * @param filename - Download basename (`.bib` appended when missing).
+ * @param experimentId - Experiment UUID for the BibTeX route.
  */
-function importZoteroBibTeXInBackground(
-  bibtex: string,
-  filename: string,
-): void {
-  if (typeof document === "undefined") return;
+function importDatasetWithZoteroConnector(experimentId: string): "bibtex" {
+  if (typeof window === "undefined") return "bibtex";
   document.getElementById(ZOTERO_IMPORT_FRAME_ID)?.remove();
-
   const iframe = document.createElement("iframe");
   iframe.id = ZOTERO_IMPORT_FRAME_ID;
-  iframe.name = ZOTERO_IMPORT_FRAME_ID;
   iframe.title = "Zotero BibTeX import";
   iframe.setAttribute("aria-hidden", "true");
   iframe.tabIndex = -1;
   iframe.style.cssText =
     "position:fixed;width:0;height:0;border:0;clip:rect(0,0,0,0);overflow:hidden";
+  iframe.src = `/api/citations/experiments/${encodeURIComponent(experimentId)}/bibtex`;
   document.body.appendChild(iframe);
-
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = "/api/citations/bibtex";
-  form.target = ZOTERO_IMPORT_FRAME_ID;
-  form.acceptCharset = "UTF-8";
-  form.style.display = "none";
-
-  const bibtexField = document.createElement("textarea");
-  bibtexField.name = "bibtex";
-  bibtexField.value = bibtex;
-  form.appendChild(bibtexField);
-
-  const filenameField = document.createElement("input");
-  filenameField.type = "hidden";
-  filenameField.name = "filename";
-  filenameField.value = filename;
-  form.appendChild(filenameField);
-
-  document.body.appendChild(form);
-  form.submit();
-  form.remove();
-
   window.setTimeout(() => {
     iframe.remove();
   }, 60_000);
-}
-
-function zoteroBibFilename(doi: string | null): string {
-  const normalized = doi?.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "") ?? "";
-  if (!normalized) return "atlas-dataset.bib";
-  const slug = normalized.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "");
-  return `atlas_${slug || "dataset"}.bib`;
+  return "bibtex";
 }
 
 function ReferenceManagerLinks({
+  experimentId,
   datasetDoi,
-  zenodoRecordUrl,
-  bibtex,
   onZoteroImport,
 }: {
+  experimentId: string;
   datasetDoi: string | null;
-  zenodoRecordUrl: string | null;
-  bibtex: string;
-  onZoteroImport?: () => void;
+  onZoteroImport?: (mode: "bibtex") => void;
 }): ReactNode {
-  const zoteroHref = buildZoteroSaveUrl({
-    doi: datasetDoi,
-    zenodoRecordUrl,
-  });
-  const canImportZotero = Boolean(zoteroHref) && bibtex.trim().startsWith("@");
+  const canImportZotero = Boolean(datasetDoi?.trim()) || Boolean(experimentId);
   const mendeleyHref = buildMendeleyImportUrl(datasetDoi);
   return (
     <section className="min-w-0">
       <h3 className={sectionLabelClassName}>Add to library</h3>
       <p className={sectionHintClassName}>
         {canImportZotero
-          ? "Zotero imports BibTeX in the background (Dataset). Mendeley uses DOI lookup."
-          : "Available after a dataset DOI is minted"}
+          ? "Zotero imports Atlas BibTeX (authors, notes, DOI, and Atlas URL). Mendeley uses DOI lookup."
+          : "Available after the dataset is saved"}
       </p>
       {canImportZotero || mendeleyHref ? (
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -487,11 +447,8 @@ function ReferenceManagerLinks({
               onPointerDown={stopCardToggle}
               onClick={(event) => {
                 event.stopPropagation();
-                importZoteroBibTeXInBackground(
-                  bibtex,
-                  zoteroBibFilename(datasetDoi),
-                );
-                onZoteroImport?.();
+                const mode = importDatasetWithZoteroConnector(experimentId);
+                onZoteroImport?.(mode);
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- static brand PNG from /public */}
@@ -584,6 +541,7 @@ function CitationCopyAccordion({
  */
 export function NexafsDatasetDoiCiteControl({
   experimentId,
+  atlasDatasetId = null,
   datasetDoi,
   zenodoRecordUrl,
   zenodoDepositState,
@@ -734,6 +692,10 @@ export function NexafsDatasetDoiCiteControl({
     pollExhausted,
   });
 
+  const atlasCitationUrl = atlasDatasetId?.trim()
+    ? `${site.url.replace(/\/$/, "")}${atlasDatasetCitationHref(atlasDatasetId.trim())}`
+    : null;
+
   const citationBundle = buildDatasetCitationBundle({
     moleculeDisplayName,
     edgeLabel,
@@ -741,6 +703,7 @@ export function NexafsDatasetDoiCiteControl({
     facilityName,
     experimentTypeLabel,
     datasetDoi: localDoi,
+    atlasCitationUrl,
     sourcePublications,
     creators: citationCreators,
     year: citationYear,
@@ -867,44 +830,79 @@ export function NexafsDatasetDoiCiteControl({
             </span>
           }
         >
-          <h3 className="text-foreground text-sm font-semibold tracking-tight">
-            Dataset DOI
-          </h3>
-          <p className={sectionHintClassName}>
-            {site.name} dataset DOI minted via Zenodo
-          </p>
-          <p className={sectionBodyClassName}>{mode.doi}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              isIconOnly
-              className={copyIconButtonClassName}
-              aria-label="Copy DOI"
-              onPress={() => {
-                void handleCopy(mode.doi, "DOI");
-              }}
+          <h3 className={sectionLabelClassName}>Zenodo DOI</h3>
+          <div className="mt-2 flex min-w-0 items-center gap-2">
+            <p
+              className={cn(
+                sectionBodyClassName,
+                "mt-0 max-h-none min-w-0 flex-1 overflow-x-auto whitespace-nowrap",
+              )}
             >
-              <Square2StackIcon className="size-3.5" aria-hidden />
-            </Button>
-            {zenodoHref ? (
-              <a
-                href={zenodoHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                  "bg-accent text-accent-foreground inline-flex h-7 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium",
-                  "focus-visible:ring-accent hover:opacity-90 focus-visible:ring-2 focus-visible:outline-none",
-                )}
+              {mode.doi}
+            </p>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="ghost"
+                isIconOnly
+                className={copyIconButtonClassName}
+                aria-label="Copy DOI"
+                onPress={() => {
+                  void handleCopy(mode.doi, "DOI");
+                }}
               >
-                <ArrowTopRightOnSquareIcon
-                  className="size-3.5 shrink-0"
-                  aria-hidden
-                />
-                Go to Zenodo
-              </a>
-            ) : null}
+                <Square2StackIcon className="size-3.5" aria-hidden />
+              </Button>
+              {zenodoHref ? (
+                <a
+                  href={zenodoHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open on Zenodo"
+                  title="Open on Zenodo"
+                  className={cn(
+                    "bg-accent text-accent-foreground inline-flex h-7 w-7 items-center justify-center rounded-lg",
+                    "focus-visible:ring-accent hover:opacity-90 focus-visible:ring-2 focus-visible:outline-none",
+                  )}
+                >
+                  <ArrowTopRightOnSquareIcon
+                    className="size-3.5 shrink-0"
+                    aria-hidden
+                  />
+                </a>
+              ) : null}
+            </div>
           </div>
+          {atlasDatasetId?.trim() && atlasCitationUrl ? (
+            <div className="mt-3 min-w-0">
+              <h4 className={sectionLabelClassName}>Atlas data tag</h4>
+              <div className="mt-2 flex min-w-0 items-center gap-2">
+                <p
+                  className={cn(
+                    sectionBodyClassName,
+                    "mt-0 max-h-none min-w-0 flex-1 overflow-x-auto whitespace-nowrap",
+                  )}
+                >
+                  {atlasCitationUrl.replace(/^https?:\/\//, "")}
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  isIconOnly
+                  className={copyIconButtonClassName}
+                  aria-label="Copy Atlas data tag"
+                  onPress={() => {
+                    void handleCopy(
+                      atlasCitationUrl.replace(/^https?:\/\//, ""),
+                      "Atlas data tag",
+                    );
+                  }}
+                >
+                  <Square2StackIcon className="size-3.5" aria-hidden />
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </CardPressPopover>
       );
       break;
@@ -984,12 +982,11 @@ export function NexafsDatasetDoiCiteControl({
         >
           <div className="space-y-3">
             <ReferenceManagerLinks
+              experimentId={experimentId}
               datasetDoi={localDoi}
-              zenodoRecordUrl={localRecordUrl}
-              bibtex={citationBundle.bibtex}
               onZoteroImport={() => {
                 showToast(
-                  "Confirm the Zotero import if prompted (Dataset)",
+                  "Confirm the Zotero import if prompted (authors, notes, DOI, and Atlas URL)",
                   "info",
                 );
               }}
