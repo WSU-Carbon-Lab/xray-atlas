@@ -29,7 +29,18 @@ import { ContributorHoverCard } from "~/components/attribution/contributor-hover
 export type ContributorHoverRemoveRow = {
   rowKey: string;
   roleLabel: string;
+  /** DataCite contributor type key when the hover card supports in-place role edits. */
+  contributorRole?: string;
   removeDisabled?: boolean;
+  roleChangeDisabled?: boolean;
+};
+
+export type ContributorHoverRoleOptionSection = {
+  sectionLabel: string;
+  options: ReadonlyArray<{
+    contributorType: string;
+    label: string;
+  }>;
 };
 
 export type UserWithOrcid = NextAuthUser & {
@@ -686,6 +697,14 @@ interface AvatarGroupProps extends React.ComponentProps<typeof Avatar> {
     user: UserWithOrcid;
     rowKey: string;
   }) => void;
+  /** Invoked when the viewer changes a contributor role from the hover card (contribute attribution editor). */
+  onRoleChangeContributorRow?: (params: {
+    user: UserWithOrcid;
+    rowKey: string;
+    role: string;
+  }) => void;
+  /** Grouped DataCite role options for in-hover role edits; required when `onRoleChangeContributorRow` is set. */
+  contributorRoleOptionSections?: ReadonlyArray<ContributorHoverRoleOptionSection>;
   /** When true, renders `ResearcherAvatar` stacks (badges, ORCID-only placeholders) instead of `CustomAvatar`. */
   contributorAvatars?: boolean;
 }
@@ -835,6 +854,8 @@ function AvatarIdentityTooltipContent({
   onMouseEnter,
   onMouseLeave,
   onRemoveContributorRow,
+  onRoleChangeContributorRow,
+  contributorRoleOptionSections,
 }: {
   user: UserWithOrcid;
   arrowOffsetPx?: number;
@@ -845,6 +866,12 @@ function AvatarIdentityTooltipContent({
     user: UserWithOrcid;
     rowKey: string;
   }) => void;
+  onRoleChangeContributorRow?: (params: {
+    user: UserWithOrcid;
+    rowKey: string;
+    role: string;
+  }) => void;
+  contributorRoleOptionSections?: ReadonlyArray<ContributorHoverRoleOptionSection>;
 }) {
   return (
     <ContributorHoverCard
@@ -857,6 +884,13 @@ function AvatarIdentityTooltipContent({
           ? (rowKey) => onRemoveContributorRow({ user, rowKey })
           : undefined
       }
+      onRoleChangeRow={
+        onRoleChangeContributorRow
+          ? (rowKey, role) =>
+              onRoleChangeContributorRow({ user, rowKey, role })
+          : undefined
+      }
+      roleOptionSections={contributorRoleOptionSections}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     />
@@ -1037,6 +1071,8 @@ export function AvatarGroup({
   trailingSlot,
   wrapAvatarTrigger,
   onRemoveContributorRow,
+  onRoleChangeContributorRow,
+  contributorRoleOptionSections,
   contributorAvatars = false,
 }: AvatarGroupProps) {
   const sizeClass = avatarSizeClasses[size] ?? avatarSizeClasses.md;
@@ -1270,6 +1306,8 @@ export function AvatarGroup({
                 onMouseEnter={clearCloseTimer}
                 onMouseLeave={scheduleSharedTooltipClose}
                 onRemoveContributorRow={onRemoveContributorRow}
+                onRoleChangeContributorRow={onRoleChangeContributorRow}
+                contributorRoleOptionSections={contributorRoleOptionSections}
               />
             </div>,
             document.body,

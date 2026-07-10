@@ -1,13 +1,22 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
-import { Button } from "@heroui/react";
+import {
+  Button,
+  Header,
+  ListBox,
+  ScrollShadow,
+  Select,
+  Separator,
+} from "@heroui/react";
 import { Trash2 } from "lucide-react";
 import { ORCIDIcon } from "~/components/icons";
 import {
   ResearcherAvatar,
   normalizeProfileImageUrl,
   type ContributorHoverRemoveRow,
+  type ContributorHoverRoleOptionSection,
   type UserWithOrcid,
 } from "~/components/ui/avatar";
 
@@ -17,6 +26,8 @@ export type ContributorHoverCardProps = {
   showArrow?: boolean;
   removeRows?: ReadonlyArray<ContributorHoverRemoveRow>;
   onRemoveRow?: (rowKey: string) => void;
+  onRoleChangeRow?: (rowKey: string, role: string) => void;
+  roleOptionSections?: ReadonlyArray<ContributorHoverRoleOptionSection>;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 };
@@ -40,6 +51,75 @@ function identitySeed(user: UserWithOrcid): string {
   );
 }
 
+function ContributorRoleSelect({
+  row,
+  roleOptionSections,
+  onRoleChangeRow,
+}: {
+  row: ContributorHoverRemoveRow;
+  roleOptionSections: ReadonlyArray<ContributorHoverRoleOptionSection>;
+  onRoleChangeRow: (rowKey: string, role: string) => void;
+}) {
+  const selectedRole = row.contributorRole ?? "";
+  const selectedLabel =
+    roleOptionSections
+      .flatMap((section) => section.options)
+      .find((option) => option.contributorType === selectedRole)?.label ??
+    row.roleLabel;
+
+  return (
+    <Select
+      aria-label={`Change ${row.roleLabel} role`}
+      selectedKey={selectedRole || null}
+      isDisabled={row.roleChangeDisabled}
+      onSelectionChange={(key) => {
+        if (typeof key !== "string" || key === selectedRole) {
+          return;
+        }
+        onRoleChangeRow(row.rowKey, key);
+      }}
+      className="min-w-0 flex-1"
+    >
+      <Select.Trigger className="h-7 min-h-0 min-w-0 px-2">
+        <Select.Value className="truncate text-xs">{selectedLabel}</Select.Value>
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover>
+        <div data-attribution-nested-overlay="true">
+          <ScrollShadow
+            className="max-h-48 min-h-0"
+            hideScrollBar
+            orientation="vertical"
+          >
+            <ListBox aria-label="Attribution roles" className="p-1">
+              {roleOptionSections.map((section, sectionIndex) => (
+                <Fragment key={section.sectionLabel}>
+                  {sectionIndex > 0 ? <Separator className="my-1" /> : null}
+                  <ListBox.Section>
+                    <Header className="text-muted px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
+                      {section.sectionLabel}
+                    </Header>
+                    {section.options.map((option) => (
+                      <ListBox.Item
+                        key={option.contributorType}
+                        id={option.contributorType}
+                        textValue={option.label}
+                      >
+                        <span className="text-sm">{option.label}</span>
+                        <ListBox.ItemIndicator />
+                      </ListBox.Item>
+                    ))}
+                  </ListBox.Section>
+                </Fragment>
+              ))}
+            </ListBox>
+          </ScrollShadow>
+        </div>
+      </Select.Popover>
+    </Select>
+  );
+}
+
 /**
  * Portaled hover panel for a single contributor: avatar, name, role, ORCID link, and optional per-role remove actions.
  */
@@ -49,6 +129,8 @@ export function ContributorHoverCard({
   showArrow = true,
   removeRows,
   onRemoveRow,
+  onRoleChangeRow,
+  roleOptionSections,
   onMouseEnter,
   onMouseLeave,
 }: ContributorHoverCardProps) {
@@ -65,6 +147,11 @@ export function ContributorHoverCard({
     removeRows != null &&
     removeRows.length > 0 &&
     typeof onRemoveRow === "function";
+  const showRoleEdit =
+    showRemove &&
+    typeof onRoleChangeRow === "function" &&
+    roleOptionSections != null &&
+    roleOptionSections.length > 0;
 
   return (
     <div
@@ -110,7 +197,7 @@ export function ContributorHoverCard({
               )}
             </p>
           )}
-          {roleLabel ? (
+          {!showRoleEdit && roleLabel ? (
             <p className="text-muted truncate text-xs">{roleLabel}</p>
           ) : null}
           {orcidValue ? (
@@ -149,7 +236,15 @@ export function ContributorHoverCard({
               key={row.rowKey}
               className="flex items-center justify-between gap-2"
             >
-              <span className="text-muted text-xs">{row.roleLabel}</span>
+              {showRoleEdit ? (
+                <ContributorRoleSelect
+                  row={row}
+                  roleOptionSections={roleOptionSections}
+                  onRoleChangeRow={onRoleChangeRow}
+                />
+              ) : (
+                <span className="text-muted text-xs">{row.roleLabel}</span>
+              )}
               <Button
                 type="button"
                 variant="ghost"
