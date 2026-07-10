@@ -1476,6 +1476,7 @@ export function NexafsExperimentDatasetPanel({
   const setPlotChannel = model.setPlotChannel;
   const handlePlotChannelChange = useCallback(
     (channel: NexafsPlotChannelId) => {
+      setDifferenceSpectra([]);
       setPlotChannel(channel);
       if (!isImaginaryChannel(channel) && !isRealChannel(channel)) {
         setLinkImaginaryReal(false);
@@ -1618,7 +1619,7 @@ export function NexafsExperimentDatasetPanel({
       />
     ) : null;
 
-  const plotBottomRail = useMemo(() => {
+  const plotRightRail = useMemo(() => {
     if (
       !datasetPlotEditorActive ||
       !kkRecalcAllowed ||
@@ -1630,7 +1631,7 @@ export function NexafsExperimentDatasetPanel({
     return (
       <NexafsPlotKkVerticalToolbar
         visible
-        orientation="horizontal"
+        orientation="vertical"
         busy={kkRecalcBusy || updateKkDeltaBatch.isPending}
         onPressKk={onPressRecalculateKk}
       />
@@ -1761,7 +1762,7 @@ export function NexafsExperimentDatasetPanel({
               showThetaData={showThetaData}
               showPhiData={showPhiData}
               headerRight={plotLeftRail}
-              plotBottomTools={plotBottomRail}
+              headerAnalysis={plotRightRail}
               suppressAnalysisRailLeadingGrip
               plotTopRailDataActions={plotTopRailDataActions}
               plotTopRailTrailingActions={plotTopRailTrailingActions}
