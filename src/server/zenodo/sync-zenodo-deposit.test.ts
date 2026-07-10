@@ -5,7 +5,10 @@ import {
 } from "bun:test";
 import type { PrismaClient } from "~/prisma/client";
 import { syncZenodoDepositForExperiment } from "~/server/zenodo/sync-zenodo-deposit";
-import type { ZenodoClient, ZenodoDeposition } from "~/server/zenodo/zenodo-client";
+import type {
+  ZenodoClient,
+  ZenodoDeposition,
+} from "~/server/zenodo/zenodo-client";
 
 type ExpectAssertions = {
   toBe: (expected: unknown) => void;
@@ -15,10 +18,7 @@ type ExpectAssertions = {
 };
 
 const describe = bunDescribe as (name: string, fn: () => void) => void;
-const it = bunIt as (
-  name: string,
-  fn: () => void | Promise<void>,
-) => void;
+const it = bunIt as (name: string, fn: () => void | Promise<void>) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
 const EXPERIMENT_ID = "22222222-2222-2222-2222-222222222222";
@@ -38,6 +38,44 @@ function createMockDb(options?: {
     datasetdoi: null as string | null,
     hasdatasetdoi: false,
   };
+  const experimentRow = {
+    atlasdatasetid: "k7m2xq4n" as string | null,
+  };
+
+  const experimentGraph = () => ({
+    id: EXPERIMENT_ID,
+    atlasdatasetid: experimentRow.atlasdatasetid,
+    canonicalslug: "demo-c-k-tey-1",
+    experimenttype: "TOTAL_ELECTRON_YIELD",
+    edges: { targetatom: "C", corestate: "K" },
+    instruments: {
+      name: "5.3.2.2",
+      facilities: { name: "ALS" },
+    },
+    samples: {
+      processmethod: null,
+      substrate: null,
+      patterninglayer: null,
+      solvent: null,
+      thickness: null,
+      molecularweight: null,
+      vendors: null,
+      molecules: {
+        iupacname: "Polystyrene",
+        chemicalformula: "C8H8",
+        moleculesynonyms: [{ synonym: "PS", slug: "ps", order: 0 }],
+      },
+    },
+    experimentcontributors: [
+      {
+        orcidid: "0000-0002-1825-0097",
+        role: "DataCurator",
+        claimstatus: "accepted",
+        user: { name: "Jane Doe", id: "0000-0002-1825-0097" },
+      },
+    ],
+    experimentpublications: [{ publications: { doi: "10.1000/source" } }],
+  });
 
   const db = {
     experimentzenododeposits: {
@@ -56,8 +94,7 @@ function createMockDb(options?: {
                 typeof depositRow.current
               >["state"]) ?? "depositing",
             doi: (create.doi as string | null | undefined) ?? null,
-            recordurl:
-              (create.recordurl as string | null | undefined) ?? null,
+            recordurl: (create.recordurl as string | null | undefined) ?? null,
             zenododepositionid:
               (create.zenododepositionid as number | null | undefined) ?? null,
           };
@@ -114,33 +151,22 @@ function createMockDb(options?: {
     experiments: {
       findUnique: async ({ where }: { where: { id: string } }) => {
         if (where.id !== EXPERIMENT_ID) return null;
-        return {
-          id: EXPERIMENT_ID,
-          canonicalslug: "demo-c-k-tey-1",
-          experimenttype: "TOTAL_ELECTRON_YIELD",
-          edges: { targetatom: "C", corestate: "K" },
-          instruments: {
-            name: "5.3.2.2",
-            facilities: { name: "ALS" },
-          },
-          samples: {
-            molecules: {
-              iupacname: "Polystyrene",
-              chemicalformula: "C8H8",
-              moleculesynonyms: [{ synonym: "PS", order: 0 }],
-            },
-          },
-          experimentcontributors: [
-            {
-              orcidid: "0000-0002-1825-0097",
-              role: "DataCurator",
-              user: { name: "Jane Doe", id: "0000-0002-1825-0097" },
-            },
-          ],
-          experimentpublications: [
-            { publications: { doi: "10.1000/source" } },
-          ],
-        };
+        return experimentGraph();
+      },
+      update: async ({
+        where,
+        data,
+      }: {
+        where: { id: string };
+        data: { atlasdatasetid?: string | null };
+      }) => {
+        if (where.id !== EXPERIMENT_ID) {
+          throw new Error("not found");
+        }
+        if (data.atlasdatasetid !== undefined) {
+          experimentRow.atlasdatasetid = data.atlasdatasetid;
+        }
+        return experimentGraph();
       },
     },
     experimentmetrics: {

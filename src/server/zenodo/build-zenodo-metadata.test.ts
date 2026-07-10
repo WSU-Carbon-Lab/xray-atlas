@@ -7,6 +7,9 @@ import {
   buildZenodoDepositMetadata,
   formatZenodoCreatorName,
   normalizeZenodoOrcid,
+  resolveZenodoCreatorFromContributor,
+  sortZenodoCreatorsByCitationOrder,
+  zenodoCreatorCitationSortKey,
   type ZenodoMetadataExperimentSnapshot,
 } from "~/server/zenodo/build-zenodo-metadata";
 
@@ -39,8 +42,8 @@ function sampleSnapshot(
     instrumentName: "5.3.2.2",
     facilityName: "ALS",
     experimentTypeLabel: "TEY",
-    atlasExperimentUrl:
-      "https://xrayatlas.example/molecules/polystyrene?nexafsExperiment=11111111-1111-1111-1111-111111111111",
+    atlasExperimentUrl: "https://xrayatlas.example/d/k7m2xq4n",
+    atlasDatasetId: "k7m2xq4n",
     creators: [
       { name: "Doe, Jane", orcid: "0000-0002-1825-0097" },
       { name: "Smith, John" },
@@ -56,6 +59,110 @@ function sampleSnapshot(
     ...overrides,
   };
 }
+
+describe("zenodoCreatorCitationSortKey / sortZenodoCreatorsByCitationOrder", () => {
+  it("orders lead experimentalist, curator, others, then PI last", () => {
+    expect(zenodoCreatorCitationSortKey(["ProjectLeader"])).toBe(0);
+    expect(zenodoCreatorCitationSortKey(["DataCurator"])).toBe(1);
+    expect(zenodoCreatorCitationSortKey(["DataCollector"])).toBe(2);
+    expect(zenodoCreatorCitationSortKey(["Supervisor"])).toBe(1_000_000);
+    expect(zenodoCreatorCitationSortKey(["DataCurator", "Supervisor"])).toBe(
+      1_000_000,
+    );
+  });
+
+  it("sorts creators into lead → curator → collector → PI", () => {
+    const sorted = sortZenodoCreatorsByCitationOrder([
+      {
+        creator: { name: "Pi, Ada", orcid: "0000-0000-0000-0004" },
+        roles: ["Supervisor"],
+        firstSeenIndex: 0,
+      },
+      {
+        creator: { name: "Curator, Cam", orcid: "0000-0000-0000-0002" },
+        roles: ["DataCurator"],
+        firstSeenIndex: 1,
+      },
+      {
+        creator: { name: "Lead, Lee", orcid: "0000-0000-0000-0001" },
+        roles: ["ProjectLeader"],
+        firstSeenIndex: 2,
+      },
+      {
+        creator: { name: "Collector, Cole", orcid: "0000-0000-0000-0003" },
+        roles: ["DataCollector"],
+        firstSeenIndex: 3,
+      },
+    ]);
+    expect(sorted.map((creator) => creator.name)).toEqual([
+      "Lead, Lee",
+      "Curator, Cam",
+      "Collector, Cole",
+      "Pi, Ada",
+    ]);
+  });
+});
+
+describe("resolveZenodoCreatorFromContributor", () => {
+  it("uses the Atlas profile name when pending prefs allow names", () => {
+    expect(
+      resolveZenodoCreatorFromContributor({
+        orcidId: "0000-0002-1825-0097",
+        claimStatus: "pending",
+        userName: "Jane Doe",
+        displayPreferences: {
+          pending: "name_only",
+          accepted: "name_and_avatar",
+          unclaimed: "orcid_only",
+        },
+      }),
+    ).toEqual({
+      name: "Doe, Jane",
+      orcid: "0000-0002-1825-0097",
+    });
+  });
+
+  it("keeps ORCID labeling when pending prefs are orcid_only", () => {
+    expect(
+      resolveZenodoCreatorFromContributor({
+        orcidId: "0000-0002-1825-0097",
+        claimStatus: "pending",
+        userName: "Jane Doe",
+        displayPreferences: {
+          pending: "orcid_only",
+          accepted: "name_and_avatar",
+          unclaimed: "orcid_only",
+        },
+      }),
+    ).toEqual({
+      name: "ORCID 0000-0002-1825-0097",
+      orcid: "0000-0002-1825-0097",
+    });
+  });
+
+  it("uses the Atlas profile name after the claim is accepted", () => {
+    expect(
+      resolveZenodoCreatorFromContributor({
+        orcidId: "0000-0002-1825-0097",
+        claimStatus: "accepted",
+        userName: "Jane Doe",
+      }),
+    ).toEqual({
+      name: "Doe, Jane",
+      orcid: "0000-0002-1825-0097",
+    });
+  });
+
+  it("reverts to ORCID labeling when unclaimed with orcid_only prefs", () => {
+    expect(
+      resolveZenodoCreatorFromContributor({
+        orcidId: "0000-0002-1825-0097",
+        claimStatus: "unclaimed",
+        userName: "Jane Doe",
+      }).name,
+    ).toBe("ORCID 0000-0002-1825-0097");
+  });
+});
 
 describe("formatZenodoCreatorName", () => {
   it("converts Given Family to Family, Given", () => {
@@ -89,7 +196,7 @@ describe("buildZenodoDepositMetadata", () => {
     expect(metadata.license).toBe("cc-by-4.0");
     expect(metadata.communities).toEqual([{ identifier: "xrayatlas" }]);
     expect(metadata.title).toBe(
-      "NEXAFS dataset: Polystyrene, C(K), TEY, 5.3.2.2, ALS",
+      "X-ray Atlas NEXAFS Dataset: Polystyrene, C(K), TEY, 5.3.2.2, ALS",
     );
     expect(metadata.description).toContain("xrayatlas.example");
     expect(metadata.description).not.toContain(" @ ");

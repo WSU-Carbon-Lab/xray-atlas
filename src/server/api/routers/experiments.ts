@@ -944,7 +944,10 @@ export const experimentsRouter = createTRPCRouter({
       ["nexafs-edges"],
       async () => {
         const edges = await ctx.db.edges.findMany();
-        const priorityRank = (edge: { targetatom: string; corestate: string }) => {
+        const priorityRank = (edge: {
+          targetatom: string;
+          corestate: string;
+        }) => {
           const atom = edge.targetatom.trim().toUpperCase();
           const coreState = edge.corestate.trim().toUpperCase();
           const isK = coreState === "K";
@@ -960,10 +963,15 @@ export const experimentsRouter = createTRPCRouter({
         edges.sort((left, right) => {
           const leftPriority = priorityRank(left);
           const rightPriority = priorityRank(right);
-          if (leftPriority !== rightPriority) return leftPriority - rightPriority;
-          const targetCompare = left.targetatom.localeCompare(right.targetatom, undefined, {
-            sensitivity: "base",
-          });
+          if (leftPriority !== rightPriority)
+            return leftPriority - rightPriority;
+          const targetCompare = left.targetatom.localeCompare(
+            right.targetatom,
+            undefined,
+            {
+              sensitivity: "base",
+            },
+          );
           if (targetCompare !== 0) return targetCompare;
           return left.corestate.localeCompare(right.corestate, undefined, {
             sensitivity: "base",
@@ -1475,7 +1483,9 @@ export const experimentsRouter = createTRPCRouter({
               where: { id: { in: normalizedCollectedBy } },
               select: { id: true },
             });
-            const existingUserIds = new Set(existingUsers.map((user) => user.id));
+            const existingUserIds = new Set(
+              existingUsers.map((user) => user.id),
+            );
             const hasAttributionPayload =
               attributionsInput != null && attributionsInput.length > 0;
             if (existingUsers.length !== normalizedCollectedBy.length) {
@@ -1998,11 +2008,7 @@ export const experimentsRouter = createTRPCRouter({
         ),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertUserMayEditExperiment(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      );
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
 
       const existing = await ctx.db.experiments.findUnique({
         where: { id: input.experimentId },
@@ -2329,7 +2335,7 @@ export const experimentsRouter = createTRPCRouter({
           experimentid: { in: input.experimentIds },
           orcidid: ctx.userId,
         },
-        select: { id: true },
+        select: { id: true, experimentid: true },
       });
       if (targetRows.length === 0) {
         return { updatedCount: 0 };
@@ -2347,6 +2353,12 @@ export const experimentsRouter = createTRPCRouter({
               ...contributorFlagsForClaimStatus("unclaimed", ctx.userId),
             },
       });
+      const experimentIds = [
+        ...new Set(targetRows.map((row) => row.experimentid)),
+      ];
+      for (const experimentId of experimentIds) {
+        scheduleZenodoDepositSync(ctx.db, experimentId, { mode: "metadata" });
+      }
       return { updatedCount: update.count };
     }),
 
@@ -2357,6 +2369,13 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const targetRows = await ctx.db.experimentcontributors.findMany({
+        where: {
+          experimentid: { in: input.experimentIds },
+          orcidid: ctx.userId,
+        },
+        select: { experimentid: true },
+      });
       const update = await ctx.db.experimentcontributors.updateMany({
         where: {
           experimentid: { in: input.experimentIds },
@@ -2367,6 +2386,12 @@ export const experimentsRouter = createTRPCRouter({
           ...contributorFlagsForClaimStatus("accepted", ctx.userId),
         },
       });
+      const experimentIds = [
+        ...new Set(targetRows.map((row) => row.experimentid)),
+      ];
+      for (const experimentId of experimentIds) {
+        scheduleZenodoDepositSync(ctx.db, experimentId, { mode: "metadata" });
+      }
       return { updatedCount: update.count };
     }),
 
@@ -3069,10 +3094,7 @@ export const experimentsRouter = createTRPCRouter({
     .input(z.object({ experimentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
-      const result = await mintExperimentDatasetDoi(
-        ctx.db,
-        input.experimentId,
-      );
+      const result = await mintExperimentDatasetDoi(ctx.db, input.experimentId);
       return {
         experimentId: input.experimentId,
         mintingEnabled: isZenodoMintingEnabled(),
@@ -3134,8 +3156,7 @@ export const experimentsRouter = createTRPCRouter({
       }
 
       const doi = deposit?.doi ?? metrics?.datasetdoi ?? null;
-      const rawState =
-        deposit?.state ?? (doi ? ("published" as const) : null);
+      const rawState = deposit?.state ?? (doi ? ("published" as const) : null);
       const state = coerceZenodoDepositUiState({
         state: rawState,
         lastAttemptAt: deposit?.lastattemptat ?? null,

@@ -10,7 +10,7 @@
  *
  * | Mode | Trigger |
  * | --- | --- |
- * | `metadata` | `experiments.setAttributions`, source-publication mutations, `experiments.update` / `updateDescriptors` (type/edge/instrument that affect title), `samples.update`, `sampleAux.upsert` |
+ * | `metadata` | `experiments.setAttributions`, `datasetAttributions.acceptAttribution` / `declineAttribution` / `unclaimAttribution`, `experiments.confirmClaimContributions` / `setClaimState`, source-publication mutations, `experiments.update` / `updateDescriptors` (type/edge/instrument that affect title), `samples.update`, `sampleAux.upsert` |
  * | `files` | `experimentFile.commitUpload` / `softDelete`, `sampleFile.commitUpload` / `softDelete`, `spectrumpoints.updateKkDeltaBatch` |
  *
  * Sample preparation fields (process method, substrate, patterning layer, solvent,
@@ -355,14 +355,20 @@ export async function syncZenodoDepositForExperiment(
       const current = await client.getDeposition(depositionId);
       assertWithinBudget();
       if (current.submitted) {
-        console.info("[zenodo] unlocking published deposition for metadata sync", {
-          experimentId,
-          depositionId,
-        });
+        console.info(
+          "[zenodo] unlocking published deposition for metadata sync",
+          {
+            experimentId,
+            depositionId,
+          },
+        );
         await client.editDeposition(depositionId);
         assertWithinBudget();
       }
-      deposition = await client.updateDepositionMetadata(depositionId, metadata);
+      deposition = await client.updateDepositionMetadata(
+        depositionId,
+        metadata,
+      );
       assertWithinBudget();
       console.info("[zenodo] republishing after metadata sync", {
         experimentId,
@@ -382,7 +388,10 @@ export async function syncZenodoDepositForExperiment(
       });
       assertWithinBudget();
 
-      deposition = await client.updateDepositionMetadata(depositionId, metadata);
+      deposition = await client.updateDepositionMetadata(
+        depositionId,
+        metadata,
+      );
       assertWithinBudget();
 
       const bucketUrl = deposition.links.bucket;
@@ -403,15 +412,22 @@ export async function syncZenodoDepositForExperiment(
           await client.deleteDepositionFile(depositionId, file.id);
         }
       } catch (listError) {
-        console.warn("[zenodo] could not clear prior version files; uploading anyway", {
-          experimentId,
-          depositionId,
-          error:
-            listError instanceof Error ? listError.message : String(listError),
-        });
+        console.warn(
+          "[zenodo] could not clear prior version files; uploading anyway",
+          {
+            experimentId,
+            depositionId,
+            error:
+              listError instanceof Error
+                ? listError.message
+                : String(listError),
+          },
+        );
       }
 
-      console.info("[zenodo] building all-data bundle for sync", { experimentId });
+      console.info("[zenodo] building all-data bundle for sync", {
+        experimentId,
+      });
       const bundle = await (options.buildBundle ?? buildDatasetAllDataBundle)(
         db,
         experimentId,
