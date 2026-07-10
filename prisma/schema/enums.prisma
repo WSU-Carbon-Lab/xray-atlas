@@ -43,3 +43,13 @@ enum ExperimentContributorClaimStatus {
 
   @@schema("public")
 }
+
+/// Workflow state for Atlas-minted Zenodo dataset deposits (`experiment_zenodo_deposits`).
+enum ZenodoDepositState {
+  pending
+  depositing
+  published
+  failed
+
+  @@schema("public")
+}

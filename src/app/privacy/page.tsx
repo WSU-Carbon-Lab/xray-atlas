@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { site } from "~/app/brand";
+import {
+  ATLAS_COLLECTION_DOI,
+  buildDatabaseCitation,
+} from "~/lib/dataset-citation";
 
 export const metadata: Metadata = {
   title: "Privacy and Data Use",
@@ -15,6 +19,13 @@ export const metadata: Metadata = {
  * replace institutional policies. For questions, use the Contact mailto in the footer.
  */
 export default function PrivacyPage() {
+  const collectionCitationExample = buildDatabaseCitation({
+    accessedAt: new Date(Date.UTC(2026, 6, 10)),
+  });
+  const collectionDoiNote = ATLAS_COLLECTION_DOI
+    ? null
+    : "Collection DOI is omitted until X-ray Atlas registers one; do not invent a placeholder DOI.";
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="mx-auto max-w-3xl space-y-8">
@@ -90,19 +101,27 @@ export default function PrivacyPage() {
             <div>
               <h3 className="text-foreground font-semibold">Individual dataset</h3>
               <p className="text-muted font-mono text-sm">
-                [Dataset Name] [DOI]. Adapted from [Original Publication].
-                Hosted by {site.name}.
+                Creator(s). (Year). NEXAFS dataset: Molecule, edge, instrument
+                [Dataset]. {site.name}. https://doi.org/10.…
+              </p>
+              <p className="text-muted mt-2 text-xs">
+                Use the Cite control on browse cards for in-text, data-availability,
+                BibTeX, and full reference forms filled from the record.
               </p>
             </div>
             <div>
               <h3 className="text-foreground font-semibold">Entire collection</h3>
               <p className="text-muted font-mono text-sm">
-                {site.name} [Collection DOI]. Accessed [Date].
+                {collectionCitationExample}
               </p>
+              {collectionDoiNote ? (
+                <p className="text-muted mt-1 text-xs">{collectionDoiNote}</p>
+              ) : null}
             </div>
           </div>
           <p className="text-muted">
-            See dataset landing pages for full citation details and examples.
+            Citation is required when reusing hosted datasets (CC BY 4.0). Prefer
+            the minted dataset DOI when present.
           </p>
         </section>
 

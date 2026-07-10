@@ -7,12 +7,18 @@ import {
   PencilSquareIcon,
   FolderIcon,
   BeakerIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { ChartLine, ChartArea, ChartScatter } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { plotToolbarTooltipContentClass } from "~/components/plots/toolbars";
 
-export type VisualizationMode = "graph" | "table" | "sample" | "aux";
+export type VisualizationMode =
+  | "graph"
+  | "table"
+  | "sample"
+  | "experiment"
+  | "aux";
 export type GraphStyle = "line" | "scatter" | "area";
 
 const inactiveButtonClass =
@@ -24,11 +30,12 @@ const DEFAULT_VISUALIZATION_MODES: VisualizationMode[] = [
   "graph",
   "table",
   "sample",
+  "experiment",
   "aux",
 ];
 
 interface VisualizationToggleProps {
-  /** Subset of view modes to render; defaults to graph, table, and auxiliary files. */
+  /** Subset of view modes to render; defaults to graph, table, sample, experiment, and metadata. */
   modes?: VisualizationMode[];
   mode: VisualizationMode;
   graphStyle?: GraphStyle;
@@ -66,12 +73,17 @@ export function VisualizationToggle({
         return <ChartScatter className="h-4 w-4" />;
       case "area":
         return <ChartArea className="h-4 w-4" />;
+      default: {
+        const _exhaustive: never = style;
+        return _exhaustive;
+      }
     }
   };
 
   const showGraph = modes.includes("graph");
   const showTable = modes.includes("table");
   const showSample = modes.includes("sample");
+  const showExperiment = modes.includes("experiment");
   const showAux = modes.includes("aux");
 
   return (
@@ -121,10 +133,28 @@ export function VisualizationToggle({
               }
             >
               <BeakerIcon className="h-4 w-4" />
-              <span>Sample information</span>
+              <span>Sample</span>
             </button>
             <Tooltip.Content className={plotToolbarTooltipContentClass}>
-              Sample information: View specimen metadata recorded for this dataset.
+              Sample: View specimen metadata recorded for this dataset.
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
+        {showExperiment ? (
+          <Tooltip delay={0}>
+            <button
+              type="button"
+              onClick={() => onModeChange("experiment")}
+              className={
+                mode === "experiment" ? activeButtonClass : inactiveButtonClass
+              }
+            >
+              <DocumentTextIcon className="h-4 w-4" />
+              <span>Experiment</span>
+            </button>
+            <Tooltip.Content className={plotToolbarTooltipContentClass}>
+              Experiment: View edge, instrument, and measurement mode for this
+              dataset.
             </Tooltip.Content>
           </Tooltip>
         ) : null}
@@ -136,10 +166,10 @@ export function VisualizationToggle({
               className={mode === "aux" ? activeButtonClass : inactiveButtonClass}
             >
               <FolderIcon className="h-4 w-4" />
-              <span>Auxiliary files</span>
+              <span>Metadata</span>
             </button>
             <Tooltip.Content className={plotToolbarTooltipContentClass}>
-              Auxiliary files: Browse experiment and sample attachments and upload
+              Metadata: Browse experiment and sample attachments and upload
               supporting data.
             </Tooltip.Content>
           </Tooltip>

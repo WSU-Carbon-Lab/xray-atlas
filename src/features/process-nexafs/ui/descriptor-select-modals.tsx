@@ -209,8 +209,9 @@ export type ExperimentSelectModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (experimentType: ExperimentTypeOption) => void;
-  fileName: string;
-  currentType: ExperimentTypeOption;
+  /** When set, shows filename-token parse hints (contribute upload). Omit on browse edit. */
+  fileName?: string;
+  currentType: ExperimentTypeOption | null;
 };
 
 export function ExperimentSelectModal({
@@ -220,7 +221,11 @@ export function ExperimentSelectModal({
   fileName,
   currentType,
 }: ExperimentSelectModalProps) {
+  const showFilenameHints = Boolean(fileName && fileName.trim().length > 0);
   const filenameParse = useMemo(() => {
+    if (!showFilenameHints || !fileName) {
+      return null;
+    }
     const parsed = parseNexafsFilename(fileName);
     const raw = parsed.experimentMode?.trim() ?? null;
     const normalized = raw ? normalizeExperimentMode(raw) : null;
@@ -233,7 +238,12 @@ export function ExperimentSelectModal({
       ? EXPERIMENT_TYPE_OPTIONS.find((o) => o.value === mapped)?.label
       : null;
     return { raw, normalized, mapped, mappedLabel };
-  }, [fileName]);
+  }, [fileName, showFilenameHints]);
+
+  const currentLabel =
+    currentType != null
+      ? EXPERIMENT_TYPE_OPTIONS.find((o) => o.value === currentType)?.label
+      : null;
 
   return (
     <SimpleDialog
@@ -243,43 +253,50 @@ export function ExperimentSelectModal({
       maxWidth="max-w-md"
     >
       <div className="space-y-4">
-        <div className="border-border bg-surface-2/80 rounded-lg border px-3 py-2 text-sm">
-          <p className="text-muted-foreground font-medium">From filename</p>
-          <p className="text-foreground mt-1 font-mono text-xs break-all">
-            {fileName || "(no file name)"}
-          </p>
-          <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
-            <li>
-              Token 2 (after edge):{" "}
-              <span className="text-foreground font-mono">
-                {filenameParse.raw ?? "(missing)"}
-              </span>
-            </li>
-            <li>
-              Normalized to enum:{" "}
-              <span className="text-foreground font-mono">
-                {filenameParse.mapped ?? filenameParse.normalized ?? "—"}
-              </span>
-              {filenameParse.mapped && filenameParse.mappedLabel
-                ? ` (${filenameParse.mappedLabel})`
-                : filenameParse.raw && !filenameParse.mapped
-                  ? " (not in TEY / PEY / FY / TRANS set)"
-                  : ""}
-            </li>
-            <li>
-              Currently selected:{" "}
-              <span className="text-foreground font-medium">
-                {
-                  EXPERIMENT_TYPE_OPTIONS.find((o) => o.value === currentType)
-                    ?.label
-                }
-              </span>
-            </li>
-          </ul>
-        </div>
+        {filenameParse ? (
+          <div className="border-border bg-surface-2/80 rounded-lg border px-3 py-2 text-sm">
+            <p className="text-muted-foreground font-medium">From filename</p>
+            <p className="text-foreground mt-1 font-mono text-xs break-all">
+              {fileName}
+            </p>
+            <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs">
+              <li>
+                Token 2 (after edge):{" "}
+                <span className="text-foreground font-mono">
+                  {filenameParse.raw ?? "(missing)"}
+                </span>
+              </li>
+              <li>
+                Normalized to enum:{" "}
+                <span className="text-foreground font-mono">
+                  {filenameParse.mapped ?? filenameParse.normalized ?? "—"}
+                </span>
+                {filenameParse.mapped && filenameParse.mappedLabel
+                  ? ` (${filenameParse.mappedLabel})`
+                  : filenameParse.raw && !filenameParse.mapped
+                    ? " (not in TEY / PEY / FY / TRANS set)"
+                    : ""}
+              </li>
+              <li>
+                Currently selected:{" "}
+                <span className="text-foreground font-medium">
+                  {currentLabel ?? "Not set"}
+                </span>
+              </li>
+            </ul>
+          </div>
+        ) : null}
         <p className="text-muted-foreground text-sm">
           Choose the technique that matches this spectrum. This maps to
           database NEXAFS experiment kinds (TEY, PEY, FY, TRANS).
+          {currentLabel ? (
+            <>
+              {" "}
+              Current:{" "}
+              <span className="text-foreground font-medium">{currentLabel}</span>
+              .
+            </>
+          ) : null}
         </p>
         <div className="border-border max-h-64 space-y-1 overflow-y-auto rounded-lg border p-2">
           {EXPERIMENT_TYPE_OPTIONS.map((opt) => (

@@ -4,6 +4,7 @@
 
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
+import { moleculeNexafsExperimentHref } from "~/lib/nexafs-experiment-deep-link";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
 import { formatExperimentType } from "./nexafs-browse-experiment-utils";
 
@@ -24,7 +25,10 @@ export function mapNexafsBrowseGroupToCard(group: NexafsBrowseGroup) {
   return {
     key: group.experimentId,
     props: {
-      moleculeHref: `/molecules/${moleculePath}`,
+      moleculeHref: moleculeNexafsExperimentHref(
+        moleculePath,
+        group.experimentId,
+      ),
       experimentId: group.experimentId,
       moleculeId: molecule.id,
       displayName: molecule.displayName,
@@ -44,7 +48,12 @@ export function mapNexafsBrowseGroupToCard(group: NexafsBrowseGroup) {
       linkedPublications: group.linkedPublications,
       sourcePublications: group.sourcePublications,
       ingestVerified: group.ingestVerified,
+      datasetDoi: group.datasetDoi,
+      zenodoRecordUrl: group.zenodoRecordUrl,
+      zenodoDepositState: group.zenodoDepositState,
       datasetMetrics: group.datasetMetrics,
+      citationSample: group.sample,
+      citationYear: new Date(group.createdat).getUTCFullYear(),
     },
   };
 }

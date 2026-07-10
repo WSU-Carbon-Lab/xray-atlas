@@ -24,6 +24,7 @@ import {
   assertUserMayEditSample,
   userMayEditSample,
 } from "~/server/nexafs/experimentEditAuthz";
+import { scheduleZenodoDepositSyncForSample } from "~/server/zenodo";
 
 async function userMaySoftDeleteSampleFile(
   db: Parameters<typeof userMayEditSample>[0],
@@ -213,6 +214,10 @@ export const sampleFileRouter = createTRPCRouter({
         },
       });
 
+      await scheduleZenodoDepositSyncForSample(ctx.db, input.sampleId, {
+        mode: "files",
+      });
+
       return serializeAuxFileRow(updated);
     }),
 
@@ -252,6 +257,10 @@ export const sampleFileRouter = createTRPCRouter({
       const updated = await ctx.db.samplefile.update({
         where: { id: row.id },
         data: { deletedat: new Date() },
+      });
+
+      await scheduleZenodoDepositSyncForSample(ctx.db, input.sampleId, {
+        mode: "files",
       });
 
       return serializeAuxFileRow(updated);

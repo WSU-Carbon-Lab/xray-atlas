@@ -167,21 +167,22 @@ export const prePublicationStages: RoadmapStage[] = [
     id: "governance",
     title: "Governance, persistence, and DOI minting",
     phase: "institutional",
-    status: "open-question",
-    statusLabel: "Resolve before publication",
+    status: "in-progress",
+    statusLabel: "Zenodo path in progress",
     variant: "fork",
     summary:
-      "Per-dataset DOI minting and long-term persistence are unresolved. Choose direct DataCite membership or Zenodo as a lower-friction interim registrar before publication.",
+      "Per-dataset DOI minting is being implemented via Zenodo as an interim registrar; direct DataCite membership remains the longer-term option after non-profit incorporation.",
     detail:
-      "Upload, contributor attribution, and source-publication linking are live, but Atlas does not yet mint a DOI per dataset on our side. Before publication we must choose and implement a registrar path. (1) Direct DataCite membership for X-ray Atlas: non-profit incorporation is required first (Consortium and Direct membership expect participating organizations to be non-profit). Expect an annual base fee of roughly EUR 2,000, plus volume-scaled DOI fees on the order of EUR 2,500 per 10,000-100,000 DOIs annually at typical tiers and additional organizational fees; Direct membership also carries governance obligations such as member assembly voting. (2) Zenodo as an interim carry-over: a cheaper, lower-friction path before permanent funding is established. Zenodo mints DOIs via DataCite and can serve as a temporary home while institutional funding and the non-profit path are resolved. Either path must be integrated with the upload flow so accepted datasets receive citable DOIs at submission time.",
+      "Upload, contributor attribution, and source-publication linking are live. Atlas now deposits each NEXAFS dataset to the X-ray Atlas Zenodo Community (https://zenodo.org/communities/xrayatlas) through a repository depositor personal access token, with researcher credit in Zenodo creators metadata. Minting is automatic after contribute aux uploads, non-blocking on Zenodo failure, and tracked in experiment_zenodo_deposits plus experiment_metrics.dataset_doi. Remaining ops: production depositor PAT on Vercel, sandbox community+token for Preview, and community submission policy (open/auto-accept recommended for v1). Longer term, direct DataCite membership for X-ray Atlas still requires non-profit incorporation (Consortium/Direct membership expect participating organizations to be non-profit), with annual base fees and volume-scaled DOI fees; Zenodo remains the lower-friction interim registrar until that path is funded.",
     relatedLinks: [
+      { href: "https://zenodo.org/communities/xrayatlas", label: "X-ray Atlas Zenodo Community" },
       { href: "https://zenodo.org/", label: "Zenodo" },
       {
         href: "https://datacite.org/become-a-member/",
         label: "DataCite membership",
       },
     ],
-    githubLabels: ["governance", "datacite"],
+    githubLabels: ["governance", "datacite", "zenodo"],
   },
 ];
 

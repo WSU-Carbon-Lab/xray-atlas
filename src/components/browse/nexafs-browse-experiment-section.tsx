@@ -31,6 +31,11 @@ import {
   UnifiedSearchBar,
   type FacetData,
 } from "./unified-search";
+import {
+  NEXAFS_EXPERIMENT_SEARCH_PARAM,
+  parseNexafsExperimentSearchParam,
+} from "~/lib/nexafs-experiment-deep-link";
+import { useSearchParams } from "next/navigation";
 
 const NEXAFS_SORT_OPTIONS: Array<BrowseSortOption<NexafsBrowseSortKey>> = [
   {
@@ -107,6 +112,10 @@ export function NexafsBrowseExperimentSection({
 }: NexafsBrowseExperimentSectionProps) {
   const [sortBy, setSortBy] = useState<NexafsBrowseSortKey>("quality");
   const [itemsPerPage, setItemsPerPage] = useState(12);
+  const searchParams = useSearchParams();
+  const deepLinkExperimentId = parseNexafsExperimentSearchParam(
+    searchParams.get(NEXAFS_EXPERIMENT_SEARCH_PARAM),
+  );
 
   const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
     staleTime: 120_000,
@@ -192,6 +201,13 @@ export function NexafsBrowseExperimentSection({
     verificationSource: catalogFilters.verificationSource,
   };
 
+  const browseListFilters = {
+    ...commonFilters,
+    ...(deepLinkExperimentId
+      ? { experimentIds: [deepLinkExperimentId] }
+      : {}),
+  };
+
   const searchData = trpc.experiments.browseSearch.useQuery(
     {
       query: debouncedQuery.trim(),
@@ -212,7 +228,7 @@ export function NexafsBrowseExperimentSection({
       limit: itemsPerPage,
       offset: (currentPage - 1) * itemsPerPage,
       sortBy,
-      ...commonFilters,
+      ...browseListFilters,
     },
     {
       enabled: urlSynced && !hasSearchQuery,

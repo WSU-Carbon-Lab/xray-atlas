@@ -20,6 +20,12 @@ import {
   syncExperimentSourcePaperDoi,
   syncExperimentSourcePublications,
 } from "~/server/nexafs/syncExperimentSourcePaperDoi";
+import {
+  isZenodoMintingEnabled,
+  mintExperimentDatasetDoi,
+  scheduleZenodoDepositSync,
+} from "~/server/zenodo";
+import { coerceZenodoDepositUiState } from "~/lib/zenodo-doi-button-mode";
 import type { PublicationCitation } from "~/lib/publication-citation";
 import { dataCiteContributorTypeSchema } from "~/lib/datacite-contributor-types";
 import { orcidUserIdSchema } from "~/lib/orcid";
@@ -1904,6 +1910,219 @@ export const experimentsRouter = createTRPCRouter({
       };
     }),
 
+  /**
+   * Loads edge, instrument, and measurement-mode descriptors for one experiment.
+   * Used by browse/molecule dataset panels so authorized editors can correct broken ingest metadata.
+   */
+  getDescriptors: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const experiment = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: {
+          id: true,
+          experimenttype: true,
+          edgeid: true,
+          instrumentid: true,
+          nexafsexperimentkindid: true,
+          edges: {
+            select: { id: true, targetatom: true, corestate: true },
+          },
+          instruments: {
+            select: {
+              id: true,
+              name: true,
+              facilities: { select: { name: true } },
+            },
+          },
+          nexafsexperimentkind: {
+            select: { id: true, token: true, label: true },
+          },
+        },
+      });
+      if (!experiment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+      return {
+        experimentId: experiment.id,
+        edgeId: experiment.edgeid,
+        instrumentId: experiment.instrumentid,
+        experimentType: experiment.experimenttype,
+        nexafsExperimentKindId: experiment.nexafsexperimentkindid,
+        edge: {
+          id: experiment.edges.id,
+          targetatom: experiment.edges.targetatom,
+          corestate: experiment.edges.corestate,
+        },
+        instrument: {
+          id: experiment.instruments.id,
+          name: experiment.instruments.name,
+          facilityName: experiment.instruments.facilities?.name ?? null,
+        },
+        experimentKind: experiment.nexafsexperimentkind
+          ? {
+              id: experiment.nexafsexperimentkind.id,
+              token: experiment.nexafsexperimentkind.token,
+              label: experiment.nexafsexperimentkind.label,
+            }
+          : null,
+      };
+    }),
+
+  /**
+   * Updates edge, instrument, and/or measurement mode (`ExperimentType` + linked
+   * `nexafsexperimentkinds` row) for an experiment the caller may edit.
+   * Requires contribute-write enrollment and {@link assertUserMayEditExperiment}.
+   */
+  updateDescriptors: contributeWriteProcedure
+    .input(
+      z
+        .object({
+          experimentId: z.string().uuid(),
+          edgeId: z.string().uuid().optional(),
+          instrumentId: z.string().min(1).optional(),
+          experimentType: z.nativeEnum(ExperimentType).optional(),
+        })
+        .refine(
+          (value) =>
+            value.edgeId !== undefined ||
+            value.instrumentId !== undefined ||
+            value.experimentType !== undefined,
+          {
+            message:
+              "Provide at least one of edgeId, instrumentId, or experimentType",
+          },
+        ),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+      );
+
+      const existing = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      if (input.edgeId !== undefined) {
+        const edge = await ctx.db.edges.findUnique({
+          where: { id: input.edgeId },
+          select: { id: true },
+        });
+        if (!edge) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Edge not found",
+          });
+        }
+      }
+
+      if (input.instrumentId !== undefined) {
+        const instrument = await ctx.db.instruments.findUnique({
+          where: { id: input.instrumentId },
+          select: { id: true },
+        });
+        if (!instrument) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Instrument not found",
+          });
+        }
+      }
+
+      let nexafsExperimentKindId: string | null | undefined;
+      if (input.experimentType !== undefined) {
+        const kind = await ctx.db.nexafsexperimentkinds.findUnique({
+          where: { experimenttype: input.experimentType },
+          select: { id: true },
+        });
+        if (!kind) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "NEXAFS experiment kind not found for measurement mode",
+          });
+        }
+        nexafsExperimentKindId = kind.id;
+      }
+
+      const updated = await ctx.db.experiments.update({
+        where: { id: input.experimentId },
+        data: {
+          ...(input.edgeId !== undefined ? { edgeid: input.edgeId } : {}),
+          ...(input.instrumentId !== undefined
+            ? { instrumentid: input.instrumentId }
+            : {}),
+          ...(input.experimentType !== undefined
+            ? {
+                experimenttype: input.experimentType,
+                nexafsexperimentkindid: nexafsExperimentKindId ?? null,
+              }
+            : {}),
+          updatedat: new Date(),
+        },
+        select: {
+          id: true,
+          experimenttype: true,
+          edgeid: true,
+          instrumentid: true,
+          nexafsexperimentkindid: true,
+          edges: {
+            select: { id: true, targetatom: true, corestate: true },
+          },
+          instruments: {
+            select: {
+              id: true,
+              name: true,
+              facilities: { select: { name: true } },
+            },
+          },
+          nexafsexperimentkind: {
+            select: { id: true, token: true, label: true },
+          },
+        },
+      });
+
+      scheduleZenodoDepositSync(ctx.db, input.experimentId, {
+        mode: "metadata",
+      });
+
+      return {
+        experimentId: updated.id,
+        edgeId: updated.edgeid,
+        instrumentId: updated.instrumentid,
+        experimentType: updated.experimenttype,
+        nexafsExperimentKindId: updated.nexafsexperimentkindid,
+        edge: {
+          id: updated.edges.id,
+          targetatom: updated.edges.targetatom,
+          corestate: updated.edges.corestate,
+        },
+        instrument: {
+          id: updated.instruments.id,
+          name: updated.instruments.name,
+          facilityName: updated.instruments.facilities?.name ?? null,
+        },
+        experimentKind: updated.nexafsexperimentkind
+          ? {
+              id: updated.nexafsexperimentkind.id,
+              token: updated.nexafsexperimentkind.token,
+              label: updated.nexafsexperimentkind.label,
+            }
+          : null,
+      };
+    }),
+
   setAtlasTeamVerification: contributeWriteProcedure
     .input(
       z.object({
@@ -2037,6 +2256,10 @@ export const experimentsRouter = createTRPCRouter({
           where: { id: input.experimentId },
           data: { collectedbyuserids: collectedByFromAttributions },
         });
+      });
+
+      scheduleZenodoDepositSync(ctx.db, input.experimentId, {
+        mode: "metadata",
       });
 
       return { updatedCount: contributorInsertRows.length };
@@ -2353,6 +2576,10 @@ export const experimentsRouter = createTRPCRouter({
         },
       });
 
+      if (input.experimenttype !== undefined) {
+        scheduleZenodoDepositSync(ctx.db, id, { mode: "metadata" });
+      }
+
       return experiment;
     }),
 
@@ -2663,6 +2890,10 @@ export const experimentsRouter = createTRPCRouter({
         input.experimentId,
       );
 
+      scheduleZenodoDepositSync(ctx.db, input.experimentId, {
+        mode: "metadata",
+      });
+
       return {
         experimentId: input.experimentId,
         primaryDoi,
@@ -2701,6 +2932,10 @@ export const experimentsRouter = createTRPCRouter({
         ctx.db,
         input.experimentId,
       );
+
+      scheduleZenodoDepositSync(ctx.db, input.experimentId, {
+        mode: "metadata",
+      });
 
       return {
         experimentId: input.experimentId,
@@ -2750,6 +2985,10 @@ export const experimentsRouter = createTRPCRouter({
         },
       });
 
+      scheduleZenodoDepositSync(ctx.db, input.experimentId, {
+        mode: "metadata",
+      });
+
       return {
         experimentId: input.experimentId,
         originalDataDoi: metrics?.originaldatadoi ?? citation.doi,
@@ -2776,6 +3015,10 @@ export const experimentsRouter = createTRPCRouter({
       await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
 
       await clearExperimentSourcePaperDoi(ctx.db, input.experimentId);
+
+      scheduleZenodoDepositSync(ctx.db, input.experimentId, {
+        mode: "metadata",
+      });
 
       return {
         experimentId: input.experimentId,
@@ -2815,6 +3058,108 @@ export const experimentsRouter = createTRPCRouter({
         sourcePaperDoiVerifiedAt:
           updated.sourcepaperdoiverifiedat?.toISOString() ?? null,
         sourcePaperDoiVerifiedBy: updated.sourcepaperdoiverifiedby,
+      };
+    }),
+
+  /**
+   * Mints (or resumes) a Zenodo dataset DOI for an experiment the caller may edit.
+   * Non-blocking for contribute UX: returns failure state instead of failing the upload.
+   */
+  mintZenodoDatasetDoi: contributeWriteProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
+      const result = await mintExperimentDatasetDoi(
+        ctx.db,
+        input.experimentId,
+      );
+      return {
+        experimentId: input.experimentId,
+        mintingEnabled: isZenodoMintingEnabled(),
+        state: result.state,
+        doi: result.doi,
+        recordUrl: result.recordUrl,
+        error: result.error,
+        zenodoDepositionId: result.zenodoDepositionId,
+      };
+    }),
+
+  /**
+   * Public deposit status for browse UI polling while a Zenodo mint is in flight.
+   * Stale `pending`/`depositing` rows are coerced to failed so clients exit busy.
+   */
+  getZenodoDepositStatus: publicProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [deposit, metrics] = await Promise.all([
+        ctx.db.experimentzenododeposits.findUnique({
+          where: { experimentid: input.experimentId },
+          select: {
+            state: true,
+            doi: true,
+            recordurl: true,
+            errormessage: true,
+            zenododepositionid: true,
+            publishedat: true,
+            attemptcount: true,
+            lastattemptat: true,
+          },
+        }),
+        ctx.db.experimentmetrics.findUnique({
+          where: { experimentid: input.experimentId },
+          select: {
+            datasetdoi: true,
+            hasdatasetdoi: true,
+          },
+        }),
+      ]);
+
+      if (!deposit && !metrics?.datasetdoi) {
+        return {
+          experimentId: input.experimentId,
+          mintingEnabled: isZenodoMintingEnabled(),
+          state: null as
+            | "pending"
+            | "depositing"
+            | "published"
+            | "failed"
+            | null,
+          doi: null as string | null,
+          recordUrl: null as string | null,
+          error: null as string | null,
+          publishedAt: null as string | null,
+          attemptCount: 0,
+          lastAttemptAt: null as string | null,
+        };
+      }
+
+      const doi = deposit?.doi ?? metrics?.datasetdoi ?? null;
+      const rawState =
+        deposit?.state ?? (doi ? ("published" as const) : null);
+      const state = coerceZenodoDepositUiState({
+        state: rawState,
+        lastAttemptAt: deposit?.lastattemptat ?? null,
+        attemptCount: deposit?.attemptcount ?? 0,
+      });
+      const staleFailed =
+        state === "failed" &&
+        (rawState === "pending" || rawState === "depositing");
+      const depositError = deposit?.errormessage?.trim() ?? "";
+
+      return {
+        experimentId: input.experimentId,
+        mintingEnabled: isZenodoMintingEnabled(),
+        state,
+        doi,
+        recordUrl: deposit?.recordurl ?? null,
+        error: staleFailed
+          ? depositError.length > 0
+            ? depositError
+            : "Zenodo mint stalled (no progress within the expected window)"
+          : (deposit?.errormessage ?? null),
+        publishedAt: deposit?.publishedat?.toISOString() ?? null,
+        attemptCount: deposit?.attemptcount ?? 0,
+        lastAttemptAt: deposit?.lastattemptat?.toISOString() ?? null,
       };
     }),
 });

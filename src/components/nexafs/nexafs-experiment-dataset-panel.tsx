@@ -122,6 +122,7 @@ import { SimpleDialog } from "~/components/ui/dialog";
 import { DefaultButton as DialogButton } from "~/components/ui/button";
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
 import { NexafsExperimentSampleInfoPanel } from "~/components/nexafs/nexafs-experiment-sample-info-panel";
+import { NexafsExperimentDescriptorsPanel } from "~/components/nexafs/nexafs-experiment-descriptors-panel";
 
 interface ExperimentFormulaMeta {
   sampleId?: string | null;
@@ -1709,6 +1710,11 @@ export function NexafsExperimentDatasetPanel({
         <NexafsExperimentSampleInfoPanel
           experimentId={experimentId}
           sampleId={sampleId}
+          enabled={enabled}
+        />
+      ) : visualizationMode === "experiment" ? (
+        <NexafsExperimentDescriptorsPanel
+          experimentId={experimentId}
           enabled={enabled}
         />
       ) : visualizationMode === "aux" ? (

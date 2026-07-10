@@ -59,6 +59,7 @@ model experiments {
   peaksets                  peaksets[]
   spectrumpoints            spectrumpoints[]
   dashboardprocessingsessions dashboardprocessingsession[]
+  experimentzenododeposit   experimentzenododeposits?
 
   @@index([sampleid, edgeid, instrumentid], map: "idx_experiment_lookup")
   @@index([calibrationid], map: "idx_experiments_calibrationid")
