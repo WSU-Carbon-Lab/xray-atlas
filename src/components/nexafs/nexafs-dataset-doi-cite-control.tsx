@@ -4,7 +4,7 @@
  * Compact Atlas dataset Cite | doi segmented control for browse card action rows.
  *
  * One horizontal scholarly unit in the trailing cluster (before To molecule):
- * Cite opens a compact popover (Zotero/Mendeley, in-text, BibTeX and data-availability
+ * Cite opens a compact popover (Add to library, BibTeX and data-availability
  * accordions);
  * doi opens Copy DOI / Go to Zenodo when minted, or mints / retries when not.
  * Never dumps the full `10.5281/…` string into the card header.
@@ -51,6 +51,9 @@ import {
   type ZenodoDepositUiState,
 } from "~/lib/zenodo-doi-button-mode";
 import type { NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
+
+/** Official Zotero mark (white-backed PNG) served from `public/brand`. */
+const ZOTERO_LOGO_SRC = "/brand/zotero-logo.png";
 
 const shellClassName =
   "inline-flex h-6 shrink-0 items-stretch overflow-hidden rounded-md border border-border/70 bg-surface/60 text-[11px] leading-none shadow-sm";
@@ -110,7 +113,7 @@ const citeAccordionIndicatorClass =
 const POPOVER_VIEWPORT_PADDING_PX = 12;
 const POPOVER_SIDE_OFFSET_PX = 8;
 const POPOVER_FALLBACK_WIDTH_PX = 416;
-const POPOVER_FALLBACK_HEIGHT_PX = 420;
+const POPOVER_FALLBACK_HEIGHT_PX = 320;
 
 type OpenPopoverId = "cite" | "doi" | null;
 
@@ -341,18 +344,15 @@ function CardPressPopover({
   );
 }
 
-function ZoteroMarkIcon(props: SVGProps<SVGSVGElement>): ReactNode {
-  return (
-    <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden {...props}>
-      <path d="M4 3h24v5.2H19.6L27.2 29h-6.4L13.2 8.2H4z" />
-    </svg>
-  );
-}
-
+/**
+ * Renders the Font Awesome Brands Mendeley mark (CC BY 4.0 Fonticons).
+ *
+ * @param props - Standard SVG element props; `className` sizes the glyph.
+ */
 function MendeleyMarkIcon(props: SVGProps<SVGSVGElement>): ReactNode {
   return (
-    <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden {...props}>
-      <path d="M6 5h7.2c4.4 0 7.2 2.4 7.2 6.4 0 2.8-1.4 4.8-3.8 5.8L22.8 27h-6.2l-5.4-8.8H11V27H6zm5 8.8h1.8c1.8 0 2.8-.8 2.8-2.4S14.6 9 12.8 9H11z" />
+    <svg viewBox="0 0 640 512" fill="currentColor" aria-hidden {...props}>
+      <path d="M624.6 325.2c-12.3-12.4-29.7-19.2-48.4-17.2-43.3-1-49.7-34.9-37.5-98.8 22.8-57.5-14.9-131.5-87.4-130.8-77.4.7-81.7 82-130.9 82-48.1 0-54-81.3-130.9-82-72.9-.8-110.1 73.3-87.4 130.8 12.2 63.9 5.8 97.8-37.5 98.8-21.2-2.3-37 6.5-53 22.5-19.9 19.7-19.3 94.8 42.6 102.6 47.1 5.9 81.6-42.9 61.2-87.8-47.3-103.7 185.9-106.1 146.5-8.2-.1.1-.2.2-.3.4-26.8 42.8 6.8 97.4 58.8 95.2 52.1 2.1 85.4-52.6 58.8-95.2-.1-.2-.2-.3-.3-.4-39.4-97.9 193.8-95.5 146.5 8.2-4.6 10-6.7 21.3-5.7 33 4.9 53.4 68.7 74.1 104.9 35.2 17.8-14.8 23.1-65.6 0-88.3zm-303.9-19.1h-.6c-43.4 0-62.8-37.5-62.8-62.8 0-34.7 28.2-62.8 62.8-62.8h.6c34.7 0 62.8 28.1 62.8 62.8 0 25-19.2 62.8-62.8 62.8z" />
     </svg>
   );
 }
@@ -378,6 +378,15 @@ function CitationCopyIconButton({
   );
 }
 
+function openExternalUrl(url: string, event: {
+  stopPropagation: () => void;
+  preventDefault: () => void;
+}): void {
+  event.stopPropagation();
+  event.preventDefault();
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function ReferenceManagerLinks({
   datasetDoi,
   zenodoRecordUrl,
@@ -392,10 +401,10 @@ function ReferenceManagerLinks({
   const mendeleyHref = buildMendeleyImportUrl(datasetDoi);
   return (
     <section className="min-w-0">
-      <h4 className={sectionLabelClassName}>Add to library</h4>
+      <h3 className={sectionLabelClassName}>Add to library</h3>
       <p className={sectionHintClassName}>
         {zoteroHref
-          ? "Import via Zenodo record (Dataset) or Mendeley DOI lookup"
+          ? "Zotero imports the Zenodo Dataset by DOI; Mendeley uses DOI lookup"
           : "Available after a dataset DOI is minted"}
       </p>
       {zoteroHref || mendeleyHref ? (
@@ -407,9 +416,19 @@ function ReferenceManagerLinks({
               rel="noopener noreferrer"
               className={referenceManagerLinkClassName}
               onPointerDown={stopCardToggle}
-              onClick={stopCardToggle}
+              onClick={(event) => {
+                openExternalUrl(zoteroHref, event);
+              }}
             >
-              <ZoteroMarkIcon className="size-3.5 shrink-0 text-[#CC2936]" />
+              {/* eslint-disable-next-line @next/next/no-img-element -- static brand PNG from /public */}
+              <img
+                src={ZOTERO_LOGO_SRC}
+                alt=""
+                width={16}
+                height={16}
+                className="size-4 shrink-0 rounded-[3px] bg-white object-cover"
+                aria-hidden
+              />
               Zotero
             </a>
           ) : null}
@@ -420,9 +439,11 @@ function ReferenceManagerLinks({
               rel="noopener noreferrer"
               className={referenceManagerLinkClassName}
               onPointerDown={stopCardToggle}
-              onClick={stopCardToggle}
+              onClick={(event) => {
+                openExternalUrl(mendeleyHref, event);
+              }}
             >
-              <MendeleyMarkIcon className="size-3.5 shrink-0 text-[#AD0000]" />
+              <MendeleyMarkIcon className="size-4 shrink-0 text-[#AD0000]" />
               Mendeley
             </a>
           ) : null}
@@ -799,10 +820,13 @@ export function NexafsDatasetDoiCiteControl({
                 rel="noopener noreferrer"
                 className={cn(
                   "bg-accent text-accent-foreground inline-flex h-7 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium",
-                  "hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  "focus-visible:ring-accent hover:opacity-90 focus-visible:ring-2 focus-visible:outline-none",
                 )}
               >
-                <ArrowTopRightOnSquareIcon className="size-3.5 shrink-0" aria-hidden />
+                <ArrowTopRightOnSquareIcon
+                  className="size-3.5 shrink-0"
+                  aria-hidden
+                />
                 Go to Zenodo
               </a>
             ) : null}
@@ -884,31 +908,11 @@ export function NexafsDatasetDoiCiteControl({
             </>
           }
         >
-          <header className="mb-3 border-b border-border/60 pb-3">
-            <h3 className="text-foreground text-sm font-semibold tracking-tight">
-              Cite this dataset
-            </h3>
-            <p className={sectionHintClassName}>
-              {site.name} NEXAFS dataset; DOI minted via Zenodo
-            </p>
-          </header>
           <div className="space-y-3">
             <ReferenceManagerLinks
               datasetDoi={localDoi}
               zenodoRecordUrl={localRecordUrl}
             />
-            <section className="min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <h4 className={sectionLabelClassName}>In-text</h4>
-                <CitationCopyIconButton
-                  label="In-text citation"
-                  onPress={() => {
-                    void handleCopy(citationBundle.inText, "In-text citation");
-                  }}
-                />
-              </div>
-              <p className={sectionBodyClassName}>{citationBundle.inText}</p>
-            </section>
             <Accordion
               className={citeAccordionClass}
               hideSeparator
@@ -924,7 +928,7 @@ export function NexafsDatasetDoiCiteControl({
               />
               <CitationCopyAccordion
                 id="data-availability"
-                label="Data availability"
+                label="Data availability statement"
                 hint="For a manuscript Data Availability section"
                 text={citationBundle.dataAvailability}
                 prose

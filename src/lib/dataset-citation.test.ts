@@ -73,20 +73,30 @@ describe("formatDoiCitationUrl", () => {
 });
 
 describe("buildZoteroSaveUrl", () => {
-  it("prefers the Zenodo record page so Zotero imports a Dataset", () => {
+  it("passes the bare DOI so Zotero uses DataCite identifier lookup", () => {
     expect(
       buildZoteroSaveUrl({
         doi: "10.5281/zenodo.123",
         zenodoRecordUrl: "https://zenodo.org/records/123",
       }),
     ).toBe(
-      `https://www.zotero.org/save?q=${encodeURIComponent("https://zenodo.org/records/123")}`,
+      `https://www.zotero.org/save?q=${encodeURIComponent("10.5281/zenodo.123")}`,
     );
   });
 
-  it("derives the Zenodo record URL from a 10.5281/zenodo DOI", () => {
-    expect(buildZoteroSaveUrl({ doi: "10.5281/zenodo.21299145" })).toBe(
-      `https://www.zotero.org/save?q=${encodeURIComponent("https://zenodo.org/records/21299145")}`,
+  it("normalizes DOI URLs to a bare DOI query", () => {
+    expect(buildZoteroSaveUrl({ doi: "https://doi.org/10.5281/zenodo.21299145" })).toBe(
+      `https://www.zotero.org/save?q=${encodeURIComponent("10.5281/zenodo.21299145")}`,
+    );
+  });
+
+  it("falls back to Zenodo CSL export when only a record URL is present", () => {
+    expect(
+      buildZoteroSaveUrl({
+        zenodoRecordUrl: "https://zenodo.org/records/21299145",
+      }),
+    ).toBe(
+      `https://www.zotero.org/save?q=${encodeURIComponent("https://zenodo.org/records/21299145/export/csl")}`,
     );
   });
 

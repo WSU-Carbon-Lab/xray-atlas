@@ -178,9 +178,16 @@ export function resolveZenodoRecordUrlForCitation(input: {
 /**
  * Builds a Zotero web-library save deep link for a dataset DOI.
  *
- * Prefers the Zenodo record page (`/records/{id}`) so Zotero’s Zenodo translator
- * imports a Dataset item. Falling back to `https://doi.org/…` often saves a
- * webpage snapshot of the DOI resolver instead of bibliographic Dataset metadata.
+ * Passes the **bare DOI** (not `https://doi.org/…` and not the Zenodo HTML
+ * record page). Zotero’s save endpoint then uses identifier lookup against
+ * DataCite, which imports Zenodo deposits as Dataset items. Passing a webpage
+ * URL makes Zotero scrape HTML and often creates a Web Page item plus Snapshot
+ * (including when the connector saves the Atlas referrer instead).
+ *
+ * When only a Zenodo record URL is available, points `q` at Zenodo’s CSL JSON
+ * export (`/records/{id}/export/csl`), which Zotero imports as a metadata file
+ * with `type: dataset`.
+ *
  * The user still confirms Save in the Zotero web UI (and must be signed in).
  *
  * @param input - Dataset DOI and optional Zenodo record URL.
@@ -190,13 +197,16 @@ export function buildZoteroSaveUrl(input: {
   doi?: string | null;
   zenodoRecordUrl?: string | null;
 }): string | null {
-  const zenodoUrl = resolveZenodoRecordUrlForCitation(input);
-  if (zenodoUrl) {
-    return `https://www.zotero.org/save?q=${encodeURIComponent(zenodoUrl)}`;
+  const doi = normalizeDoi(input.doi);
+  if (doi) {
+    return `https://www.zotero.org/save?q=${encodeURIComponent(doi)}`;
   }
-  const doiUrl = formatDoiCitationUrl(input.doi);
-  if (!doiUrl) return null;
-  return `https://www.zotero.org/save?q=${encodeURIComponent(doiUrl)}`;
+  const zenodoUrl = resolveZenodoRecordUrlForCitation(input);
+  if (!zenodoUrl) return null;
+  const recordId = /\/records\/(\d+)/i.exec(zenodoUrl)?.[1];
+  if (!recordId) return null;
+  const cslExportUrl = `https://zenodo.org/records/${recordId}/export/csl`;
+  return `https://www.zotero.org/save?q=${encodeURIComponent(cslExportUrl)}`;
 }
 
 /**
