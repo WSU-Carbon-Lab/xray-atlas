@@ -1,0 +1,22 @@
+/// Tracks Atlas repository depositor Zenodo deposits for per-experiment dataset DOIs.
+/// One row per experiment in v1; workflow state stays separate from bibliographic `publications`.
+model experimentzenododeposits {
+  experimentid         String             @id @map("experiment_id") @db.Uuid
+  state                ZenodoDepositState @default(pending)
+  zenododepositionid   Int?               @map("zenodo_deposition_id")
+  zenodorecordid       Int?               @map("zenodo_record_id")
+  doi                  String?            @db.VarChar(256)
+  recordurl            String?            @map("record_url") @db.Text
+  errormessage         String?            @map("error_message") @db.Text
+  attemptcount         Int                @default(0) @map("attempt_count")
+  lastattemptat        DateTime?          @map("last_attempt_at") @db.Timestamptz(6)
+  publishedat          DateTime?          @map("published_at") @db.Timestamptz(6)
+  createdat            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedat            DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  experiments          experiments        @relation(fields: [experimentid], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([state], map: "idx_experiment_zenodo_deposits_state")
+  @@index([doi], map: "idx_experiment_zenodo_deposits_doi", where: raw("(doi IS NOT NULL)"))
+  @@map("experiment_zenodo_deposits")
+  @@schema("public")
+}

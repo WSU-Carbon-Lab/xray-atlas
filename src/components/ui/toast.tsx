@@ -46,28 +46,42 @@ function ToastItem({ toast, onRemove }: ToastProps) {
     info: InformationCircleIcon,
   };
 
+  /**
+   * Opaque surface + foreground text for contrast in light and dark.
+   * Type color lives on the border and icon — not `*-foreground` tokens, which
+   * are dark ink for solid fills and fail on translucent tinted backgrounds.
+   */
   const styles = {
-    success: "border border-success bg-success/10 text-success-foreground",
-    error: "border border-danger bg-danger/10 text-danger-foreground",
-    warning: "border border-warning bg-warning/10 text-warning-foreground",
+    success: "border border-success/50 bg-surface text-foreground",
+    error: "border border-danger/50 bg-surface text-foreground",
+    warning: "border border-warning/50 bg-surface text-foreground",
     info: "border border-border bg-surface text-foreground",
+  };
+
+  const iconStyles = {
+    success: "text-success",
+    error: "text-danger",
+    warning: "text-warning",
+    info: "text-accent",
   };
 
   const Icon = icons[toast.type];
 
   return (
     <div
-      className={`animate-in slide-in-from-bottom-2 pointer-events-auto flex items-start gap-3 rounded-lg p-4 shadow-lg transition-all ${styles[toast.type]}`}
+      className={`animate-in slide-in-from-bottom-2 pointer-events-auto flex items-start gap-3 rounded-lg p-4 shadow-lg ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)] transition-all ${styles[toast.type]}`}
     >
       <Icon
-        className={`h-5 w-5 shrink-0 ${toast.type === "info" ? "text-accent" : ""}`}
+        className={`h-5 w-5 shrink-0 ${iconStyles[toast.type]}`}
         aria-hidden
       />
-      <p className="flex-1 text-sm font-medium">{toast.message}</p>
+      <p className="flex-1 text-sm font-medium text-foreground">
+        {toast.message}
+      </p>
       <button
         type="button"
         onClick={() => onRemove(toast.id)}
-        className="text-foreground/80 hover:bg-default shrink-0 rounded p-1 transition-colors"
+        className="text-muted hover:bg-foreground/5 hover:text-foreground shrink-0 rounded p-1 transition-colors"
         aria-label="Dismiss"
       >
         <XMarkIcon className="h-4 w-4" />

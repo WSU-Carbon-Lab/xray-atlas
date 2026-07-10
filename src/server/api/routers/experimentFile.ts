@@ -25,6 +25,7 @@ import {
   assertUserMayEditExperiment,
   userMayEditExperiment,
 } from "~/server/nexafs/experimentEditAuthz";
+import { scheduleZenodoDepositSync } from "~/server/zenodo";
 
 async function userMaySoftDeleteExperimentFile(
   db: Parameters<typeof userMayEditExperiment>[0],
@@ -289,6 +290,8 @@ export const experimentFileRouter = createTRPCRouter({
         },
       });
 
+      scheduleZenodoDepositSync(ctx.db, input.experimentId, { mode: "files" });
+
       return serializeAuxFileRow(updated);
     }),
 
@@ -333,6 +336,8 @@ export const experimentFileRouter = createTRPCRouter({
         where: { id: row.id },
         data: { deletedat: new Date() },
       });
+
+      scheduleZenodoDepositSync(ctx.db, input.experimentId, { mode: "files" });
 
       return serializeAuxFileRow(updated);
     }),

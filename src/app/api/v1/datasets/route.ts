@@ -73,6 +73,19 @@ export async function GET(request: Request): Promise<NextResponse> {
             },
           },
         },
+        experimentmetrics: {
+          select: {
+            datasetdoi: true,
+            hasdatasetdoi: true,
+          },
+        },
+        experimentzenododeposit: {
+          select: {
+            state: true,
+            doi: true,
+            recordurl: true,
+          },
+        },
         _count: {
           select: {
             spectrumpoints: true,
@@ -117,6 +130,12 @@ export async function GET(request: Request): Promise<NextResponse> {
           : null,
         spectrumPointCount: dataset._count.spectrumpoints,
         createdAt: dataset.createdat.toISOString(),
+        datasetDoi:
+          dataset.experimentmetrics?.datasetdoi ??
+          dataset.experimentzenododeposit?.doi ??
+          null,
+        zenodoDepositState: dataset.experimentzenododeposit?.state ?? null,
+        zenodoRecordUrl: dataset.experimentzenododeposit?.recordurl ?? null,
         publications: dataset.experimentpublications.map((entry) => ({
           id: entry.publications.id,
           doi: entry.publications.doi,

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { Atom, Heart, TriangleRight } from "lucide-react";
@@ -21,10 +22,15 @@ import { ContributorsOrEmpty } from "~/components/attribution/contributors-or-em
 import { nexafsContributorAvatarUsers } from "~/lib/contributor-avatar-display";
 import type { NexafsContributorPerson } from "~/lib/nexafs-contributors";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
+import {
+  NEXAFS_EXPERIMENT_SEARCH_PARAM,
+  parseNexafsExperimentSearchParam,
+} from "~/lib/nexafs-experiment-deep-link";
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
 import { ExperimentAttributionEditSection } from "~/features/process-nexafs/ui/experiment-attribution-edit-section";
 import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
+import { NexafsDatasetDoiCiteControl } from "~/components/nexafs/nexafs-dataset-doi-cite-control";
 import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
 import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
 import type { NexafsBrowseLinkedPublication, NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
@@ -174,7 +180,30 @@ export type NexafsExperimentCompactCardProps = {
   linkedPublications: NexafsBrowseLinkedPublication[];
   sourcePublications: NexafsBrowseSourcePublication[];
   ingestVerified: boolean;
+  datasetDoi: string | null;
+  zenodoRecordUrl: string | null;
+  zenodoDepositState: "pending" | "depositing" | "published" | "failed" | null;
   datasetMetrics: NexafsBrowseDatasetMetricsCardModel;
+  /**
+   * Core sample preparation fields for BibTeX citation notes.
+   */
+  citationSample?: {
+    processMethod: string | null;
+    substrate: string | null;
+    solvent: string | null;
+    thicknessNm: number | null;
+    molecularWeightGPerMol: number | null;
+    vendorName: string | null;
+  } | null;
+  /**
+   * UTC year used for APA / BibTeX citations (typically experiment `createdat`).
+   */
+  citationYear?: number;
+  /**
+   * When true, expands the spectrum panel on mount (e.g. deep-link match from the
+   * parent list). The card also expands when `?nexafsExperiment=` matches `experimentId`.
+   */
+  defaultExpanded?: boolean;
 };
 
 export function NexafsExperimentCompactCard({
@@ -198,18 +227,41 @@ export function NexafsExperimentCompactCard({
   linkedPublications,
   sourcePublications,
   ingestVerified,
+  datasetDoi,
+  zenodoRecordUrl,
+  zenodoDepositState,
   datasetMetrics,
+  citationSample = null,
+  citationYear,
+  defaultExpanded = false,
 }: NexafsExperimentCompactCardProps) {
   const { data: session } = useSession();
   const user = session?.user;
   const isSignedIn = !!user;
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const deepLinkScrollDoneRef = useRef(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [spectrumExpanded, setSpectrumExpanded] = useState(false);
   const [optimisticFavoriteDelta, setOptimisticFavoriteDelta] = useState(0);
   const [optimisticUserFavorited, setOptimisticUserFavorited] = useState<
     boolean | null
   >(null);
+
+  useLayoutEffect(() => {
+    const targetId = parseNexafsExperimentSearchParam(
+      searchParams.get(NEXAFS_EXPERIMENT_SEARCH_PARAM),
+    );
+    const shouldExpand =
+      defaultExpanded ||
+      (targetId !== null && targetId === experimentId);
+    if (!shouldExpand) return;
+    setSpectrumExpanded(true);
+    if (deepLinkScrollDoneRef.current) return;
+    deepLinkScrollDoneRef.current = true;
+    cardRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [defaultExpanded, experimentId, searchParams]);
 
   const {
     favoriteCount: realtimeFavoriteCount,
@@ -291,7 +343,11 @@ export function NexafsExperimentCompactCard({
   const experimentTypeClass = experimentTypeChipClass(experimentTypeLabel);
   const instrumentFacilityLabel = `${instrumentName} | ${facilityLine}`;
   return (
-    <div className="border-border-default @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:border-border-default dark:bg-zinc-800">
+    <div
+      ref={cardRef}
+      id={`nexafs-experiment-${experimentId}`}
+      className="border-border-default @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:border-border-default dark:bg-zinc-800"
+    >
       <div
         aria-expanded={spectrumExpanded}
         onClick={toggleSpectrumExpanded}
@@ -345,7 +401,7 @@ export function NexafsExperimentCompactCard({
                 {displayName}
               </span>
               <span
-                className="inline-flex shrink-0 items-center self-center gap-1"
+                className="inline-flex shrink-0 items-center self-center"
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}
               >
@@ -393,6 +449,25 @@ export function NexafsExperimentCompactCard({
           </div>
         </div>
         <div className="relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:ml-auto @md/nexafscard:gap-x-3 @md/nexafscard:gap-y-0 @md/nexafscard:border-t-0 @md/nexafscard:pt-0 @md/nexafscard:pl-4 dark:border-zinc-600">
+        <div className="flex shrink-0 items-center self-center border-r border-zinc-200 pr-2 @md/nexafscard:pr-3 dark:border-zinc-600">
+          <NexafsDatasetDoiCiteControl
+            experimentId={experimentId}
+            datasetDoi={datasetDoi}
+            zenodoRecordUrl={zenodoRecordUrl}
+            zenodoDepositState={zenodoDepositState}
+            moleculeDisplayName={displayName}
+            edgeLabel={edgeLabel}
+            instrumentName={instrumentName}
+            facilityName={facilityName}
+            experimentTypeLabel={experimentTypeLabel}
+            sourcePublications={sourcePublications}
+            citationCreators={experimentContributorUsers
+              .map((person) => person.name?.trim() ?? "")
+              .filter((name) => name.length > 0)}
+            citationYear={citationYear}
+            citationSample={citationSample}
+          />
+        </div>
         <Link
           href={moleculeHref}
           className={cn(

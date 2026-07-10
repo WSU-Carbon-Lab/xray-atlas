@@ -14,6 +14,21 @@ import {
   type NexafsContributorPerson,
   type DataCiteContributorType,
 } from "~/lib/nexafs-contributors";
+import { coerceZenodoDepositUiState } from "~/lib/zenodo-doi-button-mode";
+import { PROCESS_METHOD_OPTIONS } from "~/features/process-nexafs/constants";
+
+function formatBrowseSampleProcessMethod(
+  raw: string | null | undefined,
+): string | null {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed) return null;
+  const match = PROCESS_METHOD_OPTIONS.find((option) => option.value === trimmed);
+  return match?.label ?? trimmed;
+}
+
+function finiteOrNull(value: number | null | undefined): number | null {
+  return value != null && Number.isFinite(value) ? value : null;
+}
 
 export type NexafsBrowseGroupFilters = {
   /** @deprecated Use `moleculeIds` for multi-select. Normalized to a one-element array internally. */
@@ -233,6 +248,17 @@ export type NexafsBrowseGroupRow = {
   linked_publications_json: unknown;
   source_publications_json: unknown;
   ingest_verified: boolean;
+  dataset_doi: string | null;
+  zenodo_record_url: string | null;
+  zenodo_deposit_state: string | null;
+  zenodo_last_attempt_at: Date | null;
+  zenodo_attempt_count: number | bigint | null;
+  sample_process_method: string | null;
+  sample_substrate: string | null;
+  sample_solvent: string | null;
+  sample_thickness: number | null;
+  sample_molecular_weight: number | null;
+  sample_vendor_name: string | null;
   experiment_metrics_header_json: unknown;
   experiment_metrics_channels_json: unknown;
   dataset_quality_score: number | null;
@@ -250,6 +276,10 @@ export type NexafsBrowseGroupDto = {
   linkedPublications: NexafsBrowseLinkedPublication[];
   sourcePublications: NexafsBrowseSourcePublication[];
   ingestVerified: boolean;
+  /** Atlas-minted Zenodo dataset DOI (distinct from source-paper DOIs). */
+  datasetDoi: string | null;
+  zenodoRecordUrl: string | null;
+  zenodoDepositState: "pending" | "depositing" | "published" | "failed" | null;
   contributorLabels: string | null;
   contributorUsers: NexafsBrowseContributorUser[];
   molecule: {
@@ -266,6 +296,15 @@ export type NexafsBrowseGroupDto = {
   };
   edge: { targetatom: string; corestate: string };
   instrument: { name: string; facilityName: string | null };
+  /** Core sample preparation fields for citations and sample context. */
+  sample: {
+    processMethod: string | null;
+    substrate: string | null;
+    solvent: string | null;
+    thicknessNm: number | null;
+    molecularWeightGPerMol: number | null;
+    vendorName: string | null;
+  };
   datasetMetrics: NexafsBrowseDatasetMetricsCardModel;
 };
 
@@ -328,6 +367,23 @@ function parsePublicationsJson(
   return out;
 }
 
+function parseZenodoDepositState(
+  raw: string | null,
+  lastAttemptAt: Date | null,
+  attemptCount: number | bigint | null,
+): NexafsBrowseGroupDto["zenodoDepositState"] {
+  return coerceZenodoDepositUiState({
+    state: raw,
+    lastAttemptAt,
+    attemptCount:
+      attemptCount == null
+        ? 0
+        : typeof attemptCount === "bigint"
+          ? Number(attemptCount)
+          : attemptCount,
+  });
+}
+
 export function mapNexafsBrowseGroupRow(
   row: NexafsBrowseGroupRow,
 ): NexafsBrowseGroupDto {
@@ -345,6 +401,15 @@ export function mapNexafsBrowseGroupRow(
     linkedPublications: parsePublicationsJson(row.linked_publications_json),
     sourcePublications: parsePublicationsJson(row.source_publications_json),
     ingestVerified: Boolean(row.ingest_verified),
+    datasetDoi: row.dataset_doi?.trim() ? row.dataset_doi.trim() : null,
+    zenodoRecordUrl: row.zenodo_record_url?.trim()
+      ? row.zenodo_record_url.trim()
+      : null,
+    zenodoDepositState: parseZenodoDepositState(
+      row.zenodo_deposit_state,
+      row.zenodo_last_attempt_at,
+      row.zenodo_attempt_count,
+    ),
     contributorLabels: row.contributor_labels,
     contributorUsers: parseContributorUsers(row.contributor_users),
     molecule: {
@@ -363,6 +428,16 @@ export function mapNexafsBrowseGroupRow(
     instrument: {
       name: row.instrument_name,
       facilityName: row.facility_name,
+    },
+    sample: {
+      processMethod: formatBrowseSampleProcessMethod(row.sample_process_method),
+      substrate: row.sample_substrate?.trim() ? row.sample_substrate.trim() : null,
+      solvent: row.sample_solvent?.trim() ? row.sample_solvent.trim() : null,
+      thicknessNm: finiteOrNull(row.sample_thickness),
+      molecularWeightGPerMol: finiteOrNull(row.sample_molecular_weight),
+      vendorName: row.sample_vendor_name?.trim()
+        ? row.sample_vendor_name.trim()
+        : null,
     },
     datasetMetrics: buildNexafsBrowseDatasetMetricsCardModel(
       row.experiment_metrics_header_json,
@@ -448,10 +523,17 @@ export async function fetchNexafsBrowseGrouped(
         ed.corestate,
         i.name AS instrument_name,
         f.name AS facility_name,
-        (COALESCE(e.validation_summary->>'atlasTeamVerified', 'false') = 'true') AS ingest_verified
+        (COALESCE(e.validation_summary->>'atlasTeamVerified', 'false') = 'true') AS ingest_verified,
+        s.processmethod::text AS sample_process_method,
+        s.substrate AS sample_substrate,
+        s.solvent AS sample_solvent,
+        s.thickness AS sample_thickness,
+        s.molecularweight AS sample_molecular_weight,
+        v.name AS sample_vendor_name
       FROM experiments e
       INNER JOIN samples s ON s.id = e.sampleid
       INNER JOIN molecules m ON m.id = s.moleculeid
+      LEFT JOIN vendors v ON v.id = s.vendorid
       LEFT JOIN LATERAL (
         SELECT ms.synonym
         FROM moleculesynonyms ms
@@ -490,6 +572,37 @@ export async function fetchNexafsBrowseGrouped(
         b.instrument_name,
         b.facility_name,
         b.ingest_verified,
+        b.sample_process_method,
+        b.sample_substrate,
+        b.sample_solvent,
+        b.sample_thickness,
+        b.sample_molecular_weight,
+        b.sample_vendor_name,
+        (
+          SELECT em.dataset_doi
+          FROM experiment_metrics em
+          WHERE em.experiment_id = b.experiment_id
+        ) AS dataset_doi,
+        (
+          SELECT ezd.record_url
+          FROM experiment_zenodo_deposits ezd
+          WHERE ezd.experiment_id = b.experiment_id
+        ) AS zenodo_record_url,
+        (
+          SELECT ezd.state::text
+          FROM experiment_zenodo_deposits ezd
+          WHERE ezd.experiment_id = b.experiment_id
+        ) AS zenodo_deposit_state,
+        (
+          SELECT ezd.last_attempt_at
+          FROM experiment_zenodo_deposits ezd
+          WHERE ezd.experiment_id = b.experiment_id
+        ) AS zenodo_last_attempt_at,
+        (
+          SELECT ezd.attempt_count
+          FROM experiment_zenodo_deposits ezd
+          WHERE ezd.experiment_id = b.experiment_id
+        ) AS zenodo_attempt_count,
         (
           SELECT COUNT(*)::bigint
           FROM experimentpublications ep

@@ -29,6 +29,32 @@ export const env = createEnv({
     CAS_API_KEY: z.string(),
     SUPABASE_URL: z.string().url(),
     SUPABASE_SERVICE_ROLE_KEY: z.string(),
+    /**
+     * Zenodo personal access token for the Atlas repository depositor account.
+     * Required scopes: `deposit:write` and `deposit:actions`.
+     * When unset, per-dataset DOI minting is disabled (local/dev safe default).
+     * Production community: https://zenodo.org/communities/xrayatlas (`ZENODO_COMMUNITY_ID=xrayatlas`).
+     * Sandbox needs a separate account, community, and token on https://sandbox.zenodo.org.
+     */
+    ZENODO_ACCESS_TOKEN: z.string().min(1).optional(),
+    /** OAuth application client id reserved for optional Phase 2 per-user Zenodo OAuth. */
+    ZENODO_CLIENT_ID: z.string().optional(),
+    /** OAuth application client secret reserved for optional Phase 2 per-user Zenodo OAuth. */
+    ZENODO_CLIENT_SECRET: z.string().optional(),
+    /** When `"true"`, mint against sandbox.zenodo.org (DOI prefix 10.5072). */
+    ZENODO_USE_SANDBOX: z.enum(["true", "false"]).optional(),
+    /**
+     * Zenodo Community identifier submitted with every deposition.
+     * Production default expected value: `xrayatlas`.
+     * Required when minting is enabled (`ZENODO_ACCESS_TOKEN` set).
+     */
+    ZENODO_COMMUNITY_ID: z.string().min(1).optional(),
+    /**
+     * Optional public X-ray Atlas origin for Zenodo deposit descriptions.
+     * Defaults to brand `site.url` (`https://xrayatlas.wsu.edu`). Must not be
+     * localhost; never derived from `AUTH_URL` / `VERCEL_URL` / `getBaseUrl`.
+     */
+    ATLAS_PUBLIC_SITE_URL: z.string().url().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -68,6 +94,12 @@ export const env = createEnv({
     CAS_API_KEY: process.env.CAS_API_KEY,
     SUPABASE_URL: process.env.SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    ZENODO_ACCESS_TOKEN: process.env.ZENODO_ACCESS_TOKEN,
+    ZENODO_CLIENT_ID: process.env.ZENODO_CLIENT_ID,
+    ZENODO_CLIENT_SECRET: process.env.ZENODO_CLIENT_SECRET,
+    ZENODO_USE_SANDBOX: process.env.ZENODO_USE_SANDBOX,
+    ZENODO_COMMUNITY_ID: process.env.ZENODO_COMMUNITY_ID,
+    ATLAS_PUBLIC_SITE_URL: process.env.ATLAS_PUBLIC_SITE_URL,
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:
       process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,

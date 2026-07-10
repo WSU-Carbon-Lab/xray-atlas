@@ -7,6 +7,8 @@ model experimentmetrics {
   viewcount                  Int                        @default(0) @map("view_count")
   hasoriginaldatadoi         Boolean                    @default(false) @map("has_original_data_doi")
   originaldatadoi            String?                    @map("original_data_doi") @db.VarChar(256)
+  hasdatasetdoi              Boolean                    @default(false) @map("has_dataset_doi")
+  datasetdoi                 String?                    @map("dataset_doi") @db.VarChar(256)
   sourcepaperdoiverified     Boolean                    @default(false) @map("source_paper_doi_verified")
   sourcepaperdoiverifiedat   DateTime?                  @map("source_paper_doi_verified_at") @db.Timestamptz(6)
   sourcepaperdoiverifiedby   String?                    @map("source_paper_doi_verified_by") @db.VarChar(19)
@@ -18,6 +20,7 @@ model experimentmetrics {
   experimentmetricschannels  experimentmetricschannel[] @relation("ExperimentMetricsChannelHeader")
 
   @@index([originaldatadoi], map: "idx_experiment_metrics_original_data_doi", where: raw("(original_data_doi IS NOT NULL)"))
+  @@index([datasetdoi], map: "idx_experiment_metrics_dataset_doi", where: raw("(dataset_doi IS NOT NULL)"))
   @@map("experiment_metrics")
   @@schema("public")
 }

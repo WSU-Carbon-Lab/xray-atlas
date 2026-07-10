@@ -373,6 +373,15 @@ export function useNexafsSubmit(
             options?.showToast?.(`${dataset.fileName}: ${warning}`, "warning");
           }
 
+          void utils.client.experiments.mintZenodoDatasetDoi
+            .mutate({ experimentId })
+            .catch((mintError: unknown) => {
+              console.error(
+                "Zenodo dataset DOI mint failed (non-blocking)",
+                mintError,
+              );
+            });
+
           options?.onDatasetPersisted?.(dataset.id, {
             experimentId,
             sampleId,

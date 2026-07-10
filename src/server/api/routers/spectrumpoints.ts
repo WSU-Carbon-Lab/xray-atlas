@@ -14,6 +14,7 @@ import {
   kkDeltaMetadataToJson,
 } from "~/server/nexafs/kkDeltaMetadata";
 import { spectrumpointsWhereForPlotGeometryKeys } from "~/server/nexafs/plotSpectrumGeometryFilter";
+import { scheduleZenodoDepositSync } from "~/server/zenodo";
 
 const KK_DELTA_BATCH_CHUNK = 800;
 
@@ -319,6 +320,8 @@ export const spectrumpointsRouter = createTRPCRouter({
           timeout: 180_000,
         },
       );
+
+      scheduleZenodoDepositSync(ctx.db, input.experimentId, { mode: "files" });
 
       return {
         updated: input.updates.length,

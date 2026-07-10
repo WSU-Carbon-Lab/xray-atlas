@@ -18,6 +18,10 @@ import {
   useRef,
 } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import {
+  NEXAFS_EXPERIMENT_SEARCH_PARAM,
+  parseNexafsExperimentSearchParam,
+} from "~/lib/nexafs-experiment-deep-link";
 import type { ExperimentType } from "~/prisma/browser";
 import {
   EXPERIMENT_TYPE_LABELS,
@@ -169,6 +173,13 @@ export function useFacetSelection({
     writeNexafsCatalogFilterParams(sp, catalogFilters);
     if (debouncedQuery) sp.set("q", debouncedQuery);
     if (currentPage > 1) sp.set("page", currentPage.toString());
+    const existing = new URLSearchParams(urlKey);
+    const deepLinkExperimentId = parseNexafsExperimentSearchParam(
+      existing.get(NEXAFS_EXPERIMENT_SEARCH_PARAM),
+    );
+    if (deepLinkExperimentId) {
+      sp.set(NEXAFS_EXPERIMENT_SEARCH_PARAM, deepLinkExperimentId);
+    }
     const qs = sp.toString();
     router.replace(`${basePath}${qs ? `?${qs}` : ""}`, { scroll: false });
   }, [
@@ -179,6 +190,7 @@ export function useFacetSelection({
     currentPage,
     basePath,
     router,
+    urlKey,
   ]);
 
   const add = useCallback(
