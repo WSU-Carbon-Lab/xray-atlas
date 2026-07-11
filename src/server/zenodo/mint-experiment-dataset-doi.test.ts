@@ -110,7 +110,7 @@ function createMockDb(options?: {
         return depositRow.current;
       },
       updateMany: async ({
-        where,
+        where: _where,
         data,
       }: {
         where: {

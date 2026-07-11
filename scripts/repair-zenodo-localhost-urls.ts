@@ -3,6 +3,9 @@
  * (or other loopback) X-ray Atlas URLs, or legacy `/browse?nexafsExperiment=`
  * links instead of molecule deep links.
  *
+ * Specialized one-off ops script (not CI). Prefer `bun run zenodo:apply` for
+ * general citation drift; use this for localhost / deep-link URL repair only.
+ *
  * Zenodo only allows metadata updates on unpublished drafts. For published
  * records this script:
  * 1. POST `/deposit/depositions/{id}/actions/edit` (unlock)
@@ -12,6 +15,7 @@
  *    the DOI string is unchanged)
  *
  * Run:
+ *   bun run zenodo:repair-localhost
  *   bun scripts/repair-zenodo-localhost-urls.ts
  *   bun scripts/repair-zenodo-localhost-urls.ts --dry-run
  *   bun scripts/repair-zenodo-localhost-urls.ts --limit=20

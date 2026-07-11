@@ -3,6 +3,9 @@
  * markers (or other pre-formal title shapes) by rebuilding metadata from the
  * Atlas experiment snapshot.
  *
+ * Specialized one-off ops script (not CI). Prefer `bun run zenodo:apply` when
+ * deposits are already flagged failing; use this for title-only legacy repair.
+ *
  * New mints already use {@link buildNexafsDatasetCitationTitle} via
  * `buildZenodoDepositMetadata`. This script refreshes already-published records:
  * 1. POST `/deposit/depositions/{id}/actions/edit` (unlock)
@@ -10,6 +13,7 @@
  * 3. POST `/deposit/depositions/{id}/actions/publish` (DOI string unchanged)
  *
  * Run:
+ *   bun run zenodo:repair-titles
  *   bun scripts/repair-zenodo-dataset-titles.ts
  *   bun scripts/repair-zenodo-dataset-titles.ts --dry-run
  *   bun scripts/repair-zenodo-dataset-titles.ts --limit=20

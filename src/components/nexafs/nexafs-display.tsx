@@ -23,11 +23,11 @@ import { nexafsContributorAvatarUsers } from "~/lib/contributor-avatar-display";
 import type { NexafsContributorPerson } from "~/lib/nexafs-contributors";
 import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFavorites";
 import {
-  atlasDatasetCitationHref,
   NEXAFS_EXPERIMENT_SEARCH_PARAM,
   parseNexafsExperimentSearchParam,
   pathnameWithoutNexafsExperimentDeepLink,
 } from "~/lib/nexafs-experiment-deep-link";
+import { buildPublicAtlasDatasetCitationUrl } from "~/lib/atlas-citation-url";
 import { nexafsExperimentCardDomId } from "~/lib/scroll-nexafs-experiment-card";
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
@@ -392,9 +392,7 @@ export function NexafsExperimentCompactCard({
     .filter((name): name is string => name !== null);
   const citationYearResolved = citationYear ?? new Date().getUTCFullYear();
   const atlasCitationUrl = atlasDatasetId
-    ? typeof window !== "undefined"
-      ? `${window.location.origin}${atlasDatasetCitationHref(atlasDatasetId)}`
-      : atlasDatasetCitationHref(atlasDatasetId)
+    ? buildPublicAtlasDatasetCitationUrl(atlasDatasetId)
     : null;
   const citationTitle = buildNexafsDatasetCitationTitle({
     moleculeDisplayName: displayName,

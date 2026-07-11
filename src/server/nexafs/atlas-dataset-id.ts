@@ -2,13 +2,15 @@
  * Persistence helpers for opaque Atlas dataset ids used by `/d/{id}` URLs.
  */
 
-import type { PrismaClient } from "~/prisma/client";
+import type { Prisma, PrismaClient } from "~/prisma/client";
 import {
   generateAtlasDatasetId,
   normalizeAtlasDatasetId,
 } from "~/lib/atlas-dataset-id";
 
 const MAX_ASSIGN_ATTEMPTS = 12;
+
+type AtlasDatasetIdDb = PrismaClient | Prisma.TransactionClient;
 
 /**
  * Returns the experiment’s Atlas dataset id, assigning one when missing.
@@ -17,13 +19,13 @@ const MAX_ASSIGN_ATTEMPTS = 12;
  * callers never overwrite a non-null id, so published `/d/{id}` and Zenodo
  * `isIdenticalTo` links stay stable.
  *
- * @param db - Prisma client.
+ * @param db - Prisma client or interactive transaction client.
  * @param experimentId - Experiment UUID.
  * @returns Normalized 8-character id.
  * @throws When the experiment does not exist or assignment exhausts retries.
  */
 export async function ensureAtlasDatasetId(
-  db: PrismaClient,
+  db: AtlasDatasetIdDb,
   experimentId: string,
 ): Promise<string> {
   const existing = await db.experiments.findUnique({
@@ -64,12 +66,12 @@ export async function ensureAtlasDatasetId(
 /**
  * Reads an experiment’s Atlas dataset id without assigning one.
  *
- * @param db - Prisma client.
+ * @param db - Prisma client or interactive transaction client.
  * @param experimentId - Experiment UUID.
  * @returns Normalized id, or `null` when missing / unknown experiment.
  */
 export async function readAtlasDatasetId(
-  db: PrismaClient,
+  db: AtlasDatasetIdDb,
   experimentId: string,
 ): Promise<string | null> {
   const row = await db.experiments.findUnique({
@@ -82,12 +84,12 @@ export async function readAtlasDatasetId(
 /**
  * Resolves an experiment UUID from an Atlas dataset id path segment.
  *
- * @param db - Prisma client.
+ * @param db - Prisma client or interactive transaction client.
  * @param atlasDatasetId - Path segment (case-insensitive).
  * @returns Experiment UUID, or `null` when not found / invalid.
  */
 export async function findExperimentIdByAtlasDatasetId(
-  db: PrismaClient,
+  db: AtlasDatasetIdDb,
   atlasDatasetId: string,
 ): Promise<string | null> {
   const id = normalizeAtlasDatasetId(atlasDatasetId);

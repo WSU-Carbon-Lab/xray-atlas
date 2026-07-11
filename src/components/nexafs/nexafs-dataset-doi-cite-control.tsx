@@ -43,7 +43,7 @@ import {
   buildMendeleyImportUrl,
 } from "~/lib/dataset-citation";
 import { normalizeDoi } from "~/lib/doi";
-import { atlasDatasetCitationHref } from "~/lib/nexafs-experiment-deep-link";
+import { buildPublicAtlasDatasetCitationUrl } from "~/lib/atlas-citation-url";
 import {
   coerceZenodoDepositUiState,
   resolveZenodoDoiButtonMode,
@@ -54,18 +54,6 @@ import type { NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
 
 /** Official Zotero mark (white-backed PNG) served from `public/brand`. */
 const ZOTERO_LOGO_SRC = "/brand/zotero-logo.png";
-
-/**
- * Builds an absolute Atlas `/d/{id}` URL using the current browser origin when
- * available so preview hosts match the page the user is on.
- */
-function resolveClientAtlasCitationUrl(atlasDatasetId: string): string {
-  const path = atlasDatasetCitationHref(atlasDatasetId.trim());
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin}${path}`;
-  }
-  return path;
-}
 
 const shellClassName =
   "inline-flex h-6 shrink-0 items-stretch overflow-hidden rounded-md border border-border/70 bg-surface/60 text-[11px] leading-none shadow-sm";
@@ -755,7 +743,7 @@ export function NexafsDatasetDoiCiteControl({
   });
 
   const atlasCitationUrl = atlasDatasetId?.trim()
-    ? resolveClientAtlasCitationUrl(atlasDatasetId.trim())
+    ? buildPublicAtlasDatasetCitationUrl(atlasDatasetId.trim())
     : null;
 
   const citationBundle = buildDatasetCitationBundle({
@@ -1167,6 +1155,7 @@ export function NexafsDatasetDoiCiteControl({
           </Button>
           <Button
             variant="primary"
+            isDisabled={mintMutation.isPending}
             onPress={() => {
               setMintConfirmOpen(false);
               void runMint();

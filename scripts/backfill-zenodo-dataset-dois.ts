@@ -2,7 +2,12 @@
  * Backfills Zenodo dataset DOI mints for every NEXAFS experiment that does not
  * yet have a published deposit / `experiment_metrics.dataset_doi`.
  *
+ * Specialized one-off ops script (not CI). Day-to-day citation drift uses
+ * `bun run zenodo:audit` / `zenodo:apply` / `zenodo:refresh`
+ * (`scripts/refresh-zenodo-dataset.ts`).
+ *
  * Run (quiet Prisma query logs):
+ *   bun run zenodo:backfill
  *   NODE_ENV=production bun scripts/backfill-zenodo-dataset-dois.ts
  *
  * Optional flags:

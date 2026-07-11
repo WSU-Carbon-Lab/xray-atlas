@@ -2,7 +2,10 @@
  * Retries failed Zenodo dataset DOI mints for experiments with `state = failed`
  * and `attempt_count` below the configured maximum.
  *
- * Run: `bun scripts/retry-zenodo-dataset-mints.ts`
+ * Specialized one-off ops script (not CI). Day-to-day citation drift uses
+ * `bun run zenodo:audit` / `zenodo:apply` / `zenodo:refresh`.
+ *
+ * Run: `bun run zenodo:retry` or `bun scripts/retry-zenodo-dataset-mints.ts`
  * Optional: `--max-attempts=5` (default 5), `--limit=20` (default 20)
  *
  * Requires `DATABASE_URL` and `ZENODO_ACCESS_TOKEN`. When the token is unset the

@@ -8,7 +8,7 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { normalizeDoi } from "~/lib/doi";
-import { generateAtlasDatasetId } from "~/lib/atlas-dataset-id";
+import { ensureAtlasDatasetId } from "~/server/nexafs/atlas-dataset-id";
 import {
   lookupPublicationDoi as fetchPublicationDoiLookup,
   resolvePublicationDoi,
@@ -1184,7 +1184,6 @@ export const experimentsRouter = createTRPCRouter({
           createdby: ctx.userId ?? undefined,
           experimenttype: input.experimenttype ?? null,
           nexafsexperimentkindid: kind?.id ?? null,
-          atlasdatasetid: generateAtlasDatasetId(),
         },
         include: {
           samples: true,
@@ -1192,6 +1191,7 @@ export const experimentsRouter = createTRPCRouter({
           instruments: true,
         },
       });
+      await ensureAtlasDatasetId(ctx.db, experiment.id);
 
       return experiment;
     }),
@@ -1780,7 +1780,6 @@ export const experimentsRouter = createTRPCRouter({
               createdby: ctx.userId ?? undefined,
               experimenttype: experimentInput.experimentType,
               nexafsexperimentkindid: kind?.id ?? null,
-              atlasdatasetid: generateAtlasDatasetId(),
               collectedbyuserids: normalizedCollectedByForExperiment,
               normalizationscope: normalizationScope,
               normalizationranges:
@@ -1803,6 +1802,8 @@ export const experimentsRouter = createTRPCRouter({
               instruments: true,
             },
           });
+
+          await ensureAtlasDatasetId(tx, experiment.id);
 
           if (contributorInsertRows.length > 0) {
             await tx.experimentcontributors.createMany({

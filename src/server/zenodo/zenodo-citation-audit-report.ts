@@ -1,5 +1,5 @@
 /**
- * Formats Zenodo citation audit JSON for CI summaries and PR comments.
+ * Formats Zenodo citation audit JSON for Actions job summaries.
  */
 
 import type { ZenodoDatasetValidationIssue } from "~/server/zenodo/validate-zenodo-dataset-metadata";

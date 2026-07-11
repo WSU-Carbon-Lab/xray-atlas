@@ -1,7 +1,11 @@
 /**
  * Forces a Zenodo metadata (or files) sync for one published Atlas experiment.
  *
+ * Specialized one-off ops script (not CI). Bulk citation drift uses
+ * `bun run zenodo:audit` / `zenodo:apply` / `zenodo:refresh`.
+ *
  * Run:
+ *   bun run zenodo:sync -- --doi=10.5281/zenodo.21299145
  *   bun scripts/sync-zenodo-deposit.ts --doi=10.5281/zenodo.21299145
  *   bun scripts/sync-zenodo-deposit.ts --experiment-id=<uuid>
  *   bun scripts/sync-zenodo-deposit.ts --doi=10.5281/zenodo.21299145 --mode=files

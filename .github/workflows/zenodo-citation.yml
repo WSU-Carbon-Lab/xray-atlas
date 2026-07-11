@@ -1,8 +1,10 @@
 name: Zenodo citation
 
+# Manual-only: live Zenodo + DB audit/apply must not run on every PR.
+# Operators run this from Actions on the target branch when citation drift
+# needs inspection or repair.
+
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       action:
@@ -15,14 +17,11 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   audit:
     name: Audit Zenodo citation parity
-    if: >
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'workflow_dispatch' && inputs.action == 'audit')
+    if: inputs.action == 'audit'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -64,21 +63,21 @@ jobs:
             echo "::error::Audit produced no JSON output"
             exit 1
           fi
-          # 0 = clean, 1 = updates required (expected), other = hard failure
           if [ "$status" -gt 1 ]; then
             echo "::error::Zenodo audit failed with exit $status"
             exit "$status"
           fi
           required=$(bun -e 'const r=require("./zenodo-citation-audit.json"); console.log(r.requiredUpdateCount ?? 0)')
           echo "required_updates=$required" >> "$GITHUB_OUTPUT"
-          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
           echo "Required updates: $required (audit exit $status)"
 
       - name: Upload audit artifact
         uses: actions/upload-artifact@v4
         with:
           name: zenodo-citation-audit
-          path: zenodo-citation-audit.json
+          path: |
+            zenodo-citation-audit.json
+            zenodo-citation-audit.md
           if-no-files-found: error
 
       - name: Render markdown summary
@@ -92,23 +91,15 @@ jobs:
           console.log(md);
           EOF
 
-      - name: Comment audit on pull request
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          body="$(cat zenodo-citation-audit.md)"
-          gh pr comment "${{ github.event.pull_request.number }}" --body "$body"
-
       - name: Notice when updates are required
         if: steps.audit.outputs.required_updates != '0'
         run: |
           echo "::notice::Zenodo citation audit found ${{ steps.audit.outputs.required_updates }} deposit(s) needing updates."
-          echo "Run Actions → Zenodo citation → Run workflow → action=apply on branch ${{ github.head_ref || github.ref_name }} to sync them."
+          echo "Re-run this workflow with action=apply on the same branch to sync them."
 
   apply:
     name: Apply Zenodo citation updates
-    if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
+    if: inputs.action == 'apply'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: zenodo-apply

@@ -41,7 +41,12 @@
     "test:kk-calc-validation": "bun test src/features/kk-calc/*.test.ts",
     "zenodo:audit": "bun scripts/refresh-zenodo-dataset.ts --all --validate-only --json",
     "zenodo:apply": "bun scripts/refresh-zenodo-dataset.ts --all --apply-failing --json",
-    "zenodo:refresh": "bun scripts/refresh-zenodo-dataset.ts"
+    "zenodo:refresh": "bun scripts/refresh-zenodo-dataset.ts",
+    "zenodo:backfill": "bun scripts/backfill-zenodo-dataset-dois.ts",
+    "zenodo:sync": "bun scripts/sync-zenodo-deposit.ts",
+    "zenodo:retry": "bun scripts/retry-zenodo-dataset-mints.ts",
+    "zenodo:repair-titles": "bun scripts/repair-zenodo-dataset-titles.ts",
+    "zenodo:repair-localhost": "bun scripts/repair-zenodo-localhost-urls.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
