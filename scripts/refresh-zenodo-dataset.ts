@@ -1,10 +1,7 @@
 /**
  * Refreshes Zenodo deposit metadata for Atlas datasets and validates `/d/` citation parity.
  *
- * This is the primary ops entrypoint for Zenodo deposit repair. Prefer it over the
- * narrower legacy scripts (`sync-zenodo-deposit`, `backfill-zenodo-dataset-dois`,
- * `retry-zenodo-dataset-mints`, `repair-zenodo-dataset-titles`,
- * `repair-zenodo-localhost-urls`) unless you need a one-off specialized repair.
+ * Primary ops entrypoint for Zenodo deposit audit and repair.
  *
  * Run:
  *   bun scripts/refresh-zenodo-dataset.ts --doi=10.5281/zenodo.21299145
@@ -15,7 +12,7 @@
  *   bun scripts/refresh-zenodo-dataset.ts --all --dry-run
  *
  * Package scripts:
- *   bun run zenodo:audit   (validate-only JSON report for CI)
+ *   bun run zenodo:audit   (validate-only JSON report)
  *   bun run zenodo:apply   (sync deposits that fail audit)
  *   bun run zenodo:refresh (full refresh helper)
  *
