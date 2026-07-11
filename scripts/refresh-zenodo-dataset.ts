@@ -245,7 +245,9 @@ async function main(): Promise<void> {
   const mode: ZenodoSyncMode = modeRaw;
 
   if (applyFailing && (validateOnly || dryRun)) {
-    throw new Error("Do not combine --apply-failing with --validate-only/--dry-run");
+    throw new Error(
+      "Do not combine --apply-failing with --validate-only/--dry-run",
+    );
   }
 
   if (!dryRun && !validateOnly && !isZenodoMintingEnabled()) {
@@ -269,7 +271,11 @@ async function main(): Promise<void> {
 
   const assignMissingAtlasId = !validateOnly;
   const audit = await buildAuditReport(experimentIds, assignMissingAtlasId);
-  audit.mode = applyFailing ? "apply" : validateOnly || dryRun ? "audit" : "refresh";
+  audit.mode = applyFailing
+    ? "apply"
+    : validateOnly || dryRun
+      ? "audit"
+      : "refresh";
 
   if (validateOnly || dryRun) {
     if (jsonOut) {
@@ -309,9 +315,10 @@ async function main(): Promise<void> {
 
   for (const experimentId of targets) {
     if (!jsonOut) {
-      const before = audit.requiredUpdates.find(
-        (entry) => entry.experimentId === experimentId,
-      ) ?? audit.passed.find((entry) => entry.experimentId === experimentId);
+      const before =
+        audit.requiredUpdates.find(
+          (entry) => entry.experimentId === experimentId,
+        ) ?? audit.passed.find((entry) => entry.experimentId === experimentId);
       console.info("[zenodo-refresh] before", before);
     }
 
