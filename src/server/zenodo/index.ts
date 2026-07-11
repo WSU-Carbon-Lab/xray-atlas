@@ -3,6 +3,7 @@
  */
 
 export {
+  buildAtlasDatasetCitationUrl,
   buildAtlasExperimentBrowseUrl,
   buildAtlasExperimentMoleculeUrl,
   descriptionContainsLegacyBrowseExperimentUrl,
@@ -19,6 +20,9 @@ export {
   formatZenodoCreatorName,
   loadZenodoMetadataSnapshot,
   normalizeZenodoOrcid,
+  resolveZenodoCreatorFromContributor,
+  sortZenodoCreatorsByCitationOrder,
+  zenodoCreatorCitationSortKey,
   type ZenodoMetadataExperimentSnapshot,
 } from "~/server/zenodo/build-zenodo-metadata";
 export {
@@ -43,6 +47,11 @@ export {
   type ZenodoDeposition,
   type ZenodoDepositionFile,
 } from "~/server/zenodo/zenodo-client";
+export {
+  validateZenodoDatasetMetadata,
+  type ValidateZenodoDatasetMetadataInput,
+  type ZenodoDatasetValidationIssue,
+} from "~/server/zenodo/validate-zenodo-dataset-metadata";
 export {
   isZenodoMintingEnabled,
   zenodoAccessToken,

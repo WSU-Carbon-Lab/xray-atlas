@@ -29,7 +29,8 @@ export const DATACITE_CONTRIBUTOR_TYPES = [
   "Other",
 ] as const;
 
-export type DataCiteContributorType = (typeof DATACITE_CONTRIBUTOR_TYPES)[number];
+export type DataCiteContributorType =
+  (typeof DATACITE_CONTRIBUTOR_TYPES)[number];
 
 export const dataCiteContributorTypeSchema = z.enum(DATACITE_CONTRIBUTOR_TYPES);
 
@@ -132,7 +133,8 @@ const CONTRIBUTOR_TYPE_DEFINITIONS: Record<
   },
   ProjectManager: {
     label: "Project manager",
-    description: "Coordinates logistics, reporting, or delivery for the project.",
+    description:
+      "Coordinates logistics, reporting, or delivery for the project.",
     tier: "common",
   },
   ProjectMember: {
@@ -152,7 +154,8 @@ const CONTRIBUTOR_TYPE_DEFINITIONS: Record<
   },
   RelatedPerson: {
     label: "Related person",
-    description: "Person with another relationship not covered by a specific type.",
+    description:
+      "Person with another relationship not covered by a specific type.",
     tier: "extended",
   },
   Researcher: {
@@ -185,7 +188,8 @@ const CONTRIBUTOR_TYPE_DEFINITIONS: Record<
   },
   Translator: {
     label: "Translator",
-    description: "Translated descriptive text or documentation for the resource.",
+    description:
+      "Translated descriptive text or documentation for the resource.",
     tier: "extended",
   },
   WorkPackageLeader: {
@@ -210,9 +214,9 @@ export type ContributorRoleOptionsByTier<T extends ContributorRoleOption> = {
 /**
  * Partitions role options into ordered picker sections (primary, common, extended).
  */
-export function groupContributorRoleOptionsByTier<T extends ContributorRoleOption>(
-  options: readonly T[],
-): ContributorRoleOptionsByTier<T>[] {
+export function groupContributorRoleOptionsByTier<
+  T extends ContributorRoleOption,
+>(options: readonly T[]): ContributorRoleOptionsByTier<T>[] {
   return CONTRIBUTOR_ROLE_PICKER_TIER_ORDER.map((tier) => ({
     tier,
     sectionLabel: CONTRIBUTOR_ROLE_TIER_SECTION_LABELS[tier],
@@ -267,6 +271,41 @@ export function isUploaderContributorRole(role: string): boolean {
 export function isCollectorContributorRole(role: string): boolean {
   const normalized = normalizeStoredContributorRole(role);
   return normalized === "DataCollector";
+}
+
+/**
+ * Citation / Zenodo author sort key for one person's contributor roles.
+ *
+ * Order contract:
+ * 1. Lead experimentalist (`ProjectLeader`) first
+ * 2. Curator / uploader (`DataCurator`) second
+ * 3. Other roles in a middle band
+ * 4. PI / supervisor (`Supervisor`) always last
+ *
+ * @param roles - Raw or DataCite role strings for one person.
+ * @returns Ascending sort key (lower sorts earlier).
+ */
+export function contributorCitationSortKey(roles: readonly string[]): number {
+  const normalized = roles
+    .map((role) => normalizeStoredContributorRole(role))
+    .filter((role): role is DataCiteContributorType => role != null);
+
+  if (normalized.includes("Supervisor")) {
+    return 1_000_000;
+  }
+  if (normalized.includes("ProjectLeader")) {
+    return 0;
+  }
+  if (normalized.includes("DataCurator")) {
+    return 1;
+  }
+  if (normalized.includes("DataCollector")) {
+    return 2;
+  }
+  if (normalized.includes("Researcher")) {
+    return 3;
+  }
+  return 50;
 }
 
 /**

@@ -25,8 +25,6 @@ describe("atlasEntryFromBrowseGroup", () => {
         iupacname: "styrene",
         chemicalformula: "C8H8",
         imageurl: null,
-        inchi: "",
-        smiles: "",
         casNumber: null,
         pubChemCid: null,
         favoriteCount: 0,

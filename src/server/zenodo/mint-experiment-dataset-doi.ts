@@ -62,6 +62,7 @@ const DEFAULT_POLL_ATTEMPTS = 12;
 const DEFAULT_POLL_DELAY_MS = 1_500;
 const DEFAULT_OVERALL_TIMEOUT_MS = 10 * 60 * 1_000;
 const ERROR_MESSAGE_MAX = 2_000;
+const DEPOSITING_STALE_MS = 10 * 60 * 1_000;
 
 function sleepDefault(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -143,6 +144,156 @@ async function markFailed(
   };
 }
 
+async function persistPublishedDeposit(
+  db: PrismaClient,
+  experimentId: string,
+  deposition: ZenodoDeposition,
+  depositionId: number,
+  publishedAt: Date,
+  startedAt: Date,
+): Promise<MintZenodoDatasetDoiResult> {
+  const doi = normalizeDoi(deposition.doi ?? null);
+  if (!doi) {
+    throw new Error("Zenodo publish completed but DOI was missing");
+  }
+  const recordUrl = resolveRecordUrl(deposition);
+  const recordId = resolveRecordId(deposition);
+  await db.$transaction([
+    db.experimentzenododeposits.update({
+      where: { experimentid: experimentId },
+      data: {
+        state: "published",
+        doi,
+        recordurl: recordUrl,
+        zenodorecordid: recordId,
+        publishedat: publishedAt,
+        errormessage: null,
+        zenododepositionid: depositionId,
+      },
+    }),
+    db.experimentmetrics.upsert({
+      where: { experimentid: experimentId },
+      create: {
+        experimentid: experimentId,
+        datasetdoi: doi,
+        hasdatasetdoi: true,
+      },
+      update: {
+        datasetdoi: doi,
+        hasdatasetdoi: true,
+      },
+    }),
+  ]);
+
+  console.info("[zenodo] minted dataset DOI", {
+    experimentId,
+    zenodoDepositionId: depositionId,
+    doi,
+    durationMs: publishedAt.getTime() - startedAt.getTime(),
+  });
+
+  return {
+    state: "published",
+    doi,
+    recordUrl,
+    error: null,
+    zenodoDepositionId: depositionId,
+  };
+}
+
+/**
+ * Claims the mint row for this experiment (CAS) so concurrent editors do not
+ * create duplicate Zenodo deposits.
+ *
+ * @returns `claimed` when this caller owns the attempt, or an early result when
+ * another mint is in progress / already published.
+ */
+async function claimMintAttempt(
+  db: PrismaClient,
+  experimentId: string,
+  startedAt: Date,
+): Promise<
+  | { kind: "claimed"; depositionId: number | null }
+  | { kind: "result"; result: MintZenodoDatasetDoiResult }
+> {
+  const staleBefore = new Date(startedAt.getTime() - DEPOSITING_STALE_MS);
+
+  const claimedExisting = await db.experimentzenododeposits.updateMany({
+    where: {
+      experimentid: experimentId,
+      OR: [
+        { state: { in: ["pending", "failed"] } },
+        { state: "depositing", lastattemptat: { lt: staleBefore } },
+      ],
+    },
+    data: {
+      state: "depositing",
+      attemptcount: { increment: 1 },
+      lastattemptat: startedAt,
+      errormessage: null,
+    },
+  });
+
+  if (claimedExisting.count === 1) {
+    const row = await db.experimentzenododeposits.findUnique({
+      where: { experimentid: experimentId },
+      select: { zenododepositionid: true },
+    });
+    return { kind: "claimed", depositionId: row?.zenododepositionid ?? null };
+  }
+
+  try {
+    await db.experimentzenododeposits.create({
+      data: {
+        experimentid: experimentId,
+        state: "depositing",
+        attemptcount: 1,
+        lastattemptat: startedAt,
+        errormessage: null,
+      },
+    });
+    return { kind: "claimed", depositionId: null };
+  } catch {
+    const row = await db.experimentzenododeposits.findUnique({
+      where: { experimentid: experimentId },
+    });
+    if (row?.state === "published" && row.doi) {
+      return {
+        kind: "result",
+        result: {
+          state: "published",
+          doi: row.doi,
+          recordUrl: row.recordurl,
+          error: null,
+          zenodoDepositionId: row.zenododepositionid,
+        },
+      };
+    }
+    if (row?.state === "depositing") {
+      return {
+        kind: "result",
+        result: {
+          state: "depositing",
+          doi: null,
+          recordUrl: null,
+          error: "Zenodo mint already in progress for this experiment",
+          zenodoDepositionId: row.zenododepositionid,
+        },
+      };
+    }
+    return {
+      kind: "result",
+      result: {
+        state: "failed",
+        doi: null,
+        recordUrl: null,
+        error: "Could not claim Zenodo mint attempt",
+        zenodoDepositionId: row?.zenododepositionid ?? null,
+      },
+    };
+  }
+}
+
 /**
  * Mints (or resumes) a Zenodo dataset DOI for `experimentId` using the Atlas depositor token.
  *
@@ -204,24 +355,12 @@ export async function mintExperimentDatasetDoi(
   }
 
   const startedAt = now();
-  await db.experimentzenododeposits.upsert({
-    where: { experimentid: experimentId },
-    create: {
-      experimentid: experimentId,
-      state: "depositing",
-      attemptcount: 1,
-      lastattemptat: startedAt,
-      errormessage: null,
-    },
-    update: {
-      state: "depositing",
-      attemptcount: { increment: 1 },
-      lastattemptat: startedAt,
-      errormessage: null,
-    },
-  });
+  const claim = await claimMintAttempt(db, experimentId, startedAt);
+  if (claim.kind === "result") {
+    return claim.result;
+  }
 
-  let depositionId: number | null = existing?.zenododepositionid ?? null;
+  let depositionId: number | null = claim.depositionId;
   const overallTimeoutMs =
     options.overallTimeoutMs ?? DEFAULT_OVERALL_TIMEOUT_MS;
 
@@ -254,10 +393,49 @@ export async function mintExperimentDatasetDoi(
 
     let deposition: ZenodoDeposition;
     if (depositionId != null) {
-      console.info("[zenodo] updating existing deposition metadata", {
+      console.info("[zenodo] resuming existing deposition", {
         experimentId,
         depositionId,
       });
+      deposition = await client.getDeposition(depositionId);
+      assertWithinBudget();
+
+      if (deposition.submitted) {
+        const publishedAt = now();
+        const existingDoi = normalizeDoi(deposition.doi ?? null);
+        if (existingDoi) {
+          return persistPublishedDeposit(
+            db,
+            experimentId,
+            deposition,
+            depositionId,
+            publishedAt,
+            startedAt,
+          );
+        }
+        for (let i = 0; i < pollAttempts; i += 1) {
+          assertWithinBudget();
+          deposition = await client.getDeposition(depositionId);
+          if (normalizeDoi(deposition.doi ?? null)) {
+            return persistPublishedDeposit(
+              db,
+              experimentId,
+              deposition,
+              depositionId,
+              now(),
+              startedAt,
+            );
+          }
+          await sleep(pollDelayMs);
+        }
+        return markFailed(
+          db,
+          experimentId,
+          "Zenodo publish polling timed out before DOI was available",
+          depositionId,
+        );
+      }
+
       deposition = await client.updateDepositionMetadata(depositionId, metadata);
     } else {
       console.info("[zenodo] creating deposition", { experimentId });
@@ -312,50 +490,14 @@ export async function mintExperimentDatasetDoi(
       assertWithinBudget();
       const doi = normalizeDoi(deposition.doi ?? null);
       if (doi) {
-        const publishedAt = now();
-        const recordUrl = resolveRecordUrl(deposition);
-        const recordId = resolveRecordId(deposition);
-        await db.$transaction([
-          db.experimentzenododeposits.update({
-            where: { experimentid: experimentId },
-            data: {
-              state: "published",
-              doi,
-              recordurl: recordUrl,
-              zenodorecordid: recordId,
-              publishedat: publishedAt,
-              errormessage: null,
-              zenododepositionid: depositionId,
-            },
-          }),
-          db.experimentmetrics.upsert({
-            where: { experimentid: experimentId },
-            create: {
-              experimentid: experimentId,
-              datasetdoi: doi,
-              hasdatasetdoi: true,
-            },
-            update: {
-              datasetdoi: doi,
-              hasdatasetdoi: true,
-            },
-          }),
-        ]);
-
-        console.info("[zenodo] minted dataset DOI", {
+        return persistPublishedDeposit(
+          db,
           experimentId,
-          zenodoDepositionId: depositionId,
-          doi,
-          durationMs: publishedAt.getTime() - startedAt.getTime(),
-        });
-
-        return {
-          state: "published",
-          doi,
-          recordUrl,
-          error: null,
-          zenodoDepositionId: depositionId,
-        };
+          deposition,
+          depositionId,
+          now(),
+          startedAt,
+        );
       }
       console.info("[zenodo] waiting for DOI", {
         experimentId,

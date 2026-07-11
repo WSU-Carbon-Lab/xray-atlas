@@ -12,6 +12,7 @@ import {
 } from "~/lib/dataset-attribution-claim";
 import type { ExperimentAttributionInput } from "~/server/nexafs/experimentAttributions";
 import { getUserSessionCapabilities } from "~/server/auth/privileged-role";
+import { scheduleZenodoDepositSync } from "~/server/zenodo";
 
 export type ContributorUserContext = {
   id: string;
@@ -21,13 +22,54 @@ export type ContributorUserContext = {
 };
 
 /**
+ * Batch-loads sorted role slugs for many users in one `userAppRole` query.
+ *
+ * @param db - Prisma client or transaction client.
+ * @param userIds - `next_auth.user.id` values (ORCID primary keys).
+ * @returns Map from user id to sorted role slug list; users with no roles map to `[]`.
+ */
+async function loadRoleSlugsByUserId(
+  db: PrismaClient | Prisma.TransactionClient,
+  userIds: readonly string[],
+): Promise<Map<string, string[]>> {
+  const roleSlugsByUserId = new Map<string, string[]>();
+  for (const userId of userIds) {
+    roleSlugsByUserId.set(userId, []);
+  }
+  if (userIds.length === 0) {
+    return roleSlugsByUserId;
+  }
+  const links = await db.userAppRole.findMany({
+    where: { userId: { in: [...userIds] } },
+    select: {
+      userId: true,
+      role: { select: { slug: true } },
+    },
+  });
+  for (const link of links) {
+    const slugs = roleSlugsByUserId.get(link.userId);
+    if (slugs) {
+      slugs.push(link.role.slug);
+    } else {
+      roleSlugsByUserId.set(link.userId, [link.role.slug]);
+    }
+  }
+  for (const slugs of roleSlugsByUserId.values()) {
+    slugs.sort();
+  }
+  return roleSlugsByUserId;
+}
+
+/**
  * Loads Atlas users referenced by attribution ORCIDs together with attribution preferences.
  */
 export async function loadContributorUserContextByOrcid(
   db: PrismaClient | Prisma.TransactionClient,
   orcids: readonly string[],
 ): Promise<Map<string, ContributorUserContext>> {
-  const unique = [...new Set(orcids.map((orcid) => orcid.trim()).filter(Boolean))];
+  const unique = [
+    ...new Set(orcids.map((orcid) => orcid.trim()).filter(Boolean)),
+  ];
   if (unique.length === 0) {
     return new Map();
   }
@@ -39,18 +81,22 @@ export async function loadContributorUserContextByOrcid(
       attributionDisplayPreferences: true,
     },
   });
+  const roleSlugsByUserId = await loadRoleSlugsByUserId(
+    db,
+    users.map((user) => user.id),
+  );
   const out = new Map<string, ContributorUserContext>();
   for (const user of users) {
-    const caps = await getUserSessionCapabilities(db as PrismaClient, user.id);
+    const roleSlugs = roleSlugsByUserId.get(user.id) ?? [];
     const displayPreferences = effectiveAttributionDisplayPreferences(
       parseAttributionDisplayPreferences(user.attributionDisplayPreferences),
-      caps.roleSlugs,
+      roleSlugs,
     );
     out.set(user.id, {
       id: user.id,
       autoAcceptMode: parseAutoAcceptMode(user.autoAcceptMode),
       displayPreferences,
-      roleSlugs: caps.roleSlugs,
+      roleSlugs,
     });
   }
   return out;
@@ -114,6 +160,9 @@ export function buildContributorRowsWithClaimStatus(
 
 /**
  * Applies accept, decline, or unclaim to one contributor row owned by the session ORCID.
+ *
+ * On success, schedules a Zenodo metadata sync so published deposits pick up the
+ * claimed display name (or revert to ORCID labeling on unclaim/decline).
  */
 export async function updateContributorClaimForSessionUser(
   db: PrismaClient,
@@ -122,10 +171,10 @@ export async function updateContributorClaimForSessionUser(
     sessionOrcid: string;
     nextStatus: ExperimentContributorClaimStatus;
   },
-): Promise<{ updated: boolean }> {
+): Promise<{ updated: boolean; experimentId: string }> {
   const row = await db.experimentcontributors.findUnique({
     where: { id: params.contributorId },
-    select: { id: true, orcidid: true, userid: true },
+    select: { id: true, orcidid: true, userid: true, experimentid: true },
   });
   if (row?.orcidid !== params.sessionOrcid) {
     throw new TRPCError({
@@ -146,7 +195,8 @@ export async function updateContributorClaimForSessionUser(
       claimedat: flags.claimedat,
     },
   });
-  return { updated: true };
+  scheduleZenodoDepositSync(db, row.experimentid, { mode: "metadata" });
+  return { updated: true, experimentId: row.experimentid };
 }
 
 export type PendingAttributionListItem = {
@@ -314,6 +364,16 @@ export async function setAttributionPreferencesForUser(
     parseAttributionDisplayPreferences(updated.attributionDisplayPreferences),
     caps.roleSlugs,
   );
+
+  const contributedExperiments = await db.experimentcontributors.findMany({
+    where: { orcidid: userId },
+    select: { experimentid: true },
+    distinct: ["experimentid"],
+  });
+  for (const row of contributedExperiments) {
+    scheduleZenodoDepositSync(db, row.experimentid, { mode: "metadata" });
+  }
+
   return {
     autoAcceptMode: parseAutoAcceptMode(updated.autoAcceptMode),
     displayPreferences,

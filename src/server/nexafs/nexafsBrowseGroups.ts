@@ -22,7 +22,9 @@ function formatBrowseSampleProcessMethod(
 ): string | null {
   const trimmed = raw?.trim() ?? "";
   if (!trimmed) return null;
-  const match = PROCESS_METHOD_OPTIONS.find((option) => option.value === trimmed);
+  const match = PROCESS_METHOD_OPTIONS.find(
+    (option) => option.value === trimmed,
+  );
   return match?.label ?? trimmed;
 }
 
@@ -62,15 +64,22 @@ export function buildNexafsBrowseWhereSql(
 ): Prisma.Sql {
   const parts: Prisma.Sql[] = [];
 
-  const moleculeIds = filters.moleculeIds ?? (filters.moleculeId ? [filters.moleculeId] : []);
+  const moleculeIds =
+    filters.moleculeIds ?? (filters.moleculeId ? [filters.moleculeId] : []);
   const edgeIds = filters.edgeIds ?? (filters.edgeId ? [filters.edgeId] : []);
-  const instrumentIds = filters.instrumentIds ?? (filters.instrumentId ? [filters.instrumentId] : []);
-  const contributorOrcids = filters.contributorOrcids ?? (filters.contributorUserId ? [filters.contributorUserId] : []);
+  const instrumentIds =
+    filters.instrumentIds ??
+    (filters.instrumentId ? [filters.instrumentId] : []);
+  const contributorOrcids =
+    filters.contributorOrcids ??
+    (filters.contributorUserId ? [filters.contributorUserId] : []);
 
   if (moleculeIds.length === 1) {
     parts.push(Prisma.sql`s.moleculeid = ${moleculeIds[0]}::uuid`);
   } else if (moleculeIds.length > 1) {
-    const joined = Prisma.join(moleculeIds.map((id) => Prisma.sql`${id}::uuid`));
+    const joined = Prisma.join(
+      moleculeIds.map((id) => Prisma.sql`${id}::uuid`),
+    );
     parts.push(Prisma.sql`s.moleculeid = ANY(ARRAY[${joined}])`);
   }
 
@@ -231,8 +240,6 @@ export type NexafsBrowseGroupRow = {
   iupacname: string;
   chemicalformula: string;
   imageurl: string | null;
-  inchi: string;
-  smiles: string;
   cas_number: string | null;
   pubchem_cid: string | null;
   molecule_favorite_count: bigint;
@@ -248,6 +255,7 @@ export type NexafsBrowseGroupRow = {
   linked_publications_json: unknown;
   source_publications_json: unknown;
   ingest_verified: boolean;
+  atlas_dataset_id: string | null;
   dataset_doi: string | null;
   zenodo_record_url: string | null;
   zenodo_deposit_state: string | null;
@@ -277,6 +285,8 @@ export type NexafsBrowseGroupDto = {
   linkedPublications: NexafsBrowseLinkedPublication[];
   sourcePublications: NexafsBrowseSourcePublication[];
   ingestVerified: boolean;
+  /** Opaque short id for `/d/{id}` citation URLs; null until assigned. */
+  atlasDatasetId: string | null;
   /** Atlas-minted Zenodo dataset DOI (distinct from source-paper DOIs). */
   datasetDoi: string | null;
   zenodoRecordUrl: string | null;
@@ -289,8 +299,6 @@ export type NexafsBrowseGroupDto = {
     iupacname: string;
     chemicalformula: string;
     imageurl: string | null;
-    inchi: string;
-    smiles: string;
     casNumber: string | null;
     pubChemCid: string | null;
     favoriteCount: number;
@@ -332,14 +340,9 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
       id: orcid,
       userId,
       orcid,
-      name:
-        typeof o.name === "string" && isPublicProfileVisible
-          ? o.name
-          : null,
+      name: typeof o.name === "string" && o.name.trim() ? o.name.trim() : null,
       image:
-        typeof o.image === "string" && isPublicProfileVisible
-          ? o.image
-          : null,
+        typeof o.image === "string" && o.image.trim() ? o.image.trim() : null,
       isClaimed,
       isPublicProfileVisible,
       roles: role ? [role] : [],
@@ -348,9 +351,7 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
   return dedupeNexafsContributorsByOrcid(out);
 }
 
-function parsePublicationsJson(
-  raw: unknown,
-): NexafsBrowseLinkedPublication[] {
+function parsePublicationsJson(raw: unknown): NexafsBrowseLinkedPublication[] {
   if (!Array.isArray(raw)) return [];
   const out: NexafsBrowseLinkedPublication[] = [];
   for (const item of raw) {
@@ -362,7 +363,8 @@ function parsePublicationsJson(
       doi,
       title: typeof o.title === "string" ? o.title : "",
       journal: typeof o.journal === "string" ? o.journal : null,
-      year: typeof o.year === "number" && Number.isFinite(o.year) ? o.year : null,
+      year:
+        typeof o.year === "number" && Number.isFinite(o.year) ? o.year : null,
       authors: o.authors ?? null,
     });
   }
@@ -403,6 +405,9 @@ export function mapNexafsBrowseGroupRow(
     linkedPublications: parsePublicationsJson(row.linked_publications_json),
     sourcePublications: parsePublicationsJson(row.source_publications_json),
     ingestVerified: Boolean(row.ingest_verified),
+    atlasDatasetId: row.atlas_dataset_id?.trim()
+      ? row.atlas_dataset_id.trim().toLowerCase()
+      : null,
     datasetDoi: row.dataset_doi?.trim() ? row.dataset_doi.trim() : null,
     zenodoRecordUrl: row.zenodo_record_url?.trim()
       ? row.zenodo_record_url.trim()
@@ -420,8 +425,6 @@ export function mapNexafsBrowseGroupRow(
       iupacname: row.iupacname,
       chemicalformula: row.chemicalformula,
       imageurl: row.imageurl,
-      inchi: row.inchi,
-      smiles: row.smiles,
       casNumber: row.cas_number,
       pubChemCid: row.pubchem_cid,
       favoriteCount: Number.isFinite(fav) ? fav : 0,
@@ -433,7 +436,9 @@ export function mapNexafsBrowseGroupRow(
     },
     sample: {
       processMethod: formatBrowseSampleProcessMethod(row.sample_process_method),
-      substrate: row.sample_substrate?.trim() ? row.sample_substrate.trim() : null,
+      substrate: row.sample_substrate?.trim()
+        ? row.sample_substrate.trim()
+        : null,
       patterningLayer: row.sample_patterning_layer?.trim()
         ? row.sample_patterning_layer.trim()
         : null,
@@ -518,8 +523,6 @@ export async function fetchNexafsBrowseGrouped(
         m.iupacname,
         m.chemicalformula,
         m.imageurl,
-        m.inchi,
-        m.smiles,
         m.casnumber AS cas_number,
         m.pubchemcid AS pubchem_cid,
         m.favorite_count AS molecule_favorite_count,
@@ -529,6 +532,7 @@ export async function fetchNexafsBrowseGrouped(
         i.name AS instrument_name,
         f.name AS facility_name,
         (COALESCE(e.validation_summary->>'atlasTeamVerified', 'false') = 'true') AS ingest_verified,
+        e.atlas_dataset_id AS atlas_dataset_id,
         s.processmethod::text AS sample_process_method,
         s.substrate AS sample_substrate,
         s.patterninglayer AS sample_patterning_layer,
@@ -567,8 +571,6 @@ export async function fetchNexafsBrowseGrouped(
         b.iupacname,
         b.chemicalformula,
         b.imageurl,
-        b.inchi,
-        b.smiles,
         b.cas_number,
         b.pubchem_cid,
         b.molecule_favorite_count,
@@ -578,6 +580,7 @@ export async function fetchNexafsBrowseGrouped(
         b.instrument_name,
         b.facility_name,
         b.ingest_verified,
+        b.atlas_dataset_id,
         b.sample_process_method,
         b.sample_substrate,
         b.sample_patterning_layer,

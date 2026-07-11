@@ -7,8 +7,7 @@ import { siteMetadata } from "./metadata";
 import { SessionProvider } from "@/components/auth/session-provider";
 import { ThemeProviderWrapper } from "@/components/theme/theme-provider";
 import { TRPCReactProvider } from "@/trpc/client";
-import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Analytics } from "@vercel/analytics/react";
+import { DeferredVercelTelemetry } from "@/components/layout/deferred-vercel-telemetry";
 /**
  * Root Layout - Main application layout with HeroUI theming integration.
  *
@@ -51,8 +50,7 @@ export default async function RootLayout({
                 {children}
               </main>
               {modal}
-              <SpeedInsights />
-              <Analytics />
+              <DeferredVercelTelemetry />
               <Footer />
             </ThemeProviderWrapper>
           </TRPCReactProvider>

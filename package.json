@@ -38,7 +38,10 @@
     "test": "bun test src",
     "test:kk-calc": "bun test src/features/kk-calc",
     "test:server-nexafs": "bun test src/server/nexafs",
-    "test:kk-calc-validation": "bun test src/features/kk-calc/*.test.ts"
+    "test:kk-calc-validation": "bun test src/features/kk-calc/*.test.ts",
+    "zenodo:audit": "bun scripts/refresh-zenodo-dataset.ts --all --validate-only --json",
+    "zenodo:apply": "bun scripts/refresh-zenodo-dataset.ts --all --apply-failing --json",
+    "zenodo:refresh": "bun scripts/refresh-zenodo-dataset.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

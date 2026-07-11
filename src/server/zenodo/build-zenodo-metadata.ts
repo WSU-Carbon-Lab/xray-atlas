@@ -4,21 +4,35 @@
  * Titles use the formal shared builder {@link buildNexafsDatasetCitationTitle}
  * (`NEXAFS dataset: {molecule}, {edge}[, {type}], {instrument}[, {facility}]`) with no
  * informal `@` facility markers. Creators come from `experiment_contributors`
- * (ORCID + display name; leading `@` stripped). Source-paper DOIs become
+ * (ORCID + display name when attribution display preferences allow; leading `@`
+ * stripped), ordered as lead experimentalist (`ProjectLeader`), curator/uploader
+ * (`DataCurator`), other roles, then PI (`Supervisor`) last. Source-paper DOIs become
  * `related_identifiers`. Community membership uses `ZENODO_COMMUNITY_ID` (production: `xrayatlas`).
- * Canonical Atlas deep links use {@link buildAtlasExperimentMoleculeUrl} (brand public
- * origin + `/molecules/{slug}?nexafsExperiment=`), never request-time `getBaseUrl` /
- * localhost / preview hosts.
+ * Canonical Atlas citation links use {@link buildAtlasDatasetCitationUrl}
+ * (`/d/{atlasDatasetId}`), never request-time `getBaseUrl` / localhost / preview hosts.
  */
 
 import type { PrismaClient } from "~/prisma/client";
-import { buildNexafsDatasetCitationTitle } from "~/lib/dataset-citation";
+import {
+  resolveCitationCreatorLabelFromPreferences,
+  type AttributionDisplayPreferences,
+} from "~/lib/dataset-attribution-claim";
+import {
+  buildDatasetBibTeXNote,
+  buildNexafsDatasetCitationTitle,
+  formatDatasetCitationSampleSummary,
+  type DatasetCitationSampleInfo,
+} from "~/lib/dataset-citation";
 import { normalizeDoi } from "~/lib/doi";
+import { contributorCitationSortKey } from "~/lib/datacite-contributor-types";
 import {
   canonicalMoleculeSlugFromView,
   slugifyMoleculeSynonym,
 } from "~/lib/molecule-slug";
-import { buildAtlasExperimentMoleculeUrl } from "~/server/zenodo/atlas-public-site-origin";
+import { PROCESS_METHOD_OPTIONS } from "~/features/process-nexafs/constants";
+import { buildAtlasDatasetCitationUrl } from "~/server/zenodo/atlas-public-site-origin";
+import { ensureAtlasDatasetId } from "~/server/nexafs/atlas-dataset-id";
+import { loadContributorUserContextByOrcid } from "~/server/nexafs/datasetAttributionClaiming";
 import { zenodoCommunityId } from "~/server/zenodo/zenodo-config";
 import type {
   ZenodoCreator,
@@ -38,9 +52,14 @@ export interface ZenodoMetadataExperimentSnapshot {
   instrumentName: string;
   facilityName: string | null;
   experimentTypeLabel: string | null;
+  /** Short public citation URL (`/d/{atlasDatasetId}`). */
   atlasExperimentUrl: string;
+  /** Opaque Atlas dataset id used in `/d/{id}`. */
+  atlasDatasetId: string;
   creators: ZenodoCreator[];
   relatedIdentifiers: ZenodoRelatedIdentifier[];
+  /** Core sample preparation fields for description / notes (may be empty). */
+  sample: DatasetCitationSampleInfo;
 }
 
 /**
@@ -50,10 +69,7 @@ export interface ZenodoMetadataExperimentSnapshot {
  * @returns Creator name string suitable for Zenodo `creators[].name`.
  */
 export function formatZenodoCreatorName(displayName: string): string {
-  const trimmed = displayName
-    .trim()
-    .replace(/^@+/, "")
-    .replace(/\s+/g, " ");
+  const trimmed = displayName.trim().replace(/^@+/, "").replace(/\s+/g, " ");
   if (!trimmed) return "Unknown";
   if (trimmed.includes(",")) return trimmed;
   const parts = trimmed.split(" ");
@@ -61,6 +77,81 @@ export function formatZenodoCreatorName(displayName: string): string {
   const family = parts[parts.length - 1]!;
   const given = parts.slice(0, -1).join(" ");
   return `${family}, ${given}`;
+}
+
+/**
+ * Builds one Zenodo creator from an experiment contributor claim row.
+ *
+ * Uses attribution display preferences for the claim state: name when the user
+ * opted into `name_only` / `name_and_avatar` and a profile name exists; otherwise
+ * ORCID-labeled so Zenodo stays anonymous for users who keep `orcid_only`.
+ *
+ * @param input - ORCID, claim status, optional Atlas profile name, and preferences.
+ * @returns Zenodo creator object (name + optional ORCID).
+ */
+export function resolveZenodoCreatorFromContributor(input: {
+  orcidId: string;
+  claimStatus: string | null | undefined;
+  userName?: string | null;
+  userId?: string | null;
+  displayPreferences?: AttributionDisplayPreferences | null;
+  roleSlugs?: readonly string[];
+}): ZenodoCreator {
+  const orcid =
+    normalizeZenodoOrcid(input.orcidId) ?? normalizeZenodoOrcid(input.userId);
+  const label = resolveCitationCreatorLabelFromPreferences({
+    orcid: orcid ?? input.orcidId,
+    claimStatus: input.claimStatus,
+    userName: input.userName,
+    displayPreferences: input.displayPreferences,
+    roleSlugs: input.roleSlugs,
+  });
+  const isOrcidLabel = label.startsWith("ORCID ");
+  if (!isOrcidLabel) {
+    return {
+      name: formatZenodoCreatorName(label),
+      ...(orcid ? { orcid } : {}),
+    };
+  }
+  return {
+    name: orcid ? `ORCID ${orcid}` : label,
+    ...(orcid ? { orcid } : {}),
+  };
+}
+
+/**
+ * Citation sort key for Zenodo / BibTeX author order.
+ *
+ * Delegates to {@link contributorCitationSortKey}.
+ */
+export function zenodoCreatorCitationSortKey(roles: readonly string[]): number {
+  return contributorCitationSortKey(roles);
+}
+
+/**
+ * Sorts Zenodo creators by {@link contributorCitationSortKey} using accumulated roles.
+ *
+ * Stable for equal keys via `firstSeenIndex`.
+ *
+ * @param entries - Creators with the contributor roles that produced them.
+ * @returns Creators in citation order.
+ */
+export function sortZenodoCreatorsByCitationOrder(
+  entries: ReadonlyArray<{
+    creator: ZenodoCreator;
+    roles: readonly string[];
+    firstSeenIndex: number;
+  }>,
+): ZenodoCreator[] {
+  return [...entries]
+    .sort((a, b) => {
+      const keyDelta =
+        contributorCitationSortKey(a.roles) -
+        contributorCitationSortKey(b.roles);
+      if (keyDelta !== 0) return keyDelta;
+      return a.firstSeenIndex - b.firstSeenIndex;
+    })
+    .map((entry) => entry.creator);
 }
 
 /**
@@ -102,6 +193,24 @@ function experimentTypeLabel(
   return experimentType;
 }
 
+function processMethodLabel(
+  processMethod: string | null | undefined,
+): string | null {
+  if (!processMethod) return null;
+  const trimmed = processMethod.trim();
+  if (!trimmed) return null;
+  const match = PROCESS_METHOD_OPTIONS.find(
+    (option) => option.value === trimmed,
+  );
+  return match?.label ?? trimmed;
+}
+
+function nonEmptyTrimmed(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (trimmed == null || trimmed.length === 0) return null;
+  return trimmed;
+}
+
 /**
  * Loads experiment, molecule, instrument, contributors, and source publications for Zenodo metadata.
  *
@@ -128,6 +237,13 @@ export async function loadZenodoMetadataSnapshot(
       },
       samples: {
         select: {
+          processmethod: true,
+          substrate: true,
+          patterninglayer: true,
+          solvent: true,
+          thickness: true,
+          molecularweight: true,
+          vendors: { select: { name: true } },
           molecules: {
             select: {
               iupacname: true,
@@ -145,9 +261,10 @@ export async function loadZenodoMetadataSnapshot(
         select: {
           orcidid: true,
           role: true,
+          claimstatus: true,
           user: { select: { name: true, id: true } },
         },
-        orderBy: [{ role: "asc" }, { createdat: "asc" }],
+        orderBy: [{ createdat: "asc" }, { role: "asc" }],
       },
       experimentpublications: {
         where: { role: "source" },
@@ -174,29 +291,55 @@ export async function loadZenodoMetadataSnapshot(
           iupacName: molecule.iupacname,
         }) || slugifyMoleculeSynonym(moleculeDisplayName);
 
-  const creatorsByOrcid = new Map<string, ZenodoCreator>();
+  const creatorsByKey = new Map<
+    string,
+    {
+      creator: ZenodoCreator;
+      roles: string[];
+      firstSeenIndex: number;
+      claimAccepted: boolean;
+    }
+  >();
+  const userContextByOrcid = await loadContributorUserContextByOrcid(
+    db,
+    experiment.experimentcontributors.map((row) => row.orcidid),
+  );
+  let seenIndex = 0;
   for (const row of experiment.experimentcontributors) {
-    const orcid =
-      normalizeZenodoOrcid(row.orcidid) ??
-      normalizeZenodoOrcid(row.user?.id);
-    const nameTrimmed = row.user?.name?.trim() ?? "";
-    const displayName =
-      nameTrimmed.length > 0
-        ? nameTrimmed
-        : orcid
-          ? `ORCID ${orcid}`
-          : "Unknown contributor";
-    const creator: ZenodoCreator = {
-      name: formatZenodoCreatorName(displayName),
-      ...(orcid ? { orcid } : {}),
-    };
-    const key = orcid ?? creator.name;
-    if (!creatorsByOrcid.has(key)) {
-      creatorsByOrcid.set(key, creator);
+    const userContext = userContextByOrcid.get(row.orcidid);
+    const creator = resolveZenodoCreatorFromContributor({
+      orcidId: row.orcidid,
+      claimStatus: row.claimstatus,
+      userName: row.user?.name,
+      userId: row.user?.id,
+      displayPreferences: userContext?.displayPreferences,
+      roleSlugs: userContext?.roleSlugs,
+    });
+    const key = creator.orcid ?? creator.name;
+    const existing = creatorsByKey.get(key);
+    const accepted = row.claimstatus === "accepted";
+    if (!existing) {
+      creatorsByKey.set(key, {
+        creator,
+        roles: [row.role],
+        firstSeenIndex: seenIndex,
+        claimAccepted: accepted,
+      });
+      seenIndex += 1;
+      continue;
+    }
+    existing.roles.push(row.role);
+    const existingIsOrcid = existing.creator.name.startsWith("ORCID ");
+    const nextIsNamed = !creator.name.startsWith("ORCID ");
+    if ((accepted && !existing.claimAccepted) || (existingIsOrcid && nextIsNamed)) {
+      existing.creator = creator;
+      existing.claimAccepted = existing.claimAccepted || accepted;
     }
   }
 
-  const creators = [...creatorsByOrcid.values()];
+  const creators = sortZenodoCreatorsByCitationOrder([
+    ...creatorsByKey.values(),
+  ]);
   if (creators.length === 0) {
     creators.push({ name: "X-ray Atlas contributors" });
   }
@@ -214,10 +357,32 @@ export async function loadZenodoMetadataSnapshot(
     });
   }
 
-  const atlasExperimentUrl = buildAtlasExperimentMoleculeUrl(
-    experiment.id,
-    moleculeSlug,
-  );
+  const atlasDatasetId = await ensureAtlasDatasetId(db, experiment.id);
+  const atlasExperimentUrl = buildAtlasDatasetCitationUrl(atlasDatasetId);
+  relatedIdentifiers.push({
+    identifier: atlasExperimentUrl,
+    relation: "isIdenticalTo",
+    scheme: "url",
+    resource_type: "dataset",
+  });
+
+  const sample: DatasetCitationSampleInfo = {
+    processMethod: processMethodLabel(experiment.samples.processmethod),
+    substrate: nonEmptyTrimmed(experiment.samples.substrate),
+    patterningLayer: nonEmptyTrimmed(experiment.samples.patterninglayer),
+    solvent: nonEmptyTrimmed(experiment.samples.solvent),
+    thicknessNm:
+      experiment.samples.thickness != null &&
+      Number.isFinite(experiment.samples.thickness)
+        ? experiment.samples.thickness
+        : null,
+    molecularWeightGPerMol:
+      experiment.samples.molecularweight != null &&
+      Number.isFinite(experiment.samples.molecularweight)
+        ? experiment.samples.molecularweight
+        : null,
+    vendorName: nonEmptyTrimmed(experiment.samples.vendors?.name),
+  };
 
   return {
     experimentId: experiment.id,
@@ -232,8 +397,10 @@ export async function loadZenodoMetadataSnapshot(
     facilityName: experiment.instruments.facilities?.name ?? null,
     experimentTypeLabel: experimentTypeLabel(experiment.experimenttype),
     atlasExperimentUrl,
+    atlasDatasetId,
     creators,
     relatedIdentifiers,
+    sample,
   };
 }
 
@@ -261,6 +428,7 @@ export function buildZenodoDepositMetadata(
     ? `${snapshot.instrumentName}, ${snapshot.facilityName}`
     : snapshot.instrumentName;
 
+  const sampleSummary = formatDatasetCitationSampleSummary(snapshot.sample);
   const description = [
     `<p>Near-edge X-ray absorption fine structure (NEXAFS) spectrum dataset for <strong>${escapeHtml(snapshot.moleculeDisplayName)}</strong>`,
     snapshot.chemicalFormula
@@ -271,6 +439,7 @@ export function buildZenodoDepositMetadata(
       ? ` measured in ${escapeHtml(snapshot.experimentTypeLabel)} mode`
       : "",
     ` on ${escapeHtml(instrumentClause)}.</p>`,
+    sampleSummary ? `<p>${escapeHtml(sampleSummary)}.</p>` : "",
     `<p>Canonical record on X-ray Atlas: <a href="${escapeHtml(snapshot.atlasExperimentUrl)}">${escapeHtml(snapshot.atlasExperimentUrl)}</a>.</p>`,
     `<p>Archive contents match the Atlas all-data download (spectrum CSV for all polarizations plus committed experiment and sample auxiliary files). Spectrum export is capped at 10,000 points per experiment, matching the browse download path.</p>`,
   ].join("");
@@ -285,6 +454,20 @@ export function buildZenodoDepositMetadata(
     keywords.push(snapshot.experimentTypeLabel);
   }
 
+  const noteParts = [
+    buildDatasetBibTeXNote({
+      edgeLabel: `${snapshot.edgeTargetAtom} ${snapshot.edgeCoreState}`,
+      instrumentName: snapshot.instrumentName,
+      facilityName: snapshot.facilityName,
+      experimentTypeLabel: snapshot.experimentTypeLabel,
+      sample: snapshot.sample,
+      datasetDoi: null,
+      atlasCitationUrl: snapshot.atlasExperimentUrl,
+    }),
+    `Atlas dataset id: ${snapshot.atlasDatasetId}`,
+    `Atlas experiment id: ${snapshot.experimentId}`,
+  ];
+
   return {
     title,
     description,
@@ -298,7 +481,7 @@ export function buildZenodoDepositMetadata(
         ? snapshot.relatedIdentifiers
         : undefined,
     keywords,
-    notes: `Atlas experiment id: ${snapshot.experimentId}`,
+    notes: noteParts.join(". "),
   };
 }
 

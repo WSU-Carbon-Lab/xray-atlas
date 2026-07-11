@@ -6,11 +6,12 @@
  * Optional `ATLAS_PUBLIC_SITE_URL` overrides that default when explicitly set to a
  * non-loopback absolute origin (preview hosts are allowed only via that override).
  *
- * Canonical experiment links use `/molecules/{slug}?nexafsExperiment={uuid}` so
- * paste-from-Zenodo lands on the molecule page with that dataset expanded.
+ * Canonical citation links prefer `/d/{atlasDatasetId}`. Legacy molecule deep links
+ * (`/molecules/{slug}?nexafsExperiment={uuid}`) remain for expand redirects.
  */
 
 import { site } from "~/app/brand";
+import { atlasDatasetPath } from "~/lib/atlas-dataset-id";
 import { moleculeNexafsExperimentHref } from "~/lib/nexafs-experiment-deep-link";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 
@@ -81,9 +82,28 @@ export function getAtlasPublicSiteOrigin(): string {
 }
 
 /**
- * Builds the canonical public deep-link for an Atlas NEXAFS experiment.
+ * Builds the short public citation URL for an Atlas dataset id.
+ *
+ * Shape: `{origin}/d/{atlasDatasetId}`
+ *
+ * @param atlasDatasetId - Opaque 8-character Atlas dataset id.
+ * @param origin - Optional origin override (defaults to {@link getAtlasPublicSiteOrigin}).
+ * @returns Absolute `/d/…` URL on the public site.
+ */
+export function buildAtlasDatasetCitationUrl(
+  atlasDatasetId: string,
+  origin: string = getAtlasPublicSiteOrigin(),
+): string {
+  const base = normalizePublicSiteOrigin(origin);
+  return `${base}${atlasDatasetPath(atlasDatasetId)}`;
+}
+
+/**
+ * Builds the legacy public deep-link for an Atlas NEXAFS experiment.
  *
  * Shape: `{origin}/molecules/{slug}?nexafsExperiment={experimentId}`
+ *
+ * Prefer {@link buildAtlasDatasetCitationUrl} in citations and Zenodo metadata.
  *
  * @param experimentId - Atlas experiment UUID.
  * @param moleculeSlug - Canonical molecule synonym slug (or display name; slugified).
@@ -104,7 +124,7 @@ export function buildAtlasExperimentMoleculeUrl(
 export const buildAtlasExperimentBrowseUrl = buildAtlasExperimentMoleculeUrl;
 
 const LOOPBACK_ATLAS_URL_RE =
-  /https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\]|[a-z0-9-]+\.localhost)(?::\d+)?\/(?:browse(?:\/nexafs)?\?nexafsExperiment=|molecules\/[^?\s"'<>]+\?nexafsExperiment=)/i;
+  /https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\]|[a-z0-9-]+\.localhost)(?::\d+)?\/(?:browse(?:\/nexafs)?\?nexafsExperiment=|molecules\/[^?\s"'<>]+\?nexafsExperiment=|d\/[0-9a-hjkmnp-tv-z]{8})/i;
 
 const LEGACY_BROWSE_EXPERIMENT_URL_RE =
   /\/browse(?:\/nexafs)?\?nexafsExperiment=[0-9a-fA-F-]{36}/i;
@@ -137,7 +157,9 @@ export function descriptionContainsLegacyBrowseExperimentUrl(
  * @param text - Zenodo description HTML.
  * @returns `true` when the description should be rebuilt to the molecule deep-link form.
  */
-export function descriptionNeedsAtlasExperimentUrlRepair(text: string): boolean {
+export function descriptionNeedsAtlasExperimentUrlRepair(
+  text: string,
+): boolean {
   if (descriptionContainsLoopbackAtlasUrl(text)) return true;
   return descriptionContainsLegacyBrowseExperimentUrl(text);
 }

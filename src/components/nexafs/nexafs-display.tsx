@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { Atom, Heart, TriangleRight } from "lucide-react";
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { Chip, Tooltip } from "@heroui/react";
 import { cn } from "@heroui/styles";
+import dynamic from "next/dynamic";
 import { trpc } from "~/trpc/client";
 import {
   CompactCardMetricsColumn,
@@ -25,15 +26,44 @@ import { useRealtimeExperimentFavorites } from "~/hooks/useRealtimeExperimentFav
 import {
   NEXAFS_EXPERIMENT_SEARCH_PARAM,
   parseNexafsExperimentSearchParam,
+  pathnameWithoutNexafsExperimentDeepLink,
 } from "~/lib/nexafs-experiment-deep-link";
+import { buildPublicAtlasDatasetCitationUrl } from "~/lib/atlas-citation-url";
+import { nexafsExperimentCardDomId } from "~/lib/scroll-nexafs-experiment-card";
 import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
 import { ExperimentAttributionEditSection } from "~/features/process-nexafs/ui/experiment-attribution-edit-section";
 import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
-import { NexafsDatasetDoiCiteControl } from "~/components/nexafs/nexafs-dataset-doi-cite-control";
+import { NexafsDatasetCitationHead } from "~/components/nexafs/nexafs-dataset-citation-head";
 import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
 import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
-import type { NexafsBrowseLinkedPublication, NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
+import type {
+  NexafsBrowseLinkedPublication,
+  NexafsBrowseSourcePublication,
+} from "~/types/nexafs-browse";
+import {
+  buildNexafsDatasetCitationTitle,
+  buildDatasetBibTeXNote,
+  resolveCitationCreatorDisplayName,
+} from "~/lib/dataset-citation";
+import { contributorCitationSortKey } from "~/lib/datacite-contributor-types";
+
+const NexafsDatasetDoiCiteControl = dynamic(
+  () =>
+    import("~/components/nexafs/nexafs-dataset-doi-cite-control").then(
+      (m) => m.NexafsDatasetDoiCiteControl,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <span
+        className="border-border bg-surface inline-flex h-8 min-w-[7.5rem] shrink-0 rounded-full border"
+        aria-hidden
+      />
+    ),
+  },
+);
+
 function trpcKeyMatchesExperimentsProcedure(
   queryKey: readonly unknown[],
   procedure: "browseList" | "browseSearch",
@@ -180,6 +210,8 @@ export type NexafsExperimentCompactCardProps = {
   linkedPublications: NexafsBrowseLinkedPublication[];
   sourcePublications: NexafsBrowseSourcePublication[];
   ingestVerified: boolean;
+  /** Opaque short id for `/d/{id}`; null until assigned. */
+  atlasDatasetId?: string | null;
   datasetDoi: string | null;
   zenodoRecordUrl: string | null;
   zenodoDepositState: "pending" | "depositing" | "published" | "failed" | null;
@@ -202,7 +234,9 @@ export type NexafsExperimentCompactCardProps = {
   citationYear?: number;
   /**
    * When true, expands the spectrum panel on mount (e.g. deep-link match from the
-   * parent list). The card also expands when `?nexafsExperiment=` matches `experimentId`.
+   * parent list). The card also expands when `?nexafsExperiment=` matches
+   * `experimentId`. The browse section scrolls that card into view after load,
+   * and collapsing clears the query param from the address bar.
    */
   defaultExpanded?: boolean;
 };
@@ -228,6 +262,7 @@ export function NexafsExperimentCompactCard({
   linkedPublications,
   sourcePublications,
   ingestVerified,
+  atlasDatasetId = null,
   datasetDoi,
   zenodoRecordUrl,
   zenodoDepositState,
@@ -240,29 +275,71 @@ export function NexafsExperimentCompactCard({
   const user = session?.user;
   const isSignedIn = !!user;
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const cardRef = useRef<HTMLDivElement>(null);
-  const deepLinkScrollDoneRef = useRef(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [spectrumExpanded, setSpectrumExpanded] = useState(false);
+  const [spectrumFetchEnabled, setSpectrumFetchEnabled] = useState(false);
   const [optimisticFavoriteDelta, setOptimisticFavoriteDelta] = useState(0);
   const [optimisticUserFavorited, setOptimisticUserFavorited] = useState<
     boolean | null
   >(null);
 
+  const deepLinkTargetId = parseNexafsExperimentSearchParam(
+    searchParams.get(NEXAFS_EXPERIMENT_SEARCH_PARAM),
+  );
+  const isDeepLinkTarget =
+    deepLinkTargetId !== null && deepLinkTargetId === experimentId;
+
   useLayoutEffect(() => {
-    const targetId = parseNexafsExperimentSearchParam(
-      searchParams.get(NEXAFS_EXPERIMENT_SEARCH_PARAM),
-    );
-    const shouldExpand =
-      defaultExpanded ||
-      (targetId !== null && targetId === experimentId);
+    const shouldExpand = defaultExpanded || isDeepLinkTarget;
     if (!shouldExpand) return;
     setSpectrumExpanded(true);
-    if (deepLinkScrollDoneRef.current) return;
-    deepLinkScrollDoneRef.current = true;
-    cardRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [defaultExpanded, experimentId, searchParams]);
+  }, [defaultExpanded, isDeepLinkTarget]);
+
+  useEffect(() => {
+    if (!spectrumExpanded) {
+      setSpectrumFetchEnabled(false);
+      return;
+    }
+    if (!isDeepLinkTarget && !defaultExpanded) {
+      setSpectrumFetchEnabled(true);
+      return;
+    }
+    let idleHandle: number | undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const ric = (
+        window as Window & {
+          requestIdleCallback?: (
+            cb: () => void,
+            opts?: { timeout: number },
+          ) => number;
+        }
+      ).requestIdleCallback;
+      if (typeof ric === "function") {
+        idleHandle = ric(() => setSpectrumFetchEnabled(true), {
+          timeout: 400,
+        });
+      } else {
+        idleHandle = window.setTimeout(() => setSpectrumFetchEnabled(true), 0);
+      }
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (idleHandle === undefined) return;
+      const cic = (
+        window as Window & {
+          cancelIdleCallback?: (id: number) => void;
+        }
+      ).cancelIdleCallback;
+      if (typeof cic === "function") {
+        cic(idleHandle);
+      } else {
+        window.clearTimeout(idleHandle);
+      }
+    };
+  }, [spectrumExpanded, isDeepLinkTarget, defaultExpanded]);
 
   const {
     favoriteCount: realtimeFavoriteCount,
@@ -321,9 +398,26 @@ export function NexafsExperimentCompactCard({
   const previewGradient = getPreviewGradient(previewMolecule);
   const hasImage = Boolean(imageurl?.trim());
 
+  const clearNexafsExperimentDeepLink = useCallback(() => {
+    const next = pathnameWithoutNexafsExperimentDeepLink(
+      pathname,
+      searchParams.toString(),
+      experimentId,
+    );
+    if (next === null) return;
+    router.replace(next, { scroll: false });
+  }, [experimentId, pathname, router, searchParams]);
+
   const toggleSpectrumExpanded = useCallback(() => {
-    setSpectrumExpanded((open) => !open);
-  }, []);
+    setSpectrumExpanded((open) => {
+      if (open) {
+        queueMicrotask(() => {
+          clearNexafsExperimentDeepLink();
+        });
+      }
+      return !open;
+    });
+  }, [clearNexafsExperimentDeepLink]);
 
   const readOnlyContributorUsers = nexafsContributorAvatarUsers(
     experimentContributorUsers,
@@ -343,12 +437,55 @@ export function NexafsExperimentCompactCard({
   const instrumentClass = instrumentChipClass(instrumentName, facilityName);
   const experimentTypeClass = experimentTypeChipClass(experimentTypeLabel);
   const instrumentFacilityLabel = `${instrumentName} | ${facilityLine}`;
+  const citationCreators = [...experimentContributorUsers]
+    .sort((a, b) => {
+      const keyDelta =
+        contributorCitationSortKey(a.roles) -
+        contributorCitationSortKey(b.roles);
+      if (keyDelta !== 0) return keyDelta;
+      return (a.name ?? a.orcid).localeCompare(b.name ?? b.orcid);
+    })
+    .map((person) =>
+      resolveCitationCreatorDisplayName({
+        name: person.name,
+        orcid: person.orcid,
+      }),
+    )
+    .filter((name): name is string => name !== null);
+  const citationYearResolved = citationYear ?? new Date().getUTCFullYear();
+  const atlasCitationUrl = atlasDatasetId
+    ? buildPublicAtlasDatasetCitationUrl(atlasDatasetId)
+    : null;
+  const citationTitle = buildNexafsDatasetCitationTitle({
+    moleculeDisplayName: displayName,
+    edgeLabel,
+    instrumentName,
+    facilityName,
+    experimentTypeLabel,
+  });
+  const citationNote = buildDatasetBibTeXNote({
+    edgeLabel,
+    instrumentName,
+    facilityName,
+    experimentTypeLabel,
+    sample: citationSample,
+    datasetDoi,
+    atlasCitationUrl,
+  });
   return (
     <div
-      ref={cardRef}
-      id={`nexafs-experiment-${experimentId}`}
-      className="border-border-default @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:border-border-default dark:bg-zinc-800"
+      id={nexafsExperimentCardDomId(experimentId)}
+      className="border-border-default dark:border-border-default @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:bg-zinc-800"
     >
+      <NexafsDatasetCitationHead
+        active={spectrumExpanded}
+        title={citationTitle}
+        authors={citationCreators}
+        year={citationYearResolved}
+        datasetDoi={datasetDoi}
+        atlasCitationUrl={atlasCitationUrl}
+        description={citationNote}
+      />
       <div
         aria-expanded={spectrumExpanded}
         onClick={toggleSpectrumExpanded}
@@ -421,9 +558,9 @@ export function NexafsExperimentCompactCard({
                 {edgeLabel}
               </span>
               <Tooltip delay={0}>
-                <Tooltip.Trigger className="inline-flex min-w-0 max-w-[74%] shrink">
+                <Tooltip.Trigger className="inline-flex max-w-[74%] min-w-0 shrink">
                   <span
-                    className={`inline-flex h-4.5 min-w-0 max-w-full items-center truncate rounded-full border px-1.5 font-medium ${instrumentClass}`}
+                    className={`inline-flex h-4.5 max-w-full min-w-0 items-center truncate rounded-full border px-1.5 font-medium ${instrumentClass}`}
                     title={instrumentFacilityLabel}
                   >
                     <span className="truncate @3xl/nexafscard:hidden">
@@ -450,155 +587,154 @@ export function NexafsExperimentCompactCard({
           </div>
         </div>
         <div className="relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:ml-auto @md/nexafscard:gap-x-3 @md/nexafscard:gap-y-0 @md/nexafscard:border-t-0 @md/nexafscard:pt-0 @md/nexafscard:pl-4 dark:border-zinc-600">
-        <div className="flex shrink-0 items-center self-center border-r border-zinc-200 pr-2 @md/nexafscard:pr-3 dark:border-zinc-600">
-          <NexafsDatasetDoiCiteControl
-            experimentId={experimentId}
-            datasetDoi={datasetDoi}
-            zenodoRecordUrl={zenodoRecordUrl}
-            zenodoDepositState={zenodoDepositState}
-            moleculeDisplayName={displayName}
-            edgeLabel={edgeLabel}
-            instrumentName={instrumentName}
-            facilityName={facilityName}
-            experimentTypeLabel={experimentTypeLabel}
-            sourcePublications={sourcePublications}
-            citationCreators={experimentContributorUsers
-              .map((person) => person.name?.trim() ?? "")
-              .filter((name) => name.length > 0)}
-            citationYear={citationYear}
-            citationSample={citationSample}
-          />
-        </div>
-        <Link
-          href={moleculeHref}
-          className={cn(
-            "focus-visible:ring-accent group/to-molecule inline-flex max-w-full shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-          )}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <Chip
-            variant="soft"
-            color="accent"
-            size="md"
-            className={cn(
-              "max-w-full cursor-pointer shadow-sm backdrop-blur-sm",
-              "motion-safe:transition-[background-color,border-color,box-shadow] motion-safe:duration-200",
-              "group-hover/to-molecule:border-accent/45 group-hover/to-molecule:bg-accent/12 group-hover/to-molecule:shadow-md",
-              "dark:border dark:border-accent/55 dark:bg-accent/28 dark:shadow-md dark:backdrop-blur-none",
-              "dark:group-hover/to-molecule:border-accent/80 dark:group-hover/to-molecule:bg-accent/42 dark:group-hover/to-molecule:shadow-lg",
-            )}
-          >
-            <Chip.Label
-              className={cn(
-                "min-w-0 font-medium",
-                "text-accent dark:text-accent-foreground",
-              )}
-            >
-              To molecule
-            </Chip.Label>
-            <ChevronRightIcon
-              className={cn(
-                "size-4 shrink-0 text-accent opacity-75 motion-safe:transition-[transform,opacity] motion-safe:duration-200 dark:text-accent-foreground dark:opacity-90",
-                "group-hover/to-molecule:translate-x-0.5 group-hover/to-molecule:opacity-100",
-              )}
-              aria-hidden
+          <div className="flex shrink-0 items-center self-center border-r border-zinc-200 pr-2 @md/nexafscard:pr-3 dark:border-zinc-600">
+            <NexafsDatasetDoiCiteControl
+              experimentId={experimentId}
+              atlasDatasetId={atlasDatasetId}
+              datasetDoi={datasetDoi}
+              zenodoRecordUrl={zenodoRecordUrl}
+              zenodoDepositState={zenodoDepositState}
+              moleculeDisplayName={displayName}
+              edgeLabel={edgeLabel}
+              instrumentName={instrumentName}
+              facilityName={facilityName}
+              experimentTypeLabel={experimentTypeLabel}
+              sourcePublications={sourcePublications}
+              citationCreators={citationCreators}
+              citationYear={citationYearResolved}
+              citationSample={citationSample}
             />
-          </Chip>
-        </Link>
-        <div
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <NexafsDatasetMetricsRail
-            metrics={datasetMetrics}
-            className="relative z-50"
-          />
-        </div>
-        <div
-          className="flex min-w-0 max-w-full items-center gap-1.5"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <ExperimentAttributionEditSection
-            experimentId={experimentId}
-            enabled
-            variant="inline"
-            readOnlyFallback={readOnlyContributorAvatars}
-            skeletonAvatarCount={Math.max(1, readOnlyContributorUsers.length)}
-            skeletonTrailingSlotCount={2}
-          />
-        </div>
-        <CompactCardMetricsColumn className="relative z-40">
-          {isSignedIn ? (
-            <Tooltip delay={0}>
-              <Tooltip.Trigger className="inline-flex shrink-0 justify-end">
-                <span
-                  tabIndex={favoriteMutation.isPending ? 0 : undefined}
-                  className="inline-flex"
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleFavorite();
-                    }}
-                    disabled={favoriteMutation.isPending}
-                    aria-label={
-                      displayUserHasUpvoted ? "Unfavorite" : "Favorite"
-                    }
-                    className={`flex items-center gap-1 text-xs leading-none font-medium tabular-nums transition-colors hover:opacity-80 disabled:opacity-50 ${
-                      displayUserHasUpvoted
-                        ? "text-pink-500"
-                        : "text-text-tertiary"
-                    }`}
-                  >
-                    <Heart
-                      className={`h-3.5 w-3.5 shrink-0 ${
-                        displayUserHasUpvoted
-                          ? "fill-pink-500 text-pink-500"
-                          : ""
-                      }`}
-                      aria-hidden
-                    />
-                    {displayUpvoteCount}
-                  </button>
-                </span>
-              </Tooltip.Trigger>
-              <Tooltip.Content placement="left">
-                {favoriteMutation.isPending
-                  ? "Favorite is updating"
-                  : displayUserHasUpvoted
-                    ? "Remove favorite"
-                    : "Add favorite"}
-              </Tooltip.Content>
-            </Tooltip>
-          ) : (
-            <span
-              className={`inline-flex shrink-0 items-center gap-1 text-xs leading-none font-medium tabular-nums ${
-                displayUserHasUpvoted ? "text-pink-500" : "text-text-tertiary"
-              }`}
+          </div>
+          <Link
+            href={moleculeHref}
+            className={cn(
+              "focus-visible:ring-accent group/to-molecule focus-visible:ring-offset-background inline-flex max-w-full shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+            )}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <Chip
+              variant="soft"
+              color="accent"
+              size="md"
+              className={cn(
+                "max-w-full cursor-pointer shadow-sm backdrop-blur-sm",
+                "motion-safe:transition-[background-color,border-color,box-shadow] motion-safe:duration-200",
+                "group-hover/to-molecule:border-accent/45 group-hover/to-molecule:bg-accent/12 group-hover/to-molecule:shadow-md",
+                "dark:border-accent/55 dark:bg-accent/28 dark:border dark:shadow-md dark:backdrop-blur-none",
+                "dark:group-hover/to-molecule:border-accent/80 dark:group-hover/to-molecule:bg-accent/42 dark:group-hover/to-molecule:shadow-lg",
+              )}
             >
-              <Heart
-                className={`h-3.5 w-3.5 shrink-0 ${
-                  displayUserHasUpvoted ? "fill-pink-500 text-pink-500" : ""
-                }`}
+              <Chip.Label
+                className={cn(
+                  "min-w-0 font-medium",
+                  "text-accent dark:text-accent-foreground",
+                )}
+              >
+                To molecule
+              </Chip.Label>
+              <ChevronRightIcon
+                className={cn(
+                  "text-accent dark:text-accent-foreground size-4 shrink-0 opacity-75 motion-safe:transition-[transform,opacity] motion-safe:duration-200 dark:opacity-90",
+                  "group-hover/to-molecule:translate-x-0.5 group-hover/to-molecule:opacity-100",
+                )}
                 aria-hidden
               />
-              {displayUpvoteCount}
-            </span>
-          )}
-          <CompactCardMetricStat
-            icon={
-              <TriangleRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            }
-            value={formatCompactMetricCount(polarizationCount)}
-            textClassName="text-[10px] text-cyan-500"
-            title="Geometries"
-          />
-        </CompactCardMetricsColumn>
-      </div>
+            </Chip>
+          </Link>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <NexafsDatasetMetricsRail
+              metrics={datasetMetrics}
+              className="relative z-50"
+            />
+          </div>
+          <div
+            className="flex max-w-full min-w-0 items-center gap-1.5"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <ExperimentAttributionEditSection
+              experimentId={experimentId}
+              enabled
+              variant="inline"
+              readOnlyFallback={readOnlyContributorAvatars}
+              skeletonAvatarCount={Math.max(1, readOnlyContributorUsers.length)}
+              skeletonTrailingSlotCount={2}
+            />
+          </div>
+          <CompactCardMetricsColumn className="relative z-40">
+            {isSignedIn ? (
+              <Tooltip delay={0}>
+                <Tooltip.Trigger className="inline-flex shrink-0 justify-end">
+                  <span
+                    tabIndex={favoriteMutation.isPending ? 0 : undefined}
+                    className="inline-flex"
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleFavorite();
+                      }}
+                      disabled={favoriteMutation.isPending}
+                      aria-label={
+                        displayUserHasUpvoted ? "Unfavorite" : "Favorite"
+                      }
+                      className={`flex items-center gap-1 text-xs leading-none font-medium tabular-nums transition-colors hover:opacity-80 disabled:opacity-50 ${
+                        displayUserHasUpvoted
+                          ? "text-pink-500"
+                          : "text-text-tertiary"
+                      }`}
+                    >
+                      <Heart
+                        className={`h-3.5 w-3.5 shrink-0 ${
+                          displayUserHasUpvoted
+                            ? "fill-pink-500 text-pink-500"
+                            : ""
+                        }`}
+                        aria-hidden
+                      />
+                      {displayUpvoteCount}
+                    </button>
+                  </span>
+                </Tooltip.Trigger>
+                <Tooltip.Content placement="left">
+                  {favoriteMutation.isPending
+                    ? "Favorite is updating"
+                    : displayUserHasUpvoted
+                      ? "Remove favorite"
+                      : "Add favorite"}
+                </Tooltip.Content>
+              </Tooltip>
+            ) : (
+              <span
+                className={`inline-flex shrink-0 items-center gap-1 text-xs leading-none font-medium tabular-nums ${
+                  displayUserHasUpvoted ? "text-pink-500" : "text-text-tertiary"
+                }`}
+              >
+                <Heart
+                  className={`h-3.5 w-3.5 shrink-0 ${
+                    displayUserHasUpvoted ? "fill-pink-500 text-pink-500" : ""
+                  }`}
+                  aria-hidden
+                />
+                {displayUpvoteCount}
+              </span>
+            )}
+            <CompactCardMetricStat
+              icon={
+                <TriangleRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              }
+              value={formatCompactMetricCount(polarizationCount)}
+              textClassName="text-[10px] text-cyan-500"
+              title="Geometries"
+            />
+          </CompactCardMetricsColumn>
+        </div>
       </div>
       <div
         className={cn(
@@ -610,7 +746,7 @@ export function NexafsExperimentCompactCard({
           <div className="w-full min-w-0 border-t border-zinc-200 px-3 pt-3 pb-3 dark:border-zinc-600">
             <NexafsExperimentDatasetPanel
               experimentId={experimentId}
-              enabled={spectrumExpanded}
+              enabled={spectrumFetchEnabled}
             />
           </div>
         </div>

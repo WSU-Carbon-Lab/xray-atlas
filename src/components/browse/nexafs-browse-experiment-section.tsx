@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useMemo,
-} from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "~/trpc/client";
 import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
 import {
@@ -18,13 +15,19 @@ import { BrowseTabs } from "@/components/layout/browse-tabs";
 import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseHeader } from "@/components/browse/browse-header";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
-import { BrowseSortButton, type BrowseSortOption } from "@/components/browse/browse-sort-button";
+import {
+  BrowseSortButton,
+  type BrowseSortOption,
+} from "@/components/browse/browse-sort-button";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
 import { NexafsExperimentCompactSkeleton } from "@/components/feedback/loading-state";
 import { NexafsExperimentCompactCard } from "@/components/nexafs/nexafs-display";
 import { AddNexafsCard } from "@/components/contribute";
 import { Pagination } from "@heroui/react";
-import { NEXAFS_SORT_LABELS, type NexafsBrowseSortKey } from "./nexafs-browse-experiment-utils";
+import {
+  NEXAFS_SORT_LABELS,
+  type NexafsBrowseSortKey,
+} from "./nexafs-browse-experiment-utils";
 import { mapNexafsBrowseGroupToCard } from "./nexafs-browse-map-group";
 import {
   useFacetSelection,
@@ -35,6 +38,7 @@ import {
   NEXAFS_EXPERIMENT_SEARCH_PARAM,
   parseNexafsExperimentSearchParam,
 } from "~/lib/nexafs-experiment-deep-link";
+import { scheduleScrollNexafsExperimentCardIntoView } from "~/lib/scroll-nexafs-experiment-card";
 import { useSearchParams } from "next/navigation";
 
 const NEXAFS_SORT_OPTIONS: Array<BrowseSortOption<NexafsBrowseSortKey>> = [
@@ -67,7 +71,7 @@ const NEXAFS_SORT_OPTIONS: Array<BrowseSortOption<NexafsBrowseSortKey>> = [
     key: "name",
     label: NEXAFS_SORT_LABELS.name,
     icon: (
-      <span className="font-mono text-sm font-semibold leading-none">A</span>
+      <span className="font-mono text-sm leading-none font-semibold">A</span>
     ),
   },
   {
@@ -117,7 +121,10 @@ export function NexafsBrowseExperimentSection({
     searchParams.get(NEXAFS_EXPERIMENT_SEARCH_PARAM),
   );
 
+  const skipGlobalFacets = variant === "embedded" && Boolean(lockedMoleculeId);
+
   const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
+    enabled: !skipGlobalFacets,
     staleTime: 120_000,
     gcTime: 300_000,
   });
@@ -176,6 +183,7 @@ export function NexafsBrowseExperimentSection({
   }, [searchEntitiesQuery.data]);
 
   const edgesQuery = trpc.experiments.listEdges.useQuery(undefined, {
+    enabled: !skipGlobalFacets,
     staleTime: 300_000,
     gcTime: 600_000,
   });
@@ -187,15 +195,23 @@ export function NexafsBrowseExperimentSection({
 
   const hasSearchQuery = debouncedQuery.trim().length > 0;
 
+  const listQueryReady =
+    urlSynced ||
+    Boolean(lockedMoleculeId) ||
+    Boolean(deepLinkExperimentId);
+
   const effectiveMoleculeIds: string[] = lockedMoleculeId
     ? [lockedMoleculeId]
     : selection.mol;
 
   const commonFilters = {
-    moleculeIds: effectiveMoleculeIds.length > 0 ? effectiveMoleculeIds : undefined,
+    moleculeIds:
+      effectiveMoleculeIds.length > 0 ? effectiveMoleculeIds : undefined,
     edgeIds: selection.edge.length > 0 ? selection.edge : undefined,
-    instrumentIds: selection.instrument.length > 0 ? selection.instrument : undefined,
-    contributorOrcids: selection.contributor.length > 0 ? selection.contributor : undefined,
+    instrumentIds:
+      selection.instrument.length > 0 ? selection.instrument : undefined,
+    contributorOrcids:
+      selection.contributor.length > 0 ? selection.contributor : undefined,
     experimentType: catalogFilters.experimentType,
     verifiedOnly: catalogFilters.verifiedOnly,
     verificationSource: catalogFilters.verificationSource,
@@ -203,9 +219,7 @@ export function NexafsBrowseExperimentSection({
 
   const browseListFilters = {
     ...commonFilters,
-    ...(deepLinkExperimentId
-      ? { experimentIds: [deepLinkExperimentId] }
-      : {}),
+    ...(deepLinkExperimentId ? { experimentIds: [deepLinkExperimentId] } : {}),
   };
 
   const searchData = trpc.experiments.browseSearch.useQuery(
@@ -217,7 +231,7 @@ export function NexafsBrowseExperimentSection({
       ...commonFilters,
     },
     {
-      enabled: urlSynced && hasSearchQuery,
+      enabled: listQueryReady && hasSearchQuery,
       staleTime: 30_000,
       gcTime: 300_000,
     },
@@ -231,23 +245,41 @@ export function NexafsBrowseExperimentSection({
       ...browseListFilters,
     },
     {
-      enabled: urlSynced && !hasSearchQuery,
+      enabled: listQueryReady && !hasSearchQuery,
       staleTime: 30_000,
       gcTime: 300_000,
     },
   );
 
   const data = hasSearchQuery
-    ? { groups: searchData.data?.groups ?? [], total: searchData.data?.total ?? 0 }
+    ? {
+        groups: searchData.data?.groups ?? [],
+        total: searchData.data?.total ?? 0,
+      }
     : { groups: allData.data?.groups ?? [], total: allData.data?.total ?? 0 };
 
   const isLoading =
-    !urlSynced || (hasSearchQuery ? searchData.isLoading : allData.isLoading);
+    !listQueryReady ||
+    (hasSearchQuery ? searchData.isLoading : allData.isLoading);
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;
-  const refetchResults = hasSearchQuery
-    ? searchData.refetch
-    : allData.refetch;
+  const refetchResults = hasSearchQuery ? searchData.refetch : allData.refetch;
+
+  const deepLinkScrollDoneRef = useRef(false);
+  const hasDeepLinkGroup =
+    deepLinkExperimentId !== null &&
+    data.groups.some((group) => group.experimentId === deepLinkExperimentId);
+  useEffect(() => {
+    if (!deepLinkExperimentId || isLoading || isError || !hasDeepLinkGroup) {
+      return;
+    }
+    if (deepLinkScrollDoneRef.current) return;
+    return scheduleScrollNexafsExperimentCardIntoView(deepLinkExperimentId, {
+      onSettled: () => {
+        deepLinkScrollDoneRef.current = true;
+      },
+    });
+  }, [deepLinkExperimentId, isLoading, isError, hasDeepLinkGroup]);
 
   const totalPages = Math.max(1, Math.ceil((data.total ?? 0) / itemsPerPage));
 
@@ -256,8 +288,7 @@ export function NexafsBrowseExperimentSection({
     setQuery("");
   };
 
-  const hasAnyFilter =
-    tokens.length > 0 || debouncedQuery.trim().length > 0;
+  const hasAnyFilter = tokens.length > 0 || debouncedQuery.trim().length > 0;
 
   const pageSubtitle = hasSearchQuery
     ? `Search results for "${debouncedQuery}"`
@@ -283,9 +314,7 @@ export function NexafsBrowseExperimentSection({
             selectedEdgeIds={selection.edge}
             onEdgesChange={(ids) => {
               const toAdd = ids.filter((id) => !selection.edge.includes(id));
-              const toRemove = selection.edge.filter(
-                (id) => !ids.includes(id),
-              );
+              const toRemove = selection.edge.filter((id) => !ids.includes(id));
               for (const id of toRemove) remove("edge", id);
               for (const id of toAdd) add("edge", id);
             }}
@@ -306,7 +335,11 @@ export function NexafsBrowseExperimentSection({
 
       <div>
         {isLoading && (
-          <div className="space-y-3" aria-busy aria-label="Loading NEXAFS experiments">
+          <div
+            className="space-y-3"
+            aria-busy
+            aria-label="Loading NEXAFS experiments"
+          >
             {Array.from({ length: itemsPerPage }).map((_, i) => (
               <NexafsExperimentCompactSkeleton key={i} />
             ))}
@@ -372,30 +405,29 @@ export function NexafsBrowseExperimentSection({
                         onPress={() =>
                           setCurrentPage(Math.max(1, currentPage - 1))
                         }
-                        className="rounded-lg border border-border bg-surface"
+                        className="border-border bg-surface rounded-lg border"
                       >
                         <Pagination.PreviousIcon />
                       </Pagination.Previous>
                     </Pagination.Item>
                     {totalPages <= 20
-                      ? Array.from(
-                          { length: totalPages },
-                          (_, i) => i + 1,
-                        ).map((p) => (
-                          <Pagination.Item key={p}>
-                            <Pagination.Link
-                              isActive={p === currentPage}
-                              onPress={() => setCurrentPage(p)}
-                              className={`rounded-lg border border-border bg-surface text-foreground ${
-                                p === currentPage
-                                  ? "border-accent bg-accent text-accent-foreground"
-                                  : ""
-                              }`}
-                            >
-                              {p}
-                            </Pagination.Link>
-                          </Pagination.Item>
-                        ))
+                      ? Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                          (p) => (
+                            <Pagination.Item key={p}>
+                              <Pagination.Link
+                                isActive={p === currentPage}
+                                onPress={() => setCurrentPage(p)}
+                                className={`border-border bg-surface text-foreground rounded-lg border ${
+                                  p === currentPage
+                                    ? "border-accent bg-accent text-accent-foreground"
+                                    : ""
+                                }`}
+                              >
+                                {p}
+                              </Pagination.Link>
+                            </Pagination.Item>
+                          ),
+                        )
                       : null}
                     {totalPages > 20 ? (
                       <Pagination.Item>
@@ -411,7 +443,7 @@ export function NexafsBrowseExperimentSection({
                         onPress={() =>
                           setCurrentPage(Math.min(totalPages, currentPage + 1))
                         }
-                        className="rounded-lg border border-border bg-surface"
+                        className="border-border bg-surface rounded-lg border"
                       >
                         <Pagination.NextIcon />
                       </Pagination.Next>

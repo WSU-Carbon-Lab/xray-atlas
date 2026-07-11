@@ -5,7 +5,10 @@ import {
 } from "bun:test";
 import type { PrismaClient } from "~/prisma/client";
 import { mintExperimentDatasetDoi } from "~/server/zenodo/mint-experiment-dataset-doi";
-import type { ZenodoClient, ZenodoDeposition } from "~/server/zenodo/zenodo-client";
+import type {
+  ZenodoClient,
+  ZenodoDeposition,
+} from "~/server/zenodo/zenodo-client";
 
 type ExpectAssertions = {
   toBe: (expected: unknown) => void;
@@ -14,10 +17,7 @@ type ExpectAssertions = {
 };
 
 const describe = bunDescribe as (name: string, fn: () => void) => void;
-const it = bunIt as (
-  name: string,
-  fn: () => void | Promise<void>,
-) => void;
+const it = bunIt as (name: string, fn: () => void | Promise<void>) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
 const EXPERIMENT_ID = "22222222-2222-2222-2222-222222222222";
@@ -52,10 +52,99 @@ function createMockDb(options?: {
     datasetdoi: null as string | null,
     hasdatasetdoi: false,
   };
+  const experimentRow = {
+    atlasdatasetid: "k7m2xq4n" as string | null,
+  };
+
+  const experimentGraph = () => ({
+    id: EXPERIMENT_ID,
+    atlasdatasetid: experimentRow.atlasdatasetid,
+    canonicalslug: "demo-c-k-tey-1",
+    experimenttype: "TOTAL_ELECTRON_YIELD",
+    edges: { targetatom: "C", corestate: "K" },
+    instruments: {
+      name: "5.3.2.2",
+      facilities: { name: "ALS" },
+    },
+    samples: {
+      processmethod: null,
+      substrate: null,
+      patterninglayer: null,
+      solvent: null,
+      thickness: null,
+      molecularweight: null,
+      vendors: null,
+      molecules: {
+        iupacname: "Polystyrene",
+        chemicalformula: "C8H8",
+        moleculesynonyms: [{ synonym: "PS", slug: "ps", order: 0 }],
+      },
+    },
+    experimentcontributors: [
+      {
+        orcidid: "0000-0002-1825-0097",
+        role: "DataCurator",
+        claimstatus: "accepted",
+        user: { name: "Jane Doe", id: "0000-0002-1825-0097" },
+      },
+    ],
+    experimentpublications: [{ publications: { doi: "10.1000/source" } }],
+  });
 
   const db = {
     experimentzenododeposits: {
       findUnique: async () => depositRow.current,
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        if (depositRow.current) {
+          throw new Error("unique violation");
+        }
+        depositRow.current = {
+          state:
+            (data.state as NonNullable<typeof depositRow.current>["state"]) ??
+            "depositing",
+          doi: (data.doi as string | null | undefined) ?? null,
+          recordurl: (data.recordurl as string | null | undefined) ?? null,
+          zenododepositionid:
+            (data.zenododepositionid as number | null | undefined) ?? null,
+        };
+        return depositRow.current;
+      },
+      updateMany: async ({
+        where: _where,
+        data,
+      }: {
+        where: {
+          experimentid: string;
+          OR?: Array<Record<string, unknown>>;
+          state?: { in: string[] };
+        };
+        data: Record<string, unknown>;
+      }) => {
+        if (!depositRow.current) return { count: 0 };
+        const state = depositRow.current.state;
+        const claimable =
+          state === "pending" || state === "failed" || state === "depositing";
+        if (!claimable) return { count: 0 };
+        depositRow.current = {
+          ...depositRow.current,
+          state:
+            (data.state as typeof depositRow.current.state) ??
+            depositRow.current.state,
+          doi:
+            data.doi === undefined
+              ? depositRow.current.doi
+              : (data.doi as string | null),
+          recordurl:
+            data.recordurl === undefined
+              ? depositRow.current.recordurl
+              : (data.recordurl as string | null),
+          zenododepositionid:
+            data.zenododepositionid === undefined
+              ? depositRow.current.zenododepositionid
+              : (data.zenododepositionid as number | null),
+        };
+        return { count: 1 };
+      },
       upsert: async ({
         create,
         update,
@@ -65,7 +154,10 @@ function createMockDb(options?: {
       }) => {
         if (!depositRow.current) {
           depositRow.current = {
-            state: (create.state as NonNullable<typeof depositRow.current>["state"]) ?? "depositing",
+            state:
+              (create.state as NonNullable<
+                typeof depositRow.current
+              >["state"]) ?? "depositing",
             doi: (create.doi as string | null | undefined) ?? null,
             recordurl: (create.recordurl as string | null | undefined) ?? null,
             zenododepositionid:
@@ -124,34 +216,45 @@ function createMockDb(options?: {
     experiments: {
       findUnique: async ({ where }: { where: { id: string } }) => {
         if (where.id !== EXPERIMENT_ID) return null;
-        return {
-          id: EXPERIMENT_ID,
-          canonicalslug: "demo-c-k-tey-1",
-          experimenttype: "TOTAL_ELECTRON_YIELD",
-          edges: { targetatom: "C", corestate: "K" },
-          instruments: {
-            name: "5.3.2.2",
-            facilities: { name: "ALS" },
-          },
-          samples: {
-            molecules: {
-              iupacname: "Polystyrene",
-              chemicalformula: "C8H8",
-              moleculesynonyms: [{ synonym: "PS", order: 0 }],
-            },
-          },
-          experimentcontributors: [
-            {
-              orcidid: "0000-0002-1825-0097",
-              role: "DataCurator",
-              user: { name: "Jane Doe", id: "0000-0002-1825-0097" },
-            },
-          ],
-          experimentpublications: [
-            { publications: { doi: "10.1000/source" } },
-          ],
-        };
+        return experimentGraph();
       },
+      update: async ({
+        where,
+        data,
+      }: {
+        where: { id: string };
+        data: { atlasdatasetid?: string | null };
+      }) => {
+        if (where.id !== EXPERIMENT_ID) {
+          throw new Error("not found");
+        }
+        if (data.atlasdatasetid !== undefined) {
+          experimentRow.atlasdatasetid = data.atlasdatasetid;
+        }
+        return experimentGraph();
+      },
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where: { id: string; atlasdatasetid?: null };
+        data: { atlasdatasetid?: string | null };
+      }) => {
+        if (where.id !== EXPERIMENT_ID) return { count: 0 };
+        if (
+          where.atlasdatasetid === null &&
+          experimentRow.atlasdatasetid != null
+        ) {
+          return { count: 0 };
+        }
+        if (data.atlasdatasetid !== undefined) {
+          experimentRow.atlasdatasetid = data.atlasdatasetid;
+        }
+        return { count: 1 };
+      },
+    },
+    user: {
+      findMany: async () => [],
     },
     experimentmetrics: {
       upsert: async ({
@@ -277,5 +380,54 @@ describe("mintExperimentDatasetDoi", () => {
     expect(result.state).toBe("failed");
     expect(result.error).toBe("publish exploded");
     expect(depositRow.current?.state).toBe("failed");
+  });
+
+  it("resumes a submitted deposition without updating metadata", async () => {
+    const { db, metrics } = createMockDb({
+      existingDeposit: {
+        state: "failed",
+        doi: null,
+        recordurl: null,
+        zenododepositionid: 55,
+      },
+    });
+    const calls: string[] = [];
+    const client = {
+      getDeposition: async () => {
+        calls.push("get");
+        return publishedDeposition();
+      },
+      updateDepositionMetadata: async () => {
+        calls.push("update");
+        throw new Error("must not update published deposit without edit");
+      },
+      createDeposition: async () => {
+        throw new Error("must not create");
+      },
+      uploadBucketFile: async () => undefined,
+      publishDeposition: async () => {
+        throw new Error("must not publish again");
+      },
+      editDeposition: async () => {
+        throw new Error("unused");
+      },
+      newVersionDeposition: async () => {
+        throw new Error("unused");
+      },
+      listDepositionFiles: async () => [],
+      deleteDepositionFile: async () => undefined,
+    } as unknown as ZenodoClient;
+
+    const result = await mintExperimentDatasetDoi(db, EXPERIMENT_ID, {
+      client,
+      pollAttempts: 2,
+      pollDelayMs: 0,
+      sleep: async () => undefined,
+    });
+
+    expect(result.state).toBe("published");
+    expect(result.doi).toBe("10.5072/zenodo.55");
+    expect(metrics.datasetdoi).toBe("10.5072/zenodo.55");
+    expect(calls).toEqual(["get"]);
   });
 });

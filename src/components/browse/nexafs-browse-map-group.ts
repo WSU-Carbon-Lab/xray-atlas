@@ -48,6 +48,7 @@ export function mapNexafsBrowseGroupToCard(group: NexafsBrowseGroup) {
       linkedPublications: group.linkedPublications,
       sourcePublications: group.sourcePublications,
       ingestVerified: group.ingestVerified,
+      atlasDatasetId: group.atlasDatasetId,
       datasetDoi: group.datasetDoi,
       zenodoRecordUrl: group.zenodoRecordUrl,
       zenodoDepositState: group.zenodoDepositState,

@@ -184,7 +184,7 @@ describe("loopback and legacy Atlas URL helpers", () => {
 });
 
 describe("buildZenodoDepositMetadata public URL", () => {
-  it("never embeds localhost when snapshot uses the public molecule deep-link", () => {
+  it("embeds the short /d/ citation URL from the snapshot", () => {
     const metadata = buildZenodoDepositMetadata({
       experimentId: EXPERIMENT_ID,
       canonicalSlug: "demo-c-k-tey-1",
@@ -197,18 +197,17 @@ describe("buildZenodoDepositMetadata public URL", () => {
       instrumentName: "5.3.2.2",
       facilityName: "ALS",
       experimentTypeLabel: "TEY",
-      atlasExperimentUrl: buildAtlasExperimentBrowseUrl(
-        EXPERIMENT_ID,
-        "demo",
-        "https://xrayatlas.wsu.edu",
-      ),
+      atlasExperimentUrl: "https://xrayatlas.wsu.edu/d/k7m2xq4n",
+      atlasDatasetId: "k7m2xq4n",
       creators: [{ name: "Doe, Jane" }],
       relatedIdentifiers: [],
+      sample: {},
     });
     expect(metadata.description).toContain(
-      `https://xrayatlas.wsu.edu/molecules/demo?nexafsExperiment=${EXPERIMENT_ID}`,
+      "https://xrayatlas.wsu.edu/d/k7m2xq4n",
     );
     expect(metadata.description).not.toContain("/browse?");
     expect(metadata.description).not.toContain("localhost");
+    expect(metadata.notes).toContain("Atlas dataset id: k7m2xq4n");
   });
 });

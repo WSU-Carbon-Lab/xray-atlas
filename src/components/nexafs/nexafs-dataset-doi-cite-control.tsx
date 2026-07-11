@@ -4,10 +4,9 @@
  * Compact Atlas dataset Cite | doi segmented control for browse card action rows.
  *
  * One horizontal scholarly unit in the trailing cluster (before To molecule):
- * Cite opens a popover with in-text (plus prose example), data-availability,
- * BibTeX, full-reference copy actions, and Zotero / Mendeley deep links when a
- * DOI exists;
- * doi opens Copy DOI / Go to Zenodo when minted, or mints / retries when not.
+ * Cite opens a compact popover (Add to library via Atlas BibTeX for Zotero,
+ * BibTeX and data-availability accordions);
+ * doi opens Copy DOI / Zenodo link when minted, or mints / retries when not.
  * Never dumps the full `10.5281/…` string into the card header.
  *
  * Polling for in-flight deposits is budgeted and stale-aware so hung
@@ -18,6 +17,7 @@
  * is unreliable inside overflow-clipped, click-to-expand browse cards.
  */
 
+import { useSession } from "next-auth/react";
 import {
   useCallback,
   useEffect,
@@ -26,6 +26,7 @@ import {
   useState,
   type ReactNode,
   type RefObject,
+  type SVGProps,
 } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -33,17 +34,17 @@ import {
   Square2StackIcon,
 } from "@heroicons/react/24/outline";
 import { Quote } from "lucide-react";
-import { Button, Spinner } from "@heroui/react";
+import { Accordion, Button, Spinner } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { site } from "~/app/brand";
 import { trpc } from "~/trpc/client";
+import { SimpleDialog } from "~/components/ui/dialog";
 import { ToastContainer, useToast } from "~/components/ui/toast";
 import {
   buildDatasetCitationBundle,
   buildMendeleyImportUrl,
-  buildZoteroSaveUrl,
 } from "~/lib/dataset-citation";
 import { normalizeDoi } from "~/lib/doi";
+import { buildPublicAtlasDatasetCitationUrl } from "~/lib/atlas-citation-url";
 import {
   coerceZenodoDepositUiState,
   resolveZenodoDoiButtonMode,
@@ -51,6 +52,9 @@ import {
   type ZenodoDepositUiState,
 } from "~/lib/zenodo-doi-button-mode";
 import type { NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
+
+/** Official Zotero mark (white-backed PNG) served from `public/brand`. */
+const ZOTERO_LOGO_SRC = "/brand/zotero-logo.png";
 
 const shellClassName =
   "inline-flex h-6 shrink-0 items-stretch overflow-hidden rounded-md border border-border/70 bg-surface/60 text-[11px] leading-none shadow-sm";
@@ -97,17 +101,27 @@ const copyIconButtonClassName =
   "text-text-secondary hover:text-foreground h-7 w-7 min-w-7 shrink-0";
 
 const referenceManagerLinkClassName =
-  "text-text-secondary hover:text-foreground inline-flex h-7 items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-foreground/[0.03] px-2.5 text-[11px] font-medium hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+  "text-text-secondary hover:text-foreground inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-foreground/[0.03] px-2.5 text-[11px] font-medium hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+
+const citeAccordionClass = "w-full min-w-0 gap-1";
+
+const citeAccordionTriggerClass =
+  "text-foreground hover:bg-foreground/5 flex w-full min-w-0 items-center gap-2 rounded-lg px-1 py-2 text-left text-[11px] font-semibold tracking-wide";
+
+const citeAccordionIndicatorClass =
+  "text-muted ml-auto shrink-0 [&>svg]:size-3.5";
 
 const POPOVER_VIEWPORT_PADDING_PX = 12;
 const POPOVER_SIDE_OFFSET_PX = 8;
 const POPOVER_FALLBACK_WIDTH_PX = 416;
-const POPOVER_FALLBACK_HEIGHT_PX = 420;
+const POPOVER_FALLBACK_HEIGHT_PX = 320;
 
 type OpenPopoverId = "cite" | "doi" | null;
 
 export interface NexafsDatasetDoiCiteControlProps {
   experimentId: string;
+  /** Opaque short id for `/d/{id}` citation URLs. */
+  atlasDatasetId?: string | null;
   datasetDoi: string | null;
   zenodoRecordUrl: string | null;
   zenodoDepositState: ZenodoDepositUiState;
@@ -251,6 +265,7 @@ function CardPressPopover({
   const isOpen = openId === id;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const { position, updatePosition } = useCardPressPopoverPosition(
     triggerRef,
     contentRef,
@@ -259,6 +274,21 @@ function CardPressPopover({
 
   useEffect(() => {
     if (!isOpen) return;
+
+    previouslyFocusedRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
+    const focusables = () => {
+      const root = contentRef.current;
+      if (!root) return [] as HTMLElement[];
+      return [
+        ...root.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((el) => !el.hasAttribute("disabled") && el.tabIndex !== -1);
+    };
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
@@ -274,15 +304,44 @@ function CardPressPopover({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         onOpenChange(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const nodes = focusables();
+      if (nodes.length === 0) {
+        event.preventDefault();
+        contentRef.current?.focus();
+        return;
+      }
+      const first = nodes[0]!;
+      const last = nodes[nodes.length - 1]!;
+      const active = document.activeElement;
+      if (event.shiftKey) {
+        if (active === first || !contentRef.current?.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (active === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
+    const triggerEl = triggerRef.current;
     document.addEventListener("pointerdown", handlePointerDown, true);
     document.addEventListener("keydown", handleKeyDown);
+    queueMicrotask(() => {
+      const nodes = focusables();
+      (nodes[0] ?? contentRef.current)?.focus();
+    });
+
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown);
+      const restore = previouslyFocusedRef.current ?? triggerEl;
+      restore?.focus();
     };
   }, [isOpen, onOpenChange]);
 
@@ -299,6 +358,7 @@ function CardPressPopover({
         aria-label={ariaLabel}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
+        aria-controls={isOpen ? `${id}-popover` : undefined}
         title={title}
         className={cn(triggerClassName, isOpen && "bg-foreground/5")}
         onPointerDown={stopCardToggle}
@@ -316,9 +376,12 @@ function CardPressPopover({
               style={{ top: position.top, left: position.left }}
             >
               <div
+                id={`${id}-popover`}
                 ref={contentRef}
                 role="dialog"
+                aria-modal="true"
                 aria-label={ariaLabel}
+                tabIndex={-1}
                 className={popoverShellClassName}
                 onPointerDown={stopCardToggle}
                 onClick={stopCardToggle}
@@ -330,6 +393,19 @@ function CardPressPopover({
           )
         : null}
     </>
+  );
+}
+
+/**
+ * Renders the Font Awesome Brands Mendeley mark (CC BY 4.0 Fonticons).
+ *
+ * @param props - Standard SVG element props; `className` sizes the glyph.
+ */
+function MendeleyMarkIcon(props: SVGProps<SVGSVGElement>): ReactNode {
+  return (
+    <svg viewBox="0 0 640 512" fill="currentColor" aria-hidden {...props}>
+      <path d="M624.6 325.2c-12.3-12.4-29.7-19.2-48.4-17.2-43.3-1-49.7-34.9-37.5-98.8 22.8-57.5-14.9-131.5-87.4-130.8-77.4.7-81.7 82-130.9 82-48.1 0-54-81.3-130.9-82-72.9-.8-110.1 73.3-87.4 130.8 12.2 63.9 5.8 97.8-37.5 98.8-21.2-2.3-37 6.5-53 22.5-19.9 19.7-19.3 94.8 42.6 102.6 47.1 5.9 81.6-42.9 61.2-87.8-47.3-103.7 185.9-106.1 146.5-8.2-.1.1-.2.2-.3.4-26.8 42.8 6.8 97.4 58.8 95.2 52.1 2.1 85.4-52.6 58.8-95.2-.1-.2-.2-.3-.3-.4-39.4-97.9 193.8-95.5 146.5 8.2-4.6 10-6.7 21.3-5.7 33 4.9 53.4 68.7 74.1 104.9 35.2 17.8-14.8 23.1-65.6 0-88.3zm-303.9-19.1h-.6c-43.4 0-62.8-37.5-62.8-62.8 0-34.7 28.2-62.8 62.8-62.8h.6c34.7 0 62.8 28.1 62.8 62.8 0 25-19.2 62.8-62.8 62.8z" />
+    </svg>
   );
 }
 
@@ -354,127 +430,156 @@ function CitationCopyIconButton({
   );
 }
 
-function CitationCopySection({
-  label,
-  text,
-  onCopy,
-  hint,
-  prose,
-}: {
-  label: string;
-  text: string;
-  onCopy: (text: string, label: string) => void;
-  hint?: string;
-  /** When true, render body as readable prose instead of monospace. */
-  prose?: boolean;
-}) {
-  return (
-    <section className="min-w-0">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className={sectionLabelClassName}>{label}</h3>
-          {hint ? <p className={sectionHintClassName}>{hint}</p> : null}
-        </div>
-        <CitationCopyIconButton
-          label={label}
-          onPress={() => {
-            onCopy(text, label);
-          }}
-        />
-      </div>
-      <p className={prose ? sectionProseClassName : sectionBodyClassName}>
-        {text}
-      </p>
-    </section>
-  );
+function openExternalUrl(
+  url: string,
+  event: {
+    stopPropagation: () => void;
+    preventDefault: () => void;
+  },
+): void {
+  event.stopPropagation();
+  event.preventDefault();
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+const ZOTERO_IMPORT_FRAME_ID = "atlas-zotero-bibtex-import-frame";
+
+/**
+ * Imports the Atlas-built BibTeX `@dataset` for this experiment via a hidden
+ * iframe so the Zotero Connector can capture authors, note (sample/experiment),
+ * DOI, and Atlas citation URL in one pass.
+ *
+ * @param experimentId - Experiment UUID for the BibTeX route.
+ */
+function importDatasetWithZoteroConnector(experimentId: string): "bibtex" {
+  if (typeof window === "undefined") return "bibtex";
+  document.getElementById(ZOTERO_IMPORT_FRAME_ID)?.remove();
+  const iframe = document.createElement("iframe");
+  iframe.id = ZOTERO_IMPORT_FRAME_ID;
+  iframe.title = "Zotero BibTeX import";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.tabIndex = -1;
+  iframe.style.cssText =
+    "position:fixed;width:0;height:0;border:0;clip:rect(0,0,0,0);overflow:hidden";
+  iframe.src = `/api/citations/experiments/${encodeURIComponent(experimentId)}/bibtex`;
+  document.body.appendChild(iframe);
+  window.setTimeout(() => {
+    iframe.remove();
+  }, 60_000);
+  return "bibtex";
 }
 
 function ReferenceManagerLinks({
+  experimentId,
   datasetDoi,
+  onZoteroImport,
 }: {
+  experimentId: string;
   datasetDoi: string | null;
+  onZoteroImport?: (mode: "bibtex") => void;
 }): ReactNode {
-  const zoteroHref = buildZoteroSaveUrl(datasetDoi);
+  const canImportZotero = Boolean(datasetDoi?.trim()) || Boolean(experimentId);
   const mendeleyHref = buildMendeleyImportUrl(datasetDoi);
   return (
     <section className="min-w-0">
-      <h4 className={sectionLabelClassName}>Add to library</h4>
+      <h3 className={sectionLabelClassName}>Add to library</h3>
       <p className={sectionHintClassName}>
-        {zoteroHref
-          ? "Opens Zotero or Mendeley with this dataset DOI"
-          : "Available after a dataset DOI is minted"}
+        {canImportZotero
+          ? "Zotero imports Atlas BibTeX (authors, notes, DOI, and Atlas URL). Mendeley uses DOI lookup."
+          : "Available after the dataset is saved"}
       </p>
-      {zoteroHref && mendeleyHref ? (
+      {canImportZotero || mendeleyHref ? (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <a
-            href={zoteroHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={referenceManagerLinkClassName}
-            onPointerDown={stopCardToggle}
-            onClick={stopCardToggle}
-          >
-            <ArrowTopRightOnSquareIcon className="size-3.5 shrink-0" aria-hidden />
-            Zotero
-          </a>
-          <a
-            href={mendeleyHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={referenceManagerLinkClassName}
-            onPointerDown={stopCardToggle}
-            onClick={stopCardToggle}
-          >
-            <ArrowTopRightOnSquareIcon className="size-3.5 shrink-0" aria-hidden />
-            Mendeley
-          </a>
+          {canImportZotero ? (
+            <button
+              type="button"
+              className={referenceManagerLinkClassName}
+              onPointerDown={stopCardToggle}
+              onClick={(event) => {
+                event.stopPropagation();
+                const mode = importDatasetWithZoteroConnector(experimentId);
+                onZoteroImport?.(mode);
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- static brand PNG from /public */}
+              <img
+                src={ZOTERO_LOGO_SRC}
+                alt=""
+                width={16}
+                height={16}
+                className="size-4 shrink-0 rounded-[3px] bg-white object-cover"
+                aria-hidden
+              />
+              Zotero
+            </button>
+          ) : null}
+          {mendeleyHref ? (
+            <a
+              href={mendeleyHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={referenceManagerLinkClassName}
+              onPointerDown={stopCardToggle}
+              onClick={(event) => {
+                openExternalUrl(mendeleyHref, event);
+              }}
+            >
+              <MendeleyMarkIcon className="size-4 shrink-0 text-[#AD0000]" />
+              Mendeley
+            </a>
+          ) : null}
         </div>
       ) : null}
     </section>
   );
 }
 
-function InTextCitationSection({
-  inText,
-  inTextExample,
+function CitationCopyAccordion({
+  id,
+  label,
+  hint,
+  text,
+  prose,
   onCopy,
 }: {
-  inText: string;
-  inTextExample: string;
+  id: string;
+  label: string;
+  hint?: string;
+  text: string;
+  prose?: boolean;
   onCopy: (text: string, label: string) => void;
-}) {
+}): ReactNode {
   return (
-    <section className="min-w-0 space-y-3">
-      <div>
-        <div className="flex items-start justify-between gap-2">
-          <h3 className={sectionLabelClassName}>In-text citation</h3>
+    <Accordion.Item id={id} className="w-full min-w-0">
+      <Accordion.Heading className="w-full min-w-0">
+        <div className="flex w-full min-w-0 items-center gap-1">
+          <Accordion.Trigger className={citeAccordionTriggerClass}>
+            <span className="min-w-0 flex-1">
+              <span className="block">{label}</span>
+              {hint ? (
+                <span className={cn(sectionHintClassName, "mt-0 font-normal")}>
+                  {hint}
+                </span>
+              ) : null}
+            </span>
+            <Accordion.Indicator className={citeAccordionIndicatorClass} />
+          </Accordion.Trigger>
           <CitationCopyIconButton
-            label="In-text citation"
+            label={label}
             onPress={() => {
-              onCopy(inText, "In-text citation");
+              onCopy(text, label);
             }}
           />
         </div>
-        <p className={sectionBodyClassName}>{inText}</p>
-      </div>
-      <div>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h4 className={sectionLabelClassName}>Example in prose</h4>
-            <p className={sectionHintClassName}>
-              How you might mention an {site.name} dataset in a manuscript
-            </p>
-          </div>
-          <CitationCopyIconButton
-            label="example citation sentence"
-            onPress={() => {
-              onCopy(inTextExample, "Example citation sentence");
-            }}
-          />
-        </div>
-        <p className={sectionProseClassName}>{inTextExample}</p>
-      </div>
-    </section>
+      </Accordion.Heading>
+      <Accordion.Panel className="w-full min-w-0">
+        <Accordion.Body className="pt-0">
+          <p className={prose ? sectionProseClassName : sectionBodyClassName}>
+            {text}
+          </p>
+        </Accordion.Body>
+      </Accordion.Panel>
+    </Accordion.Item>
   );
 }
 
@@ -486,6 +591,7 @@ function InTextCitationSection({
  */
 export function NexafsDatasetDoiCiteControl({
   experimentId,
+  atlasDatasetId = null,
   datasetDoi,
   zenodoRecordUrl,
   zenodoDepositState,
@@ -507,12 +613,15 @@ export function NexafsDatasetDoiCiteControl({
   const [mintingEnabled, setMintingEnabled] = useState<boolean | null>(null);
   const [pollExhausted, setPollExhausted] = useState(false);
   const [openPopover, setOpenPopover] = useState<OpenPopoverId>(null);
+  const [mintConfirmOpen, setMintConfirmOpen] = useState(false);
+  const [userInitiatedMint, setUserInitiatedMint] = useState(false);
   const pollCountRef = useRef(0);
   const lastStatusDataUpdatedAtRef = useRef(0);
   const toastedTerminalRef = useRef<string | null>(null);
-  const userInitiatedMintRef = useRef(false);
   const { toasts, removeToast, showToast } = useToast();
   const utils = trpc.useUtils();
+  const { data: session, status: sessionStatus } = useSession();
+  const isSignedIn = sessionStatus === "authenticated" && Boolean(session?.user);
 
   useEffect(() => {
     setLocalDoi(datasetDoi);
@@ -520,15 +629,23 @@ export function NexafsDatasetDoiCiteControl({
     setLocalState(zenodoDepositState);
     setPollExhausted(false);
     setOpenPopover(null);
+    setUserInitiatedMint(false);
     pollCountRef.current = 0;
     lastStatusDataUpdatedAtRef.current = 0;
     toastedTerminalRef.current = null;
-    userInitiatedMintRef.current = false;
   }, [experimentId, datasetDoi, zenodoRecordUrl, zenodoDepositState]);
+
+  const needsEditCapability =
+    isSignedIn &&
+    Boolean(experimentId) &&
+    (!normalizeDoi(localDoi) ||
+      isInFlightState(localState) ||
+      localState === "failed" ||
+      openPopover === "doi");
 
   const canEditQuery = trpc.experiments.canEditExperiment.useQuery(
     { experimentId },
-    { enabled: Boolean(experimentId) },
+    { enabled: needsEditCapability },
   );
   const canMint = canEditQuery.data?.canEdit === true;
 
@@ -537,7 +654,11 @@ export function NexafsDatasetDoiCiteControl({
   const shouldPollStatus =
     Boolean(experimentId) &&
     !pollExhausted &&
-    (mintMutation.isPending || isInFlightState(localState));
+    (mintMutation.isPending ||
+      (userInitiatedMint && isInFlightState(localState)) ||
+      (isSignedIn &&
+        openPopover === "doi" &&
+        isInFlightState(localState)));
 
   const statusQuery = trpc.experiments.getZenodoDepositStatus.useQuery(
     { experimentId },
@@ -582,7 +703,7 @@ export function NexafsDatasetDoiCiteControl({
     ) {
       setPollExhausted(true);
       setLocalState("failed");
-      if (userInitiatedMintRef.current) {
+      if (userInitiatedMint) {
         showToast(
           "Zenodo mint is taking too long. You can retry from the DOI control.",
           "warning",
@@ -601,27 +722,32 @@ export function NexafsDatasetDoiCiteControl({
         toastedTerminalRef.current = key;
         void utils.experiments.browseList.invalidate();
         void utils.experiments.browseSearch.invalidate();
-        if (userInitiatedMintRef.current) {
+        if (userInitiatedMint) {
           showToast(`Dataset DOI minted: ${data.doi}`, "success");
         }
       }
-    } else if (coerced === "failed" && userInitiatedMintRef.current) {
-      const key = `failed:${data.error ?? "stale"}`;
-      if (toastedTerminalRef.current !== key) {
-        toastedTerminalRef.current = key;
-        showToast(
-          data.error?.trim()
-            ? `Zenodo mint failed: ${data.error}`
-            : "Zenodo mint failed or stalled",
-          "error",
-        );
+      setUserInitiatedMint(false);
+    } else if (coerced === "failed") {
+      if (userInitiatedMint) {
+        const key = `failed:${data.error ?? "stale"}`;
+        if (toastedTerminalRef.current !== key) {
+          toastedTerminalRef.current = key;
+          showToast(
+            data.error?.trim()
+              ? `Zenodo mint failed: ${data.error}`
+              : "Zenodo mint failed or stalled",
+            "error",
+          );
+        }
       }
+      setUserInitiatedMint(false);
     }
   }, [
     mintMutation.isPending,
     showToast,
     statusQuery.data,
     statusQuery.dataUpdatedAt,
+    userInitiatedMint,
     utils.experiments.browseList,
     utils.experiments.browseSearch,
   ]);
@@ -636,6 +762,10 @@ export function NexafsDatasetDoiCiteControl({
     pollExhausted,
   });
 
+  const atlasCitationUrl = atlasDatasetId?.trim()
+    ? buildPublicAtlasDatasetCitationUrl(atlasDatasetId.trim())
+    : null;
+
   const citationBundle = buildDatasetCitationBundle({
     moleculeDisplayName,
     edgeLabel,
@@ -643,6 +773,7 @@ export function NexafsDatasetDoiCiteControl({
     facilityName,
     experimentTypeLabel,
     datasetDoi: localDoi,
+    atlasCitationUrl,
     sourcePublications,
     creators: citationCreators,
     year: citationYear,
@@ -673,7 +804,7 @@ export function NexafsDatasetDoiCiteControl({
   const runMint = useCallback(async () => {
     if (!canMint || mintMutation.isPending) return;
     toastedTerminalRef.current = null;
-    userInitiatedMintRef.current = true;
+    setUserInitiatedMint(true);
     setPollExhausted(false);
     pollCountRef.current = 0;
     setLocalState("depositing");
@@ -769,41 +900,79 @@ export function NexafsDatasetDoiCiteControl({
             </span>
           }
         >
-          <h3 className="text-foreground text-sm font-semibold tracking-tight">
-            Dataset DOI
-          </h3>
-          <p className={sectionHintClassName}>
-            {site.name} dataset DOI minted via Zenodo
-          </p>
-          <p className={sectionBodyClassName}>{mode.doi}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              isIconOnly
-              className={copyIconButtonClassName}
-              aria-label="Copy DOI"
-              onPress={() => {
-                void handleCopy(mode.doi, "DOI");
-              }}
+          <h3 className={sectionLabelClassName}>Zenodo DOI</h3>
+          <div className="mt-2 flex min-w-0 items-center gap-2">
+            <p
+              className={cn(
+                sectionBodyClassName,
+                "mt-0 max-h-none min-w-0 flex-1 overflow-x-auto whitespace-nowrap",
+              )}
             >
-              <Square2StackIcon className="size-3.5" aria-hidden />
-            </Button>
-            {zenodoHref ? (
-              <a
-                href={zenodoHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                  "bg-accent text-accent-foreground inline-flex h-7 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium",
-                  "hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                )}
+              {mode.doi}
+            </p>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="ghost"
+                isIconOnly
+                className={copyIconButtonClassName}
+                aria-label="Copy DOI"
+                onPress={() => {
+                  void handleCopy(mode.doi, "DOI");
+                }}
               >
-                <ArrowTopRightOnSquareIcon className="size-3.5 shrink-0" aria-hidden />
-                Go to Zenodo
-              </a>
-            ) : null}
+                <Square2StackIcon className="size-3.5" aria-hidden />
+              </Button>
+              {zenodoHref ? (
+                <a
+                  href={zenodoHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open on Zenodo"
+                  title="Open on Zenodo"
+                  className={cn(
+                    "bg-accent text-accent-foreground inline-flex h-7 w-7 items-center justify-center rounded-lg",
+                    "focus-visible:ring-accent hover:opacity-90 focus-visible:ring-2 focus-visible:outline-none",
+                  )}
+                >
+                  <ArrowTopRightOnSquareIcon
+                    className="size-3.5 shrink-0"
+                    aria-hidden
+                  />
+                </a>
+              ) : null}
+            </div>
           </div>
+          {atlasDatasetId?.trim() && atlasCitationUrl ? (
+            <div className="mt-3 min-w-0">
+              <h4 className={sectionLabelClassName}>Atlas data tag</h4>
+              <div className="mt-2 flex min-w-0 items-center gap-2">
+                <p
+                  className={cn(
+                    sectionBodyClassName,
+                    "mt-0 max-h-none min-w-0 flex-1 overflow-x-auto whitespace-nowrap",
+                  )}
+                >
+                  {atlasCitationUrl.replace(/^https?:\/\//, "")}
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  isIconOnly
+                  className={copyIconButtonClassName}
+                  aria-label="Copy Atlas data tag"
+                  onPress={() => {
+                    void handleCopy(
+                      atlasCitationUrl.replace(/^https?:\/\//, ""),
+                      "Atlas data tag",
+                    );
+                  }}
+                >
+                  <Square2StackIcon className="size-3.5" aria-hidden />
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </CardPressPopover>
       );
       break;
@@ -833,7 +1002,7 @@ export function NexafsDatasetDoiCiteControl({
           onClick={(event) => {
             stopCardToggle(event);
             if (!mode.enabled) return;
-            void runMint();
+            setMintConfirmOpen(true);
           }}
           className={cn(
             doiSegmentClassName,
@@ -881,52 +1050,80 @@ export function NexafsDatasetDoiCiteControl({
             </>
           }
         >
-          <header className="mb-4 border-b border-border/60 pb-3">
-            <h3 className="text-foreground text-sm font-semibold tracking-tight">
-              Cite this dataset
-            </h3>
-            <p className={sectionHintClassName}>
-              {site.name} NEXAFS dataset; DOI minted via Zenodo
-            </p>
-          </header>
-          <div className="space-y-4">
-            <InTextCitationSection
-              inText={citationBundle.inText}
-              inTextExample={citationBundle.inTextExample}
-              onCopy={(text, label) => {
-                void handleCopy(text, label);
+          <div className="space-y-3">
+            <ReferenceManagerLinks
+              experimentId={experimentId}
+              datasetDoi={localDoi}
+              onZoteroImport={() => {
+                showToast(
+                  "Confirm the Zotero import if prompted (authors, notes, DOI, and Atlas URL)",
+                  "info",
+                );
               }}
             />
-            <CitationCopySection
-              label="Data availability"
-              hint="For a manuscript Data Availability section"
-              text={citationBundle.dataAvailability}
-              prose
-              onCopy={(text, label) => {
-                void handleCopy(text, label);
-              }}
-            />
-            <CitationCopySection
-              label="BibTeX"
-              text={citationBundle.bibtex}
-              onCopy={(text, label) => {
-                void handleCopy(text, label);
-              }}
-            />
-            <CitationCopySection
-              label="Full reference"
-              text={citationBundle.reference}
-              prose
-              onCopy={(text, label) => {
-                void handleCopy(text, label);
-              }}
-            />
-            <ReferenceManagerLinks datasetDoi={datasetDoi} />
+            <Accordion
+              className={citeAccordionClass}
+              hideSeparator
+              allowsMultipleExpanded
+            >
+              <CitationCopyAccordion
+                id="bibtex"
+                label="BibTeX"
+                text={citationBundle.bibtex}
+                onCopy={(text, label) => {
+                  void handleCopy(text, label);
+                }}
+              />
+              <CitationCopyAccordion
+                id="data-availability"
+                label="Data availability statement"
+                hint="For a manuscript Data Availability section"
+                text={citationBundle.dataAvailability}
+                prose
+                onCopy={(text, label) => {
+                  void handleCopy(text, label);
+                }}
+              />
+            </Accordion>
           </div>
         </CardPressPopover>
         <span className={segmentDividerClassName} aria-hidden />
         {doiSegment}
       </span>
+
+      <SimpleDialog
+        isOpen={mintConfirmOpen}
+        onClose={() => {
+          setMintConfirmOpen(false);
+        }}
+        title="Mint Zenodo dataset DOI?"
+      >
+        <p className="text-muted text-sm leading-relaxed">
+          Publishing to Zenodo creates a permanent DOI for this dataset. This
+          cannot be undone. Continue only when the spectrum and attribution are
+          ready to cite.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button
+            variant="secondary"
+            onPress={() => {
+              setMintConfirmOpen(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            isDisabled={mintMutation.isPending}
+            onPress={() => {
+              setMintConfirmOpen(false);
+              void runMint();
+            }}
+          >
+            Mint DOI
+          </Button>
+        </div>
+      </SimpleDialog>
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </span>
