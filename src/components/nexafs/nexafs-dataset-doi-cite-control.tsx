@@ -1031,67 +1031,6 @@ export function NexafsDatasetDoiCiteControl({
           }
         >
           <div className="space-y-3">
-            {(normalizedDoi ?? atlasCitationUrl) ? (
-              <div className="space-y-3">
-                {normalizedDoi ? (
-                  <div className="min-w-0">
-                    <h4 className={sectionLabelClassName}>Zenodo DOI</h4>
-                    <div className="mt-2 flex min-w-0 items-center gap-2">
-                      <p
-                        className={cn(
-                          sectionBodyClassName,
-                          "mt-0 max-h-none min-w-0 flex-1 overflow-x-auto whitespace-nowrap",
-                        )}
-                      >
-                        {normalizedDoi}
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        isIconOnly
-                        className={copyIconButtonClassName}
-                        aria-label="Copy Zenodo DOI"
-                        onPress={() => {
-                          void handleCopy(normalizedDoi, "DOI");
-                        }}
-                      >
-                        <Square2StackIcon className="size-3.5" aria-hidden />
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-                {atlasCitationUrl ? (
-                  <div className="min-w-0">
-                    <h4 className={sectionLabelClassName}>Atlas data tag</h4>
-                    <div className="mt-2 flex min-w-0 items-center gap-2">
-                      <p
-                        className={cn(
-                          sectionBodyClassName,
-                          "mt-0 max-h-none min-w-0 flex-1 overflow-x-auto whitespace-nowrap",
-                        )}
-                      >
-                        {atlasCitationUrl.replace(/^https?:\/\//, "")}
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        isIconOnly
-                        className={copyIconButtonClassName}
-                        aria-label="Copy Atlas data tag"
-                        onPress={() => {
-                          void handleCopy(
-                            atlasCitationUrl.replace(/^https?:\/\//, ""),
-                            "Atlas data tag",
-                          );
-                        }}
-                      >
-                        <Square2StackIcon className="size-3.5" aria-hidden />
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
             <ReferenceManagerLinks
               experimentId={experimentId}
               datasetDoi={localDoi}
