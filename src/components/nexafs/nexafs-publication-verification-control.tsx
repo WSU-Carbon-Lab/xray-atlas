@@ -255,7 +255,11 @@ function useVerificationPopoverPosition(
   contentRef: RefObject<HTMLElement | null>,
   isOpen: boolean,
 ) {
-  const [position, setPosition] = useState({ left: 0, top: 0, arrowOffsetPx: 0 });
+  const [position, setPosition] = useState({
+    left: 0,
+    top: 0,
+    arrowOffsetPx: 0,
+  });
 
   const updatePosition = useCallback(() => {
     const el = triggerRef.current;
@@ -303,7 +307,9 @@ function DoiResolverLink({ doi }: { doi: string }) {
   );
 }
 
-function useInvalidateBrowseSourcePublications(experimentId: string | undefined) {
+function useInvalidateBrowseSourcePublications(
+  experimentId: string | undefined,
+) {
   const utils = trpc.useUtils();
   return useCallback(() => {
     if (!experimentId) return;
@@ -422,9 +428,7 @@ function SourcePublicationSection({
   sourcePublications: NexafsBrowseSourcePublication[];
   canEditSourcePublications: boolean;
   showTopBorder: boolean;
-  onSourcePublicationsChange: (
-    next: NexafsBrowseSourcePublication[],
-  ) => void;
+  onSourcePublicationsChange: (next: NexafsBrowseSourcePublication[]) => void;
 }) {
   const invalidateBrowse = useInvalidateBrowseSourcePublications(experimentId);
   const [draft, setDraft] = useState<SourcePaperDoiFieldValue>({
@@ -489,7 +493,9 @@ function SourcePublicationSection({
   ]);
 
   return (
-    <section className={showTopBorder ? "border-separator border-t pt-2.5" : undefined}>
+    <section
+      className={showTopBorder ? "border-separator border-t pt-2.5" : undefined}
+    >
       <SectionTitle>Source Publication</SectionTitle>
       {sourcePublications.length > 0 ? (
         <ul className="mt-1 space-y-1.5">
@@ -587,18 +593,17 @@ function VerificationPopoverContent({
   canEditSourcePublications: boolean;
   canManageAtlasVerification: boolean;
   onAtlasTeamVerifiedChange: (verified: boolean) => void;
-  onSourcePublicationsChange: (
-    next: NexafsBrowseSourcePublication[],
-  ) => void;
+  onSourcePublicationsChange: (next: NexafsBrowseSourcePublication[]) => void;
 }) {
-  const showAtlasSection =
-    atlasTeamVerified || canManageAtlasVerification;
+  const showAtlasSection = atlasTeamVerified || canManageAtlasVerification;
   const showSourceSection =
     sourcePublications.length > 0 || canEditSourcePublications;
 
   if (!showAtlasSection && !showSourceSection) {
     return (
-      <p className="text-muted text-xs leading-snug">No verification on record.</p>
+      <p className="text-muted text-xs leading-snug">
+        No verification on record.
+      </p>
     );
   }
 
@@ -628,7 +633,11 @@ function VerificationPopoverContent({
           onSourcePublicationsChange={onSourcePublicationsChange}
         />
       ) : showSourceSection ? (
-        <section className={showAtlasSection ? "border-separator border-t pt-2.5" : undefined}>
+        <section
+          className={
+            showAtlasSection ? "border-separator border-t pt-2.5" : undefined
+          }
+        >
           <SectionTitle>Source Publication</SectionTitle>
           <ul className="mt-1 space-y-1.5">
             {sourcePublications.map((publication) => {
@@ -664,7 +673,8 @@ export function NexafsPublicationVerificationControl({
   const n = linkedPublications.length;
   const hasLinkedDoi = n > 0;
 
-  const [localIngestVerified, setLocalIngestVerified] = useState(ingestVerified);
+  const [localIngestVerified, setLocalIngestVerified] =
+    useState(ingestVerified);
   const [localSourcePublications, setLocalSourcePublications] =
     useState(sourcePublications);
 
